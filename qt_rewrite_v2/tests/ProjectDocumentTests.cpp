@@ -183,7 +183,10 @@ void testSnapshotValidationAndRoundTrip()
         makeIndexedFrame(colorizing::render::kSdFrameSize, 1),
         makeRgb565Frame(colorizing::render::kSdFrameSize, 0x1010),
         makeRgb565Frame(colorizing::render::kHdFrameSize, 0x2020),
+        7,
+        5,
     });
+    snapshot.comparisonMasks.push_back(makeIndexedFrame(colorizing::render::kSdFrameSize, 3));
     snapshot.unsupportedPayloads.push_back(UnsupportedLegacyPayload{"opaque", {9}});
 
     std::string errorMessage;
@@ -199,6 +202,13 @@ void testSnapshotValidationAndRoundTrip()
            "snapshot SD colorized data round-trip");
     expect(roundTrip.frames[0].colorizedHd->pixels.front() == 0x2020,
            "snapshot HD colorized data round-trip");
+    expect(roundTrip.frames[0].shapeComparisonMode == 7,
+           "snapshot shape comparison mode round-trip");
+    expect(roundTrip.frames[0].comparisonMaskId == 5,
+           "snapshot comparison mask ID round-trip");
+    expect(roundTrip.comparisonMasks.size() == 1, "snapshot comparison mask count round-trip");
+    expect(roundTrip.comparisonMasks[0].pixels.front() == 3,
+           "snapshot comparison mask data round-trip");
     expect(roundTrip.unsupportedPayloads.size() == 1, "snapshot unsupported payload round-trip");
 }
 

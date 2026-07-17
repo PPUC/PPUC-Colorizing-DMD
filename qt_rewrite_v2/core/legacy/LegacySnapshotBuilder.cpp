@@ -28,18 +28,23 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
     const std::size_t frameCount = cromFrameData.metadata.frameCount;
     if (crpOriginalData.originalSdFrames.size() != frameCount ||
         cromFrameData.colorizedSdFrames.size() != frameCount ||
+        cromFrameData.shapeComparisonModes.size() != frameCount ||
+        cromFrameData.comparisonMaskIds.size() != frameCount ||
         cromFrameData.extraFrameFlags.size() != frameCount) {
         return fail("cROM and cRP frame counts do not match");
     }
 
     document::ProjectSnapshot snapshot;
     snapshot.romName = cromFrameData.metadata.romName;
+    snapshot.comparisonMasks = cromFrameData.comparisonMasks;
     snapshot.frames.reserve(frameCount);
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         snapshot.frames.push_back(document::ProjectFrameSnapshot{
             crpOriginalData.originalSdFrames[frameIndex],
             cromFrameData.colorizedSdFrames[frameIndex],
             hdFrameIfPresent(cromFrameData, frameIndex),
+            cromFrameData.shapeComparisonModes[frameIndex],
+            cromFrameData.comparisonMaskIds[frameIndex],
         });
     }
 
@@ -55,4 +60,3 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
 }
 
 }  // namespace colorizing::legacy
-

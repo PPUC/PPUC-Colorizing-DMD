@@ -27,6 +27,14 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         return fail(errorMessage, "ROM name is empty");
     }
 
+    for (std::size_t i = 0; i < snapshot.comparisonMasks.size(); ++i) {
+        const IndexedFrame& mask = snapshot.comparisonMasks[i];
+        if (!mask.isValid() || !hasSize(mask.size, render::kSdFrameSize)) {
+            return fail(errorMessage, "comparison mask " + std::to_string(i) +
+                                          " has invalid SD data");
+        }
+    }
+
     for (std::size_t i = 0; i < snapshot.frames.size(); ++i) {
         const ProjectFrameSnapshot& frame = snapshot.frames[i];
         if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, render::kSdFrameSize)) {
@@ -45,4 +53,3 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
 }
 
 }  // namespace colorizing::document
-

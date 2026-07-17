@@ -13,9 +13,15 @@ namespace colorizing::legacy {
 
 struct LegacyCromFrameData {
     LegacyCromMetadata metadata;
+    std::vector<uint8_t> shapeComparisonModes;
+    std::vector<uint8_t> comparisonMaskIds;
+    std::vector<document::IndexedFrame> comparisonMasks;
     std::vector<uint8_t> extraFrameFlags;
     std::vector<document::Rgb565Frame> colorizedSdFrames;
     std::vector<document::Rgb565Frame> colorizedHdFrames;
+    std::size_t shapeComparisonModesOffset = 0;
+    std::size_t comparisonMaskIdsOffset = 0;
+    std::size_t comparisonMasksOffset = 0;
     std::size_t extraFrameFlagsOffset = 0;
     std::size_t colorizedSdFramesOffset = 0;
     std::size_t colorizedHdFramesOffset = 0;

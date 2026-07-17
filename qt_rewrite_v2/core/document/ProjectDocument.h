@@ -33,6 +33,8 @@ struct FrameRecord {
     IndexedFrame originalSd;
     Rgb565Frame colorizedSd;
     std::optional<Rgb565Frame> colorizedHd;
+    uint8_t shapeComparisonMode = 0;
+    uint8_t comparisonMaskId = 0;
 };
 
 struct UnsupportedLegacyPayload {
@@ -85,6 +87,7 @@ public:
 private:
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
+    std::vector<IndexedFrame> m_comparisonMasks;
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     bool m_dirty = false;
 };

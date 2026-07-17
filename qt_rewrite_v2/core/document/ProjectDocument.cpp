@@ -116,8 +116,11 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.originalSd,
             frameSnapshot.colorizedSd,
             frameSnapshot.colorizedHd,
+            frameSnapshot.shapeComparisonMode,
+            frameSnapshot.comparisonMaskId,
         });
     }
+    document.m_comparisonMasks = snapshot.comparisonMasks;
     document.m_unsupportedPayloads = snapshot.unsupportedPayloads;
     document.m_dirty = false;
     return document;
@@ -266,8 +269,11 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.originalSd,
             frame.colorizedSd,
             frame.colorizedHd,
+            frame.shapeComparisonMode,
+            frame.comparisonMaskId,
         });
     }
+    snapshot.comparisonMasks = m_comparisonMasks;
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
     return snapshot;
 }

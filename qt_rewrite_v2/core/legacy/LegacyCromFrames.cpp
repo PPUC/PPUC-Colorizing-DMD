@@ -118,19 +118,41 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     const std::size_t sdPixels = checkedProduct(metadata.frameWidth, metadata.frameHeight);
     const std::size_t hdPixels = checkedProduct(metadata.hdFrameWidth, metadata.hdFrameHeight);
     const std::size_t frameCount = metadata.frameCount;
-    const std::size_t comparisonMaskPixels =
-        static_cast<std::size_t>(metadata.comparisonMaskCount) * sdPixels;
 
     std::string error;
-    if (!skipRequired(cursor, frameCount * kHashCodeBytes, "hash codes", error) ||
-        !skipRequired(cursor, frameCount, "shape comparison modes", error) ||
-        !skipRequired(cursor, frameCount, "comparison mask IDs", error) ||
-        !skipRequired(cursor, comparisonMaskPixels, "comparison masks", error)) {
+    if (!skipRequired(cursor, frameCount * kHashCodeBytes, "hash codes", error)) {
         return fail(error);
     }
 
     LegacyCromFrameData frameData;
     frameData.metadata = metadata;
+    frameData.shapeComparisonModes.resize(frameCount);
+    frameData.shapeComparisonModesOffset = cursor.offset();
+    if (!cursor.readBytes(frameData.shapeComparisonModes.data(),
+                          frameData.shapeComparisonModes.size())) {
+        return fail("unexpected end of cROM while reading shape comparison modes");
+    }
+
+    frameData.comparisonMaskIds.resize(frameCount);
+    frameData.comparisonMaskIdsOffset = cursor.offset();
+    if (!cursor.readBytes(frameData.comparisonMaskIds.data(),
+                          frameData.comparisonMaskIds.size())) {
+        return fail("unexpected end of cROM while reading comparison mask IDs");
+    }
+
+    frameData.comparisonMasksOffset = cursor.offset();
+    frameData.comparisonMasks.reserve(metadata.comparisonMaskCount);
+    for (std::size_t maskIndex = 0; maskIndex < metadata.comparisonMaskCount; ++maskIndex) {
+        document::IndexedFrame mask =
+            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.frameWidth),
+                                                    static_cast<int>(metadata.frameHeight)});
+        if (mask.pixels.size() != sdPixels ||
+            !cursor.readBytes(mask.pixels.data(), mask.pixels.size())) {
+            return fail("unexpected end of cROM while reading comparison masks");
+        }
+        frameData.comparisonMasks.push_back(std::move(mask));
+    }
+
     frameData.extraFrameFlags.resize(frameCount);
     frameData.extraFrameFlagsOffset = cursor.offset();
     if (!cursor.readBytes(frameData.extraFrameFlags.data(), frameData.extraFrameFlags.size())) {

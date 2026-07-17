@@ -13,6 +13,14 @@ The Qt rewrite edits legacy Serum editor projects directly:
 
 Saving currently writes back to the existing `.cROM` path. The `.cRP` file is required for loading but is not modified by the current editor features.
 
+The in-memory project model currently carries structured comparison-mask data from `.cROM`:
+
+- Per-frame shape comparison mode.
+- Per-frame comparison mask ID.
+- SD comparison mask bitmaps.
+
+The UI does not expose comparison-mask editing yet.
+
 ## Opening Projects
 
 Use `File -> Open Project...` and select a `.cROM` file.

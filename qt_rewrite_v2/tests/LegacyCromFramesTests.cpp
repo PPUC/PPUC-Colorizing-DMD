@@ -120,6 +120,17 @@ void testModernFrameArraysParse()
     expect(result.ok, "modern frame arrays should parse");
     expect(result.frameData.metadata.romName == "frames_rom", "frame data ROM name");
     expect(result.frameData.extraFrameFlags.size() == 2, "extra frame flag count");
+    expect(result.frameData.shapeComparisonModes.size() == 2, "shape comparison mode count");
+    expect(result.frameData.shapeComparisonModes[0] == 0, "first shape comparison mode");
+    expect(result.frameData.shapeComparisonModes[1] == 1, "second shape comparison mode");
+    expect(result.frameData.comparisonMaskIds.size() == 2, "comparison mask ID count");
+    expect(result.frameData.comparisonMaskIds[0] == 255, "first comparison mask ID");
+    expect(result.frameData.comparisonMaskIds[1] == 3, "second comparison mask ID");
+    expect(result.frameData.comparisonMasks.size() == 1, "comparison mask count");
+    expect(result.frameData.comparisonMasks[0].pixels.size() == kSdPixels,
+           "comparison mask pixel count");
+    expect(result.frameData.comparisonMasks[0].pixels[1] == 1,
+           "comparison mask pixel data");
     expect(result.frameData.extraFrameFlags[0] == 0, "first frame HD absent flag");
     expect(result.frameData.extraFrameFlags[1] == 1, "second frame HD present flag");
     expect(result.frameData.colorizedSdFrames.size() == 2, "SD frame count");
@@ -146,6 +157,7 @@ void testModernFrameArraysWithoutComparisonMasks()
         parseModernLegacyCromFrames(makeModernCromWithFrames(0));
 
     expect(result.ok, "modern frame arrays without comparison masks should parse");
+    expect(result.frameData.comparisonMasks.empty(), "zero comparison masks should be empty");
     expect(result.frameData.colorizedSdFrames[0].pixels.front() == 0x1001,
            "SD data after zero comparison masks");
 }
@@ -194,4 +206,3 @@ void runLegacyCromFramesTests()
     testTruncatedSdFramesFail();
     testTruncatedHdFramesFail();
 }
-
