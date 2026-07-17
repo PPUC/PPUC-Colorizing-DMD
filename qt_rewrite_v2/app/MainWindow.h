@@ -34,6 +34,7 @@ private:
         FilledRectangle,
         Ellipse,
         FilledEllipse,
+        ColorPicker,
     };
 
     struct PixelChange {
@@ -77,6 +78,7 @@ private:
     void setDrawingTool(DrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
     void paintFramePixel(const render::CanvasHit& hit);
+    void pickFrameColor(const render::CanvasHit& hit);
     void previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
     void paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,

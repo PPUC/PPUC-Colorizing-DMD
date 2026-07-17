@@ -312,6 +312,7 @@ void MainWindow::createCentralView()
         {DrawingTool::FilledRectangle, QStringLiteral("Fill Rect")},
         {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
         {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
+        {DrawingTool::ColorPicker, QStringLiteral("Pick")},
     };
     for (const auto& toolOption : tools) {
         const DrawingTool tool = toolOption.first;
@@ -632,12 +633,36 @@ void MainWindow::setDrawingTool(DrawingTool tool)
 
 void MainWindow::paintFramePixel(const render::CanvasHit& hit)
 {
+    if (m_drawingTool == DrawingTool::ColorPicker) {
+        pickFrameColor(hit);
+        return;
+    }
     if (m_drawingTool != DrawingTool::Point) {
         return;
     }
     commitPixels(hit.resolution,
                  {render::Point{hit.x, hit.y}},
                  QStringLiteral("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
+}
+
+void MainWindow::pickFrameColor(const render::CanvasHit& hit)
+{
+    if (!m_document || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    try {
+        const uint16_t color = m_document->colorizedPixel(frameIndex,
+                                                          hit.resolution,
+                                                          hit.x,
+                                                          hit.y);
+        setActiveDrawColor(color);
+        statusBar()->showMessage(QStringLiteral("Picked color 0x%1")
+                                     .arg(color, 4, 16, QLatin1Char('0')),
+                                 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
 }
 
 void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
