@@ -22,6 +22,7 @@
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 #include "legacy/LegacyProjectFileReader.h"
+#include "legacy/LegacyProjectFileWriter.h"
 
 namespace colorizing::app {
 
@@ -62,6 +63,13 @@ void MainWindow::createActions()
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, [this]() {
         openProject();
+    });
+
+    m_saveAction = fileMenu->addAction(QStringLiteral("&Save"));
+    m_saveAction->setShortcut(QKeySequence::Save);
+    m_saveAction->setEnabled(false);
+    connect(m_saveAction, &QAction::triggered, this, [this]() {
+        saveProject();
     });
 
     fileMenu->addSeparator();
@@ -183,6 +191,37 @@ void MainWindow::openProject()
     loadProject(cromPath, crpPath);
 }
 
+void MainWindow::saveProject()
+{
+    if (!m_document) {
+        return;
+    }
+    if (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty()) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project Failed"),
+                              QStringLiteral("The current project paths are incomplete."));
+        return;
+    }
+
+    const legacy::LegacyProjectFileWriter writer;
+    const legacy::LegacySaveResult result = writer.save(legacy::LegacyProjectPaths{
+        m_currentCromPath.toStdString(),
+        m_currentCrpPath.toStdString(),
+    }, m_document->toSnapshot());
+
+    if (!result.ok) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project Failed"),
+                              QString::fromStdString(result.error.message));
+        statusBar()->showMessage(QStringLiteral("Save failed"), 4000);
+        return;
+    }
+
+    m_document->markClean();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(QStringLiteral("Project saved"), 3000);
+}
+
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 {
     const legacy::LegacyProjectFileReader reader;
@@ -201,9 +240,14 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 
     try {
         m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
+        m_currentCromPath = cromPath;
+        m_currentCrpPath = crpPath;
         m_undoStack.clear();
         m_redoStack.clear();
         updateUndoRedoActions();
+        if (m_saveAction) {
+            m_saveAction->setEnabled(true);
+        }
     } catch (const std::exception& ex) {
         QMessageBox::critical(this,
                               QStringLiteral("Open Project Failed"),
@@ -239,6 +283,9 @@ void MainWindow::refreshProjectSummary()
     if (!m_document) {
         setStatusText(QStringLiteral("No project loaded"));
         setFrameStatusText(QString());
+        if (m_saveAction) {
+            m_saveAction->setEnabled(false);
+        }
         return;
     }
 

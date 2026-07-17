@@ -16,6 +16,9 @@ struct LegacyCromFrameData {
     std::vector<uint8_t> extraFrameFlags;
     std::vector<document::Rgb565Frame> colorizedSdFrames;
     std::vector<document::Rgb565Frame> colorizedHdFrames;
+    std::size_t extraFrameFlagsOffset = 0;
+    std::size_t colorizedSdFramesOffset = 0;
+    std::size_t colorizedHdFramesOffset = 0;
 };
 
 struct LegacyCromFrameParseResult {
@@ -34,4 +37,3 @@ struct LegacyCromFrameParseResult {
     std::size_t frameIndex);
 
 }  // namespace colorizing::legacy
-

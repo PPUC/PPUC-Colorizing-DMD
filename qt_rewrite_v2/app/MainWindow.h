@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QString>
 
 #include "document/ProjectDocument.h"
 
@@ -36,6 +37,7 @@ private:
     void createActions();
     void createCentralView();
     void openProject();
+    void saveProject();
     void loadProject(const QString& cromPath, const QString& crpPath);
     void setStatusText(const QString& text);
     void setFrameStatusText(const QString& text);
@@ -53,6 +55,7 @@ private:
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
+    QAction* m_saveAction = nullptr;
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
     QListWidget* m_frameList = nullptr;
@@ -64,6 +67,8 @@ private:
     uint16_t m_activeDrawColor = 0xffff;
     std::vector<PointEditCommand> m_undoStack;
     std::vector<PointEditCommand> m_redoStack;
+    QString m_currentCromPath;
+    QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;
 };
 

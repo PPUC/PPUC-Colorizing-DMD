@@ -5,6 +5,7 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacyCromMetadata.cpp
     legacy/LegacyCrpOriginals.cpp
     legacy/LegacyProjectFileReader.cpp
+    legacy/LegacyProjectFileWriter.cpp
     legacy/LegacyProjectIo.cpp
     legacy/LegacySnapshotBuilder.cpp
     render/CanvasLayout.cpp

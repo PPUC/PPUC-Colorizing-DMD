@@ -132,10 +132,12 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     LegacyCromFrameData frameData;
     frameData.metadata = metadata;
     frameData.extraFrameFlags.resize(frameCount);
+    frameData.extraFrameFlagsOffset = cursor.offset();
     if (!cursor.readBytes(frameData.extraFrameFlags.data(), frameData.extraFrameFlags.size())) {
         return fail("unexpected end of cROM while reading extra frame flags");
     }
 
+    frameData.colorizedSdFramesOffset = cursor.offset();
     frameData.colorizedSdFrames.reserve(frameCount);
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         document::Rgb565Frame frame =
@@ -148,6 +150,7 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         frameData.colorizedSdFrames.push_back(std::move(frame));
     }
 
+    frameData.colorizedHdFramesOffset = cursor.offset();
     frameData.colorizedHdFrames.reserve(frameCount);
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         document::Rgb565Frame frame =

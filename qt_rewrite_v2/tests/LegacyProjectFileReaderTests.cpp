@@ -1,17 +1,24 @@
 #include "legacy/LegacyProjectFileReader.h"
+#include "legacy/LegacyProjectFileWriter.h"
 
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <vector>
 
 #include <unistd.h>
 
+#include "render/CanvasLayout.h"
+
+using colorizing::document::makeRgb565Frame;
 using colorizing::legacy::LegacyLoadResult;
 using colorizing::legacy::LegacyProjectFileReader;
+using colorizing::legacy::LegacyProjectFileWriter;
 using colorizing::legacy::LegacyProjectPaths;
+using colorizing::legacy::LegacySaveResult;
 
 namespace {
 
@@ -92,6 +99,8 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendRepeatedU16(bytes, 0x2222, kSdPixels);
     appendRepeatedU16(bytes, 0xaaaa, kHdPixels);
     appendRepeatedU16(bytes, 0xbbbb, kHdPixels);
+    bytes.push_back(0x99);
+    bytes.push_back(0x88);
     return bytes;
 }
 
@@ -142,6 +151,16 @@ void writeBytes(const std::filesystem::path& path, const std::vector<uint8_t>& b
     if (!stream) {
         fail("could not write temp file: " + path.string());
     }
+}
+
+std::vector<uint8_t> readBytes(const std::filesystem::path& path)
+{
+    std::ifstream stream(path, std::ios::binary);
+    if (!stream) {
+        fail("could not open temp file: " + path.string());
+    }
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)),
+                                std::istreambuf_iterator<char>());
 }
 
 void testFileReaderLoadsModernProject()
@@ -209,6 +228,81 @@ void testFileReaderRejectsLegacyPalettedCrom()
            "legacy paletted file reader error");
 }
 
+void testFileWriterSavesEditedModernCrom()
+{
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    writeBytes(cromPath, makeModernCromWithFrames());
+    writeBytes(crpPath, makeCrpOriginals("file_rom"));
+
+    const LegacyProjectPaths paths{
+        cromPath.string(),
+        crpPath.string(),
+    };
+
+    const LegacyProjectFileReader reader;
+    LegacyLoadResult loadResult = reader.load(paths);
+    expect(loadResult.ok, "writer test initial load");
+
+    loadResult.snapshot.frames[0].colorizedSd.pixels[0] = 0x1357;
+    loadResult.snapshot.frames[0].colorizedHd.reset();
+    loadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] = 0x2468;
+    loadResult.snapshot.frames[1].colorizedHd =
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0xcafe);
+    loadResult.snapshot.frames[1].colorizedHd->pixels[5] = 0xbeef;
+
+    const LegacyProjectFileWriter writer;
+    const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
+    expect(saveResult.ok, "file writer should save edited modern cROM");
+
+    const std::vector<uint8_t> savedBytes = readBytes(cromPath);
+    expect(savedBytes.size() >= 2 && savedBytes[savedBytes.size() - 2] == 0x99 &&
+               savedBytes[savedBytes.size() - 1] == 0x88,
+           "file writer should preserve trailing bytes");
+
+    const LegacyLoadResult reloadResult = reader.load(paths);
+
+    std::filesystem::remove(cromPath);
+    std::filesystem::remove(crpPath);
+
+    expect(reloadResult.ok, "file writer saved cROM should reload");
+    expect(reloadResult.snapshot.frames[0].colorizedSd.pixels[0] == 0x1357,
+           "file writer should update first SD pixel");
+    expect(!reloadResult.snapshot.frames[0].colorizedHd,
+           "file writer should clear first HD presence flag");
+    expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] == 0x2468,
+           "file writer should update second SD pixel");
+    expect(reloadResult.snapshot.frames[1].colorizedHd.has_value(),
+           "file writer should set second HD presence flag");
+    expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[5] == 0xbeef,
+           "file writer should update second HD pixels");
+}
+
+void testFileWriterRejectsMismatchedTemplate()
+{
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    writeBytes(cromPath, makeModernCromWithFrames());
+
+    const LegacyProjectFileReader reader;
+    LegacyLoadResult loadResult = reader.load(LegacyProjectPaths{
+        cromPath.string(),
+        cromPath.string(),
+    });
+    loadResult.snapshot.romName = "other_rom";
+
+    const LegacyProjectFileWriter writer;
+    const LegacySaveResult saveResult = writer.save(LegacyProjectPaths{
+        cromPath.string(),
+        "",
+    }, loadResult.snapshot);
+
+    std::filesystem::remove(cromPath);
+
+    expect(!saveResult.ok, "file writer should reject mismatched ROM name");
+    expect(saveResult.error.message == "snapshot ROM name does not match existing cROM",
+           "file writer mismatch error");
+}
+
 }  // namespace
 
 void runLegacyProjectFileReaderTests()
@@ -216,4 +310,6 @@ void runLegacyProjectFileReaderTests()
     testFileReaderLoadsModernProject();
     testFileReaderReportsMissingCrom();
     testFileReaderRejectsLegacyPalettedCrom();
+    testFileWriterSavesEditedModernCrom();
+    testFileWriterRejectsMismatchedTemplate();
 }
