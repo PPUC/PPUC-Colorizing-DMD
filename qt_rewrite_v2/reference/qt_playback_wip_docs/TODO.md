@@ -1,0 +1,27 @@
+- TODO: cROMc migration follow-ups
+  - Step 2: Make HD frames/backgrounds lazy (only allocate local mats when edited or created). (done)
+  - Step 3: Store edits as per-frame overrides instead of duplicated arrays; read-only rendering should use SerumData buffers directly. (in progress)
+    - Finish SD sprite/background lazy load + edit overrides without keeping full local copies. (done)
+    - Consider a sprite/background store adapter cache limit tuning for large projects.
+    - Potential memory-saver ideas (optional):
+      - Add a low-memory mode toggle to cap cache sizes and reduce live preview updates.
+      - Throttle preview refresh cadence when rotations are off to avoid frequent re-renders.
+      - Keep RGB565 buffers longer (avoid BGR conversion for previews) to reduce transient memory.
+
+- TODO: Legacy feature parity checklist (from `ColorizingDMD.cpp`/`resource.h`)
+  - Sections: section list, add/delete, rename, re-order dialog, jump-to-section.
+  - Triggers: trigger list, add/delete/rename, per-frame trigger assignment.
+  - Frame timing/playback: per-frame duration editor, playback controls, time slider/timecode.
+  - GIF export: animated GIF generation (SD/HD/original + rotations).
+  - Image/video import pipeline:
+    - Video frame slider (hour/min/sec/frame), brightness/contrast/blur controls.
+    - Scroll copy/fill tool (scroll/zoom between two selections).
+    - Image list management (add/remove/reimport) and image-to-frame/background actions.
+    - Optional AI image prompt/generation workflow.
+  - Background import/export/reimport from frame + resize filter selection (shared with frame/sprite HD generation).
+  - Auto-selection tools: auto-select offsets/ranges, apply auto-select, invert selection.
+  - Selection helpers: color-to-selection, mask-to-selection, selection invert for copy.
+  - Dynamic shadow controls (frame-level toggle).
+  - "Night/Day" toggle (legacy display mode).
+  - Sprite/section metadata tools: sprite name editor, sprite move/reorder, "find dword" helper.
+  - PupPack metadata fields (if still required for Serum V2).
