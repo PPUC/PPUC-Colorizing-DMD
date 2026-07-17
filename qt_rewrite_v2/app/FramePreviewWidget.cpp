@@ -261,12 +261,6 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
         }
     }
 
-    painter.setPen(QPen(QColor(245, 245, 245), 1));
-    painter.drawRect(QRect(region.displayRect.x,
-                           region.displayRect.y,
-                           region.displayRect.width,
-                           region.displayRect.height)
-                         .adjusted(0, 0, -1, -1));
 }
 
 void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasRegionLayout& region)
