@@ -138,6 +138,65 @@ std::vector<render::Point> makeFilledRectanglePixels(render::Point start, render
     return pixels;
 }
 
+std::vector<render::Point> makeEllipsePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    const double centerX = (static_cast<double>(left) + static_cast<double>(right)) / 2.0;
+    const double centerY = (static_cast<double>(top) + static_cast<double>(bottom)) / 2.0;
+    const double radiusX = std::max(0.5, (static_cast<double>(right - left) + 1.0) / 2.0);
+    const double radiusY = std::max(0.5, (static_cast<double>(bottom - top) + 1.0) / 2.0);
+    auto insideEllipse = [&](int x, int y) {
+        const double normalizedX = (static_cast<double>(x) - centerX) / radiusX;
+        const double normalizedY = (static_cast<double>(y) - centerY) / radiusY;
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1.0;
+    };
+    std::set<std::pair<int, int>> uniquePixels;
+
+    for (int y = top; y <= bottom; ++y) {
+        for (int x = left; x <= right; ++x) {
+            if (insideEllipse(x, y) &&
+                (!insideEllipse(x - 1, y) || !insideEllipse(x + 1, y) ||
+                 !insideEllipse(x, y - 1) || !insideEllipse(x, y + 1))) {
+                uniquePixels.insert({x, y});
+            }
+        }
+    }
+
+    std::vector<render::Point> pixels;
+    pixels.reserve(uniquePixels.size());
+    for (const auto& [x, y] : uniquePixels) {
+        pixels.push_back(render::Point{x, y});
+    }
+    return pixels;
+}
+
+std::vector<render::Point> makeFilledEllipsePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    const double centerX = (static_cast<double>(left) + static_cast<double>(right)) / 2.0;
+    const double centerY = (static_cast<double>(top) + static_cast<double>(bottom)) / 2.0;
+    const double radiusX = std::max(0.5, (static_cast<double>(right - left) + 1.0) / 2.0);
+    const double radiusY = std::max(0.5, (static_cast<double>(bottom - top) + 1.0) / 2.0);
+    std::vector<render::Point> pixels;
+
+    for (int y = top; y <= bottom; ++y) {
+        for (int x = left; x <= right; ++x) {
+            const double normalizedX = (static_cast<double>(x) - centerX) / radiusX;
+            const double normalizedY = (static_cast<double>(y) - centerY) / radiusY;
+            if (normalizedX * normalizedX + normalizedY * normalizedY <= 1.0) {
+                pixels.push_back(render::Point{x, y});
+            }
+        }
+    }
+    return pixels;
+}
+
 QString makeRecentProjectEntry(const QString& cromPath, const QString& crpPath)
 {
     return cromPath + QChar('\t') + crpPath;
@@ -154,6 +213,14 @@ QString recentProjectCrpPath(const QString& entry)
 }
 
 }  // namespace
+
+bool MainWindow::EditHistoryKey::operator<(const EditHistoryKey& other) const
+{
+    if (frameIndex != other.frameIndex) {
+        return frameIndex < other.frameIndex;
+    }
+    return static_cast<int>(resolution) < static_cast<int>(other.resolution);
+}
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -243,6 +310,8 @@ void MainWindow::createCentralView()
         {DrawingTool::Line, QStringLiteral("Line")},
         {DrawingTool::Rectangle, QStringLiteral("Rect")},
         {DrawingTool::FilledRectangle, QStringLiteral("Fill Rect")},
+        {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
+        {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
     };
     for (const auto& toolOption : tools) {
         const DrawingTool tool = toolOption.first;
@@ -397,8 +466,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_currentCromPath = cromPath;
         m_currentCrpPath = crpPath;
         rememberRecentProject(cromPath, crpPath);
-        m_undoStack.clear();
-        m_redoStack.clear();
+        m_editHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -524,6 +592,7 @@ void MainWindow::selectFrame(int frameIndex)
                            .arg(frameIndex)
                            .arg(hasHd ? QStringLiteral("HD 256x64")
                                       : QStringLiteral("HD unavailable")));
+    updateUndoRedoActions();
 }
 
 void MainWindow::updateResolutionMode()
@@ -537,6 +606,7 @@ void MainWindow::updateResolutionMode()
         m_preview->clearPreviewPixels();
         m_preview->setActiveResolution(m_activeResolution);
     }
+    updateUndoRedoActions();
 }
 
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
@@ -591,6 +661,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::
         statusText = QStringLiteral("Painted rectangle");
     } else if (m_drawingTool == DrawingTool::FilledRectangle) {
         statusText = QStringLiteral("Painted filled rectangle");
+    } else if (m_drawingTool == DrawingTool::Ellipse) {
+        statusText = QStringLiteral("Painted ellipse");
+    } else if (m_drawingTool == DrawingTool::FilledEllipse) {
+        statusText = QStringLiteral("Painted filled ellipse");
     }
 
     commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
@@ -608,6 +682,13 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
     if (m_drawingTool == DrawingTool::FilledRectangle) {
         return makeFilledRectanglePixels(render::Point{start.x, start.y},
                                          render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::Ellipse) {
+        return makeEllipsePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::FilledEllipse) {
+        return makeFilledEllipsePixels(render::Point{start.x, start.y},
+                                       render::Point{end.x, end.y});
     }
     return {};
 }
@@ -647,8 +728,9 @@ void MainWindow::commitPixels(render::Resolution resolution,
             return;
         }
         applyPixelEdit(command, true);
-        m_undoStack.push_back(command);
-        m_redoStack.clear();
+        EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -675,39 +757,80 @@ void MainWindow::applyPixelEdit(const PixelEditCommand& command, bool useNewColo
     updateProjectHeaderStatus();
 }
 
+std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return std::nullopt;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return std::nullopt;
+    }
+    return EditHistoryKey{frameIndex, m_activeResolution};
+}
+
+MainWindow::EditHistory* MainWindow::currentEditHistory()
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_editHistories.find(*key);
+    if (history == m_editHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::EditHistory* MainWindow::currentEditHistory() const
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_editHistories.find(*key);
+    if (history == m_editHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
 void MainWindow::undo()
 {
-    if (m_undoStack.empty()) {
+    EditHistory* history = currentEditHistory();
+    if (!history || history->undoStack.empty()) {
         return;
     }
-    const PixelEditCommand command = m_undoStack.back();
-    m_undoStack.pop_back();
+    const PixelEditCommand command = history->undoStack.back();
+    history->undoStack.pop_back();
     applyPixelEdit(command, false);
-    m_redoStack.push_back(command);
+    history->redoStack.push_back(command);
     updateUndoRedoActions();
     statusBar()->showMessage(QStringLiteral("Undo"), 1500);
 }
 
 void MainWindow::redo()
 {
-    if (m_redoStack.empty()) {
+    EditHistory* history = currentEditHistory();
+    if (!history || history->redoStack.empty()) {
         return;
     }
-    const PixelEditCommand command = m_redoStack.back();
-    m_redoStack.pop_back();
+    const PixelEditCommand command = history->redoStack.back();
+    history->redoStack.pop_back();
     applyPixelEdit(command, true);
-    m_undoStack.push_back(command);
+    history->undoStack.push_back(command);
     updateUndoRedoActions();
     statusBar()->showMessage(QStringLiteral("Redo"), 1500);
 }
 
 void MainWindow::updateUndoRedoActions()
 {
+    const EditHistory* history = currentEditHistory();
     if (m_undoAction) {
-        m_undoAction->setEnabled(!m_undoStack.empty());
+        m_undoAction->setEnabled(history && !history->undoStack.empty());
     }
     if (m_redoAction) {
-        m_redoAction->setEnabled(!m_redoStack.empty());
+        m_redoAction->setEnabled(history && !history->redoStack.empty());
     }
 }
 

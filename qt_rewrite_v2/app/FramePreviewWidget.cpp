@@ -11,29 +11,6 @@
 
 namespace colorizing::app {
 
-namespace {
-
-QString regionTitle(render::CanvasRegion region)
-{
-    switch (region) {
-    case render::CanvasRegion::ColorizedFrame:
-        return QStringLiteral("Colorized");
-    case render::CanvasRegion::OriginalFrame:
-        return QStringLiteral("Original");
-    case render::CanvasRegion::HdFrame:
-        return QStringLiteral("HD");
-    case render::CanvasRegion::SpriteColorized:
-        return QStringLiteral("Sprite");
-    case render::CanvasRegion::SpriteOriginal:
-        return QStringLiteral("Sprite Original");
-    case render::CanvasRegion::Background:
-        return QStringLiteral("Background");
-    }
-    return QString();
-}
-
-}  // namespace
-
 FramePreviewWidget::FramePreviewWidget(QWidget* parent)
     : QWidget(parent)
 {
@@ -290,9 +267,6 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                            region.displayRect.width,
                            region.displayRect.height)
                          .adjusted(0, 0, -1, -1));
-    painter.drawText(region.displayRect.x + 4,
-                     region.displayRect.y + 12,
-                     regionTitle(region.region));
 }
 
 void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasRegionLayout& region)

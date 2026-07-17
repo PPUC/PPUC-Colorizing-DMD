@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -31,6 +32,8 @@ private:
         Line,
         Rectangle,
         FilledRectangle,
+        Ellipse,
+        FilledEllipse,
     };
 
     struct PixelChange {
@@ -44,6 +47,18 @@ private:
         std::size_t frameIndex = 0;
         render::Resolution resolution = render::Resolution::Sd;
         std::vector<PixelChange> changes;
+    };
+
+    struct EditHistoryKey {
+        std::size_t frameIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+
+        [[nodiscard]] bool operator<(const EditHistoryKey& other) const;
+    };
+
+    struct EditHistory {
+        std::vector<PixelEditCommand> undoStack;
+        std::vector<PixelEditCommand> redoStack;
     };
 
     void createActions();
@@ -70,6 +85,9 @@ private:
                       const std::vector<render::Point>& pixels,
                       const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
+    [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
+    [[nodiscard]] EditHistory* currentEditHistory();
+    [[nodiscard]] const EditHistory* currentEditHistory() const;
     void undo();
     void redo();
     void updateUndoRedoActions();
@@ -91,8 +109,7 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
-    std::vector<PixelEditCommand> m_undoStack;
-    std::vector<PixelEditCommand> m_redoStack;
+    std::map<EditHistoryKey, EditHistory> m_editHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;
