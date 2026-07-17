@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <deque>
 #include <set>
 
 #include <QAbstractItemView>
@@ -313,6 +314,7 @@ void MainWindow::createCentralView()
         {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
         {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
         {DrawingTool::ColorPicker, QStringLiteral("Pick")},
+        {DrawingTool::FloodFill, QStringLiteral("Flood")},
     };
     for (const auto& toolOption : tools) {
         const DrawingTool tool = toolOption.first;
@@ -637,6 +639,10 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit)
         pickFrameColor(hit);
         return;
     }
+    if (m_drawingTool == DrawingTool::FloodFill) {
+        floodFillFrame(hit);
+        return;
+    }
     if (m_drawingTool != DrawingTool::Point) {
         return;
     }
@@ -660,6 +666,59 @@ void MainWindow::pickFrameColor(const render::CanvasHit& hit)
         statusBar()->showMessage(QStringLiteral("Picked color 0x%1")
                                      .arg(color, 4, 16, QLatin1Char('0')),
                                  2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::floodFillFrame(const render::CanvasHit& hit)
+{
+    if (!m_document || m_frameList->currentRow() < 0) {
+        return;
+    }
+
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    try {
+        const document::Rgb565Frame& frame =
+            m_document->colorizedFrame(frameIndex, hit.resolution);
+        const uint16_t targetColor =
+            m_document->colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y);
+        if (targetColor == m_activeDrawColor) {
+            return;
+        }
+
+        std::vector<uint8_t> visited(frame.pixels.size(), 0);
+        std::deque<render::Point> queue;
+        std::vector<render::Point> pixels;
+        queue.push_back(render::Point{hit.x, hit.y});
+
+        while (!queue.empty()) {
+            const render::Point point = queue.front();
+            queue.pop_front();
+            if (point.x < 0 || point.y < 0 ||
+                point.x >= frame.size.width || point.y >= frame.size.height) {
+                continue;
+            }
+
+            const std::size_t index =
+                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(frame.size.width) +
+                static_cast<std::size_t>(point.x);
+            if (visited[index]) {
+                continue;
+            }
+            visited[index] = 1;
+            if (frame.pixels[index] != targetColor) {
+                continue;
+            }
+
+            pixels.push_back(point);
+            queue.push_back(render::Point{point.x - 1, point.y});
+            queue.push_back(render::Point{point.x + 1, point.y});
+            queue.push_back(render::Point{point.x, point.y - 1});
+            queue.push_back(render::Point{point.x, point.y + 1});
+        }
+
+        commitPixels(hit.resolution, pixels, QStringLiteral("Flood filled area"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
