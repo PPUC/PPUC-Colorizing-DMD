@@ -126,6 +126,73 @@ void testFramePreviewClickCallback()
     expect(clicked, "preview click should invoke pixel callback on colorized frame");
 }
 
+void testFramePreviewStrokeCallback()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    widget.setFrameIndex(0);
+
+    std::optional<colorizing::render::CanvasHit> strokeStart;
+    std::optional<colorizing::render::CanvasHit> strokeEnd;
+    std::optional<colorizing::render::CanvasHit> previewStart;
+    std::optional<colorizing::render::CanvasHit> previewEnd;
+    widget.setStrokePreviewHandler([&](colorizing::render::CanvasHit start,
+                                       colorizing::render::CanvasHit end) {
+        previewStart = start;
+        previewEnd = end;
+    });
+    widget.setStrokeFinishedHandler([&](colorizing::render::CanvasHit start,
+                                        colorizing::render::CanvasHit end) {
+        strokeStart = start;
+        strokeEnd = end;
+    });
+
+    QMouseEvent press(QEvent::MouseButtonPress,
+                      QPointF(90, 60),
+                      QPointF(90, 60),
+                      QPointF(90, 60),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(&widget, &press);
+
+    QMouseEvent move(QEvent::MouseMove,
+                     QPointF(120, 80),
+                     QPointF(120, 80),
+                     QPointF(120, 80),
+                     Qt::NoButton,
+                     Qt::LeftButton,
+                     Qt::NoModifier);
+    QApplication::sendEvent(&widget, &move);
+
+    QMouseEvent release(QEvent::MouseButtonRelease,
+                        QPointF(140, 90),
+                        QPointF(140, 90),
+                        QPointF(140, 90),
+                        Qt::LeftButton,
+                        Qt::LeftButton,
+                        Qt::NoModifier);
+    QApplication::sendEvent(&widget, &release);
+
+    expect(previewStart.has_value(), "preview stroke should capture start hit");
+    expect(previewEnd.has_value(), "preview stroke should capture current drag hit");
+    expect(strokeStart.has_value(), "preview stroke should capture start hit");
+    expect(strokeEnd.has_value(), "preview stroke should capture end hit");
+    expect(previewStart->region == colorizing::render::CanvasRegion::ColorizedFrame,
+           "preview stroke start should target colorized frame");
+    expect(previewEnd->region == colorizing::render::CanvasRegion::ColorizedFrame,
+           "preview stroke end should target colorized frame");
+    expect(strokeStart->region == colorizing::render::CanvasRegion::ColorizedFrame,
+           "preview stroke start should target colorized frame");
+    expect(strokeEnd->region == colorizing::render::CanvasRegion::ColorizedFrame,
+           "preview stroke end should target colorized frame");
+    expect(strokeStart->resolution == strokeEnd->resolution,
+           "preview stroke should stay within one resolution");
+}
+
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -153,6 +220,7 @@ int main(int argc, char* argv[])
     testFrameThumbnailRendersPixels();
     testFramePreviewHitTesting();
     testFramePreviewClickCallback();
+    testFramePreviewStrokeCallback();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;

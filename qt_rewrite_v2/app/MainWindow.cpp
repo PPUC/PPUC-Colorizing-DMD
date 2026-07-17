@@ -1,5 +1,9 @@
 #include "MainWindow.h"
 
+#include <algorithm>
+#include <cstdlib>
+#include <set>
+
 #include <QAbstractItemView>
 #include <QAction>
 #include <QDir>
@@ -40,6 +44,75 @@ QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
                                          "QToolButton:checked { border: 3px solid #ffffff; }")
                               .arg(color.name()));
     return button;
+}
+
+QToolButton* makeToolButton(QWidget* parent,
+                            const QString& text,
+                            const QString& tooltip,
+                            int toolValue)
+{
+    auto* button = new QToolButton(parent);
+    button->setText(text);
+    button->setToolTip(tooltip);
+    button->setCheckable(true);
+    button->setProperty("drawingTool", toolValue);
+    return button;
+}
+
+std::vector<render::Point> makeLinePixels(render::Point start, render::Point end)
+{
+    std::vector<render::Point> pixels;
+    int x0 = start.x;
+    int y0 = start.y;
+    const int x1 = end.x;
+    const int y1 = end.y;
+    const int dx = std::abs(x1 - x0);
+    const int sx = x0 < x1 ? 1 : -1;
+    const int dy = -std::abs(y1 - y0);
+    const int sy = y0 < y1 ? 1 : -1;
+    int error = dx + dy;
+
+    while (true) {
+        pixels.push_back(render::Point{x0, y0});
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+        const int twiceError = 2 * error;
+        if (twiceError >= dy) {
+            error += dy;
+            x0 += sx;
+        }
+        if (twiceError <= dx) {
+            error += dx;
+            y0 += sy;
+        }
+    }
+    return pixels;
+}
+
+std::vector<render::Point> makeRectanglePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    std::set<std::pair<int, int>> uniquePixels;
+
+    for (int x = left; x <= right; ++x) {
+        uniquePixels.insert({x, top});
+        uniquePixels.insert({x, bottom});
+    }
+    for (int y = top; y <= bottom; ++y) {
+        uniquePixels.insert({left, y});
+        uniquePixels.insert({right, y});
+    }
+
+    std::vector<render::Point> pixels;
+    pixels.reserve(uniquePixels.size());
+    for (const auto& [x, y] : uniquePixels) {
+        pixels.push_back(render::Point{x, y});
+    }
+    return pixels;
 }
 
 }  // namespace
@@ -123,6 +196,27 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addSpacing(12);
+
+    const std::vector<std::pair<DrawingTool, QString>> tools{
+        {DrawingTool::Point, QStringLiteral("Point")},
+        {DrawingTool::Line, QStringLiteral("Line")},
+        {DrawingTool::Rectangle, QStringLiteral("Rect")},
+    };
+    for (const auto& toolOption : tools) {
+        const DrawingTool tool = toolOption.first;
+        const QString label = toolOption.second;
+        QToolButton* button = makeToolButton(central,
+                                             label,
+                                             QStringLiteral("%1 tool").arg(label),
+                                             static_cast<int>(tool));
+        toolbarLayout->addWidget(button);
+        m_toolButtons.push_back(button);
+        connect(button, &QToolButton::clicked, this, [this, tool]() {
+            setDrawingTool(tool);
+        });
+    }
+    toolbarLayout->addSpacing(12);
+
     const std::vector<uint16_t> colors{0xffff, 0xf800, 0x07e0, 0x001f, 0x0000};
     for (uint16_t color : colors) {
         QToolButton* button = makeColorButton(central, color);
@@ -156,6 +250,13 @@ void MainWindow::createCentralView()
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
         paintFramePixel(hit);
     });
+    m_preview->setStrokePreviewHandler([this](render::CanvasHit start, render::CanvasHit end) {
+        previewFrameStroke(start, end);
+    });
+    m_preview->setStrokeFinishedHandler([this](render::CanvasHit start, render::CanvasHit end) {
+        paintFrameStroke(start, end);
+    });
+    setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
 
     setCentralWidget(central);
@@ -336,6 +437,7 @@ void MainWindow::updateResolutionMode()
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
+        m_preview->clearPreviewPixels();
         m_preview->setActiveResolution(m_activeResolution);
     }
 }
@@ -349,27 +451,99 @@ void MainWindow::setActiveDrawColor(uint16_t rgb565)
     }
 }
 
+void MainWindow::setDrawingTool(DrawingTool tool)
+{
+    m_drawingTool = tool;
+    if (m_preview) {
+        m_preview->clearPreviewPixels();
+    }
+    for (QToolButton* button : m_toolButtons) {
+        QSignalBlocker blocker(button);
+        button->setChecked(button->property("drawingTool").toInt() == static_cast<int>(tool));
+    }
+}
+
 void MainWindow::paintFramePixel(const render::CanvasHit& hit)
 {
-    if (!m_document || m_frameList->currentRow() < 0) {
+    if (m_drawingTool != DrawingTool::Point) {
         return;
     }
+    commitPixels(hit.resolution,
+                 {render::Point{hit.x, hit.y}},
+                 QStringLiteral("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
+}
+
+void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
+{
+    if (!m_preview || m_drawingTool == DrawingTool::Point || start.resolution != end.resolution) {
+        return;
+    }
+    m_preview->setPreviewPixels(start.resolution, pixelsForStroke(start, end), m_activeDrawColor);
+}
+
+void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
+{
+    if (m_drawingTool == DrawingTool::Point || start.resolution != end.resolution) {
+        return;
+    }
+
+    QString statusText;
+    if (m_drawingTool == DrawingTool::Line) {
+        statusText = QStringLiteral("Painted line");
+    } else if (m_drawingTool == DrawingTool::Rectangle) {
+        statusText = QStringLiteral("Painted rectangle");
+    }
+
+    commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
+}
+
+std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& start,
+                                                       const render::CanvasHit& end) const
+{
+    if (m_drawingTool == DrawingTool::Line) {
+        return makeLinePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::Rectangle) {
+        return makeRectanglePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    }
+    return {};
+}
+
+void MainWindow::commitPixels(render::Resolution resolution,
+                              const std::vector<render::Point>& pixels,
+                              const QString& statusText)
+{
+    if (!m_document || m_frameList->currentRow() < 0 || pixels.empty()) {
+        return;
+    }
+
     const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    PixelEditCommand command;
+    command.frameIndex = frameIndex;
+    command.resolution = resolution;
+    std::set<std::pair<int, int>> seen;
+
     try {
-        const uint16_t oldColor =
-            m_document->colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y);
-        if (oldColor == m_activeDrawColor) {
+        for (const render::Point& pixel : pixels) {
+            if (!seen.insert({pixel.x, pixel.y}).second) {
+                continue;
+            }
+            const uint16_t oldColor =
+                m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
+            if (oldColor == m_activeDrawColor) {
+                continue;
+            }
+            command.changes.push_back(PixelChange{
+                pixel.x,
+                pixel.y,
+                oldColor,
+                m_activeDrawColor,
+            });
+        }
+        if (command.changes.empty()) {
             return;
         }
-        const PointEditCommand command{
-            frameIndex,
-            hit.resolution,
-            hit.x,
-            hit.y,
-            oldColor,
-            m_activeDrawColor,
-        };
-        applyPointEdit(command, true);
+        applyPixelEdit(command, true);
         m_undoStack.push_back(command);
         m_redoStack.clear();
         updateUndoRedoActions();
@@ -378,23 +552,21 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit)
         return;
     }
 
-    statusBar()->showMessage(QStringLiteral("Painted frame %1 at %2,%3")
-                                 .arg(static_cast<int>(frameIndex))
-                                 .arg(hit.x)
-                                 .arg(hit.y),
-                             2500);
+    statusBar()->showMessage(statusText, 2500);
 }
 
-void MainWindow::applyPointEdit(const PointEditCommand& command, bool useNewColor)
+void MainWindow::applyPixelEdit(const PixelEditCommand& command, bool useNewColor)
 {
     if (!m_document) {
         return;
     }
-    m_document->setColorizedPixel(command.frameIndex,
-                                  command.resolution,
-                                  command.x,
-                                  command.y,
-                                  useNewColor ? command.newColor : command.oldColor);
+    for (const PixelChange& change : command.changes) {
+        m_document->setColorizedPixel(command.frameIndex,
+                                      command.resolution,
+                                      change.x,
+                                      change.y,
+                                      useNewColor ? change.newColor : change.oldColor);
+    }
     m_preview->update();
     updateFrameThumbnail(command.frameIndex);
     updateProjectHeaderStatus();
@@ -405,9 +577,9 @@ void MainWindow::undo()
     if (m_undoStack.empty()) {
         return;
     }
-    const PointEditCommand command = m_undoStack.back();
+    const PixelEditCommand command = m_undoStack.back();
     m_undoStack.pop_back();
-    applyPointEdit(command, false);
+    applyPixelEdit(command, false);
     m_redoStack.push_back(command);
     updateUndoRedoActions();
     statusBar()->showMessage(QStringLiteral("Undo"), 1500);
@@ -418,9 +590,9 @@ void MainWindow::redo()
     if (m_redoStack.empty()) {
         return;
     }
-    const PointEditCommand command = m_redoStack.back();
+    const PixelEditCommand command = m_redoStack.back();
     m_redoStack.pop_back();
-    applyPointEdit(command, true);
+    applyPixelEdit(command, true);
     m_undoStack.push_back(command);
     updateUndoRedoActions();
     statusBar()->showMessage(QStringLiteral("Redo"), 1500);

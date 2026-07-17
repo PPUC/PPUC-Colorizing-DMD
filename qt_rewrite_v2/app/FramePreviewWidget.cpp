@@ -65,6 +65,38 @@ void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::Canva
     m_pixelClickedHandler = std::move(handler);
 }
 
+void FramePreviewWidget::setStrokePreviewHandler(
+    std::function<void(render::CanvasHit, render::CanvasHit)> handler)
+{
+    m_strokePreviewHandler = std::move(handler);
+}
+
+void FramePreviewWidget::setStrokeFinishedHandler(
+    std::function<void(render::CanvasHit, render::CanvasHit)> handler)
+{
+    m_strokeFinishedHandler = std::move(handler);
+}
+
+void FramePreviewWidget::setPreviewPixels(render::Resolution resolution,
+                                          std::vector<render::Point> pixels,
+                                          uint16_t rgb565)
+{
+    m_previewResolution = resolution;
+    m_previewPixels = std::move(pixels);
+    m_previewColor = rgb565;
+    update();
+}
+
+void FramePreviewWidget::clearPreviewPixels()
+{
+    if (!m_previewResolution && m_previewPixels.empty()) {
+        return;
+    }
+    m_previewResolution.reset();
+    m_previewPixels.clear();
+    update();
+}
+
 QSize FramePreviewWidget::sizeHint() const
 {
     return QSize(620, 360);
@@ -104,14 +136,50 @@ void FramePreviewWidget::paintEvent(QPaintEvent* event)
 
 void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::LeftButton && m_pixelClickedHandler) {
+    if (event->button() == Qt::LeftButton) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
-            m_pixelClickedHandler(*hit);
+            m_strokeStart = *hit;
+            clearPreviewPixels();
+            if (m_pixelClickedHandler) {
+                m_pixelClickedHandler(*hit);
+            }
+            event->accept();
             return;
         }
     }
     QWidget::mousePressEvent(event);
+}
+
+void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
+{
+    if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
+        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        if (hit && hit->region == render::CanvasRegion::ColorizedFrame &&
+            hit->resolution == m_strokeStart->resolution) {
+            m_strokePreviewHandler(*m_strokeStart, *hit);
+            event->accept();
+            return;
+        }
+    }
+    QWidget::mouseMoveEvent(event);
+}
+
+void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && m_strokeStart) {
+        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        const std::optional<render::CanvasHit> start = m_strokeStart;
+        m_strokeStart.reset();
+        clearPreviewPixels();
+        if (hit && hit->region == render::CanvasRegion::ColorizedFrame &&
+            start->resolution == hit->resolution && m_strokeFinishedHandler) {
+            m_strokeFinishedHandler(*start, *hit);
+            event->accept();
+            return;
+        }
+    }
+    QWidget::mouseReleaseEvent(event);
 }
 
 render::CanvasLayout FramePreviewWidget::currentLayout() const
@@ -168,6 +236,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
 
     for (const render::CanvasRegionLayout& region : layout.regions()) {
         paintRegion(painter, region);
+        paintPreview(painter, region);
     }
 
     painter.restore();
@@ -224,6 +293,36 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
     painter.drawText(region.displayRect.x + 4,
                      region.displayRect.y + 12,
                      regionTitle(region.region));
+}
+
+void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasRegionLayout& region)
+{
+    if (!m_previewResolution || m_previewPixels.empty() ||
+        region.region != render::CanvasRegion::ColorizedFrame ||
+        region.resolution != *m_previewResolution) {
+        return;
+    }
+
+    const int scale = region.displayScale;
+    painter.save();
+    QColor previewColor = rgb565ToColor(m_previewColor);
+    previewColor.setAlpha(150);
+    QColor previewBorder = rgb565ToColor(m_previewColor);
+    previewBorder.setAlpha(230);
+    painter.setPen(QPen(previewBorder, 1));
+    painter.setBrush(previewColor);
+    for (const render::Point& pixel : m_previewPixels) {
+        if (pixel.x < 0 || pixel.y < 0 ||
+            pixel.x >= region.logicalSize.width || pixel.y >= region.logicalSize.height) {
+            continue;
+        }
+        painter.drawRect(QRect(region.displayRect.x + pixel.x * scale,
+                               region.displayRect.y + pixel.y * scale,
+                               scale,
+                               scale)
+                             .adjusted(0, 0, -1, -1));
+    }
+    painter.restore();
 }
 
 }  // namespace colorizing::app
