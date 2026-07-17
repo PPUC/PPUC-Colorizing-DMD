@@ -12,16 +12,36 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <QStatusBar>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidget>
 
 #include "FramePreviewWidget.h"
+#include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 #include "legacy/LegacyProjectFileReader.h"
 
 namespace colorizing::app {
+
+namespace {
+
+QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
+{
+    auto* button = new QToolButton(parent);
+    button->setCheckable(true);
+    button->setFixedSize(28, 24);
+    button->setProperty("rgb565", static_cast<int>(rgb565));
+    button->setToolTip(QStringLiteral("Draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+    const QColor color = rgb565ToColor(rgb565);
+    button->setStyleSheet(QStringLiteral("QToolButton { background: %1; border: 1px solid #666; }"
+                                         "QToolButton:checked { border: 3px solid #ffffff; }")
+                              .arg(color.name()));
+    return button;
+}
+
+}  // namespace
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -36,6 +56,7 @@ MainWindow::MainWindow(QWidget* parent)
 void MainWindow::createActions()
 {
     QMenu* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
+    QMenu* editMenu = menuBar()->addMenu(QStringLiteral("&Edit"));
 
     QAction* openAction = fileMenu->addAction(QStringLiteral("&Open Project..."));
     openAction->setShortcut(QKeySequence::Open);
@@ -48,6 +69,20 @@ void MainWindow::createActions()
     QAction* quitAction = fileMenu->addAction(QStringLiteral("&Quit"));
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
+
+    m_undoAction = editMenu->addAction(QStringLiteral("&Undo"));
+    m_undoAction->setShortcut(QKeySequence::Undo);
+    m_undoAction->setEnabled(false);
+    connect(m_undoAction, &QAction::triggered, this, [this]() {
+        undo();
+    });
+
+    m_redoAction = editMenu->addAction(QStringLiteral("&Redo"));
+    m_redoAction->setShortcut(QKeySequence::Redo);
+    m_redoAction->setEnabled(false);
+    connect(m_redoAction, &QAction::triggered, this, [this]() {
+        redo();
+    });
 }
 
 void MainWindow::createCentralView()
@@ -80,6 +115,16 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addSpacing(12);
+    const std::vector<uint16_t> colors{0xffff, 0xf800, 0x07e0, 0x001f, 0x0000};
+    for (uint16_t color : colors) {
+        QToolButton* button = makeColorButton(central, color);
+        toolbarLayout->addWidget(button);
+        m_colorButtons.push_back(button);
+        connect(button, &QToolButton::clicked, this, [this, color]() {
+            setActiveDrawColor(color);
+        });
+    }
+    toolbarLayout->addSpacing(12);
     toolbarLayout->addWidget(m_frameStatusLabel);
     toolbarLayout->addStretch(1);
     layout->addLayout(toolbarLayout);
@@ -100,6 +145,10 @@ void MainWindow::createCentralView()
         m_activeResolution = render::Resolution::Hd;
         updateResolutionMode();
     });
+    m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
+        paintFramePixel(hit);
+    });
+    setActiveDrawColor(m_activeDrawColor);
 
     setCentralWidget(central);
 }
@@ -152,6 +201,9 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 
     try {
         m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
+        m_undoStack.clear();
+        m_redoStack.clear();
+        updateUndoRedoActions();
     } catch (const std::exception& ex) {
         QMessageBox::critical(this,
                               QStringLiteral("Open Project Failed"),
@@ -210,10 +262,8 @@ void MainWindow::refreshProjectSummary()
         m_frameList->setCurrentRow(0);
     }
 
-    setStatusText(QStringLiteral("%1: %2 frames, %3 HD")
-                      .arg(QString::fromStdString(m_document->romName()))
-                      .arg(frameCount)
-                      .arg(hdCount));
+    (void)hdCount;
+    updateProjectHeaderStatus();
 }
 
 void MainWindow::selectFrame(int frameIndex)
@@ -241,6 +291,133 @@ void MainWindow::updateResolutionMode()
     if (m_preview) {
         m_preview->setActiveResolution(m_activeResolution);
     }
+}
+
+void MainWindow::setActiveDrawColor(uint16_t rgb565)
+{
+    m_activeDrawColor = rgb565;
+    for (QToolButton* button : m_colorButtons) {
+        QSignalBlocker blocker(button);
+        button->setChecked(button->property("rgb565").toInt() == static_cast<int>(rgb565));
+    }
+}
+
+void MainWindow::paintFramePixel(const render::CanvasHit& hit)
+{
+    if (!m_document || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    try {
+        const uint16_t oldColor =
+            m_document->colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y);
+        if (oldColor == m_activeDrawColor) {
+            return;
+        }
+        const PointEditCommand command{
+            frameIndex,
+            hit.resolution,
+            hit.x,
+            hit.y,
+            oldColor,
+            m_activeDrawColor,
+        };
+        applyPointEdit(command, true);
+        m_undoStack.push_back(command);
+        m_redoStack.clear();
+        updateUndoRedoActions();
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(QStringLiteral("Painted frame %1 at %2,%3")
+                                 .arg(static_cast<int>(frameIndex))
+                                 .arg(hit.x)
+                                 .arg(hit.y),
+                             2500);
+}
+
+void MainWindow::applyPointEdit(const PointEditCommand& command, bool useNewColor)
+{
+    if (!m_document) {
+        return;
+    }
+    m_document->setColorizedPixel(command.frameIndex,
+                                  command.resolution,
+                                  command.x,
+                                  command.y,
+                                  useNewColor ? command.newColor : command.oldColor);
+    m_preview->update();
+    updateFrameThumbnail(command.frameIndex);
+    updateProjectHeaderStatus();
+}
+
+void MainWindow::undo()
+{
+    if (m_undoStack.empty()) {
+        return;
+    }
+    const PointEditCommand command = m_undoStack.back();
+    m_undoStack.pop_back();
+    applyPointEdit(command, false);
+    m_redoStack.push_back(command);
+    updateUndoRedoActions();
+    statusBar()->showMessage(QStringLiteral("Undo"), 1500);
+}
+
+void MainWindow::redo()
+{
+    if (m_redoStack.empty()) {
+        return;
+    }
+    const PointEditCommand command = m_redoStack.back();
+    m_redoStack.pop_back();
+    applyPointEdit(command, true);
+    m_undoStack.push_back(command);
+    updateUndoRedoActions();
+    statusBar()->showMessage(QStringLiteral("Redo"), 1500);
+}
+
+void MainWindow::updateUndoRedoActions()
+{
+    if (m_undoAction) {
+        m_undoAction->setEnabled(!m_undoStack.empty());
+    }
+    if (m_redoAction) {
+        m_redoAction->setEnabled(!m_redoStack.empty());
+    }
+}
+
+void MainWindow::updateProjectHeaderStatus()
+{
+    if (!m_document) {
+        setStatusText(QStringLiteral("No project loaded"));
+        return;
+    }
+    int hdCount = 0;
+    for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
+        if (m_document->hasHdFrame(frameIndex)) {
+            ++hdCount;
+        }
+    }
+    setStatusText(QStringLiteral("%1: %2 frames, %3 HD%4")
+                      .arg(QString::fromStdString(m_document->romName()))
+                      .arg(static_cast<int>(m_document->frameCount()))
+                      .arg(hdCount)
+                      .arg(m_document->isDirty() ? QStringLiteral(" (modified)") : QString()));
+}
+
+void MainWindow::updateFrameThumbnail(std::size_t frameIndex)
+{
+    if (!m_document || frameIndex >= m_document->frameCount()) {
+        return;
+    }
+    QListWidgetItem* item = m_frameList->item(static_cast<int>(frameIndex));
+    if (!item) {
+        return;
+    }
+    item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
 }
 
 }  // namespace colorizing::app

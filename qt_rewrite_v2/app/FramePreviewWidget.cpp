@@ -1,7 +1,9 @@
 #include "FramePreviewWidget.h"
 
 #include <algorithm>
+#include <cmath>
 
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
 
@@ -58,9 +60,32 @@ void FramePreviewWidget::setActiveResolution(render::Resolution resolution)
     update();
 }
 
+void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit)> handler)
+{
+    m_pixelClickedHandler = std::move(handler);
+}
+
 QSize FramePreviewWidget::sizeHint() const
 {
     return QSize(620, 360);
+}
+
+std::optional<render::CanvasHit> FramePreviewWidget::hitTestAt(QPoint position) const
+{
+    if (!m_document || !m_hasFrame || m_frameIndex >= m_document->frameCount()) {
+        return std::nullopt;
+    }
+
+    const render::CanvasLayout layout = currentLayout();
+    const double scale = currentDisplayScale(layout);
+    if (scale <= 0.0) {
+        return std::nullopt;
+    }
+
+    const QPointF origin = currentDisplayOrigin(layout);
+    const int layoutX = static_cast<int>(std::floor((position.x() - origin.x()) / scale));
+    const int layoutY = static_cast<int>(std::floor((position.y() - origin.y()) / scale));
+    return layout.hitTest(render::Point{layoutX, layoutY});
 }
 
 void FramePreviewWidget::paintEvent(QPaintEvent* event)
@@ -77,6 +102,53 @@ void FramePreviewWidget::paintEvent(QPaintEvent* event)
     paintFrame(painter);
 }
 
+void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && m_pixelClickedHandler) {
+        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
+            m_pixelClickedHandler(*hit);
+            return;
+        }
+    }
+    QWidget::mousePressEvent(event);
+}
+
+render::CanvasLayout FramePreviewWidget::currentLayout() const
+{
+    const bool hasHd = m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
+                       m_document->hasHdFrame(m_frameIndex);
+    return render::CanvasLayout::buildFrameLayout({
+        hasHd ? m_activeResolution : render::Resolution::Sd,
+        true,
+        false,
+        hasHd,
+        8,
+    });
+}
+
+double FramePreviewWidget::currentDisplayScale(const render::CanvasLayout& layout) const
+{
+    const QSize available = size();
+    const render::Size displaySize = layout.displaySize();
+    if (displaySize.width <= 0 || displaySize.height <= 0) {
+        return 1.0;
+    }
+    return std::max(1.0, std::min(
+        static_cast<double>(std::max(1, available.width() - 24)) /
+            static_cast<double>(displaySize.width),
+        static_cast<double>(std::max(1, available.height() - 36)) /
+            static_cast<double>(displaySize.height)));
+}
+
+QPointF FramePreviewWidget::currentDisplayOrigin(const render::CanvasLayout& layout) const
+{
+    const double scale = currentDisplayScale(layout);
+    const render::Size displaySize = layout.displaySize();
+    return QPointF((width() - displaySize.width * scale) / 2.0,
+                   (height() - displaySize.height * scale) / 2.0);
+}
+
 void FramePreviewWidget::paintEmpty(QPainter& painter)
 {
     painter.setPen(palette().color(QPalette::PlaceholderText));
@@ -85,25 +157,13 @@ void FramePreviewWidget::paintEmpty(QPainter& painter)
 
 void FramePreviewWidget::paintFrame(QPainter& painter)
 {
-    const bool hasHd = m_document->hasHdFrame(m_frameIndex);
-    const render::CanvasLayout layout = render::CanvasLayout::buildFrameLayout({
-        hasHd ? m_activeResolution : render::Resolution::Sd,
-        true,
-        hasHd,
-        hasHd,
-        8,
-    });
-
-    const QSize available = size();
-    const render::Size displaySize = layout.displaySize();
-    const double scale = std::max(1.0, std::min(
-        static_cast<double>(available.width() - 24) / static_cast<double>(displaySize.width),
-        static_cast<double>(available.height() - 36) / static_cast<double>(displaySize.height)));
+    const render::CanvasLayout layout = currentLayout();
+    const double scale = currentDisplayScale(layout);
+    const QPointF origin = currentDisplayOrigin(layout);
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, false);
-    painter.translate((available.width() - displaySize.width * scale) / 2.0,
-                      (available.height() - displaySize.height * scale) / 2.0);
+    painter.translate(origin);
     painter.scale(scale, scale);
 
     for (const render::CanvasRegionLayout& region : layout.regions()) {

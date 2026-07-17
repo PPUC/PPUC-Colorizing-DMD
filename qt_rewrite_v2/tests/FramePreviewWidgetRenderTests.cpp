@@ -2,9 +2,11 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 
 #include <QApplication>
 #include <QImage>
+#include <QMouseEvent>
 #include <QPainter>
 
 #include "document/ProjectDocument.h"
@@ -80,6 +82,67 @@ void testFrameThumbnailRendersPixels()
     expect(hasNonBackgroundPixel(pixmap.toImage()), "thumbnail should render non-background pixels");
 }
 
+void testFramePreviewHitTesting()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    widget.setFrameIndex(0);
+
+    const std::optional<colorizing::render::CanvasHit> hit = widget.hitTestAt(QPoint(90, 60));
+    expect(hit.has_value(), "preview hit test should hit active frame");
+    expect(hit->region == colorizing::render::CanvasRegion::ColorizedFrame,
+           "preview hit test should target colorized frame");
+    expect(hit->resolution == colorizing::render::Resolution::Hd,
+           "preview hit test should preserve HD resolution");
+    expect(hit->x >= 0 && hit->x < 256 && hit->y >= 0 && hit->y < 64,
+           "preview hit test coordinates should be inside HD frame");
+}
+
+void testFramePreviewClickCallback()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    widget.setFrameIndex(0);
+
+    bool clicked = false;
+    widget.setPixelClickedHandler([&](colorizing::render::CanvasHit hit) {
+        clicked = hit.region == colorizing::render::CanvasRegion::ColorizedFrame;
+    });
+
+    QMouseEvent event(QEvent::MouseButtonPress,
+                      QPointF(90, 60),
+                      QPointF(90, 60),
+                      QPointF(90, 60),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(&widget, &event);
+    expect(clicked, "preview click should invoke pixel callback on colorized frame");
+}
+
+void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    widget.setFrameIndex(0);
+
+    expect(!widget.hitTestAt(QPoint(90, 395)),
+           "SD preview should not expose an extra HD region below original");
+
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    expect(!widget.hitTestAt(QPoint(90, 395)),
+           "HD preview should not expose a duplicate HD region below original");
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -88,6 +151,9 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     testFramePreviewWidgetRendersPixels();
     testFrameThumbnailRendersPixels();
+    testFramePreviewHitTesting();
+    testFramePreviewClickCallback();
+    testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

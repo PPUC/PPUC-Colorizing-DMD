@@ -117,6 +117,8 @@ void testSetColorizedPixelsByResolution()
     document.setColorizedPixel(0, Resolution::Sd, 127, 31, 0x1234);
     expect(document.colorizedFrame(0, Resolution::Sd).pixels.back() == 0x1234,
            "SD pixel should be written at SD coordinates");
+    expect(document.colorizedPixel(0, Resolution::Sd, 127, 31) == 0x1234,
+           "SD pixel accessor should read edited color");
     expect(document.isDirty(), "SD pixel edit should mark dirty");
 
     document.markClean();
@@ -126,6 +128,8 @@ void testSetColorizedPixelsByResolution()
     document.setColorizedPixel(0, Resolution::Hd, 255, 63, 0xabcd);
     expect(document.colorizedFrame(0, Resolution::Hd).pixels.back() == 0xabcd,
            "HD pixel should be written at HD coordinates");
+    expect(document.colorizedPixel(0, Resolution::Hd, 255, 63) == 0xabcd,
+           "HD pixel accessor should read edited color");
     expect(document.isDirty(), "pixel edit should mark dirty");
 }
 
@@ -147,6 +151,9 @@ void testMissingHdAndBoundsErrors()
         [&]() { document.setColorizedPixel(0, Resolution::Sd, 128, 0, 1); },
         "SD x bounds");
     expect(!document.isDirty(), "failed SD bounds write should not mark dirty");
+    expectThrows<std::out_of_range>(
+        [&]() { (void)document.colorizedPixel(0, Resolution::Sd, -1, 0); },
+        "SD read x bounds");
     expectThrows<std::out_of_range>(
         [&]() { document.setColorizedPixel(1, Resolution::Sd, 0, 0, 1); },
         "frame index bounds");

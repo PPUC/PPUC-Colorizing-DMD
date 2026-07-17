@@ -73,6 +73,10 @@ public:
                            int x,
                            int y,
                            uint16_t rgb565);
+    [[nodiscard]] uint16_t colorizedPixel(std::size_t frameIndex,
+                                          Resolution resolution,
+                                          int x,
+                                          int y) const;
 
     void addUnsupportedPayload(UnsupportedLegacyPayload payload);
     [[nodiscard]] const std::vector<UnsupportedLegacyPayload>& unsupportedPayloads() const;

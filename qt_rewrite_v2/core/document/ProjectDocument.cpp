@@ -230,6 +230,21 @@ void ProjectDocument::setColorizedPixel(std::size_t frameIndex,
     m_dirty = true;
 }
 
+uint16_t ProjectDocument::colorizedPixel(std::size_t frameIndex,
+                                         Resolution resolution,
+                                         int x,
+                                         int y) const
+{
+    const Rgb565Frame& frame = colorizedFrame(frameIndex, resolution);
+    if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
+        throw std::out_of_range("pixel coordinate out of range");
+    }
+    const std::size_t pixelIndex =
+        static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+        static_cast<std::size_t>(x);
+    return frame.pixels[pixelIndex];
+}
+
 void ProjectDocument::addUnsupportedPayload(UnsupportedLegacyPayload payload)
 {
     m_unsupportedPayloads.push_back(std::move(payload));
