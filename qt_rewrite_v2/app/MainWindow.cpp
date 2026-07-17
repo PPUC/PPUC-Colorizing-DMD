@@ -16,8 +16,10 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSettings>
 #include <QSignalBlocker>
 #include <QStatusBar>
+#include <QStringList>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -31,6 +33,9 @@
 namespace colorizing::app {
 
 namespace {
+
+constexpr int kMaxRecentProjects = 8;
+constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 
 QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
 {
@@ -115,6 +120,39 @@ std::vector<render::Point> makeRectanglePixels(render::Point start, render::Poin
     return pixels;
 }
 
+std::vector<render::Point> makeFilledRectanglePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    std::vector<render::Point> pixels;
+    pixels.reserve(static_cast<std::size_t>(right - left + 1) *
+                   static_cast<std::size_t>(bottom - top + 1));
+
+    for (int y = top; y <= bottom; ++y) {
+        for (int x = left; x <= right; ++x) {
+            pixels.push_back(render::Point{x, y});
+        }
+    }
+    return pixels;
+}
+
+QString makeRecentProjectEntry(const QString& cromPath, const QString& crpPath)
+{
+    return cromPath + QChar('\t') + crpPath;
+}
+
+QString recentProjectCromPath(const QString& entry)
+{
+    return entry.section(QChar('\t'), 0, 0);
+}
+
+QString recentProjectCrpPath(const QString& entry)
+{
+    return entry.section(QChar('\t'), 1);
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget* parent)
@@ -144,6 +182,9 @@ void MainWindow::createActions()
     connect(m_saveAction, &QAction::triggered, this, [this]() {
         saveProject();
     });
+
+    m_recentProjectsMenu = fileMenu->addMenu(QStringLiteral("Open &Recent"));
+    refreshRecentProjectsMenu();
 
     fileMenu->addSeparator();
 
@@ -201,6 +242,7 @@ void MainWindow::createCentralView()
         {DrawingTool::Point, QStringLiteral("Point")},
         {DrawingTool::Line, QStringLiteral("Line")},
         {DrawingTool::Rectangle, QStringLiteral("Rect")},
+        {DrawingTool::FilledRectangle, QStringLiteral("Fill Rect")},
     };
     for (const auto& toolOption : tools) {
         const DrawingTool tool = toolOption.first;
@@ -292,6 +334,17 @@ void MainWindow::openProject()
     loadProject(cromPath, crpPath);
 }
 
+void MainWindow::openRecentProject(const QString& entry)
+{
+    const QString cromPath = recentProjectCromPath(entry);
+    const QString crpPath = recentProjectCrpPath(entry);
+    if (cromPath.isEmpty() || crpPath.isEmpty()) {
+        statusBar()->showMessage(QStringLiteral("Recent project entry is incomplete"), 4000);
+        return;
+    }
+    loadProject(cromPath, crpPath);
+}
+
 void MainWindow::saveProject()
 {
     if (!m_document) {
@@ -343,6 +396,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
         m_currentCromPath = cromPath;
         m_currentCrpPath = crpPath;
+        rememberRecentProject(cromPath, crpPath);
         m_undoStack.clear();
         m_redoStack.clear();
         updateUndoRedoActions();
@@ -358,6 +412,49 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
     }
 
     refreshProjectSummary();
+}
+
+void MainWindow::rememberRecentProject(const QString& cromPath, const QString& crpPath)
+{
+    QSettings settings;
+    QStringList entries = settings.value(QString::fromLatin1(kRecentProjectsSettingsKey))
+                              .toStringList();
+    const QString entry = makeRecentProjectEntry(cromPath, crpPath);
+    entries.removeAll(entry);
+    entries.prepend(entry);
+    while (entries.size() > kMaxRecentProjects) {
+        entries.removeLast();
+    }
+    settings.setValue(QString::fromLatin1(kRecentProjectsSettingsKey), entries);
+    refreshRecentProjectsMenu();
+}
+
+void MainWindow::refreshRecentProjectsMenu()
+{
+    if (!m_recentProjectsMenu) {
+        return;
+    }
+
+    m_recentProjectsMenu->clear();
+    QSettings settings;
+    const QStringList entries = settings.value(QString::fromLatin1(kRecentProjectsSettingsKey))
+                                    .toStringList();
+    for (const QString& entry : entries) {
+        const QString cromPath = recentProjectCromPath(entry);
+        const QString crpPath = recentProjectCrpPath(entry);
+        if (cromPath.isEmpty() || crpPath.isEmpty()) {
+            continue;
+        }
+        QAction* action = m_recentProjectsMenu->addAction(cromPath);
+        action->setToolTip(cromPath);
+        connect(action, &QAction::triggered, this, [this, entry]() {
+            openRecentProject(entry);
+        });
+    }
+    if (m_recentProjectsMenu->isEmpty()) {
+        QAction* emptyAction = m_recentProjectsMenu->addAction(QStringLiteral("No Recent Projects"));
+        emptyAction->setEnabled(false);
+    }
 }
 
 void MainWindow::setStatusText(const QString& text)
@@ -492,6 +589,8 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::
         statusText = QStringLiteral("Painted line");
     } else if (m_drawingTool == DrawingTool::Rectangle) {
         statusText = QStringLiteral("Painted rectangle");
+    } else if (m_drawingTool == DrawingTool::FilledRectangle) {
+        statusText = QStringLiteral("Painted filled rectangle");
     }
 
     commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
@@ -505,6 +604,10 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
     }
     if (m_drawingTool == DrawingTool::Rectangle) {
         return makeRectanglePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::FilledRectangle) {
+        return makeFilledRectanglePixels(render::Point{start.x, start.y},
+                                         render::Point{end.x, end.y});
     }
     return {};
 }

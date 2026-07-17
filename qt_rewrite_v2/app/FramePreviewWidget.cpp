@@ -307,20 +307,18 @@ void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasReg
     painter.save();
     QColor previewColor = rgb565ToColor(m_previewColor);
     previewColor.setAlpha(150);
-    QColor previewBorder = rgb565ToColor(m_previewColor);
-    previewBorder.setAlpha(230);
-    painter.setPen(QPen(previewBorder, 1));
-    painter.setBrush(previewColor);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::NoBrush);
     for (const render::Point& pixel : m_previewPixels) {
         if (pixel.x < 0 || pixel.y < 0 ||
             pixel.x >= region.logicalSize.width || pixel.y >= region.logicalSize.height) {
             continue;
         }
-        painter.drawRect(QRect(region.displayRect.x + pixel.x * scale,
+        painter.fillRect(QRect(region.displayRect.x + pixel.x * scale,
                                region.displayRect.y + pixel.y * scale,
                                scale,
-                               scale)
-                             .adjusted(0, 0, -1, -1));
+                               scale),
+                         previewColor);
     }
     painter.restore();
 }

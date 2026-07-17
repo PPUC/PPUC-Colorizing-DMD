@@ -55,6 +55,19 @@ bool hasNonBackgroundPixel(const QImage& image)
     return false;
 }
 
+bool hasVisibleRedPixel(const QImage& image)
+{
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor color(image.pixel(x, y));
+            if (color.red() > 80 && color.green() < 40 && color.blue() < 40) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void testFramePreviewWidgetRendersPixels()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -193,6 +206,32 @@ void testFramePreviewStrokeCallback()
            "preview stroke should stay within one resolution");
 }
 
+void testHdPreviewPixelsRender()
+{
+    colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::createEmpty({
+            "preview",
+            1,
+            true,
+        });
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    widget.setFrameIndex(0);
+    widget.setPreviewPixels(colorizing::render::Resolution::Hd,
+                            {colorizing::render::Point{12, 8}},
+                            0xf800);
+
+    QImage image(widget.size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    QPainter painter(&image);
+    widget.render(&painter);
+    painter.end();
+
+    expect(hasVisibleRedPixel(image), "HD preview pixel should render visibly");
+}
+
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -221,6 +260,7 @@ int main(int argc, char* argv[])
     testFramePreviewHitTesting();
     testFramePreviewClickCallback();
     testFramePreviewStrokeCallback();
+    testHdPreviewPixelsRender();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;

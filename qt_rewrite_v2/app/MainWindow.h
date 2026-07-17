@@ -17,6 +17,7 @@ class QLabel;
 class QListWidget;
 class QToolButton;
 class QAction;
+class QMenu;
 
 namespace colorizing::app {
 
@@ -29,6 +30,7 @@ private:
         Point,
         Line,
         Rectangle,
+        FilledRectangle,
     };
 
     struct PixelChange {
@@ -47,8 +49,11 @@ private:
     void createActions();
     void createCentralView();
     void openProject();
+    void openRecentProject(const QString& entry);
     void saveProject();
     void loadProject(const QString& cromPath, const QString& crpPath);
+    void rememberRecentProject(const QString& cromPath, const QString& crpPath);
+    void refreshRecentProjectsMenu();
     void setStatusText(const QString& text);
     void setFrameStatusText(const QString& text);
     void refreshProjectSummary();
@@ -74,6 +79,7 @@ private:
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
     QAction* m_saveAction = nullptr;
+    QMenu* m_recentProjectsMenu = nullptr;
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
     QListWidget* m_frameList = nullptr;
