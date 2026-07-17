@@ -32,6 +32,8 @@ private:
         Line,
         Rectangle,
         FilledRectangle,
+        Circle,
+        FilledCircle,
         Ellipse,
         FilledEllipse,
         ColorPicker,

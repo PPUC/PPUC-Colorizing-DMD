@@ -198,6 +198,26 @@ std::vector<render::Point> makeFilledEllipsePixels(render::Point start, render::
     return pixels;
 }
 
+render::Point squareConstrainedEnd(render::Point start, render::Point end)
+{
+    const int dx = end.x - start.x;
+    const int dy = end.y - start.y;
+    const int side = std::min(std::abs(dx), std::abs(dy));
+    const int xSign = dx < 0 ? -1 : 1;
+    const int ySign = dy < 0 ? -1 : 1;
+    return render::Point{start.x + xSign * side, start.y + ySign * side};
+}
+
+std::vector<render::Point> makeCirclePixels(render::Point start, render::Point end)
+{
+    return makeEllipsePixels(start, squareConstrainedEnd(start, end));
+}
+
+std::vector<render::Point> makeFilledCirclePixels(render::Point start, render::Point end)
+{
+    return makeFilledEllipsePixels(start, squareConstrainedEnd(start, end));
+}
+
 QString makeRecentProjectEntry(const QString& cromPath, const QString& crpPath)
 {
     return cromPath + QChar('\t') + crpPath;
@@ -311,6 +331,8 @@ void MainWindow::createCentralView()
         {DrawingTool::Line, QStringLiteral("Line")},
         {DrawingTool::Rectangle, QStringLiteral("Rect")},
         {DrawingTool::FilledRectangle, QStringLiteral("Fill Rect")},
+        {DrawingTool::Circle, QStringLiteral("Circle")},
+        {DrawingTool::FilledCircle, QStringLiteral("Fill Circle")},
         {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
         {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
         {DrawingTool::ColorPicker, QStringLiteral("Pick")},
@@ -745,6 +767,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::
         statusText = QStringLiteral("Painted rectangle");
     } else if (m_drawingTool == DrawingTool::FilledRectangle) {
         statusText = QStringLiteral("Painted filled rectangle");
+    } else if (m_drawingTool == DrawingTool::Circle) {
+        statusText = QStringLiteral("Painted circle");
+    } else if (m_drawingTool == DrawingTool::FilledCircle) {
+        statusText = QStringLiteral("Painted filled circle");
     } else if (m_drawingTool == DrawingTool::Ellipse) {
         statusText = QStringLiteral("Painted ellipse");
     } else if (m_drawingTool == DrawingTool::FilledEllipse) {
@@ -766,6 +792,12 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
     if (m_drawingTool == DrawingTool::FilledRectangle) {
         return makeFilledRectanglePixels(render::Point{start.x, start.y},
                                          render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::Circle) {
+        return makeCirclePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::FilledCircle) {
+        return makeFilledCirclePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
     }
     if (m_drawingTool == DrawingTool::Ellipse) {
         return makeEllipsePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});

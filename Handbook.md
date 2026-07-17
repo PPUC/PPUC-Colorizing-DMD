@@ -102,6 +102,20 @@ Press, drag, and release to draw a filled rectangle bounded by the start and end
 
 The preview is shown while dragging. The whole filled rectangle is committed on release as one undoable edit.
 
+### Circle
+
+Press, drag, and release to draw a circle outline.
+
+The drag defines a square from the start pixel toward the cursor. The shorter drag axis constrains the circle size.
+The preview is shown while dragging. The whole circle is committed on release as one undoable edit.
+
+### Fill Circle
+
+Press, drag, and release to draw a filled circle.
+
+The drag defines a square from the start pixel toward the cursor. The shorter drag axis constrains the circle size.
+The preview is shown while dragging. The whole filled circle is committed on release as one undoable edit.
+
 ### Ellipse
 
 Press, drag, and release to draw an ellipse outline inside the rectangle bounded by the start and end pixels.
@@ -153,4 +167,3 @@ For project-loading changes, test:
 - Open via `.cROM` with matching `.cRP`.
 - Open via `.cROM` and manually selected `.cRP`.
 - Open via `File -> Open Recent`.
-
