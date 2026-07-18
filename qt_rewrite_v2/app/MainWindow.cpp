@@ -340,6 +340,11 @@ void MainWindow::createCentralView()
     m_comparisonMaskIdSpinBox->setMaximum(-1);
     m_comparisonMaskIdSpinBox->setSpecialValueText(QStringLiteral("None"));
     m_comparisonMaskIdSpinBox->setEnabled(false);
+    m_dynamicSetSpinBox = new QSpinBox(central);
+    m_dynamicSetSpinBox->setToolTip(QStringLiteral("Dynamic mask set to paint"));
+    m_dynamicSetSpinBox->setRange(0, static_cast<int>(document::kMaxDynamicSetsPerFrame - 1));
+    m_dynamicSetSpinBox->setValue(0);
+    m_dynamicSetSpinBox->setEnabled(false);
     m_shapeComparisonModeComboBox = new QComboBox(central);
     m_shapeComparisonModeComboBox->setToolTip(QStringLiteral("Shape comparison mode"));
     m_shapeComparisonModeComboBox->setEnabled(false);
@@ -349,6 +354,8 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_dynamicMaskOverlayButton);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Mask ID"), central));
     toolbarLayout->addWidget(m_comparisonMaskIdSpinBox);
+    toolbarLayout->addWidget(new QLabel(QStringLiteral("Dyn Set"), central));
+    toolbarLayout->addWidget(m_dynamicSetSpinBox);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Shape"), central));
     toolbarLayout->addWidget(m_shapeComparisonModeComboBox);
     toolbarLayout->addSpacing(12);
@@ -438,6 +445,13 @@ void MainWindow::createCentralView()
         }
         updateUndoRedoActions();
     });
+    connect(m_dynamicSetSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int setIndex) {
+                statusBar()->showMessage(QStringLiteral("Selected dynamic set %1").arg(setIndex),
+                                         1500);
+            });
     connect(m_comparisonMaskIdSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -451,8 +465,8 @@ void MainWindow::createCentralView()
                 setCurrentFrameShapeComparisonMode(
                     m_shapeComparisonModeComboBox->currentData().toInt());
             });
-    m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
-        paintFramePixel(hit);
+    m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
+        paintFramePixel(hit, erase);
     });
     m_preview->setOriginalClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintComparisonMaskPixel(hit, erase);
@@ -566,6 +580,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         rememberRecentProject(cromPath, crpPath);
         m_editHistories.clear();
         m_maskEditHistories.clear();
+        m_dynamicMaskEditHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -703,6 +718,9 @@ void MainWindow::updateResolutionMode()
     m_hdButton->setEnabled(hasDocument);
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_dynamicMaskOverlayButton->setEnabled(hasDocument);
+    if (m_dynamicSetSpinBox) {
+        m_dynamicSetSpinBox->setEnabled(hasDocument);
+    }
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
@@ -804,6 +822,11 @@ void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
     }
 }
 
+uint8_t MainWindow::activeDynamicSet() const
+{
+    return m_dynamicSetSpinBox ? static_cast<uint8_t>(m_dynamicSetSpinBox->value()) : uint8_t{0};
+}
+
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
 {
     m_activeDrawColor = rgb565;
@@ -825,9 +848,19 @@ void MainWindow::setDrawingTool(DrawingTool tool)
     }
 }
 
-void MainWindow::paintFramePixel(const render::CanvasHit& hit)
+void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
 {
     if (isComparisonMaskModeActive()) {
+        return;
+    }
+    if (isDynamicMaskModeActive()) {
+        if (m_drawingTool == DrawingTool::FloodFill) {
+            floodFillDynamicMask(hit, erase);
+            return;
+        }
+        if (m_drawingTool == DrawingTool::Point) {
+            paintDynamicMaskPixel(hit, erase);
+        }
         return;
     }
     if (m_drawingTool == DrawingTool::ColorPicker) {
@@ -996,6 +1029,75 @@ void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit, bool eras
     }
 }
 
+void MainWindow::paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase)
+{
+    if (!m_document || !isDynamicMaskModeActive()) {
+        return;
+    }
+    commitDynamicMaskPixels(hit.resolution,
+                            {render::Point{hit.x, hit.y}},
+                            erase ? uint8_t{255} : activeDynamicSet(),
+                            erase ? QStringLiteral("Erased dynamic mask pixel")
+                                  : QStringLiteral("Painted dynamic mask pixel"));
+}
+
+void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
+{
+    if (!m_document || !isDynamicMaskModeActive() || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    try {
+        const uint8_t targetValue =
+            m_document->dynamicMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
+        const uint8_t newValue = erase ? uint8_t{255} : activeDynamicSet();
+        if (targetValue == newValue) {
+            return;
+        }
+
+        const document::IndexedFrame& mask =
+            hit.resolution == render::Resolution::Hd
+                ? m_document->dynamicData(frameIndex)->maskHd
+                : m_document->dynamicData(frameIndex)->maskSd;
+        std::vector<uint8_t> visited(mask.pixels.size(), 0);
+        std::deque<render::Point> queue;
+        std::vector<render::Point> pixels;
+        queue.push_back(render::Point{hit.x, hit.y});
+
+        while (!queue.empty()) {
+            const render::Point point = queue.front();
+            queue.pop_front();
+            if (point.x < 0 || point.y < 0 ||
+                point.x >= mask.size.width || point.y >= mask.size.height) {
+                continue;
+            }
+            const std::size_t index =
+                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(point.x);
+            if (visited[index]) {
+                continue;
+            }
+            visited[index] = 1;
+            if (mask.pixels[index] != targetValue) {
+                continue;
+            }
+            pixels.push_back(point);
+            queue.push_back(render::Point{point.x - 1, point.y});
+            queue.push_back(render::Point{point.x + 1, point.y});
+            queue.push_back(render::Point{point.x, point.y - 1});
+            queue.push_back(render::Point{point.x, point.y + 1});
+        }
+
+        commitDynamicMaskPixels(hit.resolution,
+                                pixels,
+                                newValue,
+                                erase ? QStringLiteral("Flood erased dynamic mask")
+                                      : QStringLiteral("Flood filled dynamic mask"));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::previewFrameStroke(const render::CanvasHit& start,
                                     const render::CanvasHit& end,
                                     bool erase)
@@ -1014,6 +1116,17 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
                                     pixelsForStroke(start, end),
                                     erase ? QColor(0, 0, 0, 150)
                                           : QColor(255, 0, 0, 150));
+        return;
+    }
+    if (isDynamicMaskModeActive()) {
+        if (start.region != render::CanvasRegion::ColorizedFrame) {
+            return;
+        }
+        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
+                                    start.resolution,
+                                    pixelsForStroke(start, end),
+                                    erase ? QColor(0, 0, 0, 150)
+                                          : QColor(0, 180, 255, 150));
         return;
     }
     if (start.region != render::CanvasRegion::ColorizedFrame) {
@@ -1063,6 +1176,19 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
                              QStringLiteral("Painted"),
                              erase ? QStringLiteral("Erased comparison mask")
                                    : QStringLiteral("Painted comparison mask")));
+        return;
+    }
+    if (isDynamicMaskModeActive()) {
+        if (start.region != render::CanvasRegion::ColorizedFrame) {
+            return;
+        }
+        commitDynamicMaskPixels(start.resolution,
+                                pixelsForStroke(start, end),
+                                erase ? uint8_t{255} : activeDynamicSet(),
+                                statusText.replace(
+                                    QStringLiteral("Painted"),
+                                    erase ? QStringLiteral("Erased dynamic mask")
+                                          : QStringLiteral("Painted dynamic mask")));
         return;
     }
 
@@ -1198,6 +1324,58 @@ void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
     statusBar()->showMessage(statusText, 2500);
 }
 
+void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
+                                         const std::vector<render::Point>& pixels,
+                                         uint8_t value,
+                                         const QString& statusText)
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0 || pixels.empty()) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return;
+    }
+
+    DynamicMaskEditCommand command;
+    command.frameIndex = frameIndex;
+    command.resolution = resolution;
+    std::set<std::pair<int, int>> seen;
+
+    try {
+        for (const render::Point& pixel : pixels) {
+            if (!seen.insert({pixel.x, pixel.y}).second) {
+                continue;
+            }
+            const uint8_t oldValue =
+                m_document->dynamicMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
+            if (oldValue == value) {
+                continue;
+            }
+            command.changes.push_back(DynamicMaskPixelChange{
+                pixel.x,
+                pixel.y,
+                oldValue,
+                value,
+            });
+        }
+        if (command.changes.empty()) {
+            return;
+        }
+        applyDynamicMaskEdit(command, true);
+        DynamicMaskEditHistory& history =
+            m_dynamicMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(statusText, 2500);
+}
+
 void MainWindow::applyPixelEdit(const PixelEditCommand& command, bool useNewColor)
 {
     if (!m_document) {
@@ -1225,6 +1403,22 @@ void MainWindow::applyMaskEdit(const MaskEditCommand& command, bool useNewValue)
                                            change.x,
                                            change.y,
                                            useNewValue ? change.newValue : change.oldValue);
+    }
+    m_preview->update();
+    updateProjectHeaderStatus();
+}
+
+void MainWindow::applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue)
+{
+    if (!m_document) {
+        return;
+    }
+    for (const DynamicMaskPixelChange& change : command.changes) {
+        m_document->setDynamicMaskPixel(command.frameIndex,
+                                        command.resolution,
+                                        change.x,
+                                        change.y,
+                                        useNewValue ? change.newValue : change.oldValue);
     }
     m_preview->update();
     updateProjectHeaderStatus();
@@ -1315,6 +1509,37 @@ bool MainWindow::isComparisonMaskModeActive() const
     return m_comparisonMaskOverlayButton && m_comparisonMaskOverlayButton->isChecked();
 }
 
+MainWindow::DynamicMaskEditHistory* MainWindow::currentDynamicMaskEditHistory()
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_dynamicMaskEditHistories.find(*key);
+    if (history == m_dynamicMaskEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::DynamicMaskEditHistory* MainWindow::currentDynamicMaskEditHistory() const
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_dynamicMaskEditHistories.find(*key);
+    if (history == m_dynamicMaskEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+bool MainWindow::isDynamicMaskModeActive() const
+{
+    return m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isChecked();
+}
+
 void MainWindow::undo()
 {
     if (isComparisonMaskModeActive()) {
@@ -1328,6 +1553,19 @@ void MainWindow::undo()
         history->redoStack.push_back(command);
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Undo mask edit"), 1500);
+        return;
+    }
+    if (isDynamicMaskModeActive()) {
+        DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
+        if (!history || history->undoStack.empty()) {
+            return;
+        }
+        const DynamicMaskEditCommand command = history->undoStack.back();
+        history->undoStack.pop_back();
+        applyDynamicMaskEdit(command, false);
+        history->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo dynamic mask edit"), 1500);
         return;
     }
 
@@ -1358,6 +1596,19 @@ void MainWindow::redo()
         statusBar()->showMessage(QStringLiteral("Redo mask edit"), 1500);
         return;
     }
+    if (isDynamicMaskModeActive()) {
+        DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
+        if (!history || history->redoStack.empty()) {
+            return;
+        }
+        const DynamicMaskEditCommand command = history->redoStack.back();
+        history->redoStack.pop_back();
+        applyDynamicMaskEdit(command, true);
+        history->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo dynamic mask edit"), 1500);
+        return;
+    }
 
     EditHistory* history = currentEditHistory();
     if (!history || history->redoStack.empty()) {
@@ -1375,6 +1626,16 @@ void MainWindow::updateUndoRedoActions()
 {
     if (isComparisonMaskModeActive()) {
         const MaskEditHistory* history = currentMaskEditHistory();
+        if (m_undoAction) {
+            m_undoAction->setEnabled(history && !history->undoStack.empty());
+        }
+        if (m_redoAction) {
+            m_redoAction->setEnabled(history && !history->redoStack.empty());
+        }
+        return;
+    }
+    if (isDynamicMaskModeActive()) {
+        const DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
         if (m_undoAction) {
             m_undoAction->setEnabled(history && !history->undoStack.empty());
         }

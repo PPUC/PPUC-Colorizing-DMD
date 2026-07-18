@@ -55,7 +55,7 @@ void FramePreviewWidget::setDynamicMaskOverlayEnabled(bool enabled)
     update();
 }
 
-void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit)> handler)
+void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
 }
@@ -143,10 +143,10 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
             m_strokeStart = *hit;
-            m_strokeErase = false;
+            m_strokeErase = event->modifiers().testFlag(Qt::ShiftModifier);
             clearPreviewPixels();
             if (m_pixelClickedHandler) {
-                m_pixelClickedHandler(*hit);
+                m_pixelClickedHandler(*hit, m_strokeErase);
             }
             event->accept();
             return;

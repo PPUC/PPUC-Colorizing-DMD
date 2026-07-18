@@ -180,7 +180,7 @@ void testFramePreviewClickCallback()
     widget.setFrameIndex(0);
 
     bool clicked = false;
-    widget.setPixelClickedHandler([&](colorizing::render::CanvasHit hit) {
+    widget.setPixelClickedHandler([&](colorizing::render::CanvasHit hit, bool) {
         clicked = hit.region == colorizing::render::CanvasRegion::ColorizedFrame;
     });
 

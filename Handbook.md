@@ -80,8 +80,8 @@ Drawing previews are transient overlays. They do not modify project data until m
 Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
 When `Mask` is active, clicks on the original/reference region add pixels to the assigned comparison mask.
 
-Use the `Dynamic` toolbar toggle to show dynamic-mask pixels over the active colorized frame.
-The dynamic overlay follows the active SD/HD mode.
+Use the `Dynamic` toolbar toggle to show and edit dynamic-mask pixels over the active colorized frame.
+The dynamic overlay and edits follow the active SD/HD mode.
 
 ## Colors
 
@@ -205,12 +205,16 @@ The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a 
 
 Rules:
 
-- The overlay is read-only for now.
+- The `Dyn Set` toolbar field selects the dynamic set written by drawing tools.
 - In SD mode, the SD dynamic mask is rendered over the SD colorized frame.
 - In HD mode, the HD dynamic mask is rendered over the HD colorized frame.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
+- Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.
+- Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD dynamic mask.
+- Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
+- Dynamic-mask edits are undoable per frame and per resolution.
 
-Dynamic-mask editing is not implemented yet.
+Dynamic color-set editing is not implemented yet.
 
 ## Testing Checklist
 

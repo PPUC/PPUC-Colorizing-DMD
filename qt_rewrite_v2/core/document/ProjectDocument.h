@@ -88,6 +88,15 @@ public:
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;
     void setComparisonMaskPixel(std::size_t maskIndex, int x, int y, uint8_t value);
     [[nodiscard]] const std::optional<FrameDynamicData>& dynamicData(std::size_t frameIndex) const;
+    [[nodiscard]] uint8_t dynamicMaskPixel(std::size_t frameIndex,
+                                           Resolution resolution,
+                                           int x,
+                                           int y) const;
+    void setDynamicMaskPixel(std::size_t frameIndex,
+                             Resolution resolution,
+                             int x,
+                             int y,
+                             uint8_t value);
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,

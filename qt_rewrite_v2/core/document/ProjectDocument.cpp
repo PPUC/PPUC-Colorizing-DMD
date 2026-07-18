@@ -286,6 +286,59 @@ const std::optional<FrameDynamicData>& ProjectDocument::dynamicData(std::size_t 
 
 namespace {
 
+const IndexedFrame& requireDynamicMask(const FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic mask data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->maskHd : frame.dynamicData->maskSd;
+}
+
+IndexedFrame& requireDynamicMask(FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic mask data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->maskHd : frame.dynamicData->maskSd;
+}
+
+std::size_t checkedIndexedPixelIndex(const IndexedFrame& frame, int x, int y)
+{
+    if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
+        throw std::out_of_range("mask pixel coordinate out of range");
+    }
+    return static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+           static_cast<std::size_t>(x);
+}
+
+}  // namespace
+
+uint8_t ProjectDocument::dynamicMaskPixel(std::size_t frameIndex,
+                                          Resolution resolution,
+                                          int x,
+                                          int y) const
+{
+    const IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
+    return mask.pixels[checkedIndexedPixelIndex(mask, x, y)];
+}
+
+void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
+                                          Resolution resolution,
+                                          int x,
+                                          int y,
+                                          uint8_t value)
+{
+    IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
+    if (mask.pixels[pixelIndex] == value) {
+        return;
+    }
+    mask.pixels[pixelIndex] = value;
+    m_dirty = true;
+}
+
+namespace {
+
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)
 {
     if (resolution == Resolution::Sd) {

@@ -84,6 +84,19 @@ private:
         std::vector<MaskEditCommand> redoStack;
     };
 
+    using DynamicMaskPixelChange = MaskPixelChange;
+
+    struct DynamicMaskEditCommand {
+        std::size_t frameIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+        std::vector<DynamicMaskPixelChange> changes;
+    };
+
+    struct DynamicMaskEditHistory {
+        std::vector<DynamicMaskEditCommand> undoStack;
+        std::vector<DynamicMaskEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -102,11 +115,14 @@ private:
     void updateFrameMetadataControls();
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
-    void paintFramePixel(const render::CanvasHit& hit);
+    [[nodiscard]] uint8_t activeDynamicSet() const;
+    void paintFramePixel(const render::CanvasHit& hit, bool erase);
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
     void paintComparisonMaskPixel(const render::CanvasHit& hit, bool erase);
     void floodFillComparisonMask(const render::CanvasHit& hit, bool erase);
+    void paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase);
+    void floodFillDynamicMask(const render::CanvasHit& hit, bool erase);
     void previewFrameStroke(const render::CanvasHit& start,
                             const render::CanvasHit& end,
                             bool erase);
@@ -121,8 +137,13 @@ private:
     void commitMaskPixels(const std::vector<render::Point>& pixels,
                           uint8_t value,
                           const QString& statusText);
+    void commitDynamicMaskPixels(render::Resolution resolution,
+                                 const std::vector<render::Point>& pixels,
+                                 uint8_t value,
+                                 const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
+    void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -130,6 +151,9 @@ private:
     [[nodiscard]] MaskEditHistory* currentMaskEditHistory();
     [[nodiscard]] const MaskEditHistory* currentMaskEditHistory() const;
     [[nodiscard]] bool isComparisonMaskModeActive() const;
+    [[nodiscard]] DynamicMaskEditHistory* currentDynamicMaskEditHistory();
+    [[nodiscard]] const DynamicMaskEditHistory* currentDynamicMaskEditHistory() const;
+    [[nodiscard]] bool isDynamicMaskModeActive() const;
     void undo();
     void redo();
     void updateUndoRedoActions();
@@ -148,6 +172,7 @@ private:
     QToolButton* m_comparisonMaskOverlayButton = nullptr;
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
+    QSpinBox* m_dynamicSetSpinBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
@@ -157,6 +182,7 @@ private:
     uint16_t m_activeDrawColor = 0xffff;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
+    std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

@@ -318,6 +318,55 @@ void testFrameComparisonMetadataEditing()
         "comparison mask ID frame bounds");
 }
 
+void testDynamicMaskPixelEditing()
+{
+    FrameDynamicData dynamicData{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    ProjectSnapshot snapshot;
+    snapshot.romName = "dynamic_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        dynamicData,
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setDynamicMaskPixel(0, Resolution::Sd, 4, 2, 3);
+    expect(document.dynamicMaskPixel(0, Resolution::Sd, 4, 2) == 3,
+           "SD dynamic mask pixel edit should be readable");
+    expect(document.isDirty(), "dynamic mask pixel edit should mark dirty");
+
+    document.markClean();
+    document.setDynamicMaskPixel(0, Resolution::Sd, 4, 2, 3);
+    expect(!document.isDirty(), "identical dynamic mask pixel edit should not mark dirty");
+
+    document.setDynamicMaskPixel(0, Resolution::Hd, 8, 4, 5);
+    expect(document.dynamicMaskPixel(0, Resolution::Hd, 8, 4) == 5,
+           "HD dynamic mask pixel edit should be readable");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setDynamicMaskPixel(0, Resolution::Sd, 128, 0, 1); },
+        "dynamic mask pixel bounds");
+
+    ProjectDocument noDynamicData = ProjectDocument::createEmpty(ProjectCreateOptions{
+        "empty_dynamic",
+        1,
+        true,
+    });
+    expectThrows<std::logic_error>(
+        [&]() { noDynamicData.setDynamicMaskPixel(0, Resolution::Sd, 0, 0, 1); },
+        "missing dynamic mask write");
+}
+
 void testInvalidSnapshotReportsReason()
 {
     ProjectSnapshot snapshot;
@@ -347,5 +396,6 @@ void runProjectDocumentTests()
     testSnapshotValidationAndRoundTrip();
     testComparisonMaskPixelEditing();
     testFrameComparisonMetadataEditing();
+    testDynamicMaskPixelEditing();
     testInvalidSnapshotReportsReason();
 }
