@@ -72,6 +72,9 @@ The canvas does not draw text labels or white frame outlines over the image data
 
 Drawing previews are transient overlays. They do not modify project data until mouse release or click commit.
 
+Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
+Mask overlays are read-only for now.
+
 ## Colors
 
 The toolbar contains fixed swatches:

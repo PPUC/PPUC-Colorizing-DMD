@@ -37,6 +37,15 @@ void FramePreviewWidget::setActiveResolution(render::Resolution resolution)
     update();
 }
 
+void FramePreviewWidget::setComparisonMaskOverlayEnabled(bool enabled)
+{
+    if (m_showComparisonMaskOverlay == enabled) {
+        return;
+    }
+    m_showComparisonMaskOverlay = enabled;
+    update();
+}
+
 void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
@@ -213,6 +222,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
 
     for (const render::CanvasRegionLayout& region : layout.regions()) {
         paintRegion(painter, region);
+        paintComparisonMaskOverlay(painter, region);
         paintPreview(painter, region);
     }
 
@@ -261,6 +271,45 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
         }
     }
 
+}
+
+void FramePreviewWidget::paintComparisonMaskOverlay(
+    QPainter& painter,
+    const render::CanvasRegionLayout& region)
+{
+    if (!m_showComparisonMaskOverlay ||
+        region.region != render::CanvasRegion::OriginalFrame ||
+        region.resolution != render::Resolution::Sd) {
+        return;
+    }
+
+    const uint8_t maskId = m_document->comparisonMaskId(m_frameIndex);
+    if (maskId >= m_document->comparisonMaskCount()) {
+        return;
+    }
+
+    const document::IndexedFrame& mask = m_document->comparisonMask(maskId);
+    const int scale = region.displayScale;
+    const QColor overlayColor(255, 0, 0, 180);
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::NoBrush);
+    for (int y = 0; y < mask.size.height; ++y) {
+        for (int x = 0; x < mask.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(x);
+            if (mask.pixels[index] == 0) {
+                continue;
+            }
+            painter.fillRect(QRect(region.displayRect.x + x * scale,
+                                   region.displayRect.y + y * scale,
+                                   scale,
+                                   scale),
+                             overlayColor);
+        }
+    }
+    painter.restore();
 }
 
 void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasRegionLayout& region)

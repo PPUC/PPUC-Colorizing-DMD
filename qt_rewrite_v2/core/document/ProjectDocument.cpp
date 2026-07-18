@@ -198,6 +198,29 @@ const Rgb565Frame& ProjectDocument::colorizedFrame(std::size_t frameIndex,
     return *frame.colorizedHd;
 }
 
+uint8_t ProjectDocument::shapeComparisonMode(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).shapeComparisonMode;
+}
+
+uint8_t ProjectDocument::comparisonMaskId(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).comparisonMaskId;
+}
+
+std::size_t ProjectDocument::comparisonMaskCount() const
+{
+    return m_comparisonMasks.size();
+}
+
+const IndexedFrame& ProjectDocument::comparisonMask(std::size_t maskIndex) const
+{
+    if (maskIndex >= m_comparisonMasks.size()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    return m_comparisonMasks[maskIndex];
+}
+
 namespace {
 
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)

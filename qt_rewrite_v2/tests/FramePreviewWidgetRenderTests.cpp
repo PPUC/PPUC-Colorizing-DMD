@@ -10,6 +10,7 @@
 #include <QPainter>
 
 #include "document/ProjectDocument.h"
+#include "document/ProjectSnapshot.h"
 #include "FrameThumbnail.h"
 
 namespace {
@@ -40,6 +41,24 @@ colorizing::document::ProjectDocument makePreviewDocument()
     document.setColorizedPixel(0, colorizing::render::Resolution::Hd, 0, 0, 0x001f);
     document.markClean();
     return document;
+}
+
+colorizing::document::ProjectDocument makeMaskedPreviewDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "masked_preview";
+    colorizing::document::IndexedFrame mask =
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
+    mask.pixels[0] = 1;
+    snapshot.comparisonMasks.push_back(mask);
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        0,
+    });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
 
 bool hasNonBackgroundPixel(const QImage& image)
@@ -232,6 +251,25 @@ void testHdPreviewPixelsRender()
     expect(hasVisibleRedPixel(image), "HD preview pixel should render visibly");
 }
 
+void testComparisonMaskOverlayRenders()
+{
+    colorizing::document::ProjectDocument document = makeMaskedPreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    widget.setComparisonMaskOverlayEnabled(true);
+    widget.setFrameIndex(0);
+
+    QImage image(widget.size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    QPainter painter(&image);
+    widget.render(&painter);
+    painter.end();
+
+    expect(hasVisibleRedPixel(image), "comparison mask overlay should render visibly");
+}
+
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -261,6 +299,7 @@ int main(int argc, char* argv[])
     testFramePreviewClickCallback();
     testFramePreviewStrokeCallback();
     testHdPreviewPixelsRender();
+    testComparisonMaskOverlayRenders();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;

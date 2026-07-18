@@ -69,6 +69,10 @@ public:
     [[nodiscard]] const IndexedFrame& originalFrame(std::size_t frameIndex) const;
     [[nodiscard]] const Rgb565Frame& colorizedFrame(std::size_t frameIndex,
                                                     Resolution resolution) const;
+    [[nodiscard]] uint8_t shapeComparisonMode(std::size_t frameIndex) const;
+    [[nodiscard]] uint8_t comparisonMaskId(std::size_t frameIndex) const;
+    [[nodiscard]] std::size_t comparisonMaskCount() const;
+    [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,

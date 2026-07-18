@@ -20,6 +20,7 @@ public:
     void setDocument(const document::ProjectDocument* document);
     void setFrameIndex(std::size_t frameIndex);
     void setActiveResolution(render::Resolution resolution);
+    void setComparisonMaskOverlayEnabled(bool enabled);
     void setPixelClickedHandler(std::function<void(render::CanvasHit)> handler);
     void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit)> handler);
     void setStrokeFinishedHandler(std::function<void(render::CanvasHit, render::CanvasHit)> handler);
@@ -44,11 +45,13 @@ private:
     void paintEmpty(QPainter& painter);
     void paintFrame(QPainter& painter);
     void paintRegion(QPainter& painter, const render::CanvasRegionLayout& region);
+    void paintComparisonMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
 
     const document::ProjectDocument* m_document = nullptr;
     std::size_t m_frameIndex = 0;
     bool m_hasFrame = false;
+    bool m_showComparisonMaskOverlay = false;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     std::function<void(render::CanvasHit)> m_pixelClickedHandler;
     std::function<void(render::CanvasHit, render::CanvasHit)> m_strokePreviewHandler;

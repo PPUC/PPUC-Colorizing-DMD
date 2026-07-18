@@ -109,6 +109,7 @@ private:
     QListWidget* m_frameList = nullptr;
     QToolButton* m_sdButton = nullptr;
     QToolButton* m_hdButton = nullptr;
+    QToolButton* m_comparisonMaskOverlayButton = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     FramePreviewWidget* m_preview = nullptr;

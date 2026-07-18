@@ -206,6 +206,14 @@ void testSnapshotValidationAndRoundTrip()
            "snapshot shape comparison mode round-trip");
     expect(roundTrip.frames[0].comparisonMaskId == 5,
            "snapshot comparison mask ID round-trip");
+    expect(document.shapeComparisonMode(0) == 7,
+           "document shape comparison mode accessor");
+    expect(document.comparisonMaskId(0) == 5,
+           "document comparison mask ID accessor");
+    expect(document.comparisonMaskCount() == 1,
+           "document comparison mask count accessor");
+    expect(document.comparisonMask(0).pixels.front() == 3,
+           "document comparison mask accessor");
     expect(roundTrip.comparisonMasks.size() == 1, "snapshot comparison mask count round-trip");
     expect(roundTrip.comparisonMasks[0].pixels.front() == 3,
            "snapshot comparison mask data round-trip");

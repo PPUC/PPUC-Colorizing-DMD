@@ -322,8 +322,14 @@ void MainWindow::createCentralView()
     m_hdButton->setText(QStringLiteral("HD"));
     m_hdButton->setCheckable(true);
     m_hdButton->setEnabled(false);
+    m_comparisonMaskOverlayButton = new QToolButton(central);
+    m_comparisonMaskOverlayButton->setText(QStringLiteral("Mask"));
+    m_comparisonMaskOverlayButton->setToolTip(QStringLiteral("Show comparison mask overlay"));
+    m_comparisonMaskOverlayButton->setCheckable(true);
+    m_comparisonMaskOverlayButton->setEnabled(false);
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
+    toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
     toolbarLayout->addSpacing(12);
 
     const std::vector<std::pair<DrawingTool, QString>> tools{
@@ -382,6 +388,11 @@ void MainWindow::createCentralView()
     connect(m_hdButton, &QToolButton::clicked, this, [this]() {
         m_activeResolution = render::Resolution::Hd;
         updateResolutionMode();
+    });
+    connect(m_comparisonMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (m_preview) {
+            m_preview->setComparisonMaskOverlayEnabled(checked);
+        }
     });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
         paintFramePixel(hit);
@@ -625,6 +636,7 @@ void MainWindow::updateResolutionMode()
     const bool hasDocument = m_document.has_value();
     m_sdButton->setEnabled(hasDocument);
     m_hdButton->setEnabled(hasDocument);
+    m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
