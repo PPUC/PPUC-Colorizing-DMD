@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 
 #include <QMouseEvent>
 #include <QPainter>
@@ -70,6 +71,15 @@ void FramePreviewWidget::setBackgroundLayerEnabled(bool enabled)
         return;
     }
     m_showBackgroundLayer = enabled;
+    update();
+}
+
+void FramePreviewWidget::setBackgroundImageEditModeEnabled(bool enabled)
+{
+    if (m_showBackgroundImageEditMode == enabled) {
+        return;
+    }
+    m_showBackgroundImageEditMode = enabled;
     update();
 }
 
@@ -288,8 +298,8 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
     const bool drawOriginal = region.region == render::CanvasRegion::OriginalFrame;
     const document::IndexedFrame* original = nullptr;
     const document::Rgb565Frame* colorized = nullptr;
-    const document::Rgb565Frame* background = nullptr;
-    const document::IndexedFrame* backgroundMask = nullptr;
+    const bool drawBackgroundImage =
+        !drawOriginal && m_showBackgroundImageEditMode;
 
     if (drawOriginal) {
         original = &m_document->originalFrame(m_frameIndex);
@@ -297,16 +307,13 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
         colorized = &m_document->colorizedFrame(m_frameIndex, region.resolution);
         const std::optional<document::FrameBackgroundData>& backgroundData =
             m_document->backgroundData(m_frameIndex);
-        if (m_showBackgroundLayer && backgroundData &&
+        if (drawBackgroundImage && backgroundData &&
             backgroundData->backgroundId < m_document->backgroundCount()) {
-            const document::BackgroundRecord& backgroundRecord =
-                m_document->background(backgroundData->backgroundId);
-            if (region.resolution == render::Resolution::Hd && backgroundRecord.colorizedHd) {
-                background = &*backgroundRecord.colorizedHd;
-                backgroundMask = &backgroundData->maskHd;
-            } else if (region.resolution == render::Resolution::Sd) {
-                background = &backgroundRecord.colorizedSd;
-                backgroundMask = &backgroundData->maskSd;
+            try {
+                colorized = &m_document->backgroundFrame(backgroundData->backgroundId,
+                                                         region.resolution);
+            } catch (const std::exception&) {
+                colorized = nullptr;
             }
         }
     }
@@ -320,28 +327,20 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                     static_cast<std::size_t>(y) * static_cast<std::size_t>(original->size.width) +
                     static_cast<std::size_t>(x);
                 color = originalIndexToColor(original->pixels[index]);
-            } else {
+            } else if (colorized) {
                 const std::size_t index =
                     static_cast<std::size_t>(y) * static_cast<std::size_t>(colorized->size.width) +
                     static_cast<std::size_t>(x);
-                bool useBackground = false;
-                if (background && backgroundMask) {
-                    const document::IndexedFrame& originalFrame = m_document->originalFrame(m_frameIndex);
-                    const int originalX = region.resolution == render::Resolution::Hd ? x / 2 : x;
-                    const int originalY = region.resolution == render::Resolution::Hd ? y / 2 : y;
-                    const std::size_t originalIndex =
-                        static_cast<std::size_t>(originalY) *
-                            static_cast<std::size_t>(originalFrame.size.width) +
-                        static_cast<std::size_t>(originalX);
-                    const std::size_t maskIndex =
-                        static_cast<std::size_t>(y) *
-                            static_cast<std::size_t>(backgroundMask->size.width) +
-                        static_cast<std::size_t>(x);
-                    useBackground = originalFrame.pixels[originalIndex] == 0 &&
-                                    backgroundMask->pixels[maskIndex] != 0;
-                }
-                color = useBackground ? rgb565ToColor(background->pixels[index])
-                                      : rgb565ToColor(colorized->pixels[index]);
+                color = drawBackgroundImage
+                            ? rgb565ToColor(colorized->pixels[index])
+                            : rgb565ToColor(resolvedFramePixel(*m_document,
+                                                               m_frameIndex,
+                                                               region.resolution,
+                                                               x,
+                                                               y,
+                                                               m_showBackgroundLayer));
+            } else {
+                color = QColor(0, 0, 0);
             }
 
             painter.fillRect(QRect(region.displayRect.x + x * scale,

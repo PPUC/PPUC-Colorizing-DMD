@@ -22,9 +22,11 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
     const int frameWidth = iconSize.width() - margin * 2;
     const int frameHeight = (iconSize.height() - margin * 2 - gap) / 2;
 
-    const QImage colorized = renderRgb565FrameImage(
-        document.colorizedFrame(frameIndex, render::Resolution::Sd),
-        1);
+    const QImage colorized = renderResolvedFrameImage(document,
+                                                      frameIndex,
+                                                      render::Resolution::Sd,
+                                                      1,
+                                                      true);
     const QImage original = renderIndexedFrameImage(document.originalFrame(frameIndex), 1);
 
     painter.drawImage(QRect(margin, margin, frameWidth, frameHeight), colorized);
@@ -44,4 +46,3 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
 }
 
 }  // namespace colorizing::app
-

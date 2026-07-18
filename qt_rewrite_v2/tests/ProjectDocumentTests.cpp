@@ -268,6 +268,10 @@ void testSnapshotValidationAndRoundTrip()
            "document background count accessor");
     expect(document.background(0).colorizedSd.pixels.front() == 0x5050,
            "document background accessor");
+    expect(document.backgroundFrame(0, Resolution::Sd).pixels.front() == 0x5050,
+           "document SD background frame accessor");
+    expect(document.backgroundFrame(0, Resolution::Hd).pixels.front() == 0x6060,
+           "document HD background frame accessor");
     expect(document.backgroundId(0) == 0,
            "document background ID accessor");
     expect(document.backgroundMaskPixel(0, Resolution::Sd, 4, 0) == 6,
@@ -485,6 +489,59 @@ void testBackgroundMetadataAndMaskEditing()
         "missing background mask write");
 }
 
+void testBackgroundImagePixelEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "background_image_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        std::nullopt,
+        FrameBackgroundData{
+            0,
+            makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+            makeIndexedFrame(colorizing::render::kHdFrameSize, 0),
+        },
+    });
+    snapshot.backgrounds.push_back(BackgroundRecord{
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0x5050),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0x6060),
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setBackgroundPixel(0, Resolution::Sd, 4, 2, 0x1111);
+    expect(document.backgroundPixel(0, Resolution::Sd, 4, 2) == 0x1111,
+           "SD background pixel edit should be readable");
+    expect(document.isDirty(), "background pixel edit should mark dirty");
+
+    document.markClean();
+    document.setBackgroundPixel(0, Resolution::Sd, 4, 2, 0x1111);
+    expect(!document.isDirty(), "identical background pixel edit should not mark dirty");
+
+    document.setBackgroundPixel(0, Resolution::Hd, 8, 4, 0x2222);
+    expect(document.backgroundPixel(0, Resolution::Hd, 8, 4) == 0x2222,
+           "HD background pixel edit should be readable");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setBackgroundPixel(1, Resolution::Sd, 0, 0, 1); },
+        "background image index bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setBackgroundPixel(0, Resolution::Sd, 128, 0, 1); },
+        "background image pixel bounds");
+
+    ProjectSnapshot sdOnlySnapshot = snapshot;
+    sdOnlySnapshot.backgrounds[0].colorizedHd.reset();
+    ProjectDocument sdOnlyDocument = ProjectDocument::fromSnapshot(sdOnlySnapshot);
+    expectThrows<std::logic_error>(
+        [&]() { sdOnlyDocument.setBackgroundPixel(0, Resolution::Hd, 0, 0, 1); },
+        "missing HD background write");
+}
+
 void testInvalidSnapshotReportsReason()
 {
     ProjectSnapshot snapshot;
@@ -516,5 +573,6 @@ void runProjectDocumentTests()
     testFrameComparisonMetadataEditing();
     testDynamicMaskPixelEditing();
     testBackgroundMetadataAndMaskEditing();
+    testBackgroundImagePixelEditing();
     testInvalidSnapshotReportsReason();
 }

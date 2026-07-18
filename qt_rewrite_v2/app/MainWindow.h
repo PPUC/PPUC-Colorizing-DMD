@@ -42,6 +42,11 @@ private:
         FloodFill,
     };
 
+    enum class PaintTarget {
+        Frame,
+        Background,
+    };
+
     struct PixelChange {
         int x = 0;
         int y = 0;
@@ -110,6 +115,24 @@ private:
         std::vector<BackgroundMaskEditCommand> redoStack;
     };
 
+    struct BackgroundEditHistoryKey {
+        std::size_t backgroundIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+
+        [[nodiscard]] bool operator<(const BackgroundEditHistoryKey& other) const;
+    };
+
+    struct BackgroundImageEditCommand {
+        std::size_t backgroundIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+        std::vector<PixelChange> changes;
+    };
+
+    struct BackgroundImageEditHistory {
+        std::vector<BackgroundImageEditCommand> undoStack;
+        std::vector<BackgroundImageEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -126,13 +149,18 @@ private:
     void setDrawingTool(DrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
     void updateFrameMetadataControls();
+    void updatePaintTargetMode();
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
     [[nodiscard]] uint8_t activeDynamicSet() const;
+    [[nodiscard]] PaintTarget activePaintTarget() const;
     void paintFramePixel(const render::CanvasHit& hit, bool erase);
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
+    void paintBackgroundImagePixel(const render::CanvasHit& hit);
+    void pickBackgroundImageColor(const render::CanvasHit& hit);
+    void floodFillBackgroundImage(const render::CanvasHit& hit);
     void paintComparisonMaskPixel(const render::CanvasHit& hit, bool erase);
     void floodFillComparisonMask(const render::CanvasHit& hit, bool erase);
     void paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase);
@@ -161,10 +189,14 @@ private:
                                     const std::vector<render::Point>& pixels,
                                     uint8_t value,
                                     const QString& statusText);
+    void commitBackgroundImagePixels(render::Resolution resolution,
+                                     const std::vector<render::Point>& pixels,
+                                     const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
     void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
+    void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -178,6 +210,11 @@ private:
     [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
     [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
+    [[nodiscard]] std::optional<std::size_t> currentBackgroundIndex() const;
+    [[nodiscard]] std::optional<BackgroundEditHistoryKey> currentBackgroundEditHistoryKey() const;
+    [[nodiscard]] BackgroundImageEditHistory* currentBackgroundImageEditHistory();
+    [[nodiscard]] const BackgroundImageEditHistory* currentBackgroundImageEditHistory() const;
+    [[nodiscard]] bool isBackgroundImageTargetActive() const;
     void undo();
     void redo();
     void updateUndoRedoActions();
@@ -200,6 +237,7 @@ private:
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
+    QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
@@ -211,6 +249,7 @@ private:
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
     std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
+    std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

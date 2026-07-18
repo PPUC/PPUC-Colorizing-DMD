@@ -409,6 +409,91 @@ const BackgroundRecord& ProjectDocument::background(std::size_t backgroundIndex)
     return m_backgrounds[backgroundIndex];
 }
 
+namespace {
+
+const BackgroundRecord& requireBackground(const std::vector<BackgroundRecord>& backgrounds,
+                                          std::size_t backgroundIndex)
+{
+    if (backgroundIndex >= backgrounds.size()) {
+        throw std::out_of_range("background index out of range");
+    }
+    return backgrounds[backgroundIndex];
+}
+
+BackgroundRecord& requireBackground(std::vector<BackgroundRecord>& backgrounds,
+                                    std::size_t backgroundIndex)
+{
+    if (backgroundIndex >= backgrounds.size()) {
+        throw std::out_of_range("background index out of range");
+    }
+    return backgrounds[backgroundIndex];
+}
+
+const Rgb565Frame& requireBackgroundFrame(const BackgroundRecord& background,
+                                          Resolution resolution)
+{
+    if (resolution == Resolution::Sd) {
+        return background.colorizedSd;
+    }
+    if (!background.colorizedHd) {
+        throw std::logic_error("HD background is not available");
+    }
+    return *background.colorizedHd;
+}
+
+Rgb565Frame& requireBackgroundFrame(BackgroundRecord& background, Resolution resolution)
+{
+    if (resolution == Resolution::Sd) {
+        return background.colorizedSd;
+    }
+    if (!background.colorizedHd) {
+        throw std::logic_error("HD background is not available");
+    }
+    return *background.colorizedHd;
+}
+
+std::size_t checkedRgb565PixelIndex(const Rgb565Frame& frame, int x, int y)
+{
+    if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
+        throw std::out_of_range("pixel coordinate out of range");
+    }
+    return static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+           static_cast<std::size_t>(x);
+}
+
+}  // namespace
+
+const Rgb565Frame& ProjectDocument::backgroundFrame(std::size_t backgroundIndex,
+                                                    Resolution resolution) const
+{
+    return requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
+}
+
+uint16_t ProjectDocument::backgroundPixel(std::size_t backgroundIndex,
+                                          Resolution resolution,
+                                          int x,
+                                          int y) const
+{
+    const Rgb565Frame& frame = backgroundFrame(backgroundIndex, resolution);
+    return frame.pixels[checkedRgb565PixelIndex(frame, x, y)];
+}
+
+void ProjectDocument::setBackgroundPixel(std::size_t backgroundIndex,
+                                         Resolution resolution,
+                                         int x,
+                                         int y,
+                                         uint16_t rgb565)
+{
+    Rgb565Frame& frame =
+        requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
+    const std::size_t pixelIndex = checkedRgb565PixelIndex(frame, x, y);
+    if (frame.pixels[pixelIndex] == rgb565) {
+        return;
+    }
+    frame.pixels[pixelIndex] = rgb565;
+    m_dirty = true;
+}
+
 const std::optional<FrameBackgroundData>& ProjectDocument::backgroundData(
     std::size_t frameIndex) const
 {

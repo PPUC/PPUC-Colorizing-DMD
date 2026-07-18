@@ -120,6 +120,17 @@ public:
                          uint16_t rgb565);
     [[nodiscard]] std::size_t backgroundCount() const;
     [[nodiscard]] const BackgroundRecord& background(std::size_t backgroundIndex) const;
+    [[nodiscard]] const Rgb565Frame& backgroundFrame(std::size_t backgroundIndex,
+                                                     Resolution resolution) const;
+    [[nodiscard]] uint16_t backgroundPixel(std::size_t backgroundIndex,
+                                           Resolution resolution,
+                                           int x,
+                                           int y) const;
+    void setBackgroundPixel(std::size_t backgroundIndex,
+                            Resolution resolution,
+                            int x,
+                            int y,
+                            uint16_t rgb565);
     [[nodiscard]] const std::optional<FrameBackgroundData>& backgroundData(
         std::size_t frameIndex) const;
     [[nodiscard]] uint16_t backgroundId(std::size_t frameIndex) const;

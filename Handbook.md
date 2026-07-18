@@ -95,6 +95,7 @@ The background-mask overlay and edits follow the active SD/HD mode.
 
 Frame metadata and per-frame selectors live in the right-side Inspector:
 
+- `Target` selects whether ordinary drawing tools edit the current frame or the assigned background image.
 - `Mask ID` assigns the shared comparison mask used by the current frame.
 - `Shape` selects the frame comparison mode.
 - `Dyn Set` selects the dynamic-mask set written by the drawing tools.
@@ -115,7 +116,11 @@ The active draw color can also be set with the `Pick` tool. If the picked RGB565
 
 ## Drawing Tools
 
-All drawing tools operate on the active colorized frame and active SD/HD mode.
+Drawing tools operate on the active SD/HD mode.
+
+When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
+
+When Inspector `Target` is `Background`, ordinary drawing tools edit the current frame's assigned shared background image. `Pick` samples from that background image, flood fill fills the background image, and undo/redo is scoped per background and per resolution.
 
 ### Point
 
@@ -244,6 +249,7 @@ Currently implemented:
 - The project status line shows the loaded background count.
 - `BG ID` assigns the shared background used by the current frame. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
+- Inspector `Target -> Background` displays the assigned background image on the canvas and edits that shared background image with the ordinary drawing tools.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
 - In SD mode, `BG` edits the SD background mask.
@@ -253,7 +259,21 @@ Currently implemented:
 - Hold `Shift` while clicking, drawing, or flood filling to erase background-mask pixels back to `0`.
 - Background-mask edits are undoable per frame and per resolution.
 
-Background image editing is not exposed in the UI yet.
+Creating or deleting background images is not exposed in the UI yet.
+
+## Preview Rendering TODO
+
+The current Qt preview renderer is an editor-side approximation used for canvas and thumbnails.
+It must stay small and test-backed until libserum exposes an editor preview API.
+
+Future preview direction:
+
+- libserum remains the source of truth for runtime-composed frame previews.
+- Add a libserum API that accepts cROM data through memory views, without writing temporary files.
+- Let libserum convert that in-memory cROM data to cROMc internally.
+- Avoid converting the full project for every preview; render a minimal cROM containing one frame or all frames in the active sequence plus the shared data needed by those frames.
+- Cache previews by frame, sequence, resolution, and relevant dirty revisions.
+- Keep local editor rendering for isolated editing surfaces that libserum does not render directly, such as background images alone, masks, dynamic zones, tool previews, selections, and overlays.
 
 ## Testing Checklist
 

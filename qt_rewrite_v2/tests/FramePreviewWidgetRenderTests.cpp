@@ -12,6 +12,7 @@
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
+#include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 
 namespace {
@@ -85,6 +86,31 @@ colorizing::document::ProjectDocument makeDynamicPreviewDocument()
     return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
 
+colorizing::document::ProjectDocument makeDynamicReplacementDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "dynamic_replacement";
+    colorizing::document::FrameDynamicData dynamicData{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        colorizing::document::makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    dynamicData.maskSd.pixels[0] = 2;
+    dynamicData.maskHd.pixels[0] = 2;
+    dynamicData.colorsSd[2 * 16] = 0xf800;
+    dynamicData.colorsHd[2 * 16] = 0x07e0;
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        dynamicData,
+    });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
 colorizing::document::ProjectDocument makeBackgroundPreviewDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
@@ -103,6 +129,54 @@ colorizing::document::ProjectDocument makeBackgroundPreviewDocument()
         0,
         255,
         std::nullopt,
+        backgroundData,
+    });
+    snapshot.backgrounds.push_back(colorizing::document::BackgroundRecord{
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0x07e0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0x07e0),
+    });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
+colorizing::document::ProjectDocument makeDynamicOverBackgroundDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "dynamic_over_background";
+
+    colorizing::document::IndexedFrame original =
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
+    original.pixels[1] = 1;
+
+    colorizing::document::FrameDynamicData dynamicData{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        colorizing::document::makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    dynamicData.maskSd.pixels[0] = 2;
+    dynamicData.maskSd.pixels[1] = 2;
+    dynamicData.maskHd.pixels[0] = 2;
+    dynamicData.maskHd.pixels[2] = 2;
+    dynamicData.colorsSd[2 * 16] = 0x0000;
+    dynamicData.colorsSd[2 * 16 + 1] = 0xf800;
+    dynamicData.colorsHd[2 * 16] = 0x0000;
+    dynamicData.colorsHd[2 * 16 + 1] = 0xf800;
+
+    colorizing::document::FrameBackgroundData backgroundData{
+        0,
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeIndexedFrame(colorizing::render::kHdFrameSize, 0),
+    };
+    backgroundData.maskSd.pixels[0] = 1;
+    backgroundData.maskHd.pixels[0] = 1;
+
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        original,
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        dynamicData,
         backgroundData,
     });
     snapshot.backgrounds.push_back(colorizing::document::BackgroundRecord{
@@ -202,6 +276,20 @@ void testFrameThumbnailRendersPixels()
     const QPixmap pixmap = icon.pixmap(QSize(160, 84));
     expect(!pixmap.isNull(), "thumbnail pixmap should not be null");
     expect(hasNonBackgroundPixel(pixmap.toImage()), "thumbnail should render non-background pixels");
+}
+
+void testFrameThumbnailComposesBackgroundBeforeDynamic()
+{
+    colorizing::document::ProjectDocument document = makeDynamicOverBackgroundDocument();
+    const QIcon icon = colorizing::app::makeFrameThumbnail(document, 0, QSize(160, 84));
+    const QPixmap pixmap = icon.pixmap(QSize(160, 84));
+    expect(!pixmap.isNull(), "background thumbnail pixmap should not be null");
+
+    const QImage image = pixmap.toImage();
+    expect(hasVisibleGreenPixel(image),
+           "thumbnail should render background pixels behind dynamic zones");
+    expect(hasVisibleRedPixel(image),
+           "thumbnail should still render non-background dynamic pixels");
 }
 
 void testFramePreviewHitTesting()
@@ -453,6 +541,27 @@ void testDynamicMaskOverlayRendersInSdAndHd()
     expect(hasVisibleCyanPixel(hdImage), "HD dynamic mask overlay should render visibly");
 }
 
+void testDynamicReplacementRendersInSdAndHd()
+{
+    colorizing::document::ProjectDocument document = makeDynamicReplacementDocument();
+
+    const QImage sdImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Sd,
+        2,
+        false);
+    expect(hasVisibleRedPixel(sdImage), "SD dynamic replacement should use dynamic color set");
+
+    const QImage hdImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Hd,
+        2,
+        false);
+    expect(hasVisibleGreenPixel(hdImage), "HD dynamic replacement should use dynamic color set");
+}
+
 void testBackgroundMaskOverlayRendersInSdAndHd()
 {
     colorizing::document::ProjectDocument document = makeBackgroundPreviewDocument();
@@ -505,6 +614,59 @@ void testBackgroundLayerRendersInSdAndHd()
     expect(hasVisibleGreenPixel(hdImage), "HD background layer should render visibly");
 }
 
+void testDynamicDoesNotReplaceAppliedBackground()
+{
+    colorizing::document::ProjectDocument document = makeDynamicOverBackgroundDocument();
+
+    const QImage sdImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Sd,
+        2,
+        true);
+    expect(QColor(sdImage.pixel(0, 0)).green() > 80,
+           "SD applied background should not be replaced by dynamic black");
+    expect(hasVisibleRedPixel(sdImage),
+           "SD non-background dynamic pixels should still use dynamic color set");
+
+    const QImage hdImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Hd,
+        2,
+        true);
+    expect(QColor(hdImage.pixel(0, 0)).green() > 80,
+           "HD applied background should not be replaced by dynamic black");
+    expect(hasVisibleRedPixel(hdImage),
+           "HD non-background dynamic pixels should still use dynamic color set");
+}
+
+void testBackgroundImageEditModeRendersInSdAndHd()
+{
+    colorizing::document::ProjectDocument document = makeBackgroundPreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setBackgroundImageEditModeEnabled(true);
+    widget.setFrameIndex(0);
+
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    QImage sdImage(widget.size(), QImage::Format_ARGB32);
+    sdImage.fill(Qt::transparent);
+    QPainter sdPainter(&sdImage);
+    widget.render(&sdPainter);
+    sdPainter.end();
+    expect(hasVisibleGreenPixel(sdImage), "SD background edit image should render visibly");
+
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    QImage hdImage(widget.size(), QImage::Format_ARGB32);
+    hdImage.fill(Qt::transparent);
+    QPainter hdPainter(&hdImage);
+    widget.render(&hdPainter);
+    hdPainter.end();
+    expect(hasVisibleGreenPixel(hdImage), "HD background edit image should render visibly");
+}
+
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -530,6 +692,7 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     testFramePreviewWidgetRendersPixels();
     testFrameThumbnailRendersPixels();
+    testFrameThumbnailComposesBackgroundBeforeDynamic();
     testFramePreviewHitTesting();
     testFramePreviewClickCallback();
     testFramePreviewStrokeCallback();
@@ -537,8 +700,11 @@ int main(int argc, char* argv[])
     testOriginalFrameStrokeCallback();
     testComparisonMaskOverlayRenders();
     testDynamicMaskOverlayRendersInSdAndHd();
+    testDynamicReplacementRendersInSdAndHd();
     testBackgroundMaskOverlayRendersInSdAndHd();
     testBackgroundLayerRendersInSdAndHd();
+    testDynamicDoesNotReplaceAppliedBackground();
+    testBackgroundImageEditModeRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
