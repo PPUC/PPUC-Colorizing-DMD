@@ -23,6 +23,8 @@ constexpr uint32_t kHdWidth = 256;
 constexpr uint32_t kHdHeight = 64;
 constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
+constexpr std::size_t kDynamicSetsPerFrame = 32;
+constexpr std::size_t kColorCount = 16;
 
 void fail(const std::string& message)
 {
@@ -65,6 +67,13 @@ void appendRepeatedU16(std::vector<uint8_t>& bytes, uint16_t value, std::size_t 
     }
 }
 
+void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t count)
+{
+    for (std::size_t i = 0; i < count; ++i) {
+        bytes.push_back(value);
+    }
+}
+
 std::vector<uint8_t> makeModernCromWithFrames()
 {
     std::vector<uint8_t> bytes;
@@ -75,7 +84,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendU32(bytes, kHdWidth);
     appendU32(bytes, kHdHeight);
     appendU32(bytes, 2);
-    appendU32(bytes, 16);
+    appendU32(bytes, kColorCount);
     appendU32(bytes, 0);
     appendU32(bytes, 0);
     appendU16(bytes, 0);
@@ -94,6 +103,10 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendRepeatedU16(bytes, 0x1002, kSdPixels);
     appendRepeatedU16(bytes, 0x2001, kHdPixels);
     appendRepeatedU16(bytes, 0x2002, kHdPixels);
+    appendRepeatedU8(bytes, 255, 2 * kSdPixels);
+    appendRepeatedU8(bytes, 255, 2 * kHdPixels);
+    appendRepeatedU16(bytes, 0x3001, 2 * kDynamicSetsPerFrame * kColorCount);
+    appendRepeatedU16(bytes, 0x4001, 2 * kDynamicSetsPerFrame * kColorCount);
     return bytes;
 }
 
@@ -209,4 +222,3 @@ void runLegacyCrpOriginalsTests()
     testTruncatedCrpOriginalsFail();
     testBuildProjectSnapshotFromCromAndCrp();
 }
-

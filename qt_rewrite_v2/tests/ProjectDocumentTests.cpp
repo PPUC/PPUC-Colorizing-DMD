@@ -14,8 +14,10 @@ using colorizing::document::ProjectCreateOptions;
 using colorizing::document::ProjectDocument;
 using colorizing::document::ProjectFrameSnapshot;
 using colorizing::document::ProjectSnapshot;
+using colorizing::document::FrameDynamicData;
 using colorizing::document::UnsupportedLegacyPayload;
 using colorizing::document::isValidProjectSnapshot;
+using colorizing::document::kMaxDynamicSetsPerFrame;
 using colorizing::document::makeIndexedFrame;
 using colorizing::document::makeRgb565Frame;
 using colorizing::render::Resolution;
@@ -179,12 +181,21 @@ void testSnapshotValidationAndRoundTrip()
 {
     ProjectSnapshot snapshot;
     snapshot.romName = "roundtrip";
+    FrameDynamicData dynamicData{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0x3030),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0x4040),
+    };
+    dynamicData.maskSd.pixels[2] = 4;
+    dynamicData.maskHd.pixels[3] = 5;
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 1),
         makeRgb565Frame(colorizing::render::kSdFrameSize, 0x1010),
         makeRgb565Frame(colorizing::render::kHdFrameSize, 0x2020),
         7,
         5,
+        dynamicData,
     });
     snapshot.comparisonMasks.push_back(makeIndexedFrame(colorizing::render::kSdFrameSize, 3));
     snapshot.unsupportedPayloads.push_back(UnsupportedLegacyPayload{"opaque", {9}});
@@ -206,6 +217,16 @@ void testSnapshotValidationAndRoundTrip()
            "snapshot shape comparison mode round-trip");
     expect(roundTrip.frames[0].comparisonMaskId == 5,
            "snapshot comparison mask ID round-trip");
+    expect(roundTrip.frames[0].dynamicData.has_value(),
+           "snapshot dynamic data round-trip");
+    expect(roundTrip.frames[0].dynamicData->maskSd.pixels[2] == 4,
+           "snapshot SD dynamic mask data round-trip");
+    expect(roundTrip.frames[0].dynamicData->maskHd.pixels[3] == 5,
+           "snapshot HD dynamic mask data round-trip");
+    expect(roundTrip.frames[0].dynamicData->colorsSd.front() == 0x3030,
+           "snapshot SD dynamic color data round-trip");
+    expect(roundTrip.frames[0].dynamicData->colorsHd.front() == 0x4040,
+           "snapshot HD dynamic color data round-trip");
     expect(document.shapeComparisonMode(0) == 7,
            "document shape comparison mode accessor");
     expect(document.comparisonMaskId(0) == 5,

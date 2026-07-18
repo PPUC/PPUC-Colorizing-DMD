@@ -30,7 +30,8 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
         cromFrameData.colorizedSdFrames.size() != frameCount ||
         cromFrameData.shapeComparisonModes.size() != frameCount ||
         cromFrameData.comparisonMaskIds.size() != frameCount ||
-        cromFrameData.extraFrameFlags.size() != frameCount) {
+        cromFrameData.extraFrameFlags.size() != frameCount ||
+        cromFrameData.dynamicFrames.size() != frameCount) {
         return fail("cROM and cRP frame counts do not match");
     }
 
@@ -45,6 +46,7 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
             hdFrameIfPresent(cromFrameData, frameIndex),
             cromFrameData.shapeComparisonModes[frameIndex],
             cromFrameData.comparisonMaskIds[frameIndex],
+            cromFrameData.dynamicFrames[frameIndex],
         });
     }
 

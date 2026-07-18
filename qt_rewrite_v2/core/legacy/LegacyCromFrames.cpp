@@ -95,6 +95,32 @@ bool readRgb565Frame(Cursor& cursor,
     return true;
 }
 
+bool readIndexedFrame(Cursor& cursor,
+                      document::IndexedFrame& frame,
+                      const char* fieldName,
+                      std::string& error)
+{
+    if (cursor.readBytes(frame.pixels.data(), frame.pixels.size())) {
+        return true;
+    }
+    error = std::string("unexpected end of cROM while reading ") + fieldName;
+    return false;
+}
+
+bool readRgb565Values(Cursor& cursor,
+                      std::vector<uint16_t>& values,
+                      const char* fieldName,
+                      std::string& error)
+{
+    for (uint16_t& value : values) {
+        if (!cursor.readU16(value)) {
+            error = std::string("unexpected end of cROM while reading ") + fieldName;
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 LegacyCromFrameParseResult parseModernLegacyCromFrames(const std::vector<uint8_t>& bytes)
@@ -183,6 +209,51 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
             return fail(error);
         }
         frameData.colorizedHdFrames.push_back(std::move(frame));
+    }
+
+    frameData.dynamicFrames.resize(frameCount);
+    frameData.dynamicMasksSdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        document::FrameDynamicData& dynamicFrame = frameData.dynamicFrames[frameIndex];
+        dynamicFrame.maskSd =
+            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.frameWidth),
+                                                    static_cast<int>(metadata.frameHeight)}, 255);
+        if (dynamicFrame.maskSd.pixels.size() != sdPixels ||
+            !readIndexedFrame(cursor, dynamicFrame.maskSd, "SD dynamic masks", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.dynamicMasksHdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        document::FrameDynamicData& dynamicFrame = frameData.dynamicFrames[frameIndex];
+        dynamicFrame.maskHd =
+            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.hdFrameWidth),
+                                                    static_cast<int>(metadata.hdFrameHeight)}, 255);
+        if (dynamicFrame.maskHd.pixels.size() != hdPixels ||
+            !readIndexedFrame(cursor, dynamicFrame.maskHd, "HD dynamic masks", error)) {
+            return fail(error);
+        }
+    }
+
+    const std::size_t dynamicColorCount =
+        document::kMaxDynamicSetsPerFrame * static_cast<std::size_t>(metadata.colorCount);
+    frameData.dynamicColorsSdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].colorsSd;
+        colors.resize(dynamicColorCount);
+        if (!readRgb565Values(cursor, colors, "SD dynamic color sets", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.dynamicColorsHdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].colorsHd;
+        colors.resize(dynamicColorCount);
+        if (!readRgb565Values(cursor, colors, "HD dynamic color sets", error)) {
+            return fail(error);
+        }
     }
 
     LegacyCromFrameParseResult result;

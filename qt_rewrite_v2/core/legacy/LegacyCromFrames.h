@@ -19,12 +19,17 @@ struct LegacyCromFrameData {
     std::vector<uint8_t> extraFrameFlags;
     std::vector<document::Rgb565Frame> colorizedSdFrames;
     std::vector<document::Rgb565Frame> colorizedHdFrames;
+    std::vector<document::FrameDynamicData> dynamicFrames;
     std::size_t shapeComparisonModesOffset = 0;
     std::size_t comparisonMaskIdsOffset = 0;
     std::size_t comparisonMasksOffset = 0;
     std::size_t extraFrameFlagsOffset = 0;
     std::size_t colorizedSdFramesOffset = 0;
     std::size_t colorizedHdFramesOffset = 0;
+    std::size_t dynamicMasksSdOffset = 0;
+    std::size_t dynamicMasksHdOffset = 0;
+    std::size_t dynamicColorsSdOffset = 0;
+    std::size_t dynamicColorsHdOffset = 0;
 };
 
 struct LegacyCromFrameParseResult {

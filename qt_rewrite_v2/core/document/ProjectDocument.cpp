@@ -118,6 +118,7 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.colorizedHd,
             frameSnapshot.shapeComparisonMode,
             frameSnapshot.comparisonMaskId,
+            frameSnapshot.dynamicData,
         });
     }
     document.m_comparisonMasks = snapshot.comparisonMasks;
@@ -351,6 +352,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.colorizedHd,
             frame.shapeComparisonMode,
             frame.comparisonMaskId,
+            frame.dynamicData,
         });
     }
     snapshot.comparisonMasks = m_comparisonMasks;

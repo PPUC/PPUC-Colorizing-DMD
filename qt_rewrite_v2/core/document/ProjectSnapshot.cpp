@@ -47,6 +47,22 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             (!frame.colorizedHd->isValid() || !hasSize(frame.colorizedHd->size, render::kHdFrameSize))) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid HD colorized data");
         }
+        if (frame.dynamicData) {
+            if (!frame.dynamicData->maskSd.isValid() ||
+                !hasSize(frame.dynamicData->maskSd.size, render::kSdFrameSize)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                              " has invalid SD dynamic mask data");
+            }
+            if (!frame.dynamicData->maskHd.isValid() ||
+                !hasSize(frame.dynamicData->maskHd.size, render::kHdFrameSize)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                              " has invalid HD dynamic mask data");
+            }
+            if (frame.dynamicData->colorsSd.empty() || frame.dynamicData->colorsHd.empty()) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                          " has invalid dynamic color data");
+            }
+        }
     }
 
     return true;

@@ -14,6 +14,7 @@ struct ProjectFrameSnapshot {
     std::optional<Rgb565Frame> colorizedHd;
     uint8_t shapeComparisonMode = 0;
     uint8_t comparisonMaskId = 0;
+    std::optional<FrameDynamicData> dynamicData;
 };
 
 struct ProjectSnapshot {

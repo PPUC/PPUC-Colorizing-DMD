@@ -28,6 +28,8 @@ constexpr uint32_t kHdWidth = 256;
 constexpr uint32_t kHdHeight = 64;
 constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
+constexpr std::size_t kDynamicSetsPerFrame = 32;
+constexpr std::size_t kColorCount = 16;
 
 void fail(const std::string& message)
 {
@@ -70,6 +72,13 @@ void appendRepeatedU16(std::vector<uint8_t>& bytes, uint16_t value, std::size_t 
     }
 }
 
+void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t count)
+{
+    for (std::size_t i = 0; i < count; ++i) {
+        bytes.push_back(value);
+    }
+}
+
 std::vector<uint8_t> makeModernCromWithFrames()
 {
     std::vector<uint8_t> bytes;
@@ -80,7 +89,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendU32(bytes, kHdWidth);
     appendU32(bytes, kHdHeight);
     appendU32(bytes, 2);
-    appendU32(bytes, 16);
+    appendU32(bytes, kColorCount);
     appendU32(bytes, 1);
     appendU32(bytes, 0);
     appendU16(bytes, 0);
@@ -102,6 +111,12 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendRepeatedU16(bytes, 0x2222, kSdPixels);
     appendRepeatedU16(bytes, 0xaaaa, kHdPixels);
     appendRepeatedU16(bytes, 0xbbbb, kHdPixels);
+    appendRepeatedU8(bytes, 255, kSdPixels);
+    appendRepeatedU8(bytes, 3, kSdPixels);
+    appendRepeatedU8(bytes, 255, kHdPixels);
+    appendRepeatedU8(bytes, 4, kHdPixels);
+    appendRepeatedU16(bytes, 0x3001, 2 * kDynamicSetsPerFrame * kColorCount);
+    appendRepeatedU16(bytes, 0x4001, 2 * kDynamicSetsPerFrame * kColorCount);
     bytes.push_back(0x99);
     bytes.push_back(0x88);
     return bytes;
@@ -199,6 +214,18 @@ void testFileReaderLoadsModernProject()
            "file reader comparison mask count");
     expect(result.snapshot.comparisonMasks[0].pixels[1] == 1,
            "file reader comparison mask data");
+    expect(result.snapshot.frames[0].dynamicData.has_value(),
+           "file reader first dynamic data present");
+    expect(result.snapshot.frames[1].dynamicData.has_value(),
+           "file reader second dynamic data present");
+    expect(result.snapshot.frames[1].dynamicData->maskSd.pixels.front() == 3,
+           "file reader second SD dynamic mask data");
+    expect(result.snapshot.frames[1].dynamicData->maskHd.pixels.front() == 4,
+           "file reader second HD dynamic mask data");
+    expect(result.snapshot.frames[0].dynamicData->colorsSd.front() == 0x3001,
+           "file reader SD dynamic color data");
+    expect(result.snapshot.frames[0].dynamicData->colorsHd.front() == 0x4001,
+           "file reader HD dynamic color data");
 }
 
 void testFileReaderReportsMissingCrom()
@@ -255,6 +282,10 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].shapeComparisonMode = 9;
     loadResult.snapshot.frames[0].comparisonMaskId = 0;
     loadResult.snapshot.comparisonMasks[0].pixels[7] = 42;
+    loadResult.snapshot.frames[0].dynamicData->maskSd.pixels[8] = 5;
+    loadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] = 6;
+    loadResult.snapshot.frames[0].dynamicData->colorsSd[10] = 0x7777;
+    loadResult.snapshot.frames[0].dynamicData->colorsHd[11] = 0x8888;
     loadResult.snapshot.frames[0].colorizedHd.reset();
     loadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] = 0x2468;
     loadResult.snapshot.frames[1].colorizedHd =
@@ -284,6 +315,14 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update comparison mask ID");
     expect(reloadResult.snapshot.comparisonMasks[0].pixels[7] == 42,
            "file writer should update comparison mask pixels");
+    expect(reloadResult.snapshot.frames[0].dynamicData->maskSd.pixels[8] == 5,
+           "file writer should update SD dynamic mask pixels");
+    expect(reloadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] == 6,
+           "file writer should update HD dynamic mask pixels");
+    expect(reloadResult.snapshot.frames[0].dynamicData->colorsSd[10] == 0x7777,
+           "file writer should update SD dynamic color sets");
+    expect(reloadResult.snapshot.frames[0].dynamicData->colorsHd[11] == 0x8888,
+           "file writer should update HD dynamic color sets");
     expect(!reloadResult.snapshot.frames[0].colorizedHd,
            "file writer should clear first HD presence flag");
     expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] == 0x2468,

@@ -19,6 +19,11 @@ The in-memory project model currently carries structured comparison-mask data fr
 - Per-frame comparison mask ID.
 - SD comparison mask bitmaps.
 
+It also carries structured dynamic-mask data from `.cROM`:
+
+- Per-frame SD and HD dynamic mask bitmaps.
+- Per-frame SD and HD dynamic color sets.
+
 ## Opening Projects
 
 Use `File -> Open Project...` and select a `.cROM` file.
@@ -36,6 +41,7 @@ Save behavior:
 
 - Updates colorized SD and HD frame pixels in the existing `.cROM`.
 - Updates shape comparison modes, comparison-mask assignments, and comparison-mask bitmap data.
+- Preserves loaded SD/HD dynamic masks and dynamic color sets.
 - Updates HD-present flags.
 - Preserves cROM data that is not edited yet, including trailing data.
 - Marks the document clean after successful save.
@@ -188,7 +194,7 @@ Editing rules:
 - If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
 - Mask pixels are saved back into `.cROM`.
 
-Dynamic masks and background masks are not implemented yet.
+Dynamic-mask editing and background masks are not implemented yet.
 
 ## Testing Checklist
 

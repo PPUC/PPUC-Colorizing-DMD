@@ -29,12 +29,22 @@ struct IndexedFrame {
     [[nodiscard]] std::size_t pixelCount() const;
 };
 
+constexpr std::size_t kMaxDynamicSetsPerFrame = 32;
+
+struct FrameDynamicData {
+    IndexedFrame maskSd;
+    IndexedFrame maskHd;
+    std::vector<uint16_t> colorsSd;
+    std::vector<uint16_t> colorsHd;
+};
+
 struct FrameRecord {
     IndexedFrame originalSd;
     Rgb565Frame colorizedSd;
     std::optional<Rgb565Frame> colorizedHd;
     uint8_t shapeComparisonMode = 0;
     uint8_t comparisonMaskId = 0;
+    std::optional<FrameDynamicData> dynamicData;
 };
 
 struct UnsupportedLegacyPayload {

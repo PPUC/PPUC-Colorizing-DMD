@@ -18,6 +18,8 @@ constexpr uint32_t kHdWidth = 256;
 constexpr uint32_t kHdHeight = 64;
 constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
+constexpr std::size_t kDynamicSetsPerFrame = 32;
+constexpr std::size_t kColorCount = 16;
 
 void fail(const std::string& message)
 {
@@ -60,6 +62,13 @@ void appendRepeatedU16(std::vector<uint8_t>& bytes, uint16_t value, std::size_t 
     }
 }
 
+void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t count)
+{
+    for (std::size_t i = 0; i < count; ++i) {
+        bytes.push_back(value);
+    }
+}
+
 std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
 {
     std::vector<uint8_t> bytes;
@@ -70,7 +79,7 @@ std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
     appendU32(bytes, kHdWidth);
     appendU32(bytes, kHdHeight);
     appendU32(bytes, 2);
-    appendU32(bytes, 16);
+    appendU32(bytes, kColorCount);
     appendU32(bytes, comparisonMaskCount);
     appendU32(bytes, 0);
     appendU16(bytes, 0);
@@ -92,6 +101,12 @@ std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
     appendRepeatedU16(bytes, 0x1002, kSdPixels);
     appendRepeatedU16(bytes, 0x2001, kHdPixels);
     appendRepeatedU16(bytes, 0x2002, kHdPixels);
+    appendRepeatedU8(bytes, 255, kSdPixels);
+    appendRepeatedU8(bytes, 7, kSdPixels);
+    appendRepeatedU8(bytes, 255, kHdPixels);
+    appendRepeatedU8(bytes, 8, kHdPixels);
+    appendRepeatedU16(bytes, 0x3001, 2 * kDynamicSetsPerFrame * kColorCount);
+    appendRepeatedU16(bytes, 0x4001, 2 * kDynamicSetsPerFrame * kColorCount);
 
     return bytes;
 }
@@ -143,6 +158,15 @@ void testModernFrameArraysParse()
            "first HD storage value");
     expect(result.frameData.colorizedHdFrames[1].pixels.back() == 0x2002,
            "second HD storage value");
+    expect(result.frameData.dynamicFrames.size() == 2, "dynamic frame count");
+    expect(result.frameData.dynamicFrames[1].maskSd.pixels.front() == 7,
+           "second SD dynamic mask value");
+    expect(result.frameData.dynamicFrames[1].maskHd.pixels.front() == 8,
+           "second HD dynamic mask value");
+    expect(result.frameData.dynamicFrames[0].colorsSd.front() == 0x3001,
+           "first SD dynamic color set value");
+    expect(result.frameData.dynamicFrames[0].colorsHd.front() == 0x4001,
+           "first HD dynamic color set value");
 
     expect(!hdFrameIfPresent(result.frameData, 0), "first HD frame should be absent by flag");
     const std::optional<colorizing::document::Rgb565Frame> hdFrame =
@@ -175,7 +199,10 @@ void testLegacyPalettedFramesRejectedForNow()
 void testTruncatedSdFramesFail()
 {
     std::vector<uint8_t> bytes = makeModernCromWithFrames();
-    bytes.resize(64 + 4 + 8 * 4 + 2 + 8 + 2 + 2 + kSdPixels + 2);
+    const LegacyCromFrameParseResult fullResult = parseModernLegacyCromFrames(bytes);
+    expect(fullResult.ok, "full fixture should parse before SD truncation");
+    bytes.resize(fullResult.frameData.colorizedSdFramesOffset +
+                 kSdPixels * sizeof(uint16_t) - 1);
 
     const LegacyCromFrameParseResult result = parseModernLegacyCromFrames(bytes);
 
@@ -187,7 +214,10 @@ void testTruncatedSdFramesFail()
 void testTruncatedHdFramesFail()
 {
     std::vector<uint8_t> bytes = makeModernCromWithFrames();
-    bytes.resize(bytes.size() - 1);
+    const LegacyCromFrameParseResult fullResult = parseModernLegacyCromFrames(bytes);
+    expect(fullResult.ok, "full fixture should parse before HD truncation");
+    bytes.resize(fullResult.frameData.colorizedHdFramesOffset +
+                 kHdPixels * sizeof(uint16_t) - 1);
 
     const LegacyCromFrameParseResult result = parseModernLegacyCromFrames(bytes);
 

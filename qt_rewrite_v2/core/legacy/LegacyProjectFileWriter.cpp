@@ -83,6 +83,20 @@ bool validateFrameShape(const document::Rgb565Frame& frame,
     return true;
 }
 
+bool validateIndexedFrameShape(const document::IndexedFrame& frame,
+                               render::Size expectedSize,
+                               const char* label,
+                               std::string& errorMessage)
+{
+    if (frame.size.width != expectedSize.width || frame.size.height != expectedSize.height ||
+        frame.pixels.size() != static_cast<std::size_t>(expectedSize.width) *
+                                   static_cast<std::size_t>(expectedSize.height)) {
+        errorMessage = std::string(label) + " frame dimensions do not match existing cROM";
+        return false;
+    }
+    return true;
+}
+
 bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
                                      const LegacyCromFrameData& frameData,
                                      std::string& errorMessage)
@@ -104,6 +118,9 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
                               static_cast<int>(frameData.metadata.frameHeight)};
     const render::Size hdSize{static_cast<int>(frameData.metadata.hdFrameWidth),
                               static_cast<int>(frameData.metadata.hdFrameHeight)};
+    const std::size_t dynamicColorCount =
+        document::kMaxDynamicSetsPerFrame *
+        static_cast<std::size_t>(frameData.metadata.colorCount);
     for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
         if (!validateFrameShape(frame.colorizedSd, sdSize, "SD colorized", errorMessage)) {
             return false;
@@ -111,6 +128,23 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
         if (frame.colorizedHd &&
             !validateFrameShape(*frame.colorizedHd, hdSize, "HD colorized", errorMessage)) {
             return false;
+        }
+        if (frame.dynamicData) {
+            if (!validateIndexedFrameShape(frame.dynamicData->maskSd,
+                                           sdSize,
+                                           "SD dynamic mask",
+                                           errorMessage) ||
+                !validateIndexedFrameShape(frame.dynamicData->maskHd,
+                                           hdSize,
+                                           "HD dynamic mask",
+                                           errorMessage)) {
+                return false;
+            }
+            if (frame.dynamicData->colorsSd.size() != dynamicColorCount ||
+                frame.dynamicData->colorsHd.size() != dynamicColorCount) {
+                errorMessage = "dynamic color set dimensions do not match existing cROM";
+                return false;
+            }
         }
     }
     for (const document::IndexedFrame& mask : snapshot.comparisonMasks) {
@@ -130,6 +164,25 @@ void writeRgb565Frame(std::vector<uint8_t>& bytes,
 {
     for (uint16_t pixel : frame.pixels) {
         writeU16(bytes, offset, pixel);
+        offset += sizeof(uint16_t);
+    }
+}
+
+void writeIndexedFrame(std::vector<uint8_t>& bytes,
+                       std::size_t offset,
+                       const document::IndexedFrame& frame)
+{
+    for (uint8_t pixel : frame.pixels) {
+        bytes[offset++] = pixel;
+    }
+}
+
+void writeRgb565Values(std::vector<uint8_t>& bytes,
+                       std::size_t offset,
+                       const std::vector<uint16_t>& values)
+{
+    for (uint16_t value : values) {
+        writeU16(bytes, offset, value);
         offset += sizeof(uint16_t);
     }
 }
@@ -184,6 +237,32 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
         for (uint8_t pixel : mask.pixels) {
             bytes[maskOffset++] = pixel;
         }
+    }
+
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        if (!snapshot.frames[frameIndex].dynamicData) {
+            continue;
+        }
+        const document::FrameDynamicData& dynamicData = *snapshot.frames[frameIndex].dynamicData;
+        const std::size_t sdMaskOffset =
+            cromFrames.frameData.dynamicMasksSdOffset +
+            frameIndex * dynamicData.maskSd.pixels.size();
+        writeIndexedFrame(bytes, sdMaskOffset, dynamicData.maskSd);
+
+        const std::size_t hdMaskOffset =
+            cromFrames.frameData.dynamicMasksHdOffset +
+            frameIndex * dynamicData.maskHd.pixels.size();
+        writeIndexedFrame(bytes, hdMaskOffset, dynamicData.maskHd);
+
+        const std::size_t sdColorsOffset =
+            cromFrames.frameData.dynamicColorsSdOffset +
+            frameIndex * dynamicData.colorsSd.size() * sizeof(uint16_t);
+        writeRgb565Values(bytes, sdColorsOffset, dynamicData.colorsSd);
+
+        const std::size_t hdColorsOffset =
+            cromFrames.frameData.dynamicColorsHdOffset +
+            frameIndex * dynamicData.colorsHd.size() * sizeof(uint16_t);
+        writeRgb565Values(bytes, hdColorsOffset, dynamicData.colorsHd);
     }
 
     if (!writeFileBytes(paths.cromPath, bytes, errorMessage)) {
