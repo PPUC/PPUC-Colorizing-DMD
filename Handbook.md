@@ -169,6 +169,12 @@ Mask edit history is scoped per comparison mask, so frames sharing the same assi
 
 The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transparent red overlay on the original/reference region.
 
+The toolbar also exposes per-frame comparison metadata:
+
+- `Mask ID` assigns the shared comparison mask used by the current frame. `None` stores the legacy no-mask assignment.
+- `Shape` selects `Full comparison` or `Shape mode`.
+- Both fields are saved back into `.cROM`.
+
 Editing rules:
 
 - Mask editing is active only while the `Mask` toggle is on.

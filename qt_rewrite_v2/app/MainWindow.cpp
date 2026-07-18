@@ -7,6 +7,7 @@
 
 #include <QAbstractItemView>
 #include <QAction>
+#include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -19,6 +20,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QStatusBar>
 #include <QStringList>
 #include <QToolButton>
@@ -327,9 +329,22 @@ void MainWindow::createCentralView()
     m_comparisonMaskOverlayButton->setToolTip(QStringLiteral("Show and edit comparison mask"));
     m_comparisonMaskOverlayButton->setCheckable(true);
     m_comparisonMaskOverlayButton->setEnabled(false);
+    m_comparisonMaskIdSpinBox = new QSpinBox(central);
+    m_comparisonMaskIdSpinBox->setToolTip(QStringLiteral("Assigned comparison mask ID"));
+    m_comparisonMaskIdSpinBox->setMinimum(-1);
+    m_comparisonMaskIdSpinBox->setMaximum(-1);
+    m_comparisonMaskIdSpinBox->setSpecialValueText(QStringLiteral("None"));
+    m_comparisonMaskIdSpinBox->setEnabled(false);
+    m_shapeComparisonModeComboBox = new QComboBox(central);
+    m_shapeComparisonModeComboBox->setToolTip(QStringLiteral("Shape comparison mode"));
+    m_shapeComparisonModeComboBox->setEnabled(false);
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
+    toolbarLayout->addWidget(new QLabel(QStringLiteral("Mask ID"), central));
+    toolbarLayout->addWidget(m_comparisonMaskIdSpinBox);
+    toolbarLayout->addWidget(new QLabel(QStringLiteral("Shape"), central));
+    toolbarLayout->addWidget(m_shapeComparisonModeComboBox);
     toolbarLayout->addSpacing(12);
 
     const std::vector<std::pair<DrawingTool, QString>> tools{
@@ -396,6 +411,19 @@ void MainWindow::createCentralView()
         }
         updateUndoRedoActions();
     });
+    connect(m_comparisonMaskIdSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int maskId) {
+                setCurrentFrameComparisonMaskId(maskId);
+            });
+    connect(m_shapeComparisonModeComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                setCurrentFrameShapeComparisonMode(
+                    m_shapeComparisonModeComboBox->currentData().toInt());
+            });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
         paintFramePixel(hit);
     });
@@ -627,6 +655,7 @@ void MainWindow::selectFrame(int frameIndex)
 {
     if (!m_document || frameIndex < 0 || frameIndex >= static_cast<int>(m_document->frameCount())) {
         setFrameStatusText(QString());
+        updateFrameMetadataControls();
         return;
     }
     const auto index = static_cast<std::size_t>(frameIndex);
@@ -636,6 +665,7 @@ void MainWindow::selectFrame(int frameIndex)
                            .arg(frameIndex)
                            .arg(hasHd ? QStringLiteral("HD 256x64")
                                       : QStringLiteral("HD unavailable")));
+    updateFrameMetadataControls();
     updateUndoRedoActions();
 }
 
@@ -652,6 +682,98 @@ void MainWindow::updateResolutionMode()
         m_preview->setActiveResolution(m_activeResolution);
     }
     updateUndoRedoActions();
+}
+
+void MainWindow::updateFrameMetadataControls()
+{
+    if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox) {
+        return;
+    }
+
+    const bool hasFrame = m_document && m_frameList && m_frameList->currentRow() >= 0 &&
+                          static_cast<std::size_t>(m_frameList->currentRow()) <
+                              m_document->frameCount();
+    QSignalBlocker maskBlocker(m_comparisonMaskIdSpinBox);
+    QSignalBlocker shapeBlocker(m_shapeComparisonModeComboBox);
+
+    if (!hasFrame) {
+        m_comparisonMaskIdSpinBox->setRange(-1, -1);
+        m_comparisonMaskIdSpinBox->setValue(-1);
+        m_comparisonMaskIdSpinBox->setEnabled(false);
+        m_shapeComparisonModeComboBox->clear();
+        m_shapeComparisonModeComboBox->addItem(QStringLiteral("Full comparison"), 0);
+        m_shapeComparisonModeComboBox->addItem(QStringLiteral("Shape mode"), 1);
+        m_shapeComparisonModeComboBox->setCurrentIndex(0);
+        m_shapeComparisonModeComboBox->setEnabled(false);
+        return;
+    }
+
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    const int maxMaskId = m_document->comparisonMaskCount() == 0
+                              ? -1
+                              : static_cast<int>(m_document->comparisonMaskCount() - 1);
+    m_comparisonMaskIdSpinBox->setRange(-1, maxMaskId);
+    const uint8_t maskId = m_document->comparisonMaskId(frameIndex);
+    m_comparisonMaskIdSpinBox->setValue(maskId <= maxMaskId ? static_cast<int>(maskId) : -1);
+    m_comparisonMaskIdSpinBox->setEnabled(maxMaskId >= 0);
+    const int shapeMode = static_cast<int>(m_document->shapeComparisonMode(frameIndex));
+    m_shapeComparisonModeComboBox->clear();
+    m_shapeComparisonModeComboBox->addItem(QStringLiteral("Full comparison"), 0);
+    m_shapeComparisonModeComboBox->addItem(QStringLiteral("Shape mode"), 1);
+    if (shapeMode > 1) {
+        m_shapeComparisonModeComboBox->addItem(
+            QStringLiteral("Unknown legacy mode %1").arg(shapeMode),
+            shapeMode);
+    }
+    const int shapeIndex = m_shapeComparisonModeComboBox->findData(shapeMode);
+    m_shapeComparisonModeComboBox->setCurrentIndex(shapeIndex >= 0 ? shapeIndex : 0);
+    m_shapeComparisonModeComboBox->setEnabled(true);
+}
+
+void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return;
+    }
+
+    const uint8_t storedMaskId = maskId < 0 ? uint8_t{255} : static_cast<uint8_t>(maskId);
+    m_document->setComparisonMaskId(frameIndex, storedMaskId);
+    if (m_preview) {
+        m_preview->update();
+    }
+    updateFrameMetadataControls();
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(maskId < 0 ? QStringLiteral("Cleared comparison mask assignment")
+                                        : QStringLiteral("Assigned comparison mask %1").arg(maskId),
+                             2500);
+}
+
+void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return;
+    }
+
+    try {
+        m_document->setShapeComparisonMode(frameIndex, static_cast<uint8_t>(mode));
+        updateFrameMetadataControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(mode == 0 ? QStringLiteral("Set full comparison mode")
+                                           : QStringLiteral("Set shape mode"),
+                                 2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
 }
 
 void MainWindow::setActiveDrawColor(uint16_t rgb565)

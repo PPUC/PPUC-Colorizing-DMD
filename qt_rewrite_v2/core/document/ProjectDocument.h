@@ -70,7 +70,9 @@ public:
     [[nodiscard]] const Rgb565Frame& colorizedFrame(std::size_t frameIndex,
                                                     Resolution resolution) const;
     [[nodiscard]] uint8_t shapeComparisonMode(std::size_t frameIndex) const;
+    void setShapeComparisonMode(std::size_t frameIndex, uint8_t mode);
     [[nodiscard]] uint8_t comparisonMaskId(std::size_t frameIndex) const;
+    void setComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;

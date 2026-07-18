@@ -19,6 +19,8 @@ class QListWidget;
 class QToolButton;
 class QAction;
 class QMenu;
+class QComboBox;
+class QSpinBox;
 
 namespace colorizing::app {
 
@@ -97,6 +99,9 @@ private:
     void updateResolutionMode();
     void setDrawingTool(DrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
+    void updateFrameMetadataControls();
+    void setCurrentFrameComparisonMaskId(int maskId);
+    void setCurrentFrameShapeComparisonMode(int mode);
     void paintFramePixel(const render::CanvasHit& hit);
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
@@ -141,6 +146,8 @@ private:
     QToolButton* m_sdButton = nullptr;
     QToolButton* m_hdButton = nullptr;
     QToolButton* m_comparisonMaskOverlayButton = nullptr;
+    QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
+    QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     FramePreviewWidget* m_preview = nullptr;

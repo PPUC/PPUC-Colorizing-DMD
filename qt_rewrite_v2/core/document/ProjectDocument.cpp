@@ -203,9 +203,32 @@ uint8_t ProjectDocument::shapeComparisonMode(std::size_t frameIndex) const
     return requireFrame(m_frames, frameIndex).shapeComparisonMode;
 }
 
+void ProjectDocument::setShapeComparisonMode(std::size_t frameIndex, uint8_t mode)
+{
+    if (mode > 1) {
+        throw std::invalid_argument("shape comparison mode must be 0 or 1");
+    }
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.shapeComparisonMode == mode) {
+        return;
+    }
+    frame.shapeComparisonMode = mode;
+    m_dirty = true;
+}
+
 uint8_t ProjectDocument::comparisonMaskId(std::size_t frameIndex) const
 {
     return requireFrame(m_frames, frameIndex).comparisonMaskId;
+}
+
+void ProjectDocument::setComparisonMaskId(std::size_t frameIndex, uint8_t maskId)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.comparisonMaskId == maskId) {
+        return;
+    }
+    frame.comparisonMaskId = maskId;
+    m_dirty = true;
 }
 
 std::size_t ProjectDocument::comparisonMaskCount() const

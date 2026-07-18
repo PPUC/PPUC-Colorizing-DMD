@@ -255,6 +255,48 @@ void testComparisonMaskPixelEditing()
         "comparison mask pixel bounds");
 }
 
+void testFrameComparisonMetadataEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "mask_metadata";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+        0,
+        255,
+    });
+    snapshot.comparisonMasks.push_back(makeIndexedFrame(colorizing::render::kSdFrameSize, 0));
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setShapeComparisonMode(0, 1);
+    expect(document.shapeComparisonMode(0) == 1,
+           "shape comparison mode edit should be readable");
+    expect(document.isDirty(), "shape comparison mode edit should mark dirty");
+
+    document.markClean();
+    document.setShapeComparisonMode(0, 1);
+    expect(!document.isDirty(), "identical shape comparison mode edit should not mark dirty");
+    expectThrows<std::invalid_argument>(
+        [&]() { document.setShapeComparisonMode(0, 2); },
+        "shape comparison mode value bounds");
+
+    document.setComparisonMaskId(0, 0);
+    expect(document.comparisonMaskId(0) == 0,
+           "comparison mask ID edit should be readable");
+    expect(document.isDirty(), "comparison mask ID edit should mark dirty");
+
+    document.markClean();
+    document.setComparisonMaskId(0, 0);
+    expect(!document.isDirty(), "identical comparison mask ID edit should not mark dirty");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setComparisonMaskId(1, 0); },
+        "comparison mask ID frame bounds");
+}
+
 void testInvalidSnapshotReportsReason()
 {
     ProjectSnapshot snapshot;
@@ -283,5 +325,6 @@ void runProjectDocumentTests()
     testUnsupportedPayloadPreservationHook();
     testSnapshotValidationAndRoundTrip();
     testComparisonMaskPixelEditing();
+    testFrameComparisonMetadataEditing();
     testInvalidSnapshotReportsReason();
 }
