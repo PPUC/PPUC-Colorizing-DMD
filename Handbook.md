@@ -176,11 +176,13 @@ Editing rules:
 - Click the original/reference region to set that mask pixel to `1`.
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill also edit the assigned mask from the original/reference region.
 - Shape tools show a red live preview while drawing on the mask.
+- Hold `Shift` while clicking, drawing, or flood filling the original/reference region to erase mask pixels back to `0`.
+- Shift-erase shape tools show a dark live preview.
 - Edits apply to the assigned comparison mask, not just the current frame.
 - If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
 - Mask pixels are saved back into `.cROM`.
 
-Mask erasing/subtracting, dynamic masks, and background masks are not implemented yet.
+Dynamic masks and background masks are not implemented yet.
 
 ## Testing Checklist
 
@@ -191,7 +193,7 @@ For drawing changes, test at least:
 - Undo and redo in the same frame/resolution.
 - Switching SD/HD does not interleave undo histories.
 - Save, reopen, and verify edits persist.
-- With `Mask` active, click the original/reference region, undo/redo the mask pixel, save, reopen, and verify the mask overlay persists.
+- With `Mask` active, add and Shift-erase pixels on the original/reference region, undo/redo the mask edits, save, reopen, and verify the mask overlay persists.
 
 For project-loading changes, test:
 

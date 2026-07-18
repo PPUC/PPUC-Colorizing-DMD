@@ -171,15 +171,21 @@ void testFramePreviewStrokeCallback()
     std::optional<colorizing::render::CanvasHit> strokeEnd;
     std::optional<colorizing::render::CanvasHit> previewStart;
     std::optional<colorizing::render::CanvasHit> previewEnd;
+    bool previewErase = true;
+    bool strokeErase = true;
     widget.setStrokePreviewHandler([&](colorizing::render::CanvasHit start,
-                                       colorizing::render::CanvasHit end) {
+                                       colorizing::render::CanvasHit end,
+                                       bool erase) {
         previewStart = start;
         previewEnd = end;
+        previewErase = erase;
     });
     widget.setStrokeFinishedHandler([&](colorizing::render::CanvasHit start,
-                                        colorizing::render::CanvasHit end) {
+                                        colorizing::render::CanvasHit end,
+                                        bool erase) {
         strokeStart = start;
         strokeEnd = end;
+        strokeErase = erase;
     });
 
     QMouseEvent press(QEvent::MouseButtonPress,
@@ -223,6 +229,8 @@ void testFramePreviewStrokeCallback()
            "preview stroke end should target colorized frame");
     expect(strokeStart->resolution == strokeEnd->resolution,
            "preview stroke should stay within one resolution");
+    expect(!previewErase, "colorized preview stroke should not erase");
+    expect(!strokeErase, "colorized finished stroke should not erase");
 }
 
 void testHdPreviewPixelsRender()
@@ -269,11 +277,17 @@ void testOriginalFrameStrokeCallback()
 
     std::optional<colorizing::render::CanvasHit> strokeStart;
     std::optional<colorizing::render::CanvasHit> strokeEnd;
-    widget.setOriginalClickedHandler([](colorizing::render::CanvasHit) {});
+    bool clickedErase = false;
+    bool strokeErase = false;
+    widget.setOriginalClickedHandler([&](colorizing::render::CanvasHit, bool erase) {
+        clickedErase = erase;
+    });
     widget.setStrokeFinishedHandler([&](colorizing::render::CanvasHit start,
-                                        colorizing::render::CanvasHit end) {
+                                        colorizing::render::CanvasHit end,
+                                        bool erase) {
         strokeStart = start;
         strokeEnd = end;
+        strokeErase = erase;
     });
 
     QMouseEvent press(QEvent::MouseButtonPress,
@@ -282,7 +296,7 @@ void testOriginalFrameStrokeCallback()
                       QPointF(90, 240),
                       Qt::LeftButton,
                       Qt::LeftButton,
-                      Qt::NoModifier);
+                      Qt::ShiftModifier);
     QApplication::sendEvent(&widget, &press);
 
     QMouseEvent release(QEvent::MouseButtonRelease,
@@ -291,7 +305,7 @@ void testOriginalFrameStrokeCallback()
                         QPointF(120, 250),
                         Qt::LeftButton,
                         Qt::LeftButton,
-                        Qt::NoModifier);
+                        Qt::ShiftModifier);
     QApplication::sendEvent(&widget, &release);
 
     expect(strokeStart.has_value(), "original stroke should capture start hit");
@@ -300,6 +314,8 @@ void testOriginalFrameStrokeCallback()
            "original stroke start should target original frame");
     expect(strokeEnd->region == colorizing::render::CanvasRegion::OriginalFrame,
            "original stroke end should target original frame");
+    expect(clickedErase, "original click should carry shift erase flag");
+    expect(strokeErase, "original stroke should carry shift erase flag");
 }
 
 void testComparisonMaskOverlayRenders()

@@ -100,10 +100,14 @@ private:
     void paintFramePixel(const render::CanvasHit& hit);
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
-    void paintComparisonMaskPixel(const render::CanvasHit& hit);
-    void floodFillComparisonMask(const render::CanvasHit& hit);
-    void previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
-    void paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
+    void paintComparisonMaskPixel(const render::CanvasHit& hit, bool erase);
+    void floodFillComparisonMask(const render::CanvasHit& hit, bool erase);
+    void previewFrameStroke(const render::CanvasHit& start,
+                            const render::CanvasHit& end,
+                            bool erase);
+    void paintFrameStroke(const render::CanvasHit& start,
+                          const render::CanvasHit& end,
+                          bool erase);
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
                                                              const render::CanvasHit& end) const;
     void commitPixels(render::Resolution resolution,

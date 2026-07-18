@@ -51,19 +51,20 @@ void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::Canva
     m_pixelClickedHandler = std::move(handler);
 }
 
-void FramePreviewWidget::setOriginalClickedHandler(std::function<void(render::CanvasHit)> handler)
+void FramePreviewWidget::setOriginalClickedHandler(
+    std::function<void(render::CanvasHit, bool)> handler)
 {
     m_originalClickedHandler = std::move(handler);
 }
 
 void FramePreviewWidget::setStrokePreviewHandler(
-    std::function<void(render::CanvasHit, render::CanvasHit)> handler)
+    std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler)
 {
     m_strokePreviewHandler = std::move(handler);
 }
 
 void FramePreviewWidget::setStrokeFinishedHandler(
-    std::function<void(render::CanvasHit, render::CanvasHit)> handler)
+    std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler)
 {
     m_strokeFinishedHandler = std::move(handler);
 }
@@ -133,6 +134,7 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
             m_strokeStart = *hit;
+            m_strokeErase = false;
             clearPreviewPixels();
             if (m_pixelClickedHandler) {
                 m_pixelClickedHandler(*hit);
@@ -142,8 +144,9 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
         }
         if (hit && hit->region == render::CanvasRegion::OriginalFrame && m_originalClickedHandler) {
             m_strokeStart = *hit;
+            m_strokeErase = event->modifiers().testFlag(Qt::ShiftModifier);
             clearPreviewPixels();
-            m_originalClickedHandler(*hit);
+            m_originalClickedHandler(*hit, m_strokeErase);
             event->accept();
             return;
         }
@@ -157,7 +160,7 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == m_strokeStart->region &&
             hit->resolution == m_strokeStart->resolution) {
-            m_strokePreviewHandler(*m_strokeStart, *hit);
+            m_strokePreviewHandler(*m_strokeStart, *hit, m_strokeErase);
             event->accept();
             return;
         }
@@ -170,11 +173,13 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
     if (event->button() == Qt::LeftButton && m_strokeStart) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         const std::optional<render::CanvasHit> start = m_strokeStart;
+        const bool erase = m_strokeErase;
         m_strokeStart.reset();
+        m_strokeErase = false;
         clearPreviewPixels();
         if (hit && hit->region == start->region &&
             start->resolution == hit->resolution && m_strokeFinishedHandler) {
-            m_strokeFinishedHandler(*start, *hit);
+            m_strokeFinishedHandler(*start, *hit, erase);
             event->accept();
             return;
         }

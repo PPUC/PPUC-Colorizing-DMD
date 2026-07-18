@@ -23,9 +23,9 @@ public:
     void setActiveResolution(render::Resolution resolution);
     void setComparisonMaskOverlayEnabled(bool enabled);
     void setPixelClickedHandler(std::function<void(render::CanvasHit)> handler);
-    void setOriginalClickedHandler(std::function<void(render::CanvasHit)> handler);
-    void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit)> handler);
-    void setStrokeFinishedHandler(std::function<void(render::CanvasHit, render::CanvasHit)> handler);
+    void setOriginalClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
+    void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler);
+    void setStrokeFinishedHandler(std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler);
     void setPreviewPixels(render::CanvasRegion region,
                           render::Resolution resolution,
                           std::vector<render::Point> pixels,
@@ -57,10 +57,11 @@ private:
     bool m_showComparisonMaskOverlay = false;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     std::function<void(render::CanvasHit)> m_pixelClickedHandler;
-    std::function<void(render::CanvasHit)> m_originalClickedHandler;
-    std::function<void(render::CanvasHit, render::CanvasHit)> m_strokePreviewHandler;
-    std::function<void(render::CanvasHit, render::CanvasHit)> m_strokeFinishedHandler;
+    std::function<void(render::CanvasHit, bool)> m_originalClickedHandler;
+    std::function<void(render::CanvasHit, render::CanvasHit, bool)> m_strokePreviewHandler;
+    std::function<void(render::CanvasHit, render::CanvasHit, bool)> m_strokeFinishedHandler;
     std::optional<render::CanvasHit> m_strokeStart;
+    bool m_strokeErase = false;
     render::CanvasRegion m_previewRegion = render::CanvasRegion::ColorizedFrame;
     std::optional<render::Resolution> m_previewResolution;
     std::vector<render::Point> m_previewPixels;

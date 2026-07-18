@@ -399,14 +399,16 @@ void MainWindow::createCentralView()
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
         paintFramePixel(hit);
     });
-    m_preview->setOriginalClickedHandler([this](render::CanvasHit hit) {
-        paintComparisonMaskPixel(hit);
+    m_preview->setOriginalClickedHandler([this](render::CanvasHit hit, bool erase) {
+        paintComparisonMaskPixel(hit, erase);
     });
-    m_preview->setStrokePreviewHandler([this](render::CanvasHit start, render::CanvasHit end) {
-        previewFrameStroke(start, end);
+    m_preview->setStrokePreviewHandler(
+        [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
+            previewFrameStroke(start, end, erase);
     });
-    m_preview->setStrokeFinishedHandler([this](render::CanvasHit start, render::CanvasHit end) {
-        paintFrameStroke(start, end);
+    m_preview->setStrokeFinishedHandler(
+        [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
+            paintFrameStroke(start, end, erase);
     });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
@@ -767,24 +769,25 @@ void MainWindow::floodFillFrame(const render::CanvasHit& hit)
     }
 }
 
-void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit)
+void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit, bool erase)
 {
     if (!m_document || !isComparisonMaskModeActive()) {
         return;
     }
     if (m_drawingTool == DrawingTool::FloodFill) {
-        floodFillComparisonMask(hit);
+        floodFillComparisonMask(hit, erase);
         return;
     }
     if (m_drawingTool != DrawingTool::Point) {
         return;
     }
     commitMaskPixels({render::Point{hit.x, hit.y}},
-                     1,
-                     QStringLiteral("Painted comparison mask pixel"));
+                     erase ? uint8_t{0} : uint8_t{1},
+                     erase ? QStringLiteral("Erased comparison mask pixel")
+                           : QStringLiteral("Painted comparison mask pixel"));
 }
 
-void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit)
+void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit, bool erase)
 {
     if (!m_document || !isComparisonMaskModeActive()) {
         return;
@@ -798,7 +801,8 @@ void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit)
     try {
         const document::IndexedFrame& mask = m_document->comparisonMask(*maskIndex);
         const uint8_t targetValue = m_document->comparisonMaskPixel(*maskIndex, hit.x, hit.y);
-        if (targetValue == 1) {
+        const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
+        if (targetValue == newValue) {
             return;
         }
 
@@ -833,13 +837,18 @@ void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit)
             queue.push_back(render::Point{point.x, point.y + 1});
         }
 
-        commitMaskPixels(pixels, 1, QStringLiteral("Flood filled comparison mask"));
+        commitMaskPixels(pixels,
+                         newValue,
+                         erase ? QStringLiteral("Flood erased comparison mask")
+                               : QStringLiteral("Flood filled comparison mask"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
 
-void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
+void MainWindow::previewFrameStroke(const render::CanvasHit& start,
+                                    const render::CanvasHit& end,
+                                    bool erase)
 {
     if (!m_preview || m_drawingTool == DrawingTool::Point ||
         m_drawingTool == DrawingTool::FloodFill || start.region != end.region ||
@@ -853,7 +862,8 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render
         m_preview->setPreviewPixels(render::CanvasRegion::OriginalFrame,
                                     render::Resolution::Sd,
                                     pixelsForStroke(start, end),
-                                    QColor(255, 0, 0, 150));
+                                    erase ? QColor(0, 0, 0, 150)
+                                          : QColor(255, 0, 0, 150));
         return;
     }
     if (start.region != render::CanvasRegion::ColorizedFrame) {
@@ -867,7 +877,9 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render
                                 previewColor);
 }
 
-void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
+void MainWindow::paintFrameStroke(const render::CanvasHit& start,
+                                  const render::CanvasHit& end,
+                                  bool erase)
 {
     if (m_drawingTool == DrawingTool::Point || m_drawingTool == DrawingTool::FloodFill ||
         start.region != end.region || start.resolution != end.resolution) {
@@ -896,9 +908,11 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::
             return;
         }
         commitMaskPixels(pixelsForStroke(start, end),
-                         1,
-                         statusText.replace(QStringLiteral("Painted"),
-                                            QStringLiteral("Painted comparison mask")));
+                         erase ? uint8_t{0} : uint8_t{1},
+                         statusText.replace(
+                             QStringLiteral("Painted"),
+                             erase ? QStringLiteral("Erased comparison mask")
+                                   : QStringLiteral("Painted comparison mask")));
         return;
     }
 
