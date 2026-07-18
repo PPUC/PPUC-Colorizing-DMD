@@ -705,6 +705,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_editHistories.clear();
         m_maskEditHistories.clear();
         m_dynamicMaskEditHistories.clear();
+        m_dynamicColorEditHistories.clear();
         m_backgroundMaskEditHistories.clear();
         m_backgroundImageEditHistories.clear();
         updateUndoRedoActions();
@@ -1090,17 +1091,19 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
         if (newRgb565 == oldRgb565) {
             return;
         }
-        m_document->setDynamicColor(frameIndex,
-                                    m_activeResolution,
-                                    activeDynamicSet(),
-                                    originalColorIndex,
-                                    newRgb565);
-        updateDynamicColorControls();
-        if (m_preview) {
-            m_preview->update();
-        }
-        updateFrameThumbnail(frameIndex);
-        updateProjectHeaderStatus();
+        DynamicColorEditCommand command;
+        command.frameIndex = frameIndex;
+        command.resolution = m_activeResolution;
+        command.setIndex = activeDynamicSet();
+        command.originalColorIndex = originalColorIndex;
+        command.oldColor = oldRgb565;
+        command.newColor = newRgb565;
+        applyDynamicColorEdit(command, true);
+        DynamicColorEditHistory& history =
+            m_dynamicColorEditHistories[EditHistoryKey{frameIndex, m_activeResolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Updated dynamic color 0x%1")
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
                                  2500);
@@ -2076,6 +2079,22 @@ void MainWindow::applyDynamicMaskEdit(const DynamicMaskEditCommand& command, boo
     updateProjectHeaderStatus();
 }
 
+void MainWindow::applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor)
+{
+    if (!m_document) {
+        return;
+    }
+    m_document->setDynamicColor(command.frameIndex,
+                                command.resolution,
+                                command.setIndex,
+                                command.originalColorIndex,
+                                useNewColor ? command.newColor : command.oldColor);
+    updateDynamicColorControls();
+    m_preview->update();
+    updateFrameThumbnail(command.frameIndex);
+    updateProjectHeaderStatus();
+}
+
 void MainWindow::applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue)
 {
     if (!m_document) {
@@ -2234,6 +2253,32 @@ bool MainWindow::isDynamicMaskModeActive() const
     return m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isChecked();
 }
 
+MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHistory()
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_dynamicColorEditHistories.find(*key);
+    if (history == m_dynamicColorEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHistory() const
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_dynamicColorEditHistories.find(*key);
+    if (history == m_dynamicColorEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
 MainWindow::BackgroundMaskEditHistory* MainWindow::currentBackgroundMaskEditHistory()
 {
     const std::optional<EditHistoryKey> key = currentEditHistoryKey();
@@ -2350,6 +2395,16 @@ void MainWindow::undo()
             statusBar()->showMessage(QStringLiteral("Undo dynamic mask edit"), 1500);
             return;
         }
+        DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
+        if (colorHistory && !colorHistory->undoStack.empty()) {
+            const DynamicColorEditCommand command = colorHistory->undoStack.back();
+            colorHistory->undoStack.pop_back();
+            applyDynamicColorEdit(command, false);
+            colorHistory->redoStack.push_back(command);
+            updateUndoRedoActions();
+            statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
+            return;
+        }
         return;
     }
     if (isBackgroundMaskModeActive()) {
@@ -2380,15 +2435,24 @@ void MainWindow::undo()
     }
 
     EditHistory* history = currentEditHistory();
-    if (!history || history->undoStack.empty()) {
+    if (history && !history->undoStack.empty()) {
+        const PixelEditCommand command = history->undoStack.back();
+        history->undoStack.pop_back();
+        applyPixelEdit(command, false);
+        history->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo"), 1500);
         return;
     }
-    const PixelEditCommand command = history->undoStack.back();
-    history->undoStack.pop_back();
-    applyPixelEdit(command, false);
-    history->redoStack.push_back(command);
-    updateUndoRedoActions();
-    statusBar()->showMessage(QStringLiteral("Undo"), 1500);
+    DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
+    if (colorHistory && !colorHistory->undoStack.empty()) {
+        const DynamicColorEditCommand command = colorHistory->undoStack.back();
+        colorHistory->undoStack.pop_back();
+        applyDynamicColorEdit(command, false);
+        colorHistory->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
+    }
 }
 
 void MainWindow::redo()
@@ -2415,6 +2479,16 @@ void MainWindow::redo()
             history->undoStack.push_back(command);
             updateUndoRedoActions();
             statusBar()->showMessage(QStringLiteral("Redo dynamic mask edit"), 1500);
+            return;
+        }
+        DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
+        if (colorHistory && !colorHistory->redoStack.empty()) {
+            const DynamicColorEditCommand command = colorHistory->redoStack.back();
+            colorHistory->redoStack.pop_back();
+            applyDynamicColorEdit(command, true);
+            colorHistory->undoStack.push_back(command);
+            updateUndoRedoActions();
+            statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
             return;
         }
         return;
@@ -2447,15 +2521,24 @@ void MainWindow::redo()
     }
 
     EditHistory* history = currentEditHistory();
-    if (!history || history->redoStack.empty()) {
+    if (history && !history->redoStack.empty()) {
+        const PixelEditCommand command = history->redoStack.back();
+        history->redoStack.pop_back();
+        applyPixelEdit(command, true);
+        history->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo"), 1500);
         return;
     }
-    const PixelEditCommand command = history->redoStack.back();
-    history->redoStack.pop_back();
-    applyPixelEdit(command, true);
-    history->undoStack.push_back(command);
-    updateUndoRedoActions();
-    statusBar()->showMessage(QStringLiteral("Redo"), 1500);
+    DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
+    if (colorHistory && !colorHistory->redoStack.empty()) {
+        const DynamicColorEditCommand command = colorHistory->redoStack.back();
+        colorHistory->redoStack.pop_back();
+        applyDynamicColorEdit(command, true);
+        colorHistory->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
+    }
 }
 
 void MainWindow::updateUndoRedoActions()
@@ -2472,11 +2555,14 @@ void MainWindow::updateUndoRedoActions()
     }
     if (isDynamicMaskModeActive()) {
         const DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
+        const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
         if (m_undoAction) {
-            m_undoAction->setEnabled(history && !history->undoStack.empty());
+            m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
+                                     (colorHistory && !colorHistory->undoStack.empty()));
         }
         if (m_redoAction) {
-            m_redoAction->setEnabled(history && !history->redoStack.empty());
+            m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
+                                     (colorHistory && !colorHistory->redoStack.empty()));
         }
         return;
     }
@@ -2502,11 +2588,14 @@ void MainWindow::updateUndoRedoActions()
     }
 
     const EditHistory* history = currentEditHistory();
+    const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
     if (m_undoAction) {
-        m_undoAction->setEnabled(history && !history->undoStack.empty());
+        m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
+                                 (colorHistory && !colorHistory->undoStack.empty()));
     }
     if (m_redoAction) {
-        m_redoAction->setEnabled(history && !history->redoStack.empty());
+        m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
+                                 (colorHistory && !colorHistory->redoStack.empty()));
     }
 }
 

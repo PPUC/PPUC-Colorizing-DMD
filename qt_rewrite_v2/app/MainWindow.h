@@ -102,6 +102,20 @@ private:
         std::vector<DynamicMaskEditCommand> redoStack;
     };
 
+    struct DynamicColorEditCommand {
+        std::size_t frameIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+        std::size_t setIndex = 0;
+        std::size_t originalColorIndex = 0;
+        uint16_t oldColor = 0;
+        uint16_t newColor = 0;
+    };
+
+    struct DynamicColorEditHistory {
+        std::vector<DynamicColorEditCommand> undoStack;
+        std::vector<DynamicColorEditCommand> redoStack;
+    };
+
     using BackgroundMaskPixelChange = MaskPixelChange;
 
     struct BackgroundMaskEditCommand {
@@ -197,6 +211,7 @@ private:
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
+    void applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor);
     void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
     void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
@@ -208,6 +223,8 @@ private:
     [[nodiscard]] bool isComparisonMaskModeActive() const;
     [[nodiscard]] DynamicMaskEditHistory* currentDynamicMaskEditHistory();
     [[nodiscard]] const DynamicMaskEditHistory* currentDynamicMaskEditHistory() const;
+    [[nodiscard]] DynamicColorEditHistory* currentDynamicColorEditHistory();
+    [[nodiscard]] const DynamicColorEditHistory* currentDynamicColorEditHistory() const;
     [[nodiscard]] bool isDynamicMaskModeActive() const;
     [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
     [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
@@ -251,6 +268,7 @@ private:
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
+    std::map<EditHistoryKey, DynamicColorEditHistory> m_dynamicColorEditHistories;
     std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
     std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
     QString m_currentCromPath;

@@ -236,7 +236,7 @@ Rules:
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD dynamic mask.
 - Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
 - Dynamic-mask edits are undoable per frame and per resolution.
-- Dynamic color changes are saved, but undo/redo for palette-style edits is not implemented yet.
+- Dynamic color changes are undoable per frame and per resolution.
 
 The current dynamic color editor is intentionally small. Broader palette tools are postponed until
 the palette UI is implemented.
