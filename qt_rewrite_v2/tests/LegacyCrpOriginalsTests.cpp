@@ -25,6 +25,9 @@ constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
+constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kMaxColorRotations = 4;
+constexpr std::size_t kMaxColorRotationLength = 64;
 
 void fail(const std::string& message)
 {
@@ -53,6 +56,13 @@ void appendU32(std::vector<uint8_t>& bytes, uint32_t value)
     bytes.push_back(static_cast<uint8_t>((value >> 24) & 0xff));
 }
 
+void appendRepeatedU32(std::vector<uint8_t>& bytes, uint32_t value, std::size_t count)
+{
+    for (std::size_t i = 0; i < count; ++i) {
+        appendU32(bytes, value);
+    }
+}
+
 void appendName(std::vector<uint8_t>& bytes, const std::string& name)
 {
     for (std::size_t i = 0; i < 64; ++i) {
@@ -72,6 +82,20 @@ void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t co
     for (std::size_t i = 0; i < count; ++i) {
         bytes.push_back(value);
     }
+}
+
+void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
+{
+    appendRepeatedU8(bytes, 255, 2 * kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 1, 2);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendRepeatedU32(bytes, 0xffffffff, 2);
+    appendRepeatedU16(bytes, 0xffff, 2 * kMaxSpritesPerFrame * 4);
+    appendU16(bytes, 0xffff);
+    appendU16(bytes, 0xffff);
+    appendRepeatedU8(bytes, 0, 2 * kSdPixels);
+    appendRepeatedU8(bytes, 0, 2 * kHdPixels);
 }
 
 std::vector<uint8_t> makeModernCromWithFrames()
@@ -107,6 +131,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendRepeatedU8(bytes, 255, 2 * kHdPixels);
     appendRepeatedU16(bytes, 0x3001, 2 * kDynamicSetsPerFrame * kColorCount);
     appendRepeatedU16(bytes, 0x4001, 2 * kDynamicSetsPerFrame * kColorCount);
+    appendModernPostDynamicBlocks(bytes);
     return bytes;
 }
 

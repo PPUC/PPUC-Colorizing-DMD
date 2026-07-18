@@ -97,6 +97,19 @@ private:
         std::vector<DynamicMaskEditCommand> redoStack;
     };
 
+    using BackgroundMaskPixelChange = MaskPixelChange;
+
+    struct BackgroundMaskEditCommand {
+        std::size_t frameIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+        std::vector<BackgroundMaskPixelChange> changes;
+    };
+
+    struct BackgroundMaskEditHistory {
+        std::vector<BackgroundMaskEditCommand> undoStack;
+        std::vector<BackgroundMaskEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -123,6 +136,8 @@ private:
     void floodFillComparisonMask(const render::CanvasHit& hit, bool erase);
     void paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase);
     void floodFillDynamicMask(const render::CanvasHit& hit, bool erase);
+    void paintBackgroundMaskPixel(const render::CanvasHit& hit, bool erase);
+    void floodFillBackgroundMask(const render::CanvasHit& hit, bool erase);
     void previewFrameStroke(const render::CanvasHit& start,
                             const render::CanvasHit& end,
                             bool erase);
@@ -141,9 +156,14 @@ private:
                                  const std::vector<render::Point>& pixels,
                                  uint8_t value,
                                  const QString& statusText);
+    void commitBackgroundMaskPixels(render::Resolution resolution,
+                                    const std::vector<render::Point>& pixels,
+                                    uint8_t value,
+                                    const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
+    void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -154,6 +174,9 @@ private:
     [[nodiscard]] DynamicMaskEditHistory* currentDynamicMaskEditHistory();
     [[nodiscard]] const DynamicMaskEditHistory* currentDynamicMaskEditHistory() const;
     [[nodiscard]] bool isDynamicMaskModeActive() const;
+    [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
+    [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
+    [[nodiscard]] bool isBackgroundMaskModeActive() const;
     void undo();
     void redo();
     void updateUndoRedoActions();
@@ -171,6 +194,7 @@ private:
     QToolButton* m_hdButton = nullptr;
     QToolButton* m_comparisonMaskOverlayButton = nullptr;
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
+    QToolButton* m_backgroundMaskOverlayButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
@@ -183,6 +207,7 @@ private:
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
+    std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

@@ -14,7 +14,9 @@ using colorizing::document::ProjectCreateOptions;
 using colorizing::document::ProjectDocument;
 using colorizing::document::ProjectFrameSnapshot;
 using colorizing::document::ProjectSnapshot;
+using colorizing::document::BackgroundRecord;
 using colorizing::document::FrameDynamicData;
+using colorizing::document::FrameBackgroundData;
 using colorizing::document::UnsupportedLegacyPayload;
 using colorizing::document::isValidProjectSnapshot;
 using colorizing::document::kMaxDynamicSetsPerFrame;
@@ -189,6 +191,13 @@ void testSnapshotValidationAndRoundTrip()
     };
     dynamicData.maskSd.pixels[2] = 4;
     dynamicData.maskHd.pixels[3] = 5;
+    FrameBackgroundData backgroundData{
+        0,
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 0),
+    };
+    backgroundData.maskSd.pixels[4] = 6;
+    backgroundData.maskHd.pixels[5] = 7;
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 1),
         makeRgb565Frame(colorizing::render::kSdFrameSize, 0x1010),
@@ -196,8 +205,13 @@ void testSnapshotValidationAndRoundTrip()
         7,
         5,
         dynamicData,
+        backgroundData,
     });
     snapshot.comparisonMasks.push_back(makeIndexedFrame(colorizing::render::kSdFrameSize, 3));
+    snapshot.backgrounds.push_back(BackgroundRecord{
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0x5050),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0x6060),
+    });
     snapshot.unsupportedPayloads.push_back(UnsupportedLegacyPayload{"opaque", {9}});
 
     std::string errorMessage;
@@ -227,6 +241,19 @@ void testSnapshotValidationAndRoundTrip()
            "snapshot SD dynamic color data round-trip");
     expect(roundTrip.frames[0].dynamicData->colorsHd.front() == 0x4040,
            "snapshot HD dynamic color data round-trip");
+    expect(roundTrip.frames[0].backgroundData.has_value(),
+           "snapshot background data round-trip");
+    expect(roundTrip.frames[0].backgroundData->backgroundId == 0,
+           "snapshot background ID round-trip");
+    expect(roundTrip.frames[0].backgroundData->maskSd.pixels[4] == 6,
+           "snapshot SD background mask round-trip");
+    expect(roundTrip.frames[0].backgroundData->maskHd.pixels[5] == 7,
+           "snapshot HD background mask round-trip");
+    expect(roundTrip.backgrounds.size() == 1, "snapshot background count round-trip");
+    expect(roundTrip.backgrounds[0].colorizedSd.pixels.front() == 0x5050,
+           "snapshot SD background image round-trip");
+    expect(roundTrip.backgrounds[0].colorizedHd->pixels.front() == 0x6060,
+           "snapshot HD background image round-trip");
     expect(document.shapeComparisonMode(0) == 7,
            "document shape comparison mode accessor");
     expect(document.comparisonMaskId(0) == 5,
@@ -237,6 +264,14 @@ void testSnapshotValidationAndRoundTrip()
            "document comparison mask accessor");
     expect(document.comparisonMaskPixel(0, 0, 0) == 3,
            "document comparison mask pixel accessor");
+    expect(document.backgroundCount() == 1,
+           "document background count accessor");
+    expect(document.background(0).colorizedSd.pixels.front() == 0x5050,
+           "document background accessor");
+    expect(document.backgroundId(0) == 0,
+           "document background ID accessor");
+    expect(document.backgroundMaskPixel(0, Resolution::Sd, 4, 0) == 6,
+           "document SD background mask pixel accessor");
     expect(roundTrip.comparisonMasks.size() == 1, "snapshot comparison mask count round-trip");
     expect(roundTrip.comparisonMasks[0].pixels.front() == 3,
            "snapshot comparison mask data round-trip");
@@ -387,6 +422,69 @@ void testDynamicMaskPixelEditing()
         "missing dynamic color write");
 }
 
+void testBackgroundMetadataAndMaskEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "background_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        std::nullopt,
+        FrameBackgroundData{
+            0xffff,
+            makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+            makeIndexedFrame(colorizing::render::kHdFrameSize, 0),
+        },
+    });
+    snapshot.backgrounds.push_back(BackgroundRecord{
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0x5050),
+        std::nullopt,
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setBackgroundId(0, 0);
+    expect(document.backgroundId(0) == 0, "background ID edit should be readable");
+    expect(document.isDirty(), "background ID edit should mark dirty");
+
+    document.markClean();
+    document.setBackgroundId(0, 0);
+    expect(!document.isDirty(), "identical background ID edit should not mark dirty");
+
+    document.setBackgroundMaskPixel(0, Resolution::Sd, 4, 2, 1);
+    expect(document.backgroundMaskPixel(0, Resolution::Sd, 4, 2) == 1,
+           "SD background mask pixel edit should be readable");
+    expect(document.isDirty(), "background mask edit should mark dirty");
+
+    document.markClean();
+    document.setBackgroundMaskPixel(0, Resolution::Hd, 8, 4, 2);
+    expect(document.backgroundMaskPixel(0, Resolution::Hd, 8, 4) == 2,
+           "HD background mask pixel edit should be readable");
+
+    expectThrows<std::out_of_range>(
+        [&]() { (void)document.background(1); },
+        "background index bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setBackgroundMaskPixel(0, Resolution::Sd, 128, 0, 1); },
+        "background mask pixel bounds");
+
+    ProjectDocument noBackgroundData = ProjectDocument::createEmpty(ProjectCreateOptions{
+        "empty_background",
+        1,
+        true,
+    });
+    expectThrows<std::logic_error>(
+        [&]() { noBackgroundData.setBackgroundId(0, 0); },
+        "missing background ID write");
+    expectThrows<std::logic_error>(
+        [&]() { noBackgroundData.setBackgroundMaskPixel(0, Resolution::Sd, 0, 0, 1); },
+        "missing background mask write");
+}
+
 void testInvalidSnapshotReportsReason()
 {
     ProjectSnapshot snapshot;
@@ -417,5 +515,6 @@ void runProjectDocumentTests()
     testComparisonMaskPixelEditing();
     testFrameComparisonMetadataEditing();
     testDynamicMaskPixelEditing();
+    testBackgroundMetadataAndMaskEditing();
     testInvalidSnapshotReportsReason();
 }

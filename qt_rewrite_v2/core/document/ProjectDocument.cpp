@@ -119,9 +119,11 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.shapeComparisonMode,
             frameSnapshot.comparisonMaskId,
             frameSnapshot.dynamicData,
+            frameSnapshot.backgroundData,
         });
     }
     document.m_comparisonMasks = snapshot.comparisonMasks;
+    document.m_backgrounds = snapshot.backgrounds;
     document.m_unsupportedPayloads = snapshot.unsupportedPayloads;
     document.m_dirty = false;
     return document;
@@ -394,6 +396,92 @@ void ProjectDocument::setDynamicColor(std::size_t frameIndex,
     m_dirty = true;
 }
 
+std::size_t ProjectDocument::backgroundCount() const
+{
+    return m_backgrounds.size();
+}
+
+const BackgroundRecord& ProjectDocument::background(std::size_t backgroundIndex) const
+{
+    if (backgroundIndex >= m_backgrounds.size()) {
+        throw std::out_of_range("background index out of range");
+    }
+    return m_backgrounds[backgroundIndex];
+}
+
+const std::optional<FrameBackgroundData>& ProjectDocument::backgroundData(
+    std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).backgroundData;
+}
+
+uint16_t ProjectDocument::backgroundId(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    return frame.backgroundData->backgroundId;
+}
+
+void ProjectDocument::setBackgroundId(std::size_t frameIndex, uint16_t backgroundId)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    if (frame.backgroundData->backgroundId == backgroundId) {
+        return;
+    }
+    frame.backgroundData->backgroundId = backgroundId;
+    m_dirty = true;
+}
+
+namespace {
+
+const IndexedFrame& requireBackgroundMask(const FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.backgroundData->maskHd : frame.backgroundData->maskSd;
+}
+
+IndexedFrame& requireBackgroundMask(FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.backgroundData->maskHd : frame.backgroundData->maskSd;
+}
+
+}  // namespace
+
+uint8_t ProjectDocument::backgroundMaskPixel(std::size_t frameIndex,
+                                             Resolution resolution,
+                                             int x,
+                                             int y) const
+{
+    const IndexedFrame& mask =
+        requireBackgroundMask(requireFrame(m_frames, frameIndex), resolution);
+    return mask.pixels[checkedIndexedPixelIndex(mask, x, y)];
+}
+
+void ProjectDocument::setBackgroundMaskPixel(std::size_t frameIndex,
+                                             Resolution resolution,
+                                             int x,
+                                             int y,
+                                             uint8_t value)
+{
+    IndexedFrame& mask = requireBackgroundMask(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
+    if (mask.pixels[pixelIndex] == value) {
+        return;
+    }
+    mask.pixels[pixelIndex] = value;
+    m_dirty = true;
+}
+
 namespace {
 
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)
@@ -468,9 +556,11 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.shapeComparisonMode,
             frame.comparisonMaskId,
             frame.dynamicData,
+            frame.backgroundData,
         });
     }
     snapshot.comparisonMasks = m_comparisonMasks;
+    snapshot.backgrounds = m_backgrounds;
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
     return snapshot;
 }

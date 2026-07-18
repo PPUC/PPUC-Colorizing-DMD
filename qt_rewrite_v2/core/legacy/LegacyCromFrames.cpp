@@ -9,6 +9,13 @@ namespace {
 
 constexpr std::size_t kHashCodeBytes = sizeof(uint32_t);
 constexpr std::size_t kRgb565Bytes = sizeof(uint16_t);
+constexpr std::size_t kU32Bytes = sizeof(uint32_t);
+constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kMaxSpriteWidth = 256;
+constexpr std::size_t kMaxSpriteHeight = 64;
+constexpr std::size_t kMaxColorRotations = 4;
+constexpr std::size_t kMaxColorRotationLength = 64;
+constexpr std::size_t kMaxSpriteDetectAreas = 4;
 
 class Cursor {
 public:
@@ -252,6 +259,112 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].colorsHd;
         colors.resize(dynamicColorCount);
         if (!readRgb565Values(cursor, colors, "HD dynamic color sets", error)) {
+            return fail(error);
+        }
+    }
+
+    const std::size_t spritePixels = kMaxSpriteWidth * kMaxSpriteHeight;
+    const std::size_t spriteCount = metadata.spriteCount;
+    if (!skipRequired(cursor, spriteCount, "extra sprite flags", error) ||
+        !skipRequired(cursor, frameCount * kMaxSpritesPerFrame, "frame sprite assignments", error) ||
+        !skipRequired(cursor, spriteCount * spritePixels, "sprite originals", error) ||
+        !skipRequired(cursor, spriteCount * spritePixels * kRgb565Bytes, "SD sprite colors", error) ||
+        !skipRequired(cursor, spriteCount * spritePixels, "HD sprite masks", error) ||
+        !skipRequired(cursor, spriteCount * spritePixels * kRgb565Bytes, "HD sprite colors", error) ||
+        !skipRequired(cursor, frameCount, "active frame flags", error) ||
+        !skipRequired(cursor,
+                      frameCount * kMaxColorRotations * kMaxColorRotationLength * kRgb565Bytes,
+                      "SD color rotations",
+                      error) ||
+        !skipRequired(cursor,
+                      frameCount * kMaxColorRotations * kMaxColorRotationLength * kRgb565Bytes,
+                      "HD color rotations",
+                      error) ||
+        !skipRequired(cursor,
+                      spriteCount * kMaxSpriteDetectAreas * kU32Bytes,
+                      "sprite detection dwords",
+                      error) ||
+        !skipRequired(cursor,
+                      spriteCount * kMaxSpriteDetectAreas * kRgb565Bytes,
+                      "sprite detection dword positions",
+                      error) ||
+        !skipRequired(cursor,
+                      spriteCount * kMaxSpriteDetectAreas * 4 * kRgb565Bytes,
+                      "sprite detection areas",
+                      error) ||
+        !skipRequired(cursor, frameCount * kU32Bytes, "trigger IDs", error) ||
+        !skipRequired(cursor,
+                      frameCount * kMaxSpritesPerFrame * 4 * kRgb565Bytes,
+                      "frame sprite bounding boxes",
+                      error)) {
+        return fail(error);
+    }
+
+    frameData.extraBackgroundFlags.resize(metadata.backgroundCount);
+    frameData.extraBackgroundFlagsOffset = cursor.offset();
+    if (!cursor.readBytes(frameData.extraBackgroundFlags.data(),
+                          frameData.extraBackgroundFlags.size())) {
+        return fail("unexpected end of cROM while reading extra background flags");
+    }
+
+    frameData.backgrounds.resize(metadata.backgroundCount);
+    frameData.backgroundFramesSdOffset = cursor.offset();
+    for (std::size_t backgroundIndex = 0; backgroundIndex < metadata.backgroundCount;
+         ++backgroundIndex) {
+        document::BackgroundRecord& background = frameData.backgrounds[backgroundIndex];
+        background.colorizedSd =
+            document::makeRgb565Frame(render::Size{static_cast<int>(metadata.frameWidth),
+                                                   static_cast<int>(metadata.frameHeight)});
+        if (background.colorizedSd.pixels.size() != sdPixels ||
+            !readRgb565Frame(cursor, background.colorizedSd, "SD background frames", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.backgroundFramesHdOffset = cursor.offset();
+    for (std::size_t backgroundIndex = 0; backgroundIndex < metadata.backgroundCount;
+         ++backgroundIndex) {
+        document::Rgb565Frame backgroundHd =
+            document::makeRgb565Frame(render::Size{static_cast<int>(metadata.hdFrameWidth),
+                                                   static_cast<int>(metadata.hdFrameHeight)});
+        if (backgroundHd.pixels.size() != hdPixels ||
+            !readRgb565Frame(cursor, backgroundHd, "HD background frames", error)) {
+            return fail(error);
+        }
+        if (backgroundIndex < frameData.extraBackgroundFlags.size() &&
+            frameData.extraBackgroundFlags[backgroundIndex] != 0) {
+            frameData.backgrounds[backgroundIndex].colorizedHd = std::move(backgroundHd);
+        }
+    }
+
+    frameData.frameBackgrounds.resize(frameCount);
+    frameData.backgroundIdsOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        if (!cursor.readU16(frameData.frameBackgrounds[frameIndex].backgroundId)) {
+            return fail("unexpected end of cROM while reading background IDs");
+        }
+    }
+
+    frameData.backgroundMasksSdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        document::FrameBackgroundData& backgroundData = frameData.frameBackgrounds[frameIndex];
+        backgroundData.maskSd =
+            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.frameWidth),
+                                                    static_cast<int>(metadata.frameHeight)}, 0);
+        if (backgroundData.maskSd.pixels.size() != sdPixels ||
+            !readIndexedFrame(cursor, backgroundData.maskSd, "SD background masks", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.backgroundMasksHdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        document::FrameBackgroundData& backgroundData = frameData.frameBackgrounds[frameIndex];
+        backgroundData.maskHd =
+            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.hdFrameWidth),
+                                                    static_cast<int>(metadata.hdFrameHeight)}, 0);
+        if (backgroundData.maskHd.pixels.size() != hdPixels ||
+            !readIndexedFrame(cursor, backgroundData.maskHd, "HD background masks", error)) {
             return fail(error);
         }
     }

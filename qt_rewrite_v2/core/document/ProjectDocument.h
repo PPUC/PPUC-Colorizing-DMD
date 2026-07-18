@@ -38,6 +38,17 @@ struct FrameDynamicData {
     std::vector<uint16_t> colorsHd;
 };
 
+struct BackgroundRecord {
+    Rgb565Frame colorizedSd;
+    std::optional<Rgb565Frame> colorizedHd;
+};
+
+struct FrameBackgroundData {
+    uint16_t backgroundId = 0xffff;
+    IndexedFrame maskSd;
+    IndexedFrame maskHd;
+};
+
 struct FrameRecord {
     IndexedFrame originalSd;
     Rgb565Frame colorizedSd;
@@ -45,6 +56,7 @@ struct FrameRecord {
     uint8_t shapeComparisonMode = 0;
     uint8_t comparisonMaskId = 0;
     std::optional<FrameDynamicData> dynamicData;
+    std::optional<FrameBackgroundData> backgroundData;
 };
 
 struct UnsupportedLegacyPayload {
@@ -106,6 +118,21 @@ public:
                          std::size_t setIndex,
                          std::size_t originalColorIndex,
                          uint16_t rgb565);
+    [[nodiscard]] std::size_t backgroundCount() const;
+    [[nodiscard]] const BackgroundRecord& background(std::size_t backgroundIndex) const;
+    [[nodiscard]] const std::optional<FrameBackgroundData>& backgroundData(
+        std::size_t frameIndex) const;
+    [[nodiscard]] uint16_t backgroundId(std::size_t frameIndex) const;
+    void setBackgroundId(std::size_t frameIndex, uint16_t backgroundId);
+    [[nodiscard]] uint8_t backgroundMaskPixel(std::size_t frameIndex,
+                                              Resolution resolution,
+                                              int x,
+                                              int y) const;
+    void setBackgroundMaskPixel(std::size_t frameIndex,
+                                Resolution resolution,
+                                int x,
+                                int y,
+                                uint8_t value);
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,
@@ -125,6 +152,7 @@ private:
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
     std::vector<IndexedFrame> m_comparisonMasks;
+    std::vector<BackgroundRecord> m_backgrounds;
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     bool m_dirty = false;
 };

@@ -24,6 +24,12 @@ It also carries structured dynamic-mask data from `.cROM`:
 - Per-frame SD and HD dynamic mask bitmaps.
 - Per-frame SD and HD dynamic color sets.
 
+It also carries structured background data from `.cROM`:
+
+- Shared SD and HD background images.
+- Per-frame background assignments.
+- Per-frame SD and HD background masks.
+
 ## Opening Projects
 
 Use `File -> Open Project...` and select a `.cROM` file.
@@ -42,6 +48,7 @@ Save behavior:
 - Updates colorized SD and HD frame pixels in the existing `.cROM`.
 - Updates shape comparison modes, comparison-mask assignments, and comparison-mask bitmap data.
 - Preserves loaded SD/HD dynamic masks and dynamic color sets.
+- Preserves loaded SD/HD background images, per-frame background assignments, and background masks.
 - Updates HD-present flags.
 - Preserves cROM data that is not edited yet, including trailing data.
 - Marks the document clean after successful save.
@@ -82,6 +89,9 @@ When `Mask` is active, clicks on the original/reference region add pixels to the
 
 Use the `Dynamic` toolbar toggle to show and edit dynamic-mask pixels over the active colorized frame.
 The dynamic overlay and edits follow the active SD/HD mode.
+
+Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
+The background-mask overlay and edits follow the active SD/HD mode.
 
 ## Colors
 
@@ -197,8 +207,6 @@ Editing rules:
 - If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
 - Mask pixels are saved back into `.cROM`.
 
-Dynamic-mask editing and background masks are not implemented yet.
-
 ## Dynamic Masks
 
 The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a semi-transparent cyan overlay.
@@ -215,6 +223,27 @@ Rules:
 - Dynamic-mask edits are undoable per frame and per resolution.
 
 Dynamic color-set editing is postponed until the palette UI is implemented.
+
+## Backgrounds
+
+The app loads and saves background data from modern `.cROM` projects.
+
+Currently implemented:
+
+- Shared SD and HD background image data is preserved.
+- Per-frame background IDs are preserved.
+- Per-frame SD and HD background masks are preserved.
+- The project status line shows the loaded background count.
+- The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
+- `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
+- In SD mode, `BG` edits the SD background mask.
+- In HD mode, `BG` edits the HD background mask.
+- Click the colorized frame to set that background-mask pixel to `1`.
+- Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD background mask.
+- Hold `Shift` while clicking, drawing, or flood filling to erase background-mask pixels back to `0`.
+- Background-mask edits are undoable per frame and per resolution.
+
+Background assignment and background image editing are not exposed in the UI yet.
 
 ## Testing Checklist
 

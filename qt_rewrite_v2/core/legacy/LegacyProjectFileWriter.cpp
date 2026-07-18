@@ -113,6 +113,10 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
         errorMessage = "snapshot comparison mask count does not match existing cROM";
         return false;
     }
+    if (snapshot.backgrounds.size() != frameData.metadata.backgroundCount) {
+        errorMessage = "snapshot background count does not match existing cROM";
+        return false;
+    }
 
     const render::Size sdSize{static_cast<int>(frameData.metadata.frameWidth),
                               static_cast<int>(frameData.metadata.frameHeight)};
@@ -146,12 +150,35 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
                 return false;
             }
         }
+        if (!frame.backgroundData) {
+            errorMessage = "snapshot frame is missing background data";
+            return false;
+        }
+        if (!validateIndexedFrameShape(frame.backgroundData->maskSd,
+                                       sdSize,
+                                       "SD background mask",
+                                       errorMessage) ||
+            !validateIndexedFrameShape(frame.backgroundData->maskHd,
+                                       hdSize,
+                                       "HD background mask",
+                                       errorMessage)) {
+            return false;
+        }
     }
     for (const document::IndexedFrame& mask : snapshot.comparisonMasks) {
         if (mask.size.width != sdSize.width || mask.size.height != sdSize.height ||
             mask.pixels.size() != static_cast<std::size_t>(sdSize.width) *
                                       static_cast<std::size_t>(sdSize.height)) {
             errorMessage = "comparison mask dimensions do not match existing cROM";
+            return false;
+        }
+    }
+    for (const document::BackgroundRecord& background : snapshot.backgrounds) {
+        if (!validateFrameShape(background.colorizedSd, sdSize, "SD background", errorMessage)) {
+            return false;
+        }
+        if (background.colorizedHd &&
+            !validateFrameShape(*background.colorizedHd, hdSize, "HD background", errorMessage)) {
             return false;
         }
     }
@@ -263,6 +290,47 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
             cromFrames.frameData.dynamicColorsHdOffset +
             frameIndex * dynamicData.colorsHd.size() * sizeof(uint16_t);
         writeRgb565Values(bytes, hdColorsOffset, dynamicData.colorsHd);
+    }
+
+    for (std::size_t backgroundIndex = 0; backgroundIndex < snapshot.backgrounds.size();
+         ++backgroundIndex) {
+        bytes[cromFrames.frameData.extraBackgroundFlagsOffset + backgroundIndex] =
+            snapshot.backgrounds[backgroundIndex].colorizedHd ? uint8_t{1} : uint8_t{0};
+
+        const std::size_t sdBackgroundOffset =
+            cromFrames.frameData.backgroundFramesSdOffset +
+            backgroundIndex * snapshot.backgrounds[backgroundIndex].colorizedSd.pixels.size() *
+                sizeof(uint16_t);
+        writeRgb565Frame(bytes, sdBackgroundOffset, snapshot.backgrounds[backgroundIndex].colorizedSd);
+
+        if (snapshot.backgrounds[backgroundIndex].colorizedHd) {
+            const std::size_t hdBackgroundOffset =
+                cromFrames.frameData.backgroundFramesHdOffset +
+                backgroundIndex *
+                    snapshot.backgrounds[backgroundIndex].colorizedHd->pixels.size() *
+                    sizeof(uint16_t);
+            writeRgb565Frame(bytes,
+                             hdBackgroundOffset,
+                             *snapshot.backgrounds[backgroundIndex].colorizedHd);
+        }
+    }
+
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        const document::FrameBackgroundData& backgroundData =
+            *snapshot.frames[frameIndex].backgroundData;
+        writeU16(bytes,
+                 cromFrames.frameData.backgroundIdsOffset + frameIndex * sizeof(uint16_t),
+                 backgroundData.backgroundId);
+
+        const std::size_t sdMaskOffset =
+            cromFrames.frameData.backgroundMasksSdOffset +
+            frameIndex * backgroundData.maskSd.pixels.size();
+        writeIndexedFrame(bytes, sdMaskOffset, backgroundData.maskSd);
+
+        const std::size_t hdMaskOffset =
+            cromFrames.frameData.backgroundMasksHdOffset +
+            frameIndex * backgroundData.maskHd.pixels.size();
+        writeIndexedFrame(bytes, hdMaskOffset, backgroundData.maskHd);
     }
 
     if (!writeFileBytes(paths.cromPath, bytes, errorMessage)) {

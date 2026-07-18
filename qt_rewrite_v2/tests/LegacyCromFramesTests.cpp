@@ -20,6 +20,9 @@ constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
+constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kMaxColorRotations = 4;
+constexpr std::size_t kMaxColorRotationLength = 64;
 
 void fail(const std::string& message)
 {
@@ -48,6 +51,13 @@ void appendU32(std::vector<uint8_t>& bytes, uint32_t value)
     bytes.push_back(static_cast<uint8_t>((value >> 24) & 0xff));
 }
 
+void appendRepeatedU32(std::vector<uint8_t>& bytes, uint32_t value, std::size_t count)
+{
+    for (std::size_t i = 0; i < count; ++i) {
+        appendU32(bytes, value);
+    }
+}
+
 void appendName(std::vector<uint8_t>& bytes, const std::string& name)
 {
     for (std::size_t i = 0; i < 64; ++i) {
@@ -69,6 +79,26 @@ void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t co
     }
 }
 
+void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
+{
+    appendRepeatedU8(bytes, 255, 2 * kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 1, 2);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendRepeatedU32(bytes, 0xffffffff, 2);
+    appendRepeatedU16(bytes, 0xffff, 2 * kMaxSpritesPerFrame * 4);
+
+    bytes.push_back(1);
+    appendRepeatedU16(bytes, 0x5001, kSdPixels);
+    appendRepeatedU16(bytes, 0x6001, kHdPixels);
+    appendU16(bytes, 0);
+    appendU16(bytes, 0xffff);
+    appendRepeatedU8(bytes, 0, kSdPixels);
+    appendRepeatedU8(bytes, 2, kSdPixels);
+    appendRepeatedU8(bytes, 0, kHdPixels);
+    appendRepeatedU8(bytes, 3, kHdPixels);
+}
+
 std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
 {
     std::vector<uint8_t> bytes;
@@ -82,7 +112,7 @@ std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
     appendU32(bytes, kColorCount);
     appendU32(bytes, comparisonMaskCount);
     appendU32(bytes, 0);
-    appendU16(bytes, 0);
+    appendU16(bytes, 1);
 
     appendU32(bytes, 0x11111111);
     appendU32(bytes, 0x22222222);
@@ -107,6 +137,7 @@ std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
     appendRepeatedU8(bytes, 8, kHdPixels);
     appendRepeatedU16(bytes, 0x3001, 2 * kDynamicSetsPerFrame * kColorCount);
     appendRepeatedU16(bytes, 0x4001, 2 * kDynamicSetsPerFrame * kColorCount);
+    appendModernPostDynamicBlocks(bytes);
 
     return bytes;
 }
@@ -167,6 +198,22 @@ void testModernFrameArraysParse()
            "first SD dynamic color set value");
     expect(result.frameData.dynamicFrames[0].colorsHd.front() == 0x4001,
            "first HD dynamic color set value");
+    expect(result.frameData.backgrounds.size() == 1, "background count");
+    expect(result.frameData.backgrounds[0].colorizedSd.pixels.front() == 0x5001,
+           "SD background value");
+    expect(result.frameData.backgrounds[0].colorizedHd.has_value(),
+           "HD background should be present by flag");
+    expect(result.frameData.backgrounds[0].colorizedHd->pixels.front() == 0x6001,
+           "HD background value");
+    expect(result.frameData.frameBackgrounds.size() == 2, "frame background count");
+    expect(result.frameData.frameBackgrounds[0].backgroundId == 0,
+           "first frame background ID");
+    expect(result.frameData.frameBackgrounds[1].backgroundId == 0xffff,
+           "second frame background ID");
+    expect(result.frameData.frameBackgrounds[1].maskSd.pixels.front() == 2,
+           "second SD background mask value");
+    expect(result.frameData.frameBackgrounds[1].maskHd.pixels.front() == 3,
+           "second HD background mask value");
 
     expect(!hdFrameIfPresent(result.frameData, 0), "first HD frame should be absent by flag");
     const std::optional<colorizing::document::Rgb565Frame> hdFrame =

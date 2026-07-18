@@ -15,12 +15,14 @@ struct ProjectFrameSnapshot {
     uint8_t shapeComparisonMode = 0;
     uint8_t comparisonMaskId = 0;
     std::optional<FrameDynamicData> dynamicData;
+    std::optional<FrameBackgroundData> backgroundData;
 };
 
 struct ProjectSnapshot {
     std::string romName;
     std::vector<ProjectFrameSnapshot> frames;
     std::vector<IndexedFrame> comparisonMasks;
+    std::vector<BackgroundRecord> backgrounds;
     std::vector<UnsupportedLegacyPayload> unsupportedPayloads;
 };
 

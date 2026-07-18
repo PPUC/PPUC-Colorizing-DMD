@@ -35,6 +35,21 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         }
     }
 
+    for (std::size_t i = 0; i < snapshot.backgrounds.size(); ++i) {
+        const BackgroundRecord& background = snapshot.backgrounds[i];
+        if (!background.colorizedSd.isValid() ||
+            !hasSize(background.colorizedSd.size, render::kSdFrameSize)) {
+            return fail(errorMessage, "background " + std::to_string(i) +
+                                          " has invalid SD data");
+        }
+        if (background.colorizedHd &&
+            (!background.colorizedHd->isValid() ||
+             !hasSize(background.colorizedHd->size, render::kHdFrameSize))) {
+            return fail(errorMessage, "background " + std::to_string(i) +
+                                          " has invalid HD data");
+        }
+    }
+
     for (std::size_t i = 0; i < snapshot.frames.size(); ++i) {
         const ProjectFrameSnapshot& frame = snapshot.frames[i];
         if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, render::kSdFrameSize)) {
@@ -61,6 +76,18 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             if (frame.dynamicData->colorsSd.empty() || frame.dynamicData->colorsHd.empty()) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                           " has invalid dynamic color data");
+            }
+        }
+        if (frame.backgroundData) {
+            if (!frame.backgroundData->maskSd.isValid() ||
+                !hasSize(frame.backgroundData->maskSd.size, render::kSdFrameSize)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                              " has invalid SD background mask data");
+            }
+            if (!frame.backgroundData->maskHd.isValid() ||
+                !hasSize(frame.backgroundData->maskHd.size, render::kHdFrameSize)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                              " has invalid HD background mask data");
             }
         }
     }

@@ -334,6 +334,11 @@ void MainWindow::createCentralView()
     m_dynamicMaskOverlayButton->setToolTip(QStringLiteral("Show dynamic mask overlay"));
     m_dynamicMaskOverlayButton->setCheckable(true);
     m_dynamicMaskOverlayButton->setEnabled(false);
+    m_backgroundMaskOverlayButton = new QToolButton(central);
+    m_backgroundMaskOverlayButton->setText(QStringLiteral("BG"));
+    m_backgroundMaskOverlayButton->setToolTip(QStringLiteral("Show and edit background mask"));
+    m_backgroundMaskOverlayButton->setCheckable(true);
+    m_backgroundMaskOverlayButton->setEnabled(false);
     m_comparisonMaskIdSpinBox = new QSpinBox(central);
     m_comparisonMaskIdSpinBox->setToolTip(QStringLiteral("Assigned comparison mask ID"));
     m_comparisonMaskIdSpinBox->setMinimum(-1);
@@ -352,6 +357,7 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
     toolbarLayout->addWidget(m_dynamicMaskOverlayButton);
+    toolbarLayout->addWidget(m_backgroundMaskOverlayButton);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Mask ID"), central));
     toolbarLayout->addWidget(m_comparisonMaskIdSpinBox);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Dyn Set"), central));
@@ -439,9 +445,30 @@ void MainWindow::createCentralView()
                 m_preview->setComparisonMaskOverlayEnabled(false);
             }
         }
+        if (checked && m_backgroundMaskOverlayButton) {
+            QSignalBlocker blocker(m_backgroundMaskOverlayButton);
+            m_backgroundMaskOverlayButton->setChecked(false);
+            if (m_preview) {
+                m_preview->setBackgroundMaskOverlayEnabled(false);
+            }
+        }
         if (m_preview) {
             m_preview->clearPreviewPixels();
             m_preview->setDynamicMaskOverlayEnabled(checked);
+        }
+        updateUndoRedoActions();
+    });
+    connect(m_backgroundMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked && m_dynamicMaskOverlayButton) {
+            QSignalBlocker blocker(m_dynamicMaskOverlayButton);
+            m_dynamicMaskOverlayButton->setChecked(false);
+            if (m_preview) {
+                m_preview->setDynamicMaskOverlayEnabled(false);
+            }
+        }
+        if (m_preview) {
+            m_preview->clearPreviewPixels();
+            m_preview->setBackgroundMaskOverlayEnabled(checked);
         }
         updateUndoRedoActions();
     });
@@ -581,6 +608,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_editHistories.clear();
         m_maskEditHistories.clear();
         m_dynamicMaskEditHistories.clear();
+        m_backgroundMaskEditHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -718,6 +746,7 @@ void MainWindow::updateResolutionMode()
     m_hdButton->setEnabled(hasDocument);
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_dynamicMaskOverlayButton->setEnabled(hasDocument);
+    m_backgroundMaskOverlayButton->setEnabled(hasDocument);
     if (m_dynamicSetSpinBox) {
         m_dynamicSetSpinBox->setEnabled(hasDocument);
     }
@@ -851,6 +880,16 @@ void MainWindow::setDrawingTool(DrawingTool tool)
 void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
 {
     if (isComparisonMaskModeActive()) {
+        return;
+    }
+    if (isBackgroundMaskModeActive()) {
+        if (m_drawingTool == DrawingTool::FloodFill) {
+            floodFillBackgroundMask(hit, erase);
+            return;
+        }
+        if (m_drawingTool == DrawingTool::Point) {
+            paintBackgroundMaskPixel(hit, erase);
+        }
         return;
     }
     if (isDynamicMaskModeActive()) {
@@ -1098,6 +1137,80 @@ void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
     }
 }
 
+void MainWindow::paintBackgroundMaskPixel(const render::CanvasHit& hit, bool erase)
+{
+    if (!m_document || !isBackgroundMaskModeActive()) {
+        return;
+    }
+    commitBackgroundMaskPixels(hit.resolution,
+                               {render::Point{hit.x, hit.y}},
+                               erase ? uint8_t{0} : uint8_t{1},
+                               erase ? QStringLiteral("Erased background mask pixel")
+                                     : QStringLiteral("Painted background mask pixel"));
+}
+
+void MainWindow::floodFillBackgroundMask(const render::CanvasHit& hit, bool erase)
+{
+    if (!m_document || !isBackgroundMaskModeActive() || !m_frameList ||
+        m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    try {
+        const uint8_t targetValue =
+            m_document->backgroundMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
+        const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
+        if (targetValue == newValue) {
+            return;
+        }
+
+        const std::optional<document::FrameBackgroundData>& backgroundData =
+            m_document->backgroundData(frameIndex);
+        if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
+            statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
+            return;
+        }
+        const document::IndexedFrame& mask =
+            hit.resolution == render::Resolution::Hd ? backgroundData->maskHd : backgroundData->maskSd;
+        std::vector<uint8_t> visited(mask.pixels.size(), 0);
+        std::deque<render::Point> queue;
+        std::vector<render::Point> pixels;
+        queue.push_back(render::Point{hit.x, hit.y});
+
+        while (!queue.empty()) {
+            const render::Point point = queue.front();
+            queue.pop_front();
+            if (point.x < 0 || point.y < 0 ||
+                point.x >= mask.size.width || point.y >= mask.size.height) {
+                continue;
+            }
+            const std::size_t index =
+                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(point.x);
+            if (visited[index]) {
+                continue;
+            }
+            visited[index] = 1;
+            if (mask.pixels[index] != targetValue) {
+                continue;
+            }
+            pixels.push_back(point);
+            queue.push_back(render::Point{point.x - 1, point.y});
+            queue.push_back(render::Point{point.x + 1, point.y});
+            queue.push_back(render::Point{point.x, point.y - 1});
+            queue.push_back(render::Point{point.x, point.y + 1});
+        }
+
+        commitBackgroundMaskPixels(hit.resolution,
+                                   pixels,
+                                   newValue,
+                                   erase ? QStringLiteral("Flood erased background mask")
+                                         : QStringLiteral("Flood filled background mask"));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::previewFrameStroke(const render::CanvasHit& start,
                                     const render::CanvasHit& end,
                                     bool erase)
@@ -1127,6 +1240,17 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
                                     pixelsForStroke(start, end),
                                     erase ? QColor(0, 0, 0, 150)
                                           : QColor(0, 180, 255, 150));
+        return;
+    }
+    if (isBackgroundMaskModeActive()) {
+        if (start.region != render::CanvasRegion::ColorizedFrame) {
+            return;
+        }
+        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
+                                    start.resolution,
+                                    pixelsForStroke(start, end),
+                                    erase ? QColor(0, 0, 0, 150)
+                                          : QColor(255, 200, 0, 150));
         return;
     }
     if (start.region != render::CanvasRegion::ColorizedFrame) {
@@ -1189,6 +1313,19 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
                                     QStringLiteral("Painted"),
                                     erase ? QStringLiteral("Erased dynamic mask")
                                           : QStringLiteral("Painted dynamic mask")));
+        return;
+    }
+    if (isBackgroundMaskModeActive()) {
+        if (start.region != render::CanvasRegion::ColorizedFrame) {
+            return;
+        }
+        commitBackgroundMaskPixels(start.resolution,
+                                   pixelsForStroke(start, end),
+                                   erase ? uint8_t{0} : uint8_t{1},
+                                   statusText.replace(
+                                       QStringLiteral("Painted"),
+                                       erase ? QStringLiteral("Erased background mask")
+                                             : QStringLiteral("Painted background mask")));
         return;
     }
 
@@ -1376,6 +1513,65 @@ void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
     statusBar()->showMessage(statusText, 2500);
 }
 
+void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
+                                            const std::vector<render::Point>& pixels,
+                                            uint8_t value,
+                                            const QString& statusText)
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0 || pixels.empty()) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return;
+    }
+
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        m_document->backgroundData(frameIndex);
+    if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
+        statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
+        return;
+    }
+
+    BackgroundMaskEditCommand command;
+    command.frameIndex = frameIndex;
+    command.resolution = resolution;
+    std::set<std::pair<int, int>> seen;
+
+    try {
+        for (const render::Point& pixel : pixels) {
+            if (!seen.insert({pixel.x, pixel.y}).second) {
+                continue;
+            }
+            const uint8_t oldValue =
+                m_document->backgroundMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
+            if (oldValue == value) {
+                continue;
+            }
+            command.changes.push_back(BackgroundMaskPixelChange{
+                pixel.x,
+                pixel.y,
+                oldValue,
+                value,
+            });
+        }
+        if (command.changes.empty()) {
+            return;
+        }
+        applyBackgroundMaskEdit(command, true);
+        BackgroundMaskEditHistory& history =
+            m_backgroundMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(statusText, 2500);
+}
+
 void MainWindow::applyPixelEdit(const PixelEditCommand& command, bool useNewColor)
 {
     if (!m_document) {
@@ -1419,6 +1615,22 @@ void MainWindow::applyDynamicMaskEdit(const DynamicMaskEditCommand& command, boo
                                         change.x,
                                         change.y,
                                         useNewValue ? change.newValue : change.oldValue);
+    }
+    m_preview->update();
+    updateProjectHeaderStatus();
+}
+
+void MainWindow::applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue)
+{
+    if (!m_document) {
+        return;
+    }
+    for (const BackgroundMaskPixelChange& change : command.changes) {
+        m_document->setBackgroundMaskPixel(command.frameIndex,
+                                           command.resolution,
+                                           change.x,
+                                           change.y,
+                                           useNewValue ? change.newValue : change.oldValue);
     }
     m_preview->update();
     updateProjectHeaderStatus();
@@ -1540,6 +1752,37 @@ bool MainWindow::isDynamicMaskModeActive() const
     return m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isChecked();
 }
 
+MainWindow::BackgroundMaskEditHistory* MainWindow::currentBackgroundMaskEditHistory()
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_backgroundMaskEditHistories.find(*key);
+    if (history == m_backgroundMaskEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::BackgroundMaskEditHistory* MainWindow::currentBackgroundMaskEditHistory() const
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_backgroundMaskEditHistories.find(*key);
+    if (history == m_backgroundMaskEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+bool MainWindow::isBackgroundMaskModeActive() const
+{
+    return m_backgroundMaskOverlayButton && m_backgroundMaskOverlayButton->isChecked();
+}
+
 void MainWindow::undo()
 {
     if (isComparisonMaskModeActive()) {
@@ -1564,6 +1807,19 @@ void MainWindow::undo()
             history->redoStack.push_back(command);
             updateUndoRedoActions();
             statusBar()->showMessage(QStringLiteral("Undo dynamic mask edit"), 1500);
+            return;
+        }
+        return;
+    }
+    if (isBackgroundMaskModeActive()) {
+        BackgroundMaskEditHistory* history = currentBackgroundMaskEditHistory();
+        if (history && !history->undoStack.empty()) {
+            const BackgroundMaskEditCommand command = history->undoStack.back();
+            history->undoStack.pop_back();
+            applyBackgroundMaskEdit(command, false);
+            history->redoStack.push_back(command);
+            updateUndoRedoActions();
+            statusBar()->showMessage(QStringLiteral("Undo background mask edit"), 1500);
             return;
         }
         return;
@@ -1609,6 +1865,19 @@ void MainWindow::redo()
         }
         return;
     }
+    if (isBackgroundMaskModeActive()) {
+        BackgroundMaskEditHistory* history = currentBackgroundMaskEditHistory();
+        if (history && !history->redoStack.empty()) {
+            const BackgroundMaskEditCommand command = history->redoStack.back();
+            history->redoStack.pop_back();
+            applyBackgroundMaskEdit(command, true);
+            history->undoStack.push_back(command);
+            updateUndoRedoActions();
+            statusBar()->showMessage(QStringLiteral("Redo background mask edit"), 1500);
+            return;
+        }
+        return;
+    }
 
     EditHistory* history = currentEditHistory();
     if (!history || history->redoStack.empty()) {
@@ -1644,6 +1913,16 @@ void MainWindow::updateUndoRedoActions()
         }
         return;
     }
+    if (isBackgroundMaskModeActive()) {
+        const BackgroundMaskEditHistory* history = currentBackgroundMaskEditHistory();
+        if (m_undoAction) {
+            m_undoAction->setEnabled(history && !history->undoStack.empty());
+        }
+        if (m_redoAction) {
+            m_redoAction->setEnabled(history && !history->redoStack.empty());
+        }
+        return;
+    }
 
     const EditHistory* history = currentEditHistory();
     if (m_undoAction) {
@@ -1666,10 +1945,11 @@ void MainWindow::updateProjectHeaderStatus()
             ++hdCount;
         }
     }
-    setStatusText(QStringLiteral("%1: %2 frames, %3 HD%4")
+    setStatusText(QStringLiteral("%1: %2 frames, %3 HD, %4 backgrounds%5")
                       .arg(QString::fromStdString(m_document->romName()))
                       .arg(static_cast<int>(m_document->frameCount()))
                       .arg(hdCount)
+                      .arg(static_cast<int>(m_document->backgroundCount()))
                       .arg(m_document->isDirty() ? QStringLiteral(" (modified)") : QString()));
 }
 

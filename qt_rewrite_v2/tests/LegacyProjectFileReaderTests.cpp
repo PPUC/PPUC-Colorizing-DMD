@@ -30,6 +30,9 @@ constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
+constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kMaxColorRotations = 4;
+constexpr std::size_t kMaxColorRotationLength = 64;
 
 void fail(const std::string& message)
 {
@@ -58,6 +61,13 @@ void appendU32(std::vector<uint8_t>& bytes, uint32_t value)
     bytes.push_back(static_cast<uint8_t>((value >> 24) & 0xff));
 }
 
+void appendRepeatedU32(std::vector<uint8_t>& bytes, uint32_t value, std::size_t count)
+{
+    for (std::size_t i = 0; i < count; ++i) {
+        appendU32(bytes, value);
+    }
+}
+
 void appendName(std::vector<uint8_t>& bytes, const std::string& name)
 {
     for (std::size_t i = 0; i < 64; ++i) {
@@ -79,6 +89,26 @@ void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t co
     }
 }
 
+void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
+{
+    appendRepeatedU8(bytes, 255, 2 * kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 1, 2);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendRepeatedU32(bytes, 0xffffffff, 2);
+    appendRepeatedU16(bytes, 0xffff, 2 * kMaxSpritesPerFrame * 4);
+
+    bytes.push_back(1);
+    appendRepeatedU16(bytes, 0x5001, kSdPixels);
+    appendRepeatedU16(bytes, 0x6001, kHdPixels);
+    appendU16(bytes, 0);
+    appendU16(bytes, 0xffff);
+    appendRepeatedU8(bytes, 0, kSdPixels);
+    appendRepeatedU8(bytes, 2, kSdPixels);
+    appendRepeatedU8(bytes, 0, kHdPixels);
+    appendRepeatedU8(bytes, 3, kHdPixels);
+}
+
 std::vector<uint8_t> makeModernCromWithFrames()
 {
     std::vector<uint8_t> bytes;
@@ -92,7 +122,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendU32(bytes, kColorCount);
     appendU32(bytes, 1);
     appendU32(bytes, 0);
-    appendU16(bytes, 0);
+    appendU16(bytes, 1);
 
     appendU32(bytes, 0x11111111);
     appendU32(bytes, 0x22222222);
@@ -117,6 +147,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendRepeatedU8(bytes, 4, kHdPixels);
     appendRepeatedU16(bytes, 0x3001, 2 * kDynamicSetsPerFrame * kColorCount);
     appendRepeatedU16(bytes, 0x4001, 2 * kDynamicSetsPerFrame * kColorCount);
+    appendModernPostDynamicBlocks(bytes);
     bytes.push_back(0x99);
     bytes.push_back(0x88);
     return bytes;
@@ -226,6 +257,24 @@ void testFileReaderLoadsModernProject()
            "file reader SD dynamic color data");
     expect(result.snapshot.frames[0].dynamicData->colorsHd.front() == 0x4001,
            "file reader HD dynamic color data");
+    expect(result.snapshot.backgrounds.size() == 1,
+           "file reader background count");
+    expect(result.snapshot.backgrounds[0].colorizedSd.pixels.front() == 0x5001,
+           "file reader SD background data");
+    expect(result.snapshot.backgrounds[0].colorizedHd.has_value(),
+           "file reader HD background present");
+    expect(result.snapshot.backgrounds[0].colorizedHd->pixels.front() == 0x6001,
+           "file reader HD background data");
+    expect(result.snapshot.frames[0].backgroundData.has_value(),
+           "file reader first background data present");
+    expect(result.snapshot.frames[0].backgroundData->backgroundId == 0,
+           "file reader first background ID");
+    expect(result.snapshot.frames[1].backgroundData->backgroundId == 0xffff,
+           "file reader second background ID");
+    expect(result.snapshot.frames[1].backgroundData->maskSd.pixels.front() == 2,
+           "file reader SD background mask data");
+    expect(result.snapshot.frames[1].backgroundData->maskHd.pixels.front() == 3,
+           "file reader HD background mask data");
 }
 
 void testFileReaderReportsMissingCrom()
@@ -286,6 +335,12 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] = 6;
     loadResult.snapshot.frames[0].dynamicData->colorsSd[10] = 0x7777;
     loadResult.snapshot.frames[0].dynamicData->colorsHd[11] = 0x8888;
+    loadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] = 0x9999;
+    loadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] = 0xaaaa;
+    loadResult.snapshot.frames[0].backgroundData->backgroundId = 0xffff;
+    loadResult.snapshot.frames[1].backgroundData->backgroundId = 0;
+    loadResult.snapshot.frames[1].backgroundData->maskSd.pixels[14] = 7;
+    loadResult.snapshot.frames[1].backgroundData->maskHd.pixels[15] = 8;
     loadResult.snapshot.frames[0].colorizedHd.reset();
     loadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] = 0x2468;
     loadResult.snapshot.frames[1].colorizedHd =
@@ -323,6 +378,18 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update SD dynamic color sets");
     expect(reloadResult.snapshot.frames[0].dynamicData->colorsHd[11] == 0x8888,
            "file writer should update HD dynamic color sets");
+    expect(reloadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] == 0x9999,
+           "file writer should update SD background pixels");
+    expect(reloadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] == 0xaaaa,
+           "file writer should update HD background pixels");
+    expect(reloadResult.snapshot.frames[0].backgroundData->backgroundId == 0xffff,
+           "file writer should update first background ID");
+    expect(reloadResult.snapshot.frames[1].backgroundData->backgroundId == 0,
+           "file writer should update second background ID");
+    expect(reloadResult.snapshot.frames[1].backgroundData->maskSd.pixels[14] == 7,
+           "file writer should update SD background masks");
+    expect(reloadResult.snapshot.frames[1].backgroundData->maskHd.pixels[15] == 8,
+           "file writer should update HD background masks");
     expect(!reloadResult.snapshot.frames[0].colorizedHd,
            "file writer should clear first HD presence flag");
     expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] == 0x2468,
