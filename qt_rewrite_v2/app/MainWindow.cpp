@@ -18,7 +18,6 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QPushButton>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -346,15 +345,6 @@ void MainWindow::createCentralView()
     m_dynamicSetSpinBox->setRange(0, static_cast<int>(document::kMaxDynamicSetsPerFrame - 1));
     m_dynamicSetSpinBox->setValue(0);
     m_dynamicSetSpinBox->setEnabled(false);
-    m_dynamicColorSpinBox = new QSpinBox(central);
-    m_dynamicColorSpinBox->setToolTip(QStringLiteral("Original color index inside dynamic set"));
-    m_dynamicColorSpinBox->setRange(0, 15);
-    m_dynamicColorSpinBox->setValue(0);
-    m_dynamicColorSpinBox->setEnabled(false);
-    m_setDynamicColorButton = new QPushButton(QStringLiteral("Set Dyn Color"), central);
-    m_setDynamicColorButton->setToolTip(
-        QStringLiteral("Set selected dynamic color slot to active draw color"));
-    m_setDynamicColorButton->setEnabled(false);
     m_shapeComparisonModeComboBox = new QComboBox(central);
     m_shapeComparisonModeComboBox->setToolTip(QStringLiteral("Shape comparison mode"));
     m_shapeComparisonModeComboBox->setEnabled(false);
@@ -366,9 +356,6 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_comparisonMaskIdSpinBox);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Dyn Set"), central));
     toolbarLayout->addWidget(m_dynamicSetSpinBox);
-    toolbarLayout->addWidget(new QLabel(QStringLiteral("Dyn Color"), central));
-    toolbarLayout->addWidget(m_dynamicColorSpinBox);
-    toolbarLayout->addWidget(m_setDynamicColorButton);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Shape"), central));
     toolbarLayout->addWidget(m_shapeComparisonModeComboBox);
     toolbarLayout->addSpacing(12);
@@ -464,19 +451,6 @@ void MainWindow::createCentralView()
             [this](int setIndex) {
                 statusBar()->showMessage(QStringLiteral("Selected dynamic set %1").arg(setIndex),
                                          1500);
-                updateDynamicColorButton();
-            });
-    connect(m_dynamicColorSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int) {
-                updateDynamicColorButton();
-            });
-    connect(m_setDynamicColorButton,
-            &QPushButton::clicked,
-            this,
-            [this]() {
-                setActiveDynamicColorFromDrawColor();
             });
     connect(m_comparisonMaskIdSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -607,7 +581,6 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_editHistories.clear();
         m_maskEditHistories.clear();
         m_dynamicMaskEditHistories.clear();
-        m_dynamicColorEditHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -735,7 +708,6 @@ void MainWindow::selectFrame(int frameIndex)
                            .arg(hasHd ? QStringLiteral("HD 256x64")
                                       : QStringLiteral("HD unavailable")));
     updateFrameMetadataControls();
-    updateDynamicColorButton();
     updateUndoRedoActions();
 }
 
@@ -749,12 +721,6 @@ void MainWindow::updateResolutionMode()
     if (m_dynamicSetSpinBox) {
         m_dynamicSetSpinBox->setEnabled(hasDocument);
     }
-    if (m_dynamicColorSpinBox) {
-        m_dynamicColorSpinBox->setEnabled(hasDocument);
-    }
-    if (m_setDynamicColorButton) {
-        m_setDynamicColorButton->setEnabled(hasDocument);
-    }
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
@@ -762,7 +728,6 @@ void MainWindow::updateResolutionMode()
         m_preview->setActiveResolution(m_activeResolution);
     }
     updateUndoRedoActions();
-    updateDynamicColorButton();
 }
 
 void MainWindow::updateFrameMetadataControls()
@@ -862,71 +827,6 @@ uint8_t MainWindow::activeDynamicSet() const
     return m_dynamicSetSpinBox ? static_cast<uint8_t>(m_dynamicSetSpinBox->value()) : uint8_t{0};
 }
 
-std::size_t MainWindow::activeDynamicColorIndex() const
-{
-    return m_dynamicColorSpinBox ? static_cast<std::size_t>(m_dynamicColorSpinBox->value())
-                                 : std::size_t{0};
-}
-
-void MainWindow::updateDynamicColorButton()
-{
-    if (!m_setDynamicColorButton || !m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
-        return;
-    }
-    try {
-        const uint16_t color = m_document->dynamicColor(frameIndex,
-                                                        m_activeResolution,
-                                                        activeDynamicSet(),
-                                                        activeDynamicColorIndex());
-        m_setDynamicColorButton->setText(QStringLiteral("Dyn 0x%1")
-                                             .arg(color, 4, 16, QLatin1Char('0')));
-    } catch (const std::exception&) {
-        m_setDynamicColorButton->setText(QStringLiteral("Set Dyn Color"));
-    }
-}
-
-void MainWindow::setActiveDynamicColorFromDrawColor()
-{
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
-        return;
-    }
-
-    try {
-        DynamicColorEditCommand command;
-        command.frameIndex = frameIndex;
-        command.resolution = m_activeResolution;
-        command.setIndex = activeDynamicSet();
-        command.originalColorIndex = activeDynamicColorIndex();
-        command.oldColor = m_document->dynamicColor(command.frameIndex,
-                                                    command.resolution,
-                                                    command.setIndex,
-                                                    command.originalColorIndex);
-        command.newColor = m_activeDrawColor;
-        if (command.oldColor == command.newColor) {
-            return;
-        }
-        applyDynamicColorEdit(command, true);
-        DynamicColorEditHistory& history =
-            m_dynamicColorEditHistories[EditHistoryKey{frameIndex, m_activeResolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Set dynamic color 0x%1")
-                                     .arg(m_activeDrawColor, 4, 16, QLatin1Char('0')),
-                                 2500);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
 {
     m_activeDrawColor = rgb565;
@@ -934,7 +834,6 @@ void MainWindow::setActiveDrawColor(uint16_t rgb565)
         QSignalBlocker blocker(button);
         button->setChecked(button->property("rgb565").toInt() == static_cast<int>(rgb565));
     }
-    updateDynamicColorButton();
 }
 
 void MainWindow::setDrawingTool(DrawingTool tool)
@@ -1525,20 +1424,6 @@ void MainWindow::applyDynamicMaskEdit(const DynamicMaskEditCommand& command, boo
     updateProjectHeaderStatus();
 }
 
-void MainWindow::applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor)
-{
-    if (!m_document) {
-        return;
-    }
-    m_document->setDynamicColor(command.frameIndex,
-                                command.resolution,
-                                command.setIndex,
-                                command.originalColorIndex,
-                                useNewColor ? command.newColor : command.oldColor);
-    updateDynamicColorButton();
-    updateProjectHeaderStatus();
-}
-
 std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
 {
     if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
@@ -1650,32 +1535,6 @@ const MainWindow::DynamicMaskEditHistory* MainWindow::currentDynamicMaskEditHist
     return &history->second;
 }
 
-MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHistory()
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicColorEditHistories.find(*key);
-    if (history == m_dynamicColorEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHistory() const
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicColorEditHistories.find(*key);
-    if (history == m_dynamicColorEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 bool MainWindow::isDynamicMaskModeActive() const
 {
     return m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isChecked();
@@ -1707,16 +1566,6 @@ void MainWindow::undo()
             statusBar()->showMessage(QStringLiteral("Undo dynamic mask edit"), 1500);
             return;
         }
-        DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-        if (!colorHistory || colorHistory->undoStack.empty()) {
-            return;
-        }
-        const DynamicColorEditCommand command = colorHistory->undoStack.back();
-        colorHistory->undoStack.pop_back();
-        applyDynamicColorEdit(command, false);
-        colorHistory->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
         return;
     }
 
@@ -1758,16 +1607,6 @@ void MainWindow::redo()
             statusBar()->showMessage(QStringLiteral("Redo dynamic mask edit"), 1500);
             return;
         }
-        DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-        if (!colorHistory || colorHistory->redoStack.empty()) {
-            return;
-        }
-        const DynamicColorEditCommand command = colorHistory->redoStack.back();
-        colorHistory->redoStack.pop_back();
-        applyDynamicColorEdit(command, true);
-        colorHistory->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
         return;
     }
 
@@ -1797,14 +1636,11 @@ void MainWindow::updateUndoRedoActions()
     }
     if (isDynamicMaskModeActive()) {
         const DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
-        const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
         if (m_undoAction) {
-            m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
-                                     (colorHistory && !colorHistory->undoStack.empty()));
+            m_undoAction->setEnabled(history && !history->undoStack.empty());
         }
         if (m_redoAction) {
-            m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
-                                     (colorHistory && !colorHistory->redoStack.empty()));
+            m_redoAction->setEnabled(history && !history->redoStack.empty());
         }
         return;
     }
