@@ -64,6 +64,15 @@ void FramePreviewWidget::setBackgroundMaskOverlayEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setBackgroundLayerEnabled(bool enabled)
+{
+    if (m_showBackgroundLayer == enabled) {
+        return;
+    }
+    m_showBackgroundLayer = enabled;
+    update();
+}
+
 void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
@@ -279,11 +288,27 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
     const bool drawOriginal = region.region == render::CanvasRegion::OriginalFrame;
     const document::IndexedFrame* original = nullptr;
     const document::Rgb565Frame* colorized = nullptr;
+    const document::Rgb565Frame* background = nullptr;
+    const document::IndexedFrame* backgroundMask = nullptr;
 
     if (drawOriginal) {
         original = &m_document->originalFrame(m_frameIndex);
     } else {
         colorized = &m_document->colorizedFrame(m_frameIndex, region.resolution);
+        const std::optional<document::FrameBackgroundData>& backgroundData =
+            m_document->backgroundData(m_frameIndex);
+        if (m_showBackgroundLayer && backgroundData &&
+            backgroundData->backgroundId < m_document->backgroundCount()) {
+            const document::BackgroundRecord& backgroundRecord =
+                m_document->background(backgroundData->backgroundId);
+            if (region.resolution == render::Resolution::Hd && backgroundRecord.colorizedHd) {
+                background = &*backgroundRecord.colorizedHd;
+                backgroundMask = &backgroundData->maskHd;
+            } else if (region.resolution == render::Resolution::Sd) {
+                background = &backgroundRecord.colorizedSd;
+                backgroundMask = &backgroundData->maskSd;
+            }
+        }
     }
 
     const int scale = region.displayScale;
@@ -299,7 +324,24 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                 const std::size_t index =
                     static_cast<std::size_t>(y) * static_cast<std::size_t>(colorized->size.width) +
                     static_cast<std::size_t>(x);
-                color = rgb565ToColor(colorized->pixels[index]);
+                bool useBackground = false;
+                if (background && backgroundMask) {
+                    const document::IndexedFrame& originalFrame = m_document->originalFrame(m_frameIndex);
+                    const int originalX = region.resolution == render::Resolution::Hd ? x / 2 : x;
+                    const int originalY = region.resolution == render::Resolution::Hd ? y / 2 : y;
+                    const std::size_t originalIndex =
+                        static_cast<std::size_t>(originalY) *
+                            static_cast<std::size_t>(originalFrame.size.width) +
+                        static_cast<std::size_t>(originalX);
+                    const std::size_t maskIndex =
+                        static_cast<std::size_t>(y) *
+                            static_cast<std::size_t>(backgroundMask->size.width) +
+                        static_cast<std::size_t>(x);
+                    useBackground = originalFrame.pixels[originalIndex] == 0 &&
+                                    backgroundMask->pixels[maskIndex] != 0;
+                }
+                color = useBackground ? rgb565ToColor(background->pixels[index])
+                                      : rgb565ToColor(colorized->pixels[index]);
             }
 
             painter.fillRect(QRect(region.displayRect.x + x * scale,

@@ -24,6 +24,7 @@ public:
     void setComparisonMaskOverlayEnabled(bool enabled);
     void setDynamicMaskOverlayEnabled(bool enabled);
     void setBackgroundMaskOverlayEnabled(bool enabled);
+    void setBackgroundLayerEnabled(bool enabled);
     void setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
     void setOriginalClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
     void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler);
@@ -61,6 +62,7 @@ private:
     bool m_showComparisonMaskOverlay = false;
     bool m_showDynamicMaskOverlay = false;
     bool m_showBackgroundMaskOverlay = false;
+    bool m_showBackgroundLayer = false;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     std::function<void(render::CanvasHit, bool)> m_pixelClickedHandler;
     std::function<void(render::CanvasHit, bool)> m_originalClickedHandler;

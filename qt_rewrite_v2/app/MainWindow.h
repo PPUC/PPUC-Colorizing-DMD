@@ -128,6 +128,7 @@ private:
     void updateFrameMetadataControls();
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
+    void setCurrentFrameBackgroundId(int backgroundId);
     [[nodiscard]] uint8_t activeDynamicSet() const;
     void paintFramePixel(const render::CanvasHit& hit, bool erase);
     void pickFrameColor(const render::CanvasHit& hit);
@@ -195,8 +196,10 @@ private:
     QToolButton* m_comparisonMaskOverlayButton = nullptr;
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QToolButton* m_backgroundMaskOverlayButton = nullptr;
+    QToolButton* m_backgroundLayerButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
+    QSpinBox* m_backgroundIdSpinBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;

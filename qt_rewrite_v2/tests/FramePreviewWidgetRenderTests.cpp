@@ -106,8 +106,8 @@ colorizing::document::ProjectDocument makeBackgroundPreviewDocument()
         backgroundData,
     });
     snapshot.backgrounds.push_back(colorizing::document::BackgroundRecord{
-        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
-        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0x07e0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0x07e0),
     });
     return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
@@ -157,6 +157,19 @@ bool hasVisibleYellowPixel(const QImage& image)
         for (int x = 0; x < image.width(); ++x) {
             const QColor color(image.pixel(x, y));
             if (color.red() > 80 && color.green() > 80 && color.blue() < 40) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool hasVisibleGreenPixel(const QImage& image)
+{
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor color(image.pixel(x, y));
+            if (color.red() < 40 && color.green() > 80 && color.blue() < 40) {
                 return true;
             }
         }
@@ -466,6 +479,32 @@ void testBackgroundMaskOverlayRendersInSdAndHd()
     expect(hasVisibleYellowPixel(hdImage), "HD background mask overlay should render visibly");
 }
 
+void testBackgroundLayerRendersInSdAndHd()
+{
+    colorizing::document::ProjectDocument document = makeBackgroundPreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setBackgroundLayerEnabled(true);
+    widget.setFrameIndex(0);
+
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    QImage sdImage(widget.size(), QImage::Format_ARGB32);
+    sdImage.fill(Qt::transparent);
+    QPainter sdPainter(&sdImage);
+    widget.render(&sdPainter);
+    sdPainter.end();
+    expect(hasVisibleGreenPixel(sdImage), "SD background layer should render visibly");
+
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    QImage hdImage(widget.size(), QImage::Format_ARGB32);
+    hdImage.fill(Qt::transparent);
+    QPainter hdPainter(&hdImage);
+    widget.render(&hdPainter);
+    hdPainter.end();
+    expect(hasVisibleGreenPixel(hdImage), "HD background layer should render visibly");
+}
+
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -499,6 +538,7 @@ int main(int argc, char* argv[])
     testComparisonMaskOverlayRenders();
     testDynamicMaskOverlayRendersInSdAndHd();
     testBackgroundMaskOverlayRendersInSdAndHd();
+    testBackgroundLayerRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;

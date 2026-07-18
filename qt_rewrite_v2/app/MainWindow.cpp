@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -353,17 +354,22 @@ void MainWindow::createCentralView()
     m_shapeComparisonModeComboBox = new QComboBox(central);
     m_shapeComparisonModeComboBox->setToolTip(QStringLiteral("Shape comparison mode"));
     m_shapeComparisonModeComboBox->setEnabled(false);
+    m_backgroundIdSpinBox = new QSpinBox(central);
+    m_backgroundIdSpinBox->setToolTip(QStringLiteral("Assigned background ID"));
+    m_backgroundIdSpinBox->setMinimum(-1);
+    m_backgroundIdSpinBox->setMaximum(-1);
+    m_backgroundIdSpinBox->setSpecialValueText(QStringLiteral("None"));
+    m_backgroundIdSpinBox->setEnabled(false);
+    m_backgroundLayerButton = new QToolButton(central);
+    m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
+    m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
+    m_backgroundLayerButton->setCheckable(true);
+    m_backgroundLayerButton->setEnabled(false);
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
     toolbarLayout->addWidget(m_dynamicMaskOverlayButton);
     toolbarLayout->addWidget(m_backgroundMaskOverlayButton);
-    toolbarLayout->addWidget(new QLabel(QStringLiteral("Mask ID"), central));
-    toolbarLayout->addWidget(m_comparisonMaskIdSpinBox);
-    toolbarLayout->addWidget(new QLabel(QStringLiteral("Dyn Set"), central));
-    toolbarLayout->addWidget(m_dynamicSetSpinBox);
-    toolbarLayout->addWidget(new QLabel(QStringLiteral("Shape"), central));
-    toolbarLayout->addWidget(m_shapeComparisonModeComboBox);
     toolbarLayout->addSpacing(12);
 
     const std::vector<std::pair<DrawingTool, QString>> tools{
@@ -408,8 +414,24 @@ void MainWindow::createCentralView()
     layout->addLayout(toolbarLayout);
 
     auto* contentLayout = new QHBoxLayout();
+    auto* inspector = new QWidget(central);
+    auto* inspectorLayout = new QVBoxLayout(inspector);
+    auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
+    inspectorTitle->setStyleSheet(QStringLiteral("font-weight: 600;"));
+    auto* inspectorForm = new QFormLayout();
+    inspectorForm->addRow(QStringLiteral("Mask ID"), m_comparisonMaskIdSpinBox);
+    inspectorForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
+    inspectorForm->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
+    inspectorForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
+    inspectorLayout->addWidget(inspectorTitle);
+    inspectorLayout->addLayout(inspectorForm);
+    inspectorLayout->addWidget(m_backgroundLayerButton);
+    inspectorLayout->addStretch(1);
+    inspector->setMinimumWidth(180);
+    inspector->setMaximumWidth(240);
     contentLayout->addWidget(m_frameList, 0);
     contentLayout->addWidget(m_preview, 1);
+    contentLayout->addWidget(inspector, 0);
     layout->addLayout(contentLayout, 1);
 
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
@@ -472,6 +494,11 @@ void MainWindow::createCentralView()
         }
         updateUndoRedoActions();
     });
+    connect(m_backgroundLayerButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (m_preview) {
+            m_preview->setBackgroundLayerEnabled(checked);
+        }
+    });
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -491,6 +518,12 @@ void MainWindow::createCentralView()
             [this](int) {
                 setCurrentFrameShapeComparisonMode(
                     m_shapeComparisonModeComboBox->currentData().toInt());
+            });
+    connect(m_backgroundIdSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int backgroundId) {
+                setCurrentFrameBackgroundId(backgroundId);
             });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintFramePixel(hit, erase);
@@ -761,7 +794,7 @@ void MainWindow::updateResolutionMode()
 
 void MainWindow::updateFrameMetadataControls()
 {
-    if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox) {
+    if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox || !m_backgroundIdSpinBox) {
         return;
     }
 
@@ -770,6 +803,7 @@ void MainWindow::updateFrameMetadataControls()
                               m_document->frameCount();
     QSignalBlocker maskBlocker(m_comparisonMaskIdSpinBox);
     QSignalBlocker shapeBlocker(m_shapeComparisonModeComboBox);
+    QSignalBlocker backgroundBlocker(m_backgroundIdSpinBox);
 
     if (!hasFrame) {
         m_comparisonMaskIdSpinBox->setRange(-1, -1);
@@ -780,6 +814,12 @@ void MainWindow::updateFrameMetadataControls()
         m_shapeComparisonModeComboBox->addItem(QStringLiteral("Shape mode"), 1);
         m_shapeComparisonModeComboBox->setCurrentIndex(0);
         m_shapeComparisonModeComboBox->setEnabled(false);
+        m_backgroundIdSpinBox->setRange(-1, -1);
+        m_backgroundIdSpinBox->setValue(-1);
+        m_backgroundIdSpinBox->setEnabled(false);
+        if (m_backgroundLayerButton) {
+            m_backgroundLayerButton->setEnabled(false);
+        }
         return;
     }
 
@@ -803,6 +843,22 @@ void MainWindow::updateFrameMetadataControls()
     const int shapeIndex = m_shapeComparisonModeComboBox->findData(shapeMode);
     m_shapeComparisonModeComboBox->setCurrentIndex(shapeIndex >= 0 ? shapeIndex : 0);
     m_shapeComparisonModeComboBox->setEnabled(true);
+
+    const int maxBackgroundId = m_document->backgroundCount() == 0
+                                    ? -1
+                                    : static_cast<int>(m_document->backgroundCount() - 1);
+    m_backgroundIdSpinBox->setRange(-1, maxBackgroundId);
+    int backgroundValue = -1;
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        m_document->backgroundData(frameIndex);
+    if (backgroundData && backgroundData->backgroundId <= maxBackgroundId) {
+        backgroundValue = static_cast<int>(backgroundData->backgroundId);
+    }
+    m_backgroundIdSpinBox->setValue(backgroundValue);
+    m_backgroundIdSpinBox->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    if (m_backgroundLayerButton) {
+        m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    }
 }
 
 void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
@@ -845,6 +901,36 @@ void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
         statusBar()->showMessage(mode == 0 ? QStringLiteral("Set full comparison mode")
                                            : QStringLiteral("Set shape mode"),
                                  2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return;
+    }
+
+    const uint16_t storedBackgroundId =
+        backgroundId < 0 ? uint16_t{0xffff} : static_cast<uint16_t>(backgroundId);
+    try {
+        m_document->setBackgroundId(frameIndex, storedBackgroundId);
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateFrameMetadataControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            backgroundId < 0
+                ? QStringLiteral("Cleared background assignment")
+                : QStringLiteral("Assigned background %1").arg(backgroundId),
+            2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);

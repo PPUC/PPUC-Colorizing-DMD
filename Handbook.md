@@ -93,6 +93,14 @@ The dynamic overlay and edits follow the active SD/HD mode.
 Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
 
+Frame metadata and per-frame selectors live in the right-side Inspector:
+
+- `Mask ID` assigns the shared comparison mask used by the current frame.
+- `Shape` selects the frame comparison mode.
+- `Dyn Set` selects the dynamic-mask set written by the drawing tools.
+- `BG ID` assigns the shared background used by the current frame.
+- `Show BG` renders the assigned background layer into the colorized frame preview.
+
 ## Colors
 
 The toolbar contains fixed swatches:
@@ -188,7 +196,7 @@ Mask edit history is scoped per comparison mask, so frames sharing the same assi
 
 The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transparent red overlay on the original/reference region.
 
-The toolbar also exposes per-frame comparison metadata:
+The Inspector exposes per-frame comparison metadata:
 
 - `Mask ID` assigns the shared comparison mask used by the current frame. `None` stores the legacy no-mask assignment.
 - `Shape` selects `Full comparison` or `Shape mode`.
@@ -234,6 +242,8 @@ Currently implemented:
 - Per-frame background IDs are preserved.
 - Per-frame SD and HD background masks are preserved.
 - The project status line shows the loaded background count.
+- `BG ID` assigns the shared background used by the current frame. `None` stores the legacy no-background assignment.
+- `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
 - In SD mode, `BG` edits the SD background mask.
@@ -243,7 +253,7 @@ Currently implemented:
 - Hold `Shift` while clicking, drawing, or flood filling to erase background-mask pixels back to `0`.
 - Background-mask edits are undoable per frame and per resolution.
 
-Background assignment and background image editing are not exposed in the UI yet.
+Background image editing is not exposed in the UI yet.
 
 ## Testing Checklist
 
