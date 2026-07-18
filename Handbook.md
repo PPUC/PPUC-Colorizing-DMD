@@ -80,6 +80,9 @@ Drawing previews are transient overlays. They do not modify project data until m
 Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
 When `Mask` is active, clicks on the original/reference region add pixels to the assigned comparison mask.
 
+Use the `Dynamic` toolbar toggle to show dynamic-mask pixels over the active colorized frame.
+The dynamic overlay follows the active SD/HD mode.
+
 ## Colors
 
 The toolbar contains fixed swatches:
@@ -195,6 +198,19 @@ Editing rules:
 - Mask pixels are saved back into `.cROM`.
 
 Dynamic-mask editing and background masks are not implemented yet.
+
+## Dynamic Masks
+
+The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a semi-transparent cyan overlay.
+
+Rules:
+
+- The overlay is read-only for now.
+- In SD mode, the SD dynamic mask is rendered over the SD colorized frame.
+- In HD mode, the HD dynamic mask is rendered over the HD colorized frame.
+- `Mask` and `Dynamic` are mutually exclusive overlay modes.
+
+Dynamic-mask editing is not implemented yet.
 
 ## Testing Checklist
 

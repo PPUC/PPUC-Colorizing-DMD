@@ -279,6 +279,11 @@ void ProjectDocument::setComparisonMaskPixel(std::size_t maskIndex,
     m_dirty = true;
 }
 
+const std::optional<FrameDynamicData>& ProjectDocument::dynamicData(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).dynamicData;
+}
+
 namespace {
 
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)

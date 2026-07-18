@@ -146,6 +146,7 @@ private:
     QToolButton* m_sdButton = nullptr;
     QToolButton* m_hdButton = nullptr;
     QToolButton* m_comparisonMaskOverlayButton = nullptr;
+    QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;

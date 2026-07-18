@@ -46,6 +46,15 @@ void FramePreviewWidget::setComparisonMaskOverlayEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setDynamicMaskOverlayEnabled(bool enabled)
+{
+    if (m_showDynamicMaskOverlay == enabled) {
+        return;
+    }
+    m_showDynamicMaskOverlay = enabled;
+    update();
+}
+
 void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
@@ -242,6 +251,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
     for (const render::CanvasRegionLayout& region : layout.regions()) {
         paintRegion(painter, region);
         paintComparisonMaskOverlay(painter, region);
+        paintDynamicMaskOverlay(painter, region);
         paintPreview(painter, region);
     }
 
@@ -319,6 +329,46 @@ void FramePreviewWidget::paintComparisonMaskOverlay(
                 static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
                 static_cast<std::size_t>(x);
             if (mask.pixels[index] == 0) {
+                continue;
+            }
+            painter.fillRect(QRect(region.displayRect.x + x * scale,
+                                   region.displayRect.y + y * scale,
+                                   scale,
+                                   scale),
+                             overlayColor);
+        }
+    }
+    painter.restore();
+}
+
+void FramePreviewWidget::paintDynamicMaskOverlay(
+    QPainter& painter,
+    const render::CanvasRegionLayout& region)
+{
+    if (!m_showDynamicMaskOverlay ||
+        region.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+
+    const std::optional<document::FrameDynamicData>& dynamicData =
+        m_document->dynamicData(m_frameIndex);
+    if (!dynamicData) {
+        return;
+    }
+
+    const document::IndexedFrame& mask =
+        region.resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
+    const int scale = region.displayScale;
+    const QColor overlayColor(0, 180, 255, 170);
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::NoBrush);
+    for (int y = 0; y < mask.size.height; ++y) {
+        for (int x = 0; x < mask.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(x);
+            if (mask.pixels[index] == 255) {
                 continue;
             }
             painter.fillRect(QRect(region.displayRect.x + x * scale,

@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <vector>
 
 #include <QApplication>
 #include <QImage>
@@ -61,6 +62,29 @@ colorizing::document::ProjectDocument makeMaskedPreviewDocument()
     return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
 
+colorizing::document::ProjectDocument makeDynamicPreviewDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "dynamic_preview";
+    colorizing::document::FrameDynamicData dynamicData{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        colorizing::document::makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    dynamicData.maskSd.pixels[0] = 0;
+    dynamicData.maskHd.pixels[0] = 0;
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        dynamicData,
+    });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
 bool hasNonBackgroundPixel(const QImage& image)
 {
     const QRgb first = image.pixel(0, 0);
@@ -80,6 +104,19 @@ bool hasVisibleRedPixel(const QImage& image)
         for (int x = 0; x < image.width(); ++x) {
             const QColor color(image.pixel(x, y));
             if (color.red() > 80 && color.green() < 40 && color.blue() < 40) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool hasVisibleCyanPixel(const QImage& image)
+{
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor color(image.pixel(x, y));
+            if (color.red() < 40 && color.green() > 80 && color.blue() > 100) {
                 return true;
             }
         }
@@ -337,6 +374,32 @@ void testComparisonMaskOverlayRenders()
     expect(hasVisibleRedPixel(image), "comparison mask overlay should render visibly");
 }
 
+void testDynamicMaskOverlayRendersInSdAndHd()
+{
+    colorizing::document::ProjectDocument document = makeDynamicPreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setDynamicMaskOverlayEnabled(true);
+    widget.setFrameIndex(0);
+
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    QImage sdImage(widget.size(), QImage::Format_ARGB32);
+    sdImage.fill(Qt::transparent);
+    QPainter sdPainter(&sdImage);
+    widget.render(&sdPainter);
+    sdPainter.end();
+    expect(hasVisibleCyanPixel(sdImage), "SD dynamic mask overlay should render visibly");
+
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    QImage hdImage(widget.size(), QImage::Format_ARGB32);
+    hdImage.fill(Qt::transparent);
+    QPainter hdPainter(&hdImage);
+    widget.render(&hdPainter);
+    hdPainter.end();
+    expect(hasVisibleCyanPixel(hdImage), "HD dynamic mask overlay should render visibly");
+}
+
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -368,6 +431,7 @@ int main(int argc, char* argv[])
     testHdPreviewPixelsRender();
     testOriginalFrameStrokeCallback();
     testComparisonMaskOverlayRenders();
+    testDynamicMaskOverlayRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;

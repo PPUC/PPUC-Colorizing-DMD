@@ -329,6 +329,11 @@ void MainWindow::createCentralView()
     m_comparisonMaskOverlayButton->setToolTip(QStringLiteral("Show and edit comparison mask"));
     m_comparisonMaskOverlayButton->setCheckable(true);
     m_comparisonMaskOverlayButton->setEnabled(false);
+    m_dynamicMaskOverlayButton = new QToolButton(central);
+    m_dynamicMaskOverlayButton->setText(QStringLiteral("Dynamic"));
+    m_dynamicMaskOverlayButton->setToolTip(QStringLiteral("Show dynamic mask overlay"));
+    m_dynamicMaskOverlayButton->setCheckable(true);
+    m_dynamicMaskOverlayButton->setEnabled(false);
     m_comparisonMaskIdSpinBox = new QSpinBox(central);
     m_comparisonMaskIdSpinBox->setToolTip(QStringLiteral("Assigned comparison mask ID"));
     m_comparisonMaskIdSpinBox->setMinimum(-1);
@@ -341,6 +346,7 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
+    toolbarLayout->addWidget(m_dynamicMaskOverlayButton);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Mask ID"), central));
     toolbarLayout->addWidget(m_comparisonMaskIdSpinBox);
     toolbarLayout->addWidget(new QLabel(QStringLiteral("Shape"), central));
@@ -405,9 +411,30 @@ void MainWindow::createCentralView()
         updateResolutionMode();
     });
     connect(m_comparisonMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked && m_dynamicMaskOverlayButton) {
+            QSignalBlocker blocker(m_dynamicMaskOverlayButton);
+            m_dynamicMaskOverlayButton->setChecked(false);
+            if (m_preview) {
+                m_preview->setDynamicMaskOverlayEnabled(false);
+            }
+        }
         if (m_preview) {
             m_preview->clearPreviewPixels();
             m_preview->setComparisonMaskOverlayEnabled(checked);
+        }
+        updateUndoRedoActions();
+    });
+    connect(m_dynamicMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked && m_comparisonMaskOverlayButton) {
+            QSignalBlocker blocker(m_comparisonMaskOverlayButton);
+            m_comparisonMaskOverlayButton->setChecked(false);
+            if (m_preview) {
+                m_preview->setComparisonMaskOverlayEnabled(false);
+            }
+        }
+        if (m_preview) {
+            m_preview->clearPreviewPixels();
+            m_preview->setDynamicMaskOverlayEnabled(checked);
         }
         updateUndoRedoActions();
     });
@@ -675,6 +702,7 @@ void MainWindow::updateResolutionMode()
     m_sdButton->setEnabled(hasDocument);
     m_hdButton->setEnabled(hasDocument);
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
+    m_dynamicMaskOverlayButton->setEnabled(hasDocument);
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
