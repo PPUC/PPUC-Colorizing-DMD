@@ -772,6 +772,23 @@ void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit)
     if (!m_document || !isComparisonMaskModeActive()) {
         return;
     }
+    if (m_drawingTool == DrawingTool::FloodFill) {
+        floodFillComparisonMask(hit);
+        return;
+    }
+    if (m_drawingTool != DrawingTool::Point) {
+        return;
+    }
+    commitMaskPixels({render::Point{hit.x, hit.y}},
+                     1,
+                     QStringLiteral("Painted comparison mask pixel"));
+}
+
+void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit)
+{
+    if (!m_document || !isComparisonMaskModeActive()) {
+        return;
+    }
     const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
     if (!maskIndex) {
         statusBar()->showMessage(QStringLiteral("No comparison mask assigned"), 2500);
@@ -779,25 +796,44 @@ void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit)
     }
 
     try {
-        const uint8_t oldValue = m_document->comparisonMaskPixel(*maskIndex, hit.x, hit.y);
-        if (oldValue == 1) {
+        const document::IndexedFrame& mask = m_document->comparisonMask(*maskIndex);
+        const uint8_t targetValue = m_document->comparisonMaskPixel(*maskIndex, hit.x, hit.y);
+        if (targetValue == 1) {
             return;
         }
 
-        MaskEditCommand command;
-        command.maskIndex = *maskIndex;
-        command.changes.push_back(MaskPixelChange{
-            hit.x,
-            hit.y,
-            oldValue,
-            1,
-        });
-        applyMaskEdit(command, true);
-        MaskEditHistory& history = m_maskEditHistories[*maskIndex];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Painted comparison mask pixel"), 2500);
+        std::vector<uint8_t> visited(mask.pixels.size(), 0);
+        std::deque<render::Point> queue;
+        std::vector<render::Point> pixels;
+        queue.push_back(render::Point{hit.x, hit.y});
+
+        while (!queue.empty()) {
+            const render::Point point = queue.front();
+            queue.pop_front();
+            if (point.x < 0 || point.y < 0 ||
+                point.x >= mask.size.width || point.y >= mask.size.height) {
+                continue;
+            }
+
+            const std::size_t index =
+                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(point.x);
+            if (visited[index]) {
+                continue;
+            }
+            visited[index] = 1;
+            if (mask.pixels[index] != targetValue) {
+                continue;
+            }
+
+            pixels.push_back(point);
+            queue.push_back(render::Point{point.x - 1, point.y});
+            queue.push_back(render::Point{point.x + 1, point.y});
+            queue.push_back(render::Point{point.x, point.y - 1});
+            queue.push_back(render::Point{point.x, point.y + 1});
+        }
+
+        commitMaskPixels(pixels, 1, QStringLiteral("Flood filled comparison mask"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -805,17 +841,36 @@ void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit)
 
 void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
 {
-    if (!m_preview || isComparisonMaskModeActive() || m_drawingTool == DrawingTool::Point ||
+    if (!m_preview || m_drawingTool == DrawingTool::Point ||
+        m_drawingTool == DrawingTool::FloodFill || start.region != end.region ||
         start.resolution != end.resolution) {
         return;
     }
-    m_preview->setPreviewPixels(start.resolution, pixelsForStroke(start, end), m_activeDrawColor);
+    if (isComparisonMaskModeActive()) {
+        if (start.region != render::CanvasRegion::OriginalFrame) {
+            return;
+        }
+        m_preview->setPreviewPixels(render::CanvasRegion::OriginalFrame,
+                                    render::Resolution::Sd,
+                                    pixelsForStroke(start, end),
+                                    QColor(255, 0, 0, 150));
+        return;
+    }
+    if (start.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+    QColor previewColor = rgb565ToColor(m_activeDrawColor);
+    previewColor.setAlpha(150);
+    m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
+                                start.resolution,
+                                pixelsForStroke(start, end),
+                                previewColor);
 }
 
 void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
 {
-    if (isComparisonMaskModeActive() || m_drawingTool == DrawingTool::Point ||
-        start.resolution != end.resolution) {
+    if (m_drawingTool == DrawingTool::Point || m_drawingTool == DrawingTool::FloodFill ||
+        start.region != end.region || start.resolution != end.resolution) {
         return;
     }
 
@@ -836,6 +891,20 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::
         statusText = QStringLiteral("Painted filled ellipse");
     }
 
+    if (isComparisonMaskModeActive()) {
+        if (start.region != render::CanvasRegion::OriginalFrame) {
+            return;
+        }
+        commitMaskPixels(pixelsForStroke(start, end),
+                         1,
+                         statusText.replace(QStringLiteral("Painted"),
+                                            QStringLiteral("Painted comparison mask")));
+        return;
+    }
+
+    if (start.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
     commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
 }
 
@@ -904,6 +973,56 @@ void MainWindow::commitPixels(render::Resolution resolution,
         }
         applyPixelEdit(command, true);
         EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(statusText, 2500);
+}
+
+void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
+                                  uint8_t value,
+                                  const QString& statusText)
+{
+    if (!m_document || pixels.empty()) {
+        return;
+    }
+    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+    if (!maskIndex) {
+        statusBar()->showMessage(QStringLiteral("No comparison mask assigned"), 2500);
+        return;
+    }
+
+    MaskEditCommand command;
+    command.maskIndex = *maskIndex;
+    std::set<std::pair<int, int>> seen;
+
+    try {
+        for (const render::Point& pixel : pixels) {
+            if (!seen.insert({pixel.x, pixel.y}).second) {
+                continue;
+            }
+            const uint8_t oldValue =
+                m_document->comparisonMaskPixel(*maskIndex, pixel.x, pixel.y);
+            if (oldValue == value) {
+                continue;
+            }
+            command.changes.push_back(MaskPixelChange{
+                pixel.x,
+                pixel.y,
+                oldValue,
+                value,
+            });
+        }
+        if (command.changes.empty()) {
+            return;
+        }
+        applyMaskEdit(command, true);
+        MaskEditHistory& history = m_maskEditHistories[*maskIndex];
         history.undoStack.push_back(command);
         history.redoStack.clear();
         updateUndoRedoActions();

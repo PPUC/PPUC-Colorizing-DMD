@@ -174,11 +174,13 @@ Editing rules:
 - Mask editing is active only while the `Mask` toggle is on.
 - Colorized-frame drawing is paused while the `Mask` toggle is on.
 - Click the original/reference region to set that mask pixel to `1`.
+- Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill also edit the assigned mask from the original/reference region.
+- Shape tools show a red live preview while drawing on the mask.
 - Edits apply to the assigned comparison mask, not just the current frame.
 - If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
 - Mask pixels are saved back into `.cROM`.
 
-Mask erasing, mask shape tools, dynamic masks, and background masks are not implemented yet.
+Mask erasing/subtracting, dynamic masks, and background masks are not implemented yet.
 
 ## Testing Checklist
 

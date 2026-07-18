@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QPoint>
+#include <QColor>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -25,9 +26,10 @@ public:
     void setOriginalClickedHandler(std::function<void(render::CanvasHit)> handler);
     void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit)> handler);
     void setStrokeFinishedHandler(std::function<void(render::CanvasHit, render::CanvasHit)> handler);
-    void setPreviewPixels(render::Resolution resolution,
+    void setPreviewPixels(render::CanvasRegion region,
+                          render::Resolution resolution,
                           std::vector<render::Point> pixels,
-                          uint16_t rgb565);
+                          QColor color);
     void clearPreviewPixels();
 
     [[nodiscard]] QSize sizeHint() const override;
@@ -59,9 +61,10 @@ private:
     std::function<void(render::CanvasHit, render::CanvasHit)> m_strokePreviewHandler;
     std::function<void(render::CanvasHit, render::CanvasHit)> m_strokeFinishedHandler;
     std::optional<render::CanvasHit> m_strokeStart;
+    render::CanvasRegion m_previewRegion = render::CanvasRegion::ColorizedFrame;
     std::optional<render::Resolution> m_previewResolution;
     std::vector<render::Point> m_previewPixels;
-    uint16_t m_previewColor = 0xffff;
+    QColor m_previewColor;
 };
 
 }  // namespace colorizing::app

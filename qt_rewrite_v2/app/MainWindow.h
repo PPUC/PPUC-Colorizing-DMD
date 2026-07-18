@@ -101,6 +101,7 @@ private:
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
     void paintComparisonMaskPixel(const render::CanvasHit& hit);
+    void floodFillComparisonMask(const render::CanvasHit& hit);
     void previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
     void paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
@@ -108,6 +109,9 @@ private:
     void commitPixels(render::Resolution resolution,
                       const std::vector<render::Point>& pixels,
                       const QString& statusText);
+    void commitMaskPixels(const std::vector<render::Point>& pixels,
+                          uint8_t value,
+                          const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;

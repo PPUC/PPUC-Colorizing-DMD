@@ -68,13 +68,15 @@ void FramePreviewWidget::setStrokeFinishedHandler(
     m_strokeFinishedHandler = std::move(handler);
 }
 
-void FramePreviewWidget::setPreviewPixels(render::Resolution resolution,
+void FramePreviewWidget::setPreviewPixels(render::CanvasRegion region,
+                                          render::Resolution resolution,
                                           std::vector<render::Point> pixels,
-                                          uint16_t rgb565)
+                                          QColor color)
 {
+    m_previewRegion = region;
     m_previewResolution = resolution;
     m_previewPixels = std::move(pixels);
-    m_previewColor = rgb565;
+    m_previewColor = color;
     update();
 }
 
@@ -139,6 +141,8 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
             return;
         }
         if (hit && hit->region == render::CanvasRegion::OriginalFrame && m_originalClickedHandler) {
+            m_strokeStart = *hit;
+            clearPreviewPixels();
             m_originalClickedHandler(*hit);
             event->accept();
             return;
@@ -151,7 +155,7 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
 {
     if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
-        if (hit && hit->region == render::CanvasRegion::ColorizedFrame &&
+        if (hit && hit->region == m_strokeStart->region &&
             hit->resolution == m_strokeStart->resolution) {
             m_strokePreviewHandler(*m_strokeStart, *hit);
             event->accept();
@@ -168,7 +172,7 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
         const std::optional<render::CanvasHit> start = m_strokeStart;
         m_strokeStart.reset();
         clearPreviewPixels();
-        if (hit && hit->region == render::CanvasRegion::ColorizedFrame &&
+        if (hit && hit->region == start->region &&
             start->resolution == hit->resolution && m_strokeFinishedHandler) {
             m_strokeFinishedHandler(*start, *hit);
             event->accept();
@@ -325,15 +329,14 @@ void FramePreviewWidget::paintComparisonMaskOverlay(
 void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasRegionLayout& region)
 {
     if (!m_previewResolution || m_previewPixels.empty() ||
-        region.region != render::CanvasRegion::ColorizedFrame ||
+        region.region != m_previewRegion ||
         region.resolution != *m_previewResolution) {
         return;
     }
 
     const int scale = region.displayScale;
     painter.save();
-    QColor previewColor = rgb565ToColor(m_previewColor);
-    previewColor.setAlpha(150);
+    QColor previewColor = m_previewColor;
     painter.setPen(Qt::NoPen);
     painter.setBrush(Qt::NoBrush);
     for (const render::Point& pixel : m_previewPixels) {

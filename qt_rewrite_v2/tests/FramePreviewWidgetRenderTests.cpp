@@ -238,9 +238,10 @@ void testHdPreviewPixelsRender()
     widget.setDocument(&document);
     widget.setActiveResolution(colorizing::render::Resolution::Hd);
     widget.setFrameIndex(0);
-    widget.setPreviewPixels(colorizing::render::Resolution::Hd,
+    widget.setPreviewPixels(colorizing::render::CanvasRegion::ColorizedFrame,
+                            colorizing::render::Resolution::Hd,
                             {colorizing::render::Point{12, 8}},
-                            0xf800);
+                            QColor(255, 0, 0, 150));
 
     QImage image(widget.size(), QImage::Format_ARGB32);
     image.fill(Qt::transparent);
@@ -249,6 +250,56 @@ void testHdPreviewPixelsRender()
     painter.end();
 
     expect(hasVisibleRedPixel(image), "HD preview pixel should render visibly");
+}
+
+void testOriginalFrameStrokeCallback()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    widget.setFrameIndex(0);
+
+    const std::optional<colorizing::render::CanvasHit> originalHit =
+        widget.hitTestAt(QPoint(90, 240));
+    expect(originalHit.has_value(), "test coordinate should hit original frame");
+    expect(originalHit->region == colorizing::render::CanvasRegion::OriginalFrame,
+           "test coordinate should target original frame");
+
+    std::optional<colorizing::render::CanvasHit> strokeStart;
+    std::optional<colorizing::render::CanvasHit> strokeEnd;
+    widget.setOriginalClickedHandler([](colorizing::render::CanvasHit) {});
+    widget.setStrokeFinishedHandler([&](colorizing::render::CanvasHit start,
+                                        colorizing::render::CanvasHit end) {
+        strokeStart = start;
+        strokeEnd = end;
+    });
+
+    QMouseEvent press(QEvent::MouseButtonPress,
+                      QPointF(90, 240),
+                      QPointF(90, 240),
+                      QPointF(90, 240),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(&widget, &press);
+
+    QMouseEvent release(QEvent::MouseButtonRelease,
+                        QPointF(120, 250),
+                        QPointF(120, 250),
+                        QPointF(120, 250),
+                        Qt::LeftButton,
+                        Qt::LeftButton,
+                        Qt::NoModifier);
+    QApplication::sendEvent(&widget, &release);
+
+    expect(strokeStart.has_value(), "original stroke should capture start hit");
+    expect(strokeEnd.has_value(), "original stroke should capture end hit");
+    expect(strokeStart->region == colorizing::render::CanvasRegion::OriginalFrame,
+           "original stroke start should target original frame");
+    expect(strokeEnd->region == colorizing::render::CanvasRegion::OriginalFrame,
+           "original stroke end should target original frame");
 }
 
 void testComparisonMaskOverlayRenders()
@@ -299,6 +350,7 @@ int main(int argc, char* argv[])
     testFramePreviewClickCallback();
     testFramePreviewStrokeCallback();
     testHdPreviewPixelsRender();
+    testOriginalFrameStrokeCallback();
     testComparisonMaskOverlayRenders();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
