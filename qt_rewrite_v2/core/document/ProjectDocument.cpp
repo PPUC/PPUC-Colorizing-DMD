@@ -302,6 +302,22 @@ IndexedFrame& requireDynamicMask(FrameRecord& frame, Resolution resolution)
     return resolution == Resolution::Hd ? frame.dynamicData->maskHd : frame.dynamicData->maskSd;
 }
 
+const std::vector<uint16_t>& requireDynamicColors(const FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic color data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->colorsHd : frame.dynamicData->colorsSd;
+}
+
+std::vector<uint16_t>& requireDynamicColors(FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic color data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->colorsHd : frame.dynamicData->colorsSd;
+}
+
 std::size_t checkedIndexedPixelIndex(const IndexedFrame& frame, int x, int y)
 {
     if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
@@ -309,6 +325,20 @@ std::size_t checkedIndexedPixelIndex(const IndexedFrame& frame, int x, int y)
     }
     return static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
            static_cast<std::size_t>(x);
+}
+
+std::size_t checkedDynamicColorIndex(const std::vector<uint16_t>& colors,
+                                     std::size_t setIndex,
+                                     std::size_t originalColorIndex)
+{
+    if (setIndex >= kMaxDynamicSetsPerFrame) {
+        throw std::out_of_range("dynamic set index out of range");
+    }
+    const std::size_t colorCount = colors.size() / kMaxDynamicSetsPerFrame;
+    if (colorCount == 0 || originalColorIndex >= colorCount) {
+        throw std::out_of_range("dynamic color index out of range");
+    }
+    return setIndex * colorCount + originalColorIndex;
 }
 
 }  // namespace
@@ -334,6 +364,33 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
         return;
     }
     mask.pixels[pixelIndex] = value;
+    m_dirty = true;
+}
+
+uint16_t ProjectDocument::dynamicColor(std::size_t frameIndex,
+                                       Resolution resolution,
+                                       std::size_t setIndex,
+                                       std::size_t originalColorIndex) const
+{
+    const std::vector<uint16_t>& colors =
+        requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
+    return colors[checkedDynamicColorIndex(colors, setIndex, originalColorIndex)];
+}
+
+void ProjectDocument::setDynamicColor(std::size_t frameIndex,
+                                      Resolution resolution,
+                                      std::size_t setIndex,
+                                      std::size_t originalColorIndex,
+                                      uint16_t rgb565)
+{
+    std::vector<uint16_t>& colors =
+        requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t colorIndex =
+        checkedDynamicColorIndex(colors, setIndex, originalColorIndex);
+    if (colors[colorIndex] == rgb565) {
+        return;
+    }
+    colors[colorIndex] = rgb565;
     m_dirty = true;
 }
 

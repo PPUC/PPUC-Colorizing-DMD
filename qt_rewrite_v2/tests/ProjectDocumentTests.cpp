@@ -353,9 +353,26 @@ void testDynamicMaskPixelEditing()
     expect(document.dynamicMaskPixel(0, Resolution::Hd, 8, 4) == 5,
            "HD dynamic mask pixel edit should be readable");
 
+    document.markClean();
+    document.setDynamicColor(0, Resolution::Sd, 2, 3, 0x7777);
+    expect(document.dynamicColor(0, Resolution::Sd, 2, 3) == 0x7777,
+           "SD dynamic color edit should be readable");
+    expect(document.isDirty(), "dynamic color edit should mark dirty");
+
+    document.markClean();
+    document.setDynamicColor(0, Resolution::Sd, 2, 3, 0x7777);
+    expect(!document.isDirty(), "identical dynamic color edit should not mark dirty");
+
+    document.setDynamicColor(0, Resolution::Hd, 2, 3, 0x8888);
+    expect(document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x8888,
+           "HD dynamic color edit should be readable");
+
     expectThrows<std::out_of_range>(
         [&]() { document.setDynamicMaskPixel(0, Resolution::Sd, 128, 0, 1); },
         "dynamic mask pixel bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setDynamicColor(0, Resolution::Sd, kMaxDynamicSetsPerFrame, 0, 1); },
+        "dynamic color set bounds");
 
     ProjectDocument noDynamicData = ProjectDocument::createEmpty(ProjectCreateOptions{
         "empty_dynamic",
@@ -365,6 +382,9 @@ void testDynamicMaskPixelEditing()
     expectThrows<std::logic_error>(
         [&]() { noDynamicData.setDynamicMaskPixel(0, Resolution::Sd, 0, 0, 1); },
         "missing dynamic mask write");
+    expectThrows<std::logic_error>(
+        [&]() { noDynamicData.setDynamicColor(0, Resolution::Sd, 0, 0, 1); },
+        "missing dynamic color write");
 }
 
 void testInvalidSnapshotReportsReason()

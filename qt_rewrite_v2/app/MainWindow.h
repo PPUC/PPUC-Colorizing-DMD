@@ -21,6 +21,7 @@ class QAction;
 class QMenu;
 class QComboBox;
 class QSpinBox;
+class QPushButton;
 
 namespace colorizing::app {
 
@@ -97,6 +98,20 @@ private:
         std::vector<DynamicMaskEditCommand> redoStack;
     };
 
+    struct DynamicColorEditCommand {
+        std::size_t frameIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+        std::size_t setIndex = 0;
+        std::size_t originalColorIndex = 0;
+        uint16_t oldColor = 0;
+        uint16_t newColor = 0;
+    };
+
+    struct DynamicColorEditHistory {
+        std::vector<DynamicColorEditCommand> undoStack;
+        std::vector<DynamicColorEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -116,6 +131,9 @@ private:
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     [[nodiscard]] uint8_t activeDynamicSet() const;
+    [[nodiscard]] std::size_t activeDynamicColorIndex() const;
+    void updateDynamicColorButton();
+    void setActiveDynamicColorFromDrawColor();
     void paintFramePixel(const render::CanvasHit& hit, bool erase);
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
@@ -144,6 +162,7 @@ private:
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
+    void applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -153,6 +172,8 @@ private:
     [[nodiscard]] bool isComparisonMaskModeActive() const;
     [[nodiscard]] DynamicMaskEditHistory* currentDynamicMaskEditHistory();
     [[nodiscard]] const DynamicMaskEditHistory* currentDynamicMaskEditHistory() const;
+    [[nodiscard]] DynamicColorEditHistory* currentDynamicColorEditHistory();
+    [[nodiscard]] const DynamicColorEditHistory* currentDynamicColorEditHistory() const;
     [[nodiscard]] bool isDynamicMaskModeActive() const;
     void undo();
     void redo();
@@ -173,6 +194,8 @@ private:
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
+    QSpinBox* m_dynamicColorSpinBox = nullptr;
+    QPushButton* m_setDynamicColorButton = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
@@ -183,6 +206,7 @@ private:
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
+    std::map<EditHistoryKey, DynamicColorEditHistory> m_dynamicColorEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

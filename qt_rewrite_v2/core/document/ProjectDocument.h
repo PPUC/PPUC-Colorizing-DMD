@@ -97,6 +97,15 @@ public:
                              int x,
                              int y,
                              uint8_t value);
+    [[nodiscard]] uint16_t dynamicColor(std::size_t frameIndex,
+                                        Resolution resolution,
+                                        std::size_t setIndex,
+                                        std::size_t originalColorIndex) const;
+    void setDynamicColor(std::size_t frameIndex,
+                         Resolution resolution,
+                         std::size_t setIndex,
+                         std::size_t originalColorIndex,
+                         uint16_t rgb565);
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,
