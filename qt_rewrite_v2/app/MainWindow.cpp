@@ -7,11 +7,13 @@
 
 #include <QAbstractItemView>
 #include <QAction>
+#include <QColorDialog>
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -21,6 +23,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QStatusBar>
 #include <QStringList>
@@ -53,6 +56,23 @@ QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
                                          "QToolButton:checked { border: 3px solid #ffffff; }")
                               .arg(color.name()));
     return button;
+}
+
+QString colorButtonStyle(uint16_t rgb565, bool enabled = true)
+{
+    const QColor color = rgb565ToColor(rgb565);
+    const QString border = enabled ? QStringLiteral("#666") : QStringLiteral("#333");
+    return QStringLiteral("QToolButton { background: %1; border: 1px solid %2; }"
+                          "QToolButton:disabled { color: #777; }")
+        .arg(color.name(), border);
+}
+
+uint16_t colorToRgb565(const QColor& color)
+{
+    const uint16_t r = static_cast<uint16_t>((color.red() * 31) / 255);
+    const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
+    const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
+    return static_cast<uint16_t>((r << 11) | (g << 5) | b);
 }
 
 QToolButton* makeToolButton(QWidget* parent,
@@ -440,9 +460,29 @@ void MainWindow::createCentralView()
     inspectorForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
     inspectorForm->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
     inspectorForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
+    auto* dynamicColorsTitle = new QLabel(QStringLiteral("Dynamic Colors"), inspector);
+    dynamicColorsTitle->setStyleSheet(QStringLiteral("font-weight: 600; margin-top: 10px;"));
+    auto* dynamicColorsGrid = new QGridLayout();
+    dynamicColorsGrid->setHorizontalSpacing(4);
+    dynamicColorsGrid->setVerticalSpacing(4);
+    for (int colorIndex = 0; colorIndex < 16; ++colorIndex) {
+        auto* button = new QToolButton(inspector);
+        button->setText(QString::number(colorIndex));
+        button->setToolTip(QStringLiteral("Dynamic color for original color %1").arg(colorIndex));
+        button->setFixedSize(32, 24);
+        button->setEnabled(false);
+        button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        dynamicColorsGrid->addWidget(button, colorIndex / 4, colorIndex % 4);
+        m_dynamicColorButtons.push_back(button);
+        connect(button, &QToolButton::clicked, this, [this, colorIndex]() {
+            editDynamicColor(static_cast<std::size_t>(colorIndex));
+        });
+    }
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addLayout(inspectorForm);
     inspectorLayout->addWidget(m_backgroundLayerButton);
+    inspectorLayout->addWidget(dynamicColorsTitle);
+    inspectorLayout->addLayout(dynamicColorsGrid);
     inspectorLayout->addStretch(1);
     inspector->setMinimumWidth(180);
     inspector->setMaximumWidth(240);
@@ -528,6 +568,7 @@ void MainWindow::createCentralView()
             [this](int setIndex) {
                 statusBar()->showMessage(QStringLiteral("Selected dynamic set %1").arg(setIndex),
                                          1500);
+                updateDynamicColorControls();
             });
     connect(m_comparisonMaskIdSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -817,6 +858,7 @@ void MainWindow::updateResolutionMode()
         m_preview->clearPreviewPixels();
         m_preview->setActiveResolution(m_activeResolution);
     }
+    updateDynamicColorControls();
     updateUndoRedoActions();
     updatePaintTargetMode();
 }
@@ -853,6 +895,7 @@ void MainWindow::updateFrameMetadataControls()
             m_paintTargetComboBox->setEnabled(false);
             m_paintTargetComboBox->setCurrentIndex(0);
         }
+        updateDynamicColorControls();
         return;
     }
 
@@ -898,6 +941,7 @@ void MainWindow::updateFrameMetadataControls()
             m_paintTargetComboBox->setCurrentIndex(0);
         }
     }
+    updateDynamicColorControls();
     updatePaintTargetMode();
 }
 
@@ -974,6 +1018,94 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::updateDynamicColorControls()
+{
+    const bool hasFrame = m_document && m_frameList && m_frameList->currentRow() >= 0 &&
+                          static_cast<std::size_t>(m_frameList->currentRow()) <
+                              m_document->frameCount();
+    const auto frameIndex = hasFrame ? static_cast<std::size_t>(m_frameList->currentRow()) : 0;
+    const std::optional<document::FrameDynamicData>* dynamicData = nullptr;
+    if (hasFrame) {
+        dynamicData = &m_document->dynamicData(frameIndex);
+    }
+
+    std::size_t colorCount = 0;
+    if (dynamicData && dynamicData->has_value()) {
+        const std::vector<uint16_t>& colors =
+            m_activeResolution == render::Resolution::Hd ? (*dynamicData)->colorsHd
+                                                         : (*dynamicData)->colorsSd;
+        colorCount = colors.size() / document::kMaxDynamicSetsPerFrame;
+    }
+
+    for (std::size_t colorIndex = 0; colorIndex < m_dynamicColorButtons.size(); ++colorIndex) {
+        QToolButton* button = m_dynamicColorButtons[colorIndex];
+        const bool enabled = dynamicData && dynamicData->has_value() && colorIndex < colorCount;
+        button->setEnabled(enabled);
+        if (!enabled) {
+            button->setToolTip(QStringLiteral("Dynamic color is not available"));
+            button->setStyleSheet(colorButtonStyle(0, false));
+            continue;
+        }
+
+        const uint16_t rgb565 = m_document->dynamicColor(frameIndex,
+                                                         m_activeResolution,
+                                                         activeDynamicSet(),
+                                                         colorIndex);
+        button->setProperty("rgb565", static_cast<int>(rgb565));
+        button->setToolTip(QStringLiteral("Set %1 original %2: 0x%3")
+                               .arg(activeDynamicSet())
+                               .arg(static_cast<int>(colorIndex))
+                               .arg(rgb565, 4, 16, QLatin1Char('0')));
+        button->setStyleSheet(colorButtonStyle(rgb565));
+    }
+}
+
+void MainWindow::editDynamicColor(std::size_t originalColorIndex)
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return;
+    }
+
+    try {
+        const uint16_t oldRgb565 = m_document->dynamicColor(frameIndex,
+                                                            m_activeResolution,
+                                                            activeDynamicSet(),
+                                                            originalColorIndex);
+        const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldRgb565),
+                                                       this,
+                                                       QStringLiteral("Dynamic Color"));
+        if (!newColor.isValid()) {
+            return;
+        }
+
+        const uint16_t newRgb565 = colorToRgb565(newColor);
+        if (newRgb565 == oldRgb565) {
+            return;
+        }
+        m_document->setDynamicColor(frameIndex,
+                                    m_activeResolution,
+                                    activeDynamicSet(),
+                                    originalColorIndex,
+                                    newRgb565);
+        updateDynamicColorControls();
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateFrameThumbnail(frameIndex);
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(QStringLiteral("Updated dynamic color 0x%1")
+                                     .arg(newRgb565, 4, 16, QLatin1Char('0')),
+                                 2500);
+    } catch (const std::exception& ex) {
+        updateDynamicColorControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }

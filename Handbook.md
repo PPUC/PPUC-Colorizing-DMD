@@ -227,6 +227,8 @@ The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a 
 Rules:
 
 - The `Dyn Set` toolbar field selects the dynamic set written by drawing tools.
+- The Inspector shows editable dynamic color swatches for the active frame, active SD/HD mode, and selected dynamic set.
+- Click a dynamic color swatch to choose a replacement RGB565 color for that original color index.
 - In SD mode, the SD dynamic mask is rendered over the SD colorized frame.
 - In HD mode, the HD dynamic mask is rendered over the HD colorized frame.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
@@ -234,8 +236,10 @@ Rules:
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD dynamic mask.
 - Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
 - Dynamic-mask edits are undoable per frame and per resolution.
+- Dynamic color changes are saved, but undo/redo for palette-style edits is not implemented yet.
 
-Dynamic color-set editing is postponed until the palette UI is implemented.
+The current dynamic color editor is intentionally small. Broader palette tools are postponed until
+the palette UI is implemented.
 
 ## Backgrounds
 

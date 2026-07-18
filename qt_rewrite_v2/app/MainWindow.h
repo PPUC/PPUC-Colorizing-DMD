@@ -153,6 +153,8 @@ private:
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
+    void updateDynamicColorControls();
+    void editDynamicColor(std::size_t originalColorIndex);
     [[nodiscard]] uint8_t activeDynamicSet() const;
     [[nodiscard]] PaintTarget activePaintTarget() const;
     void paintFramePixel(const render::CanvasHit& hit, bool erase);
@@ -241,6 +243,7 @@ private:
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
+    std::vector<QToolButton*> m_dynamicColorButtons;
     FramePreviewWidget* m_preview = nullptr;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
