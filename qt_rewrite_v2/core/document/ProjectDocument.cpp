@@ -221,6 +221,40 @@ const IndexedFrame& ProjectDocument::comparisonMask(std::size_t maskIndex) const
     return m_comparisonMasks[maskIndex];
 }
 
+uint8_t ProjectDocument::comparisonMaskPixel(std::size_t maskIndex, int x, int y) const
+{
+    const IndexedFrame& mask = comparisonMask(maskIndex);
+    if (x < 0 || y < 0 || x >= mask.size.width || y >= mask.size.height) {
+        throw std::out_of_range("mask pixel coordinate out of range");
+    }
+    const std::size_t pixelIndex =
+        static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
+        static_cast<std::size_t>(x);
+    return mask.pixels[pixelIndex];
+}
+
+void ProjectDocument::setComparisonMaskPixel(std::size_t maskIndex,
+                                             int x,
+                                             int y,
+                                             uint8_t value)
+{
+    if (maskIndex >= m_comparisonMasks.size()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    IndexedFrame& mask = m_comparisonMasks[maskIndex];
+    if (x < 0 || y < 0 || x >= mask.size.width || y >= mask.size.height) {
+        throw std::out_of_range("mask pixel coordinate out of range");
+    }
+    const std::size_t pixelIndex =
+        static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
+        static_cast<std::size_t>(x);
+    if (mask.pixels[pixelIndex] == value) {
+        return;
+    }
+    mask.pixels[pixelIndex] = value;
+    m_dirty = true;
+}
+
 namespace {
 
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)

@@ -214,10 +214,45 @@ void testSnapshotValidationAndRoundTrip()
            "document comparison mask count accessor");
     expect(document.comparisonMask(0).pixels.front() == 3,
            "document comparison mask accessor");
+    expect(document.comparisonMaskPixel(0, 0, 0) == 3,
+           "document comparison mask pixel accessor");
     expect(roundTrip.comparisonMasks.size() == 1, "snapshot comparison mask count round-trip");
     expect(roundTrip.comparisonMasks[0].pixels.front() == 3,
            "snapshot comparison mask data round-trip");
     expect(roundTrip.unsupportedPayloads.size() == 1, "snapshot unsupported payload round-trip");
+}
+
+void testComparisonMaskPixelEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "mask_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+        0,
+        0,
+    });
+    snapshot.comparisonMasks.push_back(makeIndexedFrame(colorizing::render::kSdFrameSize, 0));
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setComparisonMaskPixel(0, 4, 2, 1);
+    expect(document.comparisonMaskPixel(0, 4, 2) == 1,
+           "comparison mask pixel edit should be readable");
+    expect(document.isDirty(), "comparison mask pixel edit should mark dirty");
+
+    document.markClean();
+    document.setComparisonMaskPixel(0, 4, 2, 1);
+    expect(!document.isDirty(), "writing identical comparison mask pixel should not mark dirty");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setComparisonMaskPixel(1, 0, 0, 1); },
+        "comparison mask index bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { (void)document.comparisonMaskPixel(0, 128, 0); },
+        "comparison mask pixel bounds");
 }
 
 void testInvalidSnapshotReportsReason()
@@ -247,5 +282,6 @@ void runProjectDocumentTests()
     testMissingHdAndBoundsErrors();
     testUnsupportedPayloadPreservationHook();
     testSnapshotValidationAndRoundTrip();
+    testComparisonMaskPixelEditing();
     testInvalidSnapshotReportsReason();
 }

@@ -53,6 +53,18 @@ private:
         std::vector<PixelChange> changes;
     };
 
+    struct MaskPixelChange {
+        int x = 0;
+        int y = 0;
+        uint8_t oldValue = 0;
+        uint8_t newValue = 0;
+    };
+
+    struct MaskEditCommand {
+        std::size_t maskIndex = 0;
+        std::vector<MaskPixelChange> changes;
+    };
+
     struct EditHistoryKey {
         std::size_t frameIndex = 0;
         render::Resolution resolution = render::Resolution::Sd;
@@ -63,6 +75,11 @@ private:
     struct EditHistory {
         std::vector<PixelEditCommand> undoStack;
         std::vector<PixelEditCommand> redoStack;
+    };
+
+    struct MaskEditHistory {
+        std::vector<MaskEditCommand> undoStack;
+        std::vector<MaskEditCommand> redoStack;
     };
 
     void createActions();
@@ -83,6 +100,7 @@ private:
     void paintFramePixel(const render::CanvasHit& hit);
     void pickFrameColor(const render::CanvasHit& hit);
     void floodFillFrame(const render::CanvasHit& hit);
+    void paintComparisonMaskPixel(const render::CanvasHit& hit);
     void previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
     void paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end);
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
@@ -91,9 +109,14 @@ private:
                       const std::vector<render::Point>& pixels,
                       const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
+    void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
+    [[nodiscard]] std::optional<std::size_t> currentComparisonMaskIndex() const;
+    [[nodiscard]] MaskEditHistory* currentMaskEditHistory();
+    [[nodiscard]] const MaskEditHistory* currentMaskEditHistory() const;
+    [[nodiscard]] bool isComparisonMaskModeActive() const;
     void undo();
     void redo();
     void updateUndoRedoActions();
@@ -117,6 +140,7 @@ private:
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
+    std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

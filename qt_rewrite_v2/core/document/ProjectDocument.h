@@ -73,6 +73,8 @@ public:
     [[nodiscard]] uint8_t comparisonMaskId(std::size_t frameIndex) const;
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
+    [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;
+    void setComparisonMaskPixel(std::size_t maskIndex, int x, int y, uint8_t value);
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,

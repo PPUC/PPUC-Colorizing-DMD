@@ -324,7 +324,7 @@ void MainWindow::createCentralView()
     m_hdButton->setEnabled(false);
     m_comparisonMaskOverlayButton = new QToolButton(central);
     m_comparisonMaskOverlayButton->setText(QStringLiteral("Mask"));
-    m_comparisonMaskOverlayButton->setToolTip(QStringLiteral("Show comparison mask overlay"));
+    m_comparisonMaskOverlayButton->setToolTip(QStringLiteral("Show and edit comparison mask"));
     m_comparisonMaskOverlayButton->setCheckable(true);
     m_comparisonMaskOverlayButton->setEnabled(false);
     toolbarLayout->addWidget(m_sdButton);
@@ -391,11 +391,16 @@ void MainWindow::createCentralView()
     });
     connect(m_comparisonMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
         if (m_preview) {
+            m_preview->clearPreviewPixels();
             m_preview->setComparisonMaskOverlayEnabled(checked);
         }
+        updateUndoRedoActions();
     });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit) {
         paintFramePixel(hit);
+    });
+    m_preview->setOriginalClickedHandler([this](render::CanvasHit hit) {
+        paintComparisonMaskPixel(hit);
     });
     m_preview->setStrokePreviewHandler([this](render::CanvasHit start, render::CanvasHit end) {
         previewFrameStroke(start, end);
@@ -503,6 +508,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_currentCrpPath = crpPath;
         rememberRecentProject(cromPath, crpPath);
         m_editHistories.clear();
+        m_maskEditHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -669,6 +675,9 @@ void MainWindow::setDrawingTool(DrawingTool tool)
 
 void MainWindow::paintFramePixel(const render::CanvasHit& hit)
 {
+    if (isComparisonMaskModeActive()) {
+        return;
+    }
     if (m_drawingTool == DrawingTool::ColorPicker) {
         pickFrameColor(hit);
         return;
@@ -758,9 +767,46 @@ void MainWindow::floodFillFrame(const render::CanvasHit& hit)
     }
 }
 
+void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit)
+{
+    if (!m_document || !isComparisonMaskModeActive()) {
+        return;
+    }
+    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+    if (!maskIndex) {
+        statusBar()->showMessage(QStringLiteral("No comparison mask assigned"), 2500);
+        return;
+    }
+
+    try {
+        const uint8_t oldValue = m_document->comparisonMaskPixel(*maskIndex, hit.x, hit.y);
+        if (oldValue == 1) {
+            return;
+        }
+
+        MaskEditCommand command;
+        command.maskIndex = *maskIndex;
+        command.changes.push_back(MaskPixelChange{
+            hit.x,
+            hit.y,
+            oldValue,
+            1,
+        });
+        applyMaskEdit(command, true);
+        MaskEditHistory& history = m_maskEditHistories[*maskIndex];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Painted comparison mask pixel"), 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
 {
-    if (!m_preview || m_drawingTool == DrawingTool::Point || start.resolution != end.resolution) {
+    if (!m_preview || isComparisonMaskModeActive() || m_drawingTool == DrawingTool::Point ||
+        start.resolution != end.resolution) {
         return;
     }
     m_preview->setPreviewPixels(start.resolution, pixelsForStroke(start, end), m_activeDrawColor);
@@ -768,7 +814,8 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start, const render
 
 void MainWindow::paintFrameStroke(const render::CanvasHit& start, const render::CanvasHit& end)
 {
-    if (m_drawingTool == DrawingTool::Point || start.resolution != end.resolution) {
+    if (isComparisonMaskModeActive() || m_drawingTool == DrawingTool::Point ||
+        start.resolution != end.resolution) {
         return;
     }
 
@@ -885,6 +932,21 @@ void MainWindow::applyPixelEdit(const PixelEditCommand& command, bool useNewColo
     updateProjectHeaderStatus();
 }
 
+void MainWindow::applyMaskEdit(const MaskEditCommand& command, bool useNewValue)
+{
+    if (!m_document) {
+        return;
+    }
+    for (const MaskPixelChange& change : command.changes) {
+        m_document->setComparisonMaskPixel(command.maskIndex,
+                                           change.x,
+                                           change.y,
+                                           useNewValue ? change.newValue : change.oldValue);
+    }
+    m_preview->update();
+    updateProjectHeaderStatus();
+}
+
 std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
 {
     if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
@@ -923,8 +985,69 @@ const MainWindow::EditHistory* MainWindow::currentEditHistory() const
     return &history->second;
 }
 
+std::optional<std::size_t> MainWindow::currentComparisonMaskIndex() const
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return std::nullopt;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount()) {
+        return std::nullopt;
+    }
+    const uint8_t maskId = m_document->comparisonMaskId(frameIndex);
+    if (maskId >= m_document->comparisonMaskCount()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(maskId);
+}
+
+MainWindow::MaskEditHistory* MainWindow::currentMaskEditHistory()
+{
+    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+    if (!maskIndex) {
+        return nullptr;
+    }
+    auto history = m_maskEditHistories.find(*maskIndex);
+    if (history == m_maskEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::MaskEditHistory* MainWindow::currentMaskEditHistory() const
+{
+    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+    if (!maskIndex) {
+        return nullptr;
+    }
+    auto history = m_maskEditHistories.find(*maskIndex);
+    if (history == m_maskEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+bool MainWindow::isComparisonMaskModeActive() const
+{
+    return m_comparisonMaskOverlayButton && m_comparisonMaskOverlayButton->isChecked();
+}
+
 void MainWindow::undo()
 {
+    if (isComparisonMaskModeActive()) {
+        MaskEditHistory* history = currentMaskEditHistory();
+        if (!history || history->undoStack.empty()) {
+            return;
+        }
+        const MaskEditCommand command = history->undoStack.back();
+        history->undoStack.pop_back();
+        applyMaskEdit(command, false);
+        history->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo mask edit"), 1500);
+        return;
+    }
+
     EditHistory* history = currentEditHistory();
     if (!history || history->undoStack.empty()) {
         return;
@@ -939,6 +1062,20 @@ void MainWindow::undo()
 
 void MainWindow::redo()
 {
+    if (isComparisonMaskModeActive()) {
+        MaskEditHistory* history = currentMaskEditHistory();
+        if (!history || history->redoStack.empty()) {
+            return;
+        }
+        const MaskEditCommand command = history->redoStack.back();
+        history->redoStack.pop_back();
+        applyMaskEdit(command, true);
+        history->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo mask edit"), 1500);
+        return;
+    }
+
     EditHistory* history = currentEditHistory();
     if (!history || history->redoStack.empty()) {
         return;
@@ -953,6 +1090,17 @@ void MainWindow::redo()
 
 void MainWindow::updateUndoRedoActions()
 {
+    if (isComparisonMaskModeActive()) {
+        const MaskEditHistory* history = currentMaskEditHistory();
+        if (m_undoAction) {
+            m_undoAction->setEnabled(history && !history->undoStack.empty());
+        }
+        if (m_redoAction) {
+            m_redoAction->setEnabled(history && !history->redoStack.empty());
+        }
+        return;
+    }
+
     const EditHistory* history = currentEditHistory();
     if (m_undoAction) {
         m_undoAction->setEnabled(history && !history->undoStack.empty());

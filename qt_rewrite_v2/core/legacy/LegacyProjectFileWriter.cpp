@@ -95,6 +95,10 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
         errorMessage = "snapshot frame count does not match existing cROM";
         return false;
     }
+    if (snapshot.comparisonMasks.size() != frameData.metadata.comparisonMaskCount) {
+        errorMessage = "snapshot comparison mask count does not match existing cROM";
+        return false;
+    }
 
     const render::Size sdSize{static_cast<int>(frameData.metadata.frameWidth),
                               static_cast<int>(frameData.metadata.frameHeight)};
@@ -106,6 +110,14 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
         }
         if (frame.colorizedHd &&
             !validateFrameShape(*frame.colorizedHd, hdSize, "HD colorized", errorMessage)) {
+            return false;
+        }
+    }
+    for (const document::IndexedFrame& mask : snapshot.comparisonMasks) {
+        if (mask.size.width != sdSize.width || mask.size.height != sdSize.height ||
+            mask.pixels.size() != static_cast<std::size_t>(sdSize.width) *
+                                      static_cast<std::size_t>(sdSize.height)) {
+            errorMessage = "comparison mask dimensions do not match existing cROM";
             return false;
         }
     }
@@ -146,6 +158,10 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     std::vector<uint8_t> bytes = cromFile.bytes;
     const std::size_t frameCount = snapshot.frames.size();
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        bytes[cromFrames.frameData.shapeComparisonModesOffset + frameIndex] =
+            snapshot.frames[frameIndex].shapeComparisonMode;
+        bytes[cromFrames.frameData.comparisonMaskIdsOffset + frameIndex] =
+            snapshot.frames[frameIndex].comparisonMaskId;
         bytes[cromFrames.frameData.extraFrameFlagsOffset + frameIndex] =
             snapshot.frames[frameIndex].colorizedHd ? uint8_t{1} : uint8_t{0};
 
@@ -160,6 +176,13 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
                 frameIndex * snapshot.frames[frameIndex].colorizedHd->pixels.size() *
                     sizeof(uint16_t);
             writeRgb565Frame(bytes, hdOffset, *snapshot.frames[frameIndex].colorizedHd);
+        }
+    }
+
+    std::size_t maskOffset = cromFrames.frameData.comparisonMasksOffset;
+    for (const document::IndexedFrame& mask : snapshot.comparisonMasks) {
+        for (uint8_t pixel : mask.pixels) {
+            bytes[maskOffset++] = pixel;
         }
     }
 

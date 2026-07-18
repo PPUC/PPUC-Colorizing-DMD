@@ -51,6 +51,11 @@ void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::Canva
     m_pixelClickedHandler = std::move(handler);
 }
 
+void FramePreviewWidget::setOriginalClickedHandler(std::function<void(render::CanvasHit)> handler)
+{
+    m_originalClickedHandler = std::move(handler);
+}
+
 void FramePreviewWidget::setStrokePreviewHandler(
     std::function<void(render::CanvasHit, render::CanvasHit)> handler)
 {
@@ -130,6 +135,11 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
             if (m_pixelClickedHandler) {
                 m_pixelClickedHandler(*hit);
             }
+            event->accept();
+            return;
+        }
+        if (hit && hit->region == render::CanvasRegion::OriginalFrame && m_originalClickedHandler) {
+            m_originalClickedHandler(*hit);
             event->accept();
             return;
         }

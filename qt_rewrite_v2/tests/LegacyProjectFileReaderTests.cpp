@@ -81,7 +81,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendU32(bytes, kHdHeight);
     appendU32(bytes, 2);
     appendU32(bytes, 16);
-    appendU32(bytes, 0);
+    appendU32(bytes, 1);
     appendU32(bytes, 0);
     appendU16(bytes, 0);
 
@@ -91,6 +91,9 @@ std::vector<uint8_t> makeModernCromWithFrames()
     bytes.push_back(1);
     bytes.push_back(255);
     bytes.push_back(255);
+    for (std::size_t i = 0; i < kSdPixels; ++i) {
+        bytes.push_back(static_cast<uint8_t>(i % 2));
+    }
 
     bytes.push_back(1);
     bytes.push_back(0);
@@ -192,6 +195,10 @@ void testFileReaderLoadsModernProject()
            "file reader second HD absent");
     expect(result.snapshot.frames[0].colorizedHd->pixels.front() == 0xaaaa,
            "file reader first HD value");
+    expect(result.snapshot.comparisonMasks.size() == 1,
+           "file reader comparison mask count");
+    expect(result.snapshot.comparisonMasks[0].pixels[1] == 1,
+           "file reader comparison mask data");
 }
 
 void testFileReaderReportsMissingCrom()
@@ -245,6 +252,9 @@ void testFileWriterSavesEditedModernCrom()
     expect(loadResult.ok, "writer test initial load");
 
     loadResult.snapshot.frames[0].colorizedSd.pixels[0] = 0x1357;
+    loadResult.snapshot.frames[0].shapeComparisonMode = 9;
+    loadResult.snapshot.frames[0].comparisonMaskId = 0;
+    loadResult.snapshot.comparisonMasks[0].pixels[7] = 42;
     loadResult.snapshot.frames[0].colorizedHd.reset();
     loadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] = 0x2468;
     loadResult.snapshot.frames[1].colorizedHd =
@@ -268,6 +278,12 @@ void testFileWriterSavesEditedModernCrom()
     expect(reloadResult.ok, "file writer saved cROM should reload");
     expect(reloadResult.snapshot.frames[0].colorizedSd.pixels[0] == 0x1357,
            "file writer should update first SD pixel");
+    expect(reloadResult.snapshot.frames[0].shapeComparisonMode == 9,
+           "file writer should update shape comparison mode");
+    expect(reloadResult.snapshot.frames[0].comparisonMaskId == 0,
+           "file writer should update comparison mask ID");
+    expect(reloadResult.snapshot.comparisonMasks[0].pixels[7] == 42,
+           "file writer should update comparison mask pixels");
     expect(!reloadResult.snapshot.frames[0].colorizedHd,
            "file writer should clear first HD presence flag");
     expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] == 0x2468,

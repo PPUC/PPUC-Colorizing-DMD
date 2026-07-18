@@ -19,8 +19,6 @@ The in-memory project model currently carries structured comparison-mask data fr
 - Per-frame comparison mask ID.
 - SD comparison mask bitmaps.
 
-The UI does not expose comparison-mask editing yet.
-
 ## Opening Projects
 
 Use `File -> Open Project...` and select a `.cROM` file.
@@ -37,8 +35,9 @@ Use `File -> Save` or the standard Save shortcut.
 Save behavior:
 
 - Updates colorized SD and HD frame pixels in the existing `.cROM`.
+- Updates shape comparison modes, comparison-mask assignments, and comparison-mask bitmap data.
 - Updates HD-present flags.
-- Preserves cROM data that is not edited yet, including comparison-mask bytes and trailing data.
+- Preserves cROM data that is not edited yet, including trailing data.
 - Marks the document clean after successful save.
 
 Use copied projects for testing until broader project metadata editing and save coverage are implemented.
@@ -73,7 +72,7 @@ The canvas does not draw text labels or white frame outlines over the image data
 Drawing previews are transient overlays. They do not modify project data until mouse release or click commit.
 
 Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
-Mask overlays are read-only for now.
+When `Mask` is active, clicks on the original/reference region add pixels to the assigned comparison mask.
 
 ## Colors
 
@@ -163,6 +162,24 @@ Examples:
 
 New edits clear redo only for the active frame/resolution history.
 
+When `Mask` is active, Undo and Redo operate on comparison-mask edits instead of colorized-frame edits.
+Mask edit history is scoped per comparison mask, so frames sharing the same assigned mask also share that mask's edit history.
+
+## Comparison Masks
+
+The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transparent red overlay on the original/reference region.
+
+Editing rules:
+
+- Mask editing is active only while the `Mask` toggle is on.
+- Colorized-frame drawing is paused while the `Mask` toggle is on.
+- Click the original/reference region to set that mask pixel to `1`.
+- Edits apply to the assigned comparison mask, not just the current frame.
+- If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
+- Mask pixels are saved back into `.cROM`.
+
+Mask erasing, mask shape tools, dynamic masks, and background masks are not implemented yet.
+
 ## Testing Checklist
 
 For drawing changes, test at least:
@@ -172,6 +189,7 @@ For drawing changes, test at least:
 - Undo and redo in the same frame/resolution.
 - Switching SD/HD does not interleave undo histories.
 - Save, reopen, and verify edits persist.
+- With `Mask` active, click the original/reference region, undo/redo the mask pixel, save, reopen, and verify the mask overlay persists.
 
 For project-loading changes, test:
 
