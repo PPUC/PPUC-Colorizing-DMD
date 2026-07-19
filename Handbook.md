@@ -62,6 +62,10 @@ The left frame list shows one thumbnail per loaded frame.
 Frames with HD data are marked with `(HD)`.
 Selecting a frame updates the central canvas and the frame status line.
 
+The filter above the frame list can show all frames, only frames with HD data, frames with an
+assigned background, or frames with dynamic data. Editing still targets the real project frame
+number shown in the item label, not the visible row number.
+
 ## SD And HD Modes
 
 Use the `SD` and `HD` toolbar buttons to switch the active editing resolution.

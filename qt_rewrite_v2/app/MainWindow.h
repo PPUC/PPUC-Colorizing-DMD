@@ -47,6 +47,13 @@ private:
         Background,
     };
 
+    enum class FrameFilter {
+        All,
+        Hd,
+        Background,
+        Dynamic,
+    };
+
     struct PixelChange {
         int x = 0;
         int y = 0;
@@ -158,6 +165,9 @@ private:
     void setStatusText(const QString& text);
     void setFrameStatusText(const QString& text);
     void refreshProjectSummary();
+    void refreshFrameList(std::optional<std::size_t> selectedFrameIndex = std::nullopt);
+    [[nodiscard]] bool frameMatchesFilter(std::size_t frameIndex) const;
+    [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
     void selectFrame(int frameIndex);
     void updateResolutionMode();
     void setDrawingTool(DrawingTool tool);
@@ -241,6 +251,7 @@ private:
     void updateUndoRedoActions();
     void updateProjectHeaderStatus();
     void updateFrameThumbnail(std::size_t frameIndex);
+    void updateFrameListItem(std::size_t frameIndex);
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
@@ -249,6 +260,7 @@ private:
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
     QListWidget* m_frameList = nullptr;
+    QComboBox* m_frameFilterComboBox = nullptr;
     QToolButton* m_sdButton = nullptr;
     QToolButton* m_hdButton = nullptr;
     QToolButton* m_comparisonMaskOverlayButton = nullptr;

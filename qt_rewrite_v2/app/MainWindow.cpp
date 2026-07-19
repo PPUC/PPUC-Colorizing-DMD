@@ -337,6 +337,16 @@ void MainWindow::createCentralView()
 
     m_statusLabel = new QLabel(central);
     m_frameStatusLabel = new QLabel(central);
+    m_frameFilterComboBox = new QComboBox(central);
+    m_frameFilterComboBox->addItem(QStringLiteral("All frames"),
+                                   static_cast<int>(FrameFilter::All));
+    m_frameFilterComboBox->addItem(QStringLiteral("HD frames"),
+                                   static_cast<int>(FrameFilter::Hd));
+    m_frameFilterComboBox->addItem(QStringLiteral("With background"),
+                                   static_cast<int>(FrameFilter::Background));
+    m_frameFilterComboBox->addItem(QStringLiteral("With dynamic"),
+                                   static_cast<int>(FrameFilter::Dynamic));
+    m_frameFilterComboBox->setEnabled(false);
     m_frameList = new QListWidget(central);
     m_frameList->setSelectionMode(QAbstractItemView::SingleSelection);
     m_frameList->setIconSize(QSize(160, 84));
@@ -461,6 +471,11 @@ void MainWindow::createCentralView()
     layout->addLayout(toolbarLayout);
 
     auto* contentLayout = new QHBoxLayout();
+    auto* frameListPanel = new QWidget(central);
+    auto* frameListLayout = new QVBoxLayout(frameListPanel);
+    frameListLayout->setContentsMargins(0, 0, 0, 0);
+    frameListLayout->addWidget(m_frameFilterComboBox);
+    frameListLayout->addWidget(m_frameList, 1);
     auto* inspector = new QWidget(central);
     auto* inspectorLayout = new QVBoxLayout(inspector);
     auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
@@ -501,7 +516,7 @@ void MainWindow::createCentralView()
     inspectorLayout->addStretch(1);
     inspector->setMinimumWidth(180);
     inspector->setMaximumWidth(240);
-    contentLayout->addWidget(m_frameList, 0);
+    contentLayout->addWidget(frameListPanel, 0);
     contentLayout->addWidget(m_preview, 1);
     contentLayout->addWidget(inspector, 0);
     layout->addLayout(contentLayout, 1);
@@ -509,6 +524,12 @@ void MainWindow::createCentralView()
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
         selectFrame(row);
     });
+    connect(m_frameFilterComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                refreshFrameList(currentFrameIndex());
+            });
     connect(m_sdButton, &QToolButton::clicked, this, [this]() {
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
@@ -804,11 +825,14 @@ void MainWindow::setFrameStatusText(const QString& text)
 
 void MainWindow::refreshProjectSummary()
 {
-    m_frameList->clear();
     m_preview->setDocument(m_document ? &*m_document : nullptr);
     m_activeResolution = render::Resolution::Sd;
     updateResolutionMode();
     if (!m_document) {
+        m_frameList->clear();
+        if (m_frameFilterComboBox) {
+            m_frameFilterComboBox->setEnabled(false);
+        }
         setStatusText(QStringLiteral("No project loaded"));
         setFrameStatusText(QString());
         if (m_saveAction) {
@@ -817,42 +841,103 @@ void MainWindow::refreshProjectSummary()
         return;
     }
 
-    const auto frameCount = static_cast<int>(m_document->frameCount());
-    int hdCount = 0;
-    for (int frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        const bool hasHd = m_document->hasHdFrame(static_cast<std::size_t>(frameIndex));
-        if (hasHd) {
-            ++hdCount;
-        }
-        auto* item = new QListWidgetItem(
-            makeFrameThumbnail(*m_document, static_cast<std::size_t>(frameIndex), QSize(160, 84)),
-            QStringLiteral("Frame %1%2")
-                .arg(frameIndex)
-                .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
-        item->setSizeHint(QSize(210, 96));
-        m_frameList->addItem(item);
+    if (m_frameFilterComboBox) {
+        m_frameFilterComboBox->setEnabled(true);
     }
-
-    if (frameCount > 0) {
-        m_frameList->setCurrentRow(0);
-    }
-
-    (void)hdCount;
+    refreshFrameList(0);
     updateProjectHeaderStatus();
 }
 
-void MainWindow::selectFrame(int frameIndex)
+void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
 {
-    if (!m_document || frameIndex < 0 || frameIndex >= static_cast<int>(m_document->frameCount())) {
+    if (!m_frameList) {
+        return;
+    }
+    m_frameList->clear();
+    if (!m_document) {
+        return;
+    }
+
+    int selectedRow = -1;
+    for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
+        if (!frameMatchesFilter(frameIndex)) {
+            continue;
+        }
+        const bool hasHd = m_document->hasHdFrame(frameIndex);
+        auto* item = new QListWidgetItem(
+            makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)),
+            QStringLiteral("Frame %1%2")
+                .arg(static_cast<int>(frameIndex))
+                .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
+        item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
+        item->setSizeHint(QSize(210, 96));
+        m_frameList->addItem(item);
+        if (selectedFrameIndex && *selectedFrameIndex == frameIndex) {
+            selectedRow = m_frameList->count() - 1;
+        }
+    }
+
+    if (selectedRow >= 0) {
+        m_frameList->setCurrentRow(selectedRow);
+    } else if (m_frameList->count() > 0) {
+        m_frameList->setCurrentRow(0);
+    } else {
+        selectFrame(-1);
+    }
+}
+
+bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
+{
+    if (!m_document || frameIndex >= m_document->frameCount()) {
+        return false;
+    }
+    const FrameFilter filter =
+        m_frameFilterComboBox
+            ? static_cast<FrameFilter>(m_frameFilterComboBox->currentData().toInt())
+            : FrameFilter::All;
+    if (filter == FrameFilter::Hd) {
+        return m_document->hasHdFrame(frameIndex);
+    }
+    if (filter == FrameFilter::Background) {
+        const std::optional<document::FrameBackgroundData>& backgroundData =
+            m_document->backgroundData(frameIndex);
+        return backgroundData && backgroundData->backgroundId < m_document->backgroundCount();
+    }
+    if (filter == FrameFilter::Dynamic) {
+        return m_document->dynamicData(frameIndex).has_value();
+    }
+    return true;
+}
+
+std::optional<std::size_t> MainWindow::currentFrameIndex() const
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return std::nullopt;
+    }
+    QListWidgetItem* item = m_frameList->currentItem();
+    if (!item) {
+        return std::nullopt;
+    }
+    bool ok = false;
+    const qulonglong frameIndex = item->data(Qt::UserRole).toULongLong(&ok);
+    if (!ok || frameIndex >= m_document->frameCount()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(frameIndex);
+}
+
+void MainWindow::selectFrame(int)
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
         updateFrameMetadataControls();
         return;
     }
-    const auto index = static_cast<std::size_t>(frameIndex);
-    m_preview->setFrameIndex(index);
-    const bool hasHd = m_document->hasHdFrame(index);
+    m_preview->setFrameIndex(*frameIndex);
+    const bool hasHd = m_document->hasHdFrame(*frameIndex);
     setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2")
-                           .arg(frameIndex)
+                           .arg(static_cast<int>(*frameIndex))
                            .arg(hasHd ? QStringLiteral("HD 256x64")
                                       : QStringLiteral("HD unavailable")));
     updateFrameMetadataControls();
@@ -891,9 +976,8 @@ void MainWindow::updateFrameMetadataControls()
         return;
     }
 
-    const bool hasFrame = m_document && m_frameList && m_frameList->currentRow() >= 0 &&
-                          static_cast<std::size_t>(m_frameList->currentRow()) <
-                              m_document->frameCount();
+    const std::optional<std::size_t> currentIndex = currentFrameIndex();
+    const bool hasFrame = m_document && currentIndex.has_value();
     QSignalBlocker maskBlocker(m_comparisonMaskIdSpinBox);
     QSignalBlocker shapeBlocker(m_shapeComparisonModeComboBox);
     QSignalBlocker backgroundBlocker(m_backgroundIdSpinBox);
@@ -927,7 +1011,7 @@ void MainWindow::updateFrameMetadataControls()
         return;
     }
 
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    const std::size_t frameIndex = *currentIndex;
     const int maxMaskId = m_document->comparisonMaskCount() == 0
                               ? -1
                               : static_cast<int>(m_document->comparisonMaskCount() - 1);
@@ -982,16 +1066,13 @@ void MainWindow::updateFrameMetadataControls()
 
 void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
 
     const uint8_t storedMaskId = maskId < 0 ? uint8_t{255} : static_cast<uint8_t>(maskId);
-    m_document->setComparisonMaskId(frameIndex, storedMaskId);
+    m_document->setComparisonMaskId(*frameIndex, storedMaskId);
     if (m_preview) {
         m_preview->update();
     }
@@ -1005,16 +1086,13 @@ void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
 
 void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
 
     try {
-        m_document->setShapeComparisonMode(frameIndex, static_cast<uint8_t>(mode));
+        m_document->setShapeComparisonMode(*frameIndex, static_cast<uint8_t>(mode));
         updateFrameMetadataControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(mode == 0 ? QStringLiteral("Set full comparison mode")
@@ -1028,18 +1106,15 @@ void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
 
 void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
 
     const uint16_t storedBackgroundId =
         backgroundId < 0 ? uint16_t{0xffff} : static_cast<uint16_t>(backgroundId);
     try {
-        m_document->setBackgroundId(frameIndex, storedBackgroundId);
+        m_document->setBackgroundId(*frameIndex, storedBackgroundId);
         if (m_preview) {
             m_preview->update();
         }
@@ -1059,18 +1134,18 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
 
 void MainWindow::createCurrentFrameHd()
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount() || m_document->hasHdFrame(frameIndex)) {
+    if (m_document->hasHdFrame(*frameIndex)) {
         updateFrameMetadataControls();
         return;
     }
 
-    const bool hasDynamicData = m_document->dynamicData(frameIndex).has_value();
+    const bool hasDynamicData = m_document->dynamicData(*frameIndex).has_value();
     const std::optional<document::FrameBackgroundData>& backgroundData =
-        m_document->backgroundData(frameIndex);
+        m_document->backgroundData(*frameIndex);
     const bool hasBackgroundData = backgroundData.has_value();
     const bool hasAssignedBackground =
         backgroundData && backgroundData->backgroundId < m_document->backgroundCount();
@@ -1107,24 +1182,20 @@ void MainWindow::createCurrentFrameHd()
     }
 
     try {
-        m_document->createHdFrame(frameIndex);
+        m_document->createHdFrame(*frameIndex);
         if (dynamicMaskCheckBox->isChecked()) {
-            m_document->upscaleDynamicMaskToHd(frameIndex);
+            m_document->upscaleDynamicMaskToHd(*frameIndex);
         }
         if (backgroundMaskCheckBox->isChecked()) {
-            m_document->upscaleBackgroundMaskToHd(frameIndex);
+            m_document->upscaleBackgroundMaskToHd(*frameIndex);
         }
         if (backgroundImageCheckBox->isChecked()) {
-            m_document->upscaleAssignedBackgroundToHd(frameIndex);
+            m_document->upscaleAssignedBackgroundToHd(*frameIndex);
         }
         m_activeResolution = render::Resolution::Hd;
         updateResolutionMode();
         updateFrameMetadataControls();
-        updateFrameThumbnail(frameIndex);
-        QListWidgetItem* item = m_frameList->item(static_cast<int>(frameIndex));
-        if (item) {
-            item->setText(QStringLiteral("Frame %1 (HD)").arg(static_cast<int>(frameIndex)));
-        }
+        updateFrameListItem(*frameIndex);
         updateProjectHeaderStatus();
         statusBar()->showMessage(QStringLiteral("Created HD frame from SD"), 2500);
     } catch (const std::exception& ex) {
@@ -1135,27 +1206,20 @@ void MainWindow::createCurrentFrameHd()
 
 void MainWindow::removeCurrentFrameHd()
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount() || !m_document->hasHdFrame(frameIndex)) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || !m_document->hasHdFrame(*frameIndex)) {
         updateFrameMetadataControls();
         return;
     }
 
     try {
-        m_document->removeHdFrame(frameIndex);
+        m_document->removeHdFrame(*frameIndex);
         if (m_activeResolution == render::Resolution::Hd) {
             m_activeResolution = render::Resolution::Sd;
         }
         updateResolutionMode();
         updateFrameMetadataControls();
-        updateFrameThumbnail(frameIndex);
-        QListWidgetItem* item = m_frameList->item(static_cast<int>(frameIndex));
-        if (item) {
-            item->setText(QStringLiteral("Frame %1").arg(static_cast<int>(frameIndex)));
-        }
+        updateFrameListItem(*frameIndex);
         updateProjectHeaderStatus();
         statusBar()->showMessage(QStringLiteral("Removed HD frame"), 2500);
     } catch (const std::exception& ex) {
@@ -1166,13 +1230,11 @@ void MainWindow::removeCurrentFrameHd()
 
 void MainWindow::updateDynamicColorControls()
 {
-    const bool hasFrame = m_document && m_frameList && m_frameList->currentRow() >= 0 &&
-                          static_cast<std::size_t>(m_frameList->currentRow()) <
-                              m_document->frameCount();
-    const auto frameIndex = hasFrame ? static_cast<std::size_t>(m_frameList->currentRow()) : 0;
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    const bool hasFrame = m_document && frameIndex.has_value();
     const std::optional<document::FrameDynamicData>* dynamicData = nullptr;
     if (hasFrame) {
-        dynamicData = &m_document->dynamicData(frameIndex);
+        dynamicData = &m_document->dynamicData(*frameIndex);
     }
 
     std::size_t colorCount = 0;
@@ -1193,7 +1255,7 @@ void MainWindow::updateDynamicColorControls()
             continue;
         }
 
-        const uint16_t rgb565 = m_document->dynamicColor(frameIndex,
+        const uint16_t rgb565 = m_document->dynamicColor(*frameIndex,
                                                          m_activeResolution,
                                                          activeDynamicSet(),
                                                          colorIndex);
@@ -1208,16 +1270,13 @@ void MainWindow::updateDynamicColorControls()
 
 void MainWindow::editDynamicColor(std::size_t originalColorIndex)
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
 
     try {
-        const uint16_t oldRgb565 = m_document->dynamicColor(frameIndex,
+        const uint16_t oldRgb565 = m_document->dynamicColor(*frameIndex,
                                                             m_activeResolution,
                                                             activeDynamicSet(),
                                                             originalColorIndex);
@@ -1233,7 +1292,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
             return;
         }
         DynamicColorEditCommand command;
-        command.frameIndex = frameIndex;
+        command.frameIndex = *frameIndex;
         command.resolution = m_activeResolution;
         command.setIndex = activeDynamicSet();
         command.originalColorIndex = originalColorIndex;
@@ -1241,7 +1300,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
         command.newColor = newRgb565;
         applyDynamicColorEdit(command, true);
         DynamicColorEditHistory& history =
-            m_dynamicColorEditHistories[EditHistoryKey{frameIndex, m_activeResolution}];
+            m_dynamicColorEditHistories[EditHistoryKey{*frameIndex, m_activeResolution}];
         history.undoStack.push_back(command);
         history.redoStack.clear();
         updateUndoRedoActions();
@@ -1355,12 +1414,12 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
 
 void MainWindow::pickFrameColor(const render::CanvasHit& hit)
 {
-    if (!m_document || m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
     try {
-        const uint16_t color = m_document->colorizedPixel(frameIndex,
+        const uint16_t color = m_document->colorizedPixel(*frameIndex,
                                                           hit.resolution,
                                                           hit.x,
                                                           hit.y);
@@ -1375,16 +1434,16 @@ void MainWindow::pickFrameColor(const render::CanvasHit& hit)
 
 void MainWindow::floodFillFrame(const render::CanvasHit& hit)
 {
-    if (!m_document || m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return;
     }
 
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
     try {
         const document::Rgb565Frame& frame =
-            m_document->colorizedFrame(frameIndex, hit.resolution);
+            m_document->colorizedFrame(*frameIndex, hit.resolution);
         const uint16_t targetColor =
-            m_document->colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y);
+            m_document->colorizedPixel(*frameIndex, hit.resolution, hit.x, hit.y);
         if (targetColor == m_activeDrawColor) {
             return;
         }
@@ -1608,13 +1667,13 @@ void MainWindow::paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase)
 
 void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
 {
-    if (!m_document || !isDynamicMaskModeActive() || m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !isDynamicMaskModeActive() || !frameIndex) {
         return;
     }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
     try {
         const uint8_t targetValue =
-            m_document->dynamicMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
+            m_document->dynamicMaskPixel(*frameIndex, hit.resolution, hit.x, hit.y);
         const uint8_t newValue = erase ? uint8_t{255} : activeDynamicSet();
         if (targetValue == newValue) {
             return;
@@ -1622,8 +1681,8 @@ void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
 
         const document::IndexedFrame& mask =
             hit.resolution == render::Resolution::Hd
-                ? m_document->dynamicData(frameIndex)->maskHd
-                : m_document->dynamicData(frameIndex)->maskSd;
+                ? m_document->dynamicData(*frameIndex)->maskHd
+                : m_document->dynamicData(*frameIndex)->maskSd;
         std::vector<uint8_t> visited(mask.pixels.size(), 0);
         std::deque<render::Point> queue;
         std::vector<render::Point> pixels;
@@ -1677,21 +1736,20 @@ void MainWindow::paintBackgroundMaskPixel(const render::CanvasHit& hit, bool era
 
 void MainWindow::floodFillBackgroundMask(const render::CanvasHit& hit, bool erase)
 {
-    if (!m_document || !isBackgroundMaskModeActive() || !m_frameList ||
-        m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !isBackgroundMaskModeActive() || !frameIndex) {
         return;
     }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
     try {
         const uint8_t targetValue =
-            m_document->backgroundMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
+            m_document->backgroundMaskPixel(*frameIndex, hit.resolution, hit.x, hit.y);
         const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
         if (targetValue == newValue) {
             return;
         }
 
         const std::optional<document::FrameBackgroundData>& backgroundData =
-            m_document->backgroundData(frameIndex);
+            m_document->backgroundData(*frameIndex);
         if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
             statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
             return;
@@ -1916,13 +1974,13 @@ void MainWindow::commitPixels(render::Resolution resolution,
                               const std::vector<render::Point>& pixels,
                               const QString& statusText)
 {
-    if (!m_document || m_frameList->currentRow() < 0 || pixels.empty()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || pixels.empty()) {
         return;
     }
 
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
     PixelEditCommand command;
-    command.frameIndex = frameIndex;
+    command.frameIndex = *frameIndex;
     command.resolution = resolution;
     std::set<std::pair<int, int>> seen;
 
@@ -1932,7 +1990,7 @@ void MainWindow::commitPixels(render::Resolution resolution,
                 continue;
             }
             const uint16_t oldColor =
-                m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
+                m_document->colorizedPixel(*frameIndex, resolution, pixel.x, pixel.y);
             if (oldColor == m_activeDrawColor) {
                 continue;
             }
@@ -1947,7 +2005,7 @@ void MainWindow::commitPixels(render::Resolution resolution,
             return;
         }
         applyPixelEdit(command, true);
-        EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
+        EditHistory& history = m_editHistories[EditHistoryKey{*frameIndex, resolution}];
         history.undoStack.push_back(command);
         history.redoStack.clear();
         updateUndoRedoActions();
@@ -2014,16 +2072,13 @@ void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
                                          uint8_t value,
                                          const QString& statusText)
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0 || pixels.empty()) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || pixels.empty()) {
         return;
     }
 
     DynamicMaskEditCommand command;
-    command.frameIndex = frameIndex;
+    command.frameIndex = *frameIndex;
     command.resolution = resolution;
     std::set<std::pair<int, int>> seen;
 
@@ -2033,7 +2088,7 @@ void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
                 continue;
             }
             const uint8_t oldValue =
-                m_document->dynamicMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
+                m_document->dynamicMaskPixel(*frameIndex, resolution, pixel.x, pixel.y);
             if (oldValue == value) {
                 continue;
             }
@@ -2049,7 +2104,7 @@ void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
         }
         applyDynamicMaskEdit(command, true);
         DynamicMaskEditHistory& history =
-            m_dynamicMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
+            m_dynamicMaskEditHistories[EditHistoryKey{*frameIndex, resolution}];
         history.undoStack.push_back(command);
         history.redoStack.clear();
         updateUndoRedoActions();
@@ -2066,23 +2121,20 @@ void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
                                             uint8_t value,
                                             const QString& statusText)
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0 || pixels.empty()) {
-        return;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || pixels.empty()) {
         return;
     }
 
     const std::optional<document::FrameBackgroundData>& backgroundData =
-        m_document->backgroundData(frameIndex);
+        m_document->backgroundData(*frameIndex);
     if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
         statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
         return;
     }
 
     BackgroundMaskEditCommand command;
-    command.frameIndex = frameIndex;
+    command.frameIndex = *frameIndex;
     command.resolution = resolution;
     std::set<std::pair<int, int>> seen;
 
@@ -2092,7 +2144,7 @@ void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
                 continue;
             }
             const uint8_t oldValue =
-                m_document->backgroundMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
+                m_document->backgroundMaskPixel(*frameIndex, resolution, pixel.x, pixel.y);
             if (oldValue == value) {
                 continue;
             }
@@ -2108,7 +2160,7 @@ void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
         }
         applyBackgroundMaskEdit(command, true);
         BackgroundMaskEditHistory& history =
-            m_backgroundMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
+            m_backgroundMaskEditHistories[EditHistoryKey{*frameIndex, resolution}];
         history.undoStack.push_back(command);
         history.redoStack.clear();
         updateUndoRedoActions();
@@ -2280,14 +2332,11 @@ void MainWindow::applyBackgroundImageEdit(const BackgroundImageEditCommand& comm
 
 std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!frameIndex) {
         return std::nullopt;
     }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
-        return std::nullopt;
-    }
-    return EditHistoryKey{frameIndex, m_activeResolution};
+    return EditHistoryKey{*frameIndex, m_activeResolution};
 }
 
 MainWindow::EditHistory* MainWindow::currentEditHistory()
@@ -2318,14 +2367,11 @@ const MainWindow::EditHistory* MainWindow::currentEditHistory() const
 
 std::optional<std::size_t> MainWindow::currentComparisonMaskIndex() const
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return std::nullopt;
     }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
-        return std::nullopt;
-    }
-    const uint8_t maskId = m_document->comparisonMaskId(frameIndex);
+    const uint8_t maskId = m_document->comparisonMaskId(*frameIndex);
     if (maskId >= m_document->comparisonMaskCount()) {
         return std::nullopt;
     }
@@ -2453,15 +2499,12 @@ bool MainWindow::isBackgroundMaskModeActive() const
 
 std::optional<std::size_t> MainWindow::currentBackgroundIndex() const
 {
-    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
-        return std::nullopt;
-    }
-    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
-    if (frameIndex >= m_document->frameCount()) {
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
         return std::nullopt;
     }
     const std::optional<document::FrameBackgroundData>& backgroundData =
-        m_document->backgroundData(frameIndex);
+        m_document->backgroundData(*frameIndex);
     if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
         return std::nullopt;
     }
@@ -2765,11 +2808,37 @@ void MainWindow::updateFrameThumbnail(std::size_t frameIndex)
     if (!m_document || frameIndex >= m_document->frameCount()) {
         return;
     }
-    QListWidgetItem* item = m_frameList->item(static_cast<int>(frameIndex));
-    if (!item) {
+    for (int row = 0; row < m_frameList->count(); ++row) {
+        QListWidgetItem* item = m_frameList->item(row);
+        if (item && item->data(Qt::UserRole).toULongLong() == frameIndex) {
+            item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
+            return;
+        }
+    }
+}
+
+void MainWindow::updateFrameListItem(std::size_t frameIndex)
+{
+    if (!m_document || frameIndex >= m_document->frameCount()) {
         return;
     }
-    item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
+    if (!frameMatchesFilter(frameIndex)) {
+        refreshFrameList(currentFrameIndex());
+        return;
+    }
+    for (int row = 0; row < m_frameList->count(); ++row) {
+        QListWidgetItem* item = m_frameList->item(row);
+        if (!item || item->data(Qt::UserRole).toULongLong() != frameIndex) {
+            continue;
+        }
+        const bool hasHd = m_document->hasHdFrame(frameIndex);
+        item->setText(QStringLiteral("Frame %1%2")
+                          .arg(static_cast<int>(frameIndex))
+                          .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
+        item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
+        return;
+    }
+    refreshFrameList(frameIndex);
 }
 
 }  // namespace colorizing::app
