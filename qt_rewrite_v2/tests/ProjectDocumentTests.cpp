@@ -92,9 +92,15 @@ void testCreateAndRemoveHdFrameDirtyState()
         1,
         false,
     });
+    document.setColorizedPixel(0, Resolution::Sd, 3, 2, 0x1234);
+    document.markClean();
 
     document.createHdFrame(0);
     expect(document.hasHdFrame(0), "createHdFrame should add HD frame");
+    expect(document.colorizedPixel(0, Resolution::Hd, 6, 4) == 0x1234,
+           "createHdFrame should upscale SD pixels to HD");
+    expect(document.colorizedPixel(0, Resolution::Hd, 7, 5) == 0x1234,
+           "createHdFrame should fill the 2x2 HD block from the SD source pixel");
     expect(document.isDirty(), "creating HD frame should mark dirty");
 
     document.markClean();
@@ -539,7 +545,72 @@ void testBackgroundImagePixelEditing()
     ProjectDocument sdOnlyDocument = ProjectDocument::fromSnapshot(sdOnlySnapshot);
     expectThrows<std::logic_error>(
         [&]() { sdOnlyDocument.setBackgroundPixel(0, Resolution::Hd, 0, 0, 1); },
-        "missing HD background write");
+           "missing HD background write");
+}
+
+void testHdRelatedDataUpscaling()
+{
+    FrameDynamicData dynamicData{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0x1111),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0x2222),
+    };
+    dynamicData.maskSd.pixels[2 * 128 + 3] = 7;
+    dynamicData.colorsSd[2 * 16 + 3] = 0x3333;
+
+    FrameBackgroundData backgroundData{
+        0,
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 0),
+    };
+    backgroundData.maskSd.pixels[4 * 128 + 5] = 1;
+
+    ProjectSnapshot snapshot;
+    snapshot.romName = "hd_related_upscale";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+        0,
+        255,
+        dynamicData,
+        backgroundData,
+    });
+    BackgroundRecord background{
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+    };
+    background.colorizedSd.pixels[6 * 128 + 7] = 0x4444;
+    snapshot.backgrounds.push_back(background);
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.upscaleDynamicMaskToHd(0);
+    expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 7,
+           "HD dynamic mask should be upscaled from SD");
+    expect(document.dynamicMaskPixel(0, Resolution::Hd, 7, 5) == 7,
+           "HD dynamic mask should fill the 2x2 block from SD");
+    expect(document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x3333,
+           "HD dynamic colors should copy SD dynamic colors");
+    expect(document.isDirty(), "dynamic HD upscale should mark dirty");
+
+    document.markClean();
+    document.upscaleBackgroundMaskToHd(0);
+    expect(document.backgroundMaskPixel(0, Resolution::Hd, 10, 8) == 1,
+           "HD background mask should be upscaled from SD");
+    expect(document.backgroundMaskPixel(0, Resolution::Hd, 11, 9) == 1,
+           "HD background mask should fill the 2x2 block from SD");
+    expect(document.isDirty(), "background mask HD upscale should mark dirty");
+
+    document.markClean();
+    document.upscaleAssignedBackgroundToHd(0);
+    expect(document.backgroundFrame(0, Resolution::Hd).pixels[12 * 256 + 14] == 0x4444,
+           "HD background image should be upscaled from SD");
+    expect(document.backgroundFrame(0, Resolution::Hd).pixels[13 * 256 + 15] == 0x4444,
+           "HD background image should fill the 2x2 block from SD");
+    expect(document.isDirty(), "background image HD upscale should mark dirty");
 }
 
 void testInvalidSnapshotReportsReason()
@@ -574,5 +645,6 @@ void runProjectDocumentTests()
     testDynamicMaskPixelEditing();
     testBackgroundMetadataAndMaskEditing();
     testBackgroundImagePixelEditing();
+    testHdRelatedDataUpscaling();
     testInvalidSnapshotReportsReason();
 }

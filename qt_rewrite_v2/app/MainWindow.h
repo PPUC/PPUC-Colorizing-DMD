@@ -167,6 +167,8 @@ private:
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
+    void createCurrentFrameHd();
+    void removeCurrentFrameHd();
     void updateDynamicColorControls();
     void editDynamicColor(std::size_t originalColorIndex);
     [[nodiscard]] uint8_t activeDynamicSet() const;
@@ -253,6 +255,8 @@ private:
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QToolButton* m_backgroundMaskOverlayButton = nullptr;
     QToolButton* m_backgroundLayerButton = nullptr;
+    QToolButton* m_createHdFrameButton = nullptr;
+    QToolButton* m_removeHdFrameButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;

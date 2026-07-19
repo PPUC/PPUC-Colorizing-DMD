@@ -72,6 +72,11 @@ Rules:
 - HD edits target 256x64 colorized frame pixels.
 - If a frame has no HD data, the canvas falls back to SD display/editing.
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
+- The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
+- When creating HD, a dialog asks whether to also upscale existing dynamic masks/colors, the frame background mask, and the assigned background image.
+- The Inspector `Remove HD` button removes HD data from the current frame and switches the canvas back to SD when needed.
+
+TODO: offer selectable scaling algorithms for HD creation instead of always using nearest-neighbor 2x scaling.
 
 ## Canvas
 

@@ -87,6 +87,9 @@ public:
     [[nodiscard]] bool hasHdFrame(std::size_t frameIndex) const;
     void createHdFrame(std::size_t frameIndex);
     void removeHdFrame(std::size_t frameIndex);
+    void upscaleDynamicMaskToHd(std::size_t frameIndex);
+    void upscaleBackgroundMaskToHd(std::size_t frameIndex);
+    void upscaleAssignedBackgroundToHd(std::size_t frameIndex);
 
     [[nodiscard]] const IndexedFrame& originalFrame(std::size_t frameIndex) const;
     [[nodiscard]] const Rgb565Frame& colorizedFrame(std::size_t frameIndex,

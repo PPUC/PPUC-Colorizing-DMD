@@ -45,6 +45,38 @@ const FrameRecord& requireFrame(const std::vector<FrameRecord>& frames, std::siz
     return frames[frameIndex];
 }
 
+Rgb565Frame upscaleRgb565Frame2x(const Rgb565Frame& source)
+{
+    Rgb565Frame target = makeRgb565Frame(Size{source.size.width * 2, source.size.height * 2});
+    for (int y = 0; y < target.size.height; ++y) {
+        for (int x = 0; x < target.size.width; ++x) {
+            target.pixels[static_cast<std::size_t>(y) *
+                              static_cast<std::size_t>(target.size.width) +
+                          static_cast<std::size_t>(x)] =
+                source.pixels[static_cast<std::size_t>(y / 2) *
+                                  static_cast<std::size_t>(source.size.width) +
+                              static_cast<std::size_t>(x / 2)];
+        }
+    }
+    return target;
+}
+
+IndexedFrame upscaleIndexedFrame2x(const IndexedFrame& source)
+{
+    IndexedFrame target = makeIndexedFrame(Size{source.size.width * 2, source.size.height * 2});
+    for (int y = 0; y < target.size.height; ++y) {
+        for (int x = 0; x < target.size.width; ++x) {
+            target.pixels[static_cast<std::size_t>(y) *
+                              static_cast<std::size_t>(target.size.width) +
+                          static_cast<std::size_t>(x)] =
+                source.pixels[static_cast<std::size_t>(y / 2) *
+                                  static_cast<std::size_t>(source.size.width) +
+                              static_cast<std::size_t>(x / 2)];
+        }
+    }
+    return target;
+}
+
 }  // namespace
 
 bool Rgb565Frame::isValid() const
@@ -169,7 +201,7 @@ void ProjectDocument::createHdFrame(std::size_t frameIndex)
     if (frame.colorizedHd) {
         return;
     }
-    frame.colorizedHd = makeRgb565Frame(render::kHdFrameSize);
+    frame.colorizedHd = upscaleRgb565Frame2x(frame.colorizedSd);
     m_dirty = true;
 }
 
@@ -180,6 +212,41 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
         return;
     }
     frame.colorizedHd.reset();
+    m_dirty = true;
+}
+
+void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic mask data is not available");
+    }
+    frame.dynamicData->maskHd = upscaleIndexedFrame2x(frame.dynamicData->maskSd);
+    frame.dynamicData->colorsHd = frame.dynamicData->colorsSd;
+    m_dirty = true;
+}
+
+void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    frame.backgroundData->maskHd = upscaleIndexedFrame2x(frame.backgroundData->maskSd);
+    m_dirty = true;
+}
+
+void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    if (frame.backgroundData->backgroundId >= m_backgrounds.size()) {
+        throw std::logic_error("assigned background is not available");
+    }
+    BackgroundRecord& background = m_backgrounds[frame.backgroundData->backgroundId];
+    background.colorizedHd = upscaleRgb565Frame2x(background.colorizedSd);
     m_dirty = true;
 }
 

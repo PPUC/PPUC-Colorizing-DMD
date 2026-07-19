@@ -8,7 +8,10 @@
 #include <QAbstractItemView>
 #include <QAction>
 #include <QColorDialog>
+#include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -394,6 +397,14 @@ void MainWindow::createCentralView()
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
     m_backgroundLayerButton->setCheckable(true);
     m_backgroundLayerButton->setEnabled(false);
+    m_createHdFrameButton = new QToolButton(central);
+    m_createHdFrameButton->setText(QStringLiteral("Create HD"));
+    m_createHdFrameButton->setToolTip(QStringLiteral("Create HD frame from SD frame"));
+    m_createHdFrameButton->setEnabled(false);
+    m_removeHdFrameButton = new QToolButton(central);
+    m_removeHdFrameButton->setText(QStringLiteral("Remove HD"));
+    m_removeHdFrameButton->setToolTip(QStringLiteral("Remove HD frame data"));
+    m_removeHdFrameButton->setEnabled(false);
     m_paintTargetComboBox = new QComboBox(central);
     m_paintTargetComboBox->setToolTip(QStringLiteral("Drawing target"));
     m_paintTargetComboBox->addItem(QStringLiteral("Frame"),
@@ -481,6 +492,10 @@ void MainWindow::createCentralView()
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addLayout(inspectorForm);
     inspectorLayout->addWidget(m_backgroundLayerButton);
+    auto* hdButtonLayout = new QHBoxLayout();
+    hdButtonLayout->addWidget(m_createHdFrameButton);
+    hdButtonLayout->addWidget(m_removeHdFrameButton);
+    inspectorLayout->addLayout(hdButtonLayout);
     inspectorLayout->addWidget(dynamicColorsTitle);
     inspectorLayout->addLayout(dynamicColorsGrid);
     inspectorLayout->addStretch(1);
@@ -555,6 +570,12 @@ void MainWindow::createCentralView()
         if (m_preview) {
             m_preview->setBackgroundLayerEnabled(checked);
         }
+    });
+    connect(m_createHdFrameButton, &QToolButton::clicked, this, [this]() {
+        createCurrentFrameHd();
+    });
+    connect(m_removeHdFrameButton, &QToolButton::clicked, this, [this]() {
+        removeCurrentFrameHd();
     });
     connect(m_paintTargetComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -892,6 +913,12 @@ void MainWindow::updateFrameMetadataControls()
         if (m_backgroundLayerButton) {
             m_backgroundLayerButton->setEnabled(false);
         }
+        if (m_createHdFrameButton) {
+            m_createHdFrameButton->setEnabled(false);
+        }
+        if (m_removeHdFrameButton) {
+            m_removeHdFrameButton->setEnabled(false);
+        }
         if (m_paintTargetComboBox) {
             m_paintTargetComboBox->setEnabled(false);
             m_paintTargetComboBox->setCurrentIndex(0);
@@ -935,6 +962,13 @@ void MainWindow::updateFrameMetadataControls()
     m_backgroundIdSpinBox->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
     if (m_backgroundLayerButton) {
         m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    }
+    const bool hasHdFrame = m_document->hasHdFrame(frameIndex);
+    if (m_createHdFrameButton) {
+        m_createHdFrameButton->setEnabled(!hasHdFrame);
+    }
+    if (m_removeHdFrameButton) {
+        m_removeHdFrameButton->setEnabled(hasHdFrame);
     }
     if (m_paintTargetComboBox) {
         m_paintTargetComboBox->setEnabled(backgroundValue >= 0);
@@ -1017,6 +1051,113 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
                 ? QStringLiteral("Cleared background assignment")
                 : QStringLiteral("Assigned background %1").arg(backgroundId),
             2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::createCurrentFrameHd()
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount() || m_document->hasHdFrame(frameIndex)) {
+        updateFrameMetadataControls();
+        return;
+    }
+
+    const bool hasDynamicData = m_document->dynamicData(frameIndex).has_value();
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        m_document->backgroundData(frameIndex);
+    const bool hasBackgroundData = backgroundData.has_value();
+    const bool hasAssignedBackground =
+        backgroundData && backgroundData->backgroundId < m_document->backgroundCount();
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("Create HD Frame"));
+    auto* dialogLayout = new QVBoxLayout(&dialog);
+    auto* description = new QLabel(QStringLiteral("Create HD frame from SD. Upscale related data?"),
+                                   &dialog);
+    description->setWordWrap(true);
+    dialogLayout->addWidget(description);
+    auto* dynamicMaskCheckBox = new QCheckBox(QStringLiteral("Dynamic mask and colors"), &dialog);
+    dynamicMaskCheckBox->setChecked(hasDynamicData);
+    dynamicMaskCheckBox->setEnabled(hasDynamicData);
+    dynamicMaskCheckBox->setToolTip(QStringLiteral("Scale SD dynamic mask to HD and copy dynamic colors"));
+    dialogLayout->addWidget(dynamicMaskCheckBox);
+    auto* backgroundMaskCheckBox = new QCheckBox(QStringLiteral("Background mask"), &dialog);
+    backgroundMaskCheckBox->setChecked(hasBackgroundData);
+    backgroundMaskCheckBox->setEnabled(hasBackgroundData);
+    backgroundMaskCheckBox->setToolTip(QStringLiteral("Scale SD background mask to HD"));
+    dialogLayout->addWidget(backgroundMaskCheckBox);
+    auto* backgroundImageCheckBox = new QCheckBox(QStringLiteral("Assigned background image"), &dialog);
+    backgroundImageCheckBox->setChecked(hasAssignedBackground);
+    backgroundImageCheckBox->setEnabled(hasAssignedBackground);
+    backgroundImageCheckBox->setToolTip(QStringLiteral("Scale assigned SD background image to HD"));
+    dialogLayout->addWidget(backgroundImageCheckBox);
+    auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                           &dialog);
+    dialogLayout->addWidget(buttonBox);
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    try {
+        m_document->createHdFrame(frameIndex);
+        if (dynamicMaskCheckBox->isChecked()) {
+            m_document->upscaleDynamicMaskToHd(frameIndex);
+        }
+        if (backgroundMaskCheckBox->isChecked()) {
+            m_document->upscaleBackgroundMaskToHd(frameIndex);
+        }
+        if (backgroundImageCheckBox->isChecked()) {
+            m_document->upscaleAssignedBackgroundToHd(frameIndex);
+        }
+        m_activeResolution = render::Resolution::Hd;
+        updateResolutionMode();
+        updateFrameMetadataControls();
+        updateFrameThumbnail(frameIndex);
+        QListWidgetItem* item = m_frameList->item(static_cast<int>(frameIndex));
+        if (item) {
+            item->setText(QStringLiteral("Frame %1 (HD)").arg(static_cast<int>(frameIndex)));
+        }
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(QStringLiteral("Created HD frame from SD"), 2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::removeCurrentFrameHd()
+{
+    if (!m_document || !m_frameList || m_frameList->currentRow() < 0) {
+        return;
+    }
+    const auto frameIndex = static_cast<std::size_t>(m_frameList->currentRow());
+    if (frameIndex >= m_document->frameCount() || !m_document->hasHdFrame(frameIndex)) {
+        updateFrameMetadataControls();
+        return;
+    }
+
+    try {
+        m_document->removeHdFrame(frameIndex);
+        if (m_activeResolution == render::Resolution::Hd) {
+            m_activeResolution = render::Resolution::Sd;
+        }
+        updateResolutionMode();
+        updateFrameMetadataControls();
+        updateFrameThumbnail(frameIndex);
+        QListWidgetItem* item = m_frameList->item(static_cast<int>(frameIndex));
+        if (item) {
+            item->setText(QStringLiteral("Frame %1").arg(static_cast<int>(frameIndex)));
+        }
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(QStringLiteral("Removed HD frame"), 2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
