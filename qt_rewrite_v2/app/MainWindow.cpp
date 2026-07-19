@@ -2079,47 +2079,63 @@ void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
     if (!m_document || pixels.empty()) {
         return;
     }
-    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
-    if (!maskIndex) {
+    std::set<std::size_t> maskIndices;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        const uint8_t maskId = m_document->comparisonMaskId(frameIndex);
+        if (maskId < m_document->comparisonMaskCount()) {
+            maskIndices.insert(static_cast<std::size_t>(maskId));
+        }
+    }
+    if (maskIndices.empty()) {
         statusBar()->showMessage(QStringLiteral("No comparison mask assigned"), 2500);
         return;
     }
 
-    MaskEditCommand command;
-    command.maskIndex = *maskIndex;
-    std::set<std::pair<int, int>> seen;
-
     try {
-        for (const render::Point& pixel : pixels) {
-            if (!seen.insert({pixel.x, pixel.y}).second) {
+        bool changed = false;
+        for (std::size_t maskIndex : maskIndices) {
+            MaskEditCommand command;
+            command.maskIndex = maskIndex;
+            std::set<std::pair<int, int>> seen;
+            for (const render::Point& pixel : pixels) {
+                if (!seen.insert({pixel.x, pixel.y}).second) {
+                    continue;
+                }
+                const uint8_t oldValue =
+                    m_document->comparisonMaskPixel(maskIndex, pixel.x, pixel.y);
+                if (oldValue == value) {
+                    continue;
+                }
+                command.changes.push_back(MaskPixelChange{
+                    pixel.x,
+                    pixel.y,
+                    oldValue,
+                    value,
+                });
+            }
+            if (command.changes.empty()) {
                 continue;
             }
-            const uint8_t oldValue =
-                m_document->comparisonMaskPixel(*maskIndex, pixel.x, pixel.y);
-            if (oldValue == value) {
-                continue;
-            }
-            command.changes.push_back(MaskPixelChange{
-                pixel.x,
-                pixel.y,
-                oldValue,
-                value,
-            });
+            applyMaskEdit(command, true);
+            MaskEditHistory& history = m_maskEditHistories[maskIndex];
+            history.undoStack.push_back(command);
+            history.redoStack.clear();
+            changed = true;
         }
-        if (command.changes.empty()) {
+        if (!changed) {
             return;
         }
-        applyMaskEdit(command, true);
-        MaskEditHistory& history = m_maskEditHistories[*maskIndex];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
         return;
     }
 
-    statusBar()->showMessage(statusText, 2500);
+    statusBar()->showMessage(
+        maskIndices.size() > 1
+            ? QStringLiteral("%1 on %2 mask(s)").arg(statusText).arg(static_cast<int>(maskIndices.size()))
+            : statusText,
+        2500);
 }
 
 void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
