@@ -168,6 +168,7 @@ private:
     void refreshFrameList(std::optional<std::size_t> selectedFrameIndex = std::nullopt);
     [[nodiscard]] bool frameMatchesFilter(std::size_t frameIndex) const;
     [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
+    [[nodiscard]] std::vector<std::size_t> selectedFrameIndices() const;
     void selectFrame(int frameIndex);
     void updateResolutionMode();
     void setDrawingTool(DrawingTool tool);

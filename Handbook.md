@@ -66,6 +66,10 @@ The filter above the frame list can show all frames, only frames with HD data, f
 assigned background, or frames with dynamic data. Editing still targets the real project frame
 number shown in the item label, not the visible row number.
 
+The frame list supports native multi-selection. Frame drawing, dynamic-mask drawing,
+background-mask drawing, and background assignment apply to all selected frames where the operation
+is valid. Undo/redo history is still stored per frame and per resolution.
+
 ## SD And HD Modes
 
 Use the `SD` and `HD` toolbar buttons to switch the active editing resolution.

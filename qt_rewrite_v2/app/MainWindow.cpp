@@ -348,7 +348,7 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::Dynamic));
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new QListWidget(central);
-    m_frameList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_frameList->setIconSize(QSize(160, 84));
     m_frameList->setResizeMode(QListView::Adjust);
     m_frameList->setUniformItemSizes(false);
@@ -523,6 +523,9 @@ void MainWindow::createCentralView()
 
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
         selectFrame(row);
+    });
+    connect(m_frameList, &QListWidget::itemSelectionChanged, this, [this]() {
+        selectFrame(m_frameList ? m_frameList->currentRow() : -1);
     });
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -926,6 +929,34 @@ std::optional<std::size_t> MainWindow::currentFrameIndex() const
     return static_cast<std::size_t>(frameIndex);
 }
 
+std::vector<std::size_t> MainWindow::selectedFrameIndices() const
+{
+    std::vector<std::size_t> frameIndices;
+    if (!m_document || !m_frameList) {
+        return frameIndices;
+    }
+
+    for (QListWidgetItem* item : m_frameList->selectedItems()) {
+        if (!item) {
+            continue;
+        }
+        bool ok = false;
+        const qulonglong frameIndex = item->data(Qt::UserRole).toULongLong(&ok);
+        if (ok && frameIndex < m_document->frameCount()) {
+            frameIndices.push_back(static_cast<std::size_t>(frameIndex));
+        }
+    }
+    if (frameIndices.empty()) {
+        const std::optional<std::size_t> frameIndex = currentFrameIndex();
+        if (frameIndex) {
+            frameIndices.push_back(*frameIndex);
+        }
+    }
+    std::sort(frameIndices.begin(), frameIndices.end());
+    frameIndices.erase(std::unique(frameIndices.begin(), frameIndices.end()), frameIndices.end());
+    return frameIndices;
+}
+
 void MainWindow::selectFrame(int)
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -936,10 +967,14 @@ void MainWindow::selectFrame(int)
     }
     m_preview->setFrameIndex(*frameIndex);
     const bool hasHd = m_document->hasHdFrame(*frameIndex);
-    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2")
+    const int selectedCount = static_cast<int>(selectedFrameIndices().size());
+    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2%3")
                            .arg(static_cast<int>(*frameIndex))
                            .arg(hasHd ? QStringLiteral("HD 256x64")
-                                      : QStringLiteral("HD unavailable")));
+                                      : QStringLiteral("HD unavailable"))
+                           .arg(selectedCount > 1
+                                    ? QStringLiteral(" | %1 selected").arg(selectedCount)
+                                    : QString()));
     updateFrameMetadataControls();
     updatePaintTargetMode();
     updateUndoRedoActions();
@@ -1106,15 +1141,18 @@ void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
 
 void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty()) {
         return;
     }
 
     const uint16_t storedBackgroundId =
         backgroundId < 0 ? uint16_t{0xffff} : static_cast<uint16_t>(backgroundId);
     try {
-        m_document->setBackgroundId(*frameIndex, storedBackgroundId);
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->setBackgroundId(frameIndex, storedBackgroundId);
+            updateFrameListItem(frameIndex);
+        }
         if (m_preview) {
             m_preview->update();
         }
@@ -1123,8 +1161,11 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
         updateProjectHeaderStatus();
         statusBar()->showMessage(
             backgroundId < 0
-                ? QStringLiteral("Cleared background assignment")
-                : QStringLiteral("Assigned background %1").arg(backgroundId),
+                ? QStringLiteral("Cleared background assignment on %1 frame(s)")
+                      .arg(static_cast<int>(frameIndices.size()))
+                : QStringLiteral("Assigned background %1 on %2 frame(s)")
+                      .arg(backgroundId)
+                      .arg(static_cast<int>(frameIndices.size())),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
@@ -1974,47 +2015,61 @@ void MainWindow::commitPixels(render::Resolution resolution,
                               const std::vector<render::Point>& pixels,
                               const QString& statusText)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || pixels.empty()) {
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || pixels.empty()) {
         return;
     }
-
-    PixelEditCommand command;
-    command.frameIndex = *frameIndex;
-    command.resolution = resolution;
-    std::set<std::pair<int, int>> seen;
+    const uint16_t drawColor = m_activeDrawColor;
 
     try {
-        for (const render::Point& pixel : pixels) {
-            if (!seen.insert({pixel.x, pixel.y}).second) {
+        bool changed = false;
+        for (std::size_t frameIndex : frameIndices) {
+            if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
                 continue;
             }
-            const uint16_t oldColor =
-                m_document->colorizedPixel(*frameIndex, resolution, pixel.x, pixel.y);
-            if (oldColor == m_activeDrawColor) {
+            PixelEditCommand command;
+            command.frameIndex = frameIndex;
+            command.resolution = resolution;
+            std::set<std::pair<int, int>> seen;
+            for (const render::Point& pixel : pixels) {
+                if (!seen.insert({pixel.x, pixel.y}).second) {
+                    continue;
+                }
+                const uint16_t oldColor =
+                    m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
+                if (oldColor == drawColor) {
+                    continue;
+                }
+                command.changes.push_back(PixelChange{
+                    pixel.x,
+                    pixel.y,
+                    oldColor,
+                    drawColor,
+                });
+            }
+            if (command.changes.empty()) {
                 continue;
             }
-            command.changes.push_back(PixelChange{
-                pixel.x,
-                pixel.y,
-                oldColor,
-                m_activeDrawColor,
-            });
+            applyPixelEdit(command, true);
+            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
+            history.undoStack.push_back(command);
+            history.redoStack.clear();
+            changed = true;
         }
-        if (command.changes.empty()) {
+        if (!changed) {
             return;
         }
-        applyPixelEdit(command, true);
-        EditHistory& history = m_editHistories[EditHistoryKey{*frameIndex, resolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
         return;
     }
 
-    statusBar()->showMessage(statusText, 2500);
+    statusBar()->showMessage(
+        frameIndices.size() > 1
+            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
+            : statusText,
+        2500);
 }
 
 void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
@@ -2072,48 +2127,61 @@ void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
                                          uint8_t value,
                                          const QString& statusText)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || pixels.empty()) {
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || pixels.empty()) {
         return;
     }
 
-    DynamicMaskEditCommand command;
-    command.frameIndex = *frameIndex;
-    command.resolution = resolution;
-    std::set<std::pair<int, int>> seen;
-
     try {
-        for (const render::Point& pixel : pixels) {
-            if (!seen.insert({pixel.x, pixel.y}).second) {
+        bool changed = false;
+        for (std::size_t frameIndex : frameIndices) {
+            if (!m_document->dynamicData(frameIndex)) {
                 continue;
             }
-            const uint8_t oldValue =
-                m_document->dynamicMaskPixel(*frameIndex, resolution, pixel.x, pixel.y);
-            if (oldValue == value) {
+            DynamicMaskEditCommand command;
+            command.frameIndex = frameIndex;
+            command.resolution = resolution;
+            std::set<std::pair<int, int>> seen;
+            for (const render::Point& pixel : pixels) {
+                if (!seen.insert({pixel.x, pixel.y}).second) {
+                    continue;
+                }
+                const uint8_t oldValue =
+                    m_document->dynamicMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
+                if (oldValue == value) {
+                    continue;
+                }
+                command.changes.push_back(DynamicMaskPixelChange{
+                    pixel.x,
+                    pixel.y,
+                    oldValue,
+                    value,
+                });
+            }
+            if (command.changes.empty()) {
                 continue;
             }
-            command.changes.push_back(DynamicMaskPixelChange{
-                pixel.x,
-                pixel.y,
-                oldValue,
-                value,
-            });
+            applyDynamicMaskEdit(command, true);
+            DynamicMaskEditHistory& history =
+                m_dynamicMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
+            history.undoStack.push_back(command);
+            history.redoStack.clear();
+            changed = true;
         }
-        if (command.changes.empty()) {
+        if (!changed) {
             return;
         }
-        applyDynamicMaskEdit(command, true);
-        DynamicMaskEditHistory& history =
-            m_dynamicMaskEditHistories[EditHistoryKey{*frameIndex, resolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
         return;
     }
 
-    statusBar()->showMessage(statusText, 2500);
+    statusBar()->showMessage(
+        frameIndices.size() > 1
+            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
+            : statusText,
+        2500);
 }
 
 void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
@@ -2121,55 +2189,65 @@ void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
                                             uint8_t value,
                                             const QString& statusText)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || pixels.empty()) {
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || pixels.empty()) {
         return;
     }
-
-    const std::optional<document::FrameBackgroundData>& backgroundData =
-        m_document->backgroundData(*frameIndex);
-    if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
-        statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
-        return;
-    }
-
-    BackgroundMaskEditCommand command;
-    command.frameIndex = *frameIndex;
-    command.resolution = resolution;
-    std::set<std::pair<int, int>> seen;
 
     try {
-        for (const render::Point& pixel : pixels) {
-            if (!seen.insert({pixel.x, pixel.y}).second) {
+        bool changed = false;
+        for (std::size_t frameIndex : frameIndices) {
+            const std::optional<document::FrameBackgroundData>& backgroundData =
+                m_document->backgroundData(frameIndex);
+            if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
                 continue;
             }
-            const uint8_t oldValue =
-                m_document->backgroundMaskPixel(*frameIndex, resolution, pixel.x, pixel.y);
-            if (oldValue == value) {
+            BackgroundMaskEditCommand command;
+            command.frameIndex = frameIndex;
+            command.resolution = resolution;
+            std::set<std::pair<int, int>> seen;
+            for (const render::Point& pixel : pixels) {
+                if (!seen.insert({pixel.x, pixel.y}).second) {
+                    continue;
+                }
+                const uint8_t oldValue =
+                    m_document->backgroundMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
+                if (oldValue == value) {
+                    continue;
+                }
+                command.changes.push_back(BackgroundMaskPixelChange{
+                    pixel.x,
+                    pixel.y,
+                    oldValue,
+                    value,
+                });
+            }
+            if (command.changes.empty()) {
                 continue;
             }
-            command.changes.push_back(BackgroundMaskPixelChange{
-                pixel.x,
-                pixel.y,
-                oldValue,
-                value,
-            });
+            applyBackgroundMaskEdit(command, true);
+            BackgroundMaskEditHistory& history =
+                m_backgroundMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
+            history.undoStack.push_back(command);
+            history.redoStack.clear();
+            changed = true;
         }
-        if (command.changes.empty()) {
+        if (!changed) {
+            statusBar()->showMessage(QStringLiteral("No selected frame has an assigned background"),
+                                     2500);
             return;
         }
-        applyBackgroundMaskEdit(command, true);
-        BackgroundMaskEditHistory& history =
-            m_backgroundMaskEditHistories[EditHistoryKey{*frameIndex, resolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
         return;
     }
 
-    statusBar()->showMessage(statusText, 2500);
+    statusBar()->showMessage(
+        frameIndices.size() > 1
+            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
+            : statusText,
+        2500);
 }
 
 void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
@@ -2179,6 +2257,7 @@ void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
     if (!m_document || pixels.empty()) {
         return;
     }
+    const uint16_t drawColor = m_activeDrawColor;
     const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
     if (!backgroundIndex) {
         statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
@@ -2197,14 +2276,14 @@ void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
             }
             const uint16_t oldColor =
                 m_document->backgroundPixel(*backgroundIndex, resolution, pixel.x, pixel.y);
-            if (oldColor == m_activeDrawColor) {
+            if (oldColor == drawColor) {
                 continue;
             }
             command.changes.push_back(PixelChange{
                 pixel.x,
                 pixel.y,
                 oldColor,
-                m_activeDrawColor,
+                drawColor,
             });
         }
         if (command.changes.empty()) {
