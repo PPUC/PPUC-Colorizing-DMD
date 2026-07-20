@@ -310,6 +310,7 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
     const bool drawOriginal = region.region == render::CanvasRegion::OriginalFrame;
     const document::IndexedFrame* original = nullptr;
     const document::Rgb565Frame* colorized = nullptr;
+    std::optional<document::Rgb565Frame> composedColorized;
     const bool drawBackgroundImage =
         !drawOriginal && m_showBackgroundImageEditMode;
 
@@ -327,6 +328,12 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
             } catch (const std::exception&) {
                 colorized = nullptr;
             }
+        } else {
+            composedColorized = composeResolvedFrame(*m_document,
+                                                     m_frameIndex,
+                                                     region.resolution,
+                                                     m_showBackgroundLayer);
+            colorized = &*composedColorized;
         }
     }
 
@@ -343,14 +350,7 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                 const std::size_t index =
                     static_cast<std::size_t>(y) * static_cast<std::size_t>(colorized->size.width) +
                     static_cast<std::size_t>(x);
-                color = drawBackgroundImage
-                            ? rgb565ToColor(colorized->pixels[index])
-                            : rgb565ToColor(resolvedFramePixel(*m_document,
-                                                               m_frameIndex,
-                                                               region.resolution,
-                                                               x,
-                                                               y,
-                                                               m_showBackgroundLayer));
+                color = rgb565ToColor(colorized->pixels[index]);
             } else {
                 color = QColor(0, 0, 0);
             }

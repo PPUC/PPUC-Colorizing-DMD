@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <vector>
 #include <QPainter>
 
 namespace colorizing::app {
@@ -31,6 +33,217 @@ render::Point originalPointForResolution(render::Resolution resolution, int x, i
 double clampedPixelCoverage(DmdRenderOptions options)
 {
     return std::clamp(options.pixelCoverage, 0.1, 1.0);
+}
+
+struct SpriteMatch {
+    std::size_t spriteIndex = 0;
+    int frameX = 0;
+    int frameY = 0;
+    int spriteX = 0;
+    int spriteY = 0;
+    int width = 0;
+    int height = 0;
+};
+
+render::Size spriteVisibleSize(const document::SpriteRecord& sprite)
+{
+    render::Size size{0, 0};
+    for (int y = 0; y < sprite.originalSd.size.height; ++y) {
+        for (int x = 0; x < sprite.originalSd.size.width; ++x) {
+            if (sprite.originalSd.pixels[indexedPixelIndex(sprite.originalSd, x, y)] < 255) {
+                size.width = std::max(size.width, x + 1);
+                size.height = std::max(size.height, y + 1);
+            }
+        }
+    }
+    return size;
+}
+
+uint32_t originalDwordAt(const document::IndexedFrame& original, int x, int y)
+{
+    return static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x, y)]) |
+           (static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x + 1, y)]) << 8) |
+           (static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x + 2, y)]) << 16) |
+           (static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x + 3, y)]) << 24);
+}
+
+bool spriteDetectionAreaMatches(const document::IndexedFrame& original,
+                                const document::SpriteRecord& sprite,
+                                const document::SpriteDetectionArea& area,
+                                int frameX,
+                                int frameY)
+{
+    for (int y = 0; y < static_cast<int>(area.height); ++y) {
+        for (int x = 0; x < static_cast<int>(area.width); ++x) {
+            const int spriteX = static_cast<int>(area.x) + x;
+            const int spriteY = static_cast<int>(area.y) + y;
+            const uint8_t spriteValue =
+                sprite.originalSd.pixels[indexedPixelIndex(sprite.originalSd, spriteX, spriteY)];
+            if (spriteValue == 255) {
+                continue;
+            }
+            const int originalX = frameX + x;
+            const int originalY = frameY + y;
+            if (originalX < 0 || originalY < 0 ||
+                originalX >= original.size.width || originalY >= original.size.height ||
+                spriteValue !=
+                    original.pixels[indexedPixelIndex(original, originalX, originalY)]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool hasEquivalentSpriteMatch(const std::vector<SpriteMatch>& matches, const SpriteMatch& match)
+{
+    return std::any_of(matches.begin(), matches.end(), [&](const SpriteMatch& existing) {
+        return existing.spriteIndex == match.spriteIndex &&
+               existing.frameX == match.frameX &&
+               existing.frameY == match.frameY &&
+               existing.width == match.width &&
+               existing.height == match.height;
+    });
+}
+
+std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& document,
+                                           std::size_t frameIndex)
+{
+    std::vector<SpriteMatch> matches;
+    const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    const std::vector<document::FrameSpriteReference>& references =
+        document.frameSpriteReferences(frameIndex);
+    for (const document::FrameSpriteReference& reference : references) {
+        if (reference.spriteId == 255 ||
+            reference.spriteId >= document.spriteCount()) {
+            continue;
+        }
+        const document::SpriteRecord& sprite = document.sprite(reference.spriteId);
+        const render::Size visibleSize = spriteVisibleSize(sprite);
+        if (visibleSize.width <= 0 || visibleSize.height <= 0) {
+            continue;
+        }
+        const int minX = std::clamp(static_cast<int>(reference.minX), 0, original.size.width - 1);
+        const int minY = std::clamp(static_cast<int>(reference.minY), 0, original.size.height - 1);
+        const int maxX = std::clamp(static_cast<int>(reference.maxX), minX, original.size.width - 1);
+        const int maxY = std::clamp(static_cast<int>(reference.maxY), minY, original.size.height - 1);
+        if (maxX - minX + 1 < 4) {
+            continue;
+        }
+
+        for (std::size_t areaIndex = 0; areaIndex < sprite.detectionAreas.size(); ++areaIndex) {
+            const document::SpriteDetectionArea& area = sprite.detectionAreas[areaIndex];
+            if (area.x == 0xffff || area.y == 0xffff ||
+                area.width == 0xffff || area.height == 0xffff ||
+                area.width == 0 || area.height == 0 ||
+                areaIndex >= sprite.detectionDwords.size() ||
+                areaIndex >= sprite.detectionDwordPositions.size()) {
+                continue;
+            }
+            for (int y = minY; y <= maxY; ++y) {
+                for (int x = minX; x <= maxX - 3; ++x) {
+                    if (originalDwordAt(original, x, y) != sprite.detectionDwords[areaIndex]) {
+                        continue;
+                    }
+
+                    const int spriteDwordPosition =
+                        static_cast<int>(sprite.detectionDwordPositions[areaIndex]);
+                    const int spriteDwordX =
+                        spriteDwordPosition % static_cast<int>(document::kMaxSpriteWidth);
+                    const int spriteDwordY =
+                        spriteDwordPosition / static_cast<int>(document::kMaxSpriteWidth);
+                    const int areaX = static_cast<int>(area.x);
+                    const int areaY = static_cast<int>(area.y);
+                    const int areaWidth = static_cast<int>(area.width);
+                    const int areaHeight = static_cast<int>(area.height);
+                    if ((x - minX < spriteDwordX - areaX) ||
+                        (y - minY < spriteDwordY - areaY)) {
+                        continue;
+                    }
+
+                    const int areaFrameX = x - spriteDwordX + areaX;
+                    const int areaFrameY = y - spriteDwordY + areaY;
+                    if (areaFrameX + areaWidth > maxX ||
+                        areaFrameY + areaHeight > maxY ||
+                        !spriteDetectionAreaMatches(original,
+                                                    sprite,
+                                                    area,
+                                                    areaFrameX,
+                                                    areaFrameY)) {
+                        continue;
+                    }
+
+                    SpriteMatch match;
+                    match.spriteIndex = reference.spriteId;
+                    if (x - minX < spriteDwordX) {
+                        match.spriteX = spriteDwordX - (x - minX);
+                        match.frameX = minX;
+                        match.width = std::min(maxX - minX + 1,
+                                               visibleSize.width - match.spriteX);
+                    } else {
+                        match.spriteX = 0;
+                        match.frameX = x - spriteDwordX;
+                        match.width = std::min(maxX + 1 - match.frameX,
+                                               visibleSize.width);
+                    }
+                    if (y - minY < spriteDwordY) {
+                        match.spriteY = spriteDwordY - (y - minY);
+                        match.frameY = minY;
+                        match.height = std::min(maxY - minY + 1,
+                                                visibleSize.height - match.spriteY);
+                    } else {
+                        match.spriteY = 0;
+                        match.frameY = y - spriteDwordY;
+                        match.height = std::min(maxY + 1 - match.frameY,
+                                                visibleSize.height);
+                    }
+
+                    if (match.width > 0 && match.height > 0 &&
+                        !hasEquivalentSpriteMatch(matches, match)) {
+                        matches.push_back(match);
+                    }
+                }
+            }
+        }
+    }
+    return matches;
+}
+
+void applySpriteMatch(document::Rgb565Frame& frame,
+                      const document::SpriteRecord& sprite,
+                      const SpriteMatch& match,
+                      render::Resolution resolution)
+{
+    const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+    const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
+    const document::Rgb565Frame& colors = useHd ? sprite.colorizedHd : sprite.colorizedSd;
+    const int factor = resolution == render::Resolution::Hd ? 2 : 1;
+    const int targetX = match.frameX * factor;
+    const int targetY = match.frameY * factor;
+    const int sourceX = match.spriteX * factor;
+    const int sourceY = match.spriteY * factor;
+    const int width = match.width * factor;
+    const int height = match.height * factor;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int frameX = targetX + x;
+            const int frameY = targetY + y;
+            const int spriteX = sourceX + x;
+            const int spriteY = sourceY + y;
+            if (frameX < 0 || frameY < 0 ||
+                frameX >= frame.size.width || frameY >= frame.size.height ||
+                spriteX < 0 || spriteY < 0 ||
+                spriteX >= mask.size.width || spriteY >= mask.size.height) {
+                continue;
+            }
+            const std::size_t spriteIndex = indexedPixelIndex(mask, spriteX, spriteY);
+            if (mask.pixels[spriteIndex] == 255) {
+                continue;
+            }
+            frame.pixels[rgb565PixelIndex(frame, frameX, frameY)] =
+                colors.pixels[rgb565PixelIndex(colors, spriteX, spriteY)];
+        }
+    }
 }
 
 }  // namespace
@@ -121,6 +334,34 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                          static_cast<std::size_t>(originalValue)];
 }
 
+document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& document,
+                                           std::size_t frameIndex,
+                                           render::Resolution resolution,
+                                           bool includeBackgroundLayer)
+{
+    const document::Rgb565Frame& source = document.colorizedFrame(frameIndex, resolution);
+    document::Rgb565Frame frame = document::makeRgb565Frame(source.size);
+    for (int y = 0; y < source.size.height; ++y) {
+        for (int x = 0; x < source.size.width; ++x) {
+            frame.pixels[rgb565PixelIndex(frame, x, y)] =
+                resolvedFramePixel(document,
+                                   frameIndex,
+                                   resolution,
+                                   x,
+                                   y,
+                                   includeBackgroundLayer);
+        }
+    }
+
+    const std::vector<SpriteMatch> matches = matchFrameSprites(document, frameIndex);
+    for (const SpriteMatch& match : matches) {
+        if (match.spriteIndex < document.spriteCount()) {
+            applySpriteMatch(frame, document.sprite(match.spriteIndex), match, resolution);
+        }
+    }
+    return frame;
+}
+
 void paintDmdPixel(QPainter& painter,
                    double x,
                    double y,
@@ -195,7 +436,8 @@ QImage renderResolvedFrameImage(const document::ProjectDocument& document,
                                 bool includeBackgroundLayer,
                                 DmdRenderOptions options)
 {
-    const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, resolution);
+    const document::Rgb565Frame frame =
+        composeResolvedFrame(document, frameIndex, resolution, includeBackgroundLayer);
     const int scale = std::max(1, pixelScale);
     QImage image(frame.size.width * scale, frame.size.height * scale, QImage::Format_ARGB32);
     image.fill(Qt::black);
@@ -205,16 +447,14 @@ QImage renderResolvedFrameImage(const document::ProjectDocument& document,
     painter.setPen(Qt::NoPen);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+                static_cast<std::size_t>(x);
             paintDmdPixel(painter,
                           x * scale,
                           y * scale,
                           scale,
-                          rgb565ToColor(resolvedFramePixel(document,
-                                                           frameIndex,
-                                                           resolution,
-                                                           x,
-                                                           y,
-                                                           includeBackgroundLayer)),
+                          rgb565ToColor(frame.pixels[index]),
                           options);
         }
     }

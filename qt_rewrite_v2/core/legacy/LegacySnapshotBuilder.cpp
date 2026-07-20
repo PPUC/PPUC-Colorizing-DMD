@@ -32,7 +32,8 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
         cromFrameData.comparisonMaskIds.size() != frameCount ||
         cromFrameData.extraFrameFlags.size() != frameCount ||
         cromFrameData.dynamicFrames.size() != frameCount ||
-        cromFrameData.frameBackgrounds.size() != frameCount) {
+        cromFrameData.frameBackgrounds.size() != frameCount ||
+        cromFrameData.frameSpriteReferences.size() != frameCount) {
         return fail("cROM and cRP frame counts do not match");
     }
 
@@ -40,6 +41,7 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
     snapshot.romName = cromFrameData.metadata.romName;
     snapshot.comparisonMasks = cromFrameData.comparisonMasks;
     snapshot.backgrounds = cromFrameData.backgrounds;
+    snapshot.sprites = cromFrameData.sprites;
     snapshot.frames.reserve(frameCount);
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         snapshot.frames.push_back(document::ProjectFrameSnapshot{
@@ -50,6 +52,7 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
             cromFrameData.comparisonMaskIds[frameIndex],
             cromFrameData.dynamicFrames[frameIndex],
             cromFrameData.frameBackgrounds[frameIndex],
+            cromFrameData.frameSpriteReferences[frameIndex],
         });
     }
 

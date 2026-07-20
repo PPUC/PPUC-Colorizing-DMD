@@ -186,6 +186,71 @@ colorizing::document::ProjectDocument makeDynamicOverBackgroundDocument()
     return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
 
+colorizing::document::ProjectDocument makeSpriteCompositionDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_composition";
+
+    colorizing::document::IndexedFrame original =
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
+    original.pixels[5 * colorizing::render::kSdFrameSize.width + 10] = 1;
+    original.pixels[5 * colorizing::render::kSdFrameSize.width + 11] = 2;
+    original.pixels[5 * colorizing::render::kSdFrameSize.width + 12] = 3;
+    original.pixels[5 * colorizing::render::kSdFrameSize.width + 13] = 0;
+
+    colorizing::document::SpriteRecord sprite;
+    sprite.hasHd = true;
+    sprite.originalSd = colorizing::document::makeIndexedFrame(
+        {static_cast<int>(colorizing::document::kMaxSpriteWidth),
+         static_cast<int>(colorizing::document::kMaxSpriteHeight)},
+        255);
+    sprite.colorizedSd = colorizing::document::makeRgb565Frame(
+        {static_cast<int>(colorizing::document::kMaxSpriteWidth),
+         static_cast<int>(colorizing::document::kMaxSpriteHeight)},
+        0);
+    sprite.maskHd = colorizing::document::makeIndexedFrame(
+        {static_cast<int>(colorizing::document::kMaxSpriteWidth),
+         static_cast<int>(colorizing::document::kMaxSpriteHeight)},
+        255);
+    sprite.colorizedHd = colorizing::document::makeRgb565Frame(
+        {static_cast<int>(colorizing::document::kMaxSpriteWidth),
+         static_cast<int>(colorizing::document::kMaxSpriteHeight)},
+        0);
+    for (int x = 0; x < 4; ++x) {
+        sprite.originalSd.pixels[static_cast<std::size_t>(x)] =
+            static_cast<uint8_t>(x == 3 ? 0 : x + 1);
+        sprite.colorizedSd.pixels[static_cast<std::size_t>(x)] = 0xf800;
+    }
+    for (int x = 0; x < 8; ++x) {
+        sprite.maskHd.pixels[static_cast<std::size_t>(x)] = 0;
+        sprite.colorizedHd.pixels[static_cast<std::size_t>(x)] = 0x07e0;
+    }
+    sprite.detectionDwords = {0x00030201, 0xffffffff, 0xffffffff, 0xffffffff};
+    sprite.detectionDwordPositions = {0, 0xffff, 0xffff, 0xffff};
+    sprite.detectionAreas = {
+        colorizing::document::SpriteDetectionArea{0, 0, 4, 1},
+        colorizing::document::SpriteDetectionArea{},
+        colorizing::document::SpriteDetectionArea{},
+        colorizing::document::SpriteDetectionArea{},
+    };
+    snapshot.sprites.push_back(sprite);
+
+    std::vector<colorizing::document::FrameSpriteReference> spriteReferences(
+        colorizing::document::kMaxSpritesPerFrame);
+    spriteReferences[0] = colorizing::document::FrameSpriteReference{0, 0, 0, 127, 31};
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        original,
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        std::nullopt,
+        std::nullopt,
+        spriteReferences,
+    });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
 bool hasNonBackgroundPixel(const QImage& image)
 {
     const QRgb first = image.pixel(0, 0);
@@ -694,6 +759,36 @@ void testDynamicDoesNotReplaceAppliedBackground()
            "HD non-background dynamic pixels should still use dynamic color set");
 }
 
+void testSpriteCompositionRendersInSdAndHd()
+{
+    colorizing::document::ProjectDocument document = makeSpriteCompositionDocument();
+    expect(document.spriteCount() == 1, "sprite composition fixture should have one sprite");
+
+    const colorizing::document::Rgb565Frame sdComposed =
+        colorizing::app::composeResolvedFrame(document,
+                                              0,
+                                              colorizing::render::Resolution::Sd,
+                                              false);
+    expect(sdComposed.pixels[5 * colorizing::render::kSdFrameSize.width + 10] == 0xf800,
+           "SD composed frame should contain matched sprite pixel");
+
+    const QImage sdImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Sd,
+        2,
+        false);
+    expect(hasVisibleRedPixel(sdImage), "SD composed preview should render matched sprites");
+
+    const QImage hdImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Hd,
+        2,
+        false);
+    expect(hasVisibleGreenPixel(hdImage), "HD composed preview should render matched sprites");
+}
+
 void testBackgroundImageEditModeRendersInSdAndHd()
 {
     colorizing::document::ProjectDocument document = makeBackgroundPreviewDocument();
@@ -758,6 +853,7 @@ int main(int argc, char* argv[])
     testBackgroundMaskOverlayRendersInSdAndHd();
     testBackgroundLayerRendersInSdAndHd();
     testDynamicDoesNotReplaceAppliedBackground();
+    testSpriteCompositionRendersInSdAndHd();
     testBackgroundImageEditModeRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";

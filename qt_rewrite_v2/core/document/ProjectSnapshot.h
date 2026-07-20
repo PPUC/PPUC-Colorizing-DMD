@@ -16,6 +16,7 @@ struct ProjectFrameSnapshot {
     uint8_t comparisonMaskId = 0;
     std::optional<FrameDynamicData> dynamicData;
     std::optional<FrameBackgroundData> backgroundData;
+    std::vector<FrameSpriteReference> spriteReferences;
 };
 
 struct ProjectSnapshot {
@@ -23,6 +24,7 @@ struct ProjectSnapshot {
     std::vector<ProjectFrameSnapshot> frames;
     std::vector<IndexedFrame> comparisonMasks;
     std::vector<BackgroundRecord> backgrounds;
+    std::vector<SpriteRecord> sprites;
     std::vector<UnsupportedLegacyPayload> unsupportedPayloads;
 };
 

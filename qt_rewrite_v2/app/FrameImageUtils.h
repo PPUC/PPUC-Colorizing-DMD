@@ -27,6 +27,11 @@ struct DmdRenderOptions {
                                           int x,
                                           int y,
                                           bool includeBackgroundLayer);
+[[nodiscard]] document::Rgb565Frame composeResolvedFrame(
+    const document::ProjectDocument& document,
+    std::size_t frameIndex,
+    render::Resolution resolution,
+    bool includeBackgroundLayer);
 void paintDmdPixel(QPainter& painter,
                    double x,
                    double y,

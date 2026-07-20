@@ -20,6 +20,8 @@ struct LegacyCromFrameData {
     std::vector<document::Rgb565Frame> colorizedSdFrames;
     std::vector<document::Rgb565Frame> colorizedHdFrames;
     std::vector<document::FrameDynamicData> dynamicFrames;
+    std::vector<document::SpriteRecord> sprites;
+    std::vector<std::vector<document::FrameSpriteReference>> frameSpriteReferences;
     std::vector<uint8_t> extraBackgroundFlags;
     std::vector<document::BackgroundRecord> backgrounds;
     std::vector<document::FrameBackgroundData> frameBackgrounds;
@@ -33,6 +35,16 @@ struct LegacyCromFrameData {
     std::size_t dynamicMasksHdOffset = 0;
     std::size_t dynamicColorsSdOffset = 0;
     std::size_t dynamicColorsHdOffset = 0;
+    std::size_t extraSpriteFlagsOffset = 0;
+    std::size_t frameSpritesOffset = 0;
+    std::size_t spriteOriginalsOffset = 0;
+    std::size_t spriteColorsSdOffset = 0;
+    std::size_t spriteMasksHdOffset = 0;
+    std::size_t spriteColorsHdOffset = 0;
+    std::size_t spriteDetectionDwordsOffset = 0;
+    std::size_t spriteDetectionDwordPositionsOffset = 0;
+    std::size_t spriteDetectionAreasOffset = 0;
+    std::size_t frameSpriteBoundingBoxesOffset = 0;
     std::size_t extraBackgroundFlagsOffset = 0;
     std::size_t backgroundFramesSdOffset = 0;
     std::size_t backgroundFramesHdOffset = 0;

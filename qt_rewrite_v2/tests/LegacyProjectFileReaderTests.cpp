@@ -31,8 +31,13 @@ constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
 constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kSpriteCount = 1;
+constexpr std::size_t kMaxSpriteWidth = 256;
+constexpr std::size_t kMaxSpriteHeight = 64;
+constexpr std::size_t kSpritePixels = kMaxSpriteWidth * kMaxSpriteHeight;
 constexpr std::size_t kMaxColorRotations = 4;
 constexpr std::size_t kMaxColorRotationLength = 64;
+constexpr std::size_t kMaxSpriteDetectAreas = 4;
 
 void fail(const std::string& message)
 {
@@ -91,12 +96,32 @@ void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t co
 
 void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
 {
-    appendRepeatedU8(bytes, 255, 2 * kMaxSpritesPerFrame);
+    bytes.push_back(1);
+    bytes.push_back(0);
+    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame - 1);
+    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 9, kSpritePixels);
+    appendRepeatedU16(bytes, 0x7001, kSpritePixels);
+    appendRepeatedU8(bytes, 10, kSpritePixels);
+    appendRepeatedU16(bytes, 0x8001, kSpritePixels);
     appendRepeatedU8(bytes, 1, 2);
     appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
     appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendU32(bytes, 0x12345678);
+    appendRepeatedU32(bytes, 0xffffffff, kMaxSpriteDetectAreas - 1);
+    appendU16(bytes, 12);
+    appendRepeatedU16(bytes, 0xffff, kMaxSpriteDetectAreas - 1);
+    appendU16(bytes, 1);
+    appendU16(bytes, 2);
+    appendU16(bytes, 3);
+    appendU16(bytes, 4);
+    appendRepeatedU16(bytes, 0xffff, (kMaxSpriteDetectAreas - 1) * 4);
     appendRepeatedU32(bytes, 0xffffffff, 2);
-    appendRepeatedU16(bytes, 0xffff, 2 * kMaxSpritesPerFrame * 4);
+    appendU16(bytes, 5);
+    appendU16(bytes, 6);
+    appendU16(bytes, 7);
+    appendU16(bytes, 8);
+    appendRepeatedU16(bytes, 0xffff, (2 * kMaxSpritesPerFrame - 1) * 4);
 
     bytes.push_back(1);
     appendRepeatedU16(bytes, 0x5001, kSdPixels);
@@ -121,7 +146,7 @@ std::vector<uint8_t> makeModernCromWithFrames()
     appendU32(bytes, 2);
     appendU32(bytes, kColorCount);
     appendU32(bytes, 1);
-    appendU32(bytes, 0);
+    appendU32(bytes, kSpriteCount);
     appendU16(bytes, 1);
 
     appendU32(bytes, 0x11111111);
@@ -257,6 +282,26 @@ void testFileReaderLoadsModernProject()
            "file reader SD dynamic color data");
     expect(result.snapshot.frames[0].dynamicData->colorsHd.front() == 0x4001,
            "file reader HD dynamic color data");
+    expect(result.snapshot.sprites.size() == kSpriteCount,
+           "file reader sprite count");
+    expect(result.snapshot.sprites[0].hasHd,
+           "file reader sprite HD flag");
+    expect(result.snapshot.sprites[0].originalSd.pixels.front() == 9,
+           "file reader sprite original data");
+    expect(result.snapshot.sprites[0].colorizedSd.pixels.front() == 0x7001,
+           "file reader SD sprite color data");
+    expect(result.snapshot.sprites[0].maskHd.pixels.front() == 10,
+           "file reader HD sprite mask data");
+    expect(result.snapshot.sprites[0].colorizedHd.pixels.front() == 0x8001,
+           "file reader HD sprite color data");
+    expect(result.snapshot.sprites[0].detectionDwords[0] == 0x12345678,
+           "file reader sprite detection dword data");
+    expect(result.snapshot.sprites[0].detectionAreas[0].height == 4,
+           "file reader sprite detection area data");
+    expect(result.snapshot.frames[0].spriteReferences[0].spriteId == 0,
+           "file reader frame sprite assignment data");
+    expect(result.snapshot.frames[0].spriteReferences[0].maxY == 8,
+           "file reader frame sprite bounding box data");
     expect(result.snapshot.backgrounds.size() == 1,
            "file reader background count");
     expect(result.snapshot.backgrounds[0].colorizedSd.pixels.front() == 0x5001,
@@ -335,6 +380,16 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] = 6;
     loadResult.snapshot.frames[0].dynamicData->colorsSd[10] = 0x7777;
     loadResult.snapshot.frames[0].dynamicData->colorsHd[11] = 0x8888;
+    loadResult.snapshot.sprites[0].hasHd = false;
+    loadResult.snapshot.sprites[0].originalSd.pixels[16] = 11;
+    loadResult.snapshot.sprites[0].colorizedSd.pixels[17] = 0x7770;
+    loadResult.snapshot.sprites[0].maskHd.pixels[18] = 12;
+    loadResult.snapshot.sprites[0].colorizedHd.pixels[19] = 0x8880;
+    loadResult.snapshot.sprites[0].detectionDwords[1] = 0x87654321;
+    loadResult.snapshot.sprites[0].detectionDwordPositions[1] = 34;
+    loadResult.snapshot.sprites[0].detectionAreas[1] = {9, 10, 11, 12};
+    loadResult.snapshot.frames[0].spriteReferences[0].spriteId = 255;
+    loadResult.snapshot.frames[0].spriteReferences[1] = {0, 13, 14, 15, 16};
     loadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] = 0x9999;
     loadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] = 0xaaaa;
     loadResult.snapshot.frames[0].backgroundData->backgroundId = 0xffff;
@@ -378,6 +433,28 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update SD dynamic color sets");
     expect(reloadResult.snapshot.frames[0].dynamicData->colorsHd[11] == 0x8888,
            "file writer should update HD dynamic color sets");
+    expect(!reloadResult.snapshot.sprites[0].hasHd,
+           "file writer should update sprite HD flag");
+    expect(reloadResult.snapshot.sprites[0].originalSd.pixels[16] == 11,
+           "file writer should update sprite original pixels");
+    expect(reloadResult.snapshot.sprites[0].colorizedSd.pixels[17] == 0x7770,
+           "file writer should update SD sprite pixels");
+    expect(reloadResult.snapshot.sprites[0].maskHd.pixels[18] == 12,
+           "file writer should update HD sprite mask pixels");
+    expect(reloadResult.snapshot.sprites[0].colorizedHd.pixels[19] == 0x8880,
+           "file writer should update HD sprite pixels");
+    expect(reloadResult.snapshot.sprites[0].detectionDwords[1] == 0x87654321,
+           "file writer should update sprite detection dwords");
+    expect(reloadResult.snapshot.sprites[0].detectionDwordPositions[1] == 34,
+           "file writer should update sprite detection dword positions");
+    expect(reloadResult.snapshot.sprites[0].detectionAreas[1].width == 11,
+           "file writer should update sprite detection areas");
+    expect(reloadResult.snapshot.frames[0].spriteReferences[0].spriteId == 255,
+           "file writer should update frame sprite assignment removals");
+    expect(reloadResult.snapshot.frames[0].spriteReferences[1].spriteId == 0,
+           "file writer should update frame sprite assignment additions");
+    expect(reloadResult.snapshot.frames[0].spriteReferences[1].maxY == 16,
+           "file writer should update frame sprite bounding boxes");
     expect(reloadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] == 0x9999,
            "file writer should update SD background pixels");
     expect(reloadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] == 0xaaaa,

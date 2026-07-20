@@ -30,6 +30,10 @@ struct IndexedFrame {
 };
 
 constexpr std::size_t kMaxDynamicSetsPerFrame = 32;
+constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kMaxSpriteWidth = 256;
+constexpr std::size_t kMaxSpriteHeight = 64;
+constexpr std::size_t kMaxSpriteDetectAreas = 4;
 
 struct FrameDynamicData {
     IndexedFrame maskSd;
@@ -49,6 +53,32 @@ struct FrameBackgroundData {
     IndexedFrame maskHd;
 };
 
+struct SpriteDetectionArea {
+    uint16_t x = 0xffff;
+    uint16_t y = 0xffff;
+    uint16_t width = 0xffff;
+    uint16_t height = 0xffff;
+};
+
+struct SpriteRecord {
+    bool hasHd = false;
+    IndexedFrame originalSd;
+    Rgb565Frame colorizedSd;
+    IndexedFrame maskHd;
+    Rgb565Frame colorizedHd;
+    std::vector<uint32_t> detectionDwords;
+    std::vector<uint16_t> detectionDwordPositions;
+    std::vector<SpriteDetectionArea> detectionAreas;
+};
+
+struct FrameSpriteReference {
+    uint8_t spriteId = 255;
+    uint16_t minX = 0;
+    uint16_t minY = 0;
+    uint16_t maxX = 0;
+    uint16_t maxY = 0;
+};
+
 struct FrameRecord {
     IndexedFrame originalSd;
     Rgb565Frame colorizedSd;
@@ -57,6 +87,7 @@ struct FrameRecord {
     uint8_t comparisonMaskId = 0;
     std::optional<FrameDynamicData> dynamicData;
     std::optional<FrameBackgroundData> backgroundData;
+    std::vector<FrameSpriteReference> spriteReferences;
 };
 
 struct UnsupportedLegacyPayload {
@@ -148,6 +179,11 @@ public:
                                 int y,
                                 uint8_t value);
 
+    [[nodiscard]] std::size_t spriteCount() const;
+    [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
+    [[nodiscard]] const std::vector<FrameSpriteReference>& frameSpriteReferences(
+        std::size_t frameIndex) const;
+
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,
                            int x,
@@ -167,6 +203,7 @@ private:
     std::vector<FrameRecord> m_frames;
     std::vector<IndexedFrame> m_comparisonMasks;
     std::vector<BackgroundRecord> m_backgrounds;
+    std::vector<SpriteRecord> m_sprites;
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     bool m_dirty = false;
 };

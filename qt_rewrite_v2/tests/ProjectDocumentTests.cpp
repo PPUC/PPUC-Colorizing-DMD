@@ -17,6 +17,8 @@ using colorizing::document::ProjectSnapshot;
 using colorizing::document::BackgroundRecord;
 using colorizing::document::FrameDynamicData;
 using colorizing::document::FrameBackgroundData;
+using colorizing::document::FrameSpriteReference;
+using colorizing::document::SpriteRecord;
 using colorizing::document::UnsupportedLegacyPayload;
 using colorizing::document::isValidProjectSnapshot;
 using colorizing::document::kMaxDynamicSetsPerFrame;
@@ -218,6 +220,22 @@ void testSnapshotValidationAndRoundTrip()
         makeRgb565Frame(colorizing::render::kSdFrameSize, 0x5050),
         makeRgb565Frame(colorizing::render::kHdFrameSize, 0x6060),
     });
+    SpriteRecord sprite{
+        true,
+        makeIndexedFrame({256, 64}, 9),
+        makeRgb565Frame({256, 64}, 0x7070),
+        makeIndexedFrame({256, 64}, 10),
+        makeRgb565Frame({256, 64}, 0x8080),
+        {0x12345678, 0xffffffff, 0xffffffff, 0xffffffff},
+        {12, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{1, 2, 3, 4},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    };
+    snapshot.sprites.push_back(sprite);
+    snapshot.frames[0].spriteReferences.assign(32, FrameSpriteReference{});
+    snapshot.frames[0].spriteReferences[0] = FrameSpriteReference{0, 5, 6, 7, 8};
     snapshot.unsupportedPayloads.push_back(UnsupportedLegacyPayload{"opaque", {9}});
 
     std::string errorMessage;
@@ -260,6 +278,20 @@ void testSnapshotValidationAndRoundTrip()
            "snapshot SD background image round-trip");
     expect(roundTrip.backgrounds[0].colorizedHd->pixels.front() == 0x6060,
            "snapshot HD background image round-trip");
+    expect(roundTrip.sprites.size() == 1, "snapshot sprite count round-trip");
+    expect(roundTrip.sprites[0].hasHd, "snapshot sprite HD flag round-trip");
+    expect(roundTrip.sprites[0].originalSd.pixels.front() == 9,
+           "snapshot sprite original data round-trip");
+    expect(roundTrip.sprites[0].colorizedSd.pixels.front() == 0x7070,
+           "snapshot SD sprite color data round-trip");
+    expect(roundTrip.sprites[0].maskHd.pixels.front() == 10,
+           "snapshot HD sprite mask data round-trip");
+    expect(roundTrip.sprites[0].colorizedHd.pixels.front() == 0x8080,
+           "snapshot HD sprite color data round-trip");
+    expect(roundTrip.sprites[0].detectionDwords[0] == 0x12345678,
+           "snapshot sprite detection data round-trip");
+    expect(roundTrip.frames[0].spriteReferences[0].maxY == 8,
+           "snapshot frame sprite reference round-trip");
     expect(document.shapeComparisonMode(0) == 7,
            "document shape comparison mode accessor");
     expect(document.comparisonMaskId(0) == 5,
@@ -282,6 +314,12 @@ void testSnapshotValidationAndRoundTrip()
            "document background ID accessor");
     expect(document.backgroundMaskPixel(0, Resolution::Sd, 4, 0) == 6,
            "document SD background mask pixel accessor");
+    expect(document.spriteCount() == 1,
+           "document sprite count accessor");
+    expect(document.sprite(0).colorizedSd.pixels.front() == 0x7070,
+           "document sprite accessor");
+    expect(document.frameSpriteReferences(0)[0].spriteId == 0,
+           "document frame sprite reference accessor");
     expect(roundTrip.comparisonMasks.size() == 1, "snapshot comparison mask count round-trip");
     expect(roundTrip.comparisonMasks[0].pixels.front() == 3,
            "snapshot comparison mask data round-trip");

@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -25,6 +26,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPixmap>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSizePolicy>
@@ -78,6 +80,59 @@ uint16_t colorToRgb565(const QColor& color)
     const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
     const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
     return static_cast<uint16_t>((r << 11) | (g << 5) | b);
+}
+
+std::size_t spritePixelIndex(int x, int y)
+{
+    return static_cast<std::size_t>(y) * document::kMaxSpriteWidth +
+           static_cast<std::size_t>(x);
+}
+
+QImage renderSpriteOriginalPreviewImage(const document::SpriteRecord& sprite)
+{
+    QImage image(static_cast<int>(document::kMaxSpriteWidth),
+                 static_cast<int>(document::kMaxSpriteHeight),
+                 QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const uint8_t value = sprite.originalSd.pixels[spritePixelIndex(x, y)];
+            if (value == 255) {
+                continue;
+            }
+            image.setPixelColor(x, y, originalIndexToColor(value));
+        }
+    }
+    return image;
+}
+
+QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
+                                         render::Resolution resolution)
+{
+    const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+    const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
+    const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
+    QImage image(static_cast<int>(document::kMaxSpriteWidth),
+                 static_cast<int>(document::kMaxSpriteHeight),
+                 QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const std::size_t index = spritePixelIndex(x, y);
+            if (mask.pixels[index] == 255) {
+                continue;
+            }
+            image.setPixelColor(x, y, rgb565ToColor(colorized.pixels[index]));
+        }
+    }
+    return image;
+}
+
+QPixmap previewPixmap(const QImage& image, QSize targetSize)
+{
+    return QPixmap::fromImage(image.scaled(targetSize,
+                                           Qt::KeepAspectRatio,
+                                           Qt::FastTransformation));
 }
 
 QToolButton* makeToolButton(QWidget* parent,
@@ -359,6 +414,8 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::Background));
     m_frameFilterComboBox->addItem(QStringLiteral("With dynamic"),
                                    static_cast<int>(FrameFilter::Dynamic));
+    m_frameFilterComboBox->addItem(QStringLiteral("With sprites"),
+                                   static_cast<int>(FrameFilter::Sprites));
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new QListWidget(central);
     m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -447,6 +504,9 @@ void MainWindow::createCentralView()
     m_dmdPixelSizeSpinBox->setSingleStep(10);
     m_dmdPixelSizeSpinBox->setSuffix(QStringLiteral("%"));
     m_dmdPixelSizeSpinBox->setValue(100);
+    m_spriteComboBox = new QComboBox(central);
+    m_spriteComboBox->setToolTip(QStringLiteral("Loaded sprite preview"));
+    m_spriteComboBox->setEnabled(false);
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
@@ -531,6 +591,21 @@ void MainWindow::createCentralView()
             editDynamicColor(static_cast<std::size_t>(colorIndex));
         });
     }
+    auto* spritesTitle = new QLabel(QStringLiteral("Sprites"), inspector);
+    spritesTitle->setStyleSheet(QStringLiteral("font-weight: 600; margin-top: 10px;"));
+    m_frameSpritesLabel = new QLabel(QStringLiteral("No frame sprites"), inspector);
+    m_frameSpritesLabel->setWordWrap(true);
+    m_frameSpritesLabel->setMinimumHeight(28);
+    m_spriteOriginalPreviewLabel = new QLabel(inspector);
+    m_spriteOriginalPreviewLabel->setFixedSize(190, 48);
+    m_spriteOriginalPreviewLabel->setFrameShape(QFrame::Box);
+    m_spriteOriginalPreviewLabel->setAlignment(Qt::AlignCenter);
+    m_spriteOriginalPreviewLabel->setToolTip(QStringLiteral("Sprite original mask preview"));
+    m_spriteColorizedPreviewLabel = new QLabel(inspector);
+    m_spriteColorizedPreviewLabel->setFixedSize(190, 48);
+    m_spriteColorizedPreviewLabel->setFrameShape(QFrame::Box);
+    m_spriteColorizedPreviewLabel->setAlignment(Qt::AlignCenter);
+    m_spriteColorizedPreviewLabel->setToolTip(QStringLiteral("Sprite colorized preview"));
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addLayout(inspectorForm);
     inspectorLayout->addWidget(m_backgroundLayerButton);
@@ -540,6 +615,11 @@ void MainWindow::createCentralView()
     inspectorLayout->addLayout(hdButtonLayout);
     inspectorLayout->addWidget(dynamicColorsTitle);
     inspectorLayout->addLayout(dynamicColorsGrid);
+    inspectorLayout->addWidget(spritesTitle);
+    inspectorLayout->addWidget(m_spriteComboBox);
+    inspectorLayout->addWidget(m_frameSpritesLabel);
+    inspectorLayout->addWidget(m_spriteOriginalPreviewLabel);
+    inspectorLayout->addWidget(m_spriteColorizedPreviewLabel);
     inspectorLayout->addStretch(1);
     inspector->setMinimumWidth(180);
     inspector->setMaximumWidth(240);
@@ -645,6 +725,12 @@ void MainWindow::createCentralView()
             this,
             [this](int) {
                 updateDmdRenderOptions();
+            });
+    connect(m_spriteComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updateSpriteControls();
             });
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -1010,6 +1096,7 @@ void MainWindow::refreshProjectSummary()
         if (m_saveAction) {
             m_saveAction->setEnabled(false);
         }
+        updateSpriteControls();
         return;
     }
 
@@ -1017,6 +1104,7 @@ void MainWindow::refreshProjectSummary()
         m_frameFilterComboBox->setEnabled(true);
     }
     refreshFrameList(0);
+    updateSpriteControls();
     updateProjectHeaderStatus();
 }
 
@@ -1078,6 +1166,14 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     if (filter == FrameFilter::Dynamic) {
         return m_document->dynamicData(frameIndex).has_value();
     }
+    if (filter == FrameFilter::Sprites) {
+        const std::vector<document::FrameSpriteReference>& references =
+            m_document->frameSpriteReferences(frameIndex);
+        return std::any_of(references.begin(), references.end(),
+                           [](const document::FrameSpriteReference& reference) {
+                               return reference.spriteId != 255;
+                           });
+    }
     return true;
 }
 
@@ -1132,6 +1228,7 @@ void MainWindow::selectFrame(int)
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
         updateFrameMetadataControls();
+        updateSpriteControls();
         return;
     }
     m_preview->setFrameIndex(*frameIndex);
@@ -1145,6 +1242,7 @@ void MainWindow::selectFrame(int)
                                     ? QStringLiteral(" | %1 selected").arg(selectedCount)
                                     : QString()));
     updateFrameMetadataControls();
+    updateSpriteControls();
     updatePaintTargetMode();
     updateUndoRedoActions();
 }
@@ -1170,6 +1268,7 @@ void MainWindow::updateResolutionMode()
         m_preview->setActiveResolution(m_activeResolution);
     }
     updateDynamicColorControls();
+    updateSpriteControls();
     updateUndoRedoActions();
     updatePaintTargetMode();
 }
@@ -1521,6 +1620,86 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
         updateDynamicColorControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::updateSpriteControls()
+{
+    if (!m_spriteComboBox || !m_spriteOriginalPreviewLabel ||
+        !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel) {
+        return;
+    }
+
+    const QVariant previousSpriteData = m_spriteComboBox->currentData();
+    {
+        QSignalBlocker blocker(m_spriteComboBox);
+        m_spriteComboBox->clear();
+        if (m_document) {
+            for (std::size_t spriteIndex = 0; spriteIndex < m_document->spriteCount();
+                 ++spriteIndex) {
+                const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
+                m_spriteComboBox->addItem(
+                    QStringLiteral("Sprite %1%2")
+                        .arg(static_cast<int>(spriteIndex))
+                        .arg(sprite.hasHd ? QStringLiteral(" (HD)") : QString()),
+                    static_cast<int>(spriteIndex));
+            }
+        }
+
+        if (m_spriteComboBox->count() == 0) {
+            m_spriteComboBox->addItem(QStringLiteral("No sprites"), -1);
+            m_spriteComboBox->setCurrentIndex(0);
+        } else if (previousSpriteData.isValid()) {
+            const int previousIndex = m_spriteComboBox->findData(previousSpriteData);
+            m_spriteComboBox->setCurrentIndex(previousIndex >= 0 ? previousIndex : 0);
+        } else {
+            m_spriteComboBox->setCurrentIndex(0);
+        }
+    }
+    m_spriteComboBox->setEnabled(m_document && m_document->spriteCount() > 0);
+
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        m_frameSpritesLabel->setText(QStringLiteral("No frame sprites"));
+    } else {
+        const std::vector<document::FrameSpriteReference>& references =
+            m_document->frameSpriteReferences(*frameIndex);
+        QStringList assignedSprites;
+        for (std::size_t slot = 0; slot < references.size(); ++slot) {
+            const document::FrameSpriteReference& reference = references[slot];
+            if (reference.spriteId == 255) {
+                continue;
+            }
+            assignedSprites << QStringLiteral("%1: sprite %2 [%3,%4-%5,%6]")
+                                   .arg(static_cast<int>(slot))
+                                   .arg(static_cast<int>(reference.spriteId))
+                                   .arg(reference.minX)
+                                   .arg(reference.minY)
+                                   .arg(reference.maxX)
+                                   .arg(reference.maxY);
+        }
+        m_frameSpritesLabel->setText(
+            assignedSprites.isEmpty()
+                ? QStringLiteral("Current frame uses no sprites")
+                : assignedSprites.join(QStringLiteral("\n")));
+    }
+
+    const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    if (!m_document || spriteIndex < 0 ||
+        static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        m_spriteOriginalPreviewLabel->clear();
+        m_spriteOriginalPreviewLabel->setText(QStringLiteral("Original"));
+        m_spriteColorizedPreviewLabel->clear();
+        m_spriteColorizedPreviewLabel->setText(QStringLiteral("Colorized"));
+        return;
+    }
+
+    const document::SpriteRecord& sprite =
+        m_document->sprite(static_cast<std::size_t>(spriteIndex));
+    const QSize previewSize = m_spriteOriginalPreviewLabel->size();
+    m_spriteOriginalPreviewLabel->setPixmap(
+        previewPixmap(renderSpriteOriginalPreviewImage(sprite), previewSize));
+    m_spriteColorizedPreviewLabel->setPixmap(
+        previewPixmap(renderSpriteColorizedPreviewImage(sprite, m_activeResolution), previewSize));
 }
 
 void MainWindow::updatePaintTargetMode()
@@ -3059,11 +3238,12 @@ void MainWindow::updateProjectHeaderStatus()
             ++hdCount;
         }
     }
-    setStatusText(QStringLiteral("%1: %2 frames, %3 HD, %4 backgrounds%5")
+    setStatusText(QStringLiteral("%1: %2 frames, %3 HD, %4 backgrounds, %5 sprites%6")
                       .arg(QString::fromStdString(m_document->romName()))
                       .arg(static_cast<int>(m_document->frameCount()))
                       .arg(hdCount)
                       .arg(static_cast<int>(m_document->backgroundCount()))
+                      .arg(static_cast<int>(m_document->spriteCount()))
                       .arg(m_document->isDirty() ? QStringLiteral(" (modified)") : QString()));
 }
 

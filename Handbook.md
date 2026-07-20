@@ -71,8 +71,8 @@ Frames with HD data are marked with `(HD)`.
 Selecting a frame updates the central canvas and the frame status line.
 
 The filter above the frame list can show all frames, only frames with HD data, frames with an
-assigned background, or frames with dynamic data. Editing still targets the real project frame
-number shown in the item label, not the visible row number.
+assigned background, frames with dynamic data, or frames with sprite assignments. Editing still
+targets the real project frame number shown in the item label, not the visible row number.
 
 The frame list supports native multi-selection. Frame drawing, comparison-mask drawing,
 dynamic-mask drawing, background-mask drawing, and background assignment apply to all selected
@@ -267,6 +267,29 @@ Rules:
 
 The current dynamic color editor is intentionally small. Broader palette tools are postponed until
 the palette UI is implemented.
+
+## Sprites
+
+Existing sprite data is loaded into the document model and saved back through the legacy `.cROM`
+layout without changing record counts or binary structure.
+
+Currently preserved sprite data includes:
+
+- Sprite original masks.
+- SD and HD sprite color images.
+- HD sprite masks.
+- Sprite detection dwords, positions, and areas.
+- Per-frame sprite assignments and bounding boxes.
+
+The Inspector has a read-only sprite browser:
+
+- The sprite selector lists loaded sprite records.
+- The first preview shows the sprite original mask.
+- The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
+- The current frame's sprite assignment slots and bounding boxes are shown as text.
+- Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
+
+Sprite editing and assignment UI are still pending.
 
 ## Backgrounds
 

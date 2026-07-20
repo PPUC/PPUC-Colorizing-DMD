@@ -61,6 +61,19 @@ public:
         return true;
     }
 
+    [[nodiscard]] bool readU32(uint32_t& out)
+    {
+        if (m_offset > m_size || kU32Bytes > m_size - m_offset) {
+            return false;
+        }
+        out = static_cast<uint32_t>(m_bytes[m_offset]) |
+              (static_cast<uint32_t>(m_bytes[m_offset + 1]) << 8) |
+              (static_cast<uint32_t>(m_bytes[m_offset + 2]) << 16) |
+              (static_cast<uint32_t>(m_bytes[m_offset + 3]) << 24);
+        m_offset += kU32Bytes;
+        return true;
+    }
+
 private:
     const uint8_t* m_bytes = nullptr;
     std::size_t m_size = 0;
@@ -121,6 +134,20 @@ bool readRgb565Values(Cursor& cursor,
 {
     for (uint16_t& value : values) {
         if (!cursor.readU16(value)) {
+            error = std::string("unexpected end of cROM while reading ") + fieldName;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool readU32Values(Cursor& cursor,
+                   std::vector<uint32_t>& values,
+                   const char* fieldName,
+                   std::string& error)
+{
+    for (uint32_t& value : values) {
+        if (!cursor.readU32(value)) {
             error = std::string("unexpected end of cROM while reading ") + fieldName;
             return false;
         }
@@ -265,13 +292,77 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
 
     const std::size_t spritePixels = kMaxSpriteWidth * kMaxSpriteHeight;
     const std::size_t spriteCount = metadata.spriteCount;
-    if (!skipRequired(cursor, spriteCount, "extra sprite flags", error) ||
-        !skipRequired(cursor, frameCount * kMaxSpritesPerFrame, "frame sprite assignments", error) ||
-        !skipRequired(cursor, spriteCount * spritePixels, "sprite originals", error) ||
-        !skipRequired(cursor, spriteCount * spritePixels * kRgb565Bytes, "SD sprite colors", error) ||
-        !skipRequired(cursor, spriteCount * spritePixels, "HD sprite masks", error) ||
-        !skipRequired(cursor, spriteCount * spritePixels * kRgb565Bytes, "HD sprite colors", error) ||
-        !skipRequired(cursor, frameCount, "active frame flags", error) ||
+    std::vector<uint8_t> extraSpriteFlags(spriteCount);
+    frameData.extraSpriteFlagsOffset = cursor.offset();
+    if (!cursor.readBytes(extraSpriteFlags.data(), extraSpriteFlags.size())) {
+        return fail("unexpected end of cROM while reading extra sprite flags");
+    }
+
+    frameData.frameSpriteReferences.assign(
+        frameCount,
+        std::vector<document::FrameSpriteReference>(kMaxSpritesPerFrame));
+    frameData.frameSpritesOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
+            uint8_t spriteId = 255;
+            if (!cursor.readBytes(&spriteId, 1)) {
+                return fail("unexpected end of cROM while reading frame sprite assignments");
+            }
+            frameData.frameSpriteReferences[frameIndex][spriteSlot].spriteId = spriteId;
+        }
+    }
+
+    frameData.sprites.resize(spriteCount);
+    frameData.spriteOriginalsOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
+        sprite.hasHd = spriteIndex < extraSpriteFlags.size() && extraSpriteFlags[spriteIndex] != 0;
+        sprite.originalSd =
+            document::makeIndexedFrame(render::Size{static_cast<int>(kMaxSpriteWidth),
+                                                    static_cast<int>(kMaxSpriteHeight)}, 255);
+        if (sprite.originalSd.pixels.size() != spritePixels ||
+            !readIndexedFrame(cursor, sprite.originalSd, "sprite originals", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.spriteColorsSdOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
+        sprite.colorizedSd =
+            document::makeRgb565Frame(render::Size{static_cast<int>(kMaxSpriteWidth),
+                                                   static_cast<int>(kMaxSpriteHeight)});
+        if (sprite.colorizedSd.pixels.size() != spritePixels ||
+            !readRgb565Frame(cursor, sprite.colorizedSd, "SD sprite colors", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.spriteMasksHdOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
+        sprite.maskHd =
+            document::makeIndexedFrame(render::Size{static_cast<int>(kMaxSpriteWidth),
+                                                    static_cast<int>(kMaxSpriteHeight)}, 255);
+        if (sprite.maskHd.pixels.size() != spritePixels ||
+            !readIndexedFrame(cursor, sprite.maskHd, "HD sprite masks", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.spriteColorsHdOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
+        sprite.colorizedHd =
+            document::makeRgb565Frame(render::Size{static_cast<int>(kMaxSpriteWidth),
+                                                   static_cast<int>(kMaxSpriteHeight)});
+        if (sprite.colorizedHd.pixels.size() != spritePixels ||
+            !readRgb565Frame(cursor, sprite.colorizedHd, "HD sprite colors", error)) {
+            return fail(error);
+        }
+    }
+
+    if (!skipRequired(cursor, frameCount, "active frame flags", error) ||
         !skipRequired(cursor,
                       frameCount * kMaxColorRotations * kMaxColorRotationLength * kRgb565Bytes,
                       "SD color rotations",
@@ -279,25 +370,59 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         !skipRequired(cursor,
                       frameCount * kMaxColorRotations * kMaxColorRotationLength * kRgb565Bytes,
                       "HD color rotations",
-                      error) ||
-        !skipRequired(cursor,
-                      spriteCount * kMaxSpriteDetectAreas * kU32Bytes,
-                      "sprite detection dwords",
-                      error) ||
-        !skipRequired(cursor,
-                      spriteCount * kMaxSpriteDetectAreas * kRgb565Bytes,
-                      "sprite detection dword positions",
-                      error) ||
-        !skipRequired(cursor,
-                      spriteCount * kMaxSpriteDetectAreas * 4 * kRgb565Bytes,
-                      "sprite detection areas",
-                      error) ||
-        !skipRequired(cursor, frameCount * kU32Bytes, "trigger IDs", error) ||
-        !skipRequired(cursor,
-                      frameCount * kMaxSpritesPerFrame * 4 * kRgb565Bytes,
-                      "frame sprite bounding boxes",
                       error)) {
         return fail(error);
+    }
+
+    frameData.spriteDetectionDwordsOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        std::vector<uint32_t>& dwords = frameData.sprites[spriteIndex].detectionDwords;
+        dwords.resize(kMaxSpriteDetectAreas);
+        if (!readU32Values(cursor, dwords, "sprite detection dwords", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.spriteDetectionDwordPositionsOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        std::vector<uint16_t>& positions =
+            frameData.sprites[spriteIndex].detectionDwordPositions;
+        positions.resize(kMaxSpriteDetectAreas);
+        if (!readRgb565Values(cursor,
+                              positions,
+                              "sprite detection dword positions",
+                              error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.spriteDetectionAreasOffset = cursor.offset();
+    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
+        std::vector<document::SpriteDetectionArea>& areas =
+            frameData.sprites[spriteIndex].detectionAreas;
+        areas.resize(kMaxSpriteDetectAreas);
+        for (document::SpriteDetectionArea& area : areas) {
+            if (!cursor.readU16(area.x) || !cursor.readU16(area.y) ||
+                !cursor.readU16(area.width) || !cursor.readU16(area.height)) {
+                return fail("unexpected end of cROM while reading sprite detection areas");
+            }
+        }
+    }
+
+    if (!skipRequired(cursor, frameCount * kU32Bytes, "trigger IDs", error)) {
+        return fail(error);
+    }
+
+    frameData.frameSpriteBoundingBoxesOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
+            document::FrameSpriteReference& reference =
+                frameData.frameSpriteReferences[frameIndex][spriteSlot];
+            if (!cursor.readU16(reference.minX) || !cursor.readU16(reference.minY) ||
+                !cursor.readU16(reference.maxX) || !cursor.readU16(reference.maxY)) {
+                return fail("unexpected end of cROM while reading frame sprite bounding boxes");
+            }
+        }
     }
 
     frameData.extraBackgroundFlags.resize(metadata.backgroundCount);

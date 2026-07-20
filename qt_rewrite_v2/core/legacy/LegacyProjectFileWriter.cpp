@@ -69,6 +69,14 @@ void writeU16(std::vector<uint8_t>& bytes, std::size_t offset, uint16_t value)
     bytes[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xff);
 }
 
+void writeU32(std::vector<uint8_t>& bytes, std::size_t offset, uint32_t value)
+{
+    bytes[offset] = static_cast<uint8_t>(value & 0xff);
+    bytes[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xff);
+    bytes[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xff);
+    bytes[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xff);
+}
+
 bool validateFrameShape(const document::Rgb565Frame& frame,
                         render::Size expectedSize,
                         const char* label,
@@ -115,6 +123,10 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
     }
     if (snapshot.backgrounds.size() != frameData.metadata.backgroundCount) {
         errorMessage = "snapshot background count does not match existing cROM";
+        return false;
+    }
+    if (snapshot.sprites.size() != frameData.metadata.spriteCount) {
+        errorMessage = "snapshot sprite count does not match existing cROM";
         return false;
     }
 
@@ -164,6 +176,10 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
                                        errorMessage)) {
             return false;
         }
+        if (frame.spriteReferences.size() != document::kMaxSpritesPerFrame) {
+            errorMessage = "frame sprite reference count does not match existing cROM";
+            return false;
+        }
     }
     for (const document::IndexedFrame& mask : snapshot.comparisonMasks) {
         if (mask.size.width != sdSize.width || mask.size.height != sdSize.height ||
@@ -179,6 +195,34 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
         }
         if (background.colorizedHd &&
             !validateFrameShape(*background.colorizedHd, hdSize, "HD background", errorMessage)) {
+            return false;
+        }
+    }
+    const render::Size spriteSize{static_cast<int>(document::kMaxSpriteWidth),
+                                  static_cast<int>(document::kMaxSpriteHeight)};
+    for (const document::SpriteRecord& sprite : snapshot.sprites) {
+        if (!validateIndexedFrameShape(sprite.originalSd,
+                                       spriteSize,
+                                       "sprite original",
+                                       errorMessage) ||
+            !validateFrameShape(sprite.colorizedSd,
+                                spriteSize,
+                                "SD sprite",
+                                errorMessage) ||
+            !validateIndexedFrameShape(sprite.maskHd,
+                                       spriteSize,
+                                       "HD sprite mask",
+                                       errorMessage) ||
+            !validateFrameShape(sprite.colorizedHd,
+                                spriteSize,
+                                "HD sprite",
+                                errorMessage)) {
+            return false;
+        }
+        if (sprite.detectionDwords.size() != document::kMaxSpriteDetectAreas ||
+            sprite.detectionDwordPositions.size() != document::kMaxSpriteDetectAreas ||
+            sprite.detectionAreas.size() != document::kMaxSpriteDetectAreas) {
+            errorMessage = "sprite detection metadata does not match existing cROM";
             return false;
         }
     }
@@ -290,6 +334,76 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
             cromFrames.frameData.dynamicColorsHdOffset +
             frameIndex * dynamicData.colorsHd.size() * sizeof(uint16_t);
         writeRgb565Values(bytes, hdColorsOffset, dynamicData.colorsHd);
+    }
+
+    const std::size_t spritePixels =
+        document::kMaxSpriteWidth * document::kMaxSpriteHeight;
+    for (std::size_t spriteIndex = 0; spriteIndex < snapshot.sprites.size(); ++spriteIndex) {
+        const document::SpriteRecord& sprite = snapshot.sprites[spriteIndex];
+        bytes[cromFrames.frameData.extraSpriteFlagsOffset + spriteIndex] =
+            sprite.hasHd ? uint8_t{1} : uint8_t{0};
+
+        writeIndexedFrame(bytes,
+                          cromFrames.frameData.spriteOriginalsOffset +
+                              spriteIndex * spritePixels,
+                          sprite.originalSd);
+        writeRgb565Frame(bytes,
+                         cromFrames.frameData.spriteColorsSdOffset +
+                             spriteIndex * spritePixels * sizeof(uint16_t),
+                         sprite.colorizedSd);
+        writeIndexedFrame(bytes,
+                          cromFrames.frameData.spriteMasksHdOffset +
+                              spriteIndex * spritePixels,
+                          sprite.maskHd);
+        writeRgb565Frame(bytes,
+                         cromFrames.frameData.spriteColorsHdOffset +
+                             spriteIndex * spritePixels * sizeof(uint16_t),
+                         sprite.colorizedHd);
+
+        for (std::size_t areaIndex = 0; areaIndex < document::kMaxSpriteDetectAreas;
+             ++areaIndex) {
+            writeU32(bytes,
+                     cromFrames.frameData.spriteDetectionDwordsOffset +
+                         (spriteIndex * document::kMaxSpriteDetectAreas + areaIndex) *
+                             sizeof(uint32_t),
+                     sprite.detectionDwords[areaIndex]);
+            writeU16(bytes,
+                     cromFrames.frameData.spriteDetectionDwordPositionsOffset +
+                         (spriteIndex * document::kMaxSpriteDetectAreas + areaIndex) *
+                             sizeof(uint16_t),
+                     sprite.detectionDwordPositions[areaIndex]);
+
+            const document::SpriteDetectionArea& area = sprite.detectionAreas[areaIndex];
+            const std::size_t areaOffset =
+                cromFrames.frameData.spriteDetectionAreasOffset +
+                (spriteIndex * document::kMaxSpriteDetectAreas * 4 + areaIndex * 4) *
+                    sizeof(uint16_t);
+            writeU16(bytes, areaOffset, area.x);
+            writeU16(bytes, areaOffset + sizeof(uint16_t), area.y);
+            writeU16(bytes, areaOffset + 2 * sizeof(uint16_t), area.width);
+            writeU16(bytes, areaOffset + 3 * sizeof(uint16_t), area.height);
+        }
+    }
+
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        const std::vector<document::FrameSpriteReference>& references =
+            snapshot.frames[frameIndex].spriteReferences;
+        for (std::size_t spriteSlot = 0; spriteSlot < document::kMaxSpritesPerFrame;
+             ++spriteSlot) {
+            const document::FrameSpriteReference& reference = references[spriteSlot];
+            bytes[cromFrames.frameData.frameSpritesOffset +
+                  frameIndex * document::kMaxSpritesPerFrame + spriteSlot] =
+                reference.spriteId;
+
+            const std::size_t boundingBoxOffset =
+                cromFrames.frameData.frameSpriteBoundingBoxesOffset +
+                (frameIndex * document::kMaxSpritesPerFrame * 4 + spriteSlot * 4) *
+                    sizeof(uint16_t);
+            writeU16(bytes, boundingBoxOffset, reference.minX);
+            writeU16(bytes, boundingBoxOffset + sizeof(uint16_t), reference.minY);
+            writeU16(bytes, boundingBoxOffset + 2 * sizeof(uint16_t), reference.maxX);
+            writeU16(bytes, boundingBoxOffset + 3 * sizeof(uint16_t), reference.maxY);
+        }
     }
 
     for (std::size_t backgroundIndex = 0; backgroundIndex < snapshot.backgrounds.size();

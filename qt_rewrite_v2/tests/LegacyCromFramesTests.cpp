@@ -21,8 +21,13 @@ constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
 constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kSpriteCount = 1;
+constexpr std::size_t kMaxSpriteWidth = 256;
+constexpr std::size_t kMaxSpriteHeight = 64;
+constexpr std::size_t kSpritePixels = kMaxSpriteWidth * kMaxSpriteHeight;
 constexpr std::size_t kMaxColorRotations = 4;
 constexpr std::size_t kMaxColorRotationLength = 64;
+constexpr std::size_t kMaxSpriteDetectAreas = 4;
 
 void fail(const std::string& message)
 {
@@ -81,12 +86,32 @@ void appendRepeatedU8(std::vector<uint8_t>& bytes, uint8_t value, std::size_t co
 
 void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
 {
-    appendRepeatedU8(bytes, 255, 2 * kMaxSpritesPerFrame);
+    bytes.push_back(1);
+    bytes.push_back(0);
+    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame - 1);
+    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 9, kSpritePixels);
+    appendRepeatedU16(bytes, 0x7001, kSpritePixels);
+    appendRepeatedU8(bytes, 10, kSpritePixels);
+    appendRepeatedU16(bytes, 0x8001, kSpritePixels);
     appendRepeatedU8(bytes, 1, 2);
     appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
     appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendU32(bytes, 0x12345678);
+    appendRepeatedU32(bytes, 0xffffffff, kMaxSpriteDetectAreas - 1);
+    appendU16(bytes, 12);
+    appendRepeatedU16(bytes, 0xffff, kMaxSpriteDetectAreas - 1);
+    appendU16(bytes, 1);
+    appendU16(bytes, 2);
+    appendU16(bytes, 3);
+    appendU16(bytes, 4);
+    appendRepeatedU16(bytes, 0xffff, (kMaxSpriteDetectAreas - 1) * 4);
     appendRepeatedU32(bytes, 0xffffffff, 2);
-    appendRepeatedU16(bytes, 0xffff, 2 * kMaxSpritesPerFrame * 4);
+    appendU16(bytes, 5);
+    appendU16(bytes, 6);
+    appendU16(bytes, 7);
+    appendU16(bytes, 8);
+    appendRepeatedU16(bytes, 0xffff, (2 * kMaxSpritesPerFrame - 1) * 4);
 
     bytes.push_back(1);
     appendRepeatedU16(bytes, 0x5001, kSdPixels);
@@ -111,7 +136,7 @@ std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
     appendU32(bytes, 2);
     appendU32(bytes, kColorCount);
     appendU32(bytes, comparisonMaskCount);
-    appendU32(bytes, 0);
+    appendU32(bytes, kSpriteCount);
     appendU16(bytes, 1);
 
     appendU32(bytes, 0x11111111);
@@ -198,6 +223,32 @@ void testModernFrameArraysParse()
            "first SD dynamic color set value");
     expect(result.frameData.dynamicFrames[0].colorsHd.front() == 0x4001,
            "first HD dynamic color set value");
+    expect(result.frameData.sprites.size() == kSpriteCount, "sprite count");
+    expect(result.frameData.sprites[0].hasHd, "sprite HD flag");
+    expect(result.frameData.sprites[0].originalSd.pixels.front() == 9,
+           "sprite original value");
+    expect(result.frameData.sprites[0].colorizedSd.pixels.front() == 0x7001,
+           "SD sprite color value");
+    expect(result.frameData.sprites[0].maskHd.pixels.front() == 10,
+           "HD sprite mask value");
+    expect(result.frameData.sprites[0].colorizedHd.pixels.front() == 0x8001,
+           "HD sprite color value");
+    expect(result.frameData.sprites[0].detectionDwords[0] == 0x12345678,
+           "sprite detection dword value");
+    expect(result.frameData.sprites[0].detectionDwordPositions[0] == 12,
+           "sprite detection dword position value");
+    expect(result.frameData.sprites[0].detectionAreas[0].x == 1,
+           "sprite detection area x value");
+    expect(result.frameData.sprites[0].detectionAreas[0].height == 4,
+           "sprite detection area height value");
+    expect(result.frameData.frameSpriteReferences.size() == 2,
+           "frame sprite reference frame count");
+    expect(result.frameData.frameSpriteReferences[0][0].spriteId == 0,
+           "frame sprite assignment value");
+    expect(result.frameData.frameSpriteReferences[0][0].minX == 5,
+           "frame sprite bounding box min x");
+    expect(result.frameData.frameSpriteReferences[0][0].maxY == 8,
+           "frame sprite bounding box max y");
     expect(result.frameData.backgrounds.size() == 1, "background count");
     expect(result.frameData.backgrounds[0].colorizedSd.pixels.front() == 0x5001,
            "SD background value");

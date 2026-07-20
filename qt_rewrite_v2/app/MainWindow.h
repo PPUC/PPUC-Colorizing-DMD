@@ -53,6 +53,7 @@ private:
         Hd,
         Background,
         Dynamic,
+        Sprites,
     };
 
     struct PixelChange {
@@ -258,6 +259,7 @@ private:
     void updateFrameListItem(std::size_t frameIndex);
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
     void updateDmdRenderOptions();
+    void updateSpriteControls();
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
@@ -282,6 +284,10 @@ private:
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
+    QComboBox* m_spriteComboBox = nullptr;
+    QLabel* m_spriteOriginalPreviewLabel = nullptr;
+    QLabel* m_spriteColorizedPreviewLabel = nullptr;
+    QLabel* m_frameSpritesLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_dynamicColorButtons;

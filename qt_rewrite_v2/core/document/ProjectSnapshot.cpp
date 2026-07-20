@@ -50,6 +50,34 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         }
     }
 
+    const Size spriteSize{static_cast<int>(kMaxSpriteWidth),
+                          static_cast<int>(kMaxSpriteHeight)};
+    for (std::size_t i = 0; i < snapshot.sprites.size(); ++i) {
+        const SpriteRecord& sprite = snapshot.sprites[i];
+        if (!sprite.originalSd.isValid() || !hasSize(sprite.originalSd.size, spriteSize)) {
+            return fail(errorMessage, "sprite " + std::to_string(i) +
+                                          " has invalid SD original data");
+        }
+        if (!sprite.colorizedSd.isValid() || !hasSize(sprite.colorizedSd.size, spriteSize)) {
+            return fail(errorMessage, "sprite " + std::to_string(i) +
+                                          " has invalid SD colorized data");
+        }
+        if (!sprite.maskHd.isValid() || !hasSize(sprite.maskHd.size, spriteSize)) {
+            return fail(errorMessage, "sprite " + std::to_string(i) +
+                                          " has invalid HD mask data");
+        }
+        if (!sprite.colorizedHd.isValid() || !hasSize(sprite.colorizedHd.size, spriteSize)) {
+            return fail(errorMessage, "sprite " + std::to_string(i) +
+                                          " has invalid HD colorized data");
+        }
+        if (sprite.detectionDwords.size() != kMaxSpriteDetectAreas ||
+            sprite.detectionDwordPositions.size() != kMaxSpriteDetectAreas ||
+            sprite.detectionAreas.size() != kMaxSpriteDetectAreas) {
+            return fail(errorMessage, "sprite " + std::to_string(i) +
+                                          " has invalid detection metadata");
+        }
+    }
+
     for (std::size_t i = 0; i < snapshot.frames.size(); ++i) {
         const ProjectFrameSnapshot& frame = snapshot.frames[i];
         if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, render::kSdFrameSize)) {
@@ -89,6 +117,11 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                               " has invalid HD background mask data");
             }
+        }
+        if (!frame.spriteReferences.empty() &&
+            frame.spriteReferences.size() != kMaxSpritesPerFrame) {
+            return fail(errorMessage, "frame " + std::to_string(i) +
+                                          " has invalid sprite reference data");
         }
     }
 

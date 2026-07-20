@@ -152,10 +152,12 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.comparisonMaskId,
             frameSnapshot.dynamicData,
             frameSnapshot.backgroundData,
+            frameSnapshot.spriteReferences,
         });
     }
     document.m_comparisonMasks = snapshot.comparisonMasks;
     document.m_backgrounds = snapshot.backgrounds;
+    document.m_sprites = snapshot.sprites;
     document.m_unsupportedPayloads = snapshot.unsupportedPayloads;
     document.m_dirty = false;
     return document;
@@ -634,6 +636,25 @@ void ProjectDocument::setBackgroundMaskPixel(std::size_t frameIndex,
     m_dirty = true;
 }
 
+std::size_t ProjectDocument::spriteCount() const
+{
+    return m_sprites.size();
+}
+
+const SpriteRecord& ProjectDocument::sprite(std::size_t spriteIndex) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    return m_sprites[spriteIndex];
+}
+
+const std::vector<FrameSpriteReference>& ProjectDocument::frameSpriteReferences(
+    std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).spriteReferences;
+}
+
 namespace {
 
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)
@@ -709,10 +730,12 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.comparisonMaskId,
             frame.dynamicData,
             frame.backgroundData,
+            frame.spriteReferences,
         });
     }
     snapshot.comparisonMasks = m_comparisonMasks;
     snapshot.backgrounds = m_backgrounds;
+    snapshot.sprites = m_sprites;
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
     return snapshot;
 }
