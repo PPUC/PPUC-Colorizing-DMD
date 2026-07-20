@@ -43,6 +43,10 @@ Recent-project entries show the full `.cROM` path and internally remember both t
 
 Use `File -> Save` or the standard Save shortcut.
 
+Use `File -> Save As...` to create a copied project. The app asks for a target `.cROM` path,
+copies the current `.cROM` and matching `.cRP` to the new base name, then saves the current
+in-memory edits into the copied `.cROM`.
+
 Save behavior:
 
 - Updates colorized SD and HD frame pixels in the existing `.cROM`.

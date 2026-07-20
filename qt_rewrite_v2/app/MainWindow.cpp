@@ -13,6 +13,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -304,6 +305,12 @@ void MainWindow::createActions()
     m_saveAction->setEnabled(false);
     connect(m_saveAction, &QAction::triggered, this, [this]() {
         saveProject();
+    });
+
+    QAction* saveAsAction = fileMenu->addAction(QStringLiteral("Save &As..."));
+    saveAsAction->setShortcut(QKeySequence::SaveAs);
+    connect(saveAsAction, &QAction::triggered, this, [this]() {
+        saveProjectAs();
     });
 
     m_recentProjectsMenu = fileMenu->addMenu(QStringLiteral("Open &Recent"));
@@ -724,6 +731,82 @@ void MainWindow::saveProject()
     m_document->markClean();
     updateProjectHeaderStatus();
     statusBar()->showMessage(QStringLiteral("Project saved"), 3000);
+}
+
+void MainWindow::saveProjectAs()
+{
+    if (!m_document) {
+        return;
+    }
+    if (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty()) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project As Failed"),
+                              QStringLiteral("The current project paths are incomplete."));
+        return;
+    }
+
+    const QFileInfo currentCromInfo(m_currentCromPath);
+    QString targetCromPath = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Save cROM As"),
+        currentCromInfo.dir().absoluteFilePath(currentCromInfo.completeBaseName() +
+                                               QStringLiteral("_copy.cROM")),
+        QStringLiteral("Serum colorization (*.cROM);;All files (*)"));
+    if (targetCromPath.isEmpty()) {
+        return;
+    }
+    if (!targetCromPath.endsWith(QStringLiteral(".cROM"), Qt::CaseInsensitive)) {
+        targetCromPath += QStringLiteral(".cROM");
+    }
+
+    const QFileInfo targetCromInfo(targetCromPath);
+    const QString targetCrpPath =
+        targetCromInfo.dir().absoluteFilePath(targetCromInfo.completeBaseName() +
+                                              QStringLiteral(".cRP"));
+    if (targetCromPath == m_currentCromPath) {
+        saveProject();
+        return;
+    }
+
+    if (QFileInfo::exists(targetCromPath) && !QFile::remove(targetCromPath)) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project As Failed"),
+                              QStringLiteral("Could not replace target cROM."));
+        return;
+    }
+    if (QFileInfo::exists(targetCrpPath) && !QFile::remove(targetCrpPath)) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project As Failed"),
+                              QStringLiteral("Could not replace target cRP."));
+        return;
+    }
+    if (!QFile::copy(m_currentCromPath, targetCromPath)) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project As Failed"),
+                              QStringLiteral("Could not copy cROM template."));
+        return;
+    }
+    if (!QFile::copy(m_currentCrpPath, targetCrpPath)) {
+        QFile::remove(targetCromPath);
+        QMessageBox::critical(this,
+                              QStringLiteral("Save Project As Failed"),
+                              QStringLiteral("Could not copy cRP file."));
+        return;
+    }
+
+    const QString oldCromPath = m_currentCromPath;
+    const QString oldCrpPath = m_currentCrpPath;
+    m_currentCromPath = targetCromPath;
+    m_currentCrpPath = targetCrpPath;
+    saveProject();
+    if (m_document && !m_document->isDirty()) {
+        rememberRecentProject(m_currentCromPath, m_currentCrpPath);
+        statusBar()->showMessage(QStringLiteral("Project saved as copy"), 3000);
+        return;
+    }
+
+    m_currentCromPath = oldCromPath;
+    m_currentCrpPath = oldCrpPath;
 }
 
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)

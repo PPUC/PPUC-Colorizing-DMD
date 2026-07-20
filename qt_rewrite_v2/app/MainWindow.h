@@ -159,6 +159,7 @@ private:
     void openProject();
     void openRecentProject(const QString& entry);
     void saveProject();
+    void saveProjectAs();
     void loadProject(const QString& cromPath, const QString& crpPath);
     void rememberRecentProject(const QString& cromPath, const QString& crpPath);
     void refreshRecentProjectsMenu();
