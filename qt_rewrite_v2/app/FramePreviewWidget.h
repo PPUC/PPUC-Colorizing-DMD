@@ -10,6 +10,7 @@
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
+#include "FrameImageUtils.h"
 #include "render/CanvasLayout.h"
 
 namespace colorizing::app {
@@ -26,6 +27,7 @@ public:
     void setBackgroundMaskOverlayEnabled(bool enabled);
     void setBackgroundLayerEnabled(bool enabled);
     void setBackgroundImageEditModeEnabled(bool enabled);
+    void setDmdRenderOptions(DmdRenderOptions options);
     void setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
     void setOriginalClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
     void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler);
@@ -65,6 +67,7 @@ private:
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
     bool m_showBackgroundImageEditMode = false;
+    DmdRenderOptions m_renderOptions;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     std::function<void(render::CanvasHit, bool)> m_pixelClickedHandler;
     std::function<void(render::CanvasHit, bool)> m_originalClickedHandler;

@@ -47,6 +47,10 @@ Use `File -> Save As...` to create a copied project. The app asks for a target `
 copies the current `.cROM` and matching `.cRP` to the new base name, then saves the current
 in-memory edits into the copied `.cROM`.
 
+Use `File -> Export Current Frame PNG...` to export the active colorized frame preview as a PNG.
+The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
+includes the assigned background layer when `Show BG` is enabled.
+
 Save behavior:
 
 - Updates colorized SD and HD frame pixels in the existing `.cROM`.
@@ -119,7 +123,11 @@ Frame metadata and per-frame selectors live in the right-side Inspector:
 - `Shape` selects the frame comparison mode.
 - `Dyn Set` selects the dynamic-mask set written by the drawing tools.
 - `BG ID` assigns the shared background used by the current frame.
+- `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
+- `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
 - `Show BG` renders the assigned background layer into the colorized frame preview.
+
+`DMD Shape` and `DMD Size` are view/export settings only. They do not change project data or the cROM/cRP file format.
 
 ## Colors
 

@@ -83,6 +83,16 @@ void FramePreviewWidget::setBackgroundImageEditModeEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setDmdRenderOptions(DmdRenderOptions options)
+{
+    if (m_renderOptions.pixelShape == options.pixelShape &&
+        std::abs(m_renderOptions.pixelCoverage - options.pixelCoverage) < 0.001) {
+        return;
+    }
+    m_renderOptions = options;
+    update();
+}
+
 void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
@@ -244,19 +254,20 @@ double FramePreviewWidget::currentDisplayScale(const render::CanvasLayout& layou
     if (displaySize.width <= 0 || displaySize.height <= 0) {
         return 1.0;
     }
-    return std::max(1.0, std::min(
+    const double fittedScale = std::min(
         static_cast<double>(std::max(1, available.width() - 24)) /
             static_cast<double>(displaySize.width),
         static_cast<double>(std::max(1, available.height() - 36)) /
-            static_cast<double>(displaySize.height)));
+            static_cast<double>(displaySize.height));
+    return std::max(1.0, std::floor(fittedScale));
 }
 
 QPointF FramePreviewWidget::currentDisplayOrigin(const render::CanvasLayout& layout) const
 {
     const double scale = currentDisplayScale(layout);
     const render::Size displaySize = layout.displaySize();
-    return QPointF((width() - displaySize.width * scale) / 2.0,
-                   (height() - displaySize.height * scale) / 2.0);
+    return QPointF(std::floor((width() - displaySize.width * scale) / 2.0),
+                   std::floor((height() - displaySize.height * scale) / 2.0));
 }
 
 void FramePreviewWidget::paintEmpty(QPainter& painter)
@@ -272,7 +283,8 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
     const QPointF origin = currentDisplayOrigin(layout);
 
     painter.save();
-    painter.setRenderHint(QPainter::Antialiasing, false);
+    painter.setRenderHint(QPainter::Antialiasing,
+                          m_renderOptions.pixelShape == DmdPixelShape::Dot);
     painter.translate(origin);
     painter.scale(scale, scale);
 
@@ -343,11 +355,12 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                 color = QColor(0, 0, 0);
             }
 
-            painter.fillRect(QRect(region.displayRect.x + x * scale,
-                                   region.displayRect.y + y * scale,
-                                   scale,
-                                   scale),
-                             color);
+            paintDmdPixel(painter,
+                          region.displayRect.x + x * scale,
+                          region.displayRect.y + y * scale,
+                          scale,
+                          color,
+                          m_renderOptions);
         }
     }
 
@@ -490,11 +503,12 @@ void FramePreviewWidget::paintPreview(QPainter& painter, const render::CanvasReg
             pixel.x >= region.logicalSize.width || pixel.y >= region.logicalSize.height) {
             continue;
         }
-        painter.fillRect(QRect(region.displayRect.x + pixel.x * scale,
-                               region.displayRect.y + pixel.y * scale,
-                               scale,
-                               scale),
-                         previewColor);
+        paintDmdPixel(painter,
+                      region.displayRect.x + pixel.x * scale,
+                      region.displayRect.y + pixel.y * scale,
+                      scale,
+                      previewColor,
+                      m_renderOptions);
     }
     painter.restore();
 }

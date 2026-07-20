@@ -9,6 +9,7 @@
 #include <QString>
 
 #include "document/ProjectDocument.h"
+#include "FrameImageUtils.h"
 
 namespace colorizing::app {
 class FramePreviewWidget;
@@ -160,6 +161,7 @@ private:
     void openRecentProject(const QString& entry);
     void saveProject();
     void saveProjectAs();
+    void exportCurrentFramePng();
     void loadProject(const QString& cromPath, const QString& crpPath);
     void rememberRecentProject(const QString& cromPath, const QString& crpPath);
     void refreshRecentProjectsMenu();
@@ -254,6 +256,8 @@ private:
     void updateProjectHeaderStatus();
     void updateFrameThumbnail(std::size_t frameIndex);
     void updateFrameListItem(std::size_t frameIndex);
+    [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
+    void updateDmdRenderOptions();
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
@@ -274,8 +278,10 @@ private:
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
+    QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
+    QComboBox* m_dmdPixelShapeComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_dynamicColorButtons;

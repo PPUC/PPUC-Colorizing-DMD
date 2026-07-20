@@ -47,6 +47,7 @@ namespace {
 
 constexpr int kMaxRecentProjects = 8;
 constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
+constexpr int kExportDmdPixelScale = 8;
 
 QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
 {
@@ -313,6 +314,11 @@ void MainWindow::createActions()
         saveProjectAs();
     });
 
+    QAction* exportFrameAction = fileMenu->addAction(QStringLiteral("Export Current &Frame PNG..."));
+    connect(exportFrameAction, &QAction::triggered, this, [this]() {
+        exportCurrentFramePng();
+    });
+
     m_recentProjectsMenu = fileMenu->addMenu(QStringLiteral("Open &Recent"));
     refreshRecentProjectsMenu();
 
@@ -429,6 +435,18 @@ void MainWindow::createCentralView()
     m_paintTargetComboBox->addItem(QStringLiteral("Background"),
                                    static_cast<int>(PaintTarget::Background));
     m_paintTargetComboBox->setEnabled(false);
+    m_dmdPixelShapeComboBox = new QComboBox(central);
+    m_dmdPixelShapeComboBox->setToolTip(QStringLiteral("DMD pixel shape for canvas and PNG export"));
+    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Squares"),
+                                     static_cast<int>(DmdPixelShape::Square));
+    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Dots"),
+                                     static_cast<int>(DmdPixelShape::Dot));
+    m_dmdPixelSizeSpinBox = new QSpinBox(central);
+    m_dmdPixelSizeSpinBox->setToolTip(QStringLiteral("Relative DMD pixel size"));
+    m_dmdPixelSizeSpinBox->setRange(50, 100);
+    m_dmdPixelSizeSpinBox->setSingleStep(10);
+    m_dmdPixelSizeSpinBox->setSuffix(QStringLiteral("%"));
+    m_dmdPixelSizeSpinBox->setValue(100);
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
@@ -493,6 +511,8 @@ void MainWindow::createCentralView()
     inspectorForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
     inspectorForm->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
     inspectorForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
+    inspectorForm->addRow(QStringLiteral("DMD Shape"), m_dmdPixelShapeComboBox);
+    inspectorForm->addRow(QStringLiteral("DMD Size"), m_dmdPixelSizeSpinBox);
     auto* dynamicColorsTitle = new QLabel(QStringLiteral("Dynamic Colors"), inspector);
     dynamicColorsTitle->setStyleSheet(QStringLiteral("font-weight: 600; margin-top: 10px;"));
     auto* dynamicColorsGrid = new QGridLayout();
@@ -614,6 +634,18 @@ void MainWindow::createCentralView()
             [this](int) {
                 updatePaintTargetMode();
             });
+    connect(m_dmdPixelShapeComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updateDmdRenderOptions();
+            });
+    connect(m_dmdPixelSizeSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int) {
+                updateDmdRenderOptions();
+            });
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -657,6 +689,7 @@ void MainWindow::createCentralView()
     });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
+    updateDmdRenderOptions();
 
     setCentralWidget(central);
 }
@@ -807,6 +840,59 @@ void MainWindow::saveProjectAs()
 
     m_currentCromPath = oldCromPath;
     m_currentCrpPath = oldCrpPath;
+}
+
+void MainWindow::exportCurrentFramePng()
+{
+    if (!m_document) {
+        return;
+    }
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!frameIndex) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+
+    render::Resolution exportResolution = m_activeResolution;
+    if (exportResolution == render::Resolution::Hd && !m_document->hasHdFrame(*frameIndex)) {
+        exportResolution = render::Resolution::Sd;
+    }
+
+    const QString resolutionName =
+        exportResolution == render::Resolution::Hd ? QStringLiteral("hd") : QStringLiteral("sd");
+    QFileInfo currentCromInfo(m_currentCromPath);
+    QString defaultPath = currentCromInfo.dir().absoluteFilePath(
+        QStringLiteral("%1_frame_%2_%3.png")
+            .arg(currentCromInfo.completeBaseName())
+            .arg(static_cast<int>(*frameIndex), 4, 10, QLatin1Char('0'))
+            .arg(resolutionName));
+    QString targetPath = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Export Current Frame PNG"),
+        defaultPath,
+        QStringLiteral("PNG image (*.png);;All files (*)"));
+    if (targetPath.isEmpty()) {
+        return;
+    }
+    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        targetPath += QStringLiteral(".png");
+    }
+
+    const bool includeBackgroundLayer =
+        m_backgroundLayerButton && m_backgroundLayerButton->isChecked();
+    const QImage image = renderResolvedFrameImage(*m_document,
+                                                  *frameIndex,
+                                                  exportResolution,
+                                                  kExportDmdPixelScale,
+                                                  includeBackgroundLayer,
+                                                  currentDmdRenderOptions());
+    if (!image.save(targetPath, "PNG")) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Export Failed"),
+                              QStringLiteral("Could not write PNG file."));
+        return;
+    }
+    statusBar()->showMessage(QStringLiteral("Exported frame PNG"), 3000);
 }
 
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
@@ -3017,6 +3103,35 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
         return;
     }
     refreshFrameList(frameIndex);
+}
+
+DmdRenderOptions MainWindow::currentDmdRenderOptions() const
+{
+    DmdRenderOptions options;
+    if (m_dmdPixelShapeComboBox) {
+        options.pixelShape =
+            static_cast<DmdPixelShape>(m_dmdPixelShapeComboBox->currentData().toInt());
+    }
+    if (m_dmdPixelSizeSpinBox) {
+        options.pixelCoverage =
+            static_cast<double>(m_dmdPixelSizeSpinBox->value()) / 100.0;
+    }
+    return options;
+}
+
+void MainWindow::updateDmdRenderOptions()
+{
+    if (m_dmdPixelSizeSpinBox) {
+        const int value = m_dmdPixelSizeSpinBox->value();
+        const int roundedValue = std::clamp(((value + 5) / 10) * 10, 50, 100);
+        if (roundedValue != value) {
+            QSignalBlocker blocker(m_dmdPixelSizeSpinBox);
+            m_dmdPixelSizeSpinBox->setValue(roundedValue);
+        }
+    }
+    if (m_preview) {
+        m_preview->setDmdRenderOptions(currentDmdRenderOptions());
+    }
 }
 
 }  // namespace colorizing::app

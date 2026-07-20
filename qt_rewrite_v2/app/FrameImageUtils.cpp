@@ -1,7 +1,7 @@
 #include "FrameImageUtils.h"
 
 #include <algorithm>
-
+#include <cmath>
 #include <QPainter>
 
 namespace colorizing::app {
@@ -26,6 +26,11 @@ render::Point originalPointForResolution(render::Resolution resolution, int x, i
         return render::Point{x / 2, y / 2};
     }
     return render::Point{x, y};
+}
+
+double clampedPixelCoverage(DmdRenderOptions options)
+{
+    return std::clamp(options.pixelCoverage, 0.1, 1.0);
 }
 
 }  // namespace
@@ -116,21 +121,68 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                          static_cast<std::size_t>(originalValue)];
 }
 
-QImage renderRgb565FrameImage(const document::Rgb565Frame& frame, int pixelScale)
+void paintDmdPixel(QPainter& painter,
+                   double x,
+                   double y,
+                   double cellSize,
+                   const QColor& color,
+                   const DmdRenderOptions& options)
+{
+    const QRectF cellRect =
+        painter.transform().mapRect(QRectF(x, y, cellSize, cellSize));
+    const double coverage = clampedPixelCoverage(options);
+
+    painter.save();
+    painter.resetTransform();
+    if (options.pixelShape == DmdPixelShape::Dot) {
+        const double pixelSize = std::max(1.0, cellRect.width() * coverage);
+        const QPointF center = cellRect.center();
+        const QRectF pixelRect(center.x() - pixelSize / 2.0,
+                               center.y() - pixelSize / 2.0,
+                               pixelSize,
+                               pixelSize);
+        painter.setBrush(color);
+        painter.drawEllipse(pixelRect);
+        painter.restore();
+        return;
+    }
+
+    const int pixelSize =
+        std::max(1, static_cast<int>(std::round(cellRect.width() * coverage)));
+    const int cellX = static_cast<int>(std::round(cellRect.x()));
+    const int cellY = static_cast<int>(std::round(cellRect.y()));
+    const int cellWidth = static_cast<int>(std::round(cellRect.width()));
+    const int cellHeight = static_cast<int>(std::round(cellRect.height()));
+    const QRect pixelRect(cellX + (cellWidth - pixelSize) / 2,
+                          cellY + (cellHeight - pixelSize) / 2,
+                          pixelSize,
+                          pixelSize);
+    painter.fillRect(pixelRect, color);
+    painter.restore();
+}
+
+QImage renderRgb565FrameImage(const document::Rgb565Frame& frame,
+                              int pixelScale,
+                              DmdRenderOptions options)
 {
     const int scale = std::max(1, pixelScale);
     QImage image(frame.size.width * scale, frame.size.height * scale, QImage::Format_ARGB32);
     image.fill(Qt::black);
 
     QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing, options.pixelShape == DmdPixelShape::Dot);
     painter.setPen(Qt::NoPen);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
             const std::size_t index =
                 static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
                 static_cast<std::size_t>(x);
-            painter.fillRect(QRect(x * scale, y * scale, scale, scale),
-                             rgb565ToColor(frame.pixels[index]));
+            paintDmdPixel(painter,
+                          x * scale,
+                          y * scale,
+                          scale,
+                          rgb565ToColor(frame.pixels[index]),
+                          options);
         }
     }
     return image;
@@ -140,7 +192,8 @@ QImage renderResolvedFrameImage(const document::ProjectDocument& document,
                                 std::size_t frameIndex,
                                 render::Resolution resolution,
                                 int pixelScale,
-                                bool includeBackgroundLayer)
+                                bool includeBackgroundLayer,
+                                DmdRenderOptions options)
 {
     const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, resolution);
     const int scale = std::max(1, pixelScale);
@@ -148,36 +201,48 @@ QImage renderResolvedFrameImage(const document::ProjectDocument& document,
     image.fill(Qt::black);
 
     QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing, options.pixelShape == DmdPixelShape::Dot);
     painter.setPen(Qt::NoPen);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
-            painter.fillRect(QRect(x * scale, y * scale, scale, scale),
-                             rgb565ToColor(resolvedFramePixel(document,
-                                                              frameIndex,
-                                                              resolution,
-                                                              x,
-                                                              y,
-                                                              includeBackgroundLayer)));
+            paintDmdPixel(painter,
+                          x * scale,
+                          y * scale,
+                          scale,
+                          rgb565ToColor(resolvedFramePixel(document,
+                                                           frameIndex,
+                                                           resolution,
+                                                           x,
+                                                           y,
+                                                           includeBackgroundLayer)),
+                          options);
         }
     }
     return image;
 }
 
-QImage renderIndexedFrameImage(const document::IndexedFrame& frame, int pixelScale)
+QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
+                               int pixelScale,
+                               DmdRenderOptions options)
 {
     const int scale = std::max(1, pixelScale);
     QImage image(frame.size.width * scale, frame.size.height * scale, QImage::Format_ARGB32);
     image.fill(Qt::black);
 
     QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing, options.pixelShape == DmdPixelShape::Dot);
     painter.setPen(Qt::NoPen);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
             const std::size_t index =
                 static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
                 static_cast<std::size_t>(x);
-            painter.fillRect(QRect(x * scale, y * scale, scale, scale),
-                             originalIndexToColor(frame.pixels[index]));
+            paintDmdPixel(painter,
+                          x * scale,
+                          y * scale,
+                          scale,
+                          originalIndexToColor(frame.pixels[index]),
+                          options);
         }
     }
     return image;

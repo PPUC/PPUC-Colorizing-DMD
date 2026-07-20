@@ -20,6 +20,85 @@ Implementation should not start until this plan is reviewed and accepted.
 - Do not change cROM/cRP/cROMc binary layouts.
 - Do not add Qt, OpenCV, or app dependencies to libserum.
 
+## First Release Constraints
+
+- The first release of the new Qt app must not change the `.cROM` format or binary layout.
+- Features that require changing record counts or reallocating `.cROM` sections, such as creating
+  new backgrounds, creating new masks, or changing sprite table sizes, must be postponed or
+  implemented only when they can reuse existing capacity without changing the file layout.
+- Existing projects must remain editable as `.cROM/.cRP`; `.cROMc` remains a runtime/conversion
+  artifact handled through libserum, not the editor save format.
+- Missing first-release UI is acceptable only if loaded data is preserved exactly enough for
+  existing projects to remain safe to save.
+
+## Prioritized Missing Features
+
+### Priority 1
+
+1. Sprites:
+   - Load/save sprite data from existing `.cROM` records without changing the format.
+   - Sprite previews/list.
+   - Sprite colorized/original display.
+   - Sprite detection areas.
+   - Frame sprite zones.
+   - Sprite assignment/removal/reorder inside existing project capacity.
+   - Sprite dynamic masks and colors.
+   - Correct composed preview behavior with sprites.
+
+2. Palette system:
+   - Full/reduced palette views.
+   - Integrate dynamic color editing with the palette workflow.
+   - Drag/copy colors between frame colors, dynamic colors, and palette slots.
+   - Palette undo/redo.
+   - Preserve palette/rotation data even before every editor operation is exposed.
+
+3. Image import pipeline:
+   - Import image data into existing frames/backgrounds.
+   - Reimport/replace image data.
+   - Scaling options, including selectable scalers for HD generation.
+   - Avoid any operation that requires changing first-release `.cROM` layout.
+
+### Priority 2
+
+4. Background management:
+   - Better background list/preview instead of numeric `BG ID` only.
+   - Import/export/reimport existing background images.
+   - Create/delete background records only after a format-compatible strategy exists.
+
+5. Comparison mask management:
+   - Better mask list/preview.
+   - Improved mask assignment for selected frames.
+   - Create/delete masks only after a format-compatible strategy exists.
+
+6. HD management expansion:
+   - Batch create/remove HD for selected frames.
+   - Selectable scaling algorithms.
+   - Apply equivalent HD workflows to existing backgrounds and sprites where format-safe.
+
+### After Priority 2
+
+7. Frame playback / sequence preview:
+   - Basic playback controls.
+   - Play selected frames or current filtered range.
+   - Timing support, initially fixed-duration if needed.
+   - Later: libserum-backed playback/preview path with in-memory/minimal cROM conversion.
+
+### Priority 3
+
+8. UI restructure:
+   - Reduce crowded toolbar.
+   - Move tools/settings into panels/tabs following the better ideas from `qt_playback_wip`.
+   - Add component browsers for frames, masks, backgrounds, sprites, and palettes.
+
+9. Save/autosave/recovery polish:
+   - `Save As` exists.
+   - Autosave and recovery are still missing.
+   - Playback-related autosave should wait until playback is prioritized.
+
+10. Exports:
+   - PNG export can stay as a useful convenience.
+   - GIF/video export should wait until playback and timing are meaningful.
+
 ## Format Strategy
 
 The editor loads and saves:
@@ -369,4 +448,3 @@ Use existing real projects as fixtures, plus small synthetic fixtures that isola
 3. Which fields are acceptable to preserve without UI in the first usable build?
 4. Should runtime preview materialization write temporary files, or should we first add a libserum in-memory loading API?
 5. Should libserum editor APIs be added before frame editing, or only when sprite/background/runtime preview work needs them?
-

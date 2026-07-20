@@ -251,6 +251,11 @@ bool hasVisibleGreenPixel(const QImage& image)
     return false;
 }
 
+bool isMostlyBlack(const QColor& color)
+{
+    return color.red() < 20 && color.green() < 20 && color.blue() < 20;
+}
+
 void testFramePreviewWidgetRendersPixels()
 {
     colorizing::document::ProjectDocument document = makePreviewDocument();
@@ -301,7 +306,7 @@ void testFramePreviewHitTesting()
     widget.setActiveResolution(colorizing::render::Resolution::Hd);
     widget.setFrameIndex(0);
 
-    const std::optional<colorizing::render::CanvasHit> hit = widget.hitTestAt(QPoint(90, 60));
+    const std::optional<colorizing::render::CanvasHit> hit = widget.hitTestAt(QPoint(90, 90));
     expect(hit.has_value(), "preview hit test should hit active frame");
     expect(hit->region == colorizing::render::CanvasRegion::ColorizedFrame,
            "preview hit test should target colorized frame");
@@ -326,9 +331,9 @@ void testFramePreviewClickCallback()
     });
 
     QMouseEvent event(QEvent::MouseButtonPress,
-                      QPointF(90, 60),
-                      QPointF(90, 60),
-                      QPointF(90, 60),
+                      QPointF(90, 90),
+                      QPointF(90, 90),
+                      QPointF(90, 90),
                       Qt::LeftButton,
                       Qt::LeftButton,
                       Qt::NoModifier);
@@ -367,27 +372,27 @@ void testFramePreviewStrokeCallback()
     });
 
     QMouseEvent press(QEvent::MouseButtonPress,
-                      QPointF(90, 60),
-                      QPointF(90, 60),
-                      QPointF(90, 60),
+                      QPointF(90, 90),
+                      QPointF(90, 90),
+                      QPointF(90, 90),
                       Qt::LeftButton,
                       Qt::LeftButton,
                       Qt::NoModifier);
     QApplication::sendEvent(&widget, &press);
 
     QMouseEvent move(QEvent::MouseMove,
-                     QPointF(120, 80),
-                     QPointF(120, 80),
-                     QPointF(120, 80),
+                     QPointF(120, 110),
+                     QPointF(120, 110),
+                     QPointF(120, 110),
                      Qt::NoButton,
                      Qt::LeftButton,
                      Qt::NoModifier);
     QApplication::sendEvent(&widget, &move);
 
     QMouseEvent release(QEvent::MouseButtonRelease,
-                        QPointF(140, 90),
-                        QPointF(140, 90),
-                        QPointF(140, 90),
+                        QPointF(140, 120),
+                        QPointF(140, 120),
+                        QPointF(140, 120),
                         Qt::LeftButton,
                         Qt::LeftButton,
                         Qt::NoModifier);
@@ -562,6 +567,54 @@ void testDynamicReplacementRendersInSdAndHd()
     expect(hasVisibleGreenPixel(hdImage), "HD dynamic replacement should use dynamic color set");
 }
 
+void testDmdRenderOptionsLeavePixelSpacing()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+
+    colorizing::app::DmdRenderOptions squareOptions;
+    squareOptions.pixelShape = colorizing::app::DmdPixelShape::Square;
+    squareOptions.pixelCoverage = 0.5;
+    const QImage squareImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Sd,
+        8,
+        false,
+        squareOptions);
+    expect(isMostlyBlack(QColor(squareImage.pixel(0, 0))),
+           "reduced square DMD pixel should leave black spacing");
+    expect(QColor(squareImage.pixel(3, 3)).red() > 80,
+           "reduced square DMD pixel should keep a colored center");
+
+    colorizing::app::DmdRenderOptions dotOptions;
+    dotOptions.pixelShape = colorizing::app::DmdPixelShape::Dot;
+    dotOptions.pixelCoverage = 0.5;
+    const QImage dotImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Sd,
+        8,
+        false,
+        dotOptions);
+    expect(isMostlyBlack(QColor(dotImage.pixel(0, 0))),
+           "dot DMD pixel should leave dark cell corners");
+    expect(QColor(dotImage.pixel(4, 4)).red() > 80,
+           "dot DMD pixel should keep a colored center");
+
+    dotOptions.pixelCoverage = 1.0;
+    const QImage fullDotImage = colorizing::app::renderResolvedFrameImage(
+        document,
+        0,
+        colorizing::render::Resolution::Sd,
+        8,
+        false,
+        dotOptions);
+    expect(isMostlyBlack(QColor(fullDotImage.pixel(0, 0))),
+           "full-size dot DMD pixel should not overlap into the cell corner");
+    expect(QColor(fullDotImage.pixel(4, 4)).red() > 80,
+           "full-size dot DMD pixel should fill the cell center");
+}
+
 void testBackgroundMaskOverlayRendersInSdAndHd()
 {
     colorizing::document::ProjectDocument document = makeBackgroundPreviewDocument();
@@ -701,6 +754,7 @@ int main(int argc, char* argv[])
     testComparisonMaskOverlayRenders();
     testDynamicMaskOverlayRendersInSdAndHd();
     testDynamicReplacementRendersInSdAndHd();
+    testDmdRenderOptionsLeavePixelSpacing();
     testBackgroundMaskOverlayRendersInSdAndHd();
     testBackgroundLayerRendersInSdAndHd();
     testDynamicDoesNotReplaceAppliedBackground();
