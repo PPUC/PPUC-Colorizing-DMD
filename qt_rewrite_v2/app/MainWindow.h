@@ -281,6 +281,7 @@ private:
     QToolButton* m_createHdFrameButton = nullptr;
     QToolButton* m_removeHdFrameButton = nullptr;
     QToolButton* m_spriteBoundsOverlayButton = nullptr;
+    QToolButton* m_spriteDetectionAreasButton = nullptr;
     QToolButton* m_assignSpriteButton = nullptr;
     QToolButton* m_removeSpriteButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;

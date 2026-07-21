@@ -287,6 +287,7 @@ The Inspector has a sprite browser and assignment controls:
 - The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
 - The first preview shows the sprite original mask.
 - The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
+- `Show Det Areas` overlays valid per-sprite detection areas on the original sprite preview.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
 - `Remove` clears the selected slot's sprite assignment for all selected frames.

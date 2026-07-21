@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <deque>
 #include <set>
@@ -26,6 +27,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPixmap>
 #include <QSettings>
 #include <QSignalBlocker>
@@ -98,7 +100,8 @@ std::size_t spritePixelIndex(int x, int y)
            static_cast<std::size_t>(x);
 }
 
-QImage renderSpriteOriginalPreviewImage(const document::SpriteRecord& sprite)
+QImage renderSpriteOriginalPreviewImage(const document::SpriteRecord& sprite,
+                                        bool showDetectionAreas)
 {
     QImage image(static_cast<int>(document::kMaxSpriteWidth),
                  static_cast<int>(document::kMaxSpriteHeight),
@@ -111,6 +114,45 @@ QImage renderSpriteOriginalPreviewImage(const document::SpriteRecord& sprite)
                 continue;
             }
             image.setPixelColor(x, y, originalIndexToColor(value));
+        }
+    }
+    if (showDetectionAreas) {
+        QPainter painter(&image);
+        painter.setPen(Qt::NoPen);
+        const std::array<QColor, document::kMaxSpriteDetectAreas> colors{
+            QColor(0, 255, 255, 92),
+            QColor(255, 200, 0, 92),
+            QColor(255, 0, 255, 92),
+            QColor(0, 255, 0, 92),
+        };
+        for (std::size_t areaIndex = 0;
+             areaIndex < sprite.detectionAreas.size() &&
+                 areaIndex < document::kMaxSpriteDetectAreas;
+             ++areaIndex) {
+            const document::SpriteDetectionArea& area = sprite.detectionAreas[areaIndex];
+            if (area.x == 0xffff || area.y == 0xffff ||
+                area.width == 0xffff || area.height == 0xffff ||
+                area.width == 0 || area.height == 0) {
+                continue;
+            }
+            const int x = std::clamp(static_cast<int>(area.x),
+                                     0,
+                                     static_cast<int>(document::kMaxSpriteWidth) - 1);
+            const int y = std::clamp(static_cast<int>(area.y),
+                                     0,
+                                     static_cast<int>(document::kMaxSpriteHeight) - 1);
+            const int right = std::clamp(static_cast<int>(area.x) +
+                                             static_cast<int>(area.width),
+                                         0,
+                                         static_cast<int>(document::kMaxSpriteWidth));
+            const int bottom = std::clamp(static_cast<int>(area.y) +
+                                              static_cast<int>(area.height),
+                                          0,
+                                          static_cast<int>(document::kMaxSpriteHeight));
+            if (right <= x || bottom <= y) {
+                continue;
+            }
+            painter.fillRect(QRect(x, y, right - x, bottom - y), colors[areaIndex]);
         }
     }
     return image;
@@ -534,6 +576,12 @@ void MainWindow::createCentralView()
     m_spriteBoundsOverlayButton->setCheckable(true);
     m_spriteBoundsOverlayButton->setChecked(true);
     m_spriteBoundsOverlayButton->setEnabled(false);
+    m_spriteDetectionAreasButton = new QToolButton(central);
+    m_spriteDetectionAreasButton->setText(QStringLiteral("Show Det Areas"));
+    m_spriteDetectionAreasButton->setToolTip(QStringLiteral("Show sprite detection areas on original sprite preview"));
+    m_spriteDetectionAreasButton->setCheckable(true);
+    m_spriteDetectionAreasButton->setChecked(false);
+    m_spriteDetectionAreasButton->setEnabled(false);
     m_spriteMinXSpinBox = new QSpinBox(central);
     m_spriteMinXSpinBox->setRange(0, 127);
     m_spriteMinXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
@@ -665,7 +713,10 @@ void MainWindow::createCentralView()
     spriteButtonLayout->addWidget(m_assignSpriteButton);
     spriteButtonLayout->addWidget(m_removeSpriteButton);
     inspectorLayout->addLayout(spriteButtonLayout);
-    inspectorLayout->addWidget(m_spriteBoundsOverlayButton);
+    auto* spriteVisualizationLayout = new QHBoxLayout();
+    spriteVisualizationLayout->addWidget(m_spriteBoundsOverlayButton);
+    spriteVisualizationLayout->addWidget(m_spriteDetectionAreasButton);
+    inspectorLayout->addLayout(spriteVisualizationLayout);
     auto* spriteBoundsGrid = new QGridLayout();
     spriteBoundsGrid->setHorizontalSpacing(4);
     spriteBoundsGrid->setVerticalSpacing(4);
@@ -809,6 +860,9 @@ void MainWindow::createCentralView()
         if (m_preview) {
             m_preview->setSelectedSpriteBoundsOverlayEnabled(checked);
         }
+    });
+    connect(m_spriteDetectionAreasButton, &QToolButton::toggled, this, [this](bool) {
+        updateSpriteControls();
     });
     auto connectSpriteBoundsSpinBox = [this](QSpinBox* spinBox) {
         connect(spinBox,
@@ -1869,7 +1923,7 @@ void MainWindow::updateSpriteControls()
     if (!m_spriteComboBox || !m_spriteOriginalPreviewLabel ||
         !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
         !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
-        !m_spriteBoundsOverlayButton ||
+        !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
         !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
         !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox) {
         return;
@@ -2017,6 +2071,7 @@ void MainWindow::updateSpriteControls()
 
     if (!m_document || spriteIndex < 0 ||
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        m_spriteDetectionAreasButton->setEnabled(false);
         m_spriteOriginalPreviewLabel->clear();
         m_spriteOriginalPreviewLabel->setText(QStringLiteral("Original"));
         m_spriteColorizedPreviewLabel->clear();
@@ -2026,9 +2081,21 @@ void MainWindow::updateSpriteControls()
 
     const document::SpriteRecord& sprite =
         m_document->sprite(static_cast<std::size_t>(spriteIndex));
+    const bool hasDetectionArea =
+        std::any_of(sprite.detectionAreas.begin(),
+                    sprite.detectionAreas.end(),
+                    [](const document::SpriteDetectionArea& area) {
+                        return area.x != 0xffff && area.y != 0xffff &&
+                               area.width != 0xffff && area.height != 0xffff &&
+                               area.width > 0 && area.height > 0;
+                    });
+    m_spriteDetectionAreasButton->setEnabled(hasDetectionArea);
     const QSize previewSize = m_spriteOriginalPreviewLabel->size();
     m_spriteOriginalPreviewLabel->setPixmap(
-        previewPixmap(renderSpriteOriginalPreviewImage(sprite), previewSize));
+        previewPixmap(renderSpriteOriginalPreviewImage(
+                          sprite,
+                          m_spriteDetectionAreasButton->isChecked() && hasDetectionArea),
+                      previewSize));
     m_spriteColorizedPreviewLabel->setPixmap(
         previewPixmap(renderSpriteColorizedPreviewImage(sprite, m_activeResolution), previewSize));
 }
