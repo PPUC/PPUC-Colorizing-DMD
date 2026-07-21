@@ -232,6 +232,7 @@ void testSnapshotValidationAndRoundTrip()
           colorizing::document::SpriteDetectionArea{},
           colorizing::document::SpriteDetectionArea{},
           colorizing::document::SpriteDetectionArea{}}},
+        "Left saucer",
     };
     snapshot.sprites.push_back(sprite);
     snapshot.frames[0].spriteReferences.assign(32, FrameSpriteReference{});
@@ -290,6 +291,8 @@ void testSnapshotValidationAndRoundTrip()
            "snapshot HD sprite color data round-trip");
     expect(roundTrip.sprites[0].detectionDwords[0] == 0x12345678,
            "snapshot sprite detection data round-trip");
+    expect(roundTrip.sprites[0].name == "Left saucer",
+           "snapshot sprite name round-trip");
     expect(roundTrip.frames[0].spriteReferences[0].maxY == 8,
            "snapshot frame sprite reference round-trip");
     expect(document.shapeComparisonMode(0) == 7,
@@ -318,6 +321,8 @@ void testSnapshotValidationAndRoundTrip()
            "document sprite count accessor");
     expect(document.sprite(0).colorizedSd.pixels.front() == 0x7070,
            "document sprite accessor");
+    expect(document.sprite(0).name == "Left saucer",
+           "document sprite name accessor");
     expect(document.frameSpriteReferences(0)[0].spriteId == 0,
            "document frame sprite reference accessor");
     expect(roundTrip.comparisonMasks.size() == 1, "snapshot comparison mask count round-trip");

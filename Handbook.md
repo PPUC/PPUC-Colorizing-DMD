@@ -275,6 +275,7 @@ layout without changing record counts or binary structure.
 
 Currently preserved sprite data includes:
 
+- Sprite names from the `.cRP` sidecar, when available.
 - Sprite original masks.
 - SD and HD sprite color images.
 - HD sprite masks.
@@ -283,7 +284,7 @@ Currently preserved sprite data includes:
 
 The Inspector has a sprite browser and assignment controls:
 
-- The sprite selector lists loaded sprite records.
+- The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
 - The first preview shows the sprite original mask.
 - The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
@@ -294,7 +295,7 @@ The Inspector has a sprite browser and assignment controls:
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
-Sprite pixel editing and detection-area editing are still pending.
+Sprite pixel editing, sprite-name editing, and detection-area editing are still pending.
 
 ## Backgrounds
 

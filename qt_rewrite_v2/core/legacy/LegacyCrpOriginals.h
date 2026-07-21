@@ -13,6 +13,7 @@ namespace colorizing::legacy {
 struct LegacyCrpOriginalData {
     std::string romName;
     std::vector<document::IndexedFrame> originalSdFrames;
+    std::vector<std::string> spriteNames;
 };
 
 struct LegacyCrpOriginalParseResult {
@@ -31,4 +32,3 @@ struct LegacyCrpOriginalParseResult {
     const LegacyCromMetadata& cromMetadata);
 
 }  // namespace colorizing::legacy
-

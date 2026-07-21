@@ -69,6 +69,7 @@ struct SpriteRecord {
     std::vector<uint32_t> detectionDwords;
     std::vector<uint16_t> detectionDwordPositions;
     std::vector<SpriteDetectionArea> detectionAreas;
+    std::string name;
 };
 
 struct FrameSpriteReference {

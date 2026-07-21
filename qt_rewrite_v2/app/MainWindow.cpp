@@ -74,6 +74,16 @@ QString colorButtonStyle(uint16_t rgb565, bool enabled = true)
         .arg(color.name(), border);
 }
 
+QString spriteDisplayName(const document::ProjectDocument& document, std::size_t spriteIndex)
+{
+    const document::SpriteRecord& sprite = document.sprite(spriteIndex);
+    const QString base = QStringLiteral("Sprite %1").arg(static_cast<int>(spriteIndex));
+    if (sprite.name.empty()) {
+        return base;
+    }
+    return QStringLiteral("%1 - %2").arg(base, QString::fromStdString(sprite.name));
+}
+
 uint16_t colorToRgb565(const QColor& color)
 {
     const uint16_t r = static_cast<uint16_t>((color.red() * 31) / 255);
@@ -1875,8 +1885,8 @@ void MainWindow::updateSpriteControls()
                  ++spriteIndex) {
                 const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
                 m_spriteComboBox->addItem(
-                    QStringLiteral("Sprite %1%2")
-                        .arg(static_cast<int>(spriteIndex))
+                    QStringLiteral("%1%2")
+                        .arg(spriteDisplayName(*m_document, spriteIndex))
                         .arg(sprite.hasHd ? QStringLiteral(" (HD)") : QString()),
                     static_cast<int>(spriteIndex));
             }
@@ -1903,12 +1913,20 @@ void MainWindow::updateSpriteControls()
                 m_document->frameSpriteReferences(*frameIndex);
             for (std::size_t slot = 0; slot < references.size(); ++slot) {
                 const document::FrameSpriteReference& reference = references[slot];
+                const QString assignedSprite =
+                    reference.spriteId == 255
+                        ? QString()
+                        : static_cast<std::size_t>(reference.spriteId) >=
+                                m_document->spriteCount()
+                            ? QStringLiteral("Sprite %1")
+                                  .arg(static_cast<int>(reference.spriteId))
+                        : spriteDisplayName(*m_document, reference.spriteId);
                 m_spriteSlotComboBox->addItem(
                     reference.spriteId == 255
                         ? QStringLiteral("Slot %1: Empty").arg(static_cast<int>(slot))
-                        : QStringLiteral("Slot %1: Sprite %2")
+                        : QStringLiteral("Slot %1: %2")
                               .arg(static_cast<int>(slot))
-                              .arg(static_cast<int>(reference.spriteId)),
+                              .arg(assignedSprite),
                     static_cast<int>(slot));
             }
         }
@@ -1935,9 +1953,13 @@ void MainWindow::updateSpriteControls()
             if (reference.spriteId == 255) {
                 continue;
             }
-            assignedSprites << QStringLiteral("%1: sprite %2 [%3,%4-%5,%6]")
+            const QString assignedSprite =
+                reference.spriteId >= m_document->spriteCount()
+                    ? QStringLiteral("sprite %1").arg(static_cast<int>(reference.spriteId))
+                    : spriteDisplayName(*m_document, reference.spriteId);
+            assignedSprites << QStringLiteral("%1: %2 [%3,%4-%5,%6]")
                                    .arg(static_cast<int>(slot))
-                                   .arg(static_cast<int>(reference.spriteId))
+                                   .arg(assignedSprite)
                                    .arg(reference.minX)
                                    .arg(reference.minY)
                                    .arg(reference.maxX)

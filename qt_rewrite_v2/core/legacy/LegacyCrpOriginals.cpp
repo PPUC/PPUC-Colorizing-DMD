@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 #include <utility>
 
 namespace colorizing::legacy {
@@ -9,6 +10,17 @@ namespace colorizing::legacy {
 namespace {
 
 constexpr std::size_t kRomNameBytes = 64;
+constexpr std::size_t kBoolBytes = 4;
+constexpr std::size_t kU32Bytes = 4;
+constexpr std::size_t kIntBytes = 4;
+constexpr std::size_t kMaxColorSets = 64;
+constexpr std::size_t kColorSetColorCount = 16;
+constexpr std::size_t kMaskCount = 64;
+constexpr std::size_t kMaskNameBytes = 32;
+constexpr std::size_t kMaxSections = 512;
+constexpr std::size_t kSectionNameBytes = 32;
+constexpr std::size_t kMaxSpriteNames = 255;
+constexpr std::size_t kSpriteNameBytes = 32;
 
 class Cursor {
 public:
@@ -33,6 +45,15 @@ public:
         return true;
     }
 
+    bool skip(std::size_t count)
+    {
+        if (m_offset > m_size || count > m_size - m_offset) {
+            return false;
+        }
+        m_offset += count;
+        return true;
+    }
+
 private:
     const uint8_t* m_bytes = nullptr;
     std::size_t m_size = 0;
@@ -44,6 +65,13 @@ std::string fixedNameToString(const uint8_t (&nameBytes)[kRomNameBytes])
     const auto end = std::find(nameBytes, nameBytes + kRomNameBytes, uint8_t{0});
     return std::string(reinterpret_cast<const char*>(nameBytes),
                        reinterpret_cast<const char*>(end));
+}
+
+std::string fixedNameToString(const std::vector<uint8_t>& nameBytes)
+{
+    const auto end = std::find(nameBytes.begin(), nameBytes.end(), uint8_t{0});
+    return std::string(reinterpret_cast<const char*>(nameBytes.data()),
+                       static_cast<std::size_t>(std::distance(nameBytes.begin(), end)));
 }
 
 LegacyCrpOriginalParseResult fail(std::string message)
@@ -106,6 +134,38 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
         originalData.originalSdFrames.push_back(std::move(frame));
     }
 
+    if (cursor.offset() < size) {
+        const std::size_t beforeSpriteNamesBytes =
+            kMaxColorSets * kBoolBytes +
+            kMaxColorSets * kColorSetColorCount +
+            1 +
+            1 +
+            kMaxColorSets * kRomNameBytes +
+            kU32Bytes +
+            1 +
+            kIntBytes +
+            kBoolBytes +
+            kMaskCount * kMaskNameBytes +
+            kU32Bytes +
+            kMaxSections * kU32Bytes +
+            kMaxSections * kSectionNameBytes;
+        if (!cursor.skip(beforeSpriteNamesBytes)) {
+            return fail("unexpected end of cRP before sprite names");
+        }
+
+        originalData.spriteNames.clear();
+        originalData.spriteNames.reserve(cromMetadata.spriteCount);
+        for (std::size_t spriteIndex = 0; spriteIndex < kMaxSpriteNames; ++spriteIndex) {
+            std::vector<uint8_t> nameBytes(kSpriteNameBytes);
+            if (!cursor.readBytes(nameBytes.data(), nameBytes.size())) {
+                return fail("unexpected end of cRP while reading sprite names");
+            }
+            if (spriteIndex < cromMetadata.spriteCount) {
+                originalData.spriteNames.push_back(fixedNameToString(nameBytes));
+            }
+        }
+    }
+
     LegacyCrpOriginalParseResult result;
     result.originalData = std::move(originalData);
     result.nextOffset = cursor.offset();
@@ -114,4 +174,3 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
 }
 
 }  // namespace colorizing::legacy
-

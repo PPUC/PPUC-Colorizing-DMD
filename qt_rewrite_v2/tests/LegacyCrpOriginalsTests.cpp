@@ -70,6 +70,13 @@ void appendName(std::vector<uint8_t>& bytes, const std::string& name)
     }
 }
 
+void appendFixedName(std::vector<uint8_t>& bytes, const std::string& name, std::size_t size)
+{
+    for (std::size_t i = 0; i < size; ++i) {
+        bytes.push_back(i < name.size() ? static_cast<uint8_t>(name[i]) : uint8_t{0});
+    }
+}
+
 void appendRepeatedU16(std::vector<uint8_t>& bytes, uint16_t value, std::size_t count)
 {
     for (std::size_t i = 0; i < count; ++i) {
@@ -148,6 +155,30 @@ std::vector<uint8_t> makeCrpOriginals(const std::string& romName)
     return bytes;
 }
 
+std::vector<uint8_t> makeCrpWithSpriteNames(const std::string& romName)
+{
+    std::vector<uint8_t> bytes = makeCrpOriginals(romName);
+    appendRepeatedU32(bytes, 0, 64);
+    appendRepeatedU8(bytes, 0, 64 * 16);
+    bytes.push_back(0);
+    bytes.push_back(0);
+    appendRepeatedU8(bytes, 0, 64 * 64);
+    appendU32(bytes, 0);
+    bytes.push_back(0);
+    appendU32(bytes, 0);
+    appendU32(bytes, 0);
+    appendRepeatedU8(bytes, 0, 64 * 32);
+    appendU32(bytes, 0);
+    appendRepeatedU32(bytes, 0, 512);
+    appendRepeatedU8(bytes, 0, 512 * 32);
+    appendFixedName(bytes, "Left saucer", 32);
+    appendFixedName(bytes, "Right ramp", 32);
+    for (std::size_t i = 2; i < 255; ++i) {
+        appendFixedName(bytes, "", 32);
+    }
+    return bytes;
+}
+
 void testCrpOriginalFramesParse()
 {
     const LegacyCromFrameParseResult cromResult =
@@ -166,6 +197,24 @@ void testCrpOriginalFramesParse()
     expect(crpResult.originalData.originalSdFrames[1].pixels.back() == 2,
            "second original frame value");
     expect(crpResult.nextOffset == 64 + 2 * kSdPixels, "cRP originals next offset");
+}
+
+void testCrpSpriteNamesParse()
+{
+    colorizing::legacy::LegacyCromMetadata metadata;
+    metadata.romName = "join_rom";
+    metadata.frameWidth = kSdWidth;
+    metadata.frameHeight = kSdHeight;
+    metadata.frameCount = 2;
+    metadata.spriteCount = 2;
+
+    const LegacyCrpOriginalParseResult crpResult =
+        parseLegacyCrpOriginalFrames(makeCrpWithSpriteNames("join_rom"), metadata);
+
+    expect(crpResult.ok, "cRP sprite names should parse");
+    expect(crpResult.originalData.spriteNames.size() == 2, "cRP sprite name count");
+    expect(crpResult.originalData.spriteNames[0] == "Left saucer", "first sprite name");
+    expect(crpResult.originalData.spriteNames[1] == "Right ramp", "second sprite name");
 }
 
 void testCrpNameMismatchFails()
@@ -243,6 +292,7 @@ void testBuildProjectSnapshotFromCromAndCrp()
 void runLegacyCrpOriginalsTests()
 {
     testCrpOriginalFramesParse();
+    testCrpSpriteNamesParse();
     testCrpNameMismatchFails();
     testTruncatedCrpOriginalsFail();
     testBuildProjectSnapshotFromCromAndCrp();

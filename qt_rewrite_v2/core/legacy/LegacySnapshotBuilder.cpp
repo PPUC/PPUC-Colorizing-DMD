@@ -42,6 +42,12 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
     snapshot.comparisonMasks = cromFrameData.comparisonMasks;
     snapshot.backgrounds = cromFrameData.backgrounds;
     snapshot.sprites = cromFrameData.sprites;
+    for (std::size_t spriteIndex = 0;
+         spriteIndex < snapshot.sprites.size() &&
+             spriteIndex < crpOriginalData.spriteNames.size();
+         ++spriteIndex) {
+        snapshot.sprites[spriteIndex].name = crpOriginalData.spriteNames[spriteIndex];
+    }
     snapshot.frames.reserve(frameCount);
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         snapshot.frames.push_back(document::ProjectFrameSnapshot{
