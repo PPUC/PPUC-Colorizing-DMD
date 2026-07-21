@@ -595,6 +595,40 @@ void testFrameSpriteReferenceEditing()
     expectThrows<std::out_of_range>(
         [&]() { document.setFrameSpriteReference(0, 0, FrameSpriteReference{4, 0, 0, 1, 1}); },
         "sprite reference index bounds");
+
+    document.markClean();
+    document.setSpriteDetectionArea(0, 2, colorizing::document::SpriteDetectionArea{10, 11, 12, 13});
+    expect(document.sprite(0).detectionAreas[2].x == 10,
+           "sprite detection area edit should be readable");
+    expect(document.sprite(0).detectionAreas[2].height == 13,
+           "sprite detection area height edit should be readable");
+    expect(document.isDirty(), "sprite detection area edit should mark dirty");
+
+    document.markClean();
+    document.setSpriteDetectionArea(0, 2, colorizing::document::SpriteDetectionArea{10, 11, 12, 13});
+    expect(!document.isDirty(), "identical sprite detection area edit should not mark dirty");
+
+    document.setSpriteDetectionArea(0,
+                                    2,
+                                    colorizing::document::SpriteDetectionArea{
+                                        0xffff,
+                                        0xffff,
+                                        0xffff,
+                                        0xffff,
+                                    });
+    expect(document.sprite(0).detectionAreas[2].x == 0xffff,
+           "sprite detection area clear should store disabled marker");
+
+    expectThrows<std::out_of_range>(
+        [&]() {
+            document.setSpriteDetectionArea(1, 0, colorizing::document::SpriteDetectionArea{0, 0, 1, 1});
+        },
+        "sprite detection area sprite bounds");
+    expectThrows<std::out_of_range>(
+        [&]() {
+            document.setSpriteDetectionArea(0, 4, colorizing::document::SpriteDetectionArea{0, 0, 1, 1});
+        },
+        "sprite detection area index bounds");
 }
 
 void testBackgroundImagePixelEditing()

@@ -9,11 +9,13 @@
 #include <QImage>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointingDevice>
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
+#include "SpriteEditorWidget.h"
 
 namespace {
 
@@ -135,6 +137,41 @@ colorizing::document::ProjectDocument makeBackgroundPreviewDocument()
         colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0x07e0),
         colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0x07e0),
     });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
+colorizing::document::ProjectDocument makeSpriteEditorDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_editor";
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    colorizing::document::SpriteRecord sprite;
+    sprite.originalSd = colorizing::document::makeIndexedFrame({256, 64}, 255);
+    sprite.colorizedSd = colorizing::document::makeRgb565Frame({256, 64}, 0);
+    sprite.maskHd = colorizing::document::makeIndexedFrame({256, 64}, 255);
+    sprite.colorizedHd = colorizing::document::makeRgb565Frame({256, 64}, 0);
+    sprite.detectionDwords.assign(colorizing::document::kMaxSpriteDetectAreas, 0xffffffff);
+    sprite.detectionDwordPositions.assign(colorizing::document::kMaxSpriteDetectAreas, 0xffff);
+    sprite.detectionAreas.assign(colorizing::document::kMaxSpriteDetectAreas,
+                                 colorizing::document::SpriteDetectionArea{
+                                     0xffff,
+                                     0xffff,
+                                     0xffff,
+                                     0xffff,
+                                 });
+    sprite.detectionAreas[0] = colorizing::document::SpriteDetectionArea{4, 5, 20, 8};
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 12; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y + 5) * 256 + static_cast<std::size_t>(x + 4);
+            sprite.originalSd.pixels[index] = 1;
+            sprite.colorizedSd.pixels[index] = 0x07e0;
+        }
+    }
+    snapshot.sprites.push_back(sprite);
     return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
 
@@ -867,6 +904,64 @@ void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
            "HD preview should not expose a duplicate HD region below original");
 }
 
+void testSpriteEditorRendersAndEditsDetectionArea()
+{
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    widget.setDetectionAreasVisible(true);
+    widget.setSelectedDetectionAreaIndex(std::size_t{0});
+
+    QImage image(widget.size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    QPainter painter(&image);
+    widget.render(&painter);
+    painter.end();
+    expect(hasVisibleCyanPixel(image), "sprite editor should render detection area overlay");
+
+    std::optional<colorizing::document::SpriteDetectionArea> editedArea;
+    widget.setDetectionAreaChangedHandler(
+        [&](std::size_t areaIndex, colorizing::document::SpriteDetectionArea area) {
+            expect(areaIndex == 0, "sprite editor should edit selected area");
+            editedArea = area;
+        });
+
+    QMouseEvent press(QEvent::MouseButtonPress,
+                      QPointF(84, 232),
+                      QPointF(84, 232),
+                      QPointF(84, 232),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier,
+                      QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &press);
+    QMouseEvent move(QEvent::MouseMove,
+                     QPointF(104, 252),
+                     QPointF(104, 252),
+                     QPointF(104, 252),
+                     Qt::NoButton,
+                     Qt::LeftButton,
+                     Qt::NoModifier,
+                     QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &move);
+    QMouseEvent release(QEvent::MouseButtonRelease,
+                        QPointF(104, 252),
+                        QPointF(104, 252),
+                        QPointF(104, 252),
+                        Qt::LeftButton,
+                        Qt::NoButton,
+                        Qt::NoModifier,
+                        QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &release);
+
+    expect(editedArea.has_value(), "sprite editor drag should emit edited area");
+    expect(editedArea->x == 10 && editedArea->y == 5 &&
+               editedArea->width == 11 && editedArea->height == 11,
+           "sprite editor drag should convert canvas coordinates to area");
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -892,6 +987,7 @@ int main(int argc, char* argv[])
     testSpriteCompositionRendersInSdAndHd();
     testBackgroundImageEditModeRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
+    testSpriteEditorRendersAndEditsDetectionArea();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

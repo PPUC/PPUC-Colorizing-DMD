@@ -13,10 +13,12 @@
 
 namespace colorizing::app {
 class FramePreviewWidget;
+class SpriteEditorWidget;
 }
 
 class QLabel;
 class QListWidget;
+class QStackedWidget;
 class QToolButton;
 class QAction;
 class QMenu;
@@ -185,6 +187,8 @@ private:
     void assignSelectedSpriteToCurrentSlot();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
+    void setCurrentSpriteDetectionArea();
+    void clearCurrentSpriteDetectionArea();
     void createCurrentFrameHd();
     void removeCurrentFrameHd();
     void updateDynamicColorControls();
@@ -282,8 +286,10 @@ private:
     QToolButton* m_removeHdFrameButton = nullptr;
     QToolButton* m_spriteBoundsOverlayButton = nullptr;
     QToolButton* m_spriteDetectionAreasButton = nullptr;
+    QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_assignSpriteButton = nullptr;
     QToolButton* m_removeSpriteButton = nullptr;
+    QToolButton* m_clearSpriteDetectionAreaButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
@@ -292,18 +298,25 @@ private:
     QSpinBox* m_spriteMinYSpinBox = nullptr;
     QSpinBox* m_spriteMaxXSpinBox = nullptr;
     QSpinBox* m_spriteMaxYSpinBox = nullptr;
+    QSpinBox* m_spriteDetectionAreaXSpinBox = nullptr;
+    QSpinBox* m_spriteDetectionAreaYSpinBox = nullptr;
+    QSpinBox* m_spriteDetectionAreaWidthSpinBox = nullptr;
+    QSpinBox* m_spriteDetectionAreaHeightSpinBox = nullptr;
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
     QComboBox* m_spriteSlotComboBox = nullptr;
+    QComboBox* m_spriteDetectionAreaComboBox = nullptr;
     QLabel* m_spriteOriginalPreviewLabel = nullptr;
     QLabel* m_spriteColorizedPreviewLabel = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_dynamicColorButtons;
+    QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
+    SpriteEditorWidget* m_spriteEditor = nullptr;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;

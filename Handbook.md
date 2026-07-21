@@ -288,6 +288,10 @@ The Inspector has a sprite browser and assignment controls:
 - The first preview shows the sprite original mask.
 - The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
 - `Show Det Areas` overlays valid per-sprite detection areas on the original sprite preview.
+- The detection area selector and `X`, `Y`, `W`, `H` fields edit the selected sprite detection area.
+- `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
+- `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
+- In the sprite editor canvas, drag on the original sprite to set the selected detection area.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
 - `Remove` clears the selected slot's sprite assignment for all selected frames.
@@ -296,7 +300,7 @@ The Inspector has a sprite browser and assignment controls:
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
-Sprite pixel editing, sprite-name editing, and detection-area editing are still pending.
+Sprite pixel editing and sprite-name editing are still pending.
 
 ## Backgrounds
 

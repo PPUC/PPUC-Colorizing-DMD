@@ -7,6 +7,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramePreviewWidget.h
     FrameThumbnail.cpp
     FrameThumbnail.h
+    SpriteEditorWidget.cpp
+    SpriteEditorWidget.h
 )
 
 target_link_libraries(colorizing_qt_v2_widgets

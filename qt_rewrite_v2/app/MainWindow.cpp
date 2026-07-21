@@ -33,6 +33,7 @@
 #include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSpinBox>
+#include <QStackedWidget>
 #include <QStatusBar>
 #include <QStringList>
 #include <QToolButton>
@@ -42,6 +43,7 @@
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
+#include "SpriteEditorWidget.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
 
@@ -476,6 +478,10 @@ void MainWindow::createCentralView()
     m_frameList->setUniformItemSizes(false);
     m_frameList->setMinimumWidth(230);
     m_preview = new FramePreviewWidget(central);
+    m_spriteEditor = new SpriteEditorWidget(central);
+    m_canvasStack = new QStackedWidget(central);
+    m_canvasStack->addWidget(m_preview);
+    m_canvasStack->addWidget(m_spriteEditor);
 
     layout->addWidget(m_statusLabel);
 
@@ -582,6 +588,39 @@ void MainWindow::createCentralView()
     m_spriteDetectionAreasButton->setCheckable(true);
     m_spriteDetectionAreasButton->setChecked(false);
     m_spriteDetectionAreasButton->setEnabled(false);
+    m_spriteCanvasButton = new QToolButton(central);
+    m_spriteCanvasButton->setText(QStringLiteral("Edit Sprite"));
+    m_spriteCanvasButton->setToolTip(QStringLiteral("Show selected sprite in the main canvas"));
+    m_spriteCanvasButton->setCheckable(true);
+    m_spriteCanvasButton->setEnabled(false);
+    m_spriteDetectionAreaComboBox = new QComboBox(central);
+    m_spriteDetectionAreaComboBox->setToolTip(QStringLiteral("Sprite detection area"));
+    for (std::size_t areaIndex = 0; areaIndex < document::kMaxSpriteDetectAreas; ++areaIndex) {
+        m_spriteDetectionAreaComboBox->addItem(QStringLiteral("Area %1")
+                                                   .arg(static_cast<int>(areaIndex)),
+                                               static_cast<int>(areaIndex));
+    }
+    m_spriteDetectionAreaComboBox->setEnabled(false);
+    m_clearSpriteDetectionAreaButton = new QToolButton(central);
+    m_clearSpriteDetectionAreaButton->setText(QStringLiteral("Clear Area"));
+    m_clearSpriteDetectionAreaButton->setToolTip(QStringLiteral("Disable selected sprite detection area"));
+    m_clearSpriteDetectionAreaButton->setEnabled(false);
+    m_spriteDetectionAreaXSpinBox = new QSpinBox(central);
+    m_spriteDetectionAreaXSpinBox->setRange(0, static_cast<int>(document::kMaxSpriteWidth - 1));
+    m_spriteDetectionAreaXSpinBox->setToolTip(QStringLiteral("Sprite detection area X"));
+    m_spriteDetectionAreaXSpinBox->setEnabled(false);
+    m_spriteDetectionAreaYSpinBox = new QSpinBox(central);
+    m_spriteDetectionAreaYSpinBox->setRange(0, static_cast<int>(document::kMaxSpriteHeight - 1));
+    m_spriteDetectionAreaYSpinBox->setToolTip(QStringLiteral("Sprite detection area Y"));
+    m_spriteDetectionAreaYSpinBox->setEnabled(false);
+    m_spriteDetectionAreaWidthSpinBox = new QSpinBox(central);
+    m_spriteDetectionAreaWidthSpinBox->setRange(1, static_cast<int>(document::kMaxSpriteWidth));
+    m_spriteDetectionAreaWidthSpinBox->setToolTip(QStringLiteral("Sprite detection area width"));
+    m_spriteDetectionAreaWidthSpinBox->setEnabled(false);
+    m_spriteDetectionAreaHeightSpinBox = new QSpinBox(central);
+    m_spriteDetectionAreaHeightSpinBox->setRange(1, static_cast<int>(document::kMaxSpriteHeight));
+    m_spriteDetectionAreaHeightSpinBox->setToolTip(QStringLiteral("Sprite detection area height"));
+    m_spriteDetectionAreaHeightSpinBox->setEnabled(false);
     m_spriteMinXSpinBox = new QSpinBox(central);
     m_spriteMinXSpinBox->setRange(0, 127);
     m_spriteMinXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
@@ -716,6 +755,7 @@ void MainWindow::createCentralView()
     auto* spriteVisualizationLayout = new QHBoxLayout();
     spriteVisualizationLayout->addWidget(m_spriteBoundsOverlayButton);
     spriteVisualizationLayout->addWidget(m_spriteDetectionAreasButton);
+    spriteVisualizationLayout->addWidget(m_spriteCanvasButton);
     inspectorLayout->addLayout(spriteVisualizationLayout);
     auto* spriteBoundsGrid = new QGridLayout();
     spriteBoundsGrid->setHorizontalSpacing(4);
@@ -729,6 +769,22 @@ void MainWindow::createCentralView()
     spriteBoundsGrid->addWidget(new QLabel(QStringLiteral("Max Y"), inspector), 1, 2);
     spriteBoundsGrid->addWidget(m_spriteMaxYSpinBox, 1, 3);
     inspectorLayout->addLayout(spriteBoundsGrid);
+    auto* spriteDetectionAreaLayout = new QHBoxLayout();
+    spriteDetectionAreaLayout->addWidget(m_spriteDetectionAreaComboBox);
+    spriteDetectionAreaLayout->addWidget(m_clearSpriteDetectionAreaButton);
+    inspectorLayout->addLayout(spriteDetectionAreaLayout);
+    auto* spriteDetectionAreaGrid = new QGridLayout();
+    spriteDetectionAreaGrid->setHorizontalSpacing(4);
+    spriteDetectionAreaGrid->setVerticalSpacing(4);
+    spriteDetectionAreaGrid->addWidget(new QLabel(QStringLiteral("X"), inspector), 0, 0);
+    spriteDetectionAreaGrid->addWidget(m_spriteDetectionAreaXSpinBox, 0, 1);
+    spriteDetectionAreaGrid->addWidget(new QLabel(QStringLiteral("Y"), inspector), 0, 2);
+    spriteDetectionAreaGrid->addWidget(m_spriteDetectionAreaYSpinBox, 0, 3);
+    spriteDetectionAreaGrid->addWidget(new QLabel(QStringLiteral("W"), inspector), 1, 0);
+    spriteDetectionAreaGrid->addWidget(m_spriteDetectionAreaWidthSpinBox, 1, 1);
+    spriteDetectionAreaGrid->addWidget(new QLabel(QStringLiteral("H"), inspector), 1, 2);
+    spriteDetectionAreaGrid->addWidget(m_spriteDetectionAreaHeightSpinBox, 1, 3);
+    inspectorLayout->addLayout(spriteDetectionAreaGrid);
     inspectorLayout->addWidget(m_frameSpritesLabel);
     inspectorLayout->addWidget(m_spriteOriginalPreviewLabel);
     inspectorLayout->addWidget(m_spriteColorizedPreviewLabel);
@@ -736,7 +792,7 @@ void MainWindow::createCentralView()
     inspector->setMinimumWidth(180);
     inspector->setMaximumWidth(240);
     contentLayout->addWidget(frameListPanel, 0);
-    contentLayout->addWidget(m_preview, 1);
+    contentLayout->addWidget(m_canvasStack, 1);
     contentLayout->addWidget(inspector, 0);
     layout->addLayout(contentLayout, 1);
 
@@ -864,6 +920,22 @@ void MainWindow::createCentralView()
     connect(m_spriteDetectionAreasButton, &QToolButton::toggled, this, [this](bool) {
         updateSpriteControls();
     });
+    connect(m_spriteCanvasButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (m_canvasStack) {
+            m_canvasStack->setCurrentWidget(checked && m_spriteEditor ? static_cast<QWidget*>(m_spriteEditor)
+                                                                      : static_cast<QWidget*>(m_preview));
+        }
+        updateSpriteControls();
+    });
+    connect(m_spriteDetectionAreaComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updateSpriteControls();
+            });
+    connect(m_clearSpriteDetectionAreaButton, &QToolButton::clicked, this, [this]() {
+        clearCurrentSpriteDetectionArea();
+    });
     auto connectSpriteBoundsSpinBox = [this](QSpinBox* spinBox) {
         connect(spinBox,
                 static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -876,6 +948,18 @@ void MainWindow::createCentralView()
     connectSpriteBoundsSpinBox(m_spriteMinYSpinBox);
     connectSpriteBoundsSpinBox(m_spriteMaxXSpinBox);
     connectSpriteBoundsSpinBox(m_spriteMaxYSpinBox);
+    auto connectSpriteDetectionAreaSpinBox = [this](QSpinBox* spinBox) {
+        connect(spinBox,
+                static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+                this,
+                [this](int) {
+                    setCurrentSpriteDetectionArea();
+                });
+    };
+    connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaXSpinBox);
+    connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaYSpinBox);
+    connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaWidthSpinBox);
+    connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaHeightSpinBox);
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -917,6 +1001,46 @@ void MainWindow::createCentralView()
         [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
             paintFrameStroke(start, end, erase);
     });
+    m_spriteEditor->setDetectionAreaChangedHandler(
+        [this](std::size_t areaIndex, document::SpriteDetectionArea area) {
+            if (!m_spriteDetectionAreaComboBox) {
+                return;
+            }
+            const int comboIndex =
+                m_spriteDetectionAreaComboBox->findData(static_cast<int>(areaIndex));
+            if (comboIndex >= 0) {
+                QSignalBlocker blocker(m_spriteDetectionAreaComboBox);
+                m_spriteDetectionAreaComboBox->setCurrentIndex(comboIndex);
+            }
+            const int spriteIndex = m_spriteComboBox ? m_spriteComboBox->currentData().toInt() : -1;
+            if (!m_document || spriteIndex < 0 ||
+                static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+                updateSpriteControls();
+                return;
+            }
+            try {
+                m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
+                                                   areaIndex,
+                                                   area);
+                if (m_preview) {
+                    m_preview->update();
+                }
+                if (m_spriteEditor) {
+                    m_spriteEditor->update();
+                }
+                refreshFrameList(currentFrameIndex());
+                updateSpriteControls();
+                updateProjectHeaderStatus();
+                statusBar()->showMessage(
+                    QStringLiteral("Updated sprite %1 detection area %2")
+                        .arg(spriteIndex)
+                        .arg(static_cast<int>(areaIndex)),
+                    1500);
+            } catch (const std::exception& ex) {
+                updateSpriteControls();
+                statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+            }
+        });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
     updateDmdRenderOptions();
@@ -1228,6 +1352,9 @@ void MainWindow::setFrameStatusText(const QString& text)
 void MainWindow::refreshProjectSummary()
 {
     m_preview->setDocument(m_document ? &*m_document : nullptr);
+    if (m_spriteEditor) {
+        m_spriteEditor->setDocument(m_document ? &*m_document : nullptr);
+    }
     m_activeResolution = render::Resolution::Sd;
     updateResolutionMode();
     if (!m_document) {
@@ -1410,6 +1537,9 @@ void MainWindow::updateResolutionMode()
     if (m_preview) {
         m_preview->clearPreviewPixels();
         m_preview->setActiveResolution(m_activeResolution);
+    }
+    if (m_spriteEditor) {
+        m_spriteEditor->setActiveResolution(m_activeResolution);
     }
     updateDynamicColorControls();
     updateSpriteControls();
@@ -1737,6 +1867,105 @@ void MainWindow::setCurrentSpriteSlotBounds()
     }
 }
 
+void MainWindow::setCurrentSpriteDetectionArea()
+{
+    if (!m_document || !m_spriteComboBox || !m_spriteDetectionAreaComboBox ||
+        !m_spriteDetectionAreaXSpinBox || !m_spriteDetectionAreaYSpinBox ||
+        !m_spriteDetectionAreaWidthSpinBox || !m_spriteDetectionAreaHeightSpinBox) {
+        return;
+    }
+
+    const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    const int areaIndex = m_spriteDetectionAreaComboBox->currentData().toInt();
+    if (spriteIndex < 0 || areaIndex < 0 ||
+        static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        updateSpriteControls();
+        return;
+    }
+
+    const int x = m_spriteDetectionAreaXSpinBox->value();
+    const int y = m_spriteDetectionAreaYSpinBox->value();
+    const int width = std::min(m_spriteDetectionAreaWidthSpinBox->value(),
+                               static_cast<int>(document::kMaxSpriteWidth) - x);
+    const int height = std::min(m_spriteDetectionAreaHeightSpinBox->value(),
+                                static_cast<int>(document::kMaxSpriteHeight) - y);
+    if (width <= 0 || height <= 0) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
+                                           static_cast<std::size_t>(areaIndex),
+                                           document::SpriteDetectionArea{
+                                               static_cast<uint16_t>(x),
+                                               static_cast<uint16_t>(y),
+                                               static_cast<uint16_t>(width),
+                                               static_cast<uint16_t>(height),
+                                           });
+        if (m_preview) {
+            m_preview->update();
+        }
+        if (m_spriteEditor) {
+            m_spriteEditor->update();
+        }
+        refreshFrameList(currentFrameIndex());
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Updated sprite %1 detection area %2")
+                .arg(spriteIndex)
+                .arg(areaIndex),
+            1500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::clearCurrentSpriteDetectionArea()
+{
+    if (!m_document || !m_spriteComboBox || !m_spriteDetectionAreaComboBox) {
+        return;
+    }
+
+    const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    const int areaIndex = m_spriteDetectionAreaComboBox->currentData().toInt();
+    if (spriteIndex < 0 || areaIndex < 0 ||
+        static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
+                                           static_cast<std::size_t>(areaIndex),
+                                           document::SpriteDetectionArea{
+                                               0xffff,
+                                               0xffff,
+                                               0xffff,
+                                               0xffff,
+                                           });
+        if (m_preview) {
+            m_preview->update();
+        }
+        if (m_spriteEditor) {
+            m_spriteEditor->update();
+        }
+        refreshFrameList(currentFrameIndex());
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Cleared sprite %1 detection area %2")
+                .arg(spriteIndex)
+                .arg(areaIndex),
+            1500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::createCurrentFrameHd()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -1924,13 +2153,18 @@ void MainWindow::updateSpriteControls()
         !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
         !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
         !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
+        !m_spriteCanvasButton ||
+        !m_spriteDetectionAreaComboBox || !m_clearSpriteDetectionAreaButton ||
         !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
-        !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox) {
+        !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox ||
+        !m_spriteDetectionAreaXSpinBox || !m_spriteDetectionAreaYSpinBox ||
+        !m_spriteDetectionAreaWidthSpinBox || !m_spriteDetectionAreaHeightSpinBox) {
         return;
     }
 
     const QVariant previousSpriteData = m_spriteComboBox->currentData();
     const QVariant previousSlotData = m_spriteSlotComboBox->currentData();
+    const QVariant previousAreaData = m_spriteDetectionAreaComboBox->currentData();
     {
         QSignalBlocker blocker(m_spriteComboBox);
         m_spriteComboBox->clear();
@@ -2072,15 +2306,74 @@ void MainWindow::updateSpriteControls()
     if (!m_document || spriteIndex < 0 ||
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
         m_spriteDetectionAreasButton->setEnabled(false);
+        m_spriteCanvasButton->setEnabled(false);
+        if (m_canvasStack && m_preview) {
+            m_canvasStack->setCurrentWidget(m_preview);
+        }
+        m_spriteDetectionAreaComboBox->setEnabled(false);
+        m_clearSpriteDetectionAreaButton->setEnabled(false);
+        m_spriteDetectionAreaXSpinBox->setEnabled(false);
+        m_spriteDetectionAreaYSpinBox->setEnabled(false);
+        m_spriteDetectionAreaWidthSpinBox->setEnabled(false);
+        m_spriteDetectionAreaHeightSpinBox->setEnabled(false);
         m_spriteOriginalPreviewLabel->clear();
         m_spriteOriginalPreviewLabel->setText(QStringLiteral("Original"));
         m_spriteColorizedPreviewLabel->clear();
         m_spriteColorizedPreviewLabel->setText(QStringLiteral("Colorized"));
+        if (m_spriteEditor) {
+            m_spriteEditor->setSpriteIndex(std::nullopt);
+        }
         return;
     }
 
     const document::SpriteRecord& sprite =
         m_document->sprite(static_cast<std::size_t>(spriteIndex));
+    m_spriteCanvasButton->setEnabled(true);
+    {
+        QSignalBlocker blocker(m_spriteDetectionAreaComboBox);
+        const int previousIndex = m_spriteDetectionAreaComboBox->findData(previousAreaData);
+        if (previousIndex >= 0) {
+            m_spriteDetectionAreaComboBox->setCurrentIndex(previousIndex);
+        } else {
+            m_spriteDetectionAreaComboBox->setCurrentIndex(0);
+        }
+    }
+    const int areaIndex = m_spriteDetectionAreaComboBox->currentData().toInt();
+    const bool hasAreaSelection =
+        areaIndex >= 0 &&
+        static_cast<std::size_t>(areaIndex) < sprite.detectionAreas.size();
+    std::optional<document::SpriteDetectionArea> selectedArea;
+    if (hasAreaSelection) {
+        selectedArea = sprite.detectionAreas[static_cast<std::size_t>(areaIndex)];
+    }
+    const bool selectedAreaValid =
+        selectedArea &&
+        selectedArea->x != 0xffff && selectedArea->y != 0xffff &&
+        selectedArea->width != 0xffff && selectedArea->height != 0xffff &&
+        selectedArea->width > 0 && selectedArea->height > 0;
+    m_spriteDetectionAreaComboBox->setEnabled(true);
+    m_clearSpriteDetectionAreaButton->setEnabled(selectedAreaValid);
+    {
+        QSignalBlocker xBlocker(m_spriteDetectionAreaXSpinBox);
+        QSignalBlocker yBlocker(m_spriteDetectionAreaYSpinBox);
+        QSignalBlocker widthBlocker(m_spriteDetectionAreaWidthSpinBox);
+        QSignalBlocker heightBlocker(m_spriteDetectionAreaHeightSpinBox);
+        m_spriteDetectionAreaXSpinBox->setEnabled(hasAreaSelection);
+        m_spriteDetectionAreaYSpinBox->setEnabled(hasAreaSelection);
+        m_spriteDetectionAreaWidthSpinBox->setEnabled(hasAreaSelection);
+        m_spriteDetectionAreaHeightSpinBox->setEnabled(hasAreaSelection);
+        if (selectedAreaValid) {
+            m_spriteDetectionAreaXSpinBox->setValue(static_cast<int>(selectedArea->x));
+            m_spriteDetectionAreaYSpinBox->setValue(static_cast<int>(selectedArea->y));
+            m_spriteDetectionAreaWidthSpinBox->setValue(static_cast<int>(selectedArea->width));
+            m_spriteDetectionAreaHeightSpinBox->setValue(static_cast<int>(selectedArea->height));
+        } else {
+            m_spriteDetectionAreaXSpinBox->setValue(0);
+            m_spriteDetectionAreaYSpinBox->setValue(0);
+            m_spriteDetectionAreaWidthSpinBox->setValue(1);
+            m_spriteDetectionAreaHeightSpinBox->setValue(1);
+        }
+    }
     const bool hasDetectionArea =
         std::any_of(sprite.detectionAreas.begin(),
                     sprite.detectionAreas.end(),
@@ -2090,6 +2383,18 @@ void MainWindow::updateSpriteControls()
                                area.width > 0 && area.height > 0;
                     });
     m_spriteDetectionAreasButton->setEnabled(hasDetectionArea);
+    if (m_spriteEditor) {
+        m_spriteEditor->setSpriteIndex(static_cast<std::size_t>(spriteIndex));
+        m_spriteEditor->setDetectionAreasVisible(m_spriteDetectionAreasButton->isChecked());
+        m_spriteEditor->setSelectedDetectionAreaIndex(
+            hasAreaSelection ? std::optional<std::size_t>(static_cast<std::size_t>(areaIndex))
+                             : std::nullopt);
+    }
+    if (m_canvasStack && m_preview && m_spriteEditor) {
+        m_canvasStack->setCurrentWidget(m_spriteCanvasButton->isChecked()
+                                            ? static_cast<QWidget*>(m_spriteEditor)
+                                            : static_cast<QWidget*>(m_preview));
+    }
     const QSize previewSize = m_spriteOriginalPreviewLabel->size();
     m_spriteOriginalPreviewLabel->setPixmap(
         previewPixmap(renderSpriteOriginalPreviewImage(
@@ -3709,6 +4014,9 @@ void MainWindow::updateDmdRenderOptions()
     }
     if (m_preview) {
         m_preview->setDmdRenderOptions(currentDmdRenderOptions());
+    }
+    if (m_spriteEditor) {
+        m_spriteEditor->setDmdRenderOptions(currentDmdRenderOptions());
     }
 }
 

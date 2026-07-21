@@ -649,6 +649,29 @@ const SpriteRecord& ProjectDocument::sprite(std::size_t spriteIndex) const
     return m_sprites[spriteIndex];
 }
 
+void ProjectDocument::setSpriteDetectionArea(std::size_t spriteIndex,
+                                             std::size_t areaIndex,
+                                             SpriteDetectionArea area)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    if (areaIndex >= sprite.detectionAreas.size() ||
+        sprite.detectionAreas.size() != kMaxSpriteDetectAreas) {
+        throw std::out_of_range("sprite detection area index out of range");
+    }
+    SpriteDetectionArea& existing = sprite.detectionAreas[areaIndex];
+    if (existing.x == area.x &&
+        existing.y == area.y &&
+        existing.width == area.width &&
+        existing.height == area.height) {
+        return;
+    }
+    existing = area;
+    m_dirty = true;
+}
+
 const std::vector<FrameSpriteReference>& ProjectDocument::frameSpriteReferences(
     std::size_t frameIndex) const
 {

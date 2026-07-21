@@ -182,6 +182,9 @@ public:
 
     [[nodiscard]] std::size_t spriteCount() const;
     [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
+    void setSpriteDetectionArea(std::size_t spriteIndex,
+                                std::size_t areaIndex,
+                                SpriteDetectionArea area);
     [[nodiscard]] const std::vector<FrameSpriteReference>& frameSpriteReferences(
         std::size_t frameIndex) const;
     void setFrameSpriteReference(std::size_t frameIndex,
