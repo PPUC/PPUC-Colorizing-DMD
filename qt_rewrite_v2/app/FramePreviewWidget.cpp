@@ -93,6 +93,40 @@ void FramePreviewWidget::setDmdRenderOptions(DmdRenderOptions options)
     update();
 }
 
+void FramePreviewWidget::setSelectedSpriteBoundsOverlayEnabled(bool enabled)
+{
+    if (m_showSelectedSpriteBoundsOverlay == enabled) {
+        return;
+    }
+    m_showSelectedSpriteBoundsOverlay = enabled;
+    update();
+}
+
+void FramePreviewWidget::setSelectedSpriteReference(
+    std::optional<document::FrameSpriteReference> reference)
+{
+    const auto sameReference =
+        [](const std::optional<document::FrameSpriteReference>& lhs,
+           const std::optional<document::FrameSpriteReference>& rhs) {
+            if (lhs.has_value() != rhs.has_value()) {
+                return false;
+            }
+            if (!lhs) {
+                return true;
+            }
+            return lhs->spriteId == rhs->spriteId &&
+                   lhs->minX == rhs->minX &&
+                   lhs->minY == rhs->minY &&
+                   lhs->maxX == rhs->maxX &&
+                   lhs->maxY == rhs->maxY;
+        };
+    if (sameReference(m_selectedSpriteReference, reference)) {
+        return;
+    }
+    m_selectedSpriteReference = reference;
+    update();
+}
+
 void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
@@ -293,6 +327,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
         paintComparisonMaskOverlay(painter, region);
         paintDynamicMaskOverlay(painter, region);
         paintBackgroundMaskOverlay(painter, region);
+        paintSelectedSpriteBounds(painter, region);
         paintPreview(painter, region);
     }
 
@@ -482,6 +517,45 @@ void FramePreviewWidget::paintBackgroundMaskOverlay(
                              overlayColor);
         }
     }
+    painter.restore();
+}
+
+void FramePreviewWidget::paintSelectedSpriteBounds(
+    QPainter& painter,
+    const render::CanvasRegionLayout& region)
+{
+    if (!m_showSelectedSpriteBoundsOverlay ||
+        !m_selectedSpriteReference ||
+        region.region != render::CanvasRegion::OriginalFrame ||
+        region.resolution != render::Resolution::Sd) {
+        return;
+    }
+
+    const document::FrameSpriteReference& reference = *m_selectedSpriteReference;
+    const int minX = std::clamp(static_cast<int>(std::min(reference.minX, reference.maxX)),
+                                0,
+                                region.logicalSize.width - 1);
+    const int maxX = std::clamp(static_cast<int>(std::max(reference.minX, reference.maxX)),
+                                0,
+                                region.logicalSize.width - 1);
+    const int minY = std::clamp(static_cast<int>(std::min(reference.minY, reference.maxY)),
+                                0,
+                                region.logicalSize.height - 1);
+    const int maxY = std::clamp(static_cast<int>(std::max(reference.minY, reference.maxY)),
+                                0,
+                                region.logicalSize.height - 1);
+
+    const int scale = region.displayScale;
+    const QRect bounds(region.displayRect.x + minX * scale,
+                       region.displayRect.y + minY * scale,
+                       (maxX - minX + 1) * scale,
+                       (maxY - minY + 1) * scale);
+
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, false);
+    const QColor fillColor = reference.spriteId == 255 ? QColor(255, 255, 255, 110)
+                                                       : QColor(0, 255, 255, 110);
+    painter.fillRect(bounds, fillColor);
     painter.restore();
 }
 

@@ -281,15 +281,20 @@ Currently preserved sprite data includes:
 - Sprite detection dwords, positions, and areas.
 - Per-frame sprite assignments and bounding boxes.
 
-The Inspector has a read-only sprite browser:
+The Inspector has a sprite browser and assignment controls:
 
 - The sprite selector lists loaded sprite records.
 - The first preview shows the sprite original mask.
 - The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
+- `Assign` writes the selected sprite into the selected slot for all selected frames.
+- `Remove` clears the selected slot's sprite assignment for all selected frames.
+- `Min X`, `Min Y`, `Max X`, and `Max Y` edit the selected slot's bounding box for all selected frames.
+- Removing a sprite assignment preserves the slot's bounding box, so a replacement sprite can reuse it.
+- `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
-Sprite editing and assignment UI are still pending.
+Sprite pixel editing and detection-area editing are still pending.
 
 ## Backgrounds
 

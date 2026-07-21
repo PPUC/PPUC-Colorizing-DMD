@@ -585,6 +585,41 @@ void testComparisonMaskOverlayRenders()
     expect(hasVisibleRedPixel(image), "comparison mask overlay should render visibly");
 }
 
+void testSelectedSpriteBoundsOverlayRenders()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    widget.setSelectedSpriteReference(colorizing::document::FrameSpriteReference{
+        0,
+        10,
+        5,
+        30,
+        12,
+    });
+    widget.setFrameIndex(0);
+
+    QImage image(widget.size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    QPainter painter(&image);
+    widget.render(&painter);
+    painter.end();
+
+    expect(hasVisibleCyanPixel(image),
+           "selected sprite slot bounds should render over original frame");
+
+    widget.setSelectedSpriteBoundsOverlayEnabled(false);
+    QImage hiddenImage(widget.size(), QImage::Format_ARGB32);
+    hiddenImage.fill(Qt::transparent);
+    QPainter hiddenPainter(&hiddenImage);
+    widget.render(&hiddenPainter);
+    hiddenPainter.end();
+    expect(!hasVisibleCyanPixel(hiddenImage),
+           "selected sprite slot bounds overlay should be hideable");
+}
+
 void testDynamicMaskOverlayRendersInSdAndHd()
 {
     colorizing::document::ProjectDocument document = makeDynamicPreviewDocument();
@@ -847,6 +882,7 @@ int main(int argc, char* argv[])
     testHdPreviewPixelsRender();
     testOriginalFrameStrokeCallback();
     testComparisonMaskOverlayRenders();
+    testSelectedSpriteBoundsOverlayRenders();
     testDynamicMaskOverlayRendersInSdAndHd();
     testDynamicReplacementRendersInSdAndHd();
     testDmdRenderOptionsLeavePixelSpacing();

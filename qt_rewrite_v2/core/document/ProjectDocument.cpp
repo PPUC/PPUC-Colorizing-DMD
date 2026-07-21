@@ -655,6 +655,39 @@ const std::vector<FrameSpriteReference>& ProjectDocument::frameSpriteReferences(
     return requireFrame(m_frames, frameIndex).spriteReferences;
 }
 
+void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
+                                              std::size_t slotIndex,
+                                              FrameSpriteReference reference)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.spriteReferences.empty()) {
+        frame.spriteReferences.assign(kMaxSpritesPerFrame, FrameSpriteReference{});
+    }
+    if (slotIndex >= frame.spriteReferences.size() ||
+        frame.spriteReferences.size() != kMaxSpritesPerFrame) {
+        throw std::out_of_range("sprite slot index out of range");
+    }
+    if (reference.spriteId != 255 && reference.spriteId >= m_sprites.size()) {
+        throw std::out_of_range("sprite reference index out of range");
+    }
+    if (frame.spriteReferences[slotIndex].spriteId == reference.spriteId &&
+        frame.spriteReferences[slotIndex].minX == reference.minX &&
+        frame.spriteReferences[slotIndex].minY == reference.minY &&
+        frame.spriteReferences[slotIndex].maxX == reference.maxX &&
+        frame.spriteReferences[slotIndex].maxY == reference.maxY) {
+        return;
+    }
+    frame.spriteReferences[slotIndex] = reference;
+    m_dirty = true;
+}
+
+void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex)
+{
+    FrameSpriteReference reference = frameSpriteReferences(frameIndex).at(slotIndex);
+    reference.spriteId = 255;
+    setFrameSpriteReference(frameIndex, slotIndex, reference);
+}
+
 namespace {
 
 Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)

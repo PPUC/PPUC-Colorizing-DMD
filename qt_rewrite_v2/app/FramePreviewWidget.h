@@ -28,6 +28,8 @@ public:
     void setBackgroundLayerEnabled(bool enabled);
     void setBackgroundImageEditModeEnabled(bool enabled);
     void setDmdRenderOptions(DmdRenderOptions options);
+    void setSelectedSpriteBoundsOverlayEnabled(bool enabled);
+    void setSelectedSpriteReference(std::optional<document::FrameSpriteReference> reference);
     void setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
     void setOriginalClickedHandler(std::function<void(render::CanvasHit, bool)> handler);
     void setStrokePreviewHandler(std::function<void(render::CanvasHit, render::CanvasHit, bool)> handler);
@@ -57,6 +59,7 @@ private:
     void paintComparisonMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintDynamicMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintBackgroundMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
+    void paintSelectedSpriteBounds(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
 
     const document::ProjectDocument* m_document = nullptr;
@@ -67,7 +70,9 @@ private:
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
     bool m_showBackgroundImageEditMode = false;
+    bool m_showSelectedSpriteBoundsOverlay = true;
     DmdRenderOptions m_renderOptions;
+    std::optional<document::FrameSpriteReference> m_selectedSpriteReference;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     std::function<void(render::CanvasHit, bool)> m_pixelClickedHandler;
     std::function<void(render::CanvasHit, bool)> m_originalClickedHandler;

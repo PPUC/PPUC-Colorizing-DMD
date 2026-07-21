@@ -507,6 +507,39 @@ void MainWindow::createCentralView()
     m_spriteComboBox = new QComboBox(central);
     m_spriteComboBox->setToolTip(QStringLiteral("Loaded sprite preview"));
     m_spriteComboBox->setEnabled(false);
+    m_spriteSlotComboBox = new QComboBox(central);
+    m_spriteSlotComboBox->setToolTip(QStringLiteral("Current frame sprite slot"));
+    m_spriteSlotComboBox->setEnabled(false);
+    m_assignSpriteButton = new QToolButton(central);
+    m_assignSpriteButton->setText(QStringLiteral("Assign"));
+    m_assignSpriteButton->setToolTip(QStringLiteral("Assign selected sprite to selected slot"));
+    m_assignSpriteButton->setEnabled(false);
+    m_removeSpriteButton = new QToolButton(central);
+    m_removeSpriteButton->setText(QStringLiteral("Remove"));
+    m_removeSpriteButton->setToolTip(QStringLiteral("Clear selected sprite slot"));
+    m_removeSpriteButton->setEnabled(false);
+    m_spriteBoundsOverlayButton = new QToolButton(central);
+    m_spriteBoundsOverlayButton->setText(QStringLiteral("Show Bounds"));
+    m_spriteBoundsOverlayButton->setToolTip(QStringLiteral("Show selected sprite bounds on original frame"));
+    m_spriteBoundsOverlayButton->setCheckable(true);
+    m_spriteBoundsOverlayButton->setChecked(true);
+    m_spriteBoundsOverlayButton->setEnabled(false);
+    m_spriteMinXSpinBox = new QSpinBox(central);
+    m_spriteMinXSpinBox->setRange(0, 127);
+    m_spriteMinXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
+    m_spriteMinXSpinBox->setEnabled(false);
+    m_spriteMinYSpinBox = new QSpinBox(central);
+    m_spriteMinYSpinBox->setRange(0, 31);
+    m_spriteMinYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum Y"));
+    m_spriteMinYSpinBox->setEnabled(false);
+    m_spriteMaxXSpinBox = new QSpinBox(central);
+    m_spriteMaxXSpinBox->setRange(0, 127);
+    m_spriteMaxXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum X"));
+    m_spriteMaxXSpinBox->setEnabled(false);
+    m_spriteMaxYSpinBox = new QSpinBox(central);
+    m_spriteMaxYSpinBox->setRange(0, 31);
+    m_spriteMaxYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum Y"));
+    m_spriteMaxYSpinBox->setEnabled(false);
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
@@ -617,6 +650,24 @@ void MainWindow::createCentralView()
     inspectorLayout->addLayout(dynamicColorsGrid);
     inspectorLayout->addWidget(spritesTitle);
     inspectorLayout->addWidget(m_spriteComboBox);
+    inspectorLayout->addWidget(m_spriteSlotComboBox);
+    auto* spriteButtonLayout = new QHBoxLayout();
+    spriteButtonLayout->addWidget(m_assignSpriteButton);
+    spriteButtonLayout->addWidget(m_removeSpriteButton);
+    inspectorLayout->addLayout(spriteButtonLayout);
+    inspectorLayout->addWidget(m_spriteBoundsOverlayButton);
+    auto* spriteBoundsGrid = new QGridLayout();
+    spriteBoundsGrid->setHorizontalSpacing(4);
+    spriteBoundsGrid->setVerticalSpacing(4);
+    spriteBoundsGrid->addWidget(new QLabel(QStringLiteral("Min X"), inspector), 0, 0);
+    spriteBoundsGrid->addWidget(m_spriteMinXSpinBox, 0, 1);
+    spriteBoundsGrid->addWidget(new QLabel(QStringLiteral("Min Y"), inspector), 0, 2);
+    spriteBoundsGrid->addWidget(m_spriteMinYSpinBox, 0, 3);
+    spriteBoundsGrid->addWidget(new QLabel(QStringLiteral("Max X"), inspector), 1, 0);
+    spriteBoundsGrid->addWidget(m_spriteMaxXSpinBox, 1, 1);
+    spriteBoundsGrid->addWidget(new QLabel(QStringLiteral("Max Y"), inspector), 1, 2);
+    spriteBoundsGrid->addWidget(m_spriteMaxYSpinBox, 1, 3);
+    inspectorLayout->addLayout(spriteBoundsGrid);
     inspectorLayout->addWidget(m_frameSpritesLabel);
     inspectorLayout->addWidget(m_spriteOriginalPreviewLabel);
     inspectorLayout->addWidget(m_spriteColorizedPreviewLabel);
@@ -732,6 +783,35 @@ void MainWindow::createCentralView()
             [this](int) {
                 updateSpriteControls();
             });
+    connect(m_spriteSlotComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updateSpriteControls();
+            });
+    connect(m_assignSpriteButton, &QToolButton::clicked, this, [this]() {
+        assignSelectedSpriteToCurrentSlot();
+    });
+    connect(m_removeSpriteButton, &QToolButton::clicked, this, [this]() {
+        removeCurrentSpriteSlot();
+    });
+    connect(m_spriteBoundsOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (m_preview) {
+            m_preview->setSelectedSpriteBoundsOverlayEnabled(checked);
+        }
+    });
+    auto connectSpriteBoundsSpinBox = [this](QSpinBox* spinBox) {
+        connect(spinBox,
+                static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+                this,
+                [this](int) {
+                    setCurrentSpriteSlotBounds();
+                });
+    };
+    connectSpriteBoundsSpinBox(m_spriteMinXSpinBox);
+    connectSpriteBoundsSpinBox(m_spriteMinYSpinBox);
+    connectSpriteBoundsSpinBox(m_spriteMaxXSpinBox);
+    connectSpriteBoundsSpinBox(m_spriteMaxYSpinBox);
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -1441,6 +1521,158 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
     }
 }
 
+void MainWindow::assignSelectedSpriteToCurrentSlot()
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || !m_spriteComboBox || !m_spriteSlotComboBox) {
+        return;
+    }
+
+    const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    const int slotIndex = m_spriteSlotComboBox->currentData().toInt();
+    if (spriteIndex < 0 || slotIndex < 0 ||
+        static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            std::vector<document::FrameSpriteReference> references =
+                m_document->frameSpriteReferences(frameIndex);
+            if (static_cast<std::size_t>(slotIndex) >= references.size()) {
+                continue;
+            }
+            document::FrameSpriteReference reference =
+                references[static_cast<std::size_t>(slotIndex)];
+            reference.spriteId = static_cast<uint8_t>(spriteIndex);
+            m_document->setFrameSpriteReference(frameIndex,
+                                                static_cast<std::size_t>(slotIndex),
+                                                reference);
+            updateFrameListItem(frameIndex);
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Assigned sprite %1 to slot %2 on %3 frame(s)")
+                .arg(spriteIndex)
+                .arg(slotIndex)
+                .arg(static_cast<int>(frameIndices.size())),
+            2500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::removeCurrentSpriteSlot()
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || !m_spriteSlotComboBox) {
+        return;
+    }
+
+    const int slotIndex = m_spriteSlotComboBox->currentData().toInt();
+    if (slotIndex < 0) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->clearFrameSpriteReference(frameIndex,
+                                                  static_cast<std::size_t>(slotIndex));
+            updateFrameListItem(frameIndex);
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Cleared sprite slot %1 on %2 frame(s)")
+                .arg(slotIndex)
+                .arg(static_cast<int>(frameIndices.size())),
+            2500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentSpriteSlotBounds()
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || !m_spriteSlotComboBox ||
+        !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
+        !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox) {
+        return;
+    }
+
+    const int slotIndex = m_spriteSlotComboBox->currentData().toInt();
+    if (slotIndex < 0) {
+        updateSpriteControls();
+        return;
+    }
+
+    const int minX = std::min(m_spriteMinXSpinBox->value(), m_spriteMaxXSpinBox->value());
+    const int maxX = std::max(m_spriteMinXSpinBox->value(), m_spriteMaxXSpinBox->value());
+    const int minY = std::min(m_spriteMinYSpinBox->value(), m_spriteMaxYSpinBox->value());
+    const int maxY = std::max(m_spriteMinYSpinBox->value(), m_spriteMaxYSpinBox->value());
+
+    try {
+        bool changed = false;
+        for (std::size_t frameIndex : frameIndices) {
+            std::vector<document::FrameSpriteReference> references =
+                m_document->frameSpriteReferences(frameIndex);
+            if (static_cast<std::size_t>(slotIndex) >= references.size()) {
+                continue;
+            }
+            document::FrameSpriteReference reference =
+                references[static_cast<std::size_t>(slotIndex)];
+            const document::FrameSpriteReference updated{
+                reference.spriteId,
+                static_cast<uint16_t>(minX),
+                static_cast<uint16_t>(minY),
+                static_cast<uint16_t>(maxX),
+                static_cast<uint16_t>(maxY),
+            };
+            if (updated.spriteId == reference.spriteId &&
+                updated.minX == reference.minX &&
+                updated.minY == reference.minY &&
+                updated.maxX == reference.maxX &&
+                updated.maxY == reference.maxY) {
+                continue;
+            }
+            m_document->setFrameSpriteReference(frameIndex,
+                                                static_cast<std::size_t>(slotIndex),
+                                                updated);
+            updateFrameListItem(frameIndex);
+            changed = true;
+        }
+        if (!changed) {
+            updateSpriteControls();
+            return;
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Updated sprite slot %1 bounds on %2 frame(s)")
+                .arg(slotIndex)
+                .arg(static_cast<int>(frameIndices.size())),
+            1500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::createCurrentFrameHd()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -1625,11 +1857,16 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
 void MainWindow::updateSpriteControls()
 {
     if (!m_spriteComboBox || !m_spriteOriginalPreviewLabel ||
-        !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel) {
+        !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
+        !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
+        !m_spriteBoundsOverlayButton ||
+        !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
+        !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox) {
         return;
     }
 
     const QVariant previousSpriteData = m_spriteComboBox->currentData();
+    const QVariant previousSlotData = m_spriteSlotComboBox->currentData();
     {
         QSignalBlocker blocker(m_spriteComboBox);
         m_spriteComboBox->clear();
@@ -1658,6 +1895,35 @@ void MainWindow::updateSpriteControls()
     m_spriteComboBox->setEnabled(m_document && m_document->spriteCount() > 0);
 
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    {
+        QSignalBlocker blocker(m_spriteSlotComboBox);
+        m_spriteSlotComboBox->clear();
+        if (m_document && frameIndex) {
+            const std::vector<document::FrameSpriteReference>& references =
+                m_document->frameSpriteReferences(*frameIndex);
+            for (std::size_t slot = 0; slot < references.size(); ++slot) {
+                const document::FrameSpriteReference& reference = references[slot];
+                m_spriteSlotComboBox->addItem(
+                    reference.spriteId == 255
+                        ? QStringLiteral("Slot %1: Empty").arg(static_cast<int>(slot))
+                        : QStringLiteral("Slot %1: Sprite %2")
+                              .arg(static_cast<int>(slot))
+                              .arg(static_cast<int>(reference.spriteId)),
+                    static_cast<int>(slot));
+            }
+        }
+        if (m_spriteSlotComboBox->count() == 0) {
+            m_spriteSlotComboBox->addItem(QStringLiteral("No slots"), -1);
+            m_spriteSlotComboBox->setCurrentIndex(0);
+        } else if (previousSlotData.isValid()) {
+            const int previousIndex = m_spriteSlotComboBox->findData(previousSlotData);
+            m_spriteSlotComboBox->setCurrentIndex(previousIndex >= 0 ? previousIndex : 0);
+        } else {
+            m_spriteSlotComboBox->setCurrentIndex(0);
+        }
+    }
+    m_spriteSlotComboBox->setEnabled(m_document && frameIndex.has_value());
+
     if (!m_document || !frameIndex) {
         m_frameSpritesLabel->setText(QStringLiteral("No frame sprites"));
     } else {
@@ -1684,6 +1950,49 @@ void MainWindow::updateSpriteControls()
     }
 
     const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    const int slotIndex = m_spriteSlotComboBox->currentData().toInt();
+    m_assignSpriteButton->setEnabled(m_document && frameIndex && spriteIndex >= 0 &&
+                                     slotIndex >= 0 &&
+                                     static_cast<std::size_t>(spriteIndex) <
+                                         m_document->spriteCount());
+    bool slotHasSprite = false;
+    std::optional<document::FrameSpriteReference> selectedReference;
+    if (m_document && frameIndex && slotIndex >= 0) {
+        const std::vector<document::FrameSpriteReference>& references =
+            m_document->frameSpriteReferences(*frameIndex);
+        if (static_cast<std::size_t>(slotIndex) < references.size()) {
+            selectedReference = references[static_cast<std::size_t>(slotIndex)];
+            slotHasSprite = selectedReference->spriteId != 255;
+        }
+    }
+    m_removeSpriteButton->setEnabled(slotHasSprite);
+    m_spriteBoundsOverlayButton->setEnabled(selectedReference.has_value());
+    if (m_preview) {
+        m_preview->setSelectedSpriteReference(selectedReference);
+    }
+    {
+        QSignalBlocker minXBlocker(m_spriteMinXSpinBox);
+        QSignalBlocker minYBlocker(m_spriteMinYSpinBox);
+        QSignalBlocker maxXBlocker(m_spriteMaxXSpinBox);
+        QSignalBlocker maxYBlocker(m_spriteMaxYSpinBox);
+        const bool hasSlot = selectedReference.has_value();
+        m_spriteMinXSpinBox->setEnabled(hasSlot);
+        m_spriteMinYSpinBox->setEnabled(hasSlot);
+        m_spriteMaxXSpinBox->setEnabled(hasSlot);
+        m_spriteMaxYSpinBox->setEnabled(hasSlot);
+        if (hasSlot) {
+            m_spriteMinXSpinBox->setValue(static_cast<int>(selectedReference->minX));
+            m_spriteMinYSpinBox->setValue(static_cast<int>(selectedReference->minY));
+            m_spriteMaxXSpinBox->setValue(static_cast<int>(selectedReference->maxX));
+            m_spriteMaxYSpinBox->setValue(static_cast<int>(selectedReference->maxY));
+        } else {
+            m_spriteMinXSpinBox->setValue(0);
+            m_spriteMinYSpinBox->setValue(0);
+            m_spriteMaxXSpinBox->setValue(render::kSdFrameSize.width - 1);
+            m_spriteMaxYSpinBox->setValue(render::kSdFrameSize.height - 1);
+        }
+    }
+
     if (!m_document || spriteIndex < 0 ||
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
         m_spriteOriginalPreviewLabel->clear();

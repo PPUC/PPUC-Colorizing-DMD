@@ -533,6 +533,65 @@ void testBackgroundMetadataAndMaskEditing()
         "missing background mask write");
 }
 
+void testFrameSpriteReferenceEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_assignment";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+        0,
+        255,
+        std::nullopt,
+        std::nullopt,
+        std::vector<FrameSpriteReference>(32),
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        false,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 2, 3, 4, 5});
+    expect(document.frameSpriteReferences(0)[1].spriteId == 0,
+           "frame sprite assignment should be readable");
+    expect(document.frameSpriteReferences(0)[1].maxY == 5,
+           "frame sprite bounding box should be readable");
+    expect(document.isDirty(), "frame sprite assignment should mark dirty");
+
+    document.markClean();
+    document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 2, 3, 4, 5});
+    expect(!document.isDirty(), "identical frame sprite assignment should not mark dirty");
+
+    document.clearFrameSpriteReference(0, 1);
+    expect(document.frameSpriteReferences(0)[1].spriteId == 255,
+           "frame sprite clear should store empty sprite ID");
+    expect(document.frameSpriteReferences(0)[1].minX == 2,
+           "frame sprite clear should preserve bounding box min x");
+    expect(document.frameSpriteReferences(0)[1].maxY == 5,
+           "frame sprite clear should preserve bounding box max y");
+    expect(document.isDirty(), "frame sprite clear should mark dirty");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setFrameSpriteReference(0, 32, FrameSpriteReference{0, 0, 0, 1, 1}); },
+        "sprite slot bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setFrameSpriteReference(0, 0, FrameSpriteReference{4, 0, 0, 1, 1}); },
+        "sprite reference index bounds");
+}
+
 void testBackgroundImagePixelEditing()
 {
     ProjectSnapshot snapshot;
@@ -682,6 +741,7 @@ void runProjectDocumentTests()
     testFrameComparisonMetadataEditing();
     testDynamicMaskPixelEditing();
     testBackgroundMetadataAndMaskEditing();
+    testFrameSpriteReferenceEditing();
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();
     testInvalidSnapshotReportsReason();

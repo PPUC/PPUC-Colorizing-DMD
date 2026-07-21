@@ -183,6 +183,10 @@ public:
     [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
     [[nodiscard]] const std::vector<FrameSpriteReference>& frameSpriteReferences(
         std::size_t frameIndex) const;
+    void setFrameSpriteReference(std::size_t frameIndex,
+                                 std::size_t slotIndex,
+                                 FrameSpriteReference reference);
+    void clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex);
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,
