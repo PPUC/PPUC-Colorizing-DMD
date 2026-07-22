@@ -565,6 +565,11 @@ void testFrameSpriteReferenceEditing()
           colorizing::document::SpriteDetectionArea{},
           colorizing::document::SpriteDetectionArea{}}},
     });
+    const std::size_t spriteDwordPosition = 11 * 256 + 10;
+    snapshot.sprites[0].originalSd.pixels[spriteDwordPosition] = 1;
+    snapshot.sprites[0].originalSd.pixels[spriteDwordPosition + 1] = 2;
+    snapshot.sprites[0].originalSd.pixels[spriteDwordPosition + 2] = 3;
+    snapshot.sprites[0].originalSd.pixels[spriteDwordPosition + 3] = 0;
 
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
@@ -602,6 +607,10 @@ void testFrameSpriteReferenceEditing()
            "sprite detection area edit should be readable");
     expect(document.sprite(0).detectionAreas[2].height == 13,
            "sprite detection area height edit should be readable");
+    expect(document.sprite(0).detectionDwords[2] == 0x00030201,
+           "sprite detection area edit should recalculate dword");
+    expect(document.sprite(0).detectionDwordPositions[2] == spriteDwordPosition,
+           "sprite detection area edit should recalculate dword position");
     expect(document.isDirty(), "sprite detection area edit should mark dirty");
 
     document.markClean();
@@ -618,6 +627,10 @@ void testFrameSpriteReferenceEditing()
                                     });
     expect(document.sprite(0).detectionAreas[2].x == 0xffff,
            "sprite detection area clear should store disabled marker");
+    expect(document.sprite(0).detectionDwords[2] == 0xffffffff,
+           "sprite detection area clear should disable dword");
+    expect(document.sprite(0).detectionDwordPositions[2] == 0xffff,
+           "sprite detection area clear should disable dword position");
 
     expectThrows<std::out_of_range>(
         [&]() {

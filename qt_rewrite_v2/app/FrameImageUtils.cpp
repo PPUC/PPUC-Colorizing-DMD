@@ -137,7 +137,9 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
                 area.width == 0xffff || area.height == 0xffff ||
                 area.width == 0 || area.height == 0 ||
                 areaIndex >= sprite.detectionDwords.size() ||
-                areaIndex >= sprite.detectionDwordPositions.size()) {
+                areaIndex >= sprite.detectionDwordPositions.size() ||
+                sprite.detectionDwords[areaIndex] == 0xffffffff ||
+                sprite.detectionDwordPositions[areaIndex] == 0xffff) {
                 continue;
             }
             for (int y = minY; y <= maxY; ++y) {

@@ -1,5 +1,7 @@
 #include "document/ProjectDocument.h"
 
+#include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <utility>
 
@@ -75,6 +77,90 @@ IndexedFrame upscaleIndexedFrame2x(const IndexedFrame& source)
         }
     }
     return target;
+}
+
+std::size_t spritePixelIndex(int x, int y)
+{
+    return static_cast<std::size_t>(y) * kMaxSpriteWidth + static_cast<std::size_t>(x);
+}
+
+bool isValidDetectionArea(SpriteDetectionArea area)
+{
+    return area.x != 0xffff && area.y != 0xffff &&
+           area.width != 0xffff && area.height != 0xffff &&
+           area.width > 0 && area.height > 0;
+}
+
+uint32_t spriteOriginalDwordAt(const IndexedFrame& original, int x, int y)
+{
+    return static_cast<uint32_t>(original.pixels[spritePixelIndex(x, y)]) |
+           (static_cast<uint32_t>(original.pixels[spritePixelIndex(x + 1, y)]) << 8) |
+           (static_cast<uint32_t>(original.pixels[spritePixelIndex(x + 2, y)]) << 16) |
+           (static_cast<uint32_t>(original.pixels[spritePixelIndex(x + 3, y)]) << 24);
+}
+
+std::optional<std::pair<uint32_t, uint16_t>> detectionDwordForArea(
+    const IndexedFrame& original,
+    SpriteDetectionArea area)
+{
+    if (!isValidDetectionArea(area) || area.width < 4) {
+        return std::nullopt;
+    }
+
+    const int minX = std::clamp(static_cast<int>(area.x), 0, original.size.width - 1);
+    const int minY = std::clamp(static_cast<int>(area.y), 0, original.size.height - 1);
+    const int maxX = std::clamp(static_cast<int>(area.x) + static_cast<int>(area.width),
+                                0,
+                                original.size.width);
+    const int maxY = std::clamp(static_cast<int>(area.y) + static_cast<int>(area.height),
+                                0,
+                                original.size.height);
+    if (maxX - minX < 4 || maxY <= minY) {
+        return std::nullopt;
+    }
+
+    struct Candidate {
+        uint32_t dword = 0;
+        uint16_t position = 0xffff;
+        int count = 0;
+    };
+    std::map<uint32_t, Candidate> candidates;
+    for (int y = minY; y < maxY; ++y) {
+        for (int x = minX; x <= maxX - 4; ++x) {
+            bool contiguous = true;
+            for (int offset = 0; offset < 4; ++offset) {
+                if (original.pixels[spritePixelIndex(x + offset, y)] == 255) {
+                    contiguous = false;
+                    break;
+                }
+            }
+            if (!contiguous) {
+                continue;
+            }
+            const uint32_t dword = spriteOriginalDwordAt(original, x, y);
+            Candidate& candidate = candidates[dword];
+            candidate.dword = dword;
+            ++candidate.count;
+            if (candidate.position == 0xffff) {
+                candidate.position = static_cast<uint16_t>(spritePixelIndex(x, y));
+            }
+        }
+    }
+
+    if (candidates.empty()) {
+        return std::nullopt;
+    }
+
+    const auto best = std::min_element(
+        candidates.begin(),
+        candidates.end(),
+        [](const auto& lhs, const auto& rhs) {
+            if (lhs.second.count != rhs.second.count) {
+                return lhs.second.count < rhs.second.count;
+            }
+            return lhs.second.position < rhs.second.position;
+        });
+    return std::make_pair(best->second.dword, best->second.position);
 }
 
 }  // namespace
@@ -662,13 +748,24 @@ void ProjectDocument::setSpriteDetectionArea(std::size_t spriteIndex,
         throw std::out_of_range("sprite detection area index out of range");
     }
     SpriteDetectionArea& existing = sprite.detectionAreas[areaIndex];
+    uint32_t dword = 0xffffffff;
+    uint16_t dwordPosition = 0xffff;
+    if (const std::optional<std::pair<uint32_t, uint16_t>> calculated =
+            detectionDwordForArea(sprite.originalSd, area)) {
+        dword = calculated->first;
+        dwordPosition = calculated->second;
+    }
     if (existing.x == area.x &&
         existing.y == area.y &&
         existing.width == area.width &&
-        existing.height == area.height) {
+        existing.height == area.height &&
+        sprite.detectionDwords[areaIndex] == dword &&
+        sprite.detectionDwordPositions[areaIndex] == dwordPosition) {
         return;
     }
     existing = area;
+    sprite.detectionDwords[areaIndex] = dword;
+    sprite.detectionDwordPositions[areaIndex] = dwordPosition;
     m_dirty = true;
 }
 
