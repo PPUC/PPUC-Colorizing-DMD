@@ -692,6 +692,11 @@ void MainWindow::createCentralView()
             setActiveDrawColor(color);
         });
     }
+    m_activeColorButton = new QToolButton(central);
+    m_activeColorButton->setFixedSize(34, 24);
+    m_activeColorButton->setEnabled(false);
+    m_activeColorButton->setToolTip(QStringLiteral("Active draw color"));
+    toolbarLayout->addWidget(m_activeColorButton);
     toolbarLayout->addSpacing(12);
     toolbarLayout->addWidget(m_frameStatusLabel);
     toolbarLayout->addStretch(1);
@@ -1076,6 +1081,14 @@ void MainWindow::createCentralView()
                const std::vector<render::Point>& pixels,
                bool erase) {
             paintSpriteColorizedPixels(spriteIndex, resolution, pixels, erase);
+        });
+    m_spriteEditor->setColorizedPixelPickedHandler(
+        [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
+            pickSpriteColorizedPixel(spriteIndex, resolution, x, y);
+        });
+    m_spriteEditor->setColorizedFloodFillHandler(
+        [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
+            floodFillSpriteColorized(spriteIndex, resolution, x, y);
         });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
@@ -2078,6 +2091,79 @@ void MainWindow::paintSpriteColorizedPixels(std::size_t spriteIndex,
     }
 }
 
+void MainWindow::pickSpriteColorizedPixel(std::size_t spriteIndex,
+                                          render::Resolution resolution,
+                                          int x,
+                                          int y)
+{
+    if (!m_document || spriteIndex >= m_document->spriteCount()) {
+        return;
+    }
+    try {
+        const uint16_t color = m_document->spriteColorizedPixel(spriteIndex, resolution, x, y);
+        setActiveDrawColor(color);
+        statusBar()->showMessage(QStringLiteral("Picked sprite color 0x%1")
+                                     .arg(color, 4, 16, QLatin1Char('0')),
+                                 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::floodFillSpriteColorized(std::size_t spriteIndex,
+                                          render::Resolution resolution,
+                                          int x,
+                                          int y)
+{
+    if (!m_document || spriteIndex >= m_document->spriteCount()) {
+        return;
+    }
+
+    try {
+        const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
+        const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+        const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
+        const document::Rgb565Frame& frame = useHd ? sprite.colorizedHd : sprite.colorizedSd;
+        const uint16_t targetColor = m_document->spriteColorizedPixel(spriteIndex, resolution, x, y);
+        if (targetColor == m_activeDrawColor || targetColor == 0 ||
+            mask.pixels[spritePixelIndex(x, y)] == 255) {
+            return;
+        }
+
+        std::vector<uint8_t> visited(frame.pixels.size(), 0);
+        std::deque<render::Point> queue;
+        std::vector<render::Point> pixels;
+        queue.push_back(render::Point{x, y});
+
+        while (!queue.empty()) {
+            const render::Point point = queue.front();
+            queue.pop_front();
+            if (point.x < 0 || point.y < 0 ||
+                point.x >= frame.size.width || point.y >= frame.size.height) {
+                continue;
+            }
+            const std::size_t index = spritePixelIndex(point.x, point.y);
+            if (visited[index]) {
+                continue;
+            }
+            visited[index] = 1;
+            if (mask.pixels[index] == 255 || frame.pixels[index] != targetColor) {
+                continue;
+            }
+
+            pixels.push_back(point);
+            queue.push_back(render::Point{point.x - 1, point.y});
+            queue.push_back(render::Point{point.x + 1, point.y});
+            queue.push_back(render::Point{point.x, point.y - 1});
+            queue.push_back(render::Point{point.x, point.y + 1});
+        }
+
+        paintSpriteColorizedPixels(spriteIndex, resolution, pixels, false);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::setSpriteDependentViewsDirty()
 {
     m_spriteDependentViewsDirty = true;
@@ -2577,6 +2663,11 @@ void MainWindow::setActiveDrawColor(uint16_t rgb565)
     for (QToolButton* button : m_colorButtons) {
         QSignalBlocker blocker(button);
         button->setChecked(button->property("rgb565").toInt() == static_cast<int>(rgb565));
+    }
+    if (m_activeColorButton) {
+        m_activeColorButton->setToolTip(
+            QStringLiteral("Active draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+        m_activeColorButton->setStyleSheet(colorButtonStyle(rgb565, true));
     }
 }
 

@@ -47,6 +47,10 @@ public:
         std::function<void(std::size_t, render::Resolution, int, int, bool)> handler);
     void setColorizedPixelsEditedHandler(
         std::function<void(std::size_t, render::Resolution, const std::vector<render::Point>&, bool)> handler);
+    void setColorizedPixelPickedHandler(
+        std::function<void(std::size_t, render::Resolution, int, int)> handler);
+    void setColorizedFloodFillHandler(
+        std::function<void(std::size_t, render::Resolution, int, int)> handler);
     void setColorizedPaintFinishedHandler(std::function<void()> handler);
 
     [[nodiscard]] QSize sizeHint() const override;
@@ -96,6 +100,8 @@ private:
     std::function<void(std::size_t, document::SpriteDetectionArea)> m_detectionAreaChangedHandler;
     std::function<void(std::size_t, render::Resolution, int, int, bool)> m_colorizedPixelEditedHandler;
     std::function<void(std::size_t, render::Resolution, const std::vector<render::Point>&, bool)> m_colorizedPixelsEditedHandler;
+    std::function<void(std::size_t, render::Resolution, int, int)> m_colorizedPixelPickedHandler;
+    std::function<void(std::size_t, render::Resolution, int, int)> m_colorizedFloodFillHandler;
     std::function<void()> m_colorizedPaintFinishedHandler;
     bool m_paintingColorized = false;
     bool m_paintErase = false;

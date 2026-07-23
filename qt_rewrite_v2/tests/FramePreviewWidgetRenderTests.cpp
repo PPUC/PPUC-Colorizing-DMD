@@ -1053,6 +1053,51 @@ void testSpriteEditorRendersAndEditsDetectionArea()
                paintedStroke->front().x == 10 && paintedStroke->front().y == 5 &&
                paintedStroke->back().x == 20 && paintedStroke->back().y == 5,
            "sprite editor line should convert stroke coordinates to pixels");
+
+    std::optional<colorizing::render::Point> pickedSpritePixel;
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::ColorPicker);
+    widget.setColorizedPixelPickedHandler(
+        [&](std::size_t spriteIndex, colorizing::render::Resolution resolution, int x, int y) {
+            expect(spriteIndex == 0, "sprite editor pick should target selected sprite");
+            expect(resolution == colorizing::render::Resolution::Sd,
+                   "sprite editor pick should use active sprite resolution");
+            pickedSpritePixel = colorizing::render::Point{x, y};
+        });
+    QMouseEvent pickPress(QEvent::MouseButtonPress,
+                          QPointF(84, 80),
+                          QPointF(84, 80),
+                          QPointF(84, 80),
+                          Qt::LeftButton,
+                          Qt::LeftButton,
+                          Qt::NoModifier,
+                          QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &pickPress);
+    expect(pickedSpritePixel.has_value() && pickedSpritePixel->x == 10 &&
+               pickedSpritePixel->y == 5,
+           "sprite editor should emit color pick coordinates");
+
+    std::optional<colorizing::render::Point> floodSpritePixel;
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::FloodFill);
+    widget.setColorizedFloodFillHandler(
+        [&](std::size_t spriteIndex, colorizing::render::Resolution resolution, int x, int y) {
+            expect(spriteIndex == 0, "sprite editor flood fill should target selected sprite");
+            expect(resolution == colorizing::render::Resolution::Sd,
+                   "sprite editor flood fill should use active sprite resolution");
+            floodSpritePixel = colorizing::render::Point{x, y};
+        });
+    QMouseEvent floodPress(QEvent::MouseButtonPress,
+                           QPointF(84, 80),
+                           QPointF(84, 80),
+                           QPointF(84, 80),
+                           Qt::LeftButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier,
+                           QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &floodPress);
+    expect(floodSpritePixel.has_value() && floodSpritePixel->x == 10 &&
+               floodSpritePixel->y == 5,
+           "sprite editor should emit flood fill coordinates");
+
     widget.setDrawingTool(colorizing::app::SpriteDrawingTool::Point);
 
     QImage image(widget.size(), QImage::Format_ARGB32);

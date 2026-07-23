@@ -220,6 +220,14 @@ private:
                                     render::Resolution resolution,
                                     const std::vector<render::Point>& pixels,
                                     bool erase);
+    void pickSpriteColorizedPixel(std::size_t spriteIndex,
+                                  render::Resolution resolution,
+                                  int x,
+                                  int y);
+    void floodFillSpriteColorized(std::size_t spriteIndex,
+                                  render::Resolution resolution,
+                                  int x,
+                                  int y);
     void setSpriteDependentViewsDirty();
     void applyPendingSpriteDependentViews();
     [[nodiscard]] uint8_t activeDynamicSet() const;
@@ -350,6 +358,7 @@ private:
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_dynamicColorButtons;
+    QToolButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
     SpriteEditorWidget* m_spriteEditor = nullptr;

@@ -140,6 +140,7 @@ The toolbar contains fixed swatches:
 - Black `0x0000`
 
 The active draw color can also be set with the `Pick` tool. If the picked RGB565 color is not one of the fixed swatches, no swatch is checked, but the picked color is still used by later drawing tools.
+The read-only color box next to the fixed swatches always shows the current active draw color.
 
 ## Drawing Tools
 
@@ -208,6 +209,10 @@ This tool does not modify project data and does not create an undo entry.
 Click a colorized frame pixel to flood-fill the contiguous four-neighbor area that matches the clicked pixel's current color.
 
 The fill uses the active draw color. The whole filled area is committed as one undoable edit.
+
+TODO: consolidate frame, mask, background, and sprite drawing behind a shared editable-surface
+pipeline so tools, previews, flood fill, undo/redo, and deferred dependent-view refresh are
+implemented once and reused across canvas targets.
 
 ## Undo And Redo
 
@@ -294,6 +299,7 @@ The Inspector has a sprite browser and assignment controls:
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
 - Hold `Shift` while dragging on the colorized sprite to erase existing non-black sprite pixels back to black.
 - The sprite editor supports the toolbar point, line, rectangle, filled rectangle, circle, filled circle, ellipse, and filled ellipse tools on the colorized sprite.
+- The sprite editor also supports the toolbar pick and flood-fill tools on the colorized sprite.
 - Sprite shape tools show a live preview and commit the full stroke on mouse release.
 - Sprite pixel edits update the sprite editor immediately. Frame thumbnails, composed frame preview,
   and side preview images refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.

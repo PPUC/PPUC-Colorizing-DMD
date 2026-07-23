@@ -287,6 +287,18 @@ void SpriteEditorWidget::setColorizedPixelsEditedHandler(
     m_colorizedPixelsEditedHandler = std::move(handler);
 }
 
+void SpriteEditorWidget::setColorizedPixelPickedHandler(
+    std::function<void(std::size_t, render::Resolution, int, int)> handler)
+{
+    m_colorizedPixelPickedHandler = std::move(handler);
+}
+
+void SpriteEditorWidget::setColorizedFloodFillHandler(
+    std::function<void(std::size_t, render::Resolution, int, int)> handler)
+{
+    m_colorizedFloodFillHandler = std::move(handler);
+}
+
 void SpriteEditorWidget::setColorizedPaintFinishedHandler(std::function<void()> handler)
 {
     m_colorizedPaintFinishedHandler = std::move(handler);
@@ -340,6 +352,22 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
                                               hit->x,
                                               hit->y,
                                               m_paintErase);
+            } else if (m_drawingTool == SpriteDrawingTool::ColorPicker &&
+                       m_colorizedPixelPickedHandler) {
+                m_colorizedPixelPickedHandler(*m_spriteIndex,
+                                              colorizedPaintResolution(),
+                                              hit->x,
+                                              hit->y);
+                m_paintingColorized = false;
+                m_paintErase = false;
+            } else if (m_drawingTool == SpriteDrawingTool::FloodFill &&
+                       m_colorizedFloodFillHandler) {
+                m_colorizedFloodFillHandler(*m_spriteIndex,
+                                            colorizedPaintResolution(),
+                                            hit->x,
+                                            hit->y);
+                m_paintingColorized = false;
+                m_paintErase = false;
             } else if (editsColorizedStroke() && m_colorizedPixelsEditedHandler) {
                 m_colorizedStrokeStart = *hit;
                 m_colorizedStrokeEnd = *hit;
