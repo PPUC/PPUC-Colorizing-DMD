@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <set>
 
 #include <QMouseEvent>
 #include <QPainter>
@@ -44,6 +45,145 @@ QColor detectionAreaColor(std::size_t areaIndex, bool selected)
     return color;
 }
 
+std::vector<render::Point> makeLinePixels(render::Point start, render::Point end)
+{
+    std::vector<render::Point> pixels;
+    int x0 = start.x;
+    int y0 = start.y;
+    const int x1 = end.x;
+    const int y1 = end.y;
+    const int dx = std::abs(x1 - x0);
+    const int sx = x0 < x1 ? 1 : -1;
+    const int dy = -std::abs(y1 - y0);
+    const int sy = y0 < y1 ? 1 : -1;
+    int error = dx + dy;
+
+    while (true) {
+        pixels.push_back(render::Point{x0, y0});
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+        const int doubledError = 2 * error;
+        if (doubledError >= dy) {
+            error += dy;
+            x0 += sx;
+        }
+        if (doubledError <= dx) {
+            error += dx;
+            y0 += sy;
+        }
+    }
+    return pixels;
+}
+
+std::vector<render::Point> makeRectanglePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    std::vector<render::Point> pixels;
+    for (int x = left; x <= right; ++x) {
+        pixels.push_back(render::Point{x, top});
+        if (bottom != top) {
+            pixels.push_back(render::Point{x, bottom});
+        }
+    }
+    for (int y = top + 1; y < bottom; ++y) {
+        pixels.push_back(render::Point{left, y});
+        if (right != left) {
+            pixels.push_back(render::Point{right, y});
+        }
+    }
+    return pixels;
+}
+
+std::vector<render::Point> makeFilledRectanglePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    std::vector<render::Point> pixels;
+    pixels.reserve(static_cast<std::size_t>((right - left + 1) * (bottom - top + 1)));
+    for (int y = top; y <= bottom; ++y) {
+        for (int x = left; x <= right; ++x) {
+            pixels.push_back(render::Point{x, y});
+        }
+    }
+    return pixels;
+}
+
+std::vector<render::Point> makeFilledEllipsePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    const double centerX = (static_cast<double>(left) + static_cast<double>(right)) / 2.0;
+    const double centerY = (static_cast<double>(top) + static_cast<double>(bottom)) / 2.0;
+    const double radiusX = std::max(0.5, (static_cast<double>(right - left) + 1.0) / 2.0);
+    const double radiusY = std::max(0.5, (static_cast<double>(bottom - top) + 1.0) / 2.0);
+    std::vector<render::Point> pixels;
+
+    for (int y = top; y <= bottom; ++y) {
+        for (int x = left; x <= right; ++x) {
+            const double normalizedX = (static_cast<double>(x) - centerX) / radiusX;
+            const double normalizedY = (static_cast<double>(y) - centerY) / radiusY;
+            if (normalizedX * normalizedX + normalizedY * normalizedY <= 1.0) {
+                pixels.push_back(render::Point{x, y});
+            }
+        }
+    }
+    return pixels;
+}
+
+std::vector<render::Point> makeEllipsePixels(render::Point start, render::Point end)
+{
+    const int left = std::min(start.x, end.x);
+    const int right = std::max(start.x, end.x);
+    const int top = std::min(start.y, end.y);
+    const int bottom = std::max(start.y, end.y);
+    const double centerX = (static_cast<double>(left) + static_cast<double>(right)) / 2.0;
+    const double centerY = (static_cast<double>(top) + static_cast<double>(bottom)) / 2.0;
+    const double radiusX = std::max(0.5, (static_cast<double>(right - left) + 1.0) / 2.0);
+    const double radiusY = std::max(0.5, (static_cast<double>(bottom - top) + 1.0) / 2.0);
+    std::set<std::pair<int, int>> uniquePixels;
+
+    auto insideEllipse = [&](int x, int y) {
+        const double normalizedX = (static_cast<double>(x) - centerX) / radiusX;
+        const double normalizedY = (static_cast<double>(y) - centerY) / radiusY;
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1.0;
+    };
+
+    for (int y = top; y <= bottom; ++y) {
+        for (int x = left; x <= right; ++x) {
+            if (insideEllipse(x, y) &&
+                (!insideEllipse(x - 1, y) || !insideEllipse(x + 1, y) ||
+                 !insideEllipse(x, y - 1) || !insideEllipse(x, y + 1))) {
+                uniquePixels.insert({x, y});
+            }
+        }
+    }
+
+    std::vector<render::Point> pixels;
+    pixels.reserve(uniquePixels.size());
+    for (const auto& [x, y] : uniquePixels) {
+        pixels.push_back(render::Point{x, y});
+    }
+    return pixels;
+}
+
+render::Point squareConstrainedEnd(render::Point start, render::Point end)
+{
+    const int dx = end.x - start.x;
+    const int dy = end.y - start.y;
+    const int side = std::min(std::abs(dx), std::abs(dy));
+    const int xSign = dx < 0 ? -1 : 1;
+    const int ySign = dy < 0 ? -1 : 1;
+    return render::Point{start.x + xSign * side, start.y + ySign * side};
+}
+
 }  // namespace
 
 SpriteEditorWidget::SpriteEditorWidget(QWidget* parent)
@@ -81,6 +221,26 @@ void SpriteEditorWidget::setActiveResolution(render::Resolution resolution)
     update();
 }
 
+void SpriteEditorWidget::setDrawingTool(SpriteDrawingTool tool)
+{
+    if (m_drawingTool == tool) {
+        return;
+    }
+    m_drawingTool = tool;
+    m_colorizedStrokeStart.reset();
+    m_colorizedStrokeEnd.reset();
+    update();
+}
+
+void SpriteEditorWidget::setActiveDrawColor(uint16_t rgb565)
+{
+    if (m_activeDrawColor == rgb565) {
+        return;
+    }
+    m_activeDrawColor = rgb565;
+    update();
+}
+
 void SpriteEditorWidget::setDmdRenderOptions(DmdRenderOptions options)
 {
     if (m_renderOptions.pixelShape == options.pixelShape &&
@@ -115,6 +275,23 @@ void SpriteEditorWidget::setDetectionAreaChangedHandler(
     m_detectionAreaChangedHandler = std::move(handler);
 }
 
+void SpriteEditorWidget::setColorizedPixelEditedHandler(
+    std::function<void(std::size_t, render::Resolution, int, int, bool)> handler)
+{
+    m_colorizedPixelEditedHandler = std::move(handler);
+}
+
+void SpriteEditorWidget::setColorizedPixelsEditedHandler(
+    std::function<void(std::size_t, render::Resolution, const std::vector<render::Point>&, bool)> handler)
+{
+    m_colorizedPixelsEditedHandler = std::move(handler);
+}
+
+void SpriteEditorWidget::setColorizedPaintFinishedHandler(std::function<void()> handler)
+{
+    m_colorizedPaintFinishedHandler = std::move(handler);
+}
+
 QSize SpriteEditorWidget::sizeHint() const
 {
     return QSize(760, 440);
@@ -143,6 +320,7 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
     const RegionLayout original = originalRegion();
     paintSpriteRegion(painter, colorized);
     paintSpriteRegion(painter, original);
+    paintColorizedStrokePreview(painter, colorized);
     paintDetectionAreas(painter, original);
     paintDragPreview(painter, original);
     painter.restore();
@@ -150,6 +328,32 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
 
 void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 {
+    if (event->button() == Qt::LeftButton && m_colorizedPixelEditedHandler &&
+        m_document && m_spriteIndex && *m_spriteIndex < m_document->spriteCount()) {
+        const std::optional<render::Point> hit = hitColorized(event->pos());
+        if (hit) {
+            m_paintingColorized = true;
+            m_paintErase = event->modifiers().testFlag(Qt::ShiftModifier);
+            if (m_drawingTool == SpriteDrawingTool::Point) {
+                m_colorizedPixelEditedHandler(*m_spriteIndex,
+                                              colorizedPaintResolution(),
+                                              hit->x,
+                                              hit->y,
+                                              m_paintErase);
+            } else if (editsColorizedStroke() && m_colorizedPixelsEditedHandler) {
+                m_colorizedStrokeStart = *hit;
+                m_colorizedStrokeEnd = *hit;
+                update();
+            } else {
+                m_paintingColorized = false;
+                m_paintErase = false;
+                QWidget::mousePressEvent(event);
+                return;
+            }
+            event->accept();
+            return;
+        }
+    }
     if (event->button() == Qt::LeftButton && m_selectedAreaIndex) {
         const std::optional<render::Point> hit = hitOriginal(event->pos());
         if (hit) {
@@ -165,6 +369,24 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 
 void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
 {
+    if ((event->buttons() & Qt::LeftButton) && m_paintingColorized &&
+        m_colorizedPixelEditedHandler && m_spriteIndex) {
+        const std::optional<render::Point> hit = hitColorized(event->pos());
+        if (hit) {
+            if (m_drawingTool == SpriteDrawingTool::Point) {
+                m_colorizedPixelEditedHandler(*m_spriteIndex,
+                                              colorizedPaintResolution(),
+                                              hit->x,
+                                              hit->y,
+                                              m_paintErase);
+            } else if (m_colorizedStrokeStart && editsColorizedStroke()) {
+                m_colorizedStrokeEnd = *hit;
+                update();
+            }
+            event->accept();
+            return;
+        }
+    }
     if ((event->buttons() & Qt::LeftButton) && m_dragStart) {
         const std::optional<render::Point> hit = hitOriginal(event->pos());
         if (hit) {
@@ -179,6 +401,31 @@ void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
 
 void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (event->button() == Qt::LeftButton && m_paintingColorized) {
+        const std::optional<render::Point> hit = hitColorized(event->pos());
+        if (m_colorizedStrokeStart && m_colorizedPixelsEditedHandler && m_spriteIndex &&
+            editsColorizedStroke()) {
+            const render::Point start = *m_colorizedStrokeStart;
+            const render::Point end = hit.value_or(m_colorizedStrokeEnd.value_or(start));
+            const std::vector<render::Point> pixels = pixelsForColorizedStroke(start, end);
+            if (!pixels.empty()) {
+                m_colorizedPixelsEditedHandler(*m_spriteIndex,
+                                               colorizedPaintResolution(),
+                                               pixels,
+                                               m_paintErase);
+            }
+        }
+        m_paintingColorized = false;
+        m_paintErase = false;
+        m_colorizedStrokeStart.reset();
+        m_colorizedStrokeEnd.reset();
+        if (m_colorizedPaintFinishedHandler) {
+            m_colorizedPaintFinishedHandler();
+        }
+        update();
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton && m_dragStart && m_selectedAreaIndex) {
         const std::optional<render::Point> hit = hitOriginal(event->pos());
         const render::Point start = *m_dragStart;
@@ -229,6 +476,36 @@ SpriteEditorWidget::RegionLayout SpriteEditorWidget::originalRegion() const
         render::CanvasRegion::SpriteOriginal,
         render::Rect{0, kSpriteSize.height + kGap, kSpriteSize.width, kSpriteSize.height},
     };
+}
+
+render::Resolution SpriteEditorWidget::colorizedPaintResolution() const
+{
+    if (!m_document || !m_spriteIndex || *m_spriteIndex >= m_document->spriteCount()) {
+        return render::Resolution::Sd;
+    }
+    const document::SpriteRecord& sprite = m_document->sprite(*m_spriteIndex);
+    return m_activeResolution == render::Resolution::Hd && sprite.hasHd
+               ? render::Resolution::Hd
+               : render::Resolution::Sd;
+}
+
+std::optional<render::Point> SpriteEditorWidget::hitColorized(QPoint position) const
+{
+    if (!m_document || !m_spriteIndex || *m_spriteIndex >= m_document->spriteCount()) {
+        return std::nullopt;
+    }
+    const int scale = displayScale();
+    if (scale <= 0) {
+        return std::nullopt;
+    }
+    const QPointF origin = displayOrigin();
+    const RegionLayout colorized = colorizedRegion();
+    const int logicalX = static_cast<int>(std::floor((position.x() - origin.x()) / scale));
+    const int logicalY = static_cast<int>(std::floor((position.y() - origin.y()) / scale));
+    if (!colorized.rect.contains(render::Point{logicalX, logicalY})) {
+        return std::nullopt;
+    }
+    return render::Point{logicalX - colorized.rect.x, logicalY - colorized.rect.y};
 }
 
 std::optional<render::Point> SpriteEditorWidget::hitOriginal(QPoint position) const
@@ -341,6 +618,92 @@ void SpriteEditorWidget::paintDragPreview(QPainter& painter, const RegionLayout&
                            static_cast<int>(area.height)),
                      detectionAreaColor(*m_selectedAreaIndex, true));
     painter.restore();
+}
+
+void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const RegionLayout& region)
+{
+    if (!m_colorizedStrokeStart || !m_colorizedStrokeEnd || !m_spriteIndex ||
+        !editsColorizedStroke()) {
+        return;
+    }
+    const document::SpriteRecord& sprite = m_document->sprite(*m_spriteIndex);
+    const render::Resolution resolution = colorizedPaintResolution();
+    QColor previewColor = m_paintErase ? QColor(0, 0, 0, 150) : rgb565ToColor(m_activeDrawColor);
+    if (!m_paintErase) {
+        previewColor.setAlpha(150);
+    }
+
+    painter.save();
+    for (const render::Point point : pixelsForColorizedStroke(*m_colorizedStrokeStart,
+                                                              *m_colorizedStrokeEnd)) {
+        if (!isColorizedPixelEditable(sprite, resolution, point, m_paintErase)) {
+            continue;
+        }
+        paintDmdPixel(painter,
+                      region.rect.x + point.x,
+                      region.rect.y + point.y,
+                      1,
+                      previewColor,
+                      m_renderOptions);
+    }
+    painter.restore();
+}
+
+bool SpriteEditorWidget::isColorizedPixelEditable(const document::SpriteRecord& sprite,
+                                                  render::Resolution resolution,
+                                                  render::Point point,
+                                                  bool erase) const
+{
+    if (point.x < 0 || point.y < 0 ||
+        point.x >= kSpriteSize.width || point.y >= kSpriteSize.height) {
+        return false;
+    }
+    const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+    const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
+    const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
+    const std::size_t index = spritePixelIndex(point.x, point.y);
+    if (mask.pixels[index] == 255) {
+        return false;
+    }
+    return erase || colorized.pixels[index] != 0;
+}
+
+std::vector<render::Point> SpriteEditorWidget::pixelsForColorizedStroke(render::Point start,
+                                                                        render::Point end) const
+{
+    if (m_drawingTool == SpriteDrawingTool::Line) {
+        return makeLinePixels(start, end);
+    }
+    if (m_drawingTool == SpriteDrawingTool::Rectangle) {
+        return makeRectanglePixels(start, end);
+    }
+    if (m_drawingTool == SpriteDrawingTool::FilledRectangle) {
+        return makeFilledRectanglePixels(start, end);
+    }
+    if (m_drawingTool == SpriteDrawingTool::Circle) {
+        return makeEllipsePixels(start, squareConstrainedEnd(start, end));
+    }
+    if (m_drawingTool == SpriteDrawingTool::FilledCircle) {
+        return makeFilledEllipsePixels(start, squareConstrainedEnd(start, end));
+    }
+    if (m_drawingTool == SpriteDrawingTool::Ellipse) {
+        return makeEllipsePixels(start, end);
+    }
+    if (m_drawingTool == SpriteDrawingTool::FilledEllipse) {
+        return makeFilledEllipsePixels(start, end);
+    }
+    return {};
+}
+
+bool SpriteEditorWidget::editsColorizedStroke() const
+{
+    return m_drawingTool == SpriteDrawingTool::Line ||
+           m_drawingTool == SpriteDrawingTool::Rectangle ||
+           m_drawingTool == SpriteDrawingTool::FilledRectangle ||
+           m_drawingTool == SpriteDrawingTool::Circle ||
+           m_drawingTool == SpriteDrawingTool::FilledCircle ||
+           m_drawingTool == SpriteDrawingTool::Ellipse ||
+           m_drawingTool == SpriteDrawingTool::FilledEllipse;
 }
 
 document::SpriteDetectionArea SpriteEditorWidget::areaFromDrag(render::Point start,

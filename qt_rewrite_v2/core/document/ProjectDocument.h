@@ -182,6 +182,15 @@ public:
 
     [[nodiscard]] std::size_t spriteCount() const;
     [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
+    [[nodiscard]] uint16_t spriteColorizedPixel(std::size_t spriteIndex,
+                                                Resolution resolution,
+                                                int x,
+                                                int y) const;
+    void setSpriteColorizedPixel(std::size_t spriteIndex,
+                                 Resolution resolution,
+                                 int x,
+                                 int y,
+                                 uint16_t rgb565);
     void setSpriteDetectionArea(std::size_t spriteIndex,
                                 std::size_t areaIndex,
                                 SpriteDetectionArea area);

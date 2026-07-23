@@ -193,6 +193,17 @@ private:
     void removeCurrentFrameHd();
     void updateDynamicColorControls();
     void editDynamicColor(std::size_t originalColorIndex);
+    void paintSpriteColorizedPixel(std::size_t spriteIndex,
+                                   render::Resolution resolution,
+                                   int x,
+                                   int y,
+                                   bool erase);
+    void paintSpriteColorizedPixels(std::size_t spriteIndex,
+                                    render::Resolution resolution,
+                                    const std::vector<render::Point>& pixels,
+                                    bool erase);
+    void setSpriteDependentViewsDirty();
+    void applyPendingSpriteDependentViews();
     [[nodiscard]] uint8_t activeDynamicSet() const;
     [[nodiscard]] PaintTarget activePaintTarget() const;
     void paintFramePixel(const render::CanvasHit& hit, bool erase);
@@ -287,6 +298,7 @@ private:
     QToolButton* m_spriteBoundsOverlayButton = nullptr;
     QToolButton* m_spriteDetectionAreasButton = nullptr;
     QToolButton* m_spriteCanvasButton = nullptr;
+    QToolButton* m_applySpriteEditsButton = nullptr;
     QToolButton* m_assignSpriteButton = nullptr;
     QToolButton* m_removeSpriteButton = nullptr;
     QToolButton* m_clearSpriteDetectionAreaButton = nullptr;
@@ -320,6 +332,7 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
+    bool m_spriteDependentViewsDirty = false;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;

@@ -84,6 +84,39 @@ std::size_t spritePixelIndex(int x, int y)
     return static_cast<std::size_t>(y) * kMaxSpriteWidth + static_cast<std::size_t>(x);
 }
 
+std::size_t checkedSpritePixelIndex(int x, int y)
+{
+    if (x < 0 || y < 0 ||
+        x >= static_cast<int>(kMaxSpriteWidth) ||
+        y >= static_cast<int>(kMaxSpriteHeight)) {
+        throw std::out_of_range("sprite pixel coordinate out of range");
+    }
+    return spritePixelIndex(x, y);
+}
+
+const Rgb565Frame& requireSpriteColorizedFrame(const SpriteRecord& sprite,
+                                               Resolution resolution)
+{
+    if (resolution == Resolution::Hd && sprite.hasHd) {
+        return sprite.colorizedHd;
+    }
+    if (resolution == Resolution::Hd && !sprite.hasHd) {
+        throw std::logic_error("HD sprite is not available");
+    }
+    return sprite.colorizedSd;
+}
+
+Rgb565Frame& requireSpriteColorizedFrame(SpriteRecord& sprite, Resolution resolution)
+{
+    if (resolution == Resolution::Hd && sprite.hasHd) {
+        return sprite.colorizedHd;
+    }
+    if (resolution == Resolution::Hd && !sprite.hasHd) {
+        throw std::logic_error("HD sprite is not available");
+    }
+    return sprite.colorizedSd;
+}
+
 bool isValidDetectionArea(SpriteDetectionArea area)
 {
     return area.x != 0xffff && area.y != 0xffff &&
@@ -733,6 +766,36 @@ const SpriteRecord& ProjectDocument::sprite(std::size_t spriteIndex) const
         throw std::out_of_range("sprite index out of range");
     }
     return m_sprites[spriteIndex];
+}
+
+uint16_t ProjectDocument::spriteColorizedPixel(std::size_t spriteIndex,
+                                               Resolution resolution,
+                                               int x,
+                                               int y) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const Rgb565Frame& frame = requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution);
+    return frame.pixels[checkedSpritePixelIndex(x, y)];
+}
+
+void ProjectDocument::setSpriteColorizedPixel(std::size_t spriteIndex,
+                                              Resolution resolution,
+                                              int x,
+                                              int y,
+                                              uint16_t rgb565)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    Rgb565Frame& frame = requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution);
+    const std::size_t pixelIndex = checkedSpritePixelIndex(x, y);
+    if (frame.pixels[pixelIndex] == rgb565) {
+        return;
+    }
+    frame.pixels[pixelIndex] = rgb565;
+    m_dirty = true;
 }
 
 void ProjectDocument::setSpriteDetectionArea(std::size_t spriteIndex,

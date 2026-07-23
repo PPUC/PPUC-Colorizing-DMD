@@ -593,6 +593,10 @@ void MainWindow::createCentralView()
     m_spriteCanvasButton->setToolTip(QStringLiteral("Show selected sprite in the main canvas"));
     m_spriteCanvasButton->setCheckable(true);
     m_spriteCanvasButton->setEnabled(false);
+    m_applySpriteEditsButton = new QToolButton(central);
+    m_applySpriteEditsButton->setText(QStringLiteral("Apply Sprite"));
+    m_applySpriteEditsButton->setToolTip(QStringLiteral("Refresh frame previews from edited sprite data"));
+    m_applySpriteEditsButton->setEnabled(false);
     m_spriteDetectionAreaComboBox = new QComboBox(central);
     m_spriteDetectionAreaComboBox->setToolTip(QStringLiteral("Sprite detection area"));
     for (std::size_t areaIndex = 0; areaIndex < document::kMaxSpriteDetectAreas; ++areaIndex) {
@@ -756,6 +760,7 @@ void MainWindow::createCentralView()
     spriteVisualizationLayout->addWidget(m_spriteBoundsOverlayButton);
     spriteVisualizationLayout->addWidget(m_spriteDetectionAreasButton);
     spriteVisualizationLayout->addWidget(m_spriteCanvasButton);
+    spriteVisualizationLayout->addWidget(m_applySpriteEditsButton);
     inspectorLayout->addLayout(spriteVisualizationLayout);
     auto* spriteBoundsGrid = new QGridLayout();
     spriteBoundsGrid->setHorizontalSpacing(4);
@@ -921,11 +926,17 @@ void MainWindow::createCentralView()
         updateSpriteControls();
     });
     connect(m_spriteCanvasButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (!checked) {
+            applyPendingSpriteDependentViews();
+        }
         if (m_canvasStack) {
             m_canvasStack->setCurrentWidget(checked && m_spriteEditor ? static_cast<QWidget*>(m_spriteEditor)
                                                                       : static_cast<QWidget*>(m_preview));
         }
         updateSpriteControls();
+    });
+    connect(m_applySpriteEditsButton, &QToolButton::clicked, this, [this]() {
+        applyPendingSpriteDependentViews();
     });
     connect(m_spriteDetectionAreaComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -1041,6 +1052,21 @@ void MainWindow::createCentralView()
                 statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
             }
         });
+    m_spriteEditor->setColorizedPixelEditedHandler(
+        [this](std::size_t spriteIndex,
+               render::Resolution resolution,
+               int x,
+               int y,
+               bool erase) {
+            paintSpriteColorizedPixel(spriteIndex, resolution, x, y, erase);
+        });
+    m_spriteEditor->setColorizedPixelsEditedHandler(
+        [this](std::size_t spriteIndex,
+               render::Resolution resolution,
+               const std::vector<render::Point>& pixels,
+               bool erase) {
+            paintSpriteColorizedPixels(spriteIndex, resolution, pixels, erase);
+        });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
     updateDmdRenderOptions();
@@ -1094,6 +1120,7 @@ void MainWindow::saveProject()
     if (!m_document) {
         return;
     }
+    applyPendingSpriteDependentViews();
     if (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty()) {
         QMessageBox::critical(this,
                               QStringLiteral("Save Project Failed"),
@@ -1351,6 +1378,10 @@ void MainWindow::setFrameStatusText(const QString& text)
 
 void MainWindow::refreshProjectSummary()
 {
+    m_spriteDependentViewsDirty = false;
+    if (m_applySpriteEditsButton) {
+        m_applySpriteEditsButton->setEnabled(false);
+    }
     m_preview->setDocument(m_document ? &*m_document : nullptr);
     if (m_spriteEditor) {
         m_spriteEditor->setDocument(m_document ? &*m_document : nullptr);
@@ -1966,6 +1997,89 @@ void MainWindow::clearCurrentSpriteDetectionArea()
     }
 }
 
+void MainWindow::paintSpriteColorizedPixel(std::size_t spriteIndex,
+                                           render::Resolution resolution,
+                                           int x,
+                                           int y,
+                                           bool erase)
+{
+    paintSpriteColorizedPixels(spriteIndex, resolution, {render::Point{x, y}}, erase);
+}
+
+void MainWindow::paintSpriteColorizedPixels(std::size_t spriteIndex,
+                                            render::Resolution resolution,
+                                            const std::vector<render::Point>& pixels,
+                                            bool erase)
+{
+    if (!m_document || spriteIndex >= m_document->spriteCount()) {
+        return;
+    }
+
+    const uint16_t color = erase ? uint16_t{0} : m_activeDrawColor;
+    try {
+        const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
+        const document::IndexedFrame& mask =
+            resolution == render::Resolution::Hd && sprite.hasHd ? sprite.maskHd : sprite.originalSd;
+        bool changed = false;
+        for (const render::Point point : pixels) {
+            if (point.x < 0 || point.y < 0 ||
+                point.x >= static_cast<int>(document::kMaxSpriteWidth) ||
+                point.y >= static_cast<int>(document::kMaxSpriteHeight)) {
+                continue;
+            }
+            if (mask.pixels[spritePixelIndex(point.x, point.y)] == 255) {
+                continue;
+            }
+            const uint16_t currentColor =
+                m_document->spriteColorizedPixel(spriteIndex, resolution, point.x, point.y);
+            if (!erase && currentColor == 0) {
+                continue;
+            }
+            if (currentColor == color) {
+                continue;
+            }
+            m_document->setSpriteColorizedPixel(spriteIndex, resolution, point.x, point.y, color);
+            changed = true;
+        }
+        if (!changed) {
+            return;
+        }
+        setSpriteDependentViewsDirty();
+        if (m_spriteEditor) {
+            m_spriteEditor->update();
+        }
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setSpriteDependentViewsDirty()
+{
+    m_spriteDependentViewsDirty = true;
+    if (m_applySpriteEditsButton) {
+        m_applySpriteEditsButton->setEnabled(true);
+    }
+}
+
+void MainWindow::applyPendingSpriteDependentViews()
+{
+    if (!m_spriteDependentViewsDirty) {
+        return;
+    }
+    m_spriteDependentViewsDirty = false;
+    if (m_applySpriteEditsButton) {
+        m_applySpriteEditsButton->setEnabled(false);
+    }
+    if (m_preview) {
+        m_preview->update();
+    }
+    refreshFrameList(currentFrameIndex());
+    updateSpriteControls();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(QStringLiteral("Applied sprite edits to previews"), 1000);
+}
+
 void MainWindow::createCurrentFrameHd()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -2153,7 +2267,7 @@ void MainWindow::updateSpriteControls()
         !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
         !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
         !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
-        !m_spriteCanvasButton ||
+        !m_spriteCanvasButton || !m_applySpriteEditsButton ||
         !m_spriteDetectionAreaComboBox || !m_clearSpriteDetectionAreaButton ||
         !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
         !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox ||
@@ -2276,6 +2390,7 @@ void MainWindow::updateSpriteControls()
         }
     }
     m_removeSpriteButton->setEnabled(slotHasSprite);
+    m_applySpriteEditsButton->setEnabled(m_spriteDependentViewsDirty);
     m_spriteBoundsOverlayButton->setEnabled(selectedReference.has_value());
     if (m_preview) {
         m_preview->setSelectedSpriteReference(selectedReference);
@@ -2307,6 +2422,7 @@ void MainWindow::updateSpriteControls()
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
         m_spriteDetectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);
+        m_applySpriteEditsButton->setEnabled(false);
         if (m_canvasStack && m_preview) {
             m_canvasStack->setCurrentWidget(m_preview);
         }
@@ -2431,6 +2547,9 @@ uint8_t MainWindow::activeDynamicSet() const
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
 {
     m_activeDrawColor = rgb565;
+    if (m_spriteEditor) {
+        m_spriteEditor->setActiveDrawColor(rgb565);
+    }
     for (QToolButton* button : m_colorButtons) {
         QSignalBlocker blocker(button);
         button->setChecked(button->property("rgb565").toInt() == static_cast<int>(rgb565));
@@ -2442,6 +2561,42 @@ void MainWindow::setDrawingTool(DrawingTool tool)
     m_drawingTool = tool;
     if (m_preview) {
         m_preview->clearPreviewPixels();
+    }
+    if (m_spriteEditor) {
+        SpriteDrawingTool spriteTool = SpriteDrawingTool::Point;
+        switch (tool) {
+        case DrawingTool::Point:
+            spriteTool = SpriteDrawingTool::Point;
+            break;
+        case DrawingTool::Line:
+            spriteTool = SpriteDrawingTool::Line;
+            break;
+        case DrawingTool::Rectangle:
+            spriteTool = SpriteDrawingTool::Rectangle;
+            break;
+        case DrawingTool::FilledRectangle:
+            spriteTool = SpriteDrawingTool::FilledRectangle;
+            break;
+        case DrawingTool::Circle:
+            spriteTool = SpriteDrawingTool::Circle;
+            break;
+        case DrawingTool::FilledCircle:
+            spriteTool = SpriteDrawingTool::FilledCircle;
+            break;
+        case DrawingTool::Ellipse:
+            spriteTool = SpriteDrawingTool::Ellipse;
+            break;
+        case DrawingTool::FilledEllipse:
+            spriteTool = SpriteDrawingTool::FilledEllipse;
+            break;
+        case DrawingTool::ColorPicker:
+            spriteTool = SpriteDrawingTool::ColorPicker;
+            break;
+        case DrawingTool::FloodFill:
+            spriteTool = SpriteDrawingTool::FloodFill;
+            break;
+        }
+        m_spriteEditor->setDrawingTool(spriteTool);
     }
     for (QToolButton* button : m_toolButtons) {
         QSignalBlocker blocker(button);

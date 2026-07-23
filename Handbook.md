@@ -291,6 +291,12 @@ The Inspector has a sprite browser and assignment controls:
 - The detection area selector and `X`, `Y`, `W`, `H` fields edit the selected sprite detection area.
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
 - `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
+- In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
+- Hold `Shift` while dragging on the colorized sprite to erase existing non-black sprite pixels back to black.
+- The sprite editor supports the toolbar point, line, rectangle, filled rectangle, circle, filled circle, ellipse, and filled ellipse tools on the colorized sprite.
+- Sprite shape tools show a live preview and commit the full stroke on mouse release.
+- Sprite pixel edits update the sprite editor immediately. Frame thumbnails, composed frame preview,
+  and side preview images refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
 - In the sprite editor canvas, drag on the original sprite to set the selected detection area.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
@@ -300,7 +306,7 @@ The Inspector has a sprite browser and assignment controls:
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
-Sprite pixel editing and sprite-name editing are still pending.
+Sprite original-mask editing and sprite-name editing are still pending.
 
 ## Backgrounds
 

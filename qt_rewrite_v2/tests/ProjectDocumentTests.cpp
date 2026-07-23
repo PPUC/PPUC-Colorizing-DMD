@@ -644,6 +644,59 @@ void testFrameSpriteReferenceEditing()
         "sprite detection area index bounds");
 }
 
+void testSpriteColorizedPixelEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_pixel_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        true,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setSpriteColorizedPixel(0, Resolution::Sd, 4, 2, 0x1111);
+    expect(document.spriteColorizedPixel(0, Resolution::Sd, 4, 2) == 0x1111,
+           "SD sprite pixel edit should be readable");
+    expect(document.isDirty(), "sprite pixel edit should mark dirty");
+
+    document.markClean();
+    document.setSpriteColorizedPixel(0, Resolution::Sd, 4, 2, 0x1111);
+    expect(!document.isDirty(), "identical sprite pixel edit should not mark dirty");
+
+    document.setSpriteColorizedPixel(0, Resolution::Hd, 8, 4, 0x2222);
+    expect(document.spriteColorizedPixel(0, Resolution::Hd, 8, 4) == 0x2222,
+           "HD sprite pixel edit should be readable");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setSpriteColorizedPixel(1, Resolution::Sd, 0, 0, 1); },
+        "sprite pixel sprite bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setSpriteColorizedPixel(0, Resolution::Sd, 256, 0, 1); },
+        "sprite pixel coordinate bounds");
+
+    ProjectSnapshot sdOnlySnapshot = snapshot;
+    sdOnlySnapshot.sprites[0].hasHd = false;
+    ProjectDocument sdOnlyDocument = ProjectDocument::fromSnapshot(sdOnlySnapshot);
+    expectThrows<std::logic_error>(
+        [&]() { sdOnlyDocument.setSpriteColorizedPixel(0, Resolution::Hd, 0, 0, 1); },
+        "missing HD sprite write");
+}
+
 void testBackgroundImagePixelEditing()
 {
     ProjectSnapshot snapshot;
@@ -794,6 +847,7 @@ void runProjectDocumentTests()
     testDynamicMaskPixelEditing();
     testBackgroundMetadataAndMaskEditing();
     testFrameSpriteReferenceEditing();
+    testSpriteColorizedPixelEditing();
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();
     testInvalidSnapshotReportsReason();

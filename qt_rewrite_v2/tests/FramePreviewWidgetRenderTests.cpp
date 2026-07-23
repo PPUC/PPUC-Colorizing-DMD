@@ -314,6 +314,20 @@ bool hasVisibleRedPixel(const QImage& image)
     return false;
 }
 
+bool hasRedTintedPixel(const QImage& image)
+{
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor color(image.pixel(x, y));
+            if (color.red() > 80 && color.red() > color.green() &&
+                color.red() > color.blue()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool hasVisibleCyanPixel(const QImage& image)
 {
     for (int y = 0; y < image.height(); ++y) {
@@ -913,6 +927,133 @@ void testSpriteEditorRendersAndEditsDetectionArea()
     widget.setSpriteIndex(std::size_t{0});
     widget.setDetectionAreasVisible(true);
     widget.setSelectedDetectionAreaIndex(std::size_t{0});
+
+    struct PaintedSpritePixel {
+        std::size_t spriteIndex = 0;
+        colorizing::render::Resolution resolution = colorizing::render::Resolution::Sd;
+        int x = 0;
+        int y = 0;
+        bool erase = false;
+    };
+
+    std::optional<PaintedSpritePixel> paintedPixel;
+    bool paintFinished = false;
+    widget.setColorizedPixelEditedHandler(
+        [&](std::size_t spriteIndex,
+            colorizing::render::Resolution resolution,
+            int x,
+            int y,
+            bool erase) {
+            paintedPixel = PaintedSpritePixel{spriteIndex, resolution, x, y, erase};
+        });
+    widget.setColorizedPaintFinishedHandler([&]() { paintFinished = true; });
+
+    QMouseEvent paintPress(QEvent::MouseButtonPress,
+                           QPointF(84, 80),
+                           QPointF(84, 80),
+                           QPointF(84, 80),
+                           Qt::LeftButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier,
+                           QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &paintPress);
+    QMouseEvent paintRelease(QEvent::MouseButtonRelease,
+                             QPointF(84, 80),
+                             QPointF(84, 80),
+                             QPointF(84, 80),
+                             Qt::LeftButton,
+                             Qt::NoButton,
+                             Qt::NoModifier,
+                             QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &paintRelease);
+
+    expect(paintedPixel.has_value(), "sprite editor should emit colorized sprite pixel edits");
+    expect(paintedPixel->spriteIndex == 0 &&
+               paintedPixel->resolution == colorizing::render::Resolution::Sd &&
+               paintedPixel->x == 10 && paintedPixel->y == 5 && !paintedPixel->erase,
+           "sprite editor should convert colorized sprite canvas coordinates");
+    expect(paintFinished, "sprite editor should emit colorized paint finish");
+
+    paintedPixel.reset();
+    QMouseEvent erasePress(QEvent::MouseButtonPress,
+                           QPointF(86, 82),
+                           QPointF(86, 82),
+                           QPointF(86, 82),
+                           Qt::LeftButton,
+                           Qt::LeftButton,
+                           Qt::ShiftModifier,
+                           QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &erasePress);
+    QMouseEvent eraseRelease(QEvent::MouseButtonRelease,
+                             QPointF(86, 82),
+                             QPointF(86, 82),
+                             QPointF(86, 82),
+                             Qt::LeftButton,
+                             Qt::NoButton,
+                             Qt::ShiftModifier,
+                             QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &eraseRelease);
+
+    expect(paintedPixel.has_value() && paintedPixel->erase,
+           "sprite editor should send Shift colorized sprite edits as erase");
+
+    std::optional<std::vector<colorizing::render::Point>> paintedStroke;
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::Line);
+    widget.setActiveDrawColor(0xf800);
+    widget.setColorizedPixelsEditedHandler(
+        [&](std::size_t spriteIndex,
+            colorizing::render::Resolution resolution,
+            const std::vector<colorizing::render::Point>& pixels,
+            bool erase) {
+            expect(spriteIndex == 0, "sprite editor stroke should edit selected sprite");
+            expect(resolution == colorizing::render::Resolution::Sd,
+                   "sprite editor stroke should use active sprite resolution");
+            expect(!erase, "sprite editor stroke should use paint mode without Shift");
+            paintedStroke = pixels;
+        });
+
+    QMouseEvent linePress(QEvent::MouseButtonPress,
+                          QPointF(84, 80),
+                          QPointF(84, 80),
+                          QPointF(84, 80),
+                          Qt::LeftButton,
+                          Qt::LeftButton,
+                          Qt::NoModifier,
+                          QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &linePress);
+    QMouseEvent lineMove(QEvent::MouseMove,
+                         QPointF(104, 80),
+                         QPointF(104, 80),
+                         QPointF(104, 80),
+                         Qt::NoButton,
+                         Qt::LeftButton,
+                         Qt::NoModifier,
+                         QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &lineMove);
+
+    QImage linePreview(widget.size(), QImage::Format_ARGB32);
+    linePreview.fill(Qt::transparent);
+    QPainter linePainter(&linePreview);
+    widget.render(&linePainter);
+    linePainter.end();
+    expect(hasRedTintedPixel(linePreview), "sprite editor should render line preview");
+
+    QMouseEvent lineRelease(QEvent::MouseButtonRelease,
+                            QPointF(104, 80),
+                            QPointF(104, 80),
+                            QPointF(104, 80),
+                            Qt::LeftButton,
+                            Qt::NoButton,
+                            Qt::NoModifier,
+                            QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &lineRelease);
+
+    expect(paintedStroke.has_value(), "sprite editor line should emit stroke pixels");
+    expect(paintedStroke->size() == 11 &&
+               paintedStroke->front().x == 10 && paintedStroke->front().y == 5 &&
+               paintedStroke->back().x == 20 && paintedStroke->back().y == 5,
+           "sprite editor line should convert stroke coordinates to pixels");
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::Point);
 
     QImage image(widget.size(), QImage::Format_ARGB32);
     image.fill(Qt::transparent);
