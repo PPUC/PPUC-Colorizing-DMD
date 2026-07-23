@@ -389,6 +389,14 @@ bool MainWindow::BackgroundEditHistoryKey::operator<(
     return static_cast<int>(resolution) < static_cast<int>(other.resolution);
 }
 
+bool MainWindow::SpriteEditHistoryKey::operator<(const SpriteEditHistoryKey& other) const
+{
+    if (spriteIndex != other.spriteIndex) {
+        return spriteIndex < other.spriteIndex;
+    }
+    return static_cast<int>(resolution) < static_cast<int>(other.resolution);
+}
+
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
@@ -904,6 +912,7 @@ void MainWindow::createCentralView()
             this,
             [this](int) {
                 updateSpriteControls();
+                updateUndoRedoActions();
             });
     connect(m_spriteSlotComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -934,6 +943,7 @@ void MainWindow::createCentralView()
                                                                       : static_cast<QWidget*>(m_preview));
         }
         updateSpriteControls();
+        updateUndoRedoActions();
     });
     connect(m_applySpriteEditsButton, &QToolButton::clicked, this, [this]() {
         applyPendingSpriteDependentViews();
@@ -1303,6 +1313,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_dynamicColorEditHistories.clear();
         m_backgroundMaskEditHistories.clear();
         m_backgroundImageEditHistories.clear();
+        m_spriteImageEditHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -2020,8 +2031,14 @@ void MainWindow::paintSpriteColorizedPixels(std::size_t spriteIndex,
         const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
         const document::IndexedFrame& mask =
             resolution == render::Resolution::Hd && sprite.hasHd ? sprite.maskHd : sprite.originalSd;
-        bool changed = false;
+        SpriteImageEditCommand command;
+        command.spriteIndex = spriteIndex;
+        command.resolution = resolution;
+        std::set<std::pair<int, int>> seen;
         for (const render::Point point : pixels) {
+            if (!seen.insert({point.x, point.y}).second) {
+                continue;
+            }
             if (point.x < 0 || point.y < 0 ||
                 point.x >= static_cast<int>(document::kMaxSpriteWidth) ||
                 point.y >= static_cast<int>(document::kMaxSpriteHeight)) {
@@ -2038,16 +2055,23 @@ void MainWindow::paintSpriteColorizedPixels(std::size_t spriteIndex,
             if (currentColor == color) {
                 continue;
             }
-            m_document->setSpriteColorizedPixel(spriteIndex, resolution, point.x, point.y, color);
-            changed = true;
+            command.changes.push_back(PixelChange{
+                point.x,
+                point.y,
+                currentColor,
+                color,
+            });
         }
-        if (!changed) {
+        if (command.changes.empty()) {
             return;
         }
+        applySpriteImageEdit(command, true);
+        SpriteImageEditHistory& history =
+            m_spriteImageEditHistories[SpriteEditHistoryKey{spriteIndex, resolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
         setSpriteDependentViewsDirty();
-        if (m_spriteEditor) {
-            m_spriteEditor->update();
-        }
+        updateUndoRedoActions();
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -3631,6 +3655,24 @@ void MainWindow::applyBackgroundImageEdit(const BackgroundImageEditCommand& comm
     updateProjectHeaderStatus();
 }
 
+void MainWindow::applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor)
+{
+    if (!m_document) {
+        return;
+    }
+    for (const PixelChange& change : command.changes) {
+        m_document->setSpriteColorizedPixel(command.spriteIndex,
+                                            command.resolution,
+                                            change.x,
+                                            change.y,
+                                            useNewColor ? change.newColor : change.oldColor);
+    }
+    setSpriteDependentViewsDirty();
+    if (m_spriteEditor) {
+        m_spriteEditor->update();
+    }
+}
+
 std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -3854,8 +3896,84 @@ bool MainWindow::isBackgroundImageTargetActive() const
     return activePaintTarget() == PaintTarget::Background && currentBackgroundIndex().has_value();
 }
 
+std::optional<std::size_t> MainWindow::currentSpriteIndex() const
+{
+    if (!m_document || !m_spriteComboBox) {
+        return std::nullopt;
+    }
+    const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    if (spriteIndex < 0 ||
+        static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(spriteIndex);
+}
+
+std::optional<MainWindow::SpriteEditHistoryKey>
+MainWindow::currentSpriteEditHistoryKey() const
+{
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!spriteIndex) {
+        return std::nullopt;
+    }
+    render::Resolution resolution = m_activeResolution;
+    if (m_document) {
+        const document::SpriteRecord& sprite = m_document->sprite(*spriteIndex);
+        if (resolution == render::Resolution::Hd && !sprite.hasHd) {
+            resolution = render::Resolution::Sd;
+        }
+    }
+    return SpriteEditHistoryKey{*spriteIndex, resolution};
+}
+
+MainWindow::SpriteImageEditHistory* MainWindow::currentSpriteImageEditHistory()
+{
+    const std::optional<SpriteEditHistoryKey> key = currentSpriteEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_spriteImageEditHistories.find(*key);
+    if (history == m_spriteImageEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::SpriteImageEditHistory*
+MainWindow::currentSpriteImageEditHistory() const
+{
+    const std::optional<SpriteEditHistoryKey> key = currentSpriteEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_spriteImageEditHistories.find(*key);
+    if (history == m_spriteImageEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+bool MainWindow::isSpriteCanvasActive() const
+{
+    return m_spriteCanvasButton && m_spriteCanvasButton->isChecked() &&
+           currentSpriteIndex().has_value();
+}
+
 void MainWindow::undo()
 {
+    if (isSpriteCanvasActive()) {
+        SpriteImageEditHistory* history = currentSpriteImageEditHistory();
+        if (!history || history->undoStack.empty()) {
+            return;
+        }
+        const SpriteImageEditCommand command = history->undoStack.back();
+        history->undoStack.pop_back();
+        applySpriteImageEdit(command, false);
+        history->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo sprite edit"), 1500);
+        return;
+    }
     if (isComparisonMaskModeActive()) {
         MaskEditHistory* history = currentMaskEditHistory();
         if (!history || history->undoStack.empty()) {
@@ -3942,6 +4060,19 @@ void MainWindow::undo()
 
 void MainWindow::redo()
 {
+    if (isSpriteCanvasActive()) {
+        SpriteImageEditHistory* history = currentSpriteImageEditHistory();
+        if (!history || history->redoStack.empty()) {
+            return;
+        }
+        const SpriteImageEditCommand command = history->redoStack.back();
+        history->redoStack.pop_back();
+        applySpriteImageEdit(command, true);
+        history->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo sprite edit"), 1500);
+        return;
+    }
     if (isComparisonMaskModeActive()) {
         MaskEditHistory* history = currentMaskEditHistory();
         if (!history || history->redoStack.empty()) {
@@ -4028,6 +4159,16 @@ void MainWindow::redo()
 
 void MainWindow::updateUndoRedoActions()
 {
+    if (isSpriteCanvasActive()) {
+        const SpriteImageEditHistory* history = currentSpriteImageEditHistory();
+        if (m_undoAction) {
+            m_undoAction->setEnabled(history && !history->undoStack.empty());
+        }
+        if (m_redoAction) {
+            m_redoAction->setEnabled(history && !history->redoStack.empty());
+        }
+        return;
+    }
     if (isComparisonMaskModeActive()) {
         const MaskEditHistory* history = currentMaskEditHistory();
         if (m_undoAction) {

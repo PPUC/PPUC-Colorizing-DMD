@@ -297,6 +297,8 @@ The Inspector has a sprite browser and assignment controls:
 - Sprite shape tools show a live preview and commit the full stroke on mouse release.
 - Sprite pixel edits update the sprite editor immediately. Frame thumbnails, composed frame preview,
   and side preview images refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
+- Undo and redo for sprite color edits are scoped per sprite and per active SD/HD resolution, and
+  are available while the sprite editor canvas is active.
 - In the sprite editor canvas, drag on the original sprite to set the selected detection area.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.

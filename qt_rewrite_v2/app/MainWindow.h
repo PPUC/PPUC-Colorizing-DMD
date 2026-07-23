@@ -158,6 +158,24 @@ private:
         std::vector<BackgroundImageEditCommand> redoStack;
     };
 
+    struct SpriteEditHistoryKey {
+        std::size_t spriteIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+
+        [[nodiscard]] bool operator<(const SpriteEditHistoryKey& other) const;
+    };
+
+    struct SpriteImageEditCommand {
+        std::size_t spriteIndex = 0;
+        render::Resolution resolution = render::Resolution::Sd;
+        std::vector<PixelChange> changes;
+    };
+
+    struct SpriteImageEditHistory {
+        std::vector<SpriteImageEditCommand> undoStack;
+        std::vector<SpriteImageEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -249,6 +267,7 @@ private:
     void applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor);
     void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
     void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
+    void applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -269,6 +288,11 @@ private:
     [[nodiscard]] BackgroundImageEditHistory* currentBackgroundImageEditHistory();
     [[nodiscard]] const BackgroundImageEditHistory* currentBackgroundImageEditHistory() const;
     [[nodiscard]] bool isBackgroundImageTargetActive() const;
+    [[nodiscard]] std::optional<std::size_t> currentSpriteIndex() const;
+    [[nodiscard]] std::optional<SpriteEditHistoryKey> currentSpriteEditHistoryKey() const;
+    [[nodiscard]] SpriteImageEditHistory* currentSpriteImageEditHistory();
+    [[nodiscard]] const SpriteImageEditHistory* currentSpriteImageEditHistory() const;
+    [[nodiscard]] bool isSpriteCanvasActive() const;
     void undo();
     void redo();
     void updateUndoRedoActions();
@@ -339,6 +363,7 @@ private:
     std::map<EditHistoryKey, DynamicColorEditHistory> m_dynamicColorEditHistories;
     std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
     std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
+    std::map<SpriteEditHistoryKey, SpriteImageEditHistory> m_spriteImageEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;
