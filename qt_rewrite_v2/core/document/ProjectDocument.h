@@ -182,6 +182,9 @@ public:
 
     [[nodiscard]] std::size_t spriteCount() const;
     [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
+    [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
+    void createHdSprite(std::size_t spriteIndex);
+    void removeHdSprite(std::size_t spriteIndex);
     [[nodiscard]] uint16_t spriteColorizedPixel(std::size_t spriteIndex,
                                                 Resolution resolution,
                                                 int x,

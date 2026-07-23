@@ -1148,6 +1148,56 @@ void testSpriteEditorRendersAndEditsDetectionArea()
            "sprite editor drag should convert canvas coordinates to area");
 }
 
+void testSpriteEditorHdKeepsSdFootprint()
+{
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    colorizing::document::ProjectSnapshot snapshot = document.toSnapshot();
+    snapshot.sprites[0].hasHd = true;
+    snapshot.sprites[0].maskHd =
+        colorizing::document::makeIndexedFrame({256, 64}, 255);
+    snapshot.sprites[0].colorizedHd =
+        colorizing::document::makeRgb565Frame({256, 64}, 0);
+    snapshot.sprites[0].maskHd.pixels[10 * 256 + 20] = 1;
+    snapshot.sprites[0].colorizedHd.pixels[10 * 256 + 20] = 0xf800;
+    document = colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+
+    QImage image(widget.size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    QPainter painter(&image);
+    widget.render(&painter);
+    painter.end();
+
+    const QColor sdFootprintPixel(image.pixel(84, 80));
+    expect(sdFootprintPixel.red() > 80 && sdFootprintPixel.green() < 40,
+           "HD sprite pixel should render in SD footprint position");
+
+    std::optional<colorizing::render::Point> pickedPixel;
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::ColorPicker);
+    widget.setColorizedPixelPickedHandler(
+        [&](std::size_t, colorizing::render::Resolution resolution, int x, int y) {
+            expect(resolution == colorizing::render::Resolution::Hd,
+                   "HD sprite hit should use HD resolution");
+            pickedPixel = colorizing::render::Point{x, y};
+        });
+    QMouseEvent pickPress(QEvent::MouseButtonPress,
+                          QPointF(84, 80),
+                          QPointF(84, 80),
+                          QPointF(84, 80),
+                          Qt::LeftButton,
+                          Qt::LeftButton,
+                          Qt::NoModifier,
+                          QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &pickPress);
+    expect(pickedPixel.has_value() && pickedPixel->x == 20 && pickedPixel->y == 10,
+           "HD sprite hit should map SD footprint coordinate to HD source pixel");
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -1174,6 +1224,7 @@ int main(int argc, char* argv[])
     testBackgroundImageEditModeRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorRendersAndEditsDetectionArea();
+    testSpriteEditorHdKeepsSdFootprint();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

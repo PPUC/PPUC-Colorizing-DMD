@@ -390,16 +390,12 @@ void paintDmdPixel(QPainter& painter,
         return;
     }
 
-    const int pixelSize =
-        std::max(1, static_cast<int>(std::round(cellRect.width() * coverage)));
-    const int cellX = static_cast<int>(std::round(cellRect.x()));
-    const int cellY = static_cast<int>(std::round(cellRect.y()));
-    const int cellWidth = static_cast<int>(std::round(cellRect.width()));
-    const int cellHeight = static_cast<int>(std::round(cellRect.height()));
-    const QRect pixelRect(cellX + (cellWidth - pixelSize) / 2,
-                          cellY + (cellHeight - pixelSize) / 2,
-                          pixelSize,
-                          pixelSize);
+    const double pixelSize = std::max(1.0, cellRect.width() * coverage);
+    const QPointF center = cellRect.center();
+    const QRectF pixelRect(center.x() - pixelSize / 2.0,
+                           center.y() - pixelSize / 2.0,
+                           pixelSize,
+                           pixelSize);
     painter.fillRect(pixelRect, color);
     painter.restore();
 }

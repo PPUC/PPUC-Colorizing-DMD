@@ -697,6 +697,62 @@ void testSpriteColorizedPixelEditing()
         "missing HD sprite write");
 }
 
+void testSpriteHdCreateAndRemove()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_hd_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        false,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+    snapshot.sprites[0].originalSd.pixels[4 * 256 + 3] = 2;
+    snapshot.sprites[0].colorizedSd.pixels[4 * 256 + 3] = 0x4321;
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    expect(!document.hasHdSprite(0), "sprite should start without HD flag");
+    document.createHdSprite(0);
+    expect(document.hasHdSprite(0), "createHdSprite should set HD flag");
+    expect(document.sprite(0).maskHd.pixels[8 * 256 + 6] == 2,
+           "createHdSprite should upscale SD sprite mask");
+    expect(document.spriteColorizedPixel(0, Resolution::Hd, 7, 9) == 0x4321,
+           "createHdSprite should upscale SD sprite colors");
+    expect(document.isDirty(), "createHdSprite should mark dirty");
+
+    document.markClean();
+    document.createHdSprite(0);
+    expect(!document.isDirty(), "createHdSprite should ignore existing HD sprite");
+
+    document.removeHdSprite(0);
+    expect(!document.hasHdSprite(0), "removeHdSprite should clear HD flag");
+    expect(document.isDirty(), "removeHdSprite should mark dirty");
+
+    document.markClean();
+    document.removeHdSprite(0);
+    expect(!document.isDirty(), "removeHdSprite should ignore absent HD sprite");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.createHdSprite(1); },
+        "sprite HD create bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.removeHdSprite(1); },
+        "sprite HD remove bounds");
+}
+
 void testBackgroundImagePixelEditing()
 {
     ProjectSnapshot snapshot;
@@ -848,6 +904,7 @@ void runProjectDocumentTests()
     testBackgroundMetadataAndMaskEditing();
     testFrameSpriteReferenceEditing();
     testSpriteColorizedPixelEditing();
+    testSpriteHdCreateAndRemove();
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();
     testInvalidSnapshotReportsReason();

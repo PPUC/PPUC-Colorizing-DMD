@@ -207,6 +207,8 @@ private:
     void setCurrentSpriteSlotBounds();
     void setCurrentSpriteDetectionArea();
     void clearCurrentSpriteDetectionArea();
+    void createCurrentSpriteHd();
+    void removeCurrentSpriteHd();
     void createCurrentFrameHd();
     void removeCurrentFrameHd();
     void updateDynamicColorControls();

@@ -79,6 +79,36 @@ IndexedFrame upscaleIndexedFrame2x(const IndexedFrame& source)
     return target;
 }
 
+IndexedFrame upscaleSpriteIndexedFrame2x(const IndexedFrame& source)
+{
+    IndexedFrame target = makeIndexedFrame(Size{static_cast<int>(kMaxSpriteWidth),
+                                                static_cast<int>(kMaxSpriteHeight)}, 255);
+    for (int y = 0; y < target.size.height; ++y) {
+        for (int x = 0; x < target.size.width; ++x) {
+            target.pixels[static_cast<std::size_t>(y) * kMaxSpriteWidth +
+                          static_cast<std::size_t>(x)] =
+                source.pixels[static_cast<std::size_t>(y / 2) * kMaxSpriteWidth +
+                              static_cast<std::size_t>(x / 2)];
+        }
+    }
+    return target;
+}
+
+Rgb565Frame upscaleSpriteRgb565Frame2x(const Rgb565Frame& source)
+{
+    Rgb565Frame target = makeRgb565Frame(Size{static_cast<int>(kMaxSpriteWidth),
+                                              static_cast<int>(kMaxSpriteHeight)});
+    for (int y = 0; y < target.size.height; ++y) {
+        for (int x = 0; x < target.size.width; ++x) {
+            target.pixels[static_cast<std::size_t>(y) * kMaxSpriteWidth +
+                          static_cast<std::size_t>(x)] =
+                source.pixels[static_cast<std::size_t>(y / 2) * kMaxSpriteWidth +
+                              static_cast<std::size_t>(x / 2)];
+        }
+    }
+    return target;
+}
+
 std::size_t spritePixelIndex(int x, int y)
 {
     return static_cast<std::size_t>(y) * kMaxSpriteWidth + static_cast<std::size_t>(x);
@@ -766,6 +796,39 @@ const SpriteRecord& ProjectDocument::sprite(std::size_t spriteIndex) const
         throw std::out_of_range("sprite index out of range");
     }
     return m_sprites[spriteIndex];
+}
+
+bool ProjectDocument::hasHdSprite(std::size_t spriteIndex) const
+{
+    return sprite(spriteIndex).hasHd;
+}
+
+void ProjectDocument::createHdSprite(std::size_t spriteIndex)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    if (sprite.hasHd) {
+        return;
+    }
+    sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
+    sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+    sprite.hasHd = true;
+    m_dirty = true;
+}
+
+void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    if (!sprite.hasHd) {
+        return;
+    }
+    sprite.hasHd = false;
+    m_dirty = true;
 }
 
 uint16_t ProjectDocument::spriteColorizedPixel(std::size_t spriteIndex,

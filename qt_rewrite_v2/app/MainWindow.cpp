@@ -889,10 +889,18 @@ void MainWindow::createCentralView()
         }
     });
     connect(m_createHdFrameButton, &QToolButton::clicked, this, [this]() {
-        createCurrentFrameHd();
+        if (isSpriteCanvasActive()) {
+            createCurrentSpriteHd();
+        } else {
+            createCurrentFrameHd();
+        }
     });
     connect(m_removeHdFrameButton, &QToolButton::clicked, this, [this]() {
-        removeCurrentFrameHd();
+        if (isSpriteCanvasActive()) {
+            removeCurrentSpriteHd();
+        } else {
+            removeCurrentFrameHd();
+        }
     });
     connect(m_paintTargetComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -947,6 +955,7 @@ void MainWindow::createCentralView()
             m_canvasStack->setCurrentWidget(checked && m_spriteEditor ? static_cast<QWidget*>(m_spriteEditor)
                                                                       : static_cast<QWidget*>(m_preview));
         }
+        updateFrameMetadataControls();
         updateSpriteControls();
         updateUndoRedoActions();
     });
@@ -1681,9 +1690,13 @@ void MainWindow::updateFrameMetadataControls()
     }
     const bool hasHdFrame = m_document->hasHdFrame(frameIndex);
     if (m_createHdFrameButton) {
+        m_createHdFrameButton->setText(QStringLiteral("Create HD"));
+        m_createHdFrameButton->setToolTip(QStringLiteral("Create HD frame from SD frame"));
         m_createHdFrameButton->setEnabled(!hasHdFrame);
     }
     if (m_removeHdFrameButton) {
+        m_removeHdFrameButton->setText(QStringLiteral("Remove HD"));
+        m_removeHdFrameButton->setToolTip(QStringLiteral("Remove HD frame data"));
         m_removeHdFrameButton->setEnabled(hasHdFrame);
     }
     if (m_paintTargetComboBox) {
@@ -2190,6 +2203,66 @@ void MainWindow::applyPendingSpriteDependentViews()
     statusBar()->showMessage(QStringLiteral("Applied sprite edits to previews"), 1000);
 }
 
+void MainWindow::createCurrentSpriteHd()
+{
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!m_document || !spriteIndex) {
+        updateSpriteControls();
+        return;
+    }
+    if (m_document->hasHdSprite(*spriteIndex)) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        m_document->createHdSprite(*spriteIndex);
+        m_activeResolution = render::Resolution::Hd;
+        if (m_spriteEditor) {
+            m_spriteEditor->setActiveResolution(m_activeResolution);
+            m_spriteEditor->update();
+        }
+        setSpriteDependentViewsDirty();
+        updateResolutionMode();
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Created HD sprite from SD"), 2500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::removeCurrentSpriteHd()
+{
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!m_document || !spriteIndex || !m_document->hasHdSprite(*spriteIndex)) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        m_document->removeHdSprite(*spriteIndex);
+        if (m_activeResolution == render::Resolution::Hd) {
+            m_activeResolution = render::Resolution::Sd;
+        }
+        if (m_spriteEditor) {
+            m_spriteEditor->setActiveResolution(m_activeResolution);
+            m_spriteEditor->update();
+        }
+        setSpriteDependentViewsDirty();
+        updateResolutionMode();
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Removed HD sprite"), 2500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::createCurrentFrameHd()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -2533,6 +2606,10 @@ void MainWindow::updateSpriteControls()
         m_spriteDetectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);
         m_applySpriteEditsButton->setEnabled(false);
+        if (isSpriteCanvasActive()) {
+            m_createHdFrameButton->setEnabled(false);
+            m_removeHdFrameButton->setEnabled(false);
+        }
         if (m_canvasStack && m_preview) {
             m_canvasStack->setCurrentWidget(m_preview);
         }
@@ -2555,6 +2632,14 @@ void MainWindow::updateSpriteControls()
     const document::SpriteRecord& sprite =
         m_document->sprite(static_cast<std::size_t>(spriteIndex));
     m_spriteCanvasButton->setEnabled(true);
+    if (isSpriteCanvasActive()) {
+        m_createHdFrameButton->setText(QStringLiteral("Create HD Sprite"));
+        m_createHdFrameButton->setToolTip(QStringLiteral("Create HD sprite from SD sprite"));
+        m_createHdFrameButton->setEnabled(!sprite.hasHd);
+        m_removeHdFrameButton->setText(QStringLiteral("Remove HD Sprite"));
+        m_removeHdFrameButton->setToolTip(QStringLiteral("Remove HD sprite data"));
+        m_removeHdFrameButton->setEnabled(sprite.hasHd);
+    }
     {
         QSignalBlocker blocker(m_spriteDetectionAreaComboBox);
         const int previousIndex = m_spriteDetectionAreaComboBox->findData(previousAreaData);

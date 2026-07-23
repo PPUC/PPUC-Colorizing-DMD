@@ -340,7 +340,9 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
 
 void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::LeftButton && m_colorizedPixelEditedHandler &&
+    if (event->button() == Qt::LeftButton &&
+        (m_colorizedPixelEditedHandler || m_colorizedPixelsEditedHandler ||
+         m_colorizedPixelPickedHandler || m_colorizedFloodFillHandler) &&
         m_document && m_spriteIndex && *m_spriteIndex < m_document->spriteCount()) {
         const std::optional<render::Point> hit = hitColorized(event->pos());
         if (hit) {
@@ -528,12 +530,27 @@ std::optional<render::Point> SpriteEditorWidget::hitColorized(QPoint position) c
     }
     const QPointF origin = displayOrigin();
     const RegionLayout colorized = colorizedRegion();
-    const int logicalX = static_cast<int>(std::floor((position.x() - origin.x()) / scale));
-    const int logicalY = static_cast<int>(std::floor((position.y() - origin.y()) / scale));
-    if (!colorized.rect.contains(render::Point{logicalX, logicalY})) {
+    const double logicalX = (position.x() - origin.x()) / scale;
+    const double logicalY = (position.y() - origin.y()) / scale;
+    if (logicalX < colorized.rect.x || logicalY < colorized.rect.y ||
+        logicalX >= colorized.rect.x + colorized.rect.width ||
+        logicalY >= colorized.rect.y + colorized.rect.height) {
         return std::nullopt;
     }
-    return render::Point{logicalX - colorized.rect.x, logicalY - colorized.rect.y};
+    const render::Resolution resolution = colorizedPaintResolution();
+    const double localX = logicalX - colorized.rect.x;
+    const double localY = logicalY - colorized.rect.y;
+    const int sourceX =
+        resolution == render::Resolution::Hd ? static_cast<int>(std::floor(localX * 2.0))
+                                             : static_cast<int>(std::floor(localX));
+    const int sourceY =
+        resolution == render::Resolution::Hd ? static_cast<int>(std::floor(localY * 2.0))
+                                             : static_cast<int>(std::floor(localY));
+    if (sourceX < 0 || sourceY < 0 ||
+        sourceX >= kSpriteSize.width || sourceY >= kSpriteSize.height) {
+        return std::nullopt;
+    }
+    return render::Point{sourceX, sourceY};
 }
 
 std::optional<render::Point> SpriteEditorWidget::hitOriginal(QPoint position) const
@@ -573,7 +590,9 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
             ? sprite.originalSd
             : useHd ? sprite.maskHd : sprite.originalSd;
     const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
-    const int scale = 1;
+    const bool drawHdColorized =
+        region.region == render::CanvasRegion::SpriteColorized && useHd;
+    const double cellSize = drawHdColorized ? 0.5 : 1.0;
     for (int y = 0; y < kSpriteSize.height; ++y) {
         for (int x = 0; x < kSpriteSize.width; ++x) {
             const std::size_t index = spritePixelIndex(x, y);
@@ -585,9 +604,9 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
                     ? originalIndexToColor(mask.pixels[index])
                     : rgb565ToColor(colorized.pixels[index]);
             paintDmdPixel(painter,
-                          region.rect.x + x * scale,
-                          region.rect.y + y * scale,
-                          scale,
+                          region.rect.x + x * cellSize,
+                          region.rect.y + y * cellSize,
+                          cellSize,
                           color,
                           m_renderOptions);
         }
@@ -667,10 +686,12 @@ void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const Re
         if (!isColorizedPixelEditable(sprite, resolution, point, m_paintErase)) {
             continue;
         }
+        const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+        const double cellSize = useHd ? 0.5 : 1.0;
         paintDmdPixel(painter,
-                      region.rect.x + point.x,
-                      region.rect.y + point.y,
-                      1,
+                      region.rect.x + point.x * cellSize,
+                      region.rect.y + point.y * cellSize,
+                      cellSize,
                       previewColor,
                       m_renderOptions);
     }

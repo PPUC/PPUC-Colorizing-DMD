@@ -296,6 +296,7 @@ The Inspector has a sprite browser and assignment controls:
 - The detection area selector and `X`, `Y`, `W`, `H` fields edit the selected sprite detection area.
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
 - `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
+- While `Edit Sprite` is active, `Create HD Sprite` creates HD sprite mask/color data by scaling the SD sprite data to 2x, and `Remove HD Sprite` clears the sprite HD-present flag.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
 - Hold `Shift` while dragging on the colorized sprite to erase existing non-black sprite pixels back to black.
 - The sprite editor supports the toolbar point, line, rectangle, filled rectangle, circle, filled circle, ellipse, and filled ellipse tools on the colorized sprite.
