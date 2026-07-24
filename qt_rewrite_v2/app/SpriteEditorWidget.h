@@ -29,6 +29,12 @@ enum class SpriteDrawingTool {
     FloodFill,
 };
 
+enum class SpriteCanvasEditMode {
+    ColorizedPixels,
+    OriginalMask,
+    DetectionAreas,
+};
+
 class SpriteEditorWidget final : public QWidget {
 public:
     explicit SpriteEditorWidget(QWidget* parent = nullptr);
@@ -37,7 +43,9 @@ public:
     void setSpriteIndex(std::optional<std::size_t> spriteIndex);
     void setActiveResolution(render::Resolution resolution);
     void setDrawingTool(SpriteDrawingTool tool);
+    void setCanvasEditMode(SpriteCanvasEditMode mode);
     void setActiveDrawColor(uint16_t rgb565);
+    void setOriginalDrawValue(uint8_t value);
     void setDmdRenderOptions(DmdRenderOptions options);
     void setDetectionAreasVisible(bool visible);
     void setSelectedDetectionAreaIndex(std::optional<std::size_t> areaIndex);
@@ -52,6 +60,13 @@ public:
     void setColorizedFloodFillHandler(
         std::function<void(std::size_t, render::Resolution, int, int)> handler);
     void setColorizedPaintFinishedHandler(std::function<void()> handler);
+    void setOriginalPixelsEditedHandler(
+        std::function<void(std::size_t, const std::vector<render::Point>&, bool)> handler);
+    void setOriginalPixelPickedHandler(
+        std::function<void(std::size_t, int, int)> handler);
+    void setOriginalFloodFillHandler(
+        std::function<void(std::size_t, int, int, bool)> handler);
+    void setOriginalPaintFinishedHandler(std::function<void()> handler);
 
     [[nodiscard]] QSize sizeHint() const override;
 
@@ -79,13 +94,17 @@ private:
     void paintDetectionAreas(QPainter& painter, const RegionLayout& region);
     void paintDragPreview(QPainter& painter, const RegionLayout& region);
     void paintColorizedStrokePreview(QPainter& painter, const RegionLayout& region);
+    void paintOriginalStrokePreview(QPainter& painter, const RegionLayout& region);
     [[nodiscard]] bool isColorizedPixelEditable(const document::SpriteRecord& sprite,
                                                 render::Resolution resolution,
                                                 render::Point point,
                                                 bool erase) const;
     [[nodiscard]] std::vector<render::Point> pixelsForColorizedStroke(render::Point start,
                                                                       render::Point end) const;
+    [[nodiscard]] std::vector<render::Point> pixelsForOriginalStroke(render::Point start,
+                                                                     render::Point end) const;
     [[nodiscard]] bool editsColorizedStroke() const;
+    [[nodiscard]] bool editsOriginalStroke() const;
     [[nodiscard]] document::SpriteDetectionArea areaFromDrag(render::Point start,
                                                              render::Point end) const;
 
@@ -93,7 +112,9 @@ private:
     std::optional<std::size_t> m_spriteIndex;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     SpriteDrawingTool m_drawingTool = SpriteDrawingTool::Point;
+    SpriteCanvasEditMode m_canvasEditMode = SpriteCanvasEditMode::ColorizedPixels;
     uint16_t m_activeDrawColor = 0xffff;
+    uint8_t m_originalDrawValue = 1;
     DmdRenderOptions m_renderOptions;
     bool m_showDetectionAreas = true;
     std::optional<std::size_t> m_selectedAreaIndex;
@@ -103,12 +124,19 @@ private:
     std::function<void(std::size_t, render::Resolution, int, int)> m_colorizedPixelPickedHandler;
     std::function<void(std::size_t, render::Resolution, int, int)> m_colorizedFloodFillHandler;
     std::function<void()> m_colorizedPaintFinishedHandler;
+    std::function<void(std::size_t, const std::vector<render::Point>&, bool)> m_originalPixelsEditedHandler;
+    std::function<void(std::size_t, int, int)> m_originalPixelPickedHandler;
+    std::function<void(std::size_t, int, int, bool)> m_originalFloodFillHandler;
+    std::function<void()> m_originalPaintFinishedHandler;
     bool m_paintingColorized = false;
+    bool m_paintingOriginal = false;
     bool m_paintErase = false;
     std::optional<render::Point> m_dragStart;
     std::optional<render::Point> m_dragEnd;
     std::optional<render::Point> m_colorizedStrokeStart;
     std::optional<render::Point> m_colorizedStrokeEnd;
+    std::optional<render::Point> m_originalStrokeStart;
+    std::optional<render::Point> m_originalStrokeEnd;
 };
 
 }  // namespace colorizing::app

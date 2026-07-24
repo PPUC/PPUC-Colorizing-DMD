@@ -831,6 +831,47 @@ void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
     m_dirty = true;
 }
 
+uint8_t ProjectDocument::spriteOriginalPixel(std::size_t spriteIndex, int x, int y) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const IndexedFrame& frame = m_sprites[spriteIndex].originalSd;
+    return frame.pixels[checkedSpritePixelIndex(x, y)];
+}
+
+void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
+                                             int x,
+                                             int y,
+                                             uint8_t value)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    const std::size_t pixelIndex = checkedSpritePixelIndex(x, y);
+    if (sprite.originalSd.pixels[pixelIndex] == value) {
+        return;
+    }
+    sprite.originalSd.pixels[pixelIndex] = value;
+    for (std::size_t areaIndex = 0;
+         areaIndex < sprite.detectionAreas.size() &&
+             areaIndex < sprite.detectionDwords.size() &&
+             areaIndex < sprite.detectionDwordPositions.size();
+         ++areaIndex) {
+        uint32_t dword = 0xffffffff;
+        uint16_t dwordPosition = 0xffff;
+        if (const std::optional<std::pair<uint32_t, uint16_t>> calculated =
+                detectionDwordForArea(sprite.originalSd, sprite.detectionAreas[areaIndex])) {
+            dword = calculated->first;
+            dwordPosition = calculated->second;
+        }
+        sprite.detectionDwords[areaIndex] = dword;
+        sprite.detectionDwordPositions[areaIndex] = dwordPosition;
+    }
+    m_dirty = true;
+}
+
 uint16_t ProjectDocument::spriteColorizedPixel(std::size_t spriteIndex,
                                                Resolution resolution,
                                                int x,

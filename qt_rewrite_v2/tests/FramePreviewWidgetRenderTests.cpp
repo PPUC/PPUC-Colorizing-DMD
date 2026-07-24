@@ -669,6 +669,29 @@ void testSelectedSpriteBoundsOverlayRenders()
     hiddenPainter.end();
     expect(!hasVisibleCyanPixel(hiddenImage),
            "selected sprite slot bounds overlay should be hideable");
+
+    widget.setSelectedSpriteBoundsOverlayEnabled(true);
+    widget.setSelectedSpriteReference(std::nullopt);
+    QImage noSelectionImage(widget.size(), QImage::Format_ARGB32);
+    noSelectionImage.fill(Qt::transparent);
+    QPainter noSelectionPainter(&noSelectionImage);
+    widget.render(&noSelectionPainter);
+    noSelectionPainter.end();
+
+    widget.setSelectedSpriteReference(colorizing::document::FrameSpriteReference{
+        255,
+        0,
+        0,
+        127,
+        31,
+    });
+    QImage emptySlotImage(widget.size(), QImage::Format_ARGB32);
+    emptySlotImage.fill(Qt::transparent);
+    QPainter emptySlotPainter(&emptySlotImage);
+    widget.render(&emptySlotPainter);
+    emptySlotPainter.end();
+    expect(emptySlotImage == noSelectionImage,
+           "empty sprite slots should not render a bounds overlay");
 }
 
 void testDynamicMaskOverlayRendersInSdAndHd()
@@ -1100,6 +1123,62 @@ void testSpriteEditorRendersAndEditsDetectionArea()
 
     widget.setDrawingTool(colorizing::app::SpriteDrawingTool::Point);
 
+    std::optional<std::vector<colorizing::render::Point>> originalPixels;
+    bool originalErase = false;
+    widget.setCanvasEditMode(colorizing::app::SpriteCanvasEditMode::OriginalMask);
+    widget.setOriginalPixelsEditedHandler(
+        [&](std::size_t spriteIndex,
+            const std::vector<colorizing::render::Point>& pixels,
+            bool erase) {
+            expect(spriteIndex == 0, "sprite editor original mask should edit selected sprite");
+            originalPixels = pixels;
+            originalErase = erase;
+        });
+    std::optional<colorizing::render::Point> originalFloodPixel;
+    bool originalFloodErase = false;
+    widget.setOriginalFloodFillHandler(
+        [&](std::size_t spriteIndex, int x, int y, bool erase) {
+            expect(spriteIndex == 0, "sprite editor original flood should edit selected sprite");
+            originalFloodPixel = colorizing::render::Point{x, y};
+            originalFloodErase = erase;
+        });
+    QMouseEvent originalPress(QEvent::MouseButtonPress,
+                              QPointF(84, 232),
+                              QPointF(84, 232),
+                              QPointF(84, 232),
+                              Qt::LeftButton,
+                              Qt::LeftButton,
+                              Qt::ShiftModifier,
+                              QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &originalPress);
+    QMouseEvent originalRelease(QEvent::MouseButtonRelease,
+                                QPointF(84, 232),
+                                QPointF(84, 232),
+                                QPointF(84, 232),
+                                Qt::LeftButton,
+                                Qt::NoButton,
+                                Qt::ShiftModifier,
+                                QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &originalRelease);
+    expect(originalPixels.has_value() && originalPixels->size() == 1 &&
+               originalPixels->front().x == 10 && originalPixels->front().y == 5 &&
+               originalErase,
+           "sprite editor original mask mode should emit bottom-canvas edits");
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::FloodFill);
+    QMouseEvent originalFloodPress(QEvent::MouseButtonPress,
+                                   QPointF(84, 232),
+                                   QPointF(84, 232),
+                                   QPointF(84, 232),
+                                   Qt::LeftButton,
+                                   Qt::LeftButton,
+                                   Qt::ShiftModifier,
+                                   QPointingDevice::primaryPointingDevice());
+    QApplication::sendEvent(&widget, &originalFloodPress);
+    expect(originalFloodPixel.has_value() && originalFloodPixel->x == 10 &&
+               originalFloodPixel->y == 5 && originalFloodErase,
+           "sprite editor original flood should preserve erase state");
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::Point);
+
     QImage image(widget.size(), QImage::Format_ARGB32);
     image.fill(Qt::transparent);
     QPainter painter(&image);
@@ -1108,6 +1187,7 @@ void testSpriteEditorRendersAndEditsDetectionArea()
     expect(hasVisibleCyanPixel(image), "sprite editor should render detection area overlay");
 
     std::optional<colorizing::document::SpriteDetectionArea> editedArea;
+    widget.setCanvasEditMode(colorizing::app::SpriteCanvasEditMode::DetectionAreas);
     widget.setDetectionAreaChangedHandler(
         [&](std::size_t areaIndex, colorizing::document::SpriteDetectionArea area) {
             expect(areaIndex == 0, "sprite editor should edit selected area");

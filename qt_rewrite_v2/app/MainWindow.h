@@ -176,6 +176,16 @@ private:
         std::vector<SpriteImageEditCommand> redoStack;
     };
 
+    struct SpriteOriginalEditCommand {
+        std::size_t spriteIndex = 0;
+        std::vector<MaskPixelChange> changes;
+    };
+
+    struct SpriteOriginalEditHistory {
+        std::vector<SpriteOriginalEditCommand> undoStack;
+        std::vector<SpriteOriginalEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -230,6 +240,11 @@ private:
                                   render::Resolution resolution,
                                   int x,
                                   int y);
+    void paintSpriteOriginalPixels(std::size_t spriteIndex,
+                                   const std::vector<render::Point>& pixels,
+                                   bool erase);
+    void pickSpriteOriginalPixel(std::size_t spriteIndex, int x, int y);
+    void floodFillSpriteOriginal(std::size_t spriteIndex, int x, int y, bool erase);
     void setSpriteDependentViewsDirty();
     void applyPendingSpriteDependentViews();
     [[nodiscard]] uint8_t activeDynamicSet() const;
@@ -278,6 +293,7 @@ private:
     void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
     void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
     void applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor);
+    void applySpriteOriginalEdit(const SpriteOriginalEditCommand& command, bool useNewValue);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -302,6 +318,8 @@ private:
     [[nodiscard]] std::optional<SpriteEditHistoryKey> currentSpriteEditHistoryKey() const;
     [[nodiscard]] SpriteImageEditHistory* currentSpriteImageEditHistory();
     [[nodiscard]] const SpriteImageEditHistory* currentSpriteImageEditHistory() const;
+    [[nodiscard]] SpriteOriginalEditHistory* currentSpriteOriginalEditHistory();
+    [[nodiscard]] const SpriteOriginalEditHistory* currentSpriteOriginalEditHistory() const;
     [[nodiscard]] bool isSpriteCanvasActive() const;
     void undo();
     void redo();
@@ -353,7 +371,9 @@ private:
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
     QComboBox* m_spriteSlotComboBox = nullptr;
+    QComboBox* m_spriteCanvasModeComboBox = nullptr;
     QComboBox* m_spriteDetectionAreaComboBox = nullptr;
+    QSpinBox* m_spriteOriginalValueSpinBox = nullptr;
     QLabel* m_spriteOriginalPreviewLabel = nullptr;
     QLabel* m_spriteColorizedPreviewLabel = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
@@ -367,6 +387,7 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
+    uint8_t m_spriteOriginalDrawValue = 1;
     bool m_spriteDependentViewsDirty = false;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
@@ -375,6 +396,7 @@ private:
     std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
     std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
     std::map<SpriteEditHistoryKey, SpriteImageEditHistory> m_spriteImageEditHistories;
+    std::map<std::size_t, SpriteOriginalEditHistory> m_spriteOriginalEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

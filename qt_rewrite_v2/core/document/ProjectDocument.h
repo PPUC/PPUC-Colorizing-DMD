@@ -185,6 +185,13 @@ public:
     [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
     void createHdSprite(std::size_t spriteIndex);
     void removeHdSprite(std::size_t spriteIndex);
+    [[nodiscard]] uint8_t spriteOriginalPixel(std::size_t spriteIndex,
+                                              int x,
+                                              int y) const;
+    void setSpriteOriginalPixel(std::size_t spriteIndex,
+                                int x,
+                                int y,
+                                uint8_t value);
     [[nodiscard]] uint16_t spriteColorizedPixel(std::size_t spriteIndex,
                                                 Resolution resolution,
                                                 int x,

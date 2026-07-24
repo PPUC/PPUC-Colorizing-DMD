@@ -697,6 +697,61 @@ void testSpriteColorizedPixelEditing()
         "missing HD sprite write");
 }
 
+void testSpriteOriginalPixelEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_original_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        false,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+    snapshot.sprites[0].originalSd.pixels[0] = 1;
+    snapshot.sprites[0].originalSd.pixels[1] = 2;
+    snapshot.sprites[0].originalSd.pixels[2] = 3;
+    snapshot.sprites[0].originalSd.pixels[3] = 4;
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.setSpriteDetectionArea(0, 0, colorizing::document::SpriteDetectionArea{0, 0, 4, 1});
+    const uint32_t beforeDword = document.sprite(0).detectionDwords[0];
+    document.markClean();
+
+    expect(document.spriteOriginalPixel(0, 2, 0) == 3,
+           "sprite original pixel getter");
+    document.setSpriteOriginalPixel(0, 2, 0, 7);
+    expect(document.spriteOriginalPixel(0, 2, 0) == 7,
+           "sprite original pixel setter");
+    expect(document.sprite(0).detectionDwords[0] != beforeDword,
+           "sprite original edit should recalculate detection dword");
+    expect(document.isDirty(), "sprite original edit should mark dirty");
+
+    document.markClean();
+    document.setSpriteOriginalPixel(0, 2, 0, 7);
+    expect(!document.isDirty(), "identical sprite original edit should not mark dirty");
+
+    expectThrows<std::out_of_range>(
+        [&]() {
+            const uint8_t value = document.spriteOriginalPixel(1, 0, 0);
+            (void)value;
+        },
+        "sprite original getter bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setSpriteOriginalPixel(0, 256, 0, 1); },
+        "sprite original setter coordinate bounds");
+}
+
 void testSpriteHdCreateAndRemove()
 {
     ProjectSnapshot snapshot;
@@ -904,6 +959,7 @@ void runProjectDocumentTests()
     testBackgroundMetadataAndMaskEditing();
     testFrameSpriteReferenceEditing();
     testSpriteColorizedPixelEditing();
+    testSpriteOriginalPixelEditing();
     testSpriteHdCreateAndRemove();
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();

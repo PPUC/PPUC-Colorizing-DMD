@@ -532,6 +532,10 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
     }
 
     const document::FrameSpriteReference& reference = *m_selectedSpriteReference;
+    if (reference.spriteId == 255) {
+        return;
+    }
+
     const int minX = std::clamp(static_cast<int>(std::min(reference.minX, reference.maxX)),
                                 0,
                                 region.logicalSize.width - 1);
@@ -553,8 +557,7 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, false);
-    const QColor fillColor = reference.spriteId == 255 ? QColor(255, 255, 255, 110)
-                                                       : QColor(0, 255, 255, 110);
+    const QColor fillColor(0, 255, 255, 110);
     painter.fillRect(bounds, fillColor);
     painter.restore();
 }
