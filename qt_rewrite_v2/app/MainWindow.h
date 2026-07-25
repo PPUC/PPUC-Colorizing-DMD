@@ -201,6 +201,7 @@ private:
     void setDrawingTool(DrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
     void updateFrameMetadataControls();
+    void updateMaskControls();
     void updateBackgroundControls();
     void updatePaintTargetMode();
     void setCurrentFrameComparisonMaskId(int maskId);
@@ -208,6 +209,8 @@ private:
     void setCurrentFrameBackgroundId(int backgroundId);
     void setCurrentFrameTriggerId(int triggerId);
     void setCurrentFrameSwitchToMonochrome(bool enabled);
+    void assignSelectedMaskToFrames();
+    void editAssignedMask();
     void assignSelectedBackgroundToFrames();
     void editAssignedBackground();
     void assignSelectedSpriteToCurrentSlot();
@@ -346,6 +349,8 @@ private:
     QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_createHdFrameButton = nullptr;
     QToolButton* m_removeHdFrameButton = nullptr;
+    QToolButton* m_assignMaskButton = nullptr;
+    QToolButton* m_editMaskButton = nullptr;
     QToolButton* m_assignBackgroundButton = nullptr;
     QToolButton* m_editBackgroundButton = nullptr;
     QToolButton* m_spriteBoundsOverlayButton = nullptr;
@@ -380,6 +385,7 @@ private:
     QLabel* m_spriteOriginalPreviewLabel = nullptr;
     QLabel* m_spriteColorizedPreviewLabel = nullptr;
     QLabel* m_backgroundPreviewLabel = nullptr;
+    QLabel* m_selectedMaskLabel = nullptr;
     QLabel* m_selectedBackgroundLabel = nullptr;
     QLabel* m_selectedSpriteLabel = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;

@@ -462,6 +462,14 @@ void MainWindow::createCentralView()
     m_backgroundComboBox->setToolTip(QStringLiteral("Loaded background"));
     m_backgroundComboBox->setEnabled(false);
     m_backgroundComboBox->setVisible(false);
+    m_assignMaskButton = new QToolButton(central);
+    m_assignMaskButton->setText(QStringLiteral("Assign Mask"));
+    m_assignMaskButton->setToolTip(QStringLiteral("Assign selected comparison mask to selected frames"));
+    m_assignMaskButton->setEnabled(false);
+    m_editMaskButton = new QToolButton(central);
+    m_editMaskButton->setText(QStringLiteral("Edit Mask"));
+    m_editMaskButton->setToolTip(QStringLiteral("Show and edit the assigned comparison mask"));
+    m_editMaskButton->setEnabled(false);
     m_assignBackgroundButton = new QToolButton(central);
     m_assignBackgroundButton->setText(QStringLiteral("Assign BG"));
     m_assignBackgroundButton->setToolTip(QStringLiteral("Assign selected background to selected frames"));
@@ -664,8 +672,6 @@ void MainWindow::createCentralView()
     framePageLayout->setContentsMargins(6, 6, 6, 6);
     auto* frameForm = new QFormLayout();
     frameForm->addRow(QStringLiteral("Target"), m_paintTargetComboBox);
-    frameForm->addRow(QStringLiteral("Mask ID"), m_comparisonMaskIdSpinBox);
-    frameForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
     frameForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
     frameForm->addRow(QStringLiteral("Trigger ID"), m_triggerIdSpinBox);
     frameForm->addRow(QString(), m_switchToMonochromeCheckBox);
@@ -679,6 +685,23 @@ void MainWindow::createCentralView()
     framePageLayout->addLayout(hdButtonLayout);
     framePageLayout->addStretch(1);
     inspectorTabs->addTab(framePage, QStringLiteral("Frame"));
+
+    auto* maskPage = new QWidget(inspectorTabs);
+    auto* maskPageLayout = new QVBoxLayout(maskPage);
+    maskPageLayout->setContentsMargins(6, 6, 6, 6);
+    m_selectedMaskLabel = new QLabel(QStringLiteral("Selected: None"), maskPage);
+    m_selectedMaskLabel->setWordWrap(true);
+    maskPageLayout->addWidget(m_selectedMaskLabel);
+    auto* maskForm = new QFormLayout();
+    maskForm->addRow(QStringLiteral("Mask ID"), m_comparisonMaskIdSpinBox);
+    maskForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
+    maskPageLayout->addLayout(maskForm);
+    auto* maskButtonLayout = new QHBoxLayout();
+    maskButtonLayout->addWidget(m_assignMaskButton);
+    maskButtonLayout->addWidget(m_editMaskButton);
+    maskPageLayout->addLayout(maskButtonLayout);
+    maskPageLayout->addStretch(1);
+    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"));
 
     auto* backgroundPage = new QWidget(inspectorTabs);
     auto* backgroundPageLayout = new QVBoxLayout(backgroundPage);
@@ -818,6 +841,7 @@ void MainWindow::createCentralView()
         if (maskIndex >= 0) {
             m_comparisonMaskIdSpinBox->setValue(maskIndex);
         }
+        updateMaskControls();
     });
     connect(m_backgroundList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
         if (!item || !m_backgroundComboBox) {
@@ -1059,6 +1083,12 @@ void MainWindow::createCentralView()
             [this](int) {
                 updateBackgroundControls();
             });
+    connect(m_assignMaskButton, &QToolButton::clicked, this, [this]() {
+        assignSelectedMaskToFrames();
+    });
+    connect(m_editMaskButton, &QToolButton::clicked, this, [this]() {
+        editAssignedMask();
+    });
     connect(m_assignBackgroundButton, &QToolButton::clicked, this, [this]() {
         assignSelectedBackgroundToFrames();
     });
@@ -1594,6 +1624,7 @@ void MainWindow::refreshComponentBrowsers()
     updateMaskBrowserSelection();
     updateBackgroundBrowserSelection();
     updateSpriteBrowserSelection();
+    updateMaskControls();
 }
 
 void MainWindow::updateMaskBrowserSelection()
@@ -1838,6 +1869,7 @@ void MainWindow::updateFrameMetadataControls()
             m_paintTargetComboBox->setCurrentIndex(0);
         }
         updateDynamicColorControls();
+        updateMaskControls();
         updateBackgroundControls();
         return;
     }
@@ -1913,6 +1945,40 @@ void MainWindow::updateFrameMetadataControls()
     updatePaintTargetMode();
     updateBackgroundControls();
     updateMaskBrowserSelection();
+    updateMaskControls();
+}
+
+void MainWindow::updateMaskControls()
+{
+    if (!m_selectedMaskLabel || !m_assignMaskButton || !m_editMaskButton) {
+        return;
+    }
+
+    const bool hasDocument = static_cast<bool>(m_document);
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    const QListWidgetItem* selectedItem = m_maskList ? m_maskList->currentItem() : nullptr;
+    const int selectedMask = selectedItem ? selectedItem->data(Qt::UserRole).toInt() : -1;
+    const bool selectedMaskValid =
+        hasDocument && selectedMask >= 0 &&
+        static_cast<std::size_t>(selectedMask) < m_document->comparisonMaskCount();
+    const std::optional<std::size_t> assignedMask = currentComparisonMaskIndex();
+
+    if (selectedMaskValid) {
+        const QString assignedSuffix =
+            assignedMask && *assignedMask == static_cast<std::size_t>(selectedMask)
+                ? QStringLiteral(" (assigned)")
+                : QString();
+        m_selectedMaskLabel->setText(
+            QStringLiteral("Selected: %1%2").arg(selectedMask).arg(assignedSuffix));
+    } else if (assignedMask) {
+        m_selectedMaskLabel->setText(
+            QStringLiteral("Selected: %1 (assigned)").arg(static_cast<int>(*assignedMask)));
+    } else {
+        m_selectedMaskLabel->setText(QStringLiteral("Selected: None"));
+    }
+
+    m_assignMaskButton->setEnabled(selectedMaskValid && !frameIndices.empty());
+    m_editMaskButton->setEnabled(assignedMask.has_value());
 }
 
 void MainWindow::updateBackgroundControls()
@@ -2003,11 +2069,68 @@ void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
         m_preview->update();
     }
     updateFrameMetadataControls();
+    updateMaskControls();
     updateUndoRedoActions();
     updateProjectHeaderStatus();
     statusBar()->showMessage(maskId < 0 ? QStringLiteral("Cleared comparison mask assignment")
                                         : QStringLiteral("Assigned comparison mask %1").arg(maskId),
                              2500);
+}
+
+void MainWindow::assignSelectedMaskToFrames()
+{
+    const QListWidgetItem* selectedItem = m_maskList ? m_maskList->currentItem() : nullptr;
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || !selectedItem || frameIndices.empty()) {
+        statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
+        updateMaskControls();
+        return;
+    }
+
+    const int maskIndex = selectedItem->data(Qt::UserRole).toInt();
+    if (maskIndex < 0 ||
+        static_cast<std::size_t>(maskIndex) >= m_document->comparisonMaskCount()) {
+        statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
+        updateMaskControls();
+        return;
+    }
+
+    const uint8_t storedMaskId = static_cast<uint8_t>(maskIndex);
+    for (std::size_t frameIndex : frameIndices) {
+        m_document->setComparisonMaskId(frameIndex, storedMaskId);
+        updateFrameListItem(frameIndex);
+    }
+    if (m_preview) {
+        m_preview->update();
+    }
+    updateFrameMetadataControls();
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(
+        QStringLiteral("Assigned comparison mask %1 on %2 frame(s)")
+            .arg(maskIndex)
+            .arg(static_cast<int>(frameIndices.size())),
+        2500);
+}
+
+void MainWindow::editAssignedMask()
+{
+    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+    if (!maskIndex) {
+        statusBar()->showMessage(QStringLiteral("Assign a comparison mask before editing"), 2500);
+        updateMaskControls();
+        return;
+    }
+    if (m_comparisonMaskOverlayButton) {
+        m_comparisonMaskOverlayButton->setChecked(true);
+    }
+    if (m_canvasStack && m_preview) {
+        m_canvasStack->setCurrentWidget(m_preview);
+    }
+    updateUndoRedoActions();
+    statusBar()->showMessage(
+        QStringLiteral("Editing comparison mask %1").arg(static_cast<int>(*maskIndex)),
+        1500);
 }
 
 void MainWindow::setCurrentFrameShapeComparisonMode(int mode)

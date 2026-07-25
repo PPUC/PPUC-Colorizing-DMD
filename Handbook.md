@@ -119,13 +119,14 @@ The background-mask overlay and edits follow the active SD/HD mode.
 The left sidebar is the visual component browser:
 
 - `Frames` shows frame thumbnails and the frame filter.
-- `Masks` shows comparison-mask thumbnails; selecting one assigns it as the current frame's `Mask ID`.
+- `Masks` shows comparison-mask thumbnails; selecting one assigns it as the current frame's mask.
 - `Backgrounds` shows background thumbnails; selecting one selects the same background in the Inspector for assignment or editing.
 - `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector.
 
 Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
 
-- `Frame` contains frame/background assignment, comparison mode, trigger IDs, DMD render settings, and HD frame actions.
+- `Frame` contains frame/background assignment, trigger IDs, DMD render settings, and HD frame actions.
+- `Mask` contains comparison-mask assignment, comparison mode, and a shortcut into mask editing.
 - `Background` contains the selected background ID, assignment, and edit shortcut.
 - `Dynamic` contains the dynamic set selector and dynamic color swatches.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
@@ -133,8 +134,6 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 The `Frame` topic exposes:
 
 - `Target` selects whether ordinary drawing tools edit the current frame or the assigned background image.
-- `Mask ID` assigns the shared comparison mask used by the current frame.
-- `Shape` selects the frame comparison mode.
 - `BG ID` assigns the shared background used by the current frame.
 - `Trigger ID` edits the per-frame legacy trigger ID for all selected frames.
 - `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` and disables manual trigger-ID entry while checked.
@@ -257,6 +256,9 @@ The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transpare
 
 The Inspector exposes per-frame comparison metadata:
 
+- The `Mask` topic shows the visually selected mask from the left sidebar.
+- `Assign Mask` assigns the selected mask to all selected frames.
+- `Edit Mask` enables the mask overlay and returns the canvas to the frame preview.
 - `Mask ID` assigns the shared comparison mask used by the current frame. `None` stores the legacy no-mask assignment.
 - `Shape` selects `Full comparison` or `Shape mode`.
 - Both fields are saved back into `.cROM`.
