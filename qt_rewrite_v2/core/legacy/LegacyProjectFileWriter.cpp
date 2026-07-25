@@ -476,6 +476,10 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     }
 
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        writeU32(bytes,
+                 cromFrames.frameData.triggerIdsOffset + frameIndex * sizeof(uint32_t),
+                 snapshot.frames[frameIndex].triggerId);
+
         const std::vector<document::FrameSpriteReference>& references =
             snapshot.frames[frameIndex].spriteReferences;
         for (std::size_t spriteSlot = 0; spriteSlot < document::kMaxSpritesPerFrame;

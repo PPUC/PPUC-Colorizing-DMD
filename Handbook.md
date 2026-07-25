@@ -128,6 +128,8 @@ The `Frame` topic exposes:
 - `Mask ID` assigns the shared comparison mask used by the current frame.
 - `Shape` selects the frame comparison mode.
 - `BG ID` assigns the shared background used by the current frame.
+- `Trigger ID` edits the per-frame legacy trigger ID for all selected frames.
+- `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` and disables manual trigger-ID entry while checked.
 - `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
 - `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
 - `Show BG` renders the assigned background layer into the colorized frame preview.

@@ -23,6 +23,7 @@ class QToolButton;
 class QAction;
 class QMenu;
 class QComboBox;
+class QCheckBox;
 class QLineEdit;
 class QSpinBox;
 
@@ -203,6 +204,8 @@ private:
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
+    void setCurrentFrameTriggerId(int triggerId);
+    void setCurrentFrameSwitchToMonochrome(bool enabled);
     void assignSelectedSpriteToCurrentSlot();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
@@ -341,6 +344,7 @@ private:
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
+    QSpinBox* m_triggerIdSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
     QSpinBox* m_spriteMinXSpinBox = nullptr;
     QSpinBox* m_spriteMinYSpinBox = nullptr;
@@ -353,6 +357,7 @@ private:
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
+    QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
     QLineEdit* m_spriteNameLineEdit = nullptr;
     QComboBox* m_spriteSlotComboBox = nullptr;

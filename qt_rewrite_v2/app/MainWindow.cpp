@@ -58,6 +58,8 @@ namespace {
 constexpr int kMaxRecentProjects = 8;
 constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
+constexpr uint32_t kSwitchToMonochromeTriggerId = 65432;
+constexpr int kMaxManualTriggerId = static_cast<int>(kSwitchToMonochromeTriggerId - 1);
 
 QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
 {
@@ -389,6 +391,14 @@ void MainWindow::createCentralView()
     m_backgroundIdSpinBox->setMaximum(-1);
     m_backgroundIdSpinBox->setSpecialValueText(QStringLiteral("None"));
     m_backgroundIdSpinBox->setEnabled(false);
+    m_triggerIdSpinBox = new QSpinBox(central);
+    m_triggerIdSpinBox->setToolTip(QStringLiteral("Per-frame trigger ID"));
+    m_triggerIdSpinBox->setRange(0, kMaxManualTriggerId);
+    m_triggerIdSpinBox->setEnabled(false);
+    m_switchToMonochromeCheckBox = new QCheckBox(QStringLiteral("Switch mono"), central);
+    m_switchToMonochromeCheckBox->setToolTip(
+        QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
+    m_switchToMonochromeCheckBox->setEnabled(false);
     m_backgroundLayerButton = new QToolButton(central);
     m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
@@ -578,6 +588,8 @@ void MainWindow::createCentralView()
     frameForm->addRow(QStringLiteral("Mask ID"), m_comparisonMaskIdSpinBox);
     frameForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
     frameForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
+    frameForm->addRow(QStringLiteral("Trigger ID"), m_triggerIdSpinBox);
+    frameForm->addRow(QString(), m_switchToMonochromeCheckBox);
     frameForm->addRow(QStringLiteral("DMD Shape"), m_dmdPixelShapeComboBox);
     frameForm->addRow(QStringLiteral("DMD Size"), m_dmdPixelSizeSpinBox);
     framePageLayout->addLayout(frameForm);
@@ -903,6 +915,15 @@ void MainWindow::createCentralView()
             [this](int backgroundId) {
                 setCurrentFrameBackgroundId(backgroundId);
             });
+    connect(m_triggerIdSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int triggerId) {
+                setCurrentFrameTriggerId(triggerId);
+            });
+    connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        setCurrentFrameSwitchToMonochrome(checked);
+    });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintFramePixel(hit, erase);
     });
@@ -1491,7 +1512,9 @@ void MainWindow::updateResolutionMode()
 
 void MainWindow::updateFrameMetadataControls()
 {
-    if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox || !m_backgroundIdSpinBox) {
+    if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox ||
+        !m_backgroundIdSpinBox || !m_triggerIdSpinBox ||
+        !m_switchToMonochromeCheckBox) {
         return;
     }
 
@@ -1500,6 +1523,8 @@ void MainWindow::updateFrameMetadataControls()
     QSignalBlocker maskBlocker(m_comparisonMaskIdSpinBox);
     QSignalBlocker shapeBlocker(m_shapeComparisonModeComboBox);
     QSignalBlocker backgroundBlocker(m_backgroundIdSpinBox);
+    QSignalBlocker triggerBlocker(m_triggerIdSpinBox);
+    QSignalBlocker monoBlocker(m_switchToMonochromeCheckBox);
 
     if (!hasFrame) {
         m_comparisonMaskIdSpinBox->setRange(-1, -1);
@@ -1513,6 +1538,10 @@ void MainWindow::updateFrameMetadataControls()
         m_backgroundIdSpinBox->setRange(-1, -1);
         m_backgroundIdSpinBox->setValue(-1);
         m_backgroundIdSpinBox->setEnabled(false);
+        m_triggerIdSpinBox->setValue(0);
+        m_triggerIdSpinBox->setEnabled(false);
+        m_switchToMonochromeCheckBox->setChecked(false);
+        m_switchToMonochromeCheckBox->setEnabled(false);
         if (m_backgroundLayerButton) {
             m_backgroundLayerButton->setEnabled(false);
         }
@@ -1563,6 +1592,20 @@ void MainWindow::updateFrameMetadataControls()
     }
     m_backgroundIdSpinBox->setValue(backgroundValue);
     m_backgroundIdSpinBox->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    const uint32_t triggerId = m_document->triggerId(frameIndex);
+    const bool switchToMonochrome = triggerId == kSwitchToMonochromeTriggerId;
+    m_switchToMonochromeCheckBox->setChecked(switchToMonochrome);
+    m_switchToMonochromeCheckBox->setEnabled(true);
+    const bool triggerIdEditable = !switchToMonochrome;
+    m_triggerIdSpinBox->setEnabled(triggerIdEditable);
+    m_triggerIdSpinBox->setValue(triggerId <= static_cast<uint32_t>(kMaxManualTriggerId)
+                                     ? static_cast<int>(triggerId)
+                                     : 0);
+    m_triggerIdSpinBox->setToolTip(
+        triggerId <= static_cast<uint32_t>(kMaxManualTriggerId) || switchToMonochrome
+            ? QStringLiteral("Per-frame trigger ID")
+            : QStringLiteral("Unsupported legacy trigger ID %1 is preserved until edited")
+                  .arg(triggerId));
     if (m_backgroundLayerButton) {
         m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
     }
@@ -1653,6 +1696,68 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
                       .arg(static_cast<int>(frameIndices.size()))
                 : QStringLiteral("Assigned background %1 on %2 frame(s)")
                       .arg(backgroundId)
+                      .arg(static_cast<int>(frameIndices.size())),
+            2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentFrameTriggerId(int triggerId)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty()) {
+        return;
+    }
+    if (m_switchToMonochromeCheckBox && m_switchToMonochromeCheckBox->isChecked()) {
+        return;
+    }
+
+    const uint32_t storedTriggerId =
+        static_cast<uint32_t>(std::clamp(triggerId, 0, kMaxManualTriggerId));
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->setTriggerId(frameIndex, storedTriggerId);
+        }
+        updateFrameMetadataControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Set trigger ID %1 on %2 frame(s)")
+                .arg(storedTriggerId)
+                .arg(static_cast<int>(frameIndices.size())),
+            2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentFrameSwitchToMonochrome(bool enabled)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty()) {
+        return;
+    }
+
+    const uint32_t storedTriggerId =
+        enabled ? kSwitchToMonochromeTriggerId
+                : static_cast<uint32_t>(m_triggerIdSpinBox
+                                            ? std::clamp(m_triggerIdSpinBox->value(),
+                                                         0,
+                                                         kMaxManualTriggerId)
+                                            : 0);
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->setTriggerId(frameIndex, storedTriggerId);
+        }
+        updateFrameMetadataControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            enabled
+                ? QStringLiteral("Enabled switch-to-monochrome trigger on %1 frame(s)")
+                      .arg(static_cast<int>(frameIndices.size()))
+                : QStringLiteral("Disabled switch-to-monochrome trigger on %1 frame(s)")
                       .arg(static_cast<int>(frameIndices.size())),
             2500);
     } catch (const std::exception& ex) {

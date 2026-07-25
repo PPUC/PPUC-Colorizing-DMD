@@ -409,7 +409,9 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         }
     }
 
-    if (!skipRequired(cursor, frameCount * kU32Bytes, "trigger IDs", error)) {
+    frameData.triggerIdsOffset = cursor.offset();
+    frameData.triggerIds.resize(frameCount);
+    if (!readU32Values(cursor, frameData.triggerIds, "trigger IDs", error)) {
         return fail(error);
     }
 

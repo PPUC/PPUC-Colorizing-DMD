@@ -22,6 +22,7 @@ struct LegacyCromFrameData {
     std::vector<document::FrameDynamicData> dynamicFrames;
     std::vector<document::SpriteRecord> sprites;
     std::vector<std::vector<document::FrameSpriteReference>> frameSpriteReferences;
+    std::vector<uint32_t> triggerIds;
     std::vector<uint8_t> extraBackgroundFlags;
     std::vector<document::BackgroundRecord> backgrounds;
     std::vector<document::FrameBackgroundData> frameBackgrounds;
@@ -44,6 +45,7 @@ struct LegacyCromFrameData {
     std::size_t spriteDetectionDwordsOffset = 0;
     std::size_t spriteDetectionDwordPositionsOffset = 0;
     std::size_t spriteDetectionAreasOffset = 0;
+    std::size_t triggerIdsOffset = 0;
     std::size_t frameSpriteBoundingBoxesOffset = 0;
     std::size_t extraBackgroundFlagsOffset = 0;
     std::size_t backgroundFramesSdOffset = 0;

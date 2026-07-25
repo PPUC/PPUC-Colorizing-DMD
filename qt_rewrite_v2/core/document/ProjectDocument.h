@@ -89,6 +89,7 @@ struct FrameRecord {
     std::optional<FrameDynamicData> dynamicData;
     std::optional<FrameBackgroundData> backgroundData;
     std::vector<FrameSpriteReference> spriteReferences;
+    uint32_t triggerId = 0;
 };
 
 struct UnsupportedLegacyPayload {
@@ -130,6 +131,8 @@ public:
     void setShapeComparisonMode(std::size_t frameIndex, uint8_t mode);
     [[nodiscard]] uint8_t comparisonMaskId(std::size_t frameIndex) const;
     void setComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
+    [[nodiscard]] uint32_t triggerId(std::size_t frameIndex) const;
+    void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;

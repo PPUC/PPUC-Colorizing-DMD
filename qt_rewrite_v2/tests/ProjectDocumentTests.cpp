@@ -406,6 +406,30 @@ void testFrameComparisonMetadataEditing()
         "comparison mask ID frame bounds");
 }
 
+void testFrameTriggerIdEditing()
+{
+    ProjectDocument document =
+        ProjectDocument::createEmpty(ProjectCreateOptions{"trigger_edit", 1, false});
+    document.markClean();
+
+    expect(document.triggerId(0) == 0, "new frame trigger ID should default to zero");
+    document.setTriggerId(0, 1234);
+    expect(document.triggerId(0) == 1234, "trigger ID edit should be readable");
+    expect(document.isDirty(), "trigger ID edit should mark dirty");
+
+    document.markClean();
+    document.setTriggerId(0, 1234);
+    expect(!document.isDirty(), "identical trigger ID edit should not mark dirty");
+
+    document.setTriggerId(0, 65432);
+    expect(document.toSnapshot().frames[0].triggerId == 65432,
+           "trigger ID should round-trip through snapshots");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setTriggerId(1, 0); },
+        "trigger ID frame bounds");
+}
+
 void testDynamicMaskPixelEditing()
 {
     FrameDynamicData dynamicData{
@@ -994,6 +1018,7 @@ void runProjectDocumentTests()
     testSnapshotValidationAndRoundTrip();
     testComparisonMaskPixelEditing();
     testFrameComparisonMetadataEditing();
+    testFrameTriggerIdEditing();
     testDynamicMaskPixelEditing();
     testBackgroundMetadataAndMaskEditing();
     testFrameSpriteReferenceEditing();

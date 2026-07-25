@@ -106,7 +106,8 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendU16(bytes, 3);
     appendU16(bytes, 4);
     appendRepeatedU16(bytes, 0xffff, (kMaxSpriteDetectAreas - 1) * 4);
-    appendRepeatedU32(bytes, 0xffffffff, 2);
+    appendU32(bytes, 0x11112222);
+    appendU32(bytes, 0x33334444);
     appendU16(bytes, 5);
     appendU16(bytes, 6);
     appendU16(bytes, 7);
@@ -243,6 +244,9 @@ void testModernFrameArraysParse()
            "sprite detection area height value");
     expect(result.frameData.frameSpriteReferences.size() == 2,
            "frame sprite reference frame count");
+    expect(result.frameData.triggerIds.size() == 2, "trigger ID frame count");
+    expect(result.frameData.triggerIds[0] == 0x11112222, "first trigger ID value");
+    expect(result.frameData.triggerIds[1] == 0x33334444, "second trigger ID value");
     expect(result.frameData.frameSpriteReferences[0][0].spriteId == 0,
            "frame sprite assignment value");
     expect(result.frameData.frameSpriteReferences[0][0].minX == 5,

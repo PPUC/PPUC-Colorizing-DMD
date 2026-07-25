@@ -123,7 +123,8 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendU16(bytes, 3);
     appendU16(bytes, 4);
     appendRepeatedU16(bytes, 0xffff, (kMaxSpriteDetectAreas - 1) * 4);
-    appendRepeatedU32(bytes, 0xffffffff, 2);
+    appendU32(bytes, 0x11112222);
+    appendU32(bytes, 0x33334444);
     appendU16(bytes, 5);
     appendU16(bytes, 6);
     appendU16(bytes, 7);
@@ -332,6 +333,10 @@ void testFileReaderLoadsModernProject()
            "file reader frame sprite assignment data");
     expect(result.snapshot.frames[0].spriteReferences[0].maxY == 8,
            "file reader frame sprite bounding box data");
+    expect(result.snapshot.frames[0].triggerId == 0x11112222,
+           "file reader first trigger ID");
+    expect(result.snapshot.frames[1].triggerId == 0x33334444,
+           "file reader second trigger ID");
     expect(result.snapshot.backgrounds.size() == 1,
            "file reader background count");
     expect(result.snapshot.backgrounds[0].colorizedSd.pixels.front() == 0x5001,
@@ -421,6 +426,8 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.sprites[0].detectionAreas[1] = {9, 10, 11, 12};
     loadResult.snapshot.frames[0].spriteReferences[0].spriteId = 255;
     loadResult.snapshot.frames[0].spriteReferences[1] = {0, 13, 14, 15, 16};
+    loadResult.snapshot.frames[0].triggerId = 1234;
+    loadResult.snapshot.frames[1].triggerId = 65432;
     loadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] = 0x9999;
     loadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] = 0xaaaa;
     loadResult.snapshot.frames[0].backgroundData->backgroundId = 0xffff;
@@ -488,6 +495,10 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update frame sprite assignment additions");
     expect(reloadResult.snapshot.frames[0].spriteReferences[1].maxY == 16,
            "file writer should update frame sprite bounding boxes");
+    expect(reloadResult.snapshot.frames[0].triggerId == 1234,
+           "file writer should update first trigger ID");
+    expect(reloadResult.snapshot.frames[1].triggerId == 65432,
+           "file writer should update second trigger ID");
     expect(reloadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] == 0x9999,
            "file writer should update SD background pixels");
     expect(reloadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] == 0xaaaa,
