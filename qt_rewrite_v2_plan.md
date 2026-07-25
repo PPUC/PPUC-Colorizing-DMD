@@ -41,6 +41,7 @@ Implementation should not start until this plan is reviewed and accepted.
    - Sprite colorized/original display.
    - Sprite detection areas.
    - Frame sprite zones.
+   - Crop/copy new sprites from original frames by selecting a shape or outline.
    - Sprite assignment/removal/reorder inside existing project capacity.
    - Sprite dynamic masks and colors.
    - Correct composed preview behavior with sprites.
@@ -49,10 +50,17 @@ Implementation should not start until this plan is reviewed and accepted.
    - Full/reduced palette views.
    - Integrate dynamic color editing with the palette workflow.
    - Drag/copy colors between frame colors, dynamic colors, and palette slots.
+   - Palette gradients and gradient-fill workflows.
    - Palette undo/redo.
    - Preserve palette/rotation data even before every editor operation is exposed.
 
-3. Image import pipeline:
+3. Shadows and dynamic shadows:
+   - Preserve and expose existing shadow data from loaded `.cROM` projects.
+   - Render shadows in editor previews without changing first-release `.cROM` layout.
+   - Edit shadow and dynamic-shadow data only where the legacy format already supports it.
+   - Keep runtime-preview validation libserum-backed once preview is implemented.
+
+4. Image import pipeline:
    - Import image data into existing frames/backgrounds.
    - Reimport/replace image data.
    - Scaling options, including selectable scalers for HD generation.
@@ -60,24 +68,25 @@ Implementation should not start until this plan is reviewed and accepted.
 
 ### Priority 2
 
-4. Background management:
+5. Background management:
    - Better background list/preview instead of numeric `BG ID` only.
+   - Background editing on the canvas for existing background records.
    - Import/export/reimport existing background images.
    - Create/delete background records only after a format-compatible strategy exists.
 
-5. Comparison mask management:
+6. Comparison mask management:
    - Better mask list/preview.
    - Improved mask assignment for selected frames.
    - Create/delete masks only after a format-compatible strategy exists.
 
-6. HD management expansion:
+7. HD management expansion:
    - Batch create/remove HD for selected frames.
    - Selectable scaling algorithms.
    - Apply equivalent HD workflows to existing backgrounds and sprites where format-safe.
 
 ### After Priority 2
 
-7. Frame playback / sequence preview:
+8. Frame playback / sequence preview:
    - Basic playback controls.
    - Play selected frames or current filtered range.
    - Timing support, initially fixed-duration if needed.
@@ -85,17 +94,18 @@ Implementation should not start until this plan is reviewed and accepted.
 
 ### Priority 3
 
-8. UI restructure:
+9. UI restructure:
    - Reduce crowded toolbar.
    - Move tools/settings into panels/tabs following the better ideas from `qt_playback_wip`.
    - Add component browsers for frames, masks, backgrounds, sprites, and palettes.
 
-9. Save/autosave/recovery polish:
+10. Save/autosave/recovery polish:
    - `Save As` exists.
    - Autosave and recovery are still missing.
    - Playback-related autosave should wait until playback is prioritized.
 
-10. Exports:
+11. Imports and exports:
+   - Video import should be implemented after still-image import is stable.
    - PNG export can stay as a useful convenience.
    - GIF/video export should wait until playback and timing are meaningful.
 
@@ -392,6 +402,7 @@ Use existing real projects as fixtures, plus small synthetic fixtures that isola
 - Implement frame list and selected frame view.
 - Implement palette selection.
 - Implement point, line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, color picker, and magic fill.
+- Implement gradient fill after palette gradients are available.
 - Implement undo/redo for frame edits.
 - Support SD and HD frame edits from the start.
 
@@ -407,6 +418,7 @@ Use existing real projects as fixtures, plus small synthetic fixtures that isola
 
 - Implement background list and assignment.
 - Implement background canvas.
+- Implement background editing for existing background records.
 - Implement background masks.
 - Support SD and HD backgrounds.
 - Preserve the "all-black HD background means missing" behavior where required.
@@ -417,8 +429,16 @@ Use existing real projects as fixtures, plus small synthetic fixtures that isola
 - Implement sprite original/colorized display.
 - Implement sprite detection areas.
 - Implement frame sprite zones.
+- Implement crop/copy sprite creation from an original frame selection.
+- Implement sprite dynamic masks and dynamic colors.
 - Use libserum editor APIs for sprite matching/placement where possible.
 - Support SD and HD sprites.
+
+### Milestone 6b: Shadows
+
+- Load/save existing shadow and dynamic-shadow data without changing `.cROM` structure.
+- Render shadow layers in editor previews.
+- Add editing controls only for shadow data that already exists in the legacy format.
 
 ### Milestone 7: Runtime Preview And Playback
 
@@ -433,11 +453,12 @@ Use existing real projects as fixtures, plus small synthetic fixtures that isola
 - Sections.
 - Trigger list and trigger assignment.
 - Frame duration editor.
-- Image/video import.
+- Image import.
+- Video import.
 - GIF export.
 - Selection helpers.
 - Copy/paste tools.
-- Advanced palette/rotation tooling.
+- Advanced palette/rotation tooling, including palette gradients.
 - Debug check action.
 - Autosave, if still wanted.
 
