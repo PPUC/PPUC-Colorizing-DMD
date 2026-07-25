@@ -116,12 +116,17 @@ The dynamic overlay and edits follow the active SD/HD mode.
 Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
 
-Frame metadata and per-frame selectors live in the right-side Inspector:
+Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
+
+- `Frame` contains frame/background assignment, comparison mode, DMD render settings, and HD frame actions.
+- `Dynamic` contains the dynamic set selector and dynamic color swatches.
+- `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
+
+The `Frame` topic exposes:
 
 - `Target` selects whether ordinary drawing tools edit the current frame or the assigned background image.
 - `Mask ID` assigns the shared comparison mask used by the current frame.
 - `Shape` selects the frame comparison mode.
-- `Dyn Set` selects the dynamic-mask set written by the drawing tools.
 - `BG ID` assigns the shared background used by the current frame.
 - `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
 - `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
@@ -258,7 +263,7 @@ The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a 
 
 Rules:
 
-- The `Dyn Set` toolbar field selects the dynamic set written by drawing tools.
+- The `Dyn Set` field in the Inspector's `Dynamic` topic selects the dynamic set written by drawing tools.
 - The Inspector shows editable dynamic color swatches for the active frame, active SD/HD mode, and selected dynamic set.
 - Click a dynamic color swatch to choose a replacement RGB565 color for that original color index.
 - In SD mode, the SD dynamic mask is rendered over the SD colorized frame.
