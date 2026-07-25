@@ -461,6 +461,7 @@ void MainWindow::createCentralView()
     m_backgroundComboBox = new QComboBox(central);
     m_backgroundComboBox->setToolTip(QStringLiteral("Loaded background"));
     m_backgroundComboBox->setEnabled(false);
+    m_backgroundComboBox->setVisible(false);
     m_assignBackgroundButton = new QToolButton(central);
     m_assignBackgroundButton->setText(QStringLiteral("Assign BG"));
     m_assignBackgroundButton->setToolTip(QStringLiteral("Assign selected background to selected frames"));
@@ -504,6 +505,7 @@ void MainWindow::createCentralView()
     m_spriteComboBox = new QComboBox(central);
     m_spriteComboBox->setToolTip(QStringLiteral("Loaded sprite preview"));
     m_spriteComboBox->setEnabled(false);
+    m_spriteComboBox->setVisible(false);
     m_spriteNameLineEdit = new QLineEdit(central);
     m_spriteNameLineEdit->setToolTip(QStringLiteral("Selected sprite name"));
     m_spriteNameLineEdit->setMaxLength(31);
@@ -681,7 +683,9 @@ void MainWindow::createCentralView()
     auto* backgroundPage = new QWidget(inspectorTabs);
     auto* backgroundPageLayout = new QVBoxLayout(backgroundPage);
     backgroundPageLayout->setContentsMargins(6, 6, 6, 6);
-    backgroundPageLayout->addWidget(m_backgroundComboBox);
+    m_selectedBackgroundLabel = new QLabel(QStringLiteral("Selected: None"), backgroundPage);
+    m_selectedBackgroundLabel->setWordWrap(true);
+    backgroundPageLayout->addWidget(m_selectedBackgroundLabel);
     auto* backgroundButtonLayout = new QHBoxLayout();
     backgroundButtonLayout->addWidget(m_assignBackgroundButton);
     backgroundButtonLayout->addWidget(m_editBackgroundButton);
@@ -691,7 +695,7 @@ void MainWindow::createCentralView()
     m_backgroundPreviewLabel->setFrameShape(QFrame::Box);
     m_backgroundPreviewLabel->setAlignment(Qt::AlignCenter);
     m_backgroundPreviewLabel->setToolTip(QStringLiteral("Selected background preview"));
-    backgroundPageLayout->addWidget(m_backgroundPreviewLabel);
+    m_backgroundPreviewLabel->setVisible(false);
     backgroundPageLayout->addStretch(1);
     inspectorTabs->addTab(backgroundPage, QStringLiteral("Background"));
 
@@ -737,9 +741,13 @@ void MainWindow::createCentralView()
     m_spriteColorizedPreviewLabel->setFrameShape(QFrame::Box);
     m_spriteColorizedPreviewLabel->setAlignment(Qt::AlignCenter);
     m_spriteColorizedPreviewLabel->setToolTip(QStringLiteral("Sprite colorized preview"));
+    m_spriteOriginalPreviewLabel->setVisible(false);
+    m_spriteColorizedPreviewLabel->setVisible(false);
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addWidget(inspectorTabs, 1);
-    spritePageLayout->addWidget(m_spriteComboBox);
+    m_selectedSpriteLabel = new QLabel(QStringLiteral("Selected: None"), spritePage);
+    m_selectedSpriteLabel->setWordWrap(true);
+    spritePageLayout->addWidget(m_selectedSpriteLabel);
     spritePageLayout->addWidget(m_spriteNameLineEdit);
     spritePageLayout->addWidget(m_spriteSlotComboBox);
     auto* spriteButtonLayout = new QHBoxLayout();
@@ -783,8 +791,6 @@ void MainWindow::createCentralView()
     spriteDetectionAreaGrid->addWidget(m_spriteDetectionAreaHeightSpinBox, 1, 3);
     spritePageLayout->addLayout(spriteDetectionAreaGrid);
     spritePageLayout->addWidget(m_frameSpritesLabel);
-    spritePageLayout->addWidget(m_spriteOriginalPreviewLabel);
-    spritePageLayout->addWidget(m_spriteColorizedPreviewLabel);
     spritePageLayout->addStretch(1);
     auto* spriteScrollArea = new QScrollArea(inspectorTabs);
     spriteScrollArea->setWidgetResizable(true);
@@ -1961,6 +1967,9 @@ void MainWindow::updateBackgroundControls()
     m_editBackgroundButton->setEnabled(selectedIsAssigned);
 
     if (!hasBackground) {
+        if (m_selectedBackgroundLabel) {
+            m_selectedBackgroundLabel->setText(QStringLiteral("Selected: None"));
+        }
         m_backgroundPreviewLabel->clear();
         m_backgroundPreviewLabel->setText(QStringLiteral("Background"));
         return;
@@ -1968,6 +1977,13 @@ void MainWindow::updateBackgroundControls()
 
     const document::BackgroundRecord& background =
         m_document->background(static_cast<std::size_t>(selectedBackground));
+    if (m_selectedBackgroundLabel) {
+        m_selectedBackgroundLabel->setText(QStringLiteral("Selected: %1%2")
+                                               .arg(selectedBackground)
+                                               .arg(background.colorizedHd
+                                                        ? QStringLiteral(" (HD)")
+                                                        : QString()));
+    }
     m_backgroundPreviewLabel->setPixmap(
         previewPixmap(renderBackgroundPreviewImage(background, m_activeResolution),
                       m_backgroundPreviewLabel->size()));
@@ -3007,6 +3023,9 @@ void MainWindow::updateSpriteControls()
         m_spriteDetectionAreaYSpinBox->setEnabled(false);
         m_spriteDetectionAreaWidthSpinBox->setEnabled(false);
         m_spriteDetectionAreaHeightSpinBox->setEnabled(false);
+        if (m_selectedSpriteLabel) {
+            m_selectedSpriteLabel->setText(QStringLiteral("Selected: None"));
+        }
         m_spriteOriginalPreviewLabel->clear();
         m_spriteOriginalPreviewLabel->setText(QStringLiteral("Original"));
         m_spriteColorizedPreviewLabel->clear();
@@ -3019,6 +3038,17 @@ void MainWindow::updateSpriteControls()
 
     const document::SpriteRecord& sprite =
         m_document->sprite(static_cast<std::size_t>(spriteIndex));
+    if (m_selectedSpriteLabel) {
+        const QString label = sprite.name.empty()
+                                  ? QString::number(static_cast<int>(spriteIndex))
+                                  : QStringLiteral("%1 - %2")
+                                        .arg(static_cast<int>(spriteIndex))
+                                        .arg(QString::fromStdString(sprite.name));
+        m_selectedSpriteLabel->setText(QStringLiteral("Selected: %1%2")
+                                           .arg(label)
+                                           .arg(sprite.hasHd ? QStringLiteral(" (HD)")
+                                                             : QString()));
+    }
     {
         QSignalBlocker blocker(m_spriteNameLineEdit);
         m_spriteNameLineEdit->setText(QString::fromStdString(sprite.name));

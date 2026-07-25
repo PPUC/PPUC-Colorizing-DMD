@@ -126,7 +126,7 @@ The left sidebar is the visual component browser:
 Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
 
 - `Frame` contains frame/background assignment, comparison mode, trigger IDs, DMD render settings, and HD frame actions.
-- `Background` contains an existing-background selector, preview, assignment, and edit shortcut.
+- `Background` contains the selected background ID, assignment, and edit shortcut.
 - `Dynamic` contains the dynamic set selector and dynamic color swatches.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
 
@@ -146,8 +146,8 @@ The `Frame` topic exposes:
 
 The `Background` topic exposes:
 
-- The background selector lists existing `.cROM` background records without creating or deleting records.
-- The preview shows the selected background in the active SD/HD mode, falling back to SD when HD data is unavailable.
+- Backgrounds are selected visually from the left sidebar.
+- The tab shows the selected background ID.
 - `Assign BG` assigns the selected background to all selected frames.
 - `Edit BG` switches ordinary drawing tools to the current frame's assigned background image.
 

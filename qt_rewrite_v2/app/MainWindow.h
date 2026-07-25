@@ -380,6 +380,8 @@ private:
     QLabel* m_spriteOriginalPreviewLabel = nullptr;
     QLabel* m_spriteColorizedPreviewLabel = nullptr;
     QLabel* m_backgroundPreviewLabel = nullptr;
+    QLabel* m_selectedBackgroundLabel = nullptr;
+    QLabel* m_selectedSpriteLabel = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
