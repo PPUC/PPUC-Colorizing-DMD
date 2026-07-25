@@ -21,6 +21,7 @@
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -188,6 +189,49 @@ QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
     return image;
 }
 
+QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
+                                    render::Resolution resolution)
+{
+    const bool useHd = resolution == render::Resolution::Hd && background.colorizedHd;
+    const document::Rgb565Frame& frame =
+        useHd ? *background.colorizedHd : background.colorizedSd;
+    QImage image(frame.size.width, frame.size.height, QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < frame.size.height; ++y) {
+        for (int x = 0; x < frame.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+                static_cast<std::size_t>(x);
+            image.setPixelColor(x, y, rgb565ToColor(frame.pixels[index]));
+        }
+    }
+    return image;
+}
+
+QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
+{
+    QImage image(mask.size.width, mask.size.height, QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < mask.size.height; ++y) {
+        for (int x = 0; x < mask.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(x);
+            const uint8_t value = mask.pixels[index];
+            image.setPixelColor(x, y, value == 0 ? QColor(32, 32, 32)
+                                                  : QColor(0, 220, 220));
+        }
+    }
+    return image;
+}
+
+QPixmap previewPixmap(const QImage& image, QSize targetSize);
+
+QIcon previewIcon(const QImage& image, QSize targetSize)
+{
+    return QIcon(previewPixmap(image, targetSize));
+}
+
 QPixmap previewPixmap(const QImage& image, QSize targetSize)
 {
     return QPixmap::fromImage(image.scaled(targetSize,
@@ -338,6 +382,21 @@ void MainWindow::createCentralView()
     m_frameList->setResizeMode(QListView::Adjust);
     m_frameList->setUniformItemSizes(false);
     m_frameList->setMinimumWidth(230);
+    m_maskList = new QListWidget(central);
+    m_maskList->setIconSize(QSize(160, 42));
+    m_maskList->setResizeMode(QListView::Adjust);
+    m_maskList->setUniformItemSizes(false);
+    m_maskList->setMinimumWidth(230);
+    m_backgroundList = new QListWidget(central);
+    m_backgroundList->setIconSize(QSize(160, 42));
+    m_backgroundList->setResizeMode(QListView::Adjust);
+    m_backgroundList->setUniformItemSizes(false);
+    m_backgroundList->setMinimumWidth(230);
+    m_spriteList = new QListWidget(central);
+    m_spriteList->setIconSize(QSize(160, 42));
+    m_spriteList->setResizeMode(QListView::Adjust);
+    m_spriteList->setUniformItemSizes(false);
+    m_spriteList->setMinimumWidth(230);
     m_preview = new FramePreviewWidget(central);
     m_spriteEditor = new SpriteEditorWidget(central);
     m_canvasStack = new QStackedWidget(central);
@@ -399,6 +458,17 @@ void MainWindow::createCentralView()
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
     m_switchToMonochromeCheckBox->setEnabled(false);
+    m_backgroundComboBox = new QComboBox(central);
+    m_backgroundComboBox->setToolTip(QStringLiteral("Loaded background"));
+    m_backgroundComboBox->setEnabled(false);
+    m_assignBackgroundButton = new QToolButton(central);
+    m_assignBackgroundButton->setText(QStringLiteral("Assign BG"));
+    m_assignBackgroundButton->setToolTip(QStringLiteral("Assign selected background to selected frames"));
+    m_assignBackgroundButton->setEnabled(false);
+    m_editBackgroundButton = new QToolButton(central);
+    m_editBackgroundButton->setText(QStringLiteral("Edit BG"));
+    m_editBackgroundButton->setToolTip(QStringLiteral("Switch drawing target to the assigned background"));
+    m_editBackgroundButton->setEnabled(false);
     m_backgroundLayerButton = new QToolButton(central);
     m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
@@ -568,11 +638,18 @@ void MainWindow::createCentralView()
     layout->addLayout(toolbarLayout);
 
     auto* contentLayout = new QHBoxLayout();
-    auto* frameListPanel = new QWidget(central);
+    m_leftBrowserTabs = new QTabWidget(central);
+    m_leftBrowserTabs->setDocumentMode(true);
+    m_leftBrowserTabs->setMinimumWidth(250);
+    auto* frameListPanel = new QWidget(m_leftBrowserTabs);
     auto* frameListLayout = new QVBoxLayout(frameListPanel);
     frameListLayout->setContentsMargins(0, 0, 0, 0);
     frameListLayout->addWidget(m_frameFilterComboBox);
     frameListLayout->addWidget(m_frameList, 1);
+    m_leftBrowserTabs->addTab(frameListPanel, QStringLiteral("Frames"));
+    m_leftBrowserTabs->addTab(m_maskList, QStringLiteral("Masks"));
+    m_leftBrowserTabs->addTab(m_backgroundList, QStringLiteral("Backgrounds"));
+    m_leftBrowserTabs->addTab(m_spriteList, QStringLiteral("Sprites"));
     auto* inspector = new QWidget(central);
     auto* inspectorLayout = new QVBoxLayout(inspector);
     auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
@@ -600,6 +677,23 @@ void MainWindow::createCentralView()
     framePageLayout->addLayout(hdButtonLayout);
     framePageLayout->addStretch(1);
     inspectorTabs->addTab(framePage, QStringLiteral("Frame"));
+
+    auto* backgroundPage = new QWidget(inspectorTabs);
+    auto* backgroundPageLayout = new QVBoxLayout(backgroundPage);
+    backgroundPageLayout->setContentsMargins(6, 6, 6, 6);
+    backgroundPageLayout->addWidget(m_backgroundComboBox);
+    auto* backgroundButtonLayout = new QHBoxLayout();
+    backgroundButtonLayout->addWidget(m_assignBackgroundButton);
+    backgroundButtonLayout->addWidget(m_editBackgroundButton);
+    backgroundPageLayout->addLayout(backgroundButtonLayout);
+    m_backgroundPreviewLabel = new QLabel(backgroundPage);
+    m_backgroundPreviewLabel->setFixedSize(190, 48);
+    m_backgroundPreviewLabel->setFrameShape(QFrame::Box);
+    m_backgroundPreviewLabel->setAlignment(Qt::AlignCenter);
+    m_backgroundPreviewLabel->setToolTip(QStringLiteral("Selected background preview"));
+    backgroundPageLayout->addWidget(m_backgroundPreviewLabel);
+    backgroundPageLayout->addStretch(1);
+    inspectorTabs->addTab(backgroundPage, QStringLiteral("Background"));
 
     auto* dynamicPage = new QWidget(inspectorTabs);
     auto* dynamicPageLayout = new QVBoxLayout(dynamicPage);
@@ -699,7 +793,7 @@ void MainWindow::createCentralView()
     inspectorTabs->addTab(spriteScrollArea, QStringLiteral("Sprites"));
     inspector->setMinimumWidth(210);
     inspector->setMaximumWidth(280);
-    contentLayout->addWidget(frameListPanel, 0);
+    contentLayout->addWidget(m_leftBrowserTabs, 0);
     contentLayout->addWidget(m_canvasStack, 1);
     contentLayout->addWidget(inspector, 0);
     layout->addLayout(contentLayout, 1);
@@ -709,6 +803,35 @@ void MainWindow::createCentralView()
     });
     connect(m_frameList, &QListWidget::itemSelectionChanged, this, [this]() {
         selectFrame(m_frameList ? m_frameList->currentRow() : -1);
+    });
+    connect(m_maskList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
+        if (!item || !m_comparisonMaskIdSpinBox) {
+            return;
+        }
+        const int maskIndex = item->data(Qt::UserRole).toInt();
+        if (maskIndex >= 0) {
+            m_comparisonMaskIdSpinBox->setValue(maskIndex);
+        }
+    });
+    connect(m_backgroundList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
+        if (!item || !m_backgroundComboBox) {
+            return;
+        }
+        const int backgroundIndex = item->data(Qt::UserRole).toInt();
+        const int comboIndex = m_backgroundComboBox->findData(backgroundIndex);
+        if (comboIndex >= 0) {
+            m_backgroundComboBox->setCurrentIndex(comboIndex);
+        }
+    });
+    connect(m_spriteList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
+        if (!item || !m_spriteComboBox) {
+            return;
+        }
+        const int spriteIndex = item->data(Qt::UserRole).toInt();
+        const int comboIndex = m_spriteComboBox->findData(spriteIndex);
+        if (comboIndex >= 0) {
+            m_spriteComboBox->setCurrentIndex(comboIndex);
+        }
     });
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -923,6 +1046,18 @@ void MainWindow::createCentralView()
             });
     connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
         setCurrentFrameSwitchToMonochrome(checked);
+    });
+    connect(m_backgroundComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updateBackgroundControls();
+            });
+    connect(m_assignBackgroundButton, &QToolButton::clicked, this, [this]() {
+        assignSelectedBackgroundToFrames();
+    });
+    connect(m_editBackgroundButton, &QToolButton::clicked, this, [this]() {
+        editAssignedBackground();
     });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintFramePixel(hit, erase);
@@ -1322,6 +1457,7 @@ void MainWindow::refreshProjectSummary()
     updateResolutionMode();
     if (!m_document) {
         m_frameList->clear();
+        refreshComponentBrowsers();
         if (m_frameFilterComboBox) {
             m_frameFilterComboBox->setEnabled(false);
         }
@@ -1338,6 +1474,7 @@ void MainWindow::refreshProjectSummary()
         m_frameFilterComboBox->setEnabled(true);
     }
     refreshFrameList(0);
+    refreshComponentBrowsers();
     updateSpriteControls();
     updateProjectHeaderStatus();
 }
@@ -1360,7 +1497,7 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
         const bool hasHd = m_document->hasHdFrame(frameIndex);
         auto* item = new QListWidgetItem(
             makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)),
-            QStringLiteral("Frame %1%2")
+            QStringLiteral("%1%2")
                 .arg(static_cast<int>(frameIndex))
                 .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
         item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
@@ -1378,6 +1515,143 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
     } else {
         selectFrame(-1);
     }
+}
+
+void MainWindow::refreshComponentBrowsers()
+{
+    constexpr QSize iconSize{160, 42};
+    if (m_maskList) {
+        QSignalBlocker blocker(m_maskList);
+        m_maskList->clear();
+        if (m_document) {
+            for (std::size_t maskIndex = 0; maskIndex < m_document->comparisonMaskCount();
+                 ++maskIndex) {
+                auto* item = new QListWidgetItem(
+                    previewIcon(renderMaskPreviewImage(m_document->comparisonMask(maskIndex)),
+                                iconSize),
+                    QString::number(static_cast<int>(maskIndex)));
+                item->setData(Qt::UserRole, static_cast<int>(maskIndex));
+                item->setSizeHint(QSize(210, 54));
+                m_maskList->addItem(item);
+            }
+        }
+    }
+
+    if (m_backgroundList) {
+        QSignalBlocker blocker(m_backgroundList);
+        m_backgroundList->clear();
+        if (m_document) {
+            for (std::size_t backgroundIndex = 0;
+                 backgroundIndex < m_document->backgroundCount();
+                 ++backgroundIndex) {
+                const document::BackgroundRecord& background =
+                    m_document->background(backgroundIndex);
+                auto* item = new QListWidgetItem(
+                    previewIcon(renderBackgroundPreviewImage(background, m_activeResolution),
+                                iconSize),
+                    QStringLiteral("%1%2")
+                        .arg(static_cast<int>(backgroundIndex))
+                        .arg(background.colorizedHd ? QStringLiteral(" (HD)") : QString()));
+                item->setData(Qt::UserRole, static_cast<int>(backgroundIndex));
+                item->setSizeHint(QSize(210, 54));
+                m_backgroundList->addItem(item);
+            }
+        }
+    }
+
+    if (m_spriteList) {
+        QSignalBlocker blocker(m_spriteList);
+        m_spriteList->clear();
+        if (m_document) {
+            for (std::size_t spriteIndex = 0; spriteIndex < m_document->spriteCount();
+                 ++spriteIndex) {
+                const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
+                const QString spriteLabel =
+                    sprite.name.empty()
+                        ? QString::number(static_cast<int>(spriteIndex))
+                        : QStringLiteral("%1 - %2")
+                              .arg(static_cast<int>(spriteIndex))
+                              .arg(QString::fromStdString(sprite.name));
+                auto* item = new QListWidgetItem(
+                    previewIcon(renderSpriteColorizedPreviewImage(sprite, m_activeResolution),
+                                iconSize),
+                    QStringLiteral("%1%2")
+                        .arg(spriteLabel)
+                        .arg(sprite.hasHd ? QStringLiteral(" (HD)") : QString()));
+                item->setData(Qt::UserRole, static_cast<int>(spriteIndex));
+                item->setSizeHint(QSize(210, 54));
+                m_spriteList->addItem(item);
+            }
+        }
+    }
+
+    updateMaskBrowserSelection();
+    updateBackgroundBrowserSelection();
+    updateSpriteBrowserSelection();
+}
+
+void MainWindow::updateMaskBrowserSelection()
+{
+    if (!m_maskList || !m_document) {
+        return;
+    }
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    QSignalBlocker blocker(m_maskList);
+    if (!frameIndex) {
+        m_maskList->setCurrentItem(nullptr);
+        return;
+    }
+    const uint8_t maskId = m_document->comparisonMaskId(*frameIndex);
+    for (int row = 0; row < m_maskList->count(); ++row) {
+        QListWidgetItem* item = m_maskList->item(row);
+        if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(maskId)) {
+            m_maskList->setCurrentItem(item);
+            return;
+        }
+    }
+    m_maskList->setCurrentItem(nullptr);
+}
+
+void MainWindow::updateBackgroundBrowserSelection()
+{
+    if (!m_backgroundList || !m_document) {
+        return;
+    }
+    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    QSignalBlocker blocker(m_backgroundList);
+    if (!backgroundIndex) {
+        m_backgroundList->setCurrentItem(nullptr);
+        return;
+    }
+    for (int row = 0; row < m_backgroundList->count(); ++row) {
+        QListWidgetItem* item = m_backgroundList->item(row);
+        if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(*backgroundIndex)) {
+            m_backgroundList->setCurrentItem(item);
+            return;
+        }
+    }
+    m_backgroundList->setCurrentItem(nullptr);
+}
+
+void MainWindow::updateSpriteBrowserSelection()
+{
+    if (!m_spriteList || !m_document) {
+        return;
+    }
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    QSignalBlocker blocker(m_spriteList);
+    if (!spriteIndex) {
+        m_spriteList->setCurrentItem(nullptr);
+        return;
+    }
+    for (int row = 0; row < m_spriteList->count(); ++row) {
+        QListWidgetItem* item = m_spriteList->item(row);
+        if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(*spriteIndex)) {
+            m_spriteList->setCurrentItem(item);
+            return;
+        }
+    }
+    m_spriteList->setCurrentItem(nullptr);
 }
 
 bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
@@ -1506,6 +1780,8 @@ void MainWindow::updateResolutionMode()
     }
     updateDynamicColorControls();
     updateSpriteControls();
+    updateBackgroundControls();
+    refreshComponentBrowsers();
     updateUndoRedoActions();
     updatePaintTargetMode();
 }
@@ -1556,6 +1832,7 @@ void MainWindow::updateFrameMetadataControls()
             m_paintTargetComboBox->setCurrentIndex(0);
         }
         updateDynamicColorControls();
+        updateBackgroundControls();
         return;
     }
 
@@ -1628,6 +1905,73 @@ void MainWindow::updateFrameMetadataControls()
     }
     updateDynamicColorControls();
     updatePaintTargetMode();
+    updateBackgroundControls();
+    updateMaskBrowserSelection();
+}
+
+void MainWindow::updateBackgroundControls()
+{
+    if (!m_backgroundComboBox || !m_backgroundPreviewLabel ||
+        !m_assignBackgroundButton || !m_editBackgroundButton) {
+        return;
+    }
+
+    const QVariant previousBackgroundData = m_backgroundComboBox->currentData();
+    {
+        QSignalBlocker blocker(m_backgroundComboBox);
+        m_backgroundComboBox->clear();
+        if (m_document) {
+            for (std::size_t backgroundIndex = 0;
+                 backgroundIndex < m_document->backgroundCount();
+                 ++backgroundIndex) {
+                const document::BackgroundRecord& background =
+                    m_document->background(backgroundIndex);
+                m_backgroundComboBox->addItem(
+                    QStringLiteral("Background %1%2")
+                        .arg(static_cast<int>(backgroundIndex))
+                        .arg(background.colorizedHd ? QStringLiteral(" (HD)") : QString()),
+                    static_cast<int>(backgroundIndex));
+            }
+        }
+
+        if (m_backgroundComboBox->count() == 0) {
+            m_backgroundComboBox->addItem(QStringLiteral("No backgrounds"), -1);
+            m_backgroundComboBox->setCurrentIndex(0);
+        } else if (previousBackgroundData.isValid()) {
+            const int previousIndex = m_backgroundComboBox->findData(previousBackgroundData);
+            m_backgroundComboBox->setCurrentIndex(previousIndex >= 0 ? previousIndex : 0);
+        } else if (const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex()) {
+            const int assignedIndex =
+                m_backgroundComboBox->findData(static_cast<int>(*backgroundIndex));
+            m_backgroundComboBox->setCurrentIndex(assignedIndex >= 0 ? assignedIndex : 0);
+        } else {
+            m_backgroundComboBox->setCurrentIndex(0);
+        }
+    }
+
+    const int selectedBackground = m_backgroundComboBox->currentData().toInt();
+    const bool hasBackground =
+        m_document && selectedBackground >= 0 &&
+        static_cast<std::size_t>(selectedBackground) < m_document->backgroundCount();
+    m_backgroundComboBox->setEnabled(m_document && m_document->backgroundCount() > 0);
+    m_assignBackgroundButton->setEnabled(hasBackground && !selectedFrameIndices().empty());
+    const bool selectedIsAssigned =
+        hasBackground && currentBackgroundIndex() &&
+        *currentBackgroundIndex() == static_cast<std::size_t>(selectedBackground);
+    m_editBackgroundButton->setEnabled(selectedIsAssigned);
+
+    if (!hasBackground) {
+        m_backgroundPreviewLabel->clear();
+        m_backgroundPreviewLabel->setText(QStringLiteral("Background"));
+        return;
+    }
+
+    const document::BackgroundRecord& background =
+        m_document->background(static_cast<std::size_t>(selectedBackground));
+    m_backgroundPreviewLabel->setPixmap(
+        previewPixmap(renderBackgroundPreviewImage(background, m_activeResolution),
+                      m_backgroundPreviewLabel->size()));
+    updateBackgroundBrowserSelection();
 }
 
 void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
@@ -1688,6 +2032,7 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
             m_preview->update();
         }
         updateFrameMetadataControls();
+        updateBackgroundControls();
         updatePaintTargetMode();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
@@ -1764,6 +2109,45 @@ void MainWindow::setCurrentFrameSwitchToMonochrome(bool enabled)
         updateFrameMetadataControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::assignSelectedBackgroundToFrames()
+{
+    if (!m_backgroundComboBox) {
+        return;
+    }
+    const int backgroundIndex = m_backgroundComboBox->currentData().toInt();
+    if (backgroundIndex < 0) {
+        statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
+        updateBackgroundControls();
+        return;
+    }
+    setCurrentFrameBackgroundId(backgroundIndex);
+}
+
+void MainWindow::editAssignedBackground()
+{
+    if (!m_paintTargetComboBox) {
+        return;
+    }
+    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    if (!backgroundIndex) {
+        statusBar()->showMessage(QStringLiteral("Assign a background before editing"), 2500);
+        updateBackgroundControls();
+        return;
+    }
+    const int targetIndex =
+        m_paintTargetComboBox->findData(static_cast<int>(PaintTarget::Background));
+    if (targetIndex >= 0) {
+        m_paintTargetComboBox->setCurrentIndex(targetIndex);
+    }
+    if (m_canvasStack && m_preview) {
+        m_canvasStack->setCurrentWidget(m_preview);
+    }
+    updatePaintTargetMode();
+    statusBar()->showMessage(
+        QStringLiteral("Editing background %1").arg(static_cast<int>(*backgroundIndex)),
+        1500);
 }
 
 void MainWindow::assignSelectedSpriteToCurrentSlot()
@@ -2725,6 +3109,7 @@ void MainWindow::updateSpriteControls()
                       previewSize));
     m_spriteColorizedPreviewLabel->setPixmap(
         previewPixmap(renderSpriteColorizedPreviewImage(sprite, m_activeResolution), previewSize));
+    updateSpriteBrowserSelection();
 }
 
 void MainWindow::updatePaintTargetMode()
@@ -3830,6 +4215,7 @@ void MainWindow::applyBackgroundImageEdit(const BackgroundImageEditCommand& comm
                                        useNewColor ? change.newColor : change.oldColor);
     }
     m_preview->update();
+    updateBackgroundControls();
     if (m_document) {
         for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
             const std::optional<document::FrameBackgroundData>& backgroundData =
@@ -4462,7 +4848,7 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
             continue;
         }
         const bool hasHd = m_document->hasHdFrame(frameIndex);
-        item->setText(QStringLiteral("Frame %1%2")
+        item->setText(QStringLiteral("%1%2")
                           .arg(static_cast<int>(frameIndex))
                           .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
         item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));

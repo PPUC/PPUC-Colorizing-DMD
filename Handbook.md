@@ -116,9 +116,17 @@ The dynamic overlay and edits follow the active SD/HD mode.
 Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
 
+The left sidebar is the visual component browser:
+
+- `Frames` shows frame thumbnails and the frame filter.
+- `Masks` shows comparison-mask thumbnails; selecting one assigns it as the current frame's `Mask ID`.
+- `Backgrounds` shows background thumbnails; selecting one selects the same background in the Inspector for assignment or editing.
+- `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector.
+
 Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
 
-- `Frame` contains frame/background assignment, comparison mode, DMD render settings, and HD frame actions.
+- `Frame` contains frame/background assignment, comparison mode, trigger IDs, DMD render settings, and HD frame actions.
+- `Background` contains an existing-background selector, preview, assignment, and edit shortcut.
 - `Dynamic` contains the dynamic set selector and dynamic color swatches.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
 
@@ -135,6 +143,13 @@ The `Frame` topic exposes:
 - `Show BG` renders the assigned background layer into the colorized frame preview.
 
 `DMD Shape` and `DMD Size` are view/export settings only. They do not change project data or the cROM/cRP file format.
+
+The `Background` topic exposes:
+
+- The background selector lists existing `.cROM` background records without creating or deleting records.
+- The preview shows the selected background in the active SD/HD mode, falling back to SD when HD data is unavailable.
+- `Assign BG` assigns the selected background to all selected frames.
+- `Edit BG` switches ordinary drawing tools to the current frame's assigned background image.
 
 ## Colors
 
