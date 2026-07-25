@@ -80,6 +80,13 @@ void appendName(std::vector<uint8_t>& bytes, const std::string& name)
     }
 }
 
+void appendFixedName(std::vector<uint8_t>& bytes, const std::string& name, std::size_t length)
+{
+    for (std::size_t i = 0; i < length; ++i) {
+        bytes.push_back(i < name.size() ? static_cast<uint8_t>(name[i]) : uint8_t{0});
+    }
+}
+
 void appendRepeatedU16(std::vector<uint8_t>& bytes, uint16_t value, std::size_t count)
 {
     for (std::size_t i = 0; i < count; ++i) {
@@ -191,6 +198,29 @@ std::vector<uint8_t> makeCrpOriginals(const std::string& romName)
     return bytes;
 }
 
+std::vector<uint8_t> makeCrpWithSpriteNames(const std::string& romName)
+{
+    std::vector<uint8_t> bytes = makeCrpOriginals(romName);
+    appendRepeatedU32(bytes, 0, 64);
+    appendRepeatedU8(bytes, 0, 64 * 16);
+    bytes.push_back(0);
+    bytes.push_back(0);
+    appendRepeatedU8(bytes, 0, 64 * 64);
+    appendU32(bytes, 0);
+    bytes.push_back(0);
+    appendU32(bytes, 0);
+    appendU32(bytes, 0);
+    appendRepeatedU8(bytes, 0, 64 * 32);
+    appendU32(bytes, 0);
+    appendRepeatedU32(bytes, 0, 512);
+    appendRepeatedU8(bytes, 0, 512 * 32);
+    appendFixedName(bytes, "Initial sprite", 32);
+    for (std::size_t i = 1; i < 255; ++i) {
+        appendFixedName(bytes, "", 32);
+    }
+    return bytes;
+}
+
 std::vector<uint8_t> makeLegacyPalettedCrom()
 {
     std::vector<uint8_t> bytes;
@@ -242,7 +272,7 @@ void testFileReaderLoadsModernProject()
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpOriginals("file_rom"));
+    writeBytes(crpPath, makeCrpWithSpriteNames("file_rom"));
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
@@ -361,7 +391,7 @@ void testFileWriterSavesEditedModernCrom()
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpOriginals("file_rom"));
+    writeBytes(crpPath, makeCrpWithSpriteNames("file_rom"));
 
     const LegacyProjectPaths paths{
         cromPath.string(),
@@ -381,6 +411,7 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].dynamicData->colorsSd[10] = 0x7777;
     loadResult.snapshot.frames[0].dynamicData->colorsHd[11] = 0x8888;
     loadResult.snapshot.sprites[0].hasHd = false;
+    loadResult.snapshot.sprites[0].name = "Renamed sprite";
     loadResult.snapshot.sprites[0].originalSd.pixels[16] = 11;
     loadResult.snapshot.sprites[0].colorizedSd.pixels[17] = 0x7770;
     loadResult.snapshot.sprites[0].maskHd.pixels[18] = 12;
@@ -435,6 +466,8 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update HD dynamic color sets");
     expect(!reloadResult.snapshot.sprites[0].hasHd,
            "file writer should update sprite HD flag");
+    expect(reloadResult.snapshot.sprites[0].name == "Renamed sprite",
+           "file writer should update cRP sprite names");
     expect(reloadResult.snapshot.sprites[0].originalSd.pixels[16] == 11,
            "file writer should update sprite original pixels");
     expect(reloadResult.snapshot.sprites[0].colorizedSd.pixels[17] == 0x7770,

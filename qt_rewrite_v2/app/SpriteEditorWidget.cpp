@@ -94,39 +94,12 @@ void SpriteEditorWidget::setDrawingTool(SpriteDrawingTool tool)
     update();
 }
 
-void SpriteEditorWidget::setCanvasEditMode(SpriteCanvasEditMode mode)
-{
-    if (m_canvasEditMode == mode) {
-        return;
-    }
-    m_canvasEditMode = mode;
-    m_paintingColorized = false;
-    m_paintingOriginal = false;
-    m_dragStart.reset();
-    m_dragEnd.reset();
-    m_colorizedStrokeStart.reset();
-    m_colorizedStrokeEnd.reset();
-    m_originalStrokeStart.reset();
-    m_originalStrokeEnd.reset();
-    update();
-}
-
 void SpriteEditorWidget::setActiveDrawColor(uint16_t rgb565)
 {
     if (m_activeDrawColor == rgb565) {
         return;
     }
     m_activeDrawColor = rgb565;
-    update();
-}
-
-void SpriteEditorWidget::setOriginalDrawValue(uint8_t value)
-{
-    const uint8_t clampedValue = static_cast<uint8_t>(std::min<int>(value, 15));
-    if (m_originalDrawValue == clampedValue) {
-        return;
-    }
-    m_originalDrawValue = clampedValue;
     update();
 }
 
@@ -193,29 +166,6 @@ void SpriteEditorWidget::setColorizedPaintFinishedHandler(std::function<void()> 
     m_colorizedPaintFinishedHandler = std::move(handler);
 }
 
-void SpriteEditorWidget::setOriginalPixelsEditedHandler(
-    std::function<void(std::size_t, const std::vector<render::Point>&, bool)> handler)
-{
-    m_originalPixelsEditedHandler = std::move(handler);
-}
-
-void SpriteEditorWidget::setOriginalPixelPickedHandler(
-    std::function<void(std::size_t, int, int)> handler)
-{
-    m_originalPixelPickedHandler = std::move(handler);
-}
-
-void SpriteEditorWidget::setOriginalFloodFillHandler(
-    std::function<void(std::size_t, int, int, bool)> handler)
-{
-    m_originalFloodFillHandler = std::move(handler);
-}
-
-void SpriteEditorWidget::setOriginalPaintFinishedHandler(std::function<void()> handler)
-{
-    m_originalPaintFinishedHandler = std::move(handler);
-}
-
 QSize SpriteEditorWidget::sizeHint() const
 {
     return QSize(760, 440);
@@ -245,7 +195,6 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
     paintSpriteRegion(painter, colorized);
     paintSpriteRegion(painter, original);
     paintColorizedStrokePreview(painter, colorized);
-    paintOriginalStrokePreview(painter, original);
     paintDetectionAreas(painter, original);
     paintDragPreview(painter, original);
     painter.restore();
@@ -254,7 +203,6 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
 void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton &&
-        m_canvasEditMode == SpriteCanvasEditMode::ColorizedPixels &&
         (m_colorizedPixelEditedHandler || m_colorizedPixelsEditedHandler ||
          m_colorizedPixelPickedHandler || m_colorizedFloodFillHandler) &&
         m_document && m_spriteIndex && *m_spriteIndex < m_document->spriteCount()) {
@@ -298,44 +246,7 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
             return;
         }
     }
-    if (event->button() == Qt::LeftButton &&
-        m_canvasEditMode == SpriteCanvasEditMode::OriginalMask &&
-        (m_originalPixelsEditedHandler || m_originalPixelPickedHandler ||
-         m_originalFloodFillHandler) &&
-        m_document && m_spriteIndex && *m_spriteIndex < m_document->spriteCount()) {
-        const std::optional<render::Point> hit = hitOriginal(event->pos());
-        if (hit) {
-            m_paintingOriginal = true;
-            m_paintErase = event->modifiers().testFlag(Qt::ShiftModifier);
-            if (m_drawingTool == SpriteDrawingTool::Point && m_originalPixelsEditedHandler) {
-                m_originalPixelsEditedHandler(*m_spriteIndex, {*hit}, m_paintErase);
-            } else if (m_drawingTool == SpriteDrawingTool::ColorPicker &&
-                       m_originalPixelPickedHandler) {
-                m_originalPixelPickedHandler(*m_spriteIndex, hit->x, hit->y);
-                m_paintingOriginal = false;
-                m_paintErase = false;
-            } else if (m_drawingTool == SpriteDrawingTool::FloodFill &&
-                       m_originalFloodFillHandler) {
-                m_originalFloodFillHandler(*m_spriteIndex, hit->x, hit->y, m_paintErase);
-                m_paintingOriginal = false;
-                m_paintErase = false;
-            } else if (editsOriginalStroke() && m_originalPixelsEditedHandler) {
-                m_originalStrokeStart = *hit;
-                m_originalStrokeEnd = *hit;
-                update();
-            } else {
-                m_paintingOriginal = false;
-                m_paintErase = false;
-                QWidget::mousePressEvent(event);
-                return;
-            }
-            event->accept();
-            return;
-        }
-    }
-    if (event->button() == Qt::LeftButton &&
-        m_canvasEditMode == SpriteCanvasEditMode::DetectionAreas &&
-        m_selectedAreaIndex) {
+    if (event->button() == Qt::LeftButton && m_selectedAreaIndex) {
         const std::optional<render::Point> hit = hitOriginal(event->pos());
         if (hit) {
             m_dragStart = *hit;
@@ -362,20 +273,6 @@ void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
                                               m_paintErase);
             } else if (m_colorizedStrokeStart && editsColorizedStroke()) {
                 m_colorizedStrokeEnd = *hit;
-                update();
-            }
-            event->accept();
-            return;
-        }
-    }
-    if ((event->buttons() & Qt::LeftButton) && m_paintingOriginal &&
-        m_originalPixelsEditedHandler && m_spriteIndex) {
-        const std::optional<render::Point> hit = hitOriginal(event->pos());
-        if (hit) {
-            if (m_drawingTool == SpriteDrawingTool::Point) {
-                m_originalPixelsEditedHandler(*m_spriteIndex, {*hit}, m_paintErase);
-            } else if (m_originalStrokeStart && editsOriginalStroke()) {
-                m_originalStrokeEnd = *hit;
                 update();
             }
             event->accept();
@@ -421,28 +318,6 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
         event->accept();
         return;
     }
-    if (event->button() == Qt::LeftButton && m_paintingOriginal) {
-        const std::optional<render::Point> hit = hitOriginal(event->pos());
-        if (m_originalStrokeStart && m_originalPixelsEditedHandler && m_spriteIndex &&
-            editsOriginalStroke()) {
-            const render::Point start = *m_originalStrokeStart;
-            const render::Point end = hit.value_or(m_originalStrokeEnd.value_or(start));
-            const std::vector<render::Point> pixels = pixelsForOriginalStroke(start, end);
-            if (!pixels.empty()) {
-                m_originalPixelsEditedHandler(*m_spriteIndex, pixels, m_paintErase);
-            }
-        }
-        m_paintingOriginal = false;
-        m_paintErase = false;
-        m_originalStrokeStart.reset();
-        m_originalStrokeEnd.reset();
-        if (m_originalPaintFinishedHandler) {
-            m_originalPaintFinishedHandler();
-        }
-        update();
-        event->accept();
-        return;
-    }
     if (event->button() == Qt::LeftButton && m_dragStart && m_selectedAreaIndex) {
         const std::optional<render::Point> hit = hitOriginal(event->pos());
         const render::Point start = *m_dragStart;
@@ -458,35 +333,6 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
         return;
     }
     QWidget::mouseReleaseEvent(event);
-}
-
-void SpriteEditorWidget::paintOriginalStrokePreview(QPainter& painter,
-                                                    const RegionLayout& region)
-{
-    if (!m_originalStrokeStart || !m_originalStrokeEnd || !m_spriteIndex ||
-        !editsOriginalStroke()) {
-        return;
-    }
-    QColor previewColor = m_paintErase ? QColor(0, 0, 0, 150)
-                                       : originalIndexToColor(m_originalDrawValue);
-    if (!m_paintErase) {
-        previewColor.setAlpha(150);
-    }
-    painter.save();
-    for (const render::Point point : pixelsForOriginalStroke(*m_originalStrokeStart,
-                                                             *m_originalStrokeEnd)) {
-        if (point.x < 0 || point.y < 0 ||
-            point.x >= kSpriteSize.width || point.y >= kSpriteSize.height) {
-            continue;
-        }
-        paintDmdPixel(painter,
-                      region.rect.x + point.x,
-                      region.rect.y + point.y,
-                      1.0,
-                      previewColor,
-                      m_renderOptions);
-    }
-    painter.restore();
 }
 
 int SpriteEditorWidget::displayScale() const
@@ -760,12 +606,6 @@ std::vector<render::Point> SpriteEditorWidget::pixelsForColorizedStroke(render::
     return {};
 }
 
-std::vector<render::Point> SpriteEditorWidget::pixelsForOriginalStroke(render::Point start,
-                                                                       render::Point end) const
-{
-    return pixelsForColorizedStroke(start, end);
-}
-
 bool SpriteEditorWidget::editsColorizedStroke() const
 {
     return m_drawingTool == SpriteDrawingTool::Line ||
@@ -775,11 +615,6 @@ bool SpriteEditorWidget::editsColorizedStroke() const
            m_drawingTool == SpriteDrawingTool::FilledCircle ||
            m_drawingTool == SpriteDrawingTool::Ellipse ||
            m_drawingTool == SpriteDrawingTool::FilledEllipse;
-}
-
-bool SpriteEditorWidget::editsOriginalStroke() const
-{
-    return editsColorizedStroke();
 }
 
 document::SpriteDetectionArea SpriteEditorWidget::areaFromDrag(render::Point start,

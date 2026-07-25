@@ -182,6 +182,7 @@ public:
 
     [[nodiscard]] std::size_t spriteCount() const;
     [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
+    void setSpriteName(std::size_t spriteIndex, std::string name);
     [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
     void createHdSprite(std::size_t spriteIndex);
     void removeHdSprite(std::size_t spriteIndex);

@@ -290,31 +290,29 @@ Currently preserved sprite data includes:
 The Inspector has a sprite browser and assignment controls:
 
 - The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
+- The sprite name field edits the selected sprite name. Names are saved back to the fixed-size
+  `.cRP` sprite-name table when that table exists.
 - The first preview shows the sprite original mask.
 - The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
 - `Show Det Areas` overlays valid per-sprite detection areas on the original sprite preview.
 - The detection area selector and `X`, `Y`, `W`, `H` fields edit the selected sprite detection area.
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
 - `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
-- The sprite canvas mode selector chooses what the main sprite canvas edits:
-  `Colorized pixels`, `Original mask`, or `Detection areas`.
 - While `Edit Sprite` is active, `Create HD Sprite` creates HD sprite mask/color data by scaling the SD sprite data to 2x, and `Remove HD Sprite` clears the sprite HD-present flag.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
 - Hold `Shift` while dragging on the colorized sprite to erase existing non-black sprite pixels back to black.
 - The sprite editor supports the toolbar point, line, rectangle, filled rectangle, circle, filled circle, ellipse, and filled ellipse tools on the colorized sprite.
 - The sprite editor also supports the toolbar pick and flood-fill tools on the colorized sprite.
 - Sprite shape tools show a live preview and commit the full stroke on mouse release.
-- In `Original mask` mode, the lower original sprite canvas uses the same point, shape, pick, and flood-fill tools.
-  `Orig Value` selects the original pixel value written by paint and fill operations.
-- Hold `Shift` while painting in `Original mask` mode to make original sprite pixels transparent.
-- Original-mask edits recalculate sprite detection dwords for the edited sprite.
 - Sprite pixel edits update the sprite editor immediately. Frame thumbnails, composed frame preview,
   and side preview images refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
 - Undo and redo for sprite color edits are scoped per sprite and per active SD/HD resolution, and
   are available while the sprite editor canvas is active.
-- Undo and redo for sprite original-mask edits are scoped per sprite and are available while
-  `Original mask` mode is active.
-- In `Detection areas` mode, drag on the original sprite to set the selected detection area.
+- Drag on the lower original sprite canvas to set the selected detection area.
+  Detection-area edits update the sprite editor immediately. Frame thumbnails and composed frame
+  previews refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
+- Sprite source/original pixels are not freehand editable. New sprites should be created by copying
+  pixels from an original frame using a selected shape or outline. This workflow is still pending.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
 - `Remove` clears the selected slot's sprite assignment for all selected frames.
@@ -323,7 +321,8 @@ The Inspector has a sprite browser and assignment controls:
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
-Sprite-name editing is still pending.
+Sprite-name edits are limited to 31 characters so the legacy fixed 32-byte `.cRP` name slot
+remains null-terminated.
 
 ## Backgrounds
 

@@ -1,6 +1,7 @@
 #include "legacy/LegacyProjectFileWriter.h"
 
 #include <cstddef>
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -13,6 +14,19 @@
 namespace colorizing::legacy {
 
 namespace {
+
+constexpr std::size_t kCrpRomNameBytes = 64;
+constexpr std::size_t kCrpBoolBytes = 4;
+constexpr std::size_t kCrpU32Bytes = 4;
+constexpr std::size_t kCrpIntBytes = 4;
+constexpr std::size_t kCrpMaxColorSets = 64;
+constexpr std::size_t kCrpColorSetColorCount = 16;
+constexpr std::size_t kCrpMaskCount = 64;
+constexpr std::size_t kCrpMaskNameBytes = 32;
+constexpr std::size_t kCrpMaxSections = 512;
+constexpr std::size_t kCrpSectionNameBytes = 32;
+constexpr std::size_t kCrpMaxSpriteNames = 255;
+constexpr std::size_t kCrpSpriteNameBytes = 32;
 
 struct FileReadResult {
     std::vector<uint8_t> bytes;
@@ -41,23 +55,99 @@ FileReadResult readFileBytes(const std::string& path, const char* label)
 
 bool writeFileBytes(const std::string& path,
                     const std::vector<uint8_t>& bytes,
-                    std::string& errorMessage)
+                    std::string& errorMessage,
+                    const char* label = ".cROM")
 {
     if (path.empty()) {
-        errorMessage = ".cROM path is empty";
+        errorMessage = std::string(label) + " path is empty";
         return false;
     }
 
     std::ofstream stream(path, std::ios::binary | std::ios::trunc);
     if (!stream) {
-        errorMessage = "could not open .cROM file for writing: " + path;
+        errorMessage = "could not open " + std::string(label) + " file for writing: " + path;
         return false;
     }
 
     stream.write(reinterpret_cast<const char*>(bytes.data()),
                  static_cast<std::streamsize>(bytes.size()));
     if (!stream) {
-        errorMessage = "could not write .cROM file: " + path;
+        errorMessage = "could not write " + std::string(label) + " file: " + path;
+        return false;
+    }
+    return true;
+}
+
+std::size_t crpSpriteNamesOffset(const LegacyCromMetadata& metadata)
+{
+    const std::size_t frameBytes =
+        static_cast<std::size_t>(metadata.frameWidth) *
+        static_cast<std::size_t>(metadata.frameHeight);
+    const std::size_t beforeSpriteNamesBytes =
+        kCrpMaxColorSets * kCrpBoolBytes +
+        kCrpMaxColorSets * kCrpColorSetColorCount +
+        1 +
+        1 +
+        kCrpMaxColorSets * kCrpRomNameBytes +
+        kCrpU32Bytes +
+        1 +
+        kCrpIntBytes +
+        kCrpBoolBytes +
+        kCrpMaskCount * kCrpMaskNameBytes +
+        kCrpU32Bytes +
+        kCrpMaxSections * kCrpU32Bytes +
+        kCrpMaxSections * kCrpSectionNameBytes;
+    return kCrpRomNameBytes +
+           metadata.frameCount * frameBytes +
+           beforeSpriteNamesBytes;
+}
+
+bool writeCrpSpriteNames(const LegacyProjectPaths& paths,
+                         const LegacyCromMetadata& metadata,
+                         const document::ProjectSnapshot& snapshot,
+                         std::string& errorMessage)
+{
+    const FileReadResult crpFile = readFileBytes(paths.crpPath, ".cRP");
+    if (!crpFile.ok) {
+        errorMessage = crpFile.errorMessage;
+        return false;
+    }
+
+    std::vector<uint8_t> crpBytes = crpFile.bytes;
+    const std::size_t frameBytes =
+        static_cast<std::size_t>(metadata.frameWidth) *
+        static_cast<std::size_t>(metadata.frameHeight);
+    const std::size_t originalFramesEnd =
+        kCrpRomNameBytes + metadata.frameCount * frameBytes;
+    const std::size_t namesOffset = crpSpriteNamesOffset(metadata);
+    const std::size_t namesBytes = kCrpMaxSpriteNames * kCrpSpriteNameBytes;
+    if (crpBytes.size() <= originalFramesEnd) {
+        return true;
+    }
+    if (namesOffset > crpBytes.size()) {
+        errorMessage = ".cRP is truncated before sprite names";
+        return false;
+    }
+    if (crpBytes.size() < namesOffset + namesBytes) {
+        return true;
+    }
+
+    for (std::size_t spriteIndex = 0;
+         spriteIndex < snapshot.sprites.size() && spriteIndex < kCrpMaxSpriteNames;
+         ++spriteIndex) {
+        const std::string& name = snapshot.sprites[spriteIndex].name;
+        const std::size_t offset = namesOffset + spriteIndex * kCrpSpriteNameBytes;
+        const std::size_t count =
+            std::min(name.size(), kCrpSpriteNameBytes - 1);
+        std::fill(crpBytes.begin() + static_cast<std::ptrdiff_t>(offset),
+                  crpBytes.begin() + static_cast<std::ptrdiff_t>(offset + kCrpSpriteNameBytes),
+                  uint8_t{0});
+        std::copy_n(reinterpret_cast<const uint8_t*>(name.data()),
+                    count,
+                    crpBytes.begin() + static_cast<std::ptrdiff_t>(offset));
+    }
+
+    if (!writeFileBytes(paths.crpPath, crpBytes, errorMessage, ".cRP")) {
         return false;
     }
     return true;
@@ -448,6 +538,9 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     }
 
     if (!writeFileBytes(paths.cromPath, bytes, errorMessage)) {
+        return makeSaveFailure(errorMessage);
+    }
+    if (!writeCrpSpriteNames(paths, cromFrames.frameData.metadata, snapshot, errorMessage)) {
         return makeSaveFailure(errorMessage);
     }
     return makeSaveSuccess();

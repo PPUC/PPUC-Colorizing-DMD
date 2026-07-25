@@ -697,6 +697,45 @@ void testSpriteColorizedPixelEditing()
         "missing HD sprite write");
 }
 
+void testSpriteNameEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_name_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        false,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+        "old",
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    document.setSpriteName(0, "new");
+    expect(document.sprite(0).name == "new", "sprite name setter");
+    expect(document.isDirty(), "sprite name edit should mark dirty");
+
+    document.markClean();
+    document.setSpriteName(0, "new");
+    expect(!document.isDirty(), "identical sprite name edit should not mark dirty");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setSpriteName(1, "missing"); },
+        "sprite name setter bounds");
+}
+
 void testSpriteOriginalPixelEditing()
 {
     ProjectSnapshot snapshot;
@@ -959,6 +998,7 @@ void runProjectDocumentTests()
     testBackgroundMetadataAndMaskEditing();
     testFrameSpriteReferenceEditing();
     testSpriteColorizedPixelEditing();
+    testSpriteNameEditing();
     testSpriteOriginalPixelEditing();
     testSpriteHdCreateAndRemove();
     testBackgroundImagePixelEditing();

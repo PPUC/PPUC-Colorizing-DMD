@@ -22,6 +22,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMenu>
@@ -421,18 +422,13 @@ void MainWindow::createCentralView()
     m_spriteComboBox = new QComboBox(central);
     m_spriteComboBox->setToolTip(QStringLiteral("Loaded sprite preview"));
     m_spriteComboBox->setEnabled(false);
+    m_spriteNameLineEdit = new QLineEdit(central);
+    m_spriteNameLineEdit->setToolTip(QStringLiteral("Selected sprite name"));
+    m_spriteNameLineEdit->setMaxLength(31);
+    m_spriteNameLineEdit->setEnabled(false);
     m_spriteSlotComboBox = new QComboBox(central);
     m_spriteSlotComboBox->setToolTip(QStringLiteral("Current frame sprite slot"));
     m_spriteSlotComboBox->setEnabled(false);
-    m_spriteCanvasModeComboBox = new QComboBox(central);
-    m_spriteCanvasModeComboBox->setToolTip(QStringLiteral("Sprite canvas edit mode"));
-    m_spriteCanvasModeComboBox->addItem(QStringLiteral("Colorized pixels"),
-                                        static_cast<int>(SpriteCanvasEditMode::ColorizedPixels));
-    m_spriteCanvasModeComboBox->addItem(QStringLiteral("Original mask"),
-                                        static_cast<int>(SpriteCanvasEditMode::OriginalMask));
-    m_spriteCanvasModeComboBox->addItem(QStringLiteral("Detection areas"),
-                                        static_cast<int>(SpriteCanvasEditMode::DetectionAreas));
-    m_spriteCanvasModeComboBox->setEnabled(false);
     m_assignSpriteButton = new QToolButton(central);
     m_assignSpriteButton->setText(QStringLiteral("Assign"));
     m_assignSpriteButton->setToolTip(QStringLiteral("Assign selected sprite to selected slot"));
@@ -490,10 +486,6 @@ void MainWindow::createCentralView()
     m_spriteDetectionAreaHeightSpinBox->setRange(1, static_cast<int>(document::kMaxSpriteHeight));
     m_spriteDetectionAreaHeightSpinBox->setToolTip(QStringLiteral("Sprite detection area height"));
     m_spriteDetectionAreaHeightSpinBox->setEnabled(false);
-    m_spriteOriginalValueSpinBox = new QSpinBox(central);
-    m_spriteOriginalValueSpinBox->setRange(0, 15);
-    m_spriteOriginalValueSpinBox->setToolTip(QStringLiteral("Original sprite value to paint"));
-    m_spriteOriginalValueSpinBox->setEnabled(false);
     m_spriteMinXSpinBox = new QSpinBox(central);
     m_spriteMinXSpinBox->setRange(0, 127);
     m_spriteMinXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
@@ -625,7 +617,7 @@ void MainWindow::createCentralView()
     inspectorLayout->addLayout(dynamicColorsGrid);
     inspectorLayout->addWidget(spritesTitle);
     inspectorLayout->addWidget(m_spriteComboBox);
-    inspectorLayout->addWidget(m_spriteCanvasModeComboBox);
+    inspectorLayout->addWidget(m_spriteNameLineEdit);
     inspectorLayout->addWidget(m_spriteSlotComboBox);
     auto* spriteButtonLayout = new QHBoxLayout();
     spriteButtonLayout->addWidget(m_assignSpriteButton);
@@ -665,7 +657,6 @@ void MainWindow::createCentralView()
     spriteDetectionAreaGrid->addWidget(new QLabel(QStringLiteral("H"), inspector), 1, 2);
     spriteDetectionAreaGrid->addWidget(m_spriteDetectionAreaHeightSpinBox, 1, 3);
     inspectorLayout->addLayout(spriteDetectionAreaGrid);
-    inspectorForm->addRow(QStringLiteral("Orig Value"), m_spriteOriginalValueSpinBox);
     inspectorLayout->addWidget(m_frameSpritesLabel);
     inspectorLayout->addWidget(m_spriteOriginalPreviewLabel);
     inspectorLayout->addWidget(m_spriteColorizedPreviewLabel);
@@ -790,23 +781,14 @@ void MainWindow::createCentralView()
                 updateSpriteControls();
                 updateUndoRedoActions();
             });
+    connect(m_spriteNameLineEdit, &QLineEdit::editingFinished, this, [this]() {
+        setCurrentSpriteName();
+    });
     connect(m_spriteSlotComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
             [this](int) {
                 updateSpriteControls();
-            });
-    connect(m_spriteCanvasModeComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                if (!m_spriteCanvasModeComboBox || !m_spriteEditor) {
-                    return;
-                }
-                const auto mode = static_cast<SpriteCanvasEditMode>(
-                    m_spriteCanvasModeComboBox->currentData().toInt());
-                m_spriteEditor->setCanvasEditMode(mode);
-                updateUndoRedoActions();
             });
     connect(m_assignSpriteButton, &QToolButton::clicked, this, [this]() {
         assignSelectedSpriteToCurrentSlot();
@@ -870,15 +852,6 @@ void MainWindow::createCentralView()
     connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaYSpinBox);
     connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaWidthSpinBox);
     connectSpriteDetectionAreaSpinBox(m_spriteDetectionAreaHeightSpinBox);
-    connect(m_spriteOriginalValueSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int value) {
-                m_spriteOriginalDrawValue = static_cast<uint8_t>(value);
-                if (m_spriteEditor) {
-                    m_spriteEditor->setOriginalDrawValue(m_spriteOriginalDrawValue);
-                }
-            });
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -941,13 +914,10 @@ void MainWindow::createCentralView()
                 m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
                                                    areaIndex,
                                                    area);
-                if (m_preview) {
-                    m_preview->update();
-                }
                 if (m_spriteEditor) {
                     m_spriteEditor->update();
                 }
-                refreshFrameList(currentFrameIndex());
+                setSpriteDependentViewsDirty();
                 updateSpriteControls();
                 updateProjectHeaderStatus();
                 statusBar()->showMessage(
@@ -982,20 +952,6 @@ void MainWindow::createCentralView()
     m_spriteEditor->setColorizedFloodFillHandler(
         [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
             floodFillSpriteColorized(spriteIndex, resolution, x, y);
-        });
-    m_spriteEditor->setOriginalPixelsEditedHandler(
-        [this](std::size_t spriteIndex,
-               const std::vector<render::Point>& pixels,
-               bool erase) {
-            paintSpriteOriginalPixels(spriteIndex, pixels, erase);
-        });
-    m_spriteEditor->setOriginalPixelPickedHandler(
-        [this](std::size_t spriteIndex, int x, int y) {
-            pickSpriteOriginalPixel(spriteIndex, x, y);
-        });
-    m_spriteEditor->setOriginalFloodFillHandler(
-        [this](std::size_t spriteIndex, int x, int y, bool erase) {
-            floodFillSpriteOriginal(spriteIndex, x, y, erase);
         });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
@@ -1833,6 +1789,31 @@ void MainWindow::setCurrentSpriteSlotBounds()
     }
 }
 
+void MainWindow::setCurrentSpriteName()
+{
+    if (!m_document || !m_spriteComboBox || !m_spriteNameLineEdit) {
+        return;
+    }
+    const int spriteIndex = m_spriteComboBox->currentData().toInt();
+    if (spriteIndex < 0 ||
+        static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        updateSpriteControls();
+        return;
+    }
+
+    try {
+        const QString name = m_spriteNameLineEdit->text();
+        m_document->setSpriteName(static_cast<std::size_t>(spriteIndex),
+                                  name.toStdString());
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(QStringLiteral("Renamed sprite %1").arg(spriteIndex), 1500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::setCurrentSpriteDetectionArea()
 {
     if (!m_document || !m_spriteComboBox || !m_spriteDetectionAreaComboBox ||
@@ -1869,13 +1850,10 @@ void MainWindow::setCurrentSpriteDetectionArea()
                                                static_cast<uint16_t>(width),
                                                static_cast<uint16_t>(height),
                                            });
-        if (m_preview) {
-            m_preview->update();
-        }
         if (m_spriteEditor) {
             m_spriteEditor->update();
         }
-        refreshFrameList(currentFrameIndex());
+        setSpriteDependentViewsDirty();
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
@@ -1912,13 +1890,10 @@ void MainWindow::clearCurrentSpriteDetectionArea()
                                                0xffff,
                                                0xffff,
                                            });
-        if (m_preview) {
-            m_preview->update();
-        }
         if (m_spriteEditor) {
             m_spriteEditor->update();
         }
-        refreshFrameList(currentFrameIndex());
+        setSpriteDependentViewsDirty();
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
@@ -2070,120 +2045,6 @@ void MainWindow::floodFillSpriteColorized(std::size_t spriteIndex,
         }
 
         paintSpriteColorizedPixels(spriteIndex, resolution, pixels, false);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::paintSpriteOriginalPixels(std::size_t spriteIndex,
-                                           const std::vector<render::Point>& pixels,
-                                           bool erase)
-{
-    if (!m_document || spriteIndex >= m_document->spriteCount()) {
-        return;
-    }
-    const uint8_t value = erase ? uint8_t{255} : m_spriteOriginalDrawValue;
-    try {
-        SpriteOriginalEditCommand command;
-        command.spriteIndex = spriteIndex;
-        std::set<std::pair<int, int>> seen;
-        for (const render::Point point : pixels) {
-            if (!seen.insert({point.x, point.y}).second) {
-                continue;
-            }
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= static_cast<int>(document::kMaxSpriteWidth) ||
-                point.y >= static_cast<int>(document::kMaxSpriteHeight)) {
-                continue;
-            }
-            const uint8_t currentValue =
-                m_document->spriteOriginalPixel(spriteIndex, point.x, point.y);
-            if (currentValue == value) {
-                continue;
-            }
-            command.changes.push_back(MaskPixelChange{
-                point.x,
-                point.y,
-                currentValue,
-                value,
-            });
-        }
-        if (command.changes.empty()) {
-            return;
-        }
-        applySpriteOriginalEdit(command, true);
-        SpriteOriginalEditHistory& history = m_spriteOriginalEditHistories[spriteIndex];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
-        setSpriteDependentViewsDirty();
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        updateSpriteControls();
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::pickSpriteOriginalPixel(std::size_t spriteIndex, int x, int y)
-{
-    if (!m_document || spriteIndex >= m_document->spriteCount() || !m_spriteOriginalValueSpinBox) {
-        return;
-    }
-    try {
-        const uint8_t value = m_document->spriteOriginalPixel(spriteIndex, x, y);
-        if (value == 255) {
-            statusBar()->showMessage(QStringLiteral("Picked transparent sprite original pixel"),
-                                     2000);
-            return;
-        }
-        m_spriteOriginalValueSpinBox->setValue(static_cast<int>(std::min<uint8_t>(value, 15)));
-        statusBar()->showMessage(QStringLiteral("Picked sprite original value %1").arg(value),
-                                 2000);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::floodFillSpriteOriginal(std::size_t spriteIndex, int x, int y, bool erase)
-{
-    if (!m_document || spriteIndex >= m_document->spriteCount()) {
-        return;
-    }
-    try {
-        const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
-        const uint8_t targetValue = m_document->spriteOriginalPixel(spriteIndex, x, y);
-        const uint8_t replacementValue = erase ? uint8_t{255} : m_spriteOriginalDrawValue;
-        if (targetValue == replacementValue || (!erase && targetValue == 255)) {
-            return;
-        }
-
-        std::vector<uint8_t> visited(sprite.originalSd.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{x, y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= sprite.originalSd.size.width || point.y >= sprite.originalSd.size.height) {
-                continue;
-            }
-            const std::size_t index = spritePixelIndex(point.x, point.y);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (sprite.originalSd.pixels[index] != targetValue) {
-                continue;
-            }
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
-        paintSpriteOriginalPixels(spriteIndex, pixels, erase);
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -2462,9 +2323,8 @@ void MainWindow::updateSpriteControls()
         !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
         !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
         !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
-        !m_spriteCanvasButton || !m_applySpriteEditsButton ||
-        !m_spriteCanvasModeComboBox || !m_spriteDetectionAreaComboBox ||
-        !m_clearSpriteDetectionAreaButton || !m_spriteOriginalValueSpinBox ||
+        !m_spriteCanvasButton || !m_applySpriteEditsButton || !m_spriteNameLineEdit ||
+        !m_spriteDetectionAreaComboBox || !m_clearSpriteDetectionAreaButton ||
         !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
         !m_spriteMaxXSpinBox || !m_spriteMaxYSpinBox ||
         !m_spriteDetectionAreaXSpinBox || !m_spriteDetectionAreaYSpinBox ||
@@ -2618,8 +2478,8 @@ void MainWindow::updateSpriteControls()
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
         m_spriteDetectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);
-        m_spriteCanvasModeComboBox->setEnabled(false);
-        m_spriteOriginalValueSpinBox->setEnabled(false);
+        m_spriteNameLineEdit->setEnabled(false);
+        m_spriteNameLineEdit->clear();
         m_applySpriteEditsButton->setEnabled(false);
         if (isSpriteCanvasActive()) {
             m_createHdFrameButton->setEnabled(false);
@@ -2646,13 +2506,13 @@ void MainWindow::updateSpriteControls()
 
     const document::SpriteRecord& sprite =
         m_document->sprite(static_cast<std::size_t>(spriteIndex));
-    m_spriteCanvasButton->setEnabled(true);
-    m_spriteCanvasModeComboBox->setEnabled(true);
-    m_spriteOriginalValueSpinBox->setEnabled(true);
     {
-        QSignalBlocker blocker(m_spriteOriginalValueSpinBox);
-        m_spriteOriginalValueSpinBox->setValue(static_cast<int>(m_spriteOriginalDrawValue));
+        QSignalBlocker blocker(m_spriteNameLineEdit);
+        m_spriteNameLineEdit->setText(QString::fromStdString(sprite.name));
+        m_spriteNameLineEdit->setEnabled(true);
     }
+    m_spriteCanvasButton->setEnabled(true);
+    const bool spriteCanvasActive = isSpriteCanvasActive();
     if (isSpriteCanvasActive()) {
         m_createHdFrameButton->setText(QStringLiteral("Create HD Sprite"));
         m_createHdFrameButton->setToolTip(QStringLiteral("Create HD sprite from SD sprite"));
@@ -2717,10 +2577,8 @@ void MainWindow::updateSpriteControls()
     m_spriteDetectionAreasButton->setEnabled(hasDetectionArea);
     if (m_spriteEditor) {
         m_spriteEditor->setSpriteIndex(static_cast<std::size_t>(spriteIndex));
-        m_spriteEditor->setCanvasEditMode(static_cast<SpriteCanvasEditMode>(
-            m_spriteCanvasModeComboBox->currentData().toInt()));
-        m_spriteEditor->setOriginalDrawValue(m_spriteOriginalDrawValue);
-        m_spriteEditor->setDetectionAreasVisible(m_spriteDetectionAreasButton->isChecked());
+        m_spriteEditor->setDetectionAreasVisible(
+            m_spriteDetectionAreasButton->isChecked());
         m_spriteEditor->setSelectedDetectionAreaIndex(
             hasAreaSelection ? std::optional<std::size_t>(static_cast<std::size_t>(areaIndex))
                              : std::nullopt);
@@ -3873,25 +3731,6 @@ void MainWindow::applySpriteImageEdit(const SpriteImageEditCommand& command, boo
     }
 }
 
-void MainWindow::applySpriteOriginalEdit(const SpriteOriginalEditCommand& command,
-                                         bool useNewValue)
-{
-    if (!m_document) {
-        return;
-    }
-    for (const MaskPixelChange& change : command.changes) {
-        m_document->setSpriteOriginalPixel(command.spriteIndex,
-                                           change.x,
-                                           change.y,
-                                           useNewValue ? change.newValue : change.oldValue);
-    }
-    setSpriteDependentViewsDirty();
-    if (m_spriteEditor) {
-        m_spriteEditor->update();
-    }
-    updateProjectHeaderStatus();
-}
-
 std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -4172,33 +4011,6 @@ MainWindow::currentSpriteImageEditHistory() const
     return &history->second;
 }
 
-MainWindow::SpriteOriginalEditHistory* MainWindow::currentSpriteOriginalEditHistory()
-{
-    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
-    if (!spriteIndex) {
-        return nullptr;
-    }
-    auto history = m_spriteOriginalEditHistories.find(*spriteIndex);
-    if (history == m_spriteOriginalEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::SpriteOriginalEditHistory*
-MainWindow::currentSpriteOriginalEditHistory() const
-{
-    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
-    if (!spriteIndex) {
-        return nullptr;
-    }
-    auto history = m_spriteOriginalEditHistories.find(*spriteIndex);
-    if (history == m_spriteOriginalEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 bool MainWindow::isSpriteCanvasActive() const
 {
     return m_spriteCanvasButton && m_spriteCanvasButton->isChecked() &&
@@ -4208,23 +4020,6 @@ bool MainWindow::isSpriteCanvasActive() const
 void MainWindow::undo()
 {
     if (isSpriteCanvasActive()) {
-        const auto mode = m_spriteCanvasModeComboBox
-                              ? static_cast<SpriteCanvasEditMode>(
-                                    m_spriteCanvasModeComboBox->currentData().toInt())
-                              : SpriteCanvasEditMode::ColorizedPixels;
-        if (mode == SpriteCanvasEditMode::OriginalMask) {
-            SpriteOriginalEditHistory* history = currentSpriteOriginalEditHistory();
-            if (!history || history->undoStack.empty()) {
-                return;
-            }
-            const SpriteOriginalEditCommand command = history->undoStack.back();
-            history->undoStack.pop_back();
-            applySpriteOriginalEdit(command, false);
-            history->redoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Undo sprite original edit"), 1500);
-            return;
-        }
         SpriteImageEditHistory* history = currentSpriteImageEditHistory();
         if (!history || history->undoStack.empty()) {
             return;
@@ -4324,23 +4119,6 @@ void MainWindow::undo()
 void MainWindow::redo()
 {
     if (isSpriteCanvasActive()) {
-        const auto mode = m_spriteCanvasModeComboBox
-                              ? static_cast<SpriteCanvasEditMode>(
-                                    m_spriteCanvasModeComboBox->currentData().toInt())
-                              : SpriteCanvasEditMode::ColorizedPixels;
-        if (mode == SpriteCanvasEditMode::OriginalMask) {
-            SpriteOriginalEditHistory* history = currentSpriteOriginalEditHistory();
-            if (!history || history->redoStack.empty()) {
-                return;
-            }
-            const SpriteOriginalEditCommand command = history->redoStack.back();
-            history->redoStack.pop_back();
-            applySpriteOriginalEdit(command, true);
-            history->undoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Redo sprite original edit"), 1500);
-            return;
-        }
         SpriteImageEditHistory* history = currentSpriteImageEditHistory();
         if (!history || history->redoStack.empty()) {
             return;
@@ -4440,23 +4218,7 @@ void MainWindow::redo()
 void MainWindow::updateUndoRedoActions()
 {
     if (isSpriteCanvasActive()) {
-        const auto mode = m_spriteCanvasModeComboBox
-                              ? static_cast<SpriteCanvasEditMode>(
-                                    m_spriteCanvasModeComboBox->currentData().toInt())
-                              : SpriteCanvasEditMode::ColorizedPixels;
-        if (mode == SpriteCanvasEditMode::OriginalMask) {
-            const SpriteOriginalEditHistory* history = currentSpriteOriginalEditHistory();
-            if (m_undoAction) {
-                m_undoAction->setEnabled(history && !history->undoStack.empty());
-            }
-            if (m_redoAction) {
-                m_redoAction->setEnabled(history && !history->redoStack.empty());
-            }
-            return;
-        }
-        const SpriteImageEditHistory* history = mode == SpriteCanvasEditMode::ColorizedPixels
-                                                    ? currentSpriteImageEditHistory()
-                                                    : nullptr;
+        const SpriteImageEditHistory* history = currentSpriteImageEditHistory();
         if (m_undoAction) {
             m_undoAction->setEnabled(history && !history->undoStack.empty());
         }

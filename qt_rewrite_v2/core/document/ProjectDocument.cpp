@@ -798,6 +798,18 @@ const SpriteRecord& ProjectDocument::sprite(std::size_t spriteIndex) const
     return m_sprites[spriteIndex];
 }
 
+void ProjectDocument::setSpriteName(std::size_t spriteIndex, std::string name)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    if (m_sprites[spriteIndex].name == name) {
+        return;
+    }
+    m_sprites[spriteIndex].name = std::move(name);
+    m_dirty = true;
+}
+
 bool ProjectDocument::hasHdSprite(std::size_t spriteIndex) const
 {
     return sprite(spriteIndex).hasHd;
