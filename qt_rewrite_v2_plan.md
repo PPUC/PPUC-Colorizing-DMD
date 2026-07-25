@@ -60,7 +60,13 @@ Implementation should not start until this plan is reviewed and accepted.
    - Edit shadow and dynamic-shadow data only where the legacy format already supports it.
    - Keep runtime-preview validation libserum-backed once preview is implemented.
 
-4. Image import pipeline:
+4. Frame metadata and trigger IDs:
+   - Preserve loaded per-frame trigger IDs.
+   - Expose trigger ID editing in the frame inspector.
+   - Support the legacy "Switch to Monochrome" trigger behavior without changing `.cROM` layout.
+   - Keep trigger list/rename/delete workflows format-compatible with existing project capacity.
+
+5. Image import pipeline:
    - Import image data into existing frames/backgrounds.
    - Reimport/replace image data.
    - Scaling options, including selectable scalers for HD generation.
@@ -68,25 +74,25 @@ Implementation should not start until this plan is reviewed and accepted.
 
 ### Priority 2
 
-5. Background management:
+6. Background management:
    - Better background list/preview instead of numeric `BG ID` only.
    - Background editing on the canvas for existing background records.
    - Import/export/reimport existing background images.
    - Create/delete background records only after a format-compatible strategy exists.
 
-6. Comparison mask management:
+7. Comparison mask management:
    - Better mask list/preview.
    - Improved mask assignment for selected frames.
    - Create/delete masks only after a format-compatible strategy exists.
 
-7. HD management expansion:
+8. HD management expansion:
    - Batch create/remove HD for selected frames.
    - Selectable scaling algorithms.
    - Apply equivalent HD workflows to existing backgrounds and sprites where format-safe.
 
 ### After Priority 2
 
-8. Frame playback / sequence preview:
+9. Frame playback / sequence preview:
    - Basic playback controls.
    - Play selected frames or current filtered range.
    - Timing support, initially fixed-duration if needed.
@@ -94,17 +100,17 @@ Implementation should not start until this plan is reviewed and accepted.
 
 ### Priority 3
 
-9. UI restructure:
+10. UI restructure:
    - Reduce crowded toolbar.
    - Move tools/settings into panels/tabs following the better ideas from `qt_playback_wip`.
    - Add component browsers for frames, masks, backgrounds, sprites, and palettes.
 
-10. Save/autosave/recovery polish:
+11. Save/autosave/recovery polish:
    - `Save As` exists.
    - Autosave and recovery are still missing.
    - Playback-related autosave should wait until playback is prioritized.
 
-11. Imports and exports:
+12. Imports and exports:
    - Video import should be implemented after still-image import is stable.
    - PNG export can stay as a useful convenience.
    - GIF/video export should wait until playback and timing are meaningful.
@@ -451,7 +457,9 @@ Use existing real projects as fixtures, plus small synthetic fixtures that isola
 ### Milestone 8: Legacy Workflow Completion
 
 - Sections.
-- Trigger list and trigger assignment.
+- Trigger IDs in the frame inspector.
+- Trigger list, rename/delete, and per-frame trigger assignment.
+- Switch-to-monochrome trigger behavior.
 - Frame duration editor.
 - Image import.
 - Video import.
