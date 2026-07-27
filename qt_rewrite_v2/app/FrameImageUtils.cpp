@@ -1,6 +1,7 @@
 #include "FrameImageUtils.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -29,6 +30,23 @@ render::Point originalPointForResolution(render::Resolution resolution, int x, i
     }
     return render::Point{x, y};
 }
+
+struct ShadowDirection {
+    uint8_t mask = 0;
+    int dx = 0;
+    int dy = 0;
+};
+
+constexpr std::array<ShadowDirection, 8> kShadowDirections{{
+    {0x01, -1, -1},
+    {0x02, 0, -1},
+    {0x04, 1, -1},
+    {0x08, 1, 0},
+    {0x10, 1, 1},
+    {0x20, 0, 1},
+    {0x40, -1, 1},
+    {0x80, -1, 0},
+}};
 
 double clampedPixelCoverage(DmdRenderOptions options)
 {
@@ -336,6 +354,80 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                          static_cast<std::size_t>(originalValue)];
 }
 
+void applyDynamicShadows(const document::ProjectDocument& document,
+                         std::size_t frameIndex,
+                         render::Resolution resolution,
+                         document::Rgb565Frame& frame)
+{
+    const std::optional<document::FrameDynamicData>& dynamicData =
+        document.dynamicData(frameIndex);
+    if (!dynamicData) {
+        return;
+    }
+
+    const document::IndexedFrame& dynamicMask =
+        resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
+    const std::vector<uint8_t>& directions =
+        resolution == render::Resolution::Hd ? dynamicData->shadowDirectionsHd
+                                             : dynamicData->shadowDirectionsSd;
+    const std::vector<uint16_t>& colors =
+        resolution == render::Resolution::Hd ? dynamicData->shadowColorsHd
+                                             : dynamicData->shadowColorsSd;
+    if (directions.empty() || colors.empty()) {
+        return;
+    }
+
+    const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    std::vector<uint8_t> occupied(frame.pixels.size(), 0);
+    for (int y = 0; y < frame.size.height; ++y) {
+        for (int x = 0; x < frame.size.width; ++x) {
+            const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
+            const render::Point originalPoint = originalPointForResolution(resolution, x, y);
+            const uint8_t originalValue =
+                original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
+            if (dynamicSet < document::kMaxDynamicSetsPerFrame && originalValue > 0) {
+                occupied[rgb565PixelIndex(frame, x, y)] = 1;
+            }
+        }
+    }
+
+    for (int y = 0; y < frame.size.height; ++y) {
+        for (int x = 0; x < frame.size.width; ++x) {
+            const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
+            const render::Point originalPoint = originalPointForResolution(resolution, x, y);
+            const uint8_t originalValue =
+                original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
+            if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||
+                originalValue == 0 ||
+                dynamicSet >= directions.size() ||
+                dynamicSet >= colors.size()) {
+                continue;
+            }
+            const uint8_t directionMask = directions[dynamicSet];
+            if (directionMask == 0) {
+                continue;
+            }
+            for (const ShadowDirection& direction : kShadowDirections) {
+                if ((directionMask & direction.mask) == 0) {
+                    continue;
+                }
+                const int shadowX = x + direction.dx;
+                const int shadowY = y + direction.dy;
+                if (shadowX < 0 || shadowY < 0 ||
+                    shadowX >= frame.size.width || shadowY >= frame.size.height) {
+                    continue;
+                }
+                const std::size_t shadowIndex = rgb565PixelIndex(frame, shadowX, shadowY);
+                if (occupied[shadowIndex]) {
+                    continue;
+                }
+                frame.pixels[shadowIndex] = colors[dynamicSet];
+                occupied[shadowIndex] = 1;
+            }
+        }
+    }
+}
+
 document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& document,
                                            std::size_t frameIndex,
                                            render::Resolution resolution,
@@ -354,6 +446,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                    includeBackgroundLayer);
         }
     }
+
+    applyDynamicShadows(document, frameIndex, resolution, frame);
 
     const std::vector<SpriteMatch> matches = matchFrameSprites(document, frameIndex);
     for (const SpriteMatch& match : matches) {

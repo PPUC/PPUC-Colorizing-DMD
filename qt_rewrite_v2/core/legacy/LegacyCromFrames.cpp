@@ -496,6 +496,44 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         }
     }
 
+    frameData.dynamicShadowDirectionsSdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        std::vector<uint8_t>& directions =
+            frameData.dynamicFrames[frameIndex].shadowDirectionsSd;
+        directions.resize(document::kMaxDynamicSetsPerFrame);
+        if (!cursor.readBytes(directions.data(), directions.size())) {
+            return fail("unexpected end of cROM while reading SD dynamic shadow directions");
+        }
+    }
+
+    frameData.dynamicShadowColorsSdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].shadowColorsSd;
+        colors.resize(document::kMaxDynamicSetsPerFrame);
+        if (!readRgb565Values(cursor, colors, "SD dynamic shadow colors", error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.dynamicShadowDirectionsHdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        std::vector<uint8_t>& directions =
+            frameData.dynamicFrames[frameIndex].shadowDirectionsHd;
+        directions.resize(document::kMaxDynamicSetsPerFrame);
+        if (!cursor.readBytes(directions.data(), directions.size())) {
+            return fail("unexpected end of cROM while reading HD dynamic shadow directions");
+        }
+    }
+
+    frameData.dynamicShadowColorsHdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].shadowColorsHd;
+        colors.resize(document::kMaxDynamicSetsPerFrame);
+        if (!readRgb565Values(cursor, colors, "HD dynamic shadow colors", error)) {
+            return fail(error);
+        }
+    }
+
     LegacyCromFrameParseResult result;
     result.frameData = std::move(frameData);
     result.nextOffset = cursor.offset();

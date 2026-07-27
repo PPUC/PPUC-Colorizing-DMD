@@ -399,6 +399,8 @@ void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
     }
     frame.dynamicData->maskHd = upscaleIndexedFrame2x(frame.dynamicData->maskSd);
     frame.dynamicData->colorsHd = frame.dynamicData->colorsSd;
+    frame.dynamicData->shadowDirectionsHd = frame.dynamicData->shadowDirectionsSd;
+    frame.dynamicData->shadowColorsHd = frame.dynamicData->shadowColorsSd;
     m_dirty = true;
 }
 

@@ -103,6 +103,10 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendU16(bytes, 0xffff);
     appendRepeatedU8(bytes, 0, 2 * kSdPixels);
     appendRepeatedU8(bytes, 0, 2 * kHdPixels);
+    appendRepeatedU8(bytes, 0, 2 * kDynamicSetsPerFrame);
+    appendRepeatedU16(bytes, 0, 2 * kDynamicSetsPerFrame);
+    appendRepeatedU8(bytes, 0, 2 * kDynamicSetsPerFrame);
+    appendRepeatedU16(bytes, 0, 2 * kDynamicSetsPerFrame);
 }
 
 std::vector<uint8_t> makeModernCromWithFrames()

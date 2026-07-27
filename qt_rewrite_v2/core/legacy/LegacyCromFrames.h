@@ -53,6 +53,10 @@ struct LegacyCromFrameData {
     std::size_t backgroundIdsOffset = 0;
     std::size_t backgroundMasksSdOffset = 0;
     std::size_t backgroundMasksHdOffset = 0;
+    std::size_t dynamicShadowDirectionsSdOffset = 0;
+    std::size_t dynamicShadowColorsSdOffset = 0;
+    std::size_t dynamicShadowDirectionsHdOffset = 0;
+    std::size_t dynamicShadowColorsHdOffset = 0;
 };
 
 struct LegacyCromFrameParseResult {

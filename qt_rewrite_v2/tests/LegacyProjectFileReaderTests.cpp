@@ -140,6 +140,14 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendRepeatedU8(bytes, 2, kSdPixels);
     appendRepeatedU8(bytes, 0, kHdPixels);
     appendRepeatedU8(bytes, 3, kHdPixels);
+    bytes.push_back(0x08);
+    appendRepeatedU8(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
+    appendU16(bytes, 0x0f0f);
+    appendRepeatedU16(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
+    bytes.push_back(0x20);
+    appendRepeatedU8(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
+    appendU16(bytes, 0xf0f0);
+    appendRepeatedU16(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
 }
 
 std::vector<uint8_t> makeModernCromWithFrames()
@@ -313,6 +321,14 @@ void testFileReaderLoadsModernProject()
            "file reader SD dynamic color data");
     expect(result.snapshot.frames[0].dynamicData->colorsHd.front() == 0x4001,
            "file reader HD dynamic color data");
+    expect(result.snapshot.frames[0].dynamicData->shadowDirectionsSd.front() == 0x08,
+           "file reader SD dynamic shadow direction data");
+    expect(result.snapshot.frames[0].dynamicData->shadowColorsSd.front() == 0x0f0f,
+           "file reader SD dynamic shadow color data");
+    expect(result.snapshot.frames[0].dynamicData->shadowDirectionsHd.front() == 0x20,
+           "file reader HD dynamic shadow direction data");
+    expect(result.snapshot.frames[0].dynamicData->shadowColorsHd.front() == 0xf0f0,
+           "file reader HD dynamic shadow color data");
     expect(result.snapshot.sprites.size() == kSpriteCount,
            "file reader sprite count");
     expect(result.snapshot.sprites[0].hasHd,
@@ -415,6 +431,10 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] = 6;
     loadResult.snapshot.frames[0].dynamicData->colorsSd[10] = 0x7777;
     loadResult.snapshot.frames[0].dynamicData->colorsHd[11] = 0x8888;
+    loadResult.snapshot.frames[0].dynamicData->shadowDirectionsSd[2] = 0x04;
+    loadResult.snapshot.frames[0].dynamicData->shadowColorsSd[2] = 0x9990;
+    loadResult.snapshot.frames[0].dynamicData->shadowDirectionsHd[3] = 0x40;
+    loadResult.snapshot.frames[0].dynamicData->shadowColorsHd[3] = 0x9991;
     loadResult.snapshot.sprites[0].hasHd = false;
     loadResult.snapshot.sprites[0].name = "Renamed sprite";
     loadResult.snapshot.sprites[0].originalSd.pixels[16] = 11;
@@ -471,6 +491,14 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update SD dynamic color sets");
     expect(reloadResult.snapshot.frames[0].dynamicData->colorsHd[11] == 0x8888,
            "file writer should update HD dynamic color sets");
+    expect(reloadResult.snapshot.frames[0].dynamicData->shadowDirectionsSd[2] == 0x04,
+           "file writer should update SD dynamic shadow directions");
+    expect(reloadResult.snapshot.frames[0].dynamicData->shadowColorsSd[2] == 0x9990,
+           "file writer should update SD dynamic shadow colors");
+    expect(reloadResult.snapshot.frames[0].dynamicData->shadowDirectionsHd[3] == 0x40,
+           "file writer should update HD dynamic shadow directions");
+    expect(reloadResult.snapshot.frames[0].dynamicData->shadowColorsHd[3] == 0x9991,
+           "file writer should update HD dynamic shadow colors");
     expect(!reloadResult.snapshot.sprites[0].hasHd,
            "file writer should update sprite HD flag");
     expect(reloadResult.snapshot.sprites[0].name == "Renamed sprite",

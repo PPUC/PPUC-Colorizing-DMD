@@ -123,6 +123,14 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendRepeatedU8(bytes, 2, kSdPixels);
     appendRepeatedU8(bytes, 0, kHdPixels);
     appendRepeatedU8(bytes, 3, kHdPixels);
+    bytes.push_back(0x08);
+    appendRepeatedU8(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
+    appendU16(bytes, 0x0f0f);
+    appendRepeatedU16(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
+    bytes.push_back(0x20);
+    appendRepeatedU8(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
+    appendU16(bytes, 0xf0f0);
+    appendRepeatedU16(bytes, 0, 2 * kDynamicSetsPerFrame - 1);
 }
 
 std::vector<uint8_t> makeModernCromWithFrames(uint32_t comparisonMaskCount = 1)
@@ -224,6 +232,14 @@ void testModernFrameArraysParse()
            "first SD dynamic color set value");
     expect(result.frameData.dynamicFrames[0].colorsHd.front() == 0x4001,
            "first HD dynamic color set value");
+    expect(result.frameData.dynamicFrames[0].shadowDirectionsSd.front() == 0x08,
+           "first SD dynamic shadow direction value");
+    expect(result.frameData.dynamicFrames[0].shadowColorsSd.front() == 0x0f0f,
+           "first SD dynamic shadow color value");
+    expect(result.frameData.dynamicFrames[0].shadowDirectionsHd.front() == 0x20,
+           "first HD dynamic shadow direction value");
+    expect(result.frameData.dynamicFrames[0].shadowColorsHd.front() == 0xf0f0,
+           "first HD dynamic shadow color value");
     expect(result.frameData.sprites.size() == kSpriteCount, "sprite count");
     expect(result.frameData.sprites[0].hasHd, "sprite HD flag");
     expect(result.frameData.sprites[0].originalSd.pixels.front() == 9,

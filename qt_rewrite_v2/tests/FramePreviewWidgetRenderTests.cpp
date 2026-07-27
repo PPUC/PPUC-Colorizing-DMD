@@ -223,6 +223,42 @@ colorizing::document::ProjectDocument makeDynamicOverBackgroundDocument()
     return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
 }
 
+colorizing::document::ProjectDocument makeDynamicShadowDocument()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.romName = "dynamic_shadow";
+
+    colorizing::document::IndexedFrame original =
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
+    original.pixels[5 * 128 + 5] = 1;
+    original.pixels[5 * 128 + 6] = 1;
+
+    colorizing::document::FrameDynamicData dynamicData{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        colorizing::document::makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    dynamicData.maskSd.pixels[5 * 128 + 5] = 2;
+    dynamicData.maskSd.pixels[5 * 128 + 6] = 2;
+    dynamicData.maskSd.pixels[6 * 128 + 5] = 2;
+    dynamicData.colorsSd[2 * 16 + 1] = 0xf800;
+    dynamicData.shadowDirectionsSd.assign(colorizing::document::kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowColorsSd.assign(colorizing::document::kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowDirectionsSd[2] = 0x08;
+    dynamicData.shadowColorsSd[2] = 0x07e0;
+
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        original,
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+        0,
+        255,
+        dynamicData,
+    });
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
 colorizing::document::ProjectDocument makeSpriteCompositionDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
@@ -868,6 +904,24 @@ void testDynamicDoesNotReplaceAppliedBackground()
            "HD non-background dynamic pixels should still use dynamic color set");
 }
 
+void testDynamicShadowsRender()
+{
+    const colorizing::document::ProjectDocument document = makeDynamicShadowDocument();
+    const colorizing::document::Rgb565Frame frame =
+        colorizing::app::composeResolvedFrame(document,
+                                              0,
+                                              colorizing::render::Resolution::Sd,
+                                              false);
+    expect(frame.pixels[5 * 128 + 5] == 0xf800,
+           "dynamic source pixel should render dynamic color");
+    expect(frame.pixels[5 * 128 + 6] == 0xf800,
+           "dynamic neighbor should not be overwritten by shadow");
+    expect(frame.pixels[5 * 128 + 7] == 0x07e0,
+           "dynamic shadow should render into non-dynamic neighbor");
+    expect(frame.pixels[6 * 128 + 6] == 0,
+           "dynamic pixels over black original should not cast shadows");
+}
+
 void testSpriteCompositionRendersInSdAndHd()
 {
     colorizing::document::ProjectDocument document = makeSpriteCompositionDocument();
@@ -1244,6 +1298,7 @@ int main(int argc, char* argv[])
     testBackgroundMaskOverlayRendersInSdAndHd();
     testBackgroundLayerRendersInSdAndHd();
     testDynamicDoesNotReplaceAppliedBackground();
+    testDynamicShadowsRender();
     testSpriteCompositionRendersInSdAndHd();
     testBackgroundImageEditModeRendersInSdAndHd();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();

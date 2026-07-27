@@ -348,6 +348,28 @@ void writeRgb565Values(std::vector<uint8_t>& bytes,
     }
 }
 
+void writeU8ValuesOrZeros(std::vector<uint8_t>& bytes,
+                          std::size_t offset,
+                          const std::vector<uint8_t>& values,
+                          std::size_t expectedCount)
+{
+    for (std::size_t index = 0; index < expectedCount; ++index) {
+        bytes[offset + index] = index < values.size() ? values[index] : uint8_t{0};
+    }
+}
+
+void writeRgb565ValuesOrZeros(std::vector<uint8_t>& bytes,
+                              std::size_t offset,
+                              const std::vector<uint16_t>& values,
+                              std::size_t expectedCount)
+{
+    for (std::size_t index = 0; index < expectedCount; ++index) {
+        writeU16(bytes,
+                 offset + index * sizeof(uint16_t),
+                 index < values.size() ? values[index] : uint16_t{0});
+    }
+}
+
 }  // namespace
 
 LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
@@ -424,6 +446,28 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
             cromFrames.frameData.dynamicColorsHdOffset +
             frameIndex * dynamicData.colorsHd.size() * sizeof(uint16_t);
         writeRgb565Values(bytes, hdColorsOffset, dynamicData.colorsHd);
+
+        const std::size_t shadowCount = document::kMaxDynamicSetsPerFrame;
+        writeU8ValuesOrZeros(bytes,
+                             cromFrames.frameData.dynamicShadowDirectionsSdOffset +
+                                 frameIndex * shadowCount,
+                             dynamicData.shadowDirectionsSd,
+                             shadowCount);
+        writeRgb565ValuesOrZeros(bytes,
+                                 cromFrames.frameData.dynamicShadowColorsSdOffset +
+                                     frameIndex * shadowCount * sizeof(uint16_t),
+                                 dynamicData.shadowColorsSd,
+                                 shadowCount);
+        writeU8ValuesOrZeros(bytes,
+                             cromFrames.frameData.dynamicShadowDirectionsHdOffset +
+                                 frameIndex * shadowCount,
+                             dynamicData.shadowDirectionsHd,
+                             shadowCount);
+        writeRgb565ValuesOrZeros(bytes,
+                                 cromFrames.frameData.dynamicShadowColorsHdOffset +
+                                     frameIndex * shadowCount * sizeof(uint16_t),
+                                 dynamicData.shadowColorsHd,
+                                 shadowCount);
     }
 
     const std::size_t spritePixels =

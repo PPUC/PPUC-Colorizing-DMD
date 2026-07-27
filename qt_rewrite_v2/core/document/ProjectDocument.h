@@ -40,6 +40,10 @@ struct FrameDynamicData {
     IndexedFrame maskHd;
     std::vector<uint16_t> colorsSd;
     std::vector<uint16_t> colorsHd;
+    std::vector<uint8_t> shadowDirectionsSd;
+    std::vector<uint16_t> shadowColorsSd;
+    std::vector<uint8_t> shadowDirectionsHd;
+    std::vector<uint16_t> shadowColorsHd;
 };
 
 struct BackgroundRecord {

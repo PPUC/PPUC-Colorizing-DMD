@@ -306,6 +306,13 @@ Rules:
 The current dynamic color editor is intentionally small. Broader palette tools are postponed until
 the palette UI is implemented.
 
+Dynamic shadows are loaded from and saved back to the legacy `.cROM` dynamic-shadow blocks. The
+canvas, thumbnails, and PNG export render shadows after dynamic-color replacement and before sprite
+composition. Shadow pixels are written only into neighboring pixels that are not themselves dynamic,
+matching the legacy renderer behavior.
+
+TODO: add Inspector controls for editing per-dynamic-set shadow directions and shadow colors.
+
 ## Sprites
 
 Existing sprite data is loaded into the document model and saved back through the legacy `.cROM`

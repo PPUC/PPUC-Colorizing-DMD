@@ -19,6 +19,12 @@ bool fail(std::string* errorMessage, const std::string& message)
     return false;
 }
 
+template <typename T>
+bool isEmptyOrSize(const std::vector<T>& values, std::size_t size)
+{
+    return values.empty() || values.size() == size;
+}
+
 }  // namespace
 
 bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorMessage)
@@ -104,6 +110,13 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             if (frame.dynamicData->colorsSd.empty() || frame.dynamicData->colorsHd.empty()) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                           " has invalid dynamic color data");
+            }
+            if (!isEmptyOrSize(frame.dynamicData->shadowDirectionsSd, kMaxDynamicSetsPerFrame) ||
+                !isEmptyOrSize(frame.dynamicData->shadowColorsSd, kMaxDynamicSetsPerFrame) ||
+                !isEmptyOrSize(frame.dynamicData->shadowDirectionsHd, kMaxDynamicSetsPerFrame) ||
+                !isEmptyOrSize(frame.dynamicData->shadowColorsHd, kMaxDynamicSetsPerFrame)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                          " has invalid dynamic shadow data");
             }
         }
         if (frame.backgroundData) {
