@@ -27,6 +27,7 @@ class QComboBox;
 class QCheckBox;
 class QLineEdit;
 class QSpinBox;
+class QTimer;
 
 namespace colorizing::app {
 
@@ -361,6 +362,9 @@ private:
     void updateMaskBrowserSelection();
     void updateBackgroundBrowserSelection();
     void updateSpriteBrowserSelection();
+    void updatePlaybackControls();
+    void setPlaybackRunning(bool running);
+    void advancePlaybackFrame();
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
     void updateDmdRenderOptions();
     void updateSpriteControls();
@@ -388,6 +392,8 @@ private:
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QToolButton* m_backgroundMaskOverlayButton = nullptr;
     QToolButton* m_backgroundLayerButton = nullptr;
+    QToolButton* m_playbackButton = nullptr;
+    QToolButton* m_loopPlaybackButton = nullptr;
     QToolButton* m_importFrameImageButton = nullptr;
     QToolButton* m_createHdFrameButton = nullptr;
     QToolButton* m_removeHdFrameButton = nullptr;
@@ -413,6 +419,7 @@ private:
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;
+    QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
     QSpinBox* m_spriteMinXSpinBox = nullptr;
     QSpinBox* m_spriteMinYSpinBox = nullptr;
@@ -447,6 +454,7 @@ private:
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
     SpriteEditorWidget* m_spriteEditor = nullptr;
+    QTimer* m_playbackTimer = nullptr;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;

@@ -67,6 +67,18 @@ Save behavior:
 
 Use copied projects for testing until broader project metadata editing and save coverage are implemented.
 
+## Playback
+
+The top toolbar contains editor-only playback controls:
+
+- `Play` advances through the currently visible frame list.
+- `Pause` stops playback.
+- `Loop` restarts at the first visible frame after the last visible frame.
+- The interval field controls the frame advance interval in milliseconds.
+
+Playback respects the current frame filter in the left `Frames` tab. It is a navigation and preview
+tool only; it does not save per-frame timing data to the project yet.
+
 ## Frame List
 
 The left frame list shows one thumbnail per loaded frame.

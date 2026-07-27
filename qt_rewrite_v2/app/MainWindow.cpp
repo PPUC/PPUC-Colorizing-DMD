@@ -42,6 +42,7 @@
 #include <QScrollArea>
 #include <QTabWidget>
 #include <QToolButton>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -718,6 +719,28 @@ void MainWindow::createCentralView()
     m_activeColorButton->setToolTip(QStringLiteral("Active draw color"));
     toolbarLayout->addWidget(m_activeColorButton);
     toolbarLayout->addSpacing(12);
+    m_playbackButton = new QToolButton(central);
+    m_playbackButton->setText(QStringLiteral("Play"));
+    m_playbackButton->setToolTip(QStringLiteral("Play visible frames"));
+    m_playbackButton->setCheckable(true);
+    m_playbackButton->setEnabled(false);
+    m_loopPlaybackButton = new QToolButton(central);
+    m_loopPlaybackButton->setText(QStringLiteral("Loop"));
+    m_loopPlaybackButton->setToolTip(QStringLiteral("Loop playback at the end of the visible frame list"));
+    m_loopPlaybackButton->setCheckable(true);
+    m_loopPlaybackButton->setChecked(true);
+    m_loopPlaybackButton->setEnabled(false);
+    m_playbackIntervalSpinBox = new QSpinBox(central);
+    m_playbackIntervalSpinBox->setRange(20, 5000);
+    m_playbackIntervalSpinBox->setSingleStep(10);
+    m_playbackIntervalSpinBox->setSuffix(QStringLiteral(" ms"));
+    m_playbackIntervalSpinBox->setValue(100);
+    m_playbackIntervalSpinBox->setToolTip(QStringLiteral("Playback frame interval"));
+    m_playbackIntervalSpinBox->setEnabled(false);
+    toolbarLayout->addWidget(m_playbackButton);
+    toolbarLayout->addWidget(m_loopPlaybackButton);
+    toolbarLayout->addWidget(m_playbackIntervalSpinBox);
+    toolbarLayout->addSpacing(12);
     toolbarLayout->addWidget(m_frameStatusLabel);
     toolbarLayout->addStretch(1);
     layout->addLayout(toolbarLayout);
@@ -1095,6 +1118,19 @@ void MainWindow::createCentralView()
             this,
             [this](int) {
                 updateDmdRenderOptions();
+            });
+    m_playbackTimer = new QTimer(this);
+    connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::advancePlaybackFrame);
+    connect(m_playbackButton, &QToolButton::toggled, this, [this](bool checked) {
+        setPlaybackRunning(checked);
+    });
+    connect(m_playbackIntervalSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int intervalMs) {
+                if (m_playbackTimer && m_playbackTimer->isActive()) {
+                    m_playbackTimer->setInterval(intervalMs);
+                }
             });
     connect(m_spriteComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -1748,6 +1784,7 @@ void MainWindow::refreshProjectSummary()
     m_activeResolution = render::Resolution::Sd;
     updateResolutionMode();
     if (!m_document) {
+        setPlaybackRunning(false);
         m_frameList->clear();
         refreshComponentBrowsers();
         if (m_frameFilterComboBox) {
@@ -1762,12 +1799,14 @@ void MainWindow::refreshProjectSummary()
         return;
     }
 
+    setPlaybackRunning(false);
     if (m_frameFilterComboBox) {
         m_frameFilterComboBox->setEnabled(true);
     }
     refreshFrameList(0);
     refreshComponentBrowsers();
     updateSpriteControls();
+    updatePlaybackControls();
     updateProjectHeaderStatus();
 }
 
@@ -1807,6 +1846,7 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
     } else {
         selectFrame(-1);
     }
+    updatePlaybackControls();
 }
 
 void MainWindow::refreshComponentBrowsers()
@@ -2034,6 +2074,7 @@ void MainWindow::selectFrame(int)
         clearSpriteCaptureSelection();
         updateFrameMetadataControls();
         updateSpriteControls();
+        updatePlaybackControls();
         return;
     }
     if (m_spriteCaptureSelectionFrameIndex &&
@@ -2055,6 +2096,71 @@ void MainWindow::selectFrame(int)
     updatePaintTargetMode();
     updateUndoRedoActions();
     updateSpriteCaptureSelectionOverlay();
+    updatePlaybackControls();
+}
+
+void MainWindow::updatePlaybackControls()
+{
+    const bool hasFrames = m_document && m_frameList && m_frameList->count() > 0;
+    const bool running = m_playbackTimer && m_playbackTimer->isActive();
+    if (m_playbackButton) {
+        QSignalBlocker blocker(m_playbackButton);
+        m_playbackButton->setEnabled(hasFrames);
+        m_playbackButton->setChecked(running);
+        m_playbackButton->setText(running ? QStringLiteral("Pause") : QStringLiteral("Play"));
+    }
+    if (m_loopPlaybackButton) {
+        m_loopPlaybackButton->setEnabled(hasFrames);
+    }
+    if (m_playbackIntervalSpinBox) {
+        m_playbackIntervalSpinBox->setEnabled(hasFrames);
+    }
+    if (!hasFrames && running) {
+        setPlaybackRunning(false);
+    }
+}
+
+void MainWindow::setPlaybackRunning(bool running)
+{
+    if (!m_playbackTimer || !m_playbackButton) {
+        return;
+    }
+    const bool canPlay = m_document && m_frameList && m_frameList->count() > 0;
+    if (!running || !canPlay) {
+        m_playbackTimer->stop();
+        updatePlaybackControls();
+        return;
+    }
+
+    applyPendingSpriteDependentViews();
+    if (m_spriteCanvasButton && m_spriteCanvasButton->isChecked()) {
+        QSignalBlocker blocker(m_spriteCanvasButton);
+        m_spriteCanvasButton->setChecked(false);
+    }
+    if (m_canvasStack && m_preview) {
+        m_canvasStack->setCurrentWidget(m_preview);
+    }
+    const int intervalMs = m_playbackIntervalSpinBox ? m_playbackIntervalSpinBox->value() : 100;
+    m_playbackTimer->start(intervalMs);
+    updatePlaybackControls();
+}
+
+void MainWindow::advancePlaybackFrame()
+{
+    if (!m_document || !m_frameList || m_frameList->count() == 0) {
+        setPlaybackRunning(false);
+        return;
+    }
+    int nextRow = m_frameList->currentRow() + 1;
+    if (nextRow >= m_frameList->count()) {
+        if (m_loopPlaybackButton && m_loopPlaybackButton->isChecked()) {
+            nextRow = 0;
+        } else {
+            setPlaybackRunning(false);
+            return;
+        }
+    }
+    m_frameList->setCurrentRow(nextRow);
 }
 
 void MainWindow::updateResolutionMode()
