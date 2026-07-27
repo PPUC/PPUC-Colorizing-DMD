@@ -95,8 +95,17 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendRepeatedU8(bytes, 10, kSpritePixels);
     appendRepeatedU16(bytes, 0x8001, kSpritePixels);
     appendRepeatedU8(bytes, 1, 2);
-    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
-    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendU16(bytes, 3);
+    appendU16(bytes, 40);
+    appendU16(bytes, 0x1111);
+    appendU16(bytes, 0x2222);
+    appendU16(bytes, 0x3333);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength - 5);
+    appendU16(bytes, 2);
+    appendU16(bytes, 80);
+    appendU16(bytes, 0x4444);
+    appendU16(bytes, 0x5555);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength - 4);
     appendU32(bytes, 0x12345678);
     appendRepeatedU32(bytes, 0xffffffff, kMaxSpriteDetectAreas - 1);
     appendU16(bytes, 12);
@@ -250,6 +259,18 @@ void testModernFrameArraysParse()
            "HD sprite mask value");
     expect(result.frameData.sprites[0].colorizedHd.pixels.front() == 0x8001,
            "HD sprite color value");
+    expect(result.frameData.colorRotationsSd[0][0] == 3,
+           "first SD color rotation length");
+    expect(result.frameData.colorRotationsSd[0][1] == 40,
+           "first SD color rotation delay");
+    expect(result.frameData.colorRotationsSd[0][2] == 0x1111,
+           "first SD color rotation color");
+    expect(result.frameData.colorRotationsHd[0][0] == 2,
+           "first HD color rotation length");
+    expect(result.frameData.colorRotationsHd[0][1] == 80,
+           "first HD color rotation delay");
+    expect(result.frameData.colorRotationsHd[0][3] == 0x5555,
+           "first HD color rotation color");
     expect(result.frameData.sprites[0].detectionDwords[0] == 0x12345678,
            "sprite detection dword value");
     expect(result.frameData.sprites[0].detectionDwordPositions[0] == 12,

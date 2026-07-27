@@ -21,6 +21,8 @@ using colorizing::document::FrameSpriteReference;
 using colorizing::document::SpriteRecord;
 using colorizing::document::UnsupportedLegacyPayload;
 using colorizing::document::isValidProjectSnapshot;
+using colorizing::document::kMaxColorRotationLength;
+using colorizing::document::kMaxColorRotations;
 using colorizing::document::kMaxDynamicSetsPerFrame;
 using colorizing::document::makeIndexedFrame;
 using colorizing::document::makeRgb565Frame;
@@ -452,6 +454,56 @@ void testFrameDurationEditing()
     expectThrows<std::out_of_range>(
         [&]() { document.setFrameDurationMs(1, 0); },
         "frame duration frame bounds");
+}
+
+void testColorRotationEditing()
+{
+    ProjectDocument document =
+        ProjectDocument::createEmpty(ProjectCreateOptions{"rotation_edit", 1, true});
+    document.markClean();
+
+    expect(document.colorRotations(0, Resolution::Sd).size() ==
+               kMaxColorRotations * kMaxColorRotationLength,
+           "new SD color rotations should have fixed storage");
+    expect(document.colorRotationLength(0, Resolution::Sd, 0) == 0,
+           "new color rotation length should default to zero");
+
+    document.setColorRotationLength(0, Resolution::Sd, 0, 3);
+    document.setColorRotationDelayMs(0, Resolution::Sd, 0, 40);
+    document.setColorRotationColor(0, Resolution::Sd, 0, 0, 0x1111);
+    document.setColorRotationColor(0, Resolution::Hd, 1, 0, 0x2222);
+    expect(document.colorRotationLength(0, Resolution::Sd, 0) == 3,
+           "color rotation length edit should be readable");
+    expect(document.colorRotationDelayMs(0, Resolution::Sd, 0) == 40,
+           "color rotation delay edit should be readable");
+    expect(document.colorRotationColor(0, Resolution::Sd, 0, 0) == 0x1111,
+           "SD color rotation color edit should be readable");
+    expect(document.colorRotationColor(0, Resolution::Hd, 1, 0) == 0x2222,
+           "HD color rotation color edit should be readable");
+    expect(document.isDirty(), "color rotation edit should mark dirty");
+
+    document.markClean();
+    document.setColorRotationDelayMs(0, Resolution::Sd, 0, 40);
+    expect(!document.isDirty(), "identical color rotation edit should not mark dirty");
+
+    document.clearColorRotationSlot(0, Resolution::Sd, 0);
+    expect(document.colorRotationLength(0, Resolution::Sd, 0) == 0,
+           "clearing color rotation slot should clear length");
+    expect(document.colorRotationColor(0, Resolution::Sd, 0, 0) == 0,
+           "clearing color rotation slot should clear colors");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setColorRotationLength(0, Resolution::Sd, 0, 63); },
+        "color rotation length bounds");
+    expectThrows<std::out_of_range>(
+        [&]() {
+            const uint16_t delayMs = document.colorRotationDelayMs(0, Resolution::Sd, 4);
+            (void)delayMs;
+        },
+        "color rotation slot bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setColorRotationColor(0, Resolution::Sd, 0, 62, 0); },
+        "color rotation color bounds");
 }
 
 void testDynamicMaskPixelEditing()
@@ -1286,6 +1338,7 @@ void runProjectDocumentTests()
     testFrameComparisonMetadataEditing();
     testFrameTriggerIdEditing();
     testFrameDurationEditing();
+    testColorRotationEditing();
     testDynamicMaskPixelEditing();
     testDynamicShadowEditing();
     testBackgroundMetadataAndMaskEditing();

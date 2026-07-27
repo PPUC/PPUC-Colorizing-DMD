@@ -112,8 +112,17 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendRepeatedU8(bytes, 10, kSpritePixels);
     appendRepeatedU16(bytes, 0x8001, kSpritePixels);
     appendRepeatedU8(bytes, 1, 2);
-    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
-    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength);
+    appendU16(bytes, 3);
+    appendU16(bytes, 40);
+    appendU16(bytes, 0x1111);
+    appendU16(bytes, 0x2222);
+    appendU16(bytes, 0x3333);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength - 5);
+    appendU16(bytes, 2);
+    appendU16(bytes, 80);
+    appendU16(bytes, 0x4444);
+    appendU16(bytes, 0x5555);
+    appendRepeatedU16(bytes, 0, 2 * kMaxColorRotations * kMaxColorRotationLength - 4);
     appendU32(bytes, 0x12345678);
     appendRepeatedU32(bytes, 0xffffffff, kMaxSpriteDetectAreas - 1);
     appendU16(bytes, 12);
@@ -362,6 +371,14 @@ void testFileReaderLoadsModernProject()
            "file reader first trigger ID");
     expect(result.snapshot.frames[1].triggerId == 0x33334444,
            "file reader second trigger ID");
+    expect(result.snapshot.frames[0].colorRotationsSd[0] == 3,
+           "file reader SD color rotation length");
+    expect(result.snapshot.frames[0].colorRotationsSd[2] == 0x1111,
+           "file reader SD color rotation color");
+    expect(result.snapshot.frames[0].colorRotationsHd[1] == 80,
+           "file reader HD color rotation delay");
+    expect(result.snapshot.frames[0].colorRotationsHd[3] == 0x5555,
+           "file reader HD color rotation color");
     expect(result.snapshot.backgrounds.size() == 1,
            "file reader background count");
     expect(result.snapshot.backgrounds[0].colorizedSd.pixels.front() == 0x5001,
@@ -444,6 +461,13 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].dynamicData->shadowColorsSd[2] = 0x9990;
     loadResult.snapshot.frames[0].dynamicData->shadowDirectionsHd[3] = 0x40;
     loadResult.snapshot.frames[0].dynamicData->shadowColorsHd[3] = 0x9991;
+    loadResult.snapshot.frames[0].colorRotationsSd[0] = 2;
+    loadResult.snapshot.frames[0].colorRotationsSd[1] = 120;
+    loadResult.snapshot.frames[0].colorRotationsSd[2] = 0xabcd;
+    loadResult.snapshot.frames[0].colorRotationsSd[3] = 0xbcde;
+    loadResult.snapshot.frames[0].colorRotationsHd[0] = 1;
+    loadResult.snapshot.frames[0].colorRotationsHd[1] = 250;
+    loadResult.snapshot.frames[0].colorRotationsHd[2] = 0xcdef;
     loadResult.snapshot.sprites[0].hasHd = false;
     loadResult.snapshot.sprites[0].name = "Renamed sprite";
     loadResult.snapshot.sprites[0].originalSd.pixels[16] = 11;
@@ -510,6 +534,16 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update HD dynamic shadow directions");
     expect(reloadResult.snapshot.frames[0].dynamicData->shadowColorsHd[3] == 0x9991,
            "file writer should update HD dynamic shadow colors");
+    expect(reloadResult.snapshot.frames[0].colorRotationsSd[0] == 2,
+           "file writer should update SD color rotation length");
+    expect(reloadResult.snapshot.frames[0].colorRotationsSd[1] == 120,
+           "file writer should update SD color rotation delay");
+    expect(reloadResult.snapshot.frames[0].colorRotationsSd[3] == 0xbcde,
+           "file writer should update SD color rotation colors");
+    expect(reloadResult.snapshot.frames[0].colorRotationsHd[0] == 1,
+           "file writer should update HD color rotation length");
+    expect(reloadResult.snapshot.frames[0].colorRotationsHd[2] == 0xcdef,
+           "file writer should update HD color rotation colors");
     expect(!reloadResult.snapshot.sprites[0].hasHd,
            "file writer should update sprite HD flag");
     expect(reloadResult.snapshot.sprites[0].name == "Renamed sprite",

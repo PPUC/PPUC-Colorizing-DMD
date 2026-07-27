@@ -30,6 +30,8 @@ FrameRecord makeEmptyFrame(bool createHd)
     FrameRecord frame;
     frame.originalSd = makeIndexedFrame(render::kSdFrameSize);
     frame.colorizedSd = makeRgb565Frame(render::kSdFrameSize);
+    frame.colorRotationsSd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);
+    frame.colorRotationsHd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);
     if (createHd) {
         frame.colorizedHd = makeRgb565Frame(render::kHdFrameSize);
     }
@@ -50,6 +52,41 @@ const FrameRecord& requireFrame(const std::vector<FrameRecord>& frames, std::siz
         throw std::out_of_range("frame index out of range");
     }
     return frames[frameIndex];
+}
+
+std::vector<uint16_t> normalizedColorRotations(const std::vector<uint16_t>& rotations)
+{
+    if (rotations.empty()) {
+        return std::vector<uint16_t>(kMaxColorRotations * kMaxColorRotationLength, 0);
+    }
+    return rotations;
+}
+
+std::vector<uint16_t>& requireColorRotations(FrameRecord& frame, Resolution resolution)
+{
+    return resolution == Resolution::Hd ? frame.colorRotationsHd : frame.colorRotationsSd;
+}
+
+const std::vector<uint16_t>& requireColorRotations(const FrameRecord& frame,
+                                                   Resolution resolution)
+{
+    return resolution == Resolution::Hd ? frame.colorRotationsHd : frame.colorRotationsSd;
+}
+
+std::size_t colorRotationOffset(std::size_t slotIndex)
+{
+    if (slotIndex >= kMaxColorRotations) {
+        throw std::out_of_range("color rotation slot index out of range");
+    }
+    return slotIndex * kMaxColorRotationLength;
+}
+
+std::size_t colorRotationColorOffset(std::size_t slotIndex, std::size_t colorIndex)
+{
+    if (colorIndex >= kMaxColorRotationColors) {
+        throw std::out_of_range("color rotation color index out of range");
+    }
+    return colorRotationOffset(slotIndex) + 2 + colorIndex;
 }
 
 Rgb565Frame upscaleRgb565Frame2x(const Rgb565Frame& source)
@@ -328,6 +365,8 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.spriteReferences,
             frameSnapshot.triggerId,
             frameSnapshot.durationMs,
+            normalizedColorRotations(frameSnapshot.colorRotationsSd),
+            normalizedColorRotations(frameSnapshot.colorRotationsHd),
         });
     }
     document.m_comparisonMasks = snapshot.comparisonMasks;
@@ -507,6 +546,102 @@ void ProjectDocument::setFrameDurationMs(std::size_t frameIndex, uint32_t durati
         return;
     }
     frame.durationMs = durationMs;
+    m_dirty = true;
+}
+
+const std::vector<uint16_t>& ProjectDocument::colorRotations(std::size_t frameIndex,
+                                                             Resolution resolution) const
+{
+    return requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
+}
+
+uint16_t ProjectDocument::colorRotationLength(std::size_t frameIndex,
+                                              Resolution resolution,
+                                              std::size_t slotIndex) const
+{
+    const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
+    return rotations[colorRotationOffset(slotIndex)];
+}
+
+uint16_t ProjectDocument::colorRotationDelayMs(std::size_t frameIndex,
+                                               Resolution resolution,
+                                               std::size_t slotIndex) const
+{
+    const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
+    return rotations[colorRotationOffset(slotIndex) + 1];
+}
+
+uint16_t ProjectDocument::colorRotationColor(std::size_t frameIndex,
+                                             Resolution resolution,
+                                             std::size_t slotIndex,
+                                             std::size_t colorIndex) const
+{
+    const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
+    return rotations[colorRotationColorOffset(slotIndex, colorIndex)];
+}
+
+void ProjectDocument::setColorRotationLength(std::size_t frameIndex,
+                                             Resolution resolution,
+                                             std::size_t slotIndex,
+                                             uint16_t length)
+{
+    if (length > kMaxColorRotationColors) {
+        throw std::out_of_range("color rotation length out of range");
+    }
+    std::vector<uint16_t>& rotations =
+        requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t offset = colorRotationOffset(slotIndex);
+    if (rotations[offset] == length) {
+        return;
+    }
+    rotations[offset] = length;
+    m_dirty = true;
+}
+
+void ProjectDocument::setColorRotationDelayMs(std::size_t frameIndex,
+                                              Resolution resolution,
+                                              std::size_t slotIndex,
+                                              uint16_t delayMs)
+{
+    std::vector<uint16_t>& rotations =
+        requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t offset = colorRotationOffset(slotIndex) + 1;
+    if (rotations[offset] == delayMs) {
+        return;
+    }
+    rotations[offset] = delayMs;
+    m_dirty = true;
+}
+
+void ProjectDocument::setColorRotationColor(std::size_t frameIndex,
+                                            Resolution resolution,
+                                            std::size_t slotIndex,
+                                            std::size_t colorIndex,
+                                            uint16_t rgb565)
+{
+    std::vector<uint16_t>& rotations =
+        requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t offset = colorRotationColorOffset(slotIndex, colorIndex);
+    if (rotations[offset] == rgb565) {
+        return;
+    }
+    rotations[offset] = rgb565;
+    m_dirty = true;
+}
+
+void ProjectDocument::clearColorRotationSlot(std::size_t frameIndex,
+                                             Resolution resolution,
+                                             std::size_t slotIndex)
+{
+    std::vector<uint16_t>& rotations =
+        requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
+    const std::size_t offset = colorRotationOffset(slotIndex);
+    const auto begin = rotations.begin() + static_cast<std::ptrdiff_t>(offset);
+    const auto end = begin + static_cast<std::ptrdiff_t>(kMaxColorRotationLength);
+    if (std::all_of(begin, end, [](uint16_t value) { return value == 0; })) {
+        return;
+    }
+    std::fill(begin, end, uint16_t{0});
     m_dirty = true;
 }
 
@@ -1404,6 +1539,8 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.spriteReferences,
             frame.triggerId,
             frame.durationMs,
+            frame.colorRotationsSd,
+            frame.colorRotationsHd,
         });
     }
     snapshot.comparisonMasks = m_comparisonMasks;

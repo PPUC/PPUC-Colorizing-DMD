@@ -251,6 +251,8 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
     const std::size_t dynamicColorCount =
         document::kMaxDynamicSetsPerFrame *
         static_cast<std::size_t>(frameData.metadata.colorCount);
+    const std::size_t colorRotationValueCount =
+        document::kMaxColorRotations * document::kMaxColorRotationLength;
     for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
         if (!validateFrameShape(frame.colorizedSd, sdSize, "SD colorized", errorMessage)) {
             return false;
@@ -275,6 +277,13 @@ bool validateSnapshotAgainstTemplate(const document::ProjectSnapshot& snapshot,
                 errorMessage = "dynamic color set dimensions do not match existing cROM";
                 return false;
             }
+        }
+        if ((!frame.colorRotationsSd.empty() &&
+             frame.colorRotationsSd.size() != colorRotationValueCount) ||
+            (!frame.colorRotationsHd.empty() &&
+             frame.colorRotationsHd.size() != colorRotationValueCount)) {
+            errorMessage = "color rotation dimensions do not match existing cROM";
+            return false;
         }
         if (!frame.backgroundData) {
             errorMessage = "snapshot frame is missing background data";
@@ -417,6 +426,8 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
 
     std::vector<uint8_t> bytes = cromFile.bytes;
     const std::size_t frameCount = snapshot.frames.size();
+    const std::size_t colorRotationValueCount =
+        document::kMaxColorRotations * document::kMaxColorRotationLength;
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         bytes[cromFrames.frameData.shapeComparisonModesOffset + frameIndex] =
             snapshot.frames[frameIndex].shapeComparisonMode;
@@ -541,6 +552,19 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
             writeU16(bytes, areaOffset + 2 * sizeof(uint16_t), area.width);
             writeU16(bytes, areaOffset + 3 * sizeof(uint16_t), area.height);
         }
+    }
+
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        writeRgb565ValuesOrZeros(bytes,
+                                 cromFrames.frameData.colorRotationsSdOffset +
+                                     frameIndex * colorRotationValueCount * sizeof(uint16_t),
+                                 snapshot.frames[frameIndex].colorRotationsSd,
+                                 colorRotationValueCount);
+        writeRgb565ValuesOrZeros(bytes,
+                                 cromFrames.frameData.colorRotationsHdOffset +
+                                     frameIndex * colorRotationValueCount * sizeof(uint16_t),
+                                 snapshot.frames[frameIndex].colorRotationsHd,
+                                 colorRotationValueCount);
     }
 
     for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {

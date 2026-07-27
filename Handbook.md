@@ -23,6 +23,7 @@ It also carries structured dynamic-mask data from `.cROM`:
 
 - Per-frame SD and HD dynamic mask bitmaps.
 - Per-frame SD and HD dynamic color sets.
+- Per-frame SD and HD color rotation slots.
 
 It also carries structured background data from `.cROM`:
 
@@ -147,6 +148,7 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 - `Mask` contains comparison-mask assignment, comparison mode, and a shortcut into mask editing.
 - `Background` contains the selected background ID, assignment, and edit shortcut.
 - `Dynamic` contains the dynamic set selector and dynamic color swatches.
+- `Rotation` contains color rotation slots for the current frame and active SD/HD mode.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
 
 The `Frame` topic exposes:
@@ -338,6 +340,24 @@ The Inspector's `Dynamic` topic provides shadow controls for the active dynamic 
 - `Shadow Color` opens a color picker for the active set's shadow color.
 - Shadow edits apply to all selected frames that have dynamic data in the active SD/HD mode.
 
+## Color Rotations
+
+Modern `.cROM` projects store four color-rotation slots per frame and per SD/HD resolution. Each
+slot contains a length, a delay in milliseconds, and up to 62 RGB565 colors.
+
+The Inspector's `Rotation` topic edits the active frame's rotation slots for the current SD/HD mode:
+
+- `Slot` selects one of the four rotation slots.
+- `Length` sets the number of active colors in that slot. A length of `0` disables the slot.
+- `Delay` sets the milliseconds between rotation steps.
+- The color grid shows all colors in the selected slot at once. Active colors can be clicked to
+  open a color picker; colors outside the active length remain visible but disabled.
+- `Clear Slot` resets the selected slot to all zeros.
+
+Length, delay, grid color edits, and clear operations apply to all selected frames. Rotation data is
+loaded from and saved back to `.cROM`. The current canvas and playback do not apply rotations yet;
+runtime-accurate rotation preview remains blocked on the palette/runtime preview work.
+
 ## Sprites
 
 Existing sprite data is loaded into the document model and saved back through the legacy `.cROM`
@@ -435,7 +455,7 @@ must not change the loaded cROM format.
 Known feature gaps that affect first-release completeness:
 
 - Palette editing, including palette import/export, color-set management, and gradient definitions.
-- Color rotations loaded from legacy project data and used by complete playback preview.
+- Color rotations applied by complete playback preview.
 - Directional gradient fills for frame, mask, sprite, dynamic, and background editing surfaces.
 - Filling with palette gradients while respecting the active tool shape and direction.
 - Playback that applies palette rotations in the same order as libserum/runtime rendering.

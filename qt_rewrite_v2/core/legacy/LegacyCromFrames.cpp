@@ -362,16 +362,33 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         }
     }
 
-    if (!skipRequired(cursor, frameCount, "active frame flags", error) ||
-        !skipRequired(cursor,
-                      frameCount * kMaxColorRotations * kMaxColorRotationLength * kRgb565Bytes,
-                      "SD color rotations",
-                      error) ||
-        !skipRequired(cursor,
-                      frameCount * kMaxColorRotations * kMaxColorRotationLength * kRgb565Bytes,
-                      "HD color rotations",
-                      error)) {
+    frameData.activeFrameFlagsOffset = cursor.offset();
+    if (!skipRequired(cursor, frameCount, "active frame flags", error)) {
         return fail(error);
+    }
+
+    const std::size_t colorRotationValueCount =
+        kMaxColorRotations * kMaxColorRotationLength;
+    frameData.colorRotationsSd.assign(frameCount, std::vector<uint16_t>(colorRotationValueCount));
+    frameData.colorRotationsSdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        if (!readRgb565Values(cursor,
+                              frameData.colorRotationsSd[frameIndex],
+                              "SD color rotations",
+                              error)) {
+            return fail(error);
+        }
+    }
+
+    frameData.colorRotationsHd.assign(frameCount, std::vector<uint16_t>(colorRotationValueCount));
+    frameData.colorRotationsHdOffset = cursor.offset();
+    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+        if (!readRgb565Values(cursor,
+                              frameData.colorRotationsHd[frameIndex],
+                              "HD color rotations",
+                              error)) {
+            return fail(error);
+        }
     }
 
     frameData.spriteDetectionDwordsOffset = cursor.offset();

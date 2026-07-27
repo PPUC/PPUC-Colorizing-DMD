@@ -46,6 +46,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "ColorGridWidget.h"
 #include "DrawingGeometry.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
@@ -496,6 +497,32 @@ void MainWindow::createCentralView()
     m_frameDurationSpinBox->setSingleStep(10);
     m_frameDurationSpinBox->setSuffix(QStringLiteral(" ms"));
     m_frameDurationSpinBox->setEnabled(false);
+    m_colorRotationSlotComboBox = new QComboBox(central);
+    m_colorRotationSlotComboBox->setToolTip(QStringLiteral("Color rotation slot for the active SD/HD mode"));
+    for (std::size_t slotIndex = 0; slotIndex < document::kMaxColorRotations; ++slotIndex) {
+        m_colorRotationSlotComboBox->addItem(QStringLiteral("Slot %1").arg(static_cast<int>(slotIndex)),
+                                             static_cast<int>(slotIndex));
+    }
+    m_colorRotationSlotComboBox->setEnabled(false);
+    m_colorRotationLengthSpinBox = new QSpinBox(central);
+    m_colorRotationLengthSpinBox->setToolTip(QStringLiteral("Number of colors in this rotation"));
+    m_colorRotationLengthSpinBox->setRange(0, static_cast<int>(document::kMaxColorRotationColors));
+    m_colorRotationLengthSpinBox->setEnabled(false);
+    m_colorRotationDelaySpinBox = new QSpinBox(central);
+    m_colorRotationDelaySpinBox->setToolTip(QStringLiteral("Delay between rotation steps"));
+    m_colorRotationDelaySpinBox->setRange(0, 2048);
+    m_colorRotationDelaySpinBox->setSingleStep(10);
+    m_colorRotationDelaySpinBox->setSuffix(QStringLiteral(" ms"));
+    m_colorRotationDelaySpinBox->setEnabled(false);
+    m_colorRotationGrid = new ColorGridWidget(document::kMaxColorRotationColors, 8, central);
+    m_colorRotationGrid->setToolTip(QStringLiteral("Colors in the selected rotation"));
+    m_colorRotationGrid->setColorClickedHandler([this](std::size_t colorIndex) {
+        editCurrentColorRotationColor(colorIndex);
+    });
+    m_clearColorRotationSlotButton = new QToolButton(central);
+    m_clearColorRotationSlotButton->setText(QStringLiteral("Clear Slot"));
+    m_clearColorRotationSlotButton->setToolTip(QStringLiteral("Clear the selected color rotation slot"));
+    m_clearColorRotationSlotButton->setEnabled(false);
     m_switchToMonochromeCheckBox = new QCheckBox(QStringLiteral("Switch mono"), central);
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
@@ -911,6 +938,19 @@ void MainWindow::createCentralView()
     dynamicPageLayout->addStretch(1);
     inspectorTabs->addTab(dynamicPage, QStringLiteral("Dynamic"));
 
+    auto* rotationPage = new QWidget(inspectorTabs);
+    auto* rotationPageLayout = new QVBoxLayout(rotationPage);
+    rotationPageLayout->setContentsMargins(6, 6, 6, 6);
+    auto* rotationForm = new QFormLayout();
+    rotationForm->addRow(QStringLiteral("Slot"), m_colorRotationSlotComboBox);
+    rotationForm->addRow(QStringLiteral("Length"), m_colorRotationLengthSpinBox);
+    rotationForm->addRow(QStringLiteral("Delay"), m_colorRotationDelaySpinBox);
+    rotationPageLayout->addLayout(rotationForm);
+    rotationPageLayout->addWidget(m_colorRotationGrid);
+    rotationPageLayout->addWidget(m_clearColorRotationSlotButton);
+    rotationPageLayout->addStretch(1);
+    inspectorTabs->addTab(rotationPage, QStringLiteral("Rotation"));
+
     auto* spritePage = new QWidget(inspectorTabs);
     auto* spritePageLayout = new QVBoxLayout(spritePage);
     spritePageLayout->setContentsMargins(6, 6, 6, 6);
@@ -1280,6 +1320,28 @@ void MainWindow::createCentralView()
             [this](int durationMs) {
                 setCurrentFrameDurationMs(durationMs);
             });
+    connect(m_colorRotationSlotComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updateColorRotationControls();
+            });
+    connect(m_colorRotationLengthSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int length) {
+                setCurrentColorRotationLength(length);
+            });
+    connect(m_colorRotationDelaySpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int delayMs) {
+                setCurrentColorRotationDelayMs(delayMs);
+            });
+    connect(m_clearColorRotationSlotButton,
+            &QToolButton::clicked,
+            this,
+            &MainWindow::clearCurrentColorRotationSlot);
     connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
         setCurrentFrameSwitchToMonochrome(checked);
     });
@@ -2158,6 +2220,7 @@ void MainWindow::selectFrame(int)
                                     ? QStringLiteral(" | %1 selected").arg(selectedCount)
                                     : QString()));
     updateFrameMetadataControls();
+    updateColorRotationControls();
     updateSpriteControls();
     updatePaintTargetMode();
     updateUndoRedoActions();
@@ -2279,6 +2342,7 @@ void MainWindow::updateResolutionMode()
         m_spriteEditor->setActiveResolution(m_activeResolution);
     }
     updateDynamicColorControls();
+    updateColorRotationControls();
     updateSpriteControls();
     updateBackgroundControls();
     refreshComponentBrowsers();
@@ -4221,6 +4285,207 @@ void MainWindow::editDynamicShadowColor()
                                  2500);
     } catch (const std::exception& ex) {
         updateDynamicShadowControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::updateColorRotationControls()
+{
+    if (!m_colorRotationSlotComboBox || !m_colorRotationLengthSpinBox ||
+        !m_colorRotationDelaySpinBox || !m_colorRotationGrid ||
+        !m_clearColorRotationSlotButton) {
+        return;
+    }
+
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    const bool hasFrame = m_document && frameIndex.has_value();
+    QSignalBlocker slotBlocker(m_colorRotationSlotComboBox);
+    QSignalBlocker lengthBlocker(m_colorRotationLengthSpinBox);
+    QSignalBlocker delayBlocker(m_colorRotationDelaySpinBox);
+
+    m_colorRotationSlotComboBox->setEnabled(hasFrame);
+    m_colorRotationLengthSpinBox->setEnabled(hasFrame);
+    m_colorRotationDelaySpinBox->setEnabled(hasFrame);
+    m_clearColorRotationSlotButton->setEnabled(hasFrame);
+    if (!hasFrame) {
+        m_colorRotationLengthSpinBox->setValue(0);
+        m_colorRotationDelaySpinBox->setValue(0);
+        m_colorRotationGrid->setColors({}, 0);
+        return;
+    }
+
+    const std::size_t slotIndex = static_cast<std::size_t>(
+        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
+    const uint16_t length =
+        m_document->colorRotationLength(*frameIndex, m_activeResolution, slotIndex);
+    const uint16_t delayMs =
+        m_document->colorRotationDelayMs(*frameIndex, m_activeResolution, slotIndex);
+    m_colorRotationLengthSpinBox->setValue(static_cast<int>(length));
+    m_colorRotationDelaySpinBox->setValue(static_cast<int>(delayMs));
+
+    const std::vector<uint16_t>& rotations =
+        m_document->colorRotations(*frameIndex, m_activeResolution);
+    const std::size_t slotOffset = slotIndex * document::kMaxColorRotationLength + 2;
+    std::vector<uint16_t> colors(document::kMaxColorRotationColors, 0);
+    for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {
+        colors[colorIndex] = rotations[slotOffset + colorIndex];
+    }
+    m_colorRotationGrid->setColors(colors, length);
+}
+
+void MainWindow::setCurrentColorRotationLength(int length)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || !m_colorRotationSlotComboBox) {
+        return;
+    }
+
+    const std::size_t slotIndex = static_cast<std::size_t>(
+        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
+    const uint16_t storedLength = static_cast<uint16_t>(
+        std::clamp(length, 0, static_cast<int>(document::kMaxColorRotationColors)));
+    const bool wasDirty = m_document->isDirty();
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->setColorRotationLength(frameIndex,
+                                               m_activeResolution,
+                                               slotIndex,
+                                               storedLength);
+        }
+        updateColorRotationControls();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Set rotation length %1 on %2 frame(s)")
+                .arg(storedLength)
+                .arg(static_cast<int>(frameIndices.size())),
+            2000);
+    } catch (const std::exception& ex) {
+        updateColorRotationControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentColorRotationDelayMs(int delayMs)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || !m_colorRotationSlotComboBox) {
+        return;
+    }
+
+    const std::size_t slotIndex = static_cast<std::size_t>(
+        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
+    const uint16_t storedDelayMs =
+        static_cast<uint16_t>(std::clamp(delayMs, 0, 2048));
+    const bool wasDirty = m_document->isDirty();
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->setColorRotationDelayMs(frameIndex,
+                                                m_activeResolution,
+                                                slotIndex,
+                                                storedDelayMs);
+        }
+        updateColorRotationControls();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Set rotation delay %1 ms on %2 frame(s)")
+                .arg(storedDelayMs)
+                .arg(static_cast<int>(frameIndices.size())),
+            2000);
+    } catch (const std::exception& ex) {
+        updateColorRotationControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::editCurrentColorRotationColor(std::size_t colorIndex)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || frameIndices.empty() ||
+        !m_colorRotationSlotComboBox) {
+        return;
+    }
+
+    const std::size_t slotIndex = static_cast<std::size_t>(
+        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
+    const uint16_t length =
+        m_document->colorRotationLength(*frameIndex, m_activeResolution, slotIndex);
+    if (length == 0 || colorIndex >= length) {
+        updateColorRotationControls();
+        return;
+    }
+
+    const uint16_t oldColor =
+        m_document->colorRotationColor(*frameIndex, m_activeResolution, slotIndex, colorIndex);
+    const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldColor),
+                                                   this,
+                                                   QStringLiteral("Color Rotation Color"));
+    if (!newColor.isValid()) {
+        return;
+    }
+    const uint16_t newRgb565 = colorToRgb565(newColor);
+    if (newRgb565 == oldColor) {
+        return;
+    }
+
+    const bool wasDirty = m_document->isDirty();
+    try {
+        for (std::size_t selectedFrameIndex : frameIndices) {
+            const uint16_t selectedLength =
+                m_document->colorRotationLength(selectedFrameIndex,
+                                                m_activeResolution,
+                                                slotIndex);
+            if (selectedLength > colorIndex) {
+                m_document->setColorRotationColor(selectedFrameIndex,
+                                                  m_activeResolution,
+                                                  slotIndex,
+                                                  colorIndex,
+                                                  newRgb565);
+            }
+        }
+        updateColorRotationControls();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Updated rotation color on %1 frame(s)")
+                .arg(static_cast<int>(frameIndices.size())),
+            2000);
+    } catch (const std::exception& ex) {
+        updateColorRotationControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::clearCurrentColorRotationSlot()
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || !m_colorRotationSlotComboBox) {
+        return;
+    }
+
+    const std::size_t slotIndex = static_cast<std::size_t>(
+        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
+    const bool wasDirty = m_document->isDirty();
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->clearColorRotationSlot(frameIndex, m_activeResolution, slotIndex);
+        }
+        updateColorRotationControls();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Cleared rotation slot %1 on %2 frame(s)")
+                .arg(static_cast<int>(slotIndex))
+                .arg(static_cast<int>(frameIndices.size())),
+            2000);
+    } catch (const std::exception& ex) {
+        updateColorRotationControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }

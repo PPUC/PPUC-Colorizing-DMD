@@ -12,6 +12,7 @@
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
+class ColorGridWidget;
 class FramePreviewWidget;
 class SpriteEditorWidget;
 }
@@ -259,6 +260,11 @@ private:
     void editDynamicColor(std::size_t originalColorIndex);
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
     void editDynamicShadowColor();
+    void updateColorRotationControls();
+    void setCurrentColorRotationLength(int length);
+    void setCurrentColorRotationDelayMs(int delayMs);
+    void editCurrentColorRotationColor(std::size_t colorIndex);
+    void clearCurrentColorRotationSlot();
     void pickDynamicSet(const render::CanvasHit& hit);
     void paintSpriteColorizedPixel(std::size_t spriteIndex,
                                    render::Resolution resolution,
@@ -425,6 +431,8 @@ private:
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;
     QSpinBox* m_frameDurationSpinBox = nullptr;
+    QSpinBox* m_colorRotationLengthSpinBox = nullptr;
+    QSpinBox* m_colorRotationDelaySpinBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
     QSpinBox* m_spriteMinXSpinBox = nullptr;
@@ -438,6 +446,7 @@ private:
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
+    QComboBox* m_colorRotationSlotComboBox = nullptr;
     QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
@@ -456,6 +465,8 @@ private:
     std::vector<QToolButton*> m_dynamicColorButtons;
     std::vector<QToolButton*> m_dynamicShadowDirectionButtons;
     QToolButton* m_dynamicShadowColorButton = nullptr;
+    QToolButton* m_clearColorRotationSlotButton = nullptr;
+    ColorGridWidget* m_colorRotationGrid = nullptr;
     QToolButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;

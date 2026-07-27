@@ -34,6 +34,9 @@ constexpr std::size_t kMaxSpritesPerFrame = 32;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
 constexpr std::size_t kMaxSpriteDetectAreas = 4;
+constexpr std::size_t kMaxColorRotations = 4;
+constexpr std::size_t kMaxColorRotationLength = 64;
+constexpr std::size_t kMaxColorRotationColors = kMaxColorRotationLength - 2;
 
 struct FrameDynamicData {
     IndexedFrame maskSd;
@@ -95,6 +98,8 @@ struct FrameRecord {
     std::vector<FrameSpriteReference> spriteReferences;
     uint32_t triggerId = 0;
     uint32_t durationMs = 0;
+    std::vector<uint16_t> colorRotationsSd;
+    std::vector<uint16_t> colorRotationsHd;
 };
 
 struct UnsupportedLegacyPayload {
@@ -140,6 +145,34 @@ public:
     void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
     [[nodiscard]] uint32_t frameDurationMs(std::size_t frameIndex) const;
     void setFrameDurationMs(std::size_t frameIndex, uint32_t durationMs);
+    [[nodiscard]] const std::vector<uint16_t>& colorRotations(std::size_t frameIndex,
+                                                              Resolution resolution) const;
+    [[nodiscard]] uint16_t colorRotationLength(std::size_t frameIndex,
+                                               Resolution resolution,
+                                               std::size_t slotIndex) const;
+    [[nodiscard]] uint16_t colorRotationDelayMs(std::size_t frameIndex,
+                                                Resolution resolution,
+                                                std::size_t slotIndex) const;
+    [[nodiscard]] uint16_t colorRotationColor(std::size_t frameIndex,
+                                              Resolution resolution,
+                                              std::size_t slotIndex,
+                                              std::size_t colorIndex) const;
+    void setColorRotationLength(std::size_t frameIndex,
+                                Resolution resolution,
+                                std::size_t slotIndex,
+                                uint16_t length);
+    void setColorRotationDelayMs(std::size_t frameIndex,
+                                 Resolution resolution,
+                                 std::size_t slotIndex,
+                                 uint16_t delayMs);
+    void setColorRotationColor(std::size_t frameIndex,
+                               Resolution resolution,
+                               std::size_t slotIndex,
+                               std::size_t colorIndex,
+                               uint16_t rgb565);
+    void clearColorRotationSlot(std::size_t frameIndex,
+                                Resolution resolution,
+                                std::size_t slotIndex);
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;

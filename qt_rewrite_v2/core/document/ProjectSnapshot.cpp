@@ -136,6 +136,14 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             return fail(errorMessage, "frame " + std::to_string(i) +
                                           " has invalid sprite reference data");
         }
+        const std::size_t rotationValueCount = kMaxColorRotations * kMaxColorRotationLength;
+        if ((!frame.colorRotationsSd.empty() &&
+             frame.colorRotationsSd.size() != rotationValueCount) ||
+            (!frame.colorRotationsHd.empty() &&
+             frame.colorRotationsHd.size() != rotationValueCount)) {
+            return fail(errorMessage, "frame " + std::to_string(i) +
+                                          " has invalid color rotation data");
+        }
     }
 
     return true;
