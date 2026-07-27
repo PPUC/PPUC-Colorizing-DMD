@@ -219,6 +219,7 @@ private:
     void importImageIntoSelectedBackground();
     void exportSelectedBackgroundPng();
     void assignSelectedSpriteToCurrentSlot();
+    void captureSelectedSpriteFromCurrentFrame();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
     void setCurrentSpriteName();
@@ -369,6 +370,7 @@ private:
     QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_applySpriteEditsButton = nullptr;
     QToolButton* m_assignSpriteButton = nullptr;
+    QToolButton* m_captureSpriteButton = nullptr;
     QToolButton* m_removeSpriteButton = nullptr;
     QToolButton* m_clearSpriteDetectionAreaButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;

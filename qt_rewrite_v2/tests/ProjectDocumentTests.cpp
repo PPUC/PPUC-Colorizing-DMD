@@ -836,6 +836,91 @@ void testSpriteOriginalPixelEditing()
         "sprite original setter coordinate bounds");
 }
 
+void testReplaceSpriteFromFrame()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_capture";
+    colorizing::document::IndexedFrame original =
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
+    colorizing::document::Rgb565Frame colorized =
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0);
+    original.pixels[5 * 128 + 10] = 1;
+    original.pixels[5 * 128 + 11] = 2;
+    original.pixels[5 * 128 + 12] = 3;
+    original.pixels[5 * 128 + 13] = 4;
+    original.pixels[5 * 128 + 14] = 0;
+    colorized.pixels[5 * 128 + 10] = 0x1111;
+    colorized.pixels[5 * 128 + 11] = 0x2222;
+    colorized.pixels[5 * 128 + 12] = 0x3333;
+    colorized.pixels[5 * 128 + 13] = 0x4444;
+    colorized.pixels[5 * 128 + 14] = 0x5555;
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        original,
+        colorized,
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        true,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{0, 0, 4, 1},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+    document.replaceSpriteFromFrame(0,
+                                    document.originalFrame(0),
+                                    document.colorizedFrame(0, Resolution::Sd),
+                                    10,
+                                    5,
+                                    5,
+                                    1);
+
+    expect(document.spriteOriginalPixel(0, 0, 0) == 1,
+           "captured sprite should copy original pixel to origin");
+    expect(document.spriteOriginalPixel(0, 2, 0) == 3,
+           "captured sprite should copy source range");
+    expect(document.spriteOriginalPixel(0, 4, 0) == 255,
+           "captured black original pixels should become transparent");
+    expect(document.spriteColorizedPixel(0, Resolution::Sd, 1, 0) == 0x2222,
+           "captured sprite should copy SD colorized pixels");
+    expect(document.spriteOriginalPixel(0, 2, 0) == document.sprite(0).maskHd.pixels[0 * 256 + 4],
+           "captured sprite should regenerate HD mask when HD exists");
+    expect(document.spriteColorizedPixel(0, Resolution::Hd, 2, 0) == 0x2222,
+           "captured sprite should regenerate HD colorized data when HD exists");
+    expect(document.sprite(0).detectionDwords[0] != 0xffffffff,
+           "captured sprite should recalculate detection dword");
+    expect(document.isDirty(), "captured sprite should mark dirty");
+
+    document.markClean();
+    document.replaceSpriteFromFrame(0,
+                                    document.originalFrame(0),
+                                    document.colorizedFrame(0, Resolution::Sd),
+                                    10,
+                                    5,
+                                    5,
+                                    1);
+    expect(!document.isDirty(), "identical sprite capture should not mark dirty");
+
+    expectThrows<std::out_of_range>(
+        [&]() {
+            document.replaceSpriteFromFrame(0,
+                                            document.originalFrame(0),
+                                            document.colorizedFrame(0, Resolution::Sd),
+                                            126,
+                                            31,
+                                            4,
+                                            1);
+        },
+        "sprite capture source bounds");
+}
+
 void testSpriteHdCreateAndRemove()
 {
     ProjectSnapshot snapshot;
@@ -1046,6 +1131,7 @@ void runProjectDocumentTests()
     testSpriteColorizedPixelEditing();
     testSpriteNameEditing();
     testSpriteOriginalPixelEditing();
+    testReplaceSpriteFromFrame();
     testSpriteHdCreateAndRemove();
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();

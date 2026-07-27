@@ -231,6 +231,25 @@ std::optional<std::pair<uint32_t, uint16_t>> detectionDwordForArea(
     return std::make_pair(best->second.dword, best->second.position);
 }
 
+void recalculateSpriteDetectionDwords(SpriteRecord& sprite)
+{
+    for (std::size_t areaIndex = 0;
+         areaIndex < sprite.detectionAreas.size() &&
+             areaIndex < sprite.detectionDwords.size() &&
+             areaIndex < sprite.detectionDwordPositions.size();
+         ++areaIndex) {
+        uint32_t dword = 0xffffffff;
+        uint16_t dwordPosition = 0xffff;
+        if (const std::optional<std::pair<uint32_t, uint16_t>> calculated =
+                detectionDwordForArea(sprite.originalSd, sprite.detectionAreas[areaIndex])) {
+            dword = calculated->first;
+            dwordPosition = calculated->second;
+        }
+        sprite.detectionDwords[areaIndex] = dword;
+        sprite.detectionDwordPositions[areaIndex] = dwordPosition;
+    }
+}
+
 }  // namespace
 
 bool Rgb565Frame::isValid() const
@@ -902,6 +921,71 @@ uint8_t ProjectDocument::spriteOriginalPixel(std::size_t spriteIndex, int x, int
     return frame.pixels[checkedSpritePixelIndex(x, y)];
 }
 
+void ProjectDocument::replaceSpriteFromFrame(std::size_t spriteIndex,
+                                             const IndexedFrame& originalFrame,
+                                             const Rgb565Frame& colorizedFrame,
+                                             int sourceX,
+                                             int sourceY,
+                                             int width,
+                                             int height)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    if (!originalFrame.isValid() || !colorizedFrame.isValid() ||
+        originalFrame.size.width != colorizedFrame.size.width ||
+        originalFrame.size.height != colorizedFrame.size.height) {
+        throw std::invalid_argument("source frame dimensions do not match");
+    }
+    if (sourceX < 0 || sourceY < 0 || width <= 0 || height <= 0 ||
+        sourceX + width > originalFrame.size.width ||
+        sourceY + height > originalFrame.size.height ||
+        width > static_cast<int>(kMaxSpriteWidth) ||
+        height > static_cast<int>(kMaxSpriteHeight)) {
+        throw std::out_of_range("sprite capture bounds are out of range");
+    }
+
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    IndexedFrame newOriginal =
+        makeIndexedFrame(Size{static_cast<int>(kMaxSpriteWidth),
+                              static_cast<int>(kMaxSpriteHeight)}, 255);
+    Rgb565Frame newColorized =
+        makeRgb565Frame(Size{static_cast<int>(kMaxSpriteWidth),
+                             static_cast<int>(kMaxSpriteHeight)}, 0);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int frameX = sourceX + x;
+            const int frameY = sourceY + y;
+            const std::size_t framePixel =
+                static_cast<std::size_t>(frameY) *
+                    static_cast<std::size_t>(originalFrame.size.width) +
+                static_cast<std::size_t>(frameX);
+            const std::size_t spritePixel = spritePixelIndex(x, y);
+            const uint8_t originalValue = originalFrame.pixels[framePixel];
+            if (originalValue == 0) {
+                continue;
+            }
+            newOriginal.pixels[spritePixel] = originalValue;
+            newColorized.pixels[spritePixel] = colorizedFrame.pixels[framePixel];
+        }
+    }
+
+    if (sprite.originalSd.pixels == newOriginal.pixels &&
+        sprite.colorizedSd.pixels == newColorized.pixels) {
+        return;
+    }
+
+    sprite.originalSd = std::move(newOriginal);
+    sprite.colorizedSd = std::move(newColorized);
+    if (sprite.hasHd) {
+        sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
+        sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+    }
+    recalculateSpriteDetectionDwords(sprite);
+    m_dirty = true;
+}
+
 void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
                                              int x,
                                              int y,
@@ -916,21 +1000,7 @@ void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
         return;
     }
     sprite.originalSd.pixels[pixelIndex] = value;
-    for (std::size_t areaIndex = 0;
-         areaIndex < sprite.detectionAreas.size() &&
-             areaIndex < sprite.detectionDwords.size() &&
-             areaIndex < sprite.detectionDwordPositions.size();
-         ++areaIndex) {
-        uint32_t dword = 0xffffffff;
-        uint16_t dwordPosition = 0xffff;
-        if (const std::optional<std::pair<uint32_t, uint16_t>> calculated =
-                detectionDwordForArea(sprite.originalSd, sprite.detectionAreas[areaIndex])) {
-            dword = calculated->first;
-            dwordPosition = calculated->second;
-        }
-        sprite.detectionDwords[areaIndex] = dword;
-        sprite.detectionDwordPositions[areaIndex] = dwordPosition;
-    }
+    recalculateSpriteDetectionDwords(sprite);
     m_dirty = true;
 }
 

@@ -690,8 +690,8 @@ void testSelectedSpriteBoundsOverlayRenders()
     QPainter emptySlotPainter(&emptySlotImage);
     widget.render(&emptySlotPainter);
     emptySlotPainter.end();
-    expect(emptySlotImage == noSelectionImage,
-           "empty sprite slots should not render a bounds overlay");
+    expect(hasVisibleCyanPixel(emptySlotImage),
+           "empty sprite slots should render a bounds overlay for capture");
 }
 
 void testDynamicMaskOverlayRendersInSdAndHd()

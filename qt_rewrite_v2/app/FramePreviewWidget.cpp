@@ -540,10 +540,6 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
     }
 
     const document::FrameSpriteReference& reference = *m_selectedSpriteReference;
-    if (reference.spriteId == 255) {
-        return;
-    }
-
     const int minX = std::clamp(static_cast<int>(std::min(reference.minX, reference.maxX)),
                                 0,
                                 region.logicalSize.width - 1);

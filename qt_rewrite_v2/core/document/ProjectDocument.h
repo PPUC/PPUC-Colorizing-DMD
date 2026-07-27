@@ -195,6 +195,13 @@ public:
     [[nodiscard]] uint8_t spriteOriginalPixel(std::size_t spriteIndex,
                                               int x,
                                               int y) const;
+    void replaceSpriteFromFrame(std::size_t spriteIndex,
+                                const IndexedFrame& originalFrame,
+                                const Rgb565Frame& colorizedFrame,
+                                int sourceX,
+                                int sourceY,
+                                int width,
+                                int height);
     void setSpriteOriginalPixel(std::size_t spriteIndex,
                                 int x,
                                 int y,

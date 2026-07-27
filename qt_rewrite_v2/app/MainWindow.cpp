@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
+#include <QPushButton>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSizePolicy>
@@ -574,13 +575,19 @@ void MainWindow::createCentralView()
     m_assignSpriteButton->setText(QStringLiteral("Assign"));
     m_assignSpriteButton->setToolTip(QStringLiteral("Assign selected sprite to selected slot"));
     m_assignSpriteButton->setEnabled(false);
+    m_captureSpriteButton = new QToolButton(central);
+    m_captureSpriteButton->setText(QStringLiteral("Capture"));
+    m_captureSpriteButton->setToolTip(
+        QStringLiteral("Copy original/colorized pixels from current frame bounds into selected sprite"));
+    m_captureSpriteButton->setEnabled(false);
     m_removeSpriteButton = new QToolButton(central);
     m_removeSpriteButton->setText(QStringLiteral("Remove"));
     m_removeSpriteButton->setToolTip(QStringLiteral("Clear selected sprite slot"));
     m_removeSpriteButton->setEnabled(false);
     m_spriteBoundsOverlayButton = new QToolButton(central);
     m_spriteBoundsOverlayButton->setText(QStringLiteral("Show Bounds"));
-    m_spriteBoundsOverlayButton->setToolTip(QStringLiteral("Show selected sprite bounds on original frame"));
+    m_spriteBoundsOverlayButton->setToolTip(
+        QStringLiteral("Show selected sprite slot bounds on original frame"));
     m_spriteBoundsOverlayButton->setCheckable(true);
     m_spriteBoundsOverlayButton->setChecked(true);
     m_spriteBoundsOverlayButton->setEnabled(false);
@@ -833,6 +840,7 @@ void MainWindow::createCentralView()
     spritePageLayout->addWidget(m_spriteSlotComboBox);
     auto* spriteButtonLayout = new QHBoxLayout();
     spriteButtonLayout->addWidget(m_assignSpriteButton);
+    spriteButtonLayout->addWidget(m_captureSpriteButton);
     spriteButtonLayout->addWidget(m_removeSpriteButton);
     spritePageLayout->addLayout(spriteButtonLayout);
     auto* spriteVisualizationGrid = new QGridLayout();
@@ -1042,6 +1050,9 @@ void MainWindow::createCentralView()
             });
     connect(m_assignSpriteButton, &QToolButton::clicked, this, [this]() {
         assignSelectedSpriteToCurrentSlot();
+    });
+    connect(m_captureSpriteButton, &QToolButton::clicked, this, [this]() {
+        captureSelectedSpriteFromCurrentFrame();
     });
     connect(m_removeSpriteButton, &QToolButton::clicked, this, [this]() {
         removeCurrentSpriteSlot();
@@ -2813,6 +2824,120 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
     }
 }
 
+void MainWindow::captureSelectedSpriteFromCurrentFrame()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!m_document || !frameIndex || !spriteIndex || !m_spriteSlotComboBox) {
+        statusBar()->showMessage(QStringLiteral("Select a frame and sprite first"), 2500);
+        updateSpriteControls();
+        return;
+    }
+
+    const int slotIndex = m_spriteSlotComboBox->currentData().toInt();
+    if (slotIndex < 0) {
+        statusBar()->showMessage(QStringLiteral("Select a sprite slot first"), 2500);
+        updateSpriteControls();
+        return;
+    }
+
+    const int minX = std::clamp(m_spriteMinXSpinBox ? m_spriteMinXSpinBox->value() : 0,
+                                0,
+                                render::kSdFrameSize.width - 1);
+    const int minY = std::clamp(m_spriteMinYSpinBox ? m_spriteMinYSpinBox->value() : 0,
+                                0,
+                                render::kSdFrameSize.height - 1);
+    const int maxX = std::clamp(m_spriteMaxXSpinBox ? m_spriteMaxXSpinBox->value() : minX,
+                                minX,
+                                render::kSdFrameSize.width - 1);
+    const int maxY = std::clamp(m_spriteMaxYSpinBox ? m_spriteMaxYSpinBox->value() : minY,
+                                minY,
+                                render::kSdFrameSize.height - 1);
+    const int width = maxX - minX + 1;
+    const int height = maxY - minY + 1;
+    if (width <= 0 || height <= 0 ||
+        width > static_cast<int>(document::kMaxSpriteWidth) ||
+        height > static_cast<int>(document::kMaxSpriteHeight)) {
+        statusBar()->showMessage(QStringLiteral("Sprite capture bounds are invalid"), 2500);
+        updateSpriteControls();
+        return;
+    }
+
+    QMessageBox confirm(this);
+    confirm.setWindowTitle(QStringLiteral("Capture Sprite"));
+    confirm.setText(QStringLiteral("Capture frame region [%1,%2-%3,%4]?")
+                        .arg(minX)
+                        .arg(minY)
+                        .arg(maxX)
+                        .arg(maxY));
+    confirm.setInformativeText(
+        QStringLiteral("Replace sprite %1 with the captured pixels. Creating a new sprite "
+                       "record is not available yet because it must update all cROM and .cRP "
+                       "sprite tables together.")
+            .arg(static_cast<int>(*spriteIndex)));
+    QPushButton* replaceButton =
+        confirm.addButton(QStringLiteral("Replace Current"), QMessageBox::AcceptRole);
+    QPushButton* createButton =
+        confirm.addButton(QStringLiteral("Create New"), QMessageBox::ActionRole);
+    createButton->setEnabled(false);
+    createButton->setToolTip(QStringLiteral("Planned for the sprite allocation step"));
+    confirm.addButton(QMessageBox::Cancel);
+    confirm.exec();
+    if (confirm.clickedButton() != replaceButton) {
+        return;
+    }
+
+    try {
+        const bool includeBackgroundLayer =
+            m_backgroundLayerButton && m_backgroundLayerButton->isChecked();
+        const document::Rgb565Frame sourceColorized =
+            composeResolvedFrame(*m_document,
+                                 *frameIndex,
+                                 render::Resolution::Sd,
+                                 includeBackgroundLayer);
+        m_document->replaceSpriteFromFrame(*spriteIndex,
+                                           m_document->originalFrame(*frameIndex),
+                                           sourceColorized,
+                                           minX,
+                                           minY,
+                                           width,
+                                           height);
+        m_document->setSpriteDetectionArea(*spriteIndex,
+                                           0,
+                                           document::SpriteDetectionArea{
+                                               0,
+                                               0,
+                                               static_cast<uint16_t>(width),
+                                               static_cast<uint16_t>(height),
+                                           });
+        m_document->setFrameSpriteReference(*frameIndex,
+                                            static_cast<std::size_t>(slotIndex),
+                                            document::FrameSpriteReference{
+                                                static_cast<uint8_t>(*spriteIndex),
+                                                static_cast<uint16_t>(minX),
+                                                static_cast<uint16_t>(minY),
+                                                static_cast<uint16_t>(maxX),
+                                                static_cast<uint16_t>(maxY),
+                                            });
+        setSpriteDependentViewsDirty();
+        applyPendingSpriteDependentViews();
+        refreshComponentBrowsers();
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Captured frame region [%1,%2-%3,%4] into sprite %5")
+                .arg(minX)
+                .arg(minY)
+                .arg(maxX)
+                .arg(maxY)
+                .arg(static_cast<int>(*spriteIndex)),
+            3000);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::removeCurrentSpriteSlot()
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
@@ -3451,7 +3576,7 @@ void MainWindow::updateSpriteControls()
     if (!m_spriteComboBox || !m_spriteOriginalPreviewLabel ||
         !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
         !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
-        !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
+        !m_captureSpriteButton || !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
         !m_spriteCanvasButton || !m_applySpriteEditsButton || !m_spriteNameLineEdit ||
         !m_spriteDetectionAreaComboBox || !m_clearSpriteDetectionAreaButton ||
         !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
@@ -3564,6 +3689,7 @@ void MainWindow::updateSpriteControls()
                                      slotIndex >= 0 &&
                                      static_cast<std::size_t>(spriteIndex) <
                                          m_document->spriteCount());
+    m_captureSpriteButton->setEnabled(m_assignSpriteButton->isEnabled());
     bool slotHasSprite = false;
     std::optional<document::FrameSpriteReference> selectedReference;
     if (m_document && frameIndex && slotIndex >= 0) {
@@ -3576,16 +3702,16 @@ void MainWindow::updateSpriteControls()
     }
     m_removeSpriteButton->setEnabled(slotHasSprite);
     m_applySpriteEditsButton->setEnabled(m_spriteDependentViewsDirty);
-    m_spriteBoundsOverlayButton->setEnabled(slotHasSprite);
+    const bool hasSlot = selectedReference.has_value();
+    m_spriteBoundsOverlayButton->setEnabled(hasSlot);
     if (m_preview) {
-        m_preview->setSelectedSpriteReference(slotHasSprite ? selectedReference : std::nullopt);
+        m_preview->setSelectedSpriteReference(hasSlot ? selectedReference : std::nullopt);
     }
     {
         QSignalBlocker minXBlocker(m_spriteMinXSpinBox);
         QSignalBlocker minYBlocker(m_spriteMinYSpinBox);
         QSignalBlocker maxXBlocker(m_spriteMaxXSpinBox);
         QSignalBlocker maxYBlocker(m_spriteMaxYSpinBox);
-        const bool hasSlot = selectedReference.has_value();
         m_spriteMinXSpinBox->setEnabled(hasSlot);
         m_spriteMinYSpinBox->setEnabled(hasSlot);
         m_spriteMaxXSpinBox->setEnabled(hasSlot);
@@ -3607,6 +3733,7 @@ void MainWindow::updateSpriteControls()
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
         m_spriteDetectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);
+        m_captureSpriteButton->setEnabled(false);
         m_spriteNameLineEdit->setEnabled(false);
         m_spriteNameLineEdit->clear();
         m_applySpriteEditsButton->setEnabled(false);

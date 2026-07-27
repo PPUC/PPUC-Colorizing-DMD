@@ -344,14 +344,24 @@ The Inspector has a sprite browser and assignment controls:
 - Drag on the lower original sprite canvas to set the selected detection area.
   Detection-area edits update the sprite editor immediately. Frame thumbnails and composed frame
   previews refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
-- Sprite source/original pixels are not freehand editable. New sprites should be created by copying
-  pixels from an original frame using a selected shape or outline. This workflow is still pending.
+- Sprite source/original pixels are not freehand editable.
+- `Capture` copies original and colorized pixels from the current frame into a sprite, using the
+  selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
+  origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
+  captured rectangle, and the selected sprite is assigned to the current frame slot.
+- `Capture` currently replaces the selected sprite record after confirmation. The dialog shows the
+  planned `Create New` path, but it stays disabled until sprite allocation updates all cROM and
+  `.cRP` sprite tables together.
+- TODO: legacy sprite capture used a copied selection mask inside its bounding rectangle, so shaped
+  or outline selections could produce transparent pixels inside the rectangle. The current capture
+  path only uses the selected slot rectangle and treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
 - `Remove` clears the selected slot's sprite assignment for all selected frames.
 - `Min X`, `Min Y`, `Max X`, and `Max Y` edit the selected slot's bounding box for all selected frames.
 - Removing a sprite assignment preserves the slot's bounding box, so a replacement sprite can reuse it.
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
+  This overlay is visible before capture and does not require the slot to already contain a sprite.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
 Sprite-name edits are limited to 31 characters so the legacy fixed 32-byte `.cRP` name slot
