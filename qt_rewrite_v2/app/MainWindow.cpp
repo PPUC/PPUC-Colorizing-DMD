@@ -352,6 +352,12 @@ void MainWindow::createActions()
         exportCurrentFramePng();
     });
 
+    QAction* importFrameImageAction =
+        fileMenu->addAction(QStringLiteral("Import Image Into Selected &Frames..."));
+    connect(importFrameImageAction, &QAction::triggered, this, [this]() {
+        importImageIntoSelectedFrames();
+    });
+
     m_recentProjectsMenu = fileMenu->addMenu(QStringLiteral("Open &Recent"));
     refreshRecentProjectsMenu();
 
@@ -521,6 +527,11 @@ void MainWindow::createCentralView()
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
     m_backgroundLayerButton->setCheckable(true);
     m_backgroundLayerButton->setEnabled(false);
+    m_importFrameImageButton = new QToolButton(central);
+    m_importFrameImageButton->setText(QStringLiteral("Import Image"));
+    m_importFrameImageButton->setToolTip(
+        QStringLiteral("Import an image into selected frame pixels"));
+    m_importFrameImageButton->setEnabled(false);
     m_createHdFrameButton = new QToolButton(central);
     m_createHdFrameButton->setText(QStringLiteral("Create HD"));
     m_createHdFrameButton->setToolTip(QStringLiteral("Create HD frame from SD frame"));
@@ -717,6 +728,7 @@ void MainWindow::createCentralView()
     frameForm->addRow(QStringLiteral("DMD Size"), m_dmdPixelSizeSpinBox);
     framePageLayout->addLayout(frameForm);
     framePageLayout->addWidget(m_backgroundLayerButton);
+    framePageLayout->addWidget(m_importFrameImageButton);
     auto* hdButtonLayout = new QHBoxLayout();
     hdButtonLayout->addWidget(m_createHdFrameButton);
     hdButtonLayout->addWidget(m_removeHdFrameButton);
@@ -976,6 +988,9 @@ void MainWindow::createCentralView()
         if (m_preview) {
             m_preview->setBackgroundLayerEnabled(checked);
         }
+    });
+    connect(m_importFrameImageButton, &QToolButton::clicked, this, [this]() {
+        importImageIntoSelectedFrames();
     });
     connect(m_createHdFrameButton, &QToolButton::clicked, this, [this]() {
         if (isSpriteCanvasActive()) {
@@ -1436,6 +1451,102 @@ void MainWindow::exportCurrentFramePng()
     statusBar()->showMessage(QStringLiteral("Exported frame PNG"), 3000);
 }
 
+void MainWindow::importImageIntoSelectedFrames()
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty()) {
+        statusBar()->showMessage(QStringLiteral("Select at least one frame first"), 2500);
+        return;
+    }
+
+    const QString imagePath = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Import Image Into Selected Frames"),
+        m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
+        QStringLiteral("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
+    if (imagePath.isEmpty()) {
+        return;
+    }
+
+    QImage image(imagePath);
+    if (image.isNull()) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Import Failed"),
+                              QStringLiteral("Could not read image file."));
+        return;
+    }
+
+    const render::Resolution targetResolution = m_activeResolution;
+    const render::Size targetSize = targetResolution == render::Resolution::Hd
+                                        ? render::kHdFrameSize
+                                        : render::kSdFrameSize;
+    const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
+
+    int updatedFrames = 0;
+    int skippedFrames = 0;
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            if (targetResolution == render::Resolution::Hd &&
+                !m_document->hasHdFrame(frameIndex)) {
+                ++skippedFrames;
+                continue;
+            }
+
+            PixelEditCommand command;
+            command.frameIndex = frameIndex;
+            command.resolution = targetResolution;
+            const document::Rgb565Frame& target =
+                m_document->colorizedFrame(frameIndex, targetResolution);
+            for (int y = 0; y < imported.size.height; ++y) {
+                for (int x = 0; x < imported.size.width; ++x) {
+                    const std::size_t pixelIndex =
+                        static_cast<std::size_t>(y) *
+                            static_cast<std::size_t>(imported.size.width) +
+                        static_cast<std::size_t>(x);
+                    const uint16_t oldColor = target.pixels[pixelIndex];
+                    const uint16_t newColor = imported.pixels[pixelIndex];
+                    if (oldColor == newColor) {
+                        continue;
+                    }
+                    command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                }
+            }
+
+            if (command.changes.empty()) {
+                continue;
+            }
+            applyPixelEdit(command, true);
+            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, targetResolution}];
+            history.undoStack.push_back(std::move(command));
+            history.redoStack.clear();
+            ++updatedFrames;
+        }
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    if (updatedFrames == 0) {
+        statusBar()->showMessage(
+            skippedFrames > 0
+                ? QStringLiteral("No selected HD frames were available for import")
+                : QStringLiteral("Selected frames already match the imported image"),
+            3000);
+        updateUndoRedoActions();
+        return;
+    }
+
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(
+        QStringLiteral("Imported image into %1 frame(s)%2")
+            .arg(updatedFrames)
+            .arg(skippedFrames > 0
+                     ? QStringLiteral(" (%1 skipped without HD)").arg(skippedFrames)
+                     : QString()),
+        3000);
+}
+
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 {
     const legacy::LegacyProjectFileReader reader;
@@ -1861,6 +1972,9 @@ void MainWindow::updateResolutionMode()
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_dynamicMaskOverlayButton->setEnabled(hasDocument);
     m_backgroundMaskOverlayButton->setEnabled(hasDocument);
+    if (m_importFrameImageButton) {
+        m_importFrameImageButton->setEnabled(hasDocument && !selectedFrameIndices().empty());
+    }
     if (m_dynamicSetSpinBox) {
         m_dynamicSetSpinBox->setEnabled(hasDocument);
     }
@@ -1919,6 +2033,9 @@ void MainWindow::updateFrameMetadataControls()
         m_switchToMonochromeCheckBox->setEnabled(false);
         if (m_backgroundLayerButton) {
             m_backgroundLayerButton->setEnabled(false);
+        }
+        if (m_importFrameImageButton) {
+            m_importFrameImageButton->setEnabled(false);
         }
         if (m_createHdFrameButton) {
             m_createHdFrameButton->setEnabled(false);
@@ -1985,6 +2102,9 @@ void MainWindow::updateFrameMetadataControls()
                   .arg(triggerId));
     if (m_backgroundLayerButton) {
         m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    }
+    if (m_importFrameImageButton) {
+        m_importFrameImageButton->setEnabled(!selectedFrameIndices().empty());
     }
     const bool hasHdFrame = m_document->hasHdFrame(frameIndex);
     if (m_createHdFrameButton) {

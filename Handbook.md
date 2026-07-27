@@ -51,6 +51,10 @@ Use `File -> Export Current Frame PNG...` to export the active colorized frame p
 The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
 includes the assigned background layer when `Show BG` is enabled.
 
+Use `File -> Import Image Into Selected Frames...` or the Frame topic's `Import Image` button to
+replace selected frame pixels from a PNG/BMP/JPEG. The image is scaled to the active SD/HD DMD size.
+In HD mode, selected frames without HD data are skipped. The import is undoable per frame.
+
 Save behavior:
 
 - Updates colorized SD and HD frame pixels in the existing `.cROM`.
@@ -140,6 +144,7 @@ The `Frame` topic exposes:
 - `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
 - `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
 - `Show BG` renders the assigned background layer into the colorized frame preview.
+- `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
 
 `DMD Shape` and `DMD Size` are view/export settings only. They do not change project data or the cROM/cRP file format.
 

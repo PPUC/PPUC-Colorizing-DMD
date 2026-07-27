@@ -186,6 +186,7 @@ private:
     void saveProject();
     void saveProjectAs();
     void exportCurrentFramePng();
+    void importImageIntoSelectedFrames();
     void loadProject(const QString& cromPath, const QString& crpPath);
     void rememberRecentProject(const QString& cromPath, const QString& crpPath);
     void refreshRecentProjectsMenu();
@@ -352,6 +353,7 @@ private:
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QToolButton* m_backgroundMaskOverlayButton = nullptr;
     QToolButton* m_backgroundLayerButton = nullptr;
+    QToolButton* m_importFrameImageButton = nullptr;
     QToolButton* m_createHdFrameButton = nullptr;
     QToolButton* m_removeHdFrameButton = nullptr;
     QToolButton* m_assignMaskButton = nullptr;
