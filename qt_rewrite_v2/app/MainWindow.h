@@ -216,6 +216,7 @@ private:
     void setFrameStatusText(const QString& text);
     void refreshProjectSummary();
     void refreshFrameList(std::optional<std::size_t> selectedFrameIndex = std::nullopt);
+    [[nodiscard]] QString frameListItemText(std::size_t frameIndex) const;
     [[nodiscard]] bool frameMatchesFilter(std::size_t frameIndex) const;
     [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
     [[nodiscard]] std::vector<std::size_t> selectedFrameIndices() const;
@@ -231,6 +232,7 @@ private:
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
     void setCurrentFrameTriggerId(int triggerId);
+    void setCurrentFrameDurationMs(int durationMs);
     void setCurrentFrameSwitchToMonochrome(bool enabled);
     void assignSelectedMaskToFrames();
     void editAssignedMask();
@@ -358,6 +360,7 @@ private:
     void updateProjectHeaderStatus();
     void updateFrameThumbnail(std::size_t frameIndex);
     void updateFrameListItem(std::size_t frameIndex);
+    void updateFrameListItemText(std::size_t frameIndex);
     void refreshComponentBrowsers();
     void updateMaskBrowserSelection();
     void updateBackgroundBrowserSelection();
@@ -421,6 +424,7 @@ private:
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;
+    QSpinBox* m_frameDurationSpinBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
     QSpinBox* m_spriteMinXSpinBox = nullptr;

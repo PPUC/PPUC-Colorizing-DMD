@@ -230,6 +230,15 @@ std::vector<uint8_t> makeCrpWithSpriteNames(const std::string& romName)
     return bytes;
 }
 
+std::vector<uint8_t> makeCrpWithFrameDurations(const std::string& romName)
+{
+    std::vector<uint8_t> bytes = makeCrpWithSpriteNames(romName);
+    appendRepeatedU32(bytes, 0, 255);
+    appendU32(bytes, 10);
+    appendU32(bytes, 20);
+    return bytes;
+}
+
 std::vector<uint8_t> makeLegacyPalettedCrom()
 {
     std::vector<uint8_t> bytes;
@@ -281,7 +290,7 @@ void testFileReaderLoadsModernProject()
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpWithSpriteNames("file_rom"));
+    writeBytes(crpPath, makeCrpWithFrameDurations("file_rom"));
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
@@ -412,7 +421,7 @@ void testFileWriterSavesEditedModernCrom()
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpWithSpriteNames("file_rom"));
+    writeBytes(crpPath, makeCrpWithFrameDurations("file_rom"));
 
     const LegacyProjectPaths paths{
         cromPath.string(),
@@ -448,6 +457,8 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[0].spriteReferences[1] = {0, 13, 14, 15, 16};
     loadResult.snapshot.frames[0].triggerId = 1234;
     loadResult.snapshot.frames[1].triggerId = 65432;
+    loadResult.snapshot.frames[0].durationMs = 75;
+    loadResult.snapshot.frames[1].durationMs = 125;
     loadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] = 0x9999;
     loadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] = 0xaaaa;
     loadResult.snapshot.frames[0].backgroundData->backgroundId = 0xffff;
@@ -527,6 +538,10 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update first trigger ID");
     expect(reloadResult.snapshot.frames[1].triggerId == 65432,
            "file writer should update second trigger ID");
+    expect(reloadResult.snapshot.frames[0].durationMs == 75,
+           "file writer should update first cRP frame duration");
+    expect(reloadResult.snapshot.frames[1].durationMs == 125,
+           "file writer should update second cRP frame duration");
     expect(reloadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] == 0x9999,
            "file writer should update SD background pixels");
     expect(reloadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] == 0xaaaa,

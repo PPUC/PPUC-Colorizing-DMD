@@ -500,6 +500,16 @@ uint32_t ProjectDocument::frameDurationMs(std::size_t frameIndex) const
     return requireFrame(m_frames, frameIndex).durationMs;
 }
 
+void ProjectDocument::setFrameDurationMs(std::size_t frameIndex, uint32_t durationMs)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.durationMs == durationMs) {
+        return;
+    }
+    frame.durationMs = durationMs;
+    m_dirty = true;
+}
+
 std::size_t ProjectDocument::comparisonMaskCount() const
 {
     return m_comparisonMasks.size();

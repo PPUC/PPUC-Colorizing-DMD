@@ -63,6 +63,7 @@ constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
 constexpr uint32_t kSwitchToMonochromeTriggerId = 65432;
 constexpr int kMaxManualTriggerId = static_cast<int>(kSwitchToMonochromeTriggerId - 1);
+constexpr int kMaxFrameDurationMs = 30000;
 constexpr std::array<uint8_t, 8> kDynamicShadowDirectionBits{
     0x01, 0x02, 0x04, 0x80, 0x08, 0x40, 0x20, 0x10,
 };
@@ -489,6 +490,12 @@ void MainWindow::createCentralView()
     m_triggerIdSpinBox->setToolTip(QStringLiteral("Per-frame trigger ID"));
     m_triggerIdSpinBox->setRange(0, kMaxManualTriggerId);
     m_triggerIdSpinBox->setEnabled(false);
+    m_frameDurationSpinBox = new QSpinBox(central);
+    m_frameDurationSpinBox->setToolTip(QStringLiteral("Per-frame cRP duration"));
+    m_frameDurationSpinBox->setRange(0, kMaxFrameDurationMs);
+    m_frameDurationSpinBox->setSingleStep(10);
+    m_frameDurationSpinBox->setSuffix(QStringLiteral(" ms"));
+    m_frameDurationSpinBox->setEnabled(false);
     m_switchToMonochromeCheckBox = new QCheckBox(QStringLiteral("Switch mono"), central);
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
@@ -779,6 +786,7 @@ void MainWindow::createCentralView()
     frameForm->addRow(QStringLiteral("Target"), m_paintTargetComboBox);
     frameForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
     frameForm->addRow(QStringLiteral("Trigger ID"), m_triggerIdSpinBox);
+    frameForm->addRow(QStringLiteral("Duration"), m_frameDurationSpinBox);
     frameForm->addRow(QString(), m_switchToMonochromeCheckBox);
     frameForm->addRow(QStringLiteral("DMD Shape"), m_dmdPixelShapeComboBox);
     frameForm->addRow(QStringLiteral("DMD Size"), m_dmdPixelSizeSpinBox);
@@ -1265,6 +1273,12 @@ void MainWindow::createCentralView()
             this,
             [this](int triggerId) {
                 setCurrentFrameTriggerId(triggerId);
+            });
+    connect(m_frameDurationSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int durationMs) {
+                setCurrentFrameDurationMs(durationMs);
             });
     connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
         setCurrentFrameSwitchToMonochrome(checked);
@@ -1842,38 +1856,9 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
         if (!frameMatchesFilter(frameIndex)) {
             continue;
         }
-        const bool hasHd = m_document->hasHdFrame(frameIndex);
-        const uint32_t durationMs = m_document->frameDurationMs(frameIndex);
-        QStringList details;
-        details << QStringLiteral("%1 ms").arg(durationMs);
-        if (hasHd) {
-            details << QStringLiteral("HD");
-        }
-        if (m_document->dynamicData(frameIndex)) {
-            details << QStringLiteral("Dyn");
-        }
-        const std::optional<document::FrameBackgroundData>& backgroundData =
-            m_document->backgroundData(frameIndex);
-        if (backgroundData && backgroundData->backgroundId < m_document->backgroundCount()) {
-            details << QStringLiteral("BG %1")
-                           .arg(static_cast<int>(backgroundData->backgroundId));
-        }
-        const std::vector<document::FrameSpriteReference>& spriteReferences =
-            m_document->frameSpriteReferences(frameIndex);
-        const int spriteCount = static_cast<int>(
-            std::count_if(spriteReferences.begin(),
-                          spriteReferences.end(),
-                          [](const document::FrameSpriteReference& reference) {
-                              return reference.spriteId != 255;
-                          }));
-        if (spriteCount > 0) {
-            details << QStringLiteral("%1 sprites").arg(spriteCount);
-        }
         auto* item = new QListWidgetItem(
             makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)),
-            QStringLiteral("%1\n%2")
-                .arg(static_cast<int>(frameIndex))
-                .arg(details.join(QStringLiteral("\n"))));
+            frameListItemText(frameIndex));
         item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
         item->setSizeHint(QSize(210, 96));
         m_frameList->addItem(item);
@@ -1890,6 +1875,42 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
         selectFrame(-1);
     }
     updatePlaybackControls();
+}
+
+QString MainWindow::frameListItemText(std::size_t frameIndex) const
+{
+    if (!m_document || frameIndex >= m_document->frameCount()) {
+        return QString();
+    }
+
+    QStringList details;
+    details << QStringLiteral("%1 ms").arg(m_document->frameDurationMs(frameIndex));
+    if (m_document->hasHdFrame(frameIndex)) {
+        details << QStringLiteral("HD");
+    }
+    if (m_document->dynamicData(frameIndex)) {
+        details << QStringLiteral("Dyn");
+    }
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        m_document->backgroundData(frameIndex);
+    if (backgroundData && backgroundData->backgroundId < m_document->backgroundCount()) {
+        details << QStringLiteral("BG %1")
+                       .arg(static_cast<int>(backgroundData->backgroundId));
+    }
+    const std::vector<document::FrameSpriteReference>& spriteReferences =
+        m_document->frameSpriteReferences(frameIndex);
+    const int spriteCount = static_cast<int>(
+        std::count_if(spriteReferences.begin(),
+                      spriteReferences.end(),
+                      [](const document::FrameSpriteReference& reference) {
+                          return reference.spriteId != 255;
+                      }));
+    if (spriteCount > 0) {
+        details << QStringLiteral("%1 sprites").arg(spriteCount);
+    }
+    return QStringLiteral("%1\n%2")
+        .arg(static_cast<int>(frameIndex))
+        .arg(details.join(QStringLiteral("\n")));
 }
 
 void MainWindow::refreshComponentBrowsers()
@@ -2268,7 +2289,7 @@ void MainWindow::updateResolutionMode()
 void MainWindow::updateFrameMetadataControls()
 {
     if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox ||
-        !m_backgroundIdSpinBox || !m_triggerIdSpinBox ||
+        !m_backgroundIdSpinBox || !m_triggerIdSpinBox || !m_frameDurationSpinBox ||
         !m_switchToMonochromeCheckBox) {
         return;
     }
@@ -2279,6 +2300,7 @@ void MainWindow::updateFrameMetadataControls()
     QSignalBlocker shapeBlocker(m_shapeComparisonModeComboBox);
     QSignalBlocker backgroundBlocker(m_backgroundIdSpinBox);
     QSignalBlocker triggerBlocker(m_triggerIdSpinBox);
+    QSignalBlocker durationBlocker(m_frameDurationSpinBox);
     QSignalBlocker monoBlocker(m_switchToMonochromeCheckBox);
 
     if (!hasFrame) {
@@ -2295,6 +2317,9 @@ void MainWindow::updateFrameMetadataControls()
         m_backgroundIdSpinBox->setEnabled(false);
         m_triggerIdSpinBox->setValue(0);
         m_triggerIdSpinBox->setEnabled(false);
+        m_frameDurationSpinBox->setValue(0);
+        m_frameDurationSpinBox->setEnabled(false);
+        m_frameDurationSpinBox->setToolTip(QStringLiteral("Per-frame cRP duration"));
         m_switchToMonochromeCheckBox->setChecked(false);
         m_switchToMonochromeCheckBox->setEnabled(false);
         if (m_backgroundLayerButton) {
@@ -2366,6 +2391,16 @@ void MainWindow::updateFrameMetadataControls()
             ? QStringLiteral("Per-frame trigger ID")
             : QStringLiteral("Unsupported legacy trigger ID %1 is preserved until edited")
                   .arg(triggerId));
+    const uint32_t durationMs = m_document->frameDurationMs(frameIndex);
+    m_frameDurationSpinBox->setEnabled(true);
+    m_frameDurationSpinBox->setValue(durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
+                                         ? static_cast<int>(durationMs)
+                                         : 0);
+    m_frameDurationSpinBox->setToolTip(
+        durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
+            ? QStringLiteral("Per-frame cRP duration")
+            : QStringLiteral("Unsupported cRP duration %1 ms is preserved until edited")
+                  .arg(durationMs));
     if (m_backgroundLayerButton) {
         m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
     }
@@ -2671,6 +2706,51 @@ void MainWindow::setCurrentFrameTriggerId(int triggerId)
         statusBar()->showMessage(
             QStringLiteral("Set trigger ID %1 on %2 frame(s)")
                 .arg(storedTriggerId)
+                .arg(static_cast<int>(frameIndices.size())),
+            2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentFrameDurationMs(int durationMs)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty()) {
+        return;
+    }
+
+    const bool wasDirty = m_document->isDirty();
+    const uint32_t storedDurationMs =
+        static_cast<uint32_t>(std::clamp(durationMs, 0, kMaxFrameDurationMs));
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            m_document->setFrameDurationMs(frameIndex, storedDurationMs);
+            updateFrameListItemText(frameIndex);
+        }
+        updateFrameMetadataControls();
+        if (const std::optional<std::size_t> frameIndex = currentFrameIndex()) {
+            const bool hasHd = m_document->hasHdFrame(*frameIndex);
+            const int selectedCount = static_cast<int>(selectedFrameIndices().size());
+            setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2 | %3 ms%4")
+                                   .arg(static_cast<int>(*frameIndex))
+                                   .arg(hasHd ? QStringLiteral("HD 256x64")
+                                              : QStringLiteral("HD unavailable"))
+                                   .arg(m_document->frameDurationMs(*frameIndex))
+                                   .arg(selectedCount > 1
+                                            ? QStringLiteral(" | %1 selected").arg(selectedCount)
+                                            : QString()));
+        }
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        if (m_playbackTimer && m_playbackTimer->isActive()) {
+            m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Set duration %1 ms on %2 frame(s)")
+                .arg(storedDurationMs)
                 .arg(static_cast<int>(frameIndices.size())),
             2500);
     } catch (const std::exception& ex) {
@@ -6334,6 +6414,25 @@ void MainWindow::updateFrameThumbnail(std::size_t frameIndex)
     }
 }
 
+void MainWindow::updateFrameListItemText(std::size_t frameIndex)
+{
+    if (!m_document || !m_frameList || frameIndex >= m_document->frameCount()) {
+        return;
+    }
+    if (!frameMatchesFilter(frameIndex)) {
+        refreshFrameList(currentFrameIndex());
+        return;
+    }
+    for (int row = 0; row < m_frameList->count(); ++row) {
+        QListWidgetItem* item = m_frameList->item(row);
+        if (item && item->data(Qt::UserRole).toULongLong() == frameIndex) {
+            item->setText(frameListItemText(frameIndex));
+            return;
+        }
+    }
+    refreshFrameList(frameIndex);
+}
+
 void MainWindow::updateFrameListItem(std::size_t frameIndex)
 {
     if (!m_document || frameIndex >= m_document->frameCount()) {
@@ -6348,10 +6447,7 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
         if (!item || item->data(Qt::UserRole).toULongLong() != frameIndex) {
             continue;
         }
-        const bool hasHd = m_document->hasHdFrame(frameIndex);
-        item->setText(QStringLiteral("%1%2")
-                          .arg(static_cast<int>(frameIndex))
-                          .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
+        item->setText(frameListItemText(frameIndex));
         item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
         return;
     }

@@ -8,10 +8,10 @@ Update it in the same change set whenever a user-visible feature changes.
 The Qt rewrite edits legacy Serum editor projects directly:
 
 - `.cROM` stores colorized frame data and runtime project data.
-- `.cRP` stores original/reference frames.
+- `.cRP` stores original/reference frames and editor-side metadata such as sprite names and frame durations.
 - `.cROMc` is not edited directly.
 
-Saving currently writes back to the existing `.cROM` path. The `.cRP` file is required for loading but is not modified by the current editor features.
+Saving writes back to the existing `.cROM` path and updates supported fields in the matching `.cRP` sidecar without changing the legacy file layout.
 
 The in-memory project model currently carries structured comparison-mask data from `.cROM`:
 
@@ -77,9 +77,8 @@ The top toolbar contains editor-only playback controls:
 - `cRP` uses the per-frame durations loaded from the `.cRP` file.
 - The interval field controls the fallback frame advance interval in milliseconds.
 
-Playback respects the current frame filter in the left `Frames` tab. It is a navigation and preview
-tool only; it reads cRP frame durations but does not edit or save timing data yet. Frames with
-missing, zero, or unusually large durations use the fallback interval.
+Playback respects the current frame filter in the left `Frames` tab. When `cRP` timing is enabled,
+frames with missing, zero, or unusually large durations use the fallback interval.
 
 ## Frame List
 
@@ -155,6 +154,7 @@ The `Frame` topic exposes:
 - `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
 - `BG ID` assigns the shared background used by the current frame.
 - `Trigger ID` edits the per-frame legacy trigger ID for all selected frames.
+- `Duration` edits the per-frame `.cRP` duration for all selected frames.
 - `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` and disables manual trigger-ID entry while checked.
 - `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
 - `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
@@ -429,6 +429,16 @@ Currently implemented:
 Creating or deleting background records is not exposed in the UI yet.
 Background import/copy operations replace existing background records only, because the first release
 must not change the loaded cROM format.
+
+## Missing Editing Features
+
+Known feature gaps that affect first-release completeness:
+
+- Palette editing, including palette import/export, color-set management, and gradient definitions.
+- Color rotations loaded from legacy project data and used by complete playback preview.
+- Directional gradient fills for frame, mask, sprite, dynamic, and background editing surfaces.
+- Filling with palette gradients while respecting the active tool shape and direction.
+- Playback that applies palette rotations in the same order as libserum/runtime rendering.
 
 ## Preview Rendering TODO
 

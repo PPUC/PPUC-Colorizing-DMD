@@ -430,6 +430,30 @@ void testFrameTriggerIdEditing()
         "trigger ID frame bounds");
 }
 
+void testFrameDurationEditing()
+{
+    ProjectDocument document =
+        ProjectDocument::createEmpty(ProjectCreateOptions{"duration_edit", 1, false});
+    document.markClean();
+
+    expect(document.frameDurationMs(0) == 0, "new frame duration should default to zero");
+    document.setFrameDurationMs(0, 123);
+    expect(document.frameDurationMs(0) == 123, "frame duration edit should be readable");
+    expect(document.isDirty(), "frame duration edit should mark dirty");
+
+    document.markClean();
+    document.setFrameDurationMs(0, 123);
+    expect(!document.isDirty(), "identical frame duration edit should not mark dirty");
+
+    document.setFrameDurationMs(0, 456);
+    expect(document.toSnapshot().frames[0].durationMs == 456,
+           "frame duration should round-trip through snapshots");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setFrameDurationMs(1, 0); },
+        "frame duration frame bounds");
+}
+
 void testDynamicMaskPixelEditing()
 {
     FrameDynamicData dynamicData{
@@ -1261,6 +1285,7 @@ void runProjectDocumentTests()
     testComparisonMaskPixelEditing();
     testFrameComparisonMetadataEditing();
     testFrameTriggerIdEditing();
+    testFrameDurationEditing();
     testDynamicMaskPixelEditing();
     testDynamicShadowEditing();
     testBackgroundMetadataAndMaskEditing();

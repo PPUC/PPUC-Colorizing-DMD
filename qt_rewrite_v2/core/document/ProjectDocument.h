@@ -139,6 +139,7 @@ public:
     [[nodiscard]] uint32_t triggerId(std::size_t frameIndex) const;
     void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
     [[nodiscard]] uint32_t frameDurationMs(std::size_t frameIndex) const;
+    void setFrameDurationMs(std::size_t frameIndex, uint32_t durationMs);
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;

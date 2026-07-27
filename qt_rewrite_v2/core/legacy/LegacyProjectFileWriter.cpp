@@ -102,6 +102,13 @@ std::size_t crpSpriteNamesOffset(const LegacyCromMetadata& metadata)
            beforeSpriteNamesBytes;
 }
 
+std::size_t crpFrameDurationsOffset(const LegacyCromMetadata& metadata)
+{
+    return crpSpriteNamesOffset(metadata) +
+           kCrpMaxSpriteNames * kCrpSpriteNameBytes +
+           kCrpMaxSpriteNames * kCrpU32Bytes;
+}
+
 bool writeCrpSpriteNames(const LegacyProjectPaths& paths,
                          const LegacyCromMetadata& metadata,
                          const document::ProjectSnapshot& snapshot,
@@ -145,6 +152,23 @@ bool writeCrpSpriteNames(const LegacyProjectPaths& paths,
         std::copy_n(reinterpret_cast<const uint8_t*>(name.data()),
                     count,
                     crpBytes.begin() + static_cast<std::ptrdiff_t>(offset));
+    }
+
+    const std::size_t durationsOffset = crpFrameDurationsOffset(metadata);
+    const std::size_t durationsBytes =
+        static_cast<std::size_t>(metadata.frameCount) * kCrpU32Bytes;
+    if (durationsOffset <= crpBytes.size() &&
+        crpBytes.size() >= durationsOffset + durationsBytes) {
+        const std::size_t frameCount =
+            std::min<std::size_t>(snapshot.frames.size(), metadata.frameCount);
+        for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+            const uint32_t value = snapshot.frames[frameIndex].durationMs;
+            const std::size_t offset = durationsOffset + frameIndex * kCrpU32Bytes;
+            crpBytes[offset] = static_cast<uint8_t>(value & 0xff);
+            crpBytes[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xff);
+            crpBytes[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xff);
+            crpBytes[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xff);
+        }
     }
 
     if (!writeFileBytes(paths.crpPath, crpBytes, errorMessage, ".cRP")) {
