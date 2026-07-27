@@ -202,6 +202,10 @@ public:
                                 int sourceY,
                                 int width,
                                 int height);
+    void replaceSpriteFromFrameSelection(std::size_t spriteIndex,
+                                         const IndexedFrame& originalFrame,
+                                         const Rgb565Frame& colorizedFrame,
+                                         const std::vector<render::Point>& sourcePixels);
     void setSpriteOriginalPixel(std::size_t spriteIndex,
                                 int x,
                                 int y,

@@ -921,6 +921,73 @@ void testReplaceSpriteFromFrame()
         "sprite capture source bounds");
 }
 
+void testReplaceSpriteFromFrameSelection()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "sprite_selection_capture";
+    colorizing::document::IndexedFrame original =
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
+    colorizing::document::Rgb565Frame colorized =
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0);
+    original.pixels[6 * 128 + 20] = 0;
+    original.pixels[6 * 128 + 21] = 2;
+    original.pixels[6 * 128 + 22] = 3;
+    original.pixels[6 * 128 + 23] = 4;
+    original.pixels[6 * 128 + 24] = 5;
+    colorized.pixels[6 * 128 + 20] = 0x1111;
+    colorized.pixels[6 * 128 + 21] = 0x2222;
+    colorized.pixels[6 * 128 + 22] = 0x3333;
+    colorized.pixels[6 * 128 + 23] = 0x4444;
+    colorized.pixels[6 * 128 + 24] = 0x5555;
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        original,
+        colorized,
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        false,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{0, 0, 5, 1},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+    document.replaceSpriteFromFrameSelection(
+        0,
+        document.originalFrame(0),
+        document.colorizedFrame(0, Resolution::Sd),
+        {colorizing::render::Point{20, 6},
+         colorizing::render::Point{22, 6},
+         colorizing::render::Point{23, 6},
+         colorizing::render::Point{24, 6}});
+
+    expect(document.spriteOriginalPixel(0, 0, 0) == 0,
+           "selected black original pixel should remain part of sprite");
+    expect(document.spriteOriginalPixel(0, 1, 0) == 255,
+           "unselected pixel inside selection bounds should stay transparent");
+    expect(document.spriteOriginalPixel(0, 2, 0) == 3,
+           "selected pixel should be copied relative to selection bounds");
+    expect(document.spriteColorizedPixel(0, Resolution::Sd, 4, 0) == 0x5555,
+           "selection capture should copy colorized pixel");
+    expect(document.isDirty(), "selection capture should mark dirty");
+
+    expectThrows<std::invalid_argument>(
+        [&]() {
+            document.replaceSpriteFromFrameSelection(0,
+                                                     document.originalFrame(0),
+                                                     document.colorizedFrame(0, Resolution::Sd),
+                                                     {});
+        },
+        "empty sprite capture selection");
+}
+
 void testSpriteHdCreateAndRemove()
 {
     ProjectSnapshot snapshot;
@@ -1132,6 +1199,7 @@ void runProjectDocumentTests()
     testSpriteNameEditing();
     testSpriteOriginalPixelEditing();
     testReplaceSpriteFromFrame();
+    testReplaceSpriteFromFrameSelection();
     testSpriteHdCreateAndRemove();
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();

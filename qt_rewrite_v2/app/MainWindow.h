@@ -220,6 +220,7 @@ private:
     void exportSelectedBackgroundPng();
     void assignSelectedSpriteToCurrentSlot();
     void captureSelectedSpriteFromCurrentFrame();
+    void clearSpriteCaptureSelection();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
     void setCurrentSpriteName();
@@ -335,6 +336,11 @@ private:
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
     void updateDmdRenderOptions();
     void updateSpriteControls();
+    [[nodiscard]] bool isSpriteCaptureSelectionModeActive() const;
+    void paintSpriteCaptureSelectionPixel(const render::CanvasHit& hit, bool erase);
+    void commitSpriteCaptureSelectionPixels(const std::vector<render::Point>& pixels, bool erase);
+    void updateSpriteCaptureSelectionOverlay();
+    [[nodiscard]] std::vector<render::Point> spriteCaptureSelectionPixels() const;
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
@@ -371,6 +377,8 @@ private:
     QToolButton* m_applySpriteEditsButton = nullptr;
     QToolButton* m_assignSpriteButton = nullptr;
     QToolButton* m_captureSpriteButton = nullptr;
+    QToolButton* m_spriteCaptureSelectionButton = nullptr;
+    QToolButton* m_clearSpriteCaptureSelectionButton = nullptr;
     QToolButton* m_removeSpriteButton = nullptr;
     QToolButton* m_clearSpriteDetectionAreaButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
@@ -413,6 +421,8 @@ private:
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
     bool m_spriteDependentViewsDirty = false;
+    std::optional<std::size_t> m_spriteCaptureSelectionFrameIndex;
+    std::vector<uint8_t> m_spriteCaptureSelectionMask;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;

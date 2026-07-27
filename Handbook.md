@@ -349,12 +349,17 @@ The Inspector has a sprite browser and assignment controls:
   selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
   origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
   captured rectangle, and the selected sprite is assigned to the current frame slot.
+- `Select Capture` enables a persistent shaped capture selection on the original frame. Use the
+  normal point, line, rectangle, circle, ellipse, and filled-shape tools on the original frame to
+  add selected pixels; hold `Shift` to erase selected pixels. `Clear Sel` removes the selection.
+- When a capture selection exists, `Capture` uses the selected pixels instead of the slot rectangle.
+  The selected pixels are copied into the sprite relative to the selection bounds, unselected pixels
+  inside those bounds remain transparent, and selected black original pixels remain real sprite
+  pixels.
 - `Capture` currently replaces the selected sprite record after confirmation. The dialog shows the
   planned `Create New` path, but it stays disabled until sprite allocation updates all cROM and
   `.cRP` sprite tables together.
-- TODO: legacy sprite capture used a copied selection mask inside its bounding rectangle, so shaped
-  or outline selections could produce transparent pixels inside the rectangle. The current capture
-  path only uses the selected slot rectangle and treats black original pixels as transparent.
+- Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
 - `Remove` clears the selected slot's sprite assignment for all selected frames.

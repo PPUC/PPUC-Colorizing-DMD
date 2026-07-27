@@ -580,6 +580,17 @@ void MainWindow::createCentralView()
     m_captureSpriteButton->setToolTip(
         QStringLiteral("Copy original/colorized pixels from current frame bounds into selected sprite"));
     m_captureSpriteButton->setEnabled(false);
+    m_spriteCaptureSelectionButton = new QToolButton(central);
+    m_spriteCaptureSelectionButton->setText(QStringLiteral("Select Capture"));
+    m_spriteCaptureSelectionButton->setToolTip(
+        QStringLiteral("Draw a shaped sprite capture selection on the original frame"));
+    m_spriteCaptureSelectionButton->setCheckable(true);
+    m_spriteCaptureSelectionButton->setEnabled(false);
+    m_clearSpriteCaptureSelectionButton = new QToolButton(central);
+    m_clearSpriteCaptureSelectionButton->setText(QStringLiteral("Clear Sel"));
+    m_clearSpriteCaptureSelectionButton->setToolTip(
+        QStringLiteral("Clear the current sprite capture selection"));
+    m_clearSpriteCaptureSelectionButton->setEnabled(false);
     m_removeSpriteButton = new QToolButton(central);
     m_removeSpriteButton->setText(QStringLiteral("Remove"));
     m_removeSpriteButton->setToolTip(QStringLiteral("Clear selected sprite slot"));
@@ -843,6 +854,10 @@ void MainWindow::createCentralView()
     spriteButtonLayout->addWidget(m_captureSpriteButton);
     spriteButtonLayout->addWidget(m_removeSpriteButton);
     spritePageLayout->addLayout(spriteButtonLayout);
+    auto* spriteCaptureSelectionLayout = new QHBoxLayout();
+    spriteCaptureSelectionLayout->addWidget(m_spriteCaptureSelectionButton);
+    spriteCaptureSelectionLayout->addWidget(m_clearSpriteCaptureSelectionButton);
+    spritePageLayout->addLayout(spriteCaptureSelectionLayout);
     auto* spriteVisualizationGrid = new QGridLayout();
     spriteVisualizationGrid->setHorizontalSpacing(4);
     spriteVisualizationGrid->setVerticalSpacing(4);
@@ -1054,6 +1069,13 @@ void MainWindow::createCentralView()
     connect(m_captureSpriteButton, &QToolButton::clicked, this, [this]() {
         captureSelectedSpriteFromCurrentFrame();
     });
+    connect(m_spriteCaptureSelectionButton, &QToolButton::toggled, this, [this](bool) {
+        updateSpriteCaptureSelectionOverlay();
+        updateSpriteControls();
+    });
+    connect(m_clearSpriteCaptureSelectionButton, &QToolButton::clicked, this, [this]() {
+        clearSpriteCaptureSelection();
+    });
     connect(m_removeSpriteButton, &QToolButton::clicked, this, [this]() {
         removeCurrentSpriteSlot();
     });
@@ -1183,6 +1205,10 @@ void MainWindow::createCentralView()
         paintFramePixel(hit, erase);
     });
     m_preview->setOriginalClickedHandler([this](render::CanvasHit hit, bool erase) {
+        if (isSpriteCaptureSelectionModeActive()) {
+            paintSpriteCaptureSelectionPixel(hit, erase);
+            return;
+        }
         paintComparisonMaskPixel(hit, erase);
     });
     m_preview->setStrokePreviewHandler(
@@ -1955,9 +1981,14 @@ void MainWindow::selectFrame(int)
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
+        clearSpriteCaptureSelection();
         updateFrameMetadataControls();
         updateSpriteControls();
         return;
+    }
+    if (m_spriteCaptureSelectionFrameIndex &&
+        *m_spriteCaptureSelectionFrameIndex != *frameIndex) {
+        clearSpriteCaptureSelection();
     }
     m_preview->setFrameIndex(*frameIndex);
     const bool hasHd = m_document->hasHdFrame(*frameIndex);
@@ -1973,6 +2004,7 @@ void MainWindow::selectFrame(int)
     updateSpriteControls();
     updatePaintTargetMode();
     updateUndoRedoActions();
+    updateSpriteCaptureSelectionOverlay();
 }
 
 void MainWindow::updateResolutionMode()
@@ -2853,6 +2885,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     const int maxY = std::clamp(m_spriteMaxYSpinBox ? m_spriteMaxYSpinBox->value() : minY,
                                 minY,
                                 render::kSdFrameSize.height - 1);
+    const std::vector<render::Point> selectedPixels = spriteCaptureSelectionPixels();
     const int width = maxX - minX + 1;
     const int height = maxY - minY + 1;
     if (width <= 0 || height <= 0 ||
@@ -2862,14 +2895,47 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         updateSpriteControls();
         return;
     }
+    int captureMinX = minX;
+    int captureMinY = minY;
+    int captureMaxX = maxX;
+    int captureMaxY = maxY;
+    if (!selectedPixels.empty()) {
+        captureMinX = render::kSdFrameSize.width - 1;
+        captureMinY = render::kSdFrameSize.height - 1;
+        captureMaxX = 0;
+        captureMaxY = 0;
+        for (const render::Point& pixel : selectedPixels) {
+            captureMinX = std::min(captureMinX, pixel.x);
+            captureMinY = std::min(captureMinY, pixel.y);
+            captureMaxX = std::max(captureMaxX, pixel.x);
+            captureMaxY = std::max(captureMaxY, pixel.y);
+        }
+    }
+    const int captureWidth = captureMaxX - captureMinX + 1;
+    const int captureHeight = captureMaxY - captureMinY + 1;
+    if (captureWidth <= 0 || captureHeight <= 0 ||
+        captureWidth > static_cast<int>(document::kMaxSpriteWidth) ||
+        captureHeight > static_cast<int>(document::kMaxSpriteHeight)) {
+        statusBar()->showMessage(QStringLiteral("Sprite capture selection is invalid"), 2500);
+        updateSpriteControls();
+        return;
+    }
 
     QMessageBox confirm(this);
     confirm.setWindowTitle(QStringLiteral("Capture Sprite"));
-    confirm.setText(QStringLiteral("Capture frame region [%1,%2-%3,%4]?")
-                        .arg(minX)
-                        .arg(minY)
-                        .arg(maxX)
-                        .arg(maxY));
+    confirm.setText(
+        selectedPixels.empty()
+            ? QStringLiteral("Capture frame region [%1,%2-%3,%4]?")
+                  .arg(captureMinX)
+                  .arg(captureMinY)
+                  .arg(captureMaxX)
+                  .arg(captureMaxY)
+            : QStringLiteral("Capture %1 selected pixel(s) from [%2,%3-%4,%5]?")
+                  .arg(static_cast<int>(selectedPixels.size()))
+                  .arg(captureMinX)
+                  .arg(captureMinY)
+                  .arg(captureMaxX)
+                  .arg(captureMaxY));
     confirm.setInformativeText(
         QStringLiteral("Replace sprite %1 with the captured pixels. Creating a new sprite "
                        "record is not available yet because it must update all cROM and .cRP "
@@ -2895,30 +2961,40 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                  *frameIndex,
                                  render::Resolution::Sd,
                                  includeBackgroundLayer);
-        m_document->replaceSpriteFromFrame(*spriteIndex,
-                                           m_document->originalFrame(*frameIndex),
-                                           sourceColorized,
-                                           minX,
-                                           minY,
-                                           width,
-                                           height);
+        if (selectedPixels.empty()) {
+            m_document->replaceSpriteFromFrame(*spriteIndex,
+                                               m_document->originalFrame(*frameIndex),
+                                               sourceColorized,
+                                               captureMinX,
+                                               captureMinY,
+                                               captureWidth,
+                                               captureHeight);
+        } else {
+            m_document->replaceSpriteFromFrameSelection(*spriteIndex,
+                                                        m_document->originalFrame(*frameIndex),
+                                                        sourceColorized,
+                                                        selectedPixels);
+        }
         m_document->setSpriteDetectionArea(*spriteIndex,
                                            0,
                                            document::SpriteDetectionArea{
                                                0,
                                                0,
-                                               static_cast<uint16_t>(width),
-                                               static_cast<uint16_t>(height),
+                                               static_cast<uint16_t>(captureWidth),
+                                               static_cast<uint16_t>(captureHeight),
                                            });
         m_document->setFrameSpriteReference(*frameIndex,
                                             static_cast<std::size_t>(slotIndex),
                                             document::FrameSpriteReference{
                                                 static_cast<uint8_t>(*spriteIndex),
-                                                static_cast<uint16_t>(minX),
-                                                static_cast<uint16_t>(minY),
-                                                static_cast<uint16_t>(maxX),
-                                                static_cast<uint16_t>(maxY),
+                                                static_cast<uint16_t>(captureMinX),
+                                                static_cast<uint16_t>(captureMinY),
+                                                static_cast<uint16_t>(captureMaxX),
+                                                static_cast<uint16_t>(captureMaxY),
                                             });
+        if (!selectedPixels.empty()) {
+            clearSpriteCaptureSelection();
+        }
         setSpriteDependentViewsDirty();
         applyPendingSpriteDependentViews();
         refreshComponentBrowsers();
@@ -2926,16 +3002,131 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         updateProjectHeaderStatus();
         statusBar()->showMessage(
             QStringLiteral("Captured frame region [%1,%2-%3,%4] into sprite %5")
-                .arg(minX)
-                .arg(minY)
-                .arg(maxX)
-                .arg(maxY)
+                .arg(captureMinX)
+                .arg(captureMinY)
+                .arg(captureMaxX)
+                .arg(captureMaxY)
                 .arg(static_cast<int>(*spriteIndex)),
             3000);
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::clearSpriteCaptureSelection()
+{
+    m_spriteCaptureSelectionFrameIndex.reset();
+    m_spriteCaptureSelectionMask.clear();
+    if (m_preview) {
+        m_preview->clearSelectionOverlayPixels();
+    }
+    updateSpriteControls();
+}
+
+bool MainWindow::isSpriteCaptureSelectionModeActive() const
+{
+    return m_spriteCaptureSelectionButton &&
+           m_spriteCaptureSelectionButton->isChecked() &&
+           m_document.has_value() &&
+           currentFrameIndex().has_value();
+}
+
+void MainWindow::paintSpriteCaptureSelectionPixel(const render::CanvasHit& hit, bool erase)
+{
+    if (m_drawingTool != DrawingTool::Point ||
+        hit.region != render::CanvasRegion::OriginalFrame ||
+        hit.resolution != render::Resolution::Sd) {
+        return;
+    }
+    commitSpriteCaptureSelectionPixels({render::Point{hit.x, hit.y}}, erase);
+}
+
+void MainWindow::commitSpriteCaptureSelectionPixels(const std::vector<render::Point>& pixels,
+                                                    bool erase)
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || pixels.empty()) {
+        return;
+    }
+    if (!m_spriteCaptureSelectionFrameIndex ||
+        *m_spriteCaptureSelectionFrameIndex != *frameIndex ||
+        m_spriteCaptureSelectionMask.size() !=
+            static_cast<std::size_t>(render::kSdFrameSize.width) *
+                static_cast<std::size_t>(render::kSdFrameSize.height)) {
+        m_spriteCaptureSelectionFrameIndex = *frameIndex;
+        m_spriteCaptureSelectionMask.assign(
+            static_cast<std::size_t>(render::kSdFrameSize.width) *
+                static_cast<std::size_t>(render::kSdFrameSize.height),
+            0);
+    }
+
+    bool changed = false;
+    for (const render::Point& pixel : pixels) {
+        if (pixel.x < 0 || pixel.y < 0 ||
+            pixel.x >= render::kSdFrameSize.width ||
+            pixel.y >= render::kSdFrameSize.height) {
+            continue;
+        }
+        const std::size_t index =
+            static_cast<std::size_t>(pixel.y) *
+                static_cast<std::size_t>(render::kSdFrameSize.width) +
+            static_cast<std::size_t>(pixel.x);
+        const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
+        if (m_spriteCaptureSelectionMask[index] == newValue) {
+            continue;
+        }
+        m_spriteCaptureSelectionMask[index] = newValue;
+        changed = true;
+    }
+    if (!changed) {
+        return;
+    }
+    updateSpriteCaptureSelectionOverlay();
+    updateSpriteControls();
+}
+
+void MainWindow::updateSpriteCaptureSelectionOverlay()
+{
+    if (!m_preview) {
+        return;
+    }
+    const std::vector<render::Point> pixels = spriteCaptureSelectionPixels();
+    if (pixels.empty()) {
+        m_preview->clearSelectionOverlayPixels();
+        return;
+    }
+    m_preview->setSelectionOverlayPixels(render::CanvasRegion::OriginalFrame,
+                                         render::Resolution::Sd,
+                                         pixels,
+                                         QColor(255, 0, 255, 110));
+}
+
+std::vector<render::Point> MainWindow::spriteCaptureSelectionPixels() const
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!frameIndex ||
+        !m_spriteCaptureSelectionFrameIndex ||
+        *m_spriteCaptureSelectionFrameIndex != *frameIndex ||
+        m_spriteCaptureSelectionMask.size() !=
+            static_cast<std::size_t>(render::kSdFrameSize.width) *
+                static_cast<std::size_t>(render::kSdFrameSize.height)) {
+        return {};
+    }
+
+    std::vector<render::Point> pixels;
+    for (int y = 0; y < render::kSdFrameSize.height; ++y) {
+        for (int x = 0; x < render::kSdFrameSize.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) *
+                    static_cast<std::size_t>(render::kSdFrameSize.width) +
+                static_cast<std::size_t>(x);
+            if (m_spriteCaptureSelectionMask[index]) {
+                pixels.push_back(render::Point{x, y});
+            }
+        }
+    }
+    return pixels;
 }
 
 void MainWindow::removeCurrentSpriteSlot()
@@ -3576,7 +3767,9 @@ void MainWindow::updateSpriteControls()
     if (!m_spriteComboBox || !m_spriteOriginalPreviewLabel ||
         !m_spriteColorizedPreviewLabel || !m_frameSpritesLabel ||
         !m_spriteSlotComboBox || !m_assignSpriteButton || !m_removeSpriteButton ||
-        !m_captureSpriteButton || !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
+        !m_captureSpriteButton || !m_spriteCaptureSelectionButton ||
+        !m_clearSpriteCaptureSelectionButton ||
+        !m_spriteBoundsOverlayButton || !m_spriteDetectionAreasButton ||
         !m_spriteCanvasButton || !m_applySpriteEditsButton || !m_spriteNameLineEdit ||
         !m_spriteDetectionAreaComboBox || !m_clearSpriteDetectionAreaButton ||
         !m_spriteMinXSpinBox || !m_spriteMinYSpinBox ||
@@ -3690,6 +3883,8 @@ void MainWindow::updateSpriteControls()
                                      static_cast<std::size_t>(spriteIndex) <
                                          m_document->spriteCount());
     m_captureSpriteButton->setEnabled(m_assignSpriteButton->isEnabled());
+    m_spriteCaptureSelectionButton->setEnabled(m_captureSpriteButton->isEnabled());
+    m_clearSpriteCaptureSelectionButton->setEnabled(!spriteCaptureSelectionPixels().empty());
     bool slotHasSprite = false;
     std::optional<document::FrameSpriteReference> selectedReference;
     if (m_document && frameIndex && slotIndex >= 0) {
@@ -3734,6 +3929,8 @@ void MainWindow::updateSpriteControls()
         m_spriteDetectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);
         m_captureSpriteButton->setEnabled(false);
+        m_spriteCaptureSelectionButton->setEnabled(false);
+        m_clearSpriteCaptureSelectionButton->setEnabled(false);
         m_spriteNameLineEdit->setEnabled(false);
         m_spriteNameLineEdit->clear();
         m_applySpriteEditsButton->setEnabled(false);
@@ -4405,6 +4602,18 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
         start.resolution != end.resolution) {
         return;
     }
+    if (isSpriteCaptureSelectionModeActive()) {
+        if (start.region != render::CanvasRegion::OriginalFrame ||
+            start.resolution != render::Resolution::Sd) {
+            return;
+        }
+        m_preview->setPreviewPixels(render::CanvasRegion::OriginalFrame,
+                                    render::Resolution::Sd,
+                                    pixelsForStroke(start, end),
+                                    erase ? QColor(0, 0, 0, 150)
+                                          : QColor(255, 0, 255, 150));
+        return;
+    }
     if (isComparisonMaskModeActive()) {
         if (start.region != render::CanvasRegion::OriginalFrame) {
             return;
@@ -4487,6 +4696,14 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         statusText = QStringLiteral("Painted filled ellipse");
     }
 
+    if (isSpriteCaptureSelectionModeActive()) {
+        if (start.region != render::CanvasRegion::OriginalFrame ||
+            start.resolution != render::Resolution::Sd) {
+            return;
+        }
+        commitSpriteCaptureSelectionPixels(pixelsForStroke(start, end), erase);
+        return;
+    }
     if (isComparisonMaskModeActive()) {
         if (start.region != render::CanvasRegion::OriginalFrame) {
             return;

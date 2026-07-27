@@ -986,6 +986,96 @@ void ProjectDocument::replaceSpriteFromFrame(std::size_t spriteIndex,
     m_dirty = true;
 }
 
+void ProjectDocument::replaceSpriteFromFrameSelection(
+    std::size_t spriteIndex,
+    const IndexedFrame& originalFrame,
+    const Rgb565Frame& colorizedFrame,
+    const std::vector<render::Point>& sourcePixels)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    if (!originalFrame.isValid() || !colorizedFrame.isValid() ||
+        originalFrame.size.width != colorizedFrame.size.width ||
+        originalFrame.size.height != colorizedFrame.size.height) {
+        throw std::invalid_argument("source frame dimensions do not match");
+    }
+    if (sourcePixels.empty()) {
+        throw std::invalid_argument("sprite capture selection is empty");
+    }
+
+    int minX = originalFrame.size.width;
+    int minY = originalFrame.size.height;
+    int maxX = -1;
+    int maxY = -1;
+    std::vector<uint8_t> selected(originalFrame.pixels.size(), 0);
+    for (const render::Point& point : sourcePixels) {
+        if (point.x < 0 || point.y < 0 ||
+            point.x >= originalFrame.size.width ||
+            point.y >= originalFrame.size.height) {
+            continue;
+        }
+        const std::size_t framePixel =
+            static_cast<std::size_t>(point.y) *
+                static_cast<std::size_t>(originalFrame.size.width) +
+            static_cast<std::size_t>(point.x);
+        if (selected[framePixel]) {
+            continue;
+        }
+        selected[framePixel] = 1;
+        minX = std::min(minX, point.x);
+        minY = std::min(minY, point.y);
+        maxX = std::max(maxX, point.x);
+        maxY = std::max(maxY, point.y);
+    }
+    if (maxX < minX || maxY < minY) {
+        throw std::invalid_argument("sprite capture selection is empty");
+    }
+    const int width = maxX - minX + 1;
+    const int height = maxY - minY + 1;
+    if (width > static_cast<int>(kMaxSpriteWidth) ||
+        height > static_cast<int>(kMaxSpriteHeight)) {
+        throw std::out_of_range("sprite capture selection is too large");
+    }
+
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    IndexedFrame newOriginal =
+        makeIndexedFrame(Size{static_cast<int>(kMaxSpriteWidth),
+                              static_cast<int>(kMaxSpriteHeight)}, 255);
+    Rgb565Frame newColorized =
+        makeRgb565Frame(Size{static_cast<int>(kMaxSpriteWidth),
+                             static_cast<int>(kMaxSpriteHeight)}, 0);
+
+    for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            const std::size_t framePixel =
+                static_cast<std::size_t>(y) *
+                    static_cast<std::size_t>(originalFrame.size.width) +
+                static_cast<std::size_t>(x);
+            if (!selected[framePixel]) {
+                continue;
+            }
+            const std::size_t spritePixel = spritePixelIndex(x - minX, y - minY);
+            newOriginal.pixels[spritePixel] = originalFrame.pixels[framePixel];
+            newColorized.pixels[spritePixel] = colorizedFrame.pixels[framePixel];
+        }
+    }
+
+    if (sprite.originalSd.pixels == newOriginal.pixels &&
+        sprite.colorizedSd.pixels == newColorized.pixels) {
+        return;
+    }
+
+    sprite.originalSd = std::move(newOriginal);
+    sprite.colorizedSd = std::move(newColorized);
+    if (sprite.hasHd) {
+        sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
+        sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+    }
+    recalculateSpriteDetectionDwords(sprite);
+    m_dirty = true;
+}
+
 void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
                                              int x,
                                              int y,

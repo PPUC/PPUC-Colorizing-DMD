@@ -136,6 +136,28 @@ void FramePreviewWidget::setSelectedSpriteReference(
     update();
 }
 
+void FramePreviewWidget::setSelectionOverlayPixels(render::CanvasRegion region,
+                                                   render::Resolution resolution,
+                                                   std::vector<render::Point> pixels,
+                                                   QColor color)
+{
+    m_selectionOverlayRegion = region;
+    m_selectionOverlayResolution = resolution;
+    m_selectionOverlayPixels = std::move(pixels);
+    m_selectionOverlayColor = color;
+    update();
+}
+
+void FramePreviewWidget::clearSelectionOverlayPixels()
+{
+    if (!m_selectionOverlayResolution && m_selectionOverlayPixels.empty()) {
+        return;
+    }
+    m_selectionOverlayResolution.reset();
+    m_selectionOverlayPixels.clear();
+    update();
+}
+
 void FramePreviewWidget::setPixelClickedHandler(std::function<void(render::CanvasHit, bool)> handler)
 {
     m_pixelClickedHandler = std::move(handler);
@@ -337,6 +359,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
         paintDynamicMaskOverlay(painter, region);
         paintBackgroundMaskOverlay(painter, region);
         paintSelectedSpriteBounds(painter, region);
+        paintSelectionOverlay(painter, region);
         paintPreview(painter, region);
     }
 
@@ -563,6 +586,34 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
     painter.setRenderHint(QPainter::Antialiasing, false);
     const QColor fillColor(0, 255, 255, 110);
     painter.fillRect(bounds, fillColor);
+    painter.restore();
+}
+
+void FramePreviewWidget::paintSelectionOverlay(QPainter& painter,
+                                               const render::CanvasRegionLayout& region)
+{
+    if (!m_selectionOverlayResolution ||
+        m_selectionOverlayRegion != region.region ||
+        *m_selectionOverlayResolution != region.resolution ||
+        m_selectionOverlayPixels.empty()) {
+        return;
+    }
+
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(m_selectionOverlayColor);
+    const int scale = region.displayScale;
+    for (const render::Point& point : m_selectionOverlayPixels) {
+        if (point.x < 0 || point.y < 0 ||
+            point.x >= region.logicalSize.width ||
+            point.y >= region.logicalSize.height) {
+            continue;
+        }
+        painter.drawRect(QRect(region.displayRect.x + point.x * scale,
+                               region.displayRect.y + point.y * scale,
+                               scale,
+                               scale));
+    }
     painter.restore();
 }
 
