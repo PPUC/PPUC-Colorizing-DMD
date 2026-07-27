@@ -29,6 +29,7 @@ struct ProjectSnapshot {
     std::vector<IndexedFrame> comparisonMasks;
     std::vector<BackgroundRecord> backgrounds;
     std::vector<SpriteRecord> sprites;
+    std::vector<PaletteRecord> palettes;
     std::vector<UnsupportedLegacyPayload> unsupportedPayloads;
 };
 

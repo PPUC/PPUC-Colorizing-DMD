@@ -202,6 +202,22 @@ private:
         std::vector<SpriteImageEditCommand> redoStack;
     };
 
+    struct PaletteColorChange {
+        std::size_t colorIndex = 0;
+        uint16_t oldColor = 0;
+        uint16_t newColor = 0;
+    };
+
+    struct PaletteEditCommand {
+        std::size_t paletteIndex = 0;
+        std::vector<PaletteColorChange> changes;
+    };
+
+    struct PaletteEditHistory {
+        std::vector<PaletteEditCommand> undoStack;
+        std::vector<PaletteEditCommand> redoStack;
+    };
+
     void createActions();
     void createCentralView();
     void openProject();
@@ -265,6 +281,12 @@ private:
     void setCurrentColorRotationDelayMs(int delayMs);
     void editCurrentColorRotationColor(std::size_t colorIndex);
     void clearCurrentColorRotationSlot();
+    void updatePaletteControls();
+    void setCurrentPaletteName();
+    void pickCurrentPaletteColor(std::size_t colorIndex);
+    void editCurrentPaletteColor(std::size_t colorIndex);
+    void applyCurrentPaletteGradient();
+    void setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565);
     void pickDynamicSet(const render::CanvasHit& hit);
     void paintSpriteColorizedPixel(std::size_t spriteIndex,
                                    render::Resolution resolution,
@@ -332,6 +354,7 @@ private:
     void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
     void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
     void applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor);
+    void applyPaletteEdit(const PaletteEditCommand& command, bool useNewColor);
     [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
     [[nodiscard]] EditHistory* currentEditHistory();
     [[nodiscard]] const EditHistory* currentEditHistory() const;
@@ -349,6 +372,9 @@ private:
     [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
     [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
+    [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
+    [[nodiscard]] PaletteEditHistory* currentPaletteEditHistory();
+    [[nodiscard]] const PaletteEditHistory* currentPaletteEditHistory() const;
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
     [[nodiscard]] std::optional<std::size_t> currentBackgroundIndex() const;
     [[nodiscard]] std::optional<BackgroundEditHistoryKey> currentBackgroundEditHistoryKey() const;
@@ -371,6 +397,7 @@ private:
     void updateMaskBrowserSelection();
     void updateBackgroundBrowserSelection();
     void updateSpriteBrowserSelection();
+    void updatePaletteBrowserSelection();
     void updatePlaybackControls();
     void setPlaybackRunning(bool running);
     void advancePlaybackFrame();
@@ -435,6 +462,8 @@ private:
     QSpinBox* m_colorRotationDelaySpinBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
+    QSpinBox* m_paletteGradientStartSpinBox = nullptr;
+    QSpinBox* m_paletteGradientEndSpinBox = nullptr;
     QSpinBox* m_spriteMinXSpinBox = nullptr;
     QSpinBox* m_spriteMinYSpinBox = nullptr;
     QSpinBox* m_spriteMaxXSpinBox = nullptr;
@@ -447,10 +476,12 @@ private:
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
     QComboBox* m_colorRotationSlotComboBox = nullptr;
+    QComboBox* m_paletteComboBox = nullptr;
     QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
     QLineEdit* m_spriteNameLineEdit = nullptr;
+    QLineEdit* m_paletteNameLineEdit = nullptr;
     QComboBox* m_spriteSlotComboBox = nullptr;
     QComboBox* m_spriteDetectionAreaComboBox = nullptr;
     QLabel* m_spriteOriginalPreviewLabel = nullptr;
@@ -459,14 +490,18 @@ private:
     QLabel* m_selectedMaskLabel = nullptr;
     QLabel* m_selectedBackgroundLabel = nullptr;
     QLabel* m_selectedSpriteLabel = nullptr;
+    QLabel* m_selectedPaletteLabel = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
+    std::vector<uint16_t> m_favoriteColors;
     std::vector<QToolButton*> m_dynamicColorButtons;
     std::vector<QToolButton*> m_dynamicShadowDirectionButtons;
     QToolButton* m_dynamicShadowColorButton = nullptr;
     QToolButton* m_clearColorRotationSlotButton = nullptr;
+    QToolButton* m_applyPaletteGradientButton = nullptr;
     ColorGridWidget* m_colorRotationGrid = nullptr;
+    ColorGridWidget* m_paletteGrid = nullptr;
     QToolButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
@@ -486,6 +521,7 @@ private:
     std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
     std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
     std::map<SpriteEditHistoryKey, SpriteImageEditHistory> m_spriteImageEditHistories;
+    std::map<std::size_t, PaletteEditHistory> m_paletteEditHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

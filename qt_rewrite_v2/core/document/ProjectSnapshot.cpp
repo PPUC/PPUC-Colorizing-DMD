@@ -84,6 +84,13 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         }
     }
 
+    for (std::size_t i = 0; i < snapshot.palettes.size(); ++i) {
+        if (snapshot.palettes[i].colors.size() != kPaletteColorCount) {
+            return fail(errorMessage, "palette " + std::to_string(i) +
+                                          " has invalid color data");
+        }
+    }
+
     for (std::size_t i = 0; i < snapshot.frames.size(); ++i) {
         const ProjectFrameSnapshot& frame = snapshot.frames[i];
         if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, render::kSdFrameSize)) {

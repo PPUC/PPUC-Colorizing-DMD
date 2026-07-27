@@ -37,6 +37,8 @@ constexpr std::size_t kMaxSpriteDetectAreas = 4;
 constexpr std::size_t kMaxColorRotations = 4;
 constexpr std::size_t kMaxColorRotationLength = 64;
 constexpr std::size_t kMaxColorRotationColors = kMaxColorRotationLength - 2;
+constexpr std::size_t kPaletteCount = 256;
+constexpr std::size_t kPaletteColorCount = 64;
 
 struct FrameDynamicData {
     IndexedFrame maskSd;
@@ -105,6 +107,11 @@ struct FrameRecord {
 struct UnsupportedLegacyPayload {
     std::string name;
     std::vector<uint8_t> bytes;
+};
+
+struct PaletteRecord {
+    std::vector<uint16_t> colors;
+    std::string name;
 };
 
 struct ProjectCreateOptions {
@@ -243,6 +250,12 @@ public:
     [[nodiscard]] std::size_t spriteCount() const;
     [[nodiscard]] const SpriteRecord& sprite(std::size_t spriteIndex) const;
     void setSpriteName(std::size_t spriteIndex, std::string name);
+    [[nodiscard]] std::size_t paletteCount() const;
+    [[nodiscard]] const PaletteRecord& palette(std::size_t paletteIndex) const;
+    [[nodiscard]] uint16_t paletteColor(std::size_t paletteIndex,
+                                        std::size_t colorIndex) const;
+    void setPaletteColor(std::size_t paletteIndex, std::size_t colorIndex, uint16_t rgb565);
+    void setPaletteName(std::size_t paletteIndex, std::string name);
     [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
     void createHdSprite(std::size_t spriteIndex);
     void removeHdSprite(std::size_t spriteIndex);
@@ -303,6 +316,7 @@ private:
     std::vector<IndexedFrame> m_comparisonMasks;
     std::vector<BackgroundRecord> m_backgrounds;
     std::vector<SpriteRecord> m_sprites;
+    std::vector<PaletteRecord> m_palettes;
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     bool m_dirty = false;
 };

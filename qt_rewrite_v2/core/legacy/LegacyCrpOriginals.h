@@ -15,6 +15,7 @@ struct LegacyCrpOriginalData {
     std::vector<document::IndexedFrame> originalSdFrames;
     std::vector<std::string> spriteNames;
     std::vector<uint32_t> frameDurationsMs;
+    std::vector<document::PaletteRecord> palettes;
 };
 
 struct LegacyCrpOriginalParseResult {

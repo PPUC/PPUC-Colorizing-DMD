@@ -248,6 +248,34 @@ std::vector<uint8_t> makeCrpWithFrameDurations(const std::string& romName)
     return bytes;
 }
 
+std::vector<uint8_t> makeCrpWithPalettes(const std::string& romName)
+{
+    std::vector<uint8_t> bytes = makeCrpWithFrameDurations(romName);
+    appendRepeatedU16(bytes, 0, 255 * 4);
+    appendRepeatedU32(bytes, 0, 255 * 2);
+    for (std::size_t paletteIndex = 0; paletteIndex < 256; ++paletteIndex) {
+        for (std::size_t colorIndex = 0; colorIndex < 64; ++colorIndex) {
+            uint16_t color = 0;
+            if (paletteIndex == 0 && colorIndex == 0) {
+                color = 0x1111;
+            } else if (paletteIndex == 1 && colorIndex == 2) {
+                color = 0x2222;
+            }
+            appendU16(bytes, color);
+        }
+    }
+    appendRepeatedU16(bytes, 0, 16);
+    appendU32(bytes, 0);
+    appendRepeatedU8(bytes, 0, 256 * 64);
+    appendRepeatedU32(bytes, 0, 256 * 16);
+    appendFixedName(bytes, "Default palette", 64);
+    appendFixedName(bytes, "Warm palette", 64);
+    for (std::size_t i = 2; i < 256; ++i) {
+        appendFixedName(bytes, "", 64);
+    }
+    return bytes;
+}
+
 std::vector<uint8_t> makeLegacyPalettedCrom()
 {
     std::vector<uint8_t> bytes;
@@ -299,7 +327,7 @@ void testFileReaderLoadsModernProject()
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpWithFrameDurations("file_rom"));
+    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
@@ -397,6 +425,16 @@ void testFileReaderLoadsModernProject()
            "file reader SD background mask data");
     expect(result.snapshot.frames[1].backgroundData->maskHd.pixels.front() == 3,
            "file reader HD background mask data");
+    expect(result.snapshot.palettes.size() == 256,
+           "file reader palette count");
+    expect(result.snapshot.palettes[0].colors[0] == 0x1111,
+           "file reader first palette color");
+    expect(result.snapshot.palettes[1].colors[2] == 0x2222,
+           "file reader second palette color");
+    expect(result.snapshot.palettes[0].name == "Default palette",
+           "file reader first palette name");
+    expect(result.snapshot.palettes[1].name == "Warm palette",
+           "file reader second palette name");
 }
 
 void testFileReaderReportsMissingCrom()
@@ -438,7 +476,7 @@ void testFileWriterSavesEditedModernCrom()
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpWithFrameDurations("file_rom"));
+    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
 
     const LegacyProjectPaths paths{
         cromPath.string(),
@@ -494,6 +532,8 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[1].colorizedHd =
         makeRgb565Frame(colorizing::render::kHdFrameSize, 0xcafe);
     loadResult.snapshot.frames[1].colorizedHd->pixels[5] = 0xbeef;
+    loadResult.snapshot.palettes[0].colors[0] = 0xabcd;
+    loadResult.snapshot.palettes[1].name = "Edited palette";
 
     const LegacyProjectFileWriter writer;
     const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
@@ -596,6 +636,10 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should set second HD presence flag");
     expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[5] == 0xbeef,
            "file writer should update second HD pixels");
+    expect(reloadResult.snapshot.palettes[0].colors[0] == 0xabcd,
+           "file writer should update cRP palette colors");
+    expect(reloadResult.snapshot.palettes[1].name == "Edited palette",
+           "file writer should update cRP palette names");
 }
 
 void testFileWriterRejectsMismatchedTemplate()

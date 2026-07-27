@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdlib>
 #include <deque>
+#include <functional>
 #include <set>
 
 #include <QAbstractItemView>
@@ -14,6 +15,8 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -29,6 +32,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
@@ -73,18 +77,64 @@ constexpr std::array<const char*, 8> kDynamicShadowDirectionLabels{
 };
 constexpr std::array<int, 8> kDynamicShadowDirectionRows{0, 0, 0, 1, 1, 2, 2, 2};
 constexpr std::array<int, 8> kDynamicShadowDirectionColumns{0, 1, 2, 0, 2, 0, 1, 2};
+constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
+
+QString favoriteColorButtonStyle(uint16_t rgb565)
+{
+    const QColor color = rgb565ToColor(rgb565);
+    return QStringLiteral("QToolButton { background: %1; border: 1px solid #666; }"
+                          "QToolButton:checked { border: 3px solid #ffffff; }")
+        .arg(color.name());
+}
+
+class FavoriteColorButton final : public QToolButton {
+public:
+    explicit FavoriteColorButton(QWidget* parent = nullptr)
+        : QToolButton(parent)
+    {
+        setAcceptDrops(true);
+        setCheckable(true);
+        setFixedSize(28, 24);
+    }
+
+    void setDropHandler(std::function<void(uint16_t)> handler)
+    {
+        m_dropHandler = std::move(handler);
+    }
+
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override
+    {
+        if (event->mimeData()->hasFormat(kRgb565MimeType)) {
+            event->acceptProposedAction();
+            return;
+        }
+        QToolButton::dragEnterEvent(event);
+    }
+
+    void dropEvent(QDropEvent* event) override
+    {
+        bool ok = false;
+        const int value =
+            QString::fromLatin1(event->mimeData()->data(kRgb565MimeType)).toInt(&ok);
+        if (ok && value >= 0 && value <= 0xffff && m_dropHandler) {
+            m_dropHandler(static_cast<uint16_t>(value));
+            event->acceptProposedAction();
+            return;
+        }
+        QToolButton::dropEvent(event);
+    }
+
+private:
+    std::function<void(uint16_t)> m_dropHandler;
+};
 
 QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
 {
-    auto* button = new QToolButton(parent);
-    button->setCheckable(true);
-    button->setFixedSize(28, 24);
+    auto* button = new FavoriteColorButton(parent);
     button->setProperty("rgb565", static_cast<int>(rgb565));
     button->setToolTip(QStringLiteral("Draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
-    const QColor color = rgb565ToColor(rgb565);
-    button->setStyleSheet(QStringLiteral("QToolButton { background: %1; border: 1px solid #666; }"
-                                         "QToolButton:checked { border: 3px solid #ffffff; }")
-                              .arg(color.name()));
+    button->setStyleSheet(favoriteColorButtonStyle(rgb565));
     return button;
 }
 
@@ -113,6 +163,27 @@ uint16_t colorToRgb565(const QColor& color)
     const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
     const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
     return static_cast<uint16_t>((r << 11) | (g << 5) | b);
+}
+
+uint16_t interpolateRgb565(uint16_t startColor,
+                           uint16_t endColor,
+                           std::size_t step,
+                           std::size_t maxStep)
+{
+    if (maxStep == 0) {
+        return startColor;
+    }
+    const QColor start = rgb565ToColor(startColor);
+    const QColor end = rgb565ToColor(endColor);
+    const int denominator = static_cast<int>(maxStep);
+    const int numerator = static_cast<int>(step);
+    const int red =
+        (start.red() * (denominator - numerator) + end.red() * numerator) / denominator;
+    const int green =
+        (start.green() * (denominator - numerator) + end.green() * numerator) / denominator;
+    const int blue =
+        (start.blue() * (denominator - numerator) + end.blue() * numerator) / denominator;
+    return colorToRgb565(QColor(red, green, blue));
 }
 
 std::size_t spritePixelIndex(int x, int y)
@@ -251,6 +322,21 @@ QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
             const uint8_t value = mask.pixels[index];
             image.setPixelColor(x, y, value == 0 ? QColor(32, 32, 32)
                                                   : QColor(0, 220, 220));
+        }
+    }
+    return image;
+}
+
+QImage renderPalettePreviewImage(const document::PaletteRecord& palette)
+{
+    QImage image(static_cast<int>(document::kPaletteColorCount), 8, QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    const std::size_t colorCount =
+        std::min<std::size_t>(palette.colors.size(), document::kPaletteColorCount);
+    for (std::size_t colorIndex = 0; colorIndex < colorCount; ++colorIndex) {
+        const QColor color = rgb565ToColor(palette.colors[colorIndex]);
+        for (int y = 0; y < image.height(); ++y) {
+            image.setPixelColor(static_cast<int>(colorIndex), y, color);
         }
     }
     return image;
@@ -523,6 +609,36 @@ void MainWindow::createCentralView()
     m_clearColorRotationSlotButton->setText(QStringLiteral("Clear Slot"));
     m_clearColorRotationSlotButton->setToolTip(QStringLiteral("Clear the selected color rotation slot"));
     m_clearColorRotationSlotButton->setEnabled(false);
+    m_paletteComboBox = new QComboBox(central);
+    m_paletteComboBox->setToolTip(QStringLiteral("Selected palette"));
+    m_paletteComboBox->setIconSize(QSize(96, 18));
+    m_paletteComboBox->setEnabled(false);
+    m_paletteNameLineEdit = new QLineEdit(central);
+    m_paletteNameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
+    m_paletteNameLineEdit->setMaxLength(63);
+    m_paletteNameLineEdit->setEnabled(false);
+    m_paletteGradientStartSpinBox = new QSpinBox(central);
+    m_paletteGradientStartSpinBox->setToolTip(QStringLiteral("First palette color index for gradient fill"));
+    m_paletteGradientStartSpinBox->setRange(0, static_cast<int>(document::kPaletteColorCount - 1));
+    m_paletteGradientStartSpinBox->setEnabled(false);
+    m_paletteGradientEndSpinBox = new QSpinBox(central);
+    m_paletteGradientEndSpinBox->setToolTip(QStringLiteral("Last palette color index for gradient fill"));
+    m_paletteGradientEndSpinBox->setRange(0, static_cast<int>(document::kPaletteColorCount - 1));
+    m_paletteGradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount - 1));
+    m_paletteGradientEndSpinBox->setEnabled(false);
+    m_applyPaletteGradientButton = new QToolButton(central);
+    m_applyPaletteGradientButton->setText(QStringLiteral("Apply Gradient"));
+    m_applyPaletteGradientButton->setToolTip(
+        QStringLiteral("Fill the selected palette range between the endpoint colors"));
+    m_applyPaletteGradientButton->setEnabled(false);
+    m_paletteGrid = new ColorGridWidget(document::kPaletteColorCount, 8, central);
+    m_paletteGrid->setToolTip(QStringLiteral("Colors in the selected palette"));
+    m_paletteGrid->setColorClickedHandler([this](std::size_t colorIndex) {
+        pickCurrentPaletteColor(colorIndex);
+    });
+    m_paletteGrid->setColorDoubleClickedHandler([this](std::size_t colorIndex) {
+        editCurrentPaletteColor(colorIndex);
+    });
     m_switchToMonochromeCheckBox = new QCheckBox(QStringLiteral("Switch mono"), central);
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
@@ -739,13 +855,20 @@ void MainWindow::createCentralView()
     }
     toolbarLayout->addSpacing(12);
 
-    const std::vector<uint16_t> colors{0xffff, 0xf800, 0x07e0, 0x001f, 0x0000};
-    for (uint16_t color : colors) {
-        QToolButton* button = makeColorButton(central, color);
+    m_favoriteColors = {0xf800, 0x07e0, 0x001f, 0x0000};
+    for (std::size_t colorIndex = 0; colorIndex < m_favoriteColors.size(); ++colorIndex) {
+        QToolButton* button = makeColorButton(central, m_favoriteColors[colorIndex]);
         toolbarLayout->addWidget(button);
         m_colorButtons.push_back(button);
-        connect(button, &QToolButton::clicked, this, [this, color]() {
-            setActiveDrawColor(color);
+        if (auto* favoriteButton = dynamic_cast<FavoriteColorButton*>(button)) {
+            favoriteButton->setDropHandler([this, colorIndex](uint16_t rgb565) {
+                setFavoriteDrawColor(colorIndex, rgb565);
+            });
+        }
+        connect(button, &QToolButton::clicked, this, [this, colorIndex]() {
+            if (colorIndex < m_favoriteColors.size()) {
+                setActiveDrawColor(m_favoriteColors[colorIndex]);
+            }
         });
     }
     m_activeColorButton = new QToolButton(central);
@@ -869,7 +992,7 @@ void MainWindow::createCentralView()
     m_backgroundPreviewLabel->setToolTip(QStringLiteral("Selected background preview"));
     m_backgroundPreviewLabel->setVisible(false);
     backgroundPageLayout->addStretch(1);
-    inspectorTabs->addTab(backgroundPage, QStringLiteral("Background"));
+    inspectorTabs->addTab(backgroundPage, QStringLiteral("BG"));
 
     auto* dynamicPage = new QWidget(inspectorTabs);
     auto* dynamicPageLayout = new QVBoxLayout(dynamicPage);
@@ -936,7 +1059,24 @@ void MainWindow::createCentralView()
             this,
             &MainWindow::editDynamicShadowColor);
     dynamicPageLayout->addStretch(1);
-    inspectorTabs->addTab(dynamicPage, QStringLiteral("Dynamic"));
+    inspectorTabs->addTab(dynamicPage, QStringLiteral("Dyn"));
+
+    auto* palettePage = new QWidget(inspectorTabs);
+    auto* palettePageLayout = new QVBoxLayout(palettePage);
+    palettePageLayout->setContentsMargins(6, 6, 6, 6);
+    m_selectedPaletteLabel = new QLabel(QStringLiteral("Selected: None"), palettePage);
+    m_selectedPaletteLabel->setWordWrap(true);
+    palettePageLayout->addWidget(m_selectedPaletteLabel);
+    auto* paletteForm = new QFormLayout();
+    paletteForm->addRow(QStringLiteral("Palette"), m_paletteComboBox);
+    paletteForm->addRow(QStringLiteral("Name"), m_paletteNameLineEdit);
+    paletteForm->addRow(QStringLiteral("From"), m_paletteGradientStartSpinBox);
+    paletteForm->addRow(QStringLiteral("To"), m_paletteGradientEndSpinBox);
+    palettePageLayout->addLayout(paletteForm);
+    palettePageLayout->addWidget(m_paletteGrid);
+    palettePageLayout->addWidget(m_applyPaletteGradientButton);
+    palettePageLayout->addStretch(1);
+    inspectorTabs->addTab(palettePage, QStringLiteral("Palette"));
 
     auto* rotationPage = new QWidget(inspectorTabs);
     auto* rotationPageLayout = new QVBoxLayout(rotationPage);
@@ -949,7 +1089,7 @@ void MainWindow::createCentralView()
     rotationPageLayout->addWidget(m_colorRotationGrid);
     rotationPageLayout->addWidget(m_clearColorRotationSlotButton);
     rotationPageLayout->addStretch(1);
-    inspectorTabs->addTab(rotationPage, QStringLiteral("Rotation"));
+    inspectorTabs->addTab(rotationPage, QStringLiteral("Rot"));
 
     auto* spritePage = new QWidget(inspectorTabs);
     auto* spritePageLayout = new QVBoxLayout(spritePage);
@@ -1027,7 +1167,7 @@ void MainWindow::createCentralView()
     spriteScrollArea->setWidgetResizable(true);
     spriteScrollArea->setFrameShape(QFrame::NoFrame);
     spriteScrollArea->setWidget(spritePage);
-    inspectorTabs->addTab(spriteScrollArea, QStringLiteral("Sprites"));
+    inspectorTabs->addTab(spriteScrollArea, QStringLiteral("Sprite"));
     inspector->setMinimumWidth(210);
     inspector->setMaximumWidth(280);
     contentLayout->addWidget(m_leftBrowserTabs, 0);
@@ -1071,6 +1211,20 @@ void MainWindow::createCentralView()
             m_spriteComboBox->setCurrentIndex(comboIndex);
         }
     });
+    connect(m_paletteComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                updatePaletteControls();
+            });
+    connect(m_paletteNameLineEdit,
+            &QLineEdit::editingFinished,
+            this,
+            &MainWindow::setCurrentPaletteName);
+    connect(m_applyPaletteGradientButton,
+            &QToolButton::clicked,
+            this,
+            &MainWindow::applyCurrentPaletteGradient);
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
@@ -1787,6 +1941,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_backgroundMaskEditHistories.clear();
         m_backgroundImageEditHistories.clear();
         m_spriteImageEditHistories.clear();
+        m_paletteEditHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -2043,10 +2198,37 @@ void MainWindow::refreshComponentBrowsers()
         }
     }
 
+    if (m_paletteComboBox) {
+        const std::optional<std::size_t> previousPaletteIndex = selectedPaletteIndex();
+        QSignalBlocker blocker(m_paletteComboBox);
+        m_paletteComboBox->clear();
+        if (m_document) {
+            for (std::size_t paletteIndex = 0; paletteIndex < m_document->paletteCount();
+                 ++paletteIndex) {
+                const document::PaletteRecord& palette = m_document->palette(paletteIndex);
+                const QString paletteLabel =
+                    palette.name.empty()
+                        ? QString::number(static_cast<int>(paletteIndex))
+                        : QStringLiteral("%1 - %2")
+                              .arg(static_cast<int>(paletteIndex))
+                              .arg(QString::fromStdString(palette.name));
+                m_paletteComboBox->addItem(previewIcon(renderPalettePreviewImage(palette),
+                                                       QSize(96, 18)),
+                                           paletteLabel,
+                                           static_cast<int>(paletteIndex));
+                if (previousPaletteIndex && *previousPaletteIndex == paletteIndex) {
+                    m_paletteComboBox->setCurrentIndex(m_paletteComboBox->count() - 1);
+                }
+            }
+        }
+    }
+
     updateMaskBrowserSelection();
     updateBackgroundBrowserSelection();
     updateSpriteBrowserSelection();
+    updatePaletteBrowserSelection();
     updateMaskControls();
+    updatePaletteControls();
 }
 
 void MainWindow::updateMaskBrowserSelection()
@@ -2114,6 +2296,26 @@ void MainWindow::updateSpriteBrowserSelection()
         }
     }
     m_spriteList->setCurrentItem(nullptr);
+}
+
+void MainWindow::updatePaletteBrowserSelection()
+{
+    if (!m_paletteComboBox || !m_document) {
+        return;
+    }
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    QSignalBlocker blocker(m_paletteComboBox);
+    if (!paletteIndex) {
+        m_paletteComboBox->setCurrentIndex(m_paletteComboBox->count() > 0 ? 0 : -1);
+        return;
+    }
+    for (int row = 0; row < m_paletteComboBox->count(); ++row) {
+        if (m_paletteComboBox->itemData(row).toInt() == static_cast<int>(*paletteIndex)) {
+            m_paletteComboBox->setCurrentIndex(row);
+            return;
+        }
+    }
+    m_paletteComboBox->setCurrentIndex(-1);
 }
 
 bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
@@ -4490,6 +4692,214 @@ void MainWindow::clearCurrentColorRotationSlot()
     }
 }
 
+void MainWindow::updatePaletteControls()
+{
+    if (!m_selectedPaletteLabel || !m_paletteComboBox ||
+        !m_paletteNameLineEdit || !m_paletteGrid ||
+        !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox ||
+        !m_applyPaletteGradientButton) {
+        return;
+    }
+
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    QSignalBlocker nameBlocker(m_paletteNameLineEdit);
+    QSignalBlocker startBlocker(m_paletteGradientStartSpinBox);
+    QSignalBlocker endBlocker(m_paletteGradientEndSpinBox);
+    if (!m_document || !paletteIndex) {
+        m_selectedPaletteLabel->setText(QStringLiteral("Selected: None"));
+        m_paletteComboBox->setEnabled(false);
+        m_paletteNameLineEdit->clear();
+        m_paletteNameLineEdit->setEnabled(false);
+        m_paletteGradientStartSpinBox->setEnabled(false);
+        m_paletteGradientEndSpinBox->setEnabled(false);
+        m_applyPaletteGradientButton->setEnabled(false);
+        m_paletteGrid->setColors({}, 0);
+        return;
+    }
+
+    const document::PaletteRecord& palette = m_document->palette(*paletteIndex);
+    m_selectedPaletteLabel->setText(
+        palette.name.empty()
+            ? QStringLiteral("Selected: %1").arg(static_cast<int>(*paletteIndex))
+            : QStringLiteral("Selected: %1 - %2")
+                  .arg(static_cast<int>(*paletteIndex))
+                  .arg(QString::fromStdString(palette.name)));
+    m_paletteComboBox->setEnabled(true);
+    m_paletteNameLineEdit->setText(QString::fromStdString(palette.name));
+    m_paletteNameLineEdit->setEnabled(true);
+    m_paletteGradientStartSpinBox->setEnabled(true);
+    m_paletteGradientEndSpinBox->setEnabled(true);
+    m_applyPaletteGradientButton->setEnabled(palette.colors.size() >= 2);
+    m_paletteGrid->setColors(palette.colors, palette.colors.size());
+    updateUndoRedoActions();
+}
+
+void MainWindow::setCurrentPaletteName()
+{
+    if (!m_document || !m_paletteNameLineEdit) {
+        return;
+    }
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        updatePaletteControls();
+        return;
+    }
+
+    const std::string name = m_paletteNameLineEdit->text().toStdString();
+    const bool wasDirty = m_document->isDirty();
+    try {
+        m_document->setPaletteName(*paletteIndex, name);
+        refreshComponentBrowsers();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+    } catch (const std::exception& ex) {
+        updatePaletteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::pickCurrentPaletteColor(std::size_t colorIndex)
+{
+    if (!m_document) {
+        return;
+    }
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        updatePaletteControls();
+        return;
+    }
+
+    const uint16_t color = m_document->paletteColor(*paletteIndex, colorIndex);
+    setActiveDrawColor(color);
+    statusBar()->showMessage(
+        QStringLiteral("Picked palette %1 color %2: 0x%3")
+            .arg(static_cast<int>(*paletteIndex))
+            .arg(static_cast<int>(colorIndex))
+            .arg(color, 4, 16, QLatin1Char('0')),
+        2000);
+}
+
+void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
+{
+    if (!m_document) {
+        return;
+    }
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        updatePaletteControls();
+        return;
+    }
+
+    const uint16_t oldColor = m_document->paletteColor(*paletteIndex, colorIndex);
+    const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldColor),
+                                                   this,
+                                                   QStringLiteral("Palette Color"));
+    if (!newColor.isValid()) {
+        return;
+    }
+    const uint16_t newRgb565 = colorToRgb565(newColor);
+    if (newRgb565 == oldColor) {
+        return;
+    }
+
+    const bool wasDirty = m_document->isDirty();
+    try {
+        PaletteEditCommand command;
+        command.paletteIndex = *paletteIndex;
+        command.changes.push_back(PaletteColorChange{
+            colorIndex,
+            oldColor,
+            newRgb565,
+        });
+        applyPaletteEdit(command, true);
+        PaletteEditHistory& history = m_paletteEditHistories[*paletteIndex];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Updated palette %1 color %2")
+                .arg(static_cast<int>(*paletteIndex))
+                .arg(static_cast<int>(colorIndex)),
+            2000);
+    } catch (const std::exception& ex) {
+        updatePaletteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::applyCurrentPaletteGradient()
+{
+    if (!m_document || !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+        return;
+    }
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        updatePaletteControls();
+        return;
+    }
+
+    const int startIndex = m_paletteGradientStartSpinBox->value();
+    const int endIndex = m_paletteGradientEndSpinBox->value();
+    const int first = std::min(startIndex, endIndex);
+    const int last = std::max(startIndex, endIndex);
+    if (first == last) {
+        statusBar()->showMessage(QStringLiteral("Gradient needs at least two colors"), 2500);
+        return;
+    }
+
+    const uint16_t startColor =
+        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(startIndex));
+    const uint16_t endColor =
+        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(endIndex));
+    const bool wasDirty = m_document->isDirty();
+    try {
+        PaletteEditCommand command;
+        command.paletteIndex = *paletteIndex;
+        const std::size_t maxStep = static_cast<std::size_t>(last - first);
+        for (int colorIndex = first; colorIndex <= last; ++colorIndex) {
+            std::size_t step = static_cast<std::size_t>(colorIndex - first);
+            if (startIndex > endIndex) {
+                step = maxStep - step;
+            }
+            const std::size_t storedColorIndex = static_cast<std::size_t>(colorIndex);
+            const uint16_t oldColor = m_document->paletteColor(*paletteIndex, storedColorIndex);
+            const uint16_t newColor =
+                interpolateRgb565(startColor, endColor, step, maxStep);
+            if (oldColor == newColor) {
+                continue;
+            }
+            command.changes.push_back(PaletteColorChange{
+                storedColorIndex,
+                oldColor,
+                newColor,
+            });
+        }
+        if (command.changes.empty()) {
+            return;
+        }
+        applyPaletteEdit(command, true);
+        PaletteEditHistory& history = m_paletteEditHistories[*paletteIndex];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(
+            QStringLiteral("Applied palette gradient %1-%2")
+                .arg(first)
+                .arg(last),
+            2500);
+    } catch (const std::exception& ex) {
+        updatePaletteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::updateSpriteControls()
 {
     if (!m_spriteComboBox || !m_spriteOriginalPreviewLabel ||
@@ -4824,15 +5234,36 @@ void MainWindow::setActiveDrawColor(uint16_t rgb565)
     if (m_spriteEditor) {
         m_spriteEditor->setActiveDrawColor(rgb565);
     }
-    for (QToolButton* button : m_colorButtons) {
+    for (std::size_t index = 0; index < m_colorButtons.size(); ++index) {
+        QToolButton* button = m_colorButtons[index];
         QSignalBlocker blocker(button);
-        button->setChecked(button->property("rgb565").toInt() == static_cast<int>(rgb565));
+        const bool matches =
+            index < m_favoriteColors.size() && m_favoriteColors[index] == rgb565;
+        button->setChecked(matches);
     }
     if (m_activeColorButton) {
         m_activeColorButton->setToolTip(
             QStringLiteral("Active draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
         m_activeColorButton->setStyleSheet(colorButtonStyle(rgb565, true));
     }
+}
+
+void MainWindow::setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565)
+{
+    if (favoriteIndex >= m_favoriteColors.size() || favoriteIndex >= m_colorButtons.size()) {
+        return;
+    }
+    m_favoriteColors[favoriteIndex] = rgb565;
+    QToolButton* button = m_colorButtons[favoriteIndex];
+    button->setProperty("rgb565", static_cast<int>(rgb565));
+    button->setToolTip(QStringLiteral("Draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+    button->setStyleSheet(favoriteColorButtonStyle(rgb565));
+    setActiveDrawColor(rgb565);
+    statusBar()->showMessage(
+        QStringLiteral("Updated favorite color %1 to 0x%2")
+            .arg(static_cast<int>(favoriteIndex + 1))
+            .arg(rgb565, 4, 16, QLatin1Char('0')),
+        2000);
 }
 
 void MainWindow::setDrawingTool(DrawingTool tool)
@@ -6007,6 +6438,20 @@ void MainWindow::applySpriteImageEdit(const SpriteImageEditCommand& command, boo
     }
 }
 
+void MainWindow::applyPaletteEdit(const PaletteEditCommand& command, bool useNewColor)
+{
+    if (!m_document) {
+        return;
+    }
+    for (const PaletteColorChange& change : command.changes) {
+        m_document->setPaletteColor(command.paletteIndex,
+                                    change.colorIndex,
+                                    useNewColor ? change.newColor : change.oldColor);
+    }
+    refreshComponentBrowsers();
+    updateProjectHeaderStatus();
+}
+
 std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -6198,6 +6643,45 @@ const MainWindow::BackgroundMaskEditHistory* MainWindow::currentBackgroundMaskEd
 bool MainWindow::isBackgroundMaskModeActive() const
 {
     return m_backgroundMaskOverlayButton && m_backgroundMaskOverlayButton->isChecked();
+}
+
+std::optional<std::size_t> MainWindow::selectedPaletteIndex() const
+{
+    if (!m_document || !m_paletteComboBox || m_paletteComboBox->currentIndex() < 0) {
+        return std::nullopt;
+    }
+    const int paletteIndex = m_paletteComboBox->currentData().toInt();
+    if (paletteIndex < 0 ||
+        static_cast<std::size_t>(paletteIndex) >= m_document->paletteCount()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(paletteIndex);
+}
+
+MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory()
+{
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        return nullptr;
+    }
+    auto history = m_paletteEditHistories.find(*paletteIndex);
+    if (history == m_paletteEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory() const
+{
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        return nullptr;
+    }
+    auto history = m_paletteEditHistories.find(*paletteIndex);
+    if (history == m_paletteEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
 }
 
 std::optional<std::size_t> MainWindow::selectedBackgroundIndex() const
@@ -6419,6 +6903,16 @@ void MainWindow::undo()
         statusBar()->showMessage(QStringLiteral("Undo background edit"), 1500);
         return;
     }
+    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
+    if (paletteHistory && !paletteHistory->undoStack.empty()) {
+        const PaletteEditCommand command = paletteHistory->undoStack.back();
+        paletteHistory->undoStack.pop_back();
+        applyPaletteEdit(command, false);
+        paletteHistory->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo palette edit"), 1500);
+        return;
+    }
 
     EditHistory* history = currentEditHistory();
     if (history && !history->undoStack.empty()) {
@@ -6538,6 +7032,16 @@ void MainWindow::redo()
         statusBar()->showMessage(QStringLiteral("Redo background edit"), 1500);
         return;
     }
+    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
+    if (paletteHistory && !paletteHistory->redoStack.empty()) {
+        const PaletteEditCommand command = paletteHistory->redoStack.back();
+        paletteHistory->redoStack.pop_back();
+        applyPaletteEdit(command, true);
+        paletteHistory->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo palette edit"), 1500);
+        return;
+    }
 
     EditHistory* history = currentEditHistory();
     if (history && !history->redoStack.empty()) {
@@ -6630,15 +7134,18 @@ void MainWindow::updateUndoRedoActions()
     }
 
     const EditHistory* history = currentEditHistory();
+    const PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
     const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
     const DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
     if (m_undoAction) {
         m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
+                                 (paletteHistory && !paletteHistory->undoStack.empty()) ||
                                  (colorHistory && !colorHistory->undoStack.empty()) ||
                                  (shadowHistory && !shadowHistory->undoStack.empty()));
     }
     if (m_redoAction) {
         m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
+                                 (paletteHistory && !paletteHistory->redoStack.empty()) ||
                                  (colorHistory && !colorHistory->redoStack.empty()) ||
                                  (shadowHistory && !shadowHistory->redoStack.empty()));
     }

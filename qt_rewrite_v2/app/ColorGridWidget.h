@@ -19,10 +19,12 @@ public:
 
     void setColors(const std::vector<uint16_t>& colors, std::size_t activeCount);
     void setColorClickedHandler(std::function<void(std::size_t)> handler);
+    void setColorDoubleClickedHandler(std::function<void(std::size_t)> handler);
 
 private:
     std::vector<QToolButton*> m_buttons;
     std::function<void(std::size_t)> m_colorClickedHandler;
+    std::function<void(std::size_t)> m_colorDoubleClickedHandler;
 };
 
 }  // namespace colorizing::app

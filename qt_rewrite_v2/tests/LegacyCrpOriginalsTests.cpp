@@ -192,6 +192,34 @@ std::vector<uint8_t> makeCrpWithFrameDurations(const std::string& romName)
     return bytes;
 }
 
+std::vector<uint8_t> makeCrpWithPalettes(const std::string& romName)
+{
+    std::vector<uint8_t> bytes = makeCrpWithFrameDurations(romName);
+    appendRepeatedU16(bytes, 0, 255 * 4);
+    appendRepeatedU32(bytes, 0, 255 * 2);
+    for (std::size_t paletteIndex = 0; paletteIndex < 256; ++paletteIndex) {
+        for (std::size_t colorIndex = 0; colorIndex < 64; ++colorIndex) {
+            uint16_t color = 0;
+            if (paletteIndex == 0 && colorIndex == 0) {
+                color = 0x1111;
+            } else if (paletteIndex == 1 && colorIndex == 2) {
+                color = 0x2222;
+            }
+            appendU16(bytes, color);
+        }
+    }
+    appendRepeatedU16(bytes, 0, 16);
+    appendU32(bytes, 0);
+    appendRepeatedU8(bytes, 0, 256 * 64);
+    appendRepeatedU32(bytes, 0, 256 * 16);
+    appendFixedName(bytes, "Default palette", 64);
+    appendFixedName(bytes, "Warm palette", 64);
+    for (std::size_t i = 2; i < 256; ++i) {
+        appendFixedName(bytes, "", 64);
+    }
+    return bytes;
+}
+
 void testCrpOriginalFramesParse()
 {
     const LegacyCromFrameParseResult cromResult =
@@ -249,6 +277,32 @@ void testCrpFrameDurationsParse()
            "first cRP frame duration");
     expect(crpResult.originalData.frameDurationsMs[1] == 125,
            "second cRP frame duration");
+}
+
+void testCrpPalettesParse()
+{
+    colorizing::legacy::LegacyCromMetadata metadata;
+    metadata.romName = "join_rom";
+    metadata.frameWidth = kSdWidth;
+    metadata.frameHeight = kSdHeight;
+    metadata.frameCount = 2;
+    metadata.spriteCount = 2;
+
+    const LegacyCrpOriginalParseResult crpResult =
+        parseLegacyCrpOriginalFrames(makeCrpWithPalettes("join_rom"), metadata);
+
+    expect(crpResult.ok, "cRP palettes should parse");
+    expect(crpResult.originalData.palettes.size() == 256, "cRP palette count");
+    expect(crpResult.originalData.palettes[0].colors.size() == 64,
+           "cRP palette color count");
+    expect(crpResult.originalData.palettes[0].colors[0] == 0x1111,
+           "first cRP palette color");
+    expect(crpResult.originalData.palettes[1].colors[2] == 0x2222,
+           "second cRP palette color");
+    expect(crpResult.originalData.palettes[0].name == "Default palette",
+           "first cRP palette name");
+    expect(crpResult.originalData.palettes[1].name == "Warm palette",
+           "second cRP palette name");
 }
 
 void testCrpNameMismatchFails()
@@ -330,6 +384,7 @@ void runLegacyCrpOriginalsTests()
     testCrpOriginalFramesParse();
     testCrpSpriteNamesParse();
     testCrpFrameDurationsParse();
+    testCrpPalettesParse();
     testCrpNameMismatchFails();
     testTruncatedCrpOriginalsFail();
     testBuildProjectSnapshotFromCromAndCrp();

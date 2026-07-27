@@ -372,6 +372,7 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
     document.m_comparisonMasks = snapshot.comparisonMasks;
     document.m_backgrounds = snapshot.backgrounds;
     document.m_sprites = snapshot.sprites;
+    document.m_palettes = snapshot.palettes;
     document.m_unsupportedPayloads = snapshot.unsupportedPayloads;
     document.m_dirty = false;
     return document;
@@ -1143,6 +1144,58 @@ void ProjectDocument::setSpriteName(std::size_t spriteIndex, std::string name)
     m_dirty = true;
 }
 
+std::size_t ProjectDocument::paletteCount() const
+{
+    return m_palettes.size();
+}
+
+const PaletteRecord& ProjectDocument::palette(std::size_t paletteIndex) const
+{
+    if (paletteIndex >= m_palettes.size()) {
+        throw std::out_of_range("palette index out of range");
+    }
+    return m_palettes[paletteIndex];
+}
+
+uint16_t ProjectDocument::paletteColor(std::size_t paletteIndex, std::size_t colorIndex) const
+{
+    const PaletteRecord& record = palette(paletteIndex);
+    if (colorIndex >= record.colors.size()) {
+        throw std::out_of_range("palette color index out of range");
+    }
+    return record.colors[colorIndex];
+}
+
+void ProjectDocument::setPaletteColor(std::size_t paletteIndex,
+                                      std::size_t colorIndex,
+                                      uint16_t rgb565)
+{
+    if (paletteIndex >= m_palettes.size()) {
+        throw std::out_of_range("palette index out of range");
+    }
+    PaletteRecord& record = m_palettes[paletteIndex];
+    if (colorIndex >= record.colors.size()) {
+        throw std::out_of_range("palette color index out of range");
+    }
+    if (record.colors[colorIndex] == rgb565) {
+        return;
+    }
+    record.colors[colorIndex] = rgb565;
+    m_dirty = true;
+}
+
+void ProjectDocument::setPaletteName(std::size_t paletteIndex, std::string name)
+{
+    if (paletteIndex >= m_palettes.size()) {
+        throw std::out_of_range("palette index out of range");
+    }
+    if (m_palettes[paletteIndex].name == name) {
+        return;
+    }
+    m_palettes[paletteIndex].name = std::move(name);
+    m_dirty = true;
+}
+
 bool ProjectDocument::hasHdSprite(std::size_t spriteIndex) const
 {
     return sprite(spriteIndex).hasHd;
@@ -1546,6 +1599,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.comparisonMasks = m_comparisonMasks;
     snapshot.backgrounds = m_backgrounds;
     snapshot.sprites = m_sprites;
+    snapshot.palettes = m_palettes;
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
     return snapshot;
 }

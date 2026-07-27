@@ -149,6 +149,7 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 - `Background` contains the selected background ID, assignment, and edit shortcut.
 - `Dynamic` contains the dynamic set selector and dynamic color swatches.
 - `Rotation` contains color rotation slots for the current frame and active SD/HD mode.
+- `Palette` contains the selected cRP palette name and all 64 palette colors.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
 
 The `Frame` topic exposes:
@@ -326,9 +327,6 @@ Rules:
 - Dynamic color changes are undoable per frame and per resolution.
 - Dynamic shadow direction and color changes are undoable per frame and per resolution.
 
-The current dynamic color editor is intentionally small. Broader palette tools are postponed until
-the palette UI is implemented.
-
 Dynamic shadows are loaded from and saved back to the legacy `.cROM` dynamic-shadow blocks. The
 canvas, thumbnails, and PNG export render shadows after dynamic-color replacement and before sprite
 composition. Shadow pixels are written only into neighboring pixels that are not themselves dynamic,
@@ -357,6 +355,29 @@ The Inspector's `Rotation` topic edits the active frame's rotation slots for the
 Length, delay, grid color edits, and clear operations apply to all selected frames. Rotation data is
 loaded from and saved back to `.cROM`. The current canvas and playback do not apply rotations yet;
 runtime-accurate rotation preview remains blocked on the palette/runtime preview work.
+
+## Palettes
+
+Legacy `.cRP` files can store 256 palettes with 64 RGB565 colors each, plus 64-byte palette-name
+slots. When that table exists, the Qt rewrite loads it into the document model and saves edits back
+to the same `.cRP` offsets.
+
+The Inspector's `Palette` topic provides a palette selector, the selected palette name, and a
+64-color grid:
+
+- Edit the name field to rename the selected palette. Names are capped at 63 characters so they fit
+  the fixed cRP name slot.
+- Click any palette color to make it the active drawing color.
+- Drag any palette color onto one of the four toolbar favorite color slots to replace that favorite.
+- Double-click any palette color to open a color picker for that RGB565 palette entry.
+- Use `From`, `To`, and `Apply Gradient` to fill a palette range by interpolating between the
+  endpoint colors. Reversing `From` and `To` reverses the gradient direction.
+- Palette color changes and gradient fills are undoable per palette.
+- Palette color/name changes mark the project dirty and are saved with the `.cRP` file.
+
+The current frame renderer does not yet use these palettes for color-rotation playback or gradient
+fill previews outside the Palette editor. Palette editing is the storage/UI foundation for those
+next steps.
 
 ## Sprites
 
@@ -454,7 +475,7 @@ must not change the loaded cROM format.
 
 Known feature gaps that affect first-release completeness:
 
-- Palette editing, including palette import/export, color-set management, and gradient definitions.
+- Palette import/export, color-set management, and reusable gradient definitions.
 - Color rotations applied by complete playback preview.
 - Directional gradient fills for frame, mask, sprite, dynamic, and background editing surfaces.
 - Filling with palette gradients while respecting the active tool shape and direction.

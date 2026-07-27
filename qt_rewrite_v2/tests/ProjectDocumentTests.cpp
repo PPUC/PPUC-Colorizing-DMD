@@ -18,6 +18,7 @@ using colorizing::document::BackgroundRecord;
 using colorizing::document::FrameDynamicData;
 using colorizing::document::FrameBackgroundData;
 using colorizing::document::FrameSpriteReference;
+using colorizing::document::PaletteRecord;
 using colorizing::document::SpriteRecord;
 using colorizing::document::UnsupportedLegacyPayload;
 using colorizing::document::isValidProjectSnapshot;
@@ -504,6 +505,53 @@ void testColorRotationEditing()
     expectThrows<std::out_of_range>(
         [&]() { document.setColorRotationColor(0, Resolution::Sd, 0, 62, 0); },
         "color rotation color bounds");
+}
+
+void testPaletteEditing()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "palette_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+    });
+    PaletteRecord palette;
+    palette.colors.assign(colorizing::document::kPaletteColorCount, 0);
+    palette.colors[1] = 0x1111;
+    palette.name = "Initial";
+    snapshot.palettes.push_back(palette);
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    expect(document.paletteCount() == 1, "palette count accessor");
+    expect(document.paletteColor(0, 1) == 0x1111, "palette color accessor");
+    expect(document.palette(0).name == "Initial", "palette name accessor");
+
+    document.setPaletteColor(0, 1, 0x2222);
+    document.setPaletteName(0, "Edited");
+    expect(document.paletteColor(0, 1) == 0x2222, "palette color edit");
+    expect(document.palette(0).name == "Edited", "palette name edit");
+    expect(document.isDirty(), "palette edit should mark dirty");
+
+    document.markClean();
+    document.setPaletteColor(0, 1, 0x2222);
+    document.setPaletteName(0, "Edited");
+    expect(!document.isDirty(), "identical palette edits should not mark dirty");
+
+    const ProjectSnapshot roundTrip = document.toSnapshot();
+    expect(roundTrip.palettes[0].colors[1] == 0x2222,
+           "palette colors should round-trip through snapshot");
+    expect(roundTrip.palettes[0].name == "Edited",
+           "palette names should round-trip through snapshot");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setPaletteColor(1, 0, 0); },
+        "palette index bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setPaletteColor(0, colorizing::document::kPaletteColorCount, 0); },
+        "palette color bounds");
 }
 
 void testDynamicMaskPixelEditing()
@@ -1339,6 +1387,7 @@ void runProjectDocumentTests()
     testFrameTriggerIdEditing();
     testFrameDurationEditing();
     testColorRotationEditing();
+    testPaletteEditing();
     testDynamicMaskPixelEditing();
     testDynamicShadowEditing();
     testBackgroundMetadataAndMaskEditing();

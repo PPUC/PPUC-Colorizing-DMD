@@ -27,6 +27,14 @@ constexpr std::size_t kCrpMaxSections = 512;
 constexpr std::size_t kCrpSectionNameBytes = 32;
 constexpr std::size_t kCrpMaxSpriteNames = 255;
 constexpr std::size_t kCrpSpriteNameBytes = 32;
+constexpr std::size_t kCrpSpriteRectBytes = 255 * 4 * sizeof(uint16_t);
+constexpr std::size_t kCrpSpriteRectMirrorBytes = 255 * 2 * kCrpBoolBytes;
+constexpr std::size_t kCrpPaletteCount = 256;
+constexpr std::size_t kCrpPaletteColorCount = 64;
+constexpr std::size_t kCrpPaletteNameBytes = 64;
+constexpr std::size_t kCrpImagePositionSaveCount = 256;
+constexpr std::size_t kCrpImagePositionNameBytes = 64;
+constexpr std::size_t kCrpImagePositionValueCount = 16;
 
 struct FileReadResult {
     std::vector<uint8_t> bytes;
@@ -109,6 +117,24 @@ std::size_t crpFrameDurationsOffset(const LegacyCromMetadata& metadata)
            kCrpMaxSpriteNames * kCrpU32Bytes;
 }
 
+std::size_t crpPaletteOffset(const LegacyCromMetadata& metadata)
+{
+    return crpFrameDurationsOffset(metadata) +
+           static_cast<std::size_t>(metadata.frameCount) * kCrpU32Bytes +
+           kCrpSpriteRectBytes +
+           kCrpSpriteRectMirrorBytes;
+}
+
+std::size_t crpPaletteNamesOffset(const LegacyCromMetadata& metadata)
+{
+    return crpPaletteOffset(metadata) +
+           kCrpPaletteCount * kCrpPaletteColorCount * sizeof(uint16_t) +
+           16 * sizeof(uint16_t) +
+           kCrpU32Bytes +
+           kCrpImagePositionSaveCount * kCrpImagePositionNameBytes +
+           kCrpImagePositionSaveCount * kCrpImagePositionValueCount * kCrpIntBytes;
+}
+
 bool writeCrpSpriteNames(const LegacyProjectPaths& paths,
                          const LegacyCromMetadata& metadata,
                          const document::ProjectSnapshot& snapshot,
@@ -168,6 +194,42 @@ bool writeCrpSpriteNames(const LegacyProjectPaths& paths,
             crpBytes[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xff);
             crpBytes[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xff);
             crpBytes[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xff);
+        }
+    }
+
+    const std::size_t paletteOffset = crpPaletteOffset(metadata);
+    const std::size_t paletteBytes =
+        kCrpPaletteCount * kCrpPaletteColorCount * sizeof(uint16_t);
+    const std::size_t paletteNamesOffset = crpPaletteNamesOffset(metadata);
+    const std::size_t paletteNameBytes = kCrpPaletteCount * kCrpPaletteNameBytes;
+    if (snapshot.palettes.size() == kCrpPaletteCount &&
+        crpBytes.size() >= paletteOffset + paletteBytes &&
+        crpBytes.size() >= paletteNamesOffset + paletteNameBytes) {
+        for (std::size_t paletteIndex = 0; paletteIndex < kCrpPaletteCount; ++paletteIndex) {
+            const document::PaletteRecord& palette = snapshot.palettes[paletteIndex];
+            if (palette.colors.size() != kCrpPaletteColorCount) {
+                continue;
+            }
+            for (std::size_t colorIndex = 0; colorIndex < kCrpPaletteColorCount; ++colorIndex) {
+                const std::size_t offset =
+                    paletteOffset +
+                    (paletteIndex * kCrpPaletteColorCount + colorIndex) * sizeof(uint16_t);
+                const uint16_t color = palette.colors[colorIndex];
+                crpBytes[offset] = static_cast<uint8_t>(color & 0xff);
+                crpBytes[offset + 1] = static_cast<uint8_t>((color >> 8) & 0xff);
+            }
+
+            const std::string& name = palette.name;
+            const std::size_t nameOffset =
+                paletteNamesOffset + paletteIndex * kCrpPaletteNameBytes;
+            const std::size_t count = std::min(name.size(), kCrpPaletteNameBytes - 1);
+            std::fill(crpBytes.begin() + static_cast<std::ptrdiff_t>(nameOffset),
+                      crpBytes.begin() +
+                          static_cast<std::ptrdiff_t>(nameOffset + kCrpPaletteNameBytes),
+                      uint8_t{0});
+            std::copy_n(reinterpret_cast<const uint8_t*>(name.data()),
+                        count,
+                        crpBytes.begin() + static_cast<std::ptrdiff_t>(nameOffset));
         }
     }
 
