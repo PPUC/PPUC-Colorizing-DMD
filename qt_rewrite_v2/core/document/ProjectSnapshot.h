@@ -18,6 +18,7 @@ struct ProjectFrameSnapshot {
     std::optional<FrameBackgroundData> backgroundData;
     std::vector<FrameSpriteReference> spriteReferences;
     uint32_t triggerId = 0;
+    uint32_t durationMs = 0;
 };
 
 struct ProjectSnapshot {

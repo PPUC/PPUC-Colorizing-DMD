@@ -183,6 +183,15 @@ std::vector<uint8_t> makeCrpWithSpriteNames(const std::string& romName)
     return bytes;
 }
 
+std::vector<uint8_t> makeCrpWithFrameDurations(const std::string& romName)
+{
+    std::vector<uint8_t> bytes = makeCrpWithSpriteNames(romName);
+    appendRepeatedU32(bytes, 0, 255);
+    appendU32(bytes, 75);
+    appendU32(bytes, 125);
+    return bytes;
+}
+
 void testCrpOriginalFramesParse()
 {
     const LegacyCromFrameParseResult cromResult =
@@ -219,6 +228,27 @@ void testCrpSpriteNamesParse()
     expect(crpResult.originalData.spriteNames.size() == 2, "cRP sprite name count");
     expect(crpResult.originalData.spriteNames[0] == "Left saucer", "first sprite name");
     expect(crpResult.originalData.spriteNames[1] == "Right ramp", "second sprite name");
+}
+
+void testCrpFrameDurationsParse()
+{
+    colorizing::legacy::LegacyCromMetadata metadata;
+    metadata.romName = "join_rom";
+    metadata.frameWidth = kSdWidth;
+    metadata.frameHeight = kSdHeight;
+    metadata.frameCount = 2;
+    metadata.spriteCount = 2;
+
+    const LegacyCrpOriginalParseResult crpResult =
+        parseLegacyCrpOriginalFrames(makeCrpWithFrameDurations("join_rom"), metadata);
+
+    expect(crpResult.ok, "cRP frame durations should parse");
+    expect(crpResult.originalData.frameDurationsMs.size() == 2,
+           "cRP frame duration count");
+    expect(crpResult.originalData.frameDurationsMs[0] == 75,
+           "first cRP frame duration");
+    expect(crpResult.originalData.frameDurationsMs[1] == 125,
+           "second cRP frame duration");
 }
 
 void testCrpNameMismatchFails()
@@ -260,7 +290,7 @@ void testBuildProjectSnapshotFromCromAndCrp()
     expect(cromResult.ok, "fixture cROM should parse");
 
     const LegacyCrpOriginalParseResult crpResult =
-        parseLegacyCrpOriginalFrames(makeCrpOriginals("join_rom"),
+        parseLegacyCrpOriginalFrames(makeCrpWithFrameDurations("join_rom"),
                                      cromResult.frameData.metadata);
     expect(crpResult.ok, "fixture cRP should parse");
 
@@ -288,6 +318,8 @@ void testBuildProjectSnapshotFromCromAndCrp()
     expect(document.hasHdFrame(1), "document second HD present");
     expect(document.colorizedFrame(1, Resolution::Hd).pixels.front() == 0x2002,
            "document HD value from joined snapshot");
+    expect(document.frameDurationMs(0) == 75, "document first frame duration");
+    expect(document.frameDurationMs(1) == 125, "document second frame duration");
     expect(!document.isDirty(), "document loaded from joined snapshot should be clean");
 }
 
@@ -297,6 +329,7 @@ void runLegacyCrpOriginalsTests()
 {
     testCrpOriginalFramesParse();
     testCrpSpriteNamesParse();
+    testCrpFrameDurationsParse();
     testCrpNameMismatchFails();
     testTruncatedCrpOriginalsFail();
     testBuildProjectSnapshotFromCromAndCrp();

@@ -365,6 +365,7 @@ private:
     void updatePlaybackControls();
     void setPlaybackRunning(bool running);
     void advancePlaybackFrame();
+    [[nodiscard]] int playbackIntervalForCurrentFrame() const;
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
     void updateDmdRenderOptions();
     void updateSpriteControls();
@@ -394,6 +395,7 @@ private:
     QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_playbackButton = nullptr;
     QToolButton* m_loopPlaybackButton = nullptr;
+    QCheckBox* m_useProjectTimingCheckBox = nullptr;
     QToolButton* m_importFrameImageButton = nullptr;
     QToolButton* m_createHdFrameButton = nullptr;
     QToolButton* m_removeHdFrameButton = nullptr;

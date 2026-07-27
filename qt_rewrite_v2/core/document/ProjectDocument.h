@@ -94,6 +94,7 @@ struct FrameRecord {
     std::optional<FrameBackgroundData> backgroundData;
     std::vector<FrameSpriteReference> spriteReferences;
     uint32_t triggerId = 0;
+    uint32_t durationMs = 0;
 };
 
 struct UnsupportedLegacyPayload {
@@ -137,6 +138,7 @@ public:
     void setComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
     [[nodiscard]] uint32_t triggerId(std::size_t frameIndex) const;
     void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
+    [[nodiscard]] uint32_t frameDurationMs(std::size_t frameIndex) const;
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;

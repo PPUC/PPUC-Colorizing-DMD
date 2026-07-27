@@ -536,6 +536,7 @@ void MainWindow::createCentralView()
     m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
     m_backgroundLayerButton->setCheckable(true);
+    m_backgroundLayerButton->setChecked(true);
     m_backgroundLayerButton->setEnabled(false);
     m_importFrameImageButton = new QToolButton(central);
     m_importFrameImageButton->setText(QStringLiteral("Import Image"));
@@ -609,7 +610,7 @@ void MainWindow::createCentralView()
     m_spriteBoundsOverlayButton->setToolTip(
         QStringLiteral("Show selected sprite slot bounds on original frame"));
     m_spriteBoundsOverlayButton->setCheckable(true);
-    m_spriteBoundsOverlayButton->setChecked(true);
+    m_spriteBoundsOverlayButton->setChecked(false);
     m_spriteBoundsOverlayButton->setEnabled(false);
     m_spriteDetectionAreasButton = new QToolButton(central);
     m_spriteDetectionAreasButton->setText(QStringLiteral("Show Det Areas"));
@@ -730,6 +731,11 @@ void MainWindow::createCentralView()
     m_loopPlaybackButton->setCheckable(true);
     m_loopPlaybackButton->setChecked(true);
     m_loopPlaybackButton->setEnabled(false);
+    m_useProjectTimingCheckBox = new QCheckBox(QStringLiteral("cRP"), central);
+    m_useProjectTimingCheckBox->setToolTip(
+        QStringLiteral("Use per-frame durations loaded from the .cRP file"));
+    m_useProjectTimingCheckBox->setChecked(true);
+    m_useProjectTimingCheckBox->setEnabled(false);
     m_playbackIntervalSpinBox = new QSpinBox(central);
     m_playbackIntervalSpinBox->setRange(20, 5000);
     m_playbackIntervalSpinBox->setSingleStep(10);
@@ -739,6 +745,7 @@ void MainWindow::createCentralView()
     m_playbackIntervalSpinBox->setEnabled(false);
     toolbarLayout->addWidget(m_playbackButton);
     toolbarLayout->addWidget(m_loopPlaybackButton);
+    toolbarLayout->addWidget(m_useProjectTimingCheckBox);
     toolbarLayout->addWidget(m_playbackIntervalSpinBox);
     toolbarLayout->addSpacing(12);
     toolbarLayout->addWidget(m_frameStatusLabel);
@@ -1128,10 +1135,16 @@ void MainWindow::createCentralView()
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
             [this](int intervalMs) {
-                if (m_playbackTimer && m_playbackTimer->isActive()) {
+                if (m_playbackTimer && m_playbackTimer->isActive() &&
+                    (!m_useProjectTimingCheckBox || !m_useProjectTimingCheckBox->isChecked())) {
                     m_playbackTimer->setInterval(intervalMs);
                 }
             });
+    connect(m_useProjectTimingCheckBox, &QCheckBox::toggled, this, [this](bool) {
+        if (m_playbackTimer && m_playbackTimer->isActive()) {
+            m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
+        }
+    });
     connect(m_spriteComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
@@ -1778,6 +1791,10 @@ void MainWindow::refreshProjectSummary()
         m_applySpriteEditsButton->setEnabled(false);
     }
     m_preview->setDocument(m_document ? &*m_document : nullptr);
+    m_preview->setBackgroundLayerEnabled(m_backgroundLayerButton &&
+                                         m_backgroundLayerButton->isChecked());
+    m_preview->setSelectedSpriteBoundsOverlayEnabled(
+        m_spriteBoundsOverlayButton && m_spriteBoundsOverlayButton->isChecked());
     if (m_spriteEditor) {
         m_spriteEditor->setDocument(m_document ? &*m_document : nullptr);
     }
@@ -1826,11 +1843,37 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
             continue;
         }
         const bool hasHd = m_document->hasHdFrame(frameIndex);
+        const uint32_t durationMs = m_document->frameDurationMs(frameIndex);
+        QStringList details;
+        details << QStringLiteral("%1 ms").arg(durationMs);
+        if (hasHd) {
+            details << QStringLiteral("HD");
+        }
+        if (m_document->dynamicData(frameIndex)) {
+            details << QStringLiteral("Dyn");
+        }
+        const std::optional<document::FrameBackgroundData>& backgroundData =
+            m_document->backgroundData(frameIndex);
+        if (backgroundData && backgroundData->backgroundId < m_document->backgroundCount()) {
+            details << QStringLiteral("BG %1")
+                           .arg(static_cast<int>(backgroundData->backgroundId));
+        }
+        const std::vector<document::FrameSpriteReference>& spriteReferences =
+            m_document->frameSpriteReferences(frameIndex);
+        const int spriteCount = static_cast<int>(
+            std::count_if(spriteReferences.begin(),
+                          spriteReferences.end(),
+                          [](const document::FrameSpriteReference& reference) {
+                              return reference.spriteId != 255;
+                          }));
+        if (spriteCount > 0) {
+            details << QStringLiteral("%1 sprites").arg(spriteCount);
+        }
         auto* item = new QListWidgetItem(
             makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)),
-            QStringLiteral("%1%2")
+            QStringLiteral("%1\n%2")
                 .arg(static_cast<int>(frameIndex))
-                .arg(hasHd ? QStringLiteral(" (HD)") : QString()));
+                .arg(details.join(QStringLiteral("\n"))));
         item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
         item->setSizeHint(QSize(210, 96));
         m_frameList->addItem(item);
@@ -2084,10 +2127,12 @@ void MainWindow::selectFrame(int)
     m_preview->setFrameIndex(*frameIndex);
     const bool hasHd = m_document->hasHdFrame(*frameIndex);
     const int selectedCount = static_cast<int>(selectedFrameIndices().size());
-    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2%3")
+    const uint32_t durationMs = m_document->frameDurationMs(*frameIndex);
+    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2 | %3 ms%4")
                            .arg(static_cast<int>(*frameIndex))
                            .arg(hasHd ? QStringLiteral("HD 256x64")
                                       : QStringLiteral("HD unavailable"))
+                           .arg(durationMs)
                            .arg(selectedCount > 1
                                     ? QStringLiteral(" | %1 selected").arg(selectedCount)
                                     : QString()));
@@ -2115,6 +2160,9 @@ void MainWindow::updatePlaybackControls()
     if (m_playbackIntervalSpinBox) {
         m_playbackIntervalSpinBox->setEnabled(hasFrames);
     }
+    if (m_useProjectTimingCheckBox) {
+        m_useProjectTimingCheckBox->setEnabled(hasFrames);
+    }
     if (!hasFrames && running) {
         setPlaybackRunning(false);
     }
@@ -2140,8 +2188,7 @@ void MainWindow::setPlaybackRunning(bool running)
     if (m_canvasStack && m_preview) {
         m_canvasStack->setCurrentWidget(m_preview);
     }
-    const int intervalMs = m_playbackIntervalSpinBox ? m_playbackIntervalSpinBox->value() : 100;
-    m_playbackTimer->start(intervalMs);
+    m_playbackTimer->start(playbackIntervalForCurrentFrame());
     updatePlaybackControls();
 }
 
@@ -2161,6 +2208,26 @@ void MainWindow::advancePlaybackFrame()
         }
     }
     m_frameList->setCurrentRow(nextRow);
+    if (m_playbackTimer && m_playbackTimer->isActive()) {
+        m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
+    }
+}
+
+int MainWindow::playbackIntervalForCurrentFrame() const
+{
+    const int fallbackMs = m_playbackIntervalSpinBox ? m_playbackIntervalSpinBox->value() : 100;
+    if (!m_document || !m_useProjectTimingCheckBox || !m_useProjectTimingCheckBox->isChecked()) {
+        return fallbackMs;
+    }
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!frameIndex) {
+        return fallbackMs;
+    }
+    const uint32_t durationMs = m_document->frameDurationMs(*frameIndex);
+    if (durationMs == 0 || durationMs > 5000) {
+        return fallbackMs;
+    }
+    return static_cast<int>(durationMs);
 }
 
 void MainWindow::updateResolutionMode()

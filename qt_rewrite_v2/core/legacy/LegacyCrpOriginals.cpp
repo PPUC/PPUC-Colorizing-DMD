@@ -45,6 +45,19 @@ public:
         return true;
     }
 
+    bool readU32(uint32_t& out)
+    {
+        if (m_offset > m_size || kU32Bytes > m_size - m_offset) {
+            return false;
+        }
+        out = static_cast<uint32_t>(m_bytes[m_offset]) |
+              (static_cast<uint32_t>(m_bytes[m_offset + 1]) << 8) |
+              (static_cast<uint32_t>(m_bytes[m_offset + 2]) << 16) |
+              (static_cast<uint32_t>(m_bytes[m_offset + 3]) << 24);
+        m_offset += kU32Bytes;
+        return true;
+    }
+
     bool skip(std::size_t count)
     {
         if (m_offset > m_size || count > m_size - m_offset) {
@@ -162,6 +175,20 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
             }
             if (spriteIndex < cromMetadata.spriteCount) {
                 originalData.spriteNames.push_back(fixedNameToString(nameBytes));
+            }
+        }
+
+        const std::size_t spriteColorSourceBytes = kMaxSpriteNames * kU32Bytes;
+        if (cursor.offset() < size) {
+            if (!cursor.skip(spriteColorSourceBytes)) {
+                return fail("unexpected end of cRP before frame durations");
+            }
+
+            originalData.frameDurationsMs.resize(cromMetadata.frameCount);
+            for (uint32_t& durationMs : originalData.frameDurationsMs) {
+                if (!cursor.readU32(durationMs)) {
+                    return fail("unexpected end of cRP while reading frame durations");
+                }
             }
         }
     }

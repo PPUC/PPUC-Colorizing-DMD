@@ -74,16 +74,19 @@ The top toolbar contains editor-only playback controls:
 - `Play` advances through the currently visible frame list.
 - `Pause` stops playback.
 - `Loop` restarts at the first visible frame after the last visible frame.
-- The interval field controls the frame advance interval in milliseconds.
+- `cRP` uses the per-frame durations loaded from the `.cRP` file.
+- The interval field controls the fallback frame advance interval in milliseconds.
 
 Playback respects the current frame filter in the left `Frames` tab. It is a navigation and preview
-tool only; it does not save per-frame timing data to the project yet.
+tool only; it reads cRP frame durations but does not edit or save timing data yet. Frames with
+missing, zero, or unusually large durations use the fallback interval.
 
 ## Frame List
 
-The left frame list shows one thumbnail per loaded frame.
+The left frame list shows one thumbnail per loaded frame plus compact metadata.
 
-Frames with HD data are marked with `(HD)`.
+Frame items show the project frame number, the loaded cRP duration, and compact flags such as
+`HD`, `Dyn`, assigned `BG`, and sprite assignment count when present.
 Selecting a frame updates the central canvas and the frame status line.
 
 The filter above the frame list can show all frames, only frames with HD data, frames with an
@@ -155,7 +158,8 @@ The `Frame` topic exposes:
 - `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` and disables manual trigger-ID entry while checked.
 - `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
 - `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
-- `Show BG` renders the assigned background layer into the colorized frame preview.
+- `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
+  by default.
 - `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
 
 `DMD Shape` and `DMD Size` are view/export settings only. They do not change project data or the cROM/cRP file format.
@@ -393,7 +397,7 @@ The Inspector has a sprite browser and assignment controls:
 - `Remove` clears the selected slot's sprite assignment for all selected frames.
 - `Min X`, `Min Y`, `Max X`, and `Max Y` edit the selected slot's bounding box for all selected frames.
 - Removing a sprite assignment preserves the slot's bounding box, so a replacement sprite can reuse it.
-- `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame.
+- `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
   This overlay is visible before capture and does not require the slot to already contain a sprite.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 

@@ -327,6 +327,7 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.backgroundData,
             frameSnapshot.spriteReferences,
             frameSnapshot.triggerId,
+            frameSnapshot.durationMs,
         });
     }
     document.m_comparisonMasks = snapshot.comparisonMasks;
@@ -492,6 +493,11 @@ void ProjectDocument::setTriggerId(std::size_t frameIndex, uint32_t triggerId)
     }
     frame.triggerId = triggerId;
     m_dirty = true;
+}
+
+uint32_t ProjectDocument::frameDurationMs(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).durationMs;
 }
 
 std::size_t ProjectDocument::comparisonMaskCount() const
@@ -1387,6 +1393,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.backgroundData,
             frame.spriteReferences,
             frame.triggerId,
+            frame.durationMs,
         });
     }
     snapshot.comparisonMasks = m_comparisonMasks;

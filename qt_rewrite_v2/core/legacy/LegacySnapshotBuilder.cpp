@@ -61,6 +61,9 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
             cromFrameData.frameBackgrounds[frameIndex],
             cromFrameData.frameSpriteReferences[frameIndex],
             cromFrameData.triggerIds[frameIndex],
+            frameIndex < crpOriginalData.frameDurationsMs.size()
+                ? crpOriginalData.frameDurationsMs[frameIndex]
+                : uint32_t{0},
         });
     }
 
