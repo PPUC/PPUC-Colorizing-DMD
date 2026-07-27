@@ -495,7 +495,7 @@ void MainWindow::createCentralView()
     m_assignBackgroundButton->setEnabled(false);
     m_editBackgroundButton = new QToolButton(central);
     m_editBackgroundButton->setText(QStringLiteral("Edit BG"));
-    m_editBackgroundButton->setToolTip(QStringLiteral("Switch drawing target to the assigned background"));
+    m_editBackgroundButton->setToolTip(QStringLiteral("Switch drawing target to the selected background"));
     m_editBackgroundButton->setEnabled(false);
     m_copyFrameToBackgroundButton = new QToolButton(central);
     m_copyFrameToBackgroundButton->setText(QStringLiteral("Frame -> BG"));

@@ -173,7 +173,7 @@ Drawing tools operate on the active SD/HD mode.
 
 When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
 
-When Inspector `Target` is `Background`, ordinary drawing tools edit the current frame's assigned shared background image. `Pick` samples from that background image, flood fill fills the background image, and undo/redo is scoped per background and per resolution.
+When Inspector `Target` is `Background`, ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and undo/redo is scoped per background and per resolution.
 
 ### Point
 

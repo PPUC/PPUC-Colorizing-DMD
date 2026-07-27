@@ -904,8 +904,9 @@ void testBackgroundImageEditModeRendersInSdAndHd()
     colorizing::app::FramePreviewWidget widget;
     widget.resize(640, 420);
     widget.setDocument(&document);
-    widget.setBackgroundImageEditModeEnabled(true);
     widget.setFrameIndex(0);
+    widget.setSelectedBackgroundIndex(0);
+    widget.setBackgroundImageEditModeEnabled(true);
 
     widget.setActiveResolution(colorizing::render::Resolution::Sd);
     QImage sdImage(widget.size(), QImage::Format_ARGB32);
