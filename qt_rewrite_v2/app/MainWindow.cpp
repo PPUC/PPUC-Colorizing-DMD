@@ -62,6 +62,14 @@ constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
 constexpr uint32_t kSwitchToMonochromeTriggerId = 65432;
 constexpr int kMaxManualTriggerId = static_cast<int>(kSwitchToMonochromeTriggerId - 1);
+constexpr std::array<uint8_t, 8> kDynamicShadowDirectionBits{
+    0x01, 0x02, 0x04, 0x80, 0x08, 0x40, 0x20, 0x10,
+};
+constexpr std::array<const char*, 8> kDynamicShadowDirectionLabels{
+    "TL", "T", "TR", "L", "R", "BL", "B", "BR",
+};
+constexpr std::array<int, 8> kDynamicShadowDirectionRows{0, 0, 0, 1, 1, 2, 2, 2};
+constexpr std::array<int, 8> kDynamicShadowDirectionColumns{0, 1, 2, 0, 2, 0, 1, 2};
 
 QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
 {
@@ -821,6 +829,47 @@ void MainWindow::createCentralView()
         });
     }
     dynamicPageLayout->addLayout(dynamicColorsGrid);
+    auto* shadowTitleLabel = new QLabel(QStringLiteral("Shadow"), dynamicPage);
+    shadowTitleLabel->setStyleSheet(QStringLiteral("font-weight: 600;"));
+    dynamicPageLayout->addWidget(shadowTitleLabel);
+    auto* shadowGrid = new QGridLayout();
+    shadowGrid->setHorizontalSpacing(4);
+    shadowGrid->setVerticalSpacing(4);
+    for (std::size_t directionIndex = 0; directionIndex < kDynamicShadowDirectionBits.size();
+         ++directionIndex) {
+        auto* button = new QToolButton(dynamicPage);
+        button->setText(QString::fromLatin1(kDynamicShadowDirectionLabels[directionIndex]));
+        button->setToolTip(QStringLiteral("Toggle dynamic shadow direction %1")
+                               .arg(QString::fromLatin1(
+                                   kDynamicShadowDirectionLabels[directionIndex])));
+        button->setCheckable(true);
+        button->setFixedSize(32, 24);
+        button->setEnabled(false);
+        button->setProperty("shadowBit",
+                            static_cast<int>(kDynamicShadowDirectionBits[directionIndex]));
+        shadowGrid->addWidget(button,
+                              kDynamicShadowDirectionRows[directionIndex],
+                              kDynamicShadowDirectionColumns[directionIndex]);
+        m_dynamicShadowDirectionButtons.push_back(button);
+        connect(button, &QToolButton::toggled, this, [this, button](bool checked) {
+            setDynamicShadowDirectionBit(static_cast<uint8_t>(
+                                             button->property("shadowBit").toInt()),
+                                         checked);
+        });
+    }
+    auto* shadowCenterLabel = new QLabel(QStringLiteral("S"), dynamicPage);
+    shadowCenterLabel->setAlignment(Qt::AlignCenter);
+    shadowGrid->addWidget(shadowCenterLabel, 1, 1);
+    dynamicPageLayout->addLayout(shadowGrid);
+    m_dynamicShadowColorButton = new QToolButton(dynamicPage);
+    m_dynamicShadowColorButton->setText(QStringLiteral("Shadow Color"));
+    m_dynamicShadowColorButton->setToolTip(QStringLiteral("Dynamic shadow color for active set"));
+    m_dynamicShadowColorButton->setEnabled(false);
+    dynamicPageLayout->addWidget(m_dynamicShadowColorButton);
+    connect(m_dynamicShadowColorButton,
+            &QToolButton::clicked,
+            this,
+            &MainWindow::editDynamicShadowColor);
     dynamicPageLayout->addStretch(1);
     inspectorTabs->addTab(dynamicPage, QStringLiteral("Dynamic"));
 
@@ -1609,6 +1658,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_maskEditHistories.clear();
         m_dynamicMaskEditHistories.clear();
         m_dynamicColorEditHistories.clear();
+        m_dynamicShadowEditHistories.clear();
         m_backgroundMaskEditHistories.clear();
         m_backgroundImageEditHistories.clear();
         m_spriteImageEditHistories.clear();
@@ -3715,6 +3765,47 @@ void MainWindow::updateDynamicColorControls()
                                .arg(rgb565, 4, 16, QLatin1Char('0')));
         button->setStyleSheet(colorButtonStyle(rgb565));
     }
+    updateDynamicShadowControls();
+}
+
+void MainWindow::updateDynamicShadowControls()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    const bool enabled = m_document && frameIndex &&
+                         m_document->dynamicData(*frameIndex).has_value();
+    uint8_t direction = 0;
+    uint16_t color = 0;
+    if (enabled) {
+        try {
+            direction = m_document->dynamicShadowDirection(*frameIndex,
+                                                           m_activeResolution,
+                                                           activeDynamicSet());
+            color = m_document->dynamicShadowColor(*frameIndex,
+                                                   m_activeResolution,
+                                                   activeDynamicSet());
+        } catch (const std::exception&) {
+            direction = 0;
+            color = 0;
+        }
+    }
+
+    for (QToolButton* button : m_dynamicShadowDirectionButtons) {
+        QSignalBlocker blocker(button);
+        const uint8_t bit = static_cast<uint8_t>(button->property("shadowBit").toInt());
+        button->setEnabled(enabled);
+        button->setChecked(enabled && (direction & bit) != 0);
+    }
+
+    if (m_dynamicShadowColorButton) {
+        m_dynamicShadowColorButton->setEnabled(enabled);
+        m_dynamicShadowColorButton->setProperty("rgb565", static_cast<int>(color));
+        m_dynamicShadowColorButton->setStyleSheet(colorButtonStyle(color, enabled));
+        m_dynamicShadowColorButton->setToolTip(
+            enabled ? QStringLiteral("Set %1 shadow color: 0x%2")
+                          .arg(activeDynamicSet())
+                          .arg(color, 4, 16, QLatin1Char('0'))
+                    : QStringLiteral("Dynamic shadow color is not available"));
+    }
 }
 
 void MainWindow::editDynamicColor(std::size_t originalColorIndex)
@@ -3758,6 +3849,125 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
                                  2500);
     } catch (const std::exception& ex) {
         updateDynamicColorControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+
+    DynamicShadowEditCommand command;
+    command.resolution = m_activeResolution;
+    command.setIndex = activeDynamicSet();
+    command.editDirection = true;
+
+    try {
+        for (std::size_t selectedFrameIndex : selectedFrameIndices()) {
+            if (!m_document->dynamicData(selectedFrameIndex).has_value()) {
+                continue;
+            }
+            const uint8_t oldDirection =
+                m_document->dynamicShadowDirection(selectedFrameIndex,
+                                                   m_activeResolution,
+                                                   activeDynamicSet());
+            const uint8_t newDirection =
+                enabled ? static_cast<uint8_t>(oldDirection | bit)
+                        : static_cast<uint8_t>(oldDirection & ~bit);
+            if (newDirection == oldDirection) {
+                continue;
+            }
+            DynamicShadowEditChange change;
+            change.frameIndex = selectedFrameIndex;
+            change.oldDirection = oldDirection;
+            change.newDirection = newDirection;
+            change.oldColor = m_document->dynamicShadowColor(selectedFrameIndex,
+                                                             m_activeResolution,
+                                                             activeDynamicSet());
+            change.newColor = change.oldColor;
+            command.changes.push_back(change);
+        }
+        if (command.changes.empty()) {
+            updateDynamicShadowControls();
+            return;
+        }
+        applyDynamicShadowEdit(command, true);
+        DynamicShadowEditHistory& history =
+            m_dynamicShadowEditHistories[EditHistoryKey{*frameIndex, m_activeResolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Updated dynamic shadow direction"), 2500);
+    } catch (const std::exception& ex) {
+        updateDynamicShadowControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::editDynamicShadowColor()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+
+    try {
+        const uint16_t oldRgb565 =
+            m_document->dynamicShadowColor(*frameIndex, m_activeResolution, activeDynamicSet());
+        const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldRgb565),
+                                                       this,
+                                                       QStringLiteral("Dynamic Shadow Color"));
+        if (!newColor.isValid()) {
+            return;
+        }
+
+        const uint16_t newRgb565 = colorToRgb565(newColor);
+        if (newRgb565 == oldRgb565) {
+            return;
+        }
+
+        DynamicShadowEditCommand command;
+        command.resolution = m_activeResolution;
+        command.setIndex = activeDynamicSet();
+        command.editColor = true;
+        for (std::size_t selectedFrameIndex : selectedFrameIndices()) {
+            if (!m_document->dynamicData(selectedFrameIndex).has_value()) {
+                continue;
+            }
+            const uint16_t oldColor =
+                m_document->dynamicShadowColor(selectedFrameIndex,
+                                               m_activeResolution,
+                                               activeDynamicSet());
+            if (oldColor == newRgb565) {
+                continue;
+            }
+            DynamicShadowEditChange change;
+            change.frameIndex = selectedFrameIndex;
+            change.oldDirection = m_document->dynamicShadowDirection(selectedFrameIndex,
+                                                                     m_activeResolution,
+                                                                     activeDynamicSet());
+            change.newDirection = change.oldDirection;
+            change.oldColor = oldColor;
+            change.newColor = newRgb565;
+            command.changes.push_back(change);
+        }
+        if (command.changes.empty()) {
+            return;
+        }
+        applyDynamicShadowEdit(command, true);
+        DynamicShadowEditHistory& history =
+            m_dynamicShadowEditHistories[EditHistoryKey{*frameIndex, m_activeResolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Updated dynamic shadow color 0x%1")
+                                     .arg(newRgb565, 4, 16, QLatin1Char('0')),
+                                 2500);
+    } catch (const std::exception& ex) {
+        updateDynamicShadowControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
@@ -4171,6 +4381,10 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
         return;
     }
     if (isDynamicMaskModeActive()) {
+        if (m_drawingTool == DrawingTool::ColorPicker) {
+            pickDynamicSet(hit);
+            return;
+        }
         if (m_drawingTool == DrawingTool::FloodFill) {
             floodFillDynamicMask(hit, erase);
             return;
@@ -4208,6 +4422,34 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
     commitPixels(hit.resolution,
                  {render::Point{hit.x, hit.y}},
                  QStringLiteral("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
+}
+
+void MainWindow::pickDynamicSet(const render::CanvasHit& hit)
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || !m_dynamicSetSpinBox) {
+        return;
+    }
+    try {
+        const uint8_t dynamicSet =
+            m_document->dynamicMaskPixel(*frameIndex, hit.resolution, hit.x, hit.y);
+        if (dynamicSet == 255 || dynamicSet >= document::kMaxDynamicSetsPerFrame) {
+            statusBar()->showMessage(QStringLiteral("No dynamic set at %1,%2")
+                                         .arg(hit.x)
+                                         .arg(hit.y),
+                                     2500);
+            return;
+        }
+        m_dynamicSetSpinBox->setValue(static_cast<int>(dynamicSet));
+        updateDynamicColorControls();
+        statusBar()->showMessage(QStringLiteral("Picked dynamic set %1 at %2,%3")
+                                     .arg(static_cast<int>(dynamicSet))
+                                     .arg(hit.x)
+                                     .arg(hit.y),
+                                 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
 }
 
 void MainWindow::pickFrameColor(const render::CanvasHit& hit)
@@ -5160,6 +5402,32 @@ void MainWindow::applyDynamicColorEdit(const DynamicColorEditCommand& command, b
     updateProjectHeaderStatus();
 }
 
+void MainWindow::applyDynamicShadowEdit(const DynamicShadowEditCommand& command, bool useNewValue)
+{
+    if (!m_document) {
+        return;
+    }
+    for (const DynamicShadowEditChange& change : command.changes) {
+        if (command.editDirection) {
+            m_document->setDynamicShadowDirection(change.frameIndex,
+                                                  command.resolution,
+                                                  command.setIndex,
+                                                  useNewValue ? change.newDirection
+                                                              : change.oldDirection);
+        }
+        if (command.editColor) {
+            m_document->setDynamicShadowColor(change.frameIndex,
+                                             command.resolution,
+                                             command.setIndex,
+                                             useNewValue ? change.newColor : change.oldColor);
+        }
+        updateFrameThumbnail(change.frameIndex);
+    }
+    updateDynamicShadowControls();
+    m_preview->update();
+    updateProjectHeaderStatus();
+}
+
 void MainWindow::applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue)
 {
     if (!m_document) {
@@ -5352,6 +5620,32 @@ const MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHi
     }
     auto history = m_dynamicColorEditHistories.find(*key);
     if (history == m_dynamicColorEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+MainWindow::DynamicShadowEditHistory* MainWindow::currentDynamicShadowEditHistory()
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_dynamicShadowEditHistories.find(*key);
+    if (history == m_dynamicShadowEditHistories.end()) {
+        return nullptr;
+    }
+    return &history->second;
+}
+
+const MainWindow::DynamicShadowEditHistory* MainWindow::currentDynamicShadowEditHistory() const
+{
+    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
+    if (!key) {
+        return nullptr;
+    }
+    auto history = m_dynamicShadowEditHistories.find(*key);
+    if (history == m_dynamicShadowEditHistories.end()) {
         return nullptr;
     }
     return &history->second;
@@ -5569,6 +5863,16 @@ void MainWindow::undo()
             statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
             return;
         }
+        DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
+        if (shadowHistory && !shadowHistory->undoStack.empty()) {
+            const DynamicShadowEditCommand command = shadowHistory->undoStack.back();
+            shadowHistory->undoStack.pop_back();
+            applyDynamicShadowEdit(command, false);
+            shadowHistory->redoStack.push_back(command);
+            updateUndoRedoActions();
+            statusBar()->showMessage(QStringLiteral("Undo dynamic shadow edit"), 1500);
+            return;
+        }
         return;
     }
     if (isBackgroundMaskModeActive()) {
@@ -5616,6 +5920,16 @@ void MainWindow::undo()
         colorHistory->redoStack.push_back(command);
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
+        return;
+    }
+    DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
+    if (shadowHistory && !shadowHistory->undoStack.empty()) {
+        const DynamicShadowEditCommand command = shadowHistory->undoStack.back();
+        shadowHistory->undoStack.pop_back();
+        applyDynamicShadowEdit(command, false);
+        shadowHistory->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo dynamic shadow edit"), 1500);
     }
 }
 
@@ -5668,6 +5982,16 @@ void MainWindow::redo()
             statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
             return;
         }
+        DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
+        if (shadowHistory && !shadowHistory->redoStack.empty()) {
+            const DynamicShadowEditCommand command = shadowHistory->redoStack.back();
+            shadowHistory->redoStack.pop_back();
+            applyDynamicShadowEdit(command, true);
+            shadowHistory->undoStack.push_back(command);
+            updateUndoRedoActions();
+            statusBar()->showMessage(QStringLiteral("Redo dynamic shadow edit"), 1500);
+            return;
+        }
         return;
     }
     if (isBackgroundMaskModeActive()) {
@@ -5715,6 +6039,16 @@ void MainWindow::redo()
         colorHistory->undoStack.push_back(command);
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
+        return;
+    }
+    DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
+    if (shadowHistory && !shadowHistory->redoStack.empty()) {
+        const DynamicShadowEditCommand command = shadowHistory->redoStack.back();
+        shadowHistory->redoStack.pop_back();
+        applyDynamicShadowEdit(command, true);
+        shadowHistory->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo dynamic shadow edit"), 1500);
     }
 }
 
@@ -5743,13 +6077,16 @@ void MainWindow::updateUndoRedoActions()
     if (isDynamicMaskModeActive()) {
         const DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
         const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
+        const DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
         if (m_undoAction) {
             m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
-                                     (colorHistory && !colorHistory->undoStack.empty()));
+                                     (colorHistory && !colorHistory->undoStack.empty()) ||
+                                     (shadowHistory && !shadowHistory->undoStack.empty()));
         }
         if (m_redoAction) {
             m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
-                                     (colorHistory && !colorHistory->redoStack.empty()));
+                                     (colorHistory && !colorHistory->redoStack.empty()) ||
+                                     (shadowHistory && !shadowHistory->redoStack.empty()));
         }
         return;
     }
@@ -5776,13 +6113,16 @@ void MainWindow::updateUndoRedoActions()
 
     const EditHistory* history = currentEditHistory();
     const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
+    const DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
     if (m_undoAction) {
         m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
-                                 (colorHistory && !colorHistory->undoStack.empty()));
+                                 (colorHistory && !colorHistory->undoStack.empty()) ||
+                                 (shadowHistory && !shadowHistory->undoStack.empty()));
     }
     if (m_redoAction) {
         m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
-                                 (colorHistory && !colorHistory->redoStack.empty()));
+                                 (colorHistory && !colorHistory->redoStack.empty()) ||
+                                 (shadowHistory && !shadowHistory->redoStack.empty()));
     }
 }
 

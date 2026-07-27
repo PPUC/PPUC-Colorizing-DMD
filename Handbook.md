@@ -232,6 +232,9 @@ The preview is shown while dragging. The whole filled ellipse is committed on re
 
 Click a colorized frame pixel to set the active draw color to that pixel's RGB565 value.
 
+When the `Dynamic` overlay is enabled, click a colorized frame pixel to select the dynamic set
+stored at that pixel instead. This is useful before editing the set's dynamic colors or shadows.
+
 This tool does not modify project data and does not create an undo entry.
 
 ### Flood
@@ -298,10 +301,12 @@ Rules:
 - In HD mode, the HD dynamic mask is rendered over the HD colorized frame.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.
+- With the `Pick` tool, click the colorized frame to select the dynamic set stored under the cursor.
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD dynamic mask.
 - Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
 - Dynamic-mask edits are undoable per frame and per resolution.
 - Dynamic color changes are undoable per frame and per resolution.
+- Dynamic shadow direction and color changes are undoable per frame and per resolution.
 
 The current dynamic color editor is intentionally small. Broader palette tools are postponed until
 the palette UI is implemented.
@@ -311,7 +316,11 @@ canvas, thumbnails, and PNG export render shadows after dynamic-color replacemen
 composition. Shadow pixels are written only into neighboring pixels that are not themselves dynamic,
 matching the legacy renderer behavior.
 
-TODO: add Inspector controls for editing per-dynamic-set shadow directions and shadow colors.
+The Inspector's `Dynamic` topic provides shadow controls for the active dynamic set:
+
+- Direction buttons `TL`, `T`, `TR`, `L`, `R`, `BL`, `B`, and `BR` toggle where shadows are cast.
+- `Shadow Color` opens a color picker for the active set's shadow color.
+- Shadow edits apply to all selected frames that have dynamic data in the active SD/HD mode.
 
 ## Sprites
 
@@ -407,12 +416,22 @@ must not change the loaded cROM format.
 
 ## Preview Rendering TODO
 
-The current Qt preview renderer is an editor-side approximation used for canvas and thumbnails.
-It must stay small and test-backed until libserum exposes an editor preview API.
+libserum is the source of truth for every runtime-composed pixel. The current Qt preview renderer
+is an editor-side approximation used for canvas, thumbnails, and PNG export. It must stay small,
+test-backed, and explicitly aligned with libserum until libserum exposes an editor preview API.
+
+For normal cROM v2 frames, the local preview must mirror libserum's composition order:
+
+- Resolve frame pixels from background/static/dynamic data in one scan, using the active dynamic
+  mask semantics from libserum.
+- Emit dynamic shadows from nonzero original dynamic pixels before writing that dynamic pixel.
+- Treat written dynamic pixels and shadow pixels as occupied so later static/background pixels do
+  not overwrite them.
+- Render detected sprites after the resolved frame and dynamic shadows.
 
 Future preview direction:
 
-- libserum remains the source of truth for runtime-composed frame previews.
+- Replace runtime-composed frame previews with libserum output where practical.
 - Add a libserum API that accepts cROM data through memory views, without writing temporary files.
 - Let libserum convert that in-memory cROM data to cROMc internally.
 - Avoid converting the full project for every preview; render a minimal cROM containing one frame or all frames in the active sequence plus the shared data needed by those frames.

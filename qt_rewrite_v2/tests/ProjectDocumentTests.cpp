@@ -499,6 +499,75 @@ void testDynamicMaskPixelEditing()
         "missing dynamic color write");
 }
 
+void testDynamicShadowEditing()
+{
+    FrameDynamicData dynamicData{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    ProjectSnapshot snapshot;
+    snapshot.romName = "dynamic_shadow_edit";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        dynamicData,
+    });
+
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    expect(document.dynamicShadowDirection(0, Resolution::Sd, 2) == 0,
+           "missing SD dynamic shadow direction should read as zero");
+    expect(document.dynamicShadowColor(0, Resolution::Sd, 2) == 0,
+           "missing SD dynamic shadow color should read as zero");
+
+    document.setDynamicShadowDirection(0, Resolution::Sd, 2, 0x08);
+    expect(document.dynamicShadowDirection(0, Resolution::Sd, 2) == 0x08,
+           "SD dynamic shadow direction edit should be readable");
+    expect(document.isDirty(), "dynamic shadow direction edit should mark dirty");
+
+    document.markClean();
+    document.setDynamicShadowDirection(0, Resolution::Sd, 2, 0x08);
+    expect(!document.isDirty(), "identical dynamic shadow direction edit should not mark dirty");
+
+    document.setDynamicShadowColor(0, Resolution::Sd, 2, 0x1234);
+    expect(document.dynamicShadowColor(0, Resolution::Sd, 2) == 0x1234,
+           "SD dynamic shadow color edit should be readable");
+
+    document.setDynamicShadowDirection(0, Resolution::Hd, 2, 0x20);
+    document.setDynamicShadowColor(0, Resolution::Hd, 2, 0x5678);
+    expect(document.dynamicShadowDirection(0, Resolution::Hd, 2) == 0x20,
+           "HD dynamic shadow direction edit should be readable");
+    expect(document.dynamicShadowColor(0, Resolution::Hd, 2) == 0x5678,
+           "HD dynamic shadow color edit should be readable");
+
+    expectThrows<std::out_of_range>(
+        [&]() { document.setDynamicShadowDirection(0, Resolution::Sd,
+                                                   kMaxDynamicSetsPerFrame, 1); },
+        "dynamic shadow direction set bounds");
+    expectThrows<std::out_of_range>(
+        [&]() { document.setDynamicShadowColor(0, Resolution::Sd,
+                                               kMaxDynamicSetsPerFrame, 1); },
+        "dynamic shadow color set bounds");
+
+    ProjectDocument noDynamicData = ProjectDocument::createEmpty(ProjectCreateOptions{
+        "empty_dynamic_shadow",
+        1,
+        true,
+    });
+    expectThrows<std::logic_error>(
+        [&]() { noDynamicData.setDynamicShadowDirection(0, Resolution::Sd, 0, 1); },
+        "missing dynamic shadow direction write");
+    expectThrows<std::logic_error>(
+        [&]() { noDynamicData.setDynamicShadowColor(0, Resolution::Sd, 0, 1); },
+        "missing dynamic shadow color write");
+}
+
 void testBackgroundMetadataAndMaskEditing()
 {
     ProjectSnapshot snapshot;
@@ -1193,6 +1262,7 @@ void runProjectDocumentTests()
     testFrameComparisonMetadataEditing();
     testFrameTriggerIdEditing();
     testDynamicMaskPixelEditing();
+    testDynamicShadowEditing();
     testBackgroundMetadataAndMaskEditing();
     testFrameSpriteReferenceEditing();
     testSpriteColorizedPixelEditing();

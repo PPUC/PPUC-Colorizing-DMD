@@ -580,6 +580,52 @@ std::vector<uint16_t>& requireDynamicColors(FrameRecord& frame, Resolution resol
     return resolution == Resolution::Hd ? frame.dynamicData->colorsHd : frame.dynamicData->colorsSd;
 }
 
+const std::vector<uint8_t>& requireDynamicShadowDirections(const FrameRecord& frame,
+                                                           Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic shadow direction data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->shadowDirectionsHd
+                                        : frame.dynamicData->shadowDirectionsSd;
+}
+
+std::vector<uint8_t>& requireDynamicShadowDirections(FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic shadow direction data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->shadowDirectionsHd
+                                        : frame.dynamicData->shadowDirectionsSd;
+}
+
+const std::vector<uint16_t>& requireDynamicShadowColors(const FrameRecord& frame,
+                                                       Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic shadow color data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->shadowColorsHd
+                                        : frame.dynamicData->shadowColorsSd;
+}
+
+std::vector<uint16_t>& requireDynamicShadowColors(FrameRecord& frame, Resolution resolution)
+{
+    if (!frame.dynamicData) {
+        throw std::logic_error("dynamic shadow color data is not available");
+    }
+    return resolution == Resolution::Hd ? frame.dynamicData->shadowColorsHd
+                                        : frame.dynamicData->shadowColorsSd;
+}
+
+template <typename T>
+void ensureDynamicSetVectorSize(std::vector<T>& values, T fill)
+{
+    if (values.size() < kMaxDynamicSetsPerFrame) {
+        values.resize(kMaxDynamicSetsPerFrame, fill);
+    }
+}
+
 std::size_t checkedIndexedPixelIndex(const IndexedFrame& frame, int x, int y)
 {
     if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
@@ -601,6 +647,13 @@ std::size_t checkedDynamicColorIndex(const std::vector<uint16_t>& colors,
         throw std::out_of_range("dynamic color index out of range");
     }
     return setIndex * colorCount + originalColorIndex;
+}
+
+void requireDynamicSetIndex(std::size_t setIndex)
+{
+    if (setIndex >= kMaxDynamicSetsPerFrame) {
+        throw std::out_of_range("dynamic set index out of range");
+    }
 }
 
 }  // namespace
@@ -653,6 +706,64 @@ void ProjectDocument::setDynamicColor(std::size_t frameIndex,
         return;
     }
     colors[colorIndex] = rgb565;
+    m_dirty = true;
+}
+
+uint8_t ProjectDocument::dynamicShadowDirection(std::size_t frameIndex,
+                                                Resolution resolution,
+                                                std::size_t setIndex) const
+{
+    requireDynamicSetIndex(setIndex);
+    const std::vector<uint8_t>& directions =
+        requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
+    if (setIndex >= directions.size()) {
+        return 0;
+    }
+    return directions[setIndex];
+}
+
+uint16_t ProjectDocument::dynamicShadowColor(std::size_t frameIndex,
+                                             Resolution resolution,
+                                             std::size_t setIndex) const
+{
+    requireDynamicSetIndex(setIndex);
+    const std::vector<uint16_t>& colors =
+        requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);
+    if (setIndex >= colors.size()) {
+        return 0;
+    }
+    return colors[setIndex];
+}
+
+void ProjectDocument::setDynamicShadowDirection(std::size_t frameIndex,
+                                                Resolution resolution,
+                                                std::size_t setIndex,
+                                                uint8_t direction)
+{
+    requireDynamicSetIndex(setIndex);
+    std::vector<uint8_t>& directions =
+        requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
+    ensureDynamicSetVectorSize<uint8_t>(directions, 0);
+    if (directions[setIndex] == direction) {
+        return;
+    }
+    directions[setIndex] = direction;
+    m_dirty = true;
+}
+
+void ProjectDocument::setDynamicShadowColor(std::size_t frameIndex,
+                                            Resolution resolution,
+                                            std::size_t setIndex,
+                                            uint16_t rgb565)
+{
+    requireDynamicSetIndex(setIndex);
+    std::vector<uint16_t>& colors =
+        requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);
+    ensureDynamicSetVectorSize<uint16_t>(colors, 0);
+    if (colors[setIndex] == rgb565) {
+        return;
+    }
+    colors[setIndex] = rgb565;
     m_dirty = true;
 }
 

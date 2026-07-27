@@ -160,6 +160,20 @@ public:
                          std::size_t setIndex,
                          std::size_t originalColorIndex,
                          uint16_t rgb565);
+    [[nodiscard]] uint8_t dynamicShadowDirection(std::size_t frameIndex,
+                                                 Resolution resolution,
+                                                 std::size_t setIndex) const;
+    [[nodiscard]] uint16_t dynamicShadowColor(std::size_t frameIndex,
+                                              Resolution resolution,
+                                              std::size_t setIndex) const;
+    void setDynamicShadowDirection(std::size_t frameIndex,
+                                   Resolution resolution,
+                                   std::size_t setIndex,
+                                   uint8_t direction);
+    void setDynamicShadowColor(std::size_t frameIndex,
+                               Resolution resolution,
+                               std::size_t setIndex,
+                               uint16_t rgb565);
     [[nodiscard]] std::size_t backgroundCount() const;
     [[nodiscard]] const BackgroundRecord& background(std::size_t backgroundIndex) const;
     [[nodiscard]] const Rgb565Frame& backgroundFrame(std::size_t backgroundIndex,

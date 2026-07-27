@@ -130,6 +130,27 @@ private:
         std::vector<DynamicColorEditCommand> redoStack;
     };
 
+    struct DynamicShadowEditChange {
+        std::size_t frameIndex = 0;
+        uint8_t oldDirection = 0;
+        uint8_t newDirection = 0;
+        uint16_t oldColor = 0;
+        uint16_t newColor = 0;
+    };
+
+    struct DynamicShadowEditCommand {
+        render::Resolution resolution = render::Resolution::Sd;
+        std::size_t setIndex = 0;
+        bool editDirection = false;
+        bool editColor = false;
+        std::vector<DynamicShadowEditChange> changes;
+    };
+
+    struct DynamicShadowEditHistory {
+        std::vector<DynamicShadowEditCommand> undoStack;
+        std::vector<DynamicShadowEditCommand> redoStack;
+    };
+
     using BackgroundMaskPixelChange = MaskPixelChange;
 
     struct BackgroundMaskEditCommand {
@@ -231,7 +252,11 @@ private:
     void createCurrentFrameHd();
     void removeCurrentFrameHd();
     void updateDynamicColorControls();
+    void updateDynamicShadowControls();
     void editDynamicColor(std::size_t originalColorIndex);
+    void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
+    void editDynamicShadowColor();
+    void pickDynamicSet(const render::CanvasHit& hit);
     void paintSpriteColorizedPixel(std::size_t spriteIndex,
                                    render::Resolution resolution,
                                    int x,
@@ -294,6 +319,7 @@ private:
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
     void applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor);
+    void applyDynamicShadowEdit(const DynamicShadowEditCommand& command, bool useNewValue);
     void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
     void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
     void applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor);
@@ -308,6 +334,8 @@ private:
     [[nodiscard]] const DynamicMaskEditHistory* currentDynamicMaskEditHistory() const;
     [[nodiscard]] DynamicColorEditHistory* currentDynamicColorEditHistory();
     [[nodiscard]] const DynamicColorEditHistory* currentDynamicColorEditHistory() const;
+    [[nodiscard]] DynamicShadowEditHistory* currentDynamicShadowEditHistory();
+    [[nodiscard]] const DynamicShadowEditHistory* currentDynamicShadowEditHistory() const;
     [[nodiscard]] bool isDynamicMaskModeActive() const;
     [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
     [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
@@ -413,6 +441,8 @@ private:
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_dynamicColorButtons;
+    std::vector<QToolButton*> m_dynamicShadowDirectionButtons;
+    QToolButton* m_dynamicShadowColorButton = nullptr;
     QToolButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
@@ -427,6 +457,7 @@ private:
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
     std::map<EditHistoryKey, DynamicColorEditHistory> m_dynamicColorEditHistories;
+    std::map<EditHistoryKey, DynamicShadowEditHistory> m_dynamicShadowEditHistories;
     std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
     std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
     std::map<SpriteEditHistoryKey, SpriteImageEditHistory> m_spriteImageEditHistories;
