@@ -83,6 +83,15 @@ void FramePreviewWidget::setBackgroundImageEditModeEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setSelectedBackgroundIndex(std::optional<std::size_t> backgroundIndex)
+{
+    if (m_selectedBackgroundIndex == backgroundIndex) {
+        return;
+    }
+    m_selectedBackgroundIndex = backgroundIndex;
+    update();
+}
+
 void FramePreviewWidget::setDmdRenderOptions(DmdRenderOptions options)
 {
     if (m_renderOptions.pixelShape == options.pixelShape &&
@@ -353,12 +362,11 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
         original = &m_document->originalFrame(m_frameIndex);
     } else {
         colorized = &m_document->colorizedFrame(m_frameIndex, region.resolution);
-        const std::optional<document::FrameBackgroundData>& backgroundData =
-            m_document->backgroundData(m_frameIndex);
-        if (drawBackgroundImage && backgroundData &&
-            backgroundData->backgroundId < m_document->backgroundCount()) {
+        if (drawBackgroundImage &&
+            m_selectedBackgroundIndex &&
+            *m_selectedBackgroundIndex < m_document->backgroundCount()) {
             try {
-                colorized = &m_document->backgroundFrame(backgroundData->backgroundId,
+                colorized = &m_document->backgroundFrame(*m_selectedBackgroundIndex,
                                                          region.resolution);
             } catch (const std::exception&) {
                 colorized = nullptr;

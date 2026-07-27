@@ -545,6 +545,27 @@ void testBackgroundMetadataAndMaskEditing()
     expectThrows<std::out_of_range>(
         [&]() { (void)document.background(1); },
         "background index bounds");
+    document.markClean();
+    colorizing::document::Rgb565Frame replacementSd =
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0x7777);
+    document.setBackgroundFrame(0, Resolution::Sd, replacementSd);
+    expect(document.backgroundPixel(0, Resolution::Sd, 3, 2) == 0x7777,
+           "SD background frame replacement should be readable");
+    expect(document.isDirty(), "SD background frame replacement should mark dirty");
+
+    document.markClean();
+    document.setBackgroundFrame(0, Resolution::Sd, replacementSd);
+    expect(!document.isDirty(), "identical SD background frame replacement should not mark dirty");
+
+    colorizing::document::Rgb565Frame replacementHd =
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0x8888);
+    document.setBackgroundFrame(0, Resolution::Hd, replacementHd);
+    expect(document.backgroundPixel(0, Resolution::Hd, 6, 4) == 0x8888,
+           "HD background frame replacement should create/read HD background");
+
+    expectThrows<std::invalid_argument>(
+        [&]() { document.setBackgroundFrame(0, Resolution::Sd, replacementHd); },
+        "background frame replacement size validation");
     expectThrows<std::out_of_range>(
         [&]() { document.setBackgroundMaskPixel(0, Resolution::Sd, 128, 0, 1); },
         "background mask pixel bounds");

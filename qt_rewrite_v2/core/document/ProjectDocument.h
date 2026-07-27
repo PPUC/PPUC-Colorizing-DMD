@@ -160,6 +160,9 @@ public:
     [[nodiscard]] const BackgroundRecord& background(std::size_t backgroundIndex) const;
     [[nodiscard]] const Rgb565Frame& backgroundFrame(std::size_t backgroundIndex,
                                                      Resolution resolution) const;
+    void setBackgroundFrame(std::size_t backgroundIndex,
+                            Resolution resolution,
+                            Rgb565Frame frame);
     [[nodiscard]] uint16_t backgroundPixel(std::size_t backgroundIndex,
                                            Resolution resolution,
                                            int x,

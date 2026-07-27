@@ -12,6 +12,11 @@ namespace colorizing::document {
 
 namespace {
 
+bool hasSize(Size actual, Size expected)
+{
+    return actual.width == expected.width && actual.height == expected.height;
+}
+
 std::size_t checkedPixelCount(Size size)
 {
     if (size.width <= 0 || size.height <= 0) {
@@ -701,6 +706,35 @@ const Rgb565Frame& ProjectDocument::backgroundFrame(std::size_t backgroundIndex,
                                                     Resolution resolution) const
 {
     return requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
+}
+
+void ProjectDocument::setBackgroundFrame(std::size_t backgroundIndex,
+                                         Resolution resolution,
+                                         Rgb565Frame frame)
+{
+    if (resolution == Resolution::Sd && !hasSize(frame.size, render::kSdFrameSize)) {
+        throw std::invalid_argument("SD background frame has invalid size");
+    }
+    if (resolution == Resolution::Hd && !hasSize(frame.size, render::kHdFrameSize)) {
+        throw std::invalid_argument("HD background frame has invalid size");
+    }
+
+    BackgroundRecord& background = requireBackground(m_backgrounds, backgroundIndex);
+    if (resolution == Resolution::Sd) {
+        if (hasSize(background.colorizedSd.size, frame.size) &&
+            background.colorizedSd.pixels == frame.pixels) {
+            return;
+        }
+        background.colorizedSd = std::move(frame);
+    } else {
+        if (background.colorizedHd &&
+            hasSize(background.colorizedHd->size, frame.size) &&
+            background.colorizedHd->pixels == frame.pixels) {
+            return;
+        }
+        background.colorizedHd = std::move(frame);
+    }
+    m_dirty = true;
 }
 
 uint16_t ProjectDocument::backgroundPixel(std::size_t backgroundIndex,

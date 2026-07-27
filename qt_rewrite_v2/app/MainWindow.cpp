@@ -208,6 +208,25 @@ QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background
     return image;
 }
 
+document::Rgb565Frame rgb565FrameFromImage(const QImage& source, render::Size targetSize)
+{
+    QImage scaled = source.convertToFormat(QImage::Format_RGB32)
+                        .scaled(targetSize.width,
+                                targetSize.height,
+                                Qt::IgnoreAspectRatio,
+                                Qt::FastTransformation);
+    document::Rgb565Frame frame = document::makeRgb565Frame(targetSize);
+    for (int y = 0; y < targetSize.height; ++y) {
+        for (int x = 0; x < targetSize.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(targetSize.width) +
+                static_cast<std::size_t>(x);
+            frame.pixels[index] = colorToRgb565(scaled.pixelColor(x, y));
+        }
+    }
+    return frame;
+}
+
 QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
 {
     QImage image(mask.size.width, mask.size.height, QImage::Format_ARGB32);
@@ -478,6 +497,25 @@ void MainWindow::createCentralView()
     m_editBackgroundButton->setText(QStringLiteral("Edit BG"));
     m_editBackgroundButton->setToolTip(QStringLiteral("Switch drawing target to the assigned background"));
     m_editBackgroundButton->setEnabled(false);
+    m_copyFrameToBackgroundButton = new QToolButton(central);
+    m_copyFrameToBackgroundButton->setText(QStringLiteral("Frame -> BG"));
+    m_copyFrameToBackgroundButton->setToolTip(
+        QStringLiteral("Copy the current frame image into the selected background"));
+    m_copyFrameToBackgroundButton->setEnabled(false);
+    m_copyBackgroundToFrameButton = new QToolButton(central);
+    m_copyBackgroundToFrameButton->setText(QStringLiteral("BG -> Frame"));
+    m_copyBackgroundToFrameButton->setToolTip(
+        QStringLiteral("Copy the selected background image into selected frames"));
+    m_copyBackgroundToFrameButton->setEnabled(false);
+    m_importBackgroundImageButton = new QToolButton(central);
+    m_importBackgroundImageButton->setText(QStringLiteral("Import Image"));
+    m_importBackgroundImageButton->setToolTip(
+        QStringLiteral("Import an image into the selected background"));
+    m_importBackgroundImageButton->setEnabled(false);
+    m_exportBackgroundButton = new QToolButton(central);
+    m_exportBackgroundButton->setText(QStringLiteral("Export BG"));
+    m_exportBackgroundButton->setToolTip(QStringLiteral("Export the selected background as PNG"));
+    m_exportBackgroundButton->setEnabled(false);
     m_backgroundLayerButton = new QToolButton(central);
     m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
@@ -713,6 +751,14 @@ void MainWindow::createCentralView()
     backgroundButtonLayout->addWidget(m_assignBackgroundButton);
     backgroundButtonLayout->addWidget(m_editBackgroundButton);
     backgroundPageLayout->addLayout(backgroundButtonLayout);
+    auto* backgroundCopyLayout = new QHBoxLayout();
+    backgroundCopyLayout->addWidget(m_copyFrameToBackgroundButton);
+    backgroundCopyLayout->addWidget(m_copyBackgroundToFrameButton);
+    backgroundPageLayout->addLayout(backgroundCopyLayout);
+    auto* backgroundFileLayout = new QHBoxLayout();
+    backgroundFileLayout->addWidget(m_importBackgroundImageButton);
+    backgroundFileLayout->addWidget(m_exportBackgroundButton);
+    backgroundPageLayout->addLayout(backgroundFileLayout);
     m_backgroundPreviewLabel = new QLabel(backgroundPage);
     m_backgroundPreviewLabel->setFixedSize(190, 48);
     m_backgroundPreviewLabel->setFrameShape(QFrame::Box);
@@ -1094,6 +1140,18 @@ void MainWindow::createCentralView()
     });
     connect(m_editBackgroundButton, &QToolButton::clicked, this, [this]() {
         editAssignedBackground();
+    });
+    connect(m_copyFrameToBackgroundButton, &QToolButton::clicked, this, [this]() {
+        copyCurrentFrameToSelectedBackground();
+    });
+    connect(m_copyBackgroundToFrameButton, &QToolButton::clicked, this, [this]() {
+        copySelectedBackgroundToFrames();
+    });
+    connect(m_importBackgroundImageButton, &QToolButton::clicked, this, [this]() {
+        importImageIntoSelectedBackground();
+    });
+    connect(m_exportBackgroundButton, &QToolButton::clicked, this, [this]() {
+        exportSelectedBackgroundPng();
     });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintFramePixel(hit, erase);
@@ -1654,7 +1712,10 @@ void MainWindow::updateBackgroundBrowserSelection()
     if (!m_backgroundList || !m_document) {
         return;
     }
-    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!backgroundIndex) {
+        backgroundIndex = currentBackgroundIndex();
+    }
     QSignalBlocker blocker(m_backgroundList);
     if (!backgroundIndex) {
         m_backgroundList->setCurrentItem(nullptr);
@@ -1804,11 +1865,12 @@ void MainWindow::updateResolutionMode()
         m_dynamicSetSpinBox->setEnabled(hasDocument);
     }
     if (m_paintTargetComboBox) {
-        m_paintTargetComboBox->setEnabled(hasDocument && currentBackgroundIndex().has_value());
+        m_paintTargetComboBox->setEnabled(hasDocument && selectedBackgroundIndex().has_value());
     }
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
+        m_preview->setSelectedBackgroundIndex(selectedBackgroundIndex());
         m_preview->clearPreviewPixels();
         m_preview->setActiveResolution(m_activeResolution);
     }
@@ -1936,8 +1998,9 @@ void MainWindow::updateFrameMetadataControls()
         m_removeHdFrameButton->setEnabled(hasHdFrame);
     }
     if (m_paintTargetComboBox) {
-        m_paintTargetComboBox->setEnabled(backgroundValue >= 0);
-        if (backgroundValue < 0) {
+        const bool hasSelectableBackground = m_document->backgroundCount() > 0;
+        m_paintTargetComboBox->setEnabled(hasSelectableBackground);
+        if (!hasSelectableBackground) {
             m_paintTargetComboBox->setCurrentIndex(0);
         }
     }
@@ -1984,7 +2047,9 @@ void MainWindow::updateMaskControls()
 void MainWindow::updateBackgroundControls()
 {
     if (!m_backgroundComboBox || !m_backgroundPreviewLabel ||
-        !m_assignBackgroundButton || !m_editBackgroundButton) {
+        !m_assignBackgroundButton || !m_editBackgroundButton ||
+        !m_copyFrameToBackgroundButton || !m_copyBackgroundToFrameButton ||
+        !m_importBackgroundImageButton || !m_exportBackgroundButton) {
         return;
     }
 
@@ -2027,10 +2092,11 @@ void MainWindow::updateBackgroundControls()
         static_cast<std::size_t>(selectedBackground) < m_document->backgroundCount();
     m_backgroundComboBox->setEnabled(m_document && m_document->backgroundCount() > 0);
     m_assignBackgroundButton->setEnabled(hasBackground && !selectedFrameIndices().empty());
-    const bool selectedIsAssigned =
-        hasBackground && currentBackgroundIndex() &&
-        *currentBackgroundIndex() == static_cast<std::size_t>(selectedBackground);
-    m_editBackgroundButton->setEnabled(selectedIsAssigned);
+    m_copyFrameToBackgroundButton->setEnabled(hasBackground && currentFrameIndex().has_value());
+    m_copyBackgroundToFrameButton->setEnabled(hasBackground && !selectedFrameIndices().empty());
+    m_importBackgroundImageButton->setEnabled(hasBackground);
+    m_exportBackgroundButton->setEnabled(hasBackground);
+    m_editBackgroundButton->setEnabled(hasBackground);
 
     if (!hasBackground) {
         if (m_selectedBackgroundLabel) {
@@ -2038,6 +2104,13 @@ void MainWindow::updateBackgroundControls()
         }
         m_backgroundPreviewLabel->clear();
         m_backgroundPreviewLabel->setText(QStringLiteral("Background"));
+        m_copyFrameToBackgroundButton->setEnabled(false);
+        m_copyBackgroundToFrameButton->setEnabled(false);
+        m_importBackgroundImageButton->setEnabled(false);
+        m_exportBackgroundButton->setEnabled(false);
+        if (m_preview) {
+            m_preview->setSelectedBackgroundIndex(std::nullopt);
+        }
         return;
     }
 
@@ -2053,6 +2126,9 @@ void MainWindow::updateBackgroundControls()
     m_backgroundPreviewLabel->setPixmap(
         previewPixmap(renderBackgroundPreviewImage(background, m_activeResolution),
                       m_backgroundPreviewLabel->size()));
+    if (m_preview) {
+        m_preview->setSelectedBackgroundIndex(static_cast<std::size_t>(selectedBackground));
+    }
     updateBackgroundBrowserSelection();
 }
 
@@ -2269,11 +2345,16 @@ void MainWindow::editAssignedBackground()
     if (!m_paintTargetComboBox) {
         return;
     }
-    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("Assign a background before editing"), 2500);
+        statusBar()->showMessage(QStringLiteral("Select a background before editing"), 2500);
         updateBackgroundControls();
         return;
+    }
+    if (m_activeResolution == render::Resolution::Hd &&
+        !m_document->background(*backgroundIndex).colorizedHd) {
+        m_activeResolution = render::Resolution::Sd;
+        updateResolutionMode();
     }
     const int targetIndex =
         m_paintTargetComboBox->findData(static_cast<int>(PaintTarget::Background));
@@ -2287,6 +2368,282 @@ void MainWindow::editAssignedBackground()
     statusBar()->showMessage(
         QStringLiteral("Editing background %1").arg(static_cast<int>(*backgroundIndex)),
         1500);
+}
+
+void MainWindow::copyCurrentFrameToSelectedBackground()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || !frameIndex || !backgroundIndex) {
+        statusBar()->showMessage(QStringLiteral("Select a frame and background first"), 2500);
+        updateBackgroundControls();
+        return;
+    }
+
+    render::Resolution targetResolution = m_activeResolution;
+    if (targetResolution == render::Resolution::Hd && !m_document->hasHdFrame(*frameIndex)) {
+        targetResolution = render::Resolution::Sd;
+    }
+    const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
+    if (targetResolution == render::Resolution::Hd && !background.colorizedHd) {
+        targetResolution = render::Resolution::Sd;
+    }
+
+    try {
+        const document::Rgb565Frame source =
+            composeResolvedFrame(*m_document, *frameIndex, targetResolution, true);
+        const document::Rgb565Frame& oldBackground =
+            m_document->backgroundFrame(*backgroundIndex, targetResolution);
+        BackgroundImageEditCommand command;
+        command.backgroundIndex = *backgroundIndex;
+        command.resolution = targetResolution;
+        for (int y = 0; y < source.size.height; ++y) {
+            for (int x = 0; x < source.size.width; ++x) {
+                const std::size_t pixelIndex =
+                    static_cast<std::size_t>(y) *
+                        static_cast<std::size_t>(source.size.width) +
+                    static_cast<std::size_t>(x);
+                const uint16_t oldColor = oldBackground.pixels[pixelIndex];
+                const uint16_t newColor = source.pixels[pixelIndex];
+                if (oldColor == newColor) {
+                    continue;
+                }
+                command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+            }
+        }
+        if (command.changes.empty()) {
+            statusBar()->showMessage(QStringLiteral("Background already matches frame"), 2500);
+            return;
+        }
+        applyBackgroundImageEdit(command, true);
+        BackgroundImageEditHistory& history =
+            m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex,
+                                                                    targetResolution}];
+        history.undoStack.push_back(std::move(command));
+        history.redoStack.clear();
+        refreshComponentBrowsers();
+        updateUndoRedoActions();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Copied frame %1 to background %2 (%3)")
+                .arg(static_cast<int>(*frameIndex))
+                .arg(static_cast<int>(*backgroundIndex))
+                .arg(targetResolution == render::Resolution::Hd ? QStringLiteral("HD")
+                                                                 : QStringLiteral("SD")),
+            2500);
+    } catch (const std::exception& ex) {
+        updateBackgroundControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::copySelectedBackgroundToFrames()
+{
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || !backgroundIndex || frameIndices.empty()) {
+        statusBar()->showMessage(QStringLiteral("Select a background and frames first"), 2500);
+        updateBackgroundControls();
+        return;
+    }
+
+    const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
+    render::Resolution sourceResolution = m_activeResolution;
+    if (sourceResolution == render::Resolution::Hd && !background.colorizedHd) {
+        sourceResolution = render::Resolution::Sd;
+    }
+    const document::Rgb565Frame& source =
+        m_document->backgroundFrame(*backgroundIndex, sourceResolution);
+
+    int updatedFrames = 0;
+    try {
+        for (std::size_t frameIndex : frameIndices) {
+            if (sourceResolution == render::Resolution::Hd &&
+                !m_document->hasHdFrame(frameIndex)) {
+                continue;
+            }
+            PixelEditCommand command;
+            command.frameIndex = frameIndex;
+            command.resolution = sourceResolution;
+            for (int y = 0; y < source.size.height; ++y) {
+                for (int x = 0; x < source.size.width; ++x) {
+                    const std::size_t pixelIndex =
+                        static_cast<std::size_t>(y) *
+                            static_cast<std::size_t>(source.size.width) +
+                        static_cast<std::size_t>(x);
+                    const uint16_t oldColor =
+                        m_document->colorizedPixel(frameIndex, sourceResolution, x, y);
+                    const uint16_t newColor = source.pixels[pixelIndex];
+                    if (oldColor == newColor) {
+                        continue;
+                    }
+                    command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                }
+            }
+            if (command.changes.empty()) {
+                continue;
+            }
+            applyPixelEdit(command, true);
+            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, sourceResolution}];
+            history.undoStack.push_back(std::move(command));
+            history.redoStack.clear();
+            ++updatedFrames;
+        }
+        if (updatedFrames == 0) {
+            statusBar()->showMessage(QStringLiteral("No selected frame changed"), 2500);
+            return;
+        }
+        updateUndoRedoActions();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Copied background %1 to %2 frame(s) (%3)")
+                .arg(static_cast<int>(*backgroundIndex))
+                .arg(updatedFrames)
+                .arg(sourceResolution == render::Resolution::Hd ? QStringLiteral("HD")
+                                                                 : QStringLiteral("SD")),
+            2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::importImageIntoSelectedBackground()
+{
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || !backgroundIndex) {
+        statusBar()->showMessage(QStringLiteral("Select a background first"), 2500);
+        updateBackgroundControls();
+        return;
+    }
+
+    const QString imagePath = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Import Background Image"),
+        m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
+        QStringLiteral("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
+    if (imagePath.isEmpty()) {
+        return;
+    }
+
+    QImage image(imagePath);
+    if (image.isNull()) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Import Failed"),
+                              QStringLiteral("Could not read image file."));
+        return;
+    }
+
+    const render::Resolution targetResolution = m_activeResolution;
+    const render::Size targetSize = targetResolution == render::Resolution::Hd
+                                        ? render::kHdFrameSize
+                                        : render::kSdFrameSize;
+    try {
+        const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
+        const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
+        if (targetResolution == render::Resolution::Hd && !background.colorizedHd) {
+            m_document->setBackgroundFrame(*backgroundIndex, targetResolution, imported);
+        } else {
+            const document::Rgb565Frame& oldBackground =
+                m_document->backgroundFrame(*backgroundIndex, targetResolution);
+            BackgroundImageEditCommand command;
+            command.backgroundIndex = *backgroundIndex;
+            command.resolution = targetResolution;
+            for (int y = 0; y < imported.size.height; ++y) {
+                for (int x = 0; x < imported.size.width; ++x) {
+                    const std::size_t pixelIndex =
+                        static_cast<std::size_t>(y) *
+                            static_cast<std::size_t>(imported.size.width) +
+                        static_cast<std::size_t>(x);
+                    const uint16_t oldColor = oldBackground.pixels[pixelIndex];
+                    const uint16_t newColor = imported.pixels[pixelIndex];
+                    if (oldColor == newColor) {
+                        continue;
+                    }
+                    command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                }
+            }
+            if (command.changes.empty()) {
+                statusBar()->showMessage(QStringLiteral("Background already matches image"), 2500);
+                return;
+            }
+            applyBackgroundImageEdit(command, true);
+            BackgroundImageEditHistory& history =
+                m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex,
+                                                                        targetResolution}];
+            history.undoStack.push_back(std::move(command));
+            history.redoStack.clear();
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        refreshComponentBrowsers();
+        updateBackgroundControls();
+        updateUndoRedoActions();
+        for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
+            const std::optional<document::FrameBackgroundData>& backgroundData =
+                m_document->backgroundData(frameIndex);
+            if (backgroundData && backgroundData->backgroundId == *backgroundIndex) {
+                updateFrameThumbnail(frameIndex);
+            }
+        }
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            QStringLiteral("Imported image into background %1 (%2)")
+                .arg(static_cast<int>(*backgroundIndex))
+                .arg(targetResolution == render::Resolution::Hd ? QStringLiteral("HD")
+                                                                 : QStringLiteral("SD")),
+            3000);
+    } catch (const std::exception& ex) {
+        updateBackgroundControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::exportSelectedBackgroundPng()
+{
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || !backgroundIndex) {
+        statusBar()->showMessage(QStringLiteral("Select a background first"), 2500);
+        return;
+    }
+
+    const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
+    render::Resolution exportResolution = m_activeResolution;
+    if (exportResolution == render::Resolution::Hd && !background.colorizedHd) {
+        exportResolution = render::Resolution::Sd;
+    }
+
+    const QString resolutionName =
+        exportResolution == render::Resolution::Hd ? QStringLiteral("hd") : QStringLiteral("sd");
+    QFileInfo currentCromInfo(m_currentCromPath);
+    QString defaultPath = currentCromInfo.dir().absoluteFilePath(
+        QStringLiteral("%1_background_%2_%3.png")
+            .arg(currentCromInfo.completeBaseName())
+            .arg(static_cast<int>(*backgroundIndex), 3, 10, QLatin1Char('0'))
+            .arg(resolutionName));
+    QString targetPath = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Export Background PNG"),
+        defaultPath,
+        QStringLiteral("PNG image (*.png);;All files (*)"));
+    if (targetPath.isEmpty()) {
+        return;
+    }
+    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        targetPath += QStringLiteral(".png");
+    }
+
+    const QImage image = renderRgb565FrameImage(
+        m_document->backgroundFrame(*backgroundIndex, exportResolution),
+        kExportDmdPixelScale,
+        currentDmdRenderOptions());
+    if (!image.save(targetPath, "PNG")) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Export Failed"),
+                              QStringLiteral("Could not write PNG file."));
+        return;
+    }
+    statusBar()->showMessage(QStringLiteral("Exported background PNG"), 3000);
 }
 
 void MainWindow::assignSelectedSpriteToCurrentSlot()
@@ -3269,6 +3626,7 @@ void MainWindow::updatePaintTargetMode()
 {
     const bool backgroundTargetActive = isBackgroundImageTargetActive();
     if (m_preview) {
+        m_preview->setSelectedBackgroundIndex(selectedBackgroundIndex());
         m_preview->setBackgroundImageEditModeEnabled(backgroundTargetActive);
         m_preview->clearPreviewPixels();
     }
@@ -3498,7 +3856,7 @@ void MainWindow::pickBackgroundImageColor(const render::CanvasHit& hit)
     if (!m_document || !isBackgroundImageTargetActive()) {
         return;
     }
-    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
         return;
     }
@@ -3519,7 +3877,7 @@ void MainWindow::floodFillBackgroundImage(const render::CanvasHit& hit)
     if (!m_document || !isBackgroundImageTargetActive()) {
         return;
     }
-    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
         return;
     }
@@ -4229,9 +4587,9 @@ void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
         return;
     }
     const uint16_t drawColor = m_activeDrawColor;
-    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
+        statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
         return;
     }
 
@@ -4566,6 +4924,19 @@ bool MainWindow::isBackgroundMaskModeActive() const
     return m_backgroundMaskOverlayButton && m_backgroundMaskOverlayButton->isChecked();
 }
 
+std::optional<std::size_t> MainWindow::selectedBackgroundIndex() const
+{
+    if (!m_document || !m_backgroundComboBox) {
+        return std::nullopt;
+    }
+    const int backgroundIndex = m_backgroundComboBox->currentData().toInt();
+    if (backgroundIndex < 0 ||
+        static_cast<std::size_t>(backgroundIndex) >= m_document->backgroundCount()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(backgroundIndex);
+}
+
 std::optional<std::size_t> MainWindow::currentBackgroundIndex() const
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -4583,7 +4954,7 @@ std::optional<std::size_t> MainWindow::currentBackgroundIndex() const
 std::optional<MainWindow::BackgroundEditHistoryKey>
 MainWindow::currentBackgroundEditHistoryKey() const
 {
-    const std::optional<std::size_t> backgroundIndex = currentBackgroundIndex();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
         return std::nullopt;
     }
@@ -4619,7 +4990,7 @@ MainWindow::currentBackgroundImageEditHistory() const
 
 bool MainWindow::isBackgroundImageTargetActive() const
 {
-    return activePaintTarget() == PaintTarget::Background && currentBackgroundIndex().has_value();
+    return activePaintTarget() == PaintTarget::Background && selectedBackgroundIndex().has_value();
 }
 
 std::optional<std::size_t> MainWindow::currentSpriteIndex() const

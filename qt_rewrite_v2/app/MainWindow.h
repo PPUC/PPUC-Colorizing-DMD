@@ -213,6 +213,10 @@ private:
     void editAssignedMask();
     void assignSelectedBackgroundToFrames();
     void editAssignedBackground();
+    void copyCurrentFrameToSelectedBackground();
+    void copySelectedBackgroundToFrames();
+    void importImageIntoSelectedBackground();
+    void exportSelectedBackgroundPng();
     void assignSelectedSpriteToCurrentSlot();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
@@ -305,6 +309,7 @@ private:
     [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
     [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
+    [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
     [[nodiscard]] std::optional<std::size_t> currentBackgroundIndex() const;
     [[nodiscard]] std::optional<BackgroundEditHistoryKey> currentBackgroundEditHistoryKey() const;
     [[nodiscard]] BackgroundImageEditHistory* currentBackgroundImageEditHistory();
@@ -353,6 +358,10 @@ private:
     QToolButton* m_editMaskButton = nullptr;
     QToolButton* m_assignBackgroundButton = nullptr;
     QToolButton* m_editBackgroundButton = nullptr;
+    QToolButton* m_copyFrameToBackgroundButton = nullptr;
+    QToolButton* m_copyBackgroundToFrameButton = nullptr;
+    QToolButton* m_importBackgroundImageButton = nullptr;
+    QToolButton* m_exportBackgroundButton = nullptr;
     QToolButton* m_spriteBoundsOverlayButton = nullptr;
     QToolButton* m_spriteDetectionAreasButton = nullptr;
     QToolButton* m_spriteCanvasButton = nullptr;

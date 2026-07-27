@@ -27,6 +27,7 @@ public:
     void setBackgroundMaskOverlayEnabled(bool enabled);
     void setBackgroundLayerEnabled(bool enabled);
     void setBackgroundImageEditModeEnabled(bool enabled);
+    void setSelectedBackgroundIndex(std::optional<std::size_t> backgroundIndex);
     void setDmdRenderOptions(DmdRenderOptions options);
     void setSelectedSpriteBoundsOverlayEnabled(bool enabled);
     void setSelectedSpriteReference(std::optional<document::FrameSpriteReference> reference);
@@ -70,6 +71,7 @@ private:
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
     bool m_showBackgroundImageEditMode = false;
+    std::optional<std::size_t> m_selectedBackgroundIndex;
     bool m_showSelectedSpriteBoundsOverlay = true;
     DmdRenderOptions m_renderOptions;
     std::optional<document::FrameSpriteReference> m_selectedSpriteReference;

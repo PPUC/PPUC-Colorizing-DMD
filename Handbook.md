@@ -133,7 +133,7 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 
 The `Frame` topic exposes:
 
-- `Target` selects whether ordinary drawing tools edit the current frame or the assigned background image.
+- `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
 - `BG ID` assigns the shared background used by the current frame.
 - `Trigger ID` edits the per-frame legacy trigger ID for all selected frames.
 - `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` and disables manual trigger-ID entry while checked.
@@ -148,7 +148,11 @@ The `Background` topic exposes:
 - Backgrounds are selected visually from the left sidebar.
 - The tab shows the selected background ID.
 - `Assign BG` assigns the selected background to all selected frames.
-- `Edit BG` switches ordinary drawing tools to the current frame's assigned background image.
+- `Edit BG` switches ordinary drawing tools to the selected background image.
+- `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
+- `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
+- `Import Image` replaces the selected background image from a PNG/BMP/JPEG, scaled to the active SD/HD DMD size.
+- `Export BG` writes the selected background image as a PNG using the current DMD dot/square render settings.
 
 ## Colors
 
@@ -360,7 +364,7 @@ Currently implemented:
 - The project status line shows the loaded background count.
 - `BG ID` assigns the shared background used by the current frame. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
-- Inspector `Target -> Background` displays the assigned background image on the canvas and edits that shared background image with the ordinary drawing tools.
+- Inspector `Target -> Background` displays the selected background image on the canvas and edits that shared background image with the ordinary drawing tools.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
 - In SD mode, `BG` edits the SD background mask.
@@ -370,7 +374,9 @@ Currently implemented:
 - Hold `Shift` while clicking, drawing, or flood filling to erase background-mask pixels back to `0`.
 - Background-mask edits are undoable per frame and per resolution.
 
-Creating or deleting background images is not exposed in the UI yet.
+Creating or deleting background records is not exposed in the UI yet.
+Background import/copy operations replace existing background records only, because the first release
+must not change the loaded cROM format.
 
 ## Preview Rendering TODO
 
