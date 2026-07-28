@@ -1330,6 +1330,14 @@ void MainWindow::createCentralView()
             });
     m_playbackTimer = new QTimer(this);
     connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::advancePlaybackFrame);
+    m_colorRotationPreviewTimer = new QTimer(this);
+    m_colorRotationPreviewTimer->setInterval(30);
+    connect(m_colorRotationPreviewTimer, &QTimer::timeout, this, [this]() {
+        if (m_preview && m_playbackElapsedTimer.isValid()) {
+            m_preview->setColorRotationPreviewElapsedMs(
+                static_cast<int>(m_playbackElapsedTimer.elapsed()));
+        }
+    });
     connect(m_playbackButton, &QToolButton::toggled, this, [this](bool checked) {
         setPlaybackRunning(checked);
     });
@@ -2462,6 +2470,12 @@ void MainWindow::setPlaybackRunning(bool running)
     const bool canPlay = m_document && m_frameList && m_frameList->count() > 0;
     if (!running || !canPlay) {
         m_playbackTimer->stop();
+        if (m_colorRotationPreviewTimer) {
+            m_colorRotationPreviewTimer->stop();
+        }
+        if (m_preview) {
+            m_preview->setColorRotationPreviewElapsedMs(std::nullopt);
+        }
         updatePlaybackControls();
         return;
     }
@@ -2474,7 +2488,14 @@ void MainWindow::setPlaybackRunning(bool running)
     if (m_canvasStack && m_preview) {
         m_canvasStack->setCurrentWidget(m_preview);
     }
+    m_playbackElapsedTimer.restart();
+    if (m_preview) {
+        m_preview->setColorRotationPreviewElapsedMs(0);
+    }
     m_playbackTimer->start(playbackIntervalForCurrentFrame());
+    if (m_colorRotationPreviewTimer) {
+        m_colorRotationPreviewTimer->start();
+    }
     updatePlaybackControls();
 }
 

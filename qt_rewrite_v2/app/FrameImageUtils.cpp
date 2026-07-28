@@ -458,6 +458,55 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
     return frame;
 }
 
+void applyColorRotations(const document::ProjectDocument& document,
+                         std::size_t frameIndex,
+                         render::Resolution resolution,
+                         int elapsedMs,
+                         document::Rgb565Frame& frame)
+{
+    if (elapsedMs <= 0) {
+        return;
+    }
+
+    std::vector<std::pair<uint16_t, uint16_t>> replacements;
+    replacements.reserve(document::kMaxColorRotations * document::kMaxColorRotationColors);
+    for (std::size_t slotIndex = 0; slotIndex < document::kMaxColorRotations; ++slotIndex) {
+        const uint16_t length = document.colorRotationLength(frameIndex, resolution, slotIndex);
+        const uint16_t delayMs = document.colorRotationDelayMs(frameIndex, resolution, slotIndex);
+        if (length < 2 || delayMs == 0) {
+            continue;
+        }
+        const std::size_t step =
+            static_cast<std::size_t>(elapsedMs / delayMs) % static_cast<std::size_t>(length);
+        if (step == 0) {
+            continue;
+        }
+        std::vector<uint16_t> colors(length);
+        for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {
+            colors[colorIndex] =
+                document.colorRotationColor(frameIndex, resolution, slotIndex, colorIndex);
+        }
+        for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {
+            replacements.push_back({
+                colors[colorIndex],
+                colors[(colorIndex + step) % colors.size()],
+            });
+        }
+    }
+    if (replacements.empty()) {
+        return;
+    }
+
+    for (uint16_t& pixel : frame.pixels) {
+        for (const auto& replacement : replacements) {
+            if (pixel == replacement.first) {
+                pixel = replacement.second;
+                break;
+            }
+        }
+    }
+}
+
 void paintDmdPixel(QPainter& painter,
                    double x,
                    double y,

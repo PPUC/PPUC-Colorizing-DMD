@@ -1276,6 +1276,42 @@ void testSpriteEditorHdKeepsSdFootprint()
            "HD sprite hit should map SD footprint coordinate to HD source pixel");
 }
 
+void testColorRotationPreviewTransform()
+{
+    colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::createEmpty({
+            "rotation_preview",
+            1,
+            false,
+        });
+    document.setColorizedPixel(0, colorizing::render::Resolution::Sd, 0, 0, 0x1111);
+    document.setColorizedPixel(0, colorizing::render::Resolution::Sd, 1, 0, 0x2222);
+    document.setColorizedPixel(0, colorizing::render::Resolution::Sd, 2, 0, 0x3333);
+    document.setColorRotationLength(0, colorizing::render::Resolution::Sd, 0, 3);
+    document.setColorRotationDelayMs(0, colorizing::render::Resolution::Sd, 0, 100);
+    document.setColorRotationColor(0, colorizing::render::Resolution::Sd, 0, 0, 0x1111);
+    document.setColorRotationColor(0, colorizing::render::Resolution::Sd, 0, 1, 0x2222);
+    document.setColorRotationColor(0, colorizing::render::Resolution::Sd, 0, 2, 0x3333);
+
+    colorizing::document::Rgb565Frame frame =
+        colorizing::app::composeResolvedFrame(document,
+                                              0,
+                                              colorizing::render::Resolution::Sd,
+                                              false);
+    colorizing::app::applyColorRotations(document,
+                                         0,
+                                         colorizing::render::Resolution::Sd,
+                                         100,
+                                         frame);
+
+    expect(frame.pixels[0] == 0x2222,
+           "rotation preview should advance first color by one step");
+    expect(frame.pixels[1] == 0x3333,
+           "rotation preview should advance second color by one step");
+    expect(frame.pixels[2] == 0x1111,
+           "rotation preview should wrap final color to first color");
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -1304,6 +1340,7 @@ int main(int argc, char* argv[])
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorHdKeepsSdFootprint();
+    testColorRotationPreviewTransform();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

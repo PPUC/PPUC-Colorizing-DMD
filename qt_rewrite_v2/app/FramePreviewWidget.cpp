@@ -102,6 +102,15 @@ void FramePreviewWidget::setDmdRenderOptions(DmdRenderOptions options)
     update();
 }
 
+void FramePreviewWidget::setColorRotationPreviewElapsedMs(std::optional<int> elapsedMs)
+{
+    if (m_colorRotationPreviewElapsedMs == elapsedMs) {
+        return;
+    }
+    m_colorRotationPreviewElapsedMs = elapsedMs;
+    update();
+}
+
 void FramePreviewWidget::setSelectedSpriteBoundsOverlayEnabled(bool enabled)
 {
     if (m_showSelectedSpriteBoundsOverlay == enabled) {
@@ -399,6 +408,13 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                                                      m_frameIndex,
                                                      region.resolution,
                                                      m_showBackgroundLayer);
+            if (m_colorRotationPreviewElapsedMs) {
+                applyColorRotations(*m_document,
+                                    m_frameIndex,
+                                    region.resolution,
+                                    *m_colorRotationPreviewElapsedMs,
+                                    *composedColorized);
+            }
             colorized = &*composedColorized;
         }
     }

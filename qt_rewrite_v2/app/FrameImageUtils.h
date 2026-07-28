@@ -32,6 +32,11 @@ struct DmdRenderOptions {
     std::size_t frameIndex,
     render::Resolution resolution,
     bool includeBackgroundLayer);
+void applyColorRotations(const document::ProjectDocument& document,
+                         std::size_t frameIndex,
+                         render::Resolution resolution,
+                         int elapsedMs,
+                         document::Rgb565Frame& frame);
 void paintDmdPixel(QPainter& painter,
                    double x,
                    double y,

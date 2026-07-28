@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QElapsedTimer>
 #include <QString>
 
 #include "document/ProjectDocument.h"
@@ -507,6 +508,8 @@ private:
     FramePreviewWidget* m_preview = nullptr;
     SpriteEditorWidget* m_spriteEditor = nullptr;
     QTimer* m_playbackTimer = nullptr;
+    QTimer* m_colorRotationPreviewTimer = nullptr;
+    QElapsedTimer m_playbackElapsedTimer;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;

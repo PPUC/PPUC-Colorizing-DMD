@@ -81,6 +81,14 @@ The top toolbar contains editor-only playback controls:
 Playback respects the current frame filter in the left `Frames` tab. When `cRP` timing is enabled,
 frames with missing, zero, or unusually large durations use the fallback interval.
 
+During playback, the central preview advances color-rotation slots for the displayed frame using
+each slot's stored delay. This is an editor preview; libserum remains the runtime source of truth for
+final composition order.
+
+Rotation timing is not a visual preference. The per-slot delay stored in the project controls both
+runtime behavior and editor playback, so future rotation-editing UI must keep timing edits explicit
+and must be validated against libserum playback behavior.
+
 ## Frame List
 
 The left frame list shows one thumbnail per loaded frame plus compact metadata.
@@ -353,8 +361,8 @@ The Inspector's `Rotation` topic edits the active frame's rotation slots for the
 - `Clear Slot` resets the selected slot to all zeros.
 
 Length, delay, grid color edits, and clear operations apply to all selected frames. Rotation data is
-loaded from and saved back to `.cROM`. The current canvas and playback do not apply rotations yet;
-runtime-accurate rotation preview remains blocked on the palette/runtime preview work.
+loaded from and saved back to `.cROM`. The static canvas shows unrotated frame data; playback applies
+an editor-side rotation preview.
 
 ## Palettes
 
@@ -476,10 +484,9 @@ must not change the loaded cROM format.
 Known feature gaps that affect first-release completeness:
 
 - Palette import/export, color-set management, and reusable gradient definitions.
-- Color rotations applied by complete playback preview.
 - Directional gradient fills for frame, mask, sprite, dynamic, and background editing surfaces.
 - Filling with palette gradients while respecting the active tool shape and direction.
-- Playback that applies palette rotations in the same order as libserum/runtime rendering.
+- Runtime-verified playback composition through libserum.
 
 ## Preview Rendering TODO
 

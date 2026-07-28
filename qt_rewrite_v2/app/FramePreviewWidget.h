@@ -29,6 +29,7 @@ public:
     void setBackgroundImageEditModeEnabled(bool enabled);
     void setSelectedBackgroundIndex(std::optional<std::size_t> backgroundIndex);
     void setDmdRenderOptions(DmdRenderOptions options);
+    void setColorRotationPreviewElapsedMs(std::optional<int> elapsedMs);
     void setSelectedSpriteBoundsOverlayEnabled(bool enabled);
     void setSelectedSpriteReference(std::optional<document::FrameSpriteReference> reference);
     void setSelectionOverlayPixels(render::CanvasRegion region,
@@ -78,6 +79,7 @@ private:
     bool m_showBackgroundLayer = false;
     bool m_showBackgroundImageEditMode = false;
     std::optional<std::size_t> m_selectedBackgroundIndex;
+    std::optional<int> m_colorRotationPreviewElapsedMs;
     bool m_showSelectedSpriteBoundsOverlay = true;
     DmdRenderOptions m_renderOptions;
     std::optional<document::FrameSpriteReference> m_selectedSpriteReference;
