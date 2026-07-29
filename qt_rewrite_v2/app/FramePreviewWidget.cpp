@@ -16,6 +16,7 @@ FramePreviewWidget::FramePreviewWidget(QWidget* parent)
     : QWidget(parent)
 {
     setMinimumSize(320, 220);
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 void FramePreviewWidget::setDocument(const document::ProjectDocument* document)
@@ -252,6 +253,7 @@ void FramePreviewWidget::paintEvent(QPaintEvent* event)
 void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton) {
+        setFocus(Qt::MouseFocusReason);
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
             m_strokeStart = *hit;

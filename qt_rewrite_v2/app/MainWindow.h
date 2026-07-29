@@ -47,6 +47,7 @@ private:
         FilledCircle,
         Ellipse,
         FilledEllipse,
+        PaletteGradient,
         ColorPicker,
         FloodFill,
     };
@@ -333,6 +334,10 @@ private:
     void commitPixels(render::Resolution resolution,
                       const std::vector<render::Point>& pixels,
                       const QString& statusText);
+    void commitPaletteGradientPixels(render::Resolution resolution,
+                                     const render::CanvasHit& start,
+                                     const render::CanvasHit& end,
+                                     const QString& statusText);
     void commitMaskPixels(const std::vector<render::Point>& pixels,
                           uint8_t value,
                           const QString& statusText);
@@ -347,6 +352,10 @@ private:
     void commitBackgroundImagePixels(render::Resolution resolution,
                                      const std::vector<render::Point>& pixels,
                                      const QString& statusText);
+    void commitBackgroundImageGradientPixels(render::Resolution resolution,
+                                             const render::CanvasHit& start,
+                                             const render::CanvasHit& end,
+                                             const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
     void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
@@ -374,6 +383,7 @@ private:
     [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
+    [[nodiscard]] std::pair<int, int> currentPaletteGradientEndpoints() const;
     [[nodiscard]] PaletteEditHistory* currentPaletteEditHistory();
     [[nodiscard]] const PaletteEditHistory* currentPaletteEditHistory() const;
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;

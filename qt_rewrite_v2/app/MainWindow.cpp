@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <deque>
 #include <functional>
@@ -184,6 +185,35 @@ uint16_t interpolateRgb565(uint16_t startColor,
     const int blue =
         (start.blue() * (denominator - numerator) + end.blue() * numerator) / denominator;
     return colorToRgb565(QColor(red, green, blue));
+}
+
+uint16_t interpolateRgb565Ratio(uint16_t startColor, uint16_t endColor, double ratio)
+{
+    const QColor start = rgb565ToColor(startColor);
+    const QColor end = rgb565ToColor(endColor);
+    const double clamped = std::clamp(ratio, 0.0, 1.0);
+    const int red = static_cast<int>(std::lround(start.red() * (1.0 - clamped) +
+                                                 end.red() * clamped));
+    const int green = static_cast<int>(std::lround(start.green() * (1.0 - clamped) +
+                                                   end.green() * clamped));
+    const int blue = static_cast<int>(std::lround(start.blue() * (1.0 - clamped) +
+                                                  end.blue() * clamped));
+    return colorToRgb565(QColor(red, green, blue));
+}
+
+double gradientRatioForPoint(const render::CanvasHit& start,
+                             const render::CanvasHit& end,
+                             const render::Point& point)
+{
+    const double dx = static_cast<double>(end.x - start.x);
+    const double dy = static_cast<double>(end.y - start.y);
+    const double lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared <= 0.0) {
+        return 0.0;
+    }
+    const double px = static_cast<double>(point.x - start.x);
+    const double py = static_cast<double>(point.y - start.y);
+    return std::clamp((px * dx + py * dy) / lengthSquared, 0.0, 1.0);
 }
 
 std::size_t spritePixelIndex(int x, int y)
@@ -467,6 +497,7 @@ void MainWindow::createActions()
 
     m_undoAction = editMenu->addAction(QStringLiteral("&Undo"));
     m_undoAction->setShortcut(QKeySequence::Undo);
+    m_undoAction->setShortcutContext(Qt::ApplicationShortcut);
     m_undoAction->setEnabled(false);
     connect(m_undoAction, &QAction::triggered, this, [this]() {
         undo();
@@ -474,6 +505,7 @@ void MainWindow::createActions()
 
     m_redoAction = editMenu->addAction(QStringLiteral("&Redo"));
     m_redoAction->setShortcut(QKeySequence::Redo);
+    m_redoAction->setShortcutContext(Qt::ApplicationShortcut);
     m_redoAction->setEnabled(false);
     connect(m_redoAction, &QAction::triggered, this, [this]() {
         redo();
@@ -837,6 +869,7 @@ void MainWindow::createCentralView()
         {DrawingTool::FilledCircle, QStringLiteral("Fill Circle")},
         {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
         {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
+        {DrawingTool::PaletteGradient, QStringLiteral("Grad")},
         {DrawingTool::ColorPicker, QStringLiteral("Pick")},
         {DrawingTool::FloodFill, QStringLiteral("Flood")},
     };
@@ -4863,8 +4896,7 @@ void MainWindow::applyCurrentPaletteGradient()
         return;
     }
 
-    const int startIndex = m_paletteGradientStartSpinBox->value();
-    const int endIndex = m_paletteGradientEndSpinBox->value();
+    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
     const int first = std::min(startIndex, endIndex);
     const int last = std::max(startIndex, endIndex);
     if (first == last) {
@@ -5319,6 +5351,9 @@ void MainWindow::setDrawingTool(DrawingTool tool)
             break;
         case DrawingTool::FilledEllipse:
             spriteTool = SpriteDrawingTool::FilledEllipse;
+            break;
+        case DrawingTool::PaletteGradient:
+            spriteTool = SpriteDrawingTool::FilledRectangle;
             break;
         case DrawingTool::ColorPicker:
             spriteTool = SpriteDrawingTool::ColorPicker;
@@ -5906,6 +5941,8 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         statusText = QStringLiteral("Painted ellipse");
     } else if (m_drawingTool == DrawingTool::FilledEllipse) {
         statusText = QStringLiteral("Painted filled ellipse");
+    } else if (m_drawingTool == DrawingTool::PaletteGradient) {
+        statusText = QStringLiteral("Filled palette gradient");
     }
 
     if (isSpriteCaptureSelectionModeActive()) {
@@ -5920,6 +5957,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         if (start.region != render::CanvasRegion::OriginalFrame) {
             return;
         }
+        if (m_drawingTool == DrawingTool::PaletteGradient) {
+            statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
+            return;
+        }
         commitMaskPixels(pixelsForStroke(start, end),
                          erase ? uint8_t{0} : uint8_t{1},
                          statusText.replace(
@@ -5930,6 +5971,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     }
     if (isDynamicMaskModeActive()) {
         if (start.region != render::CanvasRegion::ColorizedFrame) {
+            return;
+        }
+        if (m_drawingTool == DrawingTool::PaletteGradient) {
+            statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
             return;
         }
         commitDynamicMaskPixels(start.resolution,
@@ -5945,6 +5990,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         if (start.region != render::CanvasRegion::ColorizedFrame) {
             return;
         }
+        if (m_drawingTool == DrawingTool::PaletteGradient) {
+            statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
+            return;
+        }
         commitBackgroundMaskPixels(start.resolution,
                                    pixelsForStroke(start, end),
                                    erase ? uint8_t{0} : uint8_t{1},
@@ -5958,6 +6007,13 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         if (start.region != render::CanvasRegion::ColorizedFrame) {
             return;
         }
+        if (m_drawingTool == DrawingTool::PaletteGradient) {
+            commitBackgroundImageGradientPixels(start.resolution,
+                                                start,
+                                                end,
+                                                statusText);
+            return;
+        }
         commitBackgroundImagePixels(start.resolution,
                                     pixelsForStroke(start, end),
                                     statusText.replace(QStringLiteral("Painted"),
@@ -5966,6 +6022,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     }
 
     if (start.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+    if (m_drawingTool == DrawingTool::PaletteGradient) {
+        commitPaletteGradientPixels(start.resolution, start, end, statusText);
         return;
     }
     commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
@@ -5996,6 +6056,10 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
     if (m_drawingTool == DrawingTool::FilledEllipse) {
         return makeFilledEllipsePixels(render::Point{start.x, start.y},
                                        render::Point{end.x, end.y});
+    }
+    if (m_drawingTool == DrawingTool::PaletteGradient) {
+        return makeFilledRectanglePixels(render::Point{start.x, start.y},
+                                         render::Point{end.x, end.y});
     }
     return {};
 }
@@ -6034,6 +6098,81 @@ void MainWindow::commitPixels(render::Resolution resolution,
                     pixel.y,
                     oldColor,
                     drawColor,
+                });
+            }
+            if (command.changes.empty()) {
+                continue;
+            }
+            applyPixelEdit(command, true);
+            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
+            history.undoStack.push_back(command);
+            history.redoStack.clear();
+            changed = true;
+        }
+        if (!changed) {
+            return;
+        }
+        updateUndoRedoActions();
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(
+        frameIndices.size() > 1
+            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
+            : statusText,
+        2500);
+}
+
+void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
+                                             const render::CanvasHit& start,
+                                             const render::CanvasHit& end,
+                                             const QString& statusText)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    const std::vector<render::Point> pixels = pixelsForStroke(start, end);
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!m_document || frameIndices.empty() || pixels.empty() || !paletteIndex ||
+        !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+        statusBar()->showMessage(QStringLiteral("No palette gradient source selected"), 2500);
+        return;
+    }
+
+    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const uint16_t startColor =
+        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(startIndex));
+    const uint16_t endColor =
+        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(endIndex));
+
+    try {
+        bool changed = false;
+        for (std::size_t frameIndex : frameIndices) {
+            if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
+                continue;
+            }
+            PixelEditCommand command;
+            command.frameIndex = frameIndex;
+            command.resolution = resolution;
+            std::set<std::pair<int, int>> seen;
+            for (const render::Point& pixel : pixels) {
+                if (!seen.insert({pixel.x, pixel.y}).second) {
+                    continue;
+                }
+                const uint16_t newColor =
+                    interpolateRgb565Ratio(startColor,
+                                           endColor,
+                                           gradientRatioForPoint(start, end, pixel));
+                const uint16_t oldColor =
+                    m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
+                if (oldColor == newColor) {
+                    continue;
+                }
+                command.changes.push_back(PixelChange{
+                    pixel.x,
+                    pixel.y,
+                    oldColor,
+                    newColor,
                 });
             }
             if (command.changes.empty()) {
@@ -6289,6 +6428,70 @@ void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
                 pixel.y,
                 oldColor,
                 drawColor,
+            });
+        }
+        if (command.changes.empty()) {
+            return;
+        }
+        applyBackgroundImageEdit(command, true);
+        BackgroundImageEditHistory& history =
+            m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex, resolution}];
+        history.undoStack.push_back(command);
+        history.redoStack.clear();
+        updateUndoRedoActions();
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(statusText, 2500);
+}
+
+void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resolution,
+                                                     const render::CanvasHit& start,
+                                                     const render::CanvasHit& end,
+                                                     const QString& statusText)
+{
+    if (!m_document || !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+        return;
+    }
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    const std::vector<render::Point> pixels = pixelsForStroke(start, end);
+    if (!backgroundIndex || !paletteIndex || pixels.empty()) {
+        statusBar()->showMessage(QStringLiteral("No background or palette selected"), 2500);
+        return;
+    }
+
+    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const uint16_t startColor =
+        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(startIndex));
+    const uint16_t endColor =
+        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(endIndex));
+    BackgroundImageEditCommand command;
+    command.backgroundIndex = *backgroundIndex;
+    command.resolution = resolution;
+    std::set<std::pair<int, int>> seen;
+
+    try {
+        for (const render::Point& pixel : pixels) {
+            if (!seen.insert({pixel.x, pixel.y}).second) {
+                continue;
+            }
+            const uint16_t newColor =
+                interpolateRgb565Ratio(startColor,
+                                       endColor,
+                                       gradientRatioForPoint(start, end, pixel));
+            const uint16_t oldColor =
+                m_document->backgroundPixel(*backgroundIndex, resolution, pixel.x, pixel.y);
+            if (oldColor == newColor) {
+                continue;
+            }
+            command.changes.push_back(PixelChange{
+                pixel.x,
+                pixel.y,
+                oldColor,
+                newColor,
             });
         }
         if (command.changes.empty()) {
@@ -6679,6 +6882,16 @@ std::optional<std::size_t> MainWindow::selectedPaletteIndex() const
     return static_cast<std::size_t>(paletteIndex);
 }
 
+std::pair<int, int> MainWindow::currentPaletteGradientEndpoints() const
+{
+    if (!m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+        return {0, 0};
+    }
+    m_paletteGradientStartSpinBox->interpretText();
+    m_paletteGradientEndSpinBox->interpretText();
+    return {m_paletteGradientStartSpinBox->value(), m_paletteGradientEndSpinBox->value()};
+}
+
 MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory()
 {
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
@@ -6924,17 +7137,6 @@ void MainWindow::undo()
         statusBar()->showMessage(QStringLiteral("Undo background edit"), 1500);
         return;
     }
-    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
-    if (paletteHistory && !paletteHistory->undoStack.empty()) {
-        const PaletteEditCommand command = paletteHistory->undoStack.back();
-        paletteHistory->undoStack.pop_back();
-        applyPaletteEdit(command, false);
-        paletteHistory->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo palette edit"), 1500);
-        return;
-    }
-
     EditHistory* history = currentEditHistory();
     if (history && !history->undoStack.empty()) {
         const PixelEditCommand command = history->undoStack.back();
@@ -6943,6 +7145,16 @@ void MainWindow::undo()
         history->redoStack.push_back(command);
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Undo"), 1500);
+        return;
+    }
+    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
+    if (paletteHistory && !paletteHistory->undoStack.empty()) {
+        const PaletteEditCommand command = paletteHistory->undoStack.back();
+        paletteHistory->undoStack.pop_back();
+        applyPaletteEdit(command, false);
+        paletteHistory->redoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Undo palette edit"), 1500);
         return;
     }
     DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
@@ -7053,17 +7265,6 @@ void MainWindow::redo()
         statusBar()->showMessage(QStringLiteral("Redo background edit"), 1500);
         return;
     }
-    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
-    if (paletteHistory && !paletteHistory->redoStack.empty()) {
-        const PaletteEditCommand command = paletteHistory->redoStack.back();
-        paletteHistory->redoStack.pop_back();
-        applyPaletteEdit(command, true);
-        paletteHistory->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo palette edit"), 1500);
-        return;
-    }
-
     EditHistory* history = currentEditHistory();
     if (history && !history->redoStack.empty()) {
         const PixelEditCommand command = history->redoStack.back();
@@ -7072,6 +7273,16 @@ void MainWindow::redo()
         history->undoStack.push_back(command);
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Redo"), 1500);
+        return;
+    }
+    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
+    if (paletteHistory && !paletteHistory->redoStack.empty()) {
+        const PaletteEditCommand command = paletteHistory->redoStack.back();
+        paletteHistory->redoStack.pop_back();
+        applyPaletteEdit(command, true);
+        paletteHistory->undoStack.push_back(command);
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Redo palette edit"), 1500);
         return;
     }
     DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();

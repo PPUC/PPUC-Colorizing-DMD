@@ -84,6 +84,8 @@ protected:
     {
         if (m_colorActive && event->button() == Qt::LeftButton && m_doubleClickedHandler) {
             m_doubleClickedHandler(m_colorIndex);
+            event->accept();
+            return;
         }
         QToolButton::mouseDoubleClickEvent(event);
     }

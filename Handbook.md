@@ -255,6 +255,14 @@ Press, drag, and release to draw a filled ellipse inside the rectangle bounded b
 
 The preview is shown while dragging. The whole filled ellipse is committed on release as one undoable edit.
 
+### Grad
+
+Press, drag, and release to fill the bounded rectangle with a directional palette gradient.
+
+The filled pixels use the selected Palette `From` and `To` colors. The drag direction defines the
+gradient direction. This is currently implemented for colorized frame pixels and selected background
+image pixels. Each gradient fill is committed as one undoable edit.
+
 ### Pick
 
 Click a colorized frame pixel to set the active draw color to that pixel's RGB565 value.
@@ -484,8 +492,8 @@ must not change the loaded cROM format.
 Known feature gaps that affect first-release completeness:
 
 - Palette import/export, color-set management, and reusable gradient definitions.
-- Directional gradient fills for frame, mask, sprite, dynamic, and background editing surfaces.
-- Filling with palette gradients while respecting the active tool shape and direction.
+- Directional palette-gradient fills for masks, sprites, dynamic masks, and non-rectangular shapes.
+- Filling with palette gradients while respecting every active tool shape.
 - Runtime-verified playback composition through libserum.
 
 ## Preview Rendering TODO
