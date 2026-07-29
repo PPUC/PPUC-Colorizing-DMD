@@ -187,20 +187,6 @@ uint16_t interpolateRgb565(uint16_t startColor,
     return colorToRgb565(QColor(red, green, blue));
 }
 
-uint16_t interpolateRgb565Ratio(uint16_t startColor, uint16_t endColor, double ratio)
-{
-    const QColor start = rgb565ToColor(startColor);
-    const QColor end = rgb565ToColor(endColor);
-    const double clamped = std::clamp(ratio, 0.0, 1.0);
-    const int red = static_cast<int>(std::lround(start.red() * (1.0 - clamped) +
-                                                 end.red() * clamped));
-    const int green = static_cast<int>(std::lround(start.green() * (1.0 - clamped) +
-                                                   end.green() * clamped));
-    const int blue = static_cast<int>(std::lround(start.blue() * (1.0 - clamped) +
-                                                  end.blue() * clamped));
-    return colorToRgb565(QColor(red, green, blue));
-}
-
 double gradientRatioForPoint(const render::CanvasHit& start,
                              const render::CanvasHit& end,
                              const render::Point& point)
@@ -214,6 +200,19 @@ double gradientRatioForPoint(const render::CanvasHit& start,
     const double px = static_cast<double>(point.x - start.x);
     const double py = static_cast<double>(point.y - start.y);
     return std::clamp((px * dx + py * dy) / lengthSquared, 0.0, 1.0);
+}
+
+std::size_t paletteGradientColorIndex(int startIndex, int endIndex, double ratio)
+{
+    const int distance = std::abs(endIndex - startIndex);
+    if (distance == 0) {
+        return static_cast<std::size_t>(startIndex);
+    }
+    const double clamped = std::clamp(ratio, 0.0, 1.0);
+    const int step = std::min(distance,
+                              static_cast<int>(std::floor(clamped * (distance + 1))));
+    const int direction = startIndex <= endIndex ? 1 : -1;
+    return static_cast<std::size_t>(startIndex + direction * step);
 }
 
 std::size_t spritePixelIndex(int x, int y)
@@ -645,6 +644,15 @@ void MainWindow::createCentralView()
     m_paletteComboBox->setToolTip(QStringLiteral("Selected palette"));
     m_paletteComboBox->setIconSize(QSize(96, 18));
     m_paletteComboBox->setEnabled(false);
+    m_paletteGradientShapeComboBox = new QComboBox(central);
+    m_paletteGradientShapeComboBox->setToolTip(QStringLiteral("Shape used by the Grad drawing tool"));
+    m_paletteGradientShapeComboBox->addItem(QStringLiteral("Rectangle"),
+                                            static_cast<int>(PaletteGradientShape::Rectangle));
+    m_paletteGradientShapeComboBox->addItem(QStringLiteral("Circle"),
+                                            static_cast<int>(PaletteGradientShape::Circle));
+    m_paletteGradientShapeComboBox->addItem(QStringLiteral("Ellipse"),
+                                            static_cast<int>(PaletteGradientShape::Ellipse));
+    m_paletteGradientShapeComboBox->setEnabled(false);
     m_paletteNameLineEdit = new QLineEdit(central);
     m_paletteNameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
     m_paletteNameLineEdit->setMaxLength(63);
@@ -1105,6 +1113,7 @@ void MainWindow::createCentralView()
     paletteForm->addRow(QStringLiteral("Name"), m_paletteNameLineEdit);
     paletteForm->addRow(QStringLiteral("From"), m_paletteGradientStartSpinBox);
     paletteForm->addRow(QStringLiteral("To"), m_paletteGradientEndSpinBox);
+    paletteForm->addRow(QStringLiteral("Shape"), m_paletteGradientShapeComboBox);
     palettePageLayout->addLayout(paletteForm);
     palettePageLayout->addWidget(m_paletteGrid);
     palettePageLayout->addWidget(m_applyPaletteGradientButton);
@@ -4751,7 +4760,7 @@ void MainWindow::updatePaletteControls()
     if (!m_selectedPaletteLabel || !m_paletteComboBox ||
         !m_paletteNameLineEdit || !m_paletteGrid ||
         !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox ||
-        !m_applyPaletteGradientButton) {
+        !m_paletteGradientShapeComboBox || !m_applyPaletteGradientButton) {
         return;
     }
 
@@ -4766,6 +4775,7 @@ void MainWindow::updatePaletteControls()
         m_paletteNameLineEdit->setEnabled(false);
         m_paletteGradientStartSpinBox->setEnabled(false);
         m_paletteGradientEndSpinBox->setEnabled(false);
+        m_paletteGradientShapeComboBox->setEnabled(false);
         m_applyPaletteGradientButton->setEnabled(false);
         m_paletteGrid->setColors({}, 0);
         return;
@@ -4783,6 +4793,7 @@ void MainWindow::updatePaletteControls()
     m_paletteNameLineEdit->setEnabled(true);
     m_paletteGradientStartSpinBox->setEnabled(true);
     m_paletteGradientEndSpinBox->setEnabled(true);
+    m_paletteGradientShapeComboBox->setEnabled(true);
     m_applyPaletteGradientButton->setEnabled(palette.colors.size() >= 2);
     m_paletteGrid->setColors(palette.colors, palette.colors.size());
     updateUndoRedoActions();
@@ -6058,8 +6069,17 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
                                        render::Point{end.x, end.y});
     }
     if (m_drawingTool == DrawingTool::PaletteGradient) {
-        return makeFilledRectanglePixels(render::Point{start.x, start.y},
-                                         render::Point{end.x, end.y});
+        const render::Point startPoint{start.x, start.y};
+        const render::Point endPoint{end.x, end.y};
+        switch (currentPaletteGradientShape()) {
+            case PaletteGradientShape::Circle:
+                return makeFilledCirclePixels(startPoint, endPoint);
+            case PaletteGradientShape::Ellipse:
+                return makeFilledEllipsePixels(startPoint, endPoint);
+            case PaletteGradientShape::Rectangle:
+                break;
+        }
+        return makeFilledRectanglePixels(startPoint, endPoint);
     }
     return {};
 }
@@ -6140,10 +6160,6 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
     }
 
     const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
-    const uint16_t startColor =
-        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(startIndex));
-    const uint16_t endColor =
-        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(endIndex));
 
     try {
         bool changed = false;
@@ -6160,9 +6176,11 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
                     continue;
                 }
                 const uint16_t newColor =
-                    interpolateRgb565Ratio(startColor,
-                                           endColor,
-                                           gradientRatioForPoint(start, end, pixel));
+                    m_document->paletteColor(*paletteIndex,
+                                             paletteGradientColorIndex(
+                                                 startIndex,
+                                                 endIndex,
+                                                 gradientRatioForPoint(start, end, pixel)));
                 const uint16_t oldColor =
                     m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
                 if (oldColor == newColor) {
@@ -6464,10 +6482,6 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
     }
 
     const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
-    const uint16_t startColor =
-        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(startIndex));
-    const uint16_t endColor =
-        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(endIndex));
     BackgroundImageEditCommand command;
     command.backgroundIndex = *backgroundIndex;
     command.resolution = resolution;
@@ -6479,9 +6493,11 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
                 continue;
             }
             const uint16_t newColor =
-                interpolateRgb565Ratio(startColor,
-                                       endColor,
-                                       gradientRatioForPoint(start, end, pixel));
+                m_document->paletteColor(*paletteIndex,
+                                         paletteGradientColorIndex(
+                                             startIndex,
+                                             endIndex,
+                                             gradientRatioForPoint(start, end, pixel)));
             const uint16_t oldColor =
                 m_document->backgroundPixel(*backgroundIndex, resolution, pixel.x, pixel.y);
             if (oldColor == newColor) {
@@ -6890,6 +6906,21 @@ std::pair<int, int> MainWindow::currentPaletteGradientEndpoints() const
     m_paletteGradientStartSpinBox->interpretText();
     m_paletteGradientEndSpinBox->interpretText();
     return {m_paletteGradientStartSpinBox->value(), m_paletteGradientEndSpinBox->value()};
+}
+
+MainWindow::PaletteGradientShape MainWindow::currentPaletteGradientShape() const
+{
+    if (!m_paletteGradientShapeComboBox || m_paletteGradientShapeComboBox->currentIndex() < 0) {
+        return PaletteGradientShape::Rectangle;
+    }
+    const int shape = m_paletteGradientShapeComboBox->currentData().toInt();
+    if (shape == static_cast<int>(PaletteGradientShape::Circle)) {
+        return PaletteGradientShape::Circle;
+    }
+    if (shape == static_cast<int>(PaletteGradientShape::Ellipse)) {
+        return PaletteGradientShape::Ellipse;
+    }
+    return PaletteGradientShape::Rectangle;
 }
 
 MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory()

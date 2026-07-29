@@ -257,11 +257,13 @@ The preview is shown while dragging. The whole filled ellipse is committed on re
 
 ### Grad
 
-Press, drag, and release to fill the bounded rectangle with a directional palette gradient.
+Press, drag, and release to fill the selected Palette `Shape` with a directional palette gradient.
 
-The filled pixels use the selected Palette `From` and `To` colors. The drag direction defines the
-gradient direction. This is currently implemented for colorized frame pixels and selected background
-image pixels. Each gradient fill is committed as one undoable edit.
+The filled pixels sample the actual palette entries from `From` through `To`; the canvas tool does
+not recalculate colors between the endpoints. The Palette tab's `Shape` selector chooses rectangle,
+circle, or ellipse. The drag direction defines the gradient direction. This is currently implemented
+for colorized frame pixels and selected background image pixels. Each gradient fill is committed as
+one undoable edit.
 
 ### Pick
 
@@ -388,6 +390,7 @@ The Inspector's `Palette` topic provides a palette selector, the selected palett
 - Double-click any palette color to open a color picker for that RGB565 palette entry.
 - Use `From`, `To`, and `Apply Gradient` to fill a palette range by interpolating between the
   endpoint colors. Reversing `From` and `To` reverses the gradient direction.
+- Use `Shape` to choose the filled shape used by the canvas `Grad` drawing tool.
 - Palette color changes and gradient fills are undoable per palette.
 - Palette color/name changes mark the project dirty and are saved with the `.cRP` file.
 
@@ -492,8 +495,8 @@ must not change the loaded cROM format.
 Known feature gaps that affect first-release completeness:
 
 - Palette import/export, color-set management, and reusable gradient definitions.
-- Directional palette-gradient fills for masks, sprites, dynamic masks, and non-rectangular shapes.
-- Filling with palette gradients while respecting every active tool shape.
+- Directional palette-gradient fills for masks, sprites, and dynamic masks.
+- Filling with palette gradients while respecting outline-only tool shapes.
 - Runtime-verified playback composition through libserum.
 
 ## Preview Rendering TODO

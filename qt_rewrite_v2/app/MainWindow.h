@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include <QMainWindow>
@@ -55,6 +56,12 @@ private:
     enum class PaintTarget {
         Frame,
         Background,
+    };
+
+    enum class PaletteGradientShape {
+        Rectangle,
+        Circle,
+        Ellipse,
     };
 
     enum class FrameFilter {
@@ -384,6 +391,7 @@ private:
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
     [[nodiscard]] std::pair<int, int> currentPaletteGradientEndpoints() const;
+    [[nodiscard]] PaletteGradientShape currentPaletteGradientShape() const;
     [[nodiscard]] PaletteEditHistory* currentPaletteEditHistory();
     [[nodiscard]] const PaletteEditHistory* currentPaletteEditHistory() const;
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
@@ -488,6 +496,7 @@ private:
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
     QComboBox* m_colorRotationSlotComboBox = nullptr;
     QComboBox* m_paletteComboBox = nullptr;
+    QComboBox* m_paletteGradientShapeComboBox = nullptr;
     QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
