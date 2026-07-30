@@ -187,19 +187,133 @@ uint16_t interpolateRgb565(uint16_t startColor,
     return colorToRgb565(QColor(red, green, blue));
 }
 
-double gradientRatioForPoint(const render::CanvasHit& start,
-                             const render::CanvasHit& end,
-                             const render::Point& point)
+double linearGradientRatioForPoint(const render::CanvasHit& start,
+                                   const render::CanvasHit& end,
+                                   const render::Point& point,
+                                   MainWindow::PaletteGradientDirection direction)
 {
-    const double dx = static_cast<double>(end.x - start.x);
-    const double dy = static_cast<double>(end.y - start.y);
+    if (direction == MainWindow::PaletteGradientDirection::Free) {
+        const double dx = static_cast<double>(end.x - start.x);
+        const double dy = static_cast<double>(end.y - start.y);
+        const double lengthSquared = dx * dx + dy * dy;
+        if (lengthSquared <= 0.0) {
+            return 0.0;
+        }
+        const double px = static_cast<double>(point.x - start.x);
+        const double py = static_cast<double>(point.y - start.y);
+        return std::clamp((px * dx + py * dy) / lengthSquared, 0.0, 1.0);
+    }
+
+    const double minX = static_cast<double>(std::min(start.x, end.x));
+    const double maxX = static_cast<double>(std::max(start.x, end.x));
+    const double minY = static_cast<double>(std::min(start.y, end.y));
+    const double maxY = static_cast<double>(std::max(start.y, end.y));
+    double fromX = minX;
+    double fromY = minY;
+    double toX = maxX;
+    double toY = minY;
+    switch (direction) {
+        case MainWindow::PaletteGradientDirection::RightToLeft:
+            fromX = maxX;
+            fromY = minY;
+            toX = minX;
+            toY = minY;
+            break;
+        case MainWindow::PaletteGradientDirection::TopToBottom:
+            fromX = minX;
+            fromY = minY;
+            toX = minX;
+            toY = maxY;
+            break;
+        case MainWindow::PaletteGradientDirection::BottomToTop:
+            fromX = minX;
+            fromY = maxY;
+            toX = minX;
+            toY = minY;
+            break;
+        case MainWindow::PaletteGradientDirection::TopLeftToBottomRight:
+            fromX = minX;
+            fromY = minY;
+            toX = maxX;
+            toY = maxY;
+            break;
+        case MainWindow::PaletteGradientDirection::BottomRightToTopLeft:
+            fromX = maxX;
+            fromY = maxY;
+            toX = minX;
+            toY = minY;
+            break;
+        case MainWindow::PaletteGradientDirection::TopRightToBottomLeft:
+            fromX = maxX;
+            fromY = minY;
+            toX = minX;
+            toY = maxY;
+            break;
+        case MainWindow::PaletteGradientDirection::BottomLeftToTopRight:
+            fromX = minX;
+            fromY = maxY;
+            toX = maxX;
+            toY = minY;
+            break;
+        case MainWindow::PaletteGradientDirection::LeftToRight:
+        case MainWindow::PaletteGradientDirection::Free:
+        case MainWindow::PaletteGradientDirection::CenterToEdge:
+        case MainWindow::PaletteGradientDirection::EdgeToCenter:
+            break;
+    }
+
+    const double dx = toX - fromX;
+    const double dy = toY - fromY;
     const double lengthSquared = dx * dx + dy * dy;
     if (lengthSquared <= 0.0) {
         return 0.0;
     }
-    const double px = static_cast<double>(point.x - start.x);
-    const double py = static_cast<double>(point.y - start.y);
+    const double px = static_cast<double>(point.x) - fromX;
+    const double py = static_cast<double>(point.y) - fromY;
     return std::clamp((px * dx + py * dy) / lengthSquared, 0.0, 1.0);
+}
+
+double radialGradientRatioForPoint(const render::CanvasHit& start,
+                                   const render::CanvasHit& end,
+                                   const render::Point& point,
+                                   MainWindow::PaletteGradientPattern pattern,
+                                   MainWindow::PaletteGradientDirection direction)
+{
+    const double minX = static_cast<double>(std::min(start.x, end.x));
+    const double maxX = static_cast<double>(std::max(start.x, end.x));
+    const double minY = static_cast<double>(std::min(start.y, end.y));
+    const double maxY = static_cast<double>(std::max(start.y, end.y));
+    const double centerX = (minX + maxX) / 2.0;
+    const double centerY = (minY + maxY) / 2.0;
+    const double radiusX = std::max(0.5, (maxX - minX) / 2.0);
+    const double radiusY = std::max(0.5, (maxY - minY) / 2.0);
+    const double dx = static_cast<double>(point.x) - centerX;
+    const double dy = static_cast<double>(point.y) - centerY;
+    const double ratio =
+        pattern == MainWindow::PaletteGradientPattern::Circle
+            ? std::hypot(dx, dy) / std::max(radiusX, radiusY)
+            : std::hypot(dx / radiusX, dy / radiusY);
+    const double clamped = std::clamp(ratio, 0.0, 1.0);
+    return direction == MainWindow::PaletteGradientDirection::EdgeToCenter
+               ? 1.0 - clamped
+               : clamped;
+}
+
+double gradientRatioForPoint(const render::CanvasHit& start,
+                             const render::CanvasHit& end,
+                             const render::CanvasHit& gradientStart,
+                             const render::CanvasHit& gradientEnd,
+                             const render::Point& point,
+                             MainWindow::PaletteGradientDirection direction,
+                             MainWindow::PaletteGradientPattern pattern)
+{
+    if (pattern != MainWindow::PaletteGradientPattern::Linear) {
+        return radialGradientRatioForPoint(start, end, point, pattern, direction);
+    }
+    if (direction == MainWindow::PaletteGradientDirection::Free) {
+        return linearGradientRatioForPoint(gradientStart, gradientEnd, point, direction);
+    }
+    return linearGradientRatioForPoint(start, end, point, direction);
 }
 
 std::size_t paletteGradientColorIndex(int startIndex, int endIndex, double ratio)
@@ -653,18 +767,52 @@ void MainWindow::createCentralView()
     m_paletteGradientShapeComboBox->addItem(QStringLiteral("Ellipse"),
                                             static_cast<int>(PaletteGradientShape::Ellipse));
     m_paletteGradientShapeComboBox->setEnabled(false);
+    m_paletteGradientPatternComboBox = new QComboBox(central);
+    m_paletteGradientPatternComboBox->setToolTip(QStringLiteral("Color distribution used by the Grad drawing tool"));
+    m_paletteGradientPatternComboBox->addItem(QStringLiteral("Linear"),
+                                              static_cast<int>(PaletteGradientPattern::Linear));
+    m_paletteGradientPatternComboBox->addItem(QStringLiteral("Circle"),
+                                              static_cast<int>(PaletteGradientPattern::Circle));
+    m_paletteGradientPatternComboBox->addItem(QStringLiteral("Ellipse"),
+                                              static_cast<int>(PaletteGradientPattern::Ellipse));
+    m_paletteGradientPatternComboBox->setEnabled(false);
+    m_paletteGradientDirectionComboBox = new QComboBox(central);
+    m_paletteGradientDirectionComboBox->setToolTip(QStringLiteral("Direction used by the Grad drawing tool"));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Free"),
+                                                static_cast<int>(PaletteGradientDirection::Free));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Left -> Right"),
+                                                static_cast<int>(PaletteGradientDirection::LeftToRight));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Right -> Left"),
+                                                static_cast<int>(PaletteGradientDirection::RightToLeft));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Top -> Bottom"),
+                                                static_cast<int>(PaletteGradientDirection::TopToBottom));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Bottom -> Top"),
+                                                static_cast<int>(PaletteGradientDirection::BottomToTop));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("TL -> BR"),
+                                                static_cast<int>(PaletteGradientDirection::TopLeftToBottomRight));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("BR -> TL"),
+                                                static_cast<int>(PaletteGradientDirection::BottomRightToTopLeft));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("TR -> BL"),
+                                                static_cast<int>(PaletteGradientDirection::TopRightToBottomLeft));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("BL -> TR"),
+                                                static_cast<int>(PaletteGradientDirection::BottomLeftToTopRight));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Center -> Edge"),
+                                                static_cast<int>(PaletteGradientDirection::CenterToEdge));
+    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Edge -> Center"),
+                                                static_cast<int>(PaletteGradientDirection::EdgeToCenter));
+    m_paletteGradientDirectionComboBox->setEnabled(false);
     m_paletteNameLineEdit = new QLineEdit(central);
     m_paletteNameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
     m_paletteNameLineEdit->setMaxLength(63);
     m_paletteNameLineEdit->setEnabled(false);
     m_paletteGradientStartSpinBox = new QSpinBox(central);
     m_paletteGradientStartSpinBox->setToolTip(QStringLiteral("First palette color index for gradient fill"));
-    m_paletteGradientStartSpinBox->setRange(0, static_cast<int>(document::kPaletteColorCount - 1));
+    m_paletteGradientStartSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
     m_paletteGradientStartSpinBox->setEnabled(false);
     m_paletteGradientEndSpinBox = new QSpinBox(central);
     m_paletteGradientEndSpinBox->setToolTip(QStringLiteral("Last palette color index for gradient fill"));
-    m_paletteGradientEndSpinBox->setRange(0, static_cast<int>(document::kPaletteColorCount - 1));
-    m_paletteGradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount - 1));
+    m_paletteGradientEndSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
+    m_paletteGradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
     m_paletteGradientEndSpinBox->setEnabled(false);
     m_applyPaletteGradientButton = new QToolButton(central);
     m_applyPaletteGradientButton->setText(QStringLiteral("Apply Gradient"));
@@ -672,6 +820,7 @@ void MainWindow::createCentralView()
         QStringLiteral("Fill the selected palette range between the endpoint colors"));
     m_applyPaletteGradientButton->setEnabled(false);
     m_paletteGrid = new ColorGridWidget(document::kPaletteColorCount, 8, central);
+    m_paletteGrid->setDisplayIndexOffset(1);
     m_paletteGrid->setToolTip(QStringLiteral("Colors in the selected palette"));
     m_paletteGrid->setColorClickedHandler([this](std::size_t colorIndex) {
         pickCurrentPaletteColor(colorIndex);
@@ -1114,6 +1263,8 @@ void MainWindow::createCentralView()
     paletteForm->addRow(QStringLiteral("From"), m_paletteGradientStartSpinBox);
     paletteForm->addRow(QStringLiteral("To"), m_paletteGradientEndSpinBox);
     paletteForm->addRow(QStringLiteral("Shape"), m_paletteGradientShapeComboBox);
+    paletteForm->addRow(QStringLiteral("Pattern"), m_paletteGradientPatternComboBox);
+    paletteForm->addRow(QStringLiteral("Direction"), m_paletteGradientDirectionComboBox);
     palettePageLayout->addLayout(paletteForm);
     palettePageLayout->addWidget(m_paletteGrid);
     palettePageLayout->addWidget(m_applyPaletteGradientButton);
@@ -1257,7 +1408,26 @@ void MainWindow::createCentralView()
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
             [this](int) {
+                cancelFreePaletteGradientSelection();
                 updatePaletteControls();
+            });
+    connect(m_paletteGradientShapeComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                cancelFreePaletteGradientSelection();
+            });
+    connect(m_paletteGradientPatternComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                cancelFreePaletteGradientSelection();
+            });
+    connect(m_paletteGradientDirectionComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                cancelFreePaletteGradientSelection();
             });
     connect(m_paletteNameLineEdit,
             &QLineEdit::editingFinished,
@@ -1274,10 +1444,12 @@ void MainWindow::createCentralView()
                 refreshFrameList(currentFrameIndex());
             });
     connect(m_sdButton, &QToolButton::clicked, this, [this]() {
+        cancelFreePaletteGradientSelection();
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
     });
     connect(m_hdButton, &QToolButton::clicked, this, [this]() {
+        cancelFreePaletteGradientSelection();
         m_activeResolution = render::Resolution::Hd;
         updateResolutionMode();
     });
@@ -1356,6 +1528,7 @@ void MainWindow::createCentralView()
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
             [this](int) {
+                cancelFreePaletteGradientSelection();
                 updatePaintTargetMode();
             });
     connect(m_dmdPixelShapeComboBox,
@@ -1553,6 +1726,7 @@ void MainWindow::createCentralView()
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
             [this](int) {
+                cancelFreePaletteGradientSelection();
                 updateBackgroundControls();
             });
     connect(m_assignMaskButton, &QToolButton::clicked, this, [this]() {
@@ -2446,6 +2620,7 @@ std::vector<std::size_t> MainWindow::selectedFrameIndices() const
 
 void MainWindow::selectFrame(int)
 {
+    cancelFreePaletteGradientSelection();
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
@@ -4760,7 +4935,8 @@ void MainWindow::updatePaletteControls()
     if (!m_selectedPaletteLabel || !m_paletteComboBox ||
         !m_paletteNameLineEdit || !m_paletteGrid ||
         !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox ||
-        !m_paletteGradientShapeComboBox || !m_applyPaletteGradientButton) {
+        !m_paletteGradientShapeComboBox || !m_paletteGradientPatternComboBox ||
+        !m_paletteGradientDirectionComboBox || !m_applyPaletteGradientButton) {
         return;
     }
 
@@ -4776,6 +4952,8 @@ void MainWindow::updatePaletteControls()
         m_paletteGradientStartSpinBox->setEnabled(false);
         m_paletteGradientEndSpinBox->setEnabled(false);
         m_paletteGradientShapeComboBox->setEnabled(false);
+        m_paletteGradientPatternComboBox->setEnabled(false);
+        m_paletteGradientDirectionComboBox->setEnabled(false);
         m_applyPaletteGradientButton->setEnabled(false);
         m_paletteGrid->setColors({}, 0);
         return;
@@ -4794,6 +4972,8 @@ void MainWindow::updatePaletteControls()
     m_paletteGradientStartSpinBox->setEnabled(true);
     m_paletteGradientEndSpinBox->setEnabled(true);
     m_paletteGradientShapeComboBox->setEnabled(true);
+    m_paletteGradientPatternComboBox->setEnabled(true);
+    m_paletteGradientDirectionComboBox->setEnabled(true);
     m_applyPaletteGradientButton->setEnabled(palette.colors.size() >= 2);
     m_paletteGrid->setColors(palette.colors, palette.colors.size());
     updateUndoRedoActions();
@@ -4840,7 +5020,7 @@ void MainWindow::pickCurrentPaletteColor(std::size_t colorIndex)
     statusBar()->showMessage(
         QStringLiteral("Picked palette %1 color %2: 0x%3")
             .arg(static_cast<int>(*paletteIndex))
-            .arg(static_cast<int>(colorIndex))
+            .arg(static_cast<int>(colorIndex) + 1)
             .arg(color, 4, 16, QLatin1Char('0')),
         2000);
 }
@@ -4888,7 +5068,7 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
         statusBar()->showMessage(
             QStringLiteral("Updated palette %1 color %2")
                 .arg(static_cast<int>(*paletteIndex))
-                .arg(static_cast<int>(colorIndex)),
+                .arg(static_cast<int>(colorIndex) + 1),
             2000);
     } catch (const std::exception& ex) {
         updatePaletteControls();
@@ -5332,6 +5512,9 @@ void MainWindow::setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565
 
 void MainWindow::setDrawingTool(DrawingTool tool)
 {
+    if (tool != m_drawingTool) {
+        cancelFreePaletteGradientSelection();
+    }
     m_drawingTool = tool;
     if (m_preview) {
         m_preview->clearPreviewPixels();
@@ -5383,6 +5566,13 @@ void MainWindow::setDrawingTool(DrawingTool tool)
 
 void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
 {
+    if (m_drawingTool == DrawingTool::PaletteGradient) {
+        if (currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+            isFreePaletteGradientPending()) {
+            showPendingFreePaletteGradientSelection();
+        }
+        return;
+    }
     if (isComparisonMaskModeActive()) {
         return;
     }
@@ -5909,6 +6099,12 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
         if (start.region != render::CanvasRegion::ColorizedFrame) {
             return;
         }
+        if (m_drawingTool == DrawingTool::PaletteGradient &&
+            currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+            isFreePaletteGradientPending()) {
+            previewFreePaletteGradientDirection(start, end);
+            return;
+        }
         QColor previewColor = rgb565ToColor(m_activeDrawColor);
         previewColor.setAlpha(150);
         m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
@@ -5918,6 +6114,12 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
         return;
     }
     if (start.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+    if (m_drawingTool == DrawingTool::PaletteGradient &&
+        currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+        isFreePaletteGradientPending()) {
+        previewFreePaletteGradientDirection(start, end);
         return;
     }
     QColor previewColor = rgb565ToColor(m_activeDrawColor);
@@ -5955,6 +6157,9 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     } else if (m_drawingTool == DrawingTool::PaletteGradient) {
         statusText = QStringLiteral("Filled palette gradient");
     }
+    const bool isFreePaletteGradient =
+        m_drawingTool == DrawingTool::PaletteGradient &&
+        currentPaletteGradientDirection() == PaletteGradientDirection::Free;
 
     if (isSpriteCaptureSelectionModeActive()) {
         if (start.region != render::CanvasRegion::OriginalFrame ||
@@ -6019,7 +6224,33 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
             return;
         }
         if (m_drawingTool == DrawingTool::PaletteGradient) {
+            if (isFreePaletteGradient) {
+                if (!isFreePaletteGradientPending()) {
+                    beginFreePaletteGradientSelection(start, end);
+                    return;
+                }
+                if (!m_pendingFreePaletteGradient ||
+                    m_pendingFreePaletteGradient->target != PaintTarget::Background ||
+                    m_pendingFreePaletteGradient->backgroundIndex != selectedBackgroundIndex() ||
+                    m_pendingFreePaletteGradient->shapeStart.region != start.region ||
+                    m_pendingFreePaletteGradient->shapeStart.resolution != start.resolution) {
+                    cancelFreePaletteGradientSelection();
+                    statusBar()->showMessage(QStringLiteral("Free gradient selection cancelled"), 2500);
+                    return;
+                }
+                commitBackgroundImageGradientPixels(
+                    m_pendingFreePaletteGradient->shapeStart.resolution,
+                    m_pendingFreePaletteGradient->shapeStart,
+                    m_pendingFreePaletteGradient->shapeEnd,
+                    start,
+                    end,
+                    statusText);
+                cancelFreePaletteGradientSelection();
+                return;
+            }
             commitBackgroundImageGradientPixels(start.resolution,
+                                                start,
+                                                end,
                                                 start,
                                                 end,
                                                 statusText);
@@ -6036,10 +6267,96 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         return;
     }
     if (m_drawingTool == DrawingTool::PaletteGradient) {
-        commitPaletteGradientPixels(start.resolution, start, end, statusText);
+        if (isFreePaletteGradient) {
+            if (!isFreePaletteGradientPending()) {
+                beginFreePaletteGradientSelection(start, end);
+                return;
+            }
+            if (!m_pendingFreePaletteGradient ||
+                m_pendingFreePaletteGradient->target != PaintTarget::Frame ||
+                m_pendingFreePaletteGradient->shapeStart.region != start.region ||
+                m_pendingFreePaletteGradient->shapeStart.resolution != start.resolution) {
+                cancelFreePaletteGradientSelection();
+                statusBar()->showMessage(QStringLiteral("Free gradient selection cancelled"), 2500);
+                return;
+            }
+            commitPaletteGradientPixels(m_pendingFreePaletteGradient->shapeStart.resolution,
+                                        m_pendingFreePaletteGradient->shapeStart,
+                                        m_pendingFreePaletteGradient->shapeEnd,
+                                        start,
+                                        end,
+                                        statusText);
+            cancelFreePaletteGradientSelection();
+            return;
+        }
+        commitPaletteGradientPixels(start.resolution, start, end, start, end, statusText);
         return;
     }
     commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
+}
+
+bool MainWindow::isFreePaletteGradientPending() const
+{
+    return m_pendingFreePaletteGradient.has_value();
+}
+
+void MainWindow::beginFreePaletteGradientSelection(const render::CanvasHit& start,
+                                                   const render::CanvasHit& end)
+{
+    if (!m_preview) {
+        return;
+    }
+    m_pendingFreePaletteGradient = PendingFreePaletteGradient{
+        start,
+        end,
+        activePaintTarget(),
+        selectedBackgroundIndex(),
+    };
+    showPendingFreePaletteGradientSelection();
+    statusBar()->showMessage(QStringLiteral("Draw gradient direction line"), 2500);
+}
+
+void MainWindow::previewFreePaletteGradientDirection(const render::CanvasHit& start,
+                                                     const render::CanvasHit& end)
+{
+    if (!m_preview || !m_pendingFreePaletteGradient) {
+        return;
+    }
+    std::vector<render::Point> previewPixels = pixelsForStroke(
+        m_pendingFreePaletteGradient->shapeStart,
+        m_pendingFreePaletteGradient->shapeEnd);
+    std::vector<render::Point> linePixels =
+        makeLinePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    previewPixels.insert(previewPixels.end(), linePixels.begin(), linePixels.end());
+    QColor previewColor = rgb565ToColor(m_activeDrawColor);
+    previewColor.setAlpha(145);
+    m_preview->setPreviewPixels(m_pendingFreePaletteGradient->shapeStart.region,
+                                m_pendingFreePaletteGradient->shapeStart.resolution,
+                                previewPixels,
+                                previewColor);
+}
+
+void MainWindow::showPendingFreePaletteGradientSelection()
+{
+    if (!m_preview || !m_pendingFreePaletteGradient) {
+        return;
+    }
+    QColor previewColor = rgb565ToColor(m_activeDrawColor);
+    previewColor.setAlpha(120);
+    m_preview->setPreviewPixels(
+        m_pendingFreePaletteGradient->shapeStart.region,
+        m_pendingFreePaletteGradient->shapeStart.resolution,
+        pixelsForStroke(m_pendingFreePaletteGradient->shapeStart,
+                        m_pendingFreePaletteGradient->shapeEnd),
+        previewColor);
+}
+
+void MainWindow::cancelFreePaletteGradientSelection()
+{
+    m_pendingFreePaletteGradient.reset();
+    if (m_preview) {
+        m_preview->clearPreviewPixels();
+    }
 }
 
 std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& start,
@@ -6148,6 +6465,8 @@ void MainWindow::commitPixels(render::Resolution resolution,
 void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
                                              const render::CanvasHit& start,
                                              const render::CanvasHit& end,
+                                             const render::CanvasHit& gradientStart,
+                                             const render::CanvasHit& gradientEnd,
                                              const QString& statusText)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
@@ -6160,6 +6479,8 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
     }
 
     const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const PaletteGradientDirection gradientDirection = currentPaletteGradientDirection();
+    const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
 
     try {
         bool changed = false;
@@ -6180,7 +6501,13 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
                                              paletteGradientColorIndex(
                                                  startIndex,
                                                  endIndex,
-                                                 gradientRatioForPoint(start, end, pixel)));
+                                                 gradientRatioForPoint(start,
+                                                                       end,
+                                                                       gradientStart,
+                                                                       gradientEnd,
+                                                                       pixel,
+                                                                       gradientDirection,
+                                                                       gradientPattern)));
                 const uint16_t oldColor =
                     m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
                 if (oldColor == newColor) {
@@ -6468,6 +6795,8 @@ void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
 void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resolution,
                                                      const render::CanvasHit& start,
                                                      const render::CanvasHit& end,
+                                                     const render::CanvasHit& gradientStart,
+                                                     const render::CanvasHit& gradientEnd,
                                                      const QString& statusText)
 {
     if (!m_document || !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
@@ -6482,6 +6811,8 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
     }
 
     const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const PaletteGradientDirection gradientDirection = currentPaletteGradientDirection();
+    const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
     BackgroundImageEditCommand command;
     command.backgroundIndex = *backgroundIndex;
     command.resolution = resolution;
@@ -6497,7 +6828,13 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
                                          paletteGradientColorIndex(
                                              startIndex,
                                              endIndex,
-                                             gradientRatioForPoint(start, end, pixel)));
+                                             gradientRatioForPoint(start,
+                                                                   end,
+                                                                   gradientStart,
+                                                                   gradientEnd,
+                                                                   pixel,
+                                                                   gradientDirection,
+                                                                   gradientPattern)));
             const uint16_t oldColor =
                 m_document->backgroundPixel(*backgroundIndex, resolution, pixel.x, pixel.y);
             if (oldColor == newColor) {
@@ -6905,7 +7242,7 @@ std::pair<int, int> MainWindow::currentPaletteGradientEndpoints() const
     }
     m_paletteGradientStartSpinBox->interpretText();
     m_paletteGradientEndSpinBox->interpretText();
-    return {m_paletteGradientStartSpinBox->value(), m_paletteGradientEndSpinBox->value()};
+    return {m_paletteGradientStartSpinBox->value() - 1, m_paletteGradientEndSpinBox->value() - 1};
 }
 
 MainWindow::PaletteGradientShape MainWindow::currentPaletteGradientShape() const
@@ -6921,6 +7258,47 @@ MainWindow::PaletteGradientShape MainWindow::currentPaletteGradientShape() const
         return PaletteGradientShape::Ellipse;
     }
     return PaletteGradientShape::Rectangle;
+}
+
+MainWindow::PaletteGradientDirection MainWindow::currentPaletteGradientDirection() const
+{
+    if (!m_paletteGradientDirectionComboBox ||
+        m_paletteGradientDirectionComboBox->currentIndex() < 0) {
+        return PaletteGradientDirection::LeftToRight;
+    }
+    const int direction = m_paletteGradientDirectionComboBox->currentData().toInt();
+    switch (static_cast<PaletteGradientDirection>(direction)) {
+        case PaletteGradientDirection::Free:
+        case PaletteGradientDirection::RightToLeft:
+        case PaletteGradientDirection::TopToBottom:
+        case PaletteGradientDirection::BottomToTop:
+        case PaletteGradientDirection::TopLeftToBottomRight:
+        case PaletteGradientDirection::BottomRightToTopLeft:
+        case PaletteGradientDirection::TopRightToBottomLeft:
+        case PaletteGradientDirection::BottomLeftToTopRight:
+        case PaletteGradientDirection::CenterToEdge:
+        case PaletteGradientDirection::EdgeToCenter:
+            return static_cast<PaletteGradientDirection>(direction);
+        case PaletteGradientDirection::LeftToRight:
+            break;
+    }
+    return PaletteGradientDirection::LeftToRight;
+}
+
+MainWindow::PaletteGradientPattern MainWindow::currentPaletteGradientPattern() const
+{
+    if (!m_paletteGradientPatternComboBox ||
+        m_paletteGradientPatternComboBox->currentIndex() < 0) {
+        return PaletteGradientPattern::Linear;
+    }
+    const int pattern = m_paletteGradientPatternComboBox->currentData().toInt();
+    if (pattern == static_cast<int>(PaletteGradientPattern::Circle)) {
+        return PaletteGradientPattern::Circle;
+    }
+    if (pattern == static_cast<int>(PaletteGradientPattern::Ellipse)) {
+        return PaletteGradientPattern::Ellipse;
+    }
+    return PaletteGradientPattern::Linear;
 }
 
 MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory()

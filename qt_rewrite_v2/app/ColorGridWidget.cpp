@@ -133,6 +133,15 @@ ColorGridWidget::ColorGridWidget(std::size_t colorCount, int columns, QWidget* p
     }
 }
 
+void ColorGridWidget::setDisplayIndexOffset(int offset)
+{
+    m_displayIndexOffset = offset;
+    for (std::size_t index = 0; index < m_buttons.size(); ++index) {
+        m_buttons[index]->setText(
+            QString::number(static_cast<int>(index) + m_displayIndexOffset));
+    }
+}
+
 void ColorGridWidget::setColors(const std::vector<uint16_t>& colors, std::size_t activeCount)
 {
     const std::size_t visibleCount = std::min(colors.size(), m_buttons.size());
@@ -146,12 +155,13 @@ void ColorGridWidget::setColors(const std::vector<uint16_t>& colors, std::size_t
         }
         button->setEnabled(active);
         button->setStyleSheet(colorButtonStyle(color, active));
+        const int displayIndex = static_cast<int>(index) + m_displayIndexOffset;
         button->setToolTip(active
                                ? QStringLiteral("Color %1: 0x%2")
-                                     .arg(static_cast<int>(index))
+                                     .arg(displayIndex)
                                      .arg(color, 4, 16, QLatin1Char('0'))
                                : QStringLiteral("Color %1 is outside the active rotation length")
-                                     .arg(static_cast<int>(index)));
+                                     .arg(displayIndex));
     }
 }
 

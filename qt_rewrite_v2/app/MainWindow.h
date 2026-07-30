@@ -36,6 +36,26 @@ namespace colorizing::app {
 
 class MainWindow final : public QMainWindow {
 public:
+    enum class PaletteGradientDirection {
+        Free,
+        LeftToRight,
+        RightToLeft,
+        TopToBottom,
+        BottomToTop,
+        TopLeftToBottomRight,
+        BottomRightToTopLeft,
+        TopRightToBottomLeft,
+        BottomLeftToTopRight,
+        CenterToEdge,
+        EdgeToCenter,
+    };
+
+    enum class PaletteGradientPattern {
+        Linear,
+        Circle,
+        Ellipse,
+    };
+
     explicit MainWindow(QWidget* parent = nullptr);
 
 private:
@@ -83,6 +103,13 @@ private:
         std::size_t frameIndex = 0;
         render::Resolution resolution = render::Resolution::Sd;
         std::vector<PixelChange> changes;
+    };
+
+    struct PendingFreePaletteGradient {
+        render::CanvasHit shapeStart;
+        render::CanvasHit shapeEnd;
+        PaintTarget target = PaintTarget::Frame;
+        std::optional<std::size_t> backgroundIndex;
     };
 
     struct MaskPixelChange {
@@ -336,6 +363,13 @@ private:
     void paintFrameStroke(const render::CanvasHit& start,
                           const render::CanvasHit& end,
                           bool erase);
+    [[nodiscard]] bool isFreePaletteGradientPending() const;
+    void beginFreePaletteGradientSelection(const render::CanvasHit& start,
+                                           const render::CanvasHit& end);
+    void previewFreePaletteGradientDirection(const render::CanvasHit& start,
+                                             const render::CanvasHit& end);
+    void showPendingFreePaletteGradientSelection();
+    void cancelFreePaletteGradientSelection();
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
                                                              const render::CanvasHit& end) const;
     void commitPixels(render::Resolution resolution,
@@ -344,6 +378,8 @@ private:
     void commitPaletteGradientPixels(render::Resolution resolution,
                                      const render::CanvasHit& start,
                                      const render::CanvasHit& end,
+                                     const render::CanvasHit& gradientStart,
+                                     const render::CanvasHit& gradientEnd,
                                      const QString& statusText);
     void commitMaskPixels(const std::vector<render::Point>& pixels,
                           uint8_t value,
@@ -362,6 +398,8 @@ private:
     void commitBackgroundImageGradientPixels(render::Resolution resolution,
                                              const render::CanvasHit& start,
                                              const render::CanvasHit& end,
+                                             const render::CanvasHit& gradientStart,
+                                             const render::CanvasHit& gradientEnd,
                                              const QString& statusText);
     void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
     void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
@@ -392,6 +430,8 @@ private:
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
     [[nodiscard]] std::pair<int, int> currentPaletteGradientEndpoints() const;
     [[nodiscard]] PaletteGradientShape currentPaletteGradientShape() const;
+    [[nodiscard]] PaletteGradientDirection currentPaletteGradientDirection() const;
+    [[nodiscard]] PaletteGradientPattern currentPaletteGradientPattern() const;
     [[nodiscard]] PaletteEditHistory* currentPaletteEditHistory();
     [[nodiscard]] const PaletteEditHistory* currentPaletteEditHistory() const;
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
@@ -497,6 +537,8 @@ private:
     QComboBox* m_colorRotationSlotComboBox = nullptr;
     QComboBox* m_paletteComboBox = nullptr;
     QComboBox* m_paletteGradientShapeComboBox = nullptr;
+    QComboBox* m_paletteGradientDirectionComboBox = nullptr;
+    QComboBox* m_paletteGradientPatternComboBox = nullptr;
     QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
@@ -535,6 +577,7 @@ private:
     bool m_spriteDependentViewsDirty = false;
     std::optional<std::size_t> m_spriteCaptureSelectionFrameIndex;
     std::vector<uint8_t> m_spriteCaptureSelectionMask;
+    std::optional<PendingFreePaletteGradient> m_pendingFreePaletteGradient;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
