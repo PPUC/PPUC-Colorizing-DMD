@@ -276,6 +276,24 @@ The Palette tab separates gradient behavior into:
 This is currently implemented for colorized frame pixels and selected background image pixels. Each
 gradient fill is committed as one undoable edit.
 
+### Sel
+
+Press, drag, and release on the colorized canvas to create a persistent canvas selection.
+
+The selected area uses the Palette `Shape` setting, currently rectangle, circle, or ellipse. The
+selection is shown as a translucent cyan overlay. It is cleared when the frame, SD/HD mode, target,
+selected background, or tool context changes.
+
+The Palette tab provides:
+
+- `Grad Sel`: fills the current selection using the active palette range, pattern, and fixed/radial
+  direction. `Direction -> Free` is not accepted for `Grad Sel` yet because stored selections do not
+  store a direction line.
+- `Clear Sel`: clears the current canvas selection.
+
+Selection gradient fills are undoable through the same frame/background edit histories as ordinary
+pixel edits.
+
 ### Pick
 
 Click a colorized frame pixel to set the active draw color to that pixel's RGB565 value.
@@ -509,7 +527,7 @@ Known feature gaps that affect first-release completeness:
 - Palette import/export, color-set management, and reusable gradient definitions.
 - Directional palette-gradient fills for masks, sprites, and dynamic masks.
 - Filling with palette gradients while respecting outline-only tool shapes.
-- Wand/free selections and gradient fills inside arbitrary saved selections.
+- Wand/free selections and stored free-direction lines for arbitrary saved selections.
 - Runtime-verified playback composition through libserum.
 
 ## Preview Rendering TODO

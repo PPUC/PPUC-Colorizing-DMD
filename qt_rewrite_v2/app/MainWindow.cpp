@@ -7,6 +7,7 @@
 #include <deque>
 #include <functional>
 #include <set>
+#include <tuple>
 
 #include <QAbstractItemView>
 #include <QAction>
@@ -819,6 +820,14 @@ void MainWindow::createCentralView()
     m_applyPaletteGradientButton->setToolTip(
         QStringLiteral("Fill the selected palette range between the endpoint colors"));
     m_applyPaletteGradientButton->setEnabled(false);
+    m_fillSelectionGradientButton = new QToolButton(central);
+    m_fillSelectionGradientButton->setText(QStringLiteral("Grad Sel"));
+    m_fillSelectionGradientButton->setToolTip(QStringLiteral("Fill the current canvas selection with the palette gradient"));
+    m_fillSelectionGradientButton->setEnabled(false);
+    m_clearCanvasSelectionButton = new QToolButton(central);
+    m_clearCanvasSelectionButton->setText(QStringLiteral("Clear Sel"));
+    m_clearCanvasSelectionButton->setToolTip(QStringLiteral("Clear the current canvas selection"));
+    m_clearCanvasSelectionButton->setEnabled(false);
     m_paletteGrid = new ColorGridWidget(document::kPaletteColorCount, 8, central);
     m_paletteGrid->setDisplayIndexOffset(1);
     m_paletteGrid->setToolTip(QStringLiteral("Colors in the selected palette"));
@@ -1027,6 +1036,7 @@ void MainWindow::createCentralView()
         {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
         {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
         {DrawingTool::PaletteGradient, QStringLiteral("Grad")},
+        {DrawingTool::Selection, QStringLiteral("Sel")},
         {DrawingTool::ColorPicker, QStringLiteral("Pick")},
         {DrawingTool::FloodFill, QStringLiteral("Flood")},
     };
@@ -1268,6 +1278,10 @@ void MainWindow::createCentralView()
     palettePageLayout->addLayout(paletteForm);
     palettePageLayout->addWidget(m_paletteGrid);
     palettePageLayout->addWidget(m_applyPaletteGradientButton);
+    auto* selectionFillLayout = new QHBoxLayout();
+    selectionFillLayout->addWidget(m_fillSelectionGradientButton);
+    selectionFillLayout->addWidget(m_clearCanvasSelectionButton);
+    palettePageLayout->addLayout(selectionFillLayout);
     palettePageLayout->addStretch(1);
     inspectorTabs->addTab(palettePage, QStringLiteral("Palette"));
 
@@ -1437,6 +1451,14 @@ void MainWindow::createCentralView()
             &QToolButton::clicked,
             this,
             &MainWindow::applyCurrentPaletteGradient);
+    connect(m_fillSelectionGradientButton,
+            &QToolButton::clicked,
+            this,
+            &MainWindow::fillCanvasSelectionWithPaletteGradient);
+    connect(m_clearCanvasSelectionButton,
+            &QToolButton::clicked,
+            this,
+            &MainWindow::clearCanvasSelection);
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
@@ -1445,11 +1467,13 @@ void MainWindow::createCentralView()
             });
     connect(m_sdButton, &QToolButton::clicked, this, [this]() {
         cancelFreePaletteGradientSelection();
+        clearCanvasSelection();
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
     });
     connect(m_hdButton, &QToolButton::clicked, this, [this]() {
         cancelFreePaletteGradientSelection();
+        clearCanvasSelection();
         m_activeResolution = render::Resolution::Hd;
         updateResolutionMode();
     });
@@ -1529,6 +1553,7 @@ void MainWindow::createCentralView()
             this,
             [this](int) {
                 cancelFreePaletteGradientSelection();
+                clearCanvasSelection();
                 updatePaintTargetMode();
             });
     connect(m_dmdPixelShapeComboBox,
@@ -1727,6 +1752,7 @@ void MainWindow::createCentralView()
             this,
             [this](int) {
                 cancelFreePaletteGradientSelection();
+                clearCanvasSelection();
                 updateBackgroundControls();
             });
     connect(m_assignMaskButton, &QToolButton::clicked, this, [this]() {
@@ -2621,6 +2647,7 @@ std::vector<std::size_t> MainWindow::selectedFrameIndices() const
 void MainWindow::selectFrame(int)
 {
     cancelFreePaletteGradientSelection();
+    clearCanvasSelection();
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
@@ -4936,7 +4963,8 @@ void MainWindow::updatePaletteControls()
         !m_paletteNameLineEdit || !m_paletteGrid ||
         !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox ||
         !m_paletteGradientShapeComboBox || !m_paletteGradientPatternComboBox ||
-        !m_paletteGradientDirectionComboBox || !m_applyPaletteGradientButton) {
+        !m_paletteGradientDirectionComboBox || !m_applyPaletteGradientButton ||
+        !m_fillSelectionGradientButton || !m_clearCanvasSelectionButton) {
         return;
     }
 
@@ -4955,6 +4983,8 @@ void MainWindow::updatePaletteControls()
         m_paletteGradientPatternComboBox->setEnabled(false);
         m_paletteGradientDirectionComboBox->setEnabled(false);
         m_applyPaletteGradientButton->setEnabled(false);
+        m_fillSelectionGradientButton->setEnabled(false);
+        m_clearCanvasSelectionButton->setEnabled(false);
         m_paletteGrid->setColors({}, 0);
         return;
     }
@@ -4975,6 +5005,8 @@ void MainWindow::updatePaletteControls()
     m_paletteGradientPatternComboBox->setEnabled(true);
     m_paletteGradientDirectionComboBox->setEnabled(true);
     m_applyPaletteGradientButton->setEnabled(palette.colors.size() >= 2);
+    m_fillSelectionGradientButton->setEnabled(m_canvasSelection.has_value());
+    m_clearCanvasSelectionButton->setEnabled(m_canvasSelection.has_value());
     m_paletteGrid->setColors(palette.colors, palette.colors.size());
     updateUndoRedoActions();
 }
@@ -5549,6 +5581,9 @@ void MainWindow::setDrawingTool(DrawingTool tool)
         case DrawingTool::PaletteGradient:
             spriteTool = SpriteDrawingTool::FilledRectangle;
             break;
+        case DrawingTool::Selection:
+            spriteTool = SpriteDrawingTool::FilledRectangle;
+            break;
         case DrawingTool::ColorPicker:
             spriteTool = SpriteDrawingTool::ColorPicker;
             break;
@@ -6050,6 +6085,16 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
         start.resolution != end.resolution) {
         return;
     }
+    if (m_drawingTool == DrawingTool::Selection) {
+        if (start.region != render::CanvasRegion::ColorizedFrame) {
+            return;
+        }
+        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
+                                    start.resolution,
+                                    pixelsForStroke(start, end),
+                                    QColor(0, 220, 180, 130));
+        return;
+    }
     if (isSpriteCaptureSelectionModeActive()) {
         if (start.region != render::CanvasRegion::OriginalFrame ||
             start.resolution != render::Resolution::Sd) {
@@ -6142,6 +6187,8 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     QString statusText;
     if (m_drawingTool == DrawingTool::Line) {
         statusText = QStringLiteral("Painted line");
+    } else if (m_drawingTool == DrawingTool::Selection) {
+        statusText = QStringLiteral("Selected canvas area");
     } else if (m_drawingTool == DrawingTool::Rectangle) {
         statusText = QStringLiteral("Painted rectangle");
     } else if (m_drawingTool == DrawingTool::FilledRectangle) {
@@ -6223,6 +6270,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
         if (start.region != render::CanvasRegion::ColorizedFrame) {
             return;
         }
+        if (m_drawingTool == DrawingTool::Selection) {
+            setCanvasSelectionFromStroke(start, end);
+            return;
+        }
         if (m_drawingTool == DrawingTool::PaletteGradient) {
             if (isFreePaletteGradient) {
                 if (!isFreePaletteGradientPending()) {
@@ -6264,6 +6315,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     }
 
     if (start.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+    if (m_drawingTool == DrawingTool::Selection) {
+        setCanvasSelectionFromStroke(start, end);
         return;
     }
     if (m_drawingTool == DrawingTool::PaletteGradient) {
@@ -6359,6 +6414,181 @@ void MainWindow::cancelFreePaletteGradientSelection()
     }
 }
 
+void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
+                                              const render::CanvasHit& end)
+{
+    if (start.region != render::CanvasRegion::ColorizedFrame || start.resolution != end.resolution) {
+        return;
+    }
+    std::vector<render::Point> pixels = pixelsForStroke(start, end);
+    if (pixels.empty()) {
+        clearCanvasSelection();
+        return;
+    }
+    std::sort(pixels.begin(), pixels.end(), [](const render::Point& left, const render::Point& right) {
+        return std::tie(left.y, left.x) < std::tie(right.y, right.x);
+    });
+    pixels.erase(std::unique(pixels.begin(),
+                             pixels.end(),
+                             [](const render::Point& left, const render::Point& right) {
+                                 return left.x == right.x && left.y == right.y;
+                             }),
+                 pixels.end());
+    m_canvasSelection = CanvasSelection{
+        start,
+        end,
+        activePaintTarget(),
+        selectedBackgroundIndex(),
+        std::move(pixels),
+    };
+    updateCanvasSelectionOverlay();
+    updatePaletteControls();
+    statusBar()->showMessage(QStringLiteral("Selected canvas area"), 2000);
+}
+
+void MainWindow::clearCanvasSelection()
+{
+    m_canvasSelection.reset();
+    if (m_preview && !isSpriteCaptureSelectionModeActive()) {
+        m_preview->clearSelectionOverlayPixels();
+    }
+    updatePaletteControls();
+}
+
+void MainWindow::updateCanvasSelectionOverlay()
+{
+    if (!m_preview || !m_canvasSelection) {
+        return;
+    }
+    m_preview->setSelectionOverlayPixels(m_canvasSelection->shapeStart.region,
+                                         m_canvasSelection->shapeStart.resolution,
+                                         m_canvasSelection->pixels,
+                                         QColor(0, 220, 180, 95));
+}
+
+void MainWindow::fillCanvasSelectionWithPaletteGradient()
+{
+    if (!m_document || !m_canvasSelection || m_canvasSelection->pixels.empty()) {
+        statusBar()->showMessage(QStringLiteral("No canvas selection"), 2500);
+        return;
+    }
+    if (currentPaletteGradientDirection() == PaletteGradientDirection::Free) {
+        statusBar()->showMessage(QStringLiteral("Grad Sel needs a fixed or radial direction"), 3000);
+        return;
+    }
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!paletteIndex) {
+        statusBar()->showMessage(QStringLiteral("No palette selected"), 2500);
+        return;
+    }
+    if (m_canvasSelection->target == PaintTarget::Background &&
+        m_canvasSelection->backgroundIndex != selectedBackgroundIndex()) {
+        clearCanvasSelection();
+        statusBar()->showMessage(QStringLiteral("Canvas selection cleared"), 2500);
+        return;
+    }
+
+    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const PaletteGradientDirection gradientDirection = currentPaletteGradientDirection();
+    const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
+    const render::CanvasHit shapeStart = m_canvasSelection->shapeStart;
+    const render::CanvasHit shapeEnd = m_canvasSelection->shapeEnd;
+
+    try {
+        if (m_canvasSelection->target == PaintTarget::Background) {
+            const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+            if (!backgroundIndex) {
+                return;
+            }
+            BackgroundImageEditCommand command;
+            command.backgroundIndex = *backgroundIndex;
+            command.resolution = shapeStart.resolution;
+            for (const render::Point& pixel : m_canvasSelection->pixels) {
+                const uint16_t newColor =
+                    m_document->paletteColor(*paletteIndex,
+                                             paletteGradientColorIndex(
+                                                 startIndex,
+                                                 endIndex,
+                                                 gradientRatioForPoint(shapeStart,
+                                                                       shapeEnd,
+                                                                       shapeStart,
+                                                                       shapeEnd,
+                                                                       pixel,
+                                                                       gradientDirection,
+                                                                       gradientPattern)));
+                const uint16_t oldColor =
+                    m_document->backgroundPixel(*backgroundIndex,
+                                                shapeStart.resolution,
+                                                pixel.x,
+                                                pixel.y);
+                if (oldColor == newColor) {
+                    continue;
+                }
+                command.changes.push_back(PixelChange{pixel.x, pixel.y, oldColor, newColor});
+            }
+            if (command.changes.empty()) {
+                return;
+            }
+            applyBackgroundImageEdit(command, true);
+            BackgroundImageEditHistory& history =
+                m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex,
+                                                                        shapeStart.resolution}];
+            history.undoStack.push_back(command);
+            history.redoStack.clear();
+        } else {
+            bool changed = false;
+            for (std::size_t frameIndex : selectedFrameIndices()) {
+                if (shapeStart.resolution == render::Resolution::Hd &&
+                    !m_document->hasHdFrame(frameIndex)) {
+                    continue;
+                }
+                PixelEditCommand command;
+                command.frameIndex = frameIndex;
+                command.resolution = shapeStart.resolution;
+                for (const render::Point& pixel : m_canvasSelection->pixels) {
+                    const uint16_t newColor =
+                        m_document->paletteColor(*paletteIndex,
+                                                 paletteGradientColorIndex(
+                                                     startIndex,
+                                                     endIndex,
+                                                     gradientRatioForPoint(shapeStart,
+                                                                           shapeEnd,
+                                                                           shapeStart,
+                                                                           shapeEnd,
+                                                                           pixel,
+                                                                           gradientDirection,
+                                                                           gradientPattern)));
+                    const uint16_t oldColor =
+                        m_document->colorizedPixel(frameIndex,
+                                                   shapeStart.resolution,
+                                                   pixel.x,
+                                                   pixel.y);
+                    if (oldColor == newColor) {
+                        continue;
+                    }
+                    command.changes.push_back(PixelChange{pixel.x, pixel.y, oldColor, newColor});
+                }
+                if (command.changes.empty()) {
+                    continue;
+                }
+                applyPixelEdit(command, true);
+                EditHistory& history =
+                    m_editHistories[EditHistoryKey{frameIndex, shapeStart.resolution}];
+                history.undoStack.push_back(command);
+                history.redoStack.clear();
+                changed = true;
+            }
+            if (!changed) {
+                return;
+            }
+        }
+        updateUndoRedoActions();
+        statusBar()->showMessage(QStringLiteral("Filled selection gradient"), 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& start,
                                                        const render::CanvasHit& end) const
 {
@@ -6386,6 +6616,19 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
                                        render::Point{end.x, end.y});
     }
     if (m_drawingTool == DrawingTool::PaletteGradient) {
+        const render::Point startPoint{start.x, start.y};
+        const render::Point endPoint{end.x, end.y};
+        switch (currentPaletteGradientShape()) {
+            case PaletteGradientShape::Circle:
+                return makeFilledCirclePixels(startPoint, endPoint);
+            case PaletteGradientShape::Ellipse:
+                return makeFilledEllipsePixels(startPoint, endPoint);
+            case PaletteGradientShape::Rectangle:
+                break;
+        }
+        return makeFilledRectanglePixels(startPoint, endPoint);
+    }
+    if (m_drawingTool == DrawingTool::Selection) {
         const render::Point startPoint{start.x, start.y};
         const render::Point endPoint{end.x, end.y};
         switch (currentPaletteGradientShape()) {

@@ -69,6 +69,7 @@ private:
         Ellipse,
         FilledEllipse,
         PaletteGradient,
+        Selection,
         ColorPicker,
         FloodFill,
     };
@@ -110,6 +111,14 @@ private:
         render::CanvasHit shapeEnd;
         PaintTarget target = PaintTarget::Frame;
         std::optional<std::size_t> backgroundIndex;
+    };
+
+    struct CanvasSelection {
+        render::CanvasHit shapeStart;
+        render::CanvasHit shapeEnd;
+        PaintTarget target = PaintTarget::Frame;
+        std::optional<std::size_t> backgroundIndex;
+        std::vector<render::Point> pixels;
     };
 
     struct MaskPixelChange {
@@ -370,6 +379,11 @@ private:
                                              const render::CanvasHit& end);
     void showPendingFreePaletteGradientSelection();
     void cancelFreePaletteGradientSelection();
+    void setCanvasSelectionFromStroke(const render::CanvasHit& start,
+                                      const render::CanvasHit& end);
+    void clearCanvasSelection();
+    void updateCanvasSelectionOverlay();
+    void fillCanvasSelectionWithPaletteGradient();
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
                                                              const render::CanvasHit& end) const;
     void commitPixels(render::Resolution resolution,
@@ -562,6 +576,8 @@ private:
     QToolButton* m_dynamicShadowColorButton = nullptr;
     QToolButton* m_clearColorRotationSlotButton = nullptr;
     QToolButton* m_applyPaletteGradientButton = nullptr;
+    QToolButton* m_fillSelectionGradientButton = nullptr;
+    QToolButton* m_clearCanvasSelectionButton = nullptr;
     ColorGridWidget* m_colorRotationGrid = nullptr;
     ColorGridWidget* m_paletteGrid = nullptr;
     QToolButton* m_activeColorButton = nullptr;
@@ -578,6 +594,7 @@ private:
     std::optional<std::size_t> m_spriteCaptureSelectionFrameIndex;
     std::vector<uint8_t> m_spriteCaptureSelectionMask;
     std::optional<PendingFreePaletteGradient> m_pendingFreePaletteGradient;
+    std::optional<CanvasSelection> m_canvasSelection;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
