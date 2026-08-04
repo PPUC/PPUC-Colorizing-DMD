@@ -287,8 +287,9 @@ selected background, or tool context changes.
 The Palette tab provides:
 
 - `Grad Sel`: fills the current selection using the active palette range, pattern, and fixed/radial
-  direction. `Direction -> Free` is not accepted for `Grad Sel` yet because stored selections do not
-  store a direction line.
+  direction. When `Direction -> Free` is selected, the selection must have a stored direction line.
+- `Set Dir`: with a selection active, enables a one-stroke mode for drawing the stored free-gradient
+  direction line for that selection.
 - `Clear Sel`: clears the current canvas selection.
 
 Selection gradient fills are undoable through the same frame/background edit histories as ordinary
@@ -527,7 +528,7 @@ Known feature gaps that affect first-release completeness:
 - Palette import/export, color-set management, and reusable gradient definitions.
 - Directional palette-gradient fills for masks, sprites, and dynamic masks.
 - Filling with palette gradients while respecting outline-only tool shapes.
-- Wand/free selections and stored free-direction lines for arbitrary saved selections.
+- Wand/free selections for arbitrary saved selections.
 - Runtime-verified playback composition through libserum.
 
 ## Preview Rendering TODO

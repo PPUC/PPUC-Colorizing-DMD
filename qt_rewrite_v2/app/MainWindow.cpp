@@ -824,6 +824,11 @@ void MainWindow::createCentralView()
     m_fillSelectionGradientButton->setText(QStringLiteral("Grad Sel"));
     m_fillSelectionGradientButton->setToolTip(QStringLiteral("Fill the current canvas selection with the palette gradient"));
     m_fillSelectionGradientButton->setEnabled(false);
+    m_setSelectionDirectionButton = new QToolButton(central);
+    m_setSelectionDirectionButton->setText(QStringLiteral("Set Dir"));
+    m_setSelectionDirectionButton->setToolTip(QStringLiteral("Draw the free gradient direction line for the current selection"));
+    m_setSelectionDirectionButton->setCheckable(true);
+    m_setSelectionDirectionButton->setEnabled(false);
     m_clearCanvasSelectionButton = new QToolButton(central);
     m_clearCanvasSelectionButton->setText(QStringLiteral("Clear Sel"));
     m_clearCanvasSelectionButton->setToolTip(QStringLiteral("Clear the current canvas selection"));
@@ -1280,6 +1285,7 @@ void MainWindow::createCentralView()
     palettePageLayout->addWidget(m_applyPaletteGradientButton);
     auto* selectionFillLayout = new QHBoxLayout();
     selectionFillLayout->addWidget(m_fillSelectionGradientButton);
+    selectionFillLayout->addWidget(m_setSelectionDirectionButton);
     selectionFillLayout->addWidget(m_clearCanvasSelectionButton);
     palettePageLayout->addLayout(selectionFillLayout);
     palettePageLayout->addStretch(1);
@@ -1455,6 +1461,26 @@ void MainWindow::createCentralView()
             &QToolButton::clicked,
             this,
             &MainWindow::fillCanvasSelectionWithPaletteGradient);
+    connect(m_setSelectionDirectionButton, &QToolButton::clicked, this, [this]() {
+        if (!m_canvasSelection) {
+            m_canvasSelectionDirectionMode = false;
+            QSignalBlocker blocker(m_setSelectionDirectionButton);
+            m_setSelectionDirectionButton->setChecked(false);
+            updatePaletteControls();
+            return;
+        }
+        m_canvasSelectionDirectionMode = !m_canvasSelectionDirectionMode;
+        {
+            QSignalBlocker blocker(m_setSelectionDirectionButton);
+            m_setSelectionDirectionButton->setChecked(m_canvasSelectionDirectionMode);
+        }
+        if (m_canvasSelectionDirectionMode) {
+            cancelFreePaletteGradientSelection();
+            statusBar()->showMessage(QStringLiteral("Draw selection gradient direction line"), 2500);
+        } else {
+            updateCanvasSelectionOverlay();
+        }
+    });
     connect(m_clearCanvasSelectionButton,
             &QToolButton::clicked,
             this,
@@ -4964,7 +4990,8 @@ void MainWindow::updatePaletteControls()
         !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox ||
         !m_paletteGradientShapeComboBox || !m_paletteGradientPatternComboBox ||
         !m_paletteGradientDirectionComboBox || !m_applyPaletteGradientButton ||
-        !m_fillSelectionGradientButton || !m_clearCanvasSelectionButton) {
+        !m_fillSelectionGradientButton || !m_setSelectionDirectionButton ||
+        !m_clearCanvasSelectionButton) {
         return;
     }
 
@@ -4984,6 +5011,12 @@ void MainWindow::updatePaletteControls()
         m_paletteGradientDirectionComboBox->setEnabled(false);
         m_applyPaletteGradientButton->setEnabled(false);
         m_fillSelectionGradientButton->setEnabled(false);
+        m_setSelectionDirectionButton->setEnabled(false);
+        m_canvasSelectionDirectionMode = false;
+        {
+            QSignalBlocker blocker(m_setSelectionDirectionButton);
+            m_setSelectionDirectionButton->setChecked(false);
+        }
         m_clearCanvasSelectionButton->setEnabled(false);
         m_paletteGrid->setColors({}, 0);
         return;
@@ -5006,6 +5039,12 @@ void MainWindow::updatePaletteControls()
     m_paletteGradientDirectionComboBox->setEnabled(true);
     m_applyPaletteGradientButton->setEnabled(palette.colors.size() >= 2);
     m_fillSelectionGradientButton->setEnabled(m_canvasSelection.has_value());
+    m_setSelectionDirectionButton->setEnabled(m_canvasSelection.has_value());
+    {
+        QSignalBlocker blocker(m_setSelectionDirectionButton);
+        m_setSelectionDirectionButton->setChecked(m_canvasSelectionDirectionMode &&
+                                                  m_canvasSelection.has_value());
+    }
     m_clearCanvasSelectionButton->setEnabled(m_canvasSelection.has_value());
     m_paletteGrid->setColors(palette.colors, palette.colors.size());
     updateUndoRedoActions();
@@ -5601,6 +5640,10 @@ void MainWindow::setDrawingTool(DrawingTool tool)
 
 void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
 {
+    if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
+        updateCanvasSelectionOverlay();
+        return;
+    }
     if (m_drawingTool == DrawingTool::PaletteGradient) {
         if (currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
             isFreePaletteGradientPending()) {
@@ -6095,6 +6138,10 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
                                     QColor(0, 220, 180, 130));
         return;
     }
+    if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
+        previewCanvasSelectionDirection(start, end);
+        return;
+    }
     if (isSpriteCaptureSelectionModeActive()) {
         if (start.region != render::CanvasRegion::OriginalFrame ||
             start.resolution != render::Resolution::Sd) {
@@ -6207,6 +6254,10 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     const bool isFreePaletteGradient =
         m_drawingTool == DrawingTool::PaletteGradient &&
         currentPaletteGradientDirection() == PaletteGradientDirection::Free;
+    if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
+        setCanvasSelectionDirection(start, end);
+        return;
+    }
 
     if (isSpriteCaptureSelectionModeActive()) {
         if (start.region != render::CanvasRegion::OriginalFrame ||
@@ -6417,6 +6468,11 @@ void MainWindow::cancelFreePaletteGradientSelection()
 void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
                                               const render::CanvasHit& end)
 {
+    m_canvasSelectionDirectionMode = false;
+    if (m_setSelectionDirectionButton) {
+        QSignalBlocker blocker(m_setSelectionDirectionButton);
+        m_setSelectionDirectionButton->setChecked(false);
+    }
     if (start.region != render::CanvasRegion::ColorizedFrame || start.resolution != end.resolution) {
         return;
     }
@@ -6440,6 +6496,8 @@ void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
         activePaintTarget(),
         selectedBackgroundIndex(),
         std::move(pixels),
+        std::nullopt,
+        std::nullopt,
     };
     updateCanvasSelectionOverlay();
     updatePaletteControls();
@@ -6449,6 +6507,11 @@ void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
 void MainWindow::clearCanvasSelection()
 {
     m_canvasSelection.reset();
+    m_canvasSelectionDirectionMode = false;
+    if (m_setSelectionDirectionButton) {
+        QSignalBlocker blocker(m_setSelectionDirectionButton);
+        m_setSelectionDirectionButton->setChecked(false);
+    }
     if (m_preview && !isSpriteCaptureSelectionModeActive()) {
         m_preview->clearSelectionOverlayPixels();
     }
@@ -6460,10 +6523,65 @@ void MainWindow::updateCanvasSelectionOverlay()
     if (!m_preview || !m_canvasSelection) {
         return;
     }
+    std::vector<render::Point> pixels = m_canvasSelection->pixels;
+    if (m_canvasSelection->gradientStart && m_canvasSelection->gradientEnd) {
+        std::vector<render::Point> linePixels =
+            makeLinePixels(render::Point{m_canvasSelection->gradientStart->x,
+                                         m_canvasSelection->gradientStart->y},
+                           render::Point{m_canvasSelection->gradientEnd->x,
+                                         m_canvasSelection->gradientEnd->y});
+        pixels.insert(pixels.end(), linePixels.begin(), linePixels.end());
+    }
     m_preview->setSelectionOverlayPixels(m_canvasSelection->shapeStart.region,
                                          m_canvasSelection->shapeStart.resolution,
-                                         m_canvasSelection->pixels,
+                                         pixels,
                                          QColor(0, 220, 180, 95));
+}
+
+bool MainWindow::isCanvasSelectionDirectionModeActive() const
+{
+    return m_canvasSelectionDirectionMode && m_canvasSelection.has_value();
+}
+
+void MainWindow::setCanvasSelectionDirection(const render::CanvasHit& start,
+                                             const render::CanvasHit& end)
+{
+    if (!m_canvasSelection ||
+        start.region != m_canvasSelection->shapeStart.region ||
+        end.region != m_canvasSelection->shapeStart.region ||
+        start.resolution != m_canvasSelection->shapeStart.resolution ||
+        end.resolution != m_canvasSelection->shapeStart.resolution) {
+        return;
+    }
+    m_canvasSelection->gradientStart = start;
+    m_canvasSelection->gradientEnd = end;
+    m_canvasSelectionDirectionMode = false;
+    if (m_setSelectionDirectionButton) {
+        QSignalBlocker blocker(m_setSelectionDirectionButton);
+        m_setSelectionDirectionButton->setChecked(false);
+    }
+    updateCanvasSelectionOverlay();
+    statusBar()->showMessage(QStringLiteral("Set selection gradient direction"), 2000);
+}
+
+void MainWindow::previewCanvasSelectionDirection(const render::CanvasHit& start,
+                                                 const render::CanvasHit& end)
+{
+    if (!m_preview || !m_canvasSelection ||
+        start.region != m_canvasSelection->shapeStart.region ||
+        start.resolution != m_canvasSelection->shapeStart.resolution ||
+        end.region != m_canvasSelection->shapeStart.region ||
+        end.resolution != m_canvasSelection->shapeStart.resolution) {
+        return;
+    }
+    std::vector<render::Point> pixels = m_canvasSelection->pixels;
+    std::vector<render::Point> linePixels =
+        makeLinePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+    pixels.insert(pixels.end(), linePixels.begin(), linePixels.end());
+    m_preview->setSelectionOverlayPixels(m_canvasSelection->shapeStart.region,
+                                         m_canvasSelection->shapeStart.resolution,
+                                         pixels,
+                                         QColor(0, 220, 180, 120));
 }
 
 void MainWindow::fillCanvasSelectionWithPaletteGradient()
@@ -6472,8 +6590,9 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
         statusBar()->showMessage(QStringLiteral("No canvas selection"), 2500);
         return;
     }
-    if (currentPaletteGradientDirection() == PaletteGradientDirection::Free) {
-        statusBar()->showMessage(QStringLiteral("Grad Sel needs a fixed or radial direction"), 3000);
+    if (currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+        (!m_canvasSelection->gradientStart || !m_canvasSelection->gradientEnd)) {
+        statusBar()->showMessage(QStringLiteral("Set a selection direction line first"), 3000);
         return;
     }
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
@@ -6493,6 +6612,8 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
     const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
     const render::CanvasHit shapeStart = m_canvasSelection->shapeStart;
     const render::CanvasHit shapeEnd = m_canvasSelection->shapeEnd;
+    const render::CanvasHit gradientStart = m_canvasSelection->gradientStart.value_or(shapeStart);
+    const render::CanvasHit gradientEnd = m_canvasSelection->gradientEnd.value_or(shapeEnd);
 
     try {
         if (m_canvasSelection->target == PaintTarget::Background) {
@@ -6511,8 +6632,8 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
                                                  endIndex,
                                                  gradientRatioForPoint(shapeStart,
                                                                        shapeEnd,
-                                                                       shapeStart,
-                                                                       shapeEnd,
+                                                                       gradientStart,
+                                                                       gradientEnd,
                                                                        pixel,
                                                                        gradientDirection,
                                                                        gradientPattern)));
@@ -6553,8 +6674,8 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
                                                      endIndex,
                                                      gradientRatioForPoint(shapeStart,
                                                                            shapeEnd,
-                                                                           shapeStart,
-                                                                           shapeEnd,
+                                                                           gradientStart,
+                                                                           gradientEnd,
                                                                            pixel,
                                                                            gradientDirection,
                                                                            gradientPattern)));

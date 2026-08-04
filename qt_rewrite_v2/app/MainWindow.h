@@ -119,6 +119,8 @@ private:
         PaintTarget target = PaintTarget::Frame;
         std::optional<std::size_t> backgroundIndex;
         std::vector<render::Point> pixels;
+        std::optional<render::CanvasHit> gradientStart;
+        std::optional<render::CanvasHit> gradientEnd;
     };
 
     struct MaskPixelChange {
@@ -383,6 +385,11 @@ private:
                                       const render::CanvasHit& end);
     void clearCanvasSelection();
     void updateCanvasSelectionOverlay();
+    [[nodiscard]] bool isCanvasSelectionDirectionModeActive() const;
+    void setCanvasSelectionDirection(const render::CanvasHit& start,
+                                     const render::CanvasHit& end);
+    void previewCanvasSelectionDirection(const render::CanvasHit& start,
+                                         const render::CanvasHit& end);
     void fillCanvasSelectionWithPaletteGradient();
     [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
                                                              const render::CanvasHit& end) const;
@@ -577,6 +584,7 @@ private:
     QToolButton* m_clearColorRotationSlotButton = nullptr;
     QToolButton* m_applyPaletteGradientButton = nullptr;
     QToolButton* m_fillSelectionGradientButton = nullptr;
+    QToolButton* m_setSelectionDirectionButton = nullptr;
     QToolButton* m_clearCanvasSelectionButton = nullptr;
     ColorGridWidget* m_colorRotationGrid = nullptr;
     ColorGridWidget* m_paletteGrid = nullptr;
@@ -595,6 +603,7 @@ private:
     std::vector<uint8_t> m_spriteCaptureSelectionMask;
     std::optional<PendingFreePaletteGradient> m_pendingFreePaletteGradient;
     std::optional<CanvasSelection> m_canvasSelection;
+    bool m_canvasSelectionDirectionMode = false;
     std::map<EditHistoryKey, EditHistory> m_editHistories;
     std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
     std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
