@@ -15,8 +15,9 @@
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
-class ColorGridWidget;
+class ColorRotationPanel;
 class FramePreviewWidget;
+class PalettePanel;
 class SpriteEditorWidget;
 }
 
@@ -61,12 +62,6 @@ private:
     enum class PaintTarget {
         Frame,
         Background,
-    };
-
-    enum class PaletteGradientShape {
-        Rectangle,
-        Circle,
-        Ellipse,
     };
 
     enum class FrameFilter {
@@ -153,12 +148,12 @@ private:
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
     void editDynamicShadowColor();
     void updateColorRotationControls();
-    void setCurrentColorRotationLength(int length);
-    void setCurrentColorRotationDelayMs(int delayMs);
-    void editCurrentColorRotationColor(std::size_t colorIndex);
-    void clearCurrentColorRotationSlot();
+    void setCurrentColorRotationLength(std::size_t slotIndex, int length);
+    void setCurrentColorRotationDelayMs(std::size_t slotIndex, int delayMs);
+    void editCurrentColorRotationColor(std::size_t slotIndex, std::size_t colorIndex);
+    void clearCurrentColorRotationSlot(std::size_t slotIndex);
     void updatePaletteControls();
-    void setCurrentPaletteName();
+    void setCurrentPaletteName(const QString& paletteName);
     void pickCurrentPaletteColor(std::size_t colorIndex);
     void editCurrentPaletteColor(std::size_t colorIndex);
     void applyCurrentPaletteGradient();
@@ -210,6 +205,7 @@ private:
                                              const render::CanvasHit& end);
     void showPendingFreePaletteGradientSelection();
     void cancelFreePaletteGradientSelection();
+    void toggleCanvasSelectionDirectionMode();
     void setCanvasSelectionFromStroke(const render::CanvasHit& start,
                                       const render::CanvasHit& end);
     void clearCanvasSelection();
@@ -276,10 +272,6 @@ private:
     [[nodiscard]] bool isDynamicMaskModeActive() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
-    [[nodiscard]] std::pair<int, int> currentPaletteGradientEndpoints() const;
-    [[nodiscard]] PaletteGradientShape currentPaletteGradientShape() const;
-    [[nodiscard]] PaletteGradientDirection currentPaletteGradientDirection() const;
-    [[nodiscard]] PaletteGradientPattern currentPaletteGradientPattern() const;
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
     [[nodiscard]] std::optional<std::size_t> currentBackgroundIndex() const;
     [[nodiscard]] bool isBackgroundImageTargetActive() const;
@@ -357,12 +349,8 @@ private:
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;
     QSpinBox* m_frameDurationSpinBox = nullptr;
-    QSpinBox* m_colorRotationLengthSpinBox = nullptr;
-    QSpinBox* m_colorRotationDelaySpinBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
-    QSpinBox* m_paletteGradientStartSpinBox = nullptr;
-    QSpinBox* m_paletteGradientEndSpinBox = nullptr;
     QSpinBox* m_spriteMinXSpinBox = nullptr;
     QSpinBox* m_spriteMinYSpinBox = nullptr;
     QSpinBox* m_spriteMaxXSpinBox = nullptr;
@@ -374,16 +362,10 @@ private:
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
-    QComboBox* m_colorRotationSlotComboBox = nullptr;
-    QComboBox* m_paletteComboBox = nullptr;
-    QComboBox* m_paletteGradientShapeComboBox = nullptr;
-    QComboBox* m_paletteGradientDirectionComboBox = nullptr;
-    QComboBox* m_paletteGradientPatternComboBox = nullptr;
     QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     QComboBox* m_spriteComboBox = nullptr;
     QLineEdit* m_spriteNameLineEdit = nullptr;
-    QLineEdit* m_paletteNameLineEdit = nullptr;
     QComboBox* m_spriteSlotComboBox = nullptr;
     QComboBox* m_spriteDetectionAreaComboBox = nullptr;
     QLabel* m_spriteOriginalPreviewLabel = nullptr;
@@ -392,7 +374,6 @@ private:
     QLabel* m_selectedMaskLabel = nullptr;
     QLabel* m_selectedBackgroundLabel = nullptr;
     QLabel* m_selectedSpriteLabel = nullptr;
-    QLabel* m_selectedPaletteLabel = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
@@ -400,13 +381,8 @@ private:
     std::vector<QToolButton*> m_dynamicColorButtons;
     std::vector<QToolButton*> m_dynamicShadowDirectionButtons;
     QToolButton* m_dynamicShadowColorButton = nullptr;
-    QToolButton* m_clearColorRotationSlotButton = nullptr;
-    QToolButton* m_applyPaletteGradientButton = nullptr;
-    QToolButton* m_fillSelectionGradientButton = nullptr;
-    QToolButton* m_setSelectionDirectionButton = nullptr;
-    QToolButton* m_clearCanvasSelectionButton = nullptr;
-    ColorGridWidget* m_colorRotationGrid = nullptr;
-    ColorGridWidget* m_paletteGrid = nullptr;
+    ColorRotationPanel* m_colorRotationPanel = nullptr;
+    PalettePanel* m_palettePanel = nullptr;
     QToolButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;

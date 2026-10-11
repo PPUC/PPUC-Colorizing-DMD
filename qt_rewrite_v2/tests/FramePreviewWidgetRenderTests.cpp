@@ -6,15 +6,22 @@
 #include <vector>
 
 #include <QApplication>
+#include <QComboBox>
 #include <QImage>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointingDevice>
+#include <QSpinBox>
+#include <QToolButton>
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
+#include "panels/ColorRotationPanel.h"
+#include "panels/PalettePanel.h"
 #include "SpriteEditorWidget.h"
 
 namespace {
@@ -1320,6 +1327,372 @@ void testColorRotationPreviewTransform()
            "rotation preview should wrap final color to first color");
 }
 
+template <typename Widget>
+Widget* childByToolTip(QWidget& parent, const char* toolTip)
+{
+    for (Widget* child : parent.findChildren<Widget*>()) {
+        if (child->toolTip() == QLatin1String(toolTip)) {
+            return child;
+        }
+    }
+    fail(std::string("missing child widget: ") + toolTip);
+    return nullptr;
+}
+
+QList<QToolButton*> colorGridButtons(QWidget& parent, const char* gridToolTip)
+{
+    return childByToolTip<QWidget>(parent, gridToolTip)
+        ->findChildren<QToolButton*>(QString(), Qt::FindDirectChildrenOnly);
+}
+
+int enabledButtonCount(const QList<QToolButton*>& buttons)
+{
+    int count = 0;
+    for (const QToolButton* button : buttons) {
+        count += button->isEnabled() ? 1 : 0;
+    }
+    return count;
+}
+
+void testColorRotationPanel()
+{
+    using colorizing::render::Resolution;
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    document.setColorRotationLength(0, Resolution::Sd, 1, 3);
+    document.setColorRotationDelayMs(0, Resolution::Sd, 1, 250);
+    document.setColorRotationColor(0, Resolution::Sd, 1, 0, 0xf800);
+    document.setColorRotationLength(0, Resolution::Hd, 1, 2);
+    document.markClean();
+
+    colorizing::app::ColorRotationPanel panel;
+    int slotChanges = 0;
+    int otherCallbacks = 0;
+    std::optional<std::pair<std::size_t, int>> length;
+    std::optional<std::pair<std::size_t, int>> delay;
+    std::optional<std::pair<std::size_t, std::size_t>> color;
+    std::optional<std::size_t> clearedSlot;
+    panel.onSlotSelectionChanged = [&]() {
+        ++slotChanges;
+    };
+    panel.onLengthEdited = [&](std::size_t slotIndex, int value) {
+        ++otherCallbacks;
+        length = {slotIndex, value};
+    };
+    panel.onDelayEdited = [&](std::size_t slotIndex, int value) {
+        ++otherCallbacks;
+        delay = {slotIndex, value};
+    };
+    panel.onColorClicked = [&](std::size_t slotIndex, std::size_t colorIndex) {
+        ++otherCallbacks;
+        color = {slotIndex, colorIndex};
+    };
+    panel.onClearSlotRequested = [&](std::size_t slotIndex) {
+        ++otherCallbacks;
+        clearedSlot = slotIndex;
+    };
+
+    auto* slotComboBox =
+        childByToolTip<QComboBox>(panel, "Color rotation slot for the active SD/HD mode");
+    auto* lengthSpinBox = childByToolTip<QSpinBox>(panel, "Number of colors in this rotation");
+    auto* delaySpinBox = childByToolTip<QSpinBox>(panel, "Delay between rotation steps");
+    auto* clearButton =
+        childByToolTip<QToolButton>(panel, "Clear the selected color rotation slot");
+    const QList<QToolButton*> gridButtons =
+        colorGridButtons(panel, "Colors in the selected rotation");
+    expect(slotComboBox->count() == static_cast<int>(colorizing::document::kMaxColorRotations),
+           "rotation panel should list every rotation slot");
+    expect(gridButtons.size() ==
+               static_cast<int>(colorizing::document::kMaxColorRotationColors),
+           "rotation panel should show one button per rotation color");
+    expect(clearButton->text() == QStringLiteral("Clear Slot"),
+           "rotation panel should keep the clear button text");
+
+    panel.refresh(nullptr, std::nullopt, Resolution::Sd);
+    expect(!slotComboBox->isEnabled() && !lengthSpinBox->isEnabled() &&
+               !delaySpinBox->isEnabled() && !clearButton->isEnabled(),
+           "rotation panel should be disabled without a frame");
+    expect(enabledButtonCount(gridButtons) == 0,
+           "rotation panel should show no active colors without a frame");
+
+    panel.refresh(&document, 0, Resolution::Sd);
+    expect(slotComboBox->isEnabled() && lengthSpinBox->isEnabled() &&
+               delaySpinBox->isEnabled() && clearButton->isEnabled(),
+           "rotation panel should be enabled for a frame");
+    expect(panel.selectedSlotIndex() == 0, "rotation panel should start on slot 0");
+    expect(lengthSpinBox->value() == 0 && delaySpinBox->value() == 0,
+           "rotation panel should show the empty slot 0");
+
+    slotComboBox->setCurrentIndex(1);
+    expect(slotChanges == 1 && panel.selectedSlotIndex() == 1,
+           "selecting a rotation slot should notify once");
+    expect(lengthSpinBox->value() == 0,
+           "rotation panel should wait for the owner to refresh after a slot change");
+    panel.refresh(&document, 0, Resolution::Sd);
+    expect(lengthSpinBox->value() == 3 && delaySpinBox->value() == 250,
+           "rotation panel should show length and delay of the selected slot");
+    expect(enabledButtonCount(gridButtons) == 3 &&
+               gridButtons[0]->toolTip() == QStringLiteral("Color 0: 0xf800"),
+           "rotation panel should show the active rotation colors");
+    panel.refresh(&document, 0, Resolution::Hd);
+    expect(lengthSpinBox->value() == 2 && delaySpinBox->value() == 0,
+           "rotation panel should show the slot of the requested resolution");
+    panel.refresh(&document, 0, Resolution::Sd);
+    expect(slotChanges == 1 && otherCallbacks == 0,
+           "refreshing the rotation panel should not notify");
+
+    lengthSpinBox->setValue(5);
+    expect(length == std::make_pair(std::size_t{1}, 5),
+           "editing the rotation length should report slot and length");
+    delaySpinBox->setValue(120);
+    expect(delay == std::make_pair(std::size_t{1}, 120),
+           "editing the rotation delay should report slot and delay");
+    gridButtons[2]->click();
+    expect(color == std::make_pair(std::size_t{1}, std::size_t{2}),
+           "clicking a rotation color should report slot and color index");
+    clearButton->click();
+    expect(clearedSlot == std::size_t{1}, "clearing should report the selected slot");
+    expect(otherCallbacks == 4, "each rotation edit should notify exactly once");
+    expect(document.colorRotationLength(0, Resolution::Sd, 1) == 3 &&
+               document.colorRotationDelayMs(0, Resolution::Sd, 1) == 250 &&
+               !document.isDirty(),
+           "rotation panel should leave the document untouched");
+
+    panel.refresh(&document, std::nullopt, Resolution::Sd);
+    expect(!lengthSpinBox->isEnabled() && lengthSpinBox->value() == 0 &&
+               delaySpinBox->value() == 0,
+           "rotation panel should reset without a frame");
+    expect(slotChanges == 1 && otherCallbacks == 4,
+           "resetting the rotation panel should not notify");
+}
+
+colorizing::document::ProjectDocument makePaletteDocument(std::size_t paletteCount)
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
+    snapshot.romName = "palettes";
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+    });
+    for (std::size_t paletteIndex = 0; paletteIndex < paletteCount; ++paletteIndex) {
+        colorizing::document::PaletteRecord palette;
+        palette.colors.assign(colorizing::document::kPaletteColorCount, 0);
+        palette.colors[0] = 0xf800;
+        palette.name = paletteIndex == 1 ? "second" : "";
+        snapshot.palettes.push_back(palette);
+    }
+    return colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+}
+
+void testPalettePanel()
+{
+    using colorizing::app::PaletteGradientShape;
+    using colorizing::edit::PaletteGradientDirection;
+    using colorizing::edit::PaletteGradientPattern;
+    const colorizing::document::ProjectDocument document = makePaletteDocument(3);
+    const colorizing::document::ProjectDocument smallDocument = makePaletteDocument(1);
+
+    colorizing::app::PalettePanel panel;
+    int callbacks = 0;
+    int paletteChanges = 0;
+    int gradientSettingChanges = 0;
+    int applyRequests = 0;
+    int fillRequests = 0;
+    int directionClicks = 0;
+    int clearRequests = 0;
+    std::optional<QString> name;
+    std::optional<std::size_t> clickedColor;
+    std::optional<std::size_t> doubleClickedColor;
+    panel.onPaletteSelectionChanged = [&]() {
+        ++callbacks;
+        ++paletteChanges;
+    };
+    panel.onGradientSettingsChanged = [&]() {
+        ++callbacks;
+        ++gradientSettingChanges;
+    };
+    panel.onNameEdited = [&](const QString& value) {
+        ++callbacks;
+        name = value;
+    };
+    panel.onColorClicked = [&](std::size_t colorIndex) {
+        ++callbacks;
+        clickedColor = colorIndex;
+    };
+    panel.onColorDoubleClicked = [&](std::size_t colorIndex) {
+        ++callbacks;
+        doubleClickedColor = colorIndex;
+    };
+    panel.onApplyGradientRequested = [&]() {
+        ++callbacks;
+        ++applyRequests;
+    };
+    panel.onFillSelectionRequested = [&]() {
+        ++callbacks;
+        ++fillRequests;
+    };
+    panel.onSelectionDirectionClicked = [&]() {
+        ++callbacks;
+        ++directionClicks;
+    };
+    panel.onClearSelectionRequested = [&]() {
+        ++callbacks;
+        ++clearRequests;
+    };
+
+    auto* paletteComboBox = childByToolTip<QComboBox>(panel, "Selected palette");
+    auto* nameLineEdit = childByToolTip<QLineEdit>(panel, "Selected palette name");
+    auto* startSpinBox =
+        childByToolTip<QSpinBox>(panel, "First palette color index for gradient fill");
+    auto* endSpinBox =
+        childByToolTip<QSpinBox>(panel, "Last palette color index for gradient fill");
+    auto* shapeComboBox = childByToolTip<QComboBox>(panel, "Shape used by the Grad drawing tool");
+    auto* patternComboBox =
+        childByToolTip<QComboBox>(panel, "Color distribution used by the Grad drawing tool");
+    auto* directionComboBox =
+        childByToolTip<QComboBox>(panel, "Direction used by the Grad drawing tool");
+    auto* applyButton = childByToolTip<QToolButton>(
+        panel,
+        "Fill the selected palette range between the endpoint colors");
+    auto* fillButton = childByToolTip<QToolButton>(
+        panel,
+        "Fill the current canvas selection with the palette gradient");
+    auto* directionButton = childByToolTip<QToolButton>(
+        panel,
+        "Draw the free gradient direction line for the current selection");
+    auto* clearButton =
+        childByToolTip<QToolButton>(panel, "Clear the current canvas selection");
+    const QList<QToolButton*> gridButtons =
+        colorGridButtons(panel, "Colors in the selected palette");
+    QLabel* selectedLabel = nullptr;
+    for (QLabel* label : panel.findChildren<QLabel*>()) {
+        if (label->text().startsWith(QStringLiteral("Selected:"))) {
+            selectedLabel = label;
+        }
+    }
+    expect(selectedLabel != nullptr, "palette panel should show the selected palette label");
+    expect(gridButtons.size() == static_cast<int>(colorizing::document::kPaletteColorCount) &&
+               gridButtons[0]->text() == QStringLiteral("1"),
+           "palette panel should show one-based color buttons");
+
+    panel.refresh(nullptr, false, false);
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               !paletteComboBox->isEnabled() && !nameLineEdit->isEnabled() &&
+               !applyButton->isEnabled() && enabledButtonCount(gridButtons) == 0,
+           "palette panel should be disabled without a document");
+    expect(!panel.selectedPaletteIndex(nullptr).has_value(),
+           "palette panel should report no palette without a document");
+    expect(panel.gradientEndpoints() == std::make_pair(0, 63) &&
+               panel.gradientShape() == PaletteGradientShape::Rectangle &&
+               panel.gradientPattern() == PaletteGradientPattern::Linear &&
+               panel.gradientDirection() == PaletteGradientDirection::Free,
+           "palette panel should start with the default gradient settings");
+
+    panel.setPalettes(&document);
+    panel.ensurePaletteSelected(&document);
+    panel.refresh(&document, false, false);
+    expect(paletteComboBox->count() == 3 &&
+               paletteComboBox->itemText(0) == QStringLiteral("0") &&
+               paletteComboBox->itemText(1) == QStringLiteral("1 - second"),
+           "palette panel should list the document palettes");
+    expect(panel.selectedPaletteIndex(&document) == std::size_t{0} &&
+               selectedLabel->text() == QStringLiteral("Selected: 0") &&
+               nameLineEdit->text().isEmpty() && nameLineEdit->isEnabled(),
+           "palette panel should select and show the first palette");
+    expect(applyButton->isEnabled() && !fillButton->isEnabled() &&
+               !directionButton->isEnabled() && !clearButton->isEnabled(),
+           "palette panel should only enable selection buttons with a canvas selection");
+    expect(enabledButtonCount(gridButtons) == 64 &&
+               gridButtons[0]->toolTip() == QStringLiteral("Color 1: 0xf800"),
+           "palette panel should show the palette colors");
+    expect(callbacks == 0, "populating and refreshing the palette panel should not notify");
+
+    paletteComboBox->setCurrentIndex(1);
+    expect(paletteChanges == 1 && callbacks == 1 &&
+               panel.selectedPaletteIndex(&document) == std::size_t{1},
+           "selecting a palette should notify once");
+    expect(!panel.selectedPaletteIndex(&smallDocument).has_value(),
+           "palette panel should not report a palette the document does not have");
+    panel.setPalettes(&document);
+    panel.ensurePaletteSelected(&document);
+    panel.refresh(&document, false, false);
+    expect(panel.selectedPaletteIndex(&document) == std::size_t{1} &&
+               selectedLabel->text() == QStringLiteral("Selected: 1 - second") &&
+               nameLineEdit->text() == QStringLiteral("second"),
+           "palette panel should keep the selected palette when the list is rebuilt");
+    expect(callbacks == 1, "rebuilding the palette list should not notify");
+
+    startSpinBox->setValue(3);
+    endSpinBox->setValue(1);
+    expect(panel.gradientEndpoints() == std::make_pair(2, 0) && callbacks == 1,
+           "gradient endpoints should be zero-based and silent");
+    shapeComboBox->setCurrentIndex(2);
+    patternComboBox->setCurrentIndex(1);
+    directionComboBox->setCurrentIndex(5);
+    expect(gradientSettingChanges == 3 &&
+               panel.gradientShape() == PaletteGradientShape::Ellipse &&
+               panel.gradientPattern() == PaletteGradientPattern::Circle &&
+               panel.gradientDirection() == PaletteGradientDirection::TopLeftToBottomRight,
+           "gradient settings should notify and be readable");
+
+    nameLineEdit->setText(QStringLiteral("renamed"));
+    expect(!name.has_value(), "typing a palette name should not notify before it is finished");
+    Q_EMIT nameLineEdit->editingFinished();
+    expect(name == QStringLiteral("renamed") && document.palette(1).name == "second",
+           "finishing the palette name should report it without renaming the palette");
+    gridButtons[4]->click();
+    expect(clickedColor == std::size_t{4}, "clicking a palette color should report its index");
+    QMouseEvent doubleClick(QEvent::MouseButtonDblClick,
+                            QPointF(5, 5),
+                            QPointF(5, 5),
+                            QPointF(5, 5),
+                            Qt::LeftButton,
+                            Qt::LeftButton,
+                            Qt::NoModifier);
+    QApplication::sendEvent(gridButtons[6], &doubleClick);
+    expect(doubleClickedColor == std::size_t{6},
+           "double-clicking a palette color should report its index");
+    applyButton->click();
+    fillButton->click();
+    directionButton->click();
+    clearButton->click();
+    expect(applyRequests == 1 && fillRequests == 0 && directionClicks == 0 &&
+               clearRequests == 0,
+           "disabled selection buttons should not notify");
+
+    const int callbacksBeforeRefresh = callbacks;
+    panel.refresh(&document, true, true);
+    expect(fillButton->isEnabled() && directionButton->isEnabled() &&
+               clearButton->isEnabled() && directionButton->isChecked(),
+           "palette panel should show the canvas selection state");
+    panel.refresh(&document, true, false);
+    expect(!directionButton->isChecked(), "palette panel should show direction mode off");
+    panel.setSelectionDirectionChecked(true);
+    expect(directionButton->isChecked() && callbacks == callbacksBeforeRefresh,
+           "refreshing the selection state should not notify");
+    fillButton->click();
+    directionButton->click();
+    clearButton->click();
+    expect(fillRequests == 1 && directionClicks == 1 && clearRequests == 1,
+           "selection buttons should notify once each");
+    panel.refresh(&document, false, true);
+    expect(!directionButton->isEnabled() && !directionButton->isChecked(),
+           "direction mode needs a canvas selection");
+
+    const int callbacksBeforeClose = callbacks;
+    panel.setPalettes(nullptr);
+    panel.refresh(nullptr, true, true);
+    expect(paletteComboBox->count() == 0 && !paletteComboBox->isEnabled() &&
+               selectedLabel->text() == QStringLiteral("Selected: None") &&
+               nameLineEdit->text().isEmpty() && !directionButton->isChecked() &&
+               !fillButton->isEnabled() && enabledButtonCount(gridButtons) == 0,
+           "palette panel should reset without a document");
+    expect(callbacks == callbacksBeforeClose, "resetting the palette panel should not notify");
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -1349,6 +1722,8 @@ int main(int argc, char* argv[])
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();
+    testColorRotationPanel();
+    testPalettePanel();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

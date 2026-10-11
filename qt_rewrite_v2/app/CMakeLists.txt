@@ -9,6 +9,10 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramePreviewWidget.h
     FrameThumbnail.cpp
     FrameThumbnail.h
+    panels/ColorRotationPanel.cpp
+    panels/ColorRotationPanel.h
+    panels/PalettePanel.cpp
+    panels/PalettePanel.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
 )

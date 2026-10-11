@@ -49,12 +49,13 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "ColorGridWidget.h"
 #include "edit/DrawingGeometry.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 #include "SpriteEditorWidget.h"
+#include "panels/ColorRotationPanel.h"
+#include "panels/PalettePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
 
@@ -305,21 +306,6 @@ QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
     return image;
 }
 
-QImage renderPalettePreviewImage(const document::PaletteRecord& palette)
-{
-    QImage image(static_cast<int>(document::kPaletteColorCount), 8, QImage::Format_ARGB32);
-    image.fill(Qt::black);
-    const std::size_t colorCount =
-        std::min<std::size_t>(palette.colors.size(), document::kPaletteColorCount);
-    for (std::size_t colorIndex = 0; colorIndex < colorCount; ++colorIndex) {
-        const QColor color = rgb565ToColor(palette.colors[colorIndex]);
-        for (int y = 0; y < image.height(); ++y) {
-            image.setPixelColor(static_cast<int>(colorIndex), y, color);
-        }
-    }
-    return image;
-}
-
 QPixmap previewPixmap(const QImage& image, QSize targetSize);
 
 QIcon previewIcon(const QImage& image, QSize targetSize)
@@ -563,119 +549,51 @@ void MainWindow::createCentralView()
     m_frameDurationSpinBox->setSingleStep(10);
     m_frameDurationSpinBox->setSuffix(QStringLiteral(" ms"));
     m_frameDurationSpinBox->setEnabled(false);
-    m_colorRotationSlotComboBox = new QComboBox(central);
-    m_colorRotationSlotComboBox->setToolTip(QStringLiteral("Color rotation slot for the active SD/HD mode"));
-    for (std::size_t slotIndex = 0; slotIndex < document::kMaxColorRotations; ++slotIndex) {
-        m_colorRotationSlotComboBox->addItem(QStringLiteral("Slot %1").arg(static_cast<int>(slotIndex)),
-                                             static_cast<int>(slotIndex));
-    }
-    m_colorRotationSlotComboBox->setEnabled(false);
-    m_colorRotationLengthSpinBox = new QSpinBox(central);
-    m_colorRotationLengthSpinBox->setToolTip(QStringLiteral("Number of colors in this rotation"));
-    m_colorRotationLengthSpinBox->setRange(0, static_cast<int>(document::kMaxColorRotationColors));
-    m_colorRotationLengthSpinBox->setEnabled(false);
-    m_colorRotationDelaySpinBox = new QSpinBox(central);
-    m_colorRotationDelaySpinBox->setToolTip(QStringLiteral("Delay between rotation steps"));
-    m_colorRotationDelaySpinBox->setRange(0, 2048);
-    m_colorRotationDelaySpinBox->setSingleStep(10);
-    m_colorRotationDelaySpinBox->setSuffix(QStringLiteral(" ms"));
-    m_colorRotationDelaySpinBox->setEnabled(false);
-    m_colorRotationGrid = new ColorGridWidget(document::kMaxColorRotationColors, 8, central);
-    m_colorRotationGrid->setToolTip(QStringLiteral("Colors in the selected rotation"));
-    m_colorRotationGrid->setColorClickedHandler([this](std::size_t colorIndex) {
-        editCurrentColorRotationColor(colorIndex);
-    });
-    m_clearColorRotationSlotButton = new QToolButton(central);
-    m_clearColorRotationSlotButton->setText(QStringLiteral("Clear Slot"));
-    m_clearColorRotationSlotButton->setToolTip(QStringLiteral("Clear the selected color rotation slot"));
-    m_clearColorRotationSlotButton->setEnabled(false);
-    m_paletteComboBox = new QComboBox(central);
-    m_paletteComboBox->setToolTip(QStringLiteral("Selected palette"));
-    m_paletteComboBox->setIconSize(QSize(96, 18));
-    m_paletteComboBox->setEnabled(false);
-    m_paletteGradientShapeComboBox = new QComboBox(central);
-    m_paletteGradientShapeComboBox->setToolTip(QStringLiteral("Shape used by the Grad drawing tool"));
-    m_paletteGradientShapeComboBox->addItem(QStringLiteral("Rectangle"),
-                                            static_cast<int>(PaletteGradientShape::Rectangle));
-    m_paletteGradientShapeComboBox->addItem(QStringLiteral("Circle"),
-                                            static_cast<int>(PaletteGradientShape::Circle));
-    m_paletteGradientShapeComboBox->addItem(QStringLiteral("Ellipse"),
-                                            static_cast<int>(PaletteGradientShape::Ellipse));
-    m_paletteGradientShapeComboBox->setEnabled(false);
-    m_paletteGradientPatternComboBox = new QComboBox(central);
-    m_paletteGradientPatternComboBox->setToolTip(QStringLiteral("Color distribution used by the Grad drawing tool"));
-    m_paletteGradientPatternComboBox->addItem(QStringLiteral("Linear"),
-                                              static_cast<int>(PaletteGradientPattern::Linear));
-    m_paletteGradientPatternComboBox->addItem(QStringLiteral("Circle"),
-                                              static_cast<int>(PaletteGradientPattern::Circle));
-    m_paletteGradientPatternComboBox->addItem(QStringLiteral("Ellipse"),
-                                              static_cast<int>(PaletteGradientPattern::Ellipse));
-    m_paletteGradientPatternComboBox->setEnabled(false);
-    m_paletteGradientDirectionComboBox = new QComboBox(central);
-    m_paletteGradientDirectionComboBox->setToolTip(QStringLiteral("Direction used by the Grad drawing tool"));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Free"),
-                                                static_cast<int>(PaletteGradientDirection::Free));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Left -> Right"),
-                                                static_cast<int>(PaletteGradientDirection::LeftToRight));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Right -> Left"),
-                                                static_cast<int>(PaletteGradientDirection::RightToLeft));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Top -> Bottom"),
-                                                static_cast<int>(PaletteGradientDirection::TopToBottom));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Bottom -> Top"),
-                                                static_cast<int>(PaletteGradientDirection::BottomToTop));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("TL -> BR"),
-                                                static_cast<int>(PaletteGradientDirection::TopLeftToBottomRight));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("BR -> TL"),
-                                                static_cast<int>(PaletteGradientDirection::BottomRightToTopLeft));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("TR -> BL"),
-                                                static_cast<int>(PaletteGradientDirection::TopRightToBottomLeft));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("BL -> TR"),
-                                                static_cast<int>(PaletteGradientDirection::BottomLeftToTopRight));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Center -> Edge"),
-                                                static_cast<int>(PaletteGradientDirection::CenterToEdge));
-    m_paletteGradientDirectionComboBox->addItem(QStringLiteral("Edge -> Center"),
-                                                static_cast<int>(PaletteGradientDirection::EdgeToCenter));
-    m_paletteGradientDirectionComboBox->setEnabled(false);
-    m_paletteNameLineEdit = new QLineEdit(central);
-    m_paletteNameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
-    m_paletteNameLineEdit->setMaxLength(63);
-    m_paletteNameLineEdit->setEnabled(false);
-    m_paletteGradientStartSpinBox = new QSpinBox(central);
-    m_paletteGradientStartSpinBox->setToolTip(QStringLiteral("First palette color index for gradient fill"));
-    m_paletteGradientStartSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
-    m_paletteGradientStartSpinBox->setEnabled(false);
-    m_paletteGradientEndSpinBox = new QSpinBox(central);
-    m_paletteGradientEndSpinBox->setToolTip(QStringLiteral("Last palette color index for gradient fill"));
-    m_paletteGradientEndSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
-    m_paletteGradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
-    m_paletteGradientEndSpinBox->setEnabled(false);
-    m_applyPaletteGradientButton = new QToolButton(central);
-    m_applyPaletteGradientButton->setText(QStringLiteral("Apply Gradient"));
-    m_applyPaletteGradientButton->setToolTip(
-        QStringLiteral("Fill the selected palette range between the endpoint colors"));
-    m_applyPaletteGradientButton->setEnabled(false);
-    m_fillSelectionGradientButton = new QToolButton(central);
-    m_fillSelectionGradientButton->setText(QStringLiteral("Grad Sel"));
-    m_fillSelectionGradientButton->setToolTip(QStringLiteral("Fill the current canvas selection with the palette gradient"));
-    m_fillSelectionGradientButton->setEnabled(false);
-    m_setSelectionDirectionButton = new QToolButton(central);
-    m_setSelectionDirectionButton->setText(QStringLiteral("Set Dir"));
-    m_setSelectionDirectionButton->setToolTip(QStringLiteral("Draw the free gradient direction line for the current selection"));
-    m_setSelectionDirectionButton->setCheckable(true);
-    m_setSelectionDirectionButton->setEnabled(false);
-    m_clearCanvasSelectionButton = new QToolButton(central);
-    m_clearCanvasSelectionButton->setText(QStringLiteral("Clear Sel"));
-    m_clearCanvasSelectionButton->setToolTip(QStringLiteral("Clear the current canvas selection"));
-    m_clearCanvasSelectionButton->setEnabled(false);
-    m_paletteGrid = new ColorGridWidget(document::kPaletteColorCount, 8, central);
-    m_paletteGrid->setDisplayIndexOffset(1);
-    m_paletteGrid->setToolTip(QStringLiteral("Colors in the selected palette"));
-    m_paletteGrid->setColorClickedHandler([this](std::size_t colorIndex) {
+    m_colorRotationPanel = new ColorRotationPanel(central);
+    m_colorRotationPanel->onSlotSelectionChanged = [this]() {
+        updateColorRotationControls();
+    };
+    m_colorRotationPanel->onLengthEdited = [this](std::size_t slotIndex, int length) {
+        setCurrentColorRotationLength(slotIndex, length);
+    };
+    m_colorRotationPanel->onDelayEdited = [this](std::size_t slotIndex, int delayMs) {
+        setCurrentColorRotationDelayMs(slotIndex, delayMs);
+    };
+    m_colorRotationPanel->onColorClicked = [this](std::size_t slotIndex, std::size_t colorIndex) {
+        editCurrentColorRotationColor(slotIndex, colorIndex);
+    };
+    m_colorRotationPanel->onClearSlotRequested = [this](std::size_t slotIndex) {
+        clearCurrentColorRotationSlot(slotIndex);
+    };
+    m_palettePanel = new PalettePanel(central);
+    m_palettePanel->onPaletteSelectionChanged = [this]() {
+        cancelFreePaletteGradientSelection();
+        updatePaletteControls();
+    };
+    m_palettePanel->onGradientSettingsChanged = [this]() {
+        cancelFreePaletteGradientSelection();
+    };
+    m_palettePanel->onNameEdited = [this](const QString& name) {
+        setCurrentPaletteName(name);
+    };
+    m_palettePanel->onColorClicked = [this](std::size_t colorIndex) {
         pickCurrentPaletteColor(colorIndex);
-    });
-    m_paletteGrid->setColorDoubleClickedHandler([this](std::size_t colorIndex) {
+    };
+    m_palettePanel->onColorDoubleClicked = [this](std::size_t colorIndex) {
         editCurrentPaletteColor(colorIndex);
-    });
+    };
+    m_palettePanel->onApplyGradientRequested = [this]() {
+        applyCurrentPaletteGradient();
+    };
+    m_palettePanel->onFillSelectionRequested = [this]() {
+        fillCanvasSelectionWithPaletteGradient();
+    };
+    m_palettePanel->onSelectionDirectionClicked = [this]() {
+        toggleCanvasSelectionDirectionMode();
+    };
+    m_palettePanel->onClearSelectionRequested = [this]() {
+        clearCanvasSelection();
+    };
     m_switchToMonochromeCheckBox = new QCheckBox(QStringLiteral("Switch mono"), central);
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
@@ -1100,43 +1018,8 @@ void MainWindow::createCentralView()
     dynamicPageLayout->addStretch(1);
     inspectorTabs->addTab(dynamicPage, QStringLiteral("Dyn"));
 
-    auto* palettePage = new QWidget(inspectorTabs);
-    auto* palettePageLayout = new QVBoxLayout(palettePage);
-    palettePageLayout->setContentsMargins(6, 6, 6, 6);
-    m_selectedPaletteLabel = new QLabel(QStringLiteral("Selected: None"), palettePage);
-    m_selectedPaletteLabel->setWordWrap(true);
-    palettePageLayout->addWidget(m_selectedPaletteLabel);
-    auto* paletteForm = new QFormLayout();
-    paletteForm->addRow(QStringLiteral("Palette"), m_paletteComboBox);
-    paletteForm->addRow(QStringLiteral("Name"), m_paletteNameLineEdit);
-    paletteForm->addRow(QStringLiteral("From"), m_paletteGradientStartSpinBox);
-    paletteForm->addRow(QStringLiteral("To"), m_paletteGradientEndSpinBox);
-    paletteForm->addRow(QStringLiteral("Shape"), m_paletteGradientShapeComboBox);
-    paletteForm->addRow(QStringLiteral("Pattern"), m_paletteGradientPatternComboBox);
-    paletteForm->addRow(QStringLiteral("Direction"), m_paletteGradientDirectionComboBox);
-    palettePageLayout->addLayout(paletteForm);
-    palettePageLayout->addWidget(m_paletteGrid);
-    palettePageLayout->addWidget(m_applyPaletteGradientButton);
-    auto* selectionFillLayout = new QHBoxLayout();
-    selectionFillLayout->addWidget(m_fillSelectionGradientButton);
-    selectionFillLayout->addWidget(m_setSelectionDirectionButton);
-    selectionFillLayout->addWidget(m_clearCanvasSelectionButton);
-    palettePageLayout->addLayout(selectionFillLayout);
-    palettePageLayout->addStretch(1);
-    inspectorTabs->addTab(palettePage, QStringLiteral("Palette"));
-
-    auto* rotationPage = new QWidget(inspectorTabs);
-    auto* rotationPageLayout = new QVBoxLayout(rotationPage);
-    rotationPageLayout->setContentsMargins(6, 6, 6, 6);
-    auto* rotationForm = new QFormLayout();
-    rotationForm->addRow(QStringLiteral("Slot"), m_colorRotationSlotComboBox);
-    rotationForm->addRow(QStringLiteral("Length"), m_colorRotationLengthSpinBox);
-    rotationForm->addRow(QStringLiteral("Delay"), m_colorRotationDelaySpinBox);
-    rotationPageLayout->addLayout(rotationForm);
-    rotationPageLayout->addWidget(m_colorRotationGrid);
-    rotationPageLayout->addWidget(m_clearColorRotationSlotButton);
-    rotationPageLayout->addStretch(1);
-    inspectorTabs->addTab(rotationPage, QStringLiteral("Rot"));
+    inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"));
+    inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"));
 
     auto* spritePage = new QWidget(inspectorTabs);
     auto* spritePageLayout = new QVBoxLayout(spritePage);
@@ -1258,67 +1141,6 @@ void MainWindow::createCentralView()
             m_spriteComboBox->setCurrentIndex(comboIndex);
         }
     });
-    connect(m_paletteComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                cancelFreePaletteGradientSelection();
-                updatePaletteControls();
-            });
-    connect(m_paletteGradientShapeComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                cancelFreePaletteGradientSelection();
-            });
-    connect(m_paletteGradientPatternComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                cancelFreePaletteGradientSelection();
-            });
-    connect(m_paletteGradientDirectionComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                cancelFreePaletteGradientSelection();
-            });
-    connect(m_paletteNameLineEdit,
-            &QLineEdit::editingFinished,
-            this,
-            &MainWindow::setCurrentPaletteName);
-    connect(m_applyPaletteGradientButton,
-            &QToolButton::clicked,
-            this,
-            &MainWindow::applyCurrentPaletteGradient);
-    connect(m_fillSelectionGradientButton,
-            &QToolButton::clicked,
-            this,
-            &MainWindow::fillCanvasSelectionWithPaletteGradient);
-    connect(m_setSelectionDirectionButton, &QToolButton::clicked, this, [this]() {
-        if (!m_canvasSelection) {
-            m_canvasSelectionDirectionMode = false;
-            QSignalBlocker blocker(m_setSelectionDirectionButton);
-            m_setSelectionDirectionButton->setChecked(false);
-            updatePaletteControls();
-            return;
-        }
-        m_canvasSelectionDirectionMode = !m_canvasSelectionDirectionMode;
-        {
-            QSignalBlocker blocker(m_setSelectionDirectionButton);
-            m_setSelectionDirectionButton->setChecked(m_canvasSelectionDirectionMode);
-        }
-        if (m_canvasSelectionDirectionMode) {
-            cancelFreePaletteGradientSelection();
-            statusBar()->showMessage(QStringLiteral("Draw selection gradient direction line"), 2500);
-        } else {
-            updateCanvasSelectionOverlay();
-        }
-    });
-    connect(m_clearCanvasSelectionButton,
-            &QToolButton::clicked,
-            this,
-            &MainWindow::clearCanvasSelection);
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
@@ -1582,28 +1404,6 @@ void MainWindow::createCentralView()
             [this](int durationMs) {
                 setCurrentFrameDurationMs(durationMs);
             });
-    connect(m_colorRotationSlotComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                updateColorRotationControls();
-            });
-    connect(m_colorRotationLengthSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int length) {
-                setCurrentColorRotationLength(length);
-            });
-    connect(m_colorRotationDelaySpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int delayMs) {
-                setCurrentColorRotationDelayMs(delayMs);
-            });
-    connect(m_clearColorRotationSlotButton,
-            &QToolButton::clicked,
-            this,
-            &MainWindow::clearCurrentColorRotationSlot);
     connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
         setCurrentFrameSwitchToMonochrome(checked);
     });
@@ -2283,29 +2083,8 @@ void MainWindow::refreshComponentBrowsers()
         }
     }
 
-    if (m_paletteComboBox) {
-        const std::optional<std::size_t> previousPaletteIndex = selectedPaletteIndex();
-        QSignalBlocker blocker(m_paletteComboBox);
-        m_paletteComboBox->clear();
-        if (m_document) {
-            for (std::size_t paletteIndex = 0; paletteIndex < m_document->paletteCount();
-                 ++paletteIndex) {
-                const document::PaletteRecord& palette = m_document->palette(paletteIndex);
-                const QString paletteLabel =
-                    palette.name.empty()
-                        ? QString::number(static_cast<int>(paletteIndex))
-                        : QStringLiteral("%1 - %2")
-                              .arg(static_cast<int>(paletteIndex))
-                              .arg(QString::fromStdString(palette.name));
-                m_paletteComboBox->addItem(previewIcon(renderPalettePreviewImage(palette),
-                                                       QSize(96, 18)),
-                                           paletteLabel,
-                                           static_cast<int>(paletteIndex));
-                if (previousPaletteIndex && *previousPaletteIndex == paletteIndex) {
-                    m_paletteComboBox->setCurrentIndex(m_paletteComboBox->count() - 1);
-                }
-            }
-        }
+    if (m_palettePanel) {
+        m_palettePanel->setPalettes(m_document ? &*m_document : nullptr);
     }
 
     updateMaskBrowserSelection();
@@ -2385,22 +2164,9 @@ void MainWindow::updateSpriteBrowserSelection()
 
 void MainWindow::updatePaletteBrowserSelection()
 {
-    if (!m_paletteComboBox || !m_document) {
-        return;
+    if (m_palettePanel) {
+        m_palettePanel->ensurePaletteSelected(m_document ? &*m_document : nullptr);
     }
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    QSignalBlocker blocker(m_paletteComboBox);
-    if (!paletteIndex) {
-        m_paletteComboBox->setCurrentIndex(m_paletteComboBox->count() > 0 ? 0 : -1);
-        return;
-    }
-    for (int row = 0; row < m_paletteComboBox->count(); ++row) {
-        if (m_paletteComboBox->itemData(row).toInt() == static_cast<int>(*paletteIndex)) {
-            m_paletteComboBox->setCurrentIndex(row);
-            return;
-        }
-    }
-    m_paletteComboBox->setCurrentIndex(-1);
 }
 
 bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
@@ -4522,57 +4288,20 @@ void MainWindow::editDynamicShadowColor()
 
 void MainWindow::updateColorRotationControls()
 {
-    if (!m_colorRotationSlotComboBox || !m_colorRotationLengthSpinBox ||
-        !m_colorRotationDelaySpinBox || !m_colorRotationGrid ||
-        !m_clearColorRotationSlotButton) {
-        return;
+    if (m_colorRotationPanel) {
+        m_colorRotationPanel->refresh(m_document ? &*m_document : nullptr,
+                                      currentFrameIndex(),
+                                      m_activeResolution);
     }
-
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    const bool hasFrame = m_document && frameIndex.has_value();
-    QSignalBlocker slotBlocker(m_colorRotationSlotComboBox);
-    QSignalBlocker lengthBlocker(m_colorRotationLengthSpinBox);
-    QSignalBlocker delayBlocker(m_colorRotationDelaySpinBox);
-
-    m_colorRotationSlotComboBox->setEnabled(hasFrame);
-    m_colorRotationLengthSpinBox->setEnabled(hasFrame);
-    m_colorRotationDelaySpinBox->setEnabled(hasFrame);
-    m_clearColorRotationSlotButton->setEnabled(hasFrame);
-    if (!hasFrame) {
-        m_colorRotationLengthSpinBox->setValue(0);
-        m_colorRotationDelaySpinBox->setValue(0);
-        m_colorRotationGrid->setColors({}, 0);
-        return;
-    }
-
-    const std::size_t slotIndex = static_cast<std::size_t>(
-        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
-    const uint16_t length =
-        m_document->colorRotationLength(*frameIndex, m_activeResolution, slotIndex);
-    const uint16_t delayMs =
-        m_document->colorRotationDelayMs(*frameIndex, m_activeResolution, slotIndex);
-    m_colorRotationLengthSpinBox->setValue(static_cast<int>(length));
-    m_colorRotationDelaySpinBox->setValue(static_cast<int>(delayMs));
-
-    const std::vector<uint16_t>& rotations =
-        m_document->colorRotations(*frameIndex, m_activeResolution);
-    const std::size_t slotOffset = slotIndex * document::kMaxColorRotationLength + 2;
-    std::vector<uint16_t> colors(document::kMaxColorRotationColors, 0);
-    for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {
-        colors[colorIndex] = rotations[slotOffset + colorIndex];
-    }
-    m_colorRotationGrid->setColors(colors, length);
 }
 
-void MainWindow::setCurrentColorRotationLength(int length)
+void MainWindow::setCurrentColorRotationLength(std::size_t slotIndex, int length)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || !m_colorRotationSlotComboBox) {
+    if (!m_document || frameIndices.empty()) {
         return;
     }
 
-    const std::size_t slotIndex = static_cast<std::size_t>(
-        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
     const uint16_t storedLength = static_cast<uint16_t>(
         std::clamp(length, 0, static_cast<int>(document::kMaxColorRotationColors)));
     const bool wasDirty = m_document->isDirty();
@@ -4598,15 +4327,13 @@ void MainWindow::setCurrentColorRotationLength(int length)
     }
 }
 
-void MainWindow::setCurrentColorRotationDelayMs(int delayMs)
+void MainWindow::setCurrentColorRotationDelayMs(std::size_t slotIndex, int delayMs)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || !m_colorRotationSlotComboBox) {
+    if (!m_document || frameIndices.empty()) {
         return;
     }
 
-    const std::size_t slotIndex = static_cast<std::size_t>(
-        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
     const uint16_t storedDelayMs =
         static_cast<uint16_t>(std::clamp(delayMs, 0, 2048));
     const bool wasDirty = m_document->isDirty();
@@ -4632,17 +4359,14 @@ void MainWindow::setCurrentColorRotationDelayMs(int delayMs)
     }
 }
 
-void MainWindow::editCurrentColorRotationColor(std::size_t colorIndex)
+void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_t colorIndex)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || frameIndices.empty() ||
-        !m_colorRotationSlotComboBox) {
+    if (!m_document || !frameIndex || frameIndices.empty()) {
         return;
     }
 
-    const std::size_t slotIndex = static_cast<std::size_t>(
-        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
     const uint16_t length =
         m_document->colorRotationLength(*frameIndex, m_activeResolution, slotIndex);
     if (length == 0 || colorIndex >= length) {
@@ -4692,15 +4416,13 @@ void MainWindow::editCurrentColorRotationColor(std::size_t colorIndex)
     }
 }
 
-void MainWindow::clearCurrentColorRotationSlot()
+void MainWindow::clearCurrentColorRotationSlot(std::size_t slotIndex)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || !m_colorRotationSlotComboBox) {
+    if (!m_document || frameIndices.empty()) {
         return;
     }
 
-    const std::size_t slotIndex = static_cast<std::size_t>(
-        std::max(0, m_colorRotationSlotComboBox->currentData().toInt()));
     const bool wasDirty = m_document->isDirty();
     try {
         for (std::size_t frameIndex : frameIndices) {
@@ -4723,74 +4445,25 @@ void MainWindow::clearCurrentColorRotationSlot()
 
 void MainWindow::updatePaletteControls()
 {
-    if (!m_selectedPaletteLabel || !m_paletteComboBox ||
-        !m_paletteNameLineEdit || !m_paletteGrid ||
-        !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox ||
-        !m_paletteGradientShapeComboBox || !m_paletteGradientPatternComboBox ||
-        !m_paletteGradientDirectionComboBox || !m_applyPaletteGradientButton ||
-        !m_fillSelectionGradientButton || !m_setSelectionDirectionButton ||
-        !m_clearCanvasSelectionButton) {
+    if (!m_palettePanel) {
         return;
     }
 
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    QSignalBlocker nameBlocker(m_paletteNameLineEdit);
-    QSignalBlocker startBlocker(m_paletteGradientStartSpinBox);
-    QSignalBlocker endBlocker(m_paletteGradientEndSpinBox);
-    if (!m_document || !paletteIndex) {
-        m_selectedPaletteLabel->setText(QStringLiteral("Selected: None"));
-        m_paletteComboBox->setEnabled(false);
-        m_paletteNameLineEdit->clear();
-        m_paletteNameLineEdit->setEnabled(false);
-        m_paletteGradientStartSpinBox->setEnabled(false);
-        m_paletteGradientEndSpinBox->setEnabled(false);
-        m_paletteGradientShapeComboBox->setEnabled(false);
-        m_paletteGradientPatternComboBox->setEnabled(false);
-        m_paletteGradientDirectionComboBox->setEnabled(false);
-        m_applyPaletteGradientButton->setEnabled(false);
-        m_fillSelectionGradientButton->setEnabled(false);
-        m_setSelectionDirectionButton->setEnabled(false);
+    const bool hasPalette = selectedPaletteIndex().has_value();
+    if (!hasPalette) {
         m_canvasSelectionDirectionMode = false;
-        {
-            QSignalBlocker blocker(m_setSelectionDirectionButton);
-            m_setSelectionDirectionButton->setChecked(false);
-        }
-        m_clearCanvasSelectionButton->setEnabled(false);
-        m_paletteGrid->setColors({}, 0);
-        return;
     }
-
-    const document::PaletteRecord& palette = m_document->palette(*paletteIndex);
-    m_selectedPaletteLabel->setText(
-        palette.name.empty()
-            ? QStringLiteral("Selected: %1").arg(static_cast<int>(*paletteIndex))
-            : QStringLiteral("Selected: %1 - %2")
-                  .arg(static_cast<int>(*paletteIndex))
-                  .arg(QString::fromStdString(palette.name)));
-    m_paletteComboBox->setEnabled(true);
-    m_paletteNameLineEdit->setText(QString::fromStdString(palette.name));
-    m_paletteNameLineEdit->setEnabled(true);
-    m_paletteGradientStartSpinBox->setEnabled(true);
-    m_paletteGradientEndSpinBox->setEnabled(true);
-    m_paletteGradientShapeComboBox->setEnabled(true);
-    m_paletteGradientPatternComboBox->setEnabled(true);
-    m_paletteGradientDirectionComboBox->setEnabled(true);
-    m_applyPaletteGradientButton->setEnabled(palette.colors.size() >= 2);
-    m_fillSelectionGradientButton->setEnabled(m_canvasSelection.has_value());
-    m_setSelectionDirectionButton->setEnabled(m_canvasSelection.has_value());
-    {
-        QSignalBlocker blocker(m_setSelectionDirectionButton);
-        m_setSelectionDirectionButton->setChecked(m_canvasSelectionDirectionMode &&
-                                                  m_canvasSelection.has_value());
+    m_palettePanel->refresh(m_document ? &*m_document : nullptr,
+                            m_canvasSelection.has_value(),
+                            m_canvasSelectionDirectionMode);
+    if (hasPalette) {
+        updateUndoRedoActions();
     }
-    m_clearCanvasSelectionButton->setEnabled(m_canvasSelection.has_value());
-    m_paletteGrid->setColors(palette.colors, palette.colors.size());
-    updateUndoRedoActions();
 }
 
-void MainWindow::setCurrentPaletteName()
+void MainWindow::setCurrentPaletteName(const QString& paletteName)
 {
-    if (!m_document || !m_paletteNameLineEdit) {
+    if (!m_document) {
         return;
     }
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
@@ -4799,7 +4472,7 @@ void MainWindow::setCurrentPaletteName()
         return;
     }
 
-    const std::string name = m_paletteNameLineEdit->text().toStdString();
+    const std::string name = paletteName.toStdString();
     const bool wasDirty = m_document->isDirty();
     try {
         m_document->setPaletteName(*paletteIndex, name);
@@ -4883,7 +4556,7 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
 
 void MainWindow::applyCurrentPaletteGradient()
 {
-    if (!m_document || !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+    if (!m_document || !m_palettePanel) {
         return;
     }
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
@@ -4892,7 +4565,7 @@ void MainWindow::applyCurrentPaletteGradient()
         return;
     }
 
-    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const auto [startIndex, endIndex] = m_palettePanel->gradientEndpoints();
     const int first = std::min(startIndex, endIndex);
     const int last = std::max(startIndex, endIndex);
     if (first == last) {
@@ -5352,7 +5025,7 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
         return;
     }
     if (m_drawingTool == DrawingTool::PaletteGradient) {
-        if (currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+        if (m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
             isFreePaletteGradientPending()) {
             showPendingFreePaletteGradientSelection();
         }
@@ -5766,7 +5439,7 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
             return;
         }
         if (m_drawingTool == DrawingTool::PaletteGradient &&
-            currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+            m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
             isFreePaletteGradientPending()) {
             previewFreePaletteGradientDirection(start, end);
             return;
@@ -5783,7 +5456,7 @@ void MainWindow::previewFrameStroke(const render::CanvasHit& start,
         return;
     }
     if (m_drawingTool == DrawingTool::PaletteGradient &&
-        currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+        m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
         isFreePaletteGradientPending()) {
         previewFreePaletteGradientDirection(start, end);
         return;
@@ -5827,7 +5500,7 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
     }
     const bool isFreePaletteGradient =
         m_drawingTool == DrawingTool::PaletteGradient &&
-        currentPaletteGradientDirection() == PaletteGradientDirection::Free;
+        m_palettePanel->gradientDirection() == PaletteGradientDirection::Free;
     if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
         setCanvasSelectionDirection(start, end);
         return;
@@ -6046,9 +5719,8 @@ void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
                                               const render::CanvasHit& end)
 {
     m_canvasSelectionDirectionMode = false;
-    if (m_setSelectionDirectionButton) {
-        QSignalBlocker blocker(m_setSelectionDirectionButton);
-        m_setSelectionDirectionButton->setChecked(false);
+    if (m_palettePanel) {
+        m_palettePanel->setSelectionDirectionChecked(false);
     }
     if (start.region != render::CanvasRegion::ColorizedFrame || start.resolution != end.resolution) {
         return;
@@ -6081,13 +5753,30 @@ void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
     statusBar()->showMessage(QStringLiteral("Selected canvas area"), 2000);
 }
 
+void MainWindow::toggleCanvasSelectionDirectionMode()
+{
+    if (!m_canvasSelection) {
+        m_canvasSelectionDirectionMode = false;
+        m_palettePanel->setSelectionDirectionChecked(false);
+        updatePaletteControls();
+        return;
+    }
+    m_canvasSelectionDirectionMode = !m_canvasSelectionDirectionMode;
+    m_palettePanel->setSelectionDirectionChecked(m_canvasSelectionDirectionMode);
+    if (m_canvasSelectionDirectionMode) {
+        cancelFreePaletteGradientSelection();
+        statusBar()->showMessage(QStringLiteral("Draw selection gradient direction line"), 2500);
+    } else {
+        updateCanvasSelectionOverlay();
+    }
+}
+
 void MainWindow::clearCanvasSelection()
 {
     m_canvasSelection.reset();
     m_canvasSelectionDirectionMode = false;
-    if (m_setSelectionDirectionButton) {
-        QSignalBlocker blocker(m_setSelectionDirectionButton);
-        m_setSelectionDirectionButton->setChecked(false);
+    if (m_palettePanel) {
+        m_palettePanel->setSelectionDirectionChecked(false);
     }
     if (m_preview && !isSpriteCaptureSelectionModeActive()) {
         m_preview->clearSelectionOverlayPixels();
@@ -6133,9 +5822,8 @@ void MainWindow::setCanvasSelectionDirection(const render::CanvasHit& start,
     m_canvasSelection->gradientStart = start;
     m_canvasSelection->gradientEnd = end;
     m_canvasSelectionDirectionMode = false;
-    if (m_setSelectionDirectionButton) {
-        QSignalBlocker blocker(m_setSelectionDirectionButton);
-        m_setSelectionDirectionButton->setChecked(false);
+    if (m_palettePanel) {
+        m_palettePanel->setSelectionDirectionChecked(false);
     }
     updateCanvasSelectionOverlay();
     statusBar()->showMessage(QStringLiteral("Set selection gradient direction"), 2000);
@@ -6168,7 +5856,7 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
         statusBar()->showMessage(QStringLiteral("No canvas selection"), 2500);
         return;
     }
-    if (currentPaletteGradientDirection() == PaletteGradientDirection::Free &&
+    if (m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
         (!m_canvasSelection->gradientStart || !m_canvasSelection->gradientEnd)) {
         statusBar()->showMessage(QStringLiteral("Set a selection direction line first"), 3000);
         return;
@@ -6266,7 +5954,7 @@ std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& 
         return edit::makeFilledEllipsePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::PaletteGradient || m_drawingTool == DrawingTool::Selection) {
-        switch (currentPaletteGradientShape()) {
+        switch (m_palettePanel->gradientShape()) {
             case PaletteGradientShape::Circle:
                 return edit::makeFilledCirclePixels(startPoint, endPoint);
             case PaletteGradientShape::Ellipse:
@@ -6286,14 +5974,14 @@ edit::PixelColorSource MainWindow::paletteGradientColorSource(
     const render::CanvasHit& gradientStart,
     const render::CanvasHit& gradientEnd) const
 {
-    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const auto [startIndex, endIndex] = m_palettePanel->gradientEndpoints();
     const edit::PaletteGradient gradient{
         render::Point{shapeStart.x, shapeStart.y},
         render::Point{shapeEnd.x, shapeEnd.y},
         render::Point{gradientStart.x, gradientStart.y},
         render::Point{gradientEnd.x, gradientEnd.y},
-        currentPaletteGradientDirection(),
-        currentPaletteGradientPattern(),
+        m_palettePanel->gradientDirection(),
+        m_palettePanel->gradientPattern(),
         startIndex,
         endIndex,
     };
@@ -6351,7 +6039,7 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
     const std::vector<render::Point> pixels = pixelsForStroke(start, end);
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
     if (!m_document || frameIndices.empty() || pixels.empty() || !paletteIndex ||
-        !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+        !m_palettePanel) {
         statusBar()->showMessage(QStringLiteral("No palette gradient source selected"), 2500);
         return;
     }
@@ -6530,7 +6218,7 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
                                                      const render::CanvasHit& gradientEnd,
                                                      const QString& statusText)
 {
-    if (!m_document || !m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
+    if (!m_document || !m_palettePanel) {
         return;
     }
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
@@ -6734,81 +6422,10 @@ bool MainWindow::isBackgroundMaskModeActive() const
 
 std::optional<std::size_t> MainWindow::selectedPaletteIndex() const
 {
-    if (!m_document || !m_paletteComboBox || m_paletteComboBox->currentIndex() < 0) {
+    if (!m_palettePanel) {
         return std::nullopt;
     }
-    const int paletteIndex = m_paletteComboBox->currentData().toInt();
-    if (paletteIndex < 0 ||
-        static_cast<std::size_t>(paletteIndex) >= m_document->paletteCount()) {
-        return std::nullopt;
-    }
-    return static_cast<std::size_t>(paletteIndex);
-}
-
-std::pair<int, int> MainWindow::currentPaletteGradientEndpoints() const
-{
-    if (!m_paletteGradientStartSpinBox || !m_paletteGradientEndSpinBox) {
-        return {0, 0};
-    }
-    m_paletteGradientStartSpinBox->interpretText();
-    m_paletteGradientEndSpinBox->interpretText();
-    return {m_paletteGradientStartSpinBox->value() - 1, m_paletteGradientEndSpinBox->value() - 1};
-}
-
-MainWindow::PaletteGradientShape MainWindow::currentPaletteGradientShape() const
-{
-    if (!m_paletteGradientShapeComboBox || m_paletteGradientShapeComboBox->currentIndex() < 0) {
-        return PaletteGradientShape::Rectangle;
-    }
-    const int shape = m_paletteGradientShapeComboBox->currentData().toInt();
-    if (shape == static_cast<int>(PaletteGradientShape::Circle)) {
-        return PaletteGradientShape::Circle;
-    }
-    if (shape == static_cast<int>(PaletteGradientShape::Ellipse)) {
-        return PaletteGradientShape::Ellipse;
-    }
-    return PaletteGradientShape::Rectangle;
-}
-
-MainWindow::PaletteGradientDirection MainWindow::currentPaletteGradientDirection() const
-{
-    if (!m_paletteGradientDirectionComboBox ||
-        m_paletteGradientDirectionComboBox->currentIndex() < 0) {
-        return PaletteGradientDirection::LeftToRight;
-    }
-    const int direction = m_paletteGradientDirectionComboBox->currentData().toInt();
-    switch (static_cast<PaletteGradientDirection>(direction)) {
-        case PaletteGradientDirection::Free:
-        case PaletteGradientDirection::RightToLeft:
-        case PaletteGradientDirection::TopToBottom:
-        case PaletteGradientDirection::BottomToTop:
-        case PaletteGradientDirection::TopLeftToBottomRight:
-        case PaletteGradientDirection::BottomRightToTopLeft:
-        case PaletteGradientDirection::TopRightToBottomLeft:
-        case PaletteGradientDirection::BottomLeftToTopRight:
-        case PaletteGradientDirection::CenterToEdge:
-        case PaletteGradientDirection::EdgeToCenter:
-            return static_cast<PaletteGradientDirection>(direction);
-        case PaletteGradientDirection::LeftToRight:
-            break;
-    }
-    return PaletteGradientDirection::LeftToRight;
-}
-
-MainWindow::PaletteGradientPattern MainWindow::currentPaletteGradientPattern() const
-{
-    if (!m_paletteGradientPatternComboBox ||
-        m_paletteGradientPatternComboBox->currentIndex() < 0) {
-        return PaletteGradientPattern::Linear;
-    }
-    const int pattern = m_paletteGradientPatternComboBox->currentData().toInt();
-    if (pattern == static_cast<int>(PaletteGradientPattern::Circle)) {
-        return PaletteGradientPattern::Circle;
-    }
-    if (pattern == static_cast<int>(PaletteGradientPattern::Ellipse)) {
-        return PaletteGradientPattern::Ellipse;
-    }
-    return PaletteGradientPattern::Linear;
+    return m_palettePanel->selectedPaletteIndex(m_document ? &*m_document : nullptr);
 }
 
 std::optional<std::size_t> MainWindow::selectedBackgroundIndex() const
