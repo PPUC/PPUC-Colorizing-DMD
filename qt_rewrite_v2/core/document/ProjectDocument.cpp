@@ -335,6 +335,7 @@ ProjectDocument ProjectDocument::createEmpty(const ProjectCreateOptions& options
 {
     ProjectDocument document;
     document.m_romName = options.romName;
+    document.m_colorCount = options.colorCount;
     document.m_frames.reserve(options.frameCount);
     for (uint32_t i = 0; i < options.frameCount; ++i) {
         document.m_frames.push_back(makeEmptyFrame(options.createHdFrames));
@@ -367,13 +368,21 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
             frameSnapshot.durationMs,
             normalizedColorRotations(frameSnapshot.colorRotationsSd),
             normalizedColorRotations(frameSnapshot.colorRotationsHd),
+            frameSnapshot.inactiveHd,
         });
     }
     document.m_comparisonMasks = snapshot.comparisonMasks;
     document.m_backgrounds = snapshot.backgrounds;
     document.m_sprites = snapshot.sprites;
+    for (SpriteRecord& sprite : document.m_sprites) {
+        normalizeSpriteRecord(sprite, snapshot.colorCount);
+    }
     document.m_palettes = snapshot.palettes;
     document.m_unsupportedPayloads = snapshot.unsupportedPayloads;
+    document.m_editorMetadata = snapshot.editorMetadata;
+    document.m_colorCount = snapshot.colorCount;
+    document.m_cromRevision = snapshot.cromRevision;
+    document.m_originalIs256x64 = snapshot.originalIs256x64;
     document.m_dirty = false;
     return document;
 }
@@ -395,6 +404,21 @@ void ProjectDocument::setRomName(std::string name)
 std::size_t ProjectDocument::frameCount() const
 {
     return m_frames.size();
+}
+
+uint32_t ProjectDocument::colorCount() const
+{
+    return m_colorCount;
+}
+
+Size ProjectDocument::originalFrameSize() const
+{
+    return m_originalIs256x64 ? render::kHdFrameSize : render::kSdFrameSize;
+}
+
+const EditorMetadata& ProjectDocument::editorMetadata() const
+{
+    return m_editorMetadata;
 }
 
 bool ProjectDocument::isDirty() const
@@ -419,6 +443,7 @@ void ProjectDocument::createHdFrame(std::size_t frameIndex)
         return;
     }
     frame.colorizedHd = upscaleRgb565Frame2x(frame.colorizedSd);
+    frame.inactiveHd.reset();
     m_dirty = true;
 }
 
@@ -466,6 +491,7 @@ void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
     }
     BackgroundRecord& background = m_backgrounds[frame.backgroundData->backgroundId];
     background.colorizedHd = upscaleRgb565Frame2x(background.colorizedSd);
+    background.inactiveHd.reset();
     m_dirty = true;
 }
 
@@ -1017,6 +1043,7 @@ void ProjectDocument::setBackgroundFrame(std::size_t backgroundIndex,
             return;
         }
         background.colorizedHd = std::move(frame);
+        background.inactiveHd.reset();
     }
     m_dirty = true;
 }
@@ -1594,6 +1621,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
             frame.durationMs,
             frame.colorRotationsSd,
             frame.colorRotationsHd,
+            frame.inactiveHd,
         });
     }
     snapshot.comparisonMasks = m_comparisonMasks;
@@ -1601,6 +1629,10 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.sprites = m_sprites;
     snapshot.palettes = m_palettes;
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
+    snapshot.colorCount = m_colorCount;
+    snapshot.cromRevision = m_cromRevision;
+    snapshot.originalIs256x64 = m_originalIs256x64;
+    snapshot.editorMetadata = m_editorMetadata;
     return snapshot;
 }
 

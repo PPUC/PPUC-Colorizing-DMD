@@ -4,7 +4,7 @@
 
 #include "render/CanvasTypes.h"
 
-namespace colorizing::app {
+namespace colorizing::edit {
 
 [[nodiscard]] std::vector<render::Point> makeLinePixels(render::Point start,
                                                         render::Point end);
@@ -23,4 +23,4 @@ namespace colorizing::app {
 [[nodiscard]] std::vector<render::Point> makeFilledCirclePixels(render::Point start,
                                                                render::Point end);
 
-}  // namespace colorizing::app
+}  // namespace colorizing::edit

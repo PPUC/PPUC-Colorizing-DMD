@@ -124,11 +124,14 @@ void testMissingHdReferenceDoesNotCreateRegion()
 }  // namespace
 
 void runProjectDocumentTests();
+void runDrawingToolsTests();
+void runEditCommandTests();
 void runLegacyCromFramesTests();
 void runLegacyCromMetadataTests();
 void runLegacyCrpOriginalsTests();
 void runLegacyProjectFileReaderTests();
 void runLegacyProjectIoTests();
+void runLegacyProjectSerializerTests();
 
 int main()
 {
@@ -137,11 +140,14 @@ int main()
     testOptionalHdReferenceRegion();
     testMissingHdReferenceDoesNotCreateRegion();
     runProjectDocumentTests();
+    runDrawingToolsTests();
+    runEditCommandTests();
     runLegacyCromFramesTests();
     runLegacyCromMetadataTests();
     runLegacyCrpOriginalsTests();
     runLegacyProjectFileReaderTests();
     runLegacyProjectIoTests();
+    runLegacyProjectSerializerTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

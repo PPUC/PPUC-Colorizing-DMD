@@ -163,7 +163,7 @@ std::vector<uint8_t> makeCrpWithSpriteNames(const std::string& romName)
 {
     std::vector<uint8_t> bytes = makeCrpOriginals(romName);
     appendRepeatedU32(bytes, 0, 64);
-    appendRepeatedU8(bytes, 0, 64 * 16);
+    appendRepeatedU16(bytes, 0, 64 * 16);
     bytes.push_back(0);
     bytes.push_back(0);
     appendRepeatedU8(bytes, 0, 64 * 64);

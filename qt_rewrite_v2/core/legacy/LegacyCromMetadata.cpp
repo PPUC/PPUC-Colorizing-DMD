@@ -10,6 +10,7 @@ namespace {
 constexpr std::size_t kRomNameBytes = 64;
 constexpr uint32_t kModernHeaderThreshold = 14 * sizeof(uint32_t);
 constexpr uint32_t kBackgroundHeaderThreshold = 13 * sizeof(uint32_t);
+constexpr uint32_t kOriginal256x64HeaderThreshold = 20 * sizeof(uint32_t);
 
 class Cursor {
 public:
@@ -169,6 +170,14 @@ LegacyCromParseResult parseLegacyCromMetadata(const uint8_t* bytes, std::size_t 
         if (!cursor.readU16(metadata.backgroundCount)) {
             return fail("unexpected end of cROM while reading background count");
         }
+    }
+
+    if (metadata.headerLengthBytes >= kOriginal256x64HeaderThreshold) {
+        uint32_t originalIs256x64 = 0;
+        if (!readRequiredU32(cursor, originalIs256x64, "256x64 original flag", error)) {
+            return fail(error);
+        }
+        metadata.originalIs256x64 = originalIs256x64 != 0;
     }
 
     if (metadata.frameWidth == 0 || metadata.frameHeight == 0 ||

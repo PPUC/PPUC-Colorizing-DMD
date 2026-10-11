@@ -16,6 +16,7 @@ struct LegacyCrpOriginalData {
     std::vector<std::string> spriteNames;
     std::vector<uint32_t> frameDurationsMs;
     std::vector<document::PaletteRecord> palettes;
+    document::EditorMetadata editorMetadata = document::makeDefaultEditorMetadata();
 };
 
 struct LegacyCrpOriginalParseResult {

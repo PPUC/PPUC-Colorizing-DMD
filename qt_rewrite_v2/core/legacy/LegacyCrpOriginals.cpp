@@ -10,24 +10,11 @@ namespace colorizing::legacy {
 namespace {
 
 constexpr std::size_t kRomNameBytes = 64;
-constexpr std::size_t kBoolBytes = 4;
 constexpr std::size_t kU32Bytes = 4;
-constexpr std::size_t kIntBytes = 4;
-constexpr std::size_t kMaxColorSets = 64;
-constexpr std::size_t kColorSetColorCount = 16;
-constexpr std::size_t kMaskCount = 64;
-constexpr std::size_t kMaskNameBytes = 32;
-constexpr std::size_t kMaxSections = 512;
-constexpr std::size_t kSectionNameBytes = 32;
 constexpr std::size_t kMaxSpriteNames = 255;
 constexpr std::size_t kSpriteNameBytes = 32;
-constexpr std::size_t kSpriteRectBytes = 255 * 4 * sizeof(uint16_t);
-constexpr std::size_t kSpriteRectMirrorBytes = 255 * 2 * kBoolBytes;
 constexpr std::size_t kPaletteCount = 256;
 constexpr std::size_t kPaletteColorCount = 64;
-constexpr std::size_t kImagePositionSaveCount = 256;
-constexpr std::size_t kImagePositionNameBytes = 64;
-constexpr std::size_t kImagePositionValueCount = 16;
 constexpr std::size_t kPaletteNameBytes = 64;
 
 class Cursor {
@@ -77,12 +64,23 @@ public:
         return true;
     }
 
-    bool skip(std::size_t count)
+    bool readU32Values(std::vector<uint32_t>& values)
     {
-        if (m_offset > m_size || count > m_size - m_offset) {
-            return false;
+        for (uint32_t& value : values) {
+            if (!readU32(value)) {
+                return false;
+            }
         }
-        m_offset += count;
+        return true;
+    }
+
+    bool readU16Values(std::vector<uint16_t>& values)
+    {
+        for (uint16_t& value : values) {
+            if (!readU16(value)) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -97,13 +95,6 @@ std::string fixedNameToString(const uint8_t (&nameBytes)[kRomNameBytes])
     const auto end = std::find(nameBytes, nameBytes + kRomNameBytes, uint8_t{0});
     return std::string(reinterpret_cast<const char*>(nameBytes),
                        reinterpret_cast<const char*>(end));
-}
-
-std::string fixedNameToString(const std::vector<uint8_t>& nameBytes)
-{
-    const auto end = std::find(nameBytes.begin(), nameBytes.end(), uint8_t{0});
-    return std::string(reinterpret_cast<const char*>(nameBytes.data()),
-                       static_cast<std::size_t>(std::distance(nameBytes.begin(), end)));
 }
 
 LegacyCrpOriginalParseResult fail(std::string message)
@@ -151,11 +142,13 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
     }
 
     originalData.originalSdFrames.reserve(cromMetadata.frameCount);
-    const render::Size frameSize{static_cast<int>(cromMetadata.frameWidth),
-                                 static_cast<int>(cromMetadata.frameHeight)};
+    const render::Size frameSize =
+        cromMetadata.originalIs256x64
+            ? render::Size{256, 64}
+            : render::Size{static_cast<int>(cromMetadata.frameWidth),
+                           static_cast<int>(cromMetadata.frameHeight)};
     const std::size_t frameBytes =
-        static_cast<std::size_t>(cromMetadata.frameWidth) *
-        static_cast<std::size_t>(cromMetadata.frameHeight);
+        static_cast<std::size_t>(frameSize.width) * static_cast<std::size_t>(frameSize.height);
 
     for (std::size_t frameIndex = 0; frameIndex < cromMetadata.frameCount; ++frameIndex) {
         document::IndexedFrame frame = document::makeIndexedFrame(frameSize);
@@ -166,86 +159,121 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
         originalData.originalSdFrames.push_back(std::move(frame));
     }
 
+    document::EditorMetadata& metadata = originalData.editorMetadata;
+    const auto remaining = [&cursor, size]() { return size - cursor.offset(); };
+
+    // Older editor versions wrote shorter files, so the file may legitimately end at the
+    // boundaries checked below. Everything missing keeps its default.
     if (cursor.offset() < size) {
-        const std::size_t beforeSpriteNamesBytes =
-            kMaxColorSets * kBoolBytes +
-            kMaxColorSets * kColorSetColorCount +
-            1 +
-            1 +
-            kMaxColorSets * kRomNameBytes +
-            kU32Bytes +
-            1 +
-            kIntBytes +
-            kBoolBytes +
-            kMaskCount * kMaskNameBytes +
-            kU32Bytes +
-            kMaxSections * kU32Bytes +
-            kMaxSections * kSectionNameBytes;
-        if (!cursor.skip(beforeSpriteNamesBytes)) {
+        uint32_t maskSelectionMode = 0;
+        if (!cursor.readU32Values(metadata.activeColorSets) ||
+            !cursor.readU16Values(metadata.colorSets) ||
+            !cursor.readBytes(&metadata.currentColorSet, 1) ||
+            !cursor.readBytes(&metadata.firstDisplayedColorSet, 1) ||
+            !cursor.readBytes(metadata.colorSetNames.data(), metadata.colorSetNames.size()) ||
+            !cursor.readU32(metadata.drawColorMode) ||
+            !cursor.readBytes(&metadata.drawMode, 1) ||
+            !cursor.readU32(maskSelectionMode) ||
+            !cursor.readU32(metadata.fillMode) ||
+            !cursor.readBytes(metadata.maskNames.data(), metadata.maskNames.size()) ||
+            !cursor.readU32(metadata.sectionCount) ||
+            !cursor.readU32Values(metadata.sectionFirstFrames) ||
+            !cursor.readBytes(metadata.sectionNames.data(), metadata.sectionNames.size())) {
             return fail("unexpected end of cRP before sprite names");
         }
+        metadata.maskSelectionMode = static_cast<int32_t>(maskSelectionMode);
+        metadata.sectionCount =
+            std::min<uint32_t>(metadata.sectionCount, static_cast<uint32_t>(document::kMaxSections));
 
-        originalData.spriteNames.clear();
+        if (!cursor.readBytes(metadata.spriteNames.data(), metadata.spriteNames.size())) {
+            return fail("unexpected end of cRP while reading sprite names");
+        }
         originalData.spriteNames.reserve(cromMetadata.spriteCount);
-        for (std::size_t spriteIndex = 0; spriteIndex < kMaxSpriteNames; ++spriteIndex) {
-            std::vector<uint8_t> nameBytes(kSpriteNameBytes);
-            if (!cursor.readBytes(nameBytes.data(), nameBytes.size())) {
-                return fail("unexpected end of cRP while reading sprite names");
-            }
-            if (spriteIndex < cromMetadata.spriteCount) {
-                originalData.spriteNames.push_back(fixedNameToString(nameBytes));
+        for (std::size_t spriteIndex = 0;
+             spriteIndex < cromMetadata.spriteCount && spriteIndex < kMaxSpriteNames;
+             ++spriteIndex) {
+            originalData.spriteNames.push_back(
+                document::fixedName(metadata.spriteNames, spriteIndex, kSpriteNameBytes));
+        }
+    }
+
+    if (cursor.offset() < size) {
+        if (!cursor.readU32Values(metadata.spriteSourceFrames)) {
+            return fail("unexpected end of cRP before frame durations");
+        }
+        originalData.frameDurationsMs.resize(cromMetadata.frameCount);
+        if (!cursor.readU32Values(originalData.frameDurationsMs)) {
+            return fail("unexpected end of cRP while reading frame durations");
+        }
+    }
+
+    bool hasPalettes = false;
+    if (cursor.offset() < size) {
+        if (!cursor.readU16Values(metadata.spriteSourceRects) ||
+            !cursor.readU32Values(metadata.spriteSourceMirrors)) {
+            return fail("unexpected end of cRP before palettes");
+        }
+        const std::size_t paletteBlockBytes =
+            kPaletteCount * kPaletteColorCount * sizeof(uint16_t) +
+            metadata.editColors.size() * sizeof(uint16_t) +
+            sizeof(uint32_t) +
+            metadata.imagePositionNames.size() +
+            metadata.imagePositions.size() * sizeof(int32_t) +
+            metadata.paletteNames.size();
+        hasPalettes = remaining() >= paletteBlockBytes;
+    }
+
+    if (hasPalettes) {
+        originalData.palettes.assign(kPaletteCount, document::PaletteRecord{});
+        for (document::PaletteRecord& palette : originalData.palettes) {
+            palette.colors.resize(kPaletteColorCount);
+            if (!cursor.readU16Values(palette.colors)) {
+                return fail("unexpected end of cRP while reading palettes");
             }
         }
+        std::vector<uint32_t> imagePositions(metadata.imagePositions.size());
+        if (!cursor.readU16Values(metadata.editColors) ||
+            !cursor.readU32(metadata.imagePositionCount) ||
+            !cursor.readBytes(metadata.imagePositionNames.data(),
+                              metadata.imagePositionNames.size()) ||
+            !cursor.readU32Values(imagePositions)) {
+            return fail("unexpected end of cRP before palette names");
+        }
+        std::transform(imagePositions.begin(),
+                       imagePositions.end(),
+                       metadata.imagePositions.begin(),
+                       [](uint32_t value) { return static_cast<int32_t>(value); });
+        metadata.imagePositionCount =
+            std::min<uint32_t>(metadata.imagePositionCount,
+                               static_cast<uint32_t>(document::kMaxImagePositions));
+        if (!cursor.readBytes(metadata.paletteNames.data(), metadata.paletteNames.size())) {
+            return fail("unexpected end of cRP while reading palette names");
+        }
+        for (std::size_t paletteIndex = 0; paletteIndex < kPaletteCount; ++paletteIndex) {
+            originalData.palettes[paletteIndex].name =
+                document::fixedName(metadata.paletteNames, paletteIndex, kPaletteNameBytes);
+        }
 
-        const std::size_t spriteColorSourceBytes = kMaxSpriteNames * kU32Bytes;
-        if (cursor.offset() < size) {
-            if (!cursor.skip(spriteColorSourceBytes)) {
-                return fail("unexpected end of cRP before frame durations");
+        uint32_t importedPaletteCount = 0;
+        if (remaining() >= sizeof(uint32_t)) {
+            if (!cursor.readU32(importedPaletteCount) ||
+                importedPaletteCount > remaining() / document::kImportedPaletteBytes) {
+                return fail("unexpected end of cRP while reading imported palettes");
             }
-
-            originalData.frameDurationsMs.resize(cromMetadata.frameCount);
-            for (uint32_t& durationMs : originalData.frameDurationsMs) {
-                if (!cursor.readU32(durationMs)) {
-                    return fail("unexpected end of cRP while reading frame durations");
-                }
+            metadata.importedPalettes.resize(importedPaletteCount *
+                                             document::kImportedPaletteBytes);
+            if (!cursor.readBytes(metadata.importedPalettes.data(),
+                                  metadata.importedPalettes.size())) {
+                return fail("unexpected end of cRP while reading imported palettes");
             }
-
-            if (cursor.offset() < size) {
-                if (!cursor.skip(kSpriteRectBytes + kSpriteRectMirrorBytes)) {
-                    return fail("unexpected end of cRP before palettes");
-                }
-                const std::size_t paletteBytes =
-                    kPaletteCount * kPaletteColorCount * sizeof(uint16_t);
-                const std::size_t editColorsBytes = 16 * sizeof(uint16_t);
-                const std::size_t imagePositionBytes =
-                    sizeof(uint32_t) +
-                    kImagePositionSaveCount * kImagePositionNameBytes +
-                    kImagePositionSaveCount * kImagePositionValueCount * sizeof(int32_t);
-                const std::size_t paletteNameBytes = kPaletteCount * kPaletteNameBytes;
-                if (cursor.offset() + paletteBytes + editColorsBytes +
-                        imagePositionBytes + paletteNameBytes <=
-                    size) {
-                    originalData.palettes.assign(kPaletteCount, document::PaletteRecord{});
-                    for (document::PaletteRecord& palette : originalData.palettes) {
-                        palette.colors.resize(kPaletteColorCount);
-                        for (uint16_t& color : palette.colors) {
-                            if (!cursor.readU16(color)) {
-                                return fail("unexpected end of cRP while reading palettes");
-                            }
-                        }
-                    }
-                    if (!cursor.skip(editColorsBytes + imagePositionBytes)) {
-                        return fail("unexpected end of cRP before palette names");
-                    }
-                    for (document::PaletteRecord& palette : originalData.palettes) {
-                        std::vector<uint8_t> nameBytes(kPaletteNameBytes);
-                        if (!cursor.readBytes(nameBytes.data(), nameBytes.size())) {
-                            return fail("unexpected end of cRP while reading palette names");
-                        }
-                        palette.name = fixedNameToString(nameBytes);
-                    }
-                }
-            }
+        }
+        if (remaining() >= sizeof(uint32_t) && !cursor.readU32(metadata.timeElapsedMs)) {
+            return fail("unexpected end of cRP while reading elapsed time");
+        }
+        if (remaining() >= sizeof(uint32_t) + metadata.pupPackName.size() &&
+            (!cursor.readU32(metadata.hasPupPack) ||
+             !cursor.readBytes(metadata.pupPackName.data(), metadata.pupPackName.size()))) {
+            return fail("unexpected end of cRP while reading PuP pack name");
         }
     }
 

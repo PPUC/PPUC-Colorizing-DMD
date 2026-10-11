@@ -1,11 +1,11 @@
-#include "DrawingGeometry.h"
+#include "edit/DrawingGeometry.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <set>
 
-namespace colorizing::app {
+namespace colorizing::edit {
 
 std::vector<render::Point> makeLinePixels(render::Point start, render::Point end)
 {
@@ -160,4 +160,4 @@ std::vector<render::Point> makeFilledCirclePixels(render::Point start, render::P
     return makeFilledEllipsePixels(start, squareConstrainedEnd(start, end));
 }
 
-}  // namespace colorizing::app
+}  // namespace colorizing::edit

@@ -78,5 +78,9 @@ struct LegacyCromFrameParseResult {
 [[nodiscard]] std::optional<document::Rgb565Frame> hdFrameIfPresent(
     const LegacyCromFrameData& frameData,
     std::size_t frameIndex);
+// HD pixels stored for a frame whose HD flag is off; nullopt when they are all zero.
+[[nodiscard]] std::optional<document::Rgb565Frame> inactiveHdFrameIfPresent(
+    const LegacyCromFrameData& frameData,
+    std::size_t frameIndex);
 
 }  // namespace colorizing::legacy

@@ -8,7 +8,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 
-#include "DrawingGeometry.h"
+#include "edit/DrawingGeometry.h"
 
 namespace colorizing::app {
 
@@ -583,25 +583,25 @@ std::vector<render::Point> SpriteEditorWidget::pixelsForColorizedStroke(render::
                                                                         render::Point end) const
 {
     if (m_drawingTool == SpriteDrawingTool::Line) {
-        return makeLinePixels(start, end);
+        return edit::makeLinePixels(start, end);
     }
     if (m_drawingTool == SpriteDrawingTool::Rectangle) {
-        return makeRectanglePixels(start, end);
+        return edit::makeRectanglePixels(start, end);
     }
     if (m_drawingTool == SpriteDrawingTool::FilledRectangle) {
-        return makeFilledRectanglePixels(start, end);
+        return edit::makeFilledRectanglePixels(start, end);
     }
     if (m_drawingTool == SpriteDrawingTool::Circle) {
-        return makeEllipsePixels(start, squareConstrainedEnd(start, end));
+        return edit::makeEllipsePixels(start, edit::squareConstrainedEnd(start, end));
     }
     if (m_drawingTool == SpriteDrawingTool::FilledCircle) {
-        return makeFilledEllipsePixels(start, squareConstrainedEnd(start, end));
+        return edit::makeFilledEllipsePixels(start, edit::squareConstrainedEnd(start, end));
     }
     if (m_drawingTool == SpriteDrawingTool::Ellipse) {
-        return makeEllipsePixels(start, end);
+        return edit::makeEllipsePixels(start, end);
     }
     if (m_drawingTool == SpriteDrawingTool::FilledEllipse) {
-        return makeFilledEllipsePixels(start, end);
+        return edit::makeFilledEllipsePixels(start, end);
     }
     return {};
 }

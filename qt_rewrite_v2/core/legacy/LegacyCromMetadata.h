@@ -20,6 +20,8 @@ struct LegacyCromMetadata {
     uint32_t spriteCount = 0;
     uint16_t backgroundCount = 0;
     bool modernRgb565Format = false;
+    // Revision 20 projects can keep 256x64 original frames next to 128x32 colorized ones.
+    bool originalIs256x64 = false;
 };
 
 struct LegacyCromParseResult {

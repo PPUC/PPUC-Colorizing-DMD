@@ -2,9 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstdlib>
-#include <deque>
 #include <functional>
 #include <set>
 #include <tuple>
@@ -53,7 +50,7 @@
 #include <QWidget>
 
 #include "ColorGridWidget.h"
-#include "DrawingGeometry.h"
+#include "edit/DrawingGeometry.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
@@ -165,169 +162,6 @@ uint16_t colorToRgb565(const QColor& color)
     const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
     const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
     return static_cast<uint16_t>((r << 11) | (g << 5) | b);
-}
-
-uint16_t interpolateRgb565(uint16_t startColor,
-                           uint16_t endColor,
-                           std::size_t step,
-                           std::size_t maxStep)
-{
-    if (maxStep == 0) {
-        return startColor;
-    }
-    const QColor start = rgb565ToColor(startColor);
-    const QColor end = rgb565ToColor(endColor);
-    const int denominator = static_cast<int>(maxStep);
-    const int numerator = static_cast<int>(step);
-    const int red =
-        (start.red() * (denominator - numerator) + end.red() * numerator) / denominator;
-    const int green =
-        (start.green() * (denominator - numerator) + end.green() * numerator) / denominator;
-    const int blue =
-        (start.blue() * (denominator - numerator) + end.blue() * numerator) / denominator;
-    return colorToRgb565(QColor(red, green, blue));
-}
-
-double linearGradientRatioForPoint(const render::CanvasHit& start,
-                                   const render::CanvasHit& end,
-                                   const render::Point& point,
-                                   MainWindow::PaletteGradientDirection direction)
-{
-    if (direction == MainWindow::PaletteGradientDirection::Free) {
-        const double dx = static_cast<double>(end.x - start.x);
-        const double dy = static_cast<double>(end.y - start.y);
-        const double lengthSquared = dx * dx + dy * dy;
-        if (lengthSquared <= 0.0) {
-            return 0.0;
-        }
-        const double px = static_cast<double>(point.x - start.x);
-        const double py = static_cast<double>(point.y - start.y);
-        return std::clamp((px * dx + py * dy) / lengthSquared, 0.0, 1.0);
-    }
-
-    const double minX = static_cast<double>(std::min(start.x, end.x));
-    const double maxX = static_cast<double>(std::max(start.x, end.x));
-    const double minY = static_cast<double>(std::min(start.y, end.y));
-    const double maxY = static_cast<double>(std::max(start.y, end.y));
-    double fromX = minX;
-    double fromY = minY;
-    double toX = maxX;
-    double toY = minY;
-    switch (direction) {
-        case MainWindow::PaletteGradientDirection::RightToLeft:
-            fromX = maxX;
-            fromY = minY;
-            toX = minX;
-            toY = minY;
-            break;
-        case MainWindow::PaletteGradientDirection::TopToBottom:
-            fromX = minX;
-            fromY = minY;
-            toX = minX;
-            toY = maxY;
-            break;
-        case MainWindow::PaletteGradientDirection::BottomToTop:
-            fromX = minX;
-            fromY = maxY;
-            toX = minX;
-            toY = minY;
-            break;
-        case MainWindow::PaletteGradientDirection::TopLeftToBottomRight:
-            fromX = minX;
-            fromY = minY;
-            toX = maxX;
-            toY = maxY;
-            break;
-        case MainWindow::PaletteGradientDirection::BottomRightToTopLeft:
-            fromX = maxX;
-            fromY = maxY;
-            toX = minX;
-            toY = minY;
-            break;
-        case MainWindow::PaletteGradientDirection::TopRightToBottomLeft:
-            fromX = maxX;
-            fromY = minY;
-            toX = minX;
-            toY = maxY;
-            break;
-        case MainWindow::PaletteGradientDirection::BottomLeftToTopRight:
-            fromX = minX;
-            fromY = maxY;
-            toX = maxX;
-            toY = minY;
-            break;
-        case MainWindow::PaletteGradientDirection::LeftToRight:
-        case MainWindow::PaletteGradientDirection::Free:
-        case MainWindow::PaletteGradientDirection::CenterToEdge:
-        case MainWindow::PaletteGradientDirection::EdgeToCenter:
-            break;
-    }
-
-    const double dx = toX - fromX;
-    const double dy = toY - fromY;
-    const double lengthSquared = dx * dx + dy * dy;
-    if (lengthSquared <= 0.0) {
-        return 0.0;
-    }
-    const double px = static_cast<double>(point.x) - fromX;
-    const double py = static_cast<double>(point.y) - fromY;
-    return std::clamp((px * dx + py * dy) / lengthSquared, 0.0, 1.0);
-}
-
-double radialGradientRatioForPoint(const render::CanvasHit& start,
-                                   const render::CanvasHit& end,
-                                   const render::Point& point,
-                                   MainWindow::PaletteGradientPattern pattern,
-                                   MainWindow::PaletteGradientDirection direction)
-{
-    const double minX = static_cast<double>(std::min(start.x, end.x));
-    const double maxX = static_cast<double>(std::max(start.x, end.x));
-    const double minY = static_cast<double>(std::min(start.y, end.y));
-    const double maxY = static_cast<double>(std::max(start.y, end.y));
-    const double centerX = (minX + maxX) / 2.0;
-    const double centerY = (minY + maxY) / 2.0;
-    const double radiusX = std::max(0.5, (maxX - minX) / 2.0);
-    const double radiusY = std::max(0.5, (maxY - minY) / 2.0);
-    const double dx = static_cast<double>(point.x) - centerX;
-    const double dy = static_cast<double>(point.y) - centerY;
-    const double ratio =
-        pattern == MainWindow::PaletteGradientPattern::Circle
-            ? std::hypot(dx, dy) / std::max(radiusX, radiusY)
-            : std::hypot(dx / radiusX, dy / radiusY);
-    const double clamped = std::clamp(ratio, 0.0, 1.0);
-    return direction == MainWindow::PaletteGradientDirection::EdgeToCenter
-               ? 1.0 - clamped
-               : clamped;
-}
-
-double gradientRatioForPoint(const render::CanvasHit& start,
-                             const render::CanvasHit& end,
-                             const render::CanvasHit& gradientStart,
-                             const render::CanvasHit& gradientEnd,
-                             const render::Point& point,
-                             MainWindow::PaletteGradientDirection direction,
-                             MainWindow::PaletteGradientPattern pattern)
-{
-    if (pattern != MainWindow::PaletteGradientPattern::Linear) {
-        return radialGradientRatioForPoint(start, end, point, pattern, direction);
-    }
-    if (direction == MainWindow::PaletteGradientDirection::Free) {
-        return linearGradientRatioForPoint(gradientStart, gradientEnd, point, direction);
-    }
-    return linearGradientRatioForPoint(start, end, point, direction);
-}
-
-std::size_t paletteGradientColorIndex(int startIndex, int endIndex, double ratio)
-{
-    const int distance = std::abs(endIndex - startIndex);
-    if (distance == 0) {
-        return static_cast<std::size_t>(startIndex);
-    }
-    const double clamped = std::clamp(ratio, 0.0, 1.0);
-    const int step = std::min(distance,
-                              static_cast<int>(std::floor(clamped * (distance + 1))));
-    const int direction = startIndex <= endIndex ? 1 : -1;
-    return static_cast<std::size_t>(startIndex + direction * step);
 }
 
 std::size_t spritePixelIndex(int x, int y)
@@ -528,32 +362,32 @@ QString recentProjectCrpPath(const QString& entry)
     return entry.section(QChar('\t'), 1);
 }
 
+QString editKindStatusSuffix(edit::EditKind kind)
+{
+    switch (kind) {
+        case edit::EditKind::FramePixels:
+            break;
+        case edit::EditKind::ComparisonMask:
+            return QStringLiteral(" mask edit");
+        case edit::EditKind::DynamicMask:
+            return QStringLiteral(" dynamic mask edit");
+        case edit::EditKind::DynamicColor:
+            return QStringLiteral(" dynamic color edit");
+        case edit::EditKind::DynamicShadow:
+            return QStringLiteral(" dynamic shadow edit");
+        case edit::EditKind::BackgroundMask:
+            return QStringLiteral(" background mask edit");
+        case edit::EditKind::BackgroundImage:
+            return QStringLiteral(" background edit");
+        case edit::EditKind::SpriteImage:
+            return QStringLiteral(" sprite edit");
+        case edit::EditKind::Palette:
+            return QStringLiteral(" palette edit");
+    }
+    return QString();
+}
+
 }  // namespace
-
-bool MainWindow::EditHistoryKey::operator<(const EditHistoryKey& other) const
-{
-    if (frameIndex != other.frameIndex) {
-        return frameIndex < other.frameIndex;
-    }
-    return static_cast<int>(resolution) < static_cast<int>(other.resolution);
-}
-
-bool MainWindow::BackgroundEditHistoryKey::operator<(
-    const BackgroundEditHistoryKey& other) const
-{
-    if (backgroundIndex != other.backgroundIndex) {
-        return backgroundIndex < other.backgroundIndex;
-    }
-    return static_cast<int>(resolution) < static_cast<int>(other.resolution);
-}
-
-bool MainWindow::SpriteEditHistoryKey::operator<(const SpriteEditHistoryKey& other) const
-{
-    if (spriteIndex != other.spriteIndex) {
-        return spriteIndex < other.spriteIndex;
-    }
-    return static_cast<int>(resolution) < static_cast<int>(other.resolution);
-}
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -1380,7 +1214,7 @@ void MainWindow::createCentralView()
     spriteScrollArea->setWidgetResizable(true);
     spriteScrollArea->setFrameShape(QFrame::NoFrame);
     spriteScrollArea->setWidget(spritePage);
-    inspectorTabs->addTab(spriteScrollArea, QStringLiteral("Sprite"));
+    inspectorTabs->insertTab(3, spriteScrollArea, QStringLiteral("Sprite"));
     inspector->setMinimumWidth(210);
     inspector->setMaximumWidth(280);
     contentLayout->addWidget(m_leftBrowserTabs, 0);
@@ -1998,32 +1832,6 @@ void MainWindow::saveProjectAs()
         return;
     }
 
-    if (QFileInfo::exists(targetCromPath) && !QFile::remove(targetCromPath)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Save Project As Failed"),
-                              QStringLiteral("Could not replace target cROM."));
-        return;
-    }
-    if (QFileInfo::exists(targetCrpPath) && !QFile::remove(targetCrpPath)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Save Project As Failed"),
-                              QStringLiteral("Could not replace target cRP."));
-        return;
-    }
-    if (!QFile::copy(m_currentCromPath, targetCromPath)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Save Project As Failed"),
-                              QStringLiteral("Could not copy cROM template."));
-        return;
-    }
-    if (!QFile::copy(m_currentCrpPath, targetCrpPath)) {
-        QFile::remove(targetCromPath);
-        QMessageBox::critical(this,
-                              QStringLiteral("Save Project As Failed"),
-                              QStringLiteral("Could not copy cRP file."));
-        return;
-    }
-
     const QString oldCromPath = m_currentCromPath;
     const QString oldCrpPath = m_currentCrpPath;
     m_currentCromPath = targetCromPath;
@@ -2133,9 +1941,7 @@ void MainWindow::importImageIntoSelectedFrames()
                 continue;
             }
 
-            PixelEditCommand command;
-            command.frameIndex = frameIndex;
-            command.resolution = targetResolution;
+            std::vector<edit::PixelChange> changes;
             const document::Rgb565Frame& target =
                 m_document->colorizedFrame(frameIndex, targetResolution);
             for (int y = 0; y < imported.size.height; ++y) {
@@ -2149,17 +1955,17 @@ void MainWindow::importImageIntoSelectedFrames()
                     if (oldColor == newColor) {
                         continue;
                     }
-                    command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                    changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
                 }
             }
 
-            if (command.changes.empty()) {
+            if (changes.empty()) {
                 continue;
             }
-            applyPixelEdit(command, true);
-            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, targetResolution}];
-            history.undoStack.push_back(std::move(command));
-            history.redoStack.clear();
+            commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::FramePixels,
+                                                                frameIndex,
+                                                                targetResolution,
+                                                                std::move(changes)));
             ++updatedFrames;
         }
     } catch (const std::exception& ex) {
@@ -2204,20 +2010,23 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         return;
     }
 
+    // The canvas, mask tools and sprite capture still assume 128x32 original frames. The core
+    // loads and saves 256x64 originals already; opening is held back until the editor follows.
+    if (result.snapshot.originalIs256x64) {
+        QMessageBox::warning(this,
+                             QStringLiteral("Open Project"),
+                             QStringLiteral("This project has 256x64 original frames, which the "
+                                            "editor cannot display yet."));
+        setStatusText(QStringLiteral("Open failed"));
+        return;
+    }
+
     try {
         m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
         m_currentCromPath = cromPath;
         m_currentCrpPath = crpPath;
         rememberRecentProject(cromPath, crpPath);
-        m_editHistories.clear();
-        m_maskEditHistories.clear();
-        m_dynamicMaskEditHistories.clear();
-        m_dynamicColorEditHistories.clear();
-        m_dynamicShadowEditHistories.clear();
-        m_backgroundMaskEditHistories.clear();
-        m_backgroundImageEditHistories.clear();
-        m_spriteImageEditHistories.clear();
-        m_paletteEditHistories.clear();
+        m_undoHistories.clear();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -3417,9 +3226,7 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
             composeResolvedFrame(*m_document, *frameIndex, targetResolution, true);
         const document::Rgb565Frame& oldBackground =
             m_document->backgroundFrame(*backgroundIndex, targetResolution);
-        BackgroundImageEditCommand command;
-        command.backgroundIndex = *backgroundIndex;
-        command.resolution = targetResolution;
+        std::vector<edit::PixelChange> changes;
         for (int y = 0; y < source.size.height; ++y) {
             for (int x = 0; x < source.size.width; ++x) {
                 const std::size_t pixelIndex =
@@ -3431,19 +3238,17 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
                 if (oldColor == newColor) {
                     continue;
                 }
-                command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
             }
         }
-        if (command.changes.empty()) {
+        if (changes.empty()) {
             statusBar()->showMessage(QStringLiteral("Background already matches frame"), 2500);
             return;
         }
-        applyBackgroundImageEdit(command, true);
-        BackgroundImageEditHistory& history =
-            m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex,
-                                                                    targetResolution}];
-        history.undoStack.push_back(std::move(command));
-        history.redoStack.clear();
+        commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::BackgroundImage,
+                                                            *backgroundIndex,
+                                                            targetResolution,
+                                                            std::move(changes)));
         refreshComponentBrowsers();
         updateUndoRedoActions();
         updateProjectHeaderStatus();
@@ -3485,9 +3290,7 @@ void MainWindow::copySelectedBackgroundToFrames()
                 !m_document->hasHdFrame(frameIndex)) {
                 continue;
             }
-            PixelEditCommand command;
-            command.frameIndex = frameIndex;
-            command.resolution = sourceResolution;
+            std::vector<edit::PixelChange> changes;
             for (int y = 0; y < source.size.height; ++y) {
                 for (int x = 0; x < source.size.width; ++x) {
                     const std::size_t pixelIndex =
@@ -3500,16 +3303,16 @@ void MainWindow::copySelectedBackgroundToFrames()
                     if (oldColor == newColor) {
                         continue;
                     }
-                    command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                    changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
                 }
             }
-            if (command.changes.empty()) {
+            if (changes.empty()) {
                 continue;
             }
-            applyPixelEdit(command, true);
-            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, sourceResolution}];
-            history.undoStack.push_back(std::move(command));
-            history.redoStack.clear();
+            commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::FramePixels,
+                                                                frameIndex,
+                                                                sourceResolution,
+                                                                std::move(changes)));
             ++updatedFrames;
         }
         if (updatedFrames == 0) {
@@ -3568,9 +3371,7 @@ void MainWindow::importImageIntoSelectedBackground()
         } else {
             const document::Rgb565Frame& oldBackground =
                 m_document->backgroundFrame(*backgroundIndex, targetResolution);
-            BackgroundImageEditCommand command;
-            command.backgroundIndex = *backgroundIndex;
-            command.resolution = targetResolution;
+            std::vector<edit::PixelChange> changes;
             for (int y = 0; y < imported.size.height; ++y) {
                 for (int x = 0; x < imported.size.width; ++x) {
                     const std::size_t pixelIndex =
@@ -3582,19 +3383,17 @@ void MainWindow::importImageIntoSelectedBackground()
                     if (oldColor == newColor) {
                         continue;
                     }
-                    command.changes.push_back(PixelChange{x, y, oldColor, newColor});
+                    changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
                 }
             }
-            if (command.changes.empty()) {
+            if (changes.empty()) {
                 statusBar()->showMessage(QStringLiteral("Background already matches image"), 2500);
                 return;
             }
-            applyBackgroundImageEdit(command, true);
-            BackgroundImageEditHistory& history =
-                m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex,
-                                                                        targetResolution}];
-            history.undoStack.push_back(std::move(command));
-            history.redoStack.clear();
+            commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::BackgroundImage,
+                                                                *backgroundIndex,
+                                                                targetResolution,
+                                                                std::move(changes)));
         }
         if (m_preview) {
             m_preview->update();
@@ -4232,48 +4031,16 @@ void MainWindow::paintSpriteColorizedPixels(std::size_t spriteIndex,
 
     const uint16_t color = erase ? uint16_t{0} : m_activeDrawColor;
     try {
-        const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
-        const document::IndexedFrame& mask =
-            resolution == render::Resolution::Hd && sprite.hasHd ? sprite.maskHd : sprite.originalSd;
-        SpriteImageEditCommand command;
-        command.spriteIndex = spriteIndex;
-        command.resolution = resolution;
-        std::set<std::pair<int, int>> seen;
-        for (const render::Point point : pixels) {
-            if (!seen.insert({point.x, point.y}).second) {
-                continue;
-            }
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= static_cast<int>(document::kMaxSpriteWidth) ||
-                point.y >= static_cast<int>(document::kMaxSpriteHeight)) {
-                continue;
-            }
-            if (mask.pixels[spritePixelIndex(point.x, point.y)] == 255) {
-                continue;
-            }
-            const uint16_t currentColor =
-                m_document->spriteColorizedPixel(spriteIndex, resolution, point.x, point.y);
-            if (!erase && currentColor == 0) {
-                continue;
-            }
-            if (currentColor == color) {
-                continue;
-            }
-            command.changes.push_back(PixelChange{
-                point.x,
-                point.y,
-                currentColor,
-                color,
-            });
-        }
-        if (command.changes.empty()) {
+        const edit::EditLayer layer{edit::EditKind::SpriteImage, spriteIndex, resolution};
+        if (!commitPixelChanges(layer,
+                                edit::makeSpritePaintChanges(*m_document,
+                                                             spriteIndex,
+                                                             resolution,
+                                                             pixels,
+                                                             color,
+                                                             erase))) {
             return;
         }
-        applySpriteImageEdit(command, true);
-        SpriteImageEditHistory& history =
-            m_spriteImageEditHistories[SpriteEditHistoryKey{spriteIndex, resolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
         setSpriteDependentViewsDirty();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
@@ -4311,45 +4078,16 @@ void MainWindow::floodFillSpriteColorized(std::size_t spriteIndex,
     }
 
     try {
-        const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
-        const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
-        const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
-        const document::Rgb565Frame& frame = useHd ? sprite.colorizedHd : sprite.colorizedSd;
-        const uint16_t targetColor = m_document->spriteColorizedPixel(spriteIndex, resolution, x, y);
-        if (targetColor == m_activeDrawColor || targetColor == 0 ||
-            mask.pixels[spritePixelIndex(x, y)] == 255) {
+        if (m_document->spriteColorizedPixel(spriteIndex, resolution, x, y) == m_activeDrawColor) {
             return;
         }
-
-        std::vector<uint8_t> visited(frame.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{x, y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= frame.size.width || point.y >= frame.size.height) {
-                continue;
-            }
-            const std::size_t index = spritePixelIndex(point.x, point.y);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (mask.pixels[index] == 255 || frame.pixels[index] != targetColor) {
-                continue;
-            }
-
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
-        paintSpriteColorizedPixels(spriteIndex, resolution, pixels, false);
+        paintSpriteColorizedPixels(spriteIndex,
+                                   resolution,
+                                   edit::spriteFloodFillPixels(*m_document,
+                                                               spriteIndex,
+                                                               resolution,
+                                                               render::Point{x, y}),
+                                   false);
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -4641,18 +4379,12 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
         if (newRgb565 == oldRgb565) {
             return;
         }
-        DynamicColorEditCommand command;
-        command.frameIndex = *frameIndex;
-        command.resolution = m_activeResolution;
-        command.setIndex = activeDynamicSet();
-        command.originalColorIndex = originalColorIndex;
-        command.oldColor = oldRgb565;
-        command.newColor = newRgb565;
-        applyDynamicColorEdit(command, true);
-        DynamicColorEditHistory& history =
-            m_dynamicColorEditHistories[EditHistoryKey{*frameIndex, m_activeResolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
+        commitEdit(std::make_unique<edit::DynamicColorEditCommand>(*frameIndex,
+                                                                   m_activeResolution,
+                                                                   activeDynamicSet(),
+                                                                   originalColorIndex,
+                                                                   oldRgb565,
+                                                                   newRgb565));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Updated dynamic color 0x%1")
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
@@ -4670,10 +4402,7 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
         return;
     }
 
-    DynamicShadowEditCommand command;
-    command.resolution = m_activeResolution;
-    command.setIndex = activeDynamicSet();
-    command.editDirection = true;
+    std::vector<edit::DynamicShadowChange> changes;
 
     try {
         for (std::size_t selectedFrameIndex : selectedFrameIndices()) {
@@ -4690,7 +4419,7 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
             if (newDirection == oldDirection) {
                 continue;
             }
-            DynamicShadowEditChange change;
+            edit::DynamicShadowChange change;
             change.frameIndex = selectedFrameIndex;
             change.oldDirection = oldDirection;
             change.newDirection = newDirection;
@@ -4698,17 +4427,18 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
                                                              m_activeResolution,
                                                              activeDynamicSet());
             change.newColor = change.oldColor;
-            command.changes.push_back(change);
+            changes.push_back(change);
         }
-        if (command.changes.empty()) {
+        if (changes.empty()) {
             updateDynamicShadowControls();
             return;
         }
-        applyDynamicShadowEdit(command, true);
-        DynamicShadowEditHistory& history =
-            m_dynamicShadowEditHistories[EditHistoryKey{*frameIndex, m_activeResolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
+        commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(*frameIndex,
+                                                                    m_activeResolution,
+                                                                    activeDynamicSet(),
+                                                                    true,
+                                                                    false,
+                                                                    std::move(changes)));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Updated dynamic shadow direction"), 2500);
     } catch (const std::exception& ex) {
@@ -4739,10 +4469,7 @@ void MainWindow::editDynamicShadowColor()
             return;
         }
 
-        DynamicShadowEditCommand command;
-        command.resolution = m_activeResolution;
-        command.setIndex = activeDynamicSet();
-        command.editColor = true;
+        std::vector<edit::DynamicShadowChange> changes;
         for (std::size_t selectedFrameIndex : selectedFrameIndices()) {
             if (!m_document->dynamicData(selectedFrameIndex).has_value()) {
                 continue;
@@ -4754,7 +4481,7 @@ void MainWindow::editDynamicShadowColor()
             if (oldColor == newRgb565) {
                 continue;
             }
-            DynamicShadowEditChange change;
+            edit::DynamicShadowChange change;
             change.frameIndex = selectedFrameIndex;
             change.oldDirection = m_document->dynamicShadowDirection(selectedFrameIndex,
                                                                      m_activeResolution,
@@ -4762,16 +4489,17 @@ void MainWindow::editDynamicShadowColor()
             change.newDirection = change.oldDirection;
             change.oldColor = oldColor;
             change.newColor = newRgb565;
-            command.changes.push_back(change);
+            changes.push_back(change);
         }
-        if (command.changes.empty()) {
+        if (changes.empty()) {
             return;
         }
-        applyDynamicShadowEdit(command, true);
-        DynamicShadowEditHistory& history =
-            m_dynamicShadowEditHistories[EditHistoryKey{*frameIndex, m_activeResolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
+        commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(*frameIndex,
+                                                                    m_activeResolution,
+                                                                    activeDynamicSet(),
+                                                                    false,
+                                                                    true,
+                                                                    std::move(changes)));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Updated dynamic shadow color 0x%1")
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
@@ -5121,17 +4849,13 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
 
     const bool wasDirty = m_document->isDirty();
     try {
-        PaletteEditCommand command;
-        command.paletteIndex = *paletteIndex;
-        command.changes.push_back(PaletteColorChange{
+        std::vector<edit::PaletteColorChange> changes;
+        changes.push_back(edit::PaletteColorChange{
             colorIndex,
             oldColor,
             newRgb565,
         });
-        applyPaletteEdit(command, true);
-        PaletteEditHistory& history = m_paletteEditHistories[*paletteIndex];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
+        commitEdit(std::make_unique<edit::PaletteEditCommand>(*paletteIndex, std::move(changes)));
         updateUndoRedoActions();
         if (!wasDirty && m_document->isDirty()) {
             updateProjectHeaderStatus();
@@ -5166,48 +4890,22 @@ void MainWindow::applyCurrentPaletteGradient()
         return;
     }
 
-    const uint16_t startColor =
-        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(startIndex));
-    const uint16_t endColor =
-        m_document->paletteColor(*paletteIndex, static_cast<std::size_t>(endIndex));
+    std::vector<edit::PaletteColorChange> changes =
+        edit::makePaletteRampChanges(*m_document, *paletteIndex, startIndex, endIndex);
+    if (changes.empty()) {
+        return;
+    }
     const bool wasDirty = m_document->isDirty();
     try {
-        PaletteEditCommand command;
-        command.paletteIndex = *paletteIndex;
-        const std::size_t maxStep = static_cast<std::size_t>(last - first);
-        for (int colorIndex = first; colorIndex <= last; ++colorIndex) {
-            std::size_t step = static_cast<std::size_t>(colorIndex - first);
-            if (startIndex > endIndex) {
-                step = maxStep - step;
-            }
-            const std::size_t storedColorIndex = static_cast<std::size_t>(colorIndex);
-            const uint16_t oldColor = m_document->paletteColor(*paletteIndex, storedColorIndex);
-            const uint16_t newColor =
-                interpolateRgb565(startColor, endColor, step, maxStep);
-            if (oldColor == newColor) {
-                continue;
-            }
-            command.changes.push_back(PaletteColorChange{
-                storedColorIndex,
-                oldColor,
-                newColor,
-            });
-        }
-        if (command.changes.empty()) {
-            return;
-        }
-        applyPaletteEdit(command, true);
-        PaletteEditHistory& history = m_paletteEditHistories[*paletteIndex];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
+        commitEdit(std::make_unique<edit::PaletteEditCommand>(*paletteIndex, std::move(changes)));
         updateUndoRedoActions();
         if (!wasDirty && m_document->isDirty()) {
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
             QStringLiteral("Applied palette gradient %1-%2")
-                .arg(first)
-                .arg(last),
+                .arg(first + 1)
+                .arg(last + 1),
             2500);
     } catch (const std::exception& ex) {
         updatePaletteControls();
@@ -5771,39 +5469,12 @@ void MainWindow::floodFillFrame(const render::CanvasHit& hit)
         if (targetColor == m_activeDrawColor) {
             return;
         }
-
-        std::vector<uint8_t> visited(frame.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{hit.x, hit.y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= frame.size.width || point.y >= frame.size.height) {
-                continue;
-            }
-
-            const std::size_t index =
-                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(frame.size.width) +
-                static_cast<std::size_t>(point.x);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (frame.pixels[index] != targetColor) {
-                continue;
-            }
-
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
-        commitPixels(hit.resolution, pixels, QStringLiteral("Flood filled area"));
+        commitPixels(hit.resolution,
+                     edit::floodFillMatching(frame.pixels,
+                                             frame.size,
+                                             render::Point{hit.x, hit.y},
+                                             targetColor),
+                     QStringLiteral("Flood filled area"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -5860,40 +5531,11 @@ void MainWindow::floodFillBackgroundImage(const render::CanvasHit& hit)
         if (targetColor == m_activeDrawColor) {
             return;
         }
-
-        std::vector<uint8_t> visited(frame.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{hit.x, hit.y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= frame.size.width || point.y >= frame.size.height) {
-                continue;
-            }
-
-            const std::size_t index =
-                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(frame.size.width) +
-                static_cast<std::size_t>(point.x);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (frame.pixels[index] != targetColor) {
-                continue;
-            }
-
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
         commitBackgroundImagePixels(hit.resolution,
-                                    pixels,
+                                    edit::floodFillMatching(frame.pixels,
+                                                            frame.size,
+                                                            render::Point{hit.x, hit.y},
+                                                            targetColor),
                                     QStringLiteral("Flood filled background"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -5936,39 +5578,10 @@ void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit, bool eras
         if (targetValue == newValue) {
             return;
         }
-
-        std::vector<uint8_t> visited(mask.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{hit.x, hit.y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= mask.size.width || point.y >= mask.size.height) {
-                continue;
-            }
-
-            const std::size_t index =
-                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
-                static_cast<std::size_t>(point.x);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (mask.pixels[index] != targetValue) {
-                continue;
-            }
-
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
-        commitMaskPixels(pixels,
+        commitMaskPixels(edit::floodFillMatching(mask.pixels,
+                                                 mask.size,
+                                                 render::Point{hit.x, hit.y},
+                                                 targetValue),
                          newValue,
                          erase ? QStringLiteral("Flood erased comparison mask")
                                : QStringLiteral("Flood filled comparison mask"));
@@ -5982,11 +5595,12 @@ void MainWindow::paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase)
     if (!m_document || !isDynamicMaskModeActive()) {
         return;
     }
-    commitDynamicMaskPixels(hit.resolution,
-                            {render::Point{hit.x, hit.y}},
-                            erase ? uint8_t{255} : activeDynamicSet(),
-                            erase ? QStringLiteral("Erased dynamic mask pixel")
-                                  : QStringLiteral("Painted dynamic mask pixel"));
+    commitFrameMaskPixels(edit::EditKind::DynamicMask,
+                          hit.resolution,
+                          {render::Point{hit.x, hit.y}},
+                          erase ? uint8_t{255} : activeDynamicSet(),
+                          erase ? QStringLiteral("Erased dynamic mask pixel")
+                                : QStringLiteral("Painted dynamic mask pixel"));
 }
 
 void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
@@ -6007,40 +5621,15 @@ void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
             hit.resolution == render::Resolution::Hd
                 ? m_document->dynamicData(*frameIndex)->maskHd
                 : m_document->dynamicData(*frameIndex)->maskSd;
-        std::vector<uint8_t> visited(mask.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{hit.x, hit.y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= mask.size.width || point.y >= mask.size.height) {
-                continue;
-            }
-            const std::size_t index =
-                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
-                static_cast<std::size_t>(point.x);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (mask.pixels[index] != targetValue) {
-                continue;
-            }
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
-        commitDynamicMaskPixels(hit.resolution,
-                                pixels,
-                                newValue,
-                                erase ? QStringLiteral("Flood erased dynamic mask")
-                                      : QStringLiteral("Flood filled dynamic mask"));
+        commitFrameMaskPixels(edit::EditKind::DynamicMask,
+                              hit.resolution,
+                              edit::floodFillMatching(mask.pixels,
+                                                      mask.size,
+                                                      render::Point{hit.x, hit.y},
+                                                      targetValue),
+                              newValue,
+                              erase ? QStringLiteral("Flood erased dynamic mask")
+                                    : QStringLiteral("Flood filled dynamic mask"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -6051,11 +5640,12 @@ void MainWindow::paintBackgroundMaskPixel(const render::CanvasHit& hit, bool era
     if (!m_document || !isBackgroundMaskModeActive()) {
         return;
     }
-    commitBackgroundMaskPixels(hit.resolution,
-                               {render::Point{hit.x, hit.y}},
-                               erase ? uint8_t{0} : uint8_t{1},
-                               erase ? QStringLiteral("Erased background mask pixel")
-                                     : QStringLiteral("Painted background mask pixel"));
+    commitFrameMaskPixels(edit::EditKind::BackgroundMask,
+                          hit.resolution,
+                          {render::Point{hit.x, hit.y}},
+                          erase ? uint8_t{0} : uint8_t{1},
+                          erase ? QStringLiteral("Erased background mask pixel")
+                                : QStringLiteral("Painted background mask pixel"));
 }
 
 void MainWindow::floodFillBackgroundMask(const render::CanvasHit& hit, bool erase)
@@ -6080,40 +5670,15 @@ void MainWindow::floodFillBackgroundMask(const render::CanvasHit& hit, bool eras
         }
         const document::IndexedFrame& mask =
             hit.resolution == render::Resolution::Hd ? backgroundData->maskHd : backgroundData->maskSd;
-        std::vector<uint8_t> visited(mask.pixels.size(), 0);
-        std::deque<render::Point> queue;
-        std::vector<render::Point> pixels;
-        queue.push_back(render::Point{hit.x, hit.y});
-
-        while (!queue.empty()) {
-            const render::Point point = queue.front();
-            queue.pop_front();
-            if (point.x < 0 || point.y < 0 ||
-                point.x >= mask.size.width || point.y >= mask.size.height) {
-                continue;
-            }
-            const std::size_t index =
-                static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
-                static_cast<std::size_t>(point.x);
-            if (visited[index]) {
-                continue;
-            }
-            visited[index] = 1;
-            if (mask.pixels[index] != targetValue) {
-                continue;
-            }
-            pixels.push_back(point);
-            queue.push_back(render::Point{point.x - 1, point.y});
-            queue.push_back(render::Point{point.x + 1, point.y});
-            queue.push_back(render::Point{point.x, point.y - 1});
-            queue.push_back(render::Point{point.x, point.y + 1});
-        }
-
-        commitBackgroundMaskPixels(hit.resolution,
-                                   pixels,
-                                   newValue,
-                                   erase ? QStringLiteral("Flood erased background mask")
-                                         : QStringLiteral("Flood filled background mask"));
+        commitFrameMaskPixels(edit::EditKind::BackgroundMask,
+                              hit.resolution,
+                              edit::floodFillMatching(mask.pixels,
+                                                      mask.size,
+                                                      render::Point{hit.x, hit.y},
+                                                      targetValue),
+                              newValue,
+                              erase ? QStringLiteral("Flood erased background mask")
+                                    : QStringLiteral("Flood filled background mask"));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -6291,13 +5856,14 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
             statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
             return;
         }
-        commitDynamicMaskPixels(start.resolution,
-                                pixelsForStroke(start, end),
-                                erase ? uint8_t{255} : activeDynamicSet(),
-                                statusText.replace(
-                                    QStringLiteral("Painted"),
-                                    erase ? QStringLiteral("Erased dynamic mask")
-                                          : QStringLiteral("Painted dynamic mask")));
+        commitFrameMaskPixels(edit::EditKind::DynamicMask,
+                              start.resolution,
+                              pixelsForStroke(start, end),
+                              erase ? uint8_t{255} : activeDynamicSet(),
+                              statusText.replace(
+                                  QStringLiteral("Painted"),
+                                  erase ? QStringLiteral("Erased dynamic mask")
+                                        : QStringLiteral("Painted dynamic mask")));
         return;
     }
     if (isBackgroundMaskModeActive()) {
@@ -6308,13 +5874,14 @@ void MainWindow::paintFrameStroke(const render::CanvasHit& start,
             statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
             return;
         }
-        commitBackgroundMaskPixels(start.resolution,
-                                   pixelsForStroke(start, end),
-                                   erase ? uint8_t{0} : uint8_t{1},
-                                   statusText.replace(
-                                       QStringLiteral("Painted"),
-                                       erase ? QStringLiteral("Erased background mask")
-                                             : QStringLiteral("Painted background mask")));
+        commitFrameMaskPixels(edit::EditKind::BackgroundMask,
+                              start.resolution,
+                              pixelsForStroke(start, end),
+                              erase ? uint8_t{0} : uint8_t{1},
+                              statusText.replace(
+                                  QStringLiteral("Painted"),
+                                  erase ? QStringLiteral("Erased background mask")
+                                        : QStringLiteral("Painted background mask")));
         return;
     }
     if (isBackgroundImageTargetActive()) {
@@ -6432,7 +5999,8 @@ void MainWindow::previewFreePaletteGradientDirection(const render::CanvasHit& st
         m_pendingFreePaletteGradient->shapeStart,
         m_pendingFreePaletteGradient->shapeEnd);
     std::vector<render::Point> linePixels =
-        makeLinePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        edit::makeLinePixels(render::Point{start.x, start.y},
+                             render::Point{end.x, end.y});
     previewPixels.insert(previewPixels.end(), linePixels.begin(), linePixels.end());
     QColor previewColor = rgb565ToColor(m_activeDrawColor);
     previewColor.setAlpha(145);
@@ -6526,7 +6094,7 @@ void MainWindow::updateCanvasSelectionOverlay()
     std::vector<render::Point> pixels = m_canvasSelection->pixels;
     if (m_canvasSelection->gradientStart && m_canvasSelection->gradientEnd) {
         std::vector<render::Point> linePixels =
-            makeLinePixels(render::Point{m_canvasSelection->gradientStart->x,
+            edit::makeLinePixels(render::Point{m_canvasSelection->gradientStart->x,
                                          m_canvasSelection->gradientStart->y},
                            render::Point{m_canvasSelection->gradientEnd->x,
                                          m_canvasSelection->gradientEnd->y});
@@ -6576,7 +6144,8 @@ void MainWindow::previewCanvasSelectionDirection(const render::CanvasHit& start,
     }
     std::vector<render::Point> pixels = m_canvasSelection->pixels;
     std::vector<render::Point> linePixels =
-        makeLinePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        edit::makeLinePixels(render::Point{start.x, start.y},
+                             render::Point{end.x, end.y});
     pixels.insert(pixels.end(), linePixels.begin(), linePixels.end());
     m_preview->setSelectionOverlayPixels(m_canvasSelection->shapeStart.region,
                                          m_canvasSelection->shapeStart.resolution,
@@ -6607,13 +6176,14 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
         return;
     }
 
-    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
-    const PaletteGradientDirection gradientDirection = currentPaletteGradientDirection();
-    const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
     const render::CanvasHit shapeStart = m_canvasSelection->shapeStart;
     const render::CanvasHit shapeEnd = m_canvasSelection->shapeEnd;
-    const render::CanvasHit gradientStart = m_canvasSelection->gradientStart.value_or(shapeStart);
-    const render::CanvasHit gradientEnd = m_canvasSelection->gradientEnd.value_or(shapeEnd);
+    const edit::PixelColorSource colorForPoint =
+        paletteGradientColorSource(*paletteIndex,
+                                   shapeStart,
+                                   shapeEnd,
+                                   m_canvasSelection->gradientStart.value_or(shapeStart),
+                                   m_canvasSelection->gradientEnd.value_or(shapeEnd));
 
     try {
         if (m_canvasSelection->target == PaintTarget::Background) {
@@ -6621,41 +6191,16 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
             if (!backgroundIndex) {
                 return;
             }
-            BackgroundImageEditCommand command;
-            command.backgroundIndex = *backgroundIndex;
-            command.resolution = shapeStart.resolution;
-            for (const render::Point& pixel : m_canvasSelection->pixels) {
-                const uint16_t newColor =
-                    m_document->paletteColor(*paletteIndex,
-                                             paletteGradientColorIndex(
-                                                 startIndex,
-                                                 endIndex,
-                                                 gradientRatioForPoint(shapeStart,
-                                                                       shapeEnd,
-                                                                       gradientStart,
-                                                                       gradientEnd,
-                                                                       pixel,
-                                                                       gradientDirection,
-                                                                       gradientPattern)));
-                const uint16_t oldColor =
-                    m_document->backgroundPixel(*backgroundIndex,
-                                                shapeStart.resolution,
-                                                pixel.x,
-                                                pixel.y);
-                if (oldColor == newColor) {
-                    continue;
-                }
-                command.changes.push_back(PixelChange{pixel.x, pixel.y, oldColor, newColor});
-            }
-            if (command.changes.empty()) {
+            const edit::EditLayer layer{edit::EditKind::BackgroundImage,
+                                        *backgroundIndex,
+                                        shapeStart.resolution};
+            if (!commitPixelChanges(layer,
+                                    edit::makePixelChanges(*m_document,
+                                                           layer,
+                                                           m_canvasSelection->pixels,
+                                                           colorForPoint))) {
                 return;
             }
-            applyBackgroundImageEdit(command, true);
-            BackgroundImageEditHistory& history =
-                m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex,
-                                                                        shapeStart.resolution}];
-            history.undoStack.push_back(command);
-            history.redoStack.clear();
         } else {
             bool changed = false;
             for (std::size_t frameIndex : selectedFrameIndices()) {
@@ -6663,41 +6208,16 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
                     !m_document->hasHdFrame(frameIndex)) {
                     continue;
                 }
-                PixelEditCommand command;
-                command.frameIndex = frameIndex;
-                command.resolution = shapeStart.resolution;
-                for (const render::Point& pixel : m_canvasSelection->pixels) {
-                    const uint16_t newColor =
-                        m_document->paletteColor(*paletteIndex,
-                                                 paletteGradientColorIndex(
-                                                     startIndex,
-                                                     endIndex,
-                                                     gradientRatioForPoint(shapeStart,
-                                                                           shapeEnd,
-                                                                           gradientStart,
-                                                                           gradientEnd,
-                                                                           pixel,
-                                                                           gradientDirection,
-                                                                           gradientPattern)));
-                    const uint16_t oldColor =
-                        m_document->colorizedPixel(frameIndex,
-                                                   shapeStart.resolution,
-                                                   pixel.x,
-                                                   pixel.y);
-                    if (oldColor == newColor) {
-                        continue;
-                    }
-                    command.changes.push_back(PixelChange{pixel.x, pixel.y, oldColor, newColor});
+                const edit::EditLayer layer{edit::EditKind::FramePixels,
+                                            frameIndex,
+                                            shapeStart.resolution};
+                if (commitPixelChanges(layer,
+                                       edit::makePixelChanges(*m_document,
+                                                              layer,
+                                                              m_canvasSelection->pixels,
+                                                              colorForPoint))) {
+                    changed = true;
                 }
-                if (command.changes.empty()) {
-                    continue;
-                }
-                applyPixelEdit(command, true);
-                EditHistory& history =
-                    m_editHistories[EditHistoryKey{frameIndex, shapeStart.resolution}];
-                history.undoStack.push_back(command);
-                history.redoStack.clear();
-                changed = true;
             }
             if (!changed) {
                 return;
@@ -6713,117 +6233,102 @@ void MainWindow::fillCanvasSelectionWithPaletteGradient()
 std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& start,
                                                        const render::CanvasHit& end) const
 {
+    const render::Point startPoint{start.x, start.y};
+    const render::Point endPoint{end.x, end.y};
     if (m_drawingTool == DrawingTool::Line) {
-        return makeLinePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        return edit::makeLinePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::Rectangle) {
-        return makeRectanglePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        return edit::makeRectanglePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::FilledRectangle) {
-        return makeFilledRectanglePixels(render::Point{start.x, start.y},
-                                         render::Point{end.x, end.y});
+        return edit::makeFilledRectanglePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::Circle) {
-        return makeCirclePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        return edit::makeCirclePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::FilledCircle) {
-        return makeFilledCirclePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        return edit::makeFilledCirclePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::Ellipse) {
-        return makeEllipsePixels(render::Point{start.x, start.y}, render::Point{end.x, end.y});
+        return edit::makeEllipsePixels(startPoint, endPoint);
     }
     if (m_drawingTool == DrawingTool::FilledEllipse) {
-        return makeFilledEllipsePixels(render::Point{start.x, start.y},
-                                       render::Point{end.x, end.y});
+        return edit::makeFilledEllipsePixels(startPoint, endPoint);
     }
-    if (m_drawingTool == DrawingTool::PaletteGradient) {
-        const render::Point startPoint{start.x, start.y};
-        const render::Point endPoint{end.x, end.y};
+    if (m_drawingTool == DrawingTool::PaletteGradient || m_drawingTool == DrawingTool::Selection) {
         switch (currentPaletteGradientShape()) {
             case PaletteGradientShape::Circle:
-                return makeFilledCirclePixels(startPoint, endPoint);
+                return edit::makeFilledCirclePixels(startPoint, endPoint);
             case PaletteGradientShape::Ellipse:
-                return makeFilledEllipsePixels(startPoint, endPoint);
+                return edit::makeFilledEllipsePixels(startPoint, endPoint);
             case PaletteGradientShape::Rectangle:
                 break;
         }
-        return makeFilledRectanglePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::Selection) {
-        const render::Point startPoint{start.x, start.y};
-        const render::Point endPoint{end.x, end.y};
-        switch (currentPaletteGradientShape()) {
-            case PaletteGradientShape::Circle:
-                return makeFilledCirclePixels(startPoint, endPoint);
-            case PaletteGradientShape::Ellipse:
-                return makeFilledEllipsePixels(startPoint, endPoint);
-            case PaletteGradientShape::Rectangle:
-                break;
-        }
-        return makeFilledRectanglePixels(startPoint, endPoint);
+        return edit::makeFilledRectanglePixels(startPoint, endPoint);
     }
     return {};
+}
+
+edit::PixelColorSource MainWindow::paletteGradientColorSource(
+    std::size_t paletteIndex,
+    const render::CanvasHit& shapeStart,
+    const render::CanvasHit& shapeEnd,
+    const render::CanvasHit& gradientStart,
+    const render::CanvasHit& gradientEnd) const
+{
+    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
+    const edit::PaletteGradient gradient{
+        render::Point{shapeStart.x, shapeStart.y},
+        render::Point{shapeEnd.x, shapeEnd.y},
+        render::Point{gradientStart.x, gradientStart.y},
+        render::Point{gradientEnd.x, gradientEnd.y},
+        currentPaletteGradientDirection(),
+        currentPaletteGradientPattern(),
+        startIndex,
+        endIndex,
+    };
+    return [this, paletteIndex, gradient](render::Point point) {
+        return m_document->paletteColor(paletteIndex,
+                                        edit::paletteGradientColorIndex(gradient, point));
+    };
+}
+
+bool MainWindow::commitPixelChanges(const edit::EditLayer& layer,
+                                    std::vector<edit::PixelChange> changes)
+{
+    if (changes.empty()) {
+        return false;
+    }
+    commitEdit(std::make_unique<edit::PixelEditCommand>(layer.kind,
+                                                        layer.index,
+                                                        layer.resolution,
+                                                        std::move(changes)));
+    return true;
+}
+
+bool MainWindow::commitMaskChanges(const edit::EditLayer& layer,
+                                   std::vector<edit::MaskPixelChange> changes)
+{
+    if (changes.empty()) {
+        return false;
+    }
+    commitEdit(std::make_unique<edit::MaskEditCommand>(layer.kind,
+                                                       layer.index,
+                                                       layer.resolution,
+                                                       std::move(changes)));
+    return true;
 }
 
 void MainWindow::commitPixels(render::Resolution resolution,
                               const std::vector<render::Point>& pixels,
                               const QString& statusText)
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || pixels.empty()) {
-        return;
-    }
     const uint16_t drawColor = m_activeDrawColor;
-
-    try {
-        bool changed = false;
-        for (std::size_t frameIndex : frameIndices) {
-            if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
-                continue;
-            }
-            PixelEditCommand command;
-            command.frameIndex = frameIndex;
-            command.resolution = resolution;
-            std::set<std::pair<int, int>> seen;
-            for (const render::Point& pixel : pixels) {
-                if (!seen.insert({pixel.x, pixel.y}).second) {
-                    continue;
-                }
-                const uint16_t oldColor =
-                    m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
-                if (oldColor == drawColor) {
-                    continue;
-                }
-                command.changes.push_back(PixelChange{
-                    pixel.x,
-                    pixel.y,
-                    oldColor,
-                    drawColor,
-                });
-            }
-            if (command.changes.empty()) {
-                continue;
-            }
-            applyPixelEdit(command, true);
-            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
-            history.undoStack.push_back(command);
-            history.redoStack.clear();
-            changed = true;
-        }
-        if (!changed) {
-            return;
-        }
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(
-        frameIndices.size() > 1
-            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
-            : statusText,
-        2500);
+    commitFramePixelColors(resolution,
+                           pixels,
+                           [drawColor](render::Point) { return drawColor; },
+                           statusText);
 }
 
 void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
@@ -6841,10 +6346,22 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
         statusBar()->showMessage(QStringLiteral("No palette gradient source selected"), 2500);
         return;
     }
+    commitFramePixelColors(
+        resolution,
+        pixels,
+        paletteGradientColorSource(*paletteIndex, start, end, gradientStart, gradientEnd),
+        statusText);
+}
 
-    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
-    const PaletteGradientDirection gradientDirection = currentPaletteGradientDirection();
-    const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
+void MainWindow::commitFramePixelColors(render::Resolution resolution,
+                                        const std::vector<render::Point>& pixels,
+                                        const edit::PixelColorSource& colorForPoint,
+                                        const QString& statusText)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty() || pixels.empty()) {
+        return;
+    }
 
     try {
         bool changed = false;
@@ -6852,46 +6369,14 @@ void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
             if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
                 continue;
             }
-            PixelEditCommand command;
-            command.frameIndex = frameIndex;
-            command.resolution = resolution;
-            std::set<std::pair<int, int>> seen;
-            for (const render::Point& pixel : pixels) {
-                if (!seen.insert({pixel.x, pixel.y}).second) {
-                    continue;
-                }
-                const uint16_t newColor =
-                    m_document->paletteColor(*paletteIndex,
-                                             paletteGradientColorIndex(
-                                                 startIndex,
-                                                 endIndex,
-                                                 gradientRatioForPoint(start,
-                                                                       end,
-                                                                       gradientStart,
-                                                                       gradientEnd,
-                                                                       pixel,
-                                                                       gradientDirection,
-                                                                       gradientPattern)));
-                const uint16_t oldColor =
-                    m_document->colorizedPixel(frameIndex, resolution, pixel.x, pixel.y);
-                if (oldColor == newColor) {
-                    continue;
-                }
-                command.changes.push_back(PixelChange{
-                    pixel.x,
-                    pixel.y,
-                    oldColor,
-                    newColor,
-                });
+            const edit::EditLayer layer{edit::EditKind::FramePixels, frameIndex, resolution};
+            if (commitPixelChanges(layer,
+                                   edit::makePixelChanges(*m_document,
+                                                          layer,
+                                                          pixels,
+                                                          colorForPoint))) {
+                changed = true;
             }
-            if (command.changes.empty()) {
-                continue;
-            }
-            applyPixelEdit(command, true);
-            EditHistory& history = m_editHistories[EditHistoryKey{frameIndex, resolution}];
-            history.undoStack.push_back(command);
-            history.redoStack.clear();
-            changed = true;
         }
         if (!changed) {
             return;
@@ -6931,33 +6416,13 @@ void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
     try {
         bool changed = false;
         for (std::size_t maskIndex : maskIndices) {
-            MaskEditCommand command;
-            command.maskIndex = maskIndex;
-            std::set<std::pair<int, int>> seen;
-            for (const render::Point& pixel : pixels) {
-                if (!seen.insert({pixel.x, pixel.y}).second) {
-                    continue;
-                }
-                const uint8_t oldValue =
-                    m_document->comparisonMaskPixel(maskIndex, pixel.x, pixel.y);
-                if (oldValue == value) {
-                    continue;
-                }
-                command.changes.push_back(MaskPixelChange{
-                    pixel.x,
-                    pixel.y,
-                    oldValue,
-                    value,
-                });
+            const edit::EditLayer layer{edit::EditKind::ComparisonMask,
+                                        maskIndex,
+                                        render::Resolution::Sd};
+            if (commitMaskChanges(layer,
+                                  edit::makeMaskChanges(*m_document, layer, pixels, value))) {
+                changed = true;
             }
-            if (command.changes.empty()) {
-                continue;
-            }
-            applyMaskEdit(command, true);
-            MaskEditHistory& history = m_maskEditHistories[maskIndex];
-            history.undoStack.push_back(command);
-            history.redoStack.clear();
-            changed = true;
         }
         if (!changed) {
             return;
@@ -6975,119 +6440,43 @@ void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
         2500);
 }
 
-void MainWindow::commitDynamicMaskPixels(render::Resolution resolution,
-                                         const std::vector<render::Point>& pixels,
-                                         uint8_t value,
-                                         const QString& statusText)
+void MainWindow::commitFrameMaskPixels(edit::EditKind kind,
+                                       render::Resolution resolution,
+                                       const std::vector<render::Point>& pixels,
+                                       uint8_t value,
+                                       const QString& statusText)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     if (!m_document || frameIndices.empty() || pixels.empty()) {
         return;
     }
+    const bool isBackgroundMask = kind == edit::EditKind::BackgroundMask;
 
     try {
         bool changed = false;
         for (std::size_t frameIndex : frameIndices) {
-            if (!m_document->dynamicData(frameIndex)) {
-                continue;
-            }
-            DynamicMaskEditCommand command;
-            command.frameIndex = frameIndex;
-            command.resolution = resolution;
-            std::set<std::pair<int, int>> seen;
-            for (const render::Point& pixel : pixels) {
-                if (!seen.insert({pixel.x, pixel.y}).second) {
+            if (isBackgroundMask) {
+                const std::optional<document::FrameBackgroundData>& backgroundData =
+                    m_document->backgroundData(frameIndex);
+                if (!backgroundData ||
+                    backgroundData->backgroundId >= m_document->backgroundCount()) {
                     continue;
                 }
-                const uint8_t oldValue =
-                    m_document->dynamicMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
-                if (oldValue == value) {
-                    continue;
-                }
-                command.changes.push_back(DynamicMaskPixelChange{
-                    pixel.x,
-                    pixel.y,
-                    oldValue,
-                    value,
-                });
-            }
-            if (command.changes.empty()) {
+            } else if (!m_document->dynamicData(frameIndex)) {
                 continue;
             }
-            applyDynamicMaskEdit(command, true);
-            DynamicMaskEditHistory& history =
-                m_dynamicMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
-            history.undoStack.push_back(command);
-            history.redoStack.clear();
-            changed = true;
+            const edit::EditLayer layer{kind, frameIndex, resolution};
+            if (commitMaskChanges(layer,
+                                  edit::makeMaskChanges(*m_document, layer, pixels, value))) {
+                changed = true;
+            }
         }
         if (!changed) {
-            return;
-        }
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(
-        frameIndices.size() > 1
-            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
-            : statusText,
-        2500);
-}
-
-void MainWindow::commitBackgroundMaskPixels(render::Resolution resolution,
-                                            const std::vector<render::Point>& pixels,
-                                            uint8_t value,
-                                            const QString& statusText)
-{
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || pixels.empty()) {
-        return;
-    }
-
-    try {
-        bool changed = false;
-        for (std::size_t frameIndex : frameIndices) {
-            const std::optional<document::FrameBackgroundData>& backgroundData =
-                m_document->backgroundData(frameIndex);
-            if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
-                continue;
+            if (isBackgroundMask) {
+                statusBar()->showMessage(
+                    QStringLiteral("No selected frame has an assigned background"),
+                    2500);
             }
-            BackgroundMaskEditCommand command;
-            command.frameIndex = frameIndex;
-            command.resolution = resolution;
-            std::set<std::pair<int, int>> seen;
-            for (const render::Point& pixel : pixels) {
-                if (!seen.insert({pixel.x, pixel.y}).second) {
-                    continue;
-                }
-                const uint8_t oldValue =
-                    m_document->backgroundMaskPixel(frameIndex, resolution, pixel.x, pixel.y);
-                if (oldValue == value) {
-                    continue;
-                }
-                command.changes.push_back(BackgroundMaskPixelChange{
-                    pixel.x,
-                    pixel.y,
-                    oldValue,
-                    value,
-                });
-            }
-            if (command.changes.empty()) {
-                continue;
-            }
-            applyBackgroundMaskEdit(command, true);
-            BackgroundMaskEditHistory& history =
-                m_backgroundMaskEditHistories[EditHistoryKey{frameIndex, resolution}];
-            history.undoStack.push_back(command);
-            history.redoStack.clear();
-            changed = true;
-        }
-        if (!changed) {
-            statusBar()->showMessage(QStringLiteral("No selected frame has an assigned background"),
-                                     2500);
             return;
         }
         updateUndoRedoActions();
@@ -7116,44 +6505,11 @@ void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
         statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
         return;
     }
-
-    BackgroundImageEditCommand command;
-    command.backgroundIndex = *backgroundIndex;
-    command.resolution = resolution;
-    std::set<std::pair<int, int>> seen;
-
-    try {
-        for (const render::Point& pixel : pixels) {
-            if (!seen.insert({pixel.x, pixel.y}).second) {
-                continue;
-            }
-            const uint16_t oldColor =
-                m_document->backgroundPixel(*backgroundIndex, resolution, pixel.x, pixel.y);
-            if (oldColor == drawColor) {
-                continue;
-            }
-            command.changes.push_back(PixelChange{
-                pixel.x,
-                pixel.y,
-                oldColor,
-                drawColor,
-            });
-        }
-        if (command.changes.empty()) {
-            return;
-        }
-        applyBackgroundImageEdit(command, true);
-        BackgroundImageEditHistory& history =
-            m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex, resolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(statusText, 2500);
+    commitBackgroundImageColors(*backgroundIndex,
+                                resolution,
+                                pixels,
+                                [drawColor](render::Point) { return drawColor; },
+                                statusText);
 }
 
 void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resolution,
@@ -7173,52 +6529,29 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
         statusBar()->showMessage(QStringLiteral("No background or palette selected"), 2500);
         return;
     }
+    commitBackgroundImageColors(
+        *backgroundIndex,
+        resolution,
+        pixels,
+        paletteGradientColorSource(*paletteIndex, start, end, gradientStart, gradientEnd),
+        statusText);
+}
 
-    const auto [startIndex, endIndex] = currentPaletteGradientEndpoints();
-    const PaletteGradientDirection gradientDirection = currentPaletteGradientDirection();
-    const PaletteGradientPattern gradientPattern = currentPaletteGradientPattern();
-    BackgroundImageEditCommand command;
-    command.backgroundIndex = *backgroundIndex;
-    command.resolution = resolution;
-    std::set<std::pair<int, int>> seen;
-
+void MainWindow::commitBackgroundImageColors(std::size_t backgroundIndex,
+                                             render::Resolution resolution,
+                                             const std::vector<render::Point>& pixels,
+                                             const edit::PixelColorSource& colorForPoint,
+                                             const QString& statusText)
+{
     try {
-        for (const render::Point& pixel : pixels) {
-            if (!seen.insert({pixel.x, pixel.y}).second) {
-                continue;
-            }
-            const uint16_t newColor =
-                m_document->paletteColor(*paletteIndex,
-                                         paletteGradientColorIndex(
-                                             startIndex,
-                                             endIndex,
-                                             gradientRatioForPoint(start,
-                                                                   end,
-                                                                   gradientStart,
-                                                                   gradientEnd,
-                                                                   pixel,
-                                                                   gradientDirection,
-                                                                   gradientPattern)));
-            const uint16_t oldColor =
-                m_document->backgroundPixel(*backgroundIndex, resolution, pixel.x, pixel.y);
-            if (oldColor == newColor) {
-                continue;
-            }
-            command.changes.push_back(PixelChange{
-                pixel.x,
-                pixel.y,
-                oldColor,
-                newColor,
-            });
-        }
-        if (command.changes.empty()) {
+        const edit::EditLayer layer{edit::EditKind::BackgroundImage, backgroundIndex, resolution};
+        if (!commitPixelChanges(layer,
+                                edit::makePixelChanges(*m_document,
+                                                       layer,
+                                                       pixels,
+                                                       colorForPoint))) {
             return;
         }
-        applyBackgroundImageEdit(command, true);
-        BackgroundImageEditHistory& history =
-            m_backgroundImageEditHistories[BackgroundEditHistoryKey{*backgroundIndex, resolution}];
-        history.undoStack.push_back(command);
-        history.redoStack.clear();
         updateUndoRedoActions();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -7228,204 +6561,136 @@ void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resoluti
     statusBar()->showMessage(statusText, 2500);
 }
 
-void MainWindow::applyPixelEdit(const PixelEditCommand& command, bool useNewColor)
+void MainWindow::commitEdit(std::unique_ptr<edit::EditCommand> command)
 {
     if (!m_document) {
         return;
     }
-    for (const PixelChange& change : command.changes) {
-        m_document->setColorizedPixel(command.frameIndex,
-                                      command.resolution,
-                                      change.x,
-                                      change.y,
-                                      useNewColor ? change.newColor : change.oldColor);
-    }
-    m_preview->update();
-    updateFrameThumbnail(command.frameIndex);
-    updateProjectHeaderStatus();
+    command->apply(*m_document);
+    const edit::EditTarget target = command->target();
+    refreshAfterEdit(target);
+    m_undoHistories.push(edit::historyKey(target), std::move(command));
 }
 
-void MainWindow::applyMaskEdit(const MaskEditCommand& command, bool useNewValue)
+void MainWindow::refreshAfterEdit(const edit::EditTarget& target)
 {
     if (!m_document) {
         return;
     }
-    for (const MaskPixelChange& change : command.changes) {
-        m_document->setComparisonMaskPixel(command.maskIndex,
-                                           change.x,
-                                           change.y,
-                                           useNewValue ? change.newValue : change.oldValue);
-    }
-    m_preview->update();
-    updateProjectHeaderStatus();
-}
-
-void MainWindow::applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue)
-{
-    if (!m_document) {
-        return;
-    }
-    for (const DynamicMaskPixelChange& change : command.changes) {
-        m_document->setDynamicMaskPixel(command.frameIndex,
-                                        command.resolution,
-                                        change.x,
-                                        change.y,
-                                        useNewValue ? change.newValue : change.oldValue);
-    }
-    m_preview->update();
-    updateProjectHeaderStatus();
-}
-
-void MainWindow::applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor)
-{
-    if (!m_document) {
-        return;
-    }
-    m_document->setDynamicColor(command.frameIndex,
-                                command.resolution,
-                                command.setIndex,
-                                command.originalColorIndex,
-                                useNewColor ? command.newColor : command.oldColor);
-    updateDynamicColorControls();
-    m_preview->update();
-    updateFrameThumbnail(command.frameIndex);
-    updateProjectHeaderStatus();
-}
-
-void MainWindow::applyDynamicShadowEdit(const DynamicShadowEditCommand& command, bool useNewValue)
-{
-    if (!m_document) {
-        return;
-    }
-    for (const DynamicShadowEditChange& change : command.changes) {
-        if (command.editDirection) {
-            m_document->setDynamicShadowDirection(change.frameIndex,
-                                                  command.resolution,
-                                                  command.setIndex,
-                                                  useNewValue ? change.newDirection
-                                                              : change.oldDirection);
-        }
-        if (command.editColor) {
-            m_document->setDynamicShadowColor(change.frameIndex,
-                                             command.resolution,
-                                             command.setIndex,
-                                             useNewValue ? change.newColor : change.oldColor);
-        }
-        updateFrameThumbnail(change.frameIndex);
-    }
-    updateDynamicShadowControls();
-    m_preview->update();
-    updateProjectHeaderStatus();
-}
-
-void MainWindow::applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue)
-{
-    if (!m_document) {
-        return;
-    }
-    for (const BackgroundMaskPixelChange& change : command.changes) {
-        m_document->setBackgroundMaskPixel(command.frameIndex,
-                                           command.resolution,
-                                           change.x,
-                                           change.y,
-                                           useNewValue ? change.newValue : change.oldValue);
-    }
-    m_preview->update();
-    updateProjectHeaderStatus();
-}
-
-void MainWindow::applyBackgroundImageEdit(const BackgroundImageEditCommand& command,
-                                          bool useNewColor)
-{
-    if (!m_document) {
-        return;
-    }
-    for (const PixelChange& change : command.changes) {
-        m_document->setBackgroundPixel(command.backgroundIndex,
-                                       command.resolution,
-                                       change.x,
-                                       change.y,
-                                       useNewColor ? change.newColor : change.oldColor);
-    }
-    m_preview->update();
-    updateBackgroundControls();
-    if (m_document) {
-        for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
-            const std::optional<document::FrameBackgroundData>& backgroundData =
-                m_document->backgroundData(frameIndex);
-            if (backgroundData && backgroundData->backgroundId == command.backgroundIndex) {
+    switch (target.kind) {
+        case edit::EditKind::FramePixels:
+            m_preview->update();
+            for (std::size_t frameIndex : target.frameIndices) {
                 updateFrameThumbnail(frameIndex);
             }
+            updateProjectHeaderStatus();
+            break;
+        case edit::EditKind::ComparisonMask:
+        case edit::EditKind::DynamicMask:
+        case edit::EditKind::BackgroundMask:
+            m_preview->update();
+            updateProjectHeaderStatus();
+            break;
+        case edit::EditKind::DynamicColor:
+            updateDynamicColorControls();
+            m_preview->update();
+            for (std::size_t frameIndex : target.frameIndices) {
+                updateFrameThumbnail(frameIndex);
+            }
+            updateProjectHeaderStatus();
+            break;
+        case edit::EditKind::DynamicShadow:
+            for (std::size_t frameIndex : target.frameIndices) {
+                updateFrameThumbnail(frameIndex);
+            }
+            updateDynamicShadowControls();
+            m_preview->update();
+            updateProjectHeaderStatus();
+            break;
+        case edit::EditKind::BackgroundImage:
+            m_preview->update();
+            updateBackgroundControls();
+            for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
+                const std::optional<document::FrameBackgroundData>& backgroundData =
+                    m_document->backgroundData(frameIndex);
+                if (backgroundData && backgroundData->backgroundId == target.index) {
+                    updateFrameThumbnail(frameIndex);
+                }
+            }
+            updateProjectHeaderStatus();
+            break;
+        case edit::EditKind::SpriteImage:
+            setSpriteDependentViewsDirty();
+            if (m_spriteEditor) {
+                m_spriteEditor->update();
+            }
+            break;
+        case edit::EditKind::Palette:
+            refreshComponentBrowsers();
+            updateProjectHeaderStatus();
+            break;
+    }
+}
+
+std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
+{
+    std::vector<edit::HistoryKey> keys;
+    if (isSpriteCanvasActive()) {
+        const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+        if (spriteIndex) {
+            render::Resolution resolution = m_activeResolution;
+            if (m_document) {
+                const document::SpriteRecord& sprite = m_document->sprite(*spriteIndex);
+                if (resolution == render::Resolution::Hd && !sprite.hasHd) {
+                    resolution = render::Resolution::Sd;
+                }
+            }
+            keys.push_back({edit::EditKind::SpriteImage, *spriteIndex, resolution});
         }
+        return keys;
     }
-    updateProjectHeaderStatus();
-}
-
-void MainWindow::applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor)
-{
-    if (!m_document) {
-        return;
+    if (isComparisonMaskModeActive()) {
+        const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+        if (maskIndex) {
+            keys.push_back({edit::EditKind::ComparisonMask, *maskIndex, render::Resolution::Sd});
+        }
+        return keys;
     }
-    for (const PixelChange& change : command.changes) {
-        m_document->setSpriteColorizedPixel(command.spriteIndex,
-                                            command.resolution,
-                                            change.x,
-                                            change.y,
-                                            useNewColor ? change.newColor : change.oldColor);
-    }
-    setSpriteDependentViewsDirty();
-    if (m_spriteEditor) {
-        m_spriteEditor->update();
-    }
-}
-
-void MainWindow::applyPaletteEdit(const PaletteEditCommand& command, bool useNewColor)
-{
-    if (!m_document) {
-        return;
-    }
-    for (const PaletteColorChange& change : command.changes) {
-        m_document->setPaletteColor(command.paletteIndex,
-                                    change.colorIndex,
-                                    useNewColor ? change.newColor : change.oldColor);
-    }
-    refreshComponentBrowsers();
-    updateProjectHeaderStatus();
-}
-
-std::optional<MainWindow::EditHistoryKey> MainWindow::currentEditHistoryKey() const
-{
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!frameIndex) {
-        return std::nullopt;
+    if (isDynamicMaskModeActive()) {
+        if (frameIndex) {
+            keys.push_back({edit::EditKind::DynamicMask, *frameIndex, m_activeResolution});
+            keys.push_back({edit::EditKind::DynamicColor, *frameIndex, m_activeResolution});
+            keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, m_activeResolution});
+        }
+        return keys;
     }
-    return EditHistoryKey{*frameIndex, m_activeResolution};
-}
-
-MainWindow::EditHistory* MainWindow::currentEditHistory()
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
+    if (isBackgroundMaskModeActive()) {
+        if (frameIndex) {
+            keys.push_back({edit::EditKind::BackgroundMask, *frameIndex, m_activeResolution});
+        }
+        return keys;
     }
-    auto history = m_editHistories.find(*key);
-    if (history == m_editHistories.end()) {
-        return nullptr;
+    if (isBackgroundImageTargetActive()) {
+        const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+        if (backgroundIndex) {
+            keys.push_back(
+                {edit::EditKind::BackgroundImage, *backgroundIndex, m_activeResolution});
+        }
+        return keys;
     }
-    return &history->second;
-}
-
-const MainWindow::EditHistory* MainWindow::currentEditHistory() const
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
+    if (frameIndex) {
+        keys.push_back({edit::EditKind::FramePixels, *frameIndex, m_activeResolution});
     }
-    auto history = m_editHistories.find(*key);
-    if (history == m_editHistories.end()) {
-        return nullptr;
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (paletteIndex) {
+        keys.push_back({edit::EditKind::Palette, *paletteIndex, render::Resolution::Sd});
     }
-    return &history->second;
+    if (frameIndex) {
+        keys.push_back({edit::EditKind::DynamicColor, *frameIndex, m_activeResolution});
+        keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, m_activeResolution});
+    }
+    return keys;
 }
 
 std::optional<std::size_t> MainWindow::currentComparisonMaskIndex() const
@@ -7441,144 +6706,14 @@ std::optional<std::size_t> MainWindow::currentComparisonMaskIndex() const
     return static_cast<std::size_t>(maskId);
 }
 
-MainWindow::MaskEditHistory* MainWindow::currentMaskEditHistory()
-{
-    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
-    if (!maskIndex) {
-        return nullptr;
-    }
-    auto history = m_maskEditHistories.find(*maskIndex);
-    if (history == m_maskEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::MaskEditHistory* MainWindow::currentMaskEditHistory() const
-{
-    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
-    if (!maskIndex) {
-        return nullptr;
-    }
-    auto history = m_maskEditHistories.find(*maskIndex);
-    if (history == m_maskEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 bool MainWindow::isComparisonMaskModeActive() const
 {
     return m_comparisonMaskOverlayButton && m_comparisonMaskOverlayButton->isChecked();
 }
 
-MainWindow::DynamicMaskEditHistory* MainWindow::currentDynamicMaskEditHistory()
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicMaskEditHistories.find(*key);
-    if (history == m_dynamicMaskEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::DynamicMaskEditHistory* MainWindow::currentDynamicMaskEditHistory() const
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicMaskEditHistories.find(*key);
-    if (history == m_dynamicMaskEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 bool MainWindow::isDynamicMaskModeActive() const
 {
     return m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isChecked();
-}
-
-MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHistory()
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicColorEditHistories.find(*key);
-    if (history == m_dynamicColorEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::DynamicColorEditHistory* MainWindow::currentDynamicColorEditHistory() const
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicColorEditHistories.find(*key);
-    if (history == m_dynamicColorEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-MainWindow::DynamicShadowEditHistory* MainWindow::currentDynamicShadowEditHistory()
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicShadowEditHistories.find(*key);
-    if (history == m_dynamicShadowEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::DynamicShadowEditHistory* MainWindow::currentDynamicShadowEditHistory() const
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_dynamicShadowEditHistories.find(*key);
-    if (history == m_dynamicShadowEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-MainWindow::BackgroundMaskEditHistory* MainWindow::currentBackgroundMaskEditHistory()
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_backgroundMaskEditHistories.find(*key);
-    if (history == m_backgroundMaskEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::BackgroundMaskEditHistory* MainWindow::currentBackgroundMaskEditHistory() const
-{
-    const std::optional<EditHistoryKey> key = currentEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_backgroundMaskEditHistories.find(*key);
-    if (history == m_backgroundMaskEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
 }
 
 bool MainWindow::isBackgroundMaskModeActive() const
@@ -7665,32 +6800,6 @@ MainWindow::PaletteGradientPattern MainWindow::currentPaletteGradientPattern() c
     return PaletteGradientPattern::Linear;
 }
 
-MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory()
-{
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    if (!paletteIndex) {
-        return nullptr;
-    }
-    auto history = m_paletteEditHistories.find(*paletteIndex);
-    if (history == m_paletteEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::PaletteEditHistory* MainWindow::currentPaletteEditHistory() const
-{
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    if (!paletteIndex) {
-        return nullptr;
-    }
-    auto history = m_paletteEditHistories.find(*paletteIndex);
-    if (history == m_paletteEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 std::optional<std::size_t> MainWindow::selectedBackgroundIndex() const
 {
     if (!m_document || !m_backgroundComboBox) {
@@ -7718,43 +6827,6 @@ std::optional<std::size_t> MainWindow::currentBackgroundIndex() const
     return static_cast<std::size_t>(backgroundData->backgroundId);
 }
 
-std::optional<MainWindow::BackgroundEditHistoryKey>
-MainWindow::currentBackgroundEditHistoryKey() const
-{
-    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-    if (!backgroundIndex) {
-        return std::nullopt;
-    }
-    return BackgroundEditHistoryKey{*backgroundIndex, m_activeResolution};
-}
-
-MainWindow::BackgroundImageEditHistory* MainWindow::currentBackgroundImageEditHistory()
-{
-    const std::optional<BackgroundEditHistoryKey> key = currentBackgroundEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_backgroundImageEditHistories.find(*key);
-    if (history == m_backgroundImageEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::BackgroundImageEditHistory*
-MainWindow::currentBackgroundImageEditHistory() const
-{
-    const std::optional<BackgroundEditHistoryKey> key = currentBackgroundEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_backgroundImageEditHistories.find(*key);
-    if (history == m_backgroundImageEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 bool MainWindow::isBackgroundImageTargetActive() const
 {
     return activePaintTarget() == PaintTarget::Background && selectedBackgroundIndex().has_value();
@@ -7773,50 +6845,6 @@ std::optional<std::size_t> MainWindow::currentSpriteIndex() const
     return static_cast<std::size_t>(spriteIndex);
 }
 
-std::optional<MainWindow::SpriteEditHistoryKey>
-MainWindow::currentSpriteEditHistoryKey() const
-{
-    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
-    if (!spriteIndex) {
-        return std::nullopt;
-    }
-    render::Resolution resolution = m_activeResolution;
-    if (m_document) {
-        const document::SpriteRecord& sprite = m_document->sprite(*spriteIndex);
-        if (resolution == render::Resolution::Hd && !sprite.hasHd) {
-            resolution = render::Resolution::Sd;
-        }
-    }
-    return SpriteEditHistoryKey{*spriteIndex, resolution};
-}
-
-MainWindow::SpriteImageEditHistory* MainWindow::currentSpriteImageEditHistory()
-{
-    const std::optional<SpriteEditHistoryKey> key = currentSpriteEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_spriteImageEditHistories.find(*key);
-    if (history == m_spriteImageEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
-const MainWindow::SpriteImageEditHistory*
-MainWindow::currentSpriteImageEditHistory() const
-{
-    const std::optional<SpriteEditHistoryKey> key = currentSpriteEditHistoryKey();
-    if (!key) {
-        return nullptr;
-    }
-    auto history = m_spriteImageEditHistories.find(*key);
-    if (history == m_spriteImageEditHistories.end()) {
-        return nullptr;
-    }
-    return &history->second;
-}
-
 bool MainWindow::isSpriteCanvasActive() const
 {
     return m_spriteCanvasButton && m_spriteCanvasButton->isChecked() &&
@@ -7825,334 +6853,67 @@ bool MainWindow::isSpriteCanvasActive() const
 
 void MainWindow::undo()
 {
-    if (isSpriteCanvasActive()) {
-        SpriteImageEditHistory* history = currentSpriteImageEditHistory();
-        if (!history || history->undoStack.empty()) {
-            return;
-        }
-        const SpriteImageEditCommand command = history->undoStack.back();
-        history->undoStack.pop_back();
-        applySpriteImageEdit(command, false);
-        history->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo sprite edit"), 1500);
+    if (!m_document) {
         return;
     }
-    if (isComparisonMaskModeActive()) {
-        MaskEditHistory* history = currentMaskEditHistory();
-        if (!history || history->undoStack.empty()) {
-            return;
-        }
-        const MaskEditCommand command = history->undoStack.back();
-        history->undoStack.pop_back();
-        applyMaskEdit(command, false);
-        history->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo mask edit"), 1500);
-        return;
-    }
-    if (isDynamicMaskModeActive()) {
-        DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
-        if (history && !history->undoStack.empty()) {
-            const DynamicMaskEditCommand command = history->undoStack.back();
-            history->undoStack.pop_back();
-            applyDynamicMaskEdit(command, false);
-            history->redoStack.push_back(command);
+    for (const edit::HistoryKey& key : currentHistoryKeys()) {
+        const edit::EditCommand* command = nullptr;
+        try {
+            command = m_undoHistories.undo(key, *m_document);
+        } catch (const std::exception& ex) {
+            // The edited data no longer exists in that shape, e.g. its HD frame was removed.
             updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Undo dynamic mask edit"), 1500);
+            statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
             return;
         }
-        DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-        if (colorHistory && !colorHistory->undoStack.empty()) {
-            const DynamicColorEditCommand command = colorHistory->undoStack.back();
-            colorHistory->undoStack.pop_back();
-            applyDynamicColorEdit(command, false);
-            colorHistory->redoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
-            return;
+        if (!command) {
+            continue;
         }
-        DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
-        if (shadowHistory && !shadowHistory->undoStack.empty()) {
-            const DynamicShadowEditCommand command = shadowHistory->undoStack.back();
-            shadowHistory->undoStack.pop_back();
-            applyDynamicShadowEdit(command, false);
-            shadowHistory->redoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Undo dynamic shadow edit"), 1500);
-            return;
-        }
-        return;
-    }
-    if (isBackgroundMaskModeActive()) {
-        BackgroundMaskEditHistory* history = currentBackgroundMaskEditHistory();
-        if (history && !history->undoStack.empty()) {
-            const BackgroundMaskEditCommand command = history->undoStack.back();
-            history->undoStack.pop_back();
-            applyBackgroundMaskEdit(command, false);
-            history->redoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Undo background mask edit"), 1500);
-            return;
-        }
-        return;
-    }
-    if (isBackgroundImageTargetActive()) {
-        BackgroundImageEditHistory* history = currentBackgroundImageEditHistory();
-        if (!history || history->undoStack.empty()) {
-            return;
-        }
-        const BackgroundImageEditCommand command = history->undoStack.back();
-        history->undoStack.pop_back();
-        applyBackgroundImageEdit(command, false);
-        history->redoStack.push_back(command);
+        refreshAfterEdit(command->target());
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo background edit"), 1500);
+        statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(key.kind), 1500);
         return;
-    }
-    EditHistory* history = currentEditHistory();
-    if (history && !history->undoStack.empty()) {
-        const PixelEditCommand command = history->undoStack.back();
-        history->undoStack.pop_back();
-        applyPixelEdit(command, false);
-        history->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo"), 1500);
-        return;
-    }
-    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
-    if (paletteHistory && !paletteHistory->undoStack.empty()) {
-        const PaletteEditCommand command = paletteHistory->undoStack.back();
-        paletteHistory->undoStack.pop_back();
-        applyPaletteEdit(command, false);
-        paletteHistory->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo palette edit"), 1500);
-        return;
-    }
-    DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-    if (colorHistory && !colorHistory->undoStack.empty()) {
-        const DynamicColorEditCommand command = colorHistory->undoStack.back();
-        colorHistory->undoStack.pop_back();
-        applyDynamicColorEdit(command, false);
-        colorHistory->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo dynamic color edit"), 1500);
-        return;
-    }
-    DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
-    if (shadowHistory && !shadowHistory->undoStack.empty()) {
-        const DynamicShadowEditCommand command = shadowHistory->undoStack.back();
-        shadowHistory->undoStack.pop_back();
-        applyDynamicShadowEdit(command, false);
-        shadowHistory->redoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo dynamic shadow edit"), 1500);
     }
 }
 
 void MainWindow::redo()
 {
-    if (isSpriteCanvasActive()) {
-        SpriteImageEditHistory* history = currentSpriteImageEditHistory();
-        if (!history || history->redoStack.empty()) {
-            return;
-        }
-        const SpriteImageEditCommand command = history->redoStack.back();
-        history->redoStack.pop_back();
-        applySpriteImageEdit(command, true);
-        history->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo sprite edit"), 1500);
+    if (!m_document) {
         return;
     }
-    if (isComparisonMaskModeActive()) {
-        MaskEditHistory* history = currentMaskEditHistory();
-        if (!history || history->redoStack.empty()) {
-            return;
-        }
-        const MaskEditCommand command = history->redoStack.back();
-        history->redoStack.pop_back();
-        applyMaskEdit(command, true);
-        history->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo mask edit"), 1500);
-        return;
-    }
-    if (isDynamicMaskModeActive()) {
-        DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
-        if (history && !history->redoStack.empty()) {
-            const DynamicMaskEditCommand command = history->redoStack.back();
-            history->redoStack.pop_back();
-            applyDynamicMaskEdit(command, true);
-            history->undoStack.push_back(command);
+    for (const edit::HistoryKey& key : currentHistoryKeys()) {
+        const edit::EditCommand* command = nullptr;
+        try {
+            command = m_undoHistories.redo(key, *m_document);
+        } catch (const std::exception& ex) {
+            // The edited data no longer exists in that shape, e.g. its HD frame was removed.
             updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Redo dynamic mask edit"), 1500);
+            statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
             return;
         }
-        DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-        if (colorHistory && !colorHistory->redoStack.empty()) {
-            const DynamicColorEditCommand command = colorHistory->redoStack.back();
-            colorHistory->redoStack.pop_back();
-            applyDynamicColorEdit(command, true);
-            colorHistory->undoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
-            return;
+        if (!command) {
+            continue;
         }
-        DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
-        if (shadowHistory && !shadowHistory->redoStack.empty()) {
-            const DynamicShadowEditCommand command = shadowHistory->redoStack.back();
-            shadowHistory->redoStack.pop_back();
-            applyDynamicShadowEdit(command, true);
-            shadowHistory->undoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Redo dynamic shadow edit"), 1500);
-            return;
-        }
-        return;
-    }
-    if (isBackgroundMaskModeActive()) {
-        BackgroundMaskEditHistory* history = currentBackgroundMaskEditHistory();
-        if (history && !history->redoStack.empty()) {
-            const BackgroundMaskEditCommand command = history->redoStack.back();
-            history->redoStack.pop_back();
-            applyBackgroundMaskEdit(command, true);
-            history->undoStack.push_back(command);
-            updateUndoRedoActions();
-            statusBar()->showMessage(QStringLiteral("Redo background mask edit"), 1500);
-            return;
-        }
-        return;
-    }
-    if (isBackgroundImageTargetActive()) {
-        BackgroundImageEditHistory* history = currentBackgroundImageEditHistory();
-        if (!history || history->redoStack.empty()) {
-            return;
-        }
-        const BackgroundImageEditCommand command = history->redoStack.back();
-        history->redoStack.pop_back();
-        applyBackgroundImageEdit(command, true);
-        history->undoStack.push_back(command);
+        refreshAfterEdit(command->target());
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo background edit"), 1500);
+        statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(key.kind), 1500);
         return;
-    }
-    EditHistory* history = currentEditHistory();
-    if (history && !history->redoStack.empty()) {
-        const PixelEditCommand command = history->redoStack.back();
-        history->redoStack.pop_back();
-        applyPixelEdit(command, true);
-        history->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo"), 1500);
-        return;
-    }
-    PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
-    if (paletteHistory && !paletteHistory->redoStack.empty()) {
-        const PaletteEditCommand command = paletteHistory->redoStack.back();
-        paletteHistory->redoStack.pop_back();
-        applyPaletteEdit(command, true);
-        paletteHistory->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo palette edit"), 1500);
-        return;
-    }
-    DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-    if (colorHistory && !colorHistory->redoStack.empty()) {
-        const DynamicColorEditCommand command = colorHistory->redoStack.back();
-        colorHistory->redoStack.pop_back();
-        applyDynamicColorEdit(command, true);
-        colorHistory->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo dynamic color edit"), 1500);
-        return;
-    }
-    DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
-    if (shadowHistory && !shadowHistory->redoStack.empty()) {
-        const DynamicShadowEditCommand command = shadowHistory->redoStack.back();
-        shadowHistory->redoStack.pop_back();
-        applyDynamicShadowEdit(command, true);
-        shadowHistory->undoStack.push_back(command);
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo dynamic shadow edit"), 1500);
     }
 }
 
 void MainWindow::updateUndoRedoActions()
 {
-    if (isSpriteCanvasActive()) {
-        const SpriteImageEditHistory* history = currentSpriteImageEditHistory();
-        if (m_undoAction) {
-            m_undoAction->setEnabled(history && !history->undoStack.empty());
-        }
-        if (m_redoAction) {
-            m_redoAction->setEnabled(history && !history->redoStack.empty());
-        }
-        return;
+    bool canUndo = false;
+    bool canRedo = false;
+    for (const edit::HistoryKey& key : currentHistoryKeys()) {
+        canUndo = canUndo || m_undoHistories.canUndo(key);
+        canRedo = canRedo || m_undoHistories.canRedo(key);
     }
-    if (isComparisonMaskModeActive()) {
-        const MaskEditHistory* history = currentMaskEditHistory();
-        if (m_undoAction) {
-            m_undoAction->setEnabled(history && !history->undoStack.empty());
-        }
-        if (m_redoAction) {
-            m_redoAction->setEnabled(history && !history->redoStack.empty());
-        }
-        return;
-    }
-    if (isDynamicMaskModeActive()) {
-        const DynamicMaskEditHistory* history = currentDynamicMaskEditHistory();
-        const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-        const DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
-        if (m_undoAction) {
-            m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
-                                     (colorHistory && !colorHistory->undoStack.empty()) ||
-                                     (shadowHistory && !shadowHistory->undoStack.empty()));
-        }
-        if (m_redoAction) {
-            m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
-                                     (colorHistory && !colorHistory->redoStack.empty()) ||
-                                     (shadowHistory && !shadowHistory->redoStack.empty()));
-        }
-        return;
-    }
-    if (isBackgroundMaskModeActive()) {
-        const BackgroundMaskEditHistory* history = currentBackgroundMaskEditHistory();
-        if (m_undoAction) {
-            m_undoAction->setEnabled(history && !history->undoStack.empty());
-        }
-        if (m_redoAction) {
-            m_redoAction->setEnabled(history && !history->redoStack.empty());
-        }
-        return;
-    }
-    if (isBackgroundImageTargetActive()) {
-        const BackgroundImageEditHistory* history = currentBackgroundImageEditHistory();
-        if (m_undoAction) {
-            m_undoAction->setEnabled(history && !history->undoStack.empty());
-        }
-        if (m_redoAction) {
-            m_redoAction->setEnabled(history && !history->redoStack.empty());
-        }
-        return;
-    }
-
-    const EditHistory* history = currentEditHistory();
-    const PaletteEditHistory* paletteHistory = currentPaletteEditHistory();
-    const DynamicColorEditHistory* colorHistory = currentDynamicColorEditHistory();
-    const DynamicShadowEditHistory* shadowHistory = currentDynamicShadowEditHistory();
     if (m_undoAction) {
-        m_undoAction->setEnabled((history && !history->undoStack.empty()) ||
-                                 (paletteHistory && !paletteHistory->undoStack.empty()) ||
-                                 (colorHistory && !colorHistory->undoStack.empty()) ||
-                                 (shadowHistory && !shadowHistory->undoStack.empty()));
+        m_undoAction->setEnabled(canUndo);
     }
     if (m_redoAction) {
-        m_redoAction->setEnabled((history && !history->redoStack.empty()) ||
-                                 (paletteHistory && !paletteHistory->redoStack.empty()) ||
-                                 (colorHistory && !colorHistory->redoStack.empty()) ||
-                                 (shadowHistory && !shadowHistory->redoStack.empty()));
+        m_redoAction->setEnabled(canRedo);
     }
 }
 

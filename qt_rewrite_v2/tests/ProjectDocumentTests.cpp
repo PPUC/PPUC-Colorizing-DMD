@@ -193,6 +193,7 @@ void testUnsupportedPayloadPreservationHook()
 void testSnapshotValidationAndRoundTrip()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "roundtrip";
     FrameDynamicData dynamicData{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
@@ -337,6 +338,7 @@ void testSnapshotValidationAndRoundTrip()
 void testComparisonMaskPixelEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "mask_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -370,6 +372,7 @@ void testComparisonMaskPixelEditing()
 void testFrameComparisonMetadataEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "mask_metadata";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -510,6 +513,7 @@ void testColorRotationEditing()
 void testPaletteEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "palette_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -563,6 +567,7 @@ void testDynamicMaskPixelEditing()
         std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
     };
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "dynamic_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -632,6 +637,7 @@ void testDynamicShadowEditing()
         std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
     };
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "dynamic_shadow_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -695,6 +701,7 @@ void testDynamicShadowEditing()
 void testBackgroundMetadataAndMaskEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "background_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -779,6 +786,7 @@ void testBackgroundMetadataAndMaskEditing()
 void testFrameSpriteReferenceEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_assignment";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -885,6 +893,7 @@ void testFrameSpriteReferenceEditing()
 void testSpriteColorizedPixelEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_pixel_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -938,6 +947,7 @@ void testSpriteColorizedPixelEditing()
 void testSpriteNameEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_name_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -977,6 +987,7 @@ void testSpriteNameEditing()
 void testSpriteOriginalPixelEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_original_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -1032,6 +1043,7 @@ void testSpriteOriginalPixelEditing()
 void testReplaceSpriteFromFrame()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_capture";
     colorizing::document::IndexedFrame original =
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
@@ -1117,6 +1129,7 @@ void testReplaceSpriteFromFrame()
 void testReplaceSpriteFromFrameSelection()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_selection_capture";
     colorizing::document::IndexedFrame original =
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
@@ -1184,6 +1197,7 @@ void testReplaceSpriteFromFrameSelection()
 void testSpriteHdCreateAndRemove()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_hd_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -1240,6 +1254,7 @@ void testSpriteHdCreateAndRemove()
 void testBackgroundImagePixelEditing()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "background_image_edit";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -1309,6 +1324,7 @@ void testHdRelatedDataUpscaling()
     backgroundData.maskSd.pixels[4 * 128 + 5] = 1;
 
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "hd_related_upscale";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -1358,6 +1374,7 @@ void testHdRelatedDataUpscaling()
 void testInvalidSnapshotReportsReason()
 {
     ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "bad";
     snapshot.frames.push_back(ProjectFrameSnapshot{
         makeIndexedFrame(colorizing::render::Size{64, 32}, 1),

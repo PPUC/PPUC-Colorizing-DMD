@@ -1,6 +1,5 @@
 #pragma once
 
-#include <map>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -11,6 +10,8 @@
 #include <QString>
 
 #include "document/ProjectDocument.h"
+#include "edit/DrawingTools.h"
+#include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
@@ -36,29 +37,12 @@ namespace colorizing::app {
 
 class MainWindow final : public QMainWindow {
 public:
-    enum class PaletteGradientDirection {
-        Free,
-        LeftToRight,
-        RightToLeft,
-        TopToBottom,
-        BottomToTop,
-        TopLeftToBottomRight,
-        BottomRightToTopLeft,
-        TopRightToBottomLeft,
-        BottomLeftToTopRight,
-        CenterToEdge,
-        EdgeToCenter,
-    };
-
-    enum class PaletteGradientPattern {
-        Linear,
-        Circle,
-        Ellipse,
-    };
-
     explicit MainWindow(QWidget* parent = nullptr);
 
 private:
+    using PaletteGradientDirection = edit::PaletteGradientDirection;
+    using PaletteGradientPattern = edit::PaletteGradientPattern;
+
     enum class DrawingTool {
         Point,
         Line,
@@ -93,19 +77,6 @@ private:
         Sprites,
     };
 
-    struct PixelChange {
-        int x = 0;
-        int y = 0;
-        uint16_t oldColor = 0;
-        uint16_t newColor = 0;
-    };
-
-    struct PixelEditCommand {
-        std::size_t frameIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-        std::vector<PixelChange> changes;
-    };
-
     struct PendingFreePaletteGradient {
         render::CanvasHit shapeStart;
         render::CanvasHit shapeEnd;
@@ -121,148 +92,6 @@ private:
         std::vector<render::Point> pixels;
         std::optional<render::CanvasHit> gradientStart;
         std::optional<render::CanvasHit> gradientEnd;
-    };
-
-    struct MaskPixelChange {
-        int x = 0;
-        int y = 0;
-        uint8_t oldValue = 0;
-        uint8_t newValue = 0;
-    };
-
-    struct MaskEditCommand {
-        std::size_t maskIndex = 0;
-        std::vector<MaskPixelChange> changes;
-    };
-
-    struct EditHistoryKey {
-        std::size_t frameIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-
-        [[nodiscard]] bool operator<(const EditHistoryKey& other) const;
-    };
-
-    struct EditHistory {
-        std::vector<PixelEditCommand> undoStack;
-        std::vector<PixelEditCommand> redoStack;
-    };
-
-    struct MaskEditHistory {
-        std::vector<MaskEditCommand> undoStack;
-        std::vector<MaskEditCommand> redoStack;
-    };
-
-    using DynamicMaskPixelChange = MaskPixelChange;
-
-    struct DynamicMaskEditCommand {
-        std::size_t frameIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-        std::vector<DynamicMaskPixelChange> changes;
-    };
-
-    struct DynamicMaskEditHistory {
-        std::vector<DynamicMaskEditCommand> undoStack;
-        std::vector<DynamicMaskEditCommand> redoStack;
-    };
-
-    struct DynamicColorEditCommand {
-        std::size_t frameIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-        std::size_t setIndex = 0;
-        std::size_t originalColorIndex = 0;
-        uint16_t oldColor = 0;
-        uint16_t newColor = 0;
-    };
-
-    struct DynamicColorEditHistory {
-        std::vector<DynamicColorEditCommand> undoStack;
-        std::vector<DynamicColorEditCommand> redoStack;
-    };
-
-    struct DynamicShadowEditChange {
-        std::size_t frameIndex = 0;
-        uint8_t oldDirection = 0;
-        uint8_t newDirection = 0;
-        uint16_t oldColor = 0;
-        uint16_t newColor = 0;
-    };
-
-    struct DynamicShadowEditCommand {
-        render::Resolution resolution = render::Resolution::Sd;
-        std::size_t setIndex = 0;
-        bool editDirection = false;
-        bool editColor = false;
-        std::vector<DynamicShadowEditChange> changes;
-    };
-
-    struct DynamicShadowEditHistory {
-        std::vector<DynamicShadowEditCommand> undoStack;
-        std::vector<DynamicShadowEditCommand> redoStack;
-    };
-
-    using BackgroundMaskPixelChange = MaskPixelChange;
-
-    struct BackgroundMaskEditCommand {
-        std::size_t frameIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-        std::vector<BackgroundMaskPixelChange> changes;
-    };
-
-    struct BackgroundMaskEditHistory {
-        std::vector<BackgroundMaskEditCommand> undoStack;
-        std::vector<BackgroundMaskEditCommand> redoStack;
-    };
-
-    struct BackgroundEditHistoryKey {
-        std::size_t backgroundIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-
-        [[nodiscard]] bool operator<(const BackgroundEditHistoryKey& other) const;
-    };
-
-    struct BackgroundImageEditCommand {
-        std::size_t backgroundIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-        std::vector<PixelChange> changes;
-    };
-
-    struct BackgroundImageEditHistory {
-        std::vector<BackgroundImageEditCommand> undoStack;
-        std::vector<BackgroundImageEditCommand> redoStack;
-    };
-
-    struct SpriteEditHistoryKey {
-        std::size_t spriteIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-
-        [[nodiscard]] bool operator<(const SpriteEditHistoryKey& other) const;
-    };
-
-    struct SpriteImageEditCommand {
-        std::size_t spriteIndex = 0;
-        render::Resolution resolution = render::Resolution::Sd;
-        std::vector<PixelChange> changes;
-    };
-
-    struct SpriteImageEditHistory {
-        std::vector<SpriteImageEditCommand> undoStack;
-        std::vector<SpriteImageEditCommand> redoStack;
-    };
-
-    struct PaletteColorChange {
-        std::size_t colorIndex = 0;
-        uint16_t oldColor = 0;
-        uint16_t newColor = 0;
-    };
-
-    struct PaletteEditCommand {
-        std::size_t paletteIndex = 0;
-        std::vector<PaletteColorChange> changes;
-    };
-
-    struct PaletteEditHistory {
-        std::vector<PaletteEditCommand> undoStack;
-        std::vector<PaletteEditCommand> redoStack;
     };
 
     void createActions();
@@ -402,17 +231,19 @@ private:
                                      const render::CanvasHit& gradientStart,
                                      const render::CanvasHit& gradientEnd,
                                      const QString& statusText);
+    void commitFramePixelColors(render::Resolution resolution,
+                                const std::vector<render::Point>& pixels,
+                                const edit::PixelColorSource& colorForPoint,
+                                const QString& statusText);
     void commitMaskPixels(const std::vector<render::Point>& pixels,
                           uint8_t value,
                           const QString& statusText);
-    void commitDynamicMaskPixels(render::Resolution resolution,
-                                 const std::vector<render::Point>& pixels,
-                                 uint8_t value,
-                                 const QString& statusText);
-    void commitBackgroundMaskPixels(render::Resolution resolution,
-                                    const std::vector<render::Point>& pixels,
-                                    uint8_t value,
-                                    const QString& statusText);
+    // kind is DynamicMask or BackgroundMask.
+    void commitFrameMaskPixels(edit::EditKind kind,
+                               render::Resolution resolution,
+                               const std::vector<render::Point>& pixels,
+                               uint8_t value,
+                               const QString& statusText);
     void commitBackgroundImagePixels(render::Resolution resolution,
                                      const std::vector<render::Point>& pixels,
                                      const QString& statusText);
@@ -422,49 +253,37 @@ private:
                                              const render::CanvasHit& gradientStart,
                                              const render::CanvasHit& gradientEnd,
                                              const QString& statusText);
-    void applyPixelEdit(const PixelEditCommand& command, bool useNewColor);
-    void applyMaskEdit(const MaskEditCommand& command, bool useNewValue);
-    void applyDynamicMaskEdit(const DynamicMaskEditCommand& command, bool useNewValue);
-    void applyDynamicColorEdit(const DynamicColorEditCommand& command, bool useNewColor);
-    void applyDynamicShadowEdit(const DynamicShadowEditCommand& command, bool useNewValue);
-    void applyBackgroundMaskEdit(const BackgroundMaskEditCommand& command, bool useNewValue);
-    void applyBackgroundImageEdit(const BackgroundImageEditCommand& command, bool useNewColor);
-    void applySpriteImageEdit(const SpriteImageEditCommand& command, bool useNewColor);
-    void applyPaletteEdit(const PaletteEditCommand& command, bool useNewColor);
-    [[nodiscard]] std::optional<EditHistoryKey> currentEditHistoryKey() const;
-    [[nodiscard]] EditHistory* currentEditHistory();
-    [[nodiscard]] const EditHistory* currentEditHistory() const;
+    void commitBackgroundImageColors(std::size_t backgroundIndex,
+                                     render::Resolution resolution,
+                                     const std::vector<render::Point>& pixels,
+                                     const edit::PixelColorSource& colorForPoint,
+                                     const QString& statusText);
+    // Both return false, without committing, when there is nothing to change.
+    bool commitPixelChanges(const edit::EditLayer& layer, std::vector<edit::PixelChange> changes);
+    bool commitMaskChanges(const edit::EditLayer& layer,
+                           std::vector<edit::MaskPixelChange> changes);
+    [[nodiscard]] edit::PixelColorSource paletteGradientColorSource(
+        std::size_t paletteIndex,
+        const render::CanvasHit& shapeStart,
+        const render::CanvasHit& shapeEnd,
+        const render::CanvasHit& gradientStart,
+        const render::CanvasHit& gradientEnd) const;
+    void commitEdit(std::unique_ptr<edit::EditCommand> command);
+    void refreshAfterEdit(const edit::EditTarget& target);
+    [[nodiscard]] std::vector<edit::HistoryKey> currentHistoryKeys() const;
     [[nodiscard]] std::optional<std::size_t> currentComparisonMaskIndex() const;
-    [[nodiscard]] MaskEditHistory* currentMaskEditHistory();
-    [[nodiscard]] const MaskEditHistory* currentMaskEditHistory() const;
     [[nodiscard]] bool isComparisonMaskModeActive() const;
-    [[nodiscard]] DynamicMaskEditHistory* currentDynamicMaskEditHistory();
-    [[nodiscard]] const DynamicMaskEditHistory* currentDynamicMaskEditHistory() const;
-    [[nodiscard]] DynamicColorEditHistory* currentDynamicColorEditHistory();
-    [[nodiscard]] const DynamicColorEditHistory* currentDynamicColorEditHistory() const;
-    [[nodiscard]] DynamicShadowEditHistory* currentDynamicShadowEditHistory();
-    [[nodiscard]] const DynamicShadowEditHistory* currentDynamicShadowEditHistory() const;
     [[nodiscard]] bool isDynamicMaskModeActive() const;
-    [[nodiscard]] BackgroundMaskEditHistory* currentBackgroundMaskEditHistory();
-    [[nodiscard]] const BackgroundMaskEditHistory* currentBackgroundMaskEditHistory() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
     [[nodiscard]] std::pair<int, int> currentPaletteGradientEndpoints() const;
     [[nodiscard]] PaletteGradientShape currentPaletteGradientShape() const;
     [[nodiscard]] PaletteGradientDirection currentPaletteGradientDirection() const;
     [[nodiscard]] PaletteGradientPattern currentPaletteGradientPattern() const;
-    [[nodiscard]] PaletteEditHistory* currentPaletteEditHistory();
-    [[nodiscard]] const PaletteEditHistory* currentPaletteEditHistory() const;
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
     [[nodiscard]] std::optional<std::size_t> currentBackgroundIndex() const;
-    [[nodiscard]] std::optional<BackgroundEditHistoryKey> currentBackgroundEditHistoryKey() const;
-    [[nodiscard]] BackgroundImageEditHistory* currentBackgroundImageEditHistory();
-    [[nodiscard]] const BackgroundImageEditHistory* currentBackgroundImageEditHistory() const;
     [[nodiscard]] bool isBackgroundImageTargetActive() const;
     [[nodiscard]] std::optional<std::size_t> currentSpriteIndex() const;
-    [[nodiscard]] std::optional<SpriteEditHistoryKey> currentSpriteEditHistoryKey() const;
-    [[nodiscard]] SpriteImageEditHistory* currentSpriteImageEditHistory();
-    [[nodiscard]] const SpriteImageEditHistory* currentSpriteImageEditHistory() const;
     [[nodiscard]] bool isSpriteCanvasActive() const;
     void undo();
     void redo();
@@ -604,15 +423,7 @@ private:
     std::optional<PendingFreePaletteGradient> m_pendingFreePaletteGradient;
     std::optional<CanvasSelection> m_canvasSelection;
     bool m_canvasSelectionDirectionMode = false;
-    std::map<EditHistoryKey, EditHistory> m_editHistories;
-    std::map<std::size_t, MaskEditHistory> m_maskEditHistories;
-    std::map<EditHistoryKey, DynamicMaskEditHistory> m_dynamicMaskEditHistories;
-    std::map<EditHistoryKey, DynamicColorEditHistory> m_dynamicColorEditHistories;
-    std::map<EditHistoryKey, DynamicShadowEditHistory> m_dynamicShadowEditHistories;
-    std::map<EditHistoryKey, BackgroundMaskEditHistory> m_backgroundMaskEditHistories;
-    std::map<BackgroundEditHistoryKey, BackgroundImageEditHistory> m_backgroundImageEditHistories;
-    std::map<SpriteEditHistoryKey, SpriteImageEditHistory> m_spriteImageEditHistories;
-    std::map<std::size_t, PaletteEditHistory> m_paletteEditHistories;
+    edit::UndoHistories m_undoHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

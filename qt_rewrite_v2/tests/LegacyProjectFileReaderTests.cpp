@@ -220,7 +220,7 @@ std::vector<uint8_t> makeCrpWithSpriteNames(const std::string& romName)
 {
     std::vector<uint8_t> bytes = makeCrpOriginals(romName);
     appendRepeatedU32(bytes, 0, 64);
-    appendRepeatedU8(bytes, 0, 64 * 16);
+    appendRepeatedU16(bytes, 0, 64 * 16);
     bytes.push_back(0);
     bytes.push_back(0);
     appendRepeatedU8(bytes, 0, 64 * 64);
@@ -528,7 +528,13 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.frames[1].backgroundData->maskSd.pixels[14] = 7;
     loadResult.snapshot.frames[1].backgroundData->maskHd.pixels[15] = 8;
     loadResult.snapshot.frames[0].colorizedHd.reset();
+    loadResult.snapshot.frames[1].dynamicData->maskSd.pixels[kSdPixels - 1] = 255;
+    loadResult.snapshot.frames[1].dynamicData->maskHd.pixels[5] = 255;
     loadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] = 0x2468;
+    expect(loadResult.snapshot.frames[1].inactiveHd.has_value() &&
+               loadResult.snapshot.frames[1].inactiveHd->pixels.front() == 0xbbbb,
+           "file reader should keep HD pixels of a frame whose HD flag is off");
+    loadResult.snapshot.frames[1].inactiveHd.reset();
     loadResult.snapshot.frames[1].colorizedHd =
         makeRgb565Frame(colorizing::render::kHdFrameSize, 0xcafe);
     loadResult.snapshot.frames[1].colorizedHd->pixels[5] = 0xbeef;
@@ -539,10 +545,9 @@ void testFileWriterSavesEditedModernCrom()
     const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
     expect(saveResult.ok, "file writer should save edited modern cROM");
 
-    const std::vector<uint8_t> savedBytes = readBytes(cromPath);
-    expect(savedBytes.size() >= 2 && savedBytes[savedBytes.size() - 2] == 0x99 &&
-               savedBytes[savedBytes.size() - 1] == 0x88,
-           "file writer should preserve trailing bytes");
+    expect(!std::filesystem::exists(cromPath.string() + ".saving") &&
+               !std::filesystem::exists(crpPath.string() + ".saving"),
+           "file writer should not leave temporary files behind");
 
     const LegacyLoadResult reloadResult = reader.load(paths);
 
@@ -636,35 +641,60 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should set second HD presence flag");
     expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[5] == 0xbeef,
            "file writer should update second HD pixels");
+    expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[0] == 0 &&
+               reloadResult.snapshot.frames[1].colorizedHd->pixels[0] == 0,
+           "file writer should blank colorized pixels under dynamic masks");
     expect(reloadResult.snapshot.palettes[0].colors[0] == 0xabcd,
            "file writer should update cRP palette colors");
     expect(reloadResult.snapshot.palettes[1].name == "Edited palette",
            "file writer should update cRP palette names");
 }
 
-void testFileWriterRejectsMismatchedTemplate()
+void testFileWriterCreatesProjectWithoutExistingFiles()
 {
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    writeBytes(cromPath, makeModernCromWithFrames());
+    const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path sourceCrpPath = uniqueTempPath(".cRP");
+    writeBytes(sourceCromPath, makeModernCromWithFrames());
+    writeBytes(sourceCrpPath, makeCrpWithPalettes("file_rom"));
 
     const LegacyProjectFileReader reader;
-    LegacyLoadResult loadResult = reader.load(LegacyProjectPaths{
-        cromPath.string(),
-        cromPath.string(),
+    const LegacyLoadResult loadResult = reader.load(LegacyProjectPaths{
+        sourceCromPath.string(),
+        sourceCrpPath.string(),
     });
-    loadResult.snapshot.romName = "other_rom";
+    std::filesystem::remove(sourceCromPath);
+    std::filesystem::remove(sourceCrpPath);
+    expect(loadResult.ok, "new project writer test initial load");
 
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    const LegacyProjectPaths paths{cromPath.string(), crpPath.string()};
     const LegacyProjectFileWriter writer;
-    const LegacySaveResult saveResult = writer.save(LegacyProjectPaths{
-        cromPath.string(),
-        "",
-    }, loadResult.snapshot);
+    const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
+    expect(saveResult.ok, "file writer should create files that do not exist yet");
 
+    const LegacyLoadResult reloadResult = reader.load(paths);
     std::filesystem::remove(cromPath);
+    std::filesystem::remove(crpPath);
 
-    expect(!saveResult.ok, "file writer should reject mismatched ROM name");
-    expect(saveResult.error.message == "snapshot ROM name does not match existing cROM",
-           "file writer mismatch error");
+    expect(reloadResult.ok, "newly created project should load");
+    expect(reloadResult.snapshot.frames.size() == 2, "newly created project frame count");
+    expect(reloadResult.snapshot.sprites[0].name == "Initial sprite",
+           "newly created project sprite name");
+    expect(reloadResult.snapshot.palettes[1].name == "Warm palette",
+           "newly created project palette name");
+}
+
+void testFileWriterRequiresBothPaths()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    const LegacyProjectFileWriter writer;
+    const LegacySaveResult saveResult =
+        writer.save(LegacyProjectPaths{"/tmp/only.cROM", ""}, snapshot);
+
+    expect(!saveResult.ok, "file writer should require both paths");
+    expect(saveResult.error.message == "both .cROM and .cRP paths are required",
+           "file writer missing path error");
 }
 
 }  // namespace
@@ -675,5 +705,6 @@ void runLegacyProjectFileReaderTests()
     testFileReaderReportsMissingCrom();
     testFileReaderRejectsLegacyPalettedCrom();
     testFileWriterSavesEditedModernCrom();
-    testFileWriterRejectsMismatchedTemplate();
+    testFileWriterCreatesProjectWithoutExistingFiles();
+    testFileWriterRequiresBothPaths();
 }

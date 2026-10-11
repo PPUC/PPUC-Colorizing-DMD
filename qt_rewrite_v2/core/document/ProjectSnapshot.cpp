@@ -32,10 +32,26 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     if (snapshot.romName.empty()) {
         return fail(errorMessage, "ROM name is empty");
     }
+    if (snapshot.colorCount == 0 || snapshot.colorCount > kColorSetColorCount) {
+        return fail(errorMessage, "original color count must be between 1 and 16");
+    }
+    if (snapshot.originalIs256x64 && snapshot.cromRevision < 20) {
+        return fail(errorMessage, "256x64 original frames need cROM revision 20");
+    }
+    if (snapshot.comparisonMasks.size() > kMaxComparisonMasks) {
+        return fail(errorMessage, "too many comparison masks");
+    }
+    if (snapshot.sprites.size() > kMaxSprites) {
+        return fail(errorMessage, "too many sprites");
+    }
+    if (!isValidEditorMetadata(snapshot.editorMetadata, errorMessage)) {
+        return false;
+    }
 
+    const Size originalSize = originalFrameSize(snapshot);
     for (std::size_t i = 0; i < snapshot.comparisonMasks.size(); ++i) {
         const IndexedFrame& mask = snapshot.comparisonMasks[i];
-        if (!mask.isValid() || !hasSize(mask.size, render::kSdFrameSize)) {
+        if (!mask.isValid() || !hasSize(mask.size, originalSize)) {
             return fail(errorMessage, "comparison mask " + std::to_string(i) +
                                           " has invalid SD data");
         }
@@ -53,6 +69,16 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
              !hasSize(background.colorizedHd->size, render::kHdFrameSize))) {
             return fail(errorMessage, "background " + std::to_string(i) +
                                           " has invalid HD data");
+        }
+    }
+
+    for (std::size_t i = 0; i < snapshot.backgrounds.size(); ++i) {
+        const BackgroundRecord& background = snapshot.backgrounds[i];
+        if (background.inactiveHd &&
+            (background.colorizedHd || !background.inactiveHd->isValid() ||
+             !hasSize(background.inactiveHd->size, render::kHdFrameSize))) {
+            return fail(errorMessage, "background " + std::to_string(i) +
+                                          " has invalid inactive HD data");
         }
     }
 
@@ -82,6 +108,17 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             return fail(errorMessage, "sprite " + std::to_string(i) +
                                           " has invalid detection metadata");
         }
+        const std::size_t spriteDynamicColorCount =
+            kMaxDynamicSetsPerSprite * static_cast<std::size_t>(snapshot.colorCount);
+        if ((!sprite.dynamicMaskSd.pixels.empty() &&
+             (!sprite.dynamicMaskSd.isValid() || !hasSize(sprite.dynamicMaskSd.size, spriteSize))) ||
+            (!sprite.dynamicMaskHd.pixels.empty() &&
+             (!sprite.dynamicMaskHd.isValid() || !hasSize(sprite.dynamicMaskHd.size, spriteSize))) ||
+            !isEmptyOrSize(sprite.dynamicColorsSd, spriteDynamicColorCount) ||
+            !isEmptyOrSize(sprite.dynamicColorsHd, spriteDynamicColorCount)) {
+            return fail(errorMessage, "sprite " + std::to_string(i) +
+                                          " has invalid dynamic data");
+        }
     }
 
     for (std::size_t i = 0; i < snapshot.palettes.size(); ++i) {
@@ -93,7 +130,7 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
 
     for (std::size_t i = 0; i < snapshot.frames.size(); ++i) {
         const ProjectFrameSnapshot& frame = snapshot.frames[i];
-        if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, render::kSdFrameSize)) {
+        if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, originalSize)) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid SD original data");
         }
         if (!frame.colorizedSd.isValid() || !hasSize(frame.colorizedSd.size, render::kSdFrameSize)) {
@@ -102,6 +139,11 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         if (frame.colorizedHd &&
             (!frame.colorizedHd->isValid() || !hasSize(frame.colorizedHd->size, render::kHdFrameSize))) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid HD colorized data");
+        }
+        if (frame.inactiveHd &&
+            (frame.colorizedHd || !frame.inactiveHd->isValid() ||
+             !hasSize(frame.inactiveHd->size, render::kHdFrameSize))) {
+            return fail(errorMessage, "frame " + std::to_string(i) + " has invalid inactive HD data");
         }
         if (frame.dynamicData) {
             if (!frame.dynamicData->maskSd.isValid() ||
@@ -114,7 +156,10 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                               " has invalid HD dynamic mask data");
             }
-            if (frame.dynamicData->colorsSd.empty() || frame.dynamicData->colorsHd.empty()) {
+            const std::size_t dynamicColorCount =
+                kMaxDynamicSetsPerFrame * static_cast<std::size_t>(snapshot.colorCount);
+            if (frame.dynamicData->colorsSd.size() != dynamicColorCount ||
+                frame.dynamicData->colorsHd.size() != dynamicColorCount) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                           " has invalid dynamic color data");
             }
@@ -154,6 +199,31 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     }
 
     return true;
+}
+
+Size originalFrameSize(const ProjectSnapshot& snapshot)
+{
+    return snapshot.originalIs256x64 ? render::kHdFrameSize : render::kSdFrameSize;
+}
+
+void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount)
+{
+    const Size spriteSize{static_cast<int>(kMaxSpriteWidth),
+                          static_cast<int>(kMaxSpriteHeight)};
+    if (sprite.dynamicMaskSd.pixels.empty()) {
+        sprite.dynamicMaskSd = makeIndexedFrame(spriteSize, 255);
+    }
+    if (sprite.dynamicMaskHd.pixels.empty()) {
+        sprite.dynamicMaskHd = makeIndexedFrame(spriteSize, 255);
+    }
+    const std::size_t dynamicColorCount =
+        kMaxDynamicSetsPerSprite * static_cast<std::size_t>(colorCount);
+    if (sprite.dynamicColorsSd.empty()) {
+        sprite.dynamicColorsSd.assign(dynamicColorCount, 0);
+    }
+    if (sprite.dynamicColorsHd.empty()) {
+        sprite.dynamicColorsHd.assign(dynamicColorCount, 0);
+    }
 }
 
 }  // namespace colorizing::document

@@ -1,5 +1,8 @@
 #include "legacy/LegacyCromFrames.h"
 
+#include "document/ProjectSnapshot.h"
+
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
@@ -16,6 +19,8 @@ constexpr std::size_t kMaxSpriteHeight = 64;
 constexpr std::size_t kMaxColorRotations = 4;
 constexpr std::size_t kMaxColorRotationLength = 64;
 constexpr std::size_t kMaxSpriteDetectAreas = 4;
+constexpr uint32_t kSpriteDynamicHeaderThreshold = 18 * sizeof(uint32_t);
+constexpr uint32_t kSpriteShapeModeHeaderThreshold = 19 * sizeof(uint32_t);
 
 class Cursor {
 public:
@@ -155,6 +160,13 @@ bool readU32Values(Cursor& cursor,
     return true;
 }
 
+bool hasNonZeroPixel(const document::Rgb565Frame& frame)
+{
+    return std::any_of(frame.pixels.begin(), frame.pixels.end(), [](uint16_t pixel) {
+        return pixel != 0;
+    });
+}
+
 }  // namespace
 
 LegacyCromFrameParseResult parseModernLegacyCromFrames(const std::vector<uint8_t>& bytes)
@@ -203,11 +215,12 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     frameData.comparisonMasksOffset = cursor.offset();
     frameData.comparisonMasks.reserve(metadata.comparisonMaskCount);
     for (std::size_t maskIndex = 0; maskIndex < metadata.comparisonMaskCount; ++maskIndex) {
-        document::IndexedFrame mask =
-            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.frameWidth),
-                                                    static_cast<int>(metadata.frameHeight)});
-        if (mask.pixels.size() != sdPixels ||
-            !cursor.readBytes(mask.pixels.data(), mask.pixels.size())) {
+        document::IndexedFrame mask = document::makeIndexedFrame(
+            metadata.originalIs256x64
+                ? render::Size{256, 64}
+                : render::Size{static_cast<int>(metadata.frameWidth),
+                               static_cast<int>(metadata.frameHeight)});
+        if (!cursor.readBytes(mask.pixels.data(), mask.pixels.size())) {
             return fail("unexpected end of cROM while reading comparison masks");
         }
         frameData.comparisonMasks.push_back(std::move(mask));
@@ -478,6 +491,8 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         if (backgroundIndex < frameData.extraBackgroundFlags.size() &&
             frameData.extraBackgroundFlags[backgroundIndex] != 0) {
             frameData.backgrounds[backgroundIndex].colorizedHd = std::move(backgroundHd);
+        } else if (hasNonZeroPixel(backgroundHd)) {
+            frameData.backgrounds[backgroundIndex].inactiveHd = std::move(backgroundHd);
         }
     }
 
@@ -551,6 +566,49 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         }
     }
 
+    // Sprite dynamic content was appended in later format revisions. Older or shortened files
+    // simply end here and keep the "no dynamic content" defaults.
+    const std::size_t spriteDynamicColorCount =
+        document::kMaxDynamicSetsPerSprite * static_cast<std::size_t>(metadata.colorCount);
+    const std::size_t spriteDynamicBytes =
+        spriteCount * (2 * spriteDynamicColorCount * kRgb565Bytes + 2 * spritePixels);
+    const bool hasSpriteDynamicData =
+        metadata.headerLengthBytes >= kSpriteDynamicHeaderThreshold &&
+        size - cursor.offset() >= spriteDynamicBytes;
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        document::normalizeSpriteRecord(sprite, metadata.colorCount);
+    }
+    if (hasSpriteDynamicData) {
+        for (document::SpriteRecord& sprite : frameData.sprites) {
+            if (!readRgb565Values(cursor, sprite.dynamicColorsSd, "SD sprite dynamic colors", error)) {
+                return fail(error);
+            }
+        }
+        for (document::SpriteRecord& sprite : frameData.sprites) {
+            if (!readRgb565Values(cursor, sprite.dynamicColorsHd, "HD sprite dynamic colors", error)) {
+                return fail(error);
+            }
+        }
+        for (document::SpriteRecord& sprite : frameData.sprites) {
+            if (!readIndexedFrame(cursor, sprite.dynamicMaskSd, "SD sprite dynamic masks", error)) {
+                return fail(error);
+            }
+        }
+        for (document::SpriteRecord& sprite : frameData.sprites) {
+            if (!readIndexedFrame(cursor, sprite.dynamicMaskHd, "HD sprite dynamic masks", error)) {
+                return fail(error);
+            }
+        }
+        if (metadata.headerLengthBytes >= kSpriteShapeModeHeaderThreshold &&
+            size - cursor.offset() >= spriteCount) {
+            for (document::SpriteRecord& sprite : frameData.sprites) {
+                if (!cursor.readBytes(&sprite.shapeMode, 1)) {
+                    return fail("unexpected end of cROM while reading sprite shape modes");
+                }
+            }
+        }
+    }
+
     LegacyCromFrameParseResult result;
     result.frameData = std::move(frameData);
     result.nextOffset = cursor.offset();
@@ -564,6 +622,19 @@ std::optional<document::Rgb565Frame> hdFrameIfPresent(const LegacyCromFrameData&
     if (frameIndex >= frameData.extraFrameFlags.size() ||
         frameIndex >= frameData.colorizedHdFrames.size() ||
         frameData.extraFrameFlags[frameIndex] == 0) {
+        return std::nullopt;
+    }
+    return frameData.colorizedHdFrames[frameIndex];
+}
+
+std::optional<document::Rgb565Frame> inactiveHdFrameIfPresent(
+    const LegacyCromFrameData& frameData,
+    std::size_t frameIndex)
+{
+    if (frameIndex >= frameData.extraFrameFlags.size() ||
+        frameIndex >= frameData.colorizedHdFrames.size() ||
+        frameData.extraFrameFlags[frameIndex] != 0 ||
+        !hasNonZeroPixel(frameData.colorizedHdFrames[frameIndex])) {
         return std::nullopt;
     }
     return frameData.colorizedHdFrames[frameIndex];

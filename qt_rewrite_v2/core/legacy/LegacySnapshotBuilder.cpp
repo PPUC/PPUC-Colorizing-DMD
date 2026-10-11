@@ -46,6 +46,11 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
     snapshot.backgrounds = cromFrameData.backgrounds;
     snapshot.sprites = cromFrameData.sprites;
     snapshot.palettes = crpOriginalData.palettes;
+    snapshot.colorCount = cromFrameData.metadata.colorCount;
+    snapshot.cromRevision =
+        cromFrameData.metadata.headerLengthBytes / static_cast<uint32_t>(sizeof(uint32_t));
+    snapshot.editorMetadata = crpOriginalData.editorMetadata;
+    snapshot.originalIs256x64 = cromFrameData.metadata.originalIs256x64;
     for (std::size_t spriteIndex = 0;
          spriteIndex < snapshot.sprites.size() &&
              spriteIndex < crpOriginalData.spriteNames.size();
@@ -69,6 +74,7 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
                 : uint32_t{0},
             cromFrameData.colorRotationsSd[frameIndex],
             cromFrameData.colorRotationsHd[frameIndex],
+            inactiveHdFrameIfPresent(cromFrameData, frameIndex),
         });
     }
 

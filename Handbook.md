@@ -11,7 +11,13 @@ The Qt rewrite edits legacy Serum editor projects directly:
 - `.cRP` stores original/reference frames and editor-side metadata such as sprite names and frame durations.
 - `.cROMc` is not edited directly.
 
-Saving writes back to the existing `.cROM` path and updates supported fields in the matching `.cRP` sidecar without changing the legacy file layout.
+Saving writes complete `.cROM` and `.cRP` files from the in-memory project in the legacy file
+layout. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
+saved as revision 20, everything older as revision 19, so a save never moves a project to a
+Revision 20 projects with 256x64 original frames load and save
+in the project core (256x64 originals and comparison masks, 128x32 SD and 256x64 HD colorized
+data), but the editor does not open them yet because the canvas and tools still assume 128x32
+originals.
 
 The in-memory project model currently carries structured comparison-mask data from `.cROM`:
 
@@ -44,9 +50,8 @@ Recent-project entries show the full `.cROM` path and internally remember both t
 
 Use `File -> Save` or the standard Save shortcut.
 
-Use `File -> Save As...` to create a copied project. The app asks for a target `.cROM` path,
-copies the current `.cROM` and matching `.cRP` to the new base name, then saves the current
-in-memory edits into the copied `.cROM`.
+Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cROM`
+path and writes the `.cROM` and a `.cRP` with the same base name there.
 
 Use `File -> Export Current Frame PNG...` to export the active colorized frame preview as a PNG.
 The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
@@ -58,15 +63,25 @@ In HD mode, selected frames without HD data are skipped. The import is undoable 
 
 Save behavior:
 
-- Updates colorized SD and HD frame pixels in the existing `.cROM`.
-- Updates shape comparison modes, comparison-mask assignments, and comparison-mask bitmap data.
-- Preserves loaded SD/HD dynamic masks and dynamic color sets.
-- Preserves loaded SD/HD background images, per-frame background assignments, and background masks.
-- Updates HD-present flags.
-- Preserves cROM data that is not edited yet, including trailing data.
+- Both files are written completely next to their targets first and then swapped in, so a failed
+  or interrupted save does not leave a truncated project behind.
+- An unedited project saves back byte-identical to what the Win32 editor wrote. This is checked
+  against real projects with the `colorizing_qt_v2_roundtrip` tool (see Testing Checklist).
+- Frame identification hashes are recalculated from the original frame, its comparison mask, and
+  its shape mode.
+- The "active frame" flag is recalculated: a frame shorter than 15 ms stays inactive until it is
+  colorized or gets dynamic content.
+- Colorized pixels covered by a dynamic mask are written as 0, as the Win32 editor does. The
+  in-memory frame is not changed, so those pixels show their old color until the project is
+  reopened.
+- Editor metadata the app does not expose yet (color sets, mask names, sections, sprite source
+  frames, image crop presets, imported palettes, project time, PuP pack) is carried through.
+- HD pixels that the Win32 editor left in a frame or background whose HD is switched off are
+  carried through until HD is created or removed for it here.
 - Marks the document clean after successful save.
 
-Use copied projects for testing until broader project metadata editing and save coverage are implemented.
+Files written by earlier Qt editor builds are not supported; only projects saved by the Win32
+editor (currently 3.17.3) or by this serializer are.
 
 ## Playback
 
@@ -278,22 +293,45 @@ gradient fill is committed as one undoable edit.
 
 ### Sel
 
-Press, drag, and release on the colorized canvas to create a persistent canvas selection.
+Use `Sel` to create a persistent canvas selection before applying a palette gradient to that exact
+area.
 
-The selected area uses the Palette `Shape` setting, currently rectangle, circle, or ellipse. The
-selection is shown as a translucent cyan overlay. It is cleared when the frame, SD/HD mode, target,
-selected background, or tool context changes.
+Create a selection:
 
-The Palette tab provides:
+1. Open the Inspector's `Palette` topic.
+2. Choose the selection shape in `Shape`: rectangle, circle, or ellipse.
+3. Select the toolbar tool `Sel`.
+4. Press, drag, and release on the colorized canvas.
+5. The selected pixels are shown as a translucent cyan overlay.
 
-- `Grad Sel`: fills the current selection using the active palette range, pattern, and fixed/radial
-  direction. When `Direction -> Free` is selected, the selection must have a stored direction line.
-- `Set Dir`: with a selection active, enables a one-stroke mode for drawing the stored free-gradient
-  direction line for that selection.
-- `Clear Sel`: clears the current canvas selection.
+Fill a selection with a fixed-direction gradient:
 
-Selection gradient fills are undoable through the same frame/background edit histories as ordinary
-pixel edits.
+1. Create a selection.
+2. In the `Palette` topic, set `From` and `To`.
+3. Set `Pattern` to `Linear`, `Circle`, or `Ellipse`.
+4. Set `Direction` to a fixed direction such as `Left -> Right`, `Top -> Bottom`,
+   `Center -> Edge`, or `Edge -> Center`.
+5. Click `Grad Sel`.
+
+Fill a selection with a free-direction gradient:
+
+1. Create a selection.
+2. In the `Palette` topic, set `From`, `To`, and `Pattern`.
+3. Set `Direction` to `Free`.
+4. Click `Set Dir`.
+5. Press, drag, and release on the same canvas to draw the virtual gradient direction line.
+6. The stored direction line is shown in the cyan selection overlay.
+7. Click `Grad Sel`.
+
+Clear or replace a selection:
+
+1. Click `Clear Sel` to clear the current selection.
+2. Or select `Sel` again and draw a new selection; the previous selection and stored direction line
+   are replaced.
+
+Selections are cleared when the frame, SD/HD mode, target, selected background, or tool context
+changes. Selection gradient fills are undoable through the same frame/background edit histories as
+ordinary pixel edits.
 
 ### Pick
 
@@ -565,6 +603,16 @@ For drawing changes, test at least:
 - Switching SD/HD does not interleave undo histories.
 - Save, reopen, and verify edits persist.
 - With `Mask` active, add and Shift-erase pixels on the original/reference region, undo/redo the mask edits, save, reopen, and verify the mask overlay persists.
+
+For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
+projects. It loads a project, serializes it in memory, and reports per block where the result
+differs from the files on disk; it writes nothing:
+
+```text
+colorizing_qt_v2_roundtrip <project>.cROM <project>.cRP
+```
+
+Projects last saved by the Win32 editor must come back `identical`.
 
 For project-loading changes, test:
 

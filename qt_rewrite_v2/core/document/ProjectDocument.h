@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "document/EditorMetadata.h"
 #include "render/CanvasTypes.h"
 
 namespace colorizing::document {
@@ -30,6 +31,7 @@ struct IndexedFrame {
 };
 
 constexpr std::size_t kMaxDynamicSetsPerFrame = 32;
+constexpr std::size_t kMaxDynamicSetsPerSprite = 9;
 constexpr std::size_t kMaxSpritesPerFrame = 32;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
@@ -54,6 +56,9 @@ struct FrameDynamicData {
 struct BackgroundRecord {
     Rgb565Frame colorizedSd;
     std::optional<Rgb565Frame> colorizedHd;
+    // HD pixels the Win32 editor left in the file although HD is switched off. They are kept so
+    // an unedited project saves back unchanged, and dropped once HD is created or removed here.
+    std::optional<Rgb565Frame> inactiveHd;
 };
 
 struct FrameBackgroundData {
@@ -79,6 +84,13 @@ struct SpriteRecord {
     std::vector<uint16_t> detectionDwordPositions;
     std::vector<SpriteDetectionArea> detectionAreas;
     std::string name;
+    // Sprite dynamic content: 255 in the mask means "not dynamic". Empty containers are
+    // normalized to that default when a document is built.
+    IndexedFrame dynamicMaskSd;
+    IndexedFrame dynamicMaskHd;
+    std::vector<uint16_t> dynamicColorsSd;
+    std::vector<uint16_t> dynamicColorsHd;
+    uint8_t shapeMode = 0;
 };
 
 struct FrameSpriteReference {
@@ -102,6 +114,8 @@ struct FrameRecord {
     uint32_t durationMs = 0;
     std::vector<uint16_t> colorRotationsSd;
     std::vector<uint16_t> colorRotationsHd;
+    // See BackgroundRecord::inactiveHd.
+    std::optional<Rgb565Frame> inactiveHd;
 };
 
 struct UnsupportedLegacyPayload {
@@ -118,6 +132,7 @@ struct ProjectCreateOptions {
     std::string romName;
     uint32_t frameCount = 0;
     bool createHdFrames = false;
+    uint32_t colorCount = 4;
 };
 
 struct ProjectSnapshot;
@@ -131,6 +146,10 @@ public:
     void setRomName(std::string name);
 
     [[nodiscard]] std::size_t frameCount() const;
+    [[nodiscard]] uint32_t colorCount() const;
+    // Size of the original frames and comparison masks: 256x64 for such ROMs, else 128x32.
+    [[nodiscard]] Size originalFrameSize() const;
+    [[nodiscard]] const EditorMetadata& editorMetadata() const;
     [[nodiscard]] bool isDirty() const;
     void markClean();
 
@@ -318,6 +337,10 @@ private:
     std::vector<SpriteRecord> m_sprites;
     std::vector<PaletteRecord> m_palettes;
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
+    EditorMetadata m_editorMetadata = makeDefaultEditorMetadata();
+    uint32_t m_colorCount = 4;
+    uint32_t m_cromRevision = 20;
+    bool m_originalIs256x64 = false;
     bool m_dirty = false;
 };
 

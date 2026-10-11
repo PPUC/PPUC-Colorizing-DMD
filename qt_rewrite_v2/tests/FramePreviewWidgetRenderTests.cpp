@@ -13,6 +13,7 @@
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
+#include "edit/DrawingTools.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 #include "SpriteEditorWidget.h"
@@ -50,6 +51,7 @@ colorizing::document::ProjectDocument makePreviewDocument()
 colorizing::document::ProjectDocument makeMaskedPreviewDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "masked_preview";
     colorizing::document::IndexedFrame mask =
         colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0);
@@ -68,6 +70,7 @@ colorizing::document::ProjectDocument makeMaskedPreviewDocument()
 colorizing::document::ProjectDocument makeDynamicPreviewDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "dynamic_preview";
     colorizing::document::FrameDynamicData dynamicData{
         colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
@@ -91,6 +94,7 @@ colorizing::document::ProjectDocument makeDynamicPreviewDocument()
 colorizing::document::ProjectDocument makeDynamicReplacementDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "dynamic_replacement";
     colorizing::document::FrameDynamicData dynamicData{
         colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
@@ -116,6 +120,7 @@ colorizing::document::ProjectDocument makeDynamicReplacementDocument()
 colorizing::document::ProjectDocument makeBackgroundPreviewDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "background_preview";
     colorizing::document::FrameBackgroundData backgroundData{
         0,
@@ -143,6 +148,7 @@ colorizing::document::ProjectDocument makeBackgroundPreviewDocument()
 colorizing::document::ProjectDocument makeSpriteEditorDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_editor";
     snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
         colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
@@ -178,6 +184,7 @@ colorizing::document::ProjectDocument makeSpriteEditorDocument()
 colorizing::document::ProjectDocument makeDynamicOverBackgroundDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "dynamic_over_background";
 
     colorizing::document::IndexedFrame original =
@@ -226,6 +233,7 @@ colorizing::document::ProjectDocument makeDynamicOverBackgroundDocument()
 colorizing::document::ProjectDocument makeDynamicShadowDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "dynamic_shadow";
 
     colorizing::document::IndexedFrame original =
@@ -262,6 +270,7 @@ colorizing::document::ProjectDocument makeDynamicShadowDocument()
 colorizing::document::ProjectDocument makeSpriteCompositionDocument()
 {
     colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
     snapshot.romName = "sprite_composition";
 
     colorizing::document::IndexedFrame original =
@@ -1312,6 +1321,53 @@ void testColorRotationPreviewTransform()
            "rotation preview should wrap final color to first color");
 }
 
+// MainWindow's former QColor-based palette blend; the Qt-free one in core must agree with it.
+uint16_t legacyInterpolateRgb565(uint16_t startColor,
+                                 uint16_t endColor,
+                                 std::size_t step,
+                                 std::size_t maxStep)
+{
+    if (maxStep == 0) {
+        return startColor;
+    }
+    const QColor start = colorizing::app::rgb565ToColor(startColor);
+    const QColor end = colorizing::app::rgb565ToColor(endColor);
+    const int denominator = static_cast<int>(maxStep);
+    const int numerator = static_cast<int>(step);
+    const QColor color(
+        (start.red() * (denominator - numerator) + end.red() * numerator) / denominator,
+        (start.green() * (denominator - numerator) + end.green() * numerator) / denominator,
+        (start.blue() * (denominator - numerator) + end.blue() * numerator) / denominator);
+    const uint16_t r = static_cast<uint16_t>((color.red() * 31) / 255);
+    const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
+    const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
+    return static_cast<uint16_t>((r << 11) | (g << 5) | b);
+}
+
+void testPaletteBlendMatchesQColorBlend()
+{
+    for (uint32_t color = 0; color <= 0xffff; ++color) {
+        const uint16_t value = static_cast<uint16_t>(color);
+        expect(colorizing::edit::interpolateRgb565(value, 0, 0, 1) ==
+                   legacyInterpolateRgb565(value, 0, 0, 1),
+               "core blend should convert every RGB565 color like QColor does");
+    }
+    uint32_t state = 12345;
+    auto next = [&state] {
+        state = state * 1664525u + 1013904223u;
+        return state >> 8;
+    };
+    for (int round = 0; round < 200000; ++round) {
+        const uint16_t startColor = static_cast<uint16_t>(next());
+        const uint16_t endColor = static_cast<uint16_t>(next());
+        const std::size_t maxStep = next() % 64;
+        const std::size_t step = maxStep == 0 ? 0 : next() % (maxStep + 1);
+        expect(colorizing::edit::interpolateRgb565(startColor, endColor, step, maxStep) ==
+                   legacyInterpolateRgb565(startColor, endColor, step, maxStep),
+               "core blend should match the QColor blend");
+    }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -1341,6 +1397,7 @@ int main(int argc, char* argv[])
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();
+    testPaletteBlendMatchesQColorBlend();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }
