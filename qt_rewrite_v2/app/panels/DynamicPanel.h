@@ -35,8 +35,6 @@ public:
     void setDynamicSet(int setIndex);
 
     [[nodiscard]] uint8_t dynamicSet() const;
-    // Focusable controls in creation order, for the owner to arrange the window's tab order.
-    [[nodiscard]] std::vector<QWidget*> tabOrderWidgets() const;
 
     std::function<void(int setIndex)> onDynamicSetChanged;
     std::function<void(std::size_t originalColorIndex)> onColorClicked;

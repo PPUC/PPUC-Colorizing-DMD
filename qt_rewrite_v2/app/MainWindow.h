@@ -91,7 +91,6 @@ private:
 
     void createActions();
     void createCentralView();
-    void restoreInspectorTabOrder();
     void openProject();
     void openRecentProject(const QString& entry);
     void saveProject();

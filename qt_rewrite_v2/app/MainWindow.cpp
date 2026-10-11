@@ -945,31 +945,6 @@ void MainWindow::createCentralView()
     updateDmdRenderOptions();
 
     setCentralWidget(central);
-    restoreInspectorTabOrder();
-}
-
-// The inspector controls used to be created interleaved across the pages. This keeps the tab
-// order that resulted from it now that each page creates its own controls in one go.
-void MainWindow::restoreInspectorTabOrder()
-{
-    const auto chain = [](const std::vector<QWidget*>& widgets) {
-        for (std::size_t index = 1; index < widgets.size(); ++index) {
-            QWidget::setTabOrder(widgets[index - 1], widgets[index]);
-        }
-    };
-    // Mask ID, shape mode, Assign, Edit.
-    const std::vector<QWidget*> mask = m_maskPanel->tabOrderWidgets();
-    // Dynamic set, then the color and shadow buttons.
-    const std::vector<QWidget*> dynamic = m_dynamicPanel->tabOrderWidgets();
-    // Background ID, trigger ID, duration, Switch mono, Show BG, Import Image, Create HD,
-    // Remove HD, drawing target, DMD shape, DMD size.
-    const std::vector<QWidget*> frame = m_framePanel->tabOrderWidgets();
-    // The six buttons.
-    const std::vector<QWidget*> background = m_backgroundPanel->tabOrderWidgets();
-    chain({mask[0], dynamic[0]});
-    chain({mask[1], frame[0], frame[1], frame[2]});
-    chain({m_backgroundComboBox, mask[2], mask[3]});
-    chain({background[5], frame[4], frame[5], frame[6], frame[7], frame[8], frame[9], frame[10]});
 }
 
 void MainWindow::openProject()

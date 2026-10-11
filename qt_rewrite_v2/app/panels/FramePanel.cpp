@@ -16,6 +16,13 @@ namespace colorizing::app {
 FramePanel::FramePanel(QWidget* parent)
     : QWidget(parent)
 {
+    m_paintTargetComboBox = new QComboBox(this);
+    m_paintTargetComboBox->setToolTip(QStringLiteral("Drawing target"));
+    m_paintTargetComboBox->addItem(QStringLiteral("Frame"),
+                                   static_cast<int>(PaintTarget::Frame));
+    m_paintTargetComboBox->addItem(QStringLiteral("Background"),
+                                   static_cast<int>(PaintTarget::Background));
+    m_paintTargetComboBox->setEnabled(false);
     m_backgroundIdSpinBox = new QSpinBox(this);
     m_backgroundIdSpinBox->setToolTip(QStringLiteral("Assigned background ID"));
     m_backgroundIdSpinBox->setMinimum(-1);
@@ -36,6 +43,19 @@ FramePanel::FramePanel(QWidget* parent)
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
     m_switchToMonochromeCheckBox->setEnabled(false);
+    m_dmdPixelShapeComboBox = new QComboBox(this);
+    m_dmdPixelShapeComboBox->setToolTip(
+        QStringLiteral("DMD pixel shape for canvas and PNG export"));
+    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Squares"),
+                                     static_cast<int>(DmdPixelShape::Square));
+    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Dots"),
+                                     static_cast<int>(DmdPixelShape::Dot));
+    m_dmdPixelSizeSpinBox = new QSpinBox(this);
+    m_dmdPixelSizeSpinBox->setToolTip(QStringLiteral("Relative DMD pixel size"));
+    m_dmdPixelSizeSpinBox->setRange(50, 100);
+    m_dmdPixelSizeSpinBox->setSingleStep(10);
+    m_dmdPixelSizeSpinBox->setSuffix(QStringLiteral("%"));
+    m_dmdPixelSizeSpinBox->setValue(100);
     m_backgroundLayerButton = new QToolButton(this);
     m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
@@ -54,26 +74,6 @@ FramePanel::FramePanel(QWidget* parent)
     m_removeHdButton->setText(QStringLiteral("Remove HD"));
     m_removeHdButton->setToolTip(QStringLiteral("Remove HD frame data"));
     m_removeHdButton->setEnabled(false);
-    m_paintTargetComboBox = new QComboBox(this);
-    m_paintTargetComboBox->setToolTip(QStringLiteral("Drawing target"));
-    m_paintTargetComboBox->addItem(QStringLiteral("Frame"),
-                                   static_cast<int>(PaintTarget::Frame));
-    m_paintTargetComboBox->addItem(QStringLiteral("Background"),
-                                   static_cast<int>(PaintTarget::Background));
-    m_paintTargetComboBox->setEnabled(false);
-    m_dmdPixelShapeComboBox = new QComboBox(this);
-    m_dmdPixelShapeComboBox->setToolTip(
-        QStringLiteral("DMD pixel shape for canvas and PNG export"));
-    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Squares"),
-                                     static_cast<int>(DmdPixelShape::Square));
-    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Dots"),
-                                     static_cast<int>(DmdPixelShape::Dot));
-    m_dmdPixelSizeSpinBox = new QSpinBox(this);
-    m_dmdPixelSizeSpinBox->setToolTip(QStringLiteral("Relative DMD pixel size"));
-    m_dmdPixelSizeSpinBox->setRange(50, 100);
-    m_dmdPixelSizeSpinBox->setSingleStep(10);
-    m_dmdPixelSizeSpinBox->setSuffix(QStringLiteral("%"));
-    m_dmdPixelSizeSpinBox->setValue(100);
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
@@ -313,21 +313,6 @@ DmdRenderOptions FramePanel::dmdRenderOptions() const
         static_cast<DmdPixelShape>(m_dmdPixelShapeComboBox->currentData().toInt());
     options.pixelCoverage = static_cast<double>(m_dmdPixelSizeSpinBox->value()) / 100.0;
     return options;
-}
-
-std::vector<QWidget*> FramePanel::tabOrderWidgets() const
-{
-    return {m_backgroundIdSpinBox,
-            m_triggerIdSpinBox,
-            m_durationSpinBox,
-            m_switchToMonochromeCheckBox,
-            m_backgroundLayerButton,
-            m_importImageButton,
-            m_createHdButton,
-            m_removeHdButton,
-            m_paintTargetComboBox,
-            m_dmdPixelShapeComboBox,
-            m_dmdPixelSizeSpinBox};
 }
 
 }  // namespace colorizing::app

@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
-#include <vector>
 
 #include <QWidget>
 
@@ -31,8 +30,6 @@ public:
 
     void refresh(const BackgroundPanelState& state);
 
-    // Focusable controls in creation order, for the owner to arrange the window's tab order.
-    [[nodiscard]] std::vector<QWidget*> tabOrderWidgets() const;
 
     std::function<void()> onAssignRequested;
     std::function<void()> onEditRequested;

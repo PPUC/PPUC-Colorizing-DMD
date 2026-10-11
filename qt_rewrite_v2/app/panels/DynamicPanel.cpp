@@ -215,15 +215,4 @@ uint8_t DynamicPanel::dynamicSet() const
     return static_cast<uint8_t>(m_dynamicSetSpinBox->value());
 }
 
-std::vector<QWidget*> DynamicPanel::tabOrderWidgets() const
-{
-    std::vector<QWidget*> widgets{m_dynamicSetSpinBox};
-    widgets.insert(widgets.end(), m_colorButtons.begin(), m_colorButtons.end());
-    widgets.insert(widgets.end(),
-                   m_shadowDirectionButtons.begin(),
-                   m_shadowDirectionButtons.end());
-    widgets.push_back(m_shadowColorButton);
-    return widgets;
-}
-
 }  // namespace colorizing::app

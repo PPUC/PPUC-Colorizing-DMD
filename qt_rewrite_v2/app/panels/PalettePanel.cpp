@@ -56,6 +56,21 @@ PalettePanel::PalettePanel(QWidget* parent)
     m_paletteComboBox->setToolTip(QStringLiteral("Selected palette"));
     m_paletteComboBox->setIconSize(QSize(96, 18));
     m_paletteComboBox->setEnabled(false);
+    m_nameLineEdit = new QLineEdit(this);
+    m_nameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
+    m_nameLineEdit->setMaxLength(63);
+    m_nameLineEdit->setEnabled(false);
+    m_gradientStartSpinBox = new QSpinBox(this);
+    m_gradientStartSpinBox->setToolTip(
+        QStringLiteral("First palette color index for gradient fill"));
+    m_gradientStartSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
+    m_gradientStartSpinBox->setEnabled(false);
+    m_gradientEndSpinBox = new QSpinBox(this);
+    m_gradientEndSpinBox->setToolTip(
+        QStringLiteral("Last palette color index for gradient fill"));
+    m_gradientEndSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
+    m_gradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
+    m_gradientEndSpinBox->setEnabled(false);
     m_gradientShapeComboBox = new QComboBox(this);
     m_gradientShapeComboBox->setToolTip(QStringLiteral("Shape used by the Grad drawing tool"));
     m_gradientShapeComboBox->addItem(QStringLiteral("Rectangle"),
@@ -111,21 +126,19 @@ PalettePanel::PalettePanel(QWidget* parent)
         QStringLiteral("Edge -> Center"),
         static_cast<int>(PaletteGradientDirection::EdgeToCenter));
     m_gradientDirectionComboBox->setEnabled(false);
-    m_nameLineEdit = new QLineEdit(this);
-    m_nameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
-    m_nameLineEdit->setMaxLength(63);
-    m_nameLineEdit->setEnabled(false);
-    m_gradientStartSpinBox = new QSpinBox(this);
-    m_gradientStartSpinBox->setToolTip(
-        QStringLiteral("First palette color index for gradient fill"));
-    m_gradientStartSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
-    m_gradientStartSpinBox->setEnabled(false);
-    m_gradientEndSpinBox = new QSpinBox(this);
-    m_gradientEndSpinBox->setToolTip(
-        QStringLiteral("Last palette color index for gradient fill"));
-    m_gradientEndSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
-    m_gradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
-    m_gradientEndSpinBox->setEnabled(false);
+    m_grid = new ColorGridWidget(document::kPaletteColorCount, 8, this);
+    m_grid->setDisplayIndexOffset(1);
+    m_grid->setToolTip(QStringLiteral("Colors in the selected palette"));
+    m_grid->setColorClickedHandler([this](std::size_t colorIndex) {
+        if (onColorClicked) {
+            onColorClicked(colorIndex);
+        }
+    });
+    m_grid->setColorDoubleClickedHandler([this](std::size_t colorIndex) {
+        if (onColorDoubleClicked) {
+            onColorDoubleClicked(colorIndex);
+        }
+    });
     m_applyGradientButton = new QToolButton(this);
     m_applyGradientButton->setText(QStringLiteral("Apply Gradient"));
     m_applyGradientButton->setToolTip(
@@ -146,19 +159,6 @@ PalettePanel::PalettePanel(QWidget* parent)
     m_clearSelectionButton->setText(QStringLiteral("Clear Sel"));
     m_clearSelectionButton->setToolTip(QStringLiteral("Clear the current canvas selection"));
     m_clearSelectionButton->setEnabled(false);
-    m_grid = new ColorGridWidget(document::kPaletteColorCount, 8, this);
-    m_grid->setDisplayIndexOffset(1);
-    m_grid->setToolTip(QStringLiteral("Colors in the selected palette"));
-    m_grid->setColorClickedHandler([this](std::size_t colorIndex) {
-        if (onColorClicked) {
-            onColorClicked(colorIndex);
-        }
-    });
-    m_grid->setColorDoubleClickedHandler([this](std::size_t colorIndex) {
-        if (onColorDoubleClicked) {
-            onColorDoubleClicked(colorIndex);
-        }
-    });
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);

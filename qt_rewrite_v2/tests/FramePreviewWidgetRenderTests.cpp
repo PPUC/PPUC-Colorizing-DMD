@@ -1345,6 +1345,21 @@ Widget* childByToolTip(QWidget& parent, const char* toolTip)
     return nullptr;
 }
 
+// True when the Tab key reaches the widgets of a page in the given order.
+bool tabVisitsInOrder(QWidget& page, const std::vector<QWidget*>& widgets)
+{
+    QWidget* current = page.nextInFocusChain();
+    for (QWidget* widget : widgets) {
+        while (current != widget) {
+            if (current == &page) {
+                return false;
+            }
+            current = current->nextInFocusChain();
+        }
+    }
+    return true;
+}
+
 QList<QToolButton*> colorGridButtons(QWidget& parent, const char* gridToolTip)
 {
     return childByToolTip<QWidget>(parent, gridToolTip)
@@ -1412,6 +1427,10 @@ void testColorRotationPanel()
            "rotation panel should show one button per rotation color");
     expect(clearButton->text() == QStringLiteral("Clear Slot"),
            "rotation panel should keep the clear button text");
+    expect(tabVisitsInOrder(panel,
+                            {slotComboBox, lengthSpinBox, delaySpinBox, gridButtons.first(),
+                             gridButtons.last(), clearButton}),
+           "rotation panel should tab through its controls as laid out");
 
     panel.refresh(nullptr, std::nullopt, Resolution::Sd);
     expect(!slotComboBox->isEnabled() && !lengthSpinBox->isEnabled() &&
@@ -1583,6 +1602,12 @@ void testPalettePanel()
     expect(gridButtons.size() == static_cast<int>(colorizing::document::kPaletteColorCount) &&
                gridButtons[0]->text() == QStringLiteral("1"),
            "palette panel should show one-based color buttons");
+    expect(tabVisitsInOrder(panel,
+                            {paletteComboBox, nameLineEdit, startSpinBox, endSpinBox,
+                             shapeComboBox, patternComboBox, directionComboBox,
+                             gridButtons.first(), gridButtons.last(), applyButton, fillButton,
+                             directionButton, clearButton}),
+           "palette panel should tab through its controls as laid out");
 
     panel.refresh(nullptr, false, false);
     expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
@@ -1896,6 +1921,14 @@ void testSpritePanel()
                applyButton->text() == QStringLiteral("Apply Sprite") &&
                clearAreaButton->text() == QStringLiteral("Clear Area"),
            "sprite panel should keep its button texts");
+    expect(tabVisitsInOrder(panel,
+                            {nameLineEdit, slotComboBox, assignButton, captureButton,
+                             removeButton, captureSelectionButton, clearCaptureButton,
+                             boundsOverlayButton, detectionAreasButton, spriteCanvasButton,
+                             applyButton, minXSpinBox, minYSpinBox, maxXSpinBox, maxYSpinBox,
+                             areaComboBox, clearAreaButton, areaXSpinBox, areaYSpinBox,
+                             areaWidthSpinBox, areaHeightSpinBox}),
+           "sprite panel should tab through its controls as laid out");
     expect(captureSelectionButton->isCheckable() && boundsOverlayButton->isCheckable() &&
                detectionAreasButton->isCheckable() && spriteCanvasButton->isCheckable() &&
                !assignButton->isCheckable(),
@@ -2269,9 +2302,8 @@ void testMaskPanel()
                panel.maskId() == -1,
            "mask panel should start without mask IDs");
     expect(shapeComboBox->count() == 0, "mask panel should start without shape modes");
-    expect(panel.tabOrderWidgets() ==
-               std::vector<QWidget*>{maskIdSpinBox, shapeComboBox, assignButton, editButton},
-           "mask panel should list its focusable controls in creation order");
+    expect(tabVisitsInOrder(panel, {maskIdSpinBox, shapeComboBox, assignButton, editButton}),
+           "mask panel should tab through its controls as laid out");
 
     panel.refreshFrame(nullptr, std::nullopt);
     expect(!maskIdSpinBox->isEnabled() && !shapeComboBox->isEnabled() &&
@@ -2437,11 +2469,12 @@ void testDynamicPanel()
     expect(shadowColorButton->text() == QStringLiteral("Shadow Color") &&
                !shadowColorButton->isEnabled(),
            "dynamic panel should start with a disabled shadow color button");
-    const std::vector<QWidget*> tabOrder = panel.tabOrderWidgets();
-    expect(tabOrder.size() == 26 && tabOrder.front() == setSpinBox &&
-               tabOrder[1] == colorButtons[0] && tabOrder[17] == directionButton("TL") &&
-               tabOrder.back() == shadowColorButton,
-           "dynamic panel should list its focusable controls in creation order");
+    expect(tabVisitsInOrder(panel,
+                            {setSpinBox, colorButtons[0], colorButtons[15],
+                             directionButton("TL"), directionButton("T"), directionButton("TR"),
+                             directionButton("L"), directionButton("R"), directionButton("BL"),
+                             directionButton("B"), directionButton("BR"), shadowColorButton}),
+           "dynamic panel should tab through its controls as laid out");
 
     panel.refreshColors(nullptr, std::nullopt, Resolution::Sd);
     panel.refreshShadow(nullptr, std::nullopt, Resolution::Sd);
@@ -2593,8 +2626,10 @@ void testBackgroundPanel()
     expect(previewLabel->isHidden() && previewLabel->size() == QSize(190, 48) &&
                previewLabel->pixmap().isNull(),
            "background panel should keep its preview hidden");
-    expect(panel.tabOrderWidgets() == std::vector<QWidget*>(buttons.begin(), buttons.end()),
-           "background panel should list its focusable controls in creation order");
+    expect(tabVisitsInOrder(panel,
+                            {assignButton, editButton, frameToBackgroundButton,
+                             backgroundToFramesButton, importButton, exportButton}),
+           "background panel should tab through its controls as laid out");
 
     panel.refresh(BackgroundPanelState{});
     expect(enabledButtonCount(buttons) == 0 &&
@@ -2776,12 +2811,12 @@ void testFramePanel()
                panel.dmdRenderOptions().pixelShape == DmdPixelShape::Square &&
                panel.dmdRenderOptions().pixelCoverage == 1.0,
            "frame panel should start with full square DMD pixels");
-    expect(panel.tabOrderWidgets() ==
-               std::vector<QWidget*>{backgroundIdSpinBox, triggerIdSpinBox, durationSpinBox,
-                                     monochromeCheckBox, backgroundLayerButton, importButton,
-                                     createHdButton, removeHdButton, targetComboBox,
-                                     dmdShapeComboBox, dmdSizeSpinBox},
-           "frame panel should list its focusable controls in creation order");
+    expect(tabVisitsInOrder(panel,
+                            {targetComboBox, backgroundIdSpinBox, triggerIdSpinBox,
+                             durationSpinBox, monochromeCheckBox, dmdShapeComboBox,
+                             dmdSizeSpinBox, backgroundLayerButton, importButton, createHdButton,
+                             removeHdButton}),
+           "frame panel should tab through its controls as laid out");
 
     panel.refresh(stateFor(document, 0));
     expect(targetComboBox->isEnabled() && backgroundIdSpinBox->isEnabled() &&

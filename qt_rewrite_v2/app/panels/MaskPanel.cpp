@@ -169,9 +169,4 @@ int MaskPanel::maskId() const
     return m_maskIdSpinBox->value();
 }
 
-std::vector<QWidget*> MaskPanel::tabOrderWidgets() const
-{
-    return {m_maskIdSpinBox, m_shapeModeComboBox, m_assignButton, m_editButton};
-}
-
 }  // namespace colorizing::app

@@ -141,14 +141,4 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
                       m_previewLabel->size()));
 }
 
-std::vector<QWidget*> BackgroundPanel::tabOrderWidgets() const
-{
-    return {m_assignButton,
-            m_editButton,
-            m_copyFrameToBackgroundButton,
-            m_copyBackgroundToFramesButton,
-            m_importImageButton,
-            m_exportButton};
-}
-
 }  // namespace colorizing::app

@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
-#include <vector>
 
 #include <QWidget>
 
@@ -59,8 +58,6 @@ public:
     [[nodiscard]] bool isSwitchToMonochromeChecked() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
     [[nodiscard]] DmdRenderOptions dmdRenderOptions() const;
-    // Focusable controls in creation order, for the owner to arrange the window's tab order.
-    [[nodiscard]] std::vector<QWidget*> tabOrderWidgets() const;
 
     std::function<void()> onPaintTargetChanged;
     // -1 clears the assignment.

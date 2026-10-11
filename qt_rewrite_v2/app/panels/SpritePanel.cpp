@@ -132,6 +132,10 @@ SpritePanel::SpritePanel(QWidget* parent)
         QStringLiteral("Copy original/colorized pixels from current frame bounds into selected "
                        "sprite"));
     m_captureButton->setEnabled(false);
+    m_removeButton = new QToolButton(this);
+    m_removeButton->setText(QStringLiteral("Remove"));
+    m_removeButton->setToolTip(QStringLiteral("Clear selected sprite slot"));
+    m_removeButton->setEnabled(false);
     m_captureSelectionButton = new QToolButton(this);
     m_captureSelectionButton->setText(QStringLiteral("Select Capture"));
     m_captureSelectionButton->setToolTip(
@@ -143,10 +147,6 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_clearCaptureSelectionButton->setToolTip(
         QStringLiteral("Clear the current sprite capture selection"));
     m_clearCaptureSelectionButton->setEnabled(false);
-    m_removeButton = new QToolButton(this);
-    m_removeButton->setText(QStringLiteral("Remove"));
-    m_removeButton->setToolTip(QStringLiteral("Clear selected sprite slot"));
-    m_removeButton->setEnabled(false);
     m_boundsOverlayButton = new QToolButton(this);
     m_boundsOverlayButton->setText(QStringLiteral("Show Bounds"));
     m_boundsOverlayButton->setToolTip(
@@ -171,6 +171,22 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_applySpriteEditsButton->setToolTip(
         QStringLiteral("Refresh frame previews from edited sprite data"));
     m_applySpriteEditsButton->setEnabled(false);
+    m_minXSpinBox = new QSpinBox(this);
+    m_minXSpinBox->setRange(0, 127);
+    m_minXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
+    m_minXSpinBox->setEnabled(false);
+    m_minYSpinBox = new QSpinBox(this);
+    m_minYSpinBox->setRange(0, 31);
+    m_minYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum Y"));
+    m_minYSpinBox->setEnabled(false);
+    m_maxXSpinBox = new QSpinBox(this);
+    m_maxXSpinBox->setRange(0, 127);
+    m_maxXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum X"));
+    m_maxXSpinBox->setEnabled(false);
+    m_maxYSpinBox = new QSpinBox(this);
+    m_maxYSpinBox->setRange(0, 31);
+    m_maxYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum Y"));
+    m_maxYSpinBox->setEnabled(false);
     m_detectionAreaComboBox = new QComboBox(this);
     m_detectionAreaComboBox->setToolTip(QStringLiteral("Sprite detection area"));
     for (std::size_t areaIndex = 0; areaIndex < document::kMaxSpriteDetectAreas; ++areaIndex) {
@@ -200,22 +216,6 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_detectionAreaHeightSpinBox->setRange(1, static_cast<int>(document::kMaxSpriteHeight));
     m_detectionAreaHeightSpinBox->setToolTip(QStringLiteral("Sprite detection area height"));
     m_detectionAreaHeightSpinBox->setEnabled(false);
-    m_minXSpinBox = new QSpinBox(this);
-    m_minXSpinBox->setRange(0, 127);
-    m_minXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
-    m_minXSpinBox->setEnabled(false);
-    m_minYSpinBox = new QSpinBox(this);
-    m_minYSpinBox->setRange(0, 31);
-    m_minYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum Y"));
-    m_minYSpinBox->setEnabled(false);
-    m_maxXSpinBox = new QSpinBox(this);
-    m_maxXSpinBox->setRange(0, 127);
-    m_maxXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum X"));
-    m_maxXSpinBox->setEnabled(false);
-    m_maxYSpinBox = new QSpinBox(this);
-    m_maxYSpinBox->setRange(0, 31);
-    m_maxYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum Y"));
-    m_maxYSpinBox->setEnabled(false);
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);

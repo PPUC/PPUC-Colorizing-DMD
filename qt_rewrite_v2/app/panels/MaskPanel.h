@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
-#include <vector>
 
 #include <QWidget>
 
@@ -36,8 +35,6 @@ public:
 
     // -1 when no mask is assigned.
     [[nodiscard]] int maskId() const;
-    // Focusable controls in creation order, for the owner to arrange the window's tab order.
-    [[nodiscard]] std::vector<QWidget*> tabOrderWidgets() const;
 
     // -1 clears the assignment.
     std::function<void(int maskId)> onMaskIdEdited;
