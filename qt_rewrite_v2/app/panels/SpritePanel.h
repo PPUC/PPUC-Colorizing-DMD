@@ -23,12 +23,11 @@ struct SpritePanelState {
     const document::ProjectDocument* document = nullptr;
     std::optional<std::size_t> frameIndex;
     std::optional<std::size_t> spriteIndex;
-    render::Resolution resolution = render::Resolution::Sd;
     bool hasCaptureSelection = false;
     bool spriteEditsPending = false;
 };
 
-// Spin box values as entered; a minimum may be larger than its maximum.
+// Spin box values; a minimum is never larger than its maximum.
 struct SpriteSlotBounds {
     int minX = 0;
     int minY = 0;
@@ -44,6 +43,9 @@ struct SpriteDetectionAreaInput {
     int height = 0;
 };
 
+// Whether the area is in use; an unused one is stored as 0xffff values.
+[[nodiscard]] bool isSpriteDetectionAreaSet(const document::SpriteDetectionArea& area);
+
 // Inspector page for the selected sprite and the sprite slots of a frame. It only displays and
 // reports what the user asked for; the owner applies the edits and calls refresh().
 class SpritePanel final : public QWidget {
@@ -53,7 +55,9 @@ public:
     void refresh(const SpritePanelState& state);
     // Ignored for an index the page does not offer.
     void setSelectedDetectionAreaIndex(std::size_t areaIndex);
+    // Neither notifies.
     void setSpriteCanvasChecked(bool checked);
+    void setCaptureSelectionChecked(bool checked);
     void setApplySpriteEditsEnabled(bool enabled);
 
     // Empty when the frame has no sprite slots.
@@ -108,8 +112,6 @@ private:
     QSpinBox* m_detectionAreaWidthSpinBox = nullptr;
     QSpinBox* m_detectionAreaHeightSpinBox = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
-    QLabel* m_originalPreviewLabel = nullptr;
-    QLabel* m_colorizedPreviewLabel = nullptr;
 };
 
 }  // namespace colorizing::app

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -19,6 +20,11 @@ enum class EditKind {
     BackgroundImage,
     SpriteImage,
     Palette,
+    // Per-frame settings (comparison mask, shape mode, background, trigger, duration) and
+    // creating or removing the frame's HD data. One history per frame for both resolutions.
+    FrameAttributes,
+    // Creating or removing a sprite's HD data. One history per sprite for both resolutions.
+    SpriteAttributes,
 };
 
 // What a command touches, so the UI knows what to refresh and which history owns the command.
@@ -26,11 +32,18 @@ struct EditTarget {
     EditKind kind = EditKind::FramePixels;
     // Frame, comparison mask, background, sprite or palette index, depending on the kind.
     std::size_t index = 0;
-    // Always Sd for comparison masks and palettes, which have no resolution.
+    // Always Sd for comparison masks, palettes and attributes, which have no resolution.
     render::Resolution resolution = render::Resolution::Sd;
     // Frames whose own data changed. Empty for masks shared between frames, backgrounds,
     // sprites and palettes.
     std::vector<std::size_t> frameIndices;
+};
+
+// Data a command replaces as a whole instead of editing it in place.
+struct ReplacedData {
+    EditKind kind = EditKind::FramePixels;
+    std::size_t index = 0;
+    render::Resolution resolution = render::Resolution::Sd;
 };
 
 class EditCommand {
@@ -40,6 +53,9 @@ public:
     virtual void apply(document::ProjectDocument& document) const = 0;
     virtual void revert(document::ProjectDocument& document) const = 0;
     [[nodiscard]] virtual EditTarget target() const = 0;
+    // Commands recorded earlier for this data no longer describe it once this command ran in
+    // either direction, so their histories have to be dropped.
+    [[nodiscard]] virtual std::vector<ReplacedData> replacedData() const;
 };
 
 struct PixelChange {
@@ -189,5 +205,89 @@ private:
     std::size_t m_paletteIndex;
     std::vector<PaletteColorChange> m_changes;
 };
+
+enum class FrameAttribute {
+    ComparisonMaskId,
+    ShapeComparisonMode,
+    BackgroundId,
+    TriggerId,
+    DurationMs,
+};
+
+[[nodiscard]] uint32_t frameAttributeValue(const document::ProjectDocument& document,
+                                           std::size_t frameIndex,
+                                           FrameAttribute attribute);
+
+// One per-frame setting of one frame.
+class FrameAttributeEditCommand final : public EditCommand {
+public:
+    // Values are given as stored in the document. A background ID needs a frame with
+    // background data.
+    FrameAttributeEditCommand(std::size_t frameIndex,
+                              FrameAttribute attribute,
+                              uint32_t oldValue,
+                              uint32_t newValue);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] FrameAttribute attribute() const;
+
+private:
+    std::size_t m_frameIndex;
+    FrameAttribute m_attribute;
+    uint32_t m_oldValue;
+    uint32_t m_newValue;
+};
+
+// Create HD or Remove HD of a frame: swaps the frame's HD data, and the related HD data the
+// states hold, between the state before and the state after.
+class FrameHdCommand final : public EditCommand {
+public:
+    FrameHdCommand(std::size_t frameIndex,
+                   document::FrameHdState before,
+                   document::FrameHdState after);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<ReplacedData> replacedData() const override;
+
+private:
+    std::size_t m_frameIndex;
+    document::FrameHdState m_before;
+    document::FrameHdState m_after;
+};
+
+// Create HD or Remove HD of a sprite.
+class SpriteHdCommand final : public EditCommand {
+public:
+    SpriteHdCommand(std::size_t spriteIndex,
+                    document::SpriteHdState before,
+                    document::SpriteHdState after);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<ReplacedData> replacedData() const override;
+
+private:
+    std::size_t m_spriteIndex;
+    document::SpriteHdState m_before;
+    document::SpriteHdState m_after;
+};
+
+// Each runs the operation on the document and returns the command for it, already applied,
+// or nullptr when the operation changes nothing. When the operation fails the document is
+// left as it was and the exception is passed on.
+[[nodiscard]] std::unique_ptr<EditCommand> createFrameHd(document::ProjectDocument& document,
+                                                         std::size_t frameIndex,
+                                                         document::FrameHdParts parts);
+[[nodiscard]] std::unique_ptr<EditCommand> removeFrameHd(document::ProjectDocument& document,
+                                                         std::size_t frameIndex);
+[[nodiscard]] std::unique_ptr<EditCommand> createSpriteHd(document::ProjectDocument& document,
+                                                          std::size_t spriteIndex);
+[[nodiscard]] std::unique_ptr<EditCommand> removeSpriteHd(document::ProjectDocument& document,
+                                                          std::size_t spriteIndex);
 
 }  // namespace colorizing::edit

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <vector>
@@ -21,7 +22,12 @@ struct HistoryKey {
 // The history a command belongs to: its kind, primary index and resolution.
 [[nodiscard]] HistoryKey historyKey(const EditTarget& target);
 
-// Independent undo/redo stacks, one per key.
+// Independent undo/redo stacks, one per key. Every command also carries a position in the
+// order in which all commands were pushed or redone, so that several histories can be undone
+// together chronologically.
+//
+// A command that replaces data wholesale (EditCommand::replacedData) drops the histories of
+// that data whenever it is pushed, undone or redone.
 class UndoHistories {
 public:
     // Records an already applied command and clears that key's redo stack.
@@ -29,11 +35,22 @@ public:
 
     [[nodiscard]] bool canUndo(const HistoryKey& key) const;
     [[nodiscard]] bool canRedo(const HistoryKey& key) const;
+    [[nodiscard]] bool canUndoAny(const std::vector<HistoryKey>& keys) const;
+    [[nodiscard]] bool canRedoAny(const std::vector<HistoryKey>& keys) const;
 
     // Reverts or reapplies the key's latest command and returns it, or nullptr when there is
     // none. The pointer stays valid until the next push or clear.
     const EditCommand* undo(const HistoryKey& key, document::ProjectDocument& document);
     const EditCommand* redo(const HistoryKey& key, document::ProjectDocument& document);
+
+    // undoLatest reverts the command that was pushed or redone last among the given
+    // histories. redoLatest reapplies the one that was undone last among them, so an undo
+    // followed by a redo restores the previous state and repeated redos replay the commands
+    // in their original order. Both return nullptr when none of the histories has a command.
+    const EditCommand* undoLatest(const std::vector<HistoryKey>& keys,
+                                  document::ProjectDocument& document);
+    const EditCommand* redoLatest(const std::vector<HistoryKey>& keys,
+                                  document::ProjectDocument& document);
 
     void clear();
     // Drops one key's stacks, or those of both resolutions of a kind and index, once the data
@@ -42,12 +59,22 @@ public:
     void clear(EditKind kind, std::size_t index);
 
 private:
-    struct History {
-        std::vector<std::unique_ptr<EditCommand>> undoStack;
-        std::vector<std::unique_ptr<EditCommand>> redoStack;
+    struct Entry {
+        std::unique_ptr<EditCommand> command;
+        // Position among all pushes and redos while on an undo stack, among all undos while
+        // on a redo stack.
+        uint64_t sequence = 0;
     };
 
+    struct History {
+        std::vector<Entry> undoStack;
+        std::vector<Entry> redoStack;
+    };
+
+    void dropReplacedHistories(const EditCommand& command);
+
     std::map<HistoryKey, History> m_histories;
+    uint64_t m_nextSequence = 1;
 };
 
 }  // namespace colorizing::edit

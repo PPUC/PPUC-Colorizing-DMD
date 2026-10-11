@@ -242,8 +242,25 @@ QString editKindStatusSuffix(edit::EditKind kind)
             return QStringLiteral(" sprite edit");
         case edit::EditKind::Palette:
             return QStringLiteral(" palette edit");
+        case edit::EditKind::FrameAttributes:
+            return QStringLiteral(" frame change");
+        case edit::EditKind::SpriteAttributes:
+            return QStringLiteral(" sprite HD change");
     }
     return QString();
+}
+
+// "3 frame(s)" or, when frames could not take the edit, "3 frame(s), 1 skipped (reason)".
+QString frameEditCountText(int changed, int skipped, const QString& skipReason = QString())
+{
+    QString text = QStringLiteral("%1 frame(s)").arg(changed);
+    if (skipped > 0) {
+        text += QStringLiteral(", %1 skipped").arg(skipped);
+        if (!skipReason.isEmpty()) {
+            text += QStringLiteral(" (%1)").arg(skipReason);
+        }
+    }
+    return text;
 }
 
 }  // namespace
@@ -733,11 +750,7 @@ void MainWindow::createCentralView()
         }
         const int maskIndex = item->data(Qt::UserRole).toInt();
         if (maskIndex >= 0) {
-            const int previousMaskId = m_maskPanel->maskId();
-            m_maskPanel->setMaskId(maskIndex);
-            if (m_maskPanel->maskId() != previousMaskId) {
-                setCurrentFrameComparisonMaskId(m_maskPanel->maskId());
-            }
+            m_selectedMaskIndex = static_cast<std::size_t>(maskIndex);
         }
         updateMaskControls();
     });
@@ -866,6 +879,7 @@ void MainWindow::createCentralView()
                 cancelFreePaletteGradientSelection();
                 clearCanvasSelection();
                 updateBackgroundControls();
+                updateUndoRedoActions();
             });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintFramePixel(hit, erase);
@@ -1326,9 +1340,17 @@ void MainWindow::setFrameStatusText(const QString& text)
 void MainWindow::refreshProjectSummary()
 {
     m_spriteDependentViewsDirty = false;
+    m_spriteCaptureSelectionFrameIndex.reset();
+    m_spriteCaptureSelectionMask.clear();
     if (m_spritePanel) {
         m_spritePanel->setApplySpriteEditsEnabled(false);
+        m_spritePanel->setSpriteCanvasChecked(false);
+        m_spritePanel->setCaptureSelectionChecked(false);
     }
+    if (m_canvasStack && m_preview) {
+        m_canvasStack->setCurrentWidget(m_preview);
+    }
+    m_preview->clearSelectionOverlayPixels();
     m_preview->setDocument(m_document ? &*m_document : nullptr);
     m_preview->setBackgroundLayerEnabled(m_framePanel &&
                                          m_framePanel->isBackgroundLayerChecked());
@@ -1342,6 +1364,7 @@ void MainWindow::refreshProjectSummary()
     if (!m_document) {
         setPlaybackRunning(false);
         m_frameList->clear();
+        m_selectedMaskIndex.reset();
         refreshComponentBrowsers();
         if (m_frameFilterComboBox) {
             m_frameFilterComboBox->setEnabled(false);
@@ -1359,6 +1382,7 @@ void MainWindow::refreshProjectSummary()
     if (m_frameFilterComboBox) {
         m_frameFilterComboBox->setEnabled(true);
     }
+    m_selectedMaskIndex.reset();
     refreshFrameList(0);
     refreshComponentBrowsers();
     updateSpriteControls();
@@ -1523,21 +1547,14 @@ void MainWindow::updateMaskBrowserSelection()
     if (!m_maskList || !m_document) {
         return;
     }
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (m_selectedMaskIndex && *m_selectedMaskIndex >= m_document->comparisonMaskCount()) {
+        m_selectedMaskIndex.reset();
+    }
+    if (!m_selectedMaskIndex) {
+        m_selectedMaskIndex = currentComparisonMaskIndex();
+    }
     QSignalBlocker blocker(m_maskList);
-    if (!frameIndex) {
-        m_maskList->setCurrentItem(nullptr);
-        return;
-    }
-    const uint8_t maskId = m_document->comparisonMaskId(*frameIndex);
-    for (int row = 0; row < m_maskList->count(); ++row) {
-        QListWidgetItem* item = m_maskList->item(row);
-        if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(maskId)) {
-            m_maskList->setCurrentItem(item);
-            return;
-        }
-    }
-    m_maskList->setCurrentItem(nullptr);
+    m_maskList->setCurrentRow(m_selectedMaskIndex ? static_cast<int>(*m_selectedMaskIndex) : -1);
 }
 
 void MainWindow::updateBackgroundBrowserSelection()
@@ -1686,17 +1703,7 @@ void MainWindow::selectFrame(int)
         clearSpriteCaptureSelection();
     }
     m_preview->setFrameIndex(*frameIndex);
-    const bool hasHd = m_document->hasHdFrame(*frameIndex);
-    const int selectedCount = static_cast<int>(selectedFrameIndices().size());
-    const uint32_t durationMs = m_document->frameDurationMs(*frameIndex);
-    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2 | %3 ms%4")
-                           .arg(static_cast<int>(*frameIndex))
-                           .arg(hasHd ? QStringLiteral("HD 256x64")
-                                      : QStringLiteral("HD unavailable"))
-                           .arg(durationMs)
-                           .arg(selectedCount > 1
-                                    ? QStringLiteral(" | %1 selected").arg(selectedCount)
-                                    : QString()));
+    updateFrameStatusText();
     updateFrameMetadataControls();
     updateColorRotationControls();
     updateSpriteControls();
@@ -1704,6 +1711,25 @@ void MainWindow::selectFrame(int)
     updateUndoRedoActions();
     updateSpriteCaptureSelectionOverlay();
     updatePlaybackControls();
+}
+
+void MainWindow::updateFrameStatusText()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        setFrameStatusText(QString());
+        return;
+    }
+    const int selectedCount = static_cast<int>(selectedFrameIndices().size());
+    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2 | %3 ms%4")
+                           .arg(static_cast<int>(*frameIndex))
+                           .arg(m_document->hasHdFrame(*frameIndex)
+                                    ? QStringLiteral("HD 256x64")
+                                    : QStringLiteral("HD unavailable"))
+                           .arg(m_document->frameDurationMs(*frameIndex))
+                           .arg(selectedCount > 1
+                                    ? QStringLiteral(" | %1 selected").arg(selectedCount)
+                                    : QString()));
 }
 
 void MainWindow::updatePlaybackControls()
@@ -1818,9 +1844,6 @@ void MainWindow::updateResolutionMode()
     if (m_dynamicPanel) {
         m_dynamicPanel->setDynamicSetEnabled(hasDocument);
     }
-    if (m_framePanel) {
-        m_framePanel->setPaintTargetEnabled(hasDocument && selectedBackgroundIndex().has_value());
-    }
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
     if (m_preview) {
@@ -1854,22 +1877,19 @@ void MainWindow::updateFrameMetadataControls()
     state.frameIndex = currentIndex;
     state.hasSelectedFrames = !selectedFrameIndices().empty();
     m_framePanel->refresh(state);
-
-    if (!hasFrame) {
-        setPaintTarget(PaintTarget::Frame);
-        updateDynamicColorControls();
-        updateMaskControls();
-        updateBackgroundControls();
-        return;
+    if (isSpriteCanvasActive()) {
+        m_framePanel->showSpriteHdActions(m_document->hasHdSprite(*currentSpriteIndex()));
     }
 
-    if (m_document->backgroundCount() == 0) {
+    if (!hasFrame || m_document->backgroundCount() == 0) {
         setPaintTarget(PaintTarget::Frame);
     }
     updateDynamicColorControls();
     updatePaintTargetMode();
     updateBackgroundControls();
-    updateMaskBrowserSelection();
+    if (hasFrame) {
+        updateMaskBrowserSelection();
+    }
     updateMaskControls();
 }
 
@@ -1879,14 +1899,9 @@ void MainWindow::updateMaskControls()
         return;
     }
 
-    const QListWidgetItem* selectedItem = m_maskList ? m_maskList->currentItem() : nullptr;
-    const int selectedMask = selectedItem ? selectedItem->data(Qt::UserRole).toInt() : -1;
     m_maskPanel->refreshSelection(m_document ? &*m_document : nullptr,
                                   currentFrameIndex(),
-                                  selectedMask >= 0
-                                      ? std::optional<std::size_t>(
-                                            static_cast<std::size_t>(selectedMask))
-                                      : std::nullopt,
+                                  m_document ? m_selectedMaskIndex : std::nullopt,
                                   !selectedFrameIndices().empty());
 }
 
@@ -1934,7 +1949,6 @@ void MainWindow::updateBackgroundControls()
     BackgroundPanelState state;
     state.document = m_document ? &*m_document : nullptr;
     state.selectedBackgroundIndex = selectedBackground;
-    state.resolution = m_activeResolution;
     state.hasCurrentFrame = currentFrameIndex().has_value();
     state.hasSelectedFrames = !selectedFrameIndices().empty();
     m_backgroundPanel->refresh(state);
@@ -1947,61 +1961,85 @@ void MainWindow::updateBackgroundControls()
     }
 }
 
+MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
+    edit::FrameAttribute attribute,
+    uint32_t value)
+{
+    FrameEditCount count;
+    if (!m_document) {
+        return count;
+    }
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        if (attribute == edit::FrameAttribute::BackgroundId &&
+            !m_document->backgroundData(frameIndex)) {
+            ++count.skipped;
+            continue;
+        }
+        const uint32_t oldValue = edit::frameAttributeValue(*m_document, frameIndex, attribute);
+        if (oldValue == value) {
+            continue;
+        }
+        commitEdit(std::make_unique<edit::FrameAttributeEditCommand>(frameIndex,
+                                                                     attribute,
+                                                                     oldValue,
+                                                                     value));
+        ++count.changed;
+    }
+    updateUndoRedoActions();
+    return count;
+}
+
 void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
+    if (!m_document || selectedFrameIndices().empty()) {
         return;
     }
 
-    const uint8_t storedMaskId = maskId < 0 ? uint8_t{255} : static_cast<uint8_t>(maskId);
-    m_document->setComparisonMaskId(*frameIndex, storedMaskId);
-    if (m_preview) {
-        m_preview->update();
+    const uint32_t storedMaskId = maskId < 0 ? 255u : static_cast<uint32_t>(maskId & 0xff);
+    try {
+        const FrameEditCount count =
+            editSelectedFramesAttribute(edit::FrameAttribute::ComparisonMaskId, storedMaskId);
+        statusBar()->showMessage(
+            maskId < 0 ? QStringLiteral("Cleared comparison mask assignment on %1")
+                             .arg(frameEditCountText(count.changed, count.skipped))
+                       : QStringLiteral("Assigned comparison mask %1 on %2")
+                             .arg(maskId)
+                             .arg(frameEditCountText(count.changed, count.skipped)),
+            2500);
+    } catch (const std::exception& ex) {
+        updateFrameMetadataControls();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
-    updateFrameMetadataControls();
-    updateMaskControls();
-    updateUndoRedoActions();
-    updateProjectHeaderStatus();
-    statusBar()->showMessage(maskId < 0 ? QStringLiteral("Cleared comparison mask assignment")
-                                        : QStringLiteral("Assigned comparison mask %1").arg(maskId),
-                             2500);
 }
 
 void MainWindow::assignSelectedMaskToFrames()
 {
-    const QListWidgetItem* selectedItem = m_maskList ? m_maskList->currentItem() : nullptr;
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || !selectedItem || frameIndices.empty()) {
+    if (!m_document || !m_selectedMaskIndex || selectedFrameIndices().empty() ||
+        *m_selectedMaskIndex >= m_document->comparisonMaskCount()) {
         statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
         updateMaskControls();
         return;
     }
+    setCurrentFrameComparisonMaskId(static_cast<int>(*m_selectedMaskIndex));
+}
 
-    const int maskIndex = selectedItem->data(Qt::UserRole).toInt();
-    if (maskIndex < 0 ||
-        static_cast<std::size_t>(maskIndex) >= m_document->comparisonMaskCount()) {
-        statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
-        updateMaskControls();
+void MainWindow::leaveSpriteCanvas()
+{
+    if (!m_spritePanel || !m_spritePanel->isSpriteCanvasChecked()) {
+        if (m_canvasStack && m_preview) {
+            m_canvasStack->setCurrentWidget(m_preview);
+        }
         return;
     }
-
-    const uint8_t storedMaskId = static_cast<uint8_t>(maskIndex);
-    for (std::size_t frameIndex : frameIndices) {
-        m_document->setComparisonMaskId(frameIndex, storedMaskId);
-        updateFrameListItem(frameIndex);
-    }
-    if (m_preview) {
-        m_preview->update();
+    applyPendingSpriteDependentViews();
+    m_spritePanel->setSpriteCanvasChecked(false);
+    if (m_canvasStack && m_preview) {
+        m_canvasStack->setCurrentWidget(m_preview);
     }
     updateFrameMetadataControls();
+    updateSpriteControls();
     updateUndoRedoActions();
-    updateProjectHeaderStatus();
-    statusBar()->showMessage(
-        QStringLiteral("Assigned comparison mask %1 on %2 frame(s)")
-            .arg(maskIndex)
-            .arg(static_cast<int>(frameIndices.size())),
-        2500);
 }
 
 void MainWindow::editAssignedMask()
@@ -2012,11 +2050,9 @@ void MainWindow::editAssignedMask()
         updateMaskControls();
         return;
     }
+    leaveSpriteCanvas();
     if (m_comparisonMaskOverlayButton) {
         m_comparisonMaskOverlayButton->setChecked(true);
-    }
-    if (m_canvasStack && m_preview) {
-        m_canvasStack->setCurrentWidget(m_preview);
     }
     updateUndoRedoActions();
     statusBar()->showMessage(
@@ -2026,63 +2062,59 @@ void MainWindow::editAssignedMask()
 
 void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
+    if (!m_document || selectedFrameIndices().empty()) {
         return;
     }
 
     try {
-        m_document->setShapeComparisonMode(*frameIndex, static_cast<uint8_t>(mode));
-        updateFrameMetadataControls();
-        updateProjectHeaderStatus();
-        statusBar()->showMessage(mode == 0 ? QStringLiteral("Set full comparison mode")
-                                           : QStringLiteral("Set shape mode"),
-                                 2500);
+        const FrameEditCount count =
+            editSelectedFramesAttribute(edit::FrameAttribute::ShapeComparisonMode,
+                                        static_cast<uint32_t>(mode & 0xff));
+        statusBar()->showMessage(
+            (mode == 0 ? QStringLiteral("Set full comparison mode on %1")
+                       : QStringLiteral("Set shape mode on %1"))
+                .arg(frameEditCountText(count.changed, count.skipped)),
+            2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
 
 void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty()) {
+    if (!m_document || selectedFrameIndices().empty()) {
         return;
     }
 
-    const uint16_t storedBackgroundId =
-        backgroundId < 0 ? uint16_t{0xffff} : static_cast<uint16_t>(backgroundId);
+    const uint32_t storedBackgroundId =
+        backgroundId < 0 ? 0xffffu : static_cast<uint32_t>(backgroundId & 0xffff);
     try {
-        for (std::size_t frameIndex : frameIndices) {
-            m_document->setBackgroundId(frameIndex, storedBackgroundId);
-            updateFrameListItem(frameIndex);
+        const FrameEditCount count =
+            editSelectedFramesAttribute(edit::FrameAttribute::BackgroundId, storedBackgroundId);
+        if (count.changed == 0) {
+            // Nothing was committed, so the spin box may still show the rejected value.
+            updateFrameMetadataControls();
         }
-        if (m_preview) {
-            m_preview->update();
-        }
-        updateFrameMetadataControls();
-        updateBackgroundControls();
-        updatePaintTargetMode();
-        updateProjectHeaderStatus();
+        const QString countText = frameEditCountText(count.changed,
+                                                     count.skipped,
+                                                     QStringLiteral("no background data"));
         statusBar()->showMessage(
             backgroundId < 0
-                ? QStringLiteral("Cleared background assignment on %1 frame(s)")
-                      .arg(static_cast<int>(frameIndices.size()))
-                : QStringLiteral("Assigned background %1 on %2 frame(s)")
-                      .arg(backgroundId)
-                      .arg(static_cast<int>(frameIndices.size())),
+                ? QStringLiteral("Cleared background assignment on %1").arg(countText)
+                : QStringLiteral("Assigned background %1 on %2").arg(backgroundId).arg(countText),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
 
 void MainWindow::setCurrentFrameTriggerId(int triggerId)
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty()) {
+    if (!m_document || selectedFrameIndices().empty()) {
         return;
     }
     if (m_framePanel && m_framePanel->isSwitchToMonochromeChecked()) {
@@ -2090,65 +2122,43 @@ void MainWindow::setCurrentFrameTriggerId(int triggerId)
     }
 
     const uint32_t storedTriggerId =
-        static_cast<uint32_t>(std::clamp(triggerId, 0, kMaxManualTriggerId));
+        triggerId < 0 ? document::kNoTriggerId
+                      : static_cast<uint32_t>(std::min(triggerId, kMaxManualTriggerId));
     try {
-        for (std::size_t frameIndex : frameIndices) {
-            m_document->setTriggerId(frameIndex, storedTriggerId);
-        }
-        updateFrameMetadataControls();
-        updateProjectHeaderStatus();
+        const FrameEditCount count =
+            editSelectedFramesAttribute(edit::FrameAttribute::TriggerId, storedTriggerId);
+        const QString countText = frameEditCountText(count.changed, count.skipped);
         statusBar()->showMessage(
-            QStringLiteral("Set trigger ID %1 on %2 frame(s)")
-                .arg(storedTriggerId)
-                .arg(static_cast<int>(frameIndices.size())),
+            triggerId < 0
+                ? QStringLiteral("Cleared trigger ID on %1").arg(countText)
+                : QStringLiteral("Set trigger ID %1 on %2").arg(storedTriggerId).arg(countText),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
 
 void MainWindow::setCurrentFrameDurationMs(int durationMs)
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty()) {
+    if (!m_document || selectedFrameIndices().empty()) {
         return;
     }
 
-    const bool wasDirty = m_document->isDirty();
     const uint32_t storedDurationMs =
         static_cast<uint32_t>(std::clamp(durationMs, 0, kMaxFrameDurationMs));
     try {
-        for (std::size_t frameIndex : frameIndices) {
-            m_document->setFrameDurationMs(frameIndex, storedDurationMs);
-            updateFrameListItemText(frameIndex);
-        }
-        updateFrameMetadataControls();
-        if (const std::optional<std::size_t> frameIndex = currentFrameIndex()) {
-            const bool hasHd = m_document->hasHdFrame(*frameIndex);
-            const int selectedCount = static_cast<int>(selectedFrameIndices().size());
-            setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2 | %3 ms%4")
-                                   .arg(static_cast<int>(*frameIndex))
-                                   .arg(hasHd ? QStringLiteral("HD 256x64")
-                                              : QStringLiteral("HD unavailable"))
-                                   .arg(m_document->frameDurationMs(*frameIndex))
-                                   .arg(selectedCount > 1
-                                            ? QStringLiteral(" | %1 selected").arg(selectedCount)
-                                            : QString()));
-        }
-        if (!wasDirty && m_document->isDirty()) {
-            updateProjectHeaderStatus();
-        }
-        if (m_playbackTimer && m_playbackTimer->isActive()) {
-            m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
-        }
+        const FrameEditCount count =
+            editSelectedFramesAttribute(edit::FrameAttribute::DurationMs, storedDurationMs);
         statusBar()->showMessage(
-            QStringLiteral("Set duration %1 ms on %2 frame(s)")
+            QStringLiteral("Set duration %1 ms on %2")
                 .arg(storedDurationMs)
-                .arg(static_cast<int>(frameIndices.size())),
+                .arg(frameEditCountText(count.changed, count.skipped)),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
@@ -2160,28 +2170,35 @@ void MainWindow::setCurrentFrameSwitchToMonochrome(bool enabled)
         return;
     }
 
-    const uint32_t storedTriggerId =
-        enabled ? kSwitchToMonochromeTriggerId
-                : static_cast<uint32_t>(m_framePanel
-                                            ? std::clamp(m_framePanel->triggerId(),
-                                                         0,
-                                                         kMaxManualTriggerId)
-                                            : 0);
     try {
+        int changed = 0;
         for (std::size_t frameIndex : frameIndices) {
-            m_document->setTriggerId(frameIndex, storedTriggerId);
+            const uint32_t oldTriggerId = m_document->triggerId(frameIndex);
+            // Switching off only concerns frames that carry the monochrome trigger; other
+            // selected frames keep their own trigger ID.
+            if (enabled ? oldTriggerId == kSwitchToMonochromeTriggerId
+                        : oldTriggerId != kSwitchToMonochromeTriggerId) {
+                continue;
+            }
+            commitEdit(std::make_unique<edit::FrameAttributeEditCommand>(
+                frameIndex,
+                edit::FrameAttribute::TriggerId,
+                oldTriggerId,
+                enabled ? kSwitchToMonochromeTriggerId : document::kNoTriggerId));
+            ++changed;
         }
-        updateFrameMetadataControls();
-        updateProjectHeaderStatus();
+        if (changed == 0) {
+            updateFrameMetadataControls();
+        }
+        updateUndoRedoActions();
         statusBar()->showMessage(
-            enabled
-                ? QStringLiteral("Enabled switch-to-monochrome trigger on %1 frame(s)")
-                      .arg(static_cast<int>(frameIndices.size()))
-                : QStringLiteral("Disabled switch-to-monochrome trigger on %1 frame(s)")
-                      .arg(static_cast<int>(frameIndices.size())),
+            (enabled ? QStringLiteral("Enabled switch-to-monochrome trigger on %1")
+                     : QStringLiteral("Disabled switch-to-monochrome trigger on %1"))
+                .arg(frameEditCountText(changed, 0)),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
@@ -2216,10 +2233,8 @@ void MainWindow::editAssignedBackground()
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
     }
+    leaveSpriteCanvas();
     setPaintTarget(PaintTarget::Background);
-    if (m_canvasStack && m_preview) {
-        m_canvasStack->setCurrentWidget(m_preview);
-    }
     updatePaintTargetMode();
     statusBar()->showMessage(
         QStringLiteral("Editing background %1").arg(static_cast<int>(*backgroundIndex)),
@@ -2650,6 +2665,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                                         selectedPixels);
         }
         m_undoHistories.clear(edit::EditKind::SpriteImage, *spriteIndex);
+        m_undoHistories.clear(edit::EditKind::SpriteAttributes, *spriteIndex);
         updateUndoRedoActions();
         m_document->setSpriteDetectionArea(*spriteIndex,
                                            0,
@@ -2819,9 +2835,21 @@ void MainWindow::removeCurrentSpriteSlot()
     }
 
     try {
+        int changed = 0;
+        int skipped = 0;
         for (std::size_t frameIndex : frameIndices) {
+            const std::vector<document::FrameSpriteReference>& references =
+                m_document->frameSpriteReferences(frameIndex);
+            if (*slotIndex >= references.size()) {
+                ++skipped;
+                continue;
+            }
+            if (references[*slotIndex].spriteId == 255) {
+                continue;
+            }
             m_document->clearFrameSpriteReference(frameIndex, *slotIndex);
             updateFrameListItem(frameIndex);
+            ++changed;
         }
         if (m_preview) {
             m_preview->update();
@@ -2829,9 +2857,9 @@ void MainWindow::removeCurrentSpriteSlot()
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Cleared sprite slot %1 on %2 frame(s)")
+            QStringLiteral("Cleared sprite slot %1 on %2")
                 .arg(static_cast<int>(*slotIndex))
-                .arg(static_cast<int>(frameIndices.size())),
+                .arg(frameEditCountText(changed, skipped, QStringLiteral("no sprite slots"))),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
@@ -2853,20 +2881,21 @@ void MainWindow::setCurrentSpriteSlotBounds()
     }
 
     const SpriteSlotBounds bounds = m_spritePanel->slotBounds();
-    const int minX = std::min(bounds.minX, bounds.maxX);
+    const int minX = bounds.minX;
     const int maxX = std::max(bounds.minX, bounds.maxX);
-    const int minY = std::min(bounds.minY, bounds.maxY);
+    const int minY = bounds.minY;
     const int maxY = std::max(bounds.minY, bounds.maxY);
 
     try {
-        bool changed = false;
+        int changed = 0;
         for (std::size_t frameIndex : frameIndices) {
-            std::vector<document::FrameSpriteReference> references =
+            const std::vector<document::FrameSpriteReference>& references =
                 m_document->frameSpriteReferences(frameIndex);
-            if (*slotIndex >= references.size()) {
+            // Bounds belong to an assigned sprite; an empty slot keeps none.
+            if (*slotIndex >= references.size() || references[*slotIndex].spriteId == 255) {
                 continue;
             }
-            document::FrameSpriteReference reference = references[*slotIndex];
+            const document::FrameSpriteReference reference = references[*slotIndex];
             const document::FrameSpriteReference updated{
                 reference.spriteId,
                 static_cast<uint16_t>(minX),
@@ -2883,9 +2912,9 @@ void MainWindow::setCurrentSpriteSlotBounds()
             }
             m_document->setFrameSpriteReference(frameIndex, *slotIndex, updated);
             updateFrameListItem(frameIndex);
-            changed = true;
+            ++changed;
         }
-        if (!changed) {
+        if (changed == 0) {
             updateSpriteControls();
             return;
         }
@@ -2897,7 +2926,7 @@ void MainWindow::setCurrentSpriteSlotBounds()
         statusBar()->showMessage(
             QStringLiteral("Updated sprite slot %1 bounds on %2 frame(s)")
                 .arg(static_cast<int>(*slotIndex))
-                .arg(static_cast<int>(frameIndices.size())),
+                .arg(changed),
             1500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
@@ -2939,6 +2968,15 @@ void MainWindow::setCurrentSpriteDetectionArea()
     const std::size_t areaIndex = m_spritePanel->selectedDetectionAreaIndex();
     if (spriteIndex < 0 ||
         static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount()) {
+        updateSpriteControls();
+        return;
+    }
+
+    // The spin boxes edit an existing area; a new one is drawn in the sprite editor.
+    const document::SpriteRecord& sprite =
+        m_document->sprite(static_cast<std::size_t>(spriteIndex));
+    if (areaIndex >= sprite.detectionAreas.size() ||
+        !isSpriteDetectionAreaSet(sprite.detectionAreas[areaIndex])) {
         updateSpriteControls();
         return;
     }
@@ -3140,18 +3178,10 @@ void MainWindow::createCurrentSpriteHd()
     }
 
     try {
-        m_document->createHdSprite(*spriteIndex);
-        m_undoHistories.clear(
-            {edit::EditKind::SpriteImage, *spriteIndex, render::Resolution::Hd});
+        std::unique_ptr<edit::EditCommand> command =
+            edit::createSpriteHd(*m_document, *spriteIndex);
         m_activeResolution = render::Resolution::Hd;
-        if (m_spriteEditor) {
-            m_spriteEditor->setActiveResolution(m_activeResolution);
-            m_spriteEditor->update();
-        }
-        setSpriteDependentViewsDirty();
-        updateResolutionMode();
-        updateSpriteControls();
-        updateProjectHeaderStatus();
+        recordEdit(std::move(command));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Created HD sprite from SD"), 2500);
     } catch (const std::exception& ex) {
@@ -3169,20 +3199,7 @@ void MainWindow::removeCurrentSpriteHd()
     }
 
     try {
-        m_document->removeHdSprite(*spriteIndex);
-        m_undoHistories.clear(
-            {edit::EditKind::SpriteImage, *spriteIndex, render::Resolution::Hd});
-        if (m_activeResolution == render::Resolution::Hd) {
-            m_activeResolution = render::Resolution::Sd;
-        }
-        if (m_spriteEditor) {
-            m_spriteEditor->setActiveResolution(m_activeResolution);
-            m_spriteEditor->update();
-        }
-        setSpriteDependentViewsDirty();
-        updateResolutionMode();
-        updateSpriteControls();
-        updateProjectHeaderStatus();
+        recordEdit(edit::removeSpriteHd(*m_document, *spriteIndex));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Removed HD sprite"), 2500);
     } catch (const std::exception& ex) {
@@ -3241,29 +3258,14 @@ void MainWindow::createCurrentFrameHd()
     }
 
     try {
-        const render::Resolution hd = render::Resolution::Hd;
-        m_document->createHdFrame(*frameIndex);
-        m_undoHistories.clear({edit::EditKind::FramePixels, *frameIndex, hd});
-        if (dynamicMaskCheckBox->isChecked()) {
-            m_document->upscaleDynamicMaskToHd(*frameIndex);
-            m_undoHistories.clear({edit::EditKind::DynamicMask, *frameIndex, hd});
-            m_undoHistories.clear({edit::EditKind::DynamicColor, *frameIndex, hd});
-            m_undoHistories.clear({edit::EditKind::DynamicShadow, *frameIndex, hd});
-        }
-        if (backgroundMaskCheckBox->isChecked()) {
-            m_document->upscaleBackgroundMaskToHd(*frameIndex);
-            m_undoHistories.clear({edit::EditKind::BackgroundMask, *frameIndex, hd});
-        }
-        if (backgroundImageCheckBox->isChecked()) {
-            const std::size_t backgroundIndex = m_document->backgroundId(*frameIndex);
-            m_document->upscaleAssignedBackgroundToHd(*frameIndex);
-            m_undoHistories.clear({edit::EditKind::BackgroundImage, backgroundIndex, hd});
-        }
-        m_activeResolution = hd;
-        updateResolutionMode();
-        updateFrameMetadataControls();
-        updateFrameListItem(*frameIndex);
-        updateProjectHeaderStatus();
+        document::FrameHdParts parts;
+        parts.dynamic = dynamicMaskCheckBox->isChecked();
+        parts.backgroundMask = backgroundMaskCheckBox->isChecked();
+        parts.backgroundImage = backgroundImageCheckBox->isChecked();
+        std::unique_ptr<edit::EditCommand> command =
+            edit::createFrameHd(*m_document, *frameIndex, parts);
+        m_activeResolution = render::Resolution::Hd;
+        recordEdit(std::move(command));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Created HD frame from SD"), 2500);
     } catch (const std::exception& ex) {
@@ -3282,16 +3284,7 @@ void MainWindow::removeCurrentFrameHd()
     }
 
     try {
-        m_document->removeHdFrame(*frameIndex);
-        m_undoHistories.clear(
-            {edit::EditKind::FramePixels, *frameIndex, render::Resolution::Hd});
-        if (m_activeResolution == render::Resolution::Hd) {
-            m_activeResolution = render::Resolution::Sd;
-        }
-        updateResolutionMode();
-        updateFrameMetadataControls();
-        updateFrameListItem(*frameIndex);
-        updateProjectHeaderStatus();
+        recordEdit(edit::removeFrameHd(*m_document, *frameIndex));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Removed HD frame"), 2500);
     } catch (const std::exception& ex) {
@@ -3798,7 +3791,6 @@ void MainWindow::updateSpriteControls()
     state.document = m_document ? &*m_document : nullptr;
     state.frameIndex = frameIndex;
     state.spriteIndex = spriteIndex;
-    state.resolution = m_activeResolution;
     state.hasCaptureSelection = !spriteCaptureSelectionPixels().empty();
     state.spriteEditsPending = m_spriteDependentViewsDirty;
     m_spritePanel->refresh(state);
@@ -3817,9 +3809,6 @@ void MainWindow::updateSpriteControls()
     }
 
     if (!spriteIndex) {
-        if (isSpriteCanvasActive()) {
-            m_framePanel->disableHdActions();
-        }
         if (m_canvasStack && m_preview) {
             m_canvasStack->setCurrentWidget(m_preview);
         }
@@ -3852,6 +3841,9 @@ void MainWindow::updateSpriteControls()
 void MainWindow::updatePaintTargetMode()
 {
     const bool backgroundTargetActive = isBackgroundImageTargetActive();
+    if (m_framePanel) {
+        m_framePanel->setPaintTargetEnabled(selectedBackgroundIndex().has_value());
+    }
     if (m_preview) {
         m_preview->setSelectedBackgroundIndex(selectedBackgroundIndex());
         m_preview->setBackgroundImageEditModeEnabled(backgroundTargetActive);
@@ -5235,16 +5227,26 @@ void MainWindow::commitEdit(std::unique_ptr<edit::EditCommand> command)
         return;
     }
     command->apply(*m_document);
-    const edit::EditTarget target = command->target();
-    refreshAfterEdit(target);
-    m_undoHistories.push(edit::historyKey(target), std::move(command));
+    recordEdit(std::move(command));
 }
 
-void MainWindow::refreshAfterEdit(const edit::EditTarget& target)
+void MainWindow::recordEdit(std::unique_ptr<edit::EditCommand> command)
+{
+    if (!m_document || !command) {
+        return;
+    }
+    const edit::EditCommand& applied = *command;
+    m_undoHistories.push(edit::historyKey(applied.target()), std::move(command));
+    refreshAfterEdit(applied);
+}
+
+void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
 {
     if (!m_document) {
         return;
     }
+    const edit::EditTarget target = command.target();
+    const bool hdDataReplaced = !command.replacedData().empty();
     switch (target.kind) {
         case edit::EditKind::FramePixels:
             m_preview->update();
@@ -5297,11 +5299,46 @@ void MainWindow::refreshAfterEdit(const edit::EditTarget& target)
             refreshComponentBrowsers();
             updateProjectHeaderStatus();
             break;
+        case edit::EditKind::FrameAttributes:
+            if (hdDataReplaced) {
+                const std::optional<std::size_t> frameIndex = currentFrameIndex();
+                if (m_activeResolution == render::Resolution::Hd && frameIndex &&
+                    !m_document->hasHdFrame(*frameIndex)) {
+                    m_activeResolution = render::Resolution::Sd;
+                }
+                updateResolutionMode();
+            }
+            m_preview->update();
+            updateFrameMetadataControls();
+            for (std::size_t frameIndex : target.frameIndices) {
+                updateFrameListItem(frameIndex);
+            }
+            updateFrameStatusText();
+            if (m_playbackTimer && m_playbackTimer->isActive()) {
+                m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
+            }
+            updateProjectHeaderStatus();
+            break;
+        case edit::EditKind::SpriteAttributes:
+            if (m_activeResolution == render::Resolution::Hd &&
+                !m_document->hasHdSprite(target.index)) {
+                m_activeResolution = render::Resolution::Sd;
+            }
+            if (m_spriteEditor) {
+                m_spriteEditor->setActiveResolution(m_activeResolution);
+                m_spriteEditor->update();
+            }
+            setSpriteDependentViewsDirty();
+            updateResolutionMode();
+            updateSpriteControls();
+            updateProjectHeaderStatus();
+            break;
     }
 }
 
 std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
 {
+    const render::Resolution sd = render::Resolution::Sd;
     std::vector<edit::HistoryKey> keys;
     if (isSpriteCanvasActive()) {
         const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
@@ -5314,17 +5351,21 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
                 }
             }
             keys.push_back({edit::EditKind::SpriteImage, *spriteIndex, resolution});
-        }
-        return keys;
-    }
-    if (isComparisonMaskModeActive()) {
-        const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
-        if (maskIndex) {
-            keys.push_back({edit::EditKind::ComparisonMask, *maskIndex, render::Resolution::Sd});
+            keys.push_back({edit::EditKind::SpriteAttributes, *spriteIndex, sd});
         }
         return keys;
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (isComparisonMaskModeActive()) {
+        const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+        if (maskIndex) {
+            keys.push_back({edit::EditKind::ComparisonMask, *maskIndex, sd});
+        }
+        if (frameIndex) {
+            keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
+        }
+        return keys;
+    }
     if (isDynamicMaskModeActive()) {
         if (frameIndex) {
             keys.push_back({edit::EditKind::DynamicMask, *frameIndex, m_activeResolution});
@@ -5336,14 +5377,7 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     if (isBackgroundMaskModeActive()) {
         if (frameIndex) {
             keys.push_back({edit::EditKind::BackgroundMask, *frameIndex, m_activeResolution});
-        }
-        return keys;
-    }
-    if (isBackgroundImageTargetActive()) {
-        const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-        if (backgroundIndex) {
-            keys.push_back(
-                {edit::EditKind::BackgroundImage, *backgroundIndex, m_activeResolution});
+            keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
         }
         return keys;
     }
@@ -5352,11 +5386,18 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     }
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
     if (paletteIndex) {
-        keys.push_back({edit::EditKind::Palette, *paletteIndex, render::Resolution::Sd});
+        keys.push_back({edit::EditKind::Palette, *paletteIndex, sd});
     }
     if (frameIndex) {
         keys.push_back({edit::EditKind::DynamicColor, *frameIndex, m_activeResolution});
         keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, m_activeResolution});
+    }
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (backgroundIndex) {
+        keys.push_back({edit::EditKind::BackgroundImage, *backgroundIndex, m_activeResolution});
+    }
+    if (frameIndex) {
+        keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
     }
     return keys;
 }
@@ -5453,24 +5494,22 @@ void MainWindow::undo()
     if (!m_document) {
         return;
     }
-    for (const edit::HistoryKey& key : currentHistoryKeys()) {
-        const edit::EditCommand* command = nullptr;
-        try {
-            command = m_undoHistories.undo(key, *m_document);
-        } catch (const std::exception& ex) {
-            // The edited data no longer exists in that shape, e.g. its HD frame was removed.
-            updateUndoRedoActions();
-            statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-            return;
-        }
-        if (!command) {
-            continue;
-        }
-        refreshAfterEdit(command->target());
+    const edit::EditCommand* command = nullptr;
+    try {
+        command = m_undoHistories.undoLatest(currentHistoryKeys(), *m_document);
+    } catch (const std::exception& ex) {
+        // The edited data no longer exists in that shape, e.g. its HD frame was removed.
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(key.kind), 1500);
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
         return;
     }
+    if (!command) {
+        return;
+    }
+    const edit::EditKind kind = command->target().kind;
+    refreshAfterEdit(*command);
+    updateUndoRedoActions();
+    statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(kind), 1500);
 }
 
 void MainWindow::redo()
@@ -5478,39 +5517,32 @@ void MainWindow::redo()
     if (!m_document) {
         return;
     }
-    for (const edit::HistoryKey& key : currentHistoryKeys()) {
-        const edit::EditCommand* command = nullptr;
-        try {
-            command = m_undoHistories.redo(key, *m_document);
-        } catch (const std::exception& ex) {
-            // The edited data no longer exists in that shape, e.g. its HD frame was removed.
-            updateUndoRedoActions();
-            statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-            return;
-        }
-        if (!command) {
-            continue;
-        }
-        refreshAfterEdit(command->target());
+    const edit::EditCommand* command = nullptr;
+    try {
+        command = m_undoHistories.redoLatest(currentHistoryKeys(), *m_document);
+    } catch (const std::exception& ex) {
+        // The edited data no longer exists in that shape, e.g. its HD frame was removed.
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(key.kind), 1500);
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
         return;
     }
+    if (!command) {
+        return;
+    }
+    const edit::EditKind kind = command->target().kind;
+    refreshAfterEdit(*command);
+    updateUndoRedoActions();
+    statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(kind), 1500);
 }
 
 void MainWindow::updateUndoRedoActions()
 {
-    bool canUndo = false;
-    bool canRedo = false;
-    for (const edit::HistoryKey& key : currentHistoryKeys()) {
-        canUndo = canUndo || m_undoHistories.canUndo(key);
-        canRedo = canRedo || m_undoHistories.canRedo(key);
-    }
+    const std::vector<edit::HistoryKey> keys = currentHistoryKeys();
     if (m_undoAction) {
-        m_undoAction->setEnabled(canUndo);
+        m_undoAction->setEnabled(m_undoHistories.canUndoAny(keys));
     }
     if (m_redoAction) {
-        m_redoAction->setEnabled(canRedo);
+        m_redoAction->setEnabled(m_undoHistories.canRedoAny(keys));
     }
 }
 

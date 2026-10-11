@@ -1,24 +1,19 @@
 #include "panels/SpritePanel.h"
 
 #include <algorithm>
-#include <array>
 #include <vector>
 
 #include <QComboBox>
 #include <QGridLayout>
 #include <QHBoxLayout>
-#include <QImage>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPainter>
-#include <QPixmap>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStringList>
 #include <QToolButton>
 #include <QVBoxLayout>
 
-#include "FrameImageUtils.h"
 #include "render/CanvasLayout.h"
 
 namespace colorizing::app {
@@ -35,82 +30,14 @@ QString spriteDisplayName(const document::ProjectDocument& document, std::size_t
     return QStringLiteral("%1 - %2").arg(base, QString::fromStdString(sprite.name));
 }
 
-bool isDetectionAreaSet(const document::SpriteDetectionArea& area)
+}  // namespace
+
+bool isSpriteDetectionAreaSet(const document::SpriteDetectionArea& area)
 {
     return area.x != 0xffff && area.y != 0xffff &&
            area.width != 0xffff && area.height != 0xffff &&
            area.width > 0 && area.height > 0;
 }
-
-QImage renderSpriteOriginalPreviewImage(const document::SpriteRecord& sprite,
-                                        bool showDetectionAreas)
-{
-    QImage image(static_cast<int>(document::kMaxSpriteWidth),
-                 static_cast<int>(document::kMaxSpriteHeight),
-                 QImage::Format_ARGB32);
-    image.fill(Qt::black);
-    for (int y = 0; y < image.height(); ++y) {
-        for (int x = 0; x < image.width(); ++x) {
-            const std::size_t index =
-                static_cast<std::size_t>(y) * document::kMaxSpriteWidth +
-                static_cast<std::size_t>(x);
-            const uint8_t value = sprite.originalSd.pixels[index];
-            if (value == 255) {
-                continue;
-            }
-            image.setPixelColor(x, y, originalIndexToColor(value));
-        }
-    }
-    if (showDetectionAreas) {
-        QPainter painter(&image);
-        painter.setPen(Qt::NoPen);
-        const std::array<QColor, document::kMaxSpriteDetectAreas> colors{
-            QColor(0, 255, 255, 92),
-            QColor(255, 200, 0, 92),
-            QColor(255, 0, 255, 92),
-            QColor(0, 255, 0, 92),
-        };
-        for (std::size_t areaIndex = 0;
-             areaIndex < sprite.detectionAreas.size() &&
-                 areaIndex < document::kMaxSpriteDetectAreas;
-             ++areaIndex) {
-            const document::SpriteDetectionArea& area = sprite.detectionAreas[areaIndex];
-            if (area.x == 0xffff || area.y == 0xffff ||
-                area.width == 0xffff || area.height == 0xffff ||
-                area.width == 0 || area.height == 0) {
-                continue;
-            }
-            const int x = std::clamp(static_cast<int>(area.x),
-                                     0,
-                                     static_cast<int>(document::kMaxSpriteWidth) - 1);
-            const int y = std::clamp(static_cast<int>(area.y),
-                                     0,
-                                     static_cast<int>(document::kMaxSpriteHeight) - 1);
-            const int right = std::clamp(static_cast<int>(area.x) +
-                                             static_cast<int>(area.width),
-                                         0,
-                                         static_cast<int>(document::kMaxSpriteWidth));
-            const int bottom = std::clamp(static_cast<int>(area.y) +
-                                              static_cast<int>(area.height),
-                                          0,
-                                          static_cast<int>(document::kMaxSpriteHeight));
-            if (right <= x || bottom <= y) {
-                continue;
-            }
-            painter.fillRect(QRect(x, y, right - x, bottom - y), colors[areaIndex]);
-        }
-    }
-    return image;
-}
-
-QPixmap previewPixmap(const QImage& image, QSize targetSize)
-{
-    return QPixmap::fromImage(image.scaled(targetSize,
-                                           Qt::KeepAspectRatio,
-                                           Qt::FastTransformation));
-}
-
-}  // namespace
 
 SpritePanel::SpritePanel(QWidget* parent)
     : QWidget(parent)
@@ -222,18 +149,6 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_frameSpritesLabel = new QLabel(QStringLiteral("No frame sprites"), this);
     m_frameSpritesLabel->setWordWrap(true);
     m_frameSpritesLabel->setMinimumHeight(28);
-    m_originalPreviewLabel = new QLabel(this);
-    m_originalPreviewLabel->setFixedSize(190, 48);
-    m_originalPreviewLabel->setFrameShape(QFrame::Box);
-    m_originalPreviewLabel->setAlignment(Qt::AlignCenter);
-    m_originalPreviewLabel->setToolTip(QStringLiteral("Sprite original mask preview"));
-    m_colorizedPreviewLabel = new QLabel(this);
-    m_colorizedPreviewLabel->setFixedSize(190, 48);
-    m_colorizedPreviewLabel->setFrameShape(QFrame::Box);
-    m_colorizedPreviewLabel->setAlignment(Qt::AlignCenter);
-    m_colorizedPreviewLabel->setToolTip(QStringLiteral("Sprite colorized preview"));
-    m_originalPreviewLabel->setVisible(false);
-    m_colorizedPreviewLabel->setVisible(false);
     m_selectedSpriteLabel = new QLabel(QStringLiteral("Selected: None"), this);
     m_selectedSpriteLabel->setWordWrap(true);
     pageLayout->addWidget(m_selectedSpriteLabel);
@@ -358,16 +273,26 @@ SpritePanel::SpritePanel(QWidget* parent)
             onClearDetectionAreaRequested();
         }
     });
-    for (QSpinBox* spinBox : {m_minXSpinBox, m_minYSpinBox, m_maxXSpinBox, m_maxYSpinBox}) {
-        connect(spinBox,
+    // The edited bound stops at its counterpart instead of pushing it.
+    const auto connectBound = [this](QSpinBox* edited, QSpinBox* counterpart, bool isMinimum) {
+        connect(edited,
                 static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
                 this,
-                [this](int) {
+                [this, edited, counterpart, isMinimum](int value) {
+                    const int limit = counterpart->value();
+                    if (isMinimum ? value > limit : value < limit) {
+                        QSignalBlocker blocker(edited);
+                        edited->setValue(limit);
+                    }
                     if (onSlotBoundsEdited) {
                         onSlotBoundsEdited();
                     }
                 });
-    }
+    };
+    connectBound(m_minXSpinBox, m_maxXSpinBox, true);
+    connectBound(m_minYSpinBox, m_maxYSpinBox, true);
+    connectBound(m_maxXSpinBox, m_minXSpinBox, false);
+    connectBound(m_maxYSpinBox, m_minYSpinBox, false);
     for (QSpinBox* spinBox : {m_detectionAreaXSpinBox,
                               m_detectionAreaYSpinBox,
                               m_detectionAreaWidthSpinBox,
@@ -481,10 +406,11 @@ void SpritePanel::refresh(const SpritePanelState& state)
         QSignalBlocker minYBlocker(m_minYSpinBox);
         QSignalBlocker maxXBlocker(m_maxXSpinBox);
         QSignalBlocker maxYBlocker(m_maxYSpinBox);
-        m_minXSpinBox->setEnabled(hasSlot);
-        m_minYSpinBox->setEnabled(hasSlot);
-        m_maxXSpinBox->setEnabled(hasSlot);
-        m_maxYSpinBox->setEnabled(hasSlot);
+        // Bounds belong to an assigned sprite; an empty slot has none to edit.
+        m_minXSpinBox->setEnabled(slotHasSprite);
+        m_minYSpinBox->setEnabled(slotHasSprite);
+        m_maxXSpinBox->setEnabled(slotHasSprite);
+        m_maxYSpinBox->setEnabled(slotHasSprite);
         if (hasSlot) {
             m_minXSpinBox->setValue(static_cast<int>(selectedReference->minX));
             m_minYSpinBox->setValue(static_cast<int>(selectedReference->minY));
@@ -514,10 +440,6 @@ void SpritePanel::refresh(const SpritePanelState& state)
         m_detectionAreaWidthSpinBox->setEnabled(false);
         m_detectionAreaHeightSpinBox->setEnabled(false);
         m_selectedSpriteLabel->setText(QStringLiteral("Selected: None"));
-        m_originalPreviewLabel->clear();
-        m_originalPreviewLabel->setText(QStringLiteral("Original"));
-        m_colorizedPreviewLabel->clear();
-        m_colorizedPreviewLabel->setText(QStringLiteral("Colorized"));
         return;
     }
 
@@ -553,7 +475,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
     if (hasAreaSelection) {
         selectedArea = sprite.detectionAreas[areaIndex];
     }
-    const bool selectedAreaValid = selectedArea && isDetectionAreaSet(*selectedArea);
+    const bool selectedAreaValid = selectedArea && isSpriteDetectionAreaSet(*selectedArea);
     m_detectionAreaComboBox->setEnabled(true);
     m_clearDetectionAreaButton->setEnabled(selectedAreaValid);
     {
@@ -561,10 +483,11 @@ void SpritePanel::refresh(const SpritePanelState& state)
         QSignalBlocker yBlocker(m_detectionAreaYSpinBox);
         QSignalBlocker widthBlocker(m_detectionAreaWidthSpinBox);
         QSignalBlocker heightBlocker(m_detectionAreaHeightSpinBox);
-        m_detectionAreaXSpinBox->setEnabled(hasAreaSelection);
-        m_detectionAreaYSpinBox->setEnabled(hasAreaSelection);
-        m_detectionAreaWidthSpinBox->setEnabled(hasAreaSelection);
-        m_detectionAreaHeightSpinBox->setEnabled(hasAreaSelection);
+        // An unset area is created by drawing it in the sprite editor, not by typing.
+        m_detectionAreaXSpinBox->setEnabled(selectedAreaValid);
+        m_detectionAreaYSpinBox->setEnabled(selectedAreaValid);
+        m_detectionAreaWidthSpinBox->setEnabled(selectedAreaValid);
+        m_detectionAreaHeightSpinBox->setEnabled(selectedAreaValid);
         if (selectedAreaValid) {
             m_detectionAreaXSpinBox->setValue(static_cast<int>(selectedArea->x));
             m_detectionAreaYSpinBox->setValue(static_cast<int>(selectedArea->y));
@@ -577,18 +500,9 @@ void SpritePanel::refresh(const SpritePanelState& state)
             m_detectionAreaHeightSpinBox->setValue(1);
         }
     }
-    const bool hasDetectionArea = std::any_of(sprite.detectionAreas.begin(),
-                                              sprite.detectionAreas.end(),
-                                              isDetectionAreaSet);
-    m_detectionAreasButton->setEnabled(hasDetectionArea);
-    const QSize previewSize = m_originalPreviewLabel->size();
-    m_originalPreviewLabel->setPixmap(
-        previewPixmap(renderSpriteOriginalPreviewImage(
-                          sprite,
-                          m_detectionAreasButton->isChecked() && hasDetectionArea),
-                      previewSize));
-    m_colorizedPreviewLabel->setPixmap(
-        previewPixmap(renderSpriteColorizedPreviewImage(sprite, state.resolution), previewSize));
+    m_detectionAreasButton->setEnabled(std::any_of(sprite.detectionAreas.begin(),
+                                                   sprite.detectionAreas.end(),
+                                                   isSpriteDetectionAreaSet));
 }
 
 void SpritePanel::setSelectedDetectionAreaIndex(std::size_t areaIndex)
@@ -604,6 +518,12 @@ void SpritePanel::setSpriteCanvasChecked(bool checked)
 {
     QSignalBlocker blocker(m_spriteCanvasButton);
     m_spriteCanvasButton->setChecked(checked);
+}
+
+void SpritePanel::setCaptureSelectionChecked(bool checked)
+{
+    QSignalBlocker blocker(m_captureSelectionButton);
+    m_captureSelectionButton->setChecked(checked);
 }
 
 void SpritePanel::setApplySpriteEditsEnabled(bool enabled)

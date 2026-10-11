@@ -5,6 +5,11 @@
 
 namespace colorizing::edit {
 
+std::vector<ReplacedData> EditCommand::replacedData() const
+{
+    return {};
+}
+
 PixelEditCommand::PixelEditCommand(EditKind kind,
                                    std::size_t index,
                                    render::Resolution resolution,
@@ -237,6 +242,243 @@ void PaletteEditCommand::write(document::ProjectDocument& document, bool useNewC
                                  change.colorIndex,
                                  useNewColor ? change.newColor : change.oldColor);
     }
+}
+
+namespace {
+
+void writeFrameAttribute(document::ProjectDocument& document,
+                         std::size_t frameIndex,
+                         FrameAttribute attribute,
+                         uint32_t value,
+                         bool restoring)
+{
+    switch (attribute) {
+        case FrameAttribute::ComparisonMaskId:
+            document.setComparisonMaskId(frameIndex, static_cast<uint8_t>(value));
+            break;
+        case FrameAttribute::ShapeComparisonMode:
+            if (restoring) {
+                document.restoreShapeComparisonMode(frameIndex, static_cast<uint8_t>(value));
+            } else {
+                document.setShapeComparisonMode(frameIndex, static_cast<uint8_t>(value));
+            }
+            break;
+        case FrameAttribute::BackgroundId:
+            document.setBackgroundId(frameIndex, static_cast<uint16_t>(value));
+            break;
+        case FrameAttribute::TriggerId:
+            document.setTriggerId(frameIndex, value);
+            break;
+        case FrameAttribute::DurationMs:
+            document.setFrameDurationMs(frameIndex, value);
+            break;
+    }
+}
+
+}  // namespace
+
+uint32_t frameAttributeValue(const document::ProjectDocument& document,
+                             std::size_t frameIndex,
+                             FrameAttribute attribute)
+{
+    switch (attribute) {
+        case FrameAttribute::ComparisonMaskId:
+            return document.comparisonMaskId(frameIndex);
+        case FrameAttribute::ShapeComparisonMode:
+            return document.shapeComparisonMode(frameIndex);
+        case FrameAttribute::BackgroundId:
+            return document.backgroundId(frameIndex);
+        case FrameAttribute::TriggerId:
+            return document.triggerId(frameIndex);
+        case FrameAttribute::DurationMs:
+            return document.frameDurationMs(frameIndex);
+    }
+    throw std::invalid_argument("unknown frame attribute");
+}
+
+FrameAttributeEditCommand::FrameAttributeEditCommand(std::size_t frameIndex,
+                                                     FrameAttribute attribute,
+                                                     uint32_t oldValue,
+                                                     uint32_t newValue)
+    : m_frameIndex(frameIndex),
+      m_attribute(attribute),
+      m_oldValue(oldValue),
+      m_newValue(newValue)
+{
+    const uint32_t maxValue = attribute == FrameAttribute::ComparisonMaskId ||
+                                      attribute == FrameAttribute::ShapeComparisonMode
+                                  ? 0xffu
+                                  : attribute == FrameAttribute::BackgroundId ? 0xffffu
+                                                                              : 0xffffffffu;
+    if (oldValue > maxValue || newValue > maxValue) {
+        throw std::invalid_argument("frame attribute value out of range");
+    }
+}
+
+void FrameAttributeEditCommand::apply(document::ProjectDocument& document) const
+{
+    writeFrameAttribute(document, m_frameIndex, m_attribute, m_newValue, false);
+}
+
+void FrameAttributeEditCommand::revert(document::ProjectDocument& document) const
+{
+    writeFrameAttribute(document, m_frameIndex, m_attribute, m_oldValue, true);
+}
+
+EditTarget FrameAttributeEditCommand::target() const
+{
+    return EditTarget{EditKind::FrameAttributes,
+                      m_frameIndex,
+                      render::Resolution::Sd,
+                      {m_frameIndex}};
+}
+
+FrameAttribute FrameAttributeEditCommand::attribute() const
+{
+    return m_attribute;
+}
+
+FrameHdCommand::FrameHdCommand(std::size_t frameIndex,
+                               document::FrameHdState before,
+                               document::FrameHdState after)
+    : m_frameIndex(frameIndex),
+      m_before(std::move(before)),
+      m_after(std::move(after))
+{
+}
+
+void FrameHdCommand::apply(document::ProjectDocument& document) const
+{
+    document.setFrameHdState(m_frameIndex, m_after);
+}
+
+void FrameHdCommand::revert(document::ProjectDocument& document) const
+{
+    document.setFrameHdState(m_frameIndex, m_before);
+}
+
+EditTarget FrameHdCommand::target() const
+{
+    return EditTarget{EditKind::FrameAttributes,
+                      m_frameIndex,
+                      render::Resolution::Sd,
+                      {m_frameIndex}};
+}
+
+std::vector<ReplacedData> FrameHdCommand::replacedData() const
+{
+    const render::Resolution hd = render::Resolution::Hd;
+    std::vector<ReplacedData> replaced{{EditKind::FramePixels, m_frameIndex, hd}};
+    if (m_before.dynamic || m_after.dynamic) {
+        replaced.push_back({EditKind::DynamicMask, m_frameIndex, hd});
+        replaced.push_back({EditKind::DynamicColor, m_frameIndex, hd});
+        replaced.push_back({EditKind::DynamicShadow, m_frameIndex, hd});
+    }
+    if (m_before.backgroundMask || m_after.backgroundMask) {
+        replaced.push_back({EditKind::BackgroundMask, m_frameIndex, hd});
+    }
+    for (const document::FrameHdState* state : {&m_before, &m_after}) {
+        if (state->background) {
+            replaced.push_back({EditKind::BackgroundImage, state->background->backgroundIndex, hd});
+        }
+    }
+    return replaced;
+}
+
+SpriteHdCommand::SpriteHdCommand(std::size_t spriteIndex,
+                                 document::SpriteHdState before,
+                                 document::SpriteHdState after)
+    : m_spriteIndex(spriteIndex),
+      m_before(std::move(before)),
+      m_after(std::move(after))
+{
+}
+
+void SpriteHdCommand::apply(document::ProjectDocument& document) const
+{
+    document.setSpriteHdState(m_spriteIndex, m_after);
+}
+
+void SpriteHdCommand::revert(document::ProjectDocument& document) const
+{
+    document.setSpriteHdState(m_spriteIndex, m_before);
+}
+
+EditTarget SpriteHdCommand::target() const
+{
+    return EditTarget{EditKind::SpriteAttributes, m_spriteIndex, render::Resolution::Sd, {}};
+}
+
+std::vector<ReplacedData> SpriteHdCommand::replacedData() const
+{
+    return {{EditKind::SpriteImage, m_spriteIndex, render::Resolution::Hd}};
+}
+
+std::unique_ptr<EditCommand> createFrameHd(document::ProjectDocument& document,
+                                           std::size_t frameIndex,
+                                           document::FrameHdParts parts)
+{
+    if (document.hasHdFrame(frameIndex)) {
+        return nullptr;
+    }
+    document::FrameHdState before = document.frameHdState(frameIndex, parts);
+    try {
+        document.createHdFrame(frameIndex);
+        if (parts.dynamic) {
+            document.upscaleDynamicMaskToHd(frameIndex);
+        }
+        if (parts.backgroundMask) {
+            document.upscaleBackgroundMaskToHd(frameIndex);
+        }
+        if (parts.backgroundImage) {
+            document.upscaleAssignedBackgroundToHd(frameIndex);
+        }
+    } catch (...) {
+        document.setFrameHdState(frameIndex, before);
+        throw;
+    }
+    return std::make_unique<FrameHdCommand>(frameIndex,
+                                            std::move(before),
+                                            document.frameHdState(frameIndex, parts));
+}
+
+std::unique_ptr<EditCommand> removeFrameHd(document::ProjectDocument& document,
+                                           std::size_t frameIndex)
+{
+    if (!document.hasHdFrame(frameIndex)) {
+        return nullptr;
+    }
+    document::FrameHdState before = document.frameHdState(frameIndex, {});
+    document.removeHdFrame(frameIndex);
+    return std::make_unique<FrameHdCommand>(frameIndex,
+                                            std::move(before),
+                                            document.frameHdState(frameIndex, {}));
+}
+
+std::unique_ptr<EditCommand> createSpriteHd(document::ProjectDocument& document,
+                                            std::size_t spriteIndex)
+{
+    if (document.hasHdSprite(spriteIndex)) {
+        return nullptr;
+    }
+    document::SpriteHdState before = document.spriteHdState(spriteIndex);
+    document.createHdSprite(spriteIndex);
+    return std::make_unique<SpriteHdCommand>(spriteIndex,
+                                             std::move(before),
+                                             document.spriteHdState(spriteIndex));
+}
+
+std::unique_ptr<EditCommand> removeSpriteHd(document::ProjectDocument& document,
+                                            std::size_t spriteIndex)
+{
+    if (!document.hasHdSprite(spriteIndex)) {
+        return nullptr;
+    }
+    document::SpriteHdState before = document.spriteHdState(spriteIndex);
+    document.removeHdSprite(spriteIndex);
+    return std::make_unique<SpriteHdCommand>(spriteIndex,
+                                             std::move(before),
+                                             document.spriteHdState(spriteIndex));
 }
 
 }  // namespace colorizing::edit

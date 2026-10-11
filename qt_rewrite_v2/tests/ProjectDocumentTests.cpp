@@ -398,6 +398,16 @@ void testFrameComparisonMetadataEditing()
         [&]() { document.setShapeComparisonMode(0, 2); },
         "shape comparison mode value bounds");
 
+    document.markClean();
+    document.restoreShapeComparisonMode(0, 1);
+    expect(!document.isDirty(), "restoring the same shape comparison mode should not mark dirty");
+    document.restoreShapeComparisonMode(0, 7);
+    expect(document.shapeComparisonMode(0) == 7 && document.isDirty(),
+           "an unknown legacy shape comparison mode should be restorable");
+    expectThrows<std::out_of_range>(
+        [&]() { document.restoreShapeComparisonMode(1, 0); },
+        "restored shape comparison mode frame bounds");
+
     document.setComparisonMaskId(0, 0);
     expect(document.comparisonMaskId(0) == 0,
            "comparison mask ID edit should be readable");
@@ -418,7 +428,9 @@ void testFrameTriggerIdEditing()
         ProjectDocument::createEmpty(ProjectCreateOptions{"trigger_edit", 1, false});
     document.markClean();
 
-    expect(document.triggerId(0) == 0, "new frame trigger ID should default to zero");
+    expect(document.triggerId(0) == colorizing::document::kNoTriggerId &&
+               colorizing::document::kNoTriggerId == 0xffffffff,
+           "new frame should have the cROM's no-trigger value");
     document.setTriggerId(0, 1234);
     expect(document.triggerId(0) == 1234, "trigger ID edit should be readable");
     expect(document.isDirty(), "trigger ID edit should mark dirty");
@@ -1384,6 +1396,166 @@ void testHdRelatedDataUpscaling()
     expect(document.isDirty(), "background image HD upscale should mark dirty");
 }
 
+void testFrameHdState()
+{
+    using colorizing::document::FrameHdParts;
+    using colorizing::document::FrameHdState;
+    FrameDynamicData dynamicData{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0x1111),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0x2222),
+    };
+    ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
+    snapshot.romName = "frame_hd_state";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        std::nullopt,
+        0,
+        255,
+        dynamicData,
+        FrameBackgroundData{
+            1,
+            makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+            makeIndexedFrame(colorizing::render::kHdFrameSize, 0),
+        },
+    });
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    snapshot.frames[0].inactiveHd = makeRgb565Frame(colorizing::render::kHdFrameSize, 0x0abc);
+    snapshot.backgrounds.push_back(BackgroundRecord{
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0x0101),
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0x0202),
+    });
+    snapshot.backgrounds.push_back(BackgroundRecord{
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0x0303),
+        std::nullopt,
+        makeRgb565Frame(colorizing::render::kHdFrameSize, 0x0404),
+    });
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+
+    const FrameHdState frameOnly = document.frameHdState(0, {});
+    expect(!frameOnly.colorizedHd && frameOnly.inactiveHd && !frameOnly.dynamic &&
+               !frameOnly.backgroundMask && !frameOnly.background,
+           "an HD state without parts should hold the frame's HD pixels only");
+    const FrameHdParts allParts{true, true, true};
+    const FrameHdState before = document.frameHdState(0, allParts);
+    expect(before.dynamic && before.dynamic->colors[0] == 0x2222 && before.backgroundMask &&
+               before.background && before.background->backgroundIndex == 1 &&
+               !before.background->colorizedHd && before.background->inactiveHd,
+           "an HD state should hold the parts that were asked for");
+
+    document.createHdFrame(0);
+    document.upscaleDynamicMaskToHd(0);
+    document.setBackgroundMaskPixel(0, Resolution::Hd, 3, 3, 1);
+    document.upscaleAssignedBackgroundToHd(0);
+    document.setBackgroundId(0, 0);
+    const FrameHdState after = document.frameHdState(0, FrameHdParts{true, true, false});
+    expect(after.colorizedHd && !after.inactiveHd && after.dynamic->colors[0] == 0x1111 &&
+               !after.background,
+           "creating HD should drop the inactive HD pixels");
+    document.markClean();
+
+    document.setFrameHdState(0, before);
+    expect(document.isDirty(), "restoring an HD state should mark dirty");
+    expect(!document.hasHdFrame(0) && document.toSnapshot().frames[0].inactiveHd.has_value() &&
+               document.toSnapshot().frames[0].inactiveHd->pixels[0] == 0x0abc,
+           "restoring an HD state should restore HD presence and inactive HD pixels");
+    expect(document.dynamicColor(0, Resolution::Hd, 0, 0) == 0x2222 &&
+               document.backgroundMaskPixel(0, Resolution::Hd, 3, 3) == 0,
+           "restoring an HD state should restore the HD dynamic data and background mask");
+    expect(!document.background(1).colorizedHd && document.background(1).inactiveHd &&
+               document.background(1).inactiveHd->pixels[0] == 0x0404 &&
+               document.backgroundFrame(0, Resolution::Hd).pixels[0] == 0x0202,
+           "restoring an HD state should restore the background it was taken from, whichever "
+           "background the frame uses now");
+
+    document.setFrameHdState(0, after);
+    expect(document.hasHdFrame(0) && document.dynamicColor(0, Resolution::Hd, 0, 0) == 0x1111 &&
+               document.backgroundMaskPixel(0, Resolution::Hd, 3, 3) == 1 &&
+               !document.background(1).colorizedHd,
+           "an HD state should leave the parts it does not hold alone");
+
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {true, false, false}); },
+                                   "HD state of dynamic data the frame does not have");
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {false, true, false}); },
+                                   "HD state of a background mask the frame does not have");
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {false, false, true}); },
+                                   "HD state of a background the frame does not have");
+    document.setBackgroundId(0, 0xffff);
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(0, {false, false, true}); },
+                                   "HD state of an unassigned background");
+    expectThrows<std::out_of_range>([&]() { (void)document.frameHdState(2, {}); },
+                                    "HD state frame bounds");
+
+    document.markClean();
+    FrameHdState wrongSize = before;
+    wrongSize.colorizedHd = makeRgb565Frame(colorizing::render::kSdFrameSize, 0);
+    expectThrows<std::invalid_argument>([&]() { document.setFrameHdState(0, wrongSize); },
+                                        "HD state with an SD sized frame");
+    FrameHdState wrongBackground = before;
+    wrongBackground.background->backgroundIndex = 2;
+    expectThrows<std::out_of_range>([&]() { document.setFrameHdState(0, wrongBackground); },
+                                    "HD state with an unknown background");
+    expectThrows<std::logic_error>([&]() { document.setFrameHdState(1, before); },
+                                   "HD state with parts the frame does not have");
+    expect(!document.isDirty() && document.hasHdFrame(0) && !document.hasHdFrame(1),
+           "a rejected HD state should change nothing");
+}
+
+void testSpriteHdState()
+{
+    ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
+    snapshot.romName = "sprite_hd_state";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+    });
+    snapshot.sprites.push_back(SpriteRecord{
+        true,
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        makeIndexedFrame({256, 64}, 255),
+        makeRgb565Frame({256, 64}, 0),
+        {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff},
+        {0xffff, 0xffff, 0xffff, 0xffff},
+        {{colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{},
+          colorizing::document::SpriteDetectionArea{}}},
+    });
+    snapshot.sprites[0].originalSd.pixels[0] = 1;
+    snapshot.sprites[0].colorizedSd.pixels[0] = 0x1111;
+    snapshot.sprites[0].maskHd.pixels[0] = 1;
+    snapshot.sprites[0].colorizedHd.pixels[0] = 0x2222;
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+
+    const colorizing::document::SpriteHdState before = document.spriteHdState(0);
+    expect(before.hasHd && before.colorizedHd.pixels[0] == 0x2222 && before.maskHd.pixels[0] == 1,
+           "a sprite HD state should hold the HD flag, mask and pixels");
+    document.removeHdSprite(0);
+    document.createHdSprite(0);
+    expect(document.sprite(0).colorizedHd.pixels[0] == 0x1111,
+           "creating a sprite's HD again should overwrite its old HD pixels");
+    document.removeHdSprite(0);
+    document.markClean();
+    document.setSpriteHdState(0, before);
+    expect(document.isDirty() && document.hasHdSprite(0) &&
+               document.sprite(0).colorizedHd.pixels[0] == 0x2222 &&
+               document.sprite(0).maskHd.pixels[0] == 1 &&
+               document.sprite(0).colorizedSd.pixels[0] == 0x1111,
+           "restoring a sprite HD state should restore the HD data and nothing else");
+    expectThrows<std::out_of_range>([&]() { (void)document.spriteHdState(1); },
+                                    "sprite HD state bounds");
+    expectThrows<std::out_of_range>([&]() { document.setSpriteHdState(1, before); },
+                                    "restored sprite HD state bounds");
+}
+
 void testInvalidSnapshotReportsReason()
 {
     ProjectSnapshot snapshot;
@@ -1431,4 +1603,6 @@ void runProjectDocumentTests()
     testBackgroundImagePixelEditing();
     testHdRelatedDataUpscaling();
     testInvalidSnapshotReportsReason();
+    testFrameHdState();
+    testSpriteHdState();
 }

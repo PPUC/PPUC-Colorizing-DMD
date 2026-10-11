@@ -17,7 +17,6 @@ namespace colorizing::app {
 struct BackgroundPanelState {
     const document::ProjectDocument* document = nullptr;
     std::optional<std::size_t> selectedBackgroundIndex;
-    render::Resolution resolution = render::Resolution::Sd;
     bool hasCurrentFrame = false;
     bool hasSelectedFrames = false;
 };
@@ -29,7 +28,6 @@ public:
     explicit BackgroundPanel(QWidget* parent = nullptr);
 
     void refresh(const BackgroundPanelState& state);
-
 
     std::function<void()> onAssignRequested;
     std::function<void()> onEditRequested;
@@ -46,7 +44,6 @@ private:
     QToolButton* m_copyBackgroundToFramesButton = nullptr;
     QToolButton* m_importImageButton = nullptr;
     QToolButton* m_exportButton = nullptr;
-    QLabel* m_previewLabel = nullptr;
 };
 
 }  // namespace colorizing::app

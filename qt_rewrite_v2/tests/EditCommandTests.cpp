@@ -15,6 +15,9 @@
 #include "render/CanvasLayout.h"
 
 using colorizing::document::BackgroundRecord;
+using colorizing::document::FrameHdParts;
+using colorizing::document::ProjectCreateOptions;
+using colorizing::document::kNoTriggerId;
 using colorizing::document::FrameBackgroundData;
 using colorizing::document::FrameDynamicData;
 using colorizing::document::PaletteRecord;
@@ -33,10 +36,14 @@ using colorizing::edit::DynamicShadowEditCommand;
 using colorizing::edit::EditCommand;
 using colorizing::edit::EditKind;
 using colorizing::edit::EditTarget;
+using colorizing::edit::FrameAttribute;
+using colorizing::edit::FrameAttributeEditCommand;
+using colorizing::edit::FrameHdCommand;
 using colorizing::edit::HistoryKey;
 using colorizing::edit::MaskEditCommand;
 using colorizing::edit::PaletteEditCommand;
 using colorizing::edit::PixelEditCommand;
+using colorizing::edit::ReplacedData;
 using colorizing::edit::UndoHistories;
 using colorizing::edit::historyKey;
 using colorizing::render::Resolution;
@@ -598,6 +605,396 @@ void testHistoryClearKindAndIndex()
     expect(histories.canUndo(mask), "kind and index clear keeps other kinds");
 }
 
+void testFrameAttributeCommand()
+{
+    ProjectDocument document = makeDocument();
+    document.setComparisonMaskId(1, 255);
+    document.setTriggerId(1, kNoTriggerId);
+    document.setFrameDurationMs(1, 40);
+    document.markClean();
+
+    struct Case {
+        FrameAttribute attribute;
+        uint32_t oldValue;
+        uint32_t newValue;
+    };
+    const std::vector<Case> cases{
+        {FrameAttribute::ComparisonMaskId, 255, 0},
+        {FrameAttribute::ShapeComparisonMode, 0, 1},
+        {FrameAttribute::BackgroundId, 0, 0xffff},
+        {FrameAttribute::TriggerId, kNoTriggerId, 65432},
+        {FrameAttribute::DurationMs, 40, 250},
+    };
+    for (const Case& item : cases) {
+        const std::string name =
+            "frame attribute " + std::to_string(static_cast<int>(item.attribute));
+        expect(colorizing::edit::frameAttributeValue(document, 1, item.attribute) ==
+                   item.oldValue,
+               name + " initial value");
+        const FrameAttributeEditCommand command(1, item.attribute, item.oldValue, item.newValue);
+        expectTarget(command, EditKind::FrameAttributes, 1, Resolution::Sd, {1}, name);
+        expect(command.attribute() == item.attribute, name + " attribute");
+        expect(command.replacedData().empty(), name + " replaces no data");
+
+        document.markClean();
+        command.apply(document);
+        expect(colorizing::edit::frameAttributeValue(document, 1, item.attribute) ==
+                   item.newValue,
+               name + " apply");
+        expect(document.isDirty(), name + " apply marks dirty");
+        expect(colorizing::edit::frameAttributeValue(document, 0, item.attribute) !=
+                       item.newValue ||
+                   item.attribute == FrameAttribute::ComparisonMaskId,
+               name + " leaves the other frame alone");
+        command.revert(document);
+        expect(colorizing::edit::frameAttributeValue(document, 1, item.attribute) ==
+                   item.oldValue,
+               name + " revert");
+    }
+    expect(document.comparisonMaskId(0) == 0 && document.shapeComparisonMode(0) == 0 &&
+               document.backgroundId(0) == 0 && document.frameDurationMs(0) == 0,
+           "frame attribute commands leave the other frame alone");
+
+    // A mode from a file that the editor does not offer has to survive an undo.
+    document.restoreShapeComparisonMode(0, 3);
+    const FrameAttributeEditCommand legacyMode(0, FrameAttribute::ShapeComparisonMode, 3, 1);
+    legacyMode.apply(document);
+    expect(document.shapeComparisonMode(0) == 1, "legacy shape mode apply");
+    legacyMode.revert(document);
+    expect(document.shapeComparisonMode(0) == 3, "legacy shape mode revert");
+    const FrameAttributeEditCommand toLegacyMode(0, FrameAttribute::ShapeComparisonMode, 1, 3);
+    expectThrows<std::invalid_argument>([&]() { toLegacyMode.apply(document); },
+                                        "a legacy shape mode cannot be newly set");
+
+    expectThrows<std::invalid_argument>(
+        []() { FrameAttributeEditCommand(0, FrameAttribute::ComparisonMaskId, 0, 256); },
+        "comparison mask ID range");
+    expectThrows<std::invalid_argument>(
+        []() { FrameAttributeEditCommand(0, FrameAttribute::BackgroundId, 0x10000, 0); },
+        "background ID range");
+
+    ProjectDocument plain = ProjectDocument::createEmpty(ProjectCreateOptions{"plain", 1, false});
+    const FrameAttributeEditCommand background(0, FrameAttribute::BackgroundId, 0xffff, 0);
+    expectThrows<std::logic_error>([&]() { background.apply(plain); },
+                                   "background ID needs background data");
+    expectThrows<std::out_of_range>(
+        [&]() { FrameAttributeEditCommand(4, FrameAttribute::DurationMs, 0, 1).apply(plain); },
+        "frame attribute frame bounds");
+}
+
+bool replaces(const EditCommand& command, EditKind kind, std::size_t index)
+{
+    for (const ReplacedData& replaced : command.replacedData()) {
+        if (replaced.kind == kind && replaced.index == index) {
+            if (replaced.resolution != Resolution::Hd) {
+                fail("only HD data is replaced");
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+void testFrameHdCommands()
+{
+    ProjectDocument document = makeDocument();
+    document.setColorizedPixel(0, Resolution::Sd, 4, 2, 0x1234);
+    document.setColorizedPixel(0, Resolution::Hd, 9, 5, 0x4321);
+
+    expect(colorizing::edit::createFrameHd(document, 0, {}) == nullptr,
+           "Create HD does nothing for a frame with HD");
+    const std::unique_ptr<EditCommand> remove = colorizing::edit::removeFrameHd(document, 0);
+    expect(remove != nullptr && !document.hasHdFrame(0), "Remove HD is applied when returned");
+    expectTarget(*remove, EditKind::FrameAttributes, 0, Resolution::Sd, {0}, "remove HD");
+    expect(replaces(*remove, EditKind::FramePixels, 0) &&
+               !replaces(*remove, EditKind::DynamicMask, 0) &&
+               !replaces(*remove, EditKind::BackgroundMask, 0) &&
+               !replaces(*remove, EditKind::BackgroundImage, 0) &&
+               !replaces(*remove, EditKind::FramePixels, 1),
+           "Remove HD replaces only the frame's HD pixels");
+    expect(colorizing::edit::removeFrameHd(document, 0) == nullptr,
+           "Remove HD does nothing for a frame without HD");
+    remove->revert(document);
+    expect(document.hasHdFrame(0) && document.colorizedPixel(0, Resolution::Hd, 9, 5) == 0x4321 &&
+               document.colorizedPixel(0, Resolution::Hd, 8, 4) == 0,
+           "undoing Remove HD restores the HD pixels that were removed");
+    remove->apply(document);
+    expect(!document.hasHdFrame(0) && document.hasHdFrame(1), "redoing Remove HD");
+
+    // Give every related HD part a value that differs from what the upscale produces.
+    document.setDynamicMaskPixel(0, Resolution::Sd, 3, 2, 7);
+    document.setDynamicMaskPixel(0, Resolution::Hd, 100, 40, 5);
+    document.setDynamicColor(0, Resolution::Sd, 2, 3, 0x3333);
+    document.setDynamicColor(0, Resolution::Hd, 2, 3, 0x2222);
+    document.setDynamicShadowDirection(0, Resolution::Sd, 1, 0x10);
+    document.setDynamicShadowDirection(0, Resolution::Hd, 1, 0x02);
+    document.setDynamicShadowColor(0, Resolution::Sd, 1, 0x00ff);
+    document.setDynamicShadowColor(0, Resolution::Hd, 1, 0xff00);
+    document.setBackgroundMaskPixel(0, Resolution::Sd, 5, 4, 1);
+    document.setBackgroundMaskPixel(0, Resolution::Hd, 200, 50, 1);
+    document.setBackgroundPixel(0, Resolution::Sd, 7, 6, 0x4444);
+    document.setBackgroundPixel(0, Resolution::Hd, 30, 20, 0x7777);
+
+    const std::unique_ptr<EditCommand> create =
+        colorizing::edit::createFrameHd(document, 0, FrameHdParts{true, true, true});
+    const auto expectCreated = [&](const std::string& name) {
+        expect(document.hasHdFrame(0) &&
+                   document.colorizedPixel(0, Resolution::Hd, 9, 5) == 0x1234 &&
+                   document.colorizedPixel(0, Resolution::Hd, 8, 4) == 0x1234,
+               name + ": HD frame upscaled from SD");
+        expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 7 &&
+                   document.dynamicMaskPixel(0, Resolution::Hd, 100, 40) == 255 &&
+                   document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x3333 &&
+                   document.dynamicShadowDirection(0, Resolution::Hd, 1) == 0x10 &&
+                   document.dynamicShadowColor(0, Resolution::Hd, 1) == 0x00ff,
+               name + ": HD dynamic data taken from SD");
+        expect(document.backgroundMaskPixel(0, Resolution::Hd, 10, 8) == 1 &&
+                   document.backgroundMaskPixel(0, Resolution::Hd, 200, 50) == 0,
+               name + ": HD background mask upscaled from SD");
+        expect(document.backgroundPixel(0, Resolution::Hd, 14, 12) == 0x4444 &&
+                   document.backgroundPixel(0, Resolution::Hd, 30, 20) == 0x5050,
+               name + ": HD background image upscaled from SD");
+    };
+    expect(create != nullptr, "Create HD returns its command");
+    expectCreated("Create HD");
+    expectTarget(*create, EditKind::FrameAttributes, 0, Resolution::Sd, {0}, "create HD");
+    expect(replaces(*create, EditKind::FramePixels, 0) &&
+               replaces(*create, EditKind::DynamicMask, 0) &&
+               replaces(*create, EditKind::DynamicColor, 0) &&
+               replaces(*create, EditKind::DynamicShadow, 0) &&
+               replaces(*create, EditKind::BackgroundMask, 0) &&
+               replaces(*create, EditKind::BackgroundImage, 0),
+           "Create HD replaces every HD part it upscaled");
+
+    create->revert(document);
+    expect(!document.hasHdFrame(0), "undoing Create HD removes the HD frame");
+    expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 255 &&
+               document.dynamicMaskPixel(0, Resolution::Hd, 100, 40) == 5 &&
+               document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x2222 &&
+               document.dynamicShadowDirection(0, Resolution::Hd, 1) == 0x02 &&
+               document.dynamicShadowColor(0, Resolution::Hd, 1) == 0xff00,
+           "undoing Create HD restores the HD dynamic data");
+    expect(document.backgroundMaskPixel(0, Resolution::Hd, 10, 8) == 0 &&
+               document.backgroundMaskPixel(0, Resolution::Hd, 200, 50) == 1,
+           "undoing Create HD restores the HD background mask");
+    expect(document.backgroundPixel(0, Resolution::Hd, 14, 12) == 0x6060 &&
+               document.backgroundPixel(0, Resolution::Hd, 30, 20) == 0x7777,
+           "undoing Create HD restores the HD background image");
+    expect(document.dynamicMaskPixel(0, Resolution::Sd, 3, 2) == 7 &&
+               document.colorizedPixel(0, Resolution::Sd, 4, 2) == 0x1234 &&
+               document.backgroundPixel(0, Resolution::Sd, 7, 6) == 0x4444,
+           "undoing Create HD leaves SD data alone");
+    create->apply(document);
+    expectCreated("redone Create HD");
+    create->revert(document);
+
+    // Only the parts that were asked for are touched, and a background that had no HD image
+    // has none again after the undo.
+    document.removeBackgroundHdFrame(0);
+    const std::unique_ptr<EditCommand> frameOnly =
+        colorizing::edit::createFrameHd(document, 0, {});
+    expect(document.hasHdFrame(0) && !document.background(0).colorizedHd &&
+               document.dynamicMaskPixel(0, Resolution::Hd, 100, 40) == 5 &&
+               document.backgroundMaskPixel(0, Resolution::Hd, 200, 50) == 1,
+           "Create HD without options leaves the related HD data alone");
+    expect(!replaces(*frameOnly, EditKind::DynamicMask, 0) &&
+               !replaces(*frameOnly, EditKind::BackgroundImage, 0),
+           "Create HD without options replaces only the frame's HD pixels");
+    frameOnly->revert(document);
+    const std::unique_ptr<EditCommand> withBackground =
+        colorizing::edit::createFrameHd(document, 0, FrameHdParts{false, false, true});
+    expect(document.background(0).colorizedHd.has_value() &&
+               document.backgroundPixel(0, Resolution::Hd, 14, 12) == 0x4444,
+           "Create HD gives the assigned background an HD image");
+    withBackground->revert(document);
+    expect(!document.hasHdFrame(0) && !document.background(0).colorizedHd,
+           "undoing Create HD removes the background HD image it created");
+    withBackground->apply(document);
+    expect(document.background(0).colorizedHd.has_value(), "redoing Create HD with background");
+
+    ProjectDocument plain = ProjectDocument::createEmpty(ProjectCreateOptions{"plain", 1, false});
+    plain.markClean();
+    const FrameHdParts dynamicOnly{true, false, false};
+    const FrameHdParts backgroundMaskOnly{false, true, false};
+    expectThrows<std::logic_error>(
+        [&]() { (void)colorizing::edit::createFrameHd(plain, 0, dynamicOnly); },
+        "Create HD with dynamic data the frame does not have");
+    expectThrows<std::logic_error>(
+        [&]() { (void)colorizing::edit::createFrameHd(plain, 0, backgroundMaskOnly); },
+        "Create HD with a background mask the frame does not have");
+    expect(!plain.hasHdFrame(0) && !plain.isDirty(), "a failed Create HD changes nothing");
+}
+
+void testSpriteHdCommands()
+{
+    ProjectDocument document = makeDocument();
+    document.setSpriteOriginalPixel(0, 0, 0, 1);
+    document.setSpriteOriginalPixel(0, 1, 0, 1);
+    document.setSpriteColorizedPixel(0, Resolution::Sd, 1, 0, 0x1111);
+    document.setSpriteColorizedPixel(0, Resolution::Hd, 0, 0, 0x2222);
+
+    expect(colorizing::edit::createSpriteHd(document, 0) == nullptr,
+           "Create HD does nothing for a sprite with HD");
+    const std::unique_ptr<EditCommand> remove = colorizing::edit::removeSpriteHd(document, 0);
+    expect(remove != nullptr && !document.hasHdSprite(0), "Remove HD sprite is applied");
+    expectTarget(*remove, EditKind::SpriteAttributes, 0, Resolution::Sd, {}, "remove sprite HD");
+    expect(replaces(*remove, EditKind::SpriteImage, 0) && remove->replacedData().size() == 1,
+           "Remove HD sprite replaces the sprite's HD pixels");
+    expect(colorizing::edit::removeSpriteHd(document, 0) == nullptr,
+           "Remove HD does nothing for a sprite without HD");
+
+    const std::unique_ptr<EditCommand> create = colorizing::edit::createSpriteHd(document, 0);
+    expect(create != nullptr && document.hasHdSprite(0) &&
+               document.spriteColorizedPixel(0, Resolution::Hd, 2, 0) == 0x1111 &&
+               document.spriteColorizedPixel(0, Resolution::Hd, 0, 0) == 0,
+           "Create HD sprite upscales the SD sprite");
+    create->revert(document);
+    expect(!document.hasHdSprite(0), "undoing Create HD sprite removes HD");
+    remove->revert(document);
+    expect(document.hasHdSprite(0) &&
+               document.spriteColorizedPixel(0, Resolution::Hd, 0, 0) == 0x2222 &&
+               document.spriteColorizedPixel(0, Resolution::Hd, 2, 0) == 0,
+           "undoing Remove HD sprite restores the HD pixels from before Create HD");
+    remove->apply(document);
+    create->apply(document);
+    expect(document.hasHdSprite(0) &&
+               document.spriteColorizedPixel(0, Resolution::Hd, 2, 0) == 0x1111,
+           "redoing Create HD sprite");
+}
+
+std::unique_ptr<EditCommand> makePaletteColor(uint16_t oldColor, uint16_t newColor)
+{
+    return std::make_unique<PaletteEditCommand>(
+        0,
+        std::vector<colorizing::edit::PaletteColorChange>{{2, oldColor, newColor}});
+}
+
+void testHistoryUndoLatestIsChronological()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    const HistoryKey frame =
+        commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 0x0001));
+    const HistoryKey palette = commit(histories, document, makePaletteColor(0, 0x0002));
+    commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0x0001, 0x0003));
+    const HistoryKey other =
+        commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 0x0004));
+    // Listed with the palette first, as a context that used to prefer it would.
+    const std::vector<HistoryKey> keys{palette, frame};
+    const auto state = [&]() {
+        return std::vector<uint16_t>{document.colorizedPixel(0, Resolution::Sd, 1, 0),
+                                     document.paletteColor(0, 2),
+                                     document.colorizedPixel(1, Resolution::Sd, 1, 0)};
+    };
+    using State = std::vector<uint16_t>;
+
+    expect(histories.canUndoAny(keys) && !histories.canRedoAny(keys) &&
+               !histories.canUndoAny({}) &&
+               !histories.canUndoAny({HistoryKey{EditKind::Palette, 9, Resolution::Sd}}),
+           "can undo any of the given histories");
+    expect(histories.undoLatest({}, document) == nullptr &&
+               histories.redoLatest(keys, document) == nullptr,
+           "nothing to undo without histories and nothing to redo before an undo");
+
+    const EditCommand* undone = histories.undoLatest(keys, document);
+    expect(undone != nullptr && undone->target().kind == EditKind::FramePixels &&
+               state() == State{0x0001, 0x0002, 0x0004},
+           "the latest command of the given histories is undone first");
+    expect(histories.canRedoAny(keys), "can redo after an undo");
+    undone = histories.undoLatest(keys, document);
+    expect(undone != nullptr && undone->target().kind == EditKind::Palette &&
+               state() == State{0x0001, 0, 0x0004},
+           "the palette edit made between two frame edits is undone second");
+    histories.undoLatest(keys, document);
+    expect(state() == State{0, 0, 0x0004} && !histories.canUndoAny(keys),
+           "the first command is undone last and other histories are left alone");
+    expect(histories.undoLatest(keys, document) == nullptr && histories.canUndo(other),
+           "undo past the start of the given histories");
+
+    const EditCommand* redone = histories.redoLatest(keys, document);
+    expect(redone != nullptr && redone->target().kind == EditKind::FramePixels &&
+               state() == State{0x0001, 0, 0x0004},
+           "redo replays the first command first");
+    redone = histories.redoLatest(keys, document);
+    expect(redone != nullptr && redone->target().kind == EditKind::Palette &&
+               state() == State{0x0001, 0x0002, 0x0004},
+           "redo replays the commands in their original order");
+    histories.redoLatest(keys, document);
+    expect(state() == State{0x0003, 0x0002, 0x0004} && !histories.canRedoAny(keys),
+           "redo replays the last command last");
+    expect(histories.redoLatest(keys, document) == nullptr, "redo past the end");
+
+    // An undo followed by a redo, and a redo followed by an undo, each restore the state.
+    histories.undoLatest(keys, document);
+    histories.undoLatest(keys, document);
+    const State twoUndone = state();
+    histories.undoLatest(keys, document);
+    histories.redoLatest(keys, document);
+    expect(state() == twoUndone, "undo then redo is a no-op");
+    histories.redoLatest(keys, document);
+    histories.undoLatest(keys, document);
+    expect(state() == twoUndone, "redo then undo is a no-op");
+
+    // A command redone after a newer edit counts as the latest one.
+    commit(histories, document, makeFramePixel(0, Resolution::Sd, 2, 0, 0x0005));
+    expect(histories.canRedo(palette) && !histories.canRedo(frame),
+           "a push clears only its own redo stack");
+    histories.redoLatest(keys, document);
+    expect(document.paletteColor(0, 2) == 0x0002, "the palette edit is redone");
+    undone = histories.undoLatest(keys, document);
+    expect(undone != nullptr && undone->target().kind == EditKind::Palette &&
+               document.paletteColor(0, 2) == 0 &&
+               document.colorizedPixel(0, Resolution::Sd, 2, 0) == 0x0005,
+           "the command redone last is undone first");
+
+    // A single listed history behaves like undo and redo on that key.
+    histories.undoLatest({other}, document);
+    expect(document.colorizedPixel(1, Resolution::Sd, 1, 0) == 0 &&
+               document.colorizedPixel(0, Resolution::Sd, 2, 0) == 0x0005,
+           "histories that are not listed are not touched");
+}
+
+void testReplacingCommandDropsHistories()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    const HistoryKey frameSd =
+        commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 1));
+    const HistoryKey frameHd =
+        commit(histories, document, makeFramePixel(0, Resolution::Hd, 1, 0, 2));
+    const HistoryKey otherHd =
+        commit(histories, document, makeFramePixel(1, Resolution::Hd, 1, 0, 3));
+    const HistoryKey attributes{EditKind::FrameAttributes, 0, Resolution::Sd};
+    const std::vector<HistoryKey> keys{frameSd, frameHd, attributes};
+
+    std::unique_ptr<EditCommand> remove = colorizing::edit::removeFrameHd(document, 0);
+    expect(historyKey(remove->target()) == attributes, "Remove HD belongs to the frame attributes");
+    histories.push(attributes, std::move(remove));
+    expect(!histories.canUndo(frameHd) && histories.canUndo(frameSd) &&
+               histories.canUndo(otherHd) && histories.canUndo(attributes),
+           "pushing Remove HD drops the frame's HD pixel history only");
+
+    const EditCommand* undone = histories.undoLatest(keys, document);
+    expect(undone != nullptr && undone->target().kind == EditKind::FrameAttributes &&
+               document.hasHdFrame(0) && document.colorizedPixel(0, Resolution::Hd, 1, 0) == 2,
+           "Remove HD is undone as the latest command and restores the HD pixels");
+
+    commit(histories, document, makeFramePixel(0, Resolution::Hd, 1, 2, 4));
+    expect(histories.canUndo(frameHd), "HD edits after the undo are recorded");
+    histories.redoLatest({attributes}, document);
+    expect(!document.hasHdFrame(0) && !histories.canUndo(frameHd) &&
+               !histories.canRedo(frameHd),
+           "redoing Remove HD drops the HD pixel history again");
+    histories.undo(attributes, document);
+    expect(document.hasHdFrame(0) && !histories.canUndo(frameHd) && histories.canRedo(attributes),
+           "undoing Remove HD keeps the HD pixel history dropped");
+
+    const FrameHdCommand unchanged(0,
+                                   document.frameHdState(0, {}),
+                                   document.frameHdState(0, {}));
+    expect(unchanged.replacedData().size() == 1, "a frame HD command always replaces HD pixels");
+}
+
 }  // namespace
 
 void runEditCommandTests()
@@ -621,4 +1018,9 @@ void runEditCommandTests()
     testHistoryClearKey();
     testHistoryClearKindAndIndex();
     testMultiFrameShadowEditHasOneHistoryPerFrame();
+    testFrameAttributeCommand();
+    testFrameHdCommands();
+    testSpriteHdCommands();
+    testHistoryUndoLatestIsChronological();
+    testReplacingCommandDropsHistories();
 }

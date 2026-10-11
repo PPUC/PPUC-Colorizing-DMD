@@ -143,8 +143,10 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
         }
         const int minX = std::clamp(static_cast<int>(reference.minX), 0, original.size.width - 1);
         const int minY = std::clamp(static_cast<int>(reference.minY), 0, original.size.height - 1);
-        const int maxX = std::clamp(static_cast<int>(reference.maxX), minX, original.size.width - 1);
-        const int maxY = std::clamp(static_cast<int>(reference.maxY), minY, original.size.height - 1);
+        const int maxX =
+            std::clamp(static_cast<int>(reference.maxX), minX, original.size.width - 1);
+        const int maxY =
+            std::clamp(static_cast<int>(reference.maxY), minY, original.size.height - 1);
         if (maxX - minX + 1 < 4) {
             continue;
         }

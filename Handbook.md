@@ -44,6 +44,10 @@ Use `File -> Open Project...` and select a `.cROM` file.
 The app looks for a matching `.cRP` next to it with the same base name. If it cannot find that file, it asks for the `.cRP` path.
 
 After a successful open, the project is added to `File -> Open Recent`.
+
+Opening a project always starts in the frame view: `Edit Sprite` and `Select Capture` are switched
+off, a pending sprite capture selection is dropped, and the mask browser selection starts again at
+the first frame's mask.
 Recent-project entries show the full `.cROM` path and internally remember both the `.cROM` and `.cRP` paths.
 
 ## Saving
@@ -117,10 +121,16 @@ assigned background, frames with dynamic data, or frames with sprite assignments
 targets the real project frame number shown in the item label, not the visible row number.
 
 The frame list supports native multi-selection. Frame drawing, comparison-mask drawing,
-dynamic-mask drawing, background-mask drawing, and background assignment apply to all selected
-frames where the operation is valid. Comparison-mask edits are grouped by assigned mask ID, so a
-shared mask is edited once even if multiple selected frames use it. Undo/redo history is still
-stored per frame, per resolution, or per shared mask as appropriate.
+dynamic-mask drawing, background-mask drawing, and all frame settings (comparison mask ID, shape
+mode, background ID, trigger ID, switch-to-monochrome, duration) apply to all selected frames where
+the operation is valid. Comparison-mask edits are grouped by assigned mask ID, so a shared mask is
+edited once even if multiple selected frames use it. Undo/redo history is still stored per frame,
+per resolution, or per shared mask as appropriate.
+
+When an edit cannot apply to some of the selected frames, those frames are skipped and the others
+are edited. The status bar then reports both counts, for example
+`Assigned background 1 on 3 frame(s), 1 skipped (no background data)`. Frames that already have the
+requested value are neither changed nor counted.
 
 ## SD And HD Modes
 
@@ -135,6 +145,9 @@ Rules:
 - The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
 - When creating HD, a dialog asks whether to also upscale existing dynamic masks/colors, the frame background mask, and the assigned background image.
 - The Inspector `Remove HD` button removes HD data from the current frame and switches the canvas back to SD when needed.
+- `Create HD` and `Remove HD` can be undone. Undo puts back exactly what was there before: the
+  frame's HD pixels (or their absence) and, for `Create HD`, every related item the dialog upscaled,
+  including the previous HD image of the assigned background. See "Undo And Redo".
 
 TODO: offer selectable scaling algorithms for HD creation instead of always using nearest-neighbor 2x scaling.
 
@@ -161,7 +174,9 @@ The background-mask overlay and edits follow the active SD/HD mode.
 The left sidebar is the visual component browser:
 
 - `Frames` shows frame thumbnails and the frame filter.
-- `Masks` shows comparison-mask thumbnails; selecting one assigns it as the current frame's mask.
+- `Masks` shows comparison-mask thumbnails; selecting one selects that mask in the Inspector `Mask`
+  topic for assignment. Selecting does not change any frame, and the selection stays when another
+  frame becomes current.
 - `Backgrounds` shows background thumbnails; selecting one selects the same background in the Inspector for assignment or editing.
 - `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector.
 
@@ -173,15 +188,24 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 - `Dynamic` contains the dynamic set selector and dynamic color swatches.
 - `Rotation` contains color rotation slots for the current frame and active SD/HD mode.
 - `Palette` contains the selected cRP palette name and all 64 palette colors.
-- `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, sprite editing, and sprite previews.
+- `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, and sprite editing.
 
 The `Frame` topic exposes:
 
 - `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
-- `BG ID` assigns the shared background used by the current frame.
-- `Trigger ID` edits the per-frame legacy trigger ID for all selected frames.
+  It is enabled whenever the project has a background to edit, that is, whenever a background is
+  selected.
+- `BG ID` assigns the shared background for all selected frames. Selected frames without background
+  data are skipped.
+- `Trigger ID` edits the per-frame legacy trigger ID for all selected frames. `None` means the frame
+  triggers nothing and is stored as `0xFFFFFFFF`, the value the cROM uses for it; `0` is an ordinary
+  trigger ID. New frames start with `None`.
 - `Duration` edits the per-frame `.cRP` duration for all selected frames.
-- `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` and disables manual trigger-ID entry while checked.
+- `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` on all selected frames and
+  disables manual trigger-ID entry while checked. Unchecking it sets `Trigger ID` to `None` on the
+  selected frames that carry the monochrome trigger; selected frames with an ordinary trigger ID
+  keep it. To get an earlier trigger ID back, use Undo.
+- `BG ID`, `Trigger ID`, `Duration`, and `Switch mono` edits can be undone, see "Undo And Redo".
 - `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
 - `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
 - `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
@@ -195,7 +219,8 @@ The `Background` topic exposes:
 - Backgrounds are selected visually from the left sidebar.
 - The tab shows the selected background ID.
 - `Assign BG` assigns the selected background to all selected frames.
-- `Edit BG` switches ordinary drawing tools to the selected background image.
+- `Edit BG` switches ordinary drawing tools to the selected background image. If the sprite editor
+  is open, it is closed first (`Edit Sprite` is switched off).
 - `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
 - `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
 - `Import Image` replaces the selected background image from a PNG/BMP/JPEG, scaled to the active SD/HD DMD size.
@@ -222,7 +247,7 @@ Drawing tools operate on the active SD/HD mode.
 
 When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
 
-When Inspector `Target` is `Background`, ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and undo/redo is scoped per background and per resolution.
+When Inspector `Target` is `Background`, ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.
 
 ### Point
 
@@ -356,41 +381,65 @@ implemented once and reused across canvas targets.
 
 ## Undo And Redo
 
-Every edited object has its own undo/redo history. Undo and Redo act on the history that belongs
+Every edited object has its own undo/redo history. Undo and Redo act on the histories that belong
 to the current editing context; a new edit clears redo only in the history it is recorded in.
 
 Histories:
 
 - Colorized frame pixels: per frame and per SD/HD resolution.
+- Frame settings: per frame, for both resolutions together. This history holds the comparison mask
+  ID, shape mode, background ID, trigger ID (including `Switch mono`), and duration edits of the
+  frame, and its `Create HD` and `Remove HD`.
 - Comparison masks: per mask. Frames that share a mask share its history.
 - Dynamic masks, dynamic colors, and dynamic shadows: three separate histories per frame and per
   SD/HD resolution.
 - Background masks: per frame and per SD/HD resolution.
 - Background images: per background and per SD/HD resolution.
 - Sprite color images: per sprite and per SD/HD resolution.
+- Sprite HD: per sprite, for both resolutions together. It holds `Create HD Sprite` and
+  `Remove HD Sprite`.
 - Palette colors: per palette.
 
-Which history Undo and Redo use, in order of precedence:
+Which histories Undo and Redo use, by context:
 
-1. `Edit Sprite` active with a sprite selected: the selected sprite's history for the active
-   resolution, or its SD history when the sprite has no HD data.
-2. `Mask` active: the comparison mask assigned to the current frame.
+1. `Edit Sprite` active with a sprite selected: the selected sprite's color image history for the
+   active resolution (its SD history when the sprite has no HD data) and its sprite HD history.
+2. `Mask` active: the comparison mask assigned to the current frame and the current frame's
+   settings.
 3. `Dynamic` active: the current frame's dynamic-mask, dynamic-color, and dynamic-shadow histories
    for the active resolution.
-4. `BG` active: the current frame's background-mask history for the active resolution.
-5. Inspector `Target` is `Background`: the selected background's image history for the active
-   resolution.
-6. Otherwise: the current frame's pixel history for the active resolution, then the selected
-   palette, then the current frame's dynamic-color and dynamic-shadow histories.
+4. `BG` active: the current frame's background-mask history for the active resolution and the
+   current frame's settings.
+5. Otherwise: the current frame's pixel history for the active resolution, the current frame's
+   settings, the selected palette, the current frame's dynamic-color and dynamic-shadow histories
+   for the active resolution, and the image history of the selected background for the active
+   resolution. This is the same whether Inspector `Target` is `Frame` or `Background`, so a
+   `Frame -> BG` copy or a background image import can be undone without switching the target.
 
-Where a context lists several histories, Undo reverts the latest edit of the first listed history
-that has one, and Redo works the same way. The order is fixed; it is not the order in which the
-edits were made. Switching frame or SD/HD mode updates whether Undo and Redo are available for that
-context.
+Within a context, Undo reverts the edit that was made most recently among all of the context's
+histories, whichever history it is in. For example, after a frame pixel edit followed by a palette
+edit, Undo reverts the palette edit first and the pixel edit second. Redo reapplies the edit that
+was undone most recently, so Undo followed by Redo changes nothing and repeated Redo replays the
+edits in the order in which they were originally made. An edit that has just been redone counts as
+the most recent edit again.
+
+Only the histories of the current context take part. Edits made in other contexts, on other frames,
+or in the other SD/HD mode stay in their own histories and are skipped; switch to that context to
+undo them. Switching frame, SD/HD mode, edit mode, or selected background or palette updates
+whether Undo and Redo are available.
 
 An edit applied to several selected frames is recorded once per changed frame, in that frame's own
 history. Undo therefore reverts it only on the current frame; select another frame to undo it
-there. This also applies to dynamic shadow direction and color changes.
+there. This applies to drawing, to dynamic shadow direction and color changes, and to all frame
+settings.
+
+Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
+overwritten: the frame's HD dynamic mask, colors, and shadows, its HD background mask, and the HD
+image of the background that was assigned at the time (or its absence). Undoing `Remove HD`
+restores the HD pixels that were removed. Undo and Redo of these two switch the canvas back to SD
+when the current frame is left without HD data; Redo of `Create HD` does not switch to HD by
+itself. The same holds for `Create HD Sprite` and `Remove HD Sprite`, which restore the sprite's HD
+mask and HD colors.
 
 Histories are dropped when the data they refer to is replaced as a whole:
 
@@ -399,11 +448,17 @@ Histories are dropped when the data they refer to is replaced as a whole:
 - `Create HD` drops the frame's HD pixel history. Each related item that is upscaled in the dialog
   also drops its HD history: dynamic mask, dynamic colors, and dynamic shadows of the frame, the
   frame's background mask, and the image of the assigned background.
-- `Create HD Sprite` and `Remove HD Sprite` drop the sprite's HD history.
-- Sprite `Capture` drops the sprite's SD and HD histories.
+- `Create HD Sprite` and `Remove HD Sprite` drop the sprite's HD color image history.
+- Undoing or redoing any of these four drops the same histories again, because the HD data is
+  replaced as a whole in both directions. Pixel edits made on HD data in between can therefore not
+  be undone separately afterwards.
+- Sprite `Capture` drops the sprite's SD and HD color image histories and its sprite HD history.
 
 All other histories stay available. Importing an image into a background and copying a frame to a
 background are ordinary undoable edits and do not drop any history.
+
+Not undoable: sprite slot assignment, removal and bounds, sprite detection areas, sprite and palette
+names, sprite capture, and color rotation settings.
 
 ## Comparison Masks
 
@@ -411,12 +466,19 @@ The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transpare
 
 The Inspector exposes per-frame comparison metadata:
 
-- The `Mask` topic shows the visually selected mask from the left sidebar.
+- The `Mask` topic shows the visually selected mask from the left sidebar as `Selected: <ID>`, with
+  `(assigned)` when it is the mask of the current frame. Selecting a mask in the sidebar only
+  selects it, in the same way as selecting a background or a sprite does; no frame is changed. The
+  selection starts as the mask of the first frame and then stays until another mask is selected.
 - `Assign Mask` assigns the selected mask to all selected frames.
-- `Edit Mask` enables the mask overlay and returns the canvas to the frame preview.
-- `Mask ID` assigns the shared comparison mask used by the current frame. `None` stores the legacy no-mask assignment.
-- `Shape` selects `Full comparison` or `Shape mode`.
+- `Edit Mask` enables the mask overlay and returns the canvas to the frame preview. If the sprite
+  editor is open, it is closed first (`Edit Sprite` is switched off). It edits the mask assigned to
+  the current frame, which is not necessarily the mask selected in the sidebar.
+- `Mask ID` shows the comparison mask assigned to the current frame and assigns the entered mask
+  directly to all selected frames. `None` stores the legacy no-mask assignment.
+- `Shape` selects `Full comparison` or `Shape mode` for all selected frames.
 - Both fields are saved back into `.cROM`.
+- Mask ID and shape mode edits can be undone, see "Undo And Redo".
 
 Editing rules:
 
@@ -527,20 +589,21 @@ The Inspector has a sprite browser and assignment controls:
 - The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
 - The sprite name field edits the selected sprite name. Names are saved back to the fixed-size
   `.cRP` sprite-name table when that table exists.
-- The first preview shows the sprite original mask.
-- The second preview shows the sprite colorized image for the active SD/HD mode. HD is used only when the sprite has HD data.
-- `Show Det Areas` overlays valid per-sprite detection areas on the original sprite preview.
-- The detection area selector and `X`, `Y`, `W`, `H` fields edit the selected sprite detection area.
+- `Show Det Areas` overlays valid per-sprite detection areas on the original sprite in the sprite
+  editor.
+- The detection area selector chooses one of the sprite's detection areas. The `X`, `Y`, `W`, `H`
+  fields edit an area that is set; they are disabled while the selected area is not set. A new
+  area is created by dragging it in the sprite editor (see below).
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
 - `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
-- While `Edit Sprite` is active, `Create HD Sprite` creates HD sprite mask/color data by scaling the SD sprite data to 2x, and `Remove HD Sprite` clears the sprite HD-present flag.
+- While `Edit Sprite` is active, `Create HD Sprite` creates HD sprite mask/color data by scaling the SD sprite data to 2x, and `Remove HD Sprite` clears the sprite HD-present flag. Both can be undone while the sprite editor is active; Undo restores the sprite's previous HD mask and HD colors.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
 - Hold `Shift` while dragging on the colorized sprite to erase existing non-black sprite pixels back to black.
 - The sprite editor supports the toolbar point, line, rectangle, filled rectangle, circle, filled circle, ellipse, and filled ellipse tools on the colorized sprite.
 - The sprite editor also supports the toolbar pick and flood-fill tools on the colorized sprite.
 - Sprite shape tools show a live preview and commit the full stroke on mouse release.
-- Sprite pixel edits update the sprite editor immediately. Frame thumbnails, composed frame preview,
-  and side preview images refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
+- Sprite pixel edits update the sprite editor immediately. Frame thumbnails and the composed frame
+  preview refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
 - Undo and redo for sprite color edits are scoped per sprite and per active SD/HD resolution, and
   are available while the sprite editor canvas is active.
 - Drag on the lower original sprite canvas to set the selected detection area.
@@ -551,6 +614,9 @@ The Inspector has a sprite browser and assignment controls:
   selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
   origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
   captured rectangle, and the selected sprite is assigned to the current frame slot.
+  Because the bounds of an empty slot cannot be edited, capturing a rectangle into an empty slot
+  takes `Assign` first, then the bounds, then `Capture`; or use `Select Capture`, which needs no
+  bounds.
 - `Select Capture` enables a persistent shaped capture selection on the original frame. Use the
   normal point, line, rectangle, circle, ellipse, and filled-shape tools on the original frame to
   add selected pixels; hold `Shift` to erase selected pixels. `Clear Sel` removes the selection.
@@ -564,11 +630,18 @@ The Inspector has a sprite browser and assignment controls:
 - Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
-- `Remove` clears the selected slot's sprite assignment for all selected frames.
-- `Min X`, `Min Y`, `Max X`, and `Max Y` edit the selected slot's bounding box for all selected frames.
+- `Remove` clears the selected slot's sprite assignment for all selected frames. Selected frames
+  without sprite slots are skipped, and the status bar reports how many frames were changed and how
+  many were skipped.
+- `Min X`, `Min Y`, `Max X`, and `Max Y` edit the selected slot's bounding box for all selected
+  frames in which that slot has a sprite. They are disabled while the slot of the current frame is
+  empty. A minimum cannot be raised above its maximum and a maximum cannot be lowered below its
+  minimum; the edited value stops at the other one.
 - Removing a sprite assignment preserves the slot's bounding box, so a replacement sprite can reuse it.
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
-  This overlay is visible before capture and does not require the slot to already contain a sprite.
+  The overlay also shows the bounds an emptied slot has kept.
+- `Edit Sprite` and `Select Capture` are switched off when a project is opened. `Edit Mask` and
+  `Edit BG` switch `Edit Sprite` off, since they return to the frame view.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
 Sprite-name edits are limited to 31 characters so the legacy fixed 32-byte `.cRP` name slot
@@ -584,7 +657,7 @@ Currently implemented:
 - Per-frame background IDs are preserved.
 - Per-frame SD and HD background masks are preserved.
 - The project status line shows the loaded background count.
-- `BG ID` assigns the shared background used by the current frame. `None` stores the legacy no-background assignment.
+- `BG ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
 - Inspector `Target -> Background` displays the selected background image on the canvas and edits that shared background image with the ordinary drawing tools.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.

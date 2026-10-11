@@ -31,8 +31,9 @@ void UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> com
     if (!command) {
         throw std::invalid_argument("edit command must not be null");
     }
+    dropReplacedHistories(*command);
     History& history = m_histories[key];
-    history.undoStack.push_back(std::move(command));
+    history.undoStack.push_back(Entry{std::move(command), m_nextSequence++});
     history.redoStack.clear();
 }
 
@@ -48,6 +49,26 @@ bool UndoHistories::canRedo(const HistoryKey& key) const
     return history != m_histories.end() && !history->second.redoStack.empty();
 }
 
+bool UndoHistories::canUndoAny(const std::vector<HistoryKey>& keys) const
+{
+    for (const HistoryKey& key : keys) {
+        if (canUndo(key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool UndoHistories::canRedoAny(const std::vector<HistoryKey>& keys) const
+{
+    for (const HistoryKey& key : keys) {
+        if (canRedo(key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 const EditCommand* UndoHistories::undo(const HistoryKey& key,
                                        document::ProjectDocument& document)
 {
@@ -55,11 +76,13 @@ const EditCommand* UndoHistories::undo(const HistoryKey& key,
     if (history == m_histories.end() || history->second.undoStack.empty()) {
         return nullptr;
     }
-    std::unique_ptr<EditCommand> command = std::move(history->second.undoStack.back());
+    std::unique_ptr<EditCommand> command = std::move(history->second.undoStack.back().command);
     history->second.undoStack.pop_back();
     command->revert(document);
-    history->second.redoStack.push_back(std::move(command));
-    return history->second.redoStack.back().get();
+    dropReplacedHistories(*command);
+    History& own = m_histories[key];
+    own.redoStack.push_back(Entry{std::move(command), m_nextSequence++});
+    return own.redoStack.back().command.get();
 }
 
 const EditCommand* UndoHistories::redo(const HistoryKey& key,
@@ -69,11 +92,58 @@ const EditCommand* UndoHistories::redo(const HistoryKey& key,
     if (history == m_histories.end() || history->second.redoStack.empty()) {
         return nullptr;
     }
-    std::unique_ptr<EditCommand> command = std::move(history->second.redoStack.back());
+    std::unique_ptr<EditCommand> command = std::move(history->second.redoStack.back().command);
     history->second.redoStack.pop_back();
     command->apply(document);
-    history->second.undoStack.push_back(std::move(command));
-    return history->second.undoStack.back().get();
+    dropReplacedHistories(*command);
+    History& own = m_histories[key];
+    own.undoStack.push_back(Entry{std::move(command), m_nextSequence++});
+    return own.undoStack.back().command.get();
+}
+
+const EditCommand* UndoHistories::undoLatest(const std::vector<HistoryKey>& keys,
+                                             document::ProjectDocument& document)
+{
+    const HistoryKey* latestKey = nullptr;
+    uint64_t latestSequence = 0;
+    for (const HistoryKey& key : keys) {
+        const auto history = m_histories.find(key);
+        if (history == m_histories.end() || history->second.undoStack.empty()) {
+            continue;
+        }
+        const uint64_t sequence = history->second.undoStack.back().sequence;
+        if (!latestKey || sequence > latestSequence) {
+            latestKey = &key;
+            latestSequence = sequence;
+        }
+    }
+    return latestKey ? undo(*latestKey, document) : nullptr;
+}
+
+const EditCommand* UndoHistories::redoLatest(const std::vector<HistoryKey>& keys,
+                                             document::ProjectDocument& document)
+{
+    const HistoryKey* latestKey = nullptr;
+    uint64_t latestSequence = 0;
+    for (const HistoryKey& key : keys) {
+        const auto history = m_histories.find(key);
+        if (history == m_histories.end() || history->second.redoStack.empty()) {
+            continue;
+        }
+        const uint64_t sequence = history->second.redoStack.back().sequence;
+        if (!latestKey || sequence > latestSequence) {
+            latestKey = &key;
+            latestSequence = sequence;
+        }
+    }
+    return latestKey ? redo(*latestKey, document) : nullptr;
+}
+
+void UndoHistories::dropReplacedHistories(const EditCommand& command)
+{
+    for (const ReplacedData& replaced : command.replacedData()) {
+        m_histories.erase(HistoryKey{replaced.kind, replaced.index, replaced.resolution});
+    }
 }
 
 void UndoHistories::clear()

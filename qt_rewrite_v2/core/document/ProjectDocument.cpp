@@ -495,6 +495,80 @@ void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
     m_dirty = true;
 }
 
+FrameHdState ProjectDocument::frameHdState(std::size_t frameIndex, FrameHdParts parts) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    FrameHdState state;
+    state.colorizedHd = frame.colorizedHd;
+    state.inactiveHd = frame.inactiveHd;
+    if (parts.dynamic) {
+        if (!frame.dynamicData) {
+            throw std::logic_error("dynamic mask data is not available");
+        }
+        state.dynamic = FrameDynamicHdData{frame.dynamicData->maskHd,
+                                           frame.dynamicData->colorsHd,
+                                           frame.dynamicData->shadowDirectionsHd,
+                                           frame.dynamicData->shadowColorsHd};
+    }
+    if ((parts.backgroundMask || parts.backgroundImage) && !frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    if (parts.backgroundMask) {
+        state.backgroundMask = frame.backgroundData->maskHd;
+    }
+    if (parts.backgroundImage) {
+        const std::size_t backgroundIndex = frame.backgroundData->backgroundId;
+        if (backgroundIndex >= m_backgrounds.size()) {
+            throw std::logic_error("assigned background is not available");
+        }
+        const BackgroundRecord& background = m_backgrounds[backgroundIndex];
+        state.background =
+            BackgroundHdData{backgroundIndex, background.colorizedHd, background.inactiveHd};
+    }
+    return state;
+}
+
+void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState& state)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (state.colorizedHd && !hasSize(state.colorizedHd->size, render::kHdFrameSize)) {
+        throw std::invalid_argument("HD frame has invalid size");
+    }
+    if (state.dynamic && !frame.dynamicData) {
+        throw std::logic_error("dynamic mask data is not available");
+    }
+    if (state.backgroundMask && !frame.backgroundData) {
+        throw std::logic_error("background data is not available");
+    }
+    if (state.background) {
+        if (state.background->backgroundIndex >= m_backgrounds.size()) {
+            throw std::out_of_range("background index out of range");
+        }
+        if (state.background->colorizedHd &&
+            !hasSize(state.background->colorizedHd->size, render::kHdFrameSize)) {
+            throw std::invalid_argument("HD background frame has invalid size");
+        }
+    }
+
+    frame.colorizedHd = state.colorizedHd;
+    frame.inactiveHd = state.inactiveHd;
+    if (state.dynamic) {
+        frame.dynamicData->maskHd = state.dynamic->mask;
+        frame.dynamicData->colorsHd = state.dynamic->colors;
+        frame.dynamicData->shadowDirectionsHd = state.dynamic->shadowDirections;
+        frame.dynamicData->shadowColorsHd = state.dynamic->shadowColors;
+    }
+    if (state.backgroundMask) {
+        frame.backgroundData->maskHd = *state.backgroundMask;
+    }
+    if (state.background) {
+        BackgroundRecord& background = m_backgrounds[state.background->backgroundIndex];
+        background.colorizedHd = state.background->colorizedHd;
+        background.inactiveHd = state.background->inactiveHd;
+    }
+    m_dirty = true;
+}
+
 const IndexedFrame& ProjectDocument::originalFrame(std::size_t frameIndex) const
 {
     return requireFrame(m_frames, frameIndex).originalSd;
@@ -523,6 +597,16 @@ void ProjectDocument::setShapeComparisonMode(std::size_t frameIndex, uint8_t mod
     if (mode > 1) {
         throw std::invalid_argument("shape comparison mode must be 0 or 1");
     }
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.shapeComparisonMode == mode) {
+        return;
+    }
+    frame.shapeComparisonMode = mode;
+    m_dirty = true;
+}
+
+void ProjectDocument::restoreShapeComparisonMode(std::size_t frameIndex, uint8_t mode)
+{
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (frame.shapeComparisonMode == mode) {
         return;
@@ -1263,6 +1347,24 @@ void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
         return;
     }
     sprite.hasHd = false;
+    m_dirty = true;
+}
+
+SpriteHdState ProjectDocument::spriteHdState(std::size_t spriteIndex) const
+{
+    const SpriteRecord& record = sprite(spriteIndex);
+    return SpriteHdState{record.hasHd, record.maskHd, record.colorizedHd};
+}
+
+void ProjectDocument::setSpriteHdState(std::size_t spriteIndex, SpriteHdState state)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    SpriteRecord& record = m_sprites[spriteIndex];
+    record.hasHd = state.hasHd;
+    record.maskHd = std::move(state.maskHd);
+    record.colorizedHd = std::move(state.colorizedHd);
     m_dirty = true;
 }
 

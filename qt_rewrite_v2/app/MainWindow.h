@@ -124,6 +124,15 @@ private:
     void setCurrentFrameTriggerId(int triggerId);
     void setCurrentFrameDurationMs(int durationMs);
     void setCurrentFrameSwitchToMonochrome(bool enabled);
+    struct FrameEditCount {
+        int changed = 0;
+        int skipped = 0;
+    };
+    // Sets the attribute on every selected frame, one undoable command per frame. Frames that
+    // already have the value are left alone; frames the attribute cannot apply to are skipped.
+    FrameEditCount editSelectedFramesAttribute(edit::FrameAttribute attribute, uint32_t value);
+    void updateFrameStatusText();
+    void leaveSpriteCanvas();
     void assignSelectedMaskToFrames();
     void editAssignedMask();
     void assignSelectedBackgroundToFrames();
@@ -268,7 +277,9 @@ private:
         const render::CanvasHit& gradientStart,
         const render::CanvasHit& gradientEnd) const;
     void commitEdit(std::unique_ptr<edit::EditCommand> command);
-    void refreshAfterEdit(const edit::EditTarget& target);
+    // For a command that has been applied already.
+    void recordEdit(std::unique_ptr<edit::EditCommand> command);
+    void refreshAfterEdit(const edit::EditCommand& command);
     [[nodiscard]] std::vector<edit::HistoryKey> currentHistoryKeys() const;
     [[nodiscard]] std::optional<std::size_t> currentComparisonMaskIndex() const;
     [[nodiscard]] bool isComparisonMaskModeActive() const;
@@ -349,6 +360,9 @@ private:
     uint16_t m_activeDrawColor = 0xffff;
     // Sprite shown on the Sprite page and in the sprite canvas; -1 once a project has none.
     int m_selectedSpriteIndex = 0;
+    // Mask picked in the mask browser. It starts as the first frame's mask and is assigned to
+    // frames only on request.
+    std::optional<std::size_t> m_selectedMaskIndex;
     bool m_spriteDependentViewsDirty = false;
     std::optional<std::size_t> m_spriteCaptureSelectionFrameIndex;
     std::vector<uint8_t> m_spriteCaptureSelectionMask;

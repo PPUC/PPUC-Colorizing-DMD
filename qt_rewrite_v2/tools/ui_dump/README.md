@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 500 scripted states and after each one prints every widget and the relevant
+through about 530 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -211,6 +211,11 @@ Rules:
 - Keep everything deterministic: no time, no random numbers, no absolute paths in the output
   (print file names, not paths).
 - New states can only use what exists in both trees that are compared.
+- `dump()` processes pending events once. A change of a button text that changes the width of
+  the inspector (the Create/Remove HD buttons while the sprite canvas is toggled) can need more
+  rounds before the layout is final; process events a few more times before such a state, as
+  `settle()` at the end of `inspector_script.inc` does, or the geometry of the following
+  sections depends on timing instead of on the code under test.
 
 ## How it reaches MainWindow internals
 

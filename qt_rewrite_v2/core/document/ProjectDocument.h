@@ -41,6 +41,8 @@ constexpr std::size_t kMaxColorRotationLength = 64;
 constexpr std::size_t kMaxColorRotationColors = kMaxColorRotationLength - 2;
 constexpr std::size_t kPaletteCount = 256;
 constexpr std::size_t kPaletteColorCount = 64;
+// Trigger ID of a frame that triggers nothing, as stored in the cROM.
+constexpr uint32_t kNoTriggerId = 0xffffffff;
 
 struct FrameDynamicData {
     IndexedFrame maskSd;
@@ -110,12 +112,49 @@ struct FrameRecord {
     std::optional<FrameDynamicData> dynamicData;
     std::optional<FrameBackgroundData> backgroundData;
     std::vector<FrameSpriteReference> spriteReferences;
-    uint32_t triggerId = 0;
+    uint32_t triggerId = kNoTriggerId;
     uint32_t durationMs = 0;
     std::vector<uint16_t> colorRotationsSd;
     std::vector<uint16_t> colorRotationsHd;
     // See BackgroundRecord::inactiveHd.
     std::optional<Rgb565Frame> inactiveHd;
+};
+
+// Which related HD data Create HD upscales besides the frame itself.
+struct FrameHdParts {
+    bool dynamic = false;
+    bool backgroundMask = false;
+    bool backgroundImage = false;
+};
+
+struct FrameDynamicHdData {
+    IndexedFrame mask;
+    std::vector<uint16_t> colors;
+    std::vector<uint8_t> shadowDirections;
+    std::vector<uint16_t> shadowColors;
+};
+
+struct BackgroundHdData {
+    std::size_t backgroundIndex = 0;
+    std::optional<Rgb565Frame> colorizedHd;
+    std::optional<Rgb565Frame> inactiveHd;
+};
+
+// The HD data Create HD and Remove HD replace, so that it can be put back exactly. The
+// optional parts are only filled for the FrameHdParts that were asked for.
+struct FrameHdState {
+    std::optional<Rgb565Frame> colorizedHd;
+    std::optional<Rgb565Frame> inactiveHd;
+    std::optional<FrameDynamicHdData> dynamic;
+    std::optional<IndexedFrame> backgroundMask;
+    // The background that was assigned when the state was taken.
+    std::optional<BackgroundHdData> background;
+};
+
+struct SpriteHdState {
+    bool hasHd = false;
+    IndexedFrame maskHd;
+    Rgb565Frame colorizedHd;
 };
 
 struct UnsupportedLegacyPayload {
@@ -159,12 +198,20 @@ public:
     void upscaleDynamicMaskToHd(std::size_t frameIndex);
     void upscaleBackgroundMaskToHd(std::size_t frameIndex);
     void upscaleAssignedBackgroundToHd(std::size_t frameIndex);
+    // Throws when a requested part does not exist for the frame.
+    [[nodiscard]] FrameHdState frameHdState(std::size_t frameIndex, FrameHdParts parts) const;
+    // Writes back everything the state holds; a state that does not fit the frame is rejected
+    // without changing anything.
+    void setFrameHdState(std::size_t frameIndex, const FrameHdState& state);
 
     [[nodiscard]] const IndexedFrame& originalFrame(std::size_t frameIndex) const;
     [[nodiscard]] const Rgb565Frame& colorizedFrame(std::size_t frameIndex,
                                                     Resolution resolution) const;
     [[nodiscard]] uint8_t shapeComparisonMode(std::size_t frameIndex) const;
     void setShapeComparisonMode(std::size_t frameIndex, uint8_t mode);
+    // Puts back a mode a file was loaded with, including the unknown legacy values that
+    // setShapeComparisonMode rejects.
+    void restoreShapeComparisonMode(std::size_t frameIndex, uint8_t mode);
     [[nodiscard]] uint8_t comparisonMaskId(std::size_t frameIndex) const;
     void setComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
     [[nodiscard]] uint32_t triggerId(std::size_t frameIndex) const;
@@ -279,6 +326,8 @@ public:
     [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
     void createHdSprite(std::size_t spriteIndex);
     void removeHdSprite(std::size_t spriteIndex);
+    [[nodiscard]] SpriteHdState spriteHdState(std::size_t spriteIndex) const;
+    void setSpriteHdState(std::size_t spriteIndex, SpriteHdState state);
     [[nodiscard]] uint8_t spriteOriginalPixel(std::size_t spriteIndex,
                                               int x,
                                               int y) const;

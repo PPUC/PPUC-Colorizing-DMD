@@ -31,7 +31,9 @@ FramePanel::FramePanel(QWidget* parent)
     m_backgroundIdSpinBox->setEnabled(false);
     m_triggerIdSpinBox = new QSpinBox(this);
     m_triggerIdSpinBox->setToolTip(QStringLiteral("Per-frame trigger ID"));
-    m_triggerIdSpinBox->setRange(0, kMaxManualTriggerId);
+    m_triggerIdSpinBox->setRange(-1, kMaxManualTriggerId);
+    m_triggerIdSpinBox->setSpecialValueText(QStringLiteral("None"));
+    m_triggerIdSpinBox->setValue(-1);
     m_triggerIdSpinBox->setEnabled(false);
     m_durationSpinBox = new QSpinBox(this);
     m_durationSpinBox->setToolTip(QStringLiteral("Per-frame cRP duration"));
@@ -187,8 +189,9 @@ void FramePanel::refresh(const FramePanelState& state)
         m_backgroundIdSpinBox->setRange(-1, -1);
         m_backgroundIdSpinBox->setValue(-1);
         m_backgroundIdSpinBox->setEnabled(false);
-        m_triggerIdSpinBox->setValue(0);
+        m_triggerIdSpinBox->setValue(-1);
         m_triggerIdSpinBox->setEnabled(false);
+        m_triggerIdSpinBox->setToolTip(QStringLiteral("Per-frame trigger ID"));
         m_durationSpinBox->setValue(0);
         m_durationSpinBox->setEnabled(false);
         m_durationSpinBox->setToolTip(QStringLiteral("Per-frame cRP duration"));
@@ -196,9 +199,7 @@ void FramePanel::refresh(const FramePanelState& state)
         m_switchToMonochromeCheckBox->setEnabled(false);
         m_backgroundLayerButton->setEnabled(false);
         m_importImageButton->setEnabled(false);
-        m_createHdButton->setEnabled(false);
-        m_removeHdButton->setEnabled(false);
-        m_paintTargetComboBox->setEnabled(false);
+        showFrameHdActions(false, false);
         return;
     }
 
@@ -219,16 +220,17 @@ void FramePanel::refresh(const FramePanelState& state)
     const bool switchToMonochrome = triggerId == kSwitchToMonochromeTriggerId;
     m_switchToMonochromeCheckBox->setChecked(switchToMonochrome);
     m_switchToMonochromeCheckBox->setEnabled(true);
-    const bool triggerIdEditable = !switchToMonochrome;
-    m_triggerIdSpinBox->setEnabled(triggerIdEditable);
-    m_triggerIdSpinBox->setValue(triggerId <= static_cast<uint32_t>(kMaxManualTriggerId)
-                                     ? static_cast<int>(triggerId)
-                                     : 0);
+    const bool manualTriggerId = triggerId <= static_cast<uint32_t>(kMaxManualTriggerId);
+    const bool unsupportedTriggerId =
+        !manualTriggerId && !switchToMonochrome && triggerId != document::kNoTriggerId;
+    m_triggerIdSpinBox->setEnabled(!switchToMonochrome);
+    m_triggerIdSpinBox->setValue(manualTriggerId ? static_cast<int>(triggerId)
+                                                 : unsupportedTriggerId ? 0 : -1);
     m_triggerIdSpinBox->setToolTip(
-        triggerId <= static_cast<uint32_t>(kMaxManualTriggerId) || switchToMonochrome
-            ? QStringLiteral("Per-frame trigger ID")
-            : QStringLiteral("Unsupported legacy trigger ID %1 is preserved until edited")
-                  .arg(triggerId));
+        unsupportedTriggerId
+            ? QStringLiteral("Unsupported legacy trigger ID %1 is preserved until edited")
+                  .arg(triggerId)
+            : QStringLiteral("Per-frame trigger ID"));
     const uint32_t durationMs = document->frameDurationMs(frameIndex);
     m_durationSpinBox->setEnabled(true);
     m_durationSpinBox->setValue(durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
@@ -242,13 +244,17 @@ void FramePanel::refresh(const FramePanelState& state)
     m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
     m_importImageButton->setEnabled(state.hasSelectedFrames);
     const bool hasHdFrame = document->hasHdFrame(frameIndex);
+    showFrameHdActions(!hasHdFrame, hasHdFrame);
+}
+
+void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
+{
     m_createHdButton->setText(QStringLiteral("Create HD"));
     m_createHdButton->setToolTip(QStringLiteral("Create HD frame from SD frame"));
-    m_createHdButton->setEnabled(!hasHdFrame);
+    m_createHdButton->setEnabled(canCreate);
     m_removeHdButton->setText(QStringLiteral("Remove HD"));
     m_removeHdButton->setToolTip(QStringLiteral("Remove HD frame data"));
-    m_removeHdButton->setEnabled(hasHdFrame);
-    m_paintTargetComboBox->setEnabled(document->backgroundCount() > 0);
+    m_removeHdButton->setEnabled(canRemove);
 }
 
 void FramePanel::setPaintTarget(PaintTarget target)
@@ -278,12 +284,6 @@ void FramePanel::showSpriteHdActions(bool spriteHasHd)
     m_removeHdButton->setText(QStringLiteral("Remove HD Sprite"));
     m_removeHdButton->setToolTip(QStringLiteral("Remove HD sprite data"));
     m_removeHdButton->setEnabled(spriteHasHd);
-}
-
-void FramePanel::disableHdActions()
-{
-    m_createHdButton->setEnabled(false);
-    m_removeHdButton->setEnabled(false);
 }
 
 PaintTarget FramePanel::paintTarget() const

@@ -453,7 +453,8 @@ void testFrameThumbnailRendersPixels()
     const QIcon icon = colorizing::app::makeFrameThumbnail(document, 0, QSize(160, 84));
     const QPixmap pixmap = icon.pixmap(QSize(160, 84));
     expect(!pixmap.isNull(), "thumbnail pixmap should not be null");
-    expect(hasNonBackgroundPixel(pixmap.toImage()), "thumbnail should render non-background pixels");
+    expect(hasNonBackgroundPixel(pixmap.toImage()),
+           "thumbnail should render non-background pixels");
 }
 
 void testFrameThumbnailComposesBackgroundBeforeDynamic()
@@ -1898,7 +1899,6 @@ void testSpritePanel()
     auto* areaYSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area Y");
     auto* areaWidthSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area width");
     auto* areaHeightSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area height");
-    auto* originalPreviewLabel = childByToolTip<QLabel>(panel, "Sprite original mask preview");
     QLabel* selectedLabel = nullptr;
     QLabel* frameSpritesLabel = nullptr;
     for (QLabel* label : panel.findChildren<QLabel*>()) {
@@ -1942,8 +1942,8 @@ void testSpritePanel()
                    static_cast<int>(colorizing::document::kMaxSpriteDetectAreas) &&
                areaComboBox->itemText(1) == QStringLiteral("Area 1"),
            "sprite panel should list every detection area");
-    expect(!originalPreviewLabel->isVisibleTo(&panel),
-           "sprite panel should keep the sprite previews hidden");
+    expect(panel.findChildren<QLabel*>().size() == 10,
+           "sprite panel should hold only its two text labels and eight field captions");
 
     panel.refresh(SpritePanelState{});
     expect(!nameLineEdit->isEnabled() && !slotComboBox->isEnabled() &&
@@ -1993,8 +1993,6 @@ void testSpritePanel()
                shownArea.x == 4 && shownArea.y == 5 && shownArea.width == 20 &&
                shownArea.height == 8,
            "sprite panel should show the selected detection area");
-    expect(!originalPreviewLabel->pixmap().isNull(),
-           "sprite panel should render the hidden sprite preview");
 
     SpritePanelState pendingState = stateFor(0, 0);
     pendingState.hasCaptureSelection = true;
@@ -2013,19 +2011,22 @@ void testSpritePanel()
     expect(selectedLabel->text() == QStringLiteral("Selected: 1") &&
                nameLineEdit->text().isEmpty() && nameLineEdit->isEnabled() &&
                spriteCanvasButton->isEnabled() && !detectionAreasButton->isEnabled() &&
-               !clearAreaButton->isEnabled() && areaXSpinBox->isEnabled() &&
+               !clearAreaButton->isEnabled() && areaComboBox->isEnabled() &&
+               !areaXSpinBox->isEnabled() && !areaYSpinBox->isEnabled() &&
+               !areaWidthSpinBox->isEnabled() && !areaHeightSpinBox->isEnabled() &&
                shownArea.x == 0 && shownArea.y == 0 && shownArea.width == 1 &&
                shownArea.height == 1,
-           "sprite panel should show an unnamed SD sprite without detection areas");
+           "sprite panel should lock the values of a detection area that is not set");
 
     panel.refresh(stateFor(1, 0));
     shownBounds = panel.slotBounds();
     expect(frameSpritesLabel->text() == QStringLiteral("Current frame uses no sprites") &&
                slotComboBox->itemText(0) == QStringLiteral("Slot 0: Empty") &&
                assignButton->isEnabled() && !removeButton->isEnabled() &&
-               boundsOverlayButton->isEnabled() && minXSpinBox->isEnabled() &&
-               shownBounds.maxX == 0 && shownBounds.maxY == 0,
-           "sprite panel should show a frame whose slots are all empty");
+               boundsOverlayButton->isEnabled() && !minXSpinBox->isEnabled() &&
+               !minYSpinBox->isEnabled() && !maxXSpinBox->isEnabled() &&
+               !maxYSpinBox->isEnabled() && shownBounds.maxX == 0 && shownBounds.maxY == 0,
+           "sprite panel should lock the bounds of an empty slot");
 
     panel.refresh(stateFor(2, 0));
     shownBounds = panel.slotBounds();
@@ -2056,7 +2057,7 @@ void testSpritePanel()
                !clearCaptureButton->isEnabled() && !applyButton->isEnabled() &&
                !spriteCanvasButton->isEnabled() && !detectionAreasButton->isEnabled() &&
                !areaComboBox->isEnabled() && !areaXSpinBox->isEnabled() &&
-               originalPreviewLabel->text() == QStringLiteral("Original"),
+               minXSpinBox->isEnabled(),
            "sprite panel should keep only the slot controls without a sprite");
     panel.refresh(stateFor(0, 7));
     expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
@@ -2081,7 +2082,7 @@ void testSpritePanel()
     panel.refresh(stateFor(0, 0));
     shownArea = panel.detectionAreaInput();
     expect(panel.selectedDetectionAreaIndex() == 1 && !clearAreaButton->isEnabled() &&
-               shownArea.x == 0 && shownArea.width == 1,
+               !areaXSpinBox->isEnabled() && shownArea.x == 0 && shownArea.width == 1,
            "sprite panel should keep the selected detection area across a refresh");
     panel.setSelectedDetectionAreaIndex(3);
     expect(panel.selectedDetectionAreaIndex() == 3, "the detection area should be settable");
@@ -2125,6 +2126,11 @@ void testSpritePanel()
     expect(!panel.isSpriteCanvasChecked() && spriteCanvas == true &&
                callbacks == callbacksBeforeSetters,
            "leaving the sprite canvas from the owner should not notify");
+    panel.setCaptureSelectionChecked(false);
+    expect(!panel.isCaptureSelectionChecked() && captureSelection == true &&
+               callbacks == callbacksBeforeSetters,
+           "leaving the capture selection from the owner should not notify");
+    panel.setCaptureSelectionChecked(true);
     panel.refresh(stateFor(2, std::nullopt));
     expect(panel.isCaptureSelectionChecked() && panel.isBoundsOverlayChecked() &&
                panel.isDetectionAreasChecked() && !captureSelectionButton->isEnabled() &&
@@ -2142,13 +2148,23 @@ void testSpritePanel()
                spriteCanvas == false,
            "sprite toggles should report being switched off");
 
-    maxXSpinBox->setValue(3);
+    maxXSpinBox->setValue(30);
     expect(bounds.has_value() && bounds->minX == 10 && bounds->minY == 5 &&
-               bounds->maxX == 3 && bounds->maxY == 20,
-           "editing the slot bounds should report them as entered");
+               bounds->maxX == 30 && bounds->maxY == 20,
+           "editing the slot bounds should report them");
     bounds.reset();
     minYSpinBox->setValue(9);
     expect(bounds.has_value() && bounds->minY == 9, "each slot bound should notify");
+    bounds.reset();
+    maxXSpinBox->setValue(3);
+    expect(bounds.has_value() && bounds->minX == 10 && bounds->maxX == 10 &&
+               maxXSpinBox->value() == 10,
+           "a maximum should stop at its minimum instead of passing it");
+    bounds.reset();
+    minYSpinBox->setValue(31);
+    expect(bounds.has_value() && bounds->minY == 20 && bounds->maxY == 20 &&
+               minYSpinBox->value() == 20,
+           "a minimum should stop at its maximum instead of passing it");
     areaWidthSpinBox->setValue(250);
     expect(area.has_value() && area->x == 4 && area->y == 5 && area->width == 250 &&
                area->height == 8,
@@ -2156,6 +2172,11 @@ void testSpritePanel()
     area.reset();
     areaYSpinBox->setValue(60);
     expect(area.has_value() && area->y == 60, "each detection area value should notify");
+
+    expect(colorizing::app::isSpriteDetectionAreaSet(document.sprite(0).detectionAreas[0]) &&
+               !colorizing::app::isSpriteDetectionAreaSet(document.sprite(0).detectionAreas[1]) &&
+               !colorizing::app::isSpriteDetectionAreaSet({3, 4, 0, 5}),
+           "only a detection area with a position and a size should count as set");
 
     const int callbacksBeforeReset = callbacks;
     panel.refresh(stateFor(0, 0));
@@ -2562,14 +2583,11 @@ void testDynamicPanel()
 void testBackgroundPanel()
 {
     using colorizing::app::BackgroundPanelState;
-    using colorizing::render::Resolution;
     const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
-    const auto stateFor = [&document](std::optional<std::size_t> backgroundIndex,
-                                      Resolution resolution = Resolution::Sd) {
+    const auto stateFor = [&document](std::optional<std::size_t> backgroundIndex) {
         BackgroundPanelState state;
         state.document = &document;
         state.selectedBackgroundIndex = backgroundIndex;
-        state.resolution = resolution;
         state.hasCurrentFrame = true;
         state.hasSelectedFrames = true;
         return state;
@@ -2603,7 +2621,6 @@ void testBackgroundPanel()
         childByToolTip<QToolButton>(panel, "Import an image into the selected background");
     auto* exportButton =
         childByToolTip<QToolButton>(panel, "Export the selected background as PNG");
-    auto* previewLabel = childByToolTip<QLabel>(panel, "Selected background preview");
     const QList<QToolButton*> buttons{assignButton, editButton, frameToBackgroundButton,
                                       backgroundToFramesButton, importButton, exportButton};
     QLabel* selectedLabel = nullptr;
@@ -2623,9 +2640,8 @@ void testBackgroundPanel()
                importButton->text() == QStringLiteral("Import Image") &&
                exportButton->text() == QStringLiteral("Export BG"),
            "background panel should keep its button texts");
-    expect(previewLabel->isHidden() && previewLabel->size() == QSize(190, 48) &&
-               previewLabel->pixmap().isNull(),
-           "background panel should keep its preview hidden");
+    expect(panel.findChildren<QLabel*>().size() == 1,
+           "background panel should hold no label besides the selected background");
     expect(tabVisitsInOrder(panel,
                             {assignButton, editButton, frameToBackgroundButton,
                              backgroundToFramesButton, importButton, exportButton}),
@@ -2633,27 +2649,16 @@ void testBackgroundPanel()
 
     panel.refresh(BackgroundPanelState{});
     expect(enabledButtonCount(buttons) == 0 &&
-               selectedLabel->text() == QStringLiteral("Selected: None") &&
-               previewLabel->text() == QStringLiteral("Background"),
+               selectedLabel->text() == QStringLiteral("Selected: None"),
            "background panel should be disabled without a project");
 
-    const auto previewColor = [previewLabel]() {
-        const QImage image = previewLabel->pixmap().toImage();
-        return image.pixelColor(image.width() / 2, image.height() / 2);
-    };
     panel.refresh(stateFor(0));
     expect(enabledButtonCount(buttons) == 6 &&
                selectedLabel->text() == QStringLiteral("Selected: 0 (HD)"),
            "background panel should offer every action for a selected background");
-    expect(!previewLabel->pixmap().isNull() && previewColor() == QColor(0, 255, 0),
-           "background panel should render the SD background preview");
-    panel.refresh(stateFor(0, Resolution::Hd));
-    expect(previewColor() == QColor(0, 0, 255),
-           "background panel should render the HD background preview");
-    panel.refresh(stateFor(1, Resolution::Hd));
-    expect(selectedLabel->text() == QStringLiteral("Selected: 1") &&
-               previewColor() == QColor(255, 0, 0),
-           "background panel should fall back to SD for a background without HD");
+    panel.refresh(stateFor(1));
+    expect(selectedLabel->text() == QStringLiteral("Selected: 1"),
+           "background panel should not mark a background without HD");
 
     BackgroundPanelState withoutCurrentFrame = stateFor(1);
     withoutCurrentFrame.hasCurrentFrame = false;
@@ -2670,9 +2675,7 @@ void testBackgroundPanel()
 
     panel.refresh(stateFor(5));
     expect(enabledButtonCount(buttons) == 0 &&
-               selectedLabel->text() == QStringLiteral("Selected: None") &&
-               previewLabel->pixmap().isNull() &&
-               previewLabel->text() == QStringLiteral("Background"),
+               selectedLabel->text() == QStringLiteral("Selected: None"),
            "background panel should ignore a background that does not exist");
     panel.refresh(stateFor(std::nullopt));
     expect(enabledButtonCount(buttons) == 0 &&
@@ -2784,10 +2787,11 @@ void testFramePanel()
                backgroundIdSpinBox->specialValueText() == QStringLiteral("None") &&
                !backgroundIdSpinBox->isEnabled(),
            "frame panel should start without background IDs");
-    expect(triggerIdSpinBox->minimum() == 0 &&
+    expect(triggerIdSpinBox->minimum() == -1 &&
                triggerIdSpinBox->maximum() == colorizing::app::kMaxManualTriggerId &&
-               !triggerIdSpinBox->isEnabled() && panel.triggerId() == 0,
-           "frame panel should start with a disabled trigger ID");
+               triggerIdSpinBox->specialValueText() == QStringLiteral("None") &&
+               !triggerIdSpinBox->isEnabled() && panel.triggerId() == -1,
+           "frame panel should start with a disabled trigger ID showing none");
     expect(durationSpinBox->maximum() == colorizing::app::kMaxFrameDurationMs &&
                durationSpinBox->singleStep() == 10 &&
                durationSpinBox->suffix() == QStringLiteral(" ms") && !durationSpinBox->isEnabled(),
@@ -2819,9 +2823,9 @@ void testFramePanel()
            "frame panel should tab through its controls as laid out");
 
     panel.refresh(stateFor(document, 0));
-    expect(targetComboBox->isEnabled() && backgroundIdSpinBox->isEnabled() &&
+    expect(!targetComboBox->isEnabled() && backgroundIdSpinBox->isEnabled() &&
                backgroundIdSpinBox->maximum() == 1 && backgroundIdSpinBox->value() == 0,
-           "frame panel should show the assigned background");
+           "frame panel should show the assigned background and leave the target to the owner");
     expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 5 &&
                triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID") &&
                monochromeCheckBox->isEnabled() && !panel.isSwitchToMonochromeChecked(),
@@ -2838,7 +2842,7 @@ void testFramePanel()
                backgroundLayerButton->isEnabled(),
            "frame panel should show unassigned background data as none");
     expect(panel.isSwitchToMonochromeChecked() && !triggerIdSpinBox->isEnabled() &&
-               panel.triggerId() == 0 &&
+               panel.triggerId() == -1 &&
                triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
            "frame panel should lock the trigger ID of a switch-to-monochrome frame");
     expect(durationSpinBox->value() == 0 &&
@@ -2859,12 +2863,22 @@ void testFramePanel()
            "frame panel should explain an unsupported trigger ID");
     panel.refresh(stateFor(document, 3));
     expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == 1 &&
-               !backgroundLayerButton->isEnabled() && targetComboBox->isEnabled() &&
+               !backgroundLayerButton->isEnabled() &&
                triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
            "frame panel should disable the background ID for a frame without background data");
+    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 0,
+           "frame panel should show trigger ID 0 as a trigger");
+    colorizing::document::ProjectDocument withoutTrigger = document;
+    withoutTrigger.setTriggerId(3, colorizing::document::kNoTriggerId);
+    panel.refresh(stateFor(withoutTrigger, 3));
+    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == -1 &&
+               triggerIdSpinBox->text() == QStringLiteral("None") &&
+               !panel.isSwitchToMonochromeChecked() &&
+               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
+           "frame panel should show the file's no-trigger value as none");
     panel.refresh(stateFor(noBackgrounds, 0));
-    expect(!targetComboBox->isEnabled() && !backgroundIdSpinBox->isEnabled() &&
-               backgroundIdSpinBox->maximum() == -1 && !backgroundLayerButton->isEnabled(),
+    expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == -1 &&
+               !backgroundLayerButton->isEnabled(),
            "frame panel should disable the background controls without backgrounds");
 
     panel.refresh(stateFor(document, 2));
@@ -2879,21 +2893,20 @@ void testFramePanel()
     panel.showSpriteHdActions(false);
     expect(createHdButton->isEnabled() && !removeHdButton->isEnabled(),
            "frame panel should offer Create HD Sprite for a sprite without HD");
-    panel.disableHdActions();
-    expect(!createHdButton->isEnabled() && !removeHdButton->isEnabled() &&
-               createHdButton->text() == QStringLiteral("Create HD Sprite"),
-           "frame panel should disable the HD buttons without relabeling them");
     panel.refresh(stateFor(document, std::nullopt));
-    expect(createHdButton->text() == QStringLiteral("Create HD Sprite") &&
+    expect(createHdButton->text() == QStringLiteral("Create HD") &&
+               createHdButton->toolTip() == QStringLiteral("Create HD frame from SD frame") &&
+               removeHdButton->text() == QStringLiteral("Remove HD") &&
+               removeHdButton->toolTip() == QStringLiteral("Remove HD frame data") &&
                !createHdButton->isEnabled() && !removeHdButton->isEnabled(),
-           "frame panel should keep the HD button labels without a frame");
-    expect(!targetComboBox->isEnabled() && !backgroundIdSpinBox->isEnabled() &&
+           "frame panel should label the disabled HD buttons for the frame without a frame");
+    expect(!backgroundIdSpinBox->isEnabled() &&
                backgroundIdSpinBox->maximum() == -1 && !triggerIdSpinBox->isEnabled() &&
                !durationSpinBox->isEnabled() && !monochromeCheckBox->isEnabled() &&
                !backgroundLayerButton->isEnabled() && !importButton->isEnabled() &&
                durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration") &&
-               triggerIdSpinBox->toolTip() ==
-                   QStringLiteral("Unsupported legacy trigger ID 70000 is preserved until edited"),
+               panel.triggerId() == -1 &&
+               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
            "frame panel should reset without a frame");
     panel.refresh(stateFor(document, 0));
     expect(createHdButton->text() == QStringLiteral("Create HD") &&
@@ -2910,10 +2923,16 @@ void testFramePanel()
     panel.refresh(stateFor(document, std::nullopt));
     expect(panel.paintTarget() == PaintTarget::Background,
            "frame panel should leave resetting the drawing target to the owner");
+    expect(!targetComboBox->isEnabled(),
+           "frame panel should not enable the drawing target on its own");
     panel.setPaintTargetEnabled(true);
     panel.setImportImageEnabled(true);
     expect(targetComboBox->isEnabled() && importButton->isEnabled(),
            "frame panel should enable the target and the import on request");
+    panel.refresh(stateFor(noBackgrounds, 0));
+    panel.refresh(stateFor(document, std::nullopt));
+    expect(targetComboBox->isEnabled(),
+           "frame panel should not disable the drawing target on its own either");
     panel.setPaintTarget(PaintTarget::Frame);
     expect(callbacks == 0, "refreshing and setting up the frame panel should not notify");
 
@@ -2928,6 +2947,8 @@ void testFramePanel()
     triggerIdSpinBox->setValue(123);
     expect(editedTriggerId == 123 && panel.triggerId() == 123,
            "editing the trigger ID should report it");
+    triggerIdSpinBox->setValue(-1);
+    expect(editedTriggerId == -1, "clearing the trigger ID should report -1");
     durationSpinBox->setValue(250);
     expect(editedDuration == 250, "editing the duration should report it");
     monochromeCheckBox->click();
@@ -2942,7 +2963,7 @@ void testFramePanel()
     panel.showSpriteHdActions(true);
     removeHdButton->click();
     expect(importRequests == 1 && createHdRequests == 1 && removeHdRequests == 1 &&
-               callbacks == 10,
+               callbacks == 11,
            "each frame panel action should notify exactly once");
 
     dmdShapeComboBox->setCurrentIndex(1);
@@ -2961,7 +2982,7 @@ void testFramePanel()
                !panel.isBackgroundLayerChecked() &&
                panel.paintTarget() == PaintTarget::Background,
            "frame panel should keep its own state across refreshes");
-    expect(callbacks == 13, "refreshing the frame panel should not notify");
+    expect(callbacks == 14, "refreshing the frame panel should not notify");
     expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
                document.backgroundId(0) == 0 && !document.isDirty(),
            "frame panel should leave the document untouched");

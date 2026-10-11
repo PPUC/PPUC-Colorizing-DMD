@@ -1092,4 +1092,112 @@
     inShape->setCurrentIndex(0);
     loadInspector();
     D("inspector loaded at the end");
+
+    // ===== Undo across histories, frame attributes and mode switches
+    showTab("Frame");
+    showLeft("Frames");
+    row(0);
+    w.paintFramePixel(col(3, 3), false);
+    inDuration->setValue(500);
+    w.paintFramePixel(col(4, 3), false);
+    inBgCombo->setCurrentIndex(0);
+    inFrameToBg->click();
+    D("pixel, duration, pixel, frame to bg");
+    undo("undo 1 of 4 in the frame context");
+    undo("undo 2 of 4 in the frame context");
+    undo("undo 3 of 4 in the frame context");
+    undo("undo 4 of 4 in the frame context");
+    redo("redo 1 of 4 in the frame context");
+    redo("redo 2 of 4 in the frame context");
+    redo("redo 3 of 4 in the frame context");
+    redo("redo 4 of 4 in the frame context");
+
+    inMaskId->setValue(2);
+    inShape->setCurrentIndex(1);
+    inBgId->setValue(1);
+    inTrigger->setValue(77);
+    inMono->click();
+    D("frame 0 attributes edited");
+    undo("undo mono");
+    undo("undo trigger");
+    undo("undo bg id");
+    undo("undo shape mode");
+    undo("undo mask id");
+    redo("redo mask id");
+    inMono->click();
+    inMono->click();
+    D("mono on and off again");
+    inTrigger->setValue(-1);
+    D("trigger cleared");
+
+    selectRows({0, 1, 2});
+    inMaskId->setValue(1);
+    inShape->setCurrentIndex(1);
+    inDuration->setValue(70);
+    inMono->click();
+    D("attributes on three frames");
+    inMono->click();
+    D("mono off on three frames");
+    row(1);
+    undo("undo on frame 1 after the three frame edit");
+
+    showTab("Mask");
+    showLeft("Masks");
+    row(0);
+    w.m_maskList->setCurrentRow(2);
+    D("mask 2 selected in the browser");
+    row(3);
+    D("mask selection after a frame change");
+    selectRows({3, 4});
+    inAssignMask->click();
+    D("selected mask assigned to two frames");
+    undo("undo mask assignment on the current frame");
+
+    auto* inSpriteCanvas = byTip<QToolButton>(w, "Show selected sprite in the main canvas");
+    row(0);
+    inSpriteCanvas->click();
+    D("sprite canvas before edit mask");
+    inEditMask->click();
+    D("edit mask from the sprite canvas");
+    w.m_comparisonMaskOverlayButton->click();
+    inSpriteCanvas->click();
+    inEditBg->click();
+    D("edit bg from the sprite canvas");
+    inTarget->setCurrentIndex(0);
+
+    showTab("Frame");
+    showLeft("Frames");
+    row(1);
+    w.m_hdButton->click();
+    w.paintFramePixel(col(20, 20, Resolution::Hd), false);
+    inRemoveHd->click();
+    D("remove hd on frame 1");
+    undo("undo remove hd on frame 1");
+    redo("redo remove hd on frame 1");
+    answerCreateHdDialog(true, {});
+    inCreateHd->click();
+    D("create hd with related data on frame 1");
+    undo("undo create hd with related data");
+    redo("redo create hd with related data");
+    w.m_sdButton->click();
+
+    // Relabelling the HD buttons changes the width of the inspector, and one round of event
+    // processing does not always finish that layout change.
+    const auto settle = []() {
+        for (int round = 0; round < 5; ++round) QApplication::processEvents();
+    };
+    inSpriteCanvas->click();
+    (inRemoveHd->isEnabled() ? inRemoveHd : inCreateHd)->click();
+    settle();
+    D("sprite hd toggled in the sprite canvas");
+    w.m_undoAction->trigger();
+    settle();
+    D("undo sprite hd change");
+    w.m_redoAction->trigger();
+    settle();
+    D("redo sprite hd change");
+    inSpriteCanvas->click();
+    w.m_sdButton->click();
+    settle();
+    D("undo states at the end");
 }

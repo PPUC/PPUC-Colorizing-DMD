@@ -42,7 +42,8 @@ class FramePanel final : public QWidget {
 public:
     explicit FramePanel(QWidget* parent = nullptr);
 
-    // Also labels the Create/Remove HD buttons for the frame again.
+    // Also labels the Create/Remove HD buttons for the frame again. Whether the drawing target
+    // can be chosen is the owner's decision alone, see setPaintTargetEnabled().
     void refresh(const FramePanelState& state);
     // Does not notify.
     void setPaintTarget(PaintTarget target);
@@ -50,10 +51,10 @@ public:
     void setImportImageEnabled(bool enabled);
     // While a sprite is edited in the canvas, the Create/Remove HD buttons act on that sprite.
     void showSpriteHdActions(bool spriteHasHd);
-    void disableHdActions();
 
     [[nodiscard]] PaintTarget paintTarget() const;
-    // The spin box value; 0 while the frame carries a trigger ID the spin box cannot show.
+    // The spin box value: -1 for no trigger and for the monochrome trigger, 0 while the frame
+    // carries a trigger ID the spin box cannot show.
     [[nodiscard]] int triggerId() const;
     [[nodiscard]] bool isSwitchToMonochromeChecked() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
@@ -62,6 +63,7 @@ public:
     std::function<void()> onPaintTargetChanged;
     // -1 clears the assignment.
     std::function<void(int backgroundId)> onBackgroundIdEdited;
+    // -1 clears the trigger.
     std::function<void(int triggerId)> onTriggerIdEdited;
     std::function<void(int durationMs)> onDurationEdited;
     std::function<void(bool checked)> onSwitchToMonochromeToggled;
@@ -73,6 +75,8 @@ public:
     std::function<void()> onRemoveHdRequested;
 
 private:
+    void showFrameHdActions(bool canCreate, bool canRemove);
+
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;
     QSpinBox* m_durationSpinBox = nullptr;

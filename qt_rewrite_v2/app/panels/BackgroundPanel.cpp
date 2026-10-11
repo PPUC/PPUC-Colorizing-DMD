@@ -1,27 +1,11 @@
 #include "panels/BackgroundPanel.h"
 
-#include <QFrame>
 #include <QHBoxLayout>
-#include <QImage>
 #include <QLabel>
-#include <QPixmap>
 #include <QToolButton>
 #include <QVBoxLayout>
 
-#include "FrameImageUtils.h"
-
 namespace colorizing::app {
-
-namespace {
-
-QPixmap previewPixmap(const QImage& image, QSize targetSize)
-{
-    return QPixmap::fromImage(image.scaled(targetSize,
-                                           Qt::KeepAspectRatio,
-                                           Qt::FastTransformation));
-}
-
-}  // namespace
 
 BackgroundPanel::BackgroundPanel(QWidget* parent)
     : QWidget(parent)
@@ -71,12 +55,6 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     fileLayout->addWidget(m_importImageButton);
     fileLayout->addWidget(m_exportButton);
     pageLayout->addLayout(fileLayout);
-    m_previewLabel = new QLabel(this);
-    m_previewLabel->setFixedSize(190, 48);
-    m_previewLabel->setFrameShape(QFrame::Box);
-    m_previewLabel->setAlignment(Qt::AlignCenter);
-    m_previewLabel->setToolTip(QStringLiteral("Selected background preview"));
-    m_previewLabel->setVisible(false);
     pageLayout->addStretch(1);
 
     connect(m_assignButton, &QToolButton::clicked, this, [this]() {
@@ -125,8 +103,6 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
 
     if (!hasBackground) {
         m_selectedBackgroundLabel->setText(QStringLiteral("Selected: None"));
-        m_previewLabel->clear();
-        m_previewLabel->setText(QStringLiteral("Background"));
         return;
     }
 
@@ -136,9 +112,6 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
                                            .arg(static_cast<int>(backgroundIndex))
                                            .arg(background.colorizedHd ? QStringLiteral(" (HD)")
                                                                        : QString()));
-    m_previewLabel->setPixmap(
-        previewPixmap(renderBackgroundPreviewImage(background, state.resolution),
-                      m_previewLabel->size()));
 }
 
 }  // namespace colorizing::app
