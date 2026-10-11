@@ -71,6 +71,20 @@ private:
     std::vector<PixelChange> m_changes;
 };
 
+// Gives a background that has no HD image one; reverting removes the HD image again.
+class BackgroundHdCreateCommand final : public EditCommand {
+public:
+    BackgroundHdCreateCommand(std::size_t backgroundIndex, document::Rgb565Frame frame);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+
+private:
+    std::size_t m_backgroundIndex;
+    document::Rgb565Frame m_frame;
+};
+
 struct MaskPixelChange {
     int x = 0;
     int y = 0;
@@ -124,24 +138,21 @@ private:
 };
 
 struct DynamicShadowChange {
-    std::size_t frameIndex = 0;
     uint8_t oldDirection = 0;
     uint8_t newDirection = 0;
     uint16_t oldColor = 0;
     uint16_t newColor = 0;
 };
 
-// One dynamic set's shadow direction and/or color, changed on several frames at once.
+// One dynamic set's shadow direction and/or color on one frame.
 class DynamicShadowEditCommand final : public EditCommand {
 public:
-    // ownerFrameIndex is the frame the edit was made from; it becomes the target index and may
-    // differ from the frames listed in changes.
-    DynamicShadowEditCommand(std::size_t ownerFrameIndex,
+    DynamicShadowEditCommand(std::size_t frameIndex,
                              render::Resolution resolution,
                              std::size_t setIndex,
                              bool editDirection,
                              bool editColor,
-                             std::vector<DynamicShadowChange> changes);
+                             DynamicShadowChange change);
 
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
@@ -150,12 +161,12 @@ public:
 private:
     void write(document::ProjectDocument& document, bool useNewValue) const;
 
-    std::size_t m_ownerFrameIndex;
+    std::size_t m_frameIndex;
     render::Resolution m_resolution;
     std::size_t m_setIndex;
     bool m_editDirection;
     bool m_editColor;
-    std::vector<DynamicShadowChange> m_changes;
+    DynamicShadowChange m_change;
 };
 
 struct PaletteColorChange {

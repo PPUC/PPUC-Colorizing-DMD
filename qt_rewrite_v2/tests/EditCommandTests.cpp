@@ -27,6 +27,7 @@ using colorizing::document::kMaxDynamicSetsPerFrame;
 using colorizing::document::kPaletteColorCount;
 using colorizing::document::makeIndexedFrame;
 using colorizing::document::makeRgb565Frame;
+using colorizing::edit::BackgroundHdCreateCommand;
 using colorizing::edit::DynamicColorEditCommand;
 using colorizing::edit::DynamicShadowEditCommand;
 using colorizing::edit::EditCommand;
@@ -258,46 +259,44 @@ void testDynamicShadowCommand()
 {
     ProjectDocument document = makeDocument();
     document.setDynamicShadowDirection(1, Resolution::Sd, 2, 0x01);
-    document.setDynamicShadowColor(0, Resolution::Sd, 2, 0x0f0f);
+    document.setDynamicShadowColor(1, Resolution::Sd, 2, 0x0f0f);
 
-    const DynamicShadowEditCommand direction(0,
+    const DynamicShadowEditCommand direction(1,
                                              Resolution::Sd,
                                              2,
                                              true,
                                              false,
-                                             {{0, 0x00, 0x08, 0x0f0f, 0xffff},
-                                              {1, 0x01, 0x09, 0, 0xffff}});
-    expectTarget(direction, EditKind::DynamicShadow, 0, Resolution::Sd, {0, 1}, "shadow");
+                                             {0x01, 0x09, 0, 0xffff});
+    expectTarget(direction, EditKind::DynamicShadow, 1, Resolution::Sd, {1}, "shadow");
 
     direction.apply(document);
-    expect(document.dynamicShadowDirection(0, Resolution::Sd, 2) == 0x08,
-           "shadow direction apply on first frame");
     expect(document.dynamicShadowDirection(1, Resolution::Sd, 2) == 0x09,
-           "shadow direction apply on second frame");
-    expect(document.dynamicShadowColor(0, Resolution::Sd, 2) == 0x0f0f,
+           "shadow direction apply");
+    expect(document.dynamicShadowColor(1, Resolution::Sd, 2) == 0x0f0f,
            "direction-only command leaves color alone");
-    expect(document.dynamicShadowDirection(0, Resolution::Hd, 2) == 0,
+    expect(document.dynamicShadowDirection(1, Resolution::Hd, 2) == 0,
            "shadow other resolution untouched");
+    expect(document.dynamicShadowDirection(0, Resolution::Sd, 2) == 0,
+           "shadow other frame untouched");
     direction.revert(document);
-    expect(document.dynamicShadowDirection(0, Resolution::Sd, 2) == 0x00,
-           "shadow direction revert on first frame");
     expect(document.dynamicShadowDirection(1, Resolution::Sd, 2) == 0x01,
-           "shadow direction revert on second frame");
+           "shadow direction revert");
 
-    // The owner frame need not be among the changed frames.
-    const DynamicShadowEditCommand color(0,
+    const DynamicShadowEditCommand color(1,
                                          Resolution::Sd,
                                          2,
                                          false,
                                          true,
-                                         {{1, 0x7f, 0x7f, 0, 0x2222}});
-    expectTarget(color, EditKind::DynamicShadow, 0, Resolution::Sd, {1}, "shadow color");
+                                         {0x7f, 0x7f, 0x0f0f, 0x2222});
+    expectTarget(color, EditKind::DynamicShadow, 1, Resolution::Sd, {1}, "shadow color");
     color.apply(document);
     expect(document.dynamicShadowColor(1, Resolution::Sd, 2) == 0x2222, "shadow color apply");
     expect(document.dynamicShadowDirection(1, Resolution::Sd, 2) == 0x01,
            "color-only command leaves direction alone");
+    expect(document.dynamicShadowColor(0, Resolution::Sd, 2) == 0,
+           "shadow color other frame untouched");
     color.revert(document);
-    expect(document.dynamicShadowColor(1, Resolution::Sd, 2) == 0, "shadow color revert");
+    expect(document.dynamicShadowColor(1, Resolution::Sd, 2) == 0x0f0f, "shadow color revert");
 }
 
 void testPaletteCommand()
@@ -353,6 +352,40 @@ HistoryKey commit(UndoHistories& histories,
     return key;
 }
 
+void testBackgroundHdCreateCommand()
+{
+    ProjectDocument document = makeDocument();
+    document.removeBackgroundHdFrame(0);
+    UndoHistories histories;
+    const HistoryKey key = commit(histories,
+                                  document,
+                                  std::make_unique<BackgroundHdCreateCommand>(
+                                      0,
+                                      makeRgb565Frame(kHdFrameSize, 0x0abc)));
+    expect(key == HistoryKey{EditKind::BackgroundImage, 0, Resolution::Hd},
+           "HD creation shares the history of HD background pixel edits");
+    expect(document.backgroundPixel(0, Resolution::Hd, 5, 6) == 0x0abc, "background HD apply");
+    expect(document.backgroundPixel(0, Resolution::Sd, 5, 6) == 0x5050,
+           "background HD creation leaves SD alone");
+
+    commit(histories,
+           document,
+           std::make_unique<PixelEditCommand>(
+               EditKind::BackgroundImage,
+               0,
+               Resolution::Hd,
+               std::vector<colorizing::edit::PixelChange>{{5, 6, 0x0abc, 0x0def}}));
+    histories.undo(key, document);
+    expect(document.backgroundPixel(0, Resolution::Hd, 5, 6) == 0x0abc,
+           "pixel edit on the created HD image undoes first");
+    histories.undo(key, document);
+    expect(!document.background(0).colorizedHd.has_value(), "background HD revert removes HD");
+    histories.redo(key, document);
+    histories.redo(key, document);
+    expect(document.backgroundPixel(0, Resolution::Hd, 5, 6) == 0x0def,
+           "background HD and its pixel edit redo in order");
+}
+
 void testHistoryKeys()
 {
     const HistoryKey frameSd{EditKind::FramePixels, 3, Resolution::Sd};
@@ -368,9 +401,9 @@ void testHistoryKeys()
            "kind separates keys");
     expect(!(frameSd < frameSd), "key ordering is irreflexive");
 
-    const DynamicShadowEditCommand shadow(5, Resolution::Hd, 0, true, false, {{9, 0, 1, 0, 0}});
+    const DynamicShadowEditCommand shadow(5, Resolution::Hd, 0, true, false, {0, 1, 0, 0});
     expect(historyKey(shadow.target()) == HistoryKey{EditKind::DynamicShadow, 5, Resolution::Hd},
-           "shadow history belongs to the owner frame");
+           "shadow history belongs to its frame");
 }
 
 void testHistoryUndoRedoRoundTrip()
@@ -486,6 +519,85 @@ void testHistoryClear()
            "clear leaves the document alone");
 }
 
+// The editor records one command per selected frame, so each frame undoes on its own.
+void testMultiFrameShadowEditHasOneHistoryPerFrame()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    std::vector<HistoryKey> keys;
+    for (std::size_t frameIndex = 0; frameIndex < 2; ++frameIndex) {
+        keys.push_back(commit(histories,
+                              document,
+                              std::make_unique<DynamicShadowEditCommand>(
+                                  frameIndex,
+                                  Resolution::Sd,
+                                  3,
+                                  true,
+                                  false,
+                                  colorizing::edit::DynamicShadowChange{0, 0x04, 0, 0})));
+    }
+    expect(!(keys[0] == keys[1]), "each frame owns its shadow history");
+
+    histories.undo(keys[1], document);
+    expect(document.dynamicShadowDirection(1, Resolution::Sd, 3) == 0, "frame 1 shadow undone");
+    expect(document.dynamicShadowDirection(0, Resolution::Sd, 3) == 0x04,
+           "undo on frame 1 leaves frame 0 alone");
+    expect(histories.canUndo(keys[0]) && !histories.canUndo(keys[1]),
+           "frame 0 keeps its own undo step");
+}
+
+void testHistoryClearKey()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    const HistoryKey sd = commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 1));
+    const HistoryKey hd = commit(histories, document, makeFramePixel(0, Resolution::Hd, 1, 0, 2));
+    commit(histories, document, makeFramePixel(0, Resolution::Hd, 2, 0, 3));
+    histories.undo(hd, document);
+    const HistoryKey otherFrame =
+        commit(histories, document, makeFramePixel(1, Resolution::Hd, 1, 0, 4));
+
+    histories.clear(hd);
+    expect(!histories.canUndo(hd) && !histories.canRedo(hd), "key clear drops undo and redo");
+    expect(histories.undo(hd, document) == nullptr && histories.redo(hd, document) == nullptr,
+           "cleared key has nothing to undo or redo");
+    expect(histories.canUndo(sd), "key clear keeps the other resolution");
+    expect(histories.canUndo(otherFrame), "key clear keeps other indices");
+    expect(document.colorizedPixel(0, Resolution::Hd, 1, 0) == 2,
+           "key clear leaves the document alone");
+
+    histories.clear(HistoryKey{EditKind::FramePixels, 7, Resolution::Sd});
+    expect(histories.canUndo(sd) && histories.canUndo(otherFrame), "clearing an unused key");
+
+    commit(histories, document, makeFramePixel(0, Resolution::Hd, 3, 0, 5));
+    expect(histories.canUndo(hd), "cleared key records new commands");
+}
+
+void testHistoryClearKindAndIndex()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    const HistoryKey sd = commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 1));
+    const HistoryKey hd = commit(histories, document, makeFramePixel(0, Resolution::Hd, 1, 0, 2));
+    const HistoryKey otherFrame =
+        commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 3));
+    const HistoryKey mask = commit(
+        histories,
+        document,
+        std::make_unique<MaskEditCommand>(
+            EditKind::DynamicMask,
+            0,
+            Resolution::Sd,
+            std::vector<colorizing::edit::MaskPixelChange>{{1, 0, 255, 4}}));
+    histories.undo(sd, document);
+
+    histories.clear(EditKind::FramePixels, 0);
+    expect(!histories.canUndo(sd) && !histories.canRedo(sd) && !histories.canUndo(hd),
+           "kind and index clear drops both resolutions");
+    expect(histories.canUndo(otherFrame), "kind and index clear keeps other indices");
+    expect(histories.canUndo(mask), "kind and index clear keeps other kinds");
+}
+
 }  // namespace
 
 void runEditCommandTests()
@@ -500,9 +612,13 @@ void runEditCommandTests()
     testDynamicShadowCommand();
     testPaletteCommand();
     testCommandKindValidation();
+    testBackgroundHdCreateCommand();
     testHistoryKeys();
     testHistoryUndoRedoRoundTrip();
     testHistoryPushClearsOnlyOwnRedo();
     testHistoriesAreIndependent();
     testHistoryClear();
+    testHistoryClearKey();
+    testHistoryClearKindAndIndex();
+    testMultiFrameShadowEditHasOneHistoryPerFrame();
 }

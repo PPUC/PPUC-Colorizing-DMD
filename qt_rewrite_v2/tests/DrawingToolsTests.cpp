@@ -1,6 +1,7 @@
 #include "edit/DrawingGeometry.h"
 #include "edit/DrawingTools.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <deque>
@@ -768,12 +769,52 @@ void testInterpolateRgb565()
            "no steps returns the start color untouched");
     expect(edit::interpolateRgb565(0x0000, 0xffff, 0, 4) == 0x0000, "black start");
     expect(edit::interpolateRgb565(0x0000, 0xffff, 4, 4) == 0xffff, "white end");
-    expect(edit::interpolateRgb565(0x0000, 0xffff, 1, 2) == 0x7bef, "grey midpoint");
+    expect(edit::interpolateRgb565(0x0000, 0xffff, 1, 2) == 0x8410,
+           "grey midpoint rounds half up per component");
     expect(edit::interpolateRgb565(0xffff, 0x0000, 2, 3) == 0x52aa, "one third towards black");
-    expect(edit::interpolateRgb565(0xf800, 0x001f, 1, 2) == 0x780f, "red to blue midpoint");
-    // The 8-bit round trip truncates, so the darkest channel steps do not survive it.
-    expect(edit::interpolateRgb565(0x0841, 0xffff, 0, 2) == 0x0020,
-           "endpoint goes through the lossy 8-bit round trip");
+    expect(edit::interpolateRgb565(0xf800, 0x001f, 1, 2) == 0x8010, "red to blue midpoint");
+    expect(edit::interpolateRgb565(0x0000, 0x0003, 1, 4) == 0x0001,
+           "three quarters of a step rounds up");
+    expect(edit::interpolateRgb565(0x0000, 0x0001, 1, 4) == 0x0000,
+           "a quarter of a step rounds down");
+    expect(edit::interpolateRgb565(0x0841, 0xffff, 0, 2) == 0x0841,
+           "darkest channel steps survive at the start");
+    expect(edit::interpolateRgb565(0x1234, 0xabcd, 9, 4) == 0xabcd,
+           "steps beyond the last one give the end color");
+}
+
+void testInterpolateRgb565KeepsEndpoints()
+{
+    const auto red = [](uint16_t color) { return (color >> 11) & 0x1f; };
+    const auto green = [](uint16_t color) { return (color >> 5) & 0x3f; };
+    const auto blue = [](uint16_t color) { return color & 0x1f; };
+    const auto between = [](int value, int a, int b) {
+        return value >= std::min(a, b) && value <= std::max(a, b);
+    };
+    uint32_t state = 12345;
+    const auto next = [&state] {
+        state = state * 1664525u + 1013904223u;
+        return state >> 8;
+    };
+    for (uint32_t color = 0; color <= 0xffff; ++color) {
+        const uint16_t start = static_cast<uint16_t>(color);
+        const uint16_t end = static_cast<uint16_t>(next());
+        const std::size_t maxStep = 1 + next() % 63;
+        const std::size_t step = next() % (maxStep + 1);
+        expect(edit::interpolateRgb565(start, end, 0, maxStep) == start,
+               "step 0 is exactly the start color");
+        expect(edit::interpolateRgb565(end, start, maxStep, maxStep) == start,
+               "the last step is exactly the end color");
+        expect(edit::interpolateRgb565(start, start, step, maxStep) == start,
+               "a ramp between equal colors is constant");
+        const uint16_t blended = edit::interpolateRgb565(start, end, step, maxStep);
+        expect(between(red(blended), red(start), red(end)) &&
+                   between(green(blended), green(start), green(end)) &&
+                   between(blue(blended), blue(start), blue(end)),
+               "every component stays between its ends");
+        expect(blended == edit::interpolateRgb565(end, start, maxStep - step, maxStep),
+               "a ramp reads the same from both ends");
+    }
 }
 
 void testPaletteRampChanges()
@@ -785,10 +826,10 @@ void testPaletteRampChanges()
 
     const std::vector<PaletteColorChange> ramp = edit::makePaletteRampChanges(document, 0, 2, 4);
     expect(ramp.size() == 1, "ramp skips colors that already match");
-    expect(ramp[0].colorIndex == 3 && ramp[0].oldColor == 0x1234 && ramp[0].newColor == 0x7bef,
+    expect(ramp[0].colorIndex == 3 && ramp[0].oldColor == 0x1234 && ramp[0].newColor == 0x8410,
            "ramp blends the color between its ends");
 
-    document.setPaletteColor(0, 3, 0x7bef);
+    document.setPaletteColor(0, 3, 0x8410);
     expect(edit::makePaletteRampChanges(document, 0, 2, 4).empty(), "finished ramp is a no-op");
 
     document.setPaletteColor(0, 3, 0x1234);
@@ -800,9 +841,20 @@ void testPaletteRampChanges()
     expect(reversed[0].colorIndex == 3 && reversed[0].oldColor == 0x1234 &&
                reversed[0].newColor == 0x52aa,
            "reversed ramp is darkest next to its end index");
-    expect(reversed[1].colorIndex == 4 && reversed[1].newColor == 0xa554,
+    expect(reversed[1].colorIndex == 4 && reversed[1].newColor == 0xad55,
            "reversed ramp is brightest next to its start index");
     expect(document.paletteColor(0, 3) == 0x1234, "building changes leaves the document alone");
+
+    // Colors the old 8-bit round trip could not represent: the ends must stay untouched.
+    document.setPaletteColor(0, 10, 0x0841);
+    document.setPaletteColor(0, 11, 0x0841);
+    document.setPaletteColor(0, 12, 0x0841);
+    expect(edit::makePaletteRampChanges(document, 0, 10, 12).empty(),
+           "ramp between equal colors changes nothing");
+    document.setPaletteColor(0, 12, 0x18c3);
+    const std::vector<PaletteColorChange> dark = edit::makePaletteRampChanges(document, 0, 10, 12);
+    expect(dark.size() == 1 && dark[0].colorIndex == 11 && dark[0].newColor == 0x1082,
+           "ramp never changes its two end colors");
 
     expectThrows<std::out_of_range>(
         [&] {
@@ -1018,6 +1070,7 @@ void runDrawingToolsTests()
     testRadialGradientRatio();
     testPaletteGradientColorIndex();
     testInterpolateRgb565();
+    testInterpolateRgb565KeepsEndpoints();
     testPaletteRampChanges();
     testPixelChangesDedupeAndSkipNoOps();
     testPixelChangesPerLayerAndColorSource();

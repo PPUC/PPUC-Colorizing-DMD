@@ -199,6 +199,8 @@ The `Background` topic exposes:
 - `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
 - `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
 - `Import Image` replaces the selected background image from a PNG/BMP/JPEG, scaled to the active SD/HD DMD size.
+  In HD mode, a background without HD data gets its HD image from the import; undoing the import
+  removes that HD image again.
 - `Export BG` writes the selected background image as a PNG using the current DMD dot/square render settings.
 
 ## Colors
@@ -354,18 +356,54 @@ implemented once and reused across canvas targets.
 
 ## Undo And Redo
 
-Undo and redo are scoped per frame and per resolution.
+Every edited object has its own undo/redo history. Undo and Redo act on the history that belongs
+to the current editing context; a new edit clears redo only in the history it is recorded in.
 
-Examples:
+Histories:
 
-- Edits on frame 10 SD have a separate history from frame 10 HD.
-- Edits on frame 10 SD have a separate history from frame 11 SD.
-- Switching frame or SD/HD mode updates whether Undo and Redo are available for that context.
+- Colorized frame pixels: per frame and per SD/HD resolution.
+- Comparison masks: per mask. Frames that share a mask share its history.
+- Dynamic masks, dynamic colors, and dynamic shadows: three separate histories per frame and per
+  SD/HD resolution.
+- Background masks: per frame and per SD/HD resolution.
+- Background images: per background and per SD/HD resolution.
+- Sprite color images: per sprite and per SD/HD resolution.
+- Palette colors: per palette.
 
-New edits clear redo only for the active frame/resolution history.
+Which history Undo and Redo use, in order of precedence:
 
-When `Mask` is active, Undo and Redo operate on comparison-mask edits instead of colorized-frame edits.
-Mask edit history is scoped per comparison mask, so frames sharing the same assigned mask also share that mask's edit history.
+1. `Edit Sprite` active with a sprite selected: the selected sprite's history for the active
+   resolution, or its SD history when the sprite has no HD data.
+2. `Mask` active: the comparison mask assigned to the current frame.
+3. `Dynamic` active: the current frame's dynamic-mask, dynamic-color, and dynamic-shadow histories
+   for the active resolution.
+4. `BG` active: the current frame's background-mask history for the active resolution.
+5. Inspector `Target` is `Background`: the selected background's image history for the active
+   resolution.
+6. Otherwise: the current frame's pixel history for the active resolution, then the selected
+   palette, then the current frame's dynamic-color and dynamic-shadow histories.
+
+Where a context lists several histories, Undo reverts the latest edit of the first listed history
+that has one, and Redo works the same way. The order is fixed; it is not the order in which the
+edits were made. Switching frame or SD/HD mode updates whether Undo and Redo are available for that
+context.
+
+An edit applied to several selected frames is recorded once per changed frame, in that frame's own
+history. Undo therefore reverts it only on the current frame; select another frame to undo it
+there. This also applies to dynamic shadow direction and color changes.
+
+Histories are dropped when the data they refer to is replaced as a whole:
+
+- Opening a project drops all histories.
+- `Remove HD` drops the frame's HD pixel history.
+- `Create HD` drops the frame's HD pixel history. Each related item that is upscaled in the dialog
+  also drops its HD history: dynamic mask, dynamic colors, and dynamic shadows of the frame, the
+  frame's background mask, and the image of the assigned background.
+- `Create HD Sprite` and `Remove HD Sprite` drop the sprite's HD history.
+- Sprite `Capture` drops the sprite's SD and HD histories.
+
+All other histories stay available. Importing an image into a background and copying a frame to a
+background are ordinary undoable edits and do not drop any history.
 
 ## Comparison Masks
 
@@ -411,7 +449,8 @@ Rules:
 - Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
 - Dynamic-mask edits are undoable per frame and per resolution.
 - Dynamic color changes are undoable per frame and per resolution.
-- Dynamic shadow direction and color changes are undoable per frame and per resolution.
+- Dynamic shadow direction and color changes apply to all selected frames that have dynamic data
+  and are undoable per frame and per resolution.
 
 Dynamic shadows are loaded from and saved back to the legacy `.cROM` dynamic-shadow blocks. The
 canvas, thumbnails, and PNG export render shadows after dynamic-color replacement and before sprite
@@ -458,7 +497,9 @@ The Inspector's `Palette` topic provides a palette selector, the selected palett
 - Double-click any palette color to open a color picker for that RGB565 palette entry.
 - Palette color cells and `From`/`To` controls are displayed as `1` through `64`.
 - Use `From`, `To`, and `Apply Gradient` to fill a palette range by interpolating between the
-  endpoint colors. Reversing `From` and `To` reverses the generated palette range.
+  endpoint colors. Reversing `From` and `To` reverses the generated palette range. The red, green,
+  and blue RGB565 components are interpolated separately and rounded to the nearest value; the two
+  endpoint colors themselves are never changed.
 - Use `Shape`, `Pattern`, and `Direction` to control the canvas `Grad` drawing tool.
 - Palette color changes and gradient fills are undoable per palette.
 - Palette color/name changes mark the project dirty and are saved with the `.cRP` file.

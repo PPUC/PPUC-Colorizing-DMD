@@ -81,4 +81,15 @@ void UndoHistories::clear()
     m_histories.clear();
 }
 
+void UndoHistories::clear(const HistoryKey& key)
+{
+    m_histories.erase(key);
+}
+
+void UndoHistories::clear(EditKind kind, std::size_t index)
+{
+    clear(HistoryKey{kind, index, render::Resolution::Sd});
+    clear(HistoryKey{kind, index, render::Resolution::Hd});
+}
+
 }  // namespace colorizing::edit

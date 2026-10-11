@@ -21,3 +21,5 @@ target_include_directories(colorizing_qt_v2_core
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+colorizing_qt_v2_enable_warnings(colorizing_qt_v2_core)

@@ -53,6 +53,28 @@ void PixelEditCommand::write(document::ProjectDocument& document, bool useNewCol
     }
 }
 
+BackgroundHdCreateCommand::BackgroundHdCreateCommand(std::size_t backgroundIndex,
+                                                     document::Rgb565Frame frame)
+    : m_backgroundIndex(backgroundIndex),
+      m_frame(std::move(frame))
+{
+}
+
+void BackgroundHdCreateCommand::apply(document::ProjectDocument& document) const
+{
+    document.setBackgroundFrame(m_backgroundIndex, render::Resolution::Hd, m_frame);
+}
+
+void BackgroundHdCreateCommand::revert(document::ProjectDocument& document) const
+{
+    document.removeBackgroundHdFrame(m_backgroundIndex);
+}
+
+EditTarget BackgroundHdCreateCommand::target() const
+{
+    return EditTarget{EditKind::BackgroundImage, m_backgroundIndex, render::Resolution::Hd, {}};
+}
+
 MaskEditCommand::MaskEditCommand(EditKind kind,
                                  std::size_t index,
                                  render::Resolution resolution,
@@ -139,18 +161,18 @@ EditTarget DynamicColorEditCommand::target() const
     return EditTarget{EditKind::DynamicColor, m_frameIndex, m_resolution, {m_frameIndex}};
 }
 
-DynamicShadowEditCommand::DynamicShadowEditCommand(std::size_t ownerFrameIndex,
+DynamicShadowEditCommand::DynamicShadowEditCommand(std::size_t frameIndex,
                                                    render::Resolution resolution,
                                                    std::size_t setIndex,
                                                    bool editDirection,
                                                    bool editColor,
-                                                   std::vector<DynamicShadowChange> changes)
-    : m_ownerFrameIndex(ownerFrameIndex),
+                                                   DynamicShadowChange change)
+    : m_frameIndex(frameIndex),
       m_resolution(resolution),
       m_setIndex(setIndex),
       m_editDirection(editDirection),
       m_editColor(editColor),
-      m_changes(std::move(changes))
+      m_change(change)
 {
 }
 
@@ -166,30 +188,23 @@ void DynamicShadowEditCommand::revert(document::ProjectDocument& document) const
 
 EditTarget DynamicShadowEditCommand::target() const
 {
-    EditTarget target{EditKind::DynamicShadow, m_ownerFrameIndex, m_resolution, {}};
-    target.frameIndices.reserve(m_changes.size());
-    for (const DynamicShadowChange& change : m_changes) {
-        target.frameIndices.push_back(change.frameIndex);
-    }
-    return target;
+    return EditTarget{EditKind::DynamicShadow, m_frameIndex, m_resolution, {m_frameIndex}};
 }
 
 void DynamicShadowEditCommand::write(document::ProjectDocument& document, bool useNewValue) const
 {
-    for (const DynamicShadowChange& change : m_changes) {
-        if (m_editDirection) {
-            document.setDynamicShadowDirection(change.frameIndex,
-                                               m_resolution,
-                                               m_setIndex,
-                                               useNewValue ? change.newDirection
-                                                           : change.oldDirection);
-        }
-        if (m_editColor) {
-            document.setDynamicShadowColor(change.frameIndex,
+    if (m_editDirection) {
+        document.setDynamicShadowDirection(m_frameIndex,
                                            m_resolution,
                                            m_setIndex,
-                                           useNewValue ? change.newColor : change.oldColor);
-        }
+                                           useNewValue ? m_change.newDirection
+                                                       : m_change.oldDirection);
+    }
+    if (m_editColor) {
+        document.setDynamicShadowColor(m_frameIndex,
+                                       m_resolution,
+                                       m_setIndex,
+                                       useNewValue ? m_change.newColor : m_change.oldColor);
     }
 }
 

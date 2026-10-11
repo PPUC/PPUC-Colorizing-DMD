@@ -312,16 +312,6 @@ void writeBytes(const std::filesystem::path& path, const std::vector<uint8_t>& b
     }
 }
 
-std::vector<uint8_t> readBytes(const std::filesystem::path& path)
-{
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) {
-        fail("could not open temp file: " + path.string());
-    }
-    return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)),
-                                std::istreambuf_iterator<char>());
-}
-
 void testFileReaderLoadsModernProject()
 {
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");

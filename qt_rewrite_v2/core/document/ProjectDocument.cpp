@@ -1048,6 +1048,16 @@ void ProjectDocument::setBackgroundFrame(std::size_t backgroundIndex,
     m_dirty = true;
 }
 
+void ProjectDocument::removeBackgroundHdFrame(std::size_t backgroundIndex)
+{
+    BackgroundRecord& background = requireBackground(m_backgrounds, backgroundIndex);
+    if (!background.colorizedHd) {
+        return;
+    }
+    background.colorizedHd.reset();
+    m_dirty = true;
+}
+
 uint16_t ProjectDocument::backgroundPixel(std::size_t backgroundIndex,
                                           Resolution resolution,
                                           int x,

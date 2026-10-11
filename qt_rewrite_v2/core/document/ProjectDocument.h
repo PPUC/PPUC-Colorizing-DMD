@@ -243,6 +243,7 @@ public:
     void setBackgroundFrame(std::size_t backgroundIndex,
                             Resolution resolution,
                             Rgb565Frame frame);
+    void removeBackgroundHdFrame(std::size_t backgroundIndex);
     [[nodiscard]] uint16_t backgroundPixel(std::size_t backgroundIndex,
                                            Resolution resolution,
                                            int x,

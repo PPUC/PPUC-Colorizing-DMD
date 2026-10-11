@@ -763,6 +763,19 @@ void testBackgroundMetadataAndMaskEditing()
     expect(document.backgroundPixel(0, Resolution::Hd, 6, 4) == 0x8888,
            "HD background frame replacement should create/read HD background");
 
+    document.markClean();
+    document.removeBackgroundHdFrame(0);
+    expect(!document.background(0).colorizedHd.has_value(),
+           "HD background frame removal should drop the HD image");
+    expect(document.backgroundPixel(0, Resolution::Sd, 3, 2) == 0x7777,
+           "HD background frame removal should keep the SD image");
+    expect(document.isDirty(), "HD background frame removal should mark dirty");
+    document.markClean();
+    document.removeBackgroundHdFrame(0);
+    expect(!document.isDirty(), "removing a missing HD background frame should not mark dirty");
+    expectThrows<std::out_of_range>([&]() { document.removeBackgroundHdFrame(1); },
+                                    "HD background frame removal index bounds");
+
     expectThrows<std::invalid_argument>(
         [&]() { document.setBackgroundFrame(0, Resolution::Sd, replacementHd); },
         "background frame replacement size validation");

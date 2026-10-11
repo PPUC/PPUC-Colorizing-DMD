@@ -19,6 +19,8 @@ target_link_libraries(colorizing_qt_v2_widgets
         Qt6::Widgets
 )
 
+colorizing_qt_v2_enable_warnings(colorizing_qt_v2_widgets)
+
 target_include_directories(colorizing_qt_v2_widgets
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -40,6 +42,8 @@ target_link_libraries(${COLORIZING_QT_V2_APP_NAME}
         colorizing_qt_v2_widgets
         Qt6::Widgets
 )
+
+colorizing_qt_v2_enable_warnings(${COLORIZING_QT_V2_APP_NAME})
 
 target_compile_definitions(${COLORIZING_QT_V2_APP_NAME}
     PRIVATE

@@ -84,7 +84,8 @@ struct PaletteGradient {
 [[nodiscard]] std::size_t paletteGradientColorIndex(const PaletteGradient& gradient,
                                                     render::Point point);
 
-// Blends in 8-bit RGB with truncating division, so the result matches colors picked in the UI.
+// Blends each RGB565 component on its own with round-to-nearest, so step 0 is exactly the start
+// color and step maxStep exactly the end color. Steps beyond maxStep give the end color.
 [[nodiscard]] uint16_t interpolateRgb565(uint16_t startColor,
                                          uint16_t endColor,
                                          std::size_t step,

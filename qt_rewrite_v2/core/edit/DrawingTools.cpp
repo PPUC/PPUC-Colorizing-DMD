@@ -12,29 +12,6 @@ namespace colorizing::edit {
 
 namespace {
 
-struct Rgb888 {
-    int red = 0;
-    int green = 0;
-    int blue = 0;
-};
-
-Rgb888 rgb565ToRgb888(uint16_t value)
-{
-    return Rgb888{
-        (((value >> 11) & 0x1f) * 255) / 31,
-        (((value >> 5) & 0x3f) * 255) / 63,
-        ((value & 0x1f) * 255) / 31,
-    };
-}
-
-uint16_t rgb888ToRgb565(Rgb888 color)
-{
-    const uint16_t r = static_cast<uint16_t>((color.red * 31) / 255);
-    const uint16_t g = static_cast<uint16_t>((color.green * 63) / 255);
-    const uint16_t b = static_cast<uint16_t>((color.blue * 31) / 255);
-    return static_cast<uint16_t>((r << 11) | (g << 5) | b);
-}
-
 std::size_t spritePixelIndex(int x, int y)
 {
     return static_cast<std::size_t>(y) * document::kMaxSpriteWidth +
@@ -296,15 +273,16 @@ uint16_t interpolateRgb565(uint16_t startColor,
     if (maxStep == 0) {
         return startColor;
     }
-    const Rgb888 start = rgb565ToRgb888(startColor);
-    const Rgb888 end = rgb565ToRgb888(endColor);
-    const int denominator = static_cast<int>(maxStep);
-    const int numerator = static_cast<int>(step);
-    return rgb888ToRgb565(Rgb888{
-        (start.red * (denominator - numerator) + end.red * numerator) / denominator,
-        (start.green * (denominator - numerator) + end.green * numerator) / denominator,
-        (start.blue * (denominator - numerator) + end.blue * numerator) / denominator,
-    });
+    const uint32_t denominator = static_cast<uint32_t>(maxStep);
+    const uint32_t numerator = static_cast<uint32_t>(std::min(step, maxStep));
+    const auto blend = [=](int shift, uint32_t mask) {
+        const uint32_t start = (startColor >> shift) & mask;
+        const uint32_t end = (endColor >> shift) & mask;
+        const uint32_t value =
+            (start * (denominator - numerator) + end * numerator + denominator / 2) / denominator;
+        return static_cast<uint16_t>(value << shift);
+    };
+    return static_cast<uint16_t>(blend(11, 0x1f) | blend(5, 0x3f) | blend(0, 0x1f));
 }
 
 std::vector<PaletteColorChange> makePaletteRampChanges(const document::ProjectDocument& document,

@@ -3367,7 +3367,8 @@ void MainWindow::importImageIntoSelectedBackground()
         const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
         const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
         if (targetResolution == render::Resolution::Hd && !background.colorizedHd) {
-            m_document->setBackgroundFrame(*backgroundIndex, targetResolution, imported);
+            commitEdit(
+                std::make_unique<edit::BackgroundHdCreateCommand>(*backgroundIndex, imported));
         } else {
             const document::Rgb565Frame& oldBackground =
                 m_document->backgroundFrame(*backgroundIndex, targetResolution);
@@ -3634,6 +3635,8 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                                         sourceColorized,
                                                         selectedPixels);
         }
+        m_undoHistories.clear(edit::EditKind::SpriteImage, *spriteIndex);
+        updateUndoRedoActions();
         m_document->setSpriteDetectionArea(*spriteIndex,
                                            0,
                                            document::SpriteDetectionArea{
@@ -4133,6 +4136,8 @@ void MainWindow::createCurrentSpriteHd()
 
     try {
         m_document->createHdSprite(*spriteIndex);
+        m_undoHistories.clear(
+            {edit::EditKind::SpriteImage, *spriteIndex, render::Resolution::Hd});
         m_activeResolution = render::Resolution::Hd;
         if (m_spriteEditor) {
             m_spriteEditor->setActiveResolution(m_activeResolution);
@@ -4160,6 +4165,8 @@ void MainWindow::removeCurrentSpriteHd()
 
     try {
         m_document->removeHdSprite(*spriteIndex);
+        m_undoHistories.clear(
+            {edit::EditKind::SpriteImage, *spriteIndex, render::Resolution::Hd});
         if (m_activeResolution == render::Resolution::Hd) {
             m_activeResolution = render::Resolution::Sd;
         }
@@ -4229,24 +4236,34 @@ void MainWindow::createCurrentFrameHd()
     }
 
     try {
+        const render::Resolution hd = render::Resolution::Hd;
         m_document->createHdFrame(*frameIndex);
+        m_undoHistories.clear({edit::EditKind::FramePixels, *frameIndex, hd});
         if (dynamicMaskCheckBox->isChecked()) {
             m_document->upscaleDynamicMaskToHd(*frameIndex);
+            m_undoHistories.clear({edit::EditKind::DynamicMask, *frameIndex, hd});
+            m_undoHistories.clear({edit::EditKind::DynamicColor, *frameIndex, hd});
+            m_undoHistories.clear({edit::EditKind::DynamicShadow, *frameIndex, hd});
         }
         if (backgroundMaskCheckBox->isChecked()) {
             m_document->upscaleBackgroundMaskToHd(*frameIndex);
+            m_undoHistories.clear({edit::EditKind::BackgroundMask, *frameIndex, hd});
         }
         if (backgroundImageCheckBox->isChecked()) {
+            const std::size_t backgroundIndex = m_document->backgroundId(*frameIndex);
             m_document->upscaleAssignedBackgroundToHd(*frameIndex);
+            m_undoHistories.clear({edit::EditKind::BackgroundImage, backgroundIndex, hd});
         }
-        m_activeResolution = render::Resolution::Hd;
+        m_activeResolution = hd;
         updateResolutionMode();
         updateFrameMetadataControls();
         updateFrameListItem(*frameIndex);
         updateProjectHeaderStatus();
+        updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Created HD frame from SD"), 2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
@@ -4261,6 +4278,8 @@ void MainWindow::removeCurrentFrameHd()
 
     try {
         m_document->removeHdFrame(*frameIndex);
+        m_undoHistories.clear(
+            {edit::EditKind::FramePixels, *frameIndex, render::Resolution::Hd});
         if (m_activeResolution == render::Resolution::Hd) {
             m_activeResolution = render::Resolution::Sd;
         }
@@ -4268,6 +4287,7 @@ void MainWindow::removeCurrentFrameHd()
         updateFrameMetadataControls();
         updateFrameListItem(*frameIndex);
         updateProjectHeaderStatus();
+        updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Removed HD frame"), 2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
@@ -4397,20 +4417,18 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
 
 void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
+    if (!m_document || !currentFrameIndex()) {
         return;
     }
 
-    std::vector<edit::DynamicShadowChange> changes;
-
     try {
-        for (std::size_t selectedFrameIndex : selectedFrameIndices()) {
-            if (!m_document->dynamicData(selectedFrameIndex).has_value()) {
+        bool changed = false;
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            if (!m_document->dynamicData(frameIndex).has_value()) {
                 continue;
             }
             const uint8_t oldDirection =
-                m_document->dynamicShadowDirection(selectedFrameIndex,
+                m_document->dynamicShadowDirection(frameIndex,
                                                    m_activeResolution,
                                                    activeDynamicSet());
             const uint8_t newDirection =
@@ -4420,29 +4438,25 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
                 continue;
             }
             edit::DynamicShadowChange change;
-            change.frameIndex = selectedFrameIndex;
             change.oldDirection = oldDirection;
             change.newDirection = newDirection;
-            change.oldColor = m_document->dynamicShadowColor(selectedFrameIndex,
-                                                             m_activeResolution,
-                                                             activeDynamicSet());
-            change.newColor = change.oldColor;
-            changes.push_back(change);
+            commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(frameIndex,
+                                                                        m_activeResolution,
+                                                                        activeDynamicSet(),
+                                                                        true,
+                                                                        false,
+                                                                        change));
+            changed = true;
         }
-        if (changes.empty()) {
+        if (!changed) {
             updateDynamicShadowControls();
             return;
         }
-        commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(*frameIndex,
-                                                                    m_activeResolution,
-                                                                    activeDynamicSet(),
-                                                                    true,
-                                                                    false,
-                                                                    std::move(changes)));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Updated dynamic shadow direction"), 2500);
     } catch (const std::exception& ex) {
         updateDynamicShadowControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
@@ -4469,7 +4483,7 @@ void MainWindow::editDynamicShadowColor()
             return;
         }
 
-        std::vector<edit::DynamicShadowChange> changes;
+        bool changed = false;
         for (std::size_t selectedFrameIndex : selectedFrameIndices()) {
             if (!m_document->dynamicData(selectedFrameIndex).has_value()) {
                 continue;
@@ -4482,30 +4496,26 @@ void MainWindow::editDynamicShadowColor()
                 continue;
             }
             edit::DynamicShadowChange change;
-            change.frameIndex = selectedFrameIndex;
-            change.oldDirection = m_document->dynamicShadowDirection(selectedFrameIndex,
-                                                                     m_activeResolution,
-                                                                     activeDynamicSet());
-            change.newDirection = change.oldDirection;
             change.oldColor = oldColor;
             change.newColor = newRgb565;
-            changes.push_back(change);
+            commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(selectedFrameIndex,
+                                                                        m_activeResolution,
+                                                                        activeDynamicSet(),
+                                                                        false,
+                                                                        true,
+                                                                        change));
+            changed = true;
         }
-        if (changes.empty()) {
+        if (!changed) {
             return;
         }
-        commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(*frameIndex,
-                                                                    m_activeResolution,
-                                                                    activeDynamicSet(),
-                                                                    false,
-                                                                    true,
-                                                                    std::move(changes)));
         updateUndoRedoActions();
         statusBar()->showMessage(QStringLiteral("Updated dynamic shadow color 0x%1")
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
                                  2500);
     } catch (const std::exception& ex) {
         updateDynamicShadowControls();
+        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
 }
@@ -5130,7 +5140,6 @@ void MainWindow::updateSpriteControls()
         m_spriteNameLineEdit->setEnabled(true);
     }
     m_spriteCanvasButton->setEnabled(true);
-    const bool spriteCanvasActive = isSpriteCanvasActive();
     if (isSpriteCanvasActive()) {
         m_createHdFrameButton->setText(QStringLiteral("Create HD Sprite"));
         m_createHdFrameButton->setToolTip(QStringLiteral("Create HD sprite from SD sprite"));
@@ -6454,6 +6463,7 @@ void MainWindow::commitFrameMaskPixels(edit::EditKind kind,
 
     try {
         bool changed = false;
+        bool hasAssignedBackground = false;
         for (std::size_t frameIndex : frameIndices) {
             if (isBackgroundMask) {
                 const std::optional<document::FrameBackgroundData>& backgroundData =
@@ -6462,6 +6472,7 @@ void MainWindow::commitFrameMaskPixels(edit::EditKind kind,
                     backgroundData->backgroundId >= m_document->backgroundCount()) {
                     continue;
                 }
+                hasAssignedBackground = true;
             } else if (!m_document->dynamicData(frameIndex)) {
                 continue;
             }
@@ -6472,7 +6483,7 @@ void MainWindow::commitFrameMaskPixels(edit::EditKind kind,
             }
         }
         if (!changed) {
-            if (isBackgroundMask) {
+            if (isBackgroundMask && !hasAssignedBackground) {
                 statusBar()->showMessage(
                     QStringLiteral("No selected frame has an assigned background"),
                     2500);

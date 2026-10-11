@@ -36,6 +36,10 @@ public:
     const EditCommand* redo(const HistoryKey& key, document::ProjectDocument& document);
 
     void clear();
+    // Drops one key's stacks, or those of both resolutions of a kind and index, once the data
+    // they edit has been replaced. The document is left alone.
+    void clear(const HistoryKey& key);
+    void clear(EditKind kind, std::size_t index);
 
 private:
     struct History {

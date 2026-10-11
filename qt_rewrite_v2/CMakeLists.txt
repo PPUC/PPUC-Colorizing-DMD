@@ -9,6 +9,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(COLORIZINGDMD_QT_V2_BUILD_TESTS "Build qt_rewrite_v2 tests" ON)
 option(COLORIZINGDMD_QT_V2_BUILD_APP "Build qt_rewrite_v2 Qt app" ON)
 
+# Only for the project's own targets, so the flags do not reach third-party code.
+function(colorizing_qt_v2_enable_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra)
+    endif()
+endfunction()
+
 add_subdirectory(core)
 
 if(COLORIZINGDMD_QT_V2_BUILD_APP)
