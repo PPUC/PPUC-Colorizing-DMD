@@ -629,4 +629,28 @@ QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
     return image;
 }
 
+QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
+                                         render::Resolution resolution)
+{
+    const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+    const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
+    const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
+    QImage image(static_cast<int>(document::kMaxSpriteWidth),
+                 static_cast<int>(document::kMaxSpriteHeight),
+                 QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * document::kMaxSpriteWidth +
+                static_cast<std::size_t>(x);
+            if (mask.pixels[index] == 255) {
+                continue;
+            }
+            image.setPixelColor(x, y, rgb565ToColor(colorized.pixels[index]));
+        }
+    }
+    return image;
+}
+
 }  // namespace colorizing::app

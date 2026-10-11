@@ -22,6 +22,7 @@
 #include "FrameThumbnail.h"
 #include "panels/ColorRotationPanel.h"
 #include "panels/PalettePanel.h"
+#include "panels/SpritePanel.h"
 #include "SpriteEditorWidget.h"
 
 namespace {
@@ -1693,6 +1694,441 @@ void testPalettePanel()
     expect(callbacks == callbacksBeforeClose, "resetting the palette panel should not notify");
 }
 
+colorizing::document::ProjectDocument makeSpritePanelDocument()
+{
+    using colorizing::document::FrameSpriteReference;
+    using colorizing::document::SpriteDetectionArea;
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
+    snapshot.romName = "sprite_panel";
+    // Frame 0 uses two sprites, frame 1 has only empty slots, frame 2 has no slot table.
+    for (int frameIndex = 0; frameIndex < 3; ++frameIndex) {
+        colorizing::document::ProjectFrameSnapshot frame{
+            colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+            colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        };
+        if (frameIndex < 2) {
+            frame.spriteReferences.assign(colorizing::document::kMaxSpritesPerFrame,
+                                          FrameSpriteReference{});
+        }
+        snapshot.frames.push_back(frame);
+    }
+    snapshot.frames[0].spriteReferences[0] = FrameSpriteReference{0, 10, 5, 40, 20};
+    snapshot.frames[0].spriteReferences[2] = FrameSpriteReference{1, 50, 2, 70, 12};
+
+    const colorizing::render::Size spriteSize{
+        static_cast<int>(colorizing::document::kMaxSpriteWidth),
+        static_cast<int>(colorizing::document::kMaxSpriteHeight)};
+    colorizing::document::SpriteRecord sprite;
+    sprite.originalSd = colorizing::document::makeIndexedFrame(spriteSize, 255);
+    sprite.colorizedSd = colorizing::document::makeRgb565Frame(spriteSize, 0);
+    sprite.maskHd = colorizing::document::makeIndexedFrame(spriteSize, 255);
+    sprite.colorizedHd = colorizing::document::makeRgb565Frame(spriteSize, 0);
+    sprite.detectionDwords.assign(colorizing::document::kMaxSpriteDetectAreas, 0xffffffff);
+    sprite.detectionDwordPositions.assign(colorizing::document::kMaxSpriteDetectAreas, 0xffff);
+    sprite.detectionAreas.assign(colorizing::document::kMaxSpriteDetectAreas,
+                                 SpriteDetectionArea{});
+    sprite.originalSd.pixels[0] = 1;
+    sprite.colorizedSd.pixels[0] = 0xf800;
+    snapshot.sprites.push_back(sprite);
+    snapshot.sprites.push_back(sprite);
+    snapshot.sprites[0].name = "hero";
+    snapshot.sprites[0].hasHd = true;
+    snapshot.sprites[0].detectionAreas[0] = SpriteDetectionArea{4, 5, 20, 8};
+    colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+    return document;
+}
+
+void testSpritePanel()
+{
+    using colorizing::app::SpriteDetectionAreaInput;
+    using colorizing::app::SpritePanelState;
+    using colorizing::app::SpriteSlotBounds;
+    const colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    const auto stateFor = [&document](std::optional<std::size_t> frameIndex,
+                                      std::optional<std::size_t> spriteIndex) {
+        SpritePanelState state;
+        state.document = &document;
+        state.frameIndex = frameIndex;
+        state.spriteIndex = spriteIndex;
+        return state;
+    };
+
+    colorizing::app::SpritePanel panel;
+    int callbacks = 0;
+    int slotChanges = 0;
+    int areaChanges = 0;
+    int assignRequests = 0;
+    int captureRequests = 0;
+    int removeRequests = 0;
+    int clearCaptureRequests = 0;
+    int applyRequests = 0;
+    int clearAreaRequests = 0;
+    std::optional<QString> name;
+    std::optional<bool> captureSelection;
+    std::optional<bool> boundsOverlay;
+    std::optional<bool> detectionAreas;
+    std::optional<bool> spriteCanvas;
+    std::optional<SpriteSlotBounds> bounds;
+    std::optional<SpriteDetectionAreaInput> area;
+    panel.onNameEdited = [&](const QString& value) {
+        ++callbacks;
+        name = value;
+    };
+    panel.onSlotSelectionChanged = [&]() {
+        ++callbacks;
+        ++slotChanges;
+    };
+    panel.onAssignRequested = [&]() {
+        ++callbacks;
+        ++assignRequests;
+    };
+    panel.onCaptureRequested = [&]() {
+        ++callbacks;
+        ++captureRequests;
+    };
+    panel.onRemoveRequested = [&]() {
+        ++callbacks;
+        ++removeRequests;
+    };
+    panel.onCaptureSelectionToggled = [&](bool checked) {
+        ++callbacks;
+        captureSelection = checked && panel.isCaptureSelectionChecked();
+    };
+    panel.onClearCaptureSelectionRequested = [&]() {
+        ++callbacks;
+        ++clearCaptureRequests;
+    };
+    panel.onBoundsOverlayToggled = [&](bool checked) {
+        ++callbacks;
+        boundsOverlay = checked && panel.isBoundsOverlayChecked();
+    };
+    panel.onDetectionAreasToggled = [&](bool checked) {
+        ++callbacks;
+        detectionAreas = checked && panel.isDetectionAreasChecked();
+    };
+    panel.onSpriteCanvasToggled = [&](bool checked) {
+        ++callbacks;
+        spriteCanvas = checked && panel.isSpriteCanvasChecked();
+    };
+    panel.onApplySpriteEditsRequested = [&]() {
+        ++callbacks;
+        ++applyRequests;
+    };
+    panel.onSlotBoundsEdited = [&]() {
+        ++callbacks;
+        bounds = panel.slotBounds();
+    };
+    panel.onDetectionAreaSelectionChanged = [&]() {
+        ++callbacks;
+        ++areaChanges;
+    };
+    panel.onDetectionAreaEdited = [&]() {
+        ++callbacks;
+        area = panel.detectionAreaInput();
+    };
+    panel.onClearDetectionAreaRequested = [&]() {
+        ++callbacks;
+        ++clearAreaRequests;
+    };
+
+    auto* nameLineEdit = childByToolTip<QLineEdit>(panel, "Selected sprite name");
+    auto* slotComboBox = childByToolTip<QComboBox>(panel, "Current frame sprite slot");
+    auto* assignButton =
+        childByToolTip<QToolButton>(panel, "Assign selected sprite to selected slot");
+    auto* captureButton = childByToolTip<QToolButton>(
+        panel,
+        "Copy original/colorized pixels from current frame bounds into selected sprite");
+    auto* removeButton = childByToolTip<QToolButton>(panel, "Clear selected sprite slot");
+    auto* captureSelectionButton = childByToolTip<QToolButton>(
+        panel,
+        "Draw a shaped sprite capture selection on the original frame");
+    auto* clearCaptureButton =
+        childByToolTip<QToolButton>(panel, "Clear the current sprite capture selection");
+    auto* boundsOverlayButton = childByToolTip<QToolButton>(
+        panel,
+        "Show selected sprite slot bounds on original frame");
+    auto* detectionAreasButton = childByToolTip<QToolButton>(
+        panel,
+        "Show sprite detection areas on original sprite preview");
+    auto* spriteCanvasButton =
+        childByToolTip<QToolButton>(panel, "Show selected sprite in the main canvas");
+    auto* applyButton =
+        childByToolTip<QToolButton>(panel, "Refresh frame previews from edited sprite data");
+    auto* minXSpinBox = childByToolTip<QSpinBox>(panel, "Sprite slot bounding box minimum X");
+    auto* minYSpinBox = childByToolTip<QSpinBox>(panel, "Sprite slot bounding box minimum Y");
+    auto* maxXSpinBox = childByToolTip<QSpinBox>(panel, "Sprite slot bounding box maximum X");
+    auto* maxYSpinBox = childByToolTip<QSpinBox>(panel, "Sprite slot bounding box maximum Y");
+    auto* areaComboBox = childByToolTip<QComboBox>(panel, "Sprite detection area");
+    auto* clearAreaButton =
+        childByToolTip<QToolButton>(panel, "Disable selected sprite detection area");
+    auto* areaXSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area X");
+    auto* areaYSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area Y");
+    auto* areaWidthSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area width");
+    auto* areaHeightSpinBox = childByToolTip<QSpinBox>(panel, "Sprite detection area height");
+    auto* originalPreviewLabel = childByToolTip<QLabel>(panel, "Sprite original mask preview");
+    QLabel* selectedLabel = nullptr;
+    QLabel* frameSpritesLabel = nullptr;
+    for (QLabel* label : panel.findChildren<QLabel*>()) {
+        if (label->text() == QStringLiteral("Selected: None")) {
+            selectedLabel = label;
+        } else if (label->text() == QStringLiteral("No frame sprites")) {
+            frameSpritesLabel = label;
+        }
+    }
+    expect(selectedLabel && frameSpritesLabel,
+           "sprite panel should start with its empty selection and frame labels");
+    expect(assignButton->text() == QStringLiteral("Assign") &&
+               captureButton->text() == QStringLiteral("Capture") &&
+               removeButton->text() == QStringLiteral("Remove") &&
+               captureSelectionButton->text() == QStringLiteral("Select Capture") &&
+               clearCaptureButton->text() == QStringLiteral("Clear Sel") &&
+               boundsOverlayButton->text() == QStringLiteral("Show Bounds") &&
+               detectionAreasButton->text() == QStringLiteral("Show Det Areas") &&
+               spriteCanvasButton->text() == QStringLiteral("Edit Sprite") &&
+               applyButton->text() == QStringLiteral("Apply Sprite") &&
+               clearAreaButton->text() == QStringLiteral("Clear Area"),
+           "sprite panel should keep its button texts");
+    expect(captureSelectionButton->isCheckable() && boundsOverlayButton->isCheckable() &&
+               detectionAreasButton->isCheckable() && spriteCanvasButton->isCheckable() &&
+               !assignButton->isCheckable(),
+           "sprite panel should keep its toggle buttons");
+    expect(nameLineEdit->maxLength() == 31 && minXSpinBox->maximum() == 127 &&
+               maxYSpinBox->maximum() == 31 && areaXSpinBox->maximum() == 255 &&
+               areaYSpinBox->maximum() == 63 && areaWidthSpinBox->minimum() == 1 &&
+               areaWidthSpinBox->maximum() == 256 && areaHeightSpinBox->maximum() == 64,
+           "sprite panel should keep its input limits");
+    expect(areaComboBox->count() ==
+                   static_cast<int>(colorizing::document::kMaxSpriteDetectAreas) &&
+               areaComboBox->itemText(1) == QStringLiteral("Area 1"),
+           "sprite panel should list every detection area");
+    expect(!originalPreviewLabel->isVisibleTo(&panel),
+           "sprite panel should keep the sprite previews hidden");
+
+    panel.refresh(SpritePanelState{});
+    expect(!nameLineEdit->isEnabled() && !slotComboBox->isEnabled() &&
+               !assignButton->isEnabled() && !captureButton->isEnabled() &&
+               !removeButton->isEnabled() && !captureSelectionButton->isEnabled() &&
+               !clearCaptureButton->isEnabled() && !boundsOverlayButton->isEnabled() &&
+               !detectionAreasButton->isEnabled() && !spriteCanvasButton->isEnabled() &&
+               !applyButton->isEnabled() && !minXSpinBox->isEnabled() &&
+               !areaComboBox->isEnabled() && !clearAreaButton->isEnabled() &&
+               !areaXSpinBox->isEnabled(),
+           "sprite panel should be disabled without a document");
+    expect(slotComboBox->count() == 1 &&
+               slotComboBox->itemText(0) == QStringLiteral("No slots") &&
+               !panel.selectedSlotIndex().has_value(),
+           "sprite panel should offer no slot without a document");
+    expect(maxXSpinBox->value() == 127 && maxYSpinBox->value() == 31,
+           "sprite panel should show the whole frame as bounds without a slot");
+
+    panel.refresh(stateFor(0, 0));
+    expect(selectedLabel->text() == QStringLiteral("Selected: 0 - hero (HD)") &&
+               nameLineEdit->text() == QStringLiteral("hero") && nameLineEdit->isEnabled(),
+           "sprite panel should show the selected named HD sprite");
+    expect(slotComboBox->isEnabled() &&
+               slotComboBox->count() ==
+                   static_cast<int>(colorizing::document::kMaxSpritesPerFrame) &&
+               slotComboBox->itemText(0) == QStringLiteral("Slot 0: Sprite 0 - hero") &&
+               slotComboBox->itemText(1) == QStringLiteral("Slot 1: Empty") &&
+               slotComboBox->itemText(2) == QStringLiteral("Slot 2: Sprite 1") &&
+               panel.selectedSlotIndex() == std::size_t{0},
+           "sprite panel should list the sprite slots of the frame");
+    expect(frameSpritesLabel->text() ==
+               QStringLiteral("0: Sprite 0 - hero [10,5-40,20]\n2: Sprite 1 [50,2-70,12]"),
+           "sprite panel should summarize the sprites the frame uses");
+    expect(assignButton->isEnabled() && captureButton->isEnabled() &&
+               captureSelectionButton->isEnabled() && removeButton->isEnabled() &&
+               boundsOverlayButton->isEnabled() && spriteCanvasButton->isEnabled() &&
+               detectionAreasButton->isEnabled() && !clearCaptureButton->isEnabled() &&
+               !applyButton->isEnabled(),
+           "sprite panel should enable the actions of an assigned slot");
+    SpriteSlotBounds shownBounds = panel.slotBounds();
+    expect(minXSpinBox->isEnabled() && shownBounds.minX == 10 && shownBounds.minY == 5 &&
+               shownBounds.maxX == 40 && shownBounds.maxY == 20,
+           "sprite panel should show the bounds of the selected slot");
+    SpriteDetectionAreaInput shownArea = panel.detectionAreaInput();
+    expect(areaComboBox->isEnabled() && panel.selectedDetectionAreaIndex() == 0 &&
+               clearAreaButton->isEnabled() && areaXSpinBox->isEnabled() &&
+               shownArea.x == 4 && shownArea.y == 5 && shownArea.width == 20 &&
+               shownArea.height == 8,
+           "sprite panel should show the selected detection area");
+    expect(!originalPreviewLabel->pixmap().isNull(),
+           "sprite panel should render the hidden sprite preview");
+
+    SpritePanelState pendingState = stateFor(0, 0);
+    pendingState.hasCaptureSelection = true;
+    pendingState.spriteEditsPending = true;
+    panel.refresh(pendingState);
+    expect(clearCaptureButton->isEnabled() && applyButton->isEnabled(),
+           "sprite panel should show a capture selection and pending sprite edits");
+    panel.refresh(stateFor(0, 0));
+    panel.setApplySpriteEditsEnabled(true);
+    expect(!clearCaptureButton->isEnabled() && applyButton->isEnabled(),
+           "pending sprite edits should be settable without a refresh");
+    panel.setApplySpriteEditsEnabled(false);
+
+    panel.refresh(stateFor(0, 1));
+    shownArea = panel.detectionAreaInput();
+    expect(selectedLabel->text() == QStringLiteral("Selected: 1") &&
+               nameLineEdit->text().isEmpty() && nameLineEdit->isEnabled() &&
+               spriteCanvasButton->isEnabled() && !detectionAreasButton->isEnabled() &&
+               !clearAreaButton->isEnabled() && areaXSpinBox->isEnabled() &&
+               shownArea.x == 0 && shownArea.y == 0 && shownArea.width == 1 &&
+               shownArea.height == 1,
+           "sprite panel should show an unnamed SD sprite without detection areas");
+
+    panel.refresh(stateFor(1, 0));
+    shownBounds = panel.slotBounds();
+    expect(frameSpritesLabel->text() == QStringLiteral("Current frame uses no sprites") &&
+               slotComboBox->itemText(0) == QStringLiteral("Slot 0: Empty") &&
+               assignButton->isEnabled() && !removeButton->isEnabled() &&
+               boundsOverlayButton->isEnabled() && minXSpinBox->isEnabled() &&
+               shownBounds.maxX == 0 && shownBounds.maxY == 0,
+           "sprite panel should show a frame whose slots are all empty");
+
+    panel.refresh(stateFor(2, 0));
+    shownBounds = panel.slotBounds();
+    expect(slotComboBox->itemText(0) == QStringLiteral("No slots") &&
+               slotComboBox->isEnabled() && !panel.selectedSlotIndex().has_value() &&
+               !assignButton->isEnabled() && !captureButton->isEnabled() &&
+               !captureSelectionButton->isEnabled() && !boundsOverlayButton->isEnabled() &&
+               !minXSpinBox->isEnabled() && shownBounds.minX == 0 &&
+               shownBounds.maxX == 127 && shownBounds.maxY == 31 &&
+               spriteCanvasButton->isEnabled(),
+           "sprite panel should show a frame without sprite slots");
+
+    panel.refresh(stateFor(std::nullopt, 0));
+    expect(frameSpritesLabel->text() == QStringLiteral("No frame sprites") &&
+               !slotComboBox->isEnabled() && !assignButton->isEnabled() &&
+               nameLineEdit->isEnabled() && areaComboBox->isEnabled(),
+           "sprite panel should keep the sprite editable without a frame");
+
+    SpritePanelState pendingWithoutSprite = stateFor(0, std::nullopt);
+    pendingWithoutSprite.hasCaptureSelection = true;
+    pendingWithoutSprite.spriteEditsPending = true;
+    panel.refresh(pendingWithoutSprite);
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               !nameLineEdit->isEnabled() && nameLineEdit->text().isEmpty() &&
+               slotComboBox->isEnabled() && removeButton->isEnabled() &&
+               boundsOverlayButton->isEnabled() && !assignButton->isEnabled() &&
+               !captureButton->isEnabled() && !captureSelectionButton->isEnabled() &&
+               !clearCaptureButton->isEnabled() && !applyButton->isEnabled() &&
+               !spriteCanvasButton->isEnabled() && !detectionAreasButton->isEnabled() &&
+               !areaComboBox->isEnabled() && !areaXSpinBox->isEnabled() &&
+               originalPreviewLabel->text() == QStringLiteral("Original"),
+           "sprite panel should keep only the slot controls without a sprite");
+    panel.refresh(stateFor(0, 7));
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               !assignButton->isEnabled(),
+           "sprite panel should treat an unknown sprite as no sprite");
+    expect(callbacks == 0, "refreshing the sprite panel should not notify");
+
+    panel.refresh(stateFor(0, 0));
+    slotComboBox->setCurrentIndex(2);
+    expect(slotChanges == 1 && callbacks == 1 && panel.selectedSlotIndex() == std::size_t{2},
+           "selecting a sprite slot should notify once");
+    expect(panel.slotBounds().minX == 10,
+           "sprite panel should wait for the owner to refresh after a slot change");
+    panel.refresh(stateFor(0, 0));
+    shownBounds = panel.slotBounds();
+    expect(panel.selectedSlotIndex() == std::size_t{2} && shownBounds.minX == 50 &&
+               shownBounds.minY == 2 && shownBounds.maxX == 70 && shownBounds.maxY == 12,
+           "sprite panel should keep the selected slot across a refresh");
+    areaComboBox->setCurrentIndex(1);
+    expect(areaChanges == 1 && callbacks == 2 && panel.selectedDetectionAreaIndex() == 1,
+           "selecting a detection area should notify once");
+    panel.refresh(stateFor(0, 0));
+    shownArea = panel.detectionAreaInput();
+    expect(panel.selectedDetectionAreaIndex() == 1 && !clearAreaButton->isEnabled() &&
+               shownArea.x == 0 && shownArea.width == 1,
+           "sprite panel should keep the selected detection area across a refresh");
+    panel.setSelectedDetectionAreaIndex(3);
+    expect(panel.selectedDetectionAreaIndex() == 3, "the detection area should be settable");
+    panel.setSelectedDetectionAreaIndex(colorizing::document::kMaxSpriteDetectAreas);
+    expect(panel.selectedDetectionAreaIndex() == 3 && callbacks == 2,
+           "setting the detection area should neither notify nor accept an unknown area");
+
+    nameLineEdit->setText(QStringLiteral("renamed"));
+    expect(!name.has_value(), "typing a sprite name should not notify before it is finished");
+    Q_EMIT nameLineEdit->editingFinished();
+    expect(name == QStringLiteral("renamed") && document.sprite(0).name == "hero",
+           "finishing the sprite name should report it without renaming the sprite");
+    assignButton->click();
+    captureButton->click();
+    removeButton->click();
+    clearCaptureButton->click();
+    applyButton->click();
+    clearAreaButton->click();
+    expect(assignRequests == 1 && captureRequests == 1 && removeRequests == 1 &&
+               clearCaptureRequests == 0 && applyRequests == 0 && clearAreaRequests == 0,
+           "only enabled sprite buttons should notify");
+    panel.refresh(pendingState);
+    areaComboBox->setCurrentIndex(0);
+    panel.refresh(pendingState);
+    clearCaptureButton->click();
+    applyButton->click();
+    clearAreaButton->click();
+    expect(clearCaptureRequests == 1 && applyRequests == 1 && clearAreaRequests == 1 &&
+               areaChanges == 2,
+           "the remaining sprite buttons should notify once each");
+
+    captureSelectionButton->click();
+    boundsOverlayButton->click();
+    detectionAreasButton->click();
+    spriteCanvasButton->click();
+    expect(captureSelection == true && boundsOverlay == true && detectionAreas == true &&
+               spriteCanvas == true,
+           "sprite toggles should report being switched on");
+    const int callbacksBeforeSetters = callbacks;
+    panel.setSpriteCanvasChecked(false);
+    expect(!panel.isSpriteCanvasChecked() && spriteCanvas == true &&
+               callbacks == callbacksBeforeSetters,
+           "leaving the sprite canvas from the owner should not notify");
+    panel.refresh(stateFor(2, std::nullopt));
+    expect(panel.isCaptureSelectionChecked() && panel.isBoundsOverlayChecked() &&
+               panel.isDetectionAreasChecked() && !captureSelectionButton->isEnabled() &&
+               callbacks == callbacksBeforeSetters,
+           "sprite toggles should stay switched on while they are unavailable");
+    panel.refresh(stateFor(0, 0));
+    expect(panel.selectedSlotIndex() == std::size_t{0},
+           "sprite panel should fall back to slot 0 after a frame without slots");
+    captureSelectionButton->click();
+    boundsOverlayButton->click();
+    detectionAreasButton->click();
+    spriteCanvasButton->click();
+    spriteCanvasButton->click();
+    expect(captureSelection == false && boundsOverlay == false && detectionAreas == false &&
+               spriteCanvas == false,
+           "sprite toggles should report being switched off");
+
+    maxXSpinBox->setValue(3);
+    expect(bounds.has_value() && bounds->minX == 10 && bounds->minY == 5 &&
+               bounds->maxX == 3 && bounds->maxY == 20,
+           "editing the slot bounds should report them as entered");
+    bounds.reset();
+    minYSpinBox->setValue(9);
+    expect(bounds.has_value() && bounds->minY == 9, "each slot bound should notify");
+    areaWidthSpinBox->setValue(250);
+    expect(area.has_value() && area->x == 4 && area->y == 5 && area->width == 250 &&
+               area->height == 8,
+           "editing the detection area should report it as entered");
+    area.reset();
+    areaYSpinBox->setValue(60);
+    expect(area.has_value() && area->y == 60, "each detection area value should notify");
+
+    const int callbacksBeforeReset = callbacks;
+    panel.refresh(stateFor(0, 0));
+    panel.refresh(SpritePanelState{});
+    expect(callbacks == callbacksBeforeReset, "resetting the sprite panel should not notify");
+    expect(!document.isDirty() && document.sprite(0).name == "hero" &&
+               document.sprite(0).detectionAreas[0].width == 20 &&
+               document.frameSpriteReferences(0)[2].maxX == 70,
+           "sprite panel should leave the document untouched");
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -1724,6 +2160,7 @@ int main(int argc, char* argv[])
     testColorRotationPreviewTransform();
     testColorRotationPanel();
     testPalettePanel();
+    testSpritePanel();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

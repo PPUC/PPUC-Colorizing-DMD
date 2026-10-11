@@ -1,0 +1,115 @@
+#pragma once
+
+#include <cstddef>
+#include <functional>
+#include <optional>
+
+#include <QString>
+#include <QWidget>
+
+#include "document/ProjectDocument.h"
+
+class QComboBox;
+class QLabel;
+class QLineEdit;
+class QSpinBox;
+class QToolButton;
+
+namespace colorizing::app {
+
+// What the sprite page displays. The slot, the detection area and the toggles are the page's
+// own state and are kept across refreshes.
+struct SpritePanelState {
+    const document::ProjectDocument* document = nullptr;
+    std::optional<std::size_t> frameIndex;
+    std::optional<std::size_t> spriteIndex;
+    render::Resolution resolution = render::Resolution::Sd;
+    bool hasCaptureSelection = false;
+    bool spriteEditsPending = false;
+};
+
+// Spin box values as entered; a minimum may be larger than its maximum.
+struct SpriteSlotBounds {
+    int minX = 0;
+    int minY = 0;
+    int maxX = 0;
+    int maxY = 0;
+};
+
+// Spin box values as entered; the area may reach beyond the sprite.
+struct SpriteDetectionAreaInput {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+};
+
+// Inspector page for the selected sprite and the sprite slots of a frame. It only displays and
+// reports what the user asked for; the owner applies the edits and calls refresh().
+class SpritePanel final : public QWidget {
+public:
+    explicit SpritePanel(QWidget* parent = nullptr);
+
+    void refresh(const SpritePanelState& state);
+    // Ignored for an index the page does not offer.
+    void setSelectedDetectionAreaIndex(std::size_t areaIndex);
+    void setSpriteCanvasChecked(bool checked);
+    void setApplySpriteEditsEnabled(bool enabled);
+
+    // Empty when the frame has no sprite slots.
+    [[nodiscard]] std::optional<std::size_t> selectedSlotIndex() const;
+    [[nodiscard]] std::size_t selectedDetectionAreaIndex() const;
+    [[nodiscard]] SpriteSlotBounds slotBounds() const;
+    [[nodiscard]] SpriteDetectionAreaInput detectionAreaInput() const;
+    [[nodiscard]] bool isCaptureSelectionChecked() const;
+    [[nodiscard]] bool isBoundsOverlayChecked() const;
+    [[nodiscard]] bool isDetectionAreasChecked() const;
+    [[nodiscard]] bool isSpriteCanvasChecked() const;
+
+    std::function<void(const QString& name)> onNameEdited;
+    std::function<void()> onSlotSelectionChanged;
+    std::function<void()> onAssignRequested;
+    std::function<void()> onCaptureRequested;
+    std::function<void()> onRemoveRequested;
+    std::function<void(bool checked)> onCaptureSelectionToggled;
+    std::function<void()> onClearCaptureSelectionRequested;
+    std::function<void(bool checked)> onBoundsOverlayToggled;
+    std::function<void(bool checked)> onDetectionAreasToggled;
+    std::function<void(bool checked)> onSpriteCanvasToggled;
+    std::function<void()> onApplySpriteEditsRequested;
+    // Read the new values with slotBounds().
+    std::function<void()> onSlotBoundsEdited;
+    std::function<void()> onDetectionAreaSelectionChanged;
+    // Read the new values with detectionAreaInput().
+    std::function<void()> onDetectionAreaEdited;
+    std::function<void()> onClearDetectionAreaRequested;
+
+private:
+    QLabel* m_selectedSpriteLabel = nullptr;
+    QLineEdit* m_nameLineEdit = nullptr;
+    QComboBox* m_slotComboBox = nullptr;
+    QToolButton* m_assignButton = nullptr;
+    QToolButton* m_captureButton = nullptr;
+    QToolButton* m_removeButton = nullptr;
+    QToolButton* m_captureSelectionButton = nullptr;
+    QToolButton* m_clearCaptureSelectionButton = nullptr;
+    QToolButton* m_boundsOverlayButton = nullptr;
+    QToolButton* m_detectionAreasButton = nullptr;
+    QToolButton* m_spriteCanvasButton = nullptr;
+    QToolButton* m_applySpriteEditsButton = nullptr;
+    QSpinBox* m_minXSpinBox = nullptr;
+    QSpinBox* m_minYSpinBox = nullptr;
+    QSpinBox* m_maxXSpinBox = nullptr;
+    QSpinBox* m_maxYSpinBox = nullptr;
+    QComboBox* m_detectionAreaComboBox = nullptr;
+    QToolButton* m_clearDetectionAreaButton = nullptr;
+    QSpinBox* m_detectionAreaXSpinBox = nullptr;
+    QSpinBox* m_detectionAreaYSpinBox = nullptr;
+    QSpinBox* m_detectionAreaWidthSpinBox = nullptr;
+    QSpinBox* m_detectionAreaHeightSpinBox = nullptr;
+    QLabel* m_frameSpritesLabel = nullptr;
+    QLabel* m_originalPreviewLabel = nullptr;
+    QLabel* m_colorizedPreviewLabel = nullptr;
+};
+
+}  // namespace colorizing::app

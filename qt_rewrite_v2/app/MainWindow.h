@@ -18,6 +18,7 @@ namespace colorizing::app {
 class ColorRotationPanel;
 class FramePreviewWidget;
 class PalettePanel;
+class SpritePanel;
 class SpriteEditorWidget;
 }
 
@@ -30,7 +31,6 @@ class QAction;
 class QMenu;
 class QComboBox;
 class QCheckBox;
-class QLineEdit;
 class QSpinBox;
 class QTimer;
 
@@ -135,7 +135,7 @@ private:
     void clearSpriteCaptureSelection();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
-    void setCurrentSpriteName();
+    void setCurrentSpriteName(const QString& name);
     void setCurrentSpriteDetectionArea();
     void clearCurrentSpriteDetectionArea();
     void createCurrentSpriteHd();
@@ -334,16 +334,6 @@ private:
     QToolButton* m_copyBackgroundToFrameButton = nullptr;
     QToolButton* m_importBackgroundImageButton = nullptr;
     QToolButton* m_exportBackgroundButton = nullptr;
-    QToolButton* m_spriteBoundsOverlayButton = nullptr;
-    QToolButton* m_spriteDetectionAreasButton = nullptr;
-    QToolButton* m_spriteCanvasButton = nullptr;
-    QToolButton* m_applySpriteEditsButton = nullptr;
-    QToolButton* m_assignSpriteButton = nullptr;
-    QToolButton* m_captureSpriteButton = nullptr;
-    QToolButton* m_spriteCaptureSelectionButton = nullptr;
-    QToolButton* m_clearSpriteCaptureSelectionButton = nullptr;
-    QToolButton* m_removeSpriteButton = nullptr;
-    QToolButton* m_clearSpriteDetectionAreaButton = nullptr;
     QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     QSpinBox* m_backgroundIdSpinBox = nullptr;
@@ -351,30 +341,14 @@ private:
     QSpinBox* m_frameDurationSpinBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
-    QSpinBox* m_spriteMinXSpinBox = nullptr;
-    QSpinBox* m_spriteMinYSpinBox = nullptr;
-    QSpinBox* m_spriteMaxXSpinBox = nullptr;
-    QSpinBox* m_spriteMaxYSpinBox = nullptr;
-    QSpinBox* m_spriteDetectionAreaXSpinBox = nullptr;
-    QSpinBox* m_spriteDetectionAreaYSpinBox = nullptr;
-    QSpinBox* m_spriteDetectionAreaWidthSpinBox = nullptr;
-    QSpinBox* m_spriteDetectionAreaHeightSpinBox = nullptr;
     QComboBox* m_paintTargetComboBox = nullptr;
     QComboBox* m_shapeComparisonModeComboBox = nullptr;
     QComboBox* m_dmdPixelShapeComboBox = nullptr;
     QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
-    QComboBox* m_spriteComboBox = nullptr;
-    QLineEdit* m_spriteNameLineEdit = nullptr;
-    QComboBox* m_spriteSlotComboBox = nullptr;
-    QComboBox* m_spriteDetectionAreaComboBox = nullptr;
-    QLabel* m_spriteOriginalPreviewLabel = nullptr;
-    QLabel* m_spriteColorizedPreviewLabel = nullptr;
     QLabel* m_backgroundPreviewLabel = nullptr;
     QLabel* m_selectedMaskLabel = nullptr;
     QLabel* m_selectedBackgroundLabel = nullptr;
-    QLabel* m_selectedSpriteLabel = nullptr;
-    QLabel* m_frameSpritesLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<uint16_t> m_favoriteColors;
@@ -383,6 +357,7 @@ private:
     QToolButton* m_dynamicShadowColorButton = nullptr;
     ColorRotationPanel* m_colorRotationPanel = nullptr;
     PalettePanel* m_palettePanel = nullptr;
+    SpritePanel* m_spritePanel = nullptr;
     QToolButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
@@ -393,6 +368,8 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
+    // Sprite shown on the Sprite page and in the sprite canvas; -1 once a project has none.
+    int m_selectedSpriteIndex = 0;
     bool m_spriteDependentViewsDirty = false;
     std::optional<std::size_t> m_spriteCaptureSelectionFrameIndex;
     std::vector<uint8_t> m_spriteCaptureSelectionMask;

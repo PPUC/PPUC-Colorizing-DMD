@@ -13,6 +13,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/ColorRotationPanel.h
     panels/PalettePanel.cpp
     panels/PalettePanel.h
+    panels/SpritePanel.cpp
+    panels/SpritePanel.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
 )

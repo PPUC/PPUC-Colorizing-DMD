@@ -55,5 +55,8 @@ void paintDmdPixel(QPainter& painter,
 [[nodiscard]] QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
                                              int pixelScale,
                                              DmdRenderOptions options = {});
+// One image pixel per sprite pixel; falls back to SD when the sprite has no HD data.
+[[nodiscard]] QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
+                                                       render::Resolution resolution);
 
 }  // namespace colorizing::app
