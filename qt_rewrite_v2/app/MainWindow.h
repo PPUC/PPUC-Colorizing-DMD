@@ -13,10 +13,15 @@
 #include "edit/DrawingTools.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
+#include "panels/FramePanel.h"
 
 namespace colorizing::app {
+class BackgroundPanel;
 class ColorRotationPanel;
+class DynamicPanel;
+class FramePanel;
 class FramePreviewWidget;
+class MaskPanel;
 class PalettePanel;
 class SpritePanel;
 class SpriteEditorWidget;
@@ -59,11 +64,6 @@ private:
         FloodFill,
     };
 
-    enum class PaintTarget {
-        Frame,
-        Background,
-    };
-
     enum class FrameFilter {
         All,
         Hd,
@@ -91,6 +91,7 @@ private:
 
     void createActions();
     void createCentralView();
+    void restoreInspectorTabOrder();
     void openProject();
     void openRecentProject(const QString& entry);
     void saveProject();
@@ -116,6 +117,8 @@ private:
     void updateMaskControls();
     void updateBackgroundControls();
     void updatePaintTargetMode();
+    void setPaintTarget(PaintTarget target);
+    void paintTargetChanged();
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
@@ -144,6 +147,7 @@ private:
     void removeCurrentFrameHd();
     void updateDynamicColorControls();
     void updateDynamicShadowControls();
+    void dynamicSetChanged(int setIndex);
     void editDynamicColor(std::size_t originalColorIndex);
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
     void editDynamicShadowColor();
@@ -319,43 +323,19 @@ private:
     QToolButton* m_comparisonMaskOverlayButton = nullptr;
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QToolButton* m_backgroundMaskOverlayButton = nullptr;
-    QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_playbackButton = nullptr;
     QToolButton* m_loopPlaybackButton = nullptr;
     QCheckBox* m_useProjectTimingCheckBox = nullptr;
-    QToolButton* m_importFrameImageButton = nullptr;
-    QToolButton* m_createHdFrameButton = nullptr;
-    QToolButton* m_removeHdFrameButton = nullptr;
-    QToolButton* m_assignMaskButton = nullptr;
-    QToolButton* m_editMaskButton = nullptr;
-    QToolButton* m_assignBackgroundButton = nullptr;
-    QToolButton* m_editBackgroundButton = nullptr;
-    QToolButton* m_copyFrameToBackgroundButton = nullptr;
-    QToolButton* m_copyBackgroundToFrameButton = nullptr;
-    QToolButton* m_importBackgroundImageButton = nullptr;
-    QToolButton* m_exportBackgroundButton = nullptr;
-    QSpinBox* m_comparisonMaskIdSpinBox = nullptr;
-    QSpinBox* m_dynamicSetSpinBox = nullptr;
-    QSpinBox* m_backgroundIdSpinBox = nullptr;
-    QSpinBox* m_triggerIdSpinBox = nullptr;
-    QSpinBox* m_frameDurationSpinBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
-    QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
-    QComboBox* m_paintTargetComboBox = nullptr;
-    QComboBox* m_shapeComparisonModeComboBox = nullptr;
-    QComboBox* m_dmdPixelShapeComboBox = nullptr;
-    QCheckBox* m_switchToMonochromeCheckBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
-    QLabel* m_backgroundPreviewLabel = nullptr;
-    QLabel* m_selectedMaskLabel = nullptr;
-    QLabel* m_selectedBackgroundLabel = nullptr;
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<uint16_t> m_favoriteColors;
-    std::vector<QToolButton*> m_dynamicColorButtons;
-    std::vector<QToolButton*> m_dynamicShadowDirectionButtons;
-    QToolButton* m_dynamicShadowColorButton = nullptr;
+    BackgroundPanel* m_backgroundPanel = nullptr;
     ColorRotationPanel* m_colorRotationPanel = nullptr;
+    DynamicPanel* m_dynamicPanel = nullptr;
+    FramePanel* m_framePanel = nullptr;
+    MaskPanel* m_maskPanel = nullptr;
     PalettePanel* m_palettePanel = nullptr;
     SpritePanel* m_spritePanel = nullptr;
     QToolButton* m_activeColorButton = nullptr;

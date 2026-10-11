@@ -58,5 +58,8 @@ void paintDmdPixel(QPainter& painter,
 // One image pixel per sprite pixel; falls back to SD when the sprite has no HD data.
 [[nodiscard]] QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
                                                        render::Resolution resolution);
+// One image pixel per background pixel; falls back to SD when the background has no HD data.
+[[nodiscard]] QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
+                                                  render::Resolution resolution);
 
 }  // namespace colorizing::app

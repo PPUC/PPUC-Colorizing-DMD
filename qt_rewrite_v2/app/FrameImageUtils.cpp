@@ -653,4 +653,23 @@ QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
     return image;
 }
 
+QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
+                                    render::Resolution resolution)
+{
+    const bool useHd = resolution == render::Resolution::Hd && background.colorizedHd;
+    const document::Rgb565Frame& frame =
+        useHd ? *background.colorizedHd : background.colorizedSd;
+    QImage image(frame.size.width, frame.size.height, QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < frame.size.height; ++y) {
+        for (int x = 0; x < frame.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+                static_cast<std::size_t>(x);
+            image.setPixelColor(x, y, rgb565ToColor(frame.pixels[index]));
+        }
+    }
+    return image;
+}
+
 }  // namespace colorizing::app

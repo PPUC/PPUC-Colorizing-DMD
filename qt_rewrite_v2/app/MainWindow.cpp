@@ -1,7 +1,6 @@
 #include "MainWindow.h"
 
 #include <algorithm>
-#include <array>
 #include <functional>
 #include <set>
 #include <tuple>
@@ -19,9 +18,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QFormLayout>
 #include <QFrame>
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -35,7 +32,6 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalBlocker>
-#include <QSizePolicy>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QStatusBar>
@@ -52,7 +48,11 @@
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 #include "SpriteEditorWidget.h"
+#include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
+#include "panels/DynamicPanel.h"
+#include "panels/FramePanel.h"
+#include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
@@ -65,17 +65,6 @@ namespace {
 constexpr int kMaxRecentProjects = 8;
 constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
-constexpr uint32_t kSwitchToMonochromeTriggerId = 65432;
-constexpr int kMaxManualTriggerId = static_cast<int>(kSwitchToMonochromeTriggerId - 1);
-constexpr int kMaxFrameDurationMs = 30000;
-constexpr std::array<uint8_t, 8> kDynamicShadowDirectionBits{
-    0x01, 0x02, 0x04, 0x80, 0x08, 0x40, 0x20, 0x10,
-};
-constexpr std::array<const char*, 8> kDynamicShadowDirectionLabels{
-    "TL", "T", "TR", "L", "R", "BL", "B", "BR",
-};
-constexpr std::array<int, 8> kDynamicShadowDirectionRows{0, 0, 0, 1, 1, 2, 2, 2};
-constexpr std::array<int, 8> kDynamicShadowDirectionColumns{0, 1, 2, 0, 2, 0, 1, 2};
 constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 
 QString favoriteColorButtonStyle(uint16_t rgb565)
@@ -152,25 +141,6 @@ uint16_t colorToRgb565(const QColor& color)
     const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
     const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
     return static_cast<uint16_t>((r << 11) | (g << 5) | b);
-}
-
-QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
-                                    render::Resolution resolution)
-{
-    const bool useHd = resolution == render::Resolution::Hd && background.colorizedHd;
-    const document::Rgb565Frame& frame =
-        useHd ? *background.colorizedHd : background.colorizedSd;
-    QImage image(frame.size.width, frame.size.height, QImage::Format_ARGB32);
-    image.fill(Qt::black);
-    for (int y = 0; y < frame.size.height; ++y) {
-        for (int x = 0; x < frame.size.width; ++x) {
-            const std::size_t index =
-                static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
-                static_cast<std::size_t>(x);
-            image.setPixelColor(x, y, rgb565ToColor(frame.pixels[index]));
-        }
-    }
-    return image;
 }
 
 document::Rgb565Frame rgb565FrameFromImage(const QImage& source, render::Size targetSize)
@@ -422,36 +392,19 @@ void MainWindow::createCentralView()
     m_backgroundMaskOverlayButton->setToolTip(QStringLiteral("Show and edit background mask"));
     m_backgroundMaskOverlayButton->setCheckable(true);
     m_backgroundMaskOverlayButton->setEnabled(false);
-    m_comparisonMaskIdSpinBox = new QSpinBox(central);
-    m_comparisonMaskIdSpinBox->setToolTip(QStringLiteral("Assigned comparison mask ID"));
-    m_comparisonMaskIdSpinBox->setMinimum(-1);
-    m_comparisonMaskIdSpinBox->setMaximum(-1);
-    m_comparisonMaskIdSpinBox->setSpecialValueText(QStringLiteral("None"));
-    m_comparisonMaskIdSpinBox->setEnabled(false);
-    m_dynamicSetSpinBox = new QSpinBox(central);
-    m_dynamicSetSpinBox->setToolTip(QStringLiteral("Dynamic mask set to paint"));
-    m_dynamicSetSpinBox->setRange(0, static_cast<int>(document::kMaxDynamicSetsPerFrame - 1));
-    m_dynamicSetSpinBox->setValue(0);
-    m_dynamicSetSpinBox->setEnabled(false);
-    m_shapeComparisonModeComboBox = new QComboBox(central);
-    m_shapeComparisonModeComboBox->setToolTip(QStringLiteral("Shape comparison mode"));
-    m_shapeComparisonModeComboBox->setEnabled(false);
-    m_backgroundIdSpinBox = new QSpinBox(central);
-    m_backgroundIdSpinBox->setToolTip(QStringLiteral("Assigned background ID"));
-    m_backgroundIdSpinBox->setMinimum(-1);
-    m_backgroundIdSpinBox->setMaximum(-1);
-    m_backgroundIdSpinBox->setSpecialValueText(QStringLiteral("None"));
-    m_backgroundIdSpinBox->setEnabled(false);
-    m_triggerIdSpinBox = new QSpinBox(central);
-    m_triggerIdSpinBox->setToolTip(QStringLiteral("Per-frame trigger ID"));
-    m_triggerIdSpinBox->setRange(0, kMaxManualTriggerId);
-    m_triggerIdSpinBox->setEnabled(false);
-    m_frameDurationSpinBox = new QSpinBox(central);
-    m_frameDurationSpinBox->setToolTip(QStringLiteral("Per-frame cRP duration"));
-    m_frameDurationSpinBox->setRange(0, kMaxFrameDurationMs);
-    m_frameDurationSpinBox->setSingleStep(10);
-    m_frameDurationSpinBox->setSuffix(QStringLiteral(" ms"));
-    m_frameDurationSpinBox->setEnabled(false);
+    m_maskPanel = new MaskPanel(central);
+    m_maskPanel->onMaskIdEdited = [this](int maskId) {
+        setCurrentFrameComparisonMaskId(maskId);
+    };
+    m_maskPanel->onShapeModeEdited = [this](int mode) {
+        setCurrentFrameShapeComparisonMode(mode);
+    };
+    m_maskPanel->onAssignRequested = [this]() {
+        assignSelectedMaskToFrames();
+    };
+    m_maskPanel->onEditRequested = [this]() {
+        editAssignedMask();
+    };
     m_colorRotationPanel = new ColorRotationPanel(central);
     m_colorRotationPanel->onSlotSelectionChanged = [this]() {
         updateColorRotationControls();
@@ -497,87 +450,70 @@ void MainWindow::createCentralView()
     m_palettePanel->onClearSelectionRequested = [this]() {
         clearCanvasSelection();
     };
-    m_switchToMonochromeCheckBox = new QCheckBox(QStringLiteral("Switch mono"), central);
-    m_switchToMonochromeCheckBox->setToolTip(
-        QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
-    m_switchToMonochromeCheckBox->setEnabled(false);
+    m_framePanel = new FramePanel(central);
+    m_framePanel->onPaintTargetChanged = [this]() {
+        paintTargetChanged();
+    };
+    m_framePanel->onBackgroundIdEdited = [this](int backgroundId) {
+        setCurrentFrameBackgroundId(backgroundId);
+    };
+    m_framePanel->onTriggerIdEdited = [this](int triggerId) {
+        setCurrentFrameTriggerId(triggerId);
+    };
+    m_framePanel->onDurationEdited = [this](int durationMs) {
+        setCurrentFrameDurationMs(durationMs);
+    };
+    m_framePanel->onSwitchToMonochromeToggled = [this](bool checked) {
+        setCurrentFrameSwitchToMonochrome(checked);
+    };
+    m_framePanel->onDmdRenderOptionsChanged = [this]() {
+        updateDmdRenderOptions();
+    };
+    m_framePanel->onBackgroundLayerToggled = [this](bool checked) {
+        if (m_preview) {
+            m_preview->setBackgroundLayerEnabled(checked);
+        }
+    };
+    m_framePanel->onImportImageRequested = [this]() {
+        importImageIntoSelectedFrames();
+    };
+    m_framePanel->onCreateHdRequested = [this]() {
+        if (isSpriteCanvasActive()) {
+            createCurrentSpriteHd();
+        } else {
+            createCurrentFrameHd();
+        }
+    };
+    m_framePanel->onRemoveHdRequested = [this]() {
+        if (isSpriteCanvasActive()) {
+            removeCurrentSpriteHd();
+        } else {
+            removeCurrentFrameHd();
+        }
+    };
     m_backgroundComboBox = new QComboBox(central);
     m_backgroundComboBox->setToolTip(QStringLiteral("Loaded background"));
     m_backgroundComboBox->setEnabled(false);
     m_backgroundComboBox->setVisible(false);
-    m_assignMaskButton = new QToolButton(central);
-    m_assignMaskButton->setText(QStringLiteral("Assign Mask"));
-    m_assignMaskButton->setToolTip(QStringLiteral("Assign selected comparison mask to selected frames"));
-    m_assignMaskButton->setEnabled(false);
-    m_editMaskButton = new QToolButton(central);
-    m_editMaskButton->setText(QStringLiteral("Edit Mask"));
-    m_editMaskButton->setToolTip(QStringLiteral("Show and edit the assigned comparison mask"));
-    m_editMaskButton->setEnabled(false);
-    m_assignBackgroundButton = new QToolButton(central);
-    m_assignBackgroundButton->setText(QStringLiteral("Assign BG"));
-    m_assignBackgroundButton->setToolTip(QStringLiteral("Assign selected background to selected frames"));
-    m_assignBackgroundButton->setEnabled(false);
-    m_editBackgroundButton = new QToolButton(central);
-    m_editBackgroundButton->setText(QStringLiteral("Edit BG"));
-    m_editBackgroundButton->setToolTip(QStringLiteral("Switch drawing target to the selected background"));
-    m_editBackgroundButton->setEnabled(false);
-    m_copyFrameToBackgroundButton = new QToolButton(central);
-    m_copyFrameToBackgroundButton->setText(QStringLiteral("Frame -> BG"));
-    m_copyFrameToBackgroundButton->setToolTip(
-        QStringLiteral("Copy the current frame image into the selected background"));
-    m_copyFrameToBackgroundButton->setEnabled(false);
-    m_copyBackgroundToFrameButton = new QToolButton(central);
-    m_copyBackgroundToFrameButton->setText(QStringLiteral("BG -> Frame"));
-    m_copyBackgroundToFrameButton->setToolTip(
-        QStringLiteral("Copy the selected background image into selected frames"));
-    m_copyBackgroundToFrameButton->setEnabled(false);
-    m_importBackgroundImageButton = new QToolButton(central);
-    m_importBackgroundImageButton->setText(QStringLiteral("Import Image"));
-    m_importBackgroundImageButton->setToolTip(
-        QStringLiteral("Import an image into the selected background"));
-    m_importBackgroundImageButton->setEnabled(false);
-    m_exportBackgroundButton = new QToolButton(central);
-    m_exportBackgroundButton->setText(QStringLiteral("Export BG"));
-    m_exportBackgroundButton->setToolTip(QStringLiteral("Export the selected background as PNG"));
-    m_exportBackgroundButton->setEnabled(false);
-    m_backgroundLayerButton = new QToolButton(central);
-    m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
-    m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
-    m_backgroundLayerButton->setCheckable(true);
-    m_backgroundLayerButton->setChecked(true);
-    m_backgroundLayerButton->setEnabled(false);
-    m_importFrameImageButton = new QToolButton(central);
-    m_importFrameImageButton->setText(QStringLiteral("Import Image"));
-    m_importFrameImageButton->setToolTip(
-        QStringLiteral("Import an image into selected frame pixels"));
-    m_importFrameImageButton->setEnabled(false);
-    m_createHdFrameButton = new QToolButton(central);
-    m_createHdFrameButton->setText(QStringLiteral("Create HD"));
-    m_createHdFrameButton->setToolTip(QStringLiteral("Create HD frame from SD frame"));
-    m_createHdFrameButton->setEnabled(false);
-    m_removeHdFrameButton = new QToolButton(central);
-    m_removeHdFrameButton->setText(QStringLiteral("Remove HD"));
-    m_removeHdFrameButton->setToolTip(QStringLiteral("Remove HD frame data"));
-    m_removeHdFrameButton->setEnabled(false);
-    m_paintTargetComboBox = new QComboBox(central);
-    m_paintTargetComboBox->setToolTip(QStringLiteral("Drawing target"));
-    m_paintTargetComboBox->addItem(QStringLiteral("Frame"),
-                                   static_cast<int>(PaintTarget::Frame));
-    m_paintTargetComboBox->addItem(QStringLiteral("Background"),
-                                   static_cast<int>(PaintTarget::Background));
-    m_paintTargetComboBox->setEnabled(false);
-    m_dmdPixelShapeComboBox = new QComboBox(central);
-    m_dmdPixelShapeComboBox->setToolTip(QStringLiteral("DMD pixel shape for canvas and PNG export"));
-    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Squares"),
-                                     static_cast<int>(DmdPixelShape::Square));
-    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Dots"),
-                                     static_cast<int>(DmdPixelShape::Dot));
-    m_dmdPixelSizeSpinBox = new QSpinBox(central);
-    m_dmdPixelSizeSpinBox->setToolTip(QStringLiteral("Relative DMD pixel size"));
-    m_dmdPixelSizeSpinBox->setRange(50, 100);
-    m_dmdPixelSizeSpinBox->setSingleStep(10);
-    m_dmdPixelSizeSpinBox->setSuffix(QStringLiteral("%"));
-    m_dmdPixelSizeSpinBox->setValue(100);
+    m_backgroundPanel = new BackgroundPanel(central);
+    m_backgroundPanel->onAssignRequested = [this]() {
+        assignSelectedBackgroundToFrames();
+    };
+    m_backgroundPanel->onEditRequested = [this]() {
+        editAssignedBackground();
+    };
+    m_backgroundPanel->onCopyFrameToBackgroundRequested = [this]() {
+        copyCurrentFrameToSelectedBackground();
+    };
+    m_backgroundPanel->onCopyBackgroundToFramesRequested = [this]() {
+        copySelectedBackgroundToFrames();
+    };
+    m_backgroundPanel->onImportImageRequested = [this]() {
+        importImageIntoSelectedBackground();
+    };
+    m_backgroundPanel->onExportRequested = [this]() {
+        exportSelectedBackgroundPng();
+    };
     m_spritePanel = new SpritePanel(central);
     m_spritePanel->onNameEdited = [this](const QString& name) {
         setCurrentSpriteName(name);
@@ -747,137 +683,26 @@ void MainWindow::createCentralView()
     auto* inspectorTabs = new QTabWidget(inspector);
     inspectorTabs->setDocumentMode(true);
 
-    auto* framePage = new QWidget(inspectorTabs);
-    auto* framePageLayout = new QVBoxLayout(framePage);
-    framePageLayout->setContentsMargins(6, 6, 6, 6);
-    auto* frameForm = new QFormLayout();
-    frameForm->addRow(QStringLiteral("Target"), m_paintTargetComboBox);
-    frameForm->addRow(QStringLiteral("BG ID"), m_backgroundIdSpinBox);
-    frameForm->addRow(QStringLiteral("Trigger ID"), m_triggerIdSpinBox);
-    frameForm->addRow(QStringLiteral("Duration"), m_frameDurationSpinBox);
-    frameForm->addRow(QString(), m_switchToMonochromeCheckBox);
-    frameForm->addRow(QStringLiteral("DMD Shape"), m_dmdPixelShapeComboBox);
-    frameForm->addRow(QStringLiteral("DMD Size"), m_dmdPixelSizeSpinBox);
-    framePageLayout->addLayout(frameForm);
-    framePageLayout->addWidget(m_backgroundLayerButton);
-    framePageLayout->addWidget(m_importFrameImageButton);
-    auto* hdButtonLayout = new QHBoxLayout();
-    hdButtonLayout->addWidget(m_createHdFrameButton);
-    hdButtonLayout->addWidget(m_removeHdFrameButton);
-    framePageLayout->addLayout(hdButtonLayout);
-    framePageLayout->addStretch(1);
-    inspectorTabs->addTab(framePage, QStringLiteral("Frame"));
+    inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"));
 
-    auto* maskPage = new QWidget(inspectorTabs);
-    auto* maskPageLayout = new QVBoxLayout(maskPage);
-    maskPageLayout->setContentsMargins(6, 6, 6, 6);
-    m_selectedMaskLabel = new QLabel(QStringLiteral("Selected: None"), maskPage);
-    m_selectedMaskLabel->setWordWrap(true);
-    maskPageLayout->addWidget(m_selectedMaskLabel);
-    auto* maskForm = new QFormLayout();
-    maskForm->addRow(QStringLiteral("Mask ID"), m_comparisonMaskIdSpinBox);
-    maskForm->addRow(QStringLiteral("Shape"), m_shapeComparisonModeComboBox);
-    maskPageLayout->addLayout(maskForm);
-    auto* maskButtonLayout = new QHBoxLayout();
-    maskButtonLayout->addWidget(m_assignMaskButton);
-    maskButtonLayout->addWidget(m_editMaskButton);
-    maskPageLayout->addLayout(maskButtonLayout);
-    maskPageLayout->addStretch(1);
-    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"));
+    inspectorTabs->addTab(m_maskPanel, QStringLiteral("Mask"));
 
-    auto* backgroundPage = new QWidget(inspectorTabs);
-    auto* backgroundPageLayout = new QVBoxLayout(backgroundPage);
-    backgroundPageLayout->setContentsMargins(6, 6, 6, 6);
-    m_selectedBackgroundLabel = new QLabel(QStringLiteral("Selected: None"), backgroundPage);
-    m_selectedBackgroundLabel->setWordWrap(true);
-    backgroundPageLayout->addWidget(m_selectedBackgroundLabel);
-    auto* backgroundButtonLayout = new QHBoxLayout();
-    backgroundButtonLayout->addWidget(m_assignBackgroundButton);
-    backgroundButtonLayout->addWidget(m_editBackgroundButton);
-    backgroundPageLayout->addLayout(backgroundButtonLayout);
-    auto* backgroundCopyLayout = new QHBoxLayout();
-    backgroundCopyLayout->addWidget(m_copyFrameToBackgroundButton);
-    backgroundCopyLayout->addWidget(m_copyBackgroundToFrameButton);
-    backgroundPageLayout->addLayout(backgroundCopyLayout);
-    auto* backgroundFileLayout = new QHBoxLayout();
-    backgroundFileLayout->addWidget(m_importBackgroundImageButton);
-    backgroundFileLayout->addWidget(m_exportBackgroundButton);
-    backgroundPageLayout->addLayout(backgroundFileLayout);
-    m_backgroundPreviewLabel = new QLabel(backgroundPage);
-    m_backgroundPreviewLabel->setFixedSize(190, 48);
-    m_backgroundPreviewLabel->setFrameShape(QFrame::Box);
-    m_backgroundPreviewLabel->setAlignment(Qt::AlignCenter);
-    m_backgroundPreviewLabel->setToolTip(QStringLiteral("Selected background preview"));
-    m_backgroundPreviewLabel->setVisible(false);
-    backgroundPageLayout->addStretch(1);
-    inspectorTabs->addTab(backgroundPage, QStringLiteral("BG"));
+    inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"));
 
-    auto* dynamicPage = new QWidget(inspectorTabs);
-    auto* dynamicPageLayout = new QVBoxLayout(dynamicPage);
-    dynamicPageLayout->setContentsMargins(6, 6, 6, 6);
-    auto* dynamicForm = new QFormLayout();
-    dynamicForm->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
-    dynamicPageLayout->addLayout(dynamicForm);
-    auto* dynamicColorsGrid = new QGridLayout();
-    dynamicColorsGrid->setHorizontalSpacing(4);
-    dynamicColorsGrid->setVerticalSpacing(4);
-    for (int colorIndex = 0; colorIndex < 16; ++colorIndex) {
-        auto* button = new QToolButton(dynamicPage);
-        button->setText(QString::number(colorIndex));
-        button->setToolTip(QStringLiteral("Dynamic color for original color %1").arg(colorIndex));
-        button->setFixedSize(32, 24);
-        button->setEnabled(false);
-        button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        dynamicColorsGrid->addWidget(button, colorIndex / 4, colorIndex % 4);
-        m_dynamicColorButtons.push_back(button);
-        connect(button, &QToolButton::clicked, this, [this, colorIndex]() {
-            editDynamicColor(static_cast<std::size_t>(colorIndex));
-        });
-    }
-    dynamicPageLayout->addLayout(dynamicColorsGrid);
-    auto* shadowTitleLabel = new QLabel(QStringLiteral("Shadow"), dynamicPage);
-    shadowTitleLabel->setStyleSheet(QStringLiteral("font-weight: 600;"));
-    dynamicPageLayout->addWidget(shadowTitleLabel);
-    auto* shadowGrid = new QGridLayout();
-    shadowGrid->setHorizontalSpacing(4);
-    shadowGrid->setVerticalSpacing(4);
-    for (std::size_t directionIndex = 0; directionIndex < kDynamicShadowDirectionBits.size();
-         ++directionIndex) {
-        auto* button = new QToolButton(dynamicPage);
-        button->setText(QString::fromLatin1(kDynamicShadowDirectionLabels[directionIndex]));
-        button->setToolTip(QStringLiteral("Toggle dynamic shadow direction %1")
-                               .arg(QString::fromLatin1(
-                                   kDynamicShadowDirectionLabels[directionIndex])));
-        button->setCheckable(true);
-        button->setFixedSize(32, 24);
-        button->setEnabled(false);
-        button->setProperty("shadowBit",
-                            static_cast<int>(kDynamicShadowDirectionBits[directionIndex]));
-        shadowGrid->addWidget(button,
-                              kDynamicShadowDirectionRows[directionIndex],
-                              kDynamicShadowDirectionColumns[directionIndex]);
-        m_dynamicShadowDirectionButtons.push_back(button);
-        connect(button, &QToolButton::toggled, this, [this, button](bool checked) {
-            setDynamicShadowDirectionBit(static_cast<uint8_t>(
-                                             button->property("shadowBit").toInt()),
-                                         checked);
-        });
-    }
-    auto* shadowCenterLabel = new QLabel(QStringLiteral("S"), dynamicPage);
-    shadowCenterLabel->setAlignment(Qt::AlignCenter);
-    shadowGrid->addWidget(shadowCenterLabel, 1, 1);
-    dynamicPageLayout->addLayout(shadowGrid);
-    m_dynamicShadowColorButton = new QToolButton(dynamicPage);
-    m_dynamicShadowColorButton->setText(QStringLiteral("Shadow Color"));
-    m_dynamicShadowColorButton->setToolTip(QStringLiteral("Dynamic shadow color for active set"));
-    m_dynamicShadowColorButton->setEnabled(false);
-    dynamicPageLayout->addWidget(m_dynamicShadowColorButton);
-    connect(m_dynamicShadowColorButton,
-            &QToolButton::clicked,
-            this,
-            &MainWindow::editDynamicShadowColor);
-    dynamicPageLayout->addStretch(1);
-    inspectorTabs->addTab(dynamicPage, QStringLiteral("Dyn"));
+    m_dynamicPanel = new DynamicPanel(central);
+    m_dynamicPanel->onDynamicSetChanged = [this](int setIndex) {
+        dynamicSetChanged(setIndex);
+    };
+    m_dynamicPanel->onColorClicked = [this](std::size_t originalColorIndex) {
+        editDynamicColor(originalColorIndex);
+    };
+    m_dynamicPanel->onShadowDirectionToggled = [this](uint8_t bit, bool enabled) {
+        setDynamicShadowDirectionBit(bit, enabled);
+    };
+    m_dynamicPanel->onShadowColorClicked = [this]() {
+        editDynamicShadowColor();
+    };
+    inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"));
 
     inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"));
     inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"));
@@ -903,12 +728,16 @@ void MainWindow::createCentralView()
         selectFrame(m_frameList ? m_frameList->currentRow() : -1);
     });
     connect(m_maskList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
-        if (!item || !m_comparisonMaskIdSpinBox) {
+        if (!item || !m_maskPanel) {
             return;
         }
         const int maskIndex = item->data(Qt::UserRole).toInt();
         if (maskIndex >= 0) {
-            m_comparisonMaskIdSpinBox->setValue(maskIndex);
+            const int previousMaskId = m_maskPanel->maskId();
+            m_maskPanel->setMaskId(maskIndex);
+            if (m_maskPanel->maskId() != previousMaskId) {
+                setCurrentFrameComparisonMaskId(m_maskPanel->maskId());
+            }
         }
         updateMaskControls();
     });
@@ -1003,48 +832,6 @@ void MainWindow::createCentralView()
         }
         updateUndoRedoActions();
     });
-    connect(m_backgroundLayerButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_preview) {
-            m_preview->setBackgroundLayerEnabled(checked);
-        }
-    });
-    connect(m_importFrameImageButton, &QToolButton::clicked, this, [this]() {
-        importImageIntoSelectedFrames();
-    });
-    connect(m_createHdFrameButton, &QToolButton::clicked, this, [this]() {
-        if (isSpriteCanvasActive()) {
-            createCurrentSpriteHd();
-        } else {
-            createCurrentFrameHd();
-        }
-    });
-    connect(m_removeHdFrameButton, &QToolButton::clicked, this, [this]() {
-        if (isSpriteCanvasActive()) {
-            removeCurrentSpriteHd();
-        } else {
-            removeCurrentFrameHd();
-        }
-    });
-    connect(m_paintTargetComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                cancelFreePaletteGradientSelection();
-                clearCanvasSelection();
-                updatePaintTargetMode();
-            });
-    connect(m_dmdPixelShapeComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                updateDmdRenderOptions();
-            });
-    connect(m_dmdPixelSizeSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int) {
-                updateDmdRenderOptions();
-            });
     m_playbackTimer = new QTimer(this);
     connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::advancePlaybackFrame);
     m_colorRotationPreviewTimer = new QTimer(this);
@@ -1072,48 +859,6 @@ void MainWindow::createCentralView()
             m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
         }
     });
-    connect(m_dynamicSetSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int setIndex) {
-                statusBar()->showMessage(QStringLiteral("Selected dynamic set %1").arg(setIndex),
-                                         1500);
-                updateDynamicColorControls();
-            });
-    connect(m_comparisonMaskIdSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int maskId) {
-                setCurrentFrameComparisonMaskId(maskId);
-            });
-    connect(m_shapeComparisonModeComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                setCurrentFrameShapeComparisonMode(
-                    m_shapeComparisonModeComboBox->currentData().toInt());
-            });
-    connect(m_backgroundIdSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int backgroundId) {
-                setCurrentFrameBackgroundId(backgroundId);
-            });
-    connect(m_triggerIdSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int triggerId) {
-                setCurrentFrameTriggerId(triggerId);
-            });
-    connect(m_frameDurationSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int durationMs) {
-                setCurrentFrameDurationMs(durationMs);
-            });
-    connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        setCurrentFrameSwitchToMonochrome(checked);
-    });
     connect(m_backgroundComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
@@ -1122,30 +867,6 @@ void MainWindow::createCentralView()
                 clearCanvasSelection();
                 updateBackgroundControls();
             });
-    connect(m_assignMaskButton, &QToolButton::clicked, this, [this]() {
-        assignSelectedMaskToFrames();
-    });
-    connect(m_editMaskButton, &QToolButton::clicked, this, [this]() {
-        editAssignedMask();
-    });
-    connect(m_assignBackgroundButton, &QToolButton::clicked, this, [this]() {
-        assignSelectedBackgroundToFrames();
-    });
-    connect(m_editBackgroundButton, &QToolButton::clicked, this, [this]() {
-        editAssignedBackground();
-    });
-    connect(m_copyFrameToBackgroundButton, &QToolButton::clicked, this, [this]() {
-        copyCurrentFrameToSelectedBackground();
-    });
-    connect(m_copyBackgroundToFrameButton, &QToolButton::clicked, this, [this]() {
-        copySelectedBackgroundToFrames();
-    });
-    connect(m_importBackgroundImageButton, &QToolButton::clicked, this, [this]() {
-        importImageIntoSelectedBackground();
-    });
-    connect(m_exportBackgroundButton, &QToolButton::clicked, this, [this]() {
-        exportSelectedBackgroundPng();
-    });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         paintFramePixel(hit, erase);
     });
@@ -1224,6 +945,31 @@ void MainWindow::createCentralView()
     updateDmdRenderOptions();
 
     setCentralWidget(central);
+    restoreInspectorTabOrder();
+}
+
+// The inspector controls used to be created interleaved across the pages. This keeps the tab
+// order that resulted from it now that each page creates its own controls in one go.
+void MainWindow::restoreInspectorTabOrder()
+{
+    const auto chain = [](const std::vector<QWidget*>& widgets) {
+        for (std::size_t index = 1; index < widgets.size(); ++index) {
+            QWidget::setTabOrder(widgets[index - 1], widgets[index]);
+        }
+    };
+    // Mask ID, shape mode, Assign, Edit.
+    const std::vector<QWidget*> mask = m_maskPanel->tabOrderWidgets();
+    // Dynamic set, then the color and shadow buttons.
+    const std::vector<QWidget*> dynamic = m_dynamicPanel->tabOrderWidgets();
+    // Background ID, trigger ID, duration, Switch mono, Show BG, Import Image, Create HD,
+    // Remove HD, drawing target, DMD shape, DMD size.
+    const std::vector<QWidget*> frame = m_framePanel->tabOrderWidgets();
+    // The six buttons.
+    const std::vector<QWidget*> background = m_backgroundPanel->tabOrderWidgets();
+    chain({mask[0], dynamic[0]});
+    chain({mask[1], frame[0], frame[1], frame[2]});
+    chain({m_backgroundComboBox, mask[2], mask[3]});
+    chain({background[5], frame[4], frame[5], frame[6], frame[7], frame[8], frame[9], frame[10]});
 }
 
 void MainWindow::openProject()
@@ -1386,7 +1132,7 @@ void MainWindow::exportCurrentFramePng()
     }
 
     const bool includeBackgroundLayer =
-        m_backgroundLayerButton && m_backgroundLayerButton->isChecked();
+        m_framePanel && m_framePanel->isBackgroundLayerChecked();
     const QImage image = renderResolvedFrameImage(*m_document,
                                                   *frameIndex,
                                                   exportResolution,
@@ -1609,8 +1355,8 @@ void MainWindow::refreshProjectSummary()
         m_spritePanel->setApplySpriteEditsEnabled(false);
     }
     m_preview->setDocument(m_document ? &*m_document : nullptr);
-    m_preview->setBackgroundLayerEnabled(m_backgroundLayerButton &&
-                                         m_backgroundLayerButton->isChecked());
+    m_preview->setBackgroundLayerEnabled(m_framePanel &&
+                                         m_framePanel->isBackgroundLayerChecked());
     m_preview->setSelectedSpriteBoundsOverlayEnabled(
         m_spritePanel && m_spritePanel->isBoundsOverlayChecked());
     if (m_spriteEditor) {
@@ -2091,14 +1837,14 @@ void MainWindow::updateResolutionMode()
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_dynamicMaskOverlayButton->setEnabled(hasDocument);
     m_backgroundMaskOverlayButton->setEnabled(hasDocument);
-    if (m_importFrameImageButton) {
-        m_importFrameImageButton->setEnabled(hasDocument && !selectedFrameIndices().empty());
+    if (m_framePanel) {
+        m_framePanel->setImportImageEnabled(hasDocument && !selectedFrameIndices().empty());
     }
-    if (m_dynamicSetSpinBox) {
-        m_dynamicSetSpinBox->setEnabled(hasDocument);
+    if (m_dynamicPanel) {
+        m_dynamicPanel->setDynamicSetEnabled(hasDocument);
     }
-    if (m_paintTargetComboBox) {
-        m_paintTargetComboBox->setEnabled(hasDocument && selectedBackgroundIndex().has_value());
+    if (m_framePanel) {
+        m_framePanel->setPaintTargetEnabled(hasDocument && selectedBackgroundIndex().has_value());
     }
     m_sdButton->setChecked(m_activeResolution == render::Resolution::Sd);
     m_hdButton->setChecked(m_activeResolution == render::Resolution::Hd);
@@ -2121,142 +1867,29 @@ void MainWindow::updateResolutionMode()
 
 void MainWindow::updateFrameMetadataControls()
 {
-    if (!m_comparisonMaskIdSpinBox || !m_shapeComparisonModeComboBox ||
-        !m_backgroundIdSpinBox || !m_triggerIdSpinBox || !m_frameDurationSpinBox ||
-        !m_switchToMonochromeCheckBox) {
+    if (!m_maskPanel || !m_framePanel) {
         return;
     }
 
     const std::optional<std::size_t> currentIndex = currentFrameIndex();
     const bool hasFrame = m_document && currentIndex.has_value();
-    QSignalBlocker maskBlocker(m_comparisonMaskIdSpinBox);
-    QSignalBlocker shapeBlocker(m_shapeComparisonModeComboBox);
-    QSignalBlocker backgroundBlocker(m_backgroundIdSpinBox);
-    QSignalBlocker triggerBlocker(m_triggerIdSpinBox);
-    QSignalBlocker durationBlocker(m_frameDurationSpinBox);
-    QSignalBlocker monoBlocker(m_switchToMonochromeCheckBox);
+    m_maskPanel->refreshFrame(m_document ? &*m_document : nullptr, currentIndex);
+    FramePanelState state;
+    state.document = m_document ? &*m_document : nullptr;
+    state.frameIndex = currentIndex;
+    state.hasSelectedFrames = !selectedFrameIndices().empty();
+    m_framePanel->refresh(state);
 
     if (!hasFrame) {
-        m_comparisonMaskIdSpinBox->setRange(-1, -1);
-        m_comparisonMaskIdSpinBox->setValue(-1);
-        m_comparisonMaskIdSpinBox->setEnabled(false);
-        m_shapeComparisonModeComboBox->clear();
-        m_shapeComparisonModeComboBox->addItem(QStringLiteral("Full comparison"), 0);
-        m_shapeComparisonModeComboBox->addItem(QStringLiteral("Shape mode"), 1);
-        m_shapeComparisonModeComboBox->setCurrentIndex(0);
-        m_shapeComparisonModeComboBox->setEnabled(false);
-        m_backgroundIdSpinBox->setRange(-1, -1);
-        m_backgroundIdSpinBox->setValue(-1);
-        m_backgroundIdSpinBox->setEnabled(false);
-        m_triggerIdSpinBox->setValue(0);
-        m_triggerIdSpinBox->setEnabled(false);
-        m_frameDurationSpinBox->setValue(0);
-        m_frameDurationSpinBox->setEnabled(false);
-        m_frameDurationSpinBox->setToolTip(QStringLiteral("Per-frame cRP duration"));
-        m_switchToMonochromeCheckBox->setChecked(false);
-        m_switchToMonochromeCheckBox->setEnabled(false);
-        if (m_backgroundLayerButton) {
-            m_backgroundLayerButton->setEnabled(false);
-        }
-        if (m_importFrameImageButton) {
-            m_importFrameImageButton->setEnabled(false);
-        }
-        if (m_createHdFrameButton) {
-            m_createHdFrameButton->setEnabled(false);
-        }
-        if (m_removeHdFrameButton) {
-            m_removeHdFrameButton->setEnabled(false);
-        }
-        if (m_paintTargetComboBox) {
-            m_paintTargetComboBox->setEnabled(false);
-            m_paintTargetComboBox->setCurrentIndex(0);
-        }
+        setPaintTarget(PaintTarget::Frame);
         updateDynamicColorControls();
         updateMaskControls();
         updateBackgroundControls();
         return;
     }
 
-    const std::size_t frameIndex = *currentIndex;
-    const int maxMaskId = m_document->comparisonMaskCount() == 0
-                              ? -1
-                              : static_cast<int>(m_document->comparisonMaskCount() - 1);
-    m_comparisonMaskIdSpinBox->setRange(-1, maxMaskId);
-    const uint8_t maskId = m_document->comparisonMaskId(frameIndex);
-    m_comparisonMaskIdSpinBox->setValue(maskId <= maxMaskId ? static_cast<int>(maskId) : -1);
-    m_comparisonMaskIdSpinBox->setEnabled(maxMaskId >= 0);
-    const int shapeMode = static_cast<int>(m_document->shapeComparisonMode(frameIndex));
-    m_shapeComparisonModeComboBox->clear();
-    m_shapeComparisonModeComboBox->addItem(QStringLiteral("Full comparison"), 0);
-    m_shapeComparisonModeComboBox->addItem(QStringLiteral("Shape mode"), 1);
-    if (shapeMode > 1) {
-        m_shapeComparisonModeComboBox->addItem(
-            QStringLiteral("Unknown legacy mode %1").arg(shapeMode),
-            shapeMode);
-    }
-    const int shapeIndex = m_shapeComparisonModeComboBox->findData(shapeMode);
-    m_shapeComparisonModeComboBox->setCurrentIndex(shapeIndex >= 0 ? shapeIndex : 0);
-    m_shapeComparisonModeComboBox->setEnabled(true);
-
-    const int maxBackgroundId = m_document->backgroundCount() == 0
-                                    ? -1
-                                    : static_cast<int>(m_document->backgroundCount() - 1);
-    m_backgroundIdSpinBox->setRange(-1, maxBackgroundId);
-    int backgroundValue = -1;
-    const std::optional<document::FrameBackgroundData>& backgroundData =
-        m_document->backgroundData(frameIndex);
-    if (backgroundData && backgroundData->backgroundId <= maxBackgroundId) {
-        backgroundValue = static_cast<int>(backgroundData->backgroundId);
-    }
-    m_backgroundIdSpinBox->setValue(backgroundValue);
-    m_backgroundIdSpinBox->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
-    const uint32_t triggerId = m_document->triggerId(frameIndex);
-    const bool switchToMonochrome = triggerId == kSwitchToMonochromeTriggerId;
-    m_switchToMonochromeCheckBox->setChecked(switchToMonochrome);
-    m_switchToMonochromeCheckBox->setEnabled(true);
-    const bool triggerIdEditable = !switchToMonochrome;
-    m_triggerIdSpinBox->setEnabled(triggerIdEditable);
-    m_triggerIdSpinBox->setValue(triggerId <= static_cast<uint32_t>(kMaxManualTriggerId)
-                                     ? static_cast<int>(triggerId)
-                                     : 0);
-    m_triggerIdSpinBox->setToolTip(
-        triggerId <= static_cast<uint32_t>(kMaxManualTriggerId) || switchToMonochrome
-            ? QStringLiteral("Per-frame trigger ID")
-            : QStringLiteral("Unsupported legacy trigger ID %1 is preserved until edited")
-                  .arg(triggerId));
-    const uint32_t durationMs = m_document->frameDurationMs(frameIndex);
-    m_frameDurationSpinBox->setEnabled(true);
-    m_frameDurationSpinBox->setValue(durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
-                                         ? static_cast<int>(durationMs)
-                                         : 0);
-    m_frameDurationSpinBox->setToolTip(
-        durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
-            ? QStringLiteral("Per-frame cRP duration")
-            : QStringLiteral("Unsupported cRP duration %1 ms is preserved until edited")
-                  .arg(durationMs));
-    if (m_backgroundLayerButton) {
-        m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
-    }
-    if (m_importFrameImageButton) {
-        m_importFrameImageButton->setEnabled(!selectedFrameIndices().empty());
-    }
-    const bool hasHdFrame = m_document->hasHdFrame(frameIndex);
-    if (m_createHdFrameButton) {
-        m_createHdFrameButton->setText(QStringLiteral("Create HD"));
-        m_createHdFrameButton->setToolTip(QStringLiteral("Create HD frame from SD frame"));
-        m_createHdFrameButton->setEnabled(!hasHdFrame);
-    }
-    if (m_removeHdFrameButton) {
-        m_removeHdFrameButton->setText(QStringLiteral("Remove HD"));
-        m_removeHdFrameButton->setToolTip(QStringLiteral("Remove HD frame data"));
-        m_removeHdFrameButton->setEnabled(hasHdFrame);
-    }
-    if (m_paintTargetComboBox) {
-        const bool hasSelectableBackground = m_document->backgroundCount() > 0;
-        m_paintTargetComboBox->setEnabled(hasSelectableBackground);
-        if (!hasSelectableBackground) {
-            m_paintTargetComboBox->setCurrentIndex(0);
-        }
+    if (m_document->backgroundCount() == 0) {
+        setPaintTarget(PaintTarget::Frame);
     }
     updateDynamicColorControls();
     updatePaintTargetMode();
@@ -2267,43 +1900,24 @@ void MainWindow::updateFrameMetadataControls()
 
 void MainWindow::updateMaskControls()
 {
-    if (!m_selectedMaskLabel || !m_assignMaskButton || !m_editMaskButton) {
+    if (!m_maskPanel) {
         return;
     }
 
-    const bool hasDocument = static_cast<bool>(m_document);
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     const QListWidgetItem* selectedItem = m_maskList ? m_maskList->currentItem() : nullptr;
     const int selectedMask = selectedItem ? selectedItem->data(Qt::UserRole).toInt() : -1;
-    const bool selectedMaskValid =
-        hasDocument && selectedMask >= 0 &&
-        static_cast<std::size_t>(selectedMask) < m_document->comparisonMaskCount();
-    const std::optional<std::size_t> assignedMask = currentComparisonMaskIndex();
-
-    if (selectedMaskValid) {
-        const QString assignedSuffix =
-            assignedMask && *assignedMask == static_cast<std::size_t>(selectedMask)
-                ? QStringLiteral(" (assigned)")
-                : QString();
-        m_selectedMaskLabel->setText(
-            QStringLiteral("Selected: %1%2").arg(selectedMask).arg(assignedSuffix));
-    } else if (assignedMask) {
-        m_selectedMaskLabel->setText(
-            QStringLiteral("Selected: %1 (assigned)").arg(static_cast<int>(*assignedMask)));
-    } else {
-        m_selectedMaskLabel->setText(QStringLiteral("Selected: None"));
-    }
-
-    m_assignMaskButton->setEnabled(selectedMaskValid && !frameIndices.empty());
-    m_editMaskButton->setEnabled(assignedMask.has_value());
+    m_maskPanel->refreshSelection(m_document ? &*m_document : nullptr,
+                                  currentFrameIndex(),
+                                  selectedMask >= 0
+                                      ? std::optional<std::size_t>(
+                                            static_cast<std::size_t>(selectedMask))
+                                      : std::nullopt,
+                                  !selectedFrameIndices().empty());
 }
 
 void MainWindow::updateBackgroundControls()
 {
-    if (!m_backgroundComboBox || !m_backgroundPreviewLabel ||
-        !m_assignBackgroundButton || !m_editBackgroundButton ||
-        !m_copyFrameToBackgroundButton || !m_copyBackgroundToFrameButton ||
-        !m_importBackgroundImageButton || !m_exportBackgroundButton) {
+    if (!m_backgroundComboBox || !m_backgroundPanel) {
         return;
     }
 
@@ -2340,50 +1954,22 @@ void MainWindow::updateBackgroundControls()
         }
     }
 
-    const int selectedBackground = m_backgroundComboBox->currentData().toInt();
-    const bool hasBackground =
-        m_document && selectedBackground >= 0 &&
-        static_cast<std::size_t>(selectedBackground) < m_document->backgroundCount();
+    const std::optional<std::size_t> selectedBackground = selectedBackgroundIndex();
     m_backgroundComboBox->setEnabled(m_document && m_document->backgroundCount() > 0);
-    m_assignBackgroundButton->setEnabled(hasBackground && !selectedFrameIndices().empty());
-    m_copyFrameToBackgroundButton->setEnabled(hasBackground && currentFrameIndex().has_value());
-    m_copyBackgroundToFrameButton->setEnabled(hasBackground && !selectedFrameIndices().empty());
-    m_importBackgroundImageButton->setEnabled(hasBackground);
-    m_exportBackgroundButton->setEnabled(hasBackground);
-    m_editBackgroundButton->setEnabled(hasBackground);
+    BackgroundPanelState state;
+    state.document = m_document ? &*m_document : nullptr;
+    state.selectedBackgroundIndex = selectedBackground;
+    state.resolution = m_activeResolution;
+    state.hasCurrentFrame = currentFrameIndex().has_value();
+    state.hasSelectedFrames = !selectedFrameIndices().empty();
+    m_backgroundPanel->refresh(state);
 
-    if (!hasBackground) {
-        if (m_selectedBackgroundLabel) {
-            m_selectedBackgroundLabel->setText(QStringLiteral("Selected: None"));
-        }
-        m_backgroundPreviewLabel->clear();
-        m_backgroundPreviewLabel->setText(QStringLiteral("Background"));
-        m_copyFrameToBackgroundButton->setEnabled(false);
-        m_copyBackgroundToFrameButton->setEnabled(false);
-        m_importBackgroundImageButton->setEnabled(false);
-        m_exportBackgroundButton->setEnabled(false);
-        if (m_preview) {
-            m_preview->setSelectedBackgroundIndex(std::nullopt);
-        }
-        return;
-    }
-
-    const document::BackgroundRecord& background =
-        m_document->background(static_cast<std::size_t>(selectedBackground));
-    if (m_selectedBackgroundLabel) {
-        m_selectedBackgroundLabel->setText(QStringLiteral("Selected: %1%2")
-                                               .arg(selectedBackground)
-                                               .arg(background.colorizedHd
-                                                        ? QStringLiteral(" (HD)")
-                                                        : QString()));
-    }
-    m_backgroundPreviewLabel->setPixmap(
-        previewPixmap(renderBackgroundPreviewImage(background, m_activeResolution),
-                      m_backgroundPreviewLabel->size()));
     if (m_preview) {
-        m_preview->setSelectedBackgroundIndex(static_cast<std::size_t>(selectedBackground));
+        m_preview->setSelectedBackgroundIndex(selectedBackground);
     }
-    updateBackgroundBrowserSelection();
+    if (selectedBackground) {
+        updateBackgroundBrowserSelection();
+    }
 }
 
 void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
@@ -2524,7 +2110,7 @@ void MainWindow::setCurrentFrameTriggerId(int triggerId)
     if (!m_document || frameIndices.empty()) {
         return;
     }
-    if (m_switchToMonochromeCheckBox && m_switchToMonochromeCheckBox->isChecked()) {
+    if (m_framePanel && m_framePanel->isSwitchToMonochromeChecked()) {
         return;
     }
 
@@ -2601,8 +2187,8 @@ void MainWindow::setCurrentFrameSwitchToMonochrome(bool enabled)
 
     const uint32_t storedTriggerId =
         enabled ? kSwitchToMonochromeTriggerId
-                : static_cast<uint32_t>(m_triggerIdSpinBox
-                                            ? std::clamp(m_triggerIdSpinBox->value(),
+                : static_cast<uint32_t>(m_framePanel
+                                            ? std::clamp(m_framePanel->triggerId(),
                                                          0,
                                                          kMaxManualTriggerId)
                                             : 0);
@@ -2641,7 +2227,7 @@ void MainWindow::assignSelectedBackgroundToFrames()
 
 void MainWindow::editAssignedBackground()
 {
-    if (!m_paintTargetComboBox) {
+    if (!m_framePanel) {
         return;
     }
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
@@ -2655,11 +2241,7 @@ void MainWindow::editAssignedBackground()
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
     }
-    const int targetIndex =
-        m_paintTargetComboBox->findData(static_cast<int>(PaintTarget::Background));
-    if (targetIndex >= 0) {
-        m_paintTargetComboBox->setCurrentIndex(targetIndex);
-    }
+    setPaintTarget(PaintTarget::Background);
     if (m_canvasStack && m_preview) {
         m_canvasStack->setCurrentWidget(m_preview);
     }
@@ -3072,7 +2654,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
 
     try {
         const bool includeBackgroundLayer =
-            m_backgroundLayerButton && m_backgroundLayerButton->isChecked();
+            m_framePanel && m_framePanel->isBackgroundLayerChecked();
         const document::Rgb565Frame sourceColorized =
             composeResolvedFrame(*m_document,
                                  *frameIndex,
@@ -3745,83 +3327,27 @@ void MainWindow::removeCurrentFrameHd()
 
 void MainWindow::updateDynamicColorControls()
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    const bool hasFrame = m_document && frameIndex.has_value();
-    const std::optional<document::FrameDynamicData>* dynamicData = nullptr;
-    if (hasFrame) {
-        dynamicData = &m_document->dynamicData(*frameIndex);
-    }
-
-    std::size_t colorCount = 0;
-    if (dynamicData && dynamicData->has_value()) {
-        const std::vector<uint16_t>& colors =
-            m_activeResolution == render::Resolution::Hd ? (*dynamicData)->colorsHd
-                                                         : (*dynamicData)->colorsSd;
-        colorCount = colors.size() / document::kMaxDynamicSetsPerFrame;
-    }
-
-    for (std::size_t colorIndex = 0; colorIndex < m_dynamicColorButtons.size(); ++colorIndex) {
-        QToolButton* button = m_dynamicColorButtons[colorIndex];
-        const bool enabled = dynamicData && dynamicData->has_value() && colorIndex < colorCount;
-        button->setEnabled(enabled);
-        if (!enabled) {
-            button->setToolTip(QStringLiteral("Dynamic color is not available"));
-            button->setStyleSheet(colorButtonStyle(0, false));
-            continue;
-        }
-
-        const uint16_t rgb565 = m_document->dynamicColor(*frameIndex,
-                                                         m_activeResolution,
-                                                         activeDynamicSet(),
-                                                         colorIndex);
-        button->setProperty("rgb565", static_cast<int>(rgb565));
-        button->setToolTip(QStringLiteral("Set %1 original %2: 0x%3")
-                               .arg(activeDynamicSet())
-                               .arg(static_cast<int>(colorIndex))
-                               .arg(rgb565, 4, 16, QLatin1Char('0')));
-        button->setStyleSheet(colorButtonStyle(rgb565));
+    if (m_dynamicPanel) {
+        m_dynamicPanel->refreshColors(m_document ? &*m_document : nullptr,
+                                      currentFrameIndex(),
+                                      m_activeResolution);
     }
     updateDynamicShadowControls();
 }
 
 void MainWindow::updateDynamicShadowControls()
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    const bool enabled = m_document && frameIndex &&
-                         m_document->dynamicData(*frameIndex).has_value();
-    uint8_t direction = 0;
-    uint16_t color = 0;
-    if (enabled) {
-        try {
-            direction = m_document->dynamicShadowDirection(*frameIndex,
-                                                           m_activeResolution,
-                                                           activeDynamicSet());
-            color = m_document->dynamicShadowColor(*frameIndex,
-                                                   m_activeResolution,
-                                                   activeDynamicSet());
-        } catch (const std::exception&) {
-            direction = 0;
-            color = 0;
-        }
+    if (m_dynamicPanel) {
+        m_dynamicPanel->refreshShadow(m_document ? &*m_document : nullptr,
+                                      currentFrameIndex(),
+                                      m_activeResolution);
     }
+}
 
-    for (QToolButton* button : m_dynamicShadowDirectionButtons) {
-        QSignalBlocker blocker(button);
-        const uint8_t bit = static_cast<uint8_t>(button->property("shadowBit").toInt());
-        button->setEnabled(enabled);
-        button->setChecked(enabled && (direction & bit) != 0);
-    }
-
-    if (m_dynamicShadowColorButton) {
-        m_dynamicShadowColorButton->setEnabled(enabled);
-        m_dynamicShadowColorButton->setProperty("rgb565", static_cast<int>(color));
-        m_dynamicShadowColorButton->setStyleSheet(colorButtonStyle(color, enabled));
-        m_dynamicShadowColorButton->setToolTip(
-            enabled ? QStringLiteral("Set %1 shadow color: 0x%2")
-                          .arg(activeDynamicSet())
-                          .arg(color, 4, 16, QLatin1Char('0'))
-                    : QStringLiteral("Dynamic shadow color is not available"));
-    }
+void MainWindow::dynamicSetChanged(int setIndex)
+{
+    statusBar()->showMessage(QStringLiteral("Selected dynamic set %1").arg(setIndex), 1500);
+    updateDynamicColorControls();
 }
 
 void MainWindow::editDynamicColor(std::size_t originalColorIndex)
@@ -4317,8 +3843,7 @@ void MainWindow::updateSpriteControls()
 
     if (!spriteIndex) {
         if (isSpriteCanvasActive()) {
-            m_createHdFrameButton->setEnabled(false);
-            m_removeHdFrameButton->setEnabled(false);
+            m_framePanel->disableHdActions();
         }
         if (m_canvasStack && m_preview) {
             m_canvasStack->setCurrentWidget(m_preview);
@@ -4331,12 +3856,7 @@ void MainWindow::updateSpriteControls()
 
     const document::SpriteRecord& sprite = m_document->sprite(*spriteIndex);
     if (isSpriteCanvasActive()) {
-        m_createHdFrameButton->setText(QStringLiteral("Create HD Sprite"));
-        m_createHdFrameButton->setToolTip(QStringLiteral("Create HD sprite from SD sprite"));
-        m_createHdFrameButton->setEnabled(!sprite.hasHd);
-        m_removeHdFrameButton->setText(QStringLiteral("Remove HD Sprite"));
-        m_removeHdFrameButton->setToolTip(QStringLiteral("Remove HD sprite data"));
-        m_removeHdFrameButton->setEnabled(sprite.hasHd);
+        m_framePanel->showSpriteHdActions(sprite.hasHd);
     }
     if (m_spriteEditor) {
         const std::size_t areaIndex = m_spritePanel->selectedDetectionAreaIndex();
@@ -4365,17 +3885,33 @@ void MainWindow::updatePaintTargetMode()
     updateUndoRedoActions();
 }
 
-MainWindow::PaintTarget MainWindow::activePaintTarget() const
+void MainWindow::setPaintTarget(PaintTarget target)
 {
-    if (!m_paintTargetComboBox) {
+    if (!m_framePanel || m_framePanel->paintTarget() == target) {
+        return;
+    }
+    m_framePanel->setPaintTarget(target);
+    paintTargetChanged();
+}
+
+void MainWindow::paintTargetChanged()
+{
+    cancelFreePaletteGradientSelection();
+    clearCanvasSelection();
+    updatePaintTargetMode();
+}
+
+PaintTarget MainWindow::activePaintTarget() const
+{
+    if (!m_framePanel) {
         return PaintTarget::Frame;
     }
-    return static_cast<PaintTarget>(m_paintTargetComboBox->currentData().toInt());
+    return m_framePanel->paintTarget();
 }
 
 uint8_t MainWindow::activeDynamicSet() const
 {
-    return m_dynamicSetSpinBox ? static_cast<uint8_t>(m_dynamicSetSpinBox->value()) : uint8_t{0};
+    return m_dynamicPanel ? m_dynamicPanel->dynamicSet() : uint8_t{0};
 }
 
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
@@ -4546,7 +4082,7 @@ void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
 void MainWindow::pickDynamicSet(const render::CanvasHit& hit)
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || !m_dynamicSetSpinBox) {
+    if (!m_document || !frameIndex || !m_dynamicPanel) {
         return;
     }
     try {
@@ -4559,7 +4095,10 @@ void MainWindow::pickDynamicSet(const render::CanvasHit& hit)
                                      2500);
             return;
         }
-        m_dynamicSetSpinBox->setValue(static_cast<int>(dynamicSet));
+        if (dynamicSet != m_dynamicPanel->dynamicSet()) {
+            m_dynamicPanel->setDynamicSet(static_cast<int>(dynamicSet));
+            dynamicSetChanged(static_cast<int>(dynamicSet));
+        }
         updateDynamicColorControls();
         statusBar()->showMessage(QStringLiteral("Picked dynamic set %1 at %2,%3")
                                      .arg(static_cast<int>(dynamicSet))
@@ -6077,28 +5616,11 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
 
 DmdRenderOptions MainWindow::currentDmdRenderOptions() const
 {
-    DmdRenderOptions options;
-    if (m_dmdPixelShapeComboBox) {
-        options.pixelShape =
-            static_cast<DmdPixelShape>(m_dmdPixelShapeComboBox->currentData().toInt());
-    }
-    if (m_dmdPixelSizeSpinBox) {
-        options.pixelCoverage =
-            static_cast<double>(m_dmdPixelSizeSpinBox->value()) / 100.0;
-    }
-    return options;
+    return m_framePanel ? m_framePanel->dmdRenderOptions() : DmdRenderOptions{};
 }
 
 void MainWindow::updateDmdRenderOptions()
 {
-    if (m_dmdPixelSizeSpinBox) {
-        const int value = m_dmdPixelSizeSpinBox->value();
-        const int roundedValue = std::clamp(((value + 5) / 10) * 10, 50, 100);
-        if (roundedValue != value) {
-            QSignalBlocker blocker(m_dmdPixelSizeSpinBox);
-            m_dmdPixelSizeSpinBox->setValue(roundedValue);
-        }
-    }
     if (m_preview) {
         m_preview->setDmdRenderOptions(currentDmdRenderOptions());
     }

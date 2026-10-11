@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QImage>
 #include <QLabel>
@@ -20,7 +21,11 @@
 #include "document/ProjectSnapshot.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
+#include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
+#include "panels/DynamicPanel.h"
+#include "panels/FramePanel.h"
+#include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
 #include "panels/SpritePanel.h"
 #include "SpriteEditorWidget.h"
@@ -2131,6 +2136,802 @@ void testSpritePanel()
 
 }  // namespace
 
+// Frame 0 has HD, mask 1, dynamic data and background 0; frame 1 has a shape mode, unassigned
+// background data and the switch-to-monochrome trigger; frame 2 carries values the editor
+// cannot represent; frame 3 has neither dynamic nor background data.
+colorizing::document::ProjectDocument makeInspectorPanelDocument()
+{
+    using colorizing::document::kMaxDynamicSetsPerFrame;
+    using colorizing::render::kHdFrameSize;
+    using colorizing::render::kSdFrameSize;
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
+    snapshot.romName = "inspector_panels";
+    for (int maskIndex = 0; maskIndex < 3; ++maskIndex) {
+        snapshot.comparisonMasks.push_back(
+            colorizing::document::makeIndexedFrame(kSdFrameSize, 0));
+    }
+    snapshot.backgrounds.push_back(colorizing::document::BackgroundRecord{
+        colorizing::document::makeRgb565Frame(kSdFrameSize, 0x07e0),
+        colorizing::document::makeRgb565Frame(kHdFrameSize, 0x001f),
+    });
+    snapshot.backgrounds.push_back(colorizing::document::BackgroundRecord{
+        colorizing::document::makeRgb565Frame(kSdFrameSize, 0xf800),
+    });
+    for (int frameIndex = 0; frameIndex < 4; ++frameIndex) {
+        snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+            colorizing::document::makeIndexedFrame(kSdFrameSize, 0),
+            colorizing::document::makeRgb565Frame(kSdFrameSize, 0),
+            std::nullopt,
+            0,
+            255,
+        });
+    }
+    const auto makeBackgroundData = [](uint16_t backgroundId) {
+        return colorizing::document::FrameBackgroundData{
+            backgroundId,
+            colorizing::document::makeIndexedFrame(kSdFrameSize, 0),
+            colorizing::document::makeIndexedFrame(kHdFrameSize, 0),
+        };
+    };
+    colorizing::document::FrameDynamicData dynamicData{
+        colorizing::document::makeIndexedFrame(kSdFrameSize, 255),
+        colorizing::document::makeIndexedFrame(kHdFrameSize, 255),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    dynamicData.colorsSd[1] = 0xf800;
+    dynamicData.colorsSd[2 * 16] = 0x07e0;
+    dynamicData.colorsHd[1] = 0x001f;
+    snapshot.frames[2].dynamicData = dynamicData;
+    dynamicData.shadowDirectionsSd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowColorsSd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowDirectionsHd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowColorsHd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowDirectionsSd[0] = 0x81;
+    dynamicData.shadowColorsSd[0] = 0x07e0;
+    dynamicData.shadowDirectionsSd[2] = 0x10;
+    dynamicData.shadowDirectionsHd[0] = 0x08;
+    dynamicData.shadowColorsHd[0] = 0xffff;
+
+    snapshot.frames[0].colorizedHd = colorizing::document::makeRgb565Frame(kHdFrameSize, 0);
+    snapshot.frames[0].comparisonMaskId = 1;
+    snapshot.frames[0].dynamicData = dynamicData;
+    snapshot.frames[0].backgroundData = makeBackgroundData(0);
+    snapshot.frames[0].triggerId = 5;
+    snapshot.frames[0].durationMs = 100;
+    snapshot.frames[1].shapeComparisonMode = 1;
+    snapshot.frames[1].backgroundData = makeBackgroundData(0xffff);
+    snapshot.frames[1].triggerId = 65432;
+    snapshot.frames[1].durationMs = 40000;
+    snapshot.frames[2].comparisonMaskId = 9;
+    snapshot.frames[2].shapeComparisonMode = 3;
+    snapshot.frames[2].backgroundData = makeBackgroundData(9);
+    snapshot.frames[2].triggerId = 70000;
+    colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+    return document;
+}
+
+void testMaskPanel()
+{
+    const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
+    const colorizing::document::ProjectDocument noMasks = makePreviewDocument();
+
+    colorizing::app::MaskPanel panel;
+    int callbacks = 0;
+    std::optional<int> editedMaskId;
+    std::optional<int> editedShapeMode;
+    int assignRequests = 0;
+    int editRequests = 0;
+    panel.onMaskIdEdited = [&](int maskId) {
+        ++callbacks;
+        editedMaskId = maskId;
+    };
+    panel.onShapeModeEdited = [&](int mode) {
+        ++callbacks;
+        editedShapeMode = mode;
+    };
+    panel.onAssignRequested = [&]() {
+        ++callbacks;
+        ++assignRequests;
+    };
+    panel.onEditRequested = [&]() {
+        ++callbacks;
+        ++editRequests;
+    };
+
+    auto* maskIdSpinBox = childByToolTip<QSpinBox>(panel, "Assigned comparison mask ID");
+    auto* shapeComboBox = childByToolTip<QComboBox>(panel, "Shape comparison mode");
+    auto* assignButton = childByToolTip<QToolButton>(
+        panel, "Assign selected comparison mask to selected frames");
+    auto* editButton =
+        childByToolTip<QToolButton>(panel, "Show and edit the assigned comparison mask");
+    QLabel* selectedLabel = nullptr;
+    for (QLabel* label : panel.findChildren<QLabel*>()) {
+        if (label->text().startsWith(QStringLiteral("Selected:"))) {
+            selectedLabel = label;
+        }
+    }
+    expect(selectedLabel != nullptr, "mask panel should show the selected mask label");
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               selectedLabel->wordWrap(),
+           "mask panel should start without a selected mask");
+    expect(assignButton->text() == QStringLiteral("Assign Mask") &&
+               editButton->text() == QStringLiteral("Edit Mask"),
+           "mask panel should keep its button texts");
+    expect(!maskIdSpinBox->isEnabled() && !shapeComboBox->isEnabled() &&
+               !assignButton->isEnabled() && !editButton->isEnabled(),
+           "mask panel should start disabled");
+    expect(maskIdSpinBox->minimum() == -1 && maskIdSpinBox->maximum() == -1 &&
+               maskIdSpinBox->specialValueText() == QStringLiteral("None") &&
+               panel.maskId() == -1,
+           "mask panel should start without mask IDs");
+    expect(shapeComboBox->count() == 0, "mask panel should start without shape modes");
+    expect(panel.tabOrderWidgets() ==
+               std::vector<QWidget*>{maskIdSpinBox, shapeComboBox, assignButton, editButton},
+           "mask panel should list its focusable controls in creation order");
+
+    panel.refreshFrame(nullptr, std::nullopt);
+    expect(!maskIdSpinBox->isEnabled() && !shapeComboBox->isEnabled() &&
+               shapeComboBox->count() == 2 && shapeComboBox->currentData().toInt() == 0,
+           "mask panel should offer the two shape modes but stay disabled without a frame");
+
+    panel.refreshFrame(&document, 0);
+    expect(maskIdSpinBox->isEnabled() && maskIdSpinBox->maximum() == 2 && panel.maskId() == 1,
+           "mask panel should show the assigned mask ID");
+    expect(shapeComboBox->isEnabled() && shapeComboBox->count() == 2 &&
+               shapeComboBox->currentText() == QStringLiteral("Full comparison"),
+           "mask panel should show full comparison");
+    panel.refreshFrame(&document, 1);
+    expect(panel.maskId() == -1 && shapeComboBox->currentText() == QStringLiteral("Shape mode") &&
+               shapeComboBox->currentData().toInt() == 1,
+           "mask panel should show no mask and the shape mode");
+    panel.refreshFrame(&document, 2);
+    expect(panel.maskId() == -1, "mask panel should show an out-of-range mask ID as none");
+    expect(shapeComboBox->count() == 3 &&
+               shapeComboBox->currentText() == QStringLiteral("Unknown legacy mode 3") &&
+               shapeComboBox->currentData().toInt() == 3,
+           "mask panel should keep an unknown legacy shape mode visible");
+    panel.refreshFrame(&noMasks, 0);
+    expect(!maskIdSpinBox->isEnabled() && maskIdSpinBox->maximum() == -1 &&
+               shapeComboBox->isEnabled() && shapeComboBox->count() == 2,
+           "mask panel should disable the mask ID when the project has no masks");
+    panel.refreshFrame(&document, std::nullopt);
+    expect(!maskIdSpinBox->isEnabled() && maskIdSpinBox->maximum() == -1 &&
+               !shapeComboBox->isEnabled(),
+           "mask panel should reset without a frame");
+
+    panel.refreshSelection(&document, 0, 1, true);
+    expect(selectedLabel->text() == QStringLiteral("Selected: 1 (assigned)") &&
+               assignButton->isEnabled() && editButton->isEnabled(),
+           "mask panel should mark the selected mask as assigned");
+    panel.refreshSelection(&document, 0, 2, true);
+    expect(selectedLabel->text() == QStringLiteral("Selected: 2") && assignButton->isEnabled() &&
+               editButton->isEnabled(),
+           "mask panel should show another selected mask");
+    panel.refreshSelection(&document, 0, 2, false);
+    expect(!assignButton->isEnabled() && editButton->isEnabled(),
+           "mask panel should not offer Assign without selected frames");
+    panel.refreshSelection(&document, 0, std::nullopt, true);
+    expect(selectedLabel->text() == QStringLiteral("Selected: 1 (assigned)") &&
+               !assignButton->isEnabled() && editButton->isEnabled(),
+           "mask panel should fall back to the assigned mask");
+    panel.refreshSelection(&document, 0, 7, true);
+    expect(selectedLabel->text() == QStringLiteral("Selected: 1 (assigned)") &&
+               !assignButton->isEnabled(),
+           "mask panel should ignore a selected mask that does not exist");
+    panel.refreshSelection(&document, 2, std::nullopt, true);
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               !assignButton->isEnabled() && !editButton->isEnabled(),
+           "mask panel should not offer Edit for an out-of-range mask ID");
+    panel.refreshSelection(&document, std::nullopt, 0, false);
+    expect(selectedLabel->text() == QStringLiteral("Selected: 0") && !assignButton->isEnabled() &&
+               !editButton->isEnabled(),
+           "mask panel should show the selected mask without a frame");
+    panel.refreshSelection(nullptr, std::nullopt, 0, true);
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               !assignButton->isEnabled() && !editButton->isEnabled(),
+           "mask panel should show no selection without a project");
+    expect(callbacks == 0, "refreshing the mask panel should not notify");
+
+    panel.refreshFrame(&document, 0);
+    panel.refreshSelection(&document, 0, 2, true);
+    panel.setMaskId(0);
+    expect(panel.maskId() == 0, "mask panel should take a mask ID");
+    panel.setMaskId(99);
+    expect(panel.maskId() == 2, "mask panel should clamp a mask ID to the offered ones");
+    expect(callbacks == 0, "setting the mask ID should not notify");
+
+    maskIdSpinBox->setValue(1);
+    expect(editedMaskId == 1, "editing the mask ID should report it");
+    maskIdSpinBox->setValue(-1);
+    expect(editedMaskId == -1, "clearing the mask ID should report -1");
+    shapeComboBox->setCurrentIndex(1);
+    expect(editedShapeMode == 1, "selecting a shape mode should report its value");
+    assignButton->click();
+    editButton->click();
+    expect(assignRequests == 1 && editRequests == 1 && callbacks == 5,
+           "each mask panel action should notify exactly once");
+    expect(document.comparisonMaskId(0) == 1 && document.shapeComparisonMode(0) == 0 &&
+               !document.isDirty(),
+           "mask panel should leave the document untouched");
+}
+
+void testDynamicPanel()
+{
+    using colorizing::render::Resolution;
+    const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
+
+    colorizing::app::DynamicPanel panel;
+    int callbacks = 0;
+    std::optional<int> changedSet;
+    std::optional<std::size_t> clickedColor;
+    std::optional<std::pair<int, bool>> toggledDirection;
+    int shadowColorClicks = 0;
+    panel.onDynamicSetChanged = [&](int setIndex) {
+        ++callbacks;
+        changedSet = setIndex;
+    };
+    panel.onColorClicked = [&](std::size_t originalColorIndex) {
+        ++callbacks;
+        clickedColor = originalColorIndex;
+    };
+    panel.onShadowDirectionToggled = [&](uint8_t bit, bool enabled) {
+        ++callbacks;
+        toggledDirection = {static_cast<int>(bit), enabled};
+    };
+    panel.onShadowColorClicked = [&]() {
+        ++callbacks;
+        ++shadowColorClicks;
+    };
+
+    auto* setSpinBox = childByToolTip<QSpinBox>(panel, "Dynamic mask set to paint");
+    auto* shadowColorButton =
+        childByToolTip<QToolButton>(panel, "Dynamic shadow color for active set");
+    QList<QToolButton*> colorButtons;
+    for (int colorIndex = 0; colorIndex < 16; ++colorIndex) {
+        const QString toolTip =
+            QStringLiteral("Dynamic color for original color %1").arg(colorIndex);
+        colorButtons.push_back(childByToolTip<QToolButton>(panel, toolTip.toLatin1().constData()));
+    }
+    const auto directionButton = [&panel](const char* label) {
+        const QString toolTip =
+            QStringLiteral("Toggle dynamic shadow direction %1").arg(QLatin1String(label));
+        return childByToolTip<QToolButton>(panel, toolTip.toLatin1().constData());
+    };
+    const std::vector<std::pair<const char*, int>> directions{
+        {"TL", 0x01}, {"T", 0x02}, {"TR", 0x04}, {"L", 0x80},
+        {"R", 0x08},  {"BL", 0x40}, {"B", 0x20}, {"BR", 0x10},
+    };
+    const auto checkedDirections = [&]() {
+        int mask = 0;
+        for (const auto& direction : directions) {
+            mask |= directionButton(direction.first)->isChecked() ? direction.second : 0;
+        }
+        return mask;
+    };
+    const auto enabledDirectionCount = [&]() {
+        int count = 0;
+        for (const auto& direction : directions) {
+            count += directionButton(direction.first)->isEnabled() ? 1 : 0;
+        }
+        return count;
+    };
+
+    expect(setSpinBox->minimum() == 0 &&
+               setSpinBox->maximum() ==
+                   static_cast<int>(colorizing::document::kMaxDynamicSetsPerFrame) - 1 &&
+               !setSpinBox->isEnabled() && panel.dynamicSet() == 0,
+           "dynamic panel should start on a disabled set 0");
+    expect(colorButtons[7]->text() == QStringLiteral("7") &&
+               colorButtons[7]->size() == QSize(32, 24) && enabledButtonCount(colorButtons) == 0,
+           "dynamic panel should start with sixteen disabled color buttons");
+    for (const auto& direction : directions) {
+        const QToolButton* button = directionButton(direction.first);
+        expect(button->text() == QLatin1String(direction.first) && button->isCheckable() &&
+                   !button->isEnabled() && button->size() == QSize(32, 24),
+               "dynamic panel should start with disabled shadow direction buttons");
+    }
+    expect(shadowColorButton->text() == QStringLiteral("Shadow Color") &&
+               !shadowColorButton->isEnabled(),
+           "dynamic panel should start with a disabled shadow color button");
+    const std::vector<QWidget*> tabOrder = panel.tabOrderWidgets();
+    expect(tabOrder.size() == 26 && tabOrder.front() == setSpinBox &&
+               tabOrder[1] == colorButtons[0] && tabOrder[17] == directionButton("TL") &&
+               tabOrder.back() == shadowColorButton,
+           "dynamic panel should list its focusable controls in creation order");
+
+    panel.refreshColors(nullptr, std::nullopt, Resolution::Sd);
+    panel.refreshShadow(nullptr, std::nullopt, Resolution::Sd);
+    expect(enabledButtonCount(colorButtons) == 0 &&
+               colorButtons[0]->toolTip() == QStringLiteral("Dynamic color is not available"),
+           "dynamic panel should show no colors without a frame");
+    expect(enabledDirectionCount() == 0 && checkedDirections() == 0 &&
+               !shadowColorButton->isEnabled() &&
+               shadowColorButton->toolTip() ==
+                   QStringLiteral("Dynamic shadow color is not available"),
+           "dynamic panel should show no shadow without a frame");
+
+    panel.setDynamicSetEnabled(true);
+    expect(setSpinBox->isEnabled(), "dynamic panel should enable the set on request");
+    panel.refreshColors(&document, 0, Resolution::Sd);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(enabledButtonCount(colorButtons) == 16 &&
+               colorButtons[1]->toolTip() == QStringLiteral("Set 0 original 1: 0xf800") &&
+               colorButtons[1]->styleSheet().contains(QStringLiteral("#ff0000")) &&
+               colorButtons[0]->toolTip() == QStringLiteral("Set 0 original 0: 0x0000"),
+           "dynamic panel should show the SD colors of set 0");
+    expect(enabledDirectionCount() == 8 && checkedDirections() == 0x81 &&
+               shadowColorButton->isEnabled() &&
+               shadowColorButton->toolTip() == QStringLiteral("Set 0 shadow color: 0x07e0") &&
+               shadowColorButton->styleSheet().contains(QStringLiteral("#00ff00")),
+           "dynamic panel should show the SD shadow of set 0");
+    panel.refreshColors(&document, 0, Resolution::Hd);
+    panel.refreshShadow(&document, 0, Resolution::Hd);
+    expect(colorButtons[1]->toolTip() == QStringLiteral("Set 0 original 1: 0x001f") &&
+               checkedDirections() == 0x08 &&
+               shadowColorButton->toolTip() == QStringLiteral("Set 0 shadow color: 0xffff"),
+           "dynamic panel should show the HD colors and shadow");
+
+    panel.setDynamicSet(2);
+    expect(panel.dynamicSet() == 2 && setSpinBox->value() == 2,
+           "dynamic panel should take a set");
+    expect(colorButtons[0]->toolTip() == QStringLiteral("Set 0 original 0: 0x0000"),
+           "dynamic panel should wait for the owner to refresh after a set change");
+    panel.refreshColors(&document, 0, Resolution::Sd);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(colorButtons[0]->toolTip() == QStringLiteral("Set 2 original 0: 0x07e0") &&
+               checkedDirections() == 0x10 &&
+               shadowColorButton->toolTip() == QStringLiteral("Set 2 shadow color: 0x0000"),
+           "dynamic panel should show colors and shadow of the selected set");
+    panel.setDynamicSet(99);
+    expect(panel.dynamicSet() == 31, "dynamic panel should clamp the set");
+    panel.setDynamicSet(0);
+
+    panel.refreshColors(&document, 2, Resolution::Sd);
+    panel.refreshShadow(&document, 2, Resolution::Sd);
+    expect(enabledButtonCount(colorButtons) == 16 && enabledDirectionCount() == 8 &&
+               checkedDirections() == 0 &&
+               shadowColorButton->toolTip() == QStringLiteral("Set 0 shadow color: 0x0000"),
+           "dynamic panel should show an empty shadow for dynamic data without shadow values");
+    panel.refreshColors(&document, 3, Resolution::Sd);
+    panel.refreshShadow(&document, 3, Resolution::Sd);
+    expect(enabledButtonCount(colorButtons) == 0 && enabledDirectionCount() == 0 &&
+               checkedDirections() == 0 && !shadowColorButton->isEnabled() &&
+               colorButtons[1]->toolTip() == QStringLiteral("Dynamic color is not available"),
+           "dynamic panel should be disabled for a frame without dynamic data");
+    expect(callbacks == 0, "refreshing the dynamic panel should not notify");
+
+    panel.refreshColors(&document, 0, Resolution::Sd);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    setSpinBox->setValue(5);
+    expect(changedSet == 5 && panel.dynamicSet() == 5,
+           "changing the dynamic set should report it");
+    colorButtons[3]->click();
+    expect(clickedColor == std::size_t{3}, "clicking a dynamic color should report its index");
+    directionButton("TR")->click();
+    expect(toggledDirection == std::make_pair(0x04, true),
+           "checking a shadow direction should report its bit");
+    directionButton("TR")->click();
+    expect(toggledDirection == std::make_pair(0x04, false),
+           "unchecking a shadow direction should report its bit");
+    shadowColorButton->click();
+    expect(shadowColorClicks == 1 && callbacks == 5,
+           "each dynamic panel action should notify exactly once");
+    expect(document.dynamicColor(0, Resolution::Sd, 0, 1) == 0xf800 &&
+               document.dynamicShadowDirection(0, Resolution::Sd, 0) == 0x81 &&
+               !document.isDirty(),
+           "dynamic panel should leave the document untouched");
+}
+
+void testBackgroundPanel()
+{
+    using colorizing::app::BackgroundPanelState;
+    using colorizing::render::Resolution;
+    const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
+    const auto stateFor = [&document](std::optional<std::size_t> backgroundIndex,
+                                      Resolution resolution = Resolution::Sd) {
+        BackgroundPanelState state;
+        state.document = &document;
+        state.selectedBackgroundIndex = backgroundIndex;
+        state.resolution = resolution;
+        state.hasCurrentFrame = true;
+        state.hasSelectedFrames = true;
+        return state;
+    };
+
+    colorizing::app::BackgroundPanel panel;
+    std::vector<int> requests(6, 0);
+    panel.onAssignRequested = [&]() { ++requests[0]; };
+    panel.onEditRequested = [&]() { ++requests[1]; };
+    panel.onCopyFrameToBackgroundRequested = [&]() { ++requests[2]; };
+    panel.onCopyBackgroundToFramesRequested = [&]() { ++requests[3]; };
+    panel.onImportImageRequested = [&]() { ++requests[4]; };
+    panel.onExportRequested = [&]() { ++requests[5]; };
+    const auto requestCount = [&requests]() {
+        int count = 0;
+        for (int request : requests) {
+            count += request;
+        }
+        return count;
+    };
+
+    auto* assignButton =
+        childByToolTip<QToolButton>(panel, "Assign selected background to selected frames");
+    auto* editButton =
+        childByToolTip<QToolButton>(panel, "Switch drawing target to the selected background");
+    auto* frameToBackgroundButton = childByToolTip<QToolButton>(
+        panel, "Copy the current frame image into the selected background");
+    auto* backgroundToFramesButton = childByToolTip<QToolButton>(
+        panel, "Copy the selected background image into selected frames");
+    auto* importButton =
+        childByToolTip<QToolButton>(panel, "Import an image into the selected background");
+    auto* exportButton =
+        childByToolTip<QToolButton>(panel, "Export the selected background as PNG");
+    auto* previewLabel = childByToolTip<QLabel>(panel, "Selected background preview");
+    const QList<QToolButton*> buttons{assignButton, editButton, frameToBackgroundButton,
+                                      backgroundToFramesButton, importButton, exportButton};
+    QLabel* selectedLabel = nullptr;
+    for (QLabel* label : panel.findChildren<QLabel*>()) {
+        if (label->text().startsWith(QStringLiteral("Selected:"))) {
+            selectedLabel = label;
+        }
+    }
+    expect(selectedLabel != nullptr, "background panel should show the selected background");
+    expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
+               selectedLabel->wordWrap() && enabledButtonCount(buttons) == 0,
+           "background panel should start without a background");
+    expect(assignButton->text() == QStringLiteral("Assign BG") &&
+               editButton->text() == QStringLiteral("Edit BG") &&
+               frameToBackgroundButton->text() == QStringLiteral("Frame -> BG") &&
+               backgroundToFramesButton->text() == QStringLiteral("BG -> Frame") &&
+               importButton->text() == QStringLiteral("Import Image") &&
+               exportButton->text() == QStringLiteral("Export BG"),
+           "background panel should keep its button texts");
+    expect(previewLabel->isHidden() && previewLabel->size() == QSize(190, 48) &&
+               previewLabel->pixmap().isNull(),
+           "background panel should keep its preview hidden");
+    expect(panel.tabOrderWidgets() == std::vector<QWidget*>(buttons.begin(), buttons.end()),
+           "background panel should list its focusable controls in creation order");
+
+    panel.refresh(BackgroundPanelState{});
+    expect(enabledButtonCount(buttons) == 0 &&
+               selectedLabel->text() == QStringLiteral("Selected: None") &&
+               previewLabel->text() == QStringLiteral("Background"),
+           "background panel should be disabled without a project");
+
+    const auto previewColor = [previewLabel]() {
+        const QImage image = previewLabel->pixmap().toImage();
+        return image.pixelColor(image.width() / 2, image.height() / 2);
+    };
+    panel.refresh(stateFor(0));
+    expect(enabledButtonCount(buttons) == 6 &&
+               selectedLabel->text() == QStringLiteral("Selected: 0 (HD)"),
+           "background panel should offer every action for a selected background");
+    expect(!previewLabel->pixmap().isNull() && previewColor() == QColor(0, 255, 0),
+           "background panel should render the SD background preview");
+    panel.refresh(stateFor(0, Resolution::Hd));
+    expect(previewColor() == QColor(0, 0, 255),
+           "background panel should render the HD background preview");
+    panel.refresh(stateFor(1, Resolution::Hd));
+    expect(selectedLabel->text() == QStringLiteral("Selected: 1") &&
+               previewColor() == QColor(255, 0, 0),
+           "background panel should fall back to SD for a background without HD");
+
+    BackgroundPanelState withoutCurrentFrame = stateFor(1);
+    withoutCurrentFrame.hasCurrentFrame = false;
+    panel.refresh(withoutCurrentFrame);
+    expect(!frameToBackgroundButton->isEnabled() && enabledButtonCount(buttons) == 5,
+           "background panel should need a current frame to copy it into the background");
+    BackgroundPanelState withoutSelectedFrames = stateFor(1);
+    withoutSelectedFrames.hasSelectedFrames = false;
+    panel.refresh(withoutSelectedFrames);
+    expect(!assignButton->isEnabled() && !backgroundToFramesButton->isEnabled() &&
+               frameToBackgroundButton->isEnabled() && editButton->isEnabled() &&
+               importButton->isEnabled() && exportButton->isEnabled(),
+           "background panel should need selected frames to assign or copy to them");
+
+    panel.refresh(stateFor(5));
+    expect(enabledButtonCount(buttons) == 0 &&
+               selectedLabel->text() == QStringLiteral("Selected: None") &&
+               previewLabel->pixmap().isNull() &&
+               previewLabel->text() == QStringLiteral("Background"),
+           "background panel should ignore a background that does not exist");
+    panel.refresh(stateFor(std::nullopt));
+    expect(enabledButtonCount(buttons) == 0 &&
+               selectedLabel->text() == QStringLiteral("Selected: None"),
+           "background panel should be disabled without a selected background");
+    expect(requestCount() == 0, "refreshing the background panel should not notify");
+
+    panel.refresh(stateFor(0));
+    for (int index = 0; index < buttons.size(); ++index) {
+        buttons[index]->click();
+        expect(requests[static_cast<std::size_t>(index)] == 1 && requestCount() == index + 1,
+               "each background panel button should notify its own request exactly once");
+    }
+    expect(!document.isDirty(), "background panel should leave the document untouched");
+}
+
+void testFramePanel()
+{
+    using colorizing::app::DmdPixelShape;
+    using colorizing::app::FramePanelState;
+    using colorizing::app::PaintTarget;
+    const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
+    const colorizing::document::ProjectDocument noBackgrounds = makePreviewDocument();
+    const auto stateFor = [](const colorizing::document::ProjectDocument& source,
+                             std::optional<std::size_t> frameIndex,
+                             bool hasSelectedFrames = true) {
+        FramePanelState state;
+        state.document = &source;
+        state.frameIndex = frameIndex;
+        state.hasSelectedFrames = hasSelectedFrames;
+        return state;
+    };
+
+    colorizing::app::FramePanel panel;
+    int callbacks = 0;
+    int paintTargetChanges = 0;
+    int dmdChanges = 0;
+    int importRequests = 0;
+    int createHdRequests = 0;
+    int removeHdRequests = 0;
+    std::optional<int> editedBackgroundId;
+    std::optional<int> editedTriggerId;
+    std::optional<int> editedDuration;
+    std::optional<bool> monochromeToggled;
+    std::optional<bool> backgroundLayerToggled;
+    panel.onPaintTargetChanged = [&]() {
+        ++callbacks;
+        ++paintTargetChanges;
+    };
+    panel.onBackgroundIdEdited = [&](int backgroundId) {
+        ++callbacks;
+        editedBackgroundId = backgroundId;
+    };
+    panel.onTriggerIdEdited = [&](int triggerId) {
+        ++callbacks;
+        editedTriggerId = triggerId;
+    };
+    panel.onDurationEdited = [&](int durationMs) {
+        ++callbacks;
+        editedDuration = durationMs;
+    };
+    panel.onSwitchToMonochromeToggled = [&](bool checked) {
+        ++callbacks;
+        monochromeToggled = checked;
+    };
+    panel.onDmdRenderOptionsChanged = [&]() {
+        ++callbacks;
+        ++dmdChanges;
+    };
+    panel.onBackgroundLayerToggled = [&](bool checked) {
+        ++callbacks;
+        backgroundLayerToggled = checked;
+    };
+    panel.onImportImageRequested = [&]() {
+        ++callbacks;
+        ++importRequests;
+    };
+    panel.onCreateHdRequested = [&]() {
+        ++callbacks;
+        ++createHdRequests;
+    };
+    panel.onRemoveHdRequested = [&]() {
+        ++callbacks;
+        ++removeHdRequests;
+    };
+
+    auto* targetComboBox = childByToolTip<QComboBox>(panel, "Drawing target");
+    auto* backgroundIdSpinBox = childByToolTip<QSpinBox>(panel, "Assigned background ID");
+    auto* triggerIdSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame trigger ID");
+    auto* durationSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame cRP duration");
+    auto* monochromeCheckBox = childByToolTip<QCheckBox>(
+        panel, "Use legacy switch-to-monochrome trigger ID 65432");
+    auto* dmdShapeComboBox =
+        childByToolTip<QComboBox>(panel, "DMD pixel shape for canvas and PNG export");
+    auto* dmdSizeSpinBox = childByToolTip<QSpinBox>(panel, "Relative DMD pixel size");
+    auto* backgroundLayerButton =
+        childByToolTip<QToolButton>(panel, "Show assigned background layer");
+    auto* importButton =
+        childByToolTip<QToolButton>(panel, "Import an image into selected frame pixels");
+    auto* createHdButton = childByToolTip<QToolButton>(panel, "Create HD frame from SD frame");
+    auto* removeHdButton = childByToolTip<QToolButton>(panel, "Remove HD frame data");
+
+    expect(targetComboBox->count() == 2 &&
+               targetComboBox->itemText(0) == QStringLiteral("Frame") &&
+               targetComboBox->itemText(1) == QStringLiteral("Background") &&
+               !targetComboBox->isEnabled() && panel.paintTarget() == PaintTarget::Frame,
+           "frame panel should start on the disabled frame target");
+    expect(backgroundIdSpinBox->minimum() == -1 && backgroundIdSpinBox->maximum() == -1 &&
+               backgroundIdSpinBox->specialValueText() == QStringLiteral("None") &&
+               !backgroundIdSpinBox->isEnabled(),
+           "frame panel should start without background IDs");
+    expect(triggerIdSpinBox->minimum() == 0 &&
+               triggerIdSpinBox->maximum() == colorizing::app::kMaxManualTriggerId &&
+               !triggerIdSpinBox->isEnabled() && panel.triggerId() == 0,
+           "frame panel should start with a disabled trigger ID");
+    expect(durationSpinBox->maximum() == colorizing::app::kMaxFrameDurationMs &&
+               durationSpinBox->singleStep() == 10 &&
+               durationSpinBox->suffix() == QStringLiteral(" ms") && !durationSpinBox->isEnabled(),
+           "frame panel should start with a disabled duration");
+    expect(monochromeCheckBox->text() == QStringLiteral("Switch mono") &&
+               !monochromeCheckBox->isEnabled() && !panel.isSwitchToMonochromeChecked(),
+           "frame panel should start with a disabled monochrome switch");
+    expect(backgroundLayerButton->text() == QStringLiteral("Show BG") &&
+               backgroundLayerButton->isCheckable() && panel.isBackgroundLayerChecked() &&
+               !backgroundLayerButton->isEnabled(),
+           "frame panel should start with the background layer shown but disabled");
+    expect(importButton->text() == QStringLiteral("Import Image") && !importButton->isEnabled() &&
+               createHdButton->text() == QStringLiteral("Create HD") &&
+               !createHdButton->isEnabled() &&
+               removeHdButton->text() == QStringLiteral("Remove HD") &&
+               !removeHdButton->isEnabled(),
+           "frame panel should start with disabled image and HD buttons");
+    expect(dmdShapeComboBox->count() == 2 && dmdShapeComboBox->isEnabled() &&
+               dmdSizeSpinBox->minimum() == 50 && dmdSizeSpinBox->maximum() == 100 &&
+               dmdSizeSpinBox->suffix() == QStringLiteral("%") && dmdSizeSpinBox->isEnabled() &&
+               panel.dmdRenderOptions().pixelShape == DmdPixelShape::Square &&
+               panel.dmdRenderOptions().pixelCoverage == 1.0,
+           "frame panel should start with full square DMD pixels");
+    expect(panel.tabOrderWidgets() ==
+               std::vector<QWidget*>{backgroundIdSpinBox, triggerIdSpinBox, durationSpinBox,
+                                     monochromeCheckBox, backgroundLayerButton, importButton,
+                                     createHdButton, removeHdButton, targetComboBox,
+                                     dmdShapeComboBox, dmdSizeSpinBox},
+           "frame panel should list its focusable controls in creation order");
+
+    panel.refresh(stateFor(document, 0));
+    expect(targetComboBox->isEnabled() && backgroundIdSpinBox->isEnabled() &&
+               backgroundIdSpinBox->maximum() == 1 && backgroundIdSpinBox->value() == 0,
+           "frame panel should show the assigned background");
+    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 5 &&
+               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID") &&
+               monochromeCheckBox->isEnabled() && !panel.isSwitchToMonochromeChecked(),
+           "frame panel should show the trigger ID");
+    expect(durationSpinBox->isEnabled() && durationSpinBox->value() == 100 &&
+               durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration"),
+           "frame panel should show the duration");
+    expect(backgroundLayerButton->isEnabled() && importButton->isEnabled() &&
+               !createHdButton->isEnabled() && removeHdButton->isEnabled(),
+           "frame panel should offer Remove HD for an HD frame");
+
+    panel.refresh(stateFor(document, 1, false));
+    expect(backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->value() == -1 &&
+               backgroundLayerButton->isEnabled(),
+           "frame panel should show unassigned background data as none");
+    expect(panel.isSwitchToMonochromeChecked() && !triggerIdSpinBox->isEnabled() &&
+               panel.triggerId() == 0 &&
+               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
+           "frame panel should lock the trigger ID of a switch-to-monochrome frame");
+    expect(durationSpinBox->value() == 0 &&
+               durationSpinBox->toolTip() ==
+                   QStringLiteral("Unsupported cRP duration 40000 ms is preserved until edited"),
+           "frame panel should explain an unsupported duration");
+    expect(!importButton->isEnabled() && createHdButton->isEnabled() &&
+               !removeHdButton->isEnabled(),
+           "frame panel should offer Create HD and no import without selected frames");
+
+    panel.refresh(stateFor(document, 2));
+    expect(backgroundIdSpinBox->value() == -1 && backgroundIdSpinBox->isEnabled(),
+           "frame panel should show an out-of-range background ID as none");
+    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 0 &&
+               !panel.isSwitchToMonochromeChecked() &&
+               triggerIdSpinBox->toolTip() ==
+                   QStringLiteral("Unsupported legacy trigger ID 70000 is preserved until edited"),
+           "frame panel should explain an unsupported trigger ID");
+    panel.refresh(stateFor(document, 3));
+    expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == 1 &&
+               !backgroundLayerButton->isEnabled() && targetComboBox->isEnabled() &&
+               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
+           "frame panel should disable the background ID for a frame without background data");
+    panel.refresh(stateFor(noBackgrounds, 0));
+    expect(!targetComboBox->isEnabled() && !backgroundIdSpinBox->isEnabled() &&
+               backgroundIdSpinBox->maximum() == -1 && !backgroundLayerButton->isEnabled(),
+           "frame panel should disable the background controls without backgrounds");
+
+    panel.refresh(stateFor(document, 2));
+    panel.showSpriteHdActions(true);
+    expect(createHdButton->text() == QStringLiteral("Create HD Sprite") &&
+               createHdButton->toolTip() == QStringLiteral("Create HD sprite from SD sprite") &&
+               !createHdButton->isEnabled() &&
+               removeHdButton->text() == QStringLiteral("Remove HD Sprite") &&
+               removeHdButton->toolTip() == QStringLiteral("Remove HD sprite data") &&
+               removeHdButton->isEnabled(),
+           "frame panel should label the HD buttons for a sprite with HD");
+    panel.showSpriteHdActions(false);
+    expect(createHdButton->isEnabled() && !removeHdButton->isEnabled(),
+           "frame panel should offer Create HD Sprite for a sprite without HD");
+    panel.disableHdActions();
+    expect(!createHdButton->isEnabled() && !removeHdButton->isEnabled() &&
+               createHdButton->text() == QStringLiteral("Create HD Sprite"),
+           "frame panel should disable the HD buttons without relabeling them");
+    panel.refresh(stateFor(document, std::nullopt));
+    expect(createHdButton->text() == QStringLiteral("Create HD Sprite") &&
+               !createHdButton->isEnabled() && !removeHdButton->isEnabled(),
+           "frame panel should keep the HD button labels without a frame");
+    expect(!targetComboBox->isEnabled() && !backgroundIdSpinBox->isEnabled() &&
+               backgroundIdSpinBox->maximum() == -1 && !triggerIdSpinBox->isEnabled() &&
+               !durationSpinBox->isEnabled() && !monochromeCheckBox->isEnabled() &&
+               !backgroundLayerButton->isEnabled() && !importButton->isEnabled() &&
+               durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration") &&
+               triggerIdSpinBox->toolTip() ==
+                   QStringLiteral("Unsupported legacy trigger ID 70000 is preserved until edited"),
+           "frame panel should reset without a frame");
+    panel.refresh(stateFor(document, 0));
+    expect(createHdButton->text() == QStringLiteral("Create HD") &&
+               createHdButton->toolTip() == QStringLiteral("Create HD frame from SD frame") &&
+               removeHdButton->text() == QStringLiteral("Remove HD") &&
+               removeHdButton->toolTip() == QStringLiteral("Remove HD frame data"),
+           "frame panel should label the HD buttons for the frame again on refresh");
+
+    panel.setPaintTarget(PaintTarget::Background);
+    expect(panel.paintTarget() == PaintTarget::Background &&
+               targetComboBox->currentText() == QStringLiteral("Background"),
+           "frame panel should take a drawing target");
+    panel.refresh(stateFor(noBackgrounds, 0));
+    panel.refresh(stateFor(document, std::nullopt));
+    expect(panel.paintTarget() == PaintTarget::Background,
+           "frame panel should leave resetting the drawing target to the owner");
+    panel.setPaintTargetEnabled(true);
+    panel.setImportImageEnabled(true);
+    expect(targetComboBox->isEnabled() && importButton->isEnabled(),
+           "frame panel should enable the target and the import on request");
+    panel.setPaintTarget(PaintTarget::Frame);
+    expect(callbacks == 0, "refreshing and setting up the frame panel should not notify");
+
+    panel.refresh(stateFor(document, 0));
+    targetComboBox->setCurrentIndex(1);
+    expect(paintTargetChanges == 1 && panel.paintTarget() == PaintTarget::Background,
+           "selecting a drawing target should notify once");
+    backgroundIdSpinBox->setValue(1);
+    expect(editedBackgroundId == 1, "editing the background ID should report it");
+    backgroundIdSpinBox->setValue(-1);
+    expect(editedBackgroundId == -1, "clearing the background ID should report -1");
+    triggerIdSpinBox->setValue(123);
+    expect(editedTriggerId == 123 && panel.triggerId() == 123,
+           "editing the trigger ID should report it");
+    durationSpinBox->setValue(250);
+    expect(editedDuration == 250, "editing the duration should report it");
+    monochromeCheckBox->click();
+    expect(monochromeToggled == true && panel.isSwitchToMonochromeChecked(),
+           "checking the monochrome switch should report it");
+    backgroundLayerButton->click();
+    expect(backgroundLayerToggled == false && !panel.isBackgroundLayerChecked(),
+           "hiding the background layer should report it");
+    importButton->click();
+    panel.showSpriteHdActions(false);
+    createHdButton->click();
+    panel.showSpriteHdActions(true);
+    removeHdButton->click();
+    expect(importRequests == 1 && createHdRequests == 1 && removeHdRequests == 1 &&
+               callbacks == 10,
+           "each frame panel action should notify exactly once");
+
+    dmdShapeComboBox->setCurrentIndex(1);
+    expect(dmdChanges == 1 && panel.dmdRenderOptions().pixelShape == DmdPixelShape::Dot,
+           "selecting a DMD pixel shape should notify once");
+    dmdSizeSpinBox->setValue(73);
+    expect(dmdChanges == 2 && dmdSizeSpinBox->value() == 70 &&
+               panel.dmdRenderOptions().pixelCoverage == 0.7,
+           "the DMD pixel size should snap to steps of ten and notify once");
+    dmdSizeSpinBox->setValue(50);
+    expect(dmdChanges == 3 && panel.dmdRenderOptions().pixelCoverage == 0.5,
+           "editing the DMD pixel size should notify once");
+    panel.refresh(stateFor(document, 1));
+    expect(panel.dmdRenderOptions().pixelShape == DmdPixelShape::Dot &&
+               panel.dmdRenderOptions().pixelCoverage == 0.5 &&
+               !panel.isBackgroundLayerChecked() &&
+               panel.paintTarget() == PaintTarget::Background,
+           "frame panel should keep its own state across refreshes");
+    expect(callbacks == 13, "refreshing the frame panel should not notify");
+    expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
+               document.backgroundId(0) == 0 && !document.isDirty(),
+           "frame panel should leave the document untouched");
+}
+
 int main(int argc, char* argv[])
 {
     qputenv("QT_QPA_PLATFORM", "offscreen");
@@ -2161,6 +2962,10 @@ int main(int argc, char* argv[])
     testColorRotationPanel();
     testPalettePanel();
     testSpritePanel();
+    testMaskPanel();
+    testDynamicPanel();
+    testBackgroundPanel();
+    testFramePanel();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }
