@@ -9,6 +9,7 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacyCromFrames.cpp
     legacy/LegacyCromMetadata.cpp
     legacy/LegacyCrpOriginals.cpp
+    legacy/LegacyCrzArchive.cpp
     legacy/LegacyProjectFileReader.cpp
     legacy/LegacyProjectFileWriter.cpp
     legacy/LegacyProjectIo.cpp
@@ -20,6 +21,13 @@ add_library(colorizing_qt_v2_core STATIC
 target_include_directories(colorizing_qt_v2_core
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# PRIVATE: only legacy/LegacyCrzArchive.cpp includes libserum headers, and they must not reach
+# the targets that link the core.
+target_link_libraries(colorizing_qt_v2_core
+    PRIVATE
+        serum_static
 )
 
 colorizing_qt_v2_enable_warnings(colorizing_qt_v2_core)

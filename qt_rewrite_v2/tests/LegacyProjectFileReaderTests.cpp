@@ -11,6 +11,7 @@
 
 #include <unistd.h>
 
+#include "legacy/LegacyCrzArchive.h"
 #include "render/CanvasLayout.h"
 
 using colorizing::document::makeRgb565Frame;
@@ -687,6 +688,210 @@ void testFileWriterRequiresBothPaths()
            "file writer missing path error");
 }
 
+std::vector<uint8_t> readBytes(const std::filesystem::path& path)
+{
+    std::ifstream stream(path, std::ios::binary);
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)),
+                                std::istreambuf_iterator<char>());
+}
+
+bool savingFileExists(const std::filesystem::path& path)
+{
+    return std::filesystem::exists(path.string() + ".saving");
+}
+
+// Builds the archive the way a project is handed around: only the .cRZ, no loose .cROM.
+std::filesystem::path makeCrzFile(const std::string& suffix,
+                                  const std::string& entryName,
+                                  const std::vector<uint8_t>& cromBytes)
+{
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crzPath = uniqueTempPath(suffix);
+    writeBytes(cromPath, cromBytes);
+    std::string error;
+    const bool written = colorizing::legacy::writeCrzArchive(crzPath.string(), entryName,
+                                                             cromPath.string(), error);
+    std::filesystem::remove(cromPath);
+    expect(written, "test archive should be written: " + error);
+    return crzPath;
+}
+
+void testCrzExtensionIsCaseInsensitive()
+{
+    using colorizing::legacy::hasCrzExtension;
+    expect(hasCrzExtension("/a/rom.cRZ") && hasCrzExtension("rom.crz") &&
+               hasCrzExtension("rom.CRZ"),
+           "cRZ extension should match in any case");
+    expect(!hasCrzExtension("rom.cROM") && !hasCrzExtension("rom.cRZ.cROM") &&
+               !hasCrzExtension("crz") && !hasCrzExtension(""),
+           "cRZ extension should only match as the extension");
+}
+
+void testFileReaderLoadsProjectFromCrz()
+{
+    // The entry name is deliberately unrelated: the reader takes the archive's entry as data.
+    const std::filesystem::path crzPath =
+        makeCrzFile(".CRZ", "unrelated name.bin", makeModernCromWithFrames());
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
+
+    const LegacyProjectFileReader reader;
+    const LegacyLoadResult result = reader.load(LegacyProjectPaths{
+        crzPath.string(),
+        crpPath.string(),
+    });
+
+    std::filesystem::remove(crzPath);
+    std::filesystem::remove(crpPath);
+
+    expect(result.ok, "file reader should load a project from a cRZ: " + result.error.message);
+    expect(result.snapshot.romName == "file_rom", "cRZ project ROM name");
+    expect(result.snapshot.frames.size() == 2, "cRZ project frame count");
+    expect(result.snapshot.frames[1].colorizedSd.pixels.front() == 0x2222,
+           "cRZ project colorized pixels");
+    expect(result.snapshot.palettes[1].name == "Warm palette", "cRZ project cRP data");
+}
+
+void testFileReaderReportsUnreadableCrz()
+{
+    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    // A cROM renamed to .cRZ is not an archive.
+    writeBytes(crzPath, makeModernCromWithFrames());
+    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
+
+    const LegacyProjectFileReader reader;
+    const LegacyLoadResult invalid = reader.load(LegacyProjectPaths{
+        crzPath.string(),
+        crpPath.string(),
+    });
+    std::filesystem::remove(crzPath);
+    const LegacyLoadResult missing = reader.load(LegacyProjectPaths{
+        crzPath.string(),
+        crpPath.string(),
+    });
+    std::filesystem::remove(crpPath);
+
+    expect(!invalid.ok, "a cRZ that is not an archive should fail");
+    expect(invalid.error.message.find("could not read .cRZ file:") == 0,
+           "invalid cRZ error message");
+    expect(!missing.ok, "missing cRZ should fail");
+    expect(missing.error.message.find("could not read .cRZ file:") == 0,
+           "missing cRZ error message");
+}
+
+LegacyLoadResult loadSyntheticProject()
+{
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    writeBytes(cromPath, makeModernCromWithFrames());
+    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
+    const LegacyProjectFileReader reader;
+    const LegacyLoadResult result = reader.load(LegacyProjectPaths{
+        cromPath.string(),
+        crpPath.string(),
+    });
+    std::filesystem::remove(cromPath);
+    std::filesystem::remove(crpPath);
+    expect(result.ok, "synthetic project should load");
+    return result;
+}
+
+void testFileWriterWritesCrzOfTheSavedCrom()
+{
+    LegacyLoadResult loadResult = loadSyntheticProject();
+    loadResult.snapshot.frames[0].colorizedSd.pixels[0] = 0x1357;
+
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
+    // A stale archive must be replaced, not kept or appended to.
+    writeBytes(crzPath, {1, 2, 3});
+    const LegacyProjectPaths paths{cromPath.string(), crpPath.string(), crzPath.string()};
+
+    const LegacyProjectFileWriter writer;
+    const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
+    expect(saveResult.ok, "file writer should save with a cRZ: " + saveResult.error.message);
+    expect(!savingFileExists(cromPath) && !savingFileExists(crpPath) &&
+               !savingFileExists(crzPath),
+           "file writer should not leave temporary files behind after writing a cRZ");
+
+    const std::vector<uint8_t> cromBytes = readBytes(cromPath);
+    std::vector<uint8_t> archivedBytes;
+    std::string entryName;
+    std::string error;
+    const bool archiveRead =
+        colorizing::legacy::readCrzArchive(crzPath.string(), archivedBytes, error);
+    const bool nameRead =
+        colorizing::legacy::readCrzEntryName(crzPath.string(), entryName, error);
+
+    const LegacyProjectFileReader reader;
+    const LegacyLoadResult reloadResult = reader.load(LegacyProjectPaths{
+        crzPath.string(),
+        crpPath.string(),
+    });
+
+    std::filesystem::remove(cromPath);
+    std::filesystem::remove(crpPath);
+    std::filesystem::remove(crzPath);
+
+    expect(archiveRead && nameRead, "written cRZ should be readable: " + error);
+    expect(!cromBytes.empty() && archivedBytes == cromBytes,
+           "cRZ entry should be byte-identical to the written cROM");
+    expect(entryName == "file_rom.cRom", "cRZ entry should be named <romName>.cRom");
+    expect(reloadResult.ok, "project should reload from the written cRZ");
+    expect(reloadResult.snapshot.frames[0].colorizedSd.pixels[0] == 0x1357,
+           "project reloaded from the written cRZ should carry the edit");
+}
+
+void testFileWriterFailureLeavesNoTemporaryFiles()
+{
+    LegacyLoadResult loadResult = loadSyntheticProject();
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
+    const std::vector<uint8_t> oldCrom = {9, 8, 7};
+    const std::vector<uint8_t> oldCrz = {6, 5, 4};
+    writeBytes(cromPath, oldCrom);
+    writeBytes(crzPath, oldCrz);
+    const LegacyProjectFileWriter writer;
+
+    // The archive cannot be created: its directory does not exist.
+    const std::filesystem::path unreachableCrz = uniqueTempPath("_missing_dir") / "rom.cRZ";
+    const LegacySaveResult unreachable = writer.save(
+        LegacyProjectPaths{cromPath.string(), crpPath.string(), unreachableCrz.string()},
+        loadResult.snapshot);
+    expect(!unreachable.ok, "save should fail when the cRZ cannot be created");
+    expect(unreachable.error.message.find("could not write .cRZ file:") == 0,
+           "unreachable cRZ error message");
+    expect(!savingFileExists(cromPath) && !savingFileExists(crpPath),
+           "failed cRZ creation should leave no temporary files");
+    expect(readBytes(cromPath) == oldCrom && !std::filesystem::exists(crpPath),
+           "failed cRZ creation should leave the project files untouched");
+
+    // The archive is created but its entry is refused: a ROM name that is not a plain file name.
+    loadResult.snapshot.romName = "bad:name";
+    const LegacyProjectPaths paths{cromPath.string(), crpPath.string(), crzPath.string()};
+    const LegacySaveResult refused = writer.save(paths, loadResult.snapshot);
+    expect(!refused.ok, "save should fail when the cRZ entry cannot be written");
+    expect(!savingFileExists(cromPath) && !savingFileExists(crpPath) &&
+               !savingFileExists(crzPath),
+           "failed cRZ entry should leave no temporary files");
+    expect(readBytes(cromPath) == oldCrom && readBytes(crzPath) == oldCrz &&
+               !std::filesystem::exists(crpPath),
+           "failed cRZ entry should leave the project files untouched");
+
+    // Raw cROM bytes must never land in a file named .cRZ.
+    const LegacySaveResult swapped = writer.save(
+        LegacyProjectPaths{crzPath.string(), crpPath.string()}, loadResult.snapshot);
+    expect(!swapped.ok, "a cRZ path should be refused as the cROM target");
+    expect(readBytes(crzPath) == oldCrz && !savingFileExists(crzPath),
+           "refused cRZ target should stay untouched");
+
+    std::filesystem::remove(cromPath);
+    std::filesystem::remove(crzPath);
+}
+
 }  // namespace
 
 void runLegacyProjectFileReaderTests()
@@ -697,4 +902,9 @@ void runLegacyProjectFileReaderTests()
     testFileWriterSavesEditedModernCrom();
     testFileWriterCreatesProjectWithoutExistingFiles();
     testFileWriterRequiresBothPaths();
+    testCrzExtensionIsCaseInsensitive();
+    testFileReaderLoadsProjectFromCrz();
+    testFileReaderReportsUnreadableCrz();
+    testFileWriterWritesCrzOfTheSavedCrom();
+    testFileWriterFailureLeavesNoTemporaryFiles();
 }

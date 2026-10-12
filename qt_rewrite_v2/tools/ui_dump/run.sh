@@ -5,6 +5,7 @@
 #   run.sh compare [ARGS]   compare before.txt and after.txt again
 # ARGS go to compare.py, e.g. --allow-removed '^\[some tag\] '.
 # Builds and output go to $UI_DUMP_WORK_DIR (default: ${TMPDIR:-/tmp}/colorizingdmd_ui_dump).
+# libserum is taken from $COLORIZINGDMD_LIBSERUM_DIR (default: next to the repository).
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 TREE=$(cd "$HERE/../.." && pwd)
@@ -20,10 +21,13 @@ case "$WORK/" in
     ;;
 esac
 mkdir -p "$WORK"
+# An exported baseline tree has no libserum beside it, so the checkout is named explicitly.
+LIBSERUM=${COLORIZINGDMD_LIBSERUM_DIR:-$(cd "$TREE/../.." && pwd)/libserum}
 
 # build NAME TREE: configure and build the dump executable for a qt_rewrite_v2 tree.
 build() {
-    if ! { cmake -S "$HERE" -B "$WORK/build_$1" -DUI_DUMP_TREE="$2" &&
+    if ! { cmake -S "$HERE" -B "$WORK/build_$1" -DUI_DUMP_TREE="$2" \
+               -DCOLORIZINGDMD_LIBSERUM_DIR="$LIBSERUM" &&
            cmake --build "$WORK/build_$1" --parallel; } > "$WORK/build_$1.log" 2>&1; then
         echo "$1 build failed, see $WORK/build_$1.log:" >&2
         grep -E "error|FAILED" -A6 "$WORK/build_$1.log" >&2 || tail -20 "$WORK/build_$1.log" >&2

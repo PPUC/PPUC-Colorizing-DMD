@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "legacy/LegacyCromFrames.h"
+#include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyCrpOriginals.h"
 #include "legacy/LegacySnapshotBuilder.h"
 
@@ -38,11 +39,26 @@ FileReadResult readFileBytes(const std::string& path, const char* label)
     return FileReadResult{std::move(bytes), "", true};
 }
 
+FileReadResult readCromBytes(const std::string& path)
+{
+    if (path.empty() || !hasCrzExtension(path)) {
+        return readFileBytes(path, ".cROM");
+    }
+
+    FileReadResult result;
+    std::string detail;
+    result.ok = readCrzArchive(path, result.bytes, detail);
+    if (!result.ok) {
+        result.errorMessage = "could not read .cRZ file: " + path + " (" + detail + ")";
+    }
+    return result;
+}
+
 }  // namespace
 
 LegacyLoadResult LegacyProjectFileReader::load(const LegacyProjectPaths& paths) const
 {
-    const FileReadResult cromFile = readFileBytes(paths.cromPath, ".cROM");
+    const FileReadResult cromFile = readCromBytes(paths.cromPath);
     if (!cromFile.ok) {
         return makeLoadFailure(cromFile.errorMessage);
     }

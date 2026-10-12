@@ -8,8 +8,11 @@
 namespace colorizing::legacy {
 
 struct LegacyProjectPaths {
+    // For loading this may name a .cRZ archive instead; the cROM is then read from it.
     std::string cromPath;
     std::string crpPath;
+    // Only used for saving: where the .cRZ archive of the saved .cROM goes. Empty writes none.
+    std::string crzPath = {};
 };
 
 struct LegacyIoError {

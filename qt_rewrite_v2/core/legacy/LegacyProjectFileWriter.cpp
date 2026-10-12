@@ -5,6 +5,7 @@
 #include <string>
 #include <system_error>
 
+#include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectSerializer.h"
 
 namespace colorizing::legacy {
@@ -47,8 +48,11 @@ bool writeTemporaryFile(const std::string& path,
 void removeTemporaryFiles(const LegacyProjectPaths& paths)
 {
     std::error_code ignored;
-    std::filesystem::remove(temporaryPathFor(paths.cromPath), ignored);
-    std::filesystem::remove(temporaryPathFor(paths.crpPath), ignored);
+    for (const std::string* path : {&paths.cromPath, &paths.crpPath, &paths.crzPath}) {
+        if (!path->empty()) {
+            std::filesystem::remove(temporaryPathFor(*path), ignored);
+        }
+    }
 }
 
 }  // namespace
@@ -59,12 +63,32 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     if (paths.cromPath.empty() || paths.crpPath.empty()) {
         return makeSaveFailure("both .cROM and .cRP paths are required");
     }
+    // Raw cROM bytes under an archive name would be unreadable for everything that opens it.
+    if (hasCrzExtension(paths.cromPath) || hasCrzExtension(paths.crpPath)) {
+        return makeSaveFailure("a .cRZ archive cannot be the .cROM or .cRP target");
+    }
+    if (paths.crzPath == paths.cromPath || paths.crzPath == paths.crpPath) {
+        return makeSaveFailure("the .cRZ path must differ from the .cROM and .cRP paths");
+    }
 
-    // Both files are written completely beside their targets first, so a failed or interrupted
-    // save never leaves a truncated project behind.
+    // All files are written completely beside their targets first, so a failed or interrupted
+    // save never leaves a truncated project behind. The archive is built from the temporary
+    // .cROM, so it holds exactly the bytes that become the .cROM.
     std::string errorMessage;
-    if (!writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot, errorMessage) ||
-        !writeTemporaryFile(paths.crpPath, ".cRP", writeLegacyCrp, snapshot, errorMessage)) {
+    bool written =
+        writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot, errorMessage) &&
+        writeTemporaryFile(paths.crpPath, ".cRP", writeLegacyCrp, snapshot, errorMessage);
+    if (written && !paths.crzPath.empty()) {
+        std::string detail;
+        written = writeCrzArchive(temporaryPathFor(paths.crzPath).string(),
+                                  crzEntryNameFor(snapshot.romName),
+                                  temporaryPathFor(paths.cromPath).string(),
+                                  detail);
+        if (!written) {
+            errorMessage = "could not write .cRZ file: " + paths.crzPath + " (" + detail + ")";
+        }
+    }
+    if (!written) {
         removeTemporaryFiles(paths);
         return makeSaveFailure(errorMessage);
     }
@@ -73,6 +97,9 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     std::filesystem::rename(temporaryPathFor(paths.cromPath), paths.cromPath, error);
     if (!error) {
         std::filesystem::rename(temporaryPathFor(paths.crpPath), paths.crpPath, error);
+    }
+    if (!error && !paths.crzPath.empty()) {
+        std::filesystem::rename(temporaryPathFor(paths.crzPath), paths.crzPath, error);
     }
     if (error) {
         removeTemporaryFiles(paths);

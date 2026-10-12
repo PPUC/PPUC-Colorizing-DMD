@@ -19,6 +19,68 @@ function(colorizing_qt_v2_enable_warnings target)
     endif()
 endfunction()
 
+# libserum provides the .cRZ archive reading and writing (core/legacy/LegacyCrzArchive.cpp).
+get_filename_component(COLORIZINGDMD_LIBSERUM_DEFAULT_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../libserum" ABSOLUTE)
+set(COLORIZINGDMD_LIBSERUM_DIR "${COLORIZINGDMD_LIBSERUM_DEFAULT_DIR}" CACHE PATH
+    "libserum source checkout, linked statically into the project core")
+
+# Adds libserum's own CMake project as the static target serum_static. libserum configures
+# itself through the plain variables PLATFORM, ARCH, BUILD_SHARED and BUILD_STATIC; they are set
+# here as normal variables, which take precedence over its cache defaults and end with this
+# function. Its compiler settings (C++20, hidden visibility, rpath) stay in its own directory
+# scope, and EXCLUDE_FROM_ALL keeps its test tool and install rules out of this build.
+function(colorizing_qt_v2_add_libserum)
+    get_filename_component(libserum_dir "${COLORIZINGDMD_LIBSERUM_DIR}" ABSOLUTE
+        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(NOT EXISTS "${libserum_dir}/CMakeLists.txt" OR
+       NOT EXISTS "${libserum_dir}/src/serum-decode.h")
+        message(FATAL_ERROR
+            "libserum not found in '${libserum_dir}'.\n"
+            "The editor needs a libserum source checkout that has the Serum_CRZ_* API for "
+            ".cRZ support. Put one next to the ColorizingDMD checkout as 'libserum', or "
+            "configure with -DCOLORIZINGDMD_LIBSERUM_DIR=<path>.")
+    endif()
+    if(TARGET serum_static)
+        return()
+    endif()
+
+    set(BUILD_SHARED OFF)
+    set(BUILD_STATIC ON)
+    set(ENABLE_SANITIZERS OFF)
+    if(WIN32)
+        if(MINGW)
+            set(PLATFORM "win-mingw")
+        else()
+            set(PLATFORM "win")
+        endif()
+        if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+            set(ARCH "x86")
+        else()
+            set(ARCH "x64")
+        endif()
+    else()
+        if(APPLE)
+            set(PLATFORM "macos")
+        else()
+            set(PLATFORM "linux")
+        endif()
+        # Any value libserum does not know: it then leaves the target architecture to this
+        # project instead of forcing CMAKE_OSX_ARCHITECTURES.
+        set(ARCH "host")
+    endif()
+
+    add_subdirectory("${libserum_dir}" "${CMAKE_CURRENT_BINARY_DIR}/libserum" EXCLUDE_FROM_ALL)
+
+    # Third-party code: its warnings are not this project's to fix.
+    if(MSVC)
+        target_compile_options(serum_static PRIVATE /w)
+    else()
+        target_compile_options(serum_static PRIVATE -w)
+    endif()
+endfunction()
+colorizing_qt_v2_add_libserum()
+
 add_subdirectory(core)
 
 if(COLORIZINGDMD_QT_V2_BUILD_APP)

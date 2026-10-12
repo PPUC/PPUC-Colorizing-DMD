@@ -9,10 +9,13 @@ The Qt rewrite edits legacy Serum editor projects directly:
 
 - `.cROM` stores colorized frame data and runtime project data.
 - `.cRP` stores original/reference frames and editor-side metadata such as sprite names and frame durations.
+- `.cRZ` is a zip archive holding the `.cROM`, in one entry named `<ROM name>.cRom`. It is the
+  form in which a colorization is usually handed around, together with the `.cRP`. The editor
+  opens it directly and writes it on every save.
 - `.cROMc` is not edited directly.
 
 Saving writes complete `.cROM` and `.cRP` files from the in-memory project in the legacy file
-layout. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
+layout, plus the `.cRZ` archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
 saved as revision 20, everything older as revision 19, so a save never moves a project to a
 Revision 20 projects with 256x64 original frames load and save
 in the project core (256x64 originals and comparison masks, 128x32 SD and 256x64 HD colorized
@@ -39,23 +42,41 @@ It also carries structured background data from `.cROM`:
 
 ## Opening Projects
 
-Use `File -> Open Project...` and select a `.cROM` file.
+Use `File -> Open Project...` and select a `.cROM` or a `.cRZ` file.
 
 The app looks for a matching `.cRP` next to it with the same base name. If it cannot find that file, it asks for the `.cRP` path.
+
+Opening a `.cRZ` reads the colorization from the archive; nothing is unpacked to disk. The
+archive's first file entry is taken, whatever it is named. If a `.cROM` with the same base name
+lies next to the `.cRZ`, the file that was selected is the one that is loaded; the other is not
+looked at.
+
+A project opened from `<name>.cRZ` is from then on the project `<name>.cROM` in the same
+folder: `Save` creates that `.cROM` next to the archive (replacing one that is already there) and
+rewrites the archive, and `Save As...` proposes `<name>_copy.cROM`.
 
 After a successful open, the project is added to `File -> Open Recent`.
 
 Opening a project always starts in the frame view: `Edit Sprite` and `Select Capture` are switched
 off, a pending sprite capture selection is dropped, and the mask browser selection starts again at
 the first frame's mask.
-Recent-project entries show the full `.cROM` path and internally remember both the `.cROM` and `.cRP` paths.
+Recent-project entries show the full path of the file that was opened (`.cROM` or `.cRZ`) and
+internally remember that path and the `.cRP` path. If that file no longer exists when the entry
+is used, the file with the same base name and the other of the two extensions is opened instead,
+so an entry keeps working whether only the archive or only the loose `.cROM` is left.
 
 ## Saving
 
 Use `File -> Save` or the standard Save shortcut.
 
+Every save writes three files with the same base name into the project folder: `<name>.cROM`,
+`<name>.cRP` and `<name>.cRZ`. The archive holds exactly the bytes of the `.cROM` just written,
+deflate-compressed, in one entry named `<ROM name>.cRom` (the ROM name stored in the project,
+which need not be the file name), as the Win32 editor writes it. An archive that already exists
+under another spelling of the extension (`.crz`) is the one that is replaced.
+
 Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cROM`
-path and writes the `.cROM` and a `.cRP` with the same base name there.
+path and writes the `.cROM`, a `.cRP` and a `.cRZ` with the same base name there.
 
 Use `File -> Export Current Frame PNG...` to export the active colorized frame preview as a PNG.
 The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
@@ -67,8 +88,17 @@ In HD mode, selected frames without HD data are skipped. The import is undoable 
 
 Save behavior:
 
-- Both files are written completely next to their targets first and then swapped in, so a failed
-  or interrupted save does not leave a truncated project behind.
+- All three files are written completely next to their targets first (as `<file>.saving`) and
+  then swapped in, so a failed or interrupted save does not leave a truncated project behind. If
+  any of them cannot be written, including the archive, the save fails as a whole, the temporary
+  files are removed and the existing files stay as they were.
+- Writing the archive compresses the whole `.cROM` and makes saving a large project noticeably
+  slower (about 5 extra seconds for a 450 MB `.cROM`).
+- The `.cRZ` is a plain zip without zip64 as long as the `.cROM` is smaller than 4 GiB. It is not
+  byte-identical to the Win32 editor's archive of the same project (other deflate settings, no
+  timestamp extra field); the `.cROM` inside is.
+- A ROM name containing `/`, `\` or `:` cannot be used as an archive entry name; saving such a
+  project fails with a message.
 - An unedited project saves back byte-identical to what the Win32 editor wrote. This is checked
   against real projects with the `colorizing_qt_v2_roundtrip` tool (see Testing Checklist).
 - Frame identification hashes are recalculated from the original frame, its comparison mask, and
@@ -724,7 +754,10 @@ differs from the files on disk; it writes nothing:
 
 ```text
 colorizing_qt_v2_roundtrip <project>.cROM <project>.cRP
+colorizing_qt_v2_roundtrip <project>.cRZ <project>.cRP
 ```
+
+With a `.cRZ` the comparison is against the `.cROM` stored in the archive.
 
 Projects last saved by the Win32 editor must come back `identical`.
 
@@ -732,4 +765,8 @@ For project-loading changes, test:
 
 - Open via `.cROM` with matching `.cRP`.
 - Open via `.cROM` and manually selected `.cRP`.
+- Open via `.cRZ` with no `.cROM` next to it, save, and verify `.cROM`, `.cRP` and `.cRZ` are
+  there, no `.saving` file is left, and the `.cRZ` unpacks to the bytes of the `.cROM`.
+- Open via `.cRZ` while a different `.cROM` of the same name lies next to it: the archive's
+  content is what loads.
 - Open via `File -> Open Recent`.

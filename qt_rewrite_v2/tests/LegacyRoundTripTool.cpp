@@ -1,5 +1,6 @@
 // Loads a real .cROM/.cRP project, serializes it again and reports where the result differs from
-// the files on disk. Nothing is written. Usage: colorizing_qt_v2_roundtrip <cROM> <cRP>
+// the files on disk. The first argument may be a .cRZ archive; the comparison is then against
+// the cROM stored in it. Nothing is written. Usage: colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP>
 
 #include <cstdint>
 #include <fstream>
@@ -9,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectSerializer.h"
 
@@ -58,7 +60,7 @@ bool report(const char* label,
 int main(int argc, char* argv[])
 {
     if (argc != 3) {
-        std::cerr << "usage: " << argv[0] << " <cROM> <cRP>\n";
+        std::cerr << "usage: " << argv[0] << " <cROM|cRZ> <cRP>\n";
         return 2;
     }
 
@@ -80,7 +82,17 @@ int main(int argc, char* argv[])
         return 2;
     }
 
-    const bool cromSame = report("cROM", readFile(argv[1]), crom.str(), cromSections);
+    std::vector<uint8_t> cromOnDisk;
+    if (colorizing::legacy::hasCrzExtension(argv[1])) {
+        if (!colorizing::legacy::readCrzArchive(argv[1], cromOnDisk, error)) {
+            std::cerr << "load failed: " << error << '\n';
+            return 2;
+        }
+    } else {
+        cromOnDisk = readFile(argv[1]);
+    }
+
+    const bool cromSame = report("cROM", cromOnDisk, crom.str(), cromSections);
     const bool crpSame = report("cRP", readFile(argv[2]), crp.str(), crpSections);
     return cromSame && crpSame ? 0 : 1;
 }

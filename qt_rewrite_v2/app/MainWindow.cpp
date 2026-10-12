@@ -221,6 +221,27 @@ QString recentProjectCrpPath(const QString& entry)
     return entry.section(QChar('\t'), 1);
 }
 
+bool isCrzPath(const QString& path)
+{
+    return path.endsWith(QStringLiteral(".cRZ"), Qt::CaseInsensitive);
+}
+
+// The file beside `path` with the same base name and the given extension, in whatever case it
+// is spelled on disk; if there is none, the path with the extension as given.
+QString siblingProjectFile(const QString& path, const QString& extension)
+{
+    const QFileInfo info(path);
+    const QString baseName = info.completeBaseName();
+    const QFileInfoList files = info.dir().entryInfoList(QDir::Files | QDir::Hidden);
+    for (const QFileInfo& file : files) {
+        if (file.completeBaseName() == baseName &&
+            file.suffix().compare(extension, Qt::CaseInsensitive) == 0) {
+            return file.absoluteFilePath();
+        }
+    }
+    return info.dir().absoluteFilePath(baseName + QChar('.') + extension);
+}
+
 QString editKindStatusSuffix(edit::EditKind kind)
 {
     switch (kind) {
@@ -965,9 +986,10 @@ void MainWindow::openProject()
 {
     const QString cromPath = QFileDialog::getOpenFileName(
         this,
-        QStringLiteral("Open cROM"),
+        QStringLiteral("Open cROM or cRZ"),
         QString(),
-        QStringLiteral("Serum colorization (*.cROM *.cRom *.crom);;All files (*)"));
+        QStringLiteral("Serum colorization (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
+                       "All files (*)"));
     if (cromPath.isEmpty()) {
         return;
     }
@@ -993,11 +1015,20 @@ void MainWindow::openProject()
 
 void MainWindow::openRecentProject(const QString& entry)
 {
-    const QString cromPath = recentProjectCromPath(entry);
+    QString cromPath = recentProjectCromPath(entry);
     const QString crpPath = recentProjectCrpPath(entry);
     if (cromPath.isEmpty() || crpPath.isEmpty()) {
         statusBar()->showMessage(QStringLiteral("Recent project entry is incomplete"), 4000);
         return;
+    }
+    // A project is passed around as .cRZ and saved as .cROM plus .cRZ, so either may be the one
+    // that is still there.
+    if (!QFileInfo::exists(cromPath)) {
+        const QString other = siblingProjectFile(
+            cromPath, isCrzPath(cromPath) ? QStringLiteral("cROM") : QStringLiteral("cRZ"));
+        if (QFileInfo::exists(other)) {
+            cromPath = other;
+        }
     }
     loadProject(cromPath, crpPath);
 }
@@ -1019,6 +1050,7 @@ void MainWindow::saveProject()
     const legacy::LegacySaveResult result = writer.save(legacy::LegacyProjectPaths{
         m_currentCromPath.toStdString(),
         m_currentCrpPath.toStdString(),
+        siblingProjectFile(m_currentCromPath, QStringLiteral("cRZ")).toStdString(),
     }, m_document->toSnapshot());
 
     if (!result.ok) {
@@ -1237,6 +1269,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
     const legacy::LegacyLoadResult result = reader.load(legacy::LegacyProjectPaths{
         cromPath.toStdString(),
         crpPath.toStdString(),
+        {},
     });
 
     if (!result.ok) {
@@ -1260,7 +1293,10 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 
     try {
         m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
-        m_currentCromPath = cromPath;
+        // Saving a project opened from its archive writes the loose .cROM next to it.
+        m_currentCromPath = isCrzPath(cromPath)
+                                ? siblingProjectFile(cromPath, QStringLiteral("cROM"))
+                                : cromPath;
         m_currentCrpPath = crpPath;
         rememberRecentProject(cromPath, crpPath);
         m_undoHistories.clear();

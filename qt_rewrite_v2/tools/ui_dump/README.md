@@ -20,7 +20,7 @@ It is a developer tool, not a test. It is not part of `ctest` and is not built b
 ## Running it
 
 Requirements: the normal build requirements of `qt_rewrite_v2` (CMake, Qt 6 Widgets, GCC or
-Clang), plus `git`, `tar` and `python3`.
+Clang, a libserum checkout), plus `git`, `tar` and `python3`.
 
 All commands are run from the repository; nothing is written into it. Builds and output go to
 `$UI_DUMP_WORK_DIR`, by default `${TMPDIR:-/tmp}/colorizingdmd_ui_dump`.
@@ -45,6 +45,10 @@ qt_rewrite_v2/tools/ui_dump/run.sh baseline HEAD~3
 
 # Another work directory (must be outside qt_rewrite_v2).
 UI_DUMP_WORK_DIR=$HOME/ui_dump_work qt_rewrite_v2/tools/ui_dump/run.sh baseline
+
+# Another libserum checkout than the one next to the repository. An exported baseline tree has
+# none beside it, so run.sh always passes the checkout to both builds.
+COLORIZINGDMD_LIBSERUM_DIR=$HOME/libserum qt_rewrite_v2/tools/ui_dump/run.sh baseline
 
 # Arguments after "after" or "compare" go to compare.py.
 qt_rewrite_v2/tools/ui_dump/run.sh after --allow-removed '^\[hidden sprite selection combo\] '
