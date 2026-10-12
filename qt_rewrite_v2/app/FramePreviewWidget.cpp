@@ -9,6 +9,7 @@
 #include <QPaintEvent>
 
 #include "FrameImageUtils.h"
+#include "render/OriginalFrameMapping.h"
 
 namespace colorizing::app {
 
@@ -320,6 +321,7 @@ render::CanvasLayout FramePreviewWidget::currentLayout() const
         false,
         hasHd,
         8,
+        m_document ? m_document->originalFrameSize() : render::kSdFrameSize,
     });
 }
 
@@ -455,8 +457,7 @@ void FramePreviewWidget::paintComparisonMaskOverlay(
     const render::CanvasRegionLayout& region)
 {
     if (!m_showComparisonMaskOverlay ||
-        region.region != render::CanvasRegion::OriginalFrame ||
-        region.resolution != render::Resolution::Sd) {
+        region.region != render::CanvasRegion::OriginalFrame) {
         return;
     }
 
@@ -575,30 +576,36 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
 {
     if (!m_showSelectedSpriteBoundsOverlay ||
         !m_selectedSpriteReference ||
-        region.region != render::CanvasRegion::OriginalFrame ||
-        region.resolution != render::Resolution::Sd) {
+        region.region != render::CanvasRegion::OriginalFrame) {
         return;
     }
 
+    // Slot bounds are SD coordinates; the region shows the original.
+    const render::Size sdSize = render::kSdFrameSize;
     const document::FrameSpriteReference& reference = *m_selectedSpriteReference;
     const int minX = std::clamp(static_cast<int>(std::min(reference.minX, reference.maxX)),
                                 0,
-                                region.logicalSize.width - 1);
+                                sdSize.width - 1);
     const int maxX = std::clamp(static_cast<int>(std::max(reference.minX, reference.maxX)),
                                 0,
-                                region.logicalSize.width - 1);
+                                sdSize.width - 1);
     const int minY = std::clamp(static_cast<int>(std::min(reference.minY, reference.maxY)),
                                 0,
-                                region.logicalSize.height - 1);
+                                sdSize.height - 1);
     const int maxY = std::clamp(static_cast<int>(std::max(reference.minY, reference.maxY)),
                                 0,
-                                region.logicalSize.height - 1);
+                                sdSize.height - 1);
 
+    const render::Rect original =
+        render::OriginalFrameMapping(region.logicalSize)
+            .originalBlocks(render::Resolution::Sd,
+                            render::Point{minX, minY},
+                            render::Point{maxX, maxY});
     const int scale = region.displayScale;
-    const QRect bounds(region.displayRect.x + minX * scale,
-                       region.displayRect.y + minY * scale,
-                       (maxX - minX + 1) * scale,
-                       (maxY - minY + 1) * scale);
+    const QRect bounds(region.displayRect.x + original.x * scale,
+                       region.displayRect.y + original.y * scale,
+                       original.width * scale,
+                       original.height * scale);
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, false);

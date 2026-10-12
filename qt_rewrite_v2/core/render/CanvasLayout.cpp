@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "render/OriginalFrameMapping.h"
+
 namespace colorizing::render {
 
 bool Rect::isEmpty() const
@@ -41,9 +43,10 @@ CanvasLayout CanvasLayout::buildFrameLayout(const CanvasLayoutOptions& options)
     std::vector<CanvasRegionLayout> regions;
     int y = 0;
 
-    auto appendRegion = [&](CanvasRegion region, Resolution resolution) {
-        const Size logicalSize = logicalSizeForResolution(resolution);
-        const int scale = displayScaleForResolution(resolution);
+    auto appendRegion = [&](CanvasRegion region,
+                            Resolution resolution,
+                            Size logicalSize,
+                            int scale) {
         const Size displaySize{logicalSize.width * scale, logicalSize.height * scale};
         regions.push_back(CanvasRegionLayout{
             region,
@@ -55,14 +58,25 @@ CanvasLayout CanvasLayout::buildFrameLayout(const CanvasLayoutOptions& options)
         y += displaySize.height + options.gap;
     };
 
-    appendRegion(CanvasRegion::ColorizedFrame, options.activeResolution);
+    auto appendFrameRegion = [&](CanvasRegion region, Resolution resolution) {
+        appendRegion(region,
+                     resolution,
+                     logicalSizeForResolution(resolution),
+                     displayScaleForResolution(resolution));
+    };
+
+    appendFrameRegion(CanvasRegion::ColorizedFrame, options.activeResolution);
 
     if (options.showOriginal) {
-        appendRegion(CanvasRegion::OriginalFrame, Resolution::Sd);
+        const OriginalFrameMapping mapping(options.originalSize);
+        appendRegion(CanvasRegion::OriginalFrame,
+                     mapping.originalResolution(),
+                     mapping.originalSize(),
+                     mapping.originalDisplayScale());
     }
 
     if (options.showHdReference && options.hasHdFrame) {
-        appendRegion(CanvasRegion::HdFrame, Resolution::Hd);
+        appendFrameRegion(CanvasRegion::HdFrame, Resolution::Hd);
     }
 
     return CanvasLayout(std::move(regions));

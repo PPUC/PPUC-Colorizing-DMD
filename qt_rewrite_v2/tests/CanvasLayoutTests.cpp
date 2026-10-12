@@ -132,6 +132,7 @@ void runLegacyCrpOriginalsTests();
 void runLegacyProjectFileReaderTests();
 void runLegacyProjectIoTests();
 void runLegacyProjectSerializerTests();
+void runOriginalFrameMappingTests();
 
 int main()
 {
@@ -148,6 +149,7 @@ int main()
     runLegacyProjectFileReaderTests();
     runLegacyProjectIoTests();
     runLegacyProjectSerializerTests();
+    runOriginalFrameMappingTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

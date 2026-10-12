@@ -1274,17 +1274,6 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         return;
     }
 
-    // The canvas, mask tools and sprite capture still assume 128x32 original frames. The core
-    // loads and saves 256x64 originals already; opening is held back until the editor follows.
-    if (result.snapshot.originalIs256x64) {
-        QMessageBox::warning(this,
-                             QStringLiteral("Open Project"),
-                             QStringLiteral("This project has 256x64 original frames, which the "
-                                            "editor cannot display yet."));
-        setStatusText(QStringLiteral("Open failed"));
-        return;
-    }
-
     try {
         m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
         // Saving a project opened from its archive writes the loose .cROM next to it.
@@ -1750,8 +1739,11 @@ void MainWindow::updateFrameStatusText()
         return;
     }
     const int selectedCount = static_cast<int>(selectedFrameIndices().size());
-    setFrameStatusText(QStringLiteral("Frame %1 | SD 128x32 | %2 | %3 ms%4")
+    const bool bigOriginal =
+        m_document->originalFrameSize().width == render::kHdFrameSize.width;
+    setFrameStatusText(QStringLiteral("Frame %1 | %2SD 128x32 | %3 | %4 ms%5")
                            .arg(static_cast<int>(*frameIndex))
+                           .arg(bigOriginal ? QStringLiteral("Original 256x64 | ") : QString())
                            .arg(m_document->hasHdFrame(*frameIndex)
                                     ? QStringLiteral("HD 256x64")
                                     : QStringLiteral("HD unavailable"))
@@ -2680,9 +2672,12 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                  *frameIndex,
                                  render::Resolution::Sd,
                                  includeBackgroundLayer);
+        // Sprites live on the SD grid: bounds, selection and both sources are SD coordinates,
+        // also when the original is 256x64.
+        const document::IndexedFrame sourceOriginal = m_document->originalFrameAtSd(*frameIndex);
         if (selectedPixels.empty()) {
             m_document->replaceSpriteFromFrame(*spriteIndex,
-                                               m_document->originalFrame(*frameIndex),
+                                               sourceOriginal,
                                                sourceColorized,
                                                captureMinX,
                                                captureMinY,
@@ -2690,7 +2685,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                                captureHeight);
         } else {
             m_document->replaceSpriteFromFrameSelection(*spriteIndex,
-                                                        m_document->originalFrame(*frameIndex),
+                                                        sourceOriginal,
                                                         sourceColorized,
                                                         selectedPixels);
         }

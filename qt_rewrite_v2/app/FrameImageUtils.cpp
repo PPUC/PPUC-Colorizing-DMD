@@ -7,6 +7,8 @@
 #include <vector>
 #include <QPainter>
 
+#include "render/OriginalFrameMapping.h"
+
 namespace colorizing::app {
 
 namespace {
@@ -21,14 +23,6 @@ std::size_t indexedPixelIndex(const document::IndexedFrame& frame, int x, int y)
 {
     return static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
            static_cast<std::size_t>(x);
-}
-
-render::Point originalPointForResolution(render::Resolution resolution, int x, int y)
-{
-    if (resolution == render::Resolution::Hd) {
-        return render::Point{x / 2, y / 2};
-    }
-    return render::Point{x, y};
 }
 
 struct ShadowDirection {
@@ -128,9 +122,18 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
                                            std::size_t frameIndex)
 {
     std::vector<SpriteMatch> matches;
-    const document::IndexedFrame& original = document.originalFrame(frameIndex);
     const std::vector<document::FrameSpriteReference>& references =
         document.frameSpriteReferences(frameIndex);
+    if (std::none_of(references.begin(),
+                     references.end(),
+                     [&](const document::FrameSpriteReference& reference) {
+                         return reference.spriteId != 255 &&
+                                reference.spriteId < document.spriteCount();
+                     })) {
+        return matches;
+    }
+    // Sprites are detected and placed on the SD grid, also when the original is 256x64.
+    const document::IndexedFrame original = document.originalFrameAtSd(frameIndex);
     for (const document::FrameSpriteReference& reference : references) {
         if (reference.spriteId == 255 ||
             reference.spriteId >= document.spriteCount()) {
@@ -303,7 +306,8 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
     uint16_t color = colorized.pixels[rgb565PixelIndex(colorized, x, y)];
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
-    const render::Point originalPoint = originalPointForResolution(resolution, x, y);
+    const render::Point originalPoint =
+        render::OriginalFrameMapping(original.size).toOriginal(resolution, render::Point{x, y});
     const std::size_t originalIndex =
         indexedPixelIndex(original, originalPoint.x, originalPoint.y);
     const uint8_t originalValue = original.pixels[originalIndex];
@@ -380,11 +384,13 @@ void applyDynamicShadows(const document::ProjectDocument& document,
     }
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    const render::OriginalFrameMapping mapping(original.size);
     std::vector<uint8_t> occupied(frame.pixels.size(), 0);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
             const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
-            const render::Point originalPoint = originalPointForResolution(resolution, x, y);
+            const render::Point originalPoint =
+                mapping.toOriginal(resolution, render::Point{x, y});
             const uint8_t originalValue =
                 original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
             if (dynamicSet < document::kMaxDynamicSetsPerFrame && originalValue > 0) {
@@ -396,7 +402,8 @@ void applyDynamicShadows(const document::ProjectDocument& document,
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
             const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
-            const render::Point originalPoint = originalPointForResolution(resolution, x, y);
+            const render::Point originalPoint =
+                mapping.toOriginal(resolution, render::Point{x, y});
             const uint8_t originalValue =
                 original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
             if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||

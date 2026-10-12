@@ -17,6 +17,7 @@ add_executable(colorizing_qt_v2_tests
     LegacyProjectFileReaderTests.cpp
     LegacyProjectIoTests.cpp
     LegacyProjectSerializerTests.cpp
+    OriginalFrameMappingTests.cpp
     ProjectDocumentTests.cpp
 )
 
@@ -43,6 +44,7 @@ colorizing_qt_v2_enable_warnings(colorizing_qt_v2_roundtrip)
 
 if(TARGET colorizing_qt_v2_widgets)
     add_executable(colorizing_qt_v2_widget_tests
+        BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
         FramePreviewWidgetRenderTests.cpp
     )

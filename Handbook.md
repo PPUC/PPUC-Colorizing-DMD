@@ -17,16 +17,16 @@ The Qt rewrite edits legacy Serum editor projects directly:
 Saving writes complete `.cROM` and `.cRP` files from the in-memory project in the legacy file
 layout, plus the `.cRZ` archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
 saved as revision 20, everything older as revision 19, so a save never moves a project to a
-Revision 20 projects with 256x64 original frames load and save
-in the project core (256x64 originals and comparison masks, 128x32 SD and 256x64 HD colorized
-data), but the editor does not open them yet because the canvas and tools still assume 128x32
-originals.
+Revision 20 projects can have 256x64 original frames. They are opened, edited and saved like
+any other project; what is different about them is described in "Projects With 256x64 Original
+Frames". Other original sizes are not supported.
 
 The in-memory project model currently carries structured comparison-mask data from `.cROM`:
 
 - Per-frame shape comparison mode.
 - Per-frame comparison mask ID.
-- SD comparison mask bitmaps.
+- Comparison mask bitmaps, in the size of the original frames (128x32, or 256x64 in projects
+  with 256x64 original frames).
 
 It also carries structured dynamic-mask data from `.cROM`:
 
@@ -170,6 +170,9 @@ Rules:
 
 - SD edits target 128x32 colorized frame pixels.
 - HD edits target 256x64 colorized frame pixels.
+- Both sizes are the same in every project. The size of the original frames does not change
+  them; it changes which original pixel an SD or HD pixel belongs to, see "Projects With 256x64
+  Original Frames".
 - If a frame has no HD data, the canvas falls back to SD display/editing.
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
 - The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
@@ -181,12 +184,60 @@ Rules:
 
 TODO: offer selectable scaling algorithms for HD creation instead of always using nearest-neighbor 2x scaling.
 
+## Projects With 256x64 Original Frames
+
+Most projects are made from 128x32 ROM frames. A revision 20 project can instead be made from
+256x64 ROM frames. The editor shows this in the frame status line, which then reads
+`Frame <n> | Original 256x64 | SD 128x32 | ...`.
+
+In such a project:
+
+- The original frames and the comparison masks are 256x64.
+- The colorized SD frame, the SD dynamic mask, the SD background mask and the SD background
+  images are 128x32; the HD ones are 256x64. These are the same sizes as in every project.
+- Frame identification hashes cover the whole 256x64 original with the 256x64 comparison mask.
+
+Which original pixel a colorized pixel belongs to:
+
+| Original | SD pixel (x, y) | HD pixel (x, y) |
+| --- | --- | --- |
+| 128x32 | original (x, y) | original (x/2, y/2) |
+| 256x64 | original (2x, 2y) | original (x, y) |
+
+So with a 256x64 original the HD frame is the one that matches the ROM pixel for pixel, and the
+SD frame sees every second pixel of every second row. Nothing is averaged: the three other
+original pixels of a 2x2 block do not influence the SD frame at all. This mapping decides
+
+- which original color index a dynamic mask pixel is replaced for,
+- which pixels count as lit and cast dynamic shadows,
+- where the assigned background shows through (where the original pixel is black),
+
+in the canvas, the thumbnails and PNG export.
+
+What works differently in the editor:
+
+- The original/reference region shows all 256x64 original pixels, in the same on-screen size
+  as for a 128x32 original. One original pixel is therefore half as wide and high as an SD
+  pixel of the colorized region above it, and exactly as large as an HD pixel.
+- The comparison mask overlay and all comparison mask tools work on the 256x64 pixels of that
+  region.
+- Sprites stay on the SD grid, see "Sprites".
+
+Not verified: no real project with 256x64 original frames was available while this was built.
+Everything above is tested with constructed projects only. In particular, going by its source
+code at the time of writing, libserum uses the 256x64 size for frame identification only and
+reads the incoming ROM frame as 128x32 when it renders. Until that is settled in libserum,
+expect dynamic colors, backgrounds over black and sprites of such a project to look different
+on a real machine than in the editor.
+
 ## Canvas
 
 The central canvas shows:
 
 - The active colorized frame region.
-- The original/reference frame region below it.
+- The original/reference frame region below it. It always shows every pixel of the original
+  frame and has the same on-screen size as the SD frame: 128x32 pixels, or 256x64 pixels of
+  half the size in a project with 256x64 original frames.
 
 The canvas does not draw text labels or white frame outlines over the image data.
 
@@ -494,6 +545,10 @@ names, sprite capture, and color rotation settings.
 
 The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transparent red overlay on the original/reference region.
 
+A comparison mask has one pixel per original pixel. In a project with 256x64 original frames
+the masks are 256x64, and the overlay, the tools, flood fill, erasing and undo all work on those
+256x64 pixels of the original/reference region.
+
 The Inspector exposes per-frame comparison metadata:
 
 - The `Mask` topic shows the visually selected mask from the left sidebar as `Selected: <ID>`, with
@@ -674,6 +729,26 @@ The Inspector has a sprite browser and assignment controls:
   `Edit BG` switch `Edit Sprite` off, since they return to the frame view.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
+Sprites in projects with 256x64 original frames:
+
+- Sprites live on the SD grid in every project. A sprite's original pixels, its detection areas
+  and the `Min X`/`Min Y`/`Max X`/`Max Y` bounds of a frame's sprite slot are SD coordinates
+  (0..127, 0..31), and a sprite is drawn into the SD frame at the place it was found, and into
+  the HD frame at twice that position.
+- With a 256x64 original the sprite is looked for in the original as the SD frame sees it:
+  original pixel (2x, 2y) for SD position (x, y). The other original pixels are not compared.
+- `Show Bounds` draws the SD bounds over the 256x64 original, so bounds 10,5-30,12 cover
+  original pixels 20,10-61,25.
+- `Select Capture` marks SD pixels. A click or shape on the original/reference region marks
+  every SD pixel it touches, and each marked SD pixel is shown as its 2x2 block of original
+  pixels. The pixel counts and coordinates in the capture dialog and status bar are SD ones.
+- `Capture` stores, for each captured SD pixel (x, y), original pixel (2x, 2y) as the sprite's
+  original pixel and the SD colorized pixel (x, y) as its color, so the two always belong
+  together.
+- This is the editor's reading of how such projects are meant to work. Going by its source
+  code at the time of writing, libserum does not look for sprites in a 256x64 ROM frame this
+  way (see "Projects With 256x64 Original Frames").
+
 Sprite-name edits are limited to 31 characters so the legacy fixed 32-byte `.cRP` name slot
 remains null-terminated.
 
@@ -689,6 +764,8 @@ Currently implemented:
 - The project status line shows the loaded background count.
 - `BG ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
+  Which original pixel is looked at depends on the size of the original frames, see "Projects
+  With 256x64 Original Frames".
 - Inspector `Target -> Background` displays the selected background image on the canvas and edits that shared background image with the ordinary drawing tools.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
@@ -747,6 +824,11 @@ For drawing changes, test at least:
 - Switching SD/HD does not interleave undo histories.
 - Save, reopen, and verify edits persist.
 - With `Mask` active, add and Shift-erase pixels on the original/reference region, undo/redo the mask edits, save, reopen, and verify the mask overlay persists.
+
+For changes that read the original frame (dynamic colors, shadows, backgrounds, sprites,
+comparison masks, anything on the original/reference region), test a project with 128x32 and
+one with 256x64 original frames. The automated tests and `tools/ui_dump` contain a constructed
+256x64 project each.
 
 For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
 projects. It loads a project, serializes it in memory, and reports per block where the result

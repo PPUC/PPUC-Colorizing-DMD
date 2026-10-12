@@ -29,12 +29,14 @@ endif()
 
 add_executable(colorizing_qt_v2_ui_dump
     dump.cpp
+    big_original_script.inc
     inspector_script.inc
     sprite_script.inc
     "${UI_DUMP_TREE}/app/MainWindow.cpp"
 )
 
-set_source_files_properties(inspector_script.inc sprite_script.inc PROPERTIES HEADER_FILE_ONLY ON)
+set_source_files_properties(big_original_script.inc inspector_script.inc sprite_script.inc
+                            PROPERTIES HEADER_FILE_ONLY ON)
 
 target_include_directories(colorizing_qt_v2_ui_dump PRIVATE "${UI_DUMP_TREE}/app")
 

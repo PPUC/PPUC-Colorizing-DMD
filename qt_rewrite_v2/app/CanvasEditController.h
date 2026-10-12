@@ -123,6 +123,8 @@ public:
     void fillSelectionWithPaletteGradient(const CanvasEditContext& context);
 
     [[nodiscard]] std::optional<std::size_t> captureSelectionFrame() const;
+    // In SD frame coordinates, the grid sprites live on. On a 256x64 original a click marks
+    // the SD pixel that covers the clicked original pixel.
     [[nodiscard]] std::vector<render::Point> captureSelectionPixels(
         std::optional<std::size_t> frameIndex) const;
     // Shows the capture selection of the frame as the selection overlay, or no overlay.
@@ -168,6 +170,7 @@ private:
     void floodFillBackgroundMask(const CanvasEditContext& context,
                                  const render::CanvasHit& hit,
                                  bool erase);
+    // pixels are coordinates of the original frame.
     void paintCaptureSelection(const CanvasEditContext& context,
                                const std::vector<render::Point>& pixels,
                                bool erase);
@@ -267,6 +270,8 @@ private:
     std::optional<Selection> m_selection;
     bool m_selectionDirectionMode = false;
     edit::FramePixelSelection m_captureSelection{render::kSdFrameSize};
+    // Original size of the document the capture selection was painted on.
+    render::Size m_captureOriginalSize = render::kSdFrameSize;
 };
 
 }  // namespace colorizing::app

@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 530 scripted states and after each one prints every widget and the relevant
+through about 580 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -52,6 +52,9 @@ COLORIZINGDMD_LIBSERUM_DIR=$HOME/libserum qt_rewrite_v2/tools/ui_dump/run.sh bas
 
 # Arguments after "after" or "compare" go to compare.py.
 qt_rewrite_v2/tools/ui_dump/run.sh after --allow-removed '^\[hidden sprite selection combo\] '
+
+# The change appends states to the end of the script that the baseline cannot run.
+qt_rewrite_v2/tools/ui_dump/run.sh after --allow-appended
 ```
 
 `baseline` runs the dump twice and fails if the two runs differ, so a baseline is known to be
@@ -143,6 +146,15 @@ removed lines" instead of as differences. Everything else is still compared stri
 lines that match but changed instead of disappearing (the new line is reported as added). The
 option can be given several times.
 
+### `--allow-appended`
+
+For a change that adds states for something the baseline revision cannot do, e.g. open a new
+kind of project. Take the baseline with the script as it was, append the new states at the very
+end of the script (after everything else, see `big_original_script.inc`), and compare with this
+option: the working tree dump may then have more sections at its end. They are counted as
+"appended sections, not compared"; all sections the two dumps share are compared as usual, so
+`REAL DIFFERENCES: 0` still means that no state the baseline has changed.
+
 Lines of widgets inside the hidden sprite selection combo box start with the tag
 `[hidden sprite selection combo] ` so that they can be matched by such an expression; see
 `ownerTag()` in `dump.cpp` to tag another group of widgets.
@@ -178,15 +190,17 @@ change the settings of the real application.
 
 ## Adding scripted states
 
-The script is plain C++ in three places, executed in this order:
+The script is plain C++ in four places, executed in this order:
 
 | File | Content |
 | --- | --- |
 | `dump.cpp`, `main()` | empty window, color rotation page, palette page, gradient tools |
 | `sprite_script.inc` | sprite page, sprite editor canvas, capture selection, detection areas |
 | `inspector_script.inc` | frame, mask, background and dynamic pages, image import/export, dialogs, undo/redo, playback controls |
+| `big_original_script.inc` | a project with 256x64 original frames: every inspector page, SD/HD, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite capture |
 
 The `.inc` files are included at the end of `main()` and each form one block.
+`big_original_script.inc` runs after the window was closed (`closed at the end`).
 
 A state is: do something, then call `dump("title", w)` (`D("title")` in `inspector_script.inc`).
 Widgets are looked up by tool tip with `byTip<QSpinBox>(w, "...")`, grid buttons with
@@ -200,7 +214,8 @@ Fixtures are built in code, there are no fixture files in the repository:
 
 - the project documents are `ProjectSnapshot` values assembled at the top of each script
   (`snapshot` in `dump.cpp`, `ss` in `sprite_script.inc`, `is` and `loadInspector()` /
-  `loadPlain()` in `inspector_script.inc`) and loaded with `ProjectDocument::fromSnapshot`;
+  `loadPlain()` in `inspector_script.inc`, `bs` in `big_original_script.inc`) and loaded with
+  `ProjectDocument::fromSnapshot`;
 - images for the import tests are written to a temporary directory by `inspector_script.inc`
   and removed at the end.
 
@@ -211,7 +226,8 @@ Rules:
   the end of a script block changes nothing else.
 - **Extend the script before taking the baseline**, not between `baseline` and `after`. Both
   dumps must come from the same script, otherwise the section lists differ. After editing a
-  script, run `baseline` again.
+  script, run `baseline` again. The exception is states the baseline cannot run, see
+  `--allow-appended`.
 - Keep everything deterministic: no time, no random numbers, no absolute paths in the output
   (print file names, not paths).
 - New states can only use what exists in both trees that are compared.

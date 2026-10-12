@@ -504,5 +504,8 @@ int main(int argc, char* argv[])
     w.m_document.reset();
     w.refreshProjectSummary();
     dump("closed at the end", w);
+
+#include "big_original_script.inc"
+
     return 0;
 }

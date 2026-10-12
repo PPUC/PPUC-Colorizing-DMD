@@ -6,6 +6,7 @@
 #include <tuple>
 
 #include "FrameImageUtils.h"
+#include "render/OriginalFrameMapping.h"
 
 namespace colorizing::app {
 
@@ -46,6 +47,54 @@ QString strokeStatusText(DrawingTool tool)
             break;
     }
     return QString();
+}
+
+render::OriginalFrameMapping originalMapping(const CanvasEditContext& context)
+{
+    return render::OriginalFrameMapping(context.document ? context.document->originalFrameSize()
+                                                         : render::kSdFrameSize);
+}
+
+bool isOnOriginal(const render::OriginalFrameMapping& mapping, const render::CanvasHit& hit)
+{
+    return hit.region == render::CanvasRegion::OriginalFrame &&
+           hit.resolution == mapping.originalResolution();
+}
+
+// The capture selection is kept on the SD grid, where sprites live.
+std::vector<render::Point> sdPixelsForOriginal(const render::OriginalFrameMapping& mapping,
+                                               const std::vector<render::Point>& originalPixels)
+{
+    std::vector<render::Point> pixels;
+    pixels.reserve(originalPixels.size());
+    for (const render::Point& pixel : originalPixels) {
+        pixels.push_back(mapping.fromOriginal(render::Resolution::Sd, pixel));
+    }
+    return pixels;
+}
+
+// The original pixels that show SD pixels on the original region: each SD pixel once, as the
+// whole block it stands for.
+std::vector<render::Point> originalPixelsForSd(const render::OriginalFrameMapping& mapping,
+                                               const std::vector<render::Point>& sdPixels)
+{
+    if (mapping.originalBlock(render::Resolution::Sd, render::Point{}).width == 1) {
+        return sdPixels;
+    }
+    std::set<std::pair<int, int>> seen;
+    std::vector<render::Point> pixels;
+    for (const render::Point& pixel : sdPixels) {
+        if (!seen.insert({pixel.y, pixel.x}).second) {
+            continue;
+        }
+        const render::Rect block = mapping.originalBlock(render::Resolution::Sd, pixel);
+        for (int y = block.y; y < block.y + block.height; ++y) {
+            for (int x = block.x; x < block.x + block.width; ++x) {
+                pixels.push_back(render::Point{x, y});
+            }
+        }
+    }
+    return pixels;
 }
 
 QString onFramesText(const QString& statusText, std::size_t frameCount)
@@ -163,8 +212,7 @@ void CanvasEditController::originalPixelClicked(const CanvasEditContext& context
 {
     if (context.spriteCaptureSelection) {
         if (context.tool != DrawingTool::Point ||
-            hit.region != render::CanvasRegion::OriginalFrame ||
-            hit.resolution != render::Resolution::Sd) {
+            !isOnOriginal(originalMapping(context), hit)) {
             return;
         }
         paintCaptureSelection(context, {render::Point{hit.x, hit.y}}, erase);
@@ -185,6 +233,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
     }
     const bool onColorized = start.region == render::CanvasRegion::ColorizedFrame;
     const bool onOriginal = start.region == render::CanvasRegion::OriginalFrame;
+    const render::OriginalFrameMapping mapping = originalMapping(context);
     const QColor eraseColor(0, 0, 0, 150);
     if (tool == DrawingTool::Selection) {
         if (onColorized) {
@@ -200,10 +249,12 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         return;
     }
     if (context.spriteCaptureSelection) {
-        if (onOriginal && start.resolution == render::Resolution::Sd) {
+        if (isOnOriginal(mapping, start)) {
             showPreview(render::CanvasRegion::OriginalFrame,
-                        render::Resolution::Sd,
-                        strokePixels(context, start, end),
+                        mapping.originalResolution(),
+                        originalPixelsForSd(
+                            mapping,
+                            sdPixelsForOriginal(mapping, strokePixels(context, start, end))),
                         erase ? eraseColor : QColor(255, 0, 255, 150));
         }
         return;
@@ -212,7 +263,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         case CanvasEditLayer::ComparisonMask:
             if (onOriginal) {
                 showPreview(render::CanvasRegion::OriginalFrame,
-                            render::Resolution::Sd,
+                            mapping.originalResolution(),
                             strokePixels(context, start, end),
                             erase ? eraseColor : QColor(255, 0, 0, 150));
             }
@@ -270,8 +321,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
 
     const bool onColorized = start.region == render::CanvasRegion::ColorizedFrame;
     if (context.spriteCaptureSelection) {
-        if (start.region != render::CanvasRegion::OriginalFrame ||
-            start.resolution != render::Resolution::Sd) {
+        if (!isOnOriginal(originalMapping(context), start)) {
             return;
         }
         paintCaptureSelection(context, strokePixels(context, start, end), erase);
@@ -672,7 +722,11 @@ void CanvasEditController::paintCaptureSelection(const CanvasEditContext& contex
     if (!context.document || !context.currentFrame || pixels.empty()) {
         return;
     }
-    if (!m_captureSelection.paint(*context.currentFrame, pixels, erase)) {
+    const render::OriginalFrameMapping mapping = originalMapping(context);
+    m_captureOriginalSize = mapping.originalSize();
+    if (!m_captureSelection.paint(*context.currentFrame,
+                                  sdPixelsForOriginal(mapping, pixels),
+                                  erase)) {
         return;
     }
     showCaptureSelection(context.currentFrame);
@@ -961,9 +1015,10 @@ void CanvasEditController::showCaptureSelection(std::optional<std::size_t> frame
         clearSelectionOverlay();
         return;
     }
+    const render::OriginalFrameMapping mapping(m_captureOriginalSize);
     showSelectionOverlay(render::CanvasRegion::OriginalFrame,
-                         render::Resolution::Sd,
-                         std::move(pixels),
+                         mapping.originalResolution(),
+                         originalPixelsForSd(mapping, pixels),
                          QColor(255, 0, 255, 110));
 }
 

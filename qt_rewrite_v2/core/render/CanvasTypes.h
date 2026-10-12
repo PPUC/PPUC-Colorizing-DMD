@@ -40,6 +40,8 @@ struct Rect {
 
 struct CanvasHit {
     CanvasRegion region = CanvasRegion::ColorizedFrame;
+    // The grid x and y are on. On the original region that is the grid of the original frame
+    // (Hd for a 256x64 original), not the resolution being edited.
     Resolution resolution = Resolution::Sd;
     int x = 0;
     int y = 0;

@@ -7,6 +7,7 @@
 
 #include "document/ProjectSnapshot.h"
 #include "render/CanvasLayout.h"
+#include "render/OriginalFrameMapping.h"
 
 namespace colorizing::document {
 
@@ -572,6 +573,27 @@ void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState
 const IndexedFrame& ProjectDocument::originalFrame(std::size_t frameIndex) const
 {
     return requireFrame(m_frames, frameIndex).originalSd;
+}
+
+IndexedFrame ProjectDocument::originalFrameAtSd(std::size_t frameIndex) const
+{
+    const IndexedFrame& original = originalFrame(frameIndex);
+    if (!m_originalIs256x64) {
+        return original;
+    }
+    const render::OriginalFrameMapping mapping(original.size);
+    IndexedFrame frame = makeIndexedFrame(render::kSdFrameSize);
+    for (int y = 0; y < frame.size.height; ++y) {
+        for (int x = 0; x < frame.size.width; ++x) {
+            const render::Point source = mapping.toOriginal(Resolution::Sd, render::Point{x, y});
+            frame.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
+                         static_cast<std::size_t>(x)] =
+                original.pixels[static_cast<std::size_t>(source.y) *
+                                    static_cast<std::size_t>(original.size.width) +
+                                static_cast<std::size_t>(source.x)];
+        }
+    }
+    return frame;
 }
 
 const Rgb565Frame& ProjectDocument::colorizedFrame(std::size_t frameIndex,

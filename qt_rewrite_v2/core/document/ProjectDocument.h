@@ -188,6 +188,9 @@ public:
     [[nodiscard]] uint32_t colorCount() const;
     // Size of the original frames and comparison masks: 256x64 for such ROMs, else 128x32.
     [[nodiscard]] Size originalFrameSize() const;
+    // The original frame as the SD frame and the sprites see it: 128x32, for a 256x64 original
+    // every second pixel of every second row (render::OriginalFrameMapping).
+    [[nodiscard]] IndexedFrame originalFrameAtSd(std::size_t frameIndex) const;
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
     [[nodiscard]] bool isDirty() const;
     void markClean();

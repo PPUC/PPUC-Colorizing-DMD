@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Compare two ui_dump outputs.
 
-Usage: compare.py before.txt after.txt [--allow-removed REGEX ...]
+Usage: compare.py before.txt after.txt [--allow-removed REGEX ...] [--allow-appended]
 
 Sections ("===== name =====") are compared as multisets of lines, except the focus chain
 sections, which are compared as sequences after dropping non-focusable (fp=0) entries.
 Lines matching an --allow-removed regex may be missing in the second file; such lines are
 summarised, everything else is reported as a real difference.
+With --allow-appended the second file may have more sections at its end, for states that were
+added to the end of the script after the first file was made; they are counted, not compared.
 """
 import collections
 import re
@@ -15,7 +17,10 @@ import sys
 def sections(path):
     result = []
     name, lines = '<preamble>', []
-    for line in open(path, encoding='utf-8', errors='replace').read().split('\n'):
+    text = open(path, encoding='utf-8', errors='replace').read()
+    # Without the empty string after the final newline, so that the last section of one file
+    # compares equal to the same section followed by more sections in the other.
+    for line in text.removesuffix('\n').split('\n'):
         if line.startswith('===== '):
             result.append((name, lines))
             name, lines = line, []
@@ -30,7 +35,13 @@ while '--allow-removed' in args:
     i = args.index('--allow-removed')
     allowed.append(re.compile(args[i + 1]))
     del args[i:i + 2]
+allow_appended = '--allow-appended' in args
+args = [a for a in args if a != '--allow-appended']
 before, after = sections(args[0]), sections(args[1])
+appended = []
+if allow_appended and len(after) > len(before):
+    appended = [n for n, _ in after[len(before):]]
+    after = after[:len(before)]
 real = 0
 allowed_count = collections.Counter()
 focus_moves = 0
@@ -74,6 +85,8 @@ for index, ((name, b), (_, a)) in enumerate(zip(before, after)):
         real += 1
         print(f'#{index} {name}\n   > {line}')
 print(f'sections: {len(before)} / {len(after)}')
+if allow_appended:
+    print(f'appended sections, not compared: {len(appended)}')
 print(f'focus chain sections with moved entries: {focus_moves}')
 print(f'focus chain sections with a different focusable order: {focus_reordered}')
 print(f'differences outside the focus order: {real - focus_reordered}')

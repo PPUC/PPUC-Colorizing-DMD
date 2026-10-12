@@ -16,10 +16,14 @@ struct CanvasLayoutOptions {
     bool showHdReference = false;
     bool hasHdFrame = false;
     int gap = 8;
+    // Size of the ROM's original frames, see OriginalFrameMapping.
+    Size originalSize = kSdFrameSize;
 };
 
 struct CanvasRegionLayout {
     CanvasRegion region = CanvasRegion::ColorizedFrame;
+    // For the original region: the grid of the original, see
+    // OriginalFrameMapping::originalResolution().
     Resolution resolution = Resolution::Sd;
     Size logicalSize;
     Rect displayRect;
