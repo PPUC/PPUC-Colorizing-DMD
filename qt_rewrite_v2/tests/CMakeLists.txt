@@ -43,6 +43,7 @@ colorizing_qt_v2_enable_warnings(colorizing_qt_v2_roundtrip)
 
 if(TARGET colorizing_qt_v2_widgets)
     add_executable(colorizing_qt_v2_widget_tests
+        CanvasEditControllerTests.cpp
         FramePreviewWidgetRenderTests.cpp
     )
 

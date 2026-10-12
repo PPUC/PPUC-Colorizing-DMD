@@ -9,6 +9,7 @@
 #include <QElapsedTimer>
 #include <QString>
 
+#include "CanvasEditController.h"
 #include "document/ProjectDocument.h"
 #include "edit/DrawingTools.h"
 #include "edit/UndoHistories.h"
@@ -46,23 +47,7 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
 
 private:
-    using PaletteGradientDirection = edit::PaletteGradientDirection;
-    using PaletteGradientPattern = edit::PaletteGradientPattern;
-
-    enum class DrawingTool {
-        Point,
-        Line,
-        Rectangle,
-        FilledRectangle,
-        Circle,
-        FilledCircle,
-        Ellipse,
-        FilledEllipse,
-        PaletteGradient,
-        Selection,
-        ColorPicker,
-        FloodFill,
-    };
+    using DrawingTool = edit::DrawingTool;
 
     enum class FrameFilter {
         All,
@@ -70,23 +55,6 @@ private:
         Background,
         Dynamic,
         Sprites,
-    };
-
-    struct PendingFreePaletteGradient {
-        render::CanvasHit shapeStart;
-        render::CanvasHit shapeEnd;
-        PaintTarget target = PaintTarget::Frame;
-        std::optional<std::size_t> backgroundIndex;
-    };
-
-    struct CanvasSelection {
-        render::CanvasHit shapeStart;
-        render::CanvasHit shapeEnd;
-        PaintTarget target = PaintTarget::Frame;
-        std::optional<std::size_t> backgroundIndex;
-        std::vector<render::Point> pixels;
-        std::optional<render::CanvasHit> gradientStart;
-        std::optional<render::CanvasHit> gradientEnd;
     };
 
     void createActions();
@@ -143,7 +111,6 @@ private:
     void exportSelectedBackgroundPng();
     void assignSelectedSpriteToCurrentSlot();
     void captureSelectedSpriteFromCurrentFrame();
-    void clearSpriteCaptureSelection();
     void removeCurrentSpriteSlot();
     void setCurrentSpriteSlotBounds();
     void setCurrentSpriteName(const QString& name);
@@ -170,7 +137,6 @@ private:
     void editCurrentPaletteColor(std::size_t colorIndex);
     void applyCurrentPaletteGradient();
     void setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565);
-    void pickDynamicSet(const render::CanvasHit& hit);
     void paintSpriteColorizedPixel(std::size_t spriteIndex,
                                    render::Resolution resolution,
                                    int x,
@@ -192,90 +158,10 @@ private:
     void applyPendingSpriteDependentViews();
     [[nodiscard]] uint8_t activeDynamicSet() const;
     [[nodiscard]] PaintTarget activePaintTarget() const;
-    void paintFramePixel(const render::CanvasHit& hit, bool erase);
-    void pickFrameColor(const render::CanvasHit& hit);
-    void floodFillFrame(const render::CanvasHit& hit);
-    void paintBackgroundImagePixel(const render::CanvasHit& hit);
-    void pickBackgroundImageColor(const render::CanvasHit& hit);
-    void floodFillBackgroundImage(const render::CanvasHit& hit);
-    void paintComparisonMaskPixel(const render::CanvasHit& hit, bool erase);
-    void floodFillComparisonMask(const render::CanvasHit& hit, bool erase);
-    void paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase);
-    void floodFillDynamicMask(const render::CanvasHit& hit, bool erase);
-    void paintBackgroundMaskPixel(const render::CanvasHit& hit, bool erase);
-    void floodFillBackgroundMask(const render::CanvasHit& hit, bool erase);
-    void previewFrameStroke(const render::CanvasHit& start,
-                            const render::CanvasHit& end,
-                            bool erase);
-    void paintFrameStroke(const render::CanvasHit& start,
-                          const render::CanvasHit& end,
-                          bool erase);
-    [[nodiscard]] bool isFreePaletteGradientPending() const;
-    void beginFreePaletteGradientSelection(const render::CanvasHit& start,
-                                           const render::CanvasHit& end);
-    void previewFreePaletteGradientDirection(const render::CanvasHit& start,
-                                             const render::CanvasHit& end);
-    void showPendingFreePaletteGradientSelection();
-    void cancelFreePaletteGradientSelection();
-    void toggleCanvasSelectionDirectionMode();
-    void setCanvasSelectionFromStroke(const render::CanvasHit& start,
-                                      const render::CanvasHit& end);
-    void clearCanvasSelection();
-    void updateCanvasSelectionOverlay();
-    [[nodiscard]] bool isCanvasSelectionDirectionModeActive() const;
-    void setCanvasSelectionDirection(const render::CanvasHit& start,
-                                     const render::CanvasHit& end);
-    void previewCanvasSelectionDirection(const render::CanvasHit& start,
-                                         const render::CanvasHit& end);
-    void fillCanvasSelectionWithPaletteGradient();
-    [[nodiscard]] std::vector<render::Point> pixelsForStroke(const render::CanvasHit& start,
-                                                             const render::CanvasHit& end) const;
-    void commitPixels(render::Resolution resolution,
-                      const std::vector<render::Point>& pixels,
-                      const QString& statusText);
-    void commitPaletteGradientPixels(render::Resolution resolution,
-                                     const render::CanvasHit& start,
-                                     const render::CanvasHit& end,
-                                     const render::CanvasHit& gradientStart,
-                                     const render::CanvasHit& gradientEnd,
-                                     const QString& statusText);
-    void commitFramePixelColors(render::Resolution resolution,
-                                const std::vector<render::Point>& pixels,
-                                const edit::PixelColorSource& colorForPoint,
-                                const QString& statusText);
-    void commitMaskPixels(const std::vector<render::Point>& pixels,
-                          uint8_t value,
-                          const QString& statusText);
-    // kind is DynamicMask or BackgroundMask.
-    void commitFrameMaskPixels(edit::EditKind kind,
-                               render::Resolution resolution,
-                               const std::vector<render::Point>& pixels,
-                               uint8_t value,
-                               const QString& statusText);
-    void commitBackgroundImagePixels(render::Resolution resolution,
-                                     const std::vector<render::Point>& pixels,
-                                     const QString& statusText);
-    void commitBackgroundImageGradientPixels(render::Resolution resolution,
-                                             const render::CanvasHit& start,
-                                             const render::CanvasHit& end,
-                                             const render::CanvasHit& gradientStart,
-                                             const render::CanvasHit& gradientEnd,
-                                             const QString& statusText);
-    void commitBackgroundImageColors(std::size_t backgroundIndex,
-                                     render::Resolution resolution,
-                                     const std::vector<render::Point>& pixels,
-                                     const edit::PixelColorSource& colorForPoint,
-                                     const QString& statusText);
-    // Both return false, without committing, when there is nothing to change.
+    [[nodiscard]] CanvasEditContext canvasEditContext() const;
+    [[nodiscard]] CanvasEditOutputs canvasEditOutputs();
+    // Returns false, without committing, when there is nothing to change.
     bool commitPixelChanges(const edit::EditLayer& layer, std::vector<edit::PixelChange> changes);
-    bool commitMaskChanges(const edit::EditLayer& layer,
-                           std::vector<edit::MaskPixelChange> changes);
-    [[nodiscard]] edit::PixelColorSource paletteGradientColorSource(
-        std::size_t paletteIndex,
-        const render::CanvasHit& shapeStart,
-        const render::CanvasHit& shapeEnd,
-        const render::CanvasHit& gradientStart,
-        const render::CanvasHit& gradientEnd) const;
     void commitEdit(std::unique_ptr<edit::EditCommand> command);
     // For a command that has been applied already.
     void recordEdit(std::unique_ptr<edit::EditCommand> command);
@@ -311,10 +197,6 @@ private:
     void updateDmdRenderOptions();
     void updateSpriteControls();
     [[nodiscard]] bool isSpriteCaptureSelectionModeActive() const;
-    void paintSpriteCaptureSelectionPixel(const render::CanvasHit& hit, bool erase);
-    void commitSpriteCaptureSelectionPixels(const std::vector<render::Point>& pixels, bool erase);
-    void updateSpriteCaptureSelectionOverlay();
-    [[nodiscard]] std::vector<render::Point> spriteCaptureSelectionPixels() const;
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
@@ -364,11 +246,7 @@ private:
     // frames only on request.
     std::optional<std::size_t> m_selectedMaskIndex;
     bool m_spriteDependentViewsDirty = false;
-    std::optional<std::size_t> m_spriteCaptureSelectionFrameIndex;
-    std::vector<uint8_t> m_spriteCaptureSelectionMask;
-    std::optional<PendingFreePaletteGradient> m_pendingFreePaletteGradient;
-    std::optional<CanvasSelection> m_canvasSelection;
-    bool m_canvasSelectionDirectionMode = false;
+    CanvasEditController m_canvasEdit;
     edit::UndoHistories m_undoHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;

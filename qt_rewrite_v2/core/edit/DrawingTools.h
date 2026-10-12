@@ -108,6 +108,13 @@ struct EditLayer {
 
 using PixelColorSource = std::function<uint16_t(render::Point)>;
 
+// The color of palette paletteIndex the gradient gives each point. The source reads the
+// document when it is asked, so the document has to outlive it.
+[[nodiscard]] PixelColorSource paletteGradientColorSource(
+    const document::ProjectDocument& document,
+    std::size_t paletteIndex,
+    const PaletteGradient& gradient);
+
 // One change per distinct point, in first-occurrence order, with the old value read from the
 // document; points that already have the new value are skipped. Points outside the layer throw
 // like the document accessors do. layer.kind must be FramePixels, BackgroundImage or

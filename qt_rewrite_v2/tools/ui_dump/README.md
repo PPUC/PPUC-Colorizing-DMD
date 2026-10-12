@@ -156,9 +156,9 @@ undo/redo state and the rendered canvas.
 Not covered:
 
 - **No real mouse or keyboard events.** The script calls `click()`, `setValue()`,
-  `setCurrentIndex()`, `trigger()` and, for the canvas, the handler functions the canvas widgets
-  would call (`paintFrameStroke`, `setCanvasSelectionFromStroke`, the sprite editor handlers).
-  Event filters, mouse tracking, hit testing in the canvas widgets, shortcuts and key handling
+  `setCurrentIndex()`, `trigger()` and, for the canvas, the handlers the canvas widgets would
+  call (`m_preview->m_strokeFinishedHandler`, the sprite editor handlers) and single steps of
+  the `CanvasEditController` (`setSelectionFromStroke`). Event filters, mouse tracking, hit testing in the canvas widgets, shortcuts and key handling
   are not exercised.
 - **Timers do not fire.** Playback and the color rotation preview are only observed as "timer
   active, interval n"; no frame advances. Only zero-delay timers run, when the script processes
@@ -243,14 +243,16 @@ This is a hack and should be read as one:
   affect neither the object layout nor the symbol names there. It is not expected to link with
   MSVC, where the access level is part of the mangled name.
 - Qt and standard library headers are included before the `#define`, so only the three
-  application headers are affected.
+  application headers and the application headers they include first (`CanvasEditController.h`)
+  are affected.
 - The application itself is not changed in any way for the tool.
 
 ### When MainWindow changes
 
-The scripts use private member and method names of `MainWindow`, `FramePreviewWidget` and
-`SpriteEditorWidget` (`m_document`, `m_frameList`, `m_undoAction`, `refreshProjectSummary()`,
-`paintFrameStroke()`, ...) and the tool tips of the controls. When one of them is renamed, moved
+The scripts use private member and method names of `MainWindow`, `CanvasEditController`,
+`FramePreviewWidget` and `SpriteEditorWidget` (`m_document`, `m_frameList`, `m_undoAction`,
+`refreshProjectSummary()`, `m_canvasEdit.setSelectionDirection()`, ...) and the tool tips of the
+controls. When one of them is renamed, moved
 to another class or removed, the tool stops compiling or aborts with `missing tip ...`, and has
 to be adapted in the same change.
 

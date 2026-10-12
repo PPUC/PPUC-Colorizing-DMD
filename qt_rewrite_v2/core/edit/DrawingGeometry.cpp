@@ -160,4 +160,43 @@ std::vector<render::Point> makeFilledCirclePixels(render::Point start, render::P
     return makeFilledEllipsePixels(start, squareConstrainedEnd(start, end));
 }
 
+std::vector<render::Point> makeStrokePixels(DrawingTool tool,
+                                            PaletteGradientShape gradientShape,
+                                            render::Point start,
+                                            render::Point end)
+{
+    switch (tool) {
+        case DrawingTool::Line:
+            return makeLinePixels(start, end);
+        case DrawingTool::Rectangle:
+            return makeRectanglePixels(start, end);
+        case DrawingTool::FilledRectangle:
+            return makeFilledRectanglePixels(start, end);
+        case DrawingTool::Circle:
+            return makeCirclePixels(start, end);
+        case DrawingTool::FilledCircle:
+            return makeFilledCirclePixels(start, end);
+        case DrawingTool::Ellipse:
+            return makeEllipsePixels(start, end);
+        case DrawingTool::FilledEllipse:
+            return makeFilledEllipsePixels(start, end);
+        case DrawingTool::PaletteGradient:
+        case DrawingTool::Selection:
+            switch (gradientShape) {
+                case PaletteGradientShape::Circle:
+                    return makeFilledCirclePixels(start, end);
+                case PaletteGradientShape::Ellipse:
+                    return makeFilledEllipsePixels(start, end);
+                case PaletteGradientShape::Rectangle:
+                    break;
+            }
+            return makeFilledRectanglePixels(start, end);
+        case DrawingTool::Point:
+        case DrawingTool::ColorPicker:
+        case DrawingTool::FloodFill:
+            break;
+    }
+    return {};
+}
+
 }  // namespace colorizing::edit

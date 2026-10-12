@@ -1,6 +1,8 @@
 set(COLORIZING_QT_V2_APP_NAME ColorizingDMDQtV2)
 
 add_library(colorizing_qt_v2_widgets STATIC
+    CanvasEditController.cpp
+    CanvasEditController.h
     ColorGridWidget.cpp
     ColorGridWidget.h
     FrameImageUtils.cpp
@@ -9,6 +11,7 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramePreviewWidget.h
     FrameThumbnail.cpp
     FrameThumbnail.h
+    PaintTarget.h
     panels/BackgroundPanel.cpp
     panels/BackgroundPanel.h
     panels/ColorRotationPanel.cpp

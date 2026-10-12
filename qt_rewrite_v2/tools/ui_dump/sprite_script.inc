@@ -296,12 +296,12 @@
     w.m_preview->m_originalClickedHandler(original(11, 5), true);
     dump("capture point erased twice", w);
     w.setDrawingTool(app::MainWindow::DrawingTool::FilledRectangle);
-    w.previewFrameStroke(original(20, 8), original(30, 14), false);
+    w.m_preview->m_strokePreviewHandler(original(20, 8), original(30, 14), false);
     dump("capture rect preview", w);
-    w.paintFrameStroke(original(20, 8), original(30, 14), false);
+    w.m_preview->m_strokeFinishedHandler(original(20, 8), original(30, 14), false);
     dump("capture rect painted", w);
     w.setDrawingTool(app::MainWindow::DrawingTool::Line);
-    w.paintFrameStroke(original(22, 9), original(28, 9), true);
+    w.m_preview->m_strokeFinishedHandler(original(22, 9), original(28, 9), true);
     dump("capture line erased", w);
     w.setDrawingTool(app::MainWindow::DrawingTool::Point);
     w.m_frameList->setCurrentRow(1);

@@ -9,6 +9,7 @@
 
 #include "document/ProjectDocument.h"
 #include "FrameImageUtils.h"
+#include "PaintTarget.h"
 
 class QCheckBox;
 class QComboBox;
@@ -21,11 +22,6 @@ namespace colorizing::app {
 constexpr uint32_t kSwitchToMonochromeTriggerId = 65432;
 constexpr int kMaxManualTriggerId = static_cast<int>(kSwitchToMonochromeTriggerId - 1);
 constexpr int kMaxFrameDurationMs = 30000;
-
-enum class PaintTarget {
-    Frame,
-    Background,
-};
 
 // What the frame page displays. The drawing target, the background layer toggle and the DMD
 // pixel settings are the page's own state and are kept across refreshes.

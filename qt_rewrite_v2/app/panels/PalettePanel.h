@@ -9,6 +9,7 @@
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
+#include "edit/DrawingGeometry.h"
 #include "edit/DrawingTools.h"
 
 class QComboBox;
@@ -21,11 +22,7 @@ namespace colorizing::app {
 
 class ColorGridWidget;
 
-enum class PaletteGradientShape {
-    Rectangle,
-    Circle,
-    Ellipse,
-};
+using PaletteGradientShape = edit::PaletteGradientShape;
 
 // Inspector page for the palettes and the palette gradient settings. It only displays and
 // reports what the user asked for; the owner applies the edits and calls refresh().

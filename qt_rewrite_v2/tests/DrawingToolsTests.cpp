@@ -1,5 +1,6 @@
 #include "edit/DrawingGeometry.h"
 #include "edit/DrawingTools.h"
+#include "edit/FramePixelSelection.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,6 +8,7 @@
 #include <deque>
 #include <exception>
 #include <iostream>
+#include <optional>
 #include <random>
 #include <set>
 #include <stdexcept>
@@ -1050,6 +1052,131 @@ void testSpritePaintChanges()
         "sprite paint with bad sprite index");
 }
 
+void testStrokePixelsPerTool()
+{
+    using edit::DrawingTool;
+    using edit::PaletteGradientShape;
+    const Point start{2, 3};
+    const Point end{9, 8};
+    const auto stroke = [&](DrawingTool tool, PaletteGradientShape shape) {
+        return edit::makeStrokePixels(tool, shape, start, end);
+    };
+    const PaletteGradientShape rectangle = PaletteGradientShape::Rectangle;
+
+    expect(samePoints(stroke(DrawingTool::Line, rectangle), edit::makeLinePixels(start, end)),
+           "line stroke");
+    expect(samePoints(stroke(DrawingTool::Rectangle, rectangle),
+                      edit::makeRectanglePixels(start, end)),
+           "rectangle stroke");
+    expect(samePoints(stroke(DrawingTool::FilledRectangle, rectangle),
+                      edit::makeFilledRectanglePixels(start, end)),
+           "filled rectangle stroke");
+    expect(samePoints(stroke(DrawingTool::Circle, rectangle), edit::makeCirclePixels(start, end)),
+           "circle stroke");
+    expect(samePoints(stroke(DrawingTool::FilledCircle, rectangle),
+                      edit::makeFilledCirclePixels(start, end)),
+           "filled circle stroke");
+    expect(samePoints(stroke(DrawingTool::Ellipse, rectangle),
+                      edit::makeEllipsePixels(start, end)),
+           "ellipse stroke");
+    expect(samePoints(stroke(DrawingTool::FilledEllipse, rectangle),
+                      edit::makeFilledEllipsePixels(start, end)),
+           "filled ellipse stroke");
+
+    // Only the gradient and selection tools look at the gradient shape.
+    expect(samePoints(stroke(DrawingTool::Line, PaletteGradientShape::Circle),
+                      edit::makeLinePixels(start, end)),
+           "line stroke ignores the gradient shape");
+    for (DrawingTool tool : {DrawingTool::PaletteGradient, DrawingTool::Selection}) {
+        expect(samePoints(stroke(tool, rectangle), edit::makeFilledRectanglePixels(start, end)),
+               "rectangle gradient shape");
+        expect(samePoints(stroke(tool, PaletteGradientShape::Circle),
+                          edit::makeFilledCirclePixels(start, end)),
+               "circle gradient shape");
+        expect(samePoints(stroke(tool, PaletteGradientShape::Ellipse),
+                          edit::makeFilledEllipsePixels(start, end)),
+               "ellipse gradient shape");
+    }
+    for (DrawingTool tool :
+         {DrawingTool::Point, DrawingTool::ColorPicker, DrawingTool::FloodFill}) {
+        expect(stroke(tool, rectangle).empty(), "click tools have no stroke");
+    }
+}
+
+void testPaletteGradientColorSource()
+{
+    ProjectSnapshot snapshot;
+    snapshot.romName = "gradient_source";
+    snapshot.frames.push_back(ProjectFrameSnapshot{
+        makeIndexedFrame(kSdFrameSize, 0),
+        makeRgb565Frame(kSdFrameSize, 0),
+    });
+    for (uint16_t paletteIndex = 0; paletteIndex < 2; ++paletteIndex) {
+        PaletteRecord palette;
+        for (std::size_t color = 0; color < kPaletteColorCount; ++color) {
+            palette.colors.push_back(static_cast<uint16_t>(paletteIndex * 0x100 + color));
+        }
+        snapshot.palettes.push_back(palette);
+    }
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+
+    const PaletteGradient gradient{
+        Point{0, 0},
+        Point{3, 0},
+        Point{0, 0},
+        Point{3, 0},
+        PaletteGradientDirection::LeftToRight,
+        PaletteGradientPattern::Linear,
+        4,
+        7,
+    };
+    const edit::PixelColorSource source = edit::paletteGradientColorSource(document, 1, gradient);
+    for (int x = 0; x <= 3; ++x) {
+        const Point point{x, 0};
+        expect(source(point) ==
+                   document.paletteColor(1, edit::paletteGradientColorIndex(gradient, point)),
+               "gradient source reads the palette color of the point's band");
+    }
+    expect(source(Point{0, 0}) == 0x104 && source(Point{3, 0}) == 0x107,
+           "gradient source runs from the start to the end color");
+
+    document.setPaletteColor(1, 4, 0xabcd);
+    expect(source(Point{0, 0}) == 0xabcd, "gradient source reads the document when asked");
+}
+
+void testFramePixelSelection()
+{
+    edit::FramePixelSelection selection(Size{4, 3});
+    expect(!selection.frameIndex(), "new selection has no frame");
+    expect(selection.pixels(0).empty() && selection.pixels(std::nullopt).empty(),
+           "new selection has no pixels");
+
+    expect(selection.paint(2, {Point{3, 2}, Point{1, 0}, Point{1, 0}, Point{4, 0}, Point{0, -1}},
+                           false),
+           "marking pixels changes the selection");
+    expect(selection.frameIndex() == std::optional<std::size_t>(2), "selection is on its frame");
+    expect(samePoints(selection.pixels(2), {Point{1, 0}, Point{3, 2}}),
+           "marked pixels come back row by row, without the ones outside");
+    expect(selection.pixels(1).empty() && selection.pixels(std::nullopt).empty(),
+           "another frame shows no selection");
+
+    expect(!selection.paint(2, {Point{1, 0}}, false), "marking a marked pixel changes nothing");
+    expect(!selection.paint(2, {Point{0, 0}}, true), "erasing an unmarked pixel changes nothing");
+    expect(!selection.paint(2, {Point{9, 9}}, false), "points outside change nothing");
+    expect(selection.paint(2, {Point{1, 0}}, true), "erasing a marked pixel");
+    expect(samePoints(selection.pixels(2), {Point{3, 2}}), "erased pixel is gone");
+
+    expect(!selection.paint(5, {Point{0, 0}}, true),
+           "erasing on another frame changes no pixel");
+    expect(selection.frameIndex() == std::optional<std::size_t>(5) &&
+               selection.pixels(5).empty() && selection.pixels(2).empty(),
+           "painting on another frame drops the old selection even without a change");
+
+    expect(selection.paint(5, {Point{0, 0}}, false), "marking on the new frame");
+    selection.clear();
+    expect(!selection.frameIndex() && selection.pixels(5).empty(), "clear drops everything");
+}
+
 }  // namespace
 
 void runDrawingToolsTests()
@@ -1077,4 +1204,7 @@ void runDrawingToolsTests()
     testPixelChangesMatchLegacyLoop();
     testMaskChanges();
     testSpritePaintChanges();
+    testStrokePixelsPerTool();
+    testPaletteGradientColorSource();
+    testFramePixelSelection();
 }

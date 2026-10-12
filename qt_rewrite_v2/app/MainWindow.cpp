@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <set>
-#include <tuple>
 
 #include <QAbstractItemView>
 #include <QAction>
@@ -43,7 +41,6 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "edit/DrawingGeometry.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
@@ -288,6 +285,7 @@ QString frameEditCountText(int changed, int skipped, const QString& skipReason =
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
+    , m_canvasEdit(canvasEditOutputs())
 {
     setWindowTitle(QStringLiteral("ColorizingDMD Qt Rewrite v2"));
     resize(1000, 700);
@@ -461,11 +459,11 @@ void MainWindow::createCentralView()
     };
     m_palettePanel = new PalettePanel(central);
     m_palettePanel->onPaletteSelectionChanged = [this]() {
-        cancelFreePaletteGradientSelection();
+        m_canvasEdit.cancelFreeGradient();
         updatePaletteControls();
     };
     m_palettePanel->onGradientSettingsChanged = [this]() {
-        cancelFreePaletteGradientSelection();
+        m_canvasEdit.cancelFreeGradient();
     };
     m_palettePanel->onNameEdited = [this](const QString& name) {
         setCurrentPaletteName(name);
@@ -480,13 +478,13 @@ void MainWindow::createCentralView()
         applyCurrentPaletteGradient();
     };
     m_palettePanel->onFillSelectionRequested = [this]() {
-        fillCanvasSelectionWithPaletteGradient();
+        m_canvasEdit.fillSelectionWithPaletteGradient(canvasEditContext());
     };
     m_palettePanel->onSelectionDirectionClicked = [this]() {
-        toggleCanvasSelectionDirectionMode();
+        m_canvasEdit.toggleSelectionDirectionMode();
     };
     m_palettePanel->onClearSelectionRequested = [this]() {
-        clearCanvasSelection();
+        m_canvasEdit.clearSelection(canvasEditContext());
     };
     m_framePanel = new FramePanel(central);
     m_framePanel->onPaintTargetChanged = [this]() {
@@ -569,11 +567,11 @@ void MainWindow::createCentralView()
         removeCurrentSpriteSlot();
     };
     m_spritePanel->onCaptureSelectionToggled = [this](bool) {
-        updateSpriteCaptureSelectionOverlay();
+        m_canvasEdit.showCaptureSelection(currentFrameIndex());
         updateSpriteControls();
     };
     m_spritePanel->onClearCaptureSelectionRequested = [this]() {
-        clearSpriteCaptureSelection();
+        m_canvasEdit.clearCaptureSelection();
     };
     m_spritePanel->onBoundsOverlayToggled = [this](bool checked) {
         if (m_preview) {
@@ -806,14 +804,14 @@ void MainWindow::createCentralView()
                 refreshFrameList(currentFrameIndex());
             });
     connect(m_sdButton, &QToolButton::clicked, this, [this]() {
-        cancelFreePaletteGradientSelection();
-        clearCanvasSelection();
+        m_canvasEdit.cancelFreeGradient();
+        m_canvasEdit.clearSelection(canvasEditContext());
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
     });
     connect(m_hdButton, &QToolButton::clicked, this, [this]() {
-        cancelFreePaletteGradientSelection();
-        clearCanvasSelection();
+        m_canvasEdit.cancelFreeGradient();
+        m_canvasEdit.clearSelection(canvasEditContext());
         m_activeResolution = render::Resolution::Hd;
         updateResolutionMode();
     });
@@ -897,28 +895,24 @@ void MainWindow::createCentralView()
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,
             [this](int) {
-                cancelFreePaletteGradientSelection();
-                clearCanvasSelection();
+                m_canvasEdit.cancelFreeGradient();
+                m_canvasEdit.clearSelection(canvasEditContext());
                 updateBackgroundControls();
                 updateUndoRedoActions();
             });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
-        paintFramePixel(hit, erase);
+        m_canvasEdit.colorizedPixelClicked(canvasEditContext(), hit, erase);
     });
     m_preview->setOriginalClickedHandler([this](render::CanvasHit hit, bool erase) {
-        if (isSpriteCaptureSelectionModeActive()) {
-            paintSpriteCaptureSelectionPixel(hit, erase);
-            return;
-        }
-        paintComparisonMaskPixel(hit, erase);
+        m_canvasEdit.originalPixelClicked(canvasEditContext(), hit, erase);
     });
     m_preview->setStrokePreviewHandler(
         [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
-            previewFrameStroke(start, end, erase);
+            m_canvasEdit.strokePreviewed(canvasEditContext(), start, end, erase);
     });
     m_preview->setStrokeFinishedHandler(
         [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
-            paintFrameStroke(start, end, erase);
+            m_canvasEdit.strokeFinished(canvasEditContext(), start, end, erase);
     });
     m_spriteEditor->setDetectionAreaChangedHandler(
         [this](std::size_t areaIndex, document::SpriteDetectionArea area) {
@@ -1376,8 +1370,7 @@ void MainWindow::setFrameStatusText(const QString& text)
 void MainWindow::refreshProjectSummary()
 {
     m_spriteDependentViewsDirty = false;
-    m_spriteCaptureSelectionFrameIndex.reset();
-    m_spriteCaptureSelectionMask.clear();
+    m_canvasEdit.resetCaptureSelection();
     if (m_spritePanel) {
         m_spritePanel->setApplySpriteEditsEnabled(false);
         m_spritePanel->setSpriteCanvasChecked(false);
@@ -1723,20 +1716,20 @@ std::vector<std::size_t> MainWindow::selectedFrameIndices() const
 
 void MainWindow::selectFrame(int)
 {
-    cancelFreePaletteGradientSelection();
-    clearCanvasSelection();
+    m_canvasEdit.cancelFreeGradient();
+    m_canvasEdit.clearSelection(canvasEditContext());
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
-        clearSpriteCaptureSelection();
+        m_canvasEdit.clearCaptureSelection();
         updateFrameMetadataControls();
         updateSpriteControls();
         updatePlaybackControls();
         return;
     }
-    if (m_spriteCaptureSelectionFrameIndex &&
-        *m_spriteCaptureSelectionFrameIndex != *frameIndex) {
-        clearSpriteCaptureSelection();
+    const std::optional<std::size_t> captureFrameIndex = m_canvasEdit.captureSelectionFrame();
+    if (captureFrameIndex && *captureFrameIndex != *frameIndex) {
+        m_canvasEdit.clearCaptureSelection();
     }
     m_preview->setFrameIndex(*frameIndex);
     updateFrameStatusText();
@@ -1745,7 +1738,7 @@ void MainWindow::selectFrame(int)
     updateSpriteControls();
     updatePaintTargetMode();
     updateUndoRedoActions();
-    updateSpriteCaptureSelectionOverlay();
+    m_canvasEdit.showCaptureSelection(currentFrameIndex());
     updatePlaybackControls();
 }
 
@@ -2610,7 +2603,8 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     const int minY = std::clamp(bounds.minY, 0, render::kSdFrameSize.height - 1);
     const int maxX = std::clamp(bounds.maxX, minX, render::kSdFrameSize.width - 1);
     const int maxY = std::clamp(bounds.maxY, minY, render::kSdFrameSize.height - 1);
-    const std::vector<render::Point> selectedPixels = spriteCaptureSelectionPixels();
+    const std::vector<render::Point> selectedPixels =
+        m_canvasEdit.captureSelectionPixels(frameIndex);
     const int width = maxX - minX + 1;
     const int height = maxY - minY + 1;
     if (width <= 0 || height <= 0 ||
@@ -2721,7 +2715,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                                 static_cast<uint16_t>(captureMaxY),
                                             });
         if (!selectedPixels.empty()) {
-            clearSpriteCaptureSelection();
+            m_canvasEdit.clearCaptureSelection();
         }
         setSpriteDependentViewsDirty();
         applyPendingSpriteDependentViews();
@@ -2742,119 +2736,12 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     }
 }
 
-void MainWindow::clearSpriteCaptureSelection()
-{
-    m_spriteCaptureSelectionFrameIndex.reset();
-    m_spriteCaptureSelectionMask.clear();
-    if (m_preview) {
-        m_preview->clearSelectionOverlayPixels();
-    }
-    updateSpriteControls();
-}
-
 bool MainWindow::isSpriteCaptureSelectionModeActive() const
 {
     return m_spritePanel &&
            m_spritePanel->isCaptureSelectionChecked() &&
            m_document.has_value() &&
            currentFrameIndex().has_value();
-}
-
-void MainWindow::paintSpriteCaptureSelectionPixel(const render::CanvasHit& hit, bool erase)
-{
-    if (m_drawingTool != DrawingTool::Point ||
-        hit.region != render::CanvasRegion::OriginalFrame ||
-        hit.resolution != render::Resolution::Sd) {
-        return;
-    }
-    commitSpriteCaptureSelectionPixels({render::Point{hit.x, hit.y}}, erase);
-}
-
-void MainWindow::commitSpriteCaptureSelectionPixels(const std::vector<render::Point>& pixels,
-                                                    bool erase)
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || pixels.empty()) {
-        return;
-    }
-    if (!m_spriteCaptureSelectionFrameIndex ||
-        *m_spriteCaptureSelectionFrameIndex != *frameIndex ||
-        m_spriteCaptureSelectionMask.size() !=
-            static_cast<std::size_t>(render::kSdFrameSize.width) *
-                static_cast<std::size_t>(render::kSdFrameSize.height)) {
-        m_spriteCaptureSelectionFrameIndex = *frameIndex;
-        m_spriteCaptureSelectionMask.assign(
-            static_cast<std::size_t>(render::kSdFrameSize.width) *
-                static_cast<std::size_t>(render::kSdFrameSize.height),
-            0);
-    }
-
-    bool changed = false;
-    for (const render::Point& pixel : pixels) {
-        if (pixel.x < 0 || pixel.y < 0 ||
-            pixel.x >= render::kSdFrameSize.width ||
-            pixel.y >= render::kSdFrameSize.height) {
-            continue;
-        }
-        const std::size_t index =
-            static_cast<std::size_t>(pixel.y) *
-                static_cast<std::size_t>(render::kSdFrameSize.width) +
-            static_cast<std::size_t>(pixel.x);
-        const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
-        if (m_spriteCaptureSelectionMask[index] == newValue) {
-            continue;
-        }
-        m_spriteCaptureSelectionMask[index] = newValue;
-        changed = true;
-    }
-    if (!changed) {
-        return;
-    }
-    updateSpriteCaptureSelectionOverlay();
-    updateSpriteControls();
-}
-
-void MainWindow::updateSpriteCaptureSelectionOverlay()
-{
-    if (!m_preview) {
-        return;
-    }
-    const std::vector<render::Point> pixels = spriteCaptureSelectionPixels();
-    if (pixels.empty()) {
-        m_preview->clearSelectionOverlayPixels();
-        return;
-    }
-    m_preview->setSelectionOverlayPixels(render::CanvasRegion::OriginalFrame,
-                                         render::Resolution::Sd,
-                                         pixels,
-                                         QColor(255, 0, 255, 110));
-}
-
-std::vector<render::Point> MainWindow::spriteCaptureSelectionPixels() const
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!frameIndex ||
-        !m_spriteCaptureSelectionFrameIndex ||
-        *m_spriteCaptureSelectionFrameIndex != *frameIndex ||
-        m_spriteCaptureSelectionMask.size() !=
-            static_cast<std::size_t>(render::kSdFrameSize.width) *
-                static_cast<std::size_t>(render::kSdFrameSize.height)) {
-        return {};
-    }
-
-    std::vector<render::Point> pixels;
-    for (int y = 0; y < render::kSdFrameSize.height; ++y) {
-        for (int x = 0; x < render::kSdFrameSize.width; ++x) {
-            const std::size_t index =
-                static_cast<std::size_t>(y) *
-                    static_cast<std::size_t>(render::kSdFrameSize.width) +
-                static_cast<std::size_t>(x);
-            if (m_spriteCaptureSelectionMask[index]) {
-                pixels.push_back(render::Point{x, y});
-            }
-        }
-    }
-    return pixels;
 }
 
 void MainWindow::removeCurrentSpriteSlot()
@@ -3663,11 +3550,11 @@ void MainWindow::updatePaletteControls()
 
     const bool hasPalette = selectedPaletteIndex().has_value();
     if (!hasPalette) {
-        m_canvasSelectionDirectionMode = false;
+        m_canvasEdit.leaveSelectionDirectionMode();
     }
     m_palettePanel->refresh(m_document ? &*m_document : nullptr,
-                            m_canvasSelection.has_value(),
-                            m_canvasSelectionDirectionMode);
+                            m_canvasEdit.hasSelection(),
+                            m_canvasEdit.isSelectionDirectionMode());
     if (hasPalette) {
         updateUndoRedoActions();
     }
@@ -3827,7 +3714,7 @@ void MainWindow::updateSpriteControls()
     state.document = m_document ? &*m_document : nullptr;
     state.frameIndex = frameIndex;
     state.spriteIndex = spriteIndex;
-    state.hasCaptureSelection = !spriteCaptureSelectionPixels().empty();
+    state.hasCaptureSelection = !m_canvasEdit.captureSelectionPixels(frameIndex).empty();
     state.spriteEditsPending = m_spriteDependentViewsDirty;
     m_spritePanel->refresh(state);
 
@@ -3899,8 +3786,8 @@ void MainWindow::setPaintTarget(PaintTarget target)
 
 void MainWindow::paintTargetChanged()
 {
-    cancelFreePaletteGradientSelection();
-    clearCanvasSelection();
+    m_canvasEdit.cancelFreeGradient();
+    m_canvasEdit.clearSelection(canvasEditContext());
     updatePaintTargetMode();
 }
 
@@ -3915,6 +3802,104 @@ PaintTarget MainWindow::activePaintTarget() const
 uint8_t MainWindow::activeDynamicSet() const
 {
     return m_dynamicPanel ? m_dynamicPanel->dynamicSet() : uint8_t{0};
+}
+
+CanvasEditContext MainWindow::canvasEditContext() const
+{
+    CanvasEditContext context;
+    context.document = m_document ? &*m_document : nullptr;
+    context.currentFrame = currentFrameIndex();
+    context.selectedFrames = selectedFrameIndices();
+    if (isComparisonMaskModeActive()) {
+        context.layer = CanvasEditLayer::ComparisonMask;
+    } else if (isDynamicMaskModeActive()) {
+        context.layer = CanvasEditLayer::DynamicMask;
+    } else if (isBackgroundMaskModeActive()) {
+        context.layer = CanvasEditLayer::BackgroundMask;
+    } else if (isBackgroundImageTargetActive()) {
+        context.layer = CanvasEditLayer::BackgroundImage;
+    }
+    context.spriteCaptureSelection = isSpriteCaptureSelectionModeActive();
+    context.paintTarget = activePaintTarget();
+    context.selectedBackground = selectedBackgroundIndex();
+    context.selectedPalette = selectedPaletteIndex();
+    context.tool = m_drawingTool;
+    context.drawColor = m_activeDrawColor;
+    context.dynamicSet = activeDynamicSet();
+    if (m_palettePanel) {
+        context.gradientShape = m_palettePanel->gradientShape();
+        context.gradientDirection = m_palettePanel->gradientDirection();
+        context.gradientPattern = m_palettePanel->gradientPattern();
+        context.gradientEndpoints = [panel = m_palettePanel]() {
+            return panel->gradientEndpoints();
+        };
+    }
+    return context;
+}
+
+CanvasEditOutputs MainWindow::canvasEditOutputs()
+{
+    CanvasEditOutputs outputs;
+    outputs.commit = [this](std::unique_ptr<edit::EditCommand> command) {
+        commitEdit(std::move(command));
+    };
+    outputs.commitsFinished = [this]() {
+        updateUndoRedoActions();
+    };
+    outputs.showStatus = [this](const QString& text, int timeoutMs) {
+        statusBar()->showMessage(text, timeoutMs);
+    };
+    outputs.pickColor = [this](uint16_t rgb565) {
+        setActiveDrawColor(rgb565);
+    };
+    outputs.pickDynamicSet = [this](uint8_t dynamicSet) {
+        if (!m_dynamicPanel) {
+            return;
+        }
+        if (dynamicSet != m_dynamicPanel->dynamicSet()) {
+            m_dynamicPanel->setDynamicSet(static_cast<int>(dynamicSet));
+            dynamicSetChanged(static_cast<int>(dynamicSet));
+        }
+        updateDynamicColorControls();
+    };
+    outputs.showPreview = [this](CanvasPixelOverlay overlay) {
+        if (m_preview) {
+            m_preview->setPreviewPixels(overlay.region,
+                                        overlay.resolution,
+                                        std::move(overlay.pixels),
+                                        overlay.color);
+        }
+    };
+    outputs.clearPreview = [this]() {
+        if (m_preview) {
+            m_preview->clearPreviewPixels();
+        }
+    };
+    outputs.showSelectionOverlay = [this](CanvasPixelOverlay overlay) {
+        if (m_preview) {
+            m_preview->setSelectionOverlayPixels(overlay.region,
+                                                 overlay.resolution,
+                                                 std::move(overlay.pixels),
+                                                 overlay.color);
+        }
+    };
+    outputs.clearSelectionOverlay = [this]() {
+        if (m_preview) {
+            m_preview->clearSelectionOverlayPixels();
+        }
+    };
+    outputs.selectionChanged = [this]() {
+        updatePaletteControls();
+    };
+    outputs.selectionDirectionModeChanged = [this](bool active) {
+        if (m_palettePanel) {
+            m_palettePanel->setSelectionDirectionChecked(active);
+        }
+    };
+    outputs.captureSelectionChanged = [this]() {
+        updateSpriteControls();
+    };
+    return outputs;
 }
 
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
@@ -3958,7 +3943,7 @@ void MainWindow::setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565
 void MainWindow::setDrawingTool(DrawingTool tool)
 {
     if (tool != m_drawingTool) {
-        cancelFreePaletteGradientSelection();
+        m_canvasEdit.cancelFreeGradient();
     }
     m_drawingTool = tool;
     if (m_preview) {
@@ -4012,982 +3997,6 @@ void MainWindow::setDrawingTool(DrawingTool tool)
     }
 }
 
-void MainWindow::paintFramePixel(const render::CanvasHit& hit, bool erase)
-{
-    if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
-        updateCanvasSelectionOverlay();
-        return;
-    }
-    if (m_drawingTool == DrawingTool::PaletteGradient) {
-        if (m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
-            isFreePaletteGradientPending()) {
-            showPendingFreePaletteGradientSelection();
-        }
-        return;
-    }
-    if (isComparisonMaskModeActive()) {
-        return;
-    }
-    if (isBackgroundMaskModeActive()) {
-        if (m_drawingTool == DrawingTool::FloodFill) {
-            floodFillBackgroundMask(hit, erase);
-            return;
-        }
-        if (m_drawingTool == DrawingTool::Point) {
-            paintBackgroundMaskPixel(hit, erase);
-        }
-        return;
-    }
-    if (isDynamicMaskModeActive()) {
-        if (m_drawingTool == DrawingTool::ColorPicker) {
-            pickDynamicSet(hit);
-            return;
-        }
-        if (m_drawingTool == DrawingTool::FloodFill) {
-            floodFillDynamicMask(hit, erase);
-            return;
-        }
-        if (m_drawingTool == DrawingTool::Point) {
-            paintDynamicMaskPixel(hit, erase);
-        }
-        return;
-    }
-    if (isBackgroundImageTargetActive()) {
-        if (m_drawingTool == DrawingTool::ColorPicker) {
-            pickBackgroundImageColor(hit);
-            return;
-        }
-        if (m_drawingTool == DrawingTool::FloodFill) {
-            floodFillBackgroundImage(hit);
-            return;
-        }
-        if (m_drawingTool == DrawingTool::Point) {
-            paintBackgroundImagePixel(hit);
-        }
-        return;
-    }
-    if (m_drawingTool == DrawingTool::ColorPicker) {
-        pickFrameColor(hit);
-        return;
-    }
-    if (m_drawingTool == DrawingTool::FloodFill) {
-        floodFillFrame(hit);
-        return;
-    }
-    if (m_drawingTool != DrawingTool::Point) {
-        return;
-    }
-    commitPixels(hit.resolution,
-                 {render::Point{hit.x, hit.y}},
-                 QStringLiteral("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
-}
-
-void MainWindow::pickDynamicSet(const render::CanvasHit& hit)
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || !m_dynamicPanel) {
-        return;
-    }
-    try {
-        const uint8_t dynamicSet =
-            m_document->dynamicMaskPixel(*frameIndex, hit.resolution, hit.x, hit.y);
-        if (dynamicSet == 255 || dynamicSet >= document::kMaxDynamicSetsPerFrame) {
-            statusBar()->showMessage(QStringLiteral("No dynamic set at %1,%2")
-                                         .arg(hit.x)
-                                         .arg(hit.y),
-                                     2500);
-            return;
-        }
-        if (dynamicSet != m_dynamicPanel->dynamicSet()) {
-            m_dynamicPanel->setDynamicSet(static_cast<int>(dynamicSet));
-            dynamicSetChanged(static_cast<int>(dynamicSet));
-        }
-        updateDynamicColorControls();
-        statusBar()->showMessage(QStringLiteral("Picked dynamic set %1 at %2,%3")
-                                     .arg(static_cast<int>(dynamicSet))
-                                     .arg(hit.x)
-                                     .arg(hit.y),
-                                 2500);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::pickFrameColor(const render::CanvasHit& hit)
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
-        return;
-    }
-    try {
-        const uint16_t color = m_document->colorizedPixel(*frameIndex,
-                                                          hit.resolution,
-                                                          hit.x,
-                                                          hit.y);
-        setActiveDrawColor(color);
-        statusBar()->showMessage(QStringLiteral("Picked color 0x%1")
-                                     .arg(color, 4, 16, QLatin1Char('0')),
-                                 2500);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::floodFillFrame(const render::CanvasHit& hit)
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
-        return;
-    }
-
-    try {
-        const document::Rgb565Frame& frame =
-            m_document->colorizedFrame(*frameIndex, hit.resolution);
-        const uint16_t targetColor =
-            m_document->colorizedPixel(*frameIndex, hit.resolution, hit.x, hit.y);
-        if (targetColor == m_activeDrawColor) {
-            return;
-        }
-        commitPixels(hit.resolution,
-                     edit::floodFillMatching(frame.pixels,
-                                             frame.size,
-                                             render::Point{hit.x, hit.y},
-                                             targetColor),
-                     QStringLiteral("Flood filled area"));
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::paintBackgroundImagePixel(const render::CanvasHit& hit)
-{
-    if (!m_document || !isBackgroundImageTargetActive()) {
-        return;
-    }
-    commitBackgroundImagePixels(hit.resolution,
-                                {render::Point{hit.x, hit.y}},
-                                QStringLiteral("Painted background pixel at %1,%2")
-                                    .arg(hit.x)
-                                    .arg(hit.y));
-}
-
-void MainWindow::pickBackgroundImageColor(const render::CanvasHit& hit)
-{
-    if (!m_document || !isBackgroundImageTargetActive()) {
-        return;
-    }
-    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-    if (!backgroundIndex) {
-        return;
-    }
-    try {
-        const uint16_t color =
-            m_document->backgroundPixel(*backgroundIndex, hit.resolution, hit.x, hit.y);
-        setActiveDrawColor(color);
-        statusBar()->showMessage(QStringLiteral("Picked background color 0x%1")
-                                     .arg(color, 4, 16, QLatin1Char('0')),
-                                 2500);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::floodFillBackgroundImage(const render::CanvasHit& hit)
-{
-    if (!m_document || !isBackgroundImageTargetActive()) {
-        return;
-    }
-    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-    if (!backgroundIndex) {
-        return;
-    }
-
-    try {
-        const document::Rgb565Frame& frame =
-            m_document->backgroundFrame(*backgroundIndex, hit.resolution);
-        const uint16_t targetColor =
-            m_document->backgroundPixel(*backgroundIndex, hit.resolution, hit.x, hit.y);
-        if (targetColor == m_activeDrawColor) {
-            return;
-        }
-        commitBackgroundImagePixels(hit.resolution,
-                                    edit::floodFillMatching(frame.pixels,
-                                                            frame.size,
-                                                            render::Point{hit.x, hit.y},
-                                                            targetColor),
-                                    QStringLiteral("Flood filled background"));
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::paintComparisonMaskPixel(const render::CanvasHit& hit, bool erase)
-{
-    if (!m_document || !isComparisonMaskModeActive()) {
-        return;
-    }
-    if (m_drawingTool == DrawingTool::FloodFill) {
-        floodFillComparisonMask(hit, erase);
-        return;
-    }
-    if (m_drawingTool != DrawingTool::Point) {
-        return;
-    }
-    commitMaskPixels({render::Point{hit.x, hit.y}},
-                     erase ? uint8_t{0} : uint8_t{1},
-                     erase ? QStringLiteral("Erased comparison mask pixel")
-                           : QStringLiteral("Painted comparison mask pixel"));
-}
-
-void MainWindow::floodFillComparisonMask(const render::CanvasHit& hit, bool erase)
-{
-    if (!m_document || !isComparisonMaskModeActive()) {
-        return;
-    }
-    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
-    if (!maskIndex) {
-        statusBar()->showMessage(QStringLiteral("No comparison mask assigned"), 2500);
-        return;
-    }
-
-    try {
-        const document::IndexedFrame& mask = m_document->comparisonMask(*maskIndex);
-        const uint8_t targetValue = m_document->comparisonMaskPixel(*maskIndex, hit.x, hit.y);
-        const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
-        if (targetValue == newValue) {
-            return;
-        }
-        commitMaskPixels(edit::floodFillMatching(mask.pixels,
-                                                 mask.size,
-                                                 render::Point{hit.x, hit.y},
-                                                 targetValue),
-                         newValue,
-                         erase ? QStringLiteral("Flood erased comparison mask")
-                               : QStringLiteral("Flood filled comparison mask"));
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::paintDynamicMaskPixel(const render::CanvasHit& hit, bool erase)
-{
-    if (!m_document || !isDynamicMaskModeActive()) {
-        return;
-    }
-    commitFrameMaskPixels(edit::EditKind::DynamicMask,
-                          hit.resolution,
-                          {render::Point{hit.x, hit.y}},
-                          erase ? uint8_t{255} : activeDynamicSet(),
-                          erase ? QStringLiteral("Erased dynamic mask pixel")
-                                : QStringLiteral("Painted dynamic mask pixel"));
-}
-
-void MainWindow::floodFillDynamicMask(const render::CanvasHit& hit, bool erase)
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !isDynamicMaskModeActive() || !frameIndex) {
-        return;
-    }
-    try {
-        const uint8_t targetValue =
-            m_document->dynamicMaskPixel(*frameIndex, hit.resolution, hit.x, hit.y);
-        const uint8_t newValue = erase ? uint8_t{255} : activeDynamicSet();
-        if (targetValue == newValue) {
-            return;
-        }
-
-        const document::IndexedFrame& mask =
-            hit.resolution == render::Resolution::Hd
-                ? m_document->dynamicData(*frameIndex)->maskHd
-                : m_document->dynamicData(*frameIndex)->maskSd;
-        commitFrameMaskPixels(edit::EditKind::DynamicMask,
-                              hit.resolution,
-                              edit::floodFillMatching(mask.pixels,
-                                                      mask.size,
-                                                      render::Point{hit.x, hit.y},
-                                                      targetValue),
-                              newValue,
-                              erase ? QStringLiteral("Flood erased dynamic mask")
-                                    : QStringLiteral("Flood filled dynamic mask"));
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::paintBackgroundMaskPixel(const render::CanvasHit& hit, bool erase)
-{
-    if (!m_document || !isBackgroundMaskModeActive()) {
-        return;
-    }
-    commitFrameMaskPixels(edit::EditKind::BackgroundMask,
-                          hit.resolution,
-                          {render::Point{hit.x, hit.y}},
-                          erase ? uint8_t{0} : uint8_t{1},
-                          erase ? QStringLiteral("Erased background mask pixel")
-                                : QStringLiteral("Painted background mask pixel"));
-}
-
-void MainWindow::floodFillBackgroundMask(const render::CanvasHit& hit, bool erase)
-{
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !isBackgroundMaskModeActive() || !frameIndex) {
-        return;
-    }
-    try {
-        const uint8_t targetValue =
-            m_document->backgroundMaskPixel(*frameIndex, hit.resolution, hit.x, hit.y);
-        const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
-        if (targetValue == newValue) {
-            return;
-        }
-
-        const std::optional<document::FrameBackgroundData>& backgroundData =
-            m_document->backgroundData(*frameIndex);
-        if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
-            statusBar()->showMessage(QStringLiteral("No background assigned"), 2500);
-            return;
-        }
-        const document::IndexedFrame& mask =
-            hit.resolution == render::Resolution::Hd ? backgroundData->maskHd : backgroundData->maskSd;
-        commitFrameMaskPixels(edit::EditKind::BackgroundMask,
-                              hit.resolution,
-                              edit::floodFillMatching(mask.pixels,
-                                                      mask.size,
-                                                      render::Point{hit.x, hit.y},
-                                                      targetValue),
-                              newValue,
-                              erase ? QStringLiteral("Flood erased background mask")
-                                    : QStringLiteral("Flood filled background mask"));
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::previewFrameStroke(const render::CanvasHit& start,
-                                    const render::CanvasHit& end,
-                                    bool erase)
-{
-    if (!m_preview || m_drawingTool == DrawingTool::Point ||
-        m_drawingTool == DrawingTool::FloodFill || start.region != end.region ||
-        start.resolution != end.resolution) {
-        return;
-    }
-    if (m_drawingTool == DrawingTool::Selection) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
-                                    start.resolution,
-                                    pixelsForStroke(start, end),
-                                    QColor(0, 220, 180, 130));
-        return;
-    }
-    if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
-        previewCanvasSelectionDirection(start, end);
-        return;
-    }
-    if (isSpriteCaptureSelectionModeActive()) {
-        if (start.region != render::CanvasRegion::OriginalFrame ||
-            start.resolution != render::Resolution::Sd) {
-            return;
-        }
-        m_preview->setPreviewPixels(render::CanvasRegion::OriginalFrame,
-                                    render::Resolution::Sd,
-                                    pixelsForStroke(start, end),
-                                    erase ? QColor(0, 0, 0, 150)
-                                          : QColor(255, 0, 255, 150));
-        return;
-    }
-    if (isComparisonMaskModeActive()) {
-        if (start.region != render::CanvasRegion::OriginalFrame) {
-            return;
-        }
-        m_preview->setPreviewPixels(render::CanvasRegion::OriginalFrame,
-                                    render::Resolution::Sd,
-                                    pixelsForStroke(start, end),
-                                    erase ? QColor(0, 0, 0, 150)
-                                          : QColor(255, 0, 0, 150));
-        return;
-    }
-    if (isDynamicMaskModeActive()) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
-                                    start.resolution,
-                                    pixelsForStroke(start, end),
-                                    erase ? QColor(0, 0, 0, 150)
-                                          : QColor(0, 180, 255, 150));
-        return;
-    }
-    if (isBackgroundMaskModeActive()) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
-                                    start.resolution,
-                                    pixelsForStroke(start, end),
-                                    erase ? QColor(0, 0, 0, 150)
-                                          : QColor(255, 200, 0, 150));
-        return;
-    }
-    if (isBackgroundImageTargetActive()) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        if (m_drawingTool == DrawingTool::PaletteGradient &&
-            m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
-            isFreePaletteGradientPending()) {
-            previewFreePaletteGradientDirection(start, end);
-            return;
-        }
-        QColor previewColor = rgb565ToColor(m_activeDrawColor);
-        previewColor.setAlpha(150);
-        m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
-                                    start.resolution,
-                                    pixelsForStroke(start, end),
-                                    previewColor);
-        return;
-    }
-    if (start.region != render::CanvasRegion::ColorizedFrame) {
-        return;
-    }
-    if (m_drawingTool == DrawingTool::PaletteGradient &&
-        m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
-        isFreePaletteGradientPending()) {
-        previewFreePaletteGradientDirection(start, end);
-        return;
-    }
-    QColor previewColor = rgb565ToColor(m_activeDrawColor);
-    previewColor.setAlpha(150);
-    m_preview->setPreviewPixels(render::CanvasRegion::ColorizedFrame,
-                                start.resolution,
-                                pixelsForStroke(start, end),
-                                previewColor);
-}
-
-void MainWindow::paintFrameStroke(const render::CanvasHit& start,
-                                  const render::CanvasHit& end,
-                                  bool erase)
-{
-    if (m_drawingTool == DrawingTool::Point || m_drawingTool == DrawingTool::FloodFill ||
-        start.region != end.region || start.resolution != end.resolution) {
-        return;
-    }
-
-    QString statusText;
-    if (m_drawingTool == DrawingTool::Line) {
-        statusText = QStringLiteral("Painted line");
-    } else if (m_drawingTool == DrawingTool::Selection) {
-        statusText = QStringLiteral("Selected canvas area");
-    } else if (m_drawingTool == DrawingTool::Rectangle) {
-        statusText = QStringLiteral("Painted rectangle");
-    } else if (m_drawingTool == DrawingTool::FilledRectangle) {
-        statusText = QStringLiteral("Painted filled rectangle");
-    } else if (m_drawingTool == DrawingTool::Circle) {
-        statusText = QStringLiteral("Painted circle");
-    } else if (m_drawingTool == DrawingTool::FilledCircle) {
-        statusText = QStringLiteral("Painted filled circle");
-    } else if (m_drawingTool == DrawingTool::Ellipse) {
-        statusText = QStringLiteral("Painted ellipse");
-    } else if (m_drawingTool == DrawingTool::FilledEllipse) {
-        statusText = QStringLiteral("Painted filled ellipse");
-    } else if (m_drawingTool == DrawingTool::PaletteGradient) {
-        statusText = QStringLiteral("Filled palette gradient");
-    }
-    const bool isFreePaletteGradient =
-        m_drawingTool == DrawingTool::PaletteGradient &&
-        m_palettePanel->gradientDirection() == PaletteGradientDirection::Free;
-    if (m_drawingTool != DrawingTool::Selection && isCanvasSelectionDirectionModeActive()) {
-        setCanvasSelectionDirection(start, end);
-        return;
-    }
-
-    if (isSpriteCaptureSelectionModeActive()) {
-        if (start.region != render::CanvasRegion::OriginalFrame ||
-            start.resolution != render::Resolution::Sd) {
-            return;
-        }
-        commitSpriteCaptureSelectionPixels(pixelsForStroke(start, end), erase);
-        return;
-    }
-    if (isComparisonMaskModeActive()) {
-        if (start.region != render::CanvasRegion::OriginalFrame) {
-            return;
-        }
-        if (m_drawingTool == DrawingTool::PaletteGradient) {
-            statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
-            return;
-        }
-        commitMaskPixels(pixelsForStroke(start, end),
-                         erase ? uint8_t{0} : uint8_t{1},
-                         statusText.replace(
-                             QStringLiteral("Painted"),
-                             erase ? QStringLiteral("Erased comparison mask")
-                                   : QStringLiteral("Painted comparison mask")));
-        return;
-    }
-    if (isDynamicMaskModeActive()) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        if (m_drawingTool == DrawingTool::PaletteGradient) {
-            statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
-            return;
-        }
-        commitFrameMaskPixels(edit::EditKind::DynamicMask,
-                              start.resolution,
-                              pixelsForStroke(start, end),
-                              erase ? uint8_t{255} : activeDynamicSet(),
-                              statusText.replace(
-                                  QStringLiteral("Painted"),
-                                  erase ? QStringLiteral("Erased dynamic mask")
-                                        : QStringLiteral("Painted dynamic mask")));
-        return;
-    }
-    if (isBackgroundMaskModeActive()) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        if (m_drawingTool == DrawingTool::PaletteGradient) {
-            statusBar()->showMessage(QStringLiteral("Palette gradients edit RGB pixels only"), 2500);
-            return;
-        }
-        commitFrameMaskPixels(edit::EditKind::BackgroundMask,
-                              start.resolution,
-                              pixelsForStroke(start, end),
-                              erase ? uint8_t{0} : uint8_t{1},
-                              statusText.replace(
-                                  QStringLiteral("Painted"),
-                                  erase ? QStringLiteral("Erased background mask")
-                                        : QStringLiteral("Painted background mask")));
-        return;
-    }
-    if (isBackgroundImageTargetActive()) {
-        if (start.region != render::CanvasRegion::ColorizedFrame) {
-            return;
-        }
-        if (m_drawingTool == DrawingTool::Selection) {
-            setCanvasSelectionFromStroke(start, end);
-            return;
-        }
-        if (m_drawingTool == DrawingTool::PaletteGradient) {
-            if (isFreePaletteGradient) {
-                if (!isFreePaletteGradientPending()) {
-                    beginFreePaletteGradientSelection(start, end);
-                    return;
-                }
-                if (!m_pendingFreePaletteGradient ||
-                    m_pendingFreePaletteGradient->target != PaintTarget::Background ||
-                    m_pendingFreePaletteGradient->backgroundIndex != selectedBackgroundIndex() ||
-                    m_pendingFreePaletteGradient->shapeStart.region != start.region ||
-                    m_pendingFreePaletteGradient->shapeStart.resolution != start.resolution) {
-                    cancelFreePaletteGradientSelection();
-                    statusBar()->showMessage(QStringLiteral("Free gradient selection cancelled"), 2500);
-                    return;
-                }
-                commitBackgroundImageGradientPixels(
-                    m_pendingFreePaletteGradient->shapeStart.resolution,
-                    m_pendingFreePaletteGradient->shapeStart,
-                    m_pendingFreePaletteGradient->shapeEnd,
-                    start,
-                    end,
-                    statusText);
-                cancelFreePaletteGradientSelection();
-                return;
-            }
-            commitBackgroundImageGradientPixels(start.resolution,
-                                                start,
-                                                end,
-                                                start,
-                                                end,
-                                                statusText);
-            return;
-        }
-        commitBackgroundImagePixels(start.resolution,
-                                    pixelsForStroke(start, end),
-                                    statusText.replace(QStringLiteral("Painted"),
-                                                       QStringLiteral("Painted background")));
-        return;
-    }
-
-    if (start.region != render::CanvasRegion::ColorizedFrame) {
-        return;
-    }
-    if (m_drawingTool == DrawingTool::Selection) {
-        setCanvasSelectionFromStroke(start, end);
-        return;
-    }
-    if (m_drawingTool == DrawingTool::PaletteGradient) {
-        if (isFreePaletteGradient) {
-            if (!isFreePaletteGradientPending()) {
-                beginFreePaletteGradientSelection(start, end);
-                return;
-            }
-            if (!m_pendingFreePaletteGradient ||
-                m_pendingFreePaletteGradient->target != PaintTarget::Frame ||
-                m_pendingFreePaletteGradient->shapeStart.region != start.region ||
-                m_pendingFreePaletteGradient->shapeStart.resolution != start.resolution) {
-                cancelFreePaletteGradientSelection();
-                statusBar()->showMessage(QStringLiteral("Free gradient selection cancelled"), 2500);
-                return;
-            }
-            commitPaletteGradientPixels(m_pendingFreePaletteGradient->shapeStart.resolution,
-                                        m_pendingFreePaletteGradient->shapeStart,
-                                        m_pendingFreePaletteGradient->shapeEnd,
-                                        start,
-                                        end,
-                                        statusText);
-            cancelFreePaletteGradientSelection();
-            return;
-        }
-        commitPaletteGradientPixels(start.resolution, start, end, start, end, statusText);
-        return;
-    }
-    commitPixels(start.resolution, pixelsForStroke(start, end), statusText);
-}
-
-bool MainWindow::isFreePaletteGradientPending() const
-{
-    return m_pendingFreePaletteGradient.has_value();
-}
-
-void MainWindow::beginFreePaletteGradientSelection(const render::CanvasHit& start,
-                                                   const render::CanvasHit& end)
-{
-    if (!m_preview) {
-        return;
-    }
-    m_pendingFreePaletteGradient = PendingFreePaletteGradient{
-        start,
-        end,
-        activePaintTarget(),
-        selectedBackgroundIndex(),
-    };
-    showPendingFreePaletteGradientSelection();
-    statusBar()->showMessage(QStringLiteral("Draw gradient direction line"), 2500);
-}
-
-void MainWindow::previewFreePaletteGradientDirection(const render::CanvasHit& start,
-                                                     const render::CanvasHit& end)
-{
-    if (!m_preview || !m_pendingFreePaletteGradient) {
-        return;
-    }
-    std::vector<render::Point> previewPixels = pixelsForStroke(
-        m_pendingFreePaletteGradient->shapeStart,
-        m_pendingFreePaletteGradient->shapeEnd);
-    std::vector<render::Point> linePixels =
-        edit::makeLinePixels(render::Point{start.x, start.y},
-                             render::Point{end.x, end.y});
-    previewPixels.insert(previewPixels.end(), linePixels.begin(), linePixels.end());
-    QColor previewColor = rgb565ToColor(m_activeDrawColor);
-    previewColor.setAlpha(145);
-    m_preview->setPreviewPixels(m_pendingFreePaletteGradient->shapeStart.region,
-                                m_pendingFreePaletteGradient->shapeStart.resolution,
-                                previewPixels,
-                                previewColor);
-}
-
-void MainWindow::showPendingFreePaletteGradientSelection()
-{
-    if (!m_preview || !m_pendingFreePaletteGradient) {
-        return;
-    }
-    QColor previewColor = rgb565ToColor(m_activeDrawColor);
-    previewColor.setAlpha(120);
-    m_preview->setPreviewPixels(
-        m_pendingFreePaletteGradient->shapeStart.region,
-        m_pendingFreePaletteGradient->shapeStart.resolution,
-        pixelsForStroke(m_pendingFreePaletteGradient->shapeStart,
-                        m_pendingFreePaletteGradient->shapeEnd),
-        previewColor);
-}
-
-void MainWindow::cancelFreePaletteGradientSelection()
-{
-    m_pendingFreePaletteGradient.reset();
-    if (m_preview) {
-        m_preview->clearPreviewPixels();
-    }
-}
-
-void MainWindow::setCanvasSelectionFromStroke(const render::CanvasHit& start,
-                                              const render::CanvasHit& end)
-{
-    m_canvasSelectionDirectionMode = false;
-    if (m_palettePanel) {
-        m_palettePanel->setSelectionDirectionChecked(false);
-    }
-    if (start.region != render::CanvasRegion::ColorizedFrame || start.resolution != end.resolution) {
-        return;
-    }
-    std::vector<render::Point> pixels = pixelsForStroke(start, end);
-    if (pixels.empty()) {
-        clearCanvasSelection();
-        return;
-    }
-    std::sort(pixels.begin(), pixels.end(), [](const render::Point& left, const render::Point& right) {
-        return std::tie(left.y, left.x) < std::tie(right.y, right.x);
-    });
-    pixels.erase(std::unique(pixels.begin(),
-                             pixels.end(),
-                             [](const render::Point& left, const render::Point& right) {
-                                 return left.x == right.x && left.y == right.y;
-                             }),
-                 pixels.end());
-    m_canvasSelection = CanvasSelection{
-        start,
-        end,
-        activePaintTarget(),
-        selectedBackgroundIndex(),
-        std::move(pixels),
-        std::nullopt,
-        std::nullopt,
-    };
-    updateCanvasSelectionOverlay();
-    updatePaletteControls();
-    statusBar()->showMessage(QStringLiteral("Selected canvas area"), 2000);
-}
-
-void MainWindow::toggleCanvasSelectionDirectionMode()
-{
-    if (!m_canvasSelection) {
-        m_canvasSelectionDirectionMode = false;
-        m_palettePanel->setSelectionDirectionChecked(false);
-        updatePaletteControls();
-        return;
-    }
-    m_canvasSelectionDirectionMode = !m_canvasSelectionDirectionMode;
-    m_palettePanel->setSelectionDirectionChecked(m_canvasSelectionDirectionMode);
-    if (m_canvasSelectionDirectionMode) {
-        cancelFreePaletteGradientSelection();
-        statusBar()->showMessage(QStringLiteral("Draw selection gradient direction line"), 2500);
-    } else {
-        updateCanvasSelectionOverlay();
-    }
-}
-
-void MainWindow::clearCanvasSelection()
-{
-    m_canvasSelection.reset();
-    m_canvasSelectionDirectionMode = false;
-    if (m_palettePanel) {
-        m_palettePanel->setSelectionDirectionChecked(false);
-    }
-    if (m_preview && !isSpriteCaptureSelectionModeActive()) {
-        m_preview->clearSelectionOverlayPixels();
-    }
-    updatePaletteControls();
-}
-
-void MainWindow::updateCanvasSelectionOverlay()
-{
-    if (!m_preview || !m_canvasSelection) {
-        return;
-    }
-    std::vector<render::Point> pixels = m_canvasSelection->pixels;
-    if (m_canvasSelection->gradientStart && m_canvasSelection->gradientEnd) {
-        std::vector<render::Point> linePixels =
-            edit::makeLinePixels(render::Point{m_canvasSelection->gradientStart->x,
-                                         m_canvasSelection->gradientStart->y},
-                           render::Point{m_canvasSelection->gradientEnd->x,
-                                         m_canvasSelection->gradientEnd->y});
-        pixels.insert(pixels.end(), linePixels.begin(), linePixels.end());
-    }
-    m_preview->setSelectionOverlayPixels(m_canvasSelection->shapeStart.region,
-                                         m_canvasSelection->shapeStart.resolution,
-                                         pixels,
-                                         QColor(0, 220, 180, 95));
-}
-
-bool MainWindow::isCanvasSelectionDirectionModeActive() const
-{
-    return m_canvasSelectionDirectionMode && m_canvasSelection.has_value();
-}
-
-void MainWindow::setCanvasSelectionDirection(const render::CanvasHit& start,
-                                             const render::CanvasHit& end)
-{
-    if (!m_canvasSelection ||
-        start.region != m_canvasSelection->shapeStart.region ||
-        end.region != m_canvasSelection->shapeStart.region ||
-        start.resolution != m_canvasSelection->shapeStart.resolution ||
-        end.resolution != m_canvasSelection->shapeStart.resolution) {
-        return;
-    }
-    m_canvasSelection->gradientStart = start;
-    m_canvasSelection->gradientEnd = end;
-    m_canvasSelectionDirectionMode = false;
-    if (m_palettePanel) {
-        m_palettePanel->setSelectionDirectionChecked(false);
-    }
-    updateCanvasSelectionOverlay();
-    statusBar()->showMessage(QStringLiteral("Set selection gradient direction"), 2000);
-}
-
-void MainWindow::previewCanvasSelectionDirection(const render::CanvasHit& start,
-                                                 const render::CanvasHit& end)
-{
-    if (!m_preview || !m_canvasSelection ||
-        start.region != m_canvasSelection->shapeStart.region ||
-        start.resolution != m_canvasSelection->shapeStart.resolution ||
-        end.region != m_canvasSelection->shapeStart.region ||
-        end.resolution != m_canvasSelection->shapeStart.resolution) {
-        return;
-    }
-    std::vector<render::Point> pixels = m_canvasSelection->pixels;
-    std::vector<render::Point> linePixels =
-        edit::makeLinePixels(render::Point{start.x, start.y},
-                             render::Point{end.x, end.y});
-    pixels.insert(pixels.end(), linePixels.begin(), linePixels.end());
-    m_preview->setSelectionOverlayPixels(m_canvasSelection->shapeStart.region,
-                                         m_canvasSelection->shapeStart.resolution,
-                                         pixels,
-                                         QColor(0, 220, 180, 120));
-}
-
-void MainWindow::fillCanvasSelectionWithPaletteGradient()
-{
-    if (!m_document || !m_canvasSelection || m_canvasSelection->pixels.empty()) {
-        statusBar()->showMessage(QStringLiteral("No canvas selection"), 2500);
-        return;
-    }
-    if (m_palettePanel->gradientDirection() == PaletteGradientDirection::Free &&
-        (!m_canvasSelection->gradientStart || !m_canvasSelection->gradientEnd)) {
-        statusBar()->showMessage(QStringLiteral("Set a selection direction line first"), 3000);
-        return;
-    }
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    if (!paletteIndex) {
-        statusBar()->showMessage(QStringLiteral("No palette selected"), 2500);
-        return;
-    }
-    if (m_canvasSelection->target == PaintTarget::Background &&
-        m_canvasSelection->backgroundIndex != selectedBackgroundIndex()) {
-        clearCanvasSelection();
-        statusBar()->showMessage(QStringLiteral("Canvas selection cleared"), 2500);
-        return;
-    }
-
-    const render::CanvasHit shapeStart = m_canvasSelection->shapeStart;
-    const render::CanvasHit shapeEnd = m_canvasSelection->shapeEnd;
-    const edit::PixelColorSource colorForPoint =
-        paletteGradientColorSource(*paletteIndex,
-                                   shapeStart,
-                                   shapeEnd,
-                                   m_canvasSelection->gradientStart.value_or(shapeStart),
-                                   m_canvasSelection->gradientEnd.value_or(shapeEnd));
-
-    try {
-        if (m_canvasSelection->target == PaintTarget::Background) {
-            const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-            if (!backgroundIndex) {
-                return;
-            }
-            const edit::EditLayer layer{edit::EditKind::BackgroundImage,
-                                        *backgroundIndex,
-                                        shapeStart.resolution};
-            if (!commitPixelChanges(layer,
-                                    edit::makePixelChanges(*m_document,
-                                                           layer,
-                                                           m_canvasSelection->pixels,
-                                                           colorForPoint))) {
-                return;
-            }
-        } else {
-            bool changed = false;
-            for (std::size_t frameIndex : selectedFrameIndices()) {
-                if (shapeStart.resolution == render::Resolution::Hd &&
-                    !m_document->hasHdFrame(frameIndex)) {
-                    continue;
-                }
-                const edit::EditLayer layer{edit::EditKind::FramePixels,
-                                            frameIndex,
-                                            shapeStart.resolution};
-                if (commitPixelChanges(layer,
-                                       edit::makePixelChanges(*m_document,
-                                                              layer,
-                                                              m_canvasSelection->pixels,
-                                                              colorForPoint))) {
-                    changed = true;
-                }
-            }
-            if (!changed) {
-                return;
-            }
-        }
-        updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Filled selection gradient"), 2500);
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-std::vector<render::Point> MainWindow::pixelsForStroke(const render::CanvasHit& start,
-                                                       const render::CanvasHit& end) const
-{
-    const render::Point startPoint{start.x, start.y};
-    const render::Point endPoint{end.x, end.y};
-    if (m_drawingTool == DrawingTool::Line) {
-        return edit::makeLinePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::Rectangle) {
-        return edit::makeRectanglePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::FilledRectangle) {
-        return edit::makeFilledRectanglePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::Circle) {
-        return edit::makeCirclePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::FilledCircle) {
-        return edit::makeFilledCirclePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::Ellipse) {
-        return edit::makeEllipsePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::FilledEllipse) {
-        return edit::makeFilledEllipsePixels(startPoint, endPoint);
-    }
-    if (m_drawingTool == DrawingTool::PaletteGradient || m_drawingTool == DrawingTool::Selection) {
-        switch (m_palettePanel->gradientShape()) {
-            case PaletteGradientShape::Circle:
-                return edit::makeFilledCirclePixels(startPoint, endPoint);
-            case PaletteGradientShape::Ellipse:
-                return edit::makeFilledEllipsePixels(startPoint, endPoint);
-            case PaletteGradientShape::Rectangle:
-                break;
-        }
-        return edit::makeFilledRectanglePixels(startPoint, endPoint);
-    }
-    return {};
-}
-
-edit::PixelColorSource MainWindow::paletteGradientColorSource(
-    std::size_t paletteIndex,
-    const render::CanvasHit& shapeStart,
-    const render::CanvasHit& shapeEnd,
-    const render::CanvasHit& gradientStart,
-    const render::CanvasHit& gradientEnd) const
-{
-    const auto [startIndex, endIndex] = m_palettePanel->gradientEndpoints();
-    const edit::PaletteGradient gradient{
-        render::Point{shapeStart.x, shapeStart.y},
-        render::Point{shapeEnd.x, shapeEnd.y},
-        render::Point{gradientStart.x, gradientStart.y},
-        render::Point{gradientEnd.x, gradientEnd.y},
-        m_palettePanel->gradientDirection(),
-        m_palettePanel->gradientPattern(),
-        startIndex,
-        endIndex,
-    };
-    return [this, paletteIndex, gradient](render::Point point) {
-        return m_document->paletteColor(paletteIndex,
-                                        edit::paletteGradientColorIndex(gradient, point));
-    };
-}
-
 bool MainWindow::commitPixelChanges(const edit::EditLayer& layer,
                                     std::vector<edit::PixelChange> changes)
 {
@@ -4999,262 +4008,6 @@ bool MainWindow::commitPixelChanges(const edit::EditLayer& layer,
                                                         layer.resolution,
                                                         std::move(changes)));
     return true;
-}
-
-bool MainWindow::commitMaskChanges(const edit::EditLayer& layer,
-                                   std::vector<edit::MaskPixelChange> changes)
-{
-    if (changes.empty()) {
-        return false;
-    }
-    commitEdit(std::make_unique<edit::MaskEditCommand>(layer.kind,
-                                                       layer.index,
-                                                       layer.resolution,
-                                                       std::move(changes)));
-    return true;
-}
-
-void MainWindow::commitPixels(render::Resolution resolution,
-                              const std::vector<render::Point>& pixels,
-                              const QString& statusText)
-{
-    const uint16_t drawColor = m_activeDrawColor;
-    commitFramePixelColors(resolution,
-                           pixels,
-                           [drawColor](render::Point) { return drawColor; },
-                           statusText);
-}
-
-void MainWindow::commitPaletteGradientPixels(render::Resolution resolution,
-                                             const render::CanvasHit& start,
-                                             const render::CanvasHit& end,
-                                             const render::CanvasHit& gradientStart,
-                                             const render::CanvasHit& gradientEnd,
-                                             const QString& statusText)
-{
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    const std::vector<render::Point> pixels = pixelsForStroke(start, end);
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    if (!m_document || frameIndices.empty() || pixels.empty() || !paletteIndex ||
-        !m_palettePanel) {
-        statusBar()->showMessage(QStringLiteral("No palette gradient source selected"), 2500);
-        return;
-    }
-    commitFramePixelColors(
-        resolution,
-        pixels,
-        paletteGradientColorSource(*paletteIndex, start, end, gradientStart, gradientEnd),
-        statusText);
-}
-
-void MainWindow::commitFramePixelColors(render::Resolution resolution,
-                                        const std::vector<render::Point>& pixels,
-                                        const edit::PixelColorSource& colorForPoint,
-                                        const QString& statusText)
-{
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || pixels.empty()) {
-        return;
-    }
-
-    try {
-        bool changed = false;
-        for (std::size_t frameIndex : frameIndices) {
-            if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
-                continue;
-            }
-            const edit::EditLayer layer{edit::EditKind::FramePixels, frameIndex, resolution};
-            if (commitPixelChanges(layer,
-                                   edit::makePixelChanges(*m_document,
-                                                          layer,
-                                                          pixels,
-                                                          colorForPoint))) {
-                changed = true;
-            }
-        }
-        if (!changed) {
-            return;
-        }
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(
-        frameIndices.size() > 1
-            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
-            : statusText,
-        2500);
-}
-
-void MainWindow::commitMaskPixels(const std::vector<render::Point>& pixels,
-                                  uint8_t value,
-                                  const QString& statusText)
-{
-    if (!m_document || pixels.empty()) {
-        return;
-    }
-    std::set<std::size_t> maskIndices;
-    for (std::size_t frameIndex : selectedFrameIndices()) {
-        const uint8_t maskId = m_document->comparisonMaskId(frameIndex);
-        if (maskId < m_document->comparisonMaskCount()) {
-            maskIndices.insert(static_cast<std::size_t>(maskId));
-        }
-    }
-    if (maskIndices.empty()) {
-        statusBar()->showMessage(QStringLiteral("No comparison mask assigned"), 2500);
-        return;
-    }
-
-    try {
-        bool changed = false;
-        for (std::size_t maskIndex : maskIndices) {
-            const edit::EditLayer layer{edit::EditKind::ComparisonMask,
-                                        maskIndex,
-                                        render::Resolution::Sd};
-            if (commitMaskChanges(layer,
-                                  edit::makeMaskChanges(*m_document, layer, pixels, value))) {
-                changed = true;
-            }
-        }
-        if (!changed) {
-            return;
-        }
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(
-        maskIndices.size() > 1
-            ? QStringLiteral("%1 on %2 mask(s)").arg(statusText).arg(static_cast<int>(maskIndices.size()))
-            : statusText,
-        2500);
-}
-
-void MainWindow::commitFrameMaskPixels(edit::EditKind kind,
-                                       render::Resolution resolution,
-                                       const std::vector<render::Point>& pixels,
-                                       uint8_t value,
-                                       const QString& statusText)
-{
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || pixels.empty()) {
-        return;
-    }
-    const bool isBackgroundMask = kind == edit::EditKind::BackgroundMask;
-
-    try {
-        bool changed = false;
-        bool hasAssignedBackground = false;
-        for (std::size_t frameIndex : frameIndices) {
-            if (isBackgroundMask) {
-                const std::optional<document::FrameBackgroundData>& backgroundData =
-                    m_document->backgroundData(frameIndex);
-                if (!backgroundData ||
-                    backgroundData->backgroundId >= m_document->backgroundCount()) {
-                    continue;
-                }
-                hasAssignedBackground = true;
-            } else if (!m_document->dynamicData(frameIndex)) {
-                continue;
-            }
-            const edit::EditLayer layer{kind, frameIndex, resolution};
-            if (commitMaskChanges(layer,
-                                  edit::makeMaskChanges(*m_document, layer, pixels, value))) {
-                changed = true;
-            }
-        }
-        if (!changed) {
-            if (isBackgroundMask && !hasAssignedBackground) {
-                statusBar()->showMessage(
-                    QStringLiteral("No selected frame has an assigned background"),
-                    2500);
-            }
-            return;
-        }
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(
-        frameIndices.size() > 1
-            ? QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameIndices.size()))
-            : statusText,
-        2500);
-}
-
-void MainWindow::commitBackgroundImagePixels(render::Resolution resolution,
-                                             const std::vector<render::Point>& pixels,
-                                             const QString& statusText)
-{
-    if (!m_document || pixels.empty()) {
-        return;
-    }
-    const uint16_t drawColor = m_activeDrawColor;
-    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-    if (!backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
-        return;
-    }
-    commitBackgroundImageColors(*backgroundIndex,
-                                resolution,
-                                pixels,
-                                [drawColor](render::Point) { return drawColor; },
-                                statusText);
-}
-
-void MainWindow::commitBackgroundImageGradientPixels(render::Resolution resolution,
-                                                     const render::CanvasHit& start,
-                                                     const render::CanvasHit& end,
-                                                     const render::CanvasHit& gradientStart,
-                                                     const render::CanvasHit& gradientEnd,
-                                                     const QString& statusText)
-{
-    if (!m_document || !m_palettePanel) {
-        return;
-    }
-    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
-    const std::vector<render::Point> pixels = pixelsForStroke(start, end);
-    if (!backgroundIndex || !paletteIndex || pixels.empty()) {
-        statusBar()->showMessage(QStringLiteral("No background or palette selected"), 2500);
-        return;
-    }
-    commitBackgroundImageColors(
-        *backgroundIndex,
-        resolution,
-        pixels,
-        paletteGradientColorSource(*paletteIndex, start, end, gradientStart, gradientEnd),
-        statusText);
-}
-
-void MainWindow::commitBackgroundImageColors(std::size_t backgroundIndex,
-                                             render::Resolution resolution,
-                                             const std::vector<render::Point>& pixels,
-                                             const edit::PixelColorSource& colorForPoint,
-                                             const QString& statusText)
-{
-    try {
-        const edit::EditLayer layer{edit::EditKind::BackgroundImage, backgroundIndex, resolution};
-        if (!commitPixelChanges(layer,
-                                edit::makePixelChanges(*m_document,
-                                                       layer,
-                                                       pixels,
-                                                       colorForPoint))) {
-            return;
-        }
-        updateUndoRedoActions();
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    statusBar()->showMessage(statusText, 2500);
 }
 
 void MainWindow::commitEdit(std::unique_ptr<edit::EditCommand> command)

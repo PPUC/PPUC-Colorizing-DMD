@@ -2988,6 +2988,8 @@ void testFramePanel()
            "frame panel should leave the document untouched");
 }
 
+void runCanvasEditControllerTests();
+
 int main(int argc, char* argv[])
 {
     qputenv("QT_QPA_PLATFORM", "offscreen");
@@ -3022,6 +3024,7 @@ int main(int argc, char* argv[])
     testDynamicPanel();
     testBackgroundPanel();
     testFramePanel();
+    runCanvasEditControllerTests();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

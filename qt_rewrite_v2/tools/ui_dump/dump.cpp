@@ -119,9 +119,9 @@ static void dump(const char* title, app::MainWindow& w)
     std::cout << "--- status: " << w.statusBar()->currentMessage().toStdString() << '\n';
     std::cout << "--- undo=" << w.m_undoAction->isEnabled() << " redo=" << w.m_redoAction->isEnabled()
               << " activeColor=" << w.m_activeDrawColor
-              << " dirMode=" << w.m_canvasSelectionDirectionMode
-              << " sel=" << w.m_canvasSelection.has_value()
-              << " pending=" << w.m_pendingFreePaletteGradient.has_value() << '\n';
+              << " dirMode=" << w.m_canvasEdit.isSelectionDirectionMode()
+              << " sel=" << w.m_canvasEdit.hasSelection()
+              << " pending=" << w.m_canvasEdit.isFreeGradientPending() << '\n';
     if (w.m_document) {
         const auto& d = *w.m_document;
         std::cout << "--- doc dirty=" << d.isDirty();
@@ -169,15 +169,15 @@ static void dump(const char* title, app::MainWindow& w)
     }
     {
         const std::optional<std::size_t> spriteSel = w.currentSpriteIndex();
-        std::size_t captureCount = 0;
-        for (uint8_t v : w.m_spriteCaptureSelectionMask) captureCount += v ? 1 : 0;
+        const std::optional<std::size_t> captureFrame = w.m_canvasEdit.captureSelectionFrame();
+        const std::size_t captureCount = w.m_canvasEdit.captureSelectionPixels(captureFrame).size();
         std::cout << "--- sprite state: sel=" << (spriteSel ? int(*spriteSel) : -1)
                   << " canvasActive=" << w.isSpriteCanvasActive()
                   << " captureMode=" << w.isSpriteCaptureSelectionModeActive()
                   << " dirty=" << w.m_spriteDependentViewsDirty
-                  << " captureFrame=" << (w.m_spriteCaptureSelectionFrameIndex ? int(*w.m_spriteCaptureSelectionFrameIndex) : -1)
+                  << " captureFrame=" << (captureFrame ? int(*captureFrame) : -1)
                   << " captureMask=" << captureCount
-                  << " capturePixels=" << w.spriteCaptureSelectionPixels().size()
+                  << " capturePixels=" << w.m_canvasEdit.captureSelectionPixels(w.currentFrameIndex()).size()
                   << " res=" << (w.m_activeResolution == render::Resolution::Hd ? "hd" : "sd")
                   << " stack=" << (w.m_canvasStack->currentWidget() == w.m_spriteEditor ? "editor" : "preview")
                   << " keys=";
@@ -446,7 +446,7 @@ int main(int argc, char* argv[])
     w.setDrawingTool(app::MainWindow::DrawingTool::Selection);
     for (int shape = 0; shape < 3; ++shape) {
         palShape->setCurrentIndex(shape);
-        w.setCanvasSelectionFromStroke(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 2, 2},
+        w.m_canvasEdit.setSelectionFromStroke(w.canvasEditContext(), render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 2, 2},
                                        render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 20, 12});
         dump("selection made", w);
         for (int pattern = 0; pattern < 3; ++pattern) {
@@ -465,7 +465,7 @@ int main(int argc, char* argv[])
     palSetDir->click();
     dump("set dir off", w);
     palSetDir->click();
-    w.setCanvasSelectionDirection(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 2, 2},
+    w.m_canvasEdit.setSelectionDirection(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 2, 2},
                                   render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 20, 2});
     dump("dir line set", w);
     palFill->click();
@@ -483,11 +483,11 @@ int main(int argc, char* argv[])
     palDirection->setCurrentIndex(3);
     palShape->setCurrentIndex(1);
     palPattern->setCurrentIndex(2);
-    w.paintFrameStroke(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 30, 3},
+    w.m_preview->m_strokeFinishedHandler(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 30, 3},
                        render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 60, 25}, false);
     dump("grad tool stroke", w);
     palDirection->setCurrentIndex(0);
-    w.paintFrameStroke(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 70, 3},
+    w.m_preview->m_strokeFinishedHandler(render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 70, 3},
                        render::CanvasHit{render::CanvasRegion::ColorizedFrame, render::Resolution::Sd, 90, 25}, false);
     dump("grad tool free pending", w);
     palPattern->setCurrentIndex(0);

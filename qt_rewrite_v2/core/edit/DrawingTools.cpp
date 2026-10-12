@@ -315,6 +315,15 @@ std::vector<PaletteColorChange> makePaletteRampChanges(const document::ProjectDo
     return changes;
 }
 
+PixelColorSource paletteGradientColorSource(const document::ProjectDocument& document,
+                                            std::size_t paletteIndex,
+                                            const PaletteGradient& gradient)
+{
+    return [&document, paletteIndex, gradient](render::Point point) {
+        return document.paletteColor(paletteIndex, paletteGradientColorIndex(gradient, point));
+    };
+}
+
 std::vector<PixelChange> makePixelChanges(const document::ProjectDocument& document,
                                           const EditLayer& layer,
                                           const std::vector<render::Point>& points,
