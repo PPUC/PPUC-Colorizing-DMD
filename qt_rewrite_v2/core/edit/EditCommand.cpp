@@ -418,7 +418,9 @@ std::unique_ptr<EditCommand> createFrameHd(document::ProjectDocument& document,
                                            std::size_t frameIndex,
                                            document::FrameHdParts parts)
 {
-    if (document.hasHdFrame(frameIndex)) {
+    // An HD-only project can still lack the HD image of the frame's background.
+    if (document.hasHdFrame(frameIndex) &&
+        !(parts.backgroundImage && document.frameHdGaps(frameIndex).background)) {
         return nullptr;
     }
     document::FrameHdState before = document.frameHdState(frameIndex, parts);

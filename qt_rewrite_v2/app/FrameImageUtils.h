@@ -27,6 +27,9 @@ struct DmdRenderOptions {
                                           int x,
                                           int y,
                                           bool includeBackgroundLayer);
+// The frame as the runtime renders it on the plane, with dynamic content, background and
+// sprites. An HD-only project has the HD plane alone: asking for SD throws std::logic_error,
+// and a frame without HD data is black, as nothing is rendered for it.
 [[nodiscard]] document::Rgb565Frame composeResolvedFrame(
     const document::ProjectDocument& document,
     std::size_t frameIndex,
@@ -55,11 +58,14 @@ void paintDmdPixel(QPainter& painter,
 [[nodiscard]] QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
                                              int pixelScale,
                                              DmdRenderOptions options = {});
-// One image pixel per sprite pixel; falls back to SD when the sprite has no HD data.
+// One image pixel per sprite pixel; falls back to SD when the sprite has no HD data. With
+// hdOnly (ProjectDocument::rendersHdPlaneOnly()) there is no such fallback: the image is black.
 [[nodiscard]] QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
-                                                       render::Resolution resolution);
-// One image pixel per background pixel; falls back to SD when the background has no HD data.
+                                                       render::Resolution resolution,
+                                                       bool hdOnly = false);
+// One image pixel per background pixel; the same fallback rule.
 [[nodiscard]] QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
-                                                  render::Resolution resolution);
+                                                  render::Resolution resolution,
+                                                  bool hdOnly = false);
 
 }  // namespace colorizing::app

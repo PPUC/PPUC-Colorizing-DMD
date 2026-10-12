@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 580 scripted states and after each one prints every widget and the relevant
+through about 600 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -55,6 +55,9 @@ qt_rewrite_v2/tools/ui_dump/run.sh after --allow-removed '^\[hidden sprite selec
 
 # The change appends states to the end of the script that the baseline cannot run.
 qt_rewrite_v2/tools/ui_dump/run.sh after --allow-appended
+
+# The change rewrites one group of states on purpose; everything else must stay the same.
+qt_rewrite_v2/tools/ui_dump/run.sh after --ignore-sections '^===== 256 original: '
 ```
 
 `baseline` runs the dump twice and fails if the two runs differ, so a baseline is known to be
@@ -155,6 +158,27 @@ option: the working tree dump may then have more sections at its end. They are c
 "appended sections, not compared"; all sections the two dumps share are compared as usual, so
 `REAL DIFFERENCES: 0` still means that no state the baseline has changed.
 
+### `--ignore-sections REGEX`
+
+For a change that alters the behaviour of one kind of project on purpose and has to rewrite its
+scripted states, while all other states must not change. Sections whose title line
+(`===== title =====`) matches the expression are removed from both dumps before they are
+compared, and counted as "ignored sections, not compared: before / after". The remaining
+sections are compared as usual, including their number and order.
+
+This only separates the two groups if the ignored states cannot influence the others. The states
+of `big_original_script.inc` qualify: they all carry the title prefix `256 original: `, run after
+everything else on a window whose project was closed, and print nothing before their first
+section. Take the baseline before touching the script (the baseline is made with the script as it
+is then), rewrite the script, and compare with
+
+```sh
+qt_rewrite_v2/tools/ui_dump/run.sh after --ignore-sections '^===== 256 original: '
+```
+
+`REAL DIFFERENCES: 0` then means: no state of an ordinary project changed. The ignored states
+are reviewed by reading them in `after.txt`.
+
 Lines of widgets inside the hidden sprite selection combo box start with the tag
 `[hidden sprite selection combo] ` so that they can be matched by such an expression; see
 `ownerTag()` in `dump.cpp` to tag another group of widgets.
@@ -197,7 +221,7 @@ The script is plain C++ in four places, executed in this order:
 | `dump.cpp`, `main()` | empty window, color rotation page, palette page, gradient tools |
 | `sprite_script.inc` | sprite page, sprite editor canvas, capture selection, detection areas |
 | `inspector_script.inc` | frame, mask, background and dynamic pages, image import/export, dialogs, undo/redo, playback controls |
-| `big_original_script.inc` | a project with 256x64 original frames: every inspector page, SD/HD, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite capture |
+| `big_original_script.inc` | a project with 256x64 original frames, which has the HD plane only: every inspector page, SD disabled, frames, a background and sprites without HD data and their repair with Create HD, the `HD missing` filter, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite assignment and capture on the native grid, the sprite canvas |
 
 The `.inc` files are included at the end of `main()` and each form one block.
 `big_original_script.inc` runs after the window was closed (`closed at the end`).

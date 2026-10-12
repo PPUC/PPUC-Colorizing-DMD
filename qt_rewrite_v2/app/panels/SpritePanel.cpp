@@ -366,13 +366,18 @@ void SpritePanel::refresh(const SpritePanelState& state)
                 reference.spriteId >= document->spriteCount()
                     ? QStringLiteral("sprite %1").arg(static_cast<int>(reference.spriteId))
                     : spriteDisplayName(*document, reference.spriteId);
-            assignedSprites << QStringLiteral("%1: %2 [%3,%4-%5,%6]")
+            const bool hdMissing = document->rendersHdPlaneOnly() &&
+                                   reference.spriteId < document->spriteCount() &&
+                                   !document->hasHdSprite(reference.spriteId);
+            assignedSprites << QStringLiteral("%1: %2 [%3,%4-%5,%6]%7")
                                    .arg(static_cast<int>(slot))
                                    .arg(assignedSprite)
                                    .arg(reference.minX)
                                    .arg(reference.minY)
                                    .arg(reference.maxX)
-                                   .arg(reference.maxY);
+                                   .arg(reference.maxY)
+                                   .arg(hdMissing ? QStringLiteral(" no HD: frame not shown")
+                                                  : QString());
         }
         m_frameSpritesLabel->setText(
             assignedSprites.isEmpty()
@@ -406,6 +411,13 @@ void SpritePanel::refresh(const SpritePanelState& state)
         QSignalBlocker minYBlocker(m_minYSpinBox);
         QSignalBlocker maxXBlocker(m_maxXSpinBox);
         QSignalBlocker maxYBlocker(m_maxYSpinBox);
+        // Bounds are pixels of the original frame.
+        const render::Size originalSize =
+            document ? document->originalFrameSize() : render::kSdFrameSize;
+        m_minXSpinBox->setRange(0, originalSize.width - 1);
+        m_minYSpinBox->setRange(0, originalSize.height - 1);
+        m_maxXSpinBox->setRange(0, originalSize.width - 1);
+        m_maxYSpinBox->setRange(0, originalSize.height - 1);
         // Bounds belong to an assigned sprite; an empty slot has none to edit.
         m_minXSpinBox->setEnabled(slotHasSprite);
         m_minYSpinBox->setEnabled(slotHasSprite);
@@ -419,8 +431,8 @@ void SpritePanel::refresh(const SpritePanelState& state)
         } else {
             m_minXSpinBox->setValue(0);
             m_minYSpinBox->setValue(0);
-            m_maxXSpinBox->setValue(render::kSdFrameSize.width - 1);
-            m_maxYSpinBox->setValue(render::kSdFrameSize.height - 1);
+            m_maxXSpinBox->setValue(originalSize.width - 1);
+            m_maxYSpinBox->setValue(originalSize.height - 1);
         }
     }
 
@@ -450,10 +462,12 @@ void SpritePanel::refresh(const SpritePanelState& state)
                               : QStringLiteral("%1 - %2")
                                     .arg(static_cast<int>(spriteIndex))
                                     .arg(QString::fromStdString(sprite.name));
-    m_selectedSpriteLabel->setText(QStringLiteral("Selected: %1%2")
-                                       .arg(label)
-                                       .arg(sprite.hasHd ? QStringLiteral(" (HD)")
-                                                         : QString()));
+    m_selectedSpriteLabel->setText(
+        QStringLiteral("Selected: %1%2")
+            .arg(label)
+            .arg(sprite.hasHd ? QStringLiteral(" (HD)")
+                              : document->rendersHdPlaneOnly() ? QStringLiteral(" (no HD)")
+                                                               : QString()));
     {
         QSignalBlocker blocker(m_nameLineEdit);
         m_nameLineEdit->setText(QString::fromStdString(sprite.name));

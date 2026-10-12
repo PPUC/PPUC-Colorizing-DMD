@@ -157,6 +157,17 @@ struct SpriteHdState {
     Rgb565Frame colorizedHd;
 };
 
+// Missing HD data of an HD-only project. The runtime shows a frame only if the frame, its
+// background and every sprite assigned to it have HD data.
+struct FrameHdGaps {
+    bool frame = false;
+    bool background = false;
+    // Sprite IDs, ascending and unique.
+    std::vector<uint8_t> sprites;
+
+    [[nodiscard]] bool any() const { return frame || background || !sprites.empty(); }
+};
+
 struct UnsupportedLegacyPayload {
     std::string name;
     std::vector<uint8_t> bytes;
@@ -188,18 +199,26 @@ public:
     [[nodiscard]] uint32_t colorCount() const;
     // Size of the original frames and comparison masks: 256x64 for such ROMs, else 128x32.
     [[nodiscard]] Size originalFrameSize() const;
-    // The original frame as the SD frame and the sprites see it: 128x32, for a 256x64 original
-    // every second pixel of every second row (render::OriginalFrameMapping).
-    [[nodiscard]] IndexedFrame originalFrameAtSd(std::size_t frameIndex) const;
+    // A project with 256x64 original frames. The runtime renders its HD plane only, one to one
+    // with the original; the SD data of frames, backgrounds and sprites is stored and written
+    // back but never shown or edited. Sprite originals, detection areas and frame sprite bounds
+    // are original frame pixels in every project.
+    [[nodiscard]] bool rendersHdPlaneOnly() const;
+    // What keeps the runtime from showing the frame; nothing for other projects.
+    [[nodiscard]] FrameHdGaps frameHdGaps(std::size_t frameIndex) const;
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
     [[nodiscard]] bool isDirty() const;
     void markClean();
 
     [[nodiscard]] bool hasHdFrame(std::size_t frameIndex) const;
+    // Upscales the SD frame. In an HD-only project there is nothing to upscale: the HD frame
+    // becomes the original in its plain colors (plainOriginalColors).
     void createHdFrame(std::size_t frameIndex);
+    // Removing and upscaling from SD throw std::logic_error in an HD-only project.
     void removeHdFrame(std::size_t frameIndex);
     void upscaleDynamicMaskToHd(std::size_t frameIndex);
     void upscaleBackgroundMaskToHd(std::size_t frameIndex);
+    // In an HD-only project: gives the assigned background a black HD image if it has none.
     void upscaleAssignedBackgroundToHd(std::size_t frameIndex);
     // Throws when a requested part does not exist for the frame.
     [[nodiscard]] FrameHdState frameHdState(std::size_t frameIndex, FrameHdParts parts) const;
@@ -327,13 +346,19 @@ public:
     void setPaletteColor(std::size_t paletteIndex, std::size_t colorIndex, uint16_t rgb565);
     void setPaletteName(std::size_t paletteIndex, std::string name);
     [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
+    // Upscales the SD sprite. In an HD-only project the HD sprite lines up with the sprite
+    // original instead: its mask is the original's shape, its colors the plain original colors.
     void createHdSprite(std::size_t spriteIndex);
+    // Throws std::logic_error in an HD-only project.
     void removeHdSprite(std::size_t spriteIndex);
     [[nodiscard]] SpriteHdState spriteHdState(std::size_t spriteIndex) const;
     void setSpriteHdState(std::size_t spriteIndex, SpriteHdState state);
     [[nodiscard]] uint8_t spriteOriginalPixel(std::size_t spriteIndex,
                                               int x,
                                               int y) const;
+    // Both captures take a frame's original and a colorized frame of the same size. In an
+    // HD-only project that is the HD frame: the captured colors become the HD sprite, its mask
+    // the captured shape, and the unused SD sprite data is reset (colors 0, not dynamic).
     void replaceSpriteFromFrame(std::size_t spriteIndex,
                                 const IndexedFrame& originalFrame,
                                 const Rgb565Frame& colorizedFrame,
@@ -383,6 +408,10 @@ public:
     [[nodiscard]] ProjectSnapshot toSnapshot() const;
 
 private:
+    void replaceCapturedHdOnlySprite(SpriteRecord& sprite,
+                                     IndexedFrame original,
+                                     Rgb565Frame colorized);
+
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
     std::vector<IndexedFrame> m_comparisonMasks;
@@ -396,6 +425,10 @@ private:
     bool m_originalIs256x64 = false;
     bool m_dirty = false;
 };
+
+// The colors of an uncolorized frame: a ramp over the original color indices, as the Win32
+// editor writes it.
+[[nodiscard]] std::vector<uint16_t> plainOriginalColors(uint32_t colorCount);
 
 [[nodiscard]] Rgb565Frame makeRgb565Frame(Size size, uint16_t fill = 0);
 [[nodiscard]] IndexedFrame makeIndexedFrame(Size size, uint8_t fill = 0);

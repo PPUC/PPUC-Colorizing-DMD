@@ -46,7 +46,8 @@ public:
     void setPaintTargetEnabled(bool enabled);
     void setImportImageEnabled(bool enabled);
     // While a sprite is edited in the canvas, the Create/Remove HD buttons act on that sprite.
-    void showSpriteHdActions(bool spriteHasHd);
+    // In an HD-only project (ProjectDocument::rendersHdPlaneOnly()) HD cannot be removed.
+    void showSpriteHdActions(bool spriteHasHd, bool hdOnly = false);
 
     [[nodiscard]] PaintTarget paintTarget() const;
     // The spin box value: -1 for no trigger and for the monochrome trigger, 0 while the frame

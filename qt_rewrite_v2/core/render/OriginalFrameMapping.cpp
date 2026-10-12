@@ -47,46 +47,23 @@ int OriginalFrameMapping::originalDisplayScale() const
     return kSdFrameSize.width * displayScaleForResolution(Resolution::Sd) / m_originalSize.width;
 }
 
-int OriginalFrameMapping::step(Resolution resolution) const
+bool OriginalFrameMapping::hasPlane(Resolution resolution) const
 {
-    const int frameWidth = logicalSizeForResolution(resolution).width;
-    return m_originalSize.width >= frameWidth ? m_originalSize.width / frameWidth
-                                              : -(frameWidth / m_originalSize.width);
+    return logicalSizeForResolution(resolution).width >= m_originalSize.width;
 }
 
-Point OriginalFrameMapping::toOriginal(Resolution resolution, Point framePixel) const
+int OriginalFrameMapping::planeScale(Resolution resolution) const
 {
-    const int ratio = step(resolution);
-    return ratio > 0 ? Point{framePixel.x * ratio, framePixel.y * ratio}
-                     : Point{floorDivide(framePixel.x, -ratio),
-                             floorDivide(framePixel.y, -ratio)};
+    if (!hasPlane(resolution)) {
+        throw std::logic_error("a project with 256x64 original frames has no SD plane");
+    }
+    return logicalSizeForResolution(resolution).width / m_originalSize.width;
 }
 
-Point OriginalFrameMapping::fromOriginal(Resolution resolution, Point originalPixel) const
+Point OriginalFrameMapping::toOriginal(Resolution resolution, Point planePixel) const
 {
-    const int ratio = step(resolution);
-    return ratio > 0 ? Point{floorDivide(originalPixel.x, ratio),
-                             floorDivide(originalPixel.y, ratio)}
-                     : Point{originalPixel.x * -ratio, originalPixel.y * -ratio};
-}
-
-Rect OriginalFrameMapping::originalBlock(Resolution resolution, Point framePixel) const
-{
-    const Point origin = toOriginal(resolution, framePixel);
-    const int size = step(resolution) > 0 ? step(resolution) : 1;
-    return Rect{origin.x, origin.y, size, size};
-}
-
-Rect OriginalFrameMapping::originalBlocks(Resolution resolution,
-                                          Point minPixel,
-                                          Point maxPixel) const
-{
-    const Rect first = originalBlock(resolution, minPixel);
-    const Rect last = originalBlock(resolution, maxPixel);
-    return Rect{first.x,
-                first.y,
-                last.x + last.width - first.x,
-                last.y + last.height - first.y};
+    const int scale = planeScale(resolution);
+    return Point{floorDivide(planePixel.x, scale), floorDivide(planePixel.y, scale)};
 }
 
 }  // namespace colorizing::render

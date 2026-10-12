@@ -2,6 +2,7 @@
 """Compare two ui_dump outputs.
 
 Usage: compare.py before.txt after.txt [--allow-removed REGEX ...] [--allow-appended]
+                  [--ignore-sections REGEX]
 
 Sections ("===== name =====") are compared as multisets of lines, except the focus chain
 sections, which are compared as sequences after dropping non-focusable (fp=0) entries.
@@ -9,6 +10,8 @@ Lines matching an --allow-removed regex may be missing in the second file; such 
 summarised, everything else is reported as a real difference.
 With --allow-appended the second file may have more sections at its end, for states that were
 added to the end of the script after the first file was made; they are counted, not compared.
+With --ignore-sections sections whose title line matches the regex are dropped from both files
+before anything is compared, for states that were rewritten on purpose; they are counted.
 """
 import collections
 import re
@@ -37,7 +40,18 @@ while '--allow-removed' in args:
     del args[i:i + 2]
 allow_appended = '--allow-appended' in args
 args = [a for a in args if a != '--allow-appended']
+ignored = None
+while '--ignore-sections' in args:
+    i = args.index('--ignore-sections')
+    ignored = re.compile(args[i + 1])
+    del args[i:i + 2]
 before, after = sections(args[0]), sections(args[1])
+ignored_counts = None
+if ignored:
+    kept_before = [s for s in before if not ignored.search(s[0])]
+    kept_after = [s for s in after if not ignored.search(s[0])]
+    ignored_counts = (len(before) - len(kept_before), len(after) - len(kept_after))
+    before, after = kept_before, kept_after
 appended = []
 if allow_appended and len(after) > len(before):
     appended = [n for n, _ in after[len(before):]]
@@ -87,6 +101,8 @@ for index, ((name, b), (_, a)) in enumerate(zip(before, after)):
 print(f'sections: {len(before)} / {len(after)}')
 if allow_appended:
     print(f'appended sections, not compared: {len(appended)}')
+if ignored_counts:
+    print(f'ignored sections, not compared: {ignored_counts[0]} / {ignored_counts[1]}')
 print(f'focus chain sections with moved entries: {focus_moves}')
 print(f'focus chain sections with a different focusable order: {focus_reordered}')
 print(f'differences outside the focus order: {real - focus_reordered}')

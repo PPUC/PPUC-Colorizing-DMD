@@ -1302,7 +1302,7 @@ void testSpriteCaptureSelection()
     expect(owner.committed(EditKind::ComparisonMask, {1}), "mask painting without capture mode");
 }
 
-// Frame 0: SD only, mask 0. Frame 1: HD, mask 1. Originals and masks are 256x64.
+// Frame 0: no HD, mask 0. Frame 1: HD, mask 1. Originals and masks are 256x64.
 ProjectDocument makeBigOriginalDocument()
 {
     document::ProjectSnapshot snapshot;
@@ -1416,63 +1416,108 @@ void testSpriteCaptureSelectionOnBigOriginal()
 
     controller.originalPixelClicked(context, bigOriginal(11, 7), false);
     expect(owner.captureChanges == 1 && owner.commits.empty() && !document.isDirty() &&
-               samePoints(controller.captureSelectionPixels(0), {Point{5, 3}}),
-           "a click marks the SD pixel covering the original pixel");
+               samePoints(controller.captureSelectionPixels(0), {Point{11, 7}}),
+           "a click marks the clicked pixel of the 256x64 original");
     expect(isOverlay(owner.selectionOverlay,
                      CanvasRegion::OriginalFrame,
                      Resolution::Hd,
-                     {Point{10, 6}, Point{11, 6}, Point{10, 7}, Point{11, 7}},
+                     {Point{11, 7}},
                      magenta),
-           "a marked SD pixel is shown as its 2x2 block of the original");
+           "a marked pixel is shown as that one pixel, not as a 2x2 block");
     owner.next();
     controller.originalPixelClicked(context, bigOriginal(10, 6), false);
-    expect(owner.captureChanges == 0, "another pixel of a marked block changes nothing");
+    expect(owner.captureChanges == 1 &&
+               samePoints(controller.captureSelectionPixels(0), {Point{10, 6}, Point{11, 7}}),
+           "the neighbouring original pixel is a pixel of its own");
+    owner.next();
     controller.originalPixelClicked(context, original(11, 7), false);
-    expect(owner.captureChanges == 0 && controller.captureSelectionPixels(0).size() == 1,
+    expect(owner.captureChanges == 0 && controller.captureSelectionPixels(0).size() == 2,
            "hits on the SD grid do not belong to a 256x64 original");
     controller.originalPixelClicked(context, bigOriginal(255, 63), false);
-    expect(samePoints(controller.captureSelectionPixels(0), {Point{5, 3}, Point{127, 31}}),
-           "the last original pixel marks the last SD pixel");
+    expect(samePoints(controller.captureSelectionPixels(0),
+                      {Point{10, 6}, Point{11, 7}, Point{255, 63}}),
+           "the last original pixel can be marked");
     controller.originalPixelClicked(context, bigOriginal(254, 62), true);
-    expect(samePoints(controller.captureSelectionPixels(0), {Point{5, 3}}),
-           "erase unmarks through any pixel of the block");
+    expect(controller.captureSelectionPixels(0).size() == 3,
+           "erasing a neighbour leaves a marked pixel alone");
+    controller.originalPixelClicked(context, bigOriginal(255, 63), true);
+    controller.originalPixelClicked(context, bigOriginal(10, 6), true);
+    expect(samePoints(controller.captureSelectionPixels(0), {Point{11, 7}}),
+           "erase unmarks exactly the clicked pixel");
 
     owner.next();
     context.tool = DrawingTool::FilledRectangle;
-    std::vector<Point> blocks;
-    for (const Point& sd : {Point{10, 5}, Point{11, 5}, Point{10, 6}, Point{11, 6}}) {
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 2; ++x) {
-                blocks.push_back(Point{sd.x * 2 + x, sd.y * 2 + y});
-            }
-        }
-    }
-    controller.strokePreviewed(context, bigOriginal(21, 11), bigOriginal(22, 12), false);
+    const std::vector<Point> rectangle =
+        edit::makeFilledRectanglePixels(Point{21, 11}, Point{23, 12});
+    controller.strokePreviewed(context, bigOriginal(21, 11), bigOriginal(23, 12), false);
     expect(isOverlay(owner.preview,
                      CanvasRegion::OriginalFrame,
                      Resolution::Hd,
-                     blocks,
+                     rectangle,
                      QColor(255, 0, 255, 150)),
-           "capture stroke preview shows the blocks that will be marked");
+           "capture stroke preview shows the original pixels of the stroke");
     owner.preview.reset();
     controller.strokePreviewed(context, original(21, 11), original(22, 12), false);
     expect(!owner.preview, "no capture preview for hits on the SD grid");
     controller.strokeFinished(context, original(21, 11), original(22, 12), false);
     expect(owner.captureChanges == 0, "no capture stroke for hits on the SD grid");
-    controller.strokeFinished(context, bigOriginal(21, 11), bigOriginal(22, 12), false);
+    controller.strokeFinished(context, bigOriginal(21, 11), bigOriginal(23, 12), false);
     expect(owner.captureChanges == 1 &&
                samePoints(controller.captureSelectionPixels(0),
-                          {Point{5, 3}, Point{10, 5}, Point{11, 5}, Point{10, 6}, Point{11, 6}}),
-           "capture stroke marks the SD pixels it touches");
+                          {Point{11, 7},
+                           Point{21, 11},
+                           Point{22, 11},
+                           Point{23, 11},
+                           Point{21, 12},
+                           Point{22, 12},
+                           Point{23, 12}}),
+           "capture stroke marks the original pixels it touches, odd ones included");
 
     // What MainWindow does on a frame change.
     owner.selectionOverlay.reset();
     controller.showCaptureSelection(0);
     expect(owner.selectionOverlay && owner.selectionOverlay->resolution == Resolution::Hd &&
-               owner.selectionOverlay->pixels.size() == 5 * 4,
+               owner.selectionOverlay->pixels.size() == 7,
            "showing the capture selection again keeps the original's grid");
     controller.showCaptureSelection(1);
     expect(!owner.selectionOverlay, "no capture overlay on another frame");
+
+    // The same controller on an ordinary project afterwards: back on the 128x32 grid.
+    ProjectDocument ordinary = makeDocument();
+    CanvasEditContext ordinaryContext =
+        makeContext(ordinary, CanvasEditLayer::ComparisonMask, DrawingTool::Point, {0});
+    ordinaryContext.spriteCaptureSelection = true;
+    controller.resetCaptureSelection();
+    controller.originalPixelClicked(ordinaryContext, original(127, 31), false);
+    controller.originalPixelClicked(ordinaryContext, bigOriginal(200, 50), false);
+    expect(samePoints(controller.captureSelectionPixels(0), {Point{127, 31}}),
+           "the capture selection follows the original size of the document");
+}
+
+// Frame 1 has HD; frame 0 has none, which such a project cannot render or edit.
+void testFramePixelsOnHdOnlyProject()
+{
+    ProjectDocument document = makeBigOriginalDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Point, {1});
+    context.drawColor = 0x07e0;
+    const CanvasHit hdHit{CanvasRegion::ColorizedFrame, Resolution::Hd, 201, 51};
+    controller.colorizedPixelClicked(context, hdHit, false);
+    expect(owner.committed(EditKind::FramePixels, {1}, Resolution::Hd) &&
+               document.colorizedPixel(1, Resolution::Hd, 201, 51) == 0x07e0,
+           "frame pixels of an HD-only project are painted on the HD plane");
+    const document::Rgb565Frame sdBefore = document.colorizedFrame(1, Resolution::Sd);
+    owner.next();
+    context.tool = DrawingTool::FilledRectangle;
+    controller.strokeFinished(context,
+                              CanvasHit{CanvasRegion::ColorizedFrame, Resolution::Hd, 0, 0},
+                              CanvasHit{CanvasRegion::ColorizedFrame, Resolution::Hd, 255, 63},
+                              false);
+    expect(document.colorizedPixel(1, Resolution::Hd, 255, 63) == 0x07e0 &&
+               document.colorizedFrame(1, Resolution::Sd).pixels == sdBefore.pixels,
+           "painting the HD plane leaves the stored SD frame untouched");
 }
 
 void testOutputsAreOptional()
@@ -1511,5 +1556,6 @@ void runCanvasEditControllerTests()
     testSpriteCaptureSelection();
     testComparisonMaskOnBigOriginal();
     testSpriteCaptureSelectionOnBigOriginal();
+    testFramePixelsOnHdOnlyProject();
     testOutputsAreOptional();
 }

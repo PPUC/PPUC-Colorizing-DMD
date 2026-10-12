@@ -7,7 +7,6 @@
 
 #include "document/ProjectSnapshot.h"
 #include "render/CanvasLayout.h"
-#include "render/OriginalFrameMapping.h"
 
 namespace colorizing::document {
 
@@ -150,6 +149,17 @@ Rgb565Frame upscaleSpriteRgb565Frame2x(const Rgb565Frame& source)
         }
     }
     return target;
+}
+
+Rgb565Frame plainRgb565Frame(const IndexedFrame& original, uint32_t colorCount)
+{
+    const std::vector<uint16_t> colors = plainOriginalColors(colorCount);
+    Rgb565Frame frame = makeRgb565Frame(original.size);
+    for (std::size_t i = 0; i < original.pixels.size(); ++i) {
+        const uint8_t value = original.pixels[i];
+        frame.pixels[i] = value < colors.size() ? colors[value] : uint16_t{0};
+    }
+    return frame;
 }
 
 std::size_t spritePixelIndex(int x, int y)
@@ -316,6 +326,18 @@ std::size_t IndexedFrame::pixelCount() const
     return static_cast<std::size_t>(size.width) * static_cast<std::size_t>(size.height);
 }
 
+std::vector<uint16_t> plainOriginalColors(uint32_t colorCount)
+{
+    std::vector<uint16_t> colors(colorCount, 0);
+    for (uint32_t i = 0; i < colorCount && colorCount > 1; ++i) {
+        // Same float math as the Win32 editor, including the 5-bit value in the green field.
+        const auto level = static_cast<uint16_t>(
+            31.0 * static_cast<float>(i) / static_cast<float>(colorCount - 1));
+        colors[i] = static_cast<uint16_t>((level << 11) | (level << 5));
+    }
+    return colors;
+}
+
 Rgb565Frame makeRgb565Frame(Size size, uint16_t fill)
 {
     Rgb565Frame frame;
@@ -417,6 +439,33 @@ Size ProjectDocument::originalFrameSize() const
     return m_originalIs256x64 ? render::kHdFrameSize : render::kSdFrameSize;
 }
 
+bool ProjectDocument::rendersHdPlaneOnly() const
+{
+    return m_originalIs256x64;
+}
+
+FrameHdGaps ProjectDocument::frameHdGaps(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    FrameHdGaps gaps;
+    if (!m_originalIs256x64) {
+        return gaps;
+    }
+    gaps.frame = !frame.colorizedHd.has_value();
+    gaps.background = frame.backgroundData &&
+                      frame.backgroundData->backgroundId < m_backgrounds.size() &&
+                      !m_backgrounds[frame.backgroundData->backgroundId].colorizedHd;
+    for (const FrameSpriteReference& reference : frame.spriteReferences) {
+        if (reference.spriteId < m_sprites.size() && !m_sprites[reference.spriteId].hasHd) {
+            gaps.sprites.push_back(reference.spriteId);
+        }
+    }
+    std::sort(gaps.sprites.begin(), gaps.sprites.end());
+    gaps.sprites.erase(std::unique(gaps.sprites.begin(), gaps.sprites.end()),
+                       gaps.sprites.end());
+    return gaps;
+}
+
 const EditorMetadata& ProjectDocument::editorMetadata() const
 {
     return m_editorMetadata;
@@ -443,7 +492,8 @@ void ProjectDocument::createHdFrame(std::size_t frameIndex)
     if (frame.colorizedHd) {
         return;
     }
-    frame.colorizedHd = upscaleRgb565Frame2x(frame.colorizedSd);
+    frame.colorizedHd = m_originalIs256x64 ? plainRgb565Frame(frame.originalSd, m_colorCount)
+                                           : upscaleRgb565Frame2x(frame.colorizedSd);
     frame.inactiveHd.reset();
     m_dirty = true;
 }
@@ -454,6 +504,9 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
     if (!frame.colorizedHd) {
         return;
     }
+    if (m_originalIs256x64) {
+        throw std::logic_error("the HD frame is the only one this project renders");
+    }
     frame.colorizedHd.reset();
     m_dirty = true;
 }
@@ -463,6 +516,9 @@ void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic mask data is not available");
+    }
+    if (m_originalIs256x64) {
+        throw std::logic_error("this project has no SD dynamic mask to upscale");
     }
     frame.dynamicData->maskHd = upscaleIndexedFrame2x(frame.dynamicData->maskSd);
     frame.dynamicData->colorsHd = frame.dynamicData->colorsSd;
@@ -476,6 +532,9 @@ void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (!frame.backgroundData) {
         throw std::logic_error("background data is not available");
+    }
+    if (m_originalIs256x64) {
+        throw std::logic_error("this project has no SD background mask to upscale");
     }
     frame.backgroundData->maskHd = upscaleIndexedFrame2x(frame.backgroundData->maskSd);
     m_dirty = true;
@@ -491,6 +550,15 @@ void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
         throw std::logic_error("assigned background is not available");
     }
     BackgroundRecord& background = m_backgrounds[frame.backgroundData->backgroundId];
+    if (m_originalIs256x64) {
+        if (background.colorizedHd) {
+            return;
+        }
+        background.colorizedHd = makeRgb565Frame(render::kHdFrameSize);
+        background.inactiveHd.reset();
+        m_dirty = true;
+        return;
+    }
     background.colorizedHd = upscaleRgb565Frame2x(background.colorizedSd);
     background.inactiveHd.reset();
     m_dirty = true;
@@ -573,27 +641,6 @@ void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState
 const IndexedFrame& ProjectDocument::originalFrame(std::size_t frameIndex) const
 {
     return requireFrame(m_frames, frameIndex).originalSd;
-}
-
-IndexedFrame ProjectDocument::originalFrameAtSd(std::size_t frameIndex) const
-{
-    const IndexedFrame& original = originalFrame(frameIndex);
-    if (!m_originalIs256x64) {
-        return original;
-    }
-    const render::OriginalFrameMapping mapping(original.size);
-    IndexedFrame frame = makeIndexedFrame(render::kSdFrameSize);
-    for (int y = 0; y < frame.size.height; ++y) {
-        for (int x = 0; x < frame.size.width; ++x) {
-            const render::Point source = mapping.toOriginal(Resolution::Sd, render::Point{x, y});
-            frame.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
-                         static_cast<std::size_t>(x)] =
-                original.pixels[static_cast<std::size_t>(source.y) *
-                                    static_cast<std::size_t>(original.size.width) +
-                                static_cast<std::size_t>(source.x)];
-        }
-    }
-    return frame;
 }
 
 const Rgb565Frame& ProjectDocument::colorizedFrame(std::size_t frameIndex,
@@ -1353,8 +1400,13 @@ void ProjectDocument::createHdSprite(std::size_t spriteIndex)
     if (sprite.hasHd) {
         return;
     }
-    sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
-    sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+    if (m_originalIs256x64) {
+        sprite.maskHd = sprite.originalSd;
+        sprite.colorizedHd = plainRgb565Frame(sprite.originalSd, m_colorCount);
+    } else {
+        sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
+        sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+    }
     sprite.hasHd = true;
     m_dirty = true;
 }
@@ -1367,6 +1419,9 @@ void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
     SpriteRecord& sprite = m_sprites[spriteIndex];
     if (!sprite.hasHd) {
         return;
+    }
+    if (m_originalIs256x64) {
+        throw std::logic_error("the HD sprite is the only one this project renders");
     }
     sprite.hasHd = false;
     m_dirty = true;
@@ -1387,6 +1442,30 @@ void ProjectDocument::setSpriteHdState(std::size_t spriteIndex, SpriteHdState st
     record.hasHd = state.hasHd;
     record.maskHd = std::move(state.maskHd);
     record.colorizedHd = std::move(state.colorizedHd);
+    m_dirty = true;
+}
+
+void ProjectDocument::replaceCapturedHdOnlySprite(SpriteRecord& sprite,
+                                                  IndexedFrame original,
+                                                  Rgb565Frame colorized)
+{
+    if (sprite.hasHd && sprite.originalSd.pixels == original.pixels &&
+        sprite.maskHd.pixels == original.pixels &&
+        sprite.colorizedHd.pixels == colorized.pixels) {
+        return;
+    }
+    sprite.maskHd = original;
+    sprite.originalSd = std::move(original);
+    sprite.colorizedHd = std::move(colorized);
+    sprite.hasHd = true;
+    // The runtime never reads the SD sprite of such a project; the old one belonged to the
+    // replaced picture.
+    std::fill(sprite.colorizedSd.pixels.begin(), sprite.colorizedSd.pixels.end(), uint16_t{0});
+    std::fill(sprite.dynamicMaskSd.pixels.begin(),
+              sprite.dynamicMaskSd.pixels.end(),
+              uint8_t{255});
+    std::fill(sprite.dynamicColorsSd.begin(), sprite.dynamicColorsSd.end(), uint16_t{0});
+    recalculateSpriteDetectionDwords(sprite);
     m_dirty = true;
 }
 
@@ -1449,6 +1528,10 @@ void ProjectDocument::replaceSpriteFromFrame(std::size_t spriteIndex,
         }
     }
 
+    if (m_originalIs256x64) {
+        replaceCapturedHdOnlySprite(sprite, std::move(newOriginal), std::move(newColorized));
+        return;
+    }
     if (sprite.originalSd.pixels == newOriginal.pixels &&
         sprite.colorizedSd.pixels == newColorized.pixels) {
         return;
@@ -1539,6 +1622,10 @@ void ProjectDocument::replaceSpriteFromFrameSelection(
         }
     }
 
+    if (m_originalIs256x64) {
+        replaceCapturedHdOnlySprite(sprite, std::move(newOriginal), std::move(newColorized));
+        return;
+    }
     if (sprite.originalSd.pixels == newOriginal.pixels &&
         sprite.colorizedSd.pixels == newColorized.pixels) {
         return;

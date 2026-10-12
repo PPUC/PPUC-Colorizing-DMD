@@ -209,14 +209,7 @@ uint32_t legacyFrameHash(const document::IndexedFrame& original,
 
 std::vector<uint16_t> legacyOriginalColors(uint32_t colorCount)
 {
-    std::vector<uint16_t> colors(colorCount, 0);
-    for (uint32_t i = 0; i < colorCount && colorCount > 1; ++i) {
-        // Same float math as the Win32 editor, including the 5-bit value in the green field.
-        const auto level = static_cast<uint16_t>(
-            31.0 * static_cast<float>(i) / static_cast<float>(colorCount - 1));
-        colors[i] = static_cast<uint16_t>((level << 11) | (level << 5));
-    }
-    return colors;
+    return document::plainOriginalColors(colorCount);
 }
 
 bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
@@ -225,47 +218,30 @@ bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
     if (frame.durationMs >= kSkipFrameDurationMs) {
         return true;
     }
-    // With a 256x64 original, SD pixel (x, y) shows original pixel (2x, 2y) and the HD frame
-    // maps one to one.
-    const bool bigOriginal = frame.originalSd.size.width == render::kHdFrameSize.width;
-    const auto differs = [&](const document::Rgb565Frame& colorized,
-                             const document::IndexedFrame* dynamicMask,
-                             int originalStep) {
-        for (int y = 0; y < colorized.size.height; ++y) {
-            for (int x = 0; x < colorized.size.width; ++x) {
-                const std::size_t index =
-                    static_cast<std::size_t>(y) * static_cast<std::size_t>(colorized.size.width) +
-                    static_cast<std::size_t>(x);
-                const std::size_t originalIndex =
-                    static_cast<std::size_t>(y * originalStep) *
-                        static_cast<std::size_t>(frame.originalSd.size.width) +
-                    static_cast<std::size_t>(x * originalStep);
-                const uint8_t original = originalIndex < frame.originalSd.pixels.size()
-                                             ? frame.originalSd.pixels[originalIndex]
-                                             : uint8_t{0};
-                const uint16_t plain =
-                    original < originalColors.size() ? originalColors[original] : uint16_t{0};
-                // The saved frame has its dynamic pixels blanked; any dynamic pixel counts.
-                const bool dynamic = dynamicMask && index < dynamicMask->pixels.size() &&
-                                     dynamicMask->pixels[index] != 255;
-                if (dynamic || colorized.pixels[index] != plain) {
-                    return true;
-                }
-            }
-        }
+    // A 256x64 project renders its HD frame only, one to one with the original; its SD frame
+    // is never shown and does not count.
+    const bool hdOnly = frame.originalSd.size.width == render::kHdFrameSize.width;
+    if (hdOnly && !frame.colorizedHd) {
         return false;
-    };
-    if (differs(frame.colorizedSd,
-                frame.dynamicData ? &frame.dynamicData->maskSd : nullptr,
-                bigOriginal ? 2 : 1)) {
-        return true;
     }
-    // The Win32 editor judges 256x64 projects by their HD frame; its SD frame starts out as a
-    // subsample of the original, so both are checked here.
-    return bigOriginal && frame.colorizedHd &&
-           differs(*frame.colorizedHd,
-                   frame.dynamicData ? &frame.dynamicData->maskHd : nullptr,
-                   1);
+    const document::Rgb565Frame& colorized = hdOnly ? *frame.colorizedHd : frame.colorizedSd;
+    const document::IndexedFrame* dynamicMask =
+        !frame.dynamicData ? nullptr
+                           : hdOnly ? &frame.dynamicData->maskHd : &frame.dynamicData->maskSd;
+    for (std::size_t index = 0; index < colorized.pixels.size(); ++index) {
+        const uint8_t original = index < frame.originalSd.pixels.size()
+                                     ? frame.originalSd.pixels[index]
+                                     : uint8_t{0};
+        const uint16_t plain =
+            original < originalColors.size() ? originalColors[original] : uint16_t{0};
+        // The saved frame has its dynamic pixels blanked; any dynamic pixel counts.
+        const bool dynamic = dynamicMask && index < dynamicMask->pixels.size() &&
+                             dynamicMask->pixels[index] != 255;
+        if (dynamic || colorized.pixels[index] != plain) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool writeLegacyCrom(std::ostream& stream,
@@ -287,6 +263,8 @@ bool writeLegacyCrom(std::ostream& stream,
 
     const render::Size sdSize = render::kSdFrameSize;
     const render::Size hdSize = render::kHdFrameSize;
+    // Sprite bounds are original frame pixels.
+    const render::Size originalSize = document::originalFrameSize(snapshot);
     const std::size_t sdPixels = pixelCount(sdSize);
     const std::size_t hdPixels = pixelCount(hdSize);
     const std::size_t spritePixels = document::kMaxSpriteWidth * document::kMaxSpriteHeight;
@@ -463,8 +441,8 @@ bool writeLegacyCrom(std::ostream& stream,
             } else {
                 writer.u16(0);
                 writer.u16(0);
-                writer.u16(static_cast<uint16_t>(sdSize.width - 1));
-                writer.u16(static_cast<uint16_t>(sdSize.height - 1));
+                writer.u16(static_cast<uint16_t>(originalSize.width - 1));
+                writer.u16(static_cast<uint16_t>(originalSize.height - 1));
             }
         }
     }

@@ -124,16 +124,8 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
     std::vector<SpriteMatch> matches;
     const std::vector<document::FrameSpriteReference>& references =
         document.frameSpriteReferences(frameIndex);
-    if (std::none_of(references.begin(),
-                     references.end(),
-                     [&](const document::FrameSpriteReference& reference) {
-                         return reference.spriteId != 255 &&
-                                reference.spriteId < document.spriteCount();
-                     })) {
-        return matches;
-    }
-    // Sprites are detected and placed on the SD grid, also when the original is 256x64.
-    const document::IndexedFrame original = document.originalFrameAtSd(frameIndex);
+    // Sprites are detected on the original frame at its own resolution, as libserum does.
+    const document::IndexedFrame& original = document.originalFrame(frameIndex);
     for (const document::FrameSpriteReference& reference : references) {
         if (reference.spriteId == 255 ||
             reference.spriteId >= document.spriteCount()) {
@@ -234,15 +226,22 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
     return matches;
 }
 
+// factor: plane pixels per original pixel, see render::OriginalFrameMapping::planeScale().
 void applySpriteMatch(document::Rgb565Frame& frame,
                       const document::SpriteRecord& sprite,
                       const SpriteMatch& match,
-                      render::Resolution resolution)
+                      render::Resolution resolution,
+                      int factor,
+                      bool hdOnly)
 {
+    // The SD sprite of an HD-only project is never drawn; the runtime shows nothing for a
+    // frame with such a sprite.
+    if (hdOnly && !sprite.hasHd) {
+        return;
+    }
     const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
     const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
     const document::Rgb565Frame& colors = useHd ? sprite.colorizedHd : sprite.colorizedSd;
-    const int factor = resolution == render::Resolution::Hd ? 2 : 1;
     const int targetX = match.frameX * factor;
     const int targetY = match.frameY * factor;
     const int sourceX = match.spriteX * factor;
@@ -442,6 +441,11 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                            render::Resolution resolution,
                                            bool includeBackgroundLayer)
 {
+    const render::OriginalFrameMapping mapping(document.originalFrameSize());
+    const int spriteFactor = mapping.planeScale(resolution);
+    if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
+        return document::makeRgb565Frame(render::kHdFrameSize);
+    }
     const document::Rgb565Frame& source = document.colorizedFrame(frameIndex, resolution);
     document::Rgb565Frame frame = document::makeRgb565Frame(source.size);
     for (int y = 0; y < source.size.height; ++y) {
@@ -461,7 +465,12 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
     const std::vector<SpriteMatch> matches = matchFrameSprites(document, frameIndex);
     for (const SpriteMatch& match : matches) {
         if (match.spriteIndex < document.spriteCount()) {
-            applySpriteMatch(frame, document.sprite(match.spriteIndex), match, resolution);
+            applySpriteMatch(frame,
+                             document.sprite(match.spriteIndex),
+                             match,
+                             resolution,
+                             spriteFactor,
+                             document.rendersHdPlaneOnly());
         }
     }
     return frame;
@@ -639,7 +648,8 @@ QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
 }
 
 QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
-                                         render::Resolution resolution)
+                                         render::Resolution resolution,
+                                         bool hdOnly)
 {
     const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
     const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
@@ -648,6 +658,9 @@ QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
                  static_cast<int>(document::kMaxSpriteHeight),
                  QImage::Format_ARGB32);
     image.fill(Qt::black);
+    if (hdOnly && !useHd) {
+        return image;
+    }
     for (int y = 0; y < image.height(); ++y) {
         for (int x = 0; x < image.width(); ++x) {
             const std::size_t index =
@@ -663,9 +676,16 @@ QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
 }
 
 QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
-                                    render::Resolution resolution)
+                                    render::Resolution resolution,
+                                    bool hdOnly)
 {
     const bool useHd = resolution == render::Resolution::Hd && background.colorizedHd;
+    if (hdOnly && !useHd) {
+        QImage image(render::kHdFrameSize.width, render::kHdFrameSize.height,
+                     QImage::Format_ARGB32);
+        image.fill(Qt::black);
+        return image;
+    }
     const document::Rgb565Frame& frame =
         useHd ? *background.colorizedHd : background.colorizedSd;
     QImage image(frame.size.width, frame.size.height, QImage::Format_ARGB32);

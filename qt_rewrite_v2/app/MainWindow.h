@@ -55,6 +55,8 @@ private:
         Background,
         Dynamic,
         Sprites,
+        // Offered for HD-only projects alone: frames the runtime shows nothing for.
+        HdIncomplete,
     };
 
     void createActions();
@@ -73,6 +75,11 @@ private:
     void refreshProjectSummary();
     void refreshFrameList(std::optional<std::size_t> selectedFrameIndex = std::nullopt);
     [[nodiscard]] QString frameListItemText(std::size_t frameIndex) const;
+    // See ProjectDocument::rendersHdPlaneOnly(): SD mode, SD fallbacks and Remove HD are off.
+    [[nodiscard]] bool isHdOnlyProject() const;
+    // Why the runtime shows nothing for the frame of an HD-only project; empty otherwise.
+    [[nodiscard]] QString frameHdGapsText(std::size_t frameIndex) const;
+    void updateFrameFilterChoices();
     [[nodiscard]] bool frameMatchesFilter(std::size_t frameIndex) const;
     [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
     [[nodiscard]] std::vector<std::size_t> selectedFrameIndices() const;
@@ -119,6 +126,8 @@ private:
     void createCurrentSpriteHd();
     void removeCurrentSpriteHd();
     void createCurrentFrameHd();
+    // HD-only project: creates what the frame lacks, without a dialog; nothing is upscaled.
+    void createCurrentFrameHdFromOriginal(std::size_t frameIndex);
     void removeCurrentFrameHd();
     void updateDynamicColorControls();
     void updateDynamicShadowControls();

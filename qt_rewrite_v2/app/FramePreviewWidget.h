@@ -58,6 +58,8 @@ protected:
 
 private:
     [[nodiscard]] render::CanvasLayout currentLayout() const;
+    // The frame of an HD-only project has no HD data: nothing to show or to paint on.
+    [[nodiscard]] bool isHdFrameMissing() const;
     [[nodiscard]] double currentDisplayScale(const render::CanvasLayout& layout) const;
     [[nodiscard]] QPointF currentDisplayOrigin(const render::CanvasLayout& layout) const;
     void paintEmpty(QPainter& painter);

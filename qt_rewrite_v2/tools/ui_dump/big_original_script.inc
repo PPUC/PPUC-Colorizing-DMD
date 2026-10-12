@@ -1,5 +1,13 @@
-// Project with 256x64 original frames. Included at the end of main() in dump.cpp, after the
-// window was closed, so that no earlier state depends on it.
+// Project with 256x64 original frames: only its HD plane is rendered and edited, one to one with
+// the original. Included at the end of main() in dump.cpp, after the window was closed, so that
+// no earlier state depends on it.
+//
+//   frame 0: HD, dynamic data, background 0 (HD)
+//   frame 1: HD
+//   frame 2: no HD frame
+//   frame 3: HD, background 1 (no HD), sprite 1 (no HD) in slot 0
+//   frame 4: no HD frame
+//   sprite 0: HD, empty; sprite 1 and 2: no HD, with an original and SD colours
 {
     using render::CanvasHit;
     using render::CanvasRegion;
@@ -33,7 +41,8 @@
     };
     bs.backgrounds.push_back(document::BackgroundRecord{bigPattern(render::kSdFrameSize, 31),
                                                         bigPattern(render::kHdFrameSize, 32)});
-    for (int i = 0; i < 3; ++i) {
+    bs.backgrounds.push_back(document::BackgroundRecord{bigPattern(render::kSdFrameSize, 33)});
+    for (int i = 0; i < 5; ++i) {
         document::ProjectFrameSnapshot frame{
             document::makeIndexedFrame(render::kHdFrameSize, 0),
             bigPattern(render::kSdFrameSize, i),
@@ -41,7 +50,7 @@
             0,
             static_cast<uint8_t>(i < 2 ? i : 255),
         };
-        // Differs between neighbouring pixels, so sampling (2x, 2y) is not the same as (x, y).
+        // Differs between neighbouring pixels, so a (2x, 2y) subsample would show.
         for (int y = 0; y < 64; ++y) {
             for (int x = 0; x < 256; ++x) {
                 frame.originalSd.pixels[pixel(render::kHdFrameSize, x, y)] =
@@ -54,6 +63,7 @@
     }
     bs.frames[0].colorizedHd = bigPattern(render::kHdFrameSize, 40);
     bs.frames[1].colorizedHd = bigPattern(render::kHdFrameSize, 41);
+    bs.frames[3].colorizedHd = bigPattern(render::kHdFrameSize, 43);
     {
         document::FrameDynamicData dyn{
             document::makeIndexedFrame(render::kSdFrameSize, 255),
@@ -92,10 +102,13 @@
             for (int x = 0; x < 128; ++x) background.maskHd.pixels[pixel(render::kHdFrameSize, x, y)] = 1;
         }
         bs.frames[0].backgroundData = background;
+        background.backgroundId = 1;
+        bs.frames[3].backgroundData = background;
     }
-    for (int s = 0; s < 2; ++s) {
+    for (int s = 0; s < 3; ++s) {
         document::SpriteRecord sprite;
         sprite.name = s == 0 ? "big" : "";
+        sprite.hasHd = s == 0;
         sprite.originalSd = document::makeIndexedFrame({256, 64}, 255);
         sprite.colorizedSd = document::makeRgb565Frame({256, 64}, 0);
         sprite.maskHd = document::makeIndexedFrame({256, 64}, 255);
@@ -103,8 +116,17 @@
         sprite.detectionDwords.assign(document::kMaxSpriteDetectAreas, 0xffffffff);
         sprite.detectionDwordPositions.assign(document::kMaxSpriteDetectAreas, 0xffff);
         sprite.detectionAreas.assign(document::kMaxSpriteDetectAreas, document::SpriteDetectionArea{});
+        if (s >= 1) {
+            for (int y = 0; y < 6; ++y) {
+                for (int x = 0; x < 9; ++x) {
+                    sprite.originalSd.pixels[static_cast<std::size_t>(y) * 256 + static_cast<std::size_t>(x)] = static_cast<uint8_t>((x + y) % 16);
+                    sprite.colorizedSd.pixels[static_cast<std::size_t>(y) * 256 + static_cast<std::size_t>(x)] = 0xf81f;
+                }
+            }
+        }
         bs.sprites.push_back(sprite);
     }
+    bs.frames[3].spriteReferences[0] = document::FrameSpriteReference{1, 0, 0, 255, 63};
     document::PaletteRecord bp0;
     bp0.colors.assign(document::kPaletteColorCount, 0x1357);
     bs.palettes = {bp0};
@@ -143,12 +165,12 @@
         w.m_frameList->clearSelection();
         w.m_frameList->setCurrentRow(r);
     };
-    // Hits on the original region of a 256x64 original are on its own 256x64 grid.
+    // Both regions of a 256x64 project are on the 256x64 grid.
     const auto orig = [](int x, int y) {
         return CanvasHit{CanvasRegion::OriginalFrame, Resolution::Hd, x, y};
     };
-    const auto col = [](int x, int y, Resolution resolution = Resolution::Sd) {
-        return CanvasHit{CanvasRegion::ColorizedFrame, resolution, x, y};
+    const auto col = [](int x, int y) {
+        return CanvasHit{CanvasRegion::ColorizedFrame, Resolution::Hd, x, y};
     };
     const auto undo = [&](const char* title) { w.m_undoAction->trigger(); dump(title, w); };
     const auto redo = [&](const char* title) { w.m_redoAction->trigger(); dump(title, w); };
@@ -169,7 +191,8 @@
             std::exit(6);
         });
     };
-    // The capture reads the sprite back, so print what the dump's hashes cannot show.
+    // The capture reads the sprite back, so print what the dump's hashes cannot show:
+    // original/HD mask/HD colour of the first pixels, then the HD flag and the SD colour sum.
     const auto printSprite = [&](std::size_t spriteIndex) {
         const document::SpriteRecord& sprite = w.m_document->sprite(spriteIndex);
         std::cout << "sprite " << spriteIndex << " rows:";
@@ -177,11 +200,29 @@
             std::cout << " |";
             for (int x = 0; x < 6; ++x) {
                 const std::size_t index = static_cast<std::size_t>(y) * 256 + static_cast<std::size_t>(x);
-                std::cout << ' ' << int(sprite.originalSd.pixels[index]) << '/' << std::hex
-                          << sprite.colorizedSd.pixels[index] << std::dec;
+                std::cout << ' ' << int(sprite.originalSd.pixels[index]) << '/' << int(sprite.maskHd.pixels[index])
+                          << '/' << std::hex << sprite.colorizedHd.pixels[index] << std::dec;
             }
         }
-        std::cout << '\n';
+        unsigned long long sdSum = 0;
+        for (uint16_t value : sprite.colorizedSd.pixels) sdSum += value;
+        std::cout << " | hd " << sprite.hasHd << " sd sum " << sdSum << '\n';
+    };
+    const auto printFrameHd = [&](std::size_t frameIndex) {
+        std::cout << "frame " << frameIndex << " hd:";
+        if (!w.m_document->hasHdFrame(frameIndex)) {
+            std::cout << " none\n";
+            return;
+        }
+        const document::Rgb565Frame& hd = w.m_document->colorizedFrame(frameIndex, Resolution::Hd);
+        for (int x = 0; x < 6; ++x) {
+            std::cout << ' ' << int(w.m_document->originalFrame(frameIndex).pixels[static_cast<std::size_t>(64 + x)]) << '/'
+                      << std::hex << hd.pixels[static_cast<std::size_t>(64 + x)] << std::dec;
+        }
+        std::cout << " | sd " << std::hex << w.m_document->colorizedFrame(frameIndex, Resolution::Sd).pixels[0] << std::dec << '\n';
+    };
+    const auto settle = []() {
+        for (int round = 0; round < 5; ++round) QApplication::processEvents();
     };
 
     w.m_undoHistories = edit::UndoHistories();
@@ -198,16 +239,39 @@
         D(title.c_str());
     }
     showTab("Frame");
+    w.m_sdButton->click();
+    D("256 original: sd is not available");
     w.m_hdButton->click();
-    D("256 original: hd");
+    D("256 original: hd stays on");
     w.setDrawingTool(Tool::Point);
-    w.m_preview->m_pixelClickedHandler(col(200, 50, Resolution::Hd), false);
+    w.m_preview->m_pixelClickedHandler(col(201, 51), false);
     D("256 original: hd pixel painted");
     undo("256 original: undo hd pixel");
-    w.m_sdButton->click();
-    D("256 original: sd");
+
+    // ===== missing HD data and its repair
     row(2);
-    D("256 original: sd-only frame without mask");
+    printFrameHd(2);
+    D("256 original: frame without hd");
+    toolButtonByTextPrefix(w, "Create HD")->click();
+    settle();
+    printFrameHd(2);
+    D("256 original: hd frame created from the original");
+    undo("256 original: undo create hd");
+    redo("256 original: redo create hd");
+    row(3);
+    D("256 original: background and sprite without hd");
+    w.m_frameFilterComboBox->setCurrentIndex(w.m_frameFilterComboBox->findText(QStringLiteral("HD missing")));
+    D("256 original: filter hd missing");
+    w.m_frameFilterComboBox->setCurrentIndex(0);
+    row(3);
+    toolButtonByTextPrefix(w, "Create HD")->click();
+    settle();
+    D("256 original: hd background created");
+    undo("256 original: undo create hd background");
+    redo("256 original: redo create hd background");
+    showLeft("Backgrounds");
+    D("256 original: background list");
+    showLeft("Frames");
     row(0);
 
     // ===== comparison mask
@@ -240,9 +304,6 @@
     redo("256 original: mask redo line");
     undo("256 original: mask undo line again");
     undo("256 original: mask undo rectangle");
-    w.m_hdButton->click();
-    D("256 original: edit mask in hd");
-    w.m_sdButton->click();
     w.setDrawingTool(Tool::Point);
     w.m_comparisonMaskOverlayButton->click();
     D("256 original: mask overlay toggled");
@@ -251,27 +312,23 @@
     // ===== dynamic overlay and background layer
     showTab("Dyn");
     w.m_dynamicMaskOverlayButton->click();
-    D("256 original: dynamic overlay sd");
-    w.m_preview->m_pixelClickedHandler(col(10, 20), false);
-    D("256 original: dynamic mask pixel painted sd");
+    D("256 original: dynamic overlay");
+    w.m_preview->m_pixelClickedHandler(col(211, 41), false);
+    D("256 original: dynamic mask pixel painted");
     undo("256 original: undo dynamic mask pixel");
-    w.m_hdButton->click();
-    D("256 original: dynamic overlay hd");
-    w.m_sdButton->click();
     w.m_dynamicMaskOverlayButton->click();
     showTab("BG");
     auto* bigShowBg = byTip<QToolButton>(w, "Show assigned background layer");
     if (!bigShowBg->isChecked()) bigShowBg->click();
-    D("256 original: background layer sd");
-    w.m_hdButton->click();
-    D("256 original: background layer hd");
-    w.m_sdButton->click();
+    D("256 original: background layer");
 
-    // ===== sprite capture
+    // ===== sprite capture, on the native grid
     auto* bigSlot = byTip<QComboBox>(w, "Current frame sprite slot");
+    auto* bigAssign = byTip<QToolButton>(w, "Assign selected sprite to selected slot");
     auto* bigCapture = byTip<QToolButton>(w, "Copy original/colorized pixels from current frame bounds into selected sprite");
     auto* bigSelectCapture = byTip<QToolButton>(w, "Draw a shaped sprite capture selection on the original frame");
     auto* bigShowBounds = byTip<QToolButton>(w, "Show selected sprite slot bounds on original frame");
+    auto* bigCanvas = byTip<QToolButton>(w, "Show selected sprite in the main canvas");
     auto* bigMinX = byTip<QSpinBox>(w, "Sprite slot bounding box minimum X");
     auto* bigMinY = byTip<QSpinBox>(w, "Sprite slot bounding box minimum Y");
     auto* bigMaxX = byTip<QSpinBox>(w, "Sprite slot bounding box maximum X");
@@ -287,14 +344,14 @@
     w.m_preview->m_originalClickedHandler(orig(101, 41), false);
     D("256 original: capture point painted");
     w.m_preview->m_originalClickedHandler(orig(100, 40), false);
-    D("256 original: capture point in the same sd pixel");
+    D("256 original: capture point on the neighbouring pixel");
     w.setDrawingTool(Tool::FilledRectangle);
-    w.m_preview->m_strokePreviewHandler(orig(96, 36), orig(107, 45), false);
+    w.m_preview->m_strokePreviewHandler(orig(97, 37), orig(107, 45), false);
     D("256 original: capture rectangle preview");
-    w.m_preview->m_strokeFinishedHandler(orig(96, 36), orig(107, 45), false);
+    w.m_preview->m_strokeFinishedHandler(orig(97, 37), orig(107, 45), false);
     D("256 original: capture rectangle painted");
     w.setDrawingTool(Tool::Point);
-    w.m_preview->m_originalClickedHandler(orig(96, 36), true);
+    w.m_preview->m_originalClickedHandler(orig(97, 37), true);
     D("256 original: capture point erased");
     answerNextMessageBox(QStringLiteral("Replace Current"));
     bigCapture->click();
@@ -303,12 +360,13 @@
     bigSelectCapture->click();
     D("256 original: capture mode off");
     w.m_spriteList->setCurrentRow(1);
-    bigSlot->setCurrentIndex(0);
-    D("256 original: sprite 1, slot 0");
-    bigMinX->setValue(100);
-    bigMinY->setValue(20);
-    bigMaxX->setValue(127);
-    bigMaxY->setValue(31);
+    bigSlot->setCurrentIndex(1);
+    bigAssign->click();
+    D("256 original: assigned sprite 1 without hd to slot 1");
+    bigMaxX->setValue(255);
+    bigMaxY->setValue(63);
+    bigMinX->setValue(201);
+    bigMinY->setValue(41);
     D("256 original: slot bounds edited");
     answerNextMessageBox(QStringLiteral("Replace Current"));
     bigCapture->click();
@@ -316,11 +374,29 @@
     D("256 original: captured slot bounds into sprite 1");
     if (!bigShowBounds->isChecked()) bigShowBounds->click();
     D("256 original: slot bounds shown");
-    w.m_hdButton->click();
-    D("256 original: sprite page hd");
-    w.m_sdButton->click();
+
+    // ===== sprite canvas and HD sprites
+    bigCanvas->click();
+    settle();
+    D("256 original: sprite canvas, captured sprite has hd");
+    w.m_spriteList->setCurrentRow(2);
+    settle();
+    D("256 original: sprite canvas, sprite without hd");
+    toolButtonByTextPrefix(w, "Create HD")->click();
+    settle();
+    printSprite(2);
+    D("256 original: hd sprite created from the sprite original");
+    w.m_undoAction->trigger();
+    settle();
+    D("256 original: undo create hd sprite");
+    bigCanvas->click();
+    settle();
+    row(4);
+    bigCapture->click();
+    D("256 original: no capture from a frame without hd");
     showTab("Frame");
     showLeft("Frames");
+    row(0);
     D("256 original: frame page at the end");
 
     w.m_document.reset();

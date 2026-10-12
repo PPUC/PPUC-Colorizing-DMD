@@ -27,7 +27,8 @@ using LegacySectionOffsets = std::vector<std::pair<std::string, std::size_t>>;
 [[nodiscard]] std::vector<uint16_t> legacyOriginalColors(uint32_t colorCount);
 
 // A frame counts as colorized once it differs from the plain original rendering or has dynamic
-// content. Uncolorized frames shorter than kSkipFrameDurationMs are flagged inactive.
+// content. Uncolorized frames shorter than kSkipFrameDurationMs are flagged inactive. A 256x64
+// project is judged by its HD frame and HD dynamic mask, the only ones it renders.
 [[nodiscard]] bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
                                        const std::vector<uint16_t>& originalColors);
 

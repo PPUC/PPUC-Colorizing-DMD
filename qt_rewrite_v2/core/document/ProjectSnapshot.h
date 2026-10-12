@@ -40,8 +40,9 @@ struct ProjectSnapshot {
     // cROM header revision (header length in 32-bit words) the project was loaded with, so a
     // save does not silently move it to a revision an older libserum cannot read.
     uint32_t cromRevision = kCurrentCromRevision;
-    // Revision 20: the ROM's original frames and the comparison masks are 256x64 while the
-    // SD colorized data stays 128x32. SD pixel (x, y) then belongs to original pixel (2x, 2y).
+    // Revision 20: the ROM's original frames and the comparison masks are 256x64. Only the HD
+    // plane is rendered then, one to one with the original; the SD data keeps its 128x32 layout
+    // in the file and is carried unchanged (ProjectDocument::rendersHdPlaneOnly()).
     bool originalIs256x64 = false;
     EditorMetadata editorMetadata = makeDefaultEditorMetadata();
 };

@@ -9,7 +9,6 @@
 #include <QPaintEvent>
 
 #include "FrameImageUtils.h"
-#include "render/OriginalFrameMapping.h"
 
 namespace colorizing::app {
 
@@ -234,7 +233,12 @@ std::optional<render::CanvasHit> FramePreviewWidget::hitTestAt(QPoint position) 
     const QPointF origin = currentDisplayOrigin(layout);
     const int layoutX = static_cast<int>(std::floor((position.x() - origin.x()) / scale));
     const int layoutY = static_cast<int>(std::floor((position.y() - origin.y()) / scale));
-    return layout.hitTest(render::Point{layoutX, layoutY});
+    const std::optional<render::CanvasHit> hit = layout.hitTest(render::Point{layoutX, layoutY});
+    if (hit && hit->region == render::CanvasRegion::ColorizedFrame && isHdFrameMissing() &&
+        !m_showBackgroundImageEditMode) {
+        return std::nullopt;
+    }
+    return hit;
 }
 
 void FramePreviewWidget::paintEvent(QPaintEvent* event)
@@ -315,8 +319,11 @@ render::CanvasLayout FramePreviewWidget::currentLayout() const
 {
     const bool hasHd = m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
                        m_document->hasHdFrame(m_frameIndex);
+    // An HD-only project has no SD plane to fall back to.
+    const bool hdOnly = m_document && m_document->rendersHdPlaneOnly();
     return render::CanvasLayout::buildFrameLayout({
-        hasHd ? m_activeResolution : render::Resolution::Sd,
+        hdOnly ? render::Resolution::Hd
+               : hasHd ? m_activeResolution : render::Resolution::Sd,
         true,
         false,
         hasHd,
@@ -338,6 +345,12 @@ double FramePreviewWidget::currentDisplayScale(const render::CanvasLayout& layou
         static_cast<double>(std::max(1, available.height() - 36)) /
             static_cast<double>(displaySize.height));
     return std::max(1.0, std::floor(fittedScale));
+}
+
+bool FramePreviewWidget::isHdFrameMissing() const
+{
+    return m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
+           m_document->rendersHdPlaneOnly() && !m_document->hasHdFrame(m_frameIndex);
 }
 
 QPointF FramePreviewWidget::currentDisplayOrigin(const render::CanvasLayout& layout) const
@@ -377,6 +390,20 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
     }
 
     painter.restore();
+
+    const std::optional<render::CanvasRegionLayout> colorized =
+        layout.region(render::CanvasRegion::ColorizedFrame);
+    if (colorized && isHdFrameMissing() && !m_showBackgroundImageEditMode) {
+        const render::Rect& rect = colorized->displayRect;
+        painter.setPen(QColor(255, 120, 120));
+        painter.drawText(QRectF(origin.x() + rect.x * scale,
+                                origin.y() + rect.y * scale,
+                                rect.width * scale,
+                                rect.height * scale),
+                         Qt::AlignCenter | Qt::TextWordWrap,
+                         QStringLiteral("No HD frame: the runtime shows nothing for this frame.\n"
+                                        "Use Create HD."));
+    }
 }
 
 void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegionLayout& region)
@@ -397,7 +424,6 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
     if (drawOriginal) {
         original = &m_document->originalFrame(m_frameIndex);
     } else {
-        colorized = &m_document->colorizedFrame(m_frameIndex, region.resolution);
         if (drawBackgroundImage &&
             m_selectedBackgroundIndex &&
             *m_selectedBackgroundIndex < m_document->backgroundCount()) {
@@ -580,32 +606,27 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
         return;
     }
 
-    // Slot bounds are SD coordinates; the region shows the original.
-    const render::Size sdSize = render::kSdFrameSize;
+    // Slot bounds are pixels of the original the region shows.
+    const render::Size size = region.logicalSize;
     const document::FrameSpriteReference& reference = *m_selectedSpriteReference;
     const int minX = std::clamp(static_cast<int>(std::min(reference.minX, reference.maxX)),
                                 0,
-                                sdSize.width - 1);
+                                size.width - 1);
     const int maxX = std::clamp(static_cast<int>(std::max(reference.minX, reference.maxX)),
                                 0,
-                                sdSize.width - 1);
+                                size.width - 1);
     const int minY = std::clamp(static_cast<int>(std::min(reference.minY, reference.maxY)),
                                 0,
-                                sdSize.height - 1);
+                                size.height - 1);
     const int maxY = std::clamp(static_cast<int>(std::max(reference.minY, reference.maxY)),
                                 0,
-                                sdSize.height - 1);
+                                size.height - 1);
 
-    const render::Rect original =
-        render::OriginalFrameMapping(region.logicalSize)
-            .originalBlocks(render::Resolution::Sd,
-                            render::Point{minX, minY},
-                            render::Point{maxX, maxY});
     const int scale = region.displayScale;
-    const QRect bounds(region.displayRect.x + original.x * scale,
-                       region.displayRect.y + original.y * scale,
-                       original.width * scale,
-                       original.height * scale);
+    const QRect bounds(region.displayRect.x + minX * scale,
+                       region.displayRect.y + minY * scale,
+                       (maxX - minX + 1) * scale,
+                       (maxY - minY + 1) * scale);
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, false);

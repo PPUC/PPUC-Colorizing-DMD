@@ -13,6 +13,14 @@
 
 namespace colorizing::app {
 
+namespace {
+
+constexpr char kHdOnlyRemoveToolTip[] =
+    "Not available: this project has 256x64 original frames and renders HD only. Without HD "
+    "data the runtime shows nothing.";
+
+}  // namespace
+
 FramePanel::FramePanel(QWidget* parent)
     : QWidget(parent)
 {
@@ -245,6 +253,15 @@ void FramePanel::refresh(const FramePanelState& state)
     m_importImageButton->setEnabled(state.hasSelectedFrames);
     const bool hasHdFrame = document->hasHdFrame(frameIndex);
     showFrameHdActions(!hasHdFrame, hasHdFrame);
+    if (document->rendersHdPlaneOnly()) {
+        const document::FrameHdGaps gaps = document->frameHdGaps(frameIndex);
+        m_createHdButton->setToolTip(
+            QStringLiteral("Create the missing HD data: the HD frame from the original frame in "
+                           "its plain colors, a black HD image for the assigned background"));
+        m_createHdButton->setEnabled(gaps.frame || gaps.background);
+        m_removeHdButton->setToolTip(QString::fromLatin1(kHdOnlyRemoveToolTip));
+        m_removeHdButton->setEnabled(false);
+    }
 }
 
 void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
@@ -276,14 +293,17 @@ void FramePanel::setImportImageEnabled(bool enabled)
     m_importImageButton->setEnabled(enabled);
 }
 
-void FramePanel::showSpriteHdActions(bool spriteHasHd)
+void FramePanel::showSpriteHdActions(bool spriteHasHd, bool hdOnly)
 {
     m_createHdButton->setText(QStringLiteral("Create HD Sprite"));
-    m_createHdButton->setToolTip(QStringLiteral("Create HD sprite from SD sprite"));
+    m_createHdButton->setToolTip(
+        hdOnly ? QStringLiteral("Create HD sprite from the sprite original in its plain colors")
+               : QStringLiteral("Create HD sprite from SD sprite"));
     m_createHdButton->setEnabled(!spriteHasHd);
     m_removeHdButton->setText(QStringLiteral("Remove HD Sprite"));
-    m_removeHdButton->setToolTip(QStringLiteral("Remove HD sprite data"));
-    m_removeHdButton->setEnabled(spriteHasHd);
+    m_removeHdButton->setToolTip(hdOnly ? QString::fromLatin1(kHdOnlyRemoveToolTip)
+                                        : QStringLiteral("Remove HD sprite data"));
+    m_removeHdButton->setEnabled(spriteHasHd && !hdOnly);
 }
 
 PaintTarget FramePanel::paintTarget() const

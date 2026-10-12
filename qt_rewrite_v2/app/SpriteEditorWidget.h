@@ -72,6 +72,10 @@ private:
     [[nodiscard]] RegionLayout colorizedRegion() const;
     [[nodiscard]] RegionLayout originalRegion() const;
     [[nodiscard]] render::Resolution colorizedPaintResolution() const;
+    [[nodiscard]] bool isHdOnly() const;
+    // HD sprite pixels per pixel of the sprite original: an HD-only project draws its sprites
+    // one to one with the original.
+    [[nodiscard]] int hdScale() const;
     [[nodiscard]] std::optional<render::Point> hitColorized(QPoint position) const;
     [[nodiscard]] std::optional<render::Point> hitOriginal(QPoint position) const;
     void paintEmpty(QPainter& painter);

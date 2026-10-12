@@ -22,9 +22,11 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
     const int frameWidth = iconSize.width() - margin * 2;
     const int frameHeight = (iconSize.height() - margin * 2 - gap) / 2;
 
+    const bool hdOnly = document.rendersHdPlaneOnly();
     const QImage colorized = renderResolvedFrameImage(document,
                                                       frameIndex,
-                                                      render::Resolution::Sd,
+                                                      hdOnly ? render::Resolution::Hd
+                                                             : render::Resolution::Sd,
                                                       1,
                                                       true);
     const QImage original = renderIndexedFrameImage(document.originalFrame(frameIndex), 1);
@@ -35,7 +37,13 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
     painter.setPen(QPen(QColor(210, 210, 210), 1));
     painter.drawRect(QRect(0, 0, iconSize.width(), iconSize.height()).adjusted(0, 0, -1, -1));
 
-    if (document.hasHdFrame(frameIndex)) {
+    if (document.frameHdGaps(frameIndex).any()) {
+        // The runtime shows nothing for this frame, see ProjectDocument::frameHdGaps().
+        QRect badge(iconSize.width() - 46, 4, 42, 14);
+        painter.fillRect(badge, QColor(190, 45, 45));
+        painter.setPen(Qt::white);
+        painter.drawText(badge, Qt::AlignCenter, QStringLiteral("no HD"));
+    } else if (document.hasHdFrame(frameIndex)) {
         QRect badge(iconSize.width() - 28, 4, 24, 14);
         painter.fillRect(badge, QColor(35, 95, 160));
         painter.setPen(Qt::white);

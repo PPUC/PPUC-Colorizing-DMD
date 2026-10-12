@@ -20,6 +20,8 @@ using colorizing::document::ProjectSnapshot;
 using colorizing::document::SpriteRecord;
 using colorizing::document::makeIndexedFrame;
 using colorizing::document::makeRgb565Frame;
+using colorizing::legacy::isLegacyFrameActive;
+using colorizing::legacy::kSkipFrameDurationMs;
 using colorizing::legacy::LegacySectionOffsets;
 using colorizing::legacy::legacyFrameHash;
 using colorizing::legacy::legacyOriginalColors;
@@ -333,15 +335,52 @@ void test256x64OriginalsRoundTrip()
     for (ProjectFrameSnapshot& frame : snapshot.frames) {
         frame.originalSd = makeIndexedFrame(kHdFrameSize, 2);
     }
-    // Only the pixel shown by SD pixel (1, 0) differs; the SD frame follows it.
+    // Frame 0 has no HD frame, frame 1 an HD frame that is the plain original, frame 2 one
+    // with a single colorized pixel at an odd position. All SD frames differ from the original.
+    snapshot.frames.resize(3, snapshot.frames[0]);
+    for (ProjectFrameSnapshot& frame : snapshot.frames) {
+        frame.durationMs = 10;
+        frame.dynamicData.reset();
+        frame.colorizedSd = makeRgb565Frame(kSdFrameSize, 0x1234);
+        frame.colorizedHd = makeRgb565Frame(kHdFrameSize, originalColors[2]);
+    }
+    snapshot.frames[0].colorizedHd.reset();
     snapshot.frames[0].originalSd.pixels[2] = 3;
-    snapshot.frames[0].colorizedSd.pixels[1] = originalColors[3];
+    snapshot.frames[2].colorizedHd->pixels[256 + 3] = 0x4321;
 
     const SerializedProject project = serialize(snapshot);
     expect(readU32(project.crom, 64 + 9 * 4 + 2) == 1, "256x64 flag should be written");
     const std::size_t active = sectionOffset(project.cromSections, "active frame flags");
     expect(project.crom[active] == 0,
-           "SD frame equal to the subsampled 256x64 original is not colorized");
+           "a 256x64 frame without HD is not colorized, whatever its SD frame holds");
+    expect(project.crom[active + 1] == 0,
+           "an HD frame equal to the plain 256x64 original is not colorized");
+    expect(project.crom[active + 2] == 1,
+           "an HD frame that differs at one native pixel is colorized");
+    {
+        ProjectFrameSnapshot dynamic = snapshot.frames[1];
+        FrameDynamicData dynamicData;
+        dynamicData.maskSd = makeIndexedFrame(kSdFrameSize, 255);
+        dynamicData.maskHd = makeIndexedFrame(kHdFrameSize, 255);
+        dynamicData.maskSd.pixels[0] = 0;
+        dynamic.dynamicData = dynamicData;
+        expect(!isLegacyFrameActive(dynamic, originalColors),
+               "SD dynamic content of a 256x64 frame does not count");
+        dynamic.dynamicData->maskHd.pixels[257] = 0;
+        expect(isLegacyFrameActive(dynamic, originalColors),
+               "HD dynamic content of a 256x64 frame counts");
+        dynamic.colorizedHd.reset();
+        expect(!isLegacyFrameActive(dynamic, originalColors),
+               "dynamic content without an HD frame is not rendered");
+        dynamic.durationMs = kSkipFrameDurationMs;
+        expect(isLegacyFrameActive(dynamic, originalColors),
+               "a frame long enough is active in every project");
+    }
+    const std::size_t sdFrames = sectionOffset(project.cromSections, "SD colorized frames");
+    expect(project.crom[sdFrames] == 0x34 && project.crom[sdFrames + 1] == 0x12 &&
+               sectionOffset(project.cromSections, "HD colorized frames") - sdFrames ==
+                   3 * 128 * 32 * 2,
+           "the unused SD frames are written with their 128x32 size and content");
     const std::size_t hashes = sectionOffset(project.cromSections, "hash codes");
     expect(readU32(project.crom, hashes + 4) ==
                legacyFrameHash(snapshot.frames[1].originalSd, &snapshot.comparisonMasks[0], true),

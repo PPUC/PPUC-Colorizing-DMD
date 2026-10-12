@@ -376,9 +376,19 @@ render::Resolution SpriteEditorWidget::colorizedPaintResolution() const
         return render::Resolution::Sd;
     }
     const document::SpriteRecord& sprite = m_document->sprite(*m_spriteIndex);
-    return m_activeResolution == render::Resolution::Hd && sprite.hasHd
+    return isHdOnly() || (m_activeResolution == render::Resolution::Hd && sprite.hasHd)
                ? render::Resolution::Hd
                : render::Resolution::Sd;
+}
+
+bool SpriteEditorWidget::isHdOnly() const
+{
+    return m_document && m_document->rendersHdPlaneOnly();
+}
+
+int SpriteEditorWidget::hdScale() const
+{
+    return isHdOnly() ? 1 : 2;
 }
 
 std::optional<render::Point> SpriteEditorWidget::hitColorized(QPoint position) const
@@ -400,14 +410,14 @@ std::optional<render::Point> SpriteEditorWidget::hitColorized(QPoint position) c
         return std::nullopt;
     }
     const render::Resolution resolution = colorizedPaintResolution();
+    if (isHdOnly() && !m_document->sprite(*m_spriteIndex).hasHd) {
+        return std::nullopt;
+    }
     const double localX = logicalX - colorized.rect.x;
     const double localY = logicalY - colorized.rect.y;
-    const int sourceX =
-        resolution == render::Resolution::Hd ? static_cast<int>(std::floor(localX * 2.0))
-                                             : static_cast<int>(std::floor(localX));
-    const int sourceY =
-        resolution == render::Resolution::Hd ? static_cast<int>(std::floor(localY * 2.0))
-                                             : static_cast<int>(std::floor(localY));
+    const double sourceScale = resolution == render::Resolution::Hd ? hdScale() : 1;
+    const int sourceX = static_cast<int>(std::floor(localX * sourceScale));
+    const int sourceY = static_cast<int>(std::floor(localY * sourceScale));
     if (sourceX < 0 || sourceY < 0 ||
         sourceX >= kSpriteSize.width || sourceY >= kSpriteSize.height) {
         return std::nullopt;
@@ -446,7 +456,11 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
                      QColor(0, 0, 0));
 
     const document::SpriteRecord& sprite = m_document->sprite(*m_spriteIndex);
-    const bool useHd = m_activeResolution == render::Resolution::Hd && sprite.hasHd;
+    const bool useHd = colorizedPaintResolution() == render::Resolution::Hd && sprite.hasHd;
+    if (region.region == render::CanvasRegion::SpriteColorized && isHdOnly() && !useHd) {
+        // Its SD colors are never shown; there is no HD sprite to show yet.
+        return;
+    }
     const document::IndexedFrame& mask =
         region.region == render::CanvasRegion::SpriteOriginal
             ? sprite.originalSd
@@ -454,7 +468,7 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
     const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
     const bool drawHdColorized =
         region.region == render::CanvasRegion::SpriteColorized && useHd;
-    const double cellSize = drawHdColorized ? 0.5 : 1.0;
+    const double cellSize = drawHdColorized ? 1.0 / hdScale() : 1.0;
     for (int y = 0; y < kSpriteSize.height; ++y) {
         for (int x = 0; x < kSpriteSize.width; ++x) {
             const std::size_t index = spritePixelIndex(x, y);
@@ -549,7 +563,7 @@ void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const Re
             continue;
         }
         const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
-        const double cellSize = useHd ? 0.5 : 1.0;
+        const double cellSize = useHd ? 1.0 / hdScale() : 1.0;
         paintDmdPixel(painter,
                       region.rect.x + point.x * cellSize,
                       region.rect.y + point.y * cellSize,
@@ -570,6 +584,9 @@ bool SpriteEditorWidget::isColorizedPixelEditable(const document::SpriteRecord& 
         return false;
     }
     const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+    if (isHdOnly() && !useHd) {
+        return false;
+    }
     const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
     const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
     const std::size_t index = spritePixelIndex(point.x, point.y);

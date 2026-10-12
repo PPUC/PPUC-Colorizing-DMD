@@ -17,8 +17,9 @@ The Qt rewrite edits legacy Serum editor projects directly:
 Saving writes complete `.cROM` and `.cRP` files from the in-memory project in the legacy file
 layout, plus the `.cRZ` archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
 saved as revision 20, everything older as revision 19, so a save never moves a project to a
-Revision 20 projects can have 256x64 original frames. They are opened, edited and saved like
-any other project; what is different about them is described in "Projects With 256x64 Original
+revision an older libserum cannot read.
+Revision 20 projects can have 256x64 original frames. Such a project has one rendered plane only,
+the 256x64 one; what that means in the editor is described in "Projects With 256x64 Original
 Frames". Other original sizes are not supported.
 
 The in-memory project model currently carries structured comparison-mask data from `.cROM`:
@@ -80,7 +81,8 @@ path and writes the `.cROM`, a `.cRP` and a `.cRZ` with the same base name there
 
 Use `File -> Export Current Frame PNG...` to export the active colorized frame preview as a PNG.
 The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
-includes the assigned background layer when `Show BG` is enabled.
+includes the assigned background layer when `Show BG` is enabled. In a project with 256x64 original
+frames there is no SD picture to fall back to: a frame without HD data is not exported.
 
 Use `File -> Import Image Into Selected Frames...` or the Frame topic's `Import Image` button to
 replace selected frame pixels from a PNG/BMP/JPEG. The image is scaled to the active SD/HD DMD size.
@@ -149,6 +151,8 @@ Selecting a frame updates the central canvas and the frame status line.
 The filter above the frame list can show all frames, only frames with HD data, frames with an
 assigned background, frames with dynamic data, or frames with sprite assignments. Editing still
 targets the real project frame number shown in the item label, not the visible row number.
+In a project with 256x64 original frames the filter has one more entry, `HD missing`, and frames
+the runtime shows nothing for are marked in the list; see "Projects With 256x64 Original Frames".
 
 The frame list supports native multi-selection. Frame drawing, comparison-mask drawing,
 dynamic-mask drawing, background-mask drawing, and all frame settings (comparison mask ID, shape
@@ -170,9 +174,8 @@ Rules:
 
 - SD edits target 128x32 colorized frame pixels.
 - HD edits target 256x64 colorized frame pixels.
-- Both sizes are the same in every project. The size of the original frames does not change
-  them; it changes which original pixel an SD or HD pixel belongs to, see "Projects With 256x64
-  Original Frames".
+- A project with 256x64 original frames has no SD mode: `SD` is disabled and `HD` stays on. See
+  "Projects With 256x64 Original Frames"; the rest of this section is about ordinary projects.
 - If a frame has no HD data, the canvas falls back to SD display/editing.
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
 - The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
@@ -187,48 +190,152 @@ TODO: offer selectable scaling algorithms for HD creation instead of always usin
 ## Projects With 256x64 Original Frames
 
 Most projects are made from 128x32 ROM frames. A revision 20 project can instead be made from
-256x64 ROM frames. The editor shows this in the frame status line, which then reads
-`Frame <n> | Original 256x64 | SD 128x32 | ...`.
+256x64 ROM frames (cROM header flag "256x64 original"). The frame status line of such a project
+reads `Frame <n> | Original 256x64 | HD 256x64 | ...`.
 
-In such a project:
+The rule, which is libserum's: everything happens on the ROM frame at its own resolution.
+Sprites are detected on the 256x64 original, the picture is rendered at 256x64, nothing is scaled
+down, and a plane smaller than the ROM frame does not exist. So such a project has exactly one
+rendered plane, the 256x64 one the file format calls "HD" or "extra". It lines up with the ROM
+frame pixel for pixel: plane pixel (x, y) belongs to original pixel (x, y).
 
-- The original frames and the comparison masks are 256x64.
-- The colorized SD frame, the SD dynamic mask, the SD background mask and the SD background
-  images are 128x32; the HD ones are 256x64. These are the same sizes as in every project.
-- Frame identification hashes cover the whole 256x64 original with the 256x64 comparison mask.
-
-Which original pixel a colorized pixel belongs to:
-
-| Original | SD pixel (x, y) | HD pixel (x, y) |
+| Original | SD plane | HD plane |
 | --- | --- | --- |
-| 128x32 | original (x, y) | original (x/2, y/2) |
-| 256x64 | original (2x, 2y) | original (x, y) |
+| 128x32 (ordinary project) | pixel (x, y) is original (x, y) | pixel (x, y) is original (x/2, y/2) |
+| 256x64 | does not exist | pixel (x, y) is original (x, y) |
 
-So with a 256x64 original the HD frame is the one that matches the ROM pixel for pixel, and the
-SD frame sees every second pixel of every second row. Nothing is averaged: the three other
-original pixels of a 2x2 block do not influence the SD frame at all. This mapping decides
+### What is edited
 
-- which original color index a dynamic mask pixel is replaced for,
-- which pixels count as lit and cast dynamic shadows,
-- where the assigned background shows through (where the original pixel is black),
+Everything the runtime uses, all of it on the 256x64 grid:
 
-in the canvas, the thumbnails and PNG export.
+- the original frames and the comparison masks (frame identification hashes the whole 256x64
+  original with the 256x64 comparison mask),
+- per frame: the HD colorized frame, the HD dynamic mask, dynamic colors and shadows, the HD color
+  rotations, the HD background mask, trigger, duration, mask and shape settings,
+- the HD background images,
+- sprites: the sprite original (what is detected), the detection areas, the shape mode, the HD
+  sprite mask (what is drawn) and the HD sprite colors,
+- per frame: the sprite slots and their bounds.
 
-What works differently in the editor:
+The canvas, the thumbnails, the frame list, playback, PNG export, image import, `Frame -> BG`,
+`BG -> Frame`, background editing, the `Dynamic` and `BG` mask modes and the rotation and dynamic
+pages all work on that plane.
 
-- The original/reference region shows all 256x64 original pixels, in the same on-screen size
-  as for a 128x32 original. One original pixel is therefore half as wide and high as an SD
-  pixel of the colorized region above it, and exactly as large as an HD pixel.
+### What is ignored
+
+The file format still has room for 128x32 "SD" data, and the Win32 editor fills it: an SD
+colorized frame, SD dynamic mask, colors and shadows, SD rotations and an SD background mask per
+frame, SD background images, SD sprite colors and SD sprite dynamic data. libserum loads these
+and never reads them. The editor does the same:
+
+- They are loaded and written back unchanged, with their usual sizes, and never shown or edited.
+  The file layout does not change.
+- Nothing is derived from them: no upscaling of SD data into HD, no SD fallback for a missing HD
+  item.
+- Where the editor creates a sprite picture itself (`Capture`), it resets that sprite's unused SD
+  data to neutral content: SD sprite colors all 0, SD sprite dynamic mask all 255 ("not dynamic"),
+  SD sprite dynamic colors all 0. `Create HD` leaves the SD data of the frame, background or
+  sprite as it is.
+- On save a frame counts as colorized ("active") if its HD frame differs from the plain original
+  colors or it has HD dynamic content. The SD frame does not count.
+
+### No SD mode
+
+The `SD` toolbar button is disabled and `HD` stays checked; the tool tips of both say why. Every
+place where an ordinary project falls back to SD when HD data is missing instead reports the
+missing HD data in the status bar and does nothing (PNG export of a frame or background,
+`Frame -> BG`, `BG -> Frame`, `Edit BG`, sprite `Capture`).
+
+### HD data is required everywhere
+
+libserum renders a frame of such a project only if the frame has HD data, its assigned
+background (if any) has HD data and every sprite assigned to it has HD data. Otherwise it still
+identifies the frame and reports its trigger, but produces no picture: the display keeps what it
+showed before. There is nothing it could fall back to.
+
+Therefore:
+
+- `Remove HD` and `Remove HD Sprite` are disabled; the tool tip says why.
+- A project in which HD data is missing still opens. Each affected frame is flagged:
+  - a red `no HD` badge on its thumbnail instead of the blue `HD` one,
+  - `no HD`, `BG: no HD` and `Spr: no HD` lines in the frame list item, with the full reason
+    (which background, which sprites) as the item's tool tip,
+  - `| not shown` at the end of the frame status line, with the reason as its tool tip,
+  - the project status line counts them: `..., 3 not shown at runtime (HD missing)`,
+  - the `HD missing` filter of the frame list shows only these frames,
+  - the sprite page lists an assigned sprite without HD as `no HD: frame not shown`, and the
+    sprite and background lists mark records without HD as `(no HD)`.
+- A frame without HD data is drawn as a black plane with the note `No HD frame: the runtime shows
+  nothing for this frame`, and cannot be painted on. Its original/reference region, comparison
+  mask and settings can still be edited.
+- Assigning a background or a sprite without HD data to a frame is allowed and flags the frame the
+  same way; `Assign` says so in the status bar.
+
+Repairing:
+
+- `Create HD` on a frame without HD data creates the HD frame from the 256x64 original, each
+  pixel in the plain color of its original color index: the same picture an uncolorized frame
+  has. It does not ask anything and upscales nothing; the frame's HD dynamic mask, dynamic
+  colors, HD background mask and rotations stay as they are stored.
+- `Create HD` is also enabled when only the assigned background lacks HD data, and in both cases
+  gives that background a black 256x64 HD image. An existing HD background image is never
+  replaced. `Import Image` on the `BG` page is the other way to give a background its HD image.
+- `Create HD Sprite` (with `Edit Sprite` on) creates the HD sprite from the sprite original: the
+  HD mask gets the shape of the sprite original, the HD colors are the plain colors of its color
+  indices.
+- All three can be undone.
+
+### Sprites
+
+Sprite coordinates are pixels of the 256x64 original. That holds for the sprite original, the
+detection areas, the detection dwords and for the `Min X`/`Min Y`/`Max X`/`Max Y` bounds of a
+frame's sprite slot, which range over 0..255 and 0..63 here.
+
+- A sprite is looked for on the 256x64 original, at every position inside the slot bounds, odd
+  rows and columns included.
+- A sprite that is found is drawn one to one where it was found: HD sprite pixel (i, j) lands on
+  plane pixel (found x + i, found y + j). The HD sprite mask says which pixels are drawn, the HD
+  sprite colors with what. Both line up with the sprite original pixel for pixel, and so does
+  the sprite editor: the colorized sprite on top is as large as the original sprite below it.
+  (In an ordinary project the HD sprite is twice the size of its original.)
+- `Show Bounds` draws the bounds over the original as they are.
+- `Select Capture` marks single pixels of the 256x64 original.
+- `Capture` takes the marked pixels, or the slot bounds, of the 256x64 original as the sprite
+  original, the HD colors of the same plane pixels as the HD sprite colors, and sets the HD
+  sprite mask to the captured shape. The sprite has HD data afterwards. `Capture` needs a frame
+  with HD data.
+
+### On a 128x32 display
+
+There is no 128x32 version of such a colorization. A host that asks libserum for 32-row output
+only gets no picture (frames are still identified and triggers reported); a host that asks for
+32-row output "with fallback", for 64-row output or for both gets the 256x64 picture. Whether and
+how that is shown on a 128x32 panel is the host's business, not the colorization's.
+
+### What the other parts of the editor do differently
+
+- The original/reference region shows all 256x64 original pixels, in the same on-screen size as
+  for a 128x32 original. One original pixel is exactly as large as one pixel of the plane above
+  it.
 - The comparison mask overlay and all comparison mask tools work on the 256x64 pixels of that
   region.
-- Sprites stay on the SD grid, see "Sprites".
 
-Not verified: no real project with 256x64 original frames was available while this was built.
-Everything above is tested with constructed projects only. In particular, going by its source
-code at the time of writing, libserum uses the 256x64 size for frame identification only and
-reads the incoming ROM frame as 128x32 when it renders. Until that is settled in libserum,
-expect dynamic colors, backgrounds over black and sprites of such a project to look different
-on a real machine than in the editor.
+### Status
+
+Verified with constructed projects only (the automated tests and `tools/ui_dump`); no real
+project with 256x64 original frames was available. The model follows libserum (branch
+`native_hd`, "The ROM frame, and `is256x64` projects" in its `AGENTS.md`), which is the source of
+truth. The Win32 editor's handling of such projects is not a reference: it treats the 128x32
+data as a live plane, which the runtime does not.
+
+Where the editor's picture can still differ from libserum's for these projects:
+
+- A frame with HD data whose background or sprite lacks HD data is still drawn, without that
+  background or sprite, so that it can be edited. The runtime draws nothing for it. The frame is
+  flagged as described above.
+- The known differences of the preview in every kind of project apply here as well, see
+  "Preview Rendering TODO": sprite dynamic masks, sprite shape mode and the last column and row
+  of the sprite slot bounds.
 
 ## Canvas
 
@@ -237,7 +344,8 @@ The central canvas shows:
 - The active colorized frame region.
 - The original/reference frame region below it. It always shows every pixel of the original
   frame and has the same on-screen size as the SD frame: 128x32 pixels, or 256x64 pixels of
-  half the size in a project with 256x64 original frames.
+  half the size in a project with 256x64 original frames, where the colorized region above it is
+  always the 256x64 plane.
 
 The canvas does not draw text labels or white frame outlines over the image data.
 
@@ -729,25 +837,9 @@ The Inspector has a sprite browser and assignment controls:
   `Edit BG` switch `Edit Sprite` off, since they return to the frame view.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
 
-Sprites in projects with 256x64 original frames:
-
-- Sprites live on the SD grid in every project. A sprite's original pixels, its detection areas
-  and the `Min X`/`Min Y`/`Max X`/`Max Y` bounds of a frame's sprite slot are SD coordinates
-  (0..127, 0..31), and a sprite is drawn into the SD frame at the place it was found, and into
-  the HD frame at twice that position.
-- With a 256x64 original the sprite is looked for in the original as the SD frame sees it:
-  original pixel (2x, 2y) for SD position (x, y). The other original pixels are not compared.
-- `Show Bounds` draws the SD bounds over the 256x64 original, so bounds 10,5-30,12 cover
-  original pixels 20,10-61,25.
-- `Select Capture` marks SD pixels. A click or shape on the original/reference region marks
-  every SD pixel it touches, and each marked SD pixel is shown as its 2x2 block of original
-  pixels. The pixel counts and coordinates in the capture dialog and status bar are SD ones.
-- `Capture` stores, for each captured SD pixel (x, y), original pixel (2x, 2y) as the sprite's
-  original pixel and the SD colorized pixel (x, y) as its color, so the two always belong
-  together.
-- This is the editor's reading of how such projects are meant to work. Going by its source
-  code at the time of writing, libserum does not look for sprites in a 256x64 ROM frame this
-  way (see "Projects With 256x64 Original Frames").
+In projects with 256x64 original frames, sprites are detected, bounded, captured and drawn on
+the 256x64 original, and `Create HD Sprite` / `Remove HD Sprite` behave differently; see
+"Projects With 256x64 Original Frames".
 
 Sprite-name edits are limited to 31 characters so the legacy fixed 32-byte `.cRP` name slot
 remains null-terminated.
@@ -764,8 +856,8 @@ Currently implemented:
 - The project status line shows the loaded background count.
 - `BG ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
-  Which original pixel is looked at depends on the size of the original frames, see "Projects
-  With 256x64 Original Frames".
+  The original pixel looked at is the one the plane pixel belongs to: (x, y) in SD, (x/2, y/2) in
+  HD, and (x, y) on the single plane of a project with 256x64 original frames.
 - Inspector `Target -> Background` displays the selected background image on the canvas and edits that shared background image with the ordinary drawing tools.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
@@ -805,6 +897,15 @@ For normal cROM v2 frames, the local preview must mirror libserum's composition 
   not overwrite them.
 - Render detected sprites after the resolved frame and dynamic shadows.
 
+Known differences from libserum, in every kind of project:
+
+- Sprite dynamic masks and colors are loaded and saved but not rendered.
+- The shape mode of a sprite is not used when looking for it; sprites are always compared by
+  color index.
+- A detection area must end one pixel before `Max X`/`Max Y` to match in the preview; libserum
+  also accepts an area that ends exactly on them.
+- In an ordinary project, a sprite without HD data is drawn wrongly on an HD frame.
+
 Future preview direction:
 
 - Replace runtime-composed frame previews with libserum output where practical.
@@ -828,7 +929,10 @@ For drawing changes, test at least:
 For changes that read the original frame (dynamic colors, shadows, backgrounds, sprites,
 comparison masks, anything on the original/reference region), test a project with 128x32 and
 one with 256x64 original frames. The automated tests and `tools/ui_dump` contain a constructed
-256x64 project each.
+256x64 project each, including frames, a background and sprites without HD data.
+
+For changes to SD/HD handling, check in a project with 256x64 original frames that nothing shows,
+edits or falls back to its SD data.
 
 For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
 projects. It loads a project, serializes it in memory, and reports per block where the result

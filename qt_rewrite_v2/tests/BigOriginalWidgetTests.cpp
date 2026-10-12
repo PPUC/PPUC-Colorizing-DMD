@@ -1,15 +1,20 @@
-// Rendering, hit testing and editing of a project whose original frames are 256x64.
+// Rendering, hit testing and editing of a project whose original frames are 256x64: only its
+// HD plane exists, one to one with the original.
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <QImage>
 #include <QPainter>
 #include <QPixmap>
+#include <QSpinBox>
+#include <QToolButton>
 
 #include "CanvasEditController.h"
 #include "document/ProjectDocument.h"
@@ -17,6 +22,9 @@
 #include "FrameImageUtils.h"
 #include "FramePreviewWidget.h"
 #include "FrameThumbnail.h"
+#include "panels/FramePanel.h"
+#include "panels/SpritePanel.h"
+#include "SpriteEditorWidget.h"
 
 using colorizing::app::CanvasEditContext;
 using colorizing::app::CanvasEditController;
@@ -60,26 +68,28 @@ std::size_t at(colorizing::render::Size size, int x, int y)
            static_cast<std::size_t>(x);
 }
 
-document::SpriteRecord makeSprite()
+document::SpriteRecord makeSprite(const uint8_t original[4], bool hasHd)
 {
     const colorizing::render::Size cell{static_cast<int>(document::kMaxSpriteWidth),
                                         static_cast<int>(document::kMaxSpriteHeight)};
     document::SpriteRecord sprite;
-    sprite.hasHd = true;
+    sprite.hasHd = hasHd;
     sprite.originalSd = document::makeIndexedFrame(cell, 255);
     sprite.colorizedSd = document::makeRgb565Frame(cell, 0);
     sprite.maskHd = document::makeIndexedFrame(cell, 255);
     sprite.colorizedHd = document::makeRgb565Frame(cell, 0);
+    uint32_t dword = 0;
     for (int x = 0; x < 4; ++x) {
-        sprite.originalSd.pixels[static_cast<std::size_t>(x)] =
-            static_cast<uint8_t>(x == 3 ? 0 : x + 1);
+        sprite.originalSd.pixels[static_cast<std::size_t>(x)] = original[x];
+        // Never shown in such a project.
         sprite.colorizedSd.pixels[static_cast<std::size_t>(x)] = kMagenta;
+        if (hasHd) {
+            sprite.maskHd.pixels[static_cast<std::size_t>(x)] = original[x];
+            sprite.colorizedHd.pixels[static_cast<std::size_t>(x)] = kCyan;
+        }
+        dword |= static_cast<uint32_t>(original[x]) << (8 * x);
     }
-    for (int x = 0; x < 8; ++x) {
-        sprite.maskHd.pixels[static_cast<std::size_t>(x)] = 0;
-        sprite.colorizedHd.pixels[static_cast<std::size_t>(x)] = kCyan;
-    }
-    sprite.detectionDwords = {0x00030201, 0xffffffff, 0xffffffff, 0xffffffff};
+    sprite.detectionDwords = {dword, 0xffffffff, 0xffffffff, 0xffffffff};
     sprite.detectionDwordPositions = {0, 0xffff, 0xffff, 0xffff};
     sprite.detectionAreas = {
         document::SpriteDetectionArea{0, 0, 4, 1},
@@ -90,13 +100,24 @@ document::SpriteRecord makeSprite()
     return sprite;
 }
 
-// One frame. Original (10,6)=1, (11,6)=2, (10,7)=3 and (40,20)=1; row 40 holds 1,3,2,3,3,3,0
-// from x=100, which reads 1,2,3,0 on the SD grid. Everything else is 0.
-//   dynamic SD: set 2 at (5,3), set 4 (shadow to the right) at (20,10)
-//   dynamic HD: set 2 at (11,6) and (10,7)
-//   background 0: SD mask at (5,3) and (6,3), HD mask at (10,6) and (12,6)
+constexpr uint16_t kSdColor = 0x2104;
+constexpr uint16_t kHdColor = 0x4208;
+constexpr uint16_t kSdBackground = 0x0410;
+constexpr uint16_t kHdBackground = 0x8410;
+
+// Originals and comparison masks are 256x64; everything not listed is 0.
+//
+// Frame 0 has everything in HD:
+//   original (10,6)=1, (11,6)=2, (10,7)=3, (40,20)=1 and 1,2,3,0 from (101,41): an odd row and
+//     an odd column, which a (2x, 2y) subsample of the original never sees
+//   dynamic HD: set 2 at (11,6) and (10,7), set 4 (shadow to the right) at (40,20)
+//   background 0 (HD): HD mask at (10,6) and (12,6)
 //   comparison mask 0: (200,50) and (255,63)
-//   sprite 0 in slot 0 with the full SD frame as bounds
+//   slot 0: sprite 0 (HD, original 1,2,3,0) with the whole original as bounds
+//   its SD frame, SD dynamic data and SD background mask hold other content, never shown
+// Frame 1 has no HD frame.
+// Frame 2 has an HD frame, background 1 without HD and, in slot 0, sprite 1 without HD, whose
+//   original 2,2,1,1 is in the frame from (31,11).
 ProjectDocument makeBigOriginalDocument()
 {
     document::ProjectSnapshot snapshot;
@@ -114,57 +135,84 @@ ProjectDocument makeBigOriginalDocument()
     original.pixels[at(kHdFrameSize, 11, 6)] = 2;
     original.pixels[at(kHdFrameSize, 10, 7)] = 3;
     original.pixels[at(kHdFrameSize, 40, 20)] = 1;
-    const uint8_t spriteRow[7] = {1, 3, 2, 3, 3, 3, 0};
-    for (int x = 0; x < 7; ++x) {
-        original.pixels[at(kHdFrameSize, 100 + x, 40)] = spriteRow[x];
+    const uint8_t spriteRow[4] = {1, 2, 3, 0};
+    for (int x = 0; x < 4; ++x) {
+        original.pixels[at(kHdFrameSize, 101 + x, 41)] = spriteRow[x];
     }
 
     document::FrameDynamicData dynamicData{
         document::makeIndexedFrame(kSdFrameSize, 255),
         document::makeIndexedFrame(kHdFrameSize, 255),
-        std::vector<uint16_t>(document::kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(document::kMaxDynamicSetsPerFrame * 16, kRed),
         std::vector<uint16_t>(document::kMaxDynamicSetsPerFrame * 16, 0),
     };
     dynamicData.maskSd.pixels[at(kSdFrameSize, 5, 3)] = 2;
     dynamicData.maskSd.pixels[at(kSdFrameSize, 20, 10)] = 4;
     dynamicData.maskHd.pixels[at(kHdFrameSize, 11, 6)] = 2;
     dynamicData.maskHd.pixels[at(kHdFrameSize, 10, 7)] = 2;
-    dynamicData.colorsSd[2 * 16 + 1] = kRed;
-    dynamicData.colorsSd[4 * 16 + 1] = kYellow;
+    dynamicData.maskHd.pixels[at(kHdFrameSize, 40, 20)] = 4;
     dynamicData.colorsHd[2 * 16 + 2] = kGreen;
     dynamicData.colorsHd[2 * 16 + 3] = kBlue;
-    dynamicData.shadowDirectionsSd.assign(document::kMaxDynamicSetsPerFrame, 0);
-    dynamicData.shadowColorsSd.assign(document::kMaxDynamicSetsPerFrame, 0);
+    dynamicData.colorsHd[4 * 16 + 1] = kYellow;
+    dynamicData.shadowDirectionsSd.assign(document::kMaxDynamicSetsPerFrame, 0x08);
+    dynamicData.shadowColorsSd.assign(document::kMaxDynamicSetsPerFrame, kRed);
     dynamicData.shadowDirectionsHd.assign(document::kMaxDynamicSetsPerFrame, 0);
     dynamicData.shadowColorsHd.assign(document::kMaxDynamicSetsPerFrame, 0);
-    dynamicData.shadowDirectionsSd[4] = 0x08;
-    dynamicData.shadowColorsSd[4] = kWhite;
+    dynamicData.shadowDirectionsHd[4] = 0x08;
+    dynamicData.shadowColorsHd[4] = kWhite;
 
     document::FrameBackgroundData backgroundData{
         0,
-        document::makeIndexedFrame(kSdFrameSize, 0),
+        document::makeIndexedFrame(kSdFrameSize, 1),
         document::makeIndexedFrame(kHdFrameSize, 0),
     };
-    backgroundData.maskSd.pixels[at(kSdFrameSize, 5, 3)] = 1;
-    backgroundData.maskSd.pixels[at(kSdFrameSize, 6, 3)] = 1;
     backgroundData.maskHd.pixels[at(kHdFrameSize, 10, 6)] = 1;
     backgroundData.maskHd.pixels[at(kHdFrameSize, 12, 6)] = 1;
     snapshot.backgrounds.push_back(document::BackgroundRecord{
-        document::makeRgb565Frame(kSdFrameSize, 0x0410),
-        document::makeRgb565Frame(kHdFrameSize, 0x8410),
+        document::makeRgb565Frame(kSdFrameSize, kSdBackground),
+        document::makeRgb565Frame(kHdFrameSize, kHdBackground),
+    });
+    snapshot.backgrounds.push_back(document::BackgroundRecord{
+        document::makeRgb565Frame(kSdFrameSize, kSdBackground),
     });
 
-    snapshot.sprites.push_back(makeSprite());
+    const uint8_t otherRow[4] = {2, 2, 1, 1};
+    snapshot.sprites.push_back(makeSprite(spriteRow, true));
+    snapshot.sprites.push_back(makeSprite(otherRow, false));
     std::vector<document::FrameSpriteReference> spriteReferences(document::kMaxSpritesPerFrame);
-    spriteReferences[0] = document::FrameSpriteReference{0, 0, 0, 127, 31};
+    spriteReferences[0] = document::FrameSpriteReference{0, 0, 0, 255, 63};
 
     snapshot.frames.push_back(document::ProjectFrameSnapshot{
         original,
-        document::makeRgb565Frame(kSdFrameSize, 0x2104),
-        document::makeRgb565Frame(kHdFrameSize, 0x4208),
+        document::makeRgb565Frame(kSdFrameSize, kSdColor),
+        document::makeRgb565Frame(kHdFrameSize, kHdColor),
         0,
         0,
         dynamicData,
+        backgroundData,
+        spriteReferences,
+    });
+    snapshot.frames.push_back(document::ProjectFrameSnapshot{
+        original,
+        document::makeRgb565Frame(kSdFrameSize, kSdColor),
+        std::nullopt,
+        0,
+        0,
+    });
+    document::IndexedFrame otherOriginal = document::makeIndexedFrame(kHdFrameSize, 0);
+    for (int x = 0; x < 4; ++x) {
+        otherOriginal.pixels[at(kHdFrameSize, 31 + x, 11)] = otherRow[x];
+    }
+    backgroundData.backgroundId = 1;
+    backgroundData.maskHd = document::makeIndexedFrame(kHdFrameSize, 1);
+    spriteReferences[0].spriteId = 1;
+    snapshot.frames.push_back(document::ProjectFrameSnapshot{
+        otherOriginal,
+        document::makeRgb565Frame(kSdFrameSize, kSdColor),
+        document::makeRgb565Frame(kHdFrameSize, kHdColor),
+        0,
+        0,
+        std::nullopt,
         backgroundData,
         spriteReferences,
     });
@@ -173,6 +221,22 @@ ProjectDocument makeBigOriginalDocument()
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
     return document;
+}
+
+template <typename Call>
+bool throwsLogicError(Call call)
+{
+    try {
+        call();
+    } catch (const std::logic_error&) {
+        return true;
+    }
+    return false;
+}
+
+bool contains(const document::Rgb565Frame& frame, uint16_t color)
+{
+    return std::find(frame.pixels.begin(), frame.pixels.end(), color) != frame.pixels.end();
 }
 
 QImage grab(FramePreviewWidget& widget)
@@ -245,14 +309,18 @@ void testOriginalRegionShowsEveryOriginalPixel()
                !widget.hitTestAt(lastPosition + QPoint(0, cell)),
            "the original region ends at 255,63");
 
-    // The original is displayed as large as the SD frame above it.
-    const QPoint sdFirst = positionOf(widget, CanvasRegion::ColorizedFrame, 0, 0);
-    const QPoint sdSecond = positionOf(widget, CanvasRegion::ColorizedFrame, 1, 0);
+    // The HD plane above it is the only plane and lines up with the original pixel for pixel.
+    widget.setActiveResolution(Resolution::Sd);
+    const std::optional<CanvasHit> planeHit =
+        widget.hitTestAt(positionOf(widget, CanvasRegion::ColorizedFrame, 255, 63));
+    expect(planeHit && planeHit->resolution == Resolution::Hd,
+           "the colorized region is the HD plane, whatever resolution is asked for");
+    const QPoint hdFirst = positionOf(widget, CanvasRegion::ColorizedFrame, 0, 0);
+    const QPoint hdOdd = positionOf(widget, CanvasRegion::ColorizedFrame, 101, 41);
     const QPoint originalFirst = positionOf(widget, CanvasRegion::OriginalFrame, 0, 0);
-    const QPoint originalThird = positionOf(widget, CanvasRegion::OriginalFrame, 2, 0);
-    expect(sdFirst.x() == originalFirst.x() &&
-               sdSecond.x() - sdFirst.x() == originalThird.x() - originalFirst.x(),
-           "two original pixels are as wide as one SD pixel");
+    const QPoint originalOdd = positionOf(widget, CanvasRegion::OriginalFrame, 101, 41);
+    expect(hdFirst.x() == originalFirst.x() && hdOdd - hdFirst == originalOdd - originalFirst,
+           "a plane pixel is as large as the original pixel it shows");
 
     const QImage image = grab(widget);
     const RegionLocator position = locate(widget, CanvasRegion::OriginalFrame);
@@ -261,7 +329,7 @@ void testOriginalRegionShowsEveryOriginalPixel()
                shown(11, 6) == colorizing::app::originalIndexToColor(2) &&
                shown(10, 7) == colorizing::app::originalIndexToColor(3) &&
                shown(11, 7) == colorizing::app::originalIndexToColor(0) &&
-               shown(101, 40) == colorizing::app::originalIndexToColor(3) &&
+               shown(102, 41) == colorizing::app::originalIndexToColor(2) &&
                shown(5, 3) == colorizing::app::originalIndexToColor(0),
            "original pixels are drawn one to one");
 }
@@ -291,17 +359,17 @@ void testOverlaysOnOriginalRegion()
            "comparison mask overlay marks nothing else");
     widget.setComparisonMaskOverlayEnabled(false);
 
-    // Slot bounds are SD coordinates: 10,5-30,12 covers original 20,10-61,25.
+    // Slot bounds are pixels of the original.
     widget.setSelectedSpriteBoundsOverlayEnabled(true);
-    widget.setSelectedSpriteReference(document::FrameSpriteReference{0, 10, 5, 30, 12});
+    widget.setSelectedSpriteReference(document::FrameSpriteReference{0, 21, 11, 201, 63});
     const QImage bounded = grab(widget);
     const auto changed = [&](int x, int y) {
         return bounded.pixelColor(position(x, y)) != plain.pixelColor(position(x, y));
     };
-    expect(changed(20, 10) && changed(61, 25) && changed(61, 10) && changed(20, 25),
-           "sprite slot bounds cover the blocks of their SD corners");
-    expect(!changed(19, 10) && !changed(20, 9) && !changed(62, 25) && !changed(61, 26),
-           "sprite slot bounds end at their SD corners");
+    expect(changed(21, 11) && changed(201, 63) && changed(201, 11) && changed(21, 63),
+           "sprite slot bounds cover their native corners, beyond 127,31");
+    expect(!changed(20, 11) && !changed(21, 10) && !changed(202, 63),
+           "sprite slot bounds end at their native corners");
     widget.setSelectedSpriteReference(std::nullopt);
 
     const QColor previewColor(0, 255, 0, 255);
@@ -333,89 +401,105 @@ void testOverlaysOnOriginalRegion()
            "selection overlays on the original region are original coordinates");
 }
 
-void testComposedFrameReadsOriginalThroughMapping()
+void testOnlyTheHdPlaneIsRendered()
 {
     const ProjectDocument document = makeBigOriginalDocument();
-    const auto sd = [&](bool background) {
-        return colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, background);
-    };
-    const auto hd = [&](bool background) {
-        return colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, background);
-    };
+    expect(throwsLogicError([&]() {
+               (void)colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, false);
+           }) &&
+               throwsLogicError([&]() {
+                   (void)colorizing::app::resolvedFramePixel(document,
+                                                             0,
+                                                             Resolution::Sd,
+                                                             5,
+                                                             3,
+                                                             false);
+               }),
+           "there is no SD plane to compose");
 
-    const document::Rgb565Frame sdFrame = sd(false);
-    expect(sdFrame.pixels[at(kSdFrameSize, 5, 3)] == kRed,
-           "SD dynamic colour comes from original (2x, 2y)");
-    expect(sdFrame.pixels[at(kSdFrameSize, 4, 3)] == 0x2104 &&
-               sdFrame.pixels[at(kSdFrameSize, 6, 3)] == 0x2104,
-           "SD pixels outside the dynamic mask keep their colour");
-    expect(sdFrame.pixels[at(kSdFrameSize, 20, 10)] == kYellow &&
-               sdFrame.pixels[at(kSdFrameSize, 21, 10)] == kWhite &&
-               sdFrame.pixels[at(kSdFrameSize, 19, 10)] == 0x2104,
-           "SD dynamic shadow is cast by the lit original pixel (2x, 2y)");
-    expect(colorizing::app::resolvedFramePixel(document, 0, Resolution::Sd, 5, 3, false) == kRed,
-           "single resolved SD pixel");
-
-    const document::Rgb565Frame hdFrame = hd(false);
-    expect(hdFrame.pixels[at(kHdFrameSize, 11, 6)] == kGreen &&
-               hdFrame.pixels[at(kHdFrameSize, 10, 7)] == kBlue,
+    const document::Rgb565Frame frame =
+        colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, false);
+    expect(frame.size.width == 256 && frame.size.height == 64, "the plane is 256x64");
+    expect(frame.pixels[at(kHdFrameSize, 11, 6)] == kGreen &&
+               frame.pixels[at(kHdFrameSize, 10, 7)] == kBlue,
            "HD dynamic colour comes from original (x, y)");
-    expect(hdFrame.pixels[at(kHdFrameSize, 10, 6)] == 0x4208 &&
-               hdFrame.pixels[at(kHdFrameSize, 11, 7)] == 0x4208,
+    expect(frame.pixels[at(kHdFrameSize, 10, 6)] == kHdColor &&
+               frame.pixels[at(kHdFrameSize, 11, 7)] == kHdColor,
            "HD pixels outside the dynamic mask keep their colour");
+    expect(frame.pixels[at(kHdFrameSize, 40, 20)] == kYellow &&
+               frame.pixels[at(kHdFrameSize, 41, 20)] == kWhite &&
+               frame.pixels[at(kHdFrameSize, 39, 20)] == kHdColor,
+           "HD dynamic shadow is cast by the lit original pixel (x, y)");
 
-    // The background shows where the original is 0: SD (6,3) reads original (12,6), SD (5,3)
-    // reads the lit (10,6); HD (12,6) is unlit, HD (10,6) is lit.
-    const document::Rgb565Frame sdBackground = sd(true);
-    expect(sdBackground.pixels[at(kSdFrameSize, 6, 3)] == 0x0410 &&
-               sdBackground.pixels[at(kSdFrameSize, 5, 3)] == kRed,
-           "SD background applies where original (2x, 2y) is unlit");
-    const document::Rgb565Frame hdBackground = hd(true);
-    expect(hdBackground.pixels[at(kHdFrameSize, 12, 6)] == 0x8410 &&
-               hdBackground.pixels[at(kHdFrameSize, 10, 6)] == 0x4208,
+    const document::Rgb565Frame withBackground =
+        colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, true);
+    expect(withBackground.pixels[at(kHdFrameSize, 12, 6)] == kHdBackground &&
+               withBackground.pixels[at(kHdFrameSize, 10, 6)] == kHdColor,
            "HD background applies where original (x, y) is unlit");
+    for (const document::Rgb565Frame* composed : {&frame, &withBackground}) {
+        expect(!contains(*composed, kSdColor) && !contains(*composed, kSdBackground) &&
+                   !contains(*composed, kRed) && !contains(*composed, kMagenta),
+               "no SD frame, SD dynamic, SD background or SD sprite data is shown");
+    }
+
+    const QImage thumbnail = colorizing::app::makeFrameThumbnail(document, 0, QSize(160, 84))
+                                 .pixmap(QSize(160, 84))
+                                 .toImage();
+    expect(thumbnail.pixelColor(20, 30) == colorizing::app::rgb565ToColor(kHdBackground) ||
+               thumbnail.pixelColor(20, 30) == colorizing::app::rgb565ToColor(kHdColor),
+           "the thumbnail shows the HD plane");
 }
 
-void testSpriteIsMatchedOnSdGrid()
+void testSpriteIsMatchedOnNativeOriginal()
 {
     ProjectDocument document = makeBigOriginalDocument();
-    const document::Rgb565Frame sdFrame =
-        colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, false);
-    for (int x = 50; x < 54; ++x) {
-        expect(sdFrame.pixels[at(kSdFrameSize, x, 20)] == kMagenta,
-               "the sprite is found in the SD view of the original and drawn there");
+    const auto composed = [&]() {
+        return colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, false);
+    };
+    const document::Rgb565Frame frame = composed();
+    for (int x = 101; x < 105; ++x) {
+        expect(frame.pixels[at(kHdFrameSize, x, 41)] == kCyan,
+               "a sprite at an odd row and column is found on the native original and drawn "
+               "there one to one");
     }
-    expect(sdFrame.pixels[at(kSdFrameSize, 49, 20)] == 0x2104 &&
-               sdFrame.pixels[at(kSdFrameSize, 54, 20)] == 0x2104 &&
-               sdFrame.pixels[at(kSdFrameSize, 50, 21)] == 0x2104,
-           "nothing else is drawn in SD");
+    expect(frame.pixels[at(kHdFrameSize, 100, 41)] == kHdColor &&
+               frame.pixels[at(kHdFrameSize, 105, 41)] == kHdColor &&
+               frame.pixels[at(kHdFrameSize, 101, 40)] == kHdColor &&
+               frame.pixels[at(kHdFrameSize, 101, 42)] == kHdColor &&
+               std::count(frame.pixels.begin(), frame.pixels.end(), kCyan) == 4,
+           "the sprite is drawn at its own size, not doubled");
 
-    const document::Rgb565Frame hdFrame =
-        colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, false);
-    for (int x = 100; x < 108; ++x) {
-        expect(hdFrame.pixels[at(kHdFrameSize, x, 40)] == kCyan,
-               "the HD sprite is drawn at twice its SD position");
-    }
-    expect(hdFrame.pixels[at(kHdFrameSize, 99, 40)] == 0x4208 &&
-               hdFrame.pixels[at(kHdFrameSize, 108, 40)] == 0x4208,
-           "nothing else is drawn in HD");
+    // Bounds are native coordinates as well.
+    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{0, 101, 41, 255, 63});
+    expect(composed().pixels[at(kHdFrameSize, 101, 41)] == kCyan,
+           "bounds that start at the sprite's odd position contain it");
+    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{0, 102, 41, 255, 63});
+    expect(!contains(composed(), kCyan), "a sprite outside its native bounds is not drawn");
+    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{0, 0, 0, 127, 31});
+    expect(!contains(composed(), kCyan), "128x32 bounds do not reach a sprite at 101,41");
+    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{0, 0, 0, 255, 63});
 
-    // Bounds are SD coordinates as well.
-    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{0, 60, 0, 127, 31});
-    expect(colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, false)
-                   .pixels[at(kSdFrameSize, 50, 20)] == 0x2104,
-           "a sprite outside its SD bounds is not drawn");
+    // The HD mask decides what is drawn, the sprite original what is detected.
+    document::SpriteHdState hd = document.spriteHdState(0);
+    hd.maskHd.pixels[1] = 255;
+    hd.colorizedHd.pixels[2] = kWhite;
+    document.setSpriteHdState(0, hd);
+    const document::Rgb565Frame masked = composed();
+    expect(masked.pixels[at(kHdFrameSize, 101, 41)] == kCyan &&
+               masked.pixels[at(kHdFrameSize, 102, 41)] == kHdColor &&
+               masked.pixels[at(kHdFrameSize, 103, 41)] == kWhite,
+           "HD sprite mask and colours line up with the sprite original pixel for pixel");
 }
 
 // The calls MainWindow::captureSelectedSpriteFromCurrentFrame makes.
-void testSpriteCaptureKeepsOriginalAndColourInStep()
+void testSpriteCaptureKeepsOriginalMaskAndColourInStep()
 {
     ProjectDocument document = makeBigOriginalDocument();
     document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{});
-    document.setColorizedPixel(0, Resolution::Sd, 50, 20, 0x1111);
-    document.setColorizedPixel(0, Resolution::Sd, 51, 20, 0x2222);
-    document.setColorizedPixel(0, Resolution::Sd, 52, 20, 0x3333);
-    document.setColorizedPixel(0, Resolution::Sd, 53, 20, 0x4444);
+    const uint16_t colours[4] = {0x1111, 0x2222, 0x3333, 0x4444};
+    for (int x = 0; x < 4; ++x) {
+        document.setColorizedPixel(0, Resolution::Hd, 101 + x, 41, colours[x]);
+    }
 
     CanvasEditController controller;
     CanvasEditContext context;
@@ -423,54 +507,255 @@ void testSpriteCaptureKeepsOriginalAndColourInStep()
     context.currentFrame = 0;
     context.selectedFrames = {0};
     context.spriteCaptureSelection = true;
-    context.tool = DrawingTool::FilledRectangle;
-    // Original 100,40-107,41 touches SD 50,20-53,20.
+    context.tool = DrawingTool::Line;
     controller.strokeFinished(context,
-                              CanvasHit{CanvasRegion::OriginalFrame, Resolution::Hd, 100, 40},
-                              CanvasHit{CanvasRegion::OriginalFrame, Resolution::Hd, 107, 41},
+                              CanvasHit{CanvasRegion::OriginalFrame, Resolution::Hd, 101, 41},
+                              CanvasHit{CanvasRegion::OriginalFrame, Resolution::Hd, 104, 41},
                               false);
     const std::vector<Point> selection = controller.captureSelectionPixels(0);
-    expect(selection.size() == 4 && selection.front().x == 50 && selection.front().y == 20 &&
-               selection.back().x == 53 && selection.back().y == 20,
-           "capture selection is on the SD grid");
+    expect(selection.size() == 4 && selection.front().x == 101 && selection.front().y == 41 &&
+               selection.back().x == 104 && selection.back().y == 41,
+           "capture selection is on the native grid");
 
+    // Sprite 1 has no HD data and other SD content before the capture.
     document.replaceSpriteFromFrameSelection(
-        0,
-        document.originalFrameAtSd(0),
-        colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, false),
+        1,
+        document.originalFrame(0),
+        colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, false),
         selection);
-    const document::SpriteRecord& sprite = document.sprite(0);
+    const document::SpriteRecord& sprite = document.sprite(1);
     const uint8_t expectedOriginal[4] = {1, 2, 3, 0};
-    const uint16_t expectedColour[4] = {0x1111, 0x2222, 0x3333, 0x4444};
     for (int x = 0; x < 4; ++x) {
-        expect(sprite.originalSd.pixels[static_cast<std::size_t>(x)] == expectedOriginal[x],
-               "captured original pixel is original (2x, 2y) of its SD pixel");
-        expect(sprite.colorizedSd.pixels[static_cast<std::size_t>(x)] == expectedColour[x],
-               "captured colour is the SD colour of the same SD pixel");
+        const std::size_t index = static_cast<std::size_t>(x);
+        expect(sprite.originalSd.pixels[index] == expectedOriginal[x],
+               "captured sprite original is the native original pixel");
+        expect(sprite.maskHd.pixels[index] != 255, "captured pixel is opaque in the HD mask");
+        expect(sprite.colorizedHd.pixels[index] == colours[x],
+               "captured colour is the HD colour of the same pixel");
     }
-    expect(sprite.originalSd.pixels[4] == 255 &&
-               sprite.originalSd.pixels[document::kMaxSpriteWidth] == 255,
-           "nothing else is captured");
+    expect(sprite.hasHd, "a captured sprite has HD data");
+    expect(sprite.originalSd.pixels[4] == 255 && sprite.maskHd.pixels[4] == 255 &&
+               sprite.originalSd.pixels[document::kMaxSpriteWidth] == 255 &&
+               sprite.maskHd.pixels == sprite.originalSd.pixels,
+           "the HD mask has the captured shape and nothing else");
+    expect(std::all_of(sprite.colorizedSd.pixels.begin(),
+                       sprite.colorizedSd.pixels.end(),
+                       [](uint16_t value) { return value == 0; }) &&
+               sprite.colorizedSd.pixels.size() == document::kMaxSpriteWidth *
+                                                       document::kMaxSpriteHeight &&
+               std::all_of(sprite.dynamicMaskSd.pixels.begin(),
+                           sprite.dynamicMaskSd.pixels.end(),
+                           [](uint8_t value) { return value == 255; }),
+           "the unused SD sprite data is reset to its neutral content");
 
     // The captured sprite is found again where it was taken from.
-    document.setSpriteDetectionArea(0, 0, document::SpriteDetectionArea{0, 0, 4, 1});
-    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{0, 40, 10, 60, 30});
-    document.setColorizedPixel(0, Resolution::Sd, 51, 20, 0);
-    expect(colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, false)
-                   .pixels[at(kSdFrameSize, 51, 20)] == 0x2222,
+    document.setSpriteDetectionArea(1, 0, document::SpriteDetectionArea{0, 0, 4, 1});
+    expect(document.sprite(1).detectionDwords[0] == 0x00030201 &&
+               document.sprite(1).detectionDwordPositions[0] == 0,
+           "detection dword of the captured original");
+    document.setFrameSpriteReference(0, 0, document::FrameSpriteReference{1, 101, 41, 105, 42});
+    document.setColorizedPixel(0, Resolution::Hd, 102, 41, 0);
+    expect(colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, false)
+                   .pixels[at(kHdFrameSize, 102, 41)] == 0x2222,
            "the captured sprite matches its source frame");
 
     document.replaceSpriteFromFrame(
-        0,
-        document.originalFrameAtSd(0),
-        colorizing::app::composeResolvedFrame(document, 0, Resolution::Sd, false),
-        5,
-        3,
         1,
-        1);
-    expect(document.sprite(0).originalSd.pixels[0] == 1 &&
-               document.sprite(0).colorizedSd.pixels[0] == kRed,
-           "capturing SD bounds reads original (2x, 2y) and the composed SD colour");
+        document.originalFrame(0),
+        colorizing::app::composeResolvedFrame(document, 0, Resolution::Hd, false),
+        11,
+        6,
+        1,
+        2);
+    expect(document.sprite(1).originalSd.pixels[0] == 2 &&
+               document.sprite(1).colorizedHd.pixels[0] == kGreen &&
+               document.sprite(1).originalSd.pixels[document::kMaxSpriteWidth] == 255 &&
+               document.sprite(1).maskHd.pixels[document::kMaxSpriteWidth] == 255,
+           "capturing native bounds reads original (x, y) and the composed HD colour; unlit "
+           "pixels stay transparent");
+}
+
+QToolButton* buttonWithText(QWidget& parent, const QString& text)
+{
+    for (QToolButton* button : parent.findChildren<QToolButton*>()) {
+        if (button->text() == text) {
+            return button;
+        }
+    }
+    expect(false, "button " + text.toStdString());
+    return nullptr;
+}
+
+QSpinBox* spinBoxWithToolTip(QWidget& parent, const QString& toolTip)
+{
+    for (QSpinBox* spinBox : parent.findChildren<QSpinBox*>()) {
+        if (spinBox->toolTip() == toolTip) {
+            return spinBox;
+        }
+    }
+    expect(false, "spin box " + toolTip.toStdString());
+    return nullptr;
+}
+
+void testMissingHdIsFlaggedAndNotRendered()
+{
+    ProjectDocument document = makeBigOriginalDocument();
+    expect(!document.frameHdGaps(0).any(), "frame 0 is complete");
+    expect(document.frameHdGaps(1).frame && !document.frameHdGaps(1).background &&
+               document.frameHdGaps(1).sprites.empty(),
+           "frame 1 lacks its HD frame");
+    const document::FrameHdGaps gaps = document.frameHdGaps(2);
+    expect(!gaps.frame && gaps.background && gaps.sprites == std::vector<uint8_t>{1},
+           "frame 2 lacks the HD of its background and of sprite 1");
+
+    const document::Rgb565Frame nothing =
+        colorizing::app::composeResolvedFrame(document, 1, Resolution::Hd, true);
+    expect(nothing.size.width == 256 &&
+               std::all_of(nothing.pixels.begin(),
+                           nothing.pixels.end(),
+                           [](uint16_t value) { return value == 0; }),
+           "a frame without HD renders nothing, not its SD frame");
+    const document::Rgb565Frame partial =
+        colorizing::app::composeResolvedFrame(document, 2, Resolution::Hd, true);
+    expect(std::all_of(partial.pixels.begin(),
+                       partial.pixels.end(),
+                       [](uint16_t value) { return value == kHdColor; }),
+           "a background and a sprite without HD are not drawn from their SD data");
+
+    FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setFrameIndex(0);
+    const QPoint onPlane = positionOf(widget, CanvasRegion::ColorizedFrame, 3, 3);
+    const QPoint onOriginal = positionOf(widget, CanvasRegion::OriginalFrame, 3, 3);
+    widget.setFrameIndex(1);
+    expect(!widget.hitTestAt(onPlane), "a missing HD frame cannot be painted on");
+    const std::optional<CanvasHit> originalHit = widget.hitTestAt(onOriginal);
+    expect(originalHit && originalHit->region == CanvasRegion::OriginalFrame,
+           "its original can still be used");
+    expect(grab(widget).pixelColor(onPlane) == QColor(0, 0, 0),
+           "the missing HD frame is shown black");
+
+    const auto thumbnail = [&](std::size_t frameIndex) {
+        return colorizing::app::makeFrameThumbnail(document, frameIndex, QSize(160, 84))
+            .pixmap(QSize(160, 84))
+            .toImage();
+    };
+    const QColor warning(190, 45, 45);
+    expect(thumbnail(1).pixelColor(116, 5) == warning &&
+               thumbnail(2).pixelColor(116, 5) == warning &&
+               thumbnail(0).pixelColor(116, 5) != warning,
+           "thumbnails of frames the runtime does not show carry a warning badge");
+
+    colorizing::app::FramePanel framePanel;
+    const auto refreshFramePanel = [&](std::size_t frameIndex) {
+        colorizing::app::FramePanelState state;
+        state.document = &document;
+        state.frameIndex = frameIndex;
+        framePanel.refresh(state);
+    };
+    QToolButton* create = buttonWithText(framePanel, QStringLiteral("Create HD"));
+    QToolButton* remove = buttonWithText(framePanel, QStringLiteral("Remove HD"));
+    refreshFramePanel(0);
+    expect(!create->isEnabled() && !remove->isEnabled() &&
+               remove->toolTip().contains(QStringLiteral("256x64")),
+           "Remove HD is disabled with a reason; nothing to create on a complete frame");
+    refreshFramePanel(1);
+    expect(create->isEnabled() && !remove->isEnabled() &&
+               create->toolTip().contains(QStringLiteral("original")),
+           "Create HD repairs a frame without HD");
+    refreshFramePanel(2);
+    expect(create->isEnabled() && !remove->isEnabled(),
+           "Create HD repairs a background without HD");
+    framePanel.showSpriteHdActions(true, true);
+    expect(!create->isEnabled() && !remove->isEnabled() &&
+               remove->toolTip().contains(QStringLiteral("256x64")),
+           "Remove HD Sprite is disabled with a reason");
+    framePanel.showSpriteHdActions(false, true);
+    expect(create->isEnabled() && !remove->isEnabled(), "Create HD Sprite repairs a sprite");
+
+    expect(colorizing::app::renderSpriteColorizedPreviewImage(document.sprite(0),
+                                                              Resolution::Hd,
+                                                              true)
+                       .pixelColor(0, 0) == colorizing::app::rgb565ToColor(kCyan) &&
+               colorizing::app::renderSpriteColorizedPreviewImage(document.sprite(1),
+                                                                  Resolution::Hd,
+                                                                  true)
+                       .pixelColor(0, 0) == QColor(0, 0, 0) &&
+               colorizing::app::renderBackgroundPreviewImage(document.background(1),
+                                                             Resolution::Hd,
+                                                             true)
+                       .pixelColor(0, 0) == QColor(0, 0, 0),
+           "sprite and background previews do not fall back to SD");
+
+    // Repair, as Create HD does.
+    document.createHdFrame(1);
+    widget.update();
+    const std::optional<CanvasHit> repairedHit = widget.hitTestAt(onPlane);
+    expect(repairedHit && repairedHit->resolution == Resolution::Hd &&
+               !document.frameHdGaps(1).any(),
+           "after Create HD the frame can be painted on");
+    const std::vector<uint16_t> plain = document::plainOriginalColors(16);
+    const document::Rgb565Frame& created = document.colorizedFrame(1, Resolution::Hd);
+    expect(created.pixels[at(kHdFrameSize, 10, 7)] == plain[3] &&
+               created.pixels[at(kHdFrameSize, 103, 41)] == plain[3] &&
+               created.pixels[at(kHdFrameSize, 0, 0)] == plain[0] &&
+               document.colorizedFrame(1, Resolution::Sd).pixels[0] == kSdColor,
+           "the created HD frame is the native original in its plain colours; SD is kept");
+    refreshFramePanel(1);
+    expect(!create->isEnabled(), "nothing left to create");
+}
+
+void testSpriteBoundsAndSpriteCanvasAreNative()
+{
+    const ProjectDocument document = makeBigOriginalDocument();
+    colorizing::app::SpritePanel panel;
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    state.spriteIndex = 0;
+    panel.refresh(state);
+    const auto bound = [&](const char* name) {
+        return spinBoxWithToolTip(panel,
+                                  QStringLiteral("Sprite slot bounding box %1").arg(name));
+    };
+    QSpinBox* minX = bound("minimum X");
+    QSpinBox* maxX = bound("maximum X");
+    QSpinBox* minY = bound("minimum Y");
+    QSpinBox* maxY = bound("maximum Y");
+    expect(minX->maximum() == 255 && maxX->maximum() == 255 && minY->maximum() == 63 &&
+               maxY->maximum() == 63 && maxX->value() == 255 && maxY->value() == 63,
+           "slot bounds of a 256x64 project range over the native original");
+    const ProjectDocument ordinary = ProjectDocument::createEmpty({"ordinary", 1, false});
+    state.document = &ordinary;
+    state.spriteIndex.reset();
+    panel.refresh(state);
+    expect(minX->maximum() == 127 && maxX->maximum() == 127 && minY->maximum() == 31 &&
+               maxY->maximum() == 31,
+           "slot bounds of an ordinary project stay 0..127 and 0..31");
+
+    // Scale 2: the four HD sprite pixels are drawn as large as the four of the original.
+    colorizing::app::SpriteEditorWidget editor;
+    editor.resize(536, 316);
+    editor.setDocument(&document);
+    editor.setSpriteIndex(0);
+    editor.setActiveResolution(Resolution::Sd);
+    QImage image(editor.size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    {
+        QPainter painter(&image);
+        editor.render(&painter);
+    }
+    int cyan = 0;
+    int magenta = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            cyan += image.pixelColor(x, y) == colorizing::app::rgb565ToColor(kCyan) ? 1 : 0;
+            magenta += image.pixelColor(x, y) == colorizing::app::rgb565ToColor(kMagenta) ? 1 : 0;
+        }
+    }
+    expect(cyan == 4 * 2 * 2 && magenta == 0,
+           "the sprite canvas shows the HD sprite one to one, never the SD sprite");
 }
 
 void testMaskEditThroughWidgetAndController()
@@ -584,9 +869,11 @@ void runBigOriginalWidgetTests()
 {
     testOriginalRegionShowsEveryOriginalPixel();
     testOverlaysOnOriginalRegion();
-    testComposedFrameReadsOriginalThroughMapping();
-    testSpriteIsMatchedOnSdGrid();
-    testSpriteCaptureKeepsOriginalAndColourInStep();
+    testOnlyTheHdPlaneIsRendered();
+    testSpriteIsMatchedOnNativeOriginal();
+    testSpriteCaptureKeepsOriginalMaskAndColourInStep();
+    testMissingHdIsFlaggedAndNotRendered();
+    testSpriteBoundsAndSpriteCanvasAreNative();
     testMaskEditThroughWidgetAndController();
     testThumbnailShowsWholeOriginal();
 }
