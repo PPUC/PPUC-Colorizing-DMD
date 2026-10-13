@@ -98,19 +98,28 @@ under another spelling of the extension (`.crz`) is the one that is replaced.
 Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cROM`
 path and writes the `.cROM`, a `.cRP` and a `.cRZ` with the same base name there.
 
-Use `File -> Export Current Frame PNG...` to export the active colorized frame preview as a PNG.
-The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
-includes the assigned background layer when `Show BG` is enabled. The proposed file name ends in
-`_sd` or `_hd`. In a project with 256x64 original frames there is no SD picture to fall back to: a
-frame without its 256x64 frame is not exported. In a project with 256x64 or 192x64 original frames
-the single plane is exported, and the proposed file name ends in `_256x64` or `_192x64`.
+Use `File -> Export Current Frame PNG...` to export the current frame as a PNG. The picture is
+libserum's output for the frame, the one a machine shows, not the editor's own rendering; see
+"Runtime View" for how it is made. Which plane is exported:
 
-Use `File -> Export Current Frame Runtime PNG...` to export the frame as libserum renders it
-instead, see "Runtime View". The plane is the one the Runtime view shows; with the view off it is
-the 64-row plane in HD mode and the 32-row plane in SD mode, and the one plane of a project with
-256x64 or 192x64 original frames. The proposed file name ends in `_runtime_32rows` or
-`_runtime_64rows`. `DMD Shape` and `DMD Size` apply as for the other export. If libserum has no
-picture for the frame, nothing is exported and the status bar says so.
+- with the Runtime view on, the plane it shows;
+- otherwise the plane of the editing mode: the 32-row plane in SD mode and the 64-row plane in HD
+  mode. The 64-row plane exists for every frame; for a frame without HD it is libserum's upscale
+  of the 128x32 picture;
+- the one plane of a project with 256x64 or 192x64 original frames.
+
+The proposed file name ends in `_sd` or `_hd`, or in `_256x64` or `_192x64`. `DMD Shape` and
+`DMD Size` apply. The assigned background is always part of the picture: `Show BG` is a setting
+of the editing canvas and has no effect on the export.
+
+If libserum has no picture for the frame, nothing is written and no file dialog comes up. The
+status bar says why: `Frame N is not exported:` followed by the reason the Runtime view gives for
+the frame (the frame is inactive and skipped, it lacks its 256x64 data, or libserum's own error
+text). The editor's own rendering is never written in its place: a file would then show what no
+machine shows. There is no separate export of the editor's rendering any more. It served no
+purpose the runtime export does not: the frames libserum renders nothing for are frames with
+nothing colorized to show (an inactive frame is one that is not colorized, a 256x64 frame without
+its data is black), and the image of a background is exported by `Export BG`.
 
 Use `File -> Import Image Into Selected Frames...` or the Frame topic's `Import Image` button to
 replace selected frame pixels from a PNG/BMP/JPEG. The image is scaled to the active SD/HD DMD size.
@@ -137,10 +146,14 @@ Save behavior:
 - Frame identification hashes are recalculated from the original frame, its comparison mask, and
   its shape mode.
 - The "active frame" flag is recalculated: a frame shorter than 15 ms stays inactive until it is
-  colorized or gets dynamic content.
+  colorized or gets dynamic content. The frame list marks the frames the runtime skips for that
+  reason, see "Frame List".
 - Colorized pixels covered by a dynamic mask are written as 0, as the Win32 editor does. The
   in-memory frame is not changed, so those pixels show their old color until the project is
-  reopened.
+  reopened. On the HD plane of an ordinary project this is the stored HD dynamic mask, which the
+  runtime does not use and the editor does not show (see "Dynamic Masks"): an HD pixel painted
+  under it is still written as 0, and is black on a machine wherever no SD dynamic zone covers
+  it. The Runtime view shows that; the editing canvas shows the painted color.
 - Editor metadata the app does not expose yet (color sets, mask names, sections, sprite source
   frames, image crop presets, imported palettes, project time, PuP pack) is carried through.
 - HD pixels that the Win32 editor left in a frame or background whose HD is switched off are
@@ -168,7 +181,8 @@ each slot's stored delay. This is an editor preview; libserum remains the runtim
 final composition order.
 
 With the Runtime view on, playback is done by libserum instead: the frames are fed to it in the
-order of the list, with the same timings, and libserum rotates the colors. See "Runtime View".
+order of the list, with the same timings, libserum rotates the colors, and it identifies every
+frame as it would on a machine, which depends on the frames before it. See "Runtime View".
 
 Rotation timing is not a visual preference. The per-slot delay stored in the project controls both
 runtime behavior and editor playback, so future rotation-editing UI must keep timing edits explicit
@@ -190,8 +204,18 @@ Frame items show the project frame number, the loaded cRP duration, and compact 
 `HD`, `Dyn`, assigned `BG`, and sprite assignment count when present.
 Selecting a frame updates the central canvas and the frame status line.
 
+A frame the runtime skips has the line `inactive`, and its tool tip and the tool tip of the
+frame status line say `inactive: shorter than 15 ms and not colorized — the runtime skips it`.
+These are the frames a save flags as inactive (shorter than 15 ms, every pixel still the plain
+color of the original, no dynamic zone; the rule of the serializer, which is the Win32 editor's)
+that have no assigned background either: libserum identifies such a frame and renders nothing
+for it, so a machine keeps the picture it shows. An inactive frame with a background is rendered
+by libserum and is not marked. The marker follows edits: painting the frame, giving it a dynamic
+zone or a background, or a duration of 15 ms or more removes it.
+
 The filter above the frame list can show all frames, only frames with HD data (`HD frames`),
-frames with an assigned background, frames with dynamic data, or frames with sprite assignments.
+frames with an assigned background, frames with dynamic data, frames with sprite assignments, or
+the frames marked `inactive` (`Inactive`).
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 
@@ -252,7 +276,14 @@ Rules:
 - If a frame has no HD data, the canvas falls back to SD display/editing.
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
 - The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
-- When creating HD, a dialog asks whether to also upscale existing dynamic masks/colors, the frame background mask, and the assigned background image.
+- When creating HD, a dialog asks whether to also upscale the frame background mask and the assigned background image.
+- `Create HD` does not create HD dynamic data and the dialog does not offer it: the runtime renders
+  the dynamic zones of the SD plane into the HD picture and does not read an HD dynamic mask. The
+  frame's stored HD dynamic mask, colors and shadows are written as they are: for a frame that
+  never had any that is a mask of 255 everywhere (no zone) and colors and shadows of 0, which is
+  what the Win32 editor gives a frame without HD.
+- In HD mode the `Dynamic` toolbar button is disabled, and the `Dyn` page shows and edits the
+  dynamic colors and shadows of the SD plane. See "Dynamic Masks".
 - The Inspector `Remove HD` button removes HD data from the current frame and switches the canvas back to SD when needed.
 - `Create HD` and `Remove HD` can be undone. Undo puts back exactly what was there before: the
   frame's HD pixels (or their absence) and, for `Create HD`, every related item the dialog upscaled,
@@ -539,8 +570,9 @@ Drawing previews are transient overlays. They do not modify project data until m
 Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
 When `Mask` is active, clicks on the original/reference region add pixels to the assigned comparison mask.
 
-Use the `Dynamic` toolbar toggle to show and edit dynamic-mask pixels over the active colorized frame.
-The dynamic overlay and edits follow the active SD/HD mode.
+Use the `Dynamic` toolbar toggle to show and edit dynamic-mask pixels over the colorized frame.
+Dynamic zones belong to the plane that has the size of the original frame; in an ordinary project
+that is the SD plane, and the toggle is disabled in HD mode. See "Dynamic Masks".
 
 Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
@@ -561,7 +593,8 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
   192x64 original frames).
 - `Mask` contains comparison-mask assignment, comparison mode, and a shortcut into mask editing.
 - `Background` contains the selected background ID, assignment, and edit shortcut.
-- `Dynamic` contains the dynamic set selector and dynamic color swatches.
+- `Dynamic` contains the dynamic set selector and dynamic color swatches. In HD mode of an
+  ordinary project it shows the SD plane's colors and shadows, with a note saying so.
 - `Rotation` contains color rotation slots for the current frame and active SD/HD mode.
 - `Palette` contains the selected cRP palette name and all 64 palette colors.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, and sprite editing.
@@ -606,8 +639,9 @@ The `Background` topic exposes:
 
 ## Runtime View
 
-`Edit -> Runtime View` (`Ctrl+R`) shows the current frame on the canvas as libserum renders it,
-in place of the editable layers. The picture is libserum's own output, not the editor's
+`View -> Runtime View` (`Ctrl+R`) shows the current frame on the canvas as libserum renders it,
+in place of the editable layers. The checkable `Runtime` button in the toolbar, right of the
+playback controls, is the same switch and shows whether the view is on. The picture is libserum's own output, not the editor's
 rendering: the editor writes a small cROM that holds this frame and what it uses (its comparison
 mask, its background, the sprites in its sprite list), loads it into libserum from memory, feeds
 it the frame's original and shows the plane that comes back. Nothing is written to disk.
@@ -631,7 +665,7 @@ selection.
 
 Which plane is shown:
 
-- In an ordinary project `Edit -> Runtime Plane: 32 Rows` (`Ctrl+3`) and `Runtime Plane: 64 Rows`
+- In an ordinary project `View -> Runtime Plane: 32 Rows` (`Ctrl+3`) and `Runtime Plane: 64 Rows`
   (`Ctrl+6`) choose between what a display with 32 rows and one with 64 rows gets. When the view
   is switched on it starts with the plane of the editing mode, 32 rows in SD and 64 rows in HD.
   The 64-row plane exists for every frame: for a frame without HD it is libserum's upscale of
@@ -644,33 +678,79 @@ When libserum has no picture, the reason is shown in its place:
 - `libserum identifies this frame and shows no picture for it.` In a project with 256x64
   original frames this is a frame without its 256x64 data, or with a background or sprite
   without it.
-- `libserum does not identify this frame.` The frame is saved as inactive: it is shorter than
-  15 ms and not colorized, and libserum skips such frames.
+- `libserum identifies this frame and skips it: it is inactive (shorter than 15 ms and not
+  colorized), so a machine keeps the picture it shows.` These are the frames the frame list marks
+  `inactive`, see "Frame List". The frame status line ends in `| inactive` for them.
+- `libserum does not identify this frame.` No frame of the project matches the original.
 - `libserum: ...` with libserum's own error text, if the frame could not be loaded.
 
-Playback with the view on is done by libserum. `Play` loads the frames of the list, from the
-current one on and up to 48 at a time, as one colorization and feeds them in list order with the
-usual timings, so libserum keeps its state from one frame to the next as it does on a machine,
-and its color rotations run on libserum's own clock. Past the 48th frame the next ones are
-loaded, which starts that state afresh. Switching the view or its plane stops playback.
-In playback libserum identifies frames as it does on a machine: of several frames with the
-same original under their comparison masks it shows the one its own rule picks, which need not
-be the one selected in the list.
+Playback with the view on is done by libserum. `Play` feeds the frames of the list to it in list
+order, from the current one on, with the usual timings; libserum keeps its state from one frame
+to the next as it does on a machine, and its color rotations run on libserum's own clock.
+Switching the view or its plane stops playback.
+
+**Frame identification depends on order.** libserum does not recognise a frame by its picture
+alone. Every frame has a comparison mask and a shape mode, and its hash is taken from its
+original under that mask. Masks are shared, so several frames can have the same hash: frames
+that differ only where their mask covers them, or a frame of one mask that looks like a frame of
+another under the other's mask. For such an original libserum's answer depends on what it
+identified before:
+
+- its search starts at the frame it identified last (the first frame of the project after
+  loading) and walks through the frames in project order, wrapping around at the end;
+- the first time it meets a mask and shape mode it hashes the incoming frame with them and looks
+  for frames of that mask and mode with this hash; the first mask and mode that has one decides;
+- of those frames it takes the first at or after the place where it met that mask and mode.
+
+Playback in the Runtime view follows this exactly as a machine with the whole project loaded
+does, starting like a machine that has just loaded the project. So of several frames that match
+an original it shows the one a machine shows after the frames played before, which need not be
+the frame selected in the list. Where the two differ the view says so: the frame status line
+ends in `| identified as frame N`, the line above the picture adds
+`Note: libserum identifies this ROM frame as frame N.`, and the tool tip of the status line
+explains it. An author who sees this has two frames a machine cannot tell apart in this order,
+which usually means one of them needs another comparison mask.
+
+Outside playback the view shows the selected frame rendered on its own, whatever a machine would
+make of its original. If a machine coming from the frame before it in the project (from the
+first frame, for the first one) would identify the original as another frame, the status line
+ends in `| after frame M: frame N` and the line above the picture adds
+`Note: after frame M a machine identifies this ROM frame as frame N.` The picture stays that of
+the selected frame. This hint is computed from the search rule above and costs no rendering.
+
+How playback is loaded: the project is never loaded into libserum as a whole. The editor loads a
+window: the next frames to play, at most 48, together with every other frame of the project that
+takes part in identifying them. These are the frames that match the original of a played frame
+(the ones the search can end at and start from) and, for each of them and each of their masks
+and shape modes, the first frame with that mask and mode at or after it (the frames at which the
+search meets the mask). With them the search runs in the window as it does in the whole project.
+A window usually holds a few frames more than it plays; it stops growing at 160 frames, and
+then plays fewer than 48. When playback goes past a window the next one is loaded and libserum's
+identification state is carried over: the new window starts with the frame identified last, and
+the original fed last is fed once more, unseen. Loading a window takes 15 to 100 ms on the real
+projects measured (about 3 to 14 MB each); a whole project of 11199 frames plays in 234 windows.
+
+Limits of that:
+
+- What libserum keeps from frames before a window other than the identification, namely a
+  monochrome switch set off by an earlier frame and the phase of running color rotations, starts
+  again with the window.
+- On the 64-row plane libserum leaves single pixels as an earlier frame painted them (seen at
+  one or two pixels in 19 of 4430 played frames of `smb3` and 13 of 5211 of `trn_174h`). Which
+  earlier frame that was differs between a window and a machine that has played the whole
+  project. The 32-row plane was identical in every played frame.
 
 What the view does not show:
 
 - Scenes from a `.pup.csv` and the settings of a `scaling.txt`: only the cROM is loaded, so the
   64-row plane uses libserum's default upscaling (Scale2x) and shadow offset.
-- A frame is rendered from a cROM of that frame alone. If two frames of the project have the
-  same original under their comparison masks, libserum on a machine picks one of them by its own
-  rule; the view shows the frame that is selected.
 - Triggers, and what a trigger does on a machine. A frame with `Switch mono` is shown colorized.
 
 What the editing canvas shows, by comparison: it is the editor's own rendering of the layers
 being edited. On the plane that has the size of the original frame it follows libserum's rules
 and gives the same pixels (see "Preview Rendering" for how that is checked). On the HD plane of
-an ordinary project it is an approximation wherever the original frame decides what is shown,
-see the known differences there.
+an ordinary project it follows them too, with pixels doubled where libserum upscales with
+rounded edges; see the known differences there.
 
 ## Colors
 
@@ -835,8 +915,9 @@ Histories:
   ID, shape mode, background ID, trigger ID (including `Switch mono`), and duration edits of the
   frame, and its `Create HD` and `Remove HD`.
 - Comparison masks: per mask. Frames that share a mask share its history.
-- Dynamic masks, dynamic colors, and dynamic shadows: three separate histories per frame and per
-  SD/HD resolution.
+- Dynamic masks, dynamic colors, and dynamic shadows: three separate histories per frame. They
+  belong to the plane the dynamic data is edited on, which is one per project (see "Dynamic
+  Masks"): an ordinary project has no histories for HD dynamic data, which cannot be edited.
 - Background masks: per frame and per SD/HD resolution.
 - Background images: per background and per SD/HD resolution.
 - Sprite color images: per sprite and per SD/HD resolution.
@@ -850,14 +931,14 @@ Which histories Undo and Redo use, by context:
    active resolution (its SD history when the sprite has no HD data) and its sprite HD history.
 2. `Mask` active: the comparison mask assigned to the current frame and the current frame's
    settings.
-3. `Dynamic` active: the current frame's dynamic-mask, dynamic-color, and dynamic-shadow histories
-   for the active resolution.
+3. `Dynamic` active: the current frame's dynamic-mask, dynamic-color, and dynamic-shadow
+   histories.
 4. `BG` active: the current frame's background-mask history for the active resolution and the
    current frame's settings.
 5. Otherwise: the current frame's pixel history for the active resolution, the current frame's
    settings, the selected palette, the current frame's dynamic-color and dynamic-shadow histories
-   for the active resolution, and the image history of the selected background for the active
-   resolution. This is the same whether Inspector `Target` is `Frame` or `Background`, so a
+   (the same ones in SD and in HD mode), and the image history of the selected background for the
+   active resolution. This is the same whether Inspector `Target` is `Frame` or `Background`, so a
    `Frame -> BG` copy or a background image import can be undone without switching the target.
 
 Within a context, Undo reverts the edit that was made most recently among all of the context's
@@ -878,8 +959,8 @@ there. This applies to drawing, to dynamic shadow direction and color changes, a
 settings.
 
 Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
-overwritten: the frame's HD dynamic mask, colors, and shadows, its HD background mask, and the HD
-image of the background that was assigned at the time (or its absence). Undoing `Remove HD`
+overwritten: the frame's HD background mask and the HD image of the background that was assigned
+at the time (or its absence). Undoing `Remove HD`
 restores the HD pixels that were removed. Undo and Redo of these two switch the canvas back to SD
 when the current frame is left without HD data; Redo of `Create HD` does not switch to HD by
 itself. The same holds for `Create HD Sprite` and `Remove HD Sprite`, which restore the sprite's HD
@@ -890,8 +971,8 @@ Histories are dropped when the data they refer to is replaced as a whole:
 - Opening a project drops all histories.
 - `Remove HD` drops the frame's HD pixel history.
 - `Create HD` drops the frame's HD pixel history. Each related item that is upscaled in the dialog
-  also drops its HD history: dynamic mask, dynamic colors, and dynamic shadows of the frame, the
-  frame's background mask, and the image of the assigned background.
+  also drops its HD history: the frame's background mask and the image of the assigned
+  background. Dynamic histories are not touched.
 - `Create HD Sprite` and `Remove HD Sprite` drop the sprite's HD color image history.
 - Undoing or redoing any of these four drops the same histories again, because the HD data is
   replaced as a whole in both directions. Pixel edits made on HD data in between can therefore not
@@ -946,33 +1027,71 @@ Editing rules:
 
 The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a semi-transparent cyan overlay.
 
+**Dynamic zones belong to one plane: the one with the size of the original frame.** That is the
+128x32 (SD) plane in an ordinary project, the 256x64 plane in a project with 256x64 original
+frames and the 192x64 plane in one with 192x64 original frames. It is the plane the runtime
+takes them from. In an ordinary project libserum renders the 64-row picture in layers: the HD
+frame and HD background as they are, and the dynamic content at 128x32, with the SD dynamic
+mask and the SD dynamic colors, upscaled and put on top. It does not read the HD dynamic mask
+and the HD dynamic colors at all (libserum, `Colorize_Framev2`: with a 64-row request a 128x32
+colorization always runs in "layer mode", where `frameHasDynamicExtra` is forced false;
+libserum's AGENTS.md, "Resolution scaling and the two-layer renderer": "HD dynamic masks are
+ignored outright").
+
+So in an ordinary project:
+
+- Dynamic zones are shown and painted in SD mode. In HD mode the `Dynamic` button is disabled and
+  its tool tip says `Dynamic zones are defined on the 128x32 plane: switch to SD to see and paint
+  them`. Switching to HD while `Dynamic` is on switches it off, with a message in the status bar.
+  The zones are not drawn over the HD frame: at twice the size they would look like something
+  that can be painted there, and the HD picture on the canvas already shows what they do.
+- The `Dyn` page works in both modes and always shows and edits the SD plane's dynamic colors
+  and shadows, which are the ones both pictures use. In HD mode a note at the top of the page
+  says so. An edit made there in HD mode shows in the HD picture at once and is undone from
+  either mode.
+- The editing canvas and `Frame -> BG` in HD mode render the HD plane as libserum does:
+  dynamic pixels have the SD set's color for the original's shade, every SD pixel doubled.
+  libserum rounds the edges of that upscale (Scale2x); the Runtime view with
+  `Runtime Plane: 64 Rows` shows the exact picture.
+- HD dynamic masks, colors and shadows a project already holds are kept: they are loaded,
+  written back unchanged and never shown or edited. The Win32 editor writes them, as a
+  line-doubled copy of the SD ones.
+- One thing of the stored HD data does reach the picture: **shadows**. A dynamic set that has no
+  shadow direction on the SD plane takes its direction and color from the HD shadow tables when
+  libserum renders the 64-row plane (they are settings per set, not pictures). The editor's HD
+  rendering does the same. The `Dyn` page shows and edits the SD shadow only: a shadow that
+  comes from the HD tables can be replaced by setting an SD direction for the set, and cannot be
+  switched off in this editor.
+- The save rule that writes colorized pixels under a dynamic mask as 0 still uses the stored HD
+  mask for the HD frame, see "Saving".
+
 Rules:
 
 - The `Dyn Set` field in the Inspector's `Dynamic` topic selects the dynamic set written by drawing tools.
-- The Inspector shows editable dynamic color swatches for the active frame, active SD/HD mode, and selected dynamic set.
+- The Inspector shows editable dynamic color swatches for the active frame and the selected dynamic set.
 - Click a dynamic color swatch to choose a replacement RGB565 color for that original color index.
-- In SD mode, the SD dynamic mask is rendered over the SD colorized frame.
-- In HD mode, the HD dynamic mask is rendered over the HD colorized frame.
+- The dynamic mask is rendered over the colorized frame of its plane.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.
 - With the `Pick` tool, click the colorized frame to select the dynamic set stored under the cursor.
-- Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD dynamic mask.
+- Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the dynamic mask.
 - Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
-- Dynamic-mask edits are undoable per frame and per resolution.
-- Dynamic color changes are undoable per frame and per resolution.
+- Dynamic-mask edits are undoable per frame.
+- Dynamic color changes are undoable per frame.
 - Dynamic shadow direction and color changes apply to all selected frames that have dynamic data
-  and are undoable per frame and per resolution.
+  and are undoable per frame.
 
 Dynamic shadows are loaded from and saved back to the legacy `.cROM` dynamic-shadow blocks. The
-canvas, thumbnails, and PNG export render shadows after dynamic-color replacement and before sprite
+canvas and thumbnails render shadows after dynamic-color replacement and before sprite
 composition. Shadow pixels are written only into neighboring pixels that are not themselves dynamic,
-matching the legacy renderer behavior.
+matching the legacy renderer behavior. On the HD plane of an ordinary project a shadow is one HD
+pixel wide around the doubled zone, as libserum generates it there.
 
 The Inspector's `Dynamic` topic provides shadow controls for the active dynamic set:
 
 - Direction buttons `TL`, `T`, `TR`, `L`, `R`, `BL`, `B`, and `BR` toggle where shadows are cast.
 - `Shadow Color` opens a color picker for the active set's shadow color.
-- Shadow edits apply to all selected frames that have dynamic data in the active SD/HD mode.
+- Shadow edits apply to all selected frames that have dynamic data.
 
 ## Color Rotations
 
@@ -1152,10 +1271,10 @@ Known feature gaps that affect first-release completeness:
 
 libserum is the source of truth for every runtime-composed pixel. There are two renderers:
 
-- The **Runtime view**, runtime playback and `Export Current Frame Runtime PNG...` show
-  libserum's own output, see "Runtime View".
-- The **editing canvas, the thumbnails and `Export Current Frame PNG...`** use the editor's own
-  renderer, which draws the layers being edited and has to stay cheap. It follows libserum's
+- The **Runtime view**, runtime playback and `Export Current Frame PNG...` show libserum's own
+  output, see "Runtime View".
+- The **editing canvas and the thumbnails** use the editor's own renderer, which draws the
+  layers being edited and has to stay cheap. It follows libserum's
   rules and is checked against libserum by automated tests on constructed projects of all three
   layouts and by `colorizing_qt_v2_preview_diff` on real projects (see "Testing Checklist").
 
@@ -1180,24 +1299,35 @@ shows nothing for the frame. Last
 measured: `afm_113b` 3047 of 3047 frames, `trn_174h` 5211 of 5211, `hook_501` 3897 of 3897,
 `smb3` 4430 of 4430, `frankst1` 303 of 303 sampled frames.
 
-Known differences, all on the HD plane of an ordinary project. libserum builds its 64-row plane
-in layers: the HD frame and HD background natively, and everything the original frame decides
-at 128x32, upscaled once (Scale2x) and put on top. The editor does not reproduce that upscaling.
+On the HD plane of an ordinary project the editor's renderer follows libserum's layers: the HD
+frame and HD background as they are, and on top the dynamic zones of the SD plane with the SD
+colors (the stored HD dynamic mask and colors are not used, see "Dynamic Masks"), an unlit zone
+pixel under the SD background mask left to the HD picture, and shadows generated on the HD plane,
+one pixel wide, from the SD shadow tables with the HD tables as a fallback per set. An automated
+test compares the whole HD plane with libserum for a frame with HD statics, zones, shadows and a
+background, built of rows so that libserum's upscale has nothing to round, and checks that other
+stored HD dynamic masks and colors change nothing.
 
-- **Dynamic zones on an HD frame.** libserum ignores the HD dynamic mask and the HD dynamic
-  colors: it renders the dynamic content with the SD mask and the SD colors and upscales it.
-  The editor draws the HD mask with the HD colors, which is what is being edited in HD mode.
-  This is the bulk of the differences: in `trn_174h` 151384 pixels in 4222 of 5211 frames, for
-  example frames 527 and 1157.
-- **Dynamic shadows on an HD frame.** libserum generates them on the 64-row plane from the
-  upscaled content, one pixel wide. The editor draws them from the HD mask.
-- **Edges.** libserum reads the original frame upscaled where it decides between background and
-  frame, and rounds the edges of upscaled sprites and dynamic content. The editor doubles
-  pixels: a sprite without HD is its 128x32 picture with every pixel doubled, and an HD sprite
-  keeps the doubled 128x32 pixels where the sprite is dynamic. Single pixels differ along such
-  edges, for example `trn_174h` frames 1455 and 697.
+Known differences, all on the HD plane of an ordinary project. libserum upscales what it renders
+at 128x32 once (Scale2x) before putting it on top. The editor doubles pixels instead.
+
+- **Edges of dynamic zones.** Scale2x rounds corners: a pixel at the edge of a glyph gets the
+  color of a neighboring 128x32 pixel, or is left to the HD frame below. This is all that is left
+  of the dynamic differences: in `trn_174h` 113940 pixels in 4222 of 5211 frames, 27 per frame,
+  every one of them such an edge pixel (before the editor used the SD zones: 151384). Shadows
+  follow the rounded shape in libserum and the doubled one in the editor.
+- **Edges of sprites and backgrounds.** libserum reads the original frame upscaled where it
+  decides between background and frame, and rounds the edges of upscaled sprites. The editor
+  doubles pixels: a sprite without HD is its 128x32 picture with every pixel doubled, and an HD
+  sprite keeps the doubled 128x32 pixels where the sprite is dynamic. Single pixels differ along
+  such edges, for example `trn_174h` frames 1455 and 697 (782 pixels in all).
 - **Frames without HD** have no HD plane in the editor at all. libserum's upscaled 64-row
   picture of them is only in the Runtime view.
+- **A frame with HD whose background has no HD image** is, by libserum's code
+  (`HasHdStaticContent()`), rendered like a frame without HD, upscaled from 128x32. The editor
+  shows the HD frame without the background. Not measured: none of the real projects has one.
+- **HD pixels painted under a stored HD dynamic mask** are saved as 0, see "Saving". The canvas
+  shows the painted color until the project is reopened.
 
 For all of these the Runtime view with `Runtime Plane: 64 Rows` shows the real picture.
 
@@ -1238,29 +1368,53 @@ nothing:
 
 ```text
 colorizing_qt_v2_preview_diff <project>.cROM|.cRZ <project>.cRP [first[-last]] [--step N]
-                              [--examples N] [--pixels N] [--sequence N]
+                              [--examples N] [--pixels N] [--playback N [--no-whole]]
 ```
 
 It compares the plane that has the original frame's size and, in an ordinary project, the HD
 plane of frames that have HD. The upscaled 64-row plane of frames without HD is not compared.
 Per plane it prints how many frames are identical and, for the others, the differing pixels by
-class (inside a found sprite, inside a sprite slot's bounds, shadow, dynamic, background, static)
-with example frames. `--pixels N` prints the first N differing pixels of each such frame,
-`--step N` takes every Nth frame, `--sequence N` also plays the frames through libserum N at a
-time, as runtime playback does, and counts frames whose picture differs from the still. The
-last line gives the mean cost of a runtime render. The exit status is 0 only if every compared
-plane is identical.
+class (inside a found sprite, inside a sprite slot's bounds, shadow, the edge rounding of
+libserum's upscale in or beside a dynamic zone, anything else in a dynamic zone, background,
+static) with example frames. `--pixels N` prints the first N differing pixels of each such frame,
+`--step N` takes every Nth frame. The last line gives the mean cost of a runtime render. The
+exit status is 0 only if every compared plane is identical.
 
 Expected: `native plane ...: N frames compared, N identical` for every project. An ordinary
 project with HD frames that have dynamic content or sprites reports differences on its HD plane,
-see "Preview Rendering"; for `trn_174h` that is 4249 of 5211 frames, classes `dynamic`, `sprite`
-and `sprite area`. A full run takes 2 to 25 seconds per project; `frankst1` needs about 3.2 GB
+see "Preview Rendering"; for `trn_174h` that is 4249 of 5211 frames and 114722 pixels, classes
+`dynamic, upscale rounding` (113940), `sprite` (527) and `sprite area` (255), and none in the
+class `dynamic`. A full run takes 2 to 25 seconds per project; `frankst1` needs about 3.2 GB
 to load, so sample it with `--step`.
 
-For changes to the Runtime view, also check by hand: `Ctrl+R` on and off in an ordinary project
-in SD and in HD mode, both runtime planes on a frame with and without HD, an Inspector edit and
-undo while the view is on, `Play` with the view on over a frame with a color rotation, the runtime
-PNG export, and the same in a project with 256x64 and one with 192x64 original frames.
+`--playback N` checks runtime playback instead of the pictures of single frames. It plays the
+frames of the range in order through the runtime preview, in windows of at most N played frames
+as the Runtime view does (the editor uses 48), and through libserum with the whole project
+loaded as one cROM, and compares every step: the frame identified, whether libserum reported the
+picture as unchanged or skipped the frame, and both planes. It also compares what libserum says
+it identified with the editor's statement of libserum's search rule, and prints how many windows
+were loaded and what they cost. The whole project needs its cROM in memory, about 1.7 to 3.7 GB
+for the projects named here; `--no-whole` leaves that comparison out and reports the windows.
+Expected for every project: `0 steps identified differently, 0 reported differently` and
+`search rule against libserum: 0 differences`. Pictures may differ at single pixels of the
+64-row plane, see "Runtime View". Last measured over all frames: `afm_113b` 3047 frames, 8
+identified as another frame than the one fed, no difference; `hook_501` 3897, 26, none; `smb3`
+4430, 3, pictures in 19 steps (19 pixels of the 64-row plane); `trn_174h` 5211, 48, pictures in
+13 steps (26 pixels); `frankst1` 11199 frames with `--no-whole`, 4, search rule without
+difference.
+
+For changes to the Runtime view, also check by hand: `Ctrl+R`, the `Runtime` toolbar button and
+`View -> Runtime View` on and off in an ordinary project in SD and in HD mode, both runtime planes
+on a frame with and without HD, an Inspector edit and undo while the view is on, `Play` with the
+view on over a frame with a color rotation and over frames that share an original (the status
+line names the frame libserum identified), `File -> Export Current Frame PNG...` with the view on
+and off and on an inactive frame, and the same in a project with 256x64 and one with 192x64
+original frames.
+
+For changes to dynamic data, check in an ordinary project that `Dynamic` is disabled in HD mode
+with its tool tip, that the `Dyn` page there shows the SD colors with its note, that a color
+changed there shows in the HD picture, and that a project with stored HD dynamic data still
+round-trips byte-identical.
 
 For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
 projects. It loads a project, serializes it in memory, and reports per block where the result

@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
 
 namespace colorizing::legacy {
@@ -37,6 +38,20 @@ using LegacySectionOffsets = std::vector<std::pair<std::string, std::size_t>>;
 [[nodiscard]] bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
                                        const std::vector<uint16_t>& originalColors,
                                        render::Resolution nativePlane);
+// The same rule on the parts it reads: the native plane's colorized frame (nullptr if the
+// frame has none) and dynamic mask (nullptr without dynamic data).
+[[nodiscard]] bool isLegacyFrameActive(uint32_t durationMs,
+                                       const document::IndexedFrame& original,
+                                       const document::Rgb565Frame* nativeColorized,
+                                       const document::IndexedFrame* nativeDynamicMask,
+                                       const std::vector<uint16_t>& originalColors);
+
+// Whether the runtime shows nothing new for the frame as a save writes it: it is flagged
+// inactive (isLegacyFrameActive(): shorter than kSkipFrameDurationMs and not colorized) and
+// has nothing libserum renders an inactive frame for either, an assigned background or a
+// dynamic zone. libserum identifies such a frame and keeps the picture it shows.
+[[nodiscard]] bool isFrameSkippedAtRuntime(const document::ProjectDocument& document,
+                                           std::size_t frameIndex);
 
 // Write complete files from the snapshot alone, in the current legacy layout.
 [[nodiscard]] bool writeLegacyCrom(std::ostream& stream,

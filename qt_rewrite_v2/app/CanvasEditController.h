@@ -219,6 +219,10 @@ private:
                                     const std::vector<render::Point>& pixels,
                                     uint8_t value,
                                     const QString& statusText);
+    // Dynamic zones exist on ProjectDocument::dynamicPlane() alone. Says so in the status
+    // line and returns false for the other plane.
+    [[nodiscard]] bool isDynamicPlane(const CanvasEditContext& context,
+                                      render::Resolution resolution);
     // kind is DynamicMask or BackgroundMask.
     void commitFrameMaskPixels(const CanvasEditContext& context,
                                edit::EditKind kind,

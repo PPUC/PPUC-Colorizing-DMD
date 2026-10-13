@@ -61,6 +61,9 @@ private:
         // Offered for HD-only projects alone, as "Not rendered": frames the runtime shows
         // nothing for.
         HdIncomplete,
+        // Frames a save flags inactive and the runtime skips, see
+        // legacy::isFrameSkippedAtRuntime().
+        Inactive,
     };
 
     void createActions();
@@ -69,8 +72,8 @@ private:
     void openRecentProject(const QString& entry);
     void saveProject();
     void saveProjectAs();
+    // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
-    void exportCurrentFrameRuntimePng();
     void importImageIntoSelectedFrames();
     void loadProject(const QString& cromPath, const QString& crpPath);
     void rememberRecentProject(const QString& cromPath, const QString& crpPath);
@@ -91,6 +94,10 @@ private:
     [[nodiscard]] QString planeName(render::Resolution resolution) const;
     // Why the runtime shows nothing for the frame of an HD-only project; empty otherwise.
     [[nodiscard]] QString frameHdGapsText(std::size_t frameIndex) const;
+    // The gaps of frameHdGapsText() and what "inactive" means, for a frame list item.
+    [[nodiscard]] QString frameListItemToolTip(std::size_t frameIndex) const;
+    // A frame's "inactive" marker in the list and the status line follows an edit.
+    void updateInactiveFrameMarker(std::size_t frameIndex);
     void updateFrameFilterChoices();
     [[nodiscard]] bool frameMatchesFilter(std::size_t frameIndex) const;
     [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
@@ -192,6 +199,12 @@ private:
     [[nodiscard]] std::vector<edit::HistoryKey> currentHistoryKeys() const;
     [[nodiscard]] std::optional<std::size_t> currentComparisonMaskIndex() const;
     [[nodiscard]] bool isComparisonMaskModeActive() const;
+    // The plane dynamic masks, colors and shadows are edited on, whatever the editing mode:
+    // see ProjectDocument::dynamicPlane().
+    [[nodiscard]] render::Resolution dynamicPlane() const;
+    // False in HD mode of an ordinary project: the dynamic zones are those of the SD plane
+    // and are not shown or painted over the HD frame.
+    [[nodiscard]] bool isDynamicPlaneActive() const;
     [[nodiscard]] bool isDynamicMaskModeActive() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
@@ -239,7 +252,6 @@ private:
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;
-    QAction* m_exportRuntimeFrameAction = nullptr;
     QMenu* m_recentProjectsMenu = nullptr;
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
@@ -256,6 +268,7 @@ private:
     QToolButton* m_dynamicMaskOverlayButton = nullptr;
     QToolButton* m_backgroundMaskOverlayButton = nullptr;
     QToolButton* m_playbackButton = nullptr;
+    QToolButton* m_runtimeViewButton = nullptr;
     QToolButton* m_loopPlaybackButton = nullptr;
     QCheckBox* m_useProjectTimingCheckBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;

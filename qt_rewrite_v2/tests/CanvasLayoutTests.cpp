@@ -135,6 +135,7 @@ void runLegacyProjectSerializerTests();
 void runNativeOriginalProjectTests();
 void runProjectGeometryTests();
 void runRuntimePreviewTests();
+void runPlaybackIdentificationTests();
 
 int main()
 {
@@ -154,6 +155,7 @@ int main()
     runNativeOriginalProjectTests();
     runProjectGeometryTests();
     runRuntimePreviewTests();
+    runPlaybackIdentificationTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

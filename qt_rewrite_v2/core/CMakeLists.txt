@@ -18,6 +18,7 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacySnapshotBuilder.cpp
     render/CanvasLayout.cpp
     render/ProjectGeometry.cpp
+    runtime/FrameIdentification.cpp
     runtime/RuntimePreview.cpp
 )
 

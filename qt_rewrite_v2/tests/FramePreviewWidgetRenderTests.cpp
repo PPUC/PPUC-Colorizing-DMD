@@ -775,7 +775,9 @@ void testDynamicMaskOverlayRendersInSdAndHd()
     QPainter hdPainter(&hdImage);
     widget.render(&hdPainter);
     hdPainter.end();
-    expect(hasVisibleCyanPixel(hdImage), "HD dynamic mask overlay should render visibly");
+    expect(!hasVisibleCyanPixel(hdImage),
+           "no dynamic mask overlay over the HD frame of an ordinary project: the zones are "
+           "those of the SD plane, and the stored HD mask is not shown");
 }
 
 void testDynamicReplacementRendersInSdAndHd()
@@ -796,7 +798,9 @@ void testDynamicReplacementRendersInSdAndHd()
         colorizing::render::Resolution::Hd,
         2,
         false);
-    expect(hasVisibleGreenPixel(hdImage), "HD dynamic replacement should use dynamic color set");
+    expect(hasVisibleRedPixel(hdImage) && !hasVisibleGreenPixel(hdImage),
+           "the HD picture of an ordinary project takes its dynamic colors from the SD set, "
+           "not from the stored HD colors");
 }
 
 void testDmdRenderOptionsLeavePixelSpacing()

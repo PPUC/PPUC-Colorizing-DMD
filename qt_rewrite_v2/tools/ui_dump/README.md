@@ -58,6 +58,9 @@ qt_rewrite_v2/tools/ui_dump/run.sh after --allow-appended
 
 # The change rewrites one group of states on purpose; everything else must stay the same.
 qt_rewrite_v2/tools/ui_dump/run.sh after --ignore-sections '^===== 256 original: '
+
+# The change adds a widget to the toolbar or makes the window wider in another way.
+qt_rewrite_v2/tools/ui_dump/run.sh after --ignore-geometry
 ```
 
 `baseline` runs the dump twice and fails if the two runs differ, so a baseline is known to be
@@ -180,6 +183,29 @@ qt_rewrite_v2/tools/ui_dump/run.sh after --ignore-sections '^===== 256 original:
 `REAL DIFFERENCES: 0` then means: no state of an ordinary project changed. The ignored states
 are reviewed by reading them in `after.txt`.
 
+### `--ignore-geometry`
+
+For a change that makes the main window wider or moves widgets on purpose. The window is as wide
+as its toolbar row needs, so one more toolbar button, or a longer text in the frame status label
+at the end of that row, widens the window and with it the canvas: every widget right of the
+change gets another position in every state, and every canvas grab another size and hash. That
+is hundreds of thousands of reported differences with nothing to read in them. With this option
+the position and size of every widget (`@x,y WxH`) and the `--- canvas grab` lines are left out
+of the comparison, and the summary says `widget geometry and canvas grabs: not compared`.
+Everything else is compared as usual: texts, tool tips, states, item lists, the focus order,
+document hashes, thumbnails and what the scripts print.
+
+Because the canvas pictures are not compared then, keep such a change apart from changes to what
+is drawn: make the widening change alone, compare it with `--ignore-geometry`, and take the
+working tree's dump as the baseline for what follows (below).
+
+### A baseline of the working tree
+
+`run.sh baseline` dumps a git revision. To compare two states of the working tree, for example
+before and after the second of several uncommitted changes, dump the first with `run.sh after`
+and copy `after.txt` over `before.txt` in the work directory (keep the old `before.txt` under
+another name if it is still needed); `run.sh after` and `run.sh compare` only read that file.
+
 Lines of widgets inside the hidden sprite selection combo box start with the tag
 `[hidden sprite selection combo] ` so that they can be matched by such an expression; see
 `ownerTag()` in `dump.cpp` to tag another group of widgets.
@@ -219,7 +245,8 @@ Not covered:
 - Only the offscreen platform, only one window size, no high-DPI variants, no styling
   differences between platforms.
 - Menu entries are not dumped (actions are not widgets); only whether undo and redo are
-  enabled.
+  enabled, and each menu as one hidden `QMenu` line. A toolbar button made from an action shows
+  as the button.
 - States nobody scripted. A change in a code path the scripts do not reach is invisible.
 
 The tool uses its own `QSettings` organisation and application name, so it does not read or
@@ -237,10 +264,19 @@ The script is plain C++ in six places, executed in this order:
 | `big_original_script.inc` | a project with 256x64 original frames, which has the HD plane only: every inspector page, no SD and HD buttons, frames, a background and sprites without HD data and their repair with `Create 256x64 Frame` / `Create 256x64 Sprite`, the `Not rendered` filter, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite assignment and capture on the native grid, the sprite canvas |
 | `native_original_script.inc` | a project with 192x64 original frames, which is edited on its 192x64 plane only: every inspector page, no SD/HD buttons and no Create/Remove HD buttons, painting, comparison mask and dynamic mask editing with undo at coordinates beyond 128x32, sprite capture and slot bounds on the native grid, the sprite canvas; it prints whether a save writes the discarded 96x32 plane as "no extra data" and whether a second save is identical |
 
-| `runtime_view_script.inc` | the Runtime view, in a 128x32, a 256x64-original and a 192x64-original project: on and off through its menu actions, both runtime planes of a frame with and without HD, the runtime PNG export, an edit, undo and redo while the view is on, a click on the canvas, playback through libserum and one playback step, the sprite canvas ending the view, a frame libserum has no picture for; after each dump it prints the view's state, which is not a widget |
+| `runtime_view_script.inc` | the Runtime view, in a 128x32, a 256x64-original and a 192x64-original project: on and off through its menu actions, both runtime planes of a frame with and without HD, the PNG export (`File -> Export Current Frame PNG...`, which writes libserum's output), an edit, undo and redo while the view is on, a click on the canvas, playback through libserum and one playback step, the sprite canvas ending the view, a frame libserum has no picture for; after each dump it prints the view's state, which is not a widget. Then, with the title prefix `identification: `, a project with an inactive frame and three frames that share an original: the `inactive` marker in the frame list and the status line, the `Inactive` filter and a frame leaving it when it is colorized, the export refusing the inactive frame, the hint in the status line when a machine would identify a frame's original as another frame, and playback that identifies another frame than the one fed |
 
 `runtime_view_script.inc` is compiled only for a tree that has `app/RuntimeView.h`; a baseline of
-an older revision ends with the states before it, and is compared with `--allow-appended`.
+an older revision ends with the states before it, and is compared with `--allow-appended`. Its
+`identification: ` states use what a tree before them does not have (`exportCurrentFramePng()`
+as the runtime export, the `Inactive` filter entry); a baseline of such a tree has to be taken
+with the scripts of that tree.
+
+`inspector_script.inc` walks through the first five entries of the frame filter only, the ones an
+ordinary project has always had; an entry added later gets states of its own at the end of the
+scripts, so that it does not insert a section in the middle. Its dynamic mask states switch to HD
+with the `Dynamic` mode on: a tree that switches the mode off in HD (an ordinary project has no
+HD dynamic zones to edit) skips the click and the undo there and prints that it did.
 
 Both of these scripts also run against a tree that still showed SD/HD controls for such
 projects: they look up the repair button under either name and print, instead of assuming,

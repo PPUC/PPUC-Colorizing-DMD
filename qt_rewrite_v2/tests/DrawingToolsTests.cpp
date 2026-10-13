@@ -968,7 +968,7 @@ void testMaskChanges()
 {
     ProjectDocument document = makeDocument();
     document.setComparisonMaskPixel(0, 1, 0, 1);
-    document.setDynamicMaskPixel(0, Resolution::Hd, 5, 5, 3);
+    document.setDynamicMaskPixel(0, Resolution::Sd, 5, 5, 3);
     document.setBackgroundMaskPixel(0, Resolution::Sd, 7, 7, 1);
     document.markClean();
 
@@ -983,7 +983,7 @@ void testMaskChanges()
     expect(comparison[1].x == 2 && comparison[1].y == 0, "comparison mask second change");
 
     const std::vector<MaskPixelChange> dynamic = edit::makeMaskChanges(
-        document, EditLayer{EditKind::DynamicMask, 0, Resolution::Hd}, {{5, 5}, {6, 5}}, 255);
+        document, EditLayer{EditKind::DynamicMask, 0, Resolution::Sd}, {{5, 5}, {6, 5}}, 255);
     expect(dynamic.size() == 1 && dynamic[0].x == 5 && dynamic[0].oldValue == 3 &&
                dynamic[0].newValue == 255,
            "dynamic mask erase captures the old set and skips unset pixels");

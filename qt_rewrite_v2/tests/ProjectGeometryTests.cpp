@@ -381,7 +381,6 @@ void testHdPresenceOfHdOnlyProject()
     expect(!document.frameHdGaps(1).any(), "a frame with HD and nothing assigned is complete");
 
     expect(throwsLogicError([&]() { document.removeHdFrame(1); }) && document.hasHdFrame(1) &&
-               throwsLogicError([&]() { document.upscaleDynamicMaskToHd(0); }) &&
                throwsLogicError([&]() { document.upscaleBackgroundMaskToHd(0); }) &&
                !document.isDirty(),
            "HD cannot be removed and nothing is upscaled from the unused SD data");

@@ -57,6 +57,7 @@
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
+#include "legacy/LegacyProjectSerializer.h"
 
 namespace colorizing::app {
 
@@ -179,6 +180,10 @@ QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
     }
     return image;
 }
+
+// What "inactive" on a frame means, see legacy::isFrameSkippedAtRuntime().
+const QString kInactiveFrameToolTip = QStringLiteral(
+    "inactive: shorter than 15 ms and not colorized \u2014 the runtime skips it");
 
 QPixmap previewPixmap(const QImage& image, QSize targetSize);
 
@@ -303,6 +308,7 @@ void MainWindow::createActions()
 {
     QMenu* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
     QMenu* editMenu = menuBar()->addMenu(QStringLiteral("&Edit"));
+    QMenu* viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
 
     QAction* openAction = fileMenu->addAction(QStringLiteral("&Open Project..."));
     openAction->setShortcut(QKeySequence::Open);
@@ -324,16 +330,9 @@ void MainWindow::createActions()
     });
 
     QAction* exportFrameAction = fileMenu->addAction(QStringLiteral("Export Current &Frame PNG..."));
+    exportFrameAction->setToolTip(QStringLiteral("Export the current frame as libserum renders it"));
     connect(exportFrameAction, &QAction::triggered, this, [this]() {
         exportCurrentFramePng();
-    });
-
-    m_exportRuntimeFrameAction =
-        fileMenu->addAction(QStringLiteral("Export Current Frame R&untime PNG..."));
-    m_exportRuntimeFrameAction->setToolTip(
-        QStringLiteral("Export the current frame as libserum renders it"));
-    connect(m_exportRuntimeFrameAction, &QAction::triggered, this, [this]() {
-        exportCurrentFrameRuntimePng();
     });
 
     QAction* importFrameImageAction =
@@ -367,8 +366,9 @@ void MainWindow::createActions()
         redo();
     });
 
-    editMenu->addSeparator();
-    m_runtimeViewAction = editMenu->addAction(QStringLiteral("Runtime &View"));
+    m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
+    // What the toolbar button of the action shows.
+    m_runtimeViewAction->setIconText(QStringLiteral("Runtime"));
     m_runtimeViewAction->setCheckable(true);
     m_runtimeViewAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     m_runtimeViewAction->setShortcutContext(Qt::ApplicationShortcut);
@@ -379,12 +379,13 @@ void MainWindow::createActions()
     });
 
     auto* rowsGroup = new QActionGroup(this);
-    m_runtimeRows32Action = editMenu->addAction(QStringLiteral("Runtime Plane: &32 Rows"));
+    viewMenu->addSeparator();
+    m_runtimeRows32Action = viewMenu->addAction(QStringLiteral("Runtime Plane: &32 Rows"));
     m_runtimeRows32Action->setCheckable(true);
     m_runtimeRows32Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
     m_runtimeRows32Action->setShortcutContext(Qt::ApplicationShortcut);
     m_runtimeRows32Action->setToolTip(QStringLiteral("What a display with 32 rows gets"));
-    m_runtimeRows64Action = editMenu->addAction(QStringLiteral("Runtime Plane: &64 Rows"));
+    m_runtimeRows64Action = viewMenu->addAction(QStringLiteral("Runtime Plane: &64 Rows"));
     m_runtimeRows64Action->setCheckable(true);
     m_runtimeRows64Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
     m_runtimeRows64Action->setShortcutContext(Qt::ApplicationShortcut);
@@ -420,6 +421,11 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::Dynamic));
     m_frameFilterComboBox->addItem(QStringLiteral("With sprites"),
                                    static_cast<int>(FrameFilter::Sprites));
+    m_frameFilterComboBox->addItem(QStringLiteral("Inactive"),
+                                   static_cast<int>(FrameFilter::Inactive));
+    m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
+                                       kInactiveFrameToolTip,
+                                       Qt::ToolTipRole);
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new QListWidget(central);
     m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -754,6 +760,10 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_loopPlaybackButton);
     toolbarLayout->addWidget(m_useProjectTimingCheckBox);
     toolbarLayout->addWidget(m_playbackIntervalSpinBox);
+    // The same action as View -> Runtime View, where it can be seen.
+    m_runtimeViewButton = new QToolButton(central);
+    m_runtimeViewButton->setDefaultAction(m_runtimeViewAction);
+    toolbarLayout->addWidget(m_runtimeViewButton);
     toolbarLayout->addSpacing(12);
     toolbarLayout->addWidget(m_frameStatusLabel);
     toolbarLayout->addStretch(1);
@@ -1183,70 +1193,11 @@ void MainWindow::exportCurrentFramePng()
         statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
         return;
     }
-
-    render::Resolution exportResolution = m_activeResolution;
-    if (exportResolution == render::Resolution::Hd && !m_document->hasHdFrame(*frameIndex)) {
-        if (isHdOnlyProject()) {
-            statusBar()->showMessage(
-                QStringLiteral("Frame %1 has no %2 frame: there is no picture to export")
-                    .arg(static_cast<int>(*frameIndex))
-                    .arg(nativePlaneText(*m_document)),
-                4000);
-            return;
-        }
-        exportResolution = render::Resolution::Sd;
-    }
-
-    const QString resolutionName = planeName(exportResolution).toLower();
-    QFileInfo currentCromInfo(m_currentCromPath);
-    QString defaultPath = currentCromInfo.dir().absoluteFilePath(
-        QStringLiteral("%1_frame_%2_%3.png")
-            .arg(currentCromInfo.completeBaseName())
-            .arg(static_cast<int>(*frameIndex), 4, 10, QLatin1Char('0'))
-            .arg(resolutionName));
-    QString targetPath = QFileDialog::getSaveFileName(
-        this,
-        QStringLiteral("Export Current Frame PNG"),
-        defaultPath,
-        QStringLiteral("PNG image (*.png);;All files (*)"));
-    if (targetPath.isEmpty()) {
-        return;
-    }
-    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
-        targetPath += QStringLiteral(".png");
-    }
-
-    const bool includeBackgroundLayer =
-        m_framePanel && m_framePanel->isBackgroundLayerChecked();
-    const QImage image = renderResolvedFrameImage(*m_document,
-                                                  *frameIndex,
-                                                  exportResolution,
-                                                  kExportDmdPixelScale,
-                                                  includeBackgroundLayer,
-                                                  currentDmdRenderOptions());
-    if (!image.save(targetPath, "PNG")) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Export Failed"),
-                              QStringLiteral("Could not write PNG file."));
-        return;
-    }
-    statusBar()->showMessage(QStringLiteral("Exported frame PNG"), 3000);
-}
-
-void MainWindow::exportCurrentFrameRuntimePng()
-{
-    if (!m_document) {
-        return;
-    }
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!frameIndex) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
-        return;
-    }
     // A still of its own; a playing sequence would be replaced by it.
     setPlaybackRunning(false);
 
-    // The plane the Runtime view shows, or the one the editing mode is on.
+    // The picture is libserum's, as a machine shows the frame: the plane the Runtime view
+    // shows, or the one the editing mode is on.
     const runtime::PlaneRequest wanted =
         m_runtimeView.isEnabled() ? m_runtimeView.rows()
         : m_activeResolution == render::Resolution::Hd ? runtime::PlaneRequest::Rows64
@@ -1257,23 +1208,30 @@ void MainWindow::exportCurrentFrameRuntimePng()
         runtime::RuntimePreview::instance().renderFrame(*m_document, *frameIndex, rows);
     const runtime::RuntimePlane* plane = frame.ok() ? frame.plane(rows) : nullptr;
     if (!plane) {
+        // Nothing is written from the editor's own renderer instead: the file would show
+        // what no machine shows.
         statusBar()->showMessage(
-            frame.ok() ? QStringLiteral("libserum shows no picture for frame %1: nothing to export")
-                             .arg(static_cast<int>(*frameIndex))
-                       : QStringLiteral("libserum: %1").arg(QString::fromStdString(frame.error)),
-            4000);
+            QStringLiteral("Frame %1 is not exported: %2")
+                .arg(static_cast<int>(*frameIndex))
+                .arg(QString::fromStdString(runtimeNoPictureReason(frame, rows))),
+            8000);
         return;
     }
 
+    const render::Resolution exportPlane =
+        m_document->geometry().layout() != render::PlaneLayout::Ordinary
+            ? m_document->geometry().nativePlane()
+            : rows == runtime::PlaneRequest::Rows64 ? render::Resolution::Hd
+                                                    : render::Resolution::Sd;
     QFileInfo currentCromInfo(m_currentCromPath);
     const QString defaultPath = currentCromInfo.dir().absoluteFilePath(
-        QStringLiteral("%1_frame_%2_runtime_%3rows.png")
+        QStringLiteral("%1_frame_%2_%3.png")
             .arg(currentCromInfo.completeBaseName())
             .arg(static_cast<int>(*frameIndex), 4, 10, QLatin1Char('0'))
-            .arg(plane->image.size.height));
+            .arg(planeName(exportPlane).toLower()));
     QString targetPath = QFileDialog::getSaveFileName(
         this,
-        QStringLiteral("Export Current Frame Runtime PNG"),
+        QStringLiteral("Export Current Frame PNG"),
         defaultPath,
         QStringLiteral("PNG image (*.png);;All files (*)"));
     if (targetPath.isEmpty()) {
@@ -1290,7 +1248,9 @@ void MainWindow::exportCurrentFrameRuntimePng()
                               QStringLiteral("Could not write PNG file."));
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Exported runtime frame PNG"), 3000);
+    statusBar()->showMessage(QStringLiteral("Exported frame PNG as libserum renders it, %1 rows")
+                                 .arg(plane->image.size.height),
+                             3000);
 }
 
 void MainWindow::importImageIntoSelectedFrames()
@@ -1568,7 +1528,7 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
         auto* item = new QListWidgetItem(m_frameThumbnails->placeholder(),
                                          frameListItemText(frameIndex));
         item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
-        item->setToolTip(frameHdGapsText(frameIndex));
+        item->setToolTip(frameListItemToolTip(frameIndex));
         item->setSizeHint(QSize(210, 96));
         m_frameList->addItem(item);
         if (selectedFrameIndex && *selectedFrameIndex == frameIndex) {
@@ -1640,6 +1600,31 @@ QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
                                    .arg(reasons.join(QStringLiteral("; ")));
 }
 
+QString MainWindow::frameListItemToolTip(std::size_t frameIndex) const
+{
+    QStringList lines;
+    const QString gaps = frameHdGapsText(frameIndex);
+    if (!gaps.isEmpty()) {
+        lines << gaps;
+    }
+    if (m_document && frameIndex < m_document->frameCount() &&
+        legacy::isFrameSkippedAtRuntime(*m_document, frameIndex)) {
+        lines << kInactiveFrameToolTip;
+    }
+    return lines.join(QChar('\n'));
+}
+
+void MainWindow::updateInactiveFrameMarker(std::size_t frameIndex)
+{
+    // Only a frame shorter than the limit can be inactive, and becomes active by being
+    // colorized or getting a dynamic zone.
+    if (m_document && frameIndex < m_document->frameCount() &&
+        m_document->frameDurationMs(frameIndex) < legacy::kSkipFrameDurationMs) {
+        updateFrameListItemText(frameIndex);
+        updateFrameStatusText();
+    }
+}
+
 void MainWindow::updateFrameFilterChoices()
 {
     if (!m_frameFilterComboBox) {
@@ -1697,6 +1682,9 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
                       }));
     if (spriteCount > 0) {
         details << QStringLiteral("%1 sprites").arg(spriteCount);
+    }
+    if (legacy::isFrameSkippedAtRuntime(*m_document, frameIndex)) {
+        details << QStringLiteral("inactive");
     }
     const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
     if (gaps.frame) {
@@ -1881,6 +1869,9 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     if (filter == FrameFilter::HdIncomplete) {
         return m_document->frameHdGaps(frameIndex).any();
     }
+    if (filter == FrameFilter::Inactive) {
+        return legacy::isFrameSkippedAtRuntime(*m_document, frameIndex);
+    }
     if (filter == FrameFilter::Background) {
         const std::optional<document::FrameBackgroundData>& backgroundData =
             m_document->backgroundData(frameIndex);
@@ -1981,17 +1972,36 @@ void MainWindow::updateFrameStatusText()
         setFrameStatusText(QString());
         return;
     }
+    const bool inactive = legacy::isFrameSkippedAtRuntime(*m_document, *frameIndex);
     if (m_runtimeView.isEnabled()) {
+        // Which frame a machine identifies the ROM frame as, where that is another one.
+        // Short: the label's width is part of the window's minimum width. The sentence is
+        // above the picture and in the tool tip.
+        const QString hint = QString::fromStdString(
+            m_runtimeView.identificationHint(*m_document, *frameIndex, true));
         setFrameStatusText(
-            QStringLiteral("Frame %1 | Runtime view, %2 rows | editing off")
+            QStringLiteral("Frame %1 | Runtime view, %2 rows | editing off%3%4")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(m_runtimeView.rowsFor(m_document->geometry()) ==
                              runtime::PlaneRequest::Rows64
                          ? 64
-                         : 32));
-        m_frameStatusLabel->setToolTip(
+                         : 32)
+                .arg(inactive ? QStringLiteral(" | inactive") : QString())
+                .arg(hint.isEmpty() ? QString() : QStringLiteral(" | %1").arg(hint)));
+        QStringList toolTip{
             QStringLiteral("The canvas shows libserum's output. Switch the Runtime view off "
-                           "in the Edit menu to edit."));
+                           "in the View menu or the toolbar to edit.")};
+        if (inactive) {
+            toolTip << kInactiveFrameToolTip;
+        }
+        if (!hint.isEmpty()) {
+            toolTip << QStringLiteral("%1. libserum identifies a ROM frame by order: it "
+                                      "starts at the frame it identified last, and several "
+                                      "frames can match one ROM frame.")
+                           .arg(QString::fromStdString(
+                               m_runtimeView.identificationHint(*m_document, *frameIndex)));
+        }
+        m_frameStatusLabel->setToolTip(toolTip.join(QChar('\n')));
         return;
     }
     const int selectedCount = static_cast<int>(selectedFrameIndices().size());
@@ -2004,6 +2014,8 @@ void MainWindow::updateFrameStatusText()
                                       ? QStringLiteral("HD 256x64")
                                       : QStringLiteral("HD unavailable"))
                        : nativePlaneText(*m_document);
+    // An inactive frame is marked in the frame list and explained in the tool tip here; the
+    // line itself stays as short as it was.
     setFrameStatusText(QStringLiteral("Frame %1 | %2 | %3 ms%4%5")
                            .arg(static_cast<int>(*frameIndex))
                            .arg(planes)
@@ -2013,8 +2025,14 @@ void MainWindow::updateFrameStatusText()
                                     : QString())
                            .arg(gapsText.isEmpty() ? QString()
                                                    : QStringLiteral(" | not rendered")));
-    m_frameStatusLabel->setToolTip(gapsText.isEmpty() ? QString()
-                                                      : QStringLiteral("%1.").arg(gapsText));
+    QStringList toolTip;
+    if (!gapsText.isEmpty()) {
+        toolTip << QStringLiteral("%1.").arg(gapsText);
+    }
+    if (inactive) {
+        toolTip << kInactiveFrameToolTip;
+    }
+    m_frameStatusLabel->setToolTip(toolTip.join(QChar('\n')));
 }
 
 void MainWindow::updatePlaybackControls()
@@ -2060,6 +2078,7 @@ void MainWindow::setPlaybackRunning(bool running)
             if (m_preview) {
                 m_preview->update();
             }
+            updateFrameStatusText();
         }
         if (m_preview) {
             m_preview->setColorRotationPreviewElapsedMs(std::nullopt);
@@ -2084,6 +2103,8 @@ void MainWindow::setPlaybackRunning(bool running)
             m_preview->update();
         }
         startRuntimeRotations();
+        // Fed to libserum now: the status line says which frame it identified.
+        updateFrameStatusText();
     } else {
         if (m_preview) {
             m_preview->setColorRotationPreviewElapsedMs(0);
@@ -2242,12 +2263,18 @@ void MainWindow::updateCanvasModeButtons()
 {
     const bool hasDocument = m_document.has_value();
     const bool twoPlanes = !isHdOnlyProject() && !isOriginalPlaneOnlyProject();
-    // In the Runtime view the plane is chosen in the Edit menu and no overlay is drawn.
+    // In the Runtime view the plane is chosen in the View menu and no overlay is drawn.
     const bool editing = !m_runtimeView.isEnabled();
     m_sdButton->setEnabled(hasDocument && twoPlanes && editing);
     m_hdButton->setEnabled(hasDocument && twoPlanes && editing);
     m_comparisonMaskOverlayButton->setEnabled(hasDocument && editing);
-    m_dynamicMaskOverlayButton->setEnabled(hasDocument && editing);
+    // Dynamic zones are shown and painted on the plane the runtime takes them from.
+    const bool dynamicZonesHere = isDynamicPlaneActive();
+    m_dynamicMaskOverlayButton->setEnabled(hasDocument && editing && dynamicZonesHere);
+    m_dynamicMaskOverlayButton->setToolTip(
+        dynamicZonesHere ? QStringLiteral("Show dynamic mask overlay")
+                         : QStringLiteral("Dynamic zones are defined on the 128x32 plane: "
+                                          "switch to SD to see and paint them"));
     m_backgroundMaskOverlayButton->setEnabled(hasDocument && editing);
     for (QToolButton* button : m_toolButtons) {
         button->setEnabled(editing);
@@ -2268,7 +2295,23 @@ void MainWindow::updateResolutionMode()
     const bool twoPlanes = !hdOnly && !originalOnly;
     m_sdButton->setVisible(twoPlanes);
     m_hdButton->setVisible(twoPlanes);
+    if (!isDynamicPlaneActive() && m_dynamicMaskOverlayButton->isChecked()) {
+        // Leaves the mode: the overlay goes and the tools paint the frame again.
+        m_dynamicMaskOverlayButton->setChecked(false);
+        statusBar()->showMessage(
+            QStringLiteral("Dynamic mode is off in HD: dynamic zones are defined on the "
+                           "128x32 plane"),
+            4000);
+    }
     updateCanvasModeButtons();
+    if (m_dynamicPanel) {
+        m_dynamicPanel->setNote(
+            isDynamicPlaneActive()
+                ? QString()
+                : QStringLiteral("Dynamic zones are defined on the 128x32 plane. The colors "
+                                 "and shadows here are the ones of that plane; switch to SD "
+                                 "to see and paint the zones."));
+    }
     if (m_framePanel) {
         m_framePanel->setImportImageEnabled(hasDocument && !selectedFrameIndices().empty());
     }
@@ -3616,7 +3659,6 @@ void MainWindow::createCurrentFrameHd()
         return;
     }
 
-    const bool hasDynamicData = m_document->dynamicData(*frameIndex).has_value();
     const std::optional<document::FrameBackgroundData>& backgroundData =
         m_document->backgroundData(*frameIndex);
     const bool hasBackgroundData = backgroundData.has_value();
@@ -3626,15 +3668,12 @@ void MainWindow::createCurrentFrameHd()
     QDialog dialog(this);
     dialog.setWindowTitle(QStringLiteral("Create HD Frame"));
     auto* dialogLayout = new QVBoxLayout(&dialog);
+    // No dynamic data among them: the runtime renders the dynamic zones of the SD plane into
+    // the HD picture and does not read an HD dynamic mask.
     auto* description = new QLabel(QStringLiteral("Create HD frame from SD. Upscale related data?"),
                                    &dialog);
     description->setWordWrap(true);
     dialogLayout->addWidget(description);
-    auto* dynamicMaskCheckBox = new QCheckBox(QStringLiteral("Dynamic mask and colors"), &dialog);
-    dynamicMaskCheckBox->setChecked(hasDynamicData);
-    dynamicMaskCheckBox->setEnabled(hasDynamicData);
-    dynamicMaskCheckBox->setToolTip(QStringLiteral("Scale SD dynamic mask to HD and copy dynamic colors"));
-    dialogLayout->addWidget(dynamicMaskCheckBox);
     auto* backgroundMaskCheckBox = new QCheckBox(QStringLiteral("Background mask"), &dialog);
     backgroundMaskCheckBox->setChecked(hasBackgroundData);
     backgroundMaskCheckBox->setEnabled(hasBackgroundData);
@@ -3656,7 +3695,6 @@ void MainWindow::createCurrentFrameHd()
 
     try {
         document::FrameHdParts parts;
-        parts.dynamic = dynamicMaskCheckBox->isChecked();
         parts.backgroundMask = backgroundMaskCheckBox->isChecked();
         parts.backgroundImage = backgroundImageCheckBox->isChecked();
         std::unique_ptr<edit::EditCommand> command =
@@ -3738,7 +3776,7 @@ void MainWindow::updateDynamicColorControls()
     if (m_dynamicPanel) {
         m_dynamicPanel->refreshColors(m_document ? &*m_document : nullptr,
                                       currentFrameIndex(),
-                                      m_activeResolution);
+                                      dynamicPlane());
     }
     updateDynamicShadowControls();
 }
@@ -3748,7 +3786,7 @@ void MainWindow::updateDynamicShadowControls()
     if (m_dynamicPanel) {
         m_dynamicPanel->refreshShadow(m_document ? &*m_document : nullptr,
                                       currentFrameIndex(),
-                                      m_activeResolution);
+                                      dynamicPlane());
     }
 }
 
@@ -3767,7 +3805,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
 
     try {
         const uint16_t oldRgb565 = m_document->dynamicColor(*frameIndex,
-                                                            m_activeResolution,
+                                                            dynamicPlane(),
                                                             activeDynamicSet(),
                                                             originalColorIndex);
         const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldRgb565),
@@ -3782,7 +3820,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
             return;
         }
         commitEdit(std::make_unique<edit::DynamicColorEditCommand>(*frameIndex,
-                                                                   m_activeResolution,
+                                                                   dynamicPlane(),
                                                                    activeDynamicSet(),
                                                                    originalColorIndex,
                                                                    oldRgb565,
@@ -3811,7 +3849,7 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
             }
             const uint8_t oldDirection =
                 m_document->dynamicShadowDirection(frameIndex,
-                                                   m_activeResolution,
+                                                   dynamicPlane(),
                                                    activeDynamicSet());
             const uint8_t newDirection =
                 enabled ? static_cast<uint8_t>(oldDirection | bit)
@@ -3823,7 +3861,7 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
             change.oldDirection = oldDirection;
             change.newDirection = newDirection;
             commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(frameIndex,
-                                                                        m_activeResolution,
+                                                                        dynamicPlane(),
                                                                         activeDynamicSet(),
                                                                         true,
                                                                         false,
@@ -3852,7 +3890,7 @@ void MainWindow::editDynamicShadowColor()
 
     try {
         const uint16_t oldRgb565 =
-            m_document->dynamicShadowColor(*frameIndex, m_activeResolution, activeDynamicSet());
+            m_document->dynamicShadowColor(*frameIndex, dynamicPlane(), activeDynamicSet());
         const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldRgb565),
                                                        this,
                                                        QStringLiteral("Dynamic Shadow Color"));
@@ -3872,7 +3910,7 @@ void MainWindow::editDynamicShadowColor()
             }
             const uint16_t oldColor =
                 m_document->dynamicShadowColor(selectedFrameIndex,
-                                               m_activeResolution,
+                                               dynamicPlane(),
                                                activeDynamicSet());
             if (oldColor == newRgb565) {
                 continue;
@@ -3881,7 +3919,7 @@ void MainWindow::editDynamicShadowColor()
             change.oldColor = oldColor;
             change.newColor = newRgb565;
             commitEdit(std::make_unique<edit::DynamicShadowEditCommand>(selectedFrameIndex,
-                                                                        m_activeResolution,
+                                                                        dynamicPlane(),
                                                                         activeDynamicSet(),
                                                                         false,
                                                                         true,
@@ -4558,11 +4596,16 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             m_preview->update();
             for (std::size_t frameIndex : target.frameIndices) {
                 updateFrameThumbnail(frameIndex);
+                updateInactiveFrameMarker(frameIndex);
             }
             updateProjectHeaderStatus();
             break;
-        case edit::EditKind::ComparisonMask:
         case edit::EditKind::DynamicMask:
+            for (std::size_t frameIndex : target.frameIndices) {
+                updateInactiveFrameMarker(frameIndex);
+            }
+            [[fallthrough]];
+        case edit::EditKind::ComparisonMask:
         case edit::EditKind::BackgroundMask:
             m_preview->update();
             updateProjectHeaderStatus();
@@ -4678,9 +4721,9 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     }
     if (isDynamicMaskModeActive()) {
         if (frameIndex) {
-            keys.push_back({edit::EditKind::DynamicMask, *frameIndex, m_activeResolution});
-            keys.push_back({edit::EditKind::DynamicColor, *frameIndex, m_activeResolution});
-            keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, m_activeResolution});
+            keys.push_back({edit::EditKind::DynamicMask, *frameIndex, dynamicPlane()});
+            keys.push_back({edit::EditKind::DynamicColor, *frameIndex, dynamicPlane()});
+            keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, dynamicPlane()});
         }
         return keys;
     }
@@ -4699,8 +4742,8 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
         keys.push_back({edit::EditKind::Palette, *paletteIndex, sd});
     }
     if (frameIndex) {
-        keys.push_back({edit::EditKind::DynamicColor, *frameIndex, m_activeResolution});
-        keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, m_activeResolution});
+        keys.push_back({edit::EditKind::DynamicColor, *frameIndex, dynamicPlane()});
+        keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, dynamicPlane()});
     }
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (backgroundIndex) {
@@ -4728,6 +4771,16 @@ std::optional<std::size_t> MainWindow::currentComparisonMaskIndex() const
 bool MainWindow::isComparisonMaskModeActive() const
 {
     return m_comparisonMaskOverlayButton && m_comparisonMaskOverlayButton->isChecked();
+}
+
+render::Resolution MainWindow::dynamicPlane() const
+{
+    return m_document ? m_document->dynamicPlane() : m_activeResolution;
+}
+
+bool MainWindow::isDynamicPlaneActive() const
+{
+    return m_activeResolution == dynamicPlane();
 }
 
 bool MainWindow::isDynamicMaskModeActive() const
@@ -4918,7 +4971,7 @@ void MainWindow::updateFrameListItemText(std::size_t frameIndex)
         QListWidgetItem* item = m_frameList->item(row);
         if (item && item->data(Qt::UserRole).toULongLong() == frameIndex) {
             item->setText(frameListItemText(frameIndex));
-            item->setToolTip(frameHdGapsText(frameIndex));
+            item->setToolTip(frameListItemToolTip(frameIndex));
             return;
         }
     }
@@ -4940,7 +4993,7 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
             continue;
         }
         item->setText(frameListItemText(frameIndex));
-        item->setToolTip(frameHdGapsText(frameIndex));
+        item->setToolTip(frameListItemToolTip(frameIndex));
         m_frameThumbnails->invalidate(item);
         return;
     }

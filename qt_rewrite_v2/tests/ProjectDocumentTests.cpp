@@ -602,9 +602,13 @@ void testDynamicMaskPixelEditing()
     document.setDynamicMaskPixel(0, Resolution::Sd, 4, 2, 3);
     expect(!document.isDirty(), "identical dynamic mask pixel edit should not mark dirty");
 
-    document.setDynamicMaskPixel(0, Resolution::Hd, 8, 4, 5);
-    expect(document.dynamicMaskPixel(0, Resolution::Hd, 8, 4) == 5,
-           "HD dynamic mask pixel edit should be readable");
+    document.markClean();
+    expectThrows<std::logic_error>(
+        [&]() { document.setDynamicMaskPixel(0, Resolution::Hd, 8, 4, 5); },
+        "the HD dynamic mask of an ordinary project cannot be edited");
+    expect(document.dynamicMaskPixel(0, Resolution::Hd, 8, 4) == 255 && !document.isDirty() &&
+               document.dynamicPlane() == Resolution::Sd,
+           "the stored HD dynamic mask stays readable and unchanged");
 
     document.markClean();
     document.setDynamicColor(0, Resolution::Sd, 2, 3, 0x7777);
@@ -616,9 +620,13 @@ void testDynamicMaskPixelEditing()
     document.setDynamicColor(0, Resolution::Sd, 2, 3, 0x7777);
     expect(!document.isDirty(), "identical dynamic color edit should not mark dirty");
 
-    document.setDynamicColor(0, Resolution::Hd, 2, 3, 0x8888);
-    expect(document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x8888,
-           "HD dynamic color edit should be readable");
+    document.markClean();
+    const uint16_t storedHdColor = document.dynamicColor(0, Resolution::Hd, 2, 3);
+    expectThrows<std::logic_error>(
+        [&]() { document.setDynamicColor(0, Resolution::Hd, 2, 3, 0x8888); },
+        "the HD dynamic colors of an ordinary project cannot be edited");
+    expect(document.dynamicColor(0, Resolution::Hd, 2, 3) == storedHdColor && !document.isDirty(),
+           "the stored HD dynamic colors stay readable and unchanged");
 
     expectThrows<std::out_of_range>(
         [&]() { document.setDynamicMaskPixel(0, Resolution::Sd, 128, 0, 1); },
@@ -681,12 +689,16 @@ void testDynamicShadowEditing()
     expect(document.dynamicShadowColor(0, Resolution::Sd, 2) == 0x1234,
            "SD dynamic shadow color edit should be readable");
 
-    document.setDynamicShadowDirection(0, Resolution::Hd, 2, 0x20);
-    document.setDynamicShadowColor(0, Resolution::Hd, 2, 0x5678);
-    expect(document.dynamicShadowDirection(0, Resolution::Hd, 2) == 0x20,
-           "HD dynamic shadow direction edit should be readable");
-    expect(document.dynamicShadowColor(0, Resolution::Hd, 2) == 0x5678,
-           "HD dynamic shadow color edit should be readable");
+    document.markClean();
+    expectThrows<std::logic_error>(
+        [&]() { document.setDynamicShadowDirection(0, Resolution::Hd, 2, 0x20); },
+        "the HD dynamic shadow directions of an ordinary project cannot be edited");
+    expectThrows<std::logic_error>(
+        [&]() { document.setDynamicShadowColor(0, Resolution::Hd, 2, 0x5678); },
+        "the HD dynamic shadow colors of an ordinary project cannot be edited");
+    expect(document.dynamicShadowDirection(0, Resolution::Hd, 2) != 0x20 &&
+               document.dynamicShadowColor(0, Resolution::Hd, 2) != 0x5678 && !document.isDirty(),
+           "the stored HD dynamic shadows stay readable and unchanged");
 
     expectThrows<std::out_of_range>(
         [&]() { document.setDynamicShadowDirection(0, Resolution::Sd,
@@ -1370,16 +1382,6 @@ void testHdRelatedDataUpscaling()
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
 
-    document.upscaleDynamicMaskToHd(0);
-    expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 7,
-           "HD dynamic mask should be upscaled from SD");
-    expect(document.dynamicMaskPixel(0, Resolution::Hd, 7, 5) == 7,
-           "HD dynamic mask should fill the 2x2 block from SD");
-    expect(document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x3333,
-           "HD dynamic colors should copy SD dynamic colors");
-    expect(document.isDirty(), "dynamic HD upscale should mark dirty");
-
-    document.markClean();
     document.upscaleBackgroundMaskToHd(0);
     expect(document.backgroundMaskPixel(0, Resolution::Hd, 10, 8) == 1,
            "HD background mask should be upscaled from SD");
@@ -1439,24 +1441,22 @@ void testFrameHdState()
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
 
     const FrameHdState frameOnly = document.frameHdState(0, {});
-    expect(!frameOnly.colorizedHd && frameOnly.inactiveHd && !frameOnly.dynamic &&
+    expect(!frameOnly.colorizedHd && frameOnly.inactiveHd &&
                !frameOnly.backgroundMask && !frameOnly.background,
            "an HD state without parts should hold the frame's HD pixels only");
-    const FrameHdParts allParts{true, true, true};
+    const FrameHdParts allParts{true, true};
     const FrameHdState before = document.frameHdState(0, allParts);
-    expect(before.dynamic && before.dynamic->colors[0] == 0x2222 && before.backgroundMask &&
+    expect(before.backgroundMask &&
                before.background && before.background->backgroundIndex == 1 &&
                !before.background->colorizedHd && before.background->inactiveHd,
            "an HD state should hold the parts that were asked for");
 
     document.createHdFrame(0);
-    document.upscaleDynamicMaskToHd(0);
     document.setBackgroundMaskPixel(0, Resolution::Hd, 3, 3, 1);
     document.upscaleAssignedBackgroundToHd(0);
     document.setBackgroundId(0, 0);
-    const FrameHdState after = document.frameHdState(0, FrameHdParts{true, true, false});
-    expect(after.colorizedHd && !after.inactiveHd && after.dynamic->colors[0] == 0x1111 &&
-               !after.background,
+    const FrameHdState after = document.frameHdState(0, FrameHdParts{true, false});
+    expect(after.colorizedHd && !after.inactiveHd && !after.background,
            "creating HD should drop the inactive HD pixels");
     document.markClean();
 
@@ -1467,7 +1467,8 @@ void testFrameHdState()
            "restoring an HD state should restore HD presence and inactive HD pixels");
     expect(document.dynamicColor(0, Resolution::Hd, 0, 0) == 0x2222 &&
                document.backgroundMaskPixel(0, Resolution::Hd, 3, 3) == 0,
-           "restoring an HD state should restore the HD dynamic data and background mask");
+           "restoring an HD state should restore the background mask and leave the stored HD "
+           "dynamic data alone");
     expect(!document.background(1).colorizedHd && document.background(1).inactiveHd &&
                document.background(1).inactiveHd->pixels[0] == 0x0404 &&
                document.backgroundFrame(0, Resolution::Hd).pixels[0] == 0x0202,
@@ -1475,19 +1476,17 @@ void testFrameHdState()
            "background the frame uses now");
 
     document.setFrameHdState(0, after);
-    expect(document.hasHdFrame(0) && document.dynamicColor(0, Resolution::Hd, 0, 0) == 0x1111 &&
+    expect(document.hasHdFrame(0) && document.dynamicColor(0, Resolution::Hd, 0, 0) == 0x2222 &&
                document.backgroundMaskPixel(0, Resolution::Hd, 3, 3) == 1 &&
                !document.background(1).colorizedHd,
            "an HD state should leave the parts it does not hold alone");
 
-    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {true, false, false}); },
-                                   "HD state of dynamic data the frame does not have");
-    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {false, true, false}); },
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {true, false}); },
                                    "HD state of a background mask the frame does not have");
-    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {false, false, true}); },
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(1, {false, true}); },
                                    "HD state of a background the frame does not have");
     document.setBackgroundId(0, 0xffff);
-    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(0, {false, false, true}); },
+    expectThrows<std::logic_error>([&]() { (void)document.frameHdState(0, {false, true}); },
                                    "HD state of an unassigned background");
     expectThrows<std::out_of_range>([&]() { (void)document.frameHdState(2, {}); },
                                     "HD state frame bounds");

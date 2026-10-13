@@ -124,18 +124,11 @@ struct FrameRecord {
     std::optional<Rgb565Frame> inactiveHd;
 };
 
-// Which related HD data Create HD upscales besides the frame itself.
+// Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
+// among them: the runtime takes it from the original plane, see ProjectDocument::dynamicPlane().
 struct FrameHdParts {
-    bool dynamic = false;
     bool backgroundMask = false;
     bool backgroundImage = false;
-};
-
-struct FrameDynamicHdData {
-    IndexedFrame mask;
-    std::vector<uint16_t> colors;
-    std::vector<uint8_t> shadowDirections;
-    std::vector<uint16_t> shadowColors;
 };
 
 struct BackgroundHdData {
@@ -149,7 +142,6 @@ struct BackgroundHdData {
 struct FrameHdState {
     std::optional<Rgb565Frame> colorizedHd;
     std::optional<Rgb565Frame> inactiveHd;
-    std::optional<FrameDynamicHdData> dynamic;
     std::optional<IndexedFrame> backgroundMask;
     // The background that was assigned when the state was taken.
     std::optional<BackgroundHdData> background;
@@ -231,6 +223,9 @@ public:
     // Goes up with every change and is not used by another document's content in this
     // process, so that data derived from a document can tell it is stale.
     [[nodiscard]] uint64_t revision() const;
+    // The revision at which what frame identification depends on last changed: the original
+    // frames, the comparison masks and each frame's mask and shape mode.
+    [[nodiscard]] uint64_t identificationRevision() const;
 
     [[nodiscard]] bool hasHdFrame(std::size_t frameIndex) const;
     // Upscales the SD frame. In an HD-only project there is nothing to upscale: the HD frame
@@ -238,7 +233,6 @@ public:
     void createHdFrame(std::size_t frameIndex);
     // Removing and upscaling from SD throw std::logic_error in an HD-only project.
     void removeHdFrame(std::size_t frameIndex);
-    void upscaleDynamicMaskToHd(std::size_t frameIndex);
     void upscaleBackgroundMaskToHd(std::size_t frameIndex);
     // In an HD-only project: gives the assigned background a black HD image if it has none.
     void upscaleAssignedBackgroundToHd(std::size_t frameIndex);
@@ -295,6 +289,13 @@ public:
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;
     void setComparisonMaskPixel(std::size_t maskIndex, int x, int y, uint8_t value);
     [[nodiscard]] const std::optional<FrameDynamicData>& dynamicData(std::size_t frameIndex) const;
+    // The plane whose dynamic masks, colors and shadows the runtime renders from and the only
+    // one they can be changed on: the plane with the ROM frame's size. In an ordinary project
+    // that is the 128x32 plane also for the 256x64 picture, which libserum composes from the
+    // 128x32 dynamic zones, upscaled (Colorize_Framev2: layer mode forces frameHasDynamicExtra
+    // false). The 256x64 dynamic data such a project stores is loaded, readable and written
+    // back unchanged; the setters below throw std::logic_error for it.
+    [[nodiscard]] Resolution dynamicPlane() const;
     [[nodiscard]] uint8_t dynamicMaskPixel(std::size_t frameIndex,
                                            Resolution resolution,
                                            int x,
@@ -442,6 +443,7 @@ private:
                                      Rgb565Frame colorized);
     void requireEditablePlane(Resolution resolution) const;
     void requireEditableExtraPlane() const;
+    void requireDynamicPlane(Resolution resolution) const;
     void markChanged();
 
     std::string m_romName;
@@ -457,6 +459,7 @@ private:
     render::ProjectGeometry m_geometry;
     bool m_dirty = false;
     uint64_t m_revision = 0;
+    uint64_t m_identificationRevision = 0;
 };
 
 // The colors of an uncolorized frame: a ramp over the original color indices, as the Win32

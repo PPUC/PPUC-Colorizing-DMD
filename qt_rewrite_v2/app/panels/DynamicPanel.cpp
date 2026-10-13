@@ -49,6 +49,10 @@ DynamicPanel::DynamicPanel(QWidget* parent)
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
+    m_noteLabel = new QLabel(this);
+    m_noteLabel->setWordWrap(true);
+    m_noteLabel->setVisible(false);
+    pageLayout->addWidget(m_noteLabel);
     auto* form = new QFormLayout();
     form->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
     pageLayout->addLayout(form);
@@ -202,6 +206,12 @@ void DynamicPanel::refreshShadow(const document::ProjectDocument* document,
 void DynamicPanel::setDynamicSetEnabled(bool enabled)
 {
     m_dynamicSetSpinBox->setEnabled(enabled);
+}
+
+void DynamicPanel::setNote(const QString& text)
+{
+    m_noteLabel->setText(text);
+    m_noteLabel->setVisible(!text.isEmpty());
 }
 
 void DynamicPanel::setDynamicSet(int setIndex)

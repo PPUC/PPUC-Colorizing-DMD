@@ -11,6 +11,7 @@
 
 #include "document/ProjectDocument.h"
 #include "render/ProjectGeometry.h"
+#include "runtime/FrameIdentification.h"
 
 namespace colorizing::runtime {
 
@@ -64,9 +65,18 @@ struct RuntimeFrame {
     std::string error;
     // libserum recognised the ROM frame as a frame of the colorization.
     bool identified = false;
-    // That frame, as a document frame index.
+    // That frame, as a document frame index. In a sequence opened from a document it is
+    // also known where libserum does not report it (see unchanged), from the search rule
+    // libserum follows (FrameIdentification).
     std::optional<std::size_t> frameIndex;
+    // Sequences opened from a document: the frame FrameIdentification expects libserum to
+    // identify. Tests compare it with what libserum reports.
+    std::optional<std::size_t> expectedFrameIndex;
+    // libserum recognised the frame and renders nothing for it: an inactive frame without a
+    // background and without dynamic content. A machine keeps the picture it shows.
+    bool skipped = false;
     // libserum reported the picture already on display; the planes are the ones it left.
+    // It does not say which frame it identified then.
     bool unchanged = false;
     // The planes libserum reported as filled for this call.
     std::optional<RuntimePlane> rows32;
@@ -89,7 +99,10 @@ constexpr std::size_t kNoDocumentFrame = static_cast<std::size_t>(-1);
 
 // A minimal cROM for some frames of a document, see ProjectDocument::toSubsetSnapshot(). In a
 // project with 256x64 original frames it can start with frames of its own, which no ROM frame
-// matches (kNoDocumentFrame in map.frames); the requested frames follow in their order.
+// matches (kNoDocumentFrame in map.frames); the requested frames follow in their order. Those
+// frames have a shape mode value no frame of the project has, which makes them a
+// comparison bucket of their own that never matches: they do not change the order in which
+// libserum's search meets the buckets of the other frames.
 struct RuntimeSubset {
     std::vector<uint8_t> crom;
     document::SnapshotSubsetMap map;
@@ -126,12 +139,44 @@ public:
                                            std::size_t frameIndex,
                                            PlaneRequest request);
 
-    // Loads one cROM of the given frames and keeps it loaded, so that they can be fed in any
-    // order with libserum's state carried from one to the next, as on a machine.
+    // Plays frames of the document through libserum with frame identification behaving as
+    // with the whole project loaded.
+    //
+    // openSequence() starts as libserum does after loading the project: its search starts at
+    // the first frame. It loads a window: the first frames of frameIndices (at most
+    // kSequenceWindowFrames, fewer if they need many other frames) together with every other
+    // frame of the project that takes part in identifying them, see
+    // FrameIdentification::candidates(). sequenceHasFrame() tells which frames the window
+    // plays. For the frames after them continueSequence() loads the next window and carries
+    // libserum's identification state over: the new colorization starts with the frame
+    // identified last (its frames are rotated, which keeps their cyclic order, the one thing
+    // the search depends on), and the ROM frame fed last is fed again, unseen, which puts
+    // back "identified last", the "first match" flag and the CRC of the last frame. So
+    // identification is the same as with one colorization of the whole project, with the
+    // memory of a window. What else libserum keeps from frames before the window (a
+    // monochrome switch, the phase of running color rotations) starts again with it.
+    static constexpr std::size_t kSequenceWindowFrames = 48;
+    // A window stops growing when it holds this many frames, played or not.
+    static constexpr std::size_t kSequenceLoadedFrames = 160;
     [[nodiscard]] bool openSequence(const document::ProjectDocument& document,
                                     const std::vector<std::size_t>& frameIndices,
                                     PlaneRequest request,
-                                    std::string* errorMessage = nullptr);
+                                    std::string* errorMessage = nullptr,
+                                    std::size_t windowFrames = kSequenceWindowFrames);
+    // Without an open sequence this is openSequence().
+    [[nodiscard]] bool continueSequence(const document::ProjectDocument& document,
+                                        const std::vector<std::size_t>& frameIndices,
+                                        PlaneRequest request,
+                                        std::string* errorMessage = nullptr,
+                                        std::size_t windowFrames = kSequenceWindowFrames);
+    // Frames the loaded colorization holds, the played ones and the others, and the size of
+    // the cROM it was loaded from.
+    [[nodiscard]] std::size_t sequenceLoadedFrameCount() const;
+    [[nodiscard]] std::size_t sequenceCromBytes() const;
+    // libserum's search rule for the document, built once per
+    // ProjectDocument::identificationRevision() and kept.
+    [[nodiscard]] std::shared_ptr<const FrameIdentification> identification(
+        const document::ProjectDocument& document);
     // Loads a complete cROM as it is. Frame indices of the results are its own.
     [[nodiscard]] bool openCrom(const std::vector<uint8_t>& crom,
                                 const render::ProjectGeometry& geometry,
@@ -139,7 +184,7 @@ public:
                                 PlaneRequest request,
                                 std::string* errorMessage = nullptr);
     [[nodiscard]] bool isOpen() const;
-    // Whether the open sequence holds the document frame.
+    // Whether the loaded window plays the document frame.
     [[nodiscard]] bool sequenceHasFrame(std::size_t frameIndex) const;
     // Feeds the ROM frame the sequence was opened with for that document frame.
     [[nodiscard]] RuntimeFrame renderSequenceFrame(std::size_t frameIndex);

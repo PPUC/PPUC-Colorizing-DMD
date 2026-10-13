@@ -10,6 +10,7 @@
 
 #include "document/ProjectDocument.h"
 
+class QLabel;
 class QSpinBox;
 class QToolButton;
 
@@ -31,6 +32,8 @@ public:
                        std::optional<std::size_t> frameIndex,
                        render::Resolution resolution);
     void setDynamicSetEnabled(bool enabled);
+    // A line shown at the top of the page; hidden while empty.
+    void setNote(const QString& text);
     // Clamped to the offered sets; does not notify.
     void setDynamicSet(int setIndex);
 
@@ -43,6 +46,7 @@ public:
     std::function<void()> onShadowColorClicked;
 
 private:
+    QLabel* m_noteLabel = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_shadowDirectionButtons;

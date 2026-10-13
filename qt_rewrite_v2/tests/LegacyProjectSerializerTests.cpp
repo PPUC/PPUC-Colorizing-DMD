@@ -424,12 +424,62 @@ void testSpriteCountChangeSerializes()
 
 }  // namespace
 
+// What the frame list marks as "inactive": the frames a save flags inactive and libserum has
+// nothing to render for.
+void testFramesSkippedAtRuntime()
+{
+    using colorizing::document::ProjectDocument;
+    using colorizing::legacy::isFrameSkippedAtRuntime;
+    ProjectSnapshot snapshot = makeSnapshot();
+    const std::vector<uint16_t> originalColors = legacyOriginalColors(kColorCount);
+    const auto skipped = [&](std::size_t frame) {
+        const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+        // The marker and the flag a save writes come from one rule.
+        const SerializedProject project = serialize(snapshot);
+        const bool inactive =
+            project.crom[sectionOffset(project.cromSections, "active frame flags") + frame] == 0;
+        const bool marked = isFrameSkippedAtRuntime(document, frame);
+        expect(!marked || inactive, "a frame marked as skipped is saved as inactive");
+        expect(inactive == !isLegacyFrameActive(snapshot.frames[frame], originalColors,
+                                                colorizing::render::Resolution::Sd),
+               "the saved flag is isLegacyFrameActive()");
+        return marked;
+    };
+    expect(skipped(0), "shorter than 15 ms and not colorized: skipped");
+    expect(!skipped(1), "a colorized frame is not skipped");
+    snapshot.frames[0].durationMs = 15;
+    expect(!skipped(0), "15 ms is long enough");
+    snapshot.frames[0].durationMs = 14;
+    expect(skipped(0), "14 ms is not");
+    snapshot.frames[0].colorizedSd.pixels[77] ^= 0x0101;
+    expect(!skipped(0), "one colorized pixel makes the frame active");
+    snapshot.frames[0].colorizedSd.pixels[77] ^= 0x0101;
+
+    // Inactive, and still rendered by libserum (FrameHasRenderableContent()): with a
+    // background, or with a dynamic zone on the HD plane of a frame that has HD.
+    snapshot.frames[0].backgroundData = snapshot.frames[1].backgroundData;
+    expect(!skipped(0), "an inactive frame with a background is rendered");
+    snapshot.frames[0].backgroundData->backgroundId = 0xffff;
+    expect(skipped(0), "an unassigned background does not count");
+    snapshot.frames[0].backgroundData.reset();
+    snapshot.frames[0].dynamicData = snapshot.frames[1].dynamicData;
+    snapshot.frames[0].dynamicData->maskSd = makeIndexedFrame(kSdFrameSize, 255);
+    expect(skipped(0), "an HD dynamic zone of a frame without HD does not count");
+    snapshot.frames[0].colorizedHd = makeRgb565Frame(kHdFrameSize, 0);
+    expect(!skipped(0), "an inactive frame with an HD dynamic zone and HD is rendered");
+    snapshot.frames[0].dynamicData->maskHd = makeIndexedFrame(kHdFrameSize, 255);
+    expect(skipped(0), "dynamic data without a zone does not count");
+    snapshot.frames[0].dynamicData->maskSd.pixels[9] = 0;
+    expect(!skipped(0), "a dynamic zone on the original plane makes the frame active");
+}
+
 void runLegacyProjectSerializerTests()
 {
     testFrameHashMatchesReferenceCrc();
     testOriginalColorsMatchWin32Ramp();
     testSerializedProjectRoundTrips();
     testDerivedFieldsAreRecomputed();
+    testFramesSkippedAtRuntime();
     testRevisionTwentyHeaderRoundTrips();
     test256x64OriginalsRoundTrip();
     testSpriteCountChangeSerializes();

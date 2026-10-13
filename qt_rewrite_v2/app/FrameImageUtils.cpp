@@ -443,7 +443,7 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                             bool includeBackgroundLayer)
 {
     const document::Rgb565Frame& colorized = document.colorizedFrame(frameIndex, resolution);
-    uint16_t color = colorized.pixels[rgb565PixelIndex(colorized, x, y)];
+    const uint16_t color = colorized.pixels[rgb565PixelIndex(colorized, x, y)];
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
     const render::Point originalPoint =
@@ -452,54 +452,86 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
         indexedPixelIndex(original, originalPoint.x, originalPoint.y);
     const uint8_t originalValue = original.pixels[originalIndex];
 
-    const std::optional<document::FrameBackgroundData>& backgroundData =
-        document.backgroundData(frameIndex);
-    bool backgroundApplied = false;
-    if (includeBackgroundLayer && backgroundData &&
-        backgroundData->backgroundId < document.backgroundCount() && originalValue == 0) {
-        const document::BackgroundRecord& background =
-            document.background(backgroundData->backgroundId);
-        const document::Rgb565Frame* backgroundFrame = nullptr;
-        const document::IndexedFrame* backgroundMask = nullptr;
-        if (resolution == render::Resolution::Hd && background.colorizedHd) {
-            backgroundFrame = &*background.colorizedHd;
-            backgroundMask = &backgroundData->maskHd;
-        } else if (resolution == render::Resolution::Sd) {
-            backgroundFrame = &background.colorizedSd;
-            backgroundMask = &backgroundData->maskSd;
-        }
-        if (backgroundFrame && backgroundMask &&
-            backgroundMask->pixels[indexedPixelIndex(*backgroundMask, x, y)] != 0) {
-            color = backgroundFrame->pixels[rgb565PixelIndex(*backgroundFrame, x, y)];
-            backgroundApplied = true;
-        }
-    }
-    if (backgroundApplied) {
-        return color;
-    }
-
+    // Dynamic zones are those of the plane with the ROM frame's size, read at the ROM frame
+    // pixel. On the 256x64 plane of an ordinary project that is the 128x32 zone the pixel
+    // lies in: libserum renders dynamic content at 128x32 and upscales it, and does not read
+    // the 256x64 dynamic mask and colors (Colorize_Framev2, layer mode).
+    const render::Resolution dynamicPlane = document.dynamicPlane();
+    const bool scaledDynamics = resolution != dynamicPlane;
+    const bool extraDynamics = dynamicPlane == render::Resolution::Hd;
     const std::optional<document::FrameDynamicData>& dynamicData =
         document.dynamicData(frameIndex);
-    if (!dynamicData) {
-        return color;
-    }
-    const document::IndexedFrame& dynamicMask =
-        resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
-    const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
-    if (dynamicSet == 255 || dynamicSet >= document::kMaxDynamicSetsPerFrame) {
-        return color;
+    std::optional<uint16_t> dynamicColor;
+    bool dynamicZone = false;
+    if (dynamicData) {
+        const document::IndexedFrame& dynamicMask =
+            extraDynamics ? dynamicData->maskHd : dynamicData->maskSd;
+        const uint8_t dynamicSet = originalIndex < dynamicMask.pixels.size()
+                                       ? dynamicMask.pixels[originalIndex]
+                                       : uint8_t{255};
+        dynamicZone = dynamicSet != 255;
+        const std::vector<uint16_t>& dynamicColors =
+            extraDynamics ? dynamicData->colorsHd : dynamicData->colorsSd;
+        const std::size_t colorCount = dynamicColors.size() / document::kMaxDynamicSetsPerFrame;
+        if (dynamicSet < document::kMaxDynamicSetsPerFrame && originalValue < colorCount) {
+            dynamicColor = dynamicColors[static_cast<std::size_t>(dynamicSet) * colorCount +
+                                         static_cast<std::size_t>(originalValue)];
+        }
     }
 
-    const std::vector<uint16_t>& dynamicColors =
-        resolution == render::Resolution::Hd ? dynamicData->colorsHd : dynamicData->colorsSd;
-    const std::size_t colorCount = dynamicColors.size() / document::kMaxDynamicSetsPerFrame;
-    if (colorCount == 0 || originalValue >= colorCount) {
-        return color;
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        document.backgroundData(frameIndex);
+    const bool hasBackground = includeBackgroundLayer && backgroundData &&
+                               backgroundData->backgroundId < document.backgroundCount();
+    // The background shows through an unlit pixel where the plane's background mask is set.
+    const auto backgroundPixel = [&]() -> std::optional<uint16_t> {
+        if (!hasBackground || originalValue != 0) {
+            return std::nullopt;
+        }
+        const document::BackgroundRecord& background =
+            document.background(backgroundData->backgroundId);
+        if (resolution == render::Resolution::Hd) {
+            if (background.colorizedHd &&
+                backgroundData->maskHd.pixels[indexedPixelIndex(backgroundData->maskHd, x, y)] !=
+                    0) {
+                return background.colorizedHd->pixels[rgb565PixelIndex(*background.colorizedHd,
+                                                                       x,
+                                                                       y)];
+            }
+            return std::nullopt;
+        }
+        if (backgroundData->maskSd.pixels[indexedPixelIndex(backgroundData->maskSd, x, y)] != 0) {
+            return background.colorizedSd.pixels[rgb565PixelIndex(background.colorizedSd, x, y)];
+        }
+        return std::nullopt;
+    };
+
+    if (scaledDynamics) {
+        // The upscaled 128x32 layer lies on top of the 256x64 frame and background. It holds
+        // the dynamic zones, except where the 128x32 pass drew the 128x32 background instead
+        // (unlit, 128x32 background mask set): there the 256x64 picture stays.
+        const bool originalPlaneShowsBackground =
+            hasBackground && originalValue == 0 && originalIndex <
+                                                       backgroundData->maskSd.pixels.size() &&
+            backgroundData->maskSd.pixels[originalIndex] != 0;
+        if (dynamicZone && !originalPlaneShowsBackground) {
+            return dynamicColor.value_or(color);
+        }
+        return backgroundPixel().value_or(color);
     }
-    return dynamicColors[static_cast<std::size_t>(dynamicSet) * colorCount +
-                         static_cast<std::size_t>(originalValue)];
+
+    if (const std::optional<uint16_t> background = backgroundPixel()) {
+        return *background;
+    }
+    return dynamicColor.value_or(color);
 }
 
+// Dynamic shadows as libserum draws them. On the plane with the ROM frame's size a lit dynamic
+// pixel shades its neighbors in its set's directions (CheckDynaShadow). On the 256x64 plane
+// of an ordinary project the shadows are generated on that plane from the upscaled 128x32
+// zones, one 256x64 pixel wide (GenerateExtraPlaneShadows, default offset); a set without a
+// 128x32 shadow direction takes direction and color from the stored 256x64 tables, which is
+// the one thing libserum reads of the 256x64 dynamic data there.
 void applyDynamicShadows(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,
@@ -511,29 +543,49 @@ void applyDynamicShadows(const document::ProjectDocument& document,
         return;
     }
 
+    const render::Resolution dynamicPlane = document.dynamicPlane();
+    const bool scaledDynamics = resolution != dynamicPlane;
+    const bool extraDynamics = dynamicPlane == render::Resolution::Hd;
     const document::IndexedFrame& dynamicMask =
-        resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
+        extraDynamics ? dynamicData->maskHd : dynamicData->maskSd;
     const std::vector<uint8_t>& directions =
-        resolution == render::Resolution::Hd ? dynamicData->shadowDirectionsHd
-                                             : dynamicData->shadowDirectionsSd;
+        extraDynamics ? dynamicData->shadowDirectionsHd : dynamicData->shadowDirectionsSd;
     const std::vector<uint16_t>& colors =
-        resolution == render::Resolution::Hd ? dynamicData->shadowColorsHd
-                                             : dynamicData->shadowColorsSd;
-    if (directions.empty() || colors.empty()) {
-        return;
-    }
+        extraDynamics ? dynamicData->shadowColorsHd : dynamicData->shadowColorsSd;
+    // Per set: the tables of the dynamic plane, or the other plane's where the picture is the
+    // scaled one and the set has no direction of its own.
+    const auto shadowOf = [&](uint8_t set, uint8_t& direction, uint16_t& color) {
+        direction = set < directions.size() ? directions[set] : uint8_t{0};
+        color = set < colors.size() ? colors[set] : uint16_t{0};
+        if (direction == 0 && scaledDynamics && set < dynamicData->shadowDirectionsHd.size()) {
+            direction = dynamicData->shadowDirectionsHd[set];
+            if (set < dynamicData->shadowColorsHd.size()) {
+                color = dynamicData->shadowColorsHd[set];
+            }
+        }
+    };
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
     const render::ProjectGeometry& geometry = document.geometry();
+    // The set of a pixel that shows lit dynamic content; 255 for every other pixel.
+    const auto litDynamicSet = [&](int x, int y) -> uint8_t {
+        const render::Point originalPoint = geometry.toRomFrame(resolution, render::Point{x, y});
+        const std::size_t originalIndex =
+            indexedPixelIndex(original, originalPoint.x, originalPoint.y);
+        const uint8_t dynamicSet = originalIndex < dynamicMask.pixels.size()
+                                       ? dynamicMask.pixels[originalIndex]
+                                       : uint8_t{255};
+        if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||
+            original.pixels[originalIndex] == 0) {
+            return 255;
+        }
+        return dynamicSet;
+    };
+
     std::vector<uint8_t> occupied(frame.pixels.size(), 0);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
-            const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
-            const render::Point originalPoint =
-                geometry.toRomFrame(resolution, render::Point{x, y});
-            const uint8_t originalValue =
-                original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
-            if (dynamicSet < document::kMaxDynamicSetsPerFrame && originalValue > 0) {
+            if (litDynamicSet(x, y) != 255) {
                 occupied[rgb565PixelIndex(frame, x, y)] = 1;
             }
         }
@@ -541,18 +593,13 @@ void applyDynamicShadows(const document::ProjectDocument& document,
 
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
-            const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
-            const render::Point originalPoint =
-                geometry.toRomFrame(resolution, render::Point{x, y});
-            const uint8_t originalValue =
-                original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
-            if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||
-                originalValue == 0 ||
-                dynamicSet >= directions.size() ||
-                dynamicSet >= colors.size()) {
+            const uint8_t dynamicSet = litDynamicSet(x, y);
+            if (dynamicSet == 255) {
                 continue;
             }
-            const uint8_t directionMask = directions[dynamicSet];
+            uint8_t directionMask = 0;
+            uint16_t shadowColor = 0;
+            shadowOf(dynamicSet, directionMask, shadowColor);
             if (directionMask == 0) {
                 continue;
             }
@@ -570,7 +617,7 @@ void applyDynamicShadows(const document::ProjectDocument& document,
                 if (occupied[shadowIndex]) {
                     continue;
                 }
-                frame.pixels[shadowIndex] = colors[dynamicSet];
+                frame.pixels[shadowIndex] = shadowColor;
                 occupied[shadowIndex] = 1;
             }
         }

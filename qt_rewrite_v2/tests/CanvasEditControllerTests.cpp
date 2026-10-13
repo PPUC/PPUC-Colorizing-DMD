@@ -681,9 +681,31 @@ void testDynamicMaskLayer()
     context.tool = DrawingTool::Point;
     context.selectedFrames = {0, 2};
     controller.colorizedPixelClicked(context, colorized(30, 30, Resolution::Hd), false);
-    expect(owner.committed(EditKind::DynamicMask, {0, 2}, Resolution::Hd) &&
-               document.dynamicMaskPixel(0, Resolution::Hd, 30, 30) == 5,
-           "HD dynamic point");
+    expect(owner.commits.empty() && owner.finished == 0 &&
+               document.dynamicMaskPixel(0, Resolution::Hd, 30, 30) == 255 &&
+               owner.status == "Dynamic zones are defined on the 128x32 plane and cannot be "
+                               "picked or painted on this one",
+           "no dynamic point on the HD plane of an ordinary project");
+    owner.next();
+    context.tool = DrawingTool::FloodFill;
+    controller.colorizedPixelClicked(context, colorized(30, 30, Resolution::Hd), false);
+    expect(owner.commits.empty() && !owner.status.empty(),
+           "no dynamic flood fill on the HD plane of an ordinary project");
+    owner.next();
+    context.tool = DrawingTool::ColorPicker;
+    controller.colorizedPixelClicked(context, colorized(30, 30, Resolution::Hd), false);
+    expect(owner.pickedSets.empty() && !owner.status.empty(),
+           "no dynamic pick on the HD plane of an ordinary project");
+    owner.next();
+    context.tool = DrawingTool::Rectangle;
+    controller.strokeFinished(context,
+                              colorized(30, 30, Resolution::Hd),
+                              colorized(34, 34, Resolution::Hd),
+                              false);
+    expect(owner.commits.empty() && !owner.status.empty() &&
+               document.dynamicMaskPixel(0, Resolution::Hd, 30, 30) == 255,
+           "no dynamic stroke on the HD plane of an ordinary project");
+    context.tool = DrawingTool::Point;
 
     owner.next();
     controller.originalPixelClicked(context, original(1, 1), false);

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,9 +18,9 @@ namespace colorizing::app {
 // be asked from a paint event.
 class RuntimeView {
 public:
-    // Frames of one loaded playback sequence. Playback past them loads the next ones, which
-    // starts libserum's state afresh.
-    static constexpr std::size_t kSequenceFrames = 48;
+    // Frames one loaded playback window plays at most, see RuntimePreview::openSequence().
+    // Playback past them loads the next window, which keeps libserum's identification state.
+    static constexpr std::size_t kSequenceFrames = runtime::RuntimePreview::kSequenceWindowFrames;
 
     RuntimeView() = default;
     RuntimeView(const RuntimeView&) = delete;
@@ -52,6 +53,25 @@ public:
                                                      std::size_t frameIndex);
     [[nodiscard]] std::string message(const document::ProjectDocument& document,
                                       std::size_t frameIndex);
+    // The frame a machine identifies the frame's ROM frame as, if that is another frame.
+    //
+    // While playing: the frame libserum identified, if it is another one than the frame that
+    // was fed. Otherwise the view shows the frame rendered on its own, and this is what
+    // libserum identifies its ROM frame as when it comes from the frame before it in the
+    // project (`after`; the first frame for the first one), again only if that is another
+    // frame. That is libserum's search rule (runtime::FrameIdentification) applied to the
+    // project, not a render.
+    struct OtherFrame {
+        std::optional<std::size_t> frame;
+        std::optional<std::size_t> after;
+    };
+    [[nodiscard]] OtherFrame identifiedOtherFrame(const document::ProjectDocument& document,
+                                                  std::size_t frameIndex);
+    // That as a sentence for the line above the picture, or shortened for the status line
+    // ("identified as frame 7", "after frame 11: frame 7"); empty if there is nothing to say.
+    [[nodiscard]] std::string identificationHint(const document::ProjectDocument& document,
+                                                 std::size_t frameIndex,
+                                                 bool shortText = false);
     // While playing: lets libserum step its color rotations on the frame last asked for.
     // Returns the milliseconds until it should be called again, 0 when nothing rotates.
     uint32_t rotate();
@@ -69,10 +89,21 @@ private:
     std::size_t m_frameIndex = 0;
     runtime::PlaneRequest m_frameRows = runtime::PlaneRequest::Rows32;
     bool m_framePlaying = false;
+    // A window of this playback is loaded: the next one continues it.
+    bool m_sequenceOpen = false;
     uint64_t m_sequenceRevision = 0;
     runtime::PlaneRequest m_sequenceRows = runtime::PlaneRequest::Rows32;
     runtime::RuntimeFrame m_frame;
     std::size_t m_renderCount = 0;
+    // identificationHint() of the frame last asked about while not playing.
+    bool m_hasStillHint = false;
+    uint64_t m_stillHintRevision = 0;
+    std::size_t m_stillHintFrame = 0;
+    OtherFrame m_stillHint;
 };
+
+// Why libserum has no picture of a frame on the plane; empty if it has one.
+[[nodiscard]] std::string runtimeNoPictureReason(const runtime::RuntimeFrame& frame,
+                                                 runtime::PlaneRequest rows);
 
 }  // namespace colorizing::app

@@ -1,10 +1,12 @@
 #include "runtime/RuntimePreview.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
 #include <ostream>
+#include <set>
 #include <stdexcept>
 #include <streambuf>
 
@@ -158,6 +160,18 @@ void keepExtraSpriteDynamicsAsInProject(const document::ProjectDocument& documen
         return;
     }
     const render::Size romSize = snapshot.geometry.romFrameSize();
+    // A shape mode value no frame of the project has: with it these frames are a comparison
+    // bucket of their own, which libserum's search looks into without finding anything and
+    // which therefore changes nothing about the order it meets the other buckets in. Any
+    // value but 1 hashes without shape mode.
+    std::array<bool, 256> usedShapeModes{};
+    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
+        usedShapeModes[document.shapeComparisonMode(frame)] = true;
+    }
+    uint8_t paddingShapeMode = 2;
+    while (paddingShapeMode < 255 && usedShapeModes[paddingShapeMode]) {
+        ++paddingShapeMode;
+    }
     std::vector<document::ProjectFrameSnapshot> frames;
     std::vector<std::size_t> frameMap;
     for (std::size_t padding = 0; padding < paddingFrames; ++padding) {
@@ -171,6 +185,7 @@ void keepExtraSpriteDynamicsAsInProject(const document::ProjectDocument& documen
         frame.colorizedHd =
             document::makeRgb565Frame(snapshot.geometry.planeSize(render::Resolution::Hd));
         frame.comparisonMaskId = 255;
+        frame.shapeComparisonMode = paddingShapeMode;
         frame.triggerId = document::kNoTriggerId;
         frames.push_back(std::move(frame));
         frameMap.push_back(kNoDocumentFrame);
@@ -220,6 +235,28 @@ struct RuntimePreview::Impl {
     render::Size romFrameSize;
     std::vector<uint8_t> romFrame;
     RuntimeFrame shown;
+
+    // The search rule of the document last asked about, see RuntimePreview::identification().
+    std::shared_ptr<const FrameIdentification> identificationRule;
+    // A sequence opened from a document, see RuntimePreview::openSequence().
+    bool sequence = false;
+    // The frames the loaded window plays.
+    std::vector<std::size_t> windowFrames;
+    // libserum's identification state in document terms: the frame its search starts at (the
+    // frame identified last) and the ROM frame that was fed when it was identified.
+    std::size_t searchStart = 0;
+    std::optional<document::IndexedFrame> lastIdentifiedInput;
+    std::size_t cromBytes = 0;
+
+    [[nodiscard]] std::shared_ptr<const FrameIdentification> identification(
+        const document::ProjectDocument& document);
+    [[nodiscard]] bool loadWindow(const document::ProjectDocument& document,
+                                  const std::vector<std::size_t>& frameIndices,
+                                  PlaneRequest request,
+                                  std::size_t maxWindowFrames,
+                                  std::string* errorMessage);
+    // Releases the colorization and keeps the sequence's identification state.
+    void unloadColorization();
 
     [[nodiscard]] bool load(const std::vector<uint8_t>& crom,
                             const render::ProjectGeometry& geometry,
@@ -276,12 +313,13 @@ bool RuntimePreview::Impl::load(RuntimeSubset subset,
     if (!load(subset.crom, subset.geometry, subset.map.frames.size(), request, errorMessage)) {
         return false;
     }
+    cromBytes = subset.crom.size();
     frameMap = std::move(subset.map.frames);
     originals = std::move(subset.originals);
     return true;
 }
 
-void RuntimePreview::Impl::unload()
+void RuntimePreview::Impl::unloadColorization()
 {
     if (serum) {
         Serum_Dispose();
@@ -290,7 +328,100 @@ void RuntimePreview::Impl::unload()
     frameCount = 0;
     frameMap.clear();
     originals.clear();
+    windowFrames.clear();
     shown = RuntimeFrame{};
+}
+
+void RuntimePreview::Impl::unload()
+{
+    unloadColorization();
+    sequence = false;
+    searchStart = 0;
+    lastIdentifiedInput.reset();
+}
+
+std::shared_ptr<const FrameIdentification> RuntimePreview::Impl::identification(
+    const document::ProjectDocument& document)
+{
+    if (!identificationRule ||
+        identificationRule->revision() != document.identificationRevision()) {
+        identificationRule = std::make_shared<const FrameIdentification>(document);
+    }
+    return identificationRule;
+}
+
+bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
+                                      const std::vector<std::size_t>& frameIndices,
+                                      PlaneRequest request,
+                                      std::size_t maxWindowFrames,
+                                      std::string* errorMessage)
+{
+    const std::shared_ptr<const FrameIdentification> rule = identification(document);
+    if (searchStart >= document.frameCount()) {
+        searchStart = 0;
+    }
+    // The frames to play and with them every frame that takes part in identifying them.
+    std::set<std::size_t> starts{searchStart};
+    std::vector<std::size_t> played;
+    std::vector<std::size_t> loaded;
+    for (std::size_t frameIndex : frameIndices) {
+        if (frameIndex >= document.frameCount()) {
+            throw std::out_of_range("frame index is out of range");
+        }
+        if (std::find(played.begin(), played.end(), frameIndex) != played.end()) {
+            break;
+        }
+        std::set<std::size_t> grown = starts;
+        const std::vector<std::size_t> matching = rule->matches(document.originalFrame(frameIndex));
+        grown.insert(matching.begin(), matching.end());
+        grown.insert(frameIndex);
+        std::vector<std::size_t> candidates = rule->candidatesOf(grown);
+        if (!played.empty() && candidates.size() > kSequenceLoadedFrames) {
+            break;
+        }
+        starts = std::move(grown);
+        loaded = std::move(candidates);
+        played.push_back(frameIndex);
+        if (played.size() >= std::max<std::size_t>(maxWindowFrames, 1)) {
+            break;
+        }
+    }
+    if (played.empty()) {
+        throw std::out_of_range("no frame to play");
+    }
+    // File order, starting with the frame the search starts at: libserum's search starts
+    // at the first frame of a colorization it has just loaded.
+    std::rotate(loaded.begin(),
+                std::lower_bound(loaded.begin(), loaded.end(), searchStart),
+                loaded.end());
+
+    RuntimeSubset subset = buildRuntimeSubset(document, loaded);
+    // load() releases what is loaded; the identification state is kept across it.
+    const std::size_t start = searchStart;
+    const std::optional<document::IndexedFrame> replay = lastIdentifiedInput;
+    if (!load(std::move(subset), request, errorMessage)) {
+        unload();
+        return false;
+    }
+    sequence = true;
+    searchStart = start;
+    lastIdentifiedInput = replay;
+    windowFrames = std::move(played);
+    if (replay) {
+        // The ROM frame identified last, once more: libserum identifies it as the frame the
+        // colorization starts with, which leaves its search exactly where it was.
+        romFrame = replay->pixels;
+        const uint32_t result = Serum_Colorize(romFrame.data());
+        if (result != IDENTIFY_NO_FRAME && result != IDENTIFY_SAME_FRAME) {
+            RuntimeFrame frame;
+            frame.identified = true;
+            frame.frameIndex = start;
+            frame.nextRotationMs = result & 0xffff;
+            readPlanes(frame);
+            shown = std::move(frame);
+        }
+    }
+    return true;
 }
 
 void RuntimePreview::Impl::readPlanes(RuntimeFrame& frame) const
@@ -320,6 +451,11 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     }
 
     const bool extraPlaneAvailable = (serum->flags & FLAG_RETURNED_EXTRA_AVAILABLE) != 0;
+    // What libserum's search rule gives for this ROM frame from where the search stands.
+    std::optional<std::size_t> expected;
+    if (sequence && identificationRule) {
+        expected = identificationRule->identify(original, searchStart);
+    }
     romFrame = original.pixels;
     const Clock::time_point start = Clock::now();
     const uint32_t result = Serum_Colorize(romFrame.data());
@@ -329,27 +465,48 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
         frame.error = lastError;
         return frame;
     }
+    // The frame libserum reports. A fallback picture of an unknown frame carries a frame ID
+    // past every frame. For a frame it identifies and does not render it returns "no frame"
+    // and still reports the ID.
+    std::optional<std::size_t> reported;
+    if (result != IDENTIFY_SAME_FRAME && serum->frameID < frameCount) {
+        const std::size_t documentFrame =
+            frameMap.empty() ? serum->frameID : frameMap[serum->frameID];
+        if (documentFrame != kNoDocumentFrame) {
+            reported = documentFrame;
+        }
+    }
+    // libserum says "same frame" both when it identified the frame it identified before and
+    // when it identified another one whose picture is the one on display; it does not tell
+    // which. The search rule does.
+    const std::optional<std::size_t> identified =
+        result == IDENTIFY_SAME_FRAME && sequence ? expected : reported;
+    if (sequence && identified) {
+        searchStart = *identified;
+        lastIdentifiedInput = original;
+    }
 
     if (result == IDENTIFY_SAME_FRAME) {
         frame = shown;
         frame.unchanged = true;
+        frame.skipped = false;
+        if (sequence) {
+            frame.identified = identified.has_value();
+            frame.frameIndex = identified;
+        }
+        frame.expectedFrameIndex = expected;
         frame.triggerId = document::kNoTriggerId;
         frame.cost = RuntimeCost{};
         frame.cost.colorizeMs = millisecondsSince(start);
         return frame;
     }
     frame.extraPlaneAvailable = extraPlaneAvailable;
+    frame.expectedFrameIndex = expected;
+    frame.identified = identified.has_value();
+    frame.frameIndex = identified;
     if (result == IDENTIFY_NO_FRAME) {
+        frame.skipped = identified.has_value();
         return frame;
-    }
-    // A fallback picture of an unknown frame carries a frame ID past every frame.
-    const uint32_t frameId = serum->frameID;
-    if (frameId < frameCount) {
-        const std::size_t documentFrame = frameMap.empty() ? frameId : frameMap[frameId];
-        if (documentFrame != kNoDocumentFrame) {
-            frame.identified = true;
-            frame.frameIndex = documentFrame;
-        }
     }
     frame.triggerId = serum->triggerID;
     frame.nextRotationMs = result & 0xffff;
@@ -408,11 +565,13 @@ RuntimeFrame RuntimePreview::renderFrame(const document::ProjectDocument& docume
 bool RuntimePreview::openSequence(const document::ProjectDocument& document,
                                   const std::vector<std::size_t>& frameIndices,
                                   PlaneRequest request,
-                                  std::string* errorMessage)
+                                  std::string* errorMessage,
+                                  std::size_t windowFrames)
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
+    m_impl->unload();
     try {
-        return m_impl->load(buildRuntimeSubset(document, frameIndices), request, errorMessage);
+        return m_impl->loadWindow(document, frameIndices, request, windowFrames, errorMessage);
     } catch (const std::exception& ex) {
         m_impl->unload();
         if (errorMessage) {
@@ -420,6 +579,46 @@ bool RuntimePreview::openSequence(const document::ProjectDocument& document,
         }
         return false;
     }
+}
+
+bool RuntimePreview::continueSequence(const document::ProjectDocument& document,
+                                      const std::vector<std::size_t>& frameIndices,
+                                      PlaneRequest request,
+                                      std::string* errorMessage,
+                                      std::size_t windowFrames)
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_impl->sequence) {
+        m_impl->unload();
+    }
+    try {
+        return m_impl->loadWindow(document, frameIndices, request, windowFrames, errorMessage);
+    } catch (const std::exception& ex) {
+        m_impl->unload();
+        if (errorMessage) {
+            *errorMessage = ex.what();
+        }
+        return false;
+    }
+}
+
+std::size_t RuntimePreview::sequenceLoadedFrameCount() const
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    return m_impl->serum ? m_impl->frameCount : 0;
+}
+
+std::size_t RuntimePreview::sequenceCromBytes() const
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    return m_impl->serum ? m_impl->cromBytes : 0;
+}
+
+std::shared_ptr<const FrameIdentification> RuntimePreview::identification(
+    const document::ProjectDocument& document)
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    return m_impl->identification(document);
 }
 
 bool RuntimePreview::openCrom(const std::vector<uint8_t>& crom,
@@ -442,8 +641,8 @@ bool RuntimePreview::sequenceHasFrame(std::size_t frameIndex) const
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
     return m_impl->serum != nullptr &&
-           std::find(m_impl->frameMap.begin(), m_impl->frameMap.end(), frameIndex) !=
-               m_impl->frameMap.end();
+           std::find(m_impl->windowFrames.begin(), m_impl->windowFrames.end(), frameIndex) !=
+               m_impl->windowFrames.end();
 }
 
 RuntimeFrame RuntimePreview::renderSequenceFrame(std::size_t frameIndex)

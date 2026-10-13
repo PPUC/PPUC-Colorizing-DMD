@@ -384,6 +384,7 @@ ProjectDocument ProjectDocument::createEmpty(const ProjectCreateOptions& options
     }
     document.m_dirty = false;
     document.m_revision = nextRevision();
+    document.m_identificationRevision = document.m_revision;
     return document;
 }
 
@@ -455,6 +456,7 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
     }
     document.m_dirty = false;
     document.m_revision = nextRevision();
+    document.m_identificationRevision = document.m_revision;
     return document;
 }
 
@@ -511,6 +513,22 @@ void ProjectDocument::requireEditablePlane(Resolution resolution) const
     }
 }
 
+Resolution ProjectDocument::dynamicPlane() const
+{
+    return m_geometry.nativePlane();
+}
+
+void ProjectDocument::requireDynamicPlane(Resolution resolution) const
+{
+    requireEditablePlane(resolution);
+    if (resolution != dynamicPlane()) {
+        const Size size = m_geometry.planeSize(dynamicPlane());
+        throw std::logic_error("dynamic zones are defined on the " + std::to_string(size.width) +
+                               "x" + std::to_string(size.height) +
+                               " plane; the runtime does not use those of the other plane");
+    }
+}
+
 void ProjectDocument::requireEditableExtraPlane() const
 {
     if (editsOriginalPlaneOnly()) {
@@ -556,6 +574,11 @@ uint64_t ProjectDocument::revision() const
     return m_revision;
 }
 
+uint64_t ProjectDocument::identificationRevision() const
+{
+    return m_identificationRevision;
+}
+
 void ProjectDocument::markChanged()
 {
     m_dirty = true;
@@ -596,23 +619,6 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
                                " frame is the only one this project renders");
     }
     frame.colorizedHd.reset();
-    markChanged();
-}
-
-void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
-{
-    requireEditableExtraPlane();
-    FrameRecord& frame = requireFrame(m_frames, frameIndex);
-    if (!frame.dynamicData) {
-        throw std::logic_error("dynamic mask data is not available");
-    }
-    if (rendersHdPlaneOnly()) {
-        throw std::logic_error("this project has no smaller dynamic mask to upscale");
-    }
-    frame.dynamicData->maskHd = upscaleIndexedFrame2x(frame.dynamicData->maskSd);
-    frame.dynamicData->colorsHd = frame.dynamicData->colorsSd;
-    frame.dynamicData->shadowDirectionsHd = frame.dynamicData->shadowDirectionsSd;
-    frame.dynamicData->shadowColorsHd = frame.dynamicData->shadowColorsSd;
     markChanged();
 }
 
@@ -661,15 +667,6 @@ FrameHdState ProjectDocument::frameHdState(std::size_t frameIndex, FrameHdParts 
     FrameHdState state;
     state.colorizedHd = frame.colorizedHd;
     state.inactiveHd = frame.inactiveHd;
-    if (parts.dynamic) {
-        if (!frame.dynamicData) {
-            throw std::logic_error("dynamic mask data is not available");
-        }
-        state.dynamic = FrameDynamicHdData{frame.dynamicData->maskHd,
-                                           frame.dynamicData->colorsHd,
-                                           frame.dynamicData->shadowDirectionsHd,
-                                           frame.dynamicData->shadowColorsHd};
-    }
     if ((parts.backgroundMask || parts.backgroundImage) && !frame.backgroundData) {
         throw std::logic_error("background data is not available");
     }
@@ -696,9 +693,6 @@ void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState
     if (state.colorizedHd && !hasSize(state.colorizedHd->size, hdSize)) {
         throw std::invalid_argument("HD frame has invalid size");
     }
-    if (state.dynamic && !frame.dynamicData) {
-        throw std::logic_error("dynamic mask data is not available");
-    }
     if (state.backgroundMask && !frame.backgroundData) {
         throw std::logic_error("background data is not available");
     }
@@ -714,12 +708,6 @@ void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState
 
     frame.colorizedHd = state.colorizedHd;
     frame.inactiveHd = state.inactiveHd;
-    if (state.dynamic) {
-        frame.dynamicData->maskHd = state.dynamic->mask;
-        frame.dynamicData->colorsHd = state.dynamic->colors;
-        frame.dynamicData->shadowDirectionsHd = state.dynamic->shadowDirections;
-        frame.dynamicData->shadowColorsHd = state.dynamic->shadowColors;
-    }
     if (state.backgroundMask) {
         frame.backgroundData->maskHd = *state.backgroundMask;
     }
@@ -766,6 +754,7 @@ void ProjectDocument::setShapeComparisonMode(std::size_t frameIndex, uint8_t mod
     }
     frame.shapeComparisonMode = mode;
     markChanged();
+    m_identificationRevision = m_revision;
 }
 
 void ProjectDocument::restoreShapeComparisonMode(std::size_t frameIndex, uint8_t mode)
@@ -776,6 +765,7 @@ void ProjectDocument::restoreShapeComparisonMode(std::size_t frameIndex, uint8_t
     }
     frame.shapeComparisonMode = mode;
     markChanged();
+    m_identificationRevision = m_revision;
 }
 
 uint8_t ProjectDocument::comparisonMaskId(std::size_t frameIndex) const
@@ -791,6 +781,7 @@ void ProjectDocument::setComparisonMaskId(std::size_t frameIndex, uint8_t maskId
     }
     frame.comparisonMaskId = maskId;
     markChanged();
+    m_identificationRevision = m_revision;
 }
 
 uint32_t ProjectDocument::triggerId(std::size_t frameIndex) const
@@ -972,6 +963,7 @@ void ProjectDocument::setComparisonMaskPixel(std::size_t maskIndex,
     }
     mask.pixels[pixelIndex] = value;
     markChanged();
+    m_identificationRevision = m_revision;
 }
 
 const std::optional<FrameDynamicData>& ProjectDocument::dynamicData(std::size_t frameIndex) const
@@ -1107,7 +1099,7 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
                                           int y,
                                           uint8_t value)
 {
-    requireEditablePlane(resolution);
+    requireDynamicPlane(resolution);
     IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
     if (mask.pixels[pixelIndex] == value) {
@@ -1134,7 +1126,7 @@ void ProjectDocument::setDynamicColor(std::size_t frameIndex,
                                       std::size_t originalColorIndex,
                                       uint16_t rgb565)
 {
-    requireEditablePlane(resolution);
+    requireDynamicPlane(resolution);
     std::vector<uint16_t>& colors =
         requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t colorIndex =
@@ -1179,7 +1171,7 @@ void ProjectDocument::setDynamicShadowDirection(std::size_t frameIndex,
                                                 std::size_t setIndex,
                                                 uint8_t direction)
 {
-    requireEditablePlane(resolution);
+    requireDynamicPlane(resolution);
     requireDynamicSetIndex(setIndex);
     std::vector<uint8_t>& directions =
         requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
@@ -1196,7 +1188,7 @@ void ProjectDocument::setDynamicShadowColor(std::size_t frameIndex,
                                             std::size_t setIndex,
                                             uint16_t rgb565)
 {
-    requireEditablePlane(resolution);
+    requireDynamicPlane(resolution);
     requireDynamicSetIndex(setIndex);
     std::vector<uint16_t>& colors =
         requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);

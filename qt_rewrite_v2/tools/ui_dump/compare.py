@@ -2,7 +2,7 @@
 """Compare two ui_dump outputs.
 
 Usage: compare.py before.txt after.txt [--allow-removed REGEX ...] [--allow-appended]
-                  [--ignore-sections REGEX]
+                  [--ignore-sections REGEX] [--ignore-geometry]
 
 Sections ("===== name =====") are compared as multisets of lines, except the focus chain
 sections, which are compared as sequences after dropping non-focusable (fp=0) entries.
@@ -12,6 +12,9 @@ With --allow-appended the second file may have more sections at its end, for sta
 added to the end of the script after the first file was made; they are counted, not compared.
 With --ignore-sections sections whose title line matches the regex are dropped from both files
 before anything is compared, for states that were rewritten on purpose; they are counted.
+With --ignore-geometry the position and size of every widget ("@x,y WxH") and the hash of the
+canvas grab are left out of the comparison, for a change that makes the window wider or moves
+widgets on purpose, which shifts everything beside them in every state.
 """
 import collections
 import re
@@ -45,7 +48,15 @@ while '--ignore-sections' in args:
     i = args.index('--ignore-sections')
     ignored = re.compile(args[i + 1])
     del args[i:i + 2]
+ignore_geometry = '--ignore-geometry' in args
+args = [a for a in args if a != '--ignore-geometry']
 before, after = sections(args[0]), sections(args[1])
+if ignore_geometry:
+    def without_geometry(parts):
+        return [(name, [re.sub(r'@-?\d+,-?\d+ \d+x\d+', '@geom', line) for line in lines
+                        if not line.startswith('--- canvas grab:')])
+                for name, lines in parts]
+    before, after = without_geometry(before), without_geometry(after)
 ignored_counts = None
 if ignored:
     kept_before = [s for s in before if not ignored.search(s[0])]
@@ -103,6 +114,8 @@ if allow_appended:
     print(f'appended sections, not compared: {len(appended)}')
 if ignored_counts:
     print(f'ignored sections, not compared: {ignored_counts[0]} / {ignored_counts[1]}')
+if ignore_geometry:
+    print('widget geometry and canvas grabs: not compared')
 print(f'focus chain sections with moved entries: {focus_moves}')
 print(f'focus chain sections with a different focusable order: {focus_reordered}')
 print(f'differences outside the focus order: {real - focus_reordered}')

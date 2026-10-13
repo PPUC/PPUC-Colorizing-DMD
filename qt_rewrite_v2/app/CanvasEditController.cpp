@@ -419,7 +419,8 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
 void CanvasEditController::pickDynamicSet(const CanvasEditContext& context,
                                           const render::CanvasHit& hit)
 {
-    if (!context.document || !context.currentFrame) {
+    if (!context.document || !context.currentFrame ||
+        !isDynamicPlane(context, hit.resolution)) {
         return;
     }
     try {
@@ -609,6 +610,9 @@ void CanvasEditController::floodFillDynamicMask(const CanvasEditContext& context
     }
     const document::ProjectDocument& document = *context.document;
     const std::size_t frameIndex = *context.currentFrame;
+    if (!isDynamicPlane(context, hit.resolution)) {
+        return;
+    }
     try {
         const uint8_t targetValue =
             document.dynamicMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
@@ -1156,6 +1160,22 @@ void CanvasEditController::commitComparisonMaskPixels(const CanvasEditContext& c
                kStatusMs);
 }
 
+bool CanvasEditController::isDynamicPlane(const CanvasEditContext& context,
+                                          render::Resolution resolution)
+{
+    if (!context.document || resolution == context.document->dynamicPlane()) {
+        return true;
+    }
+    const render::Size size =
+        context.document->geometry().planeSize(context.document->dynamicPlane());
+    showStatus(QStringLiteral("Dynamic zones are defined on the %1x%2 plane and cannot be "
+                              "picked or painted on this one")
+                   .arg(size.width)
+                   .arg(size.height),
+               kStatusMs);
+    return false;
+}
+
 void CanvasEditController::commitFrameMaskPixels(const CanvasEditContext& context,
                                                  edit::EditKind kind,
                                                  render::Resolution resolution,
@@ -1169,6 +1189,9 @@ void CanvasEditController::commitFrameMaskPixels(const CanvasEditContext& contex
     }
     const document::ProjectDocument& document = *context.document;
     const bool isBackgroundMask = kind == edit::EditKind::BackgroundMask;
+    if (kind == edit::EditKind::DynamicMask && !isDynamicPlane(context, resolution)) {
+        return;
+    }
 
     try {
         bool changed = false;

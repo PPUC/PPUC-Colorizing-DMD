@@ -133,7 +133,8 @@
             dialog->selectFile(out);
             static_cast<QDialog*>(dialog)->accept();
         });
-        w.m_exportRuntimeFrameAction->trigger();
+        // File -> Export Current Frame PNG..., which writes libserum's output.
+        w.exportCurrentFramePng();
         const QImage image = QImage(out).convertToFormat(QImage::Format_ARGB32);
         std::cout << label << ": " << image.width() << 'x' << image.height() << ':'
                   << (image.isNull() ? 0 : qHashBits(image.constBits(), static_cast<size_t>(image.sizeInBytes())))
@@ -312,4 +313,79 @@
     w.refreshProjectSummary();
     D("runtime view: closed");
     printView();
+
+    // --- appended: inactive frames and frame identification by order ----------------------
+    // Five 128x32 frames. Frame 1 is shorter than 15 ms and has the plain colors of its
+    // original: it is saved as inactive and libserum skips it. Frames 2 and 3 have the
+    // original of frame 0, so one ROM frame matches three frames, and which of them
+    // libserum identifies depends on the frame it identified before.
+    document::ProjectSnapshot ri = makeProject(PlaneLayout::Ordinary, 5);
+    {
+        const std::vector<uint16_t> plain = document::plainOriginalColors(ri.colorCount);
+        for (std::size_t i = 0; i < ri.frames[1].colorizedSd.pixels.size(); ++i) {
+            ri.frames[1].colorizedSd.pixels[i] = plain[ri.frames[1].originalSd.pixels[i]];
+        }
+        ri.frames[1].durationMs = 5;
+        ri.frames[2].originalSd = ri.frames[0].originalSd;
+        ri.frames[3].originalSd = ri.frames[0].originalSd;
+    }
+    load(ri);
+    row(0);
+    D("identification: project with an inactive frame and shared originals");
+    printView();
+    row(1);
+    D("identification: inactive frame selected");
+    std::cout << "frame list item: '" << w.m_frameList->item(1)->text().replace('\n', '|').toStdString()
+              << "' tip '" << w.m_frameList->item(1)->toolTip().toStdString() << "' | status tip '"
+              << w.m_frameStatusLabel->toolTip().toStdString() << "'\n";
+    {
+        const int inactiveFilter = w.m_frameFilterComboBox->findText(QStringLiteral("Inactive"));
+        std::cout << "inactive filter entry: " << inactiveFilter << '\n';
+        w.m_frameFilterComboBox->setCurrentIndex(inactiveFilter);
+        D("identification: filter Inactive");
+        // Colorized, the frame is active and leaves the filter.
+        w.commitPixelChanges(edit::EditLayer{edit::EditKind::FramePixels, 1, Resolution::Sd},
+                             {edit::PixelChange{3, 3, w.m_document->colorizedPixel(1, Resolution::Sd, 3, 3), 0xf800}});
+        w.updateUndoRedoActions();
+        D("identification: the inactive frame colorized leaves the filter");
+        w.m_frameFilterComboBox->setCurrentIndex(0);
+        row(1);
+        w.m_undoAction->trigger();
+        D("identification: inactive again after undo");
+    }
+    w.m_runtimeViewAction->trigger();
+    D("identification: runtime view on the inactive frame");
+    printView();
+    exportRuntime("export of the inactive frame", false);
+    // A still shows the frame rendered on its own. Frame 3's ROM frame is also frame 2's,
+    // which a machine coming from frame 2 identifies it as.
+    row(3);
+    D("identification: still of a frame that shares its original with the frame before");
+    printView();
+    row(2);
+    D("identification: still of the first of them");
+    printView();
+    // Playback from frame 2: libserum's search starts at frame 0, which has that original.
+    w.m_playbackIntervalSpinBox->setValue(5000);
+    w.m_playbackButton->click();
+    D("identification: playing from frame 2, identified as frame 0");
+    printView();
+    w.advancePlaybackFrame();
+    D("identification: playback step to frame 3");
+    printView();
+    w.advancePlaybackFrame();
+    D("identification: playback step to frame 4");
+    printView();
+    w.advancePlaybackFrame();
+    w.advancePlaybackFrame();
+    D("identification: playback wrapped to the inactive frame");
+    printView();
+    w.m_playbackButton->click();
+    w.m_playbackIntervalSpinBox->setValue(100);
+    w.m_runtimeViewAction->trigger();
+    D("identification: view off");
+    printView();
+    w.m_document.reset();
+    w.refreshProjectSummary();
+    D("identification: closed");
 }

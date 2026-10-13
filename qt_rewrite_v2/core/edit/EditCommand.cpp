@@ -369,11 +369,6 @@ std::vector<ReplacedData> FrameHdCommand::replacedData() const
 {
     const render::Resolution hd = render::Resolution::Hd;
     std::vector<ReplacedData> replaced{{EditKind::FramePixels, m_frameIndex, hd}};
-    if (m_before.dynamic || m_after.dynamic) {
-        replaced.push_back({EditKind::DynamicMask, m_frameIndex, hd});
-        replaced.push_back({EditKind::DynamicColor, m_frameIndex, hd});
-        replaced.push_back({EditKind::DynamicShadow, m_frameIndex, hd});
-    }
     if (m_before.backgroundMask || m_after.backgroundMask) {
         replaced.push_back({EditKind::BackgroundMask, m_frameIndex, hd});
     }
@@ -426,9 +421,6 @@ std::unique_ptr<EditCommand> createFrameHd(document::ProjectDocument& document,
     document::FrameHdState before = document.frameHdState(frameIndex, parts);
     try {
         document.createHdFrame(frameIndex);
-        if (parts.dynamic) {
-            document.upscaleDynamicMaskToHd(frameIndex);
-        }
         if (parts.backgroundMask) {
             document.upscaleBackgroundMaskToHd(frameIndex);
         }

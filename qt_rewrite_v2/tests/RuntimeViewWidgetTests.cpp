@@ -17,6 +17,7 @@
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
 #include "FrameImageUtils.h"
+#include "legacy/LegacyProjectSerializer.h"
 #include "FramePreviewWidget.h"
 #include "RuntimeView.h"
 #include "runtime/RuntimePreview.h"
@@ -190,13 +191,19 @@ void testRendersOnlyWhenSomethingChanged()
     expect(view.image(big, 1) == nullptr &&
                view.message(big, 1).find("no picture") != std::string::npos,
            "a frame libserum shows nothing for has a message instead of a picture");
-    // Shorter than the runtime's skip limit and not colorized: saved as inactive, which
-    // libserum does not look for.
+    // Shorter than the runtime's skip limit and not colorized: saved as inactive. libserum
+    // identifies such a frame and renders nothing for it.
     bigSnapshot.frames[1].durationMs = 5;
     const ProjectDocument skipped = ProjectDocument::fromSnapshot(bigSnapshot);
     expect(view.image(skipped, 1) == nullptr &&
-               view.message(skipped, 1).find("does not identify") != std::string::npos,
-           "a frame libserum skips is reported as not identified");
+               view.message(skipped, 1).find("skips it: it is inactive") != std::string::npos &&
+               view.frame(skipped, 1).identified && view.frame(skipped, 1).skipped &&
+               view.frame(skipped, 1).frameIndex == std::size_t{1},
+           "a frame libserum skips is reported as identified and skipped");
+    expect(colorizing::legacy::isFrameSkippedAtRuntime(skipped, 1) &&
+               !colorizing::legacy::isFrameSkippedAtRuntime(skipped, 0) &&
+               !colorizing::legacy::isFrameSkippedAtRuntime(big, 1),
+           "the frame list's inactive marker says the same");
 }
 
 void testPlayback()

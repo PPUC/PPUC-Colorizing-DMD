@@ -461,13 +461,18 @@ void FramePreviewWidget::paintRuntimeViewTexts(QPainter& painter,
                              colorized->displayRect.height * scale);
     const int rows =
         m_runtimeView->rowsFor(m_document->geometry()) == runtime::PlaneRequest::Rows64 ? 64 : 32;
+    // Which frame a machine identifies the ROM frame as, where that is another one.
+    const QString hint =
+        QString::fromStdString(m_runtimeView->identificationHint(*m_document, m_frameIndex));
     painter.setPen(QColor(120, 200, 255));
     painter.drawText(QRectF(0, std::max(0.0, pictureRect.top() - 18.0), width(), 16.0),
                      Qt::AlignHCenter | Qt::AlignVCenter,
-                     QStringLiteral("Runtime view: libserum output, %1 rows%2. Editing is off.")
+                     QStringLiteral("Runtime view: libserum output, %1 rows%2. Editing is off.%3")
                          .arg(rows)
                          .arg(m_runtimeView->isPlaying() ? QStringLiteral(", playing")
-                                                         : QString()));
+                                                         : QString())
+                         .arg(hint.isEmpty() ? QString()
+                                             : QStringLiteral(" Note: %1.").arg(hint)));
     const QString message =
         QString::fromStdString(m_runtimeView->message(*m_document, m_frameIndex));
     if (!message.isEmpty()) {
@@ -595,8 +600,10 @@ void FramePreviewWidget::paintDynamicMaskOverlay(
     QPainter& painter,
     const render::CanvasRegionLayout& region)
 {
+    // The zones are those of one plane; they are not drawn over the other one.
     if (!m_showDynamicMaskOverlay ||
-        region.region != render::CanvasRegion::ColorizedFrame) {
+        region.region != render::CanvasRegion::ColorizedFrame ||
+        region.resolution != m_document->dynamicPlane()) {
         return;
     }
 

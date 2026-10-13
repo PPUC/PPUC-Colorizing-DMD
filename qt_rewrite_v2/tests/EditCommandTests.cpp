@@ -234,6 +234,38 @@ void testDynamicMaskCommand()
     expect(document.dynamicMaskPixel(1, Resolution::Sd, 4, 2) == 255, "dynamic mask revert");
 }
 
+// The dynamic data of an ordinary project's HD plane is stored, not edited: the runtime takes
+// the zones, colors and shadows of the SD plane also for the HD picture. No command reaches
+// it, so no history can hold one.
+void testNoDynamicCommandsOnTheHdPlaneOfAnOrdinaryProject()
+{
+    ProjectDocument document = makeDocument();
+    document.markClean();
+    expect(document.dynamicPlane() == Resolution::Sd, "an ordinary project's dynamic plane is SD");
+
+    const MaskEditCommand mask(EditKind::DynamicMask, 1, Resolution::Hd, {{4, 2, 255, 3}});
+    const DynamicColorEditCommand color(1, Resolution::Hd, 2, 3, 0, 0x1234);
+    const DynamicShadowEditCommand shadow(1, Resolution::Hd, 0, true, true, {0, 1, 0, 0x4321});
+    UndoHistories histories;
+    for (const EditCommand* command :
+         {static_cast<const EditCommand*>(&mask), static_cast<const EditCommand*>(&color),
+          static_cast<const EditCommand*>(&shadow)}) {
+        expectThrows<std::logic_error>([&]() { command->apply(document); },
+                                       "an HD dynamic command cannot be applied");
+        expectThrows<std::logic_error>([&]() { command->revert(document); },
+                                       "an HD dynamic command cannot be reverted");
+    }
+    expect(!document.isDirty() && document.dynamicMaskPixel(1, Resolution::Hd, 4, 2) == 255 &&
+               document.dynamicColor(1, Resolution::Hd, 2, 3) == 0 &&
+               document.dynamicShadowDirection(1, Resolution::Hd, 0) == 0,
+           "the stored HD dynamic data is unchanged");
+    // The way an edit gets into a history: applied first, pushed if that worked.
+    for (EditKind kind : {EditKind::DynamicMask, EditKind::DynamicColor, EditKind::DynamicShadow}) {
+        expect(!histories.canUndo(HistoryKey{kind, 1, Resolution::Hd}),
+               "no HD dynamic history has an entry");
+    }
+}
+
 void testBackgroundMaskCommand()
 {
     ProjectDocument document = makeDocument();
@@ -408,8 +440,8 @@ void testHistoryKeys()
            "kind separates keys");
     expect(!(frameSd < frameSd), "key ordering is irreflexive");
 
-    const DynamicShadowEditCommand shadow(5, Resolution::Hd, 0, true, false, {0, 1, 0, 0});
-    expect(historyKey(shadow.target()) == HistoryKey{EditKind::DynamicShadow, 5, Resolution::Hd},
+    const DynamicShadowEditCommand shadow(5, Resolution::Sd, 0, true, false, {0, 1, 0, 0});
+    expect(historyKey(shadow.target()) == HistoryKey{EditKind::DynamicShadow, 5, Resolution::Sd},
            "shadow history belongs to its frame");
 }
 
@@ -721,33 +753,44 @@ void testFrameHdCommands()
     remove->apply(document);
     expect(!document.hasHdFrame(0) && document.hasHdFrame(1), "redoing Remove HD");
 
-    // Give every related HD part a value that differs from what the upscale produces.
+    // Give every related HD part a value that differs from what the upscale produces. The
+    // HD dynamic data of an ordinary project can only come from a file: it is not editable.
     document.setDynamicMaskPixel(0, Resolution::Sd, 3, 2, 7);
-    document.setDynamicMaskPixel(0, Resolution::Hd, 100, 40, 5);
     document.setDynamicColor(0, Resolution::Sd, 2, 3, 0x3333);
-    document.setDynamicColor(0, Resolution::Hd, 2, 3, 0x2222);
     document.setDynamicShadowDirection(0, Resolution::Sd, 1, 0x10);
-    document.setDynamicShadowDirection(0, Resolution::Hd, 1, 0x02);
     document.setDynamicShadowColor(0, Resolution::Sd, 1, 0x00ff);
-    document.setDynamicShadowColor(0, Resolution::Hd, 1, 0xff00);
+    {
+        colorizing::document::ProjectSnapshot stored = document.toSnapshot();
+        colorizing::document::FrameDynamicData& dynamic = *stored.frames[0].dynamicData;
+        dynamic.maskHd.pixels[40 * 256 + 100] = 5;
+        dynamic.colorsHd[2 * stored.colorCount + 3] = 0x2222;
+        dynamic.shadowDirectionsHd.resize(colorizing::document::kMaxDynamicSetsPerFrame, 0);
+        dynamic.shadowColorsHd.resize(colorizing::document::kMaxDynamicSetsPerFrame, 0);
+        dynamic.shadowDirectionsHd[1] = 0x02;
+        dynamic.shadowColorsHd[1] = 0xff00;
+        document = ProjectDocument::fromSnapshot(stored);
+    }
+    const auto expectStoredHdDynamics = [&](const std::string& name) {
+        expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 255 &&
+                   document.dynamicMaskPixel(0, Resolution::Hd, 100, 40) == 5 &&
+                   document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x2222 &&
+                   document.dynamicShadowDirection(0, Resolution::Hd, 1) == 0x02 &&
+                   document.dynamicShadowColor(0, Resolution::Hd, 1) == 0xff00,
+               name + ": the stored HD dynamic data is left as it is");
+    };
     document.setBackgroundMaskPixel(0, Resolution::Sd, 5, 4, 1);
     document.setBackgroundMaskPixel(0, Resolution::Hd, 200, 50, 1);
     document.setBackgroundPixel(0, Resolution::Sd, 7, 6, 0x4444);
     document.setBackgroundPixel(0, Resolution::Hd, 30, 20, 0x7777);
 
     const std::unique_ptr<EditCommand> create =
-        colorizing::edit::createFrameHd(document, 0, FrameHdParts{true, true, true});
+        colorizing::edit::createFrameHd(document, 0, FrameHdParts{true, true});
     const auto expectCreated = [&](const std::string& name) {
         expect(document.hasHdFrame(0) &&
                    document.colorizedPixel(0, Resolution::Hd, 9, 5) == 0x1234 &&
                    document.colorizedPixel(0, Resolution::Hd, 8, 4) == 0x1234,
                name + ": HD frame upscaled from SD");
-        expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 7 &&
-                   document.dynamicMaskPixel(0, Resolution::Hd, 100, 40) == 255 &&
-                   document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x3333 &&
-                   document.dynamicShadowDirection(0, Resolution::Hd, 1) == 0x10 &&
-                   document.dynamicShadowColor(0, Resolution::Hd, 1) == 0x00ff,
-               name + ": HD dynamic data taken from SD");
+        expectStoredHdDynamics(name);
         expect(document.backgroundMaskPixel(0, Resolution::Hd, 10, 8) == 1 &&
                    document.backgroundMaskPixel(0, Resolution::Hd, 200, 50) == 0,
                name + ": HD background mask upscaled from SD");
@@ -759,21 +802,17 @@ void testFrameHdCommands()
     expectCreated("Create HD");
     expectTarget(*create, EditKind::FrameAttributes, 0, Resolution::Sd, {0}, "create HD");
     expect(replaces(*create, EditKind::FramePixels, 0) &&
-               replaces(*create, EditKind::DynamicMask, 0) &&
-               replaces(*create, EditKind::DynamicColor, 0) &&
-               replaces(*create, EditKind::DynamicShadow, 0) &&
                replaces(*create, EditKind::BackgroundMask, 0) &&
                replaces(*create, EditKind::BackgroundImage, 0),
            "Create HD replaces every HD part it upscaled");
+    expect(!replaces(*create, EditKind::DynamicMask, 0) &&
+               !replaces(*create, EditKind::DynamicColor, 0) &&
+               !replaces(*create, EditKind::DynamicShadow, 0),
+           "Create HD replaces no dynamic data: no dynamic history is dropped for it");
 
     create->revert(document);
     expect(!document.hasHdFrame(0), "undoing Create HD removes the HD frame");
-    expect(document.dynamicMaskPixel(0, Resolution::Hd, 6, 4) == 255 &&
-               document.dynamicMaskPixel(0, Resolution::Hd, 100, 40) == 5 &&
-               document.dynamicColor(0, Resolution::Hd, 2, 3) == 0x2222 &&
-               document.dynamicShadowDirection(0, Resolution::Hd, 1) == 0x02 &&
-               document.dynamicShadowColor(0, Resolution::Hd, 1) == 0xff00,
-           "undoing Create HD restores the HD dynamic data");
+    expectStoredHdDynamics("undoing Create HD");
     expect(document.backgroundMaskPixel(0, Resolution::Hd, 10, 8) == 0 &&
                document.backgroundMaskPixel(0, Resolution::Hd, 200, 50) == 1,
            "undoing Create HD restores the HD background mask");
@@ -802,7 +841,7 @@ void testFrameHdCommands()
            "Create HD without options replaces only the frame's HD pixels");
     frameOnly->revert(document);
     const std::unique_ptr<EditCommand> withBackground =
-        colorizing::edit::createFrameHd(document, 0, FrameHdParts{false, false, true});
+        colorizing::edit::createFrameHd(document, 0, FrameHdParts{false, true});
     expect(document.background(0).colorizedHd.has_value() &&
                document.backgroundPixel(0, Resolution::Hd, 14, 12) == 0x4444,
            "Create HD gives the assigned background an HD image");
@@ -814,11 +853,7 @@ void testFrameHdCommands()
 
     ProjectDocument plain = ProjectDocument::createEmpty(ProjectCreateOptions{"plain", 1, false});
     plain.markClean();
-    const FrameHdParts dynamicOnly{true, false, false};
-    const FrameHdParts backgroundMaskOnly{false, true, false};
-    expectThrows<std::logic_error>(
-        [&]() { (void)colorizing::edit::createFrameHd(plain, 0, dynamicOnly); },
-        "Create HD with dynamic data the frame does not have");
+    const FrameHdParts backgroundMaskOnly{true, false};
     expectThrows<std::logic_error>(
         [&]() { (void)colorizing::edit::createFrameHd(plain, 0, backgroundMaskOnly); },
         "Create HD with a background mask the frame does not have");
@@ -1004,6 +1039,7 @@ void runEditCommandTests()
     testSpriteImageCommand();
     testComparisonMaskCommand();
     testDynamicMaskCommand();
+    testNoDynamicCommandsOnTheHdPlaneOfAnOrdinaryProject();
     testBackgroundMaskCommand();
     testDynamicColorCommand();
     testDynamicShadowCommand();

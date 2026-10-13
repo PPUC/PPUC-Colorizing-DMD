@@ -57,6 +57,7 @@ void RuntimeView::startPlayback(std::vector<std::size_t> frameOrder)
     m_playOrder = std::move(frameOrder);
     m_playing = true;
     m_hasFrame = false;
+    m_sequenceOpen = false;
 }
 
 void RuntimeView::stopPlayback()
@@ -67,6 +68,7 @@ void RuntimeView::stopPlayback()
     m_playing = false;
     m_playOrder.clear();
     m_hasFrame = false;
+    m_sequenceOpen = false;
     RuntimePreview::instance().close();
 }
 
@@ -109,11 +111,20 @@ const runtime::RuntimeFrame& RuntimeView::frame(const document::ProjectDocument&
             frames.push_back(frameIndex);
         }
         std::string errorMessage;
-        if (!preview.openSequence(document, frames, rows, &errorMessage)) {
+        // The first window starts as libserum does after loading the project. Every later
+        // one, also after an edit, carries on from the frame identified last. Another plane
+        // is another playback.
+        const bool carriesOn = m_sequenceOpen && m_sequenceRows == rows;
+        const bool opened =
+            carriesOn ? preview.continueSequence(document, frames, rows, &errorMessage)
+                      : preview.openSequence(document, frames, rows, &errorMessage);
+        if (!opened) {
+            m_sequenceOpen = false;
             m_frame = runtime::RuntimeFrame{};
             m_frame.error = errorMessage;
             return m_frame;
         }
+        m_sequenceOpen = true;
         m_sequenceRevision = document.revision();
         m_sequenceRows = rows;
     }
@@ -136,16 +147,54 @@ std::string RuntimeView::message(const document::ProjectDocument& document,
                                  std::size_t frameIndex)
 {
     const runtime::RuntimeFrame& shown = frame(document, frameIndex);
-    if (!shown.ok()) {
-        return "libserum: " + shown.error;
-    }
-    if (shown.plane(rowsFor(document.geometry()))) {
+    return runtimeNoPictureReason(shown, rowsFor(document.geometry()));
+}
+
+RuntimeView::OtherFrame RuntimeView::identifiedOtherFrame(
+    const document::ProjectDocument& document,
+    std::size_t frameIndex)
+{
+    if (frameIndex >= document.frameCount()) {
         return {};
     }
-    if (!shown.identified) {
-        return "libserum does not identify this frame.";
+    if (m_playing) {
+        const runtime::RuntimeFrame& shown = frame(document, frameIndex);
+        if (!shown.ok() || !shown.frameIndex || *shown.frameIndex == frameIndex) {
+            return {};
+        }
+        return OtherFrame{shown.frameIndex, std::nullopt};
     }
-    return "libserum identifies this frame and shows no picture for it.";
+    if (!m_hasStillHint || m_stillHintRevision != document.identificationRevision() ||
+        m_stillHintFrame != frameIndex) {
+        const std::size_t before = frameIndex > 0 ? frameIndex - 1 : 0;
+        const std::optional<std::size_t> identified =
+            RuntimePreview::instance().identification(document)->identify(
+                document.originalFrame(frameIndex), before);
+        m_hasStillHint = true;
+        m_stillHintRevision = document.identificationRevision();
+        m_stillHintFrame = frameIndex;
+        m_stillHint = !identified || *identified == frameIndex ? OtherFrame{}
+                                                               : OtherFrame{identified, before};
+    }
+    return m_stillHint;
+}
+
+std::string RuntimeView::identificationHint(const document::ProjectDocument& document,
+                                            std::size_t frameIndex,
+                                            bool shortText)
+{
+    const OtherFrame other = identifiedOtherFrame(document, frameIndex);
+    if (!other.frame) {
+        return {};
+    }
+    const std::string frameText = "frame " + std::to_string(*other.frame);
+    if (!other.after) {
+        return shortText ? "identified as " + frameText
+                         : "libserum identifies this ROM frame as " + frameText;
+    }
+    const std::string afterText = "after frame " + std::to_string(*other.after);
+    return shortText ? afterText + ": " + frameText
+                     : afterText + " a machine identifies this ROM frame as " + frameText;
 }
 
 uint32_t RuntimeView::rotate()
@@ -163,6 +212,24 @@ uint32_t RuntimeView::rotate()
     m_frame.identified = identified;
     m_frame.frameIndex = identifiedFrame;
     return m_frame.nextRotationMs;
+}
+
+std::string runtimeNoPictureReason(const runtime::RuntimeFrame& frame, PlaneRequest rows)
+{
+    if (!frame.ok()) {
+        return "libserum: " + frame.error;
+    }
+    if (frame.plane(rows)) {
+        return {};
+    }
+    if (frame.skipped) {
+        return "libserum identifies this frame and skips it: it is inactive (shorter than 15 ms "
+               "and not colorized), so a machine keeps the picture it shows.";
+    }
+    if (!frame.identified) {
+        return "libserum does not identify this frame.";
+    }
+    return "libserum identifies this frame and shows no picture for it.";
 }
 
 std::size_t RuntimeView::renderCount() const

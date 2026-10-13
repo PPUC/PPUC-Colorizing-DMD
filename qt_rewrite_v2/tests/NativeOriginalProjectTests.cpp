@@ -572,7 +572,6 @@ void testDocumentDiscardsExtraPlane()
            "the 96x32 plane cannot be reached");
     expect(throwsLogicError([&]() { document.createHdFrame(0); }) &&
                throwsLogicError([&]() { document.createHdSprite(0); }) &&
-               throwsLogicError([&]() { document.upscaleDynamicMaskToHd(1); }) &&
                throwsLogicError([&]() { document.upscaleBackgroundMaskToHd(1); }) &&
                throwsLogicError([&]() { document.upscaleAssignedBackgroundToHd(1); }),
            "no 96x32 data can be created");

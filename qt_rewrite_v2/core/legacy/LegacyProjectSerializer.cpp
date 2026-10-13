@@ -218,39 +218,89 @@ std::vector<uint16_t> legacyOriginalColors(uint32_t colorCount)
     return document::plainOriginalColors(colorCount);
 }
 
-bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
-                         const std::vector<uint16_t>& originalColors,
-                         render::Resolution nativePlane)
+bool isLegacyFrameActive(uint32_t durationMs,
+                         const document::IndexedFrame& original,
+                         const document::Rgb565Frame* nativeColorized,
+                         const document::IndexedFrame* nativeDynamicMask,
+                         const std::vector<uint16_t>& originalColors)
 {
-    if (frame.durationMs >= kSkipFrameDurationMs) {
+    if (durationMs >= kSkipFrameDurationMs) {
         return true;
     }
-    // Only the native plane lines up with the original. A 256x64 project renders its HD frame
-    // alone; its SD frame is never shown and does not count.
-    const bool extraIsNative = nativePlane == render::Resolution::Hd;
-    if (extraIsNative && !frame.colorizedHd) {
+    if (!nativeColorized) {
         return false;
     }
-    const document::Rgb565Frame& colorized =
-        extraIsNative ? *frame.colorizedHd : frame.colorizedSd;
-    const document::IndexedFrame* dynamicMask =
-        !frame.dynamicData ? nullptr
-                           : extraIsNative ? &frame.dynamicData->maskHd
-                                           : &frame.dynamicData->maskSd;
-    for (std::size_t index = 0; index < colorized.pixels.size(); ++index) {
-        const uint8_t original = index < frame.originalSd.pixels.size()
-                                     ? frame.originalSd.pixels[index]
-                                     : uint8_t{0};
-        const uint16_t plain =
-            original < originalColors.size() ? originalColors[original] : uint16_t{0};
+    for (std::size_t index = 0; index < nativeColorized->pixels.size(); ++index) {
+        const uint8_t shade = index < original.pixels.size() ? original.pixels[index] : uint8_t{0};
+        const uint16_t plain = shade < originalColors.size() ? originalColors[shade] : uint16_t{0};
         // The saved frame has its dynamic pixels blanked; any dynamic pixel counts.
-        const bool dynamic = dynamicMask && index < dynamicMask->pixels.size() &&
-                             dynamicMask->pixels[index] != 255;
-        if (dynamic || colorized.pixels[index] != plain) {
+        const bool dynamic = nativeDynamicMask && index < nativeDynamicMask->pixels.size() &&
+                             nativeDynamicMask->pixels[index] != 255;
+        if (dynamic || nativeColorized->pixels[index] != plain) {
             return true;
         }
     }
     return false;
+}
+
+bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
+                         const std::vector<uint16_t>& originalColors,
+                         render::Resolution nativePlane)
+{
+    // Only the native plane lines up with the original. A 256x64 project renders its HD frame
+    // alone; its SD frame is never shown and does not count.
+    const bool extraIsNative = nativePlane == render::Resolution::Hd;
+    const document::Rgb565Frame* colorized =
+        !extraIsNative ? &frame.colorizedSd
+                       : frame.colorizedHd ? &*frame.colorizedHd : nullptr;
+    const document::IndexedFrame* dynamicMask =
+        !frame.dynamicData ? nullptr
+                           : extraIsNative ? &frame.dynamicData->maskHd
+                                           : &frame.dynamicData->maskSd;
+    return isLegacyFrameActive(frame.durationMs, frame.originalSd, colorized, dynamicMask,
+                               originalColors);
+}
+
+bool isFrameSkippedAtRuntime(const document::ProjectDocument& document, std::size_t frameIndex)
+{
+    // Checked first: it is true for nearly every frame and needs no pixel.
+    if (document.frameDurationMs(frameIndex) >= kSkipFrameDurationMs) {
+        return false;
+    }
+    const render::Resolution nativePlane = document.geometry().nativePlane();
+    const bool extraIsNative = nativePlane == render::Resolution::Hd;
+    const std::optional<document::FrameDynamicData>& dynamicData =
+        document.dynamicData(frameIndex);
+    const document::Rgb565Frame* colorized =
+        extraIsNative && !document.hasHdFrame(frameIndex)
+            ? nullptr
+            : &document.colorizedFrame(frameIndex, nativePlane);
+    const document::IndexedFrame* dynamicMask =
+        !dynamicData ? nullptr : extraIsNative ? &dynamicData->maskHd : &dynamicData->maskSd;
+    if (isLegacyFrameActive(document.frameDurationMs(frameIndex),
+                            document.originalFrame(frameIndex),
+                            colorized,
+                            dynamicMask,
+                            legacyOriginalColors(document.colorCount()))) {
+        return false;
+    }
+    // libserum's FrameHasRenderableContent(): an inactive frame is still rendered if it has a
+    // background or a dynamic zone, on the original plane or, for a frame with extra-plane
+    // content, on the extra plane.
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        document.backgroundData(frameIndex);
+    if (backgroundData && backgroundData->backgroundId < document.backgroundCount()) {
+        return false;
+    }
+    const auto hasZone = [](const document::IndexedFrame& mask) {
+        return std::any_of(mask.pixels.begin(), mask.pixels.end(),
+                           [](uint8_t set) { return set != 255; });
+    };
+    if (dynamicData && document.geometry().isEditable(render::Resolution::Hd) &&
+        document.hasHdFrame(frameIndex) && hasZone(dynamicData->maskHd)) {
+        return false;
+    }
+    return !(dynamicData && hasZone(dynamicData->maskSd));
 }
 
 bool writeLegacyCrom(std::ostream& stream,

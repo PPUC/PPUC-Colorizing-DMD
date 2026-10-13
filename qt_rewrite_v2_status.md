@@ -69,9 +69,15 @@ neither of those holds.
     libserum's state is process-global. `ProjectDocument::toSubsetSnapshot()` gives it a
     snapshot of the wanted frames and what they reference, with renumbered IDs, which the
     existing `writeLegacyCrom()` turns into a small cROM in memory. A still is: load that
-    cROM, colorize once, dispose. A sequence keeps one cROM of several frames loaded.
-    `ProjectDocument::revision()` changes with every edit and lets callers cache results.
-- `app/`: `MainWindow` (about 4,600 lines, down from 8,266), `CanvasEditController`, the canvas and
+    cROM, colorize once, dispose. A sequence (playback) loads windows of at most 48 played
+    frames with the other frames that take part in identifying them, and carries libserum's
+    identification state from window to window, see "Runtime playback" below.
+    `ProjectDocument::revision()` changes with every edit and lets callers cache results;
+    `identificationRevision()` changes only with what frame identification depends on.
+  - `runtime/FrameIdentification`: libserum's frame search rule (`Identify_Frame`) stated on the
+    document, without libserum: which frames match a ROM frame, which one libserum identifies
+    from a given search start, and which frames a window needs. Checked against libserum.
+- `app/`: `MainWindow` (about 5,000 lines, down from 8,266), `CanvasEditController`, the canvas and
   sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), `RuntimeView`
   (state of the canvas's Runtime view: on/off, plane, playback, cached libserum output),
   `LazyListIcons`
@@ -81,8 +87,10 @@ neither of those holds.
   (loads a real project, re-serializes, reports per block where it differs from disk; for a
   192x64 project differences in extra-plane blocks are reported as expected) and
   `colorizing_qt_v2_preview_diff` (renders every frame of a real project with the editor's
-  renderer and with libserum and reports the differing pixels by class).
-- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 650 scripted
+  renderer and with libserum and reports the differing pixels by class; with `--playback` it
+  plays the frames through the runtime preview's windows and through the whole project and
+  compares every step).
+- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 660 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
 
@@ -101,13 +109,33 @@ neither of those holds.
   colours and shadows, palettes, frame settings, HD create/remove for frames and sprites.
 - 256x64-original projects: open, edit and save as native HD only (see below).
 - 192x64-original projects: open, edit and save on the native 192x64 plane only (see below).
-- Runtime view (`Edit -> Runtime View`, `Ctrl+R`): the canvas shows libserum's output for the
-  current frame, 32-row or 64-row plane, read-only; playback through libserum with its color
-  rotations; `Export Current Frame Runtime PNG...`. All three layouts.
+- Runtime view (`View -> Runtime View`, `Ctrl+R`, and a checkable `Runtime` toolbar button
+  beside the playback controls): the canvas shows libserum's output for the current frame,
+  32-row or 64-row plane, read-only; playback through libserum with its color rotations and with
+  frame identification as on a machine. All three layouts. There is a `View` menu now; it holds
+  the Runtime view and its two plane choices.
+- `File -> Export Current Frame PNG...` writes libserum's output. The separate runtime export and
+  the export of the editor's own rendering are gone. A frame libserum renders nothing for is not
+  exported and the status bar says why.
+- Runtime playback identifies frames like a machine with the whole project loaded. Checked over
+  every frame of four real projects against libserum with the full cROM loaded: `afm_113b`
+  3047, `hook_501` 3897, `smb3` 4430, `trn_174h` 5211 steps, no step identified or reported
+  differently; `frankst1` 11199 steps against the search rule, no difference. A machine
+  identifies 8, 26, 3, 48 and 4 of those frames as another frame than the one fed, which the
+  view now shows.
+- Frames the runtime skips are marked `inactive` in the frame list, with a tool tip, and have a
+  filter entry (`Inactive`). The rule is the serializer's (`isLegacyFrameActive`) plus
+  libserum's exceptions for an inactive frame with a background or a dynamic zone
+  (`legacy::isFrameSkippedAtRuntime`).
+- Dynamic data of an ordinary project is edited on the SD plane only, which is where the runtime
+  takes it from; see "Dynamic data and the HD plane" below.
 - The editor's own renderer gives the same pixels as libserum on the plane with the ROM frame's
   size: `afm_113b` 3047/3047 frames, `trn_174h` 5211/5211, `hook_501` 3897/3897, `smb3`
-  4430/4430, `frankst1` 303/303 sampled (`colorizing_qt_v2_preview_diff`). Before this step:
-  `afm_113b` 4 frames differed, `smb3` 40, `trn_174h` 45.
+  4430/4430, `frankst1` sampled (`colorizing_qt_v2_preview_diff`).
+- On the HD plane of an ordinary project the renderer follows libserum's layers (SD dynamic
+  zones and colors, pixels doubled). What is left on `trn_174h` is the edge rounding of
+  libserum's Scale2x: 114722 pixels in 4249 of 5211 frames (113940 at zone edges, 782 at sprite
+  edges), down from 152166.
 
 ## Resolution model
 
@@ -161,6 +189,57 @@ filter `Not rendered`), repair `Create 256x64 Frame` / `Create 256x64 Sprite`. A
 has no Create or Remove button. Details and the full table are in the Handbook, "SD And HD
 Modes".
 
+## Dynamic data and the HD plane (ordinary projects)
+
+libserum renders the 64-row picture of a 128x32 colorization in layers (`Colorize_Framev2`,
+`layerMode = upscaleExtraFromOriginal`, which `ConfigureRequestedOutputMode` sets whenever the
+content is 32 rows high and 64 rows are requested): the HD frame and HD background natively,
+the dynamic content at 128x32 from the SD mask and SD colors, upscaled once. `frameHasDynamicExtra`
+is `!layerMode && ...`, so the HD dynamic mask and colors are never read. Owner decision: the
+editor does not offer them.
+
+- `ProjectDocument::dynamicPlane()` is the plane dynamic data is edited on, the native plane.
+  The four dynamic setters throw `std::logic_error` for the other plane, so no edit command can
+  be applied to stored HD dynamic data and none reaches an undo history. Reading stays possible.
+- HD mode: the `Dynamic` button is disabled with a tool tip, switching to HD switches the mode
+  off, and the `Dyn` page shows and edits the SD colors and shadows with a note. Chosen over
+  drawing the SD zones doubled over the HD frame, read-only: an overlay that looks paintable and
+  is not misleads more than a disabled button with its reason, and the HD picture already shows
+  what the zones do.
+- `Create HD` has no "dynamic mask and colors" option any more and leaves the frame's stored HD
+  dynamic data as it is (mask 255, colors and shadows 0 for a frame that never had any).
+  `FrameHdParts::dynamic`, `FrameHdState::dynamic` and `upscaleDynamicMaskToHd()` are gone.
+- Stored HD dynamic data is loaded and written back unchanged.
+- **Not ignored by libserum: HD dynamic shadows.** In layer mode a set without an SD shadow
+  direction takes direction and color from the HD shadow tables (`CheckDynaShadow`,
+  `GenerateExtraPlaneShadows`). The renderer does the same; the `Dyn` page edits the SD shadow
+  only. See open decision 4.
+- HD color rotations and HD background masks are used by libserum in layer mode (the HD pass
+  reads `colorrotations_v2_extra` and `backgroundmask_extra`) and are unchanged in the editor.
+
+## Runtime playback
+
+libserum identifies by order: the search starts at the frame identified last and walks the
+frames in file order; the first (mask, shape mode) pair it meets that has a frame with the
+incoming frame's hash decides, and of those frames it takes the first at or after the place it
+met the pair (`Identify_Frame`, `SelectFrameIdInWrapOrder`). So frames that do not match take
+part too, by deciding which pair is met first, and loading the played frames as one subset in
+project order is not enough.
+
+The rule implemented (`FrameIdentification::candidates`, `RuntimePreview::openSequence`): a
+window holds (1) the search start and every frame, in any pair, that matches the original of a
+played frame, and (2) for each of those and each of their pairs the first frame of that pair at
+or after it; in project order, rotated to begin with the search start. From window to window
+the state is carried by that rotation and by feeding the last identified ROM frame once more.
+libserum does not say which frame it identified when it reports "same frame" for a frame whose
+picture is already on display, so the search start is then taken from `FrameIdentification`,
+which the tests and `colorizing_qt_v2_preview_diff --playback` compare with libserum wherever
+libserum does report it.
+
+Cost: windows of 49 to 86 frames on average (160 at most), 3 to 8 MB of cROM, 15 to 100 ms to
+load; building the search rule of a project once per change of masks takes 16 to 30 ms, 270 ms
+for `frankst1`. Memory stays that of a window.
+
 ## Open decisions (waiting for the owner)
 
 1. **192x64: decided.** The 96x32 data is discarded on load and written as "no extra data";
@@ -177,6 +256,20 @@ Modes".
    - Frame settings cannot be undone while Dynamic mask mode is active.
 3. **256x64 details:** the monochrome palette trigger in libserum now reads its palette from the
    HD dynamic colour set; a background repaired by `Create 256x64 Frame` becomes black.
+4. **HD dynamic shadows of ordinary projects.** libserum uses the HD shadow direction and color
+   of a set as a fallback when the set has no SD direction. The editor renders that and cannot
+   edit it: such a shadow can be replaced by an SD one and not switched off. Options: leave it;
+   show the fallback on the `Dyn` page; or copy an HD shadow into the SD table when a frame is
+   first edited. Not counted how many real frames rely on it.
+5. **The save rule for HD pixels under a stored HD dynamic mask.** Kept as decided: such a pixel
+   is written as 0. With HD dynamic masks no longer shown or editable an author cannot see or
+   remove a stale one, and HD pixels painted under it are black on a machine wherever no SD zone
+   covers them (the Runtime view shows it, the canvas does not). Tried: without the rule for
+   ordinary projects `afm_113b`, `trn_174h`, `hook_501` and `smb3` still round-trip
+   byte-identical, because their files have 0 there already. So the rule could be dropped for
+   the HD plane of ordinary projects without losing the round trip.
+6. **The 15 ms rule** (a frame shorter than 15 ms that is not colorized is saved inactive) is
+   unchanged and asked about separately. Such frames are now marked.
 
 ## Known bugs and gaps in the editor (not fixed)
 
@@ -192,22 +285,33 @@ Modes".
 - Error texts that come from `ProjectDocument` exceptions and reach the status bar were only
   partly reworded for single-plane projects ("256x64 frame is not available"); other core
   messages may still say "HD" there.
-- **The editing canvas, thumbnails and the plain PNG export differ from libserum on the HD plane
-  of an ordinary project** wherever the ROM frame decides what is shown. libserum renders that
-  content at 128x32 with the SD dynamic masks and colours and upscales it (layer mode); the
-  editor draws the HD dynamic masks and colours and doubles pixels. Measured on `trn_174h`:
-  4249 of 5211 HD frames differ, 151384 pixels under dynamic masks (e.g. frames 527, 1157), 782
-  pixels at sprite edges (e.g. frames 1455, 697). Frames without HD have no 64-row picture in
-  the editor at all. The Runtime view shows the real picture in all these cases. Not
-  reproduced on purpose: the upscaling. Open: whether HD mode should show what libserum does
-  with the HD dynamic mask, which is nothing.
+- **The editing canvas differs from libserum on the HD plane of an ordinary project at the edges
+  of upscaled content.** libserum renders dynamic zones and sprites without HD art at 128x32 and
+  upscales them with Scale2x; the editor doubles pixels. Measured on `trn_174h`: 4249 of 5211 HD
+  frames differ, 113940 pixels at the edges of dynamic zones (27 per frame), 782 at sprite
+  edges. Frames without HD have no 64-row picture in the editor at all. A frame with HD whose
+  background has no HD image is, by libserum's code, rendered like one without HD; the editor
+  shows the HD frame (no real project has that case). The Runtime view shows the real picture.
+- An HD pixel painted under a stored HD dynamic mask is saved as 0 and the canvas does not show
+  that, see open decision 5.
+- A frame's thumbnail is not redrawn after a dynamic mask edit (it is after a dynamic color or
+  shadow edit); it shows the old zones until something else redraws it.
 - In a 256x64 project a frame whose background or sprite lacks 256x64 data is drawn without it
   by the editing canvas (to stay editable); libserum shows nothing for the frame.
 - Runtime view: no `.pup.csv` scenes and no `scaling.txt` (libserum's memory load reads neither,
-  so the 64-row plane always uses the default Scale2x and shadow offset); a frame is rendered
-  from a cROM of that frame alone, so which of several frames with the same hash a machine
-  would pick is not shown; runtime playback loads at most 48 frames at a time and starts
-  libserum's state afresh for the next 48; the trigger libserum reports is not shown.
+  so the 64-row plane always uses the default Scale2x and shadow offset); the trigger libserum
+  reports is not shown. A still is rendered from a cROM of that frame alone; the status line
+  says when a machine coming from the frame before would identify its original as another
+  frame. In playback, what libserum keeps from frames before a window besides the
+  identification (a monochrome switch, the phase of running rotations) starts again with the
+  window.
+- libserum leaves single pixels of the 64-row plane as an earlier frame painted them: playback
+  through windows and through the whole project differ at 1 or 2 pixels in 19 of 4430 steps of
+  `smb3` (e.g. frames 672 to 678, pixel 213,63) and 13 of 5211 of `trn_174h` (frames 3792 to
+  3795, 4032 to 4040, pixel 21,12), only on the 64-row plane, and with one-frame windows at more
+  steps. A libserum matter, not looked into further.
+- The frame status label is part of the toolbar row and so of the window's minimum width: a
+  longer text (the identification hint) can widen the window.
 - Runtime render cost per frame (subset, serialize, load, colorize; release build, M-series
   Mac): `hook_501` 0.24 ms, `afm_113b` 0.60 ms, `trn_174h` 1.8 ms, `smb3` 2.1 ms, `frankst1`
   2.0 ms mean; the load is 70 to 90 percent of it. Frames with many sprites cost about 10 ms
@@ -250,11 +354,9 @@ Modes".
 
 1. Confirm the value written for an unused 192x64 extra background mask (open decision 1) and
    check a 192x64 project saved by this editor on a real machine.
-2. Decide what HD mode shows for dynamic content (see "Known bugs and gaps"), and whether
-   thumbnails and the plain PNG export should come from libserum. Measured: a runtime render
-   costs 0.2 to 2 ms against 0.05 to 0.13 ms for the editor's renderer, and on the native plane
-   the two are pixel-identical on all five real projects, so thumbnails gain nothing from it;
-   the export can simply be the runtime export.
+2. Decide open decisions 4 and 5 (HD dynamic shadows as a fallback, the save rule under a stored
+   HD dynamic mask). Done in this step: HD mode offers no dynamic masks, the renderer follows
+   libserum there, the PNG export is libserum's output, playback identifies like a machine.
 3. Build the frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next
    unidentified frame, search by ID), and load `.pup.csv`/`scaling.txt` for it if libserum gets
    a way to pass them from memory.
@@ -300,6 +402,7 @@ cmake --build <build dir>
 (cd <build dir> && QT_QPA_PLATFORM=offscreen ctest --output-on-failure)
 <build dir>/tests/colorizing_qt_v2_roundtrip <project>.cRZ <project>.cRP   # must print "identical" twice
 <build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP   # native plane identical
+<build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP --playback 48   # playback like the whole project
 qt_rewrite_v2/tools/ui_dump/run.sh baseline   # before a change
 qt_rewrite_v2/tools/ui_dump/run.sh after      # after it
 ```

@@ -1,7 +1,10 @@
 // The editor's own renderer (app/FrameImageUtils) against libserum: on the plane that has the
 // ROM frame's size both have to show the same pixels, for every kind of content and in every
-// plane layout.
+// plane layout. On the 256x64 plane of a 128x32 project they have to where libserum's upscale
+// of the 128x32 content rounds nothing.
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -189,6 +192,184 @@ void testHdPlaneOfOrdinaryProject()
            "the doubled sprite differs from libserum's upscale at its edges at most");
 }
 
+// Dynamic zones on the 256x64 plane of a 128x32 project. libserum renders them at 128x32
+// with the 128x32 mask and colors and upscales that with Scale2x; the editor doubles pixels.
+// The two agree wherever Scale2x has nothing to round, so this picture is built of rows:
+// the ROM frame, the 128x32 colors, the dynamic zones and both background masks are the same
+// along every row. Scale2x replaces a pixel only if its left and right neighbors differ,
+// which never happens here, so every 128x32 pixel becomes a plain 2x2 block and the whole
+// plane can be compared. The 256x64 frame and background are not upscaled and vary freely.
+ProjectSnapshot makeRowProject()
+{
+    ProjectSnapshot snapshot = makeProject(PlaneLayout::Ordinary, 1);
+    const Size sd = snapshot.geometry.planeSize(Resolution::Sd);
+    const Size hd = snapshot.geometry.planeSize(Resolution::Hd);
+    ProjectFrameSnapshot& frame = snapshot.frames[0];
+    // Shades by row: 0 0 1 2 3 0 2 0 ..., so zones have lit and unlit rows next to each other.
+    constexpr std::array<uint8_t, 8> kRowShades{0, 0, 1, 2, 3, 0, 2, 0};
+    for (int y = 0; y < sd.height; ++y) {
+        for (int x = 0; x < sd.width; ++x) {
+            const std::size_t index = static_cast<std::size_t>(y) * sd.width + x;
+            frame.originalSd.pixels[index] = kRowShades[static_cast<std::size_t>(y) % 8];
+            frame.colorizedSd.pixels[index] = static_cast<uint16_t>(0x1000 + y * 37);
+        }
+    }
+    frame.colorizedHd = makeRgb565Frame(hd);
+    for (std::size_t i = 0; i < pixels(hd); ++i) {
+        frame.colorizedHd->pixels[i] = colorHd(0, i);
+    }
+
+    FrameDynamicData& dynamic = addDynamicData(snapshot, 0);
+    const auto zoneRows = [&](int first, int last, uint8_t set) {
+        for (int y = first; y <= last; ++y) {
+            std::fill_n(dynamic.maskSd.pixels.begin() + static_cast<std::ptrdiff_t>(y) * sd.width,
+                        sd.width, set);
+        }
+    };
+    zoneRows(1, 6, 2);     // lit and unlit rows, no shadow
+    zoneRows(9, 12, 5);    // casts a shadow up and down
+    zoneRows(17, 20, 7);   // under the background, see below
+    zoneRows(26, 28, 9);   // shadow from the stored 256x64 tables, see the callers
+    dynamic.shadowDirectionsSd[5] = 0x02 | 0x20;
+    dynamic.shadowColorsSd[5] = kShadowColor;
+
+    // A background with a 256x64 image. Its 128x32 mask covers rows 16 to 18, its 256x64
+    // mask rows 34 to 39 (128x32 rows 17 to 19) and rows 60 to 63, outside every zone.
+    assignBackground(snapshot, 0, addBackground(snapshot));
+    FrameBackgroundData& background = *snapshot.frames[0].backgroundData;
+    std::fill(background.maskSd.pixels.begin(), background.maskSd.pixels.end(), uint8_t{0});
+    std::fill(background.maskHd.pixels.begin(), background.maskHd.pixels.end(), uint8_t{0});
+    std::fill_n(background.maskSd.pixels.begin() + 16 * sd.width, 3 * sd.width, uint8_t{1});
+    std::fill_n(background.maskHd.pixels.begin() + 34 * hd.width, 6 * hd.width, uint8_t{1});
+    std::fill_n(background.maskHd.pixels.begin() + 60 * hd.width, 4 * hd.width, uint8_t{1});
+    return snapshot;
+}
+
+Rgb565Frame expectHdPlaneEqualsRuntime(const ProjectSnapshot& snapshot, const std::string& text)
+{
+    const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    const RuntimeFrame runtime =
+        RuntimePreview::instance().renderFrame(document, 0, PlaneRequest::Rows64);
+    expect(runtime.ok() && runtime.identified && runtime.rows64,
+           text + ": libserum renders the 64-row plane");
+    Rgb565Frame editor = composeResolvedFrame(document, 0, Resolution::Hd, true);
+    const std::size_t differing = differingPixels(editor, *runtime.rows64);
+    expect(differing == 0, text + ": " + std::to_string(differing) +
+                               " pixels of the 256x64 plane differ between the editor and "
+                               "libserum");
+    return editor;
+}
+
+void testHdDynamicZonesOfOrdinaryProject()
+{
+    const ProjectSnapshot snapshot = makeRowProject();
+    const Size hd = snapshot.geometry.planeSize(Resolution::Hd);
+    const Rgb565Frame picture =
+        expectHdPlaneEqualsRuntime(snapshot, "HD statics with 128x32 dynamic zones");
+    const auto at = [&](const Rgb565Frame& frame, int x, int y) {
+        return frame.pixels[static_cast<std::size_t>(y) * hd.width + x];
+    };
+    const auto hdStatic = [&](int x, int y) {
+        return snapshot.frames[0].colorizedHd->pixels[static_cast<std::size_t>(y) * hd.width + x];
+    };
+    const auto hdBackground = [&](int x, int y) {
+        return snapshot.backgrounds[0].colorizedHd->pixels[static_cast<std::size_t>(y) *
+                                                               hd.width + x];
+    };
+    // What the equality above stands for, pixel by pixel (128x32 row r is rows 2r and 2r+1).
+    expect(at(picture, 10, 0) == hdStatic(10, 0) && at(picture, 11, 1) == hdStatic(11, 1),
+           "outside the zones the 256x64 frame shows");
+    expect(at(picture, 10, 4) == dynamicColor(2, 1) && at(picture, 11, 5) == dynamicColor(2, 1) &&
+               at(picture, 200, 8) == dynamicColor(2, 3),
+           "a lit zone pixel has its set's color for the ROM shade, doubled");
+    expect(at(picture, 10, 2) == dynamicColor(2, 0) && at(picture, 10, 10) == dynamicColor(2, 0),
+           "an unlit zone pixel has its set's color for shade 0");
+    // Zone 5: rows 9 (shade 0), 10 (1), 11 (2), 12 (3); the shadow is one 256x64 row above
+    // the first lit row and one below the last, and never on lit dynamic content.
+    expect(at(picture, 50, 19) == kShadowColor && at(picture, 50, 18) == dynamicColor(5, 0) &&
+               at(picture, 50, 20) == dynamicColor(5, 1) && at(picture, 50, 25) ==
+                                                                dynamicColor(5, 3) &&
+               at(picture, 50, 26) == kShadowColor && at(picture, 50, 27) == hdStatic(50, 27),
+           "a shadow is one 256x64 pixel wide around the upscaled zone");
+    // Zone 7, rows 17 to 20 with shades 0 1 2 3. Row 17 is unlit under the 128x32 background
+    // mask, so the layer leaves it to the 256x64 picture: the 256x64 background where its
+    // mask is set.
+    expect(at(picture, 30, 34) == hdBackground(30, 34) && at(picture, 30, 35) ==
+                                                              hdBackground(30, 35),
+           "an unlit zone pixel under both background masks shows the 256x64 background");
+    expect(at(picture, 30, 36) == dynamicColor(7, 1) && at(picture, 30, 38) == dynamicColor(7, 2),
+           "a lit zone pixel covers the 256x64 background");
+    // Row 16: unlit, 128x32 background mask set, not a zone, 256x64 mask not set.
+    expect(at(picture, 30, 32) == hdStatic(30, 32),
+           "the 128x32 background is never drawn on the 256x64 plane");
+    // Rows 60 to 63 are 128x32 rows 30 (shade 2) and 31 (shade 0), 256x64 mask set.
+    expect(at(picture, 30, 60) == hdStatic(30, 60) && at(picture, 30, 62) == hdBackground(30, 62),
+           "outside the zones the 256x64 background shows through unlit pixels only");
+
+    // The stored 256x64 dynamic mask and colors are not used: other zones, other sets and
+    // other colors there give the same picture, in the editor and in libserum. A file has
+    // the 256x64 frame's pixels under that mask as 0 (the save rule of the Win32 editor, kept
+    // by the serializer), so the frame is compared with those pixels at 0 in both projects.
+    ProjectSnapshot withStoredHdData = snapshot;
+    FrameDynamicData& stored = *withStoredHdData.frames[0].dynamicData;
+    for (std::size_t i = 0; i < stored.maskHd.pixels.size(); ++i) {
+        stored.maskHd.pixels[i] = i % 3 == 0 ? uint8_t{255} : static_cast<uint8_t>(i % 11);
+    }
+    for (std::size_t i = 0; i < stored.colorsHd.size(); ++i) {
+        stored.colorsHd[i] = static_cast<uint16_t>(0x0700 + i);
+    }
+    // A set with a 128x32 shadow direction does not take the 256x64 one either.
+    stored.shadowDirectionsHd[5] = 0xff;
+    stored.shadowColorsHd[5] = 0x1234;
+    ProjectSnapshot withoutStoredHdData = snapshot;
+    for (std::size_t i = 0; i < stored.maskHd.pixels.size(); ++i) {
+        if (stored.maskHd.pixels[i] != 255) {
+            withStoredHdData.frames[0].colorizedHd->pixels[i] = 0;
+            withoutStoredHdData.frames[0].colorizedHd->pixels[i] = 0;
+        }
+    }
+    const Rgb565Frame withStored =
+        expectHdPlaneEqualsRuntime(withStoredHdData, "stored 256x64 dynamic mask and colors");
+    const Rgb565Frame withoutStored =
+        expectHdPlaneEqualsRuntime(withoutStoredHdData, "no stored 256x64 dynamic data");
+    expect(withStored.pixels == withoutStored.pixels,
+           "stored 256x64 dynamic masks and colors do not change the picture");
+    const ProjectDocument storedDocument = ProjectDocument::fromSnapshot(withStoredHdData);
+    expect(composeResolvedFrame(storedDocument, 0, Resolution::Sd, true).pixels ==
+               composeResolvedFrame(ProjectDocument::fromSnapshot(snapshot), 0, Resolution::Sd,
+                                    true)
+                   .pixels,
+           "nor the 128x32 picture");
+
+    // What the stored 256x64 mask still does, through that save rule: a 256x64 pixel painted
+    // under it is written as 0. The canvas shows the painted color until the project is
+    // reopened; libserum, given what a save writes, shows 0 where no zone covers the pixel.
+    // (1, 0) is under the stored mask and outside every 128x32 zone.
+    ProjectSnapshot paintedUnderStoredMask = snapshot;
+    paintedUnderStoredMask.frames[0].dynamicData->maskHd = stored.maskHd;
+    const ProjectDocument paintedDocument = ProjectDocument::fromSnapshot(paintedUnderStoredMask);
+    const RuntimeFrame saved =
+        RuntimePreview::instance().renderFrame(paintedDocument, 0, PlaneRequest::Rows64);
+    expect(saved.ok() && saved.rows64 && at(saved.rows64->image, 1, 0) == 0 &&
+               at(composeResolvedFrame(paintedDocument, 0, Resolution::Hd, true), 1, 0) ==
+                   hdStatic(1, 0) &&
+               hdStatic(1, 0) != 0,
+           "a 256x64 pixel under the stored 256x64 dynamic mask is saved as 0");
+
+    // The one thing libserum does read of them (CheckDynaShadow, GenerateExtraPlaneShadows):
+    // a set without a 128x32 shadow direction takes direction and color from the 256x64
+    // tables when it renders the 64-row plane. Zone 9 is rows 26 (shade 1), 27 (2), 28 (3).
+    ProjectSnapshot withStoredShadow = snapshot;
+    FrameDynamicData& shadow = *withStoredShadow.frames[0].dynamicData;
+    shadow.shadowDirectionsHd[9] = 0x02;
+    shadow.shadowColorsHd[9] = 0x0bad;
+    const Rgb565Frame withShadow =
+        expectHdPlaneEqualsRuntime(withStoredShadow, "shadow from the stored 256x64 tables");
+    expect(at(withShadow, 70, 51) == 0x0bad && at(picture, 70, 51) == hdStatic(70, 51) &&
+               at(withShadow, 70, 52) == dynamicColor(9, 1),
+           "a set without a 128x32 shadow takes the stored 256x64 shadow on the 64-row plane");
+}
+
 }  // namespace
 
 void runEditorMatchesRuntimeTests()
@@ -198,4 +379,5 @@ void runEditorMatchesRuntimeTests()
         testNativePlane(layout);
     }
     testHdPlaneOfOrdinaryProject();
+    testHdDynamicZonesOfOrdinaryProject();
 }

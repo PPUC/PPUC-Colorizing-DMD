@@ -551,7 +551,8 @@
     D("remove hd frame 2");
     undo("undo after remove hd");
     row(3);
-    answerCreateHdDialog(true, {0});
+    // The dialog offers no dynamic data: the runtime takes it from the SD plane.
+    answerCreateHdDialog(true, {});
     inCreateHd->click();
     D("create hd frame 3 without dynamic (out of range bg)");
     inRemoveHd->click();
@@ -573,7 +574,9 @@
     w.m_sdButton->click();
     row(0);
 
-    for (int filter = 0; filter < w.m_frameFilterComboBox->count(); ++filter) {
+    // The five entries an ordinary project has had from the start. Entries added since
+    // have states of their own at the end of the scripts, where they shift nothing.
+    for (int filter = 0; filter < std::min(5, w.m_frameFilterComboBox->count()); ++filter) {
         w.m_frameFilterComboBox->setCurrentIndex(filter);
         std::cout << "filter " << filter << '\n';
         D("frame filter");
@@ -819,12 +822,17 @@
     w.setDrawingTool(Tool::Point);
     D("dynamic mask tools without dynamic data");
     row(0);
+    // HD mode of an ordinary project switches the Dynamic mode off: its zones are those of
+    // the SD plane. Nothing is clicked then, where a click would paint the frame instead.
     w.m_hdButton->click();
-    w.m_preview->m_pixelClickedHandler(col(20, 20, Resolution::Hd), false);
+    const bool dynamicModeInHd = w.m_dynamicMaskOverlayButton->isChecked();
+    std::cout << "dynamic mode stays on in HD: " << dynamicModeInHd << " | tip '"
+              << w.m_dynamicMaskOverlayButton->toolTip().toStdString() << "'\n";
+    if (dynamicModeInHd) w.m_preview->m_pixelClickedHandler(col(20, 20, Resolution::Hd), false);
     D("dynamic mask hd pixel painted");
-    undo("dynamic mask hd undo");
+    if (dynamicModeInHd) undo("dynamic mask hd undo"); else D("dynamic mask hd undo");
     w.m_sdButton->click();
-    w.m_dynamicMaskOverlayButton->click();
+    if (w.m_dynamicMaskOverlayButton->isChecked()) w.m_dynamicMaskOverlayButton->click();
     D("dynamic overlay off");
 
     // ===== BG page
