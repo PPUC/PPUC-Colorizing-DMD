@@ -46,8 +46,10 @@ public:
     void setPaintTargetEnabled(bool enabled);
     void setImportImageEnabled(bool enabled);
     // While a sprite is edited in the canvas, the Create/Remove HD buttons act on that sprite.
-    // In an HD-only project (ProjectDocument::rendersHdPlaneOnly()) HD cannot be removed.
-    void showSpriteHdActions(bool spriteHasHd, bool hdOnly = false);
+    // With PlaneLayout::NativeExtra (an HD-only project) HD cannot be removed, with
+    // PlaneLayout::NativeOriginal there is no HD to create or remove.
+    void showSpriteHdActions(bool spriteHasHd,
+                             render::PlaneLayout layout = render::PlaneLayout::Ordinary);
 
     [[nodiscard]] PaintTarget paintTarget() const;
     // The spin box value: -1 for no trigger and for the monochrome trigger, 0 while the frame
@@ -73,6 +75,7 @@ public:
 
 private:
     void showFrameHdActions(bool canCreate, bool canRemove);
+    void disableHdActions();
 
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;

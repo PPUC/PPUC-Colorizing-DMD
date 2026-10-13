@@ -25,7 +25,21 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
         return fail("cROM and cRP ROM names do not match");
     }
 
-    const std::size_t frameCount = cromFrameData.metadata.frameCount;
+    const LegacyCromMetadata& metadata = cromFrameData.metadata;
+    std::string geometryError;
+    const std::optional<render::ProjectGeometry> geometry =
+        render::ProjectGeometry::fromStoredPlanes(
+            render::Size{static_cast<int>(metadata.frameWidth),
+                         static_cast<int>(metadata.frameHeight)},
+            render::Size{static_cast<int>(metadata.hdFrameWidth),
+                         static_cast<int>(metadata.hdFrameHeight)},
+            metadata.originalIs256x64,
+            &geometryError);
+    if (!geometry) {
+        return fail(geometryError);
+    }
+
+    const std::size_t frameCount = metadata.frameCount;
     if (crpOriginalData.originalSdFrames.size() != frameCount ||
         cromFrameData.colorizedSdFrames.size() != frameCount ||
         cromFrameData.shapeComparisonModes.size() != frameCount ||
@@ -50,7 +64,7 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
     snapshot.cromRevision =
         cromFrameData.metadata.headerLengthBytes / static_cast<uint32_t>(sizeof(uint32_t));
     snapshot.editorMetadata = crpOriginalData.editorMetadata;
-    snapshot.originalIs256x64 = cromFrameData.metadata.originalIs256x64;
+    snapshot.geometry = *geometry;
     for (std::size_t spriteIndex = 0;
          spriteIndex < snapshot.sprites.size() &&
              spriteIndex < crpOriginalData.spriteNames.size();

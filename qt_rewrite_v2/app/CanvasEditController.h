@@ -269,8 +269,8 @@ private:
     std::optional<Selection> m_selection;
     bool m_selectionDirectionMode = false;
     // Sized like the original frames of the document it was painted on last.
-    edit::FramePixelSelection m_captureSelection{render::kSdFrameSize};
-    render::Size m_captureOriginalSize = render::kSdFrameSize;
+    edit::FramePixelSelection m_captureSelection{render::ProjectGeometry().romFrameSize()};
+    render::ProjectGeometry m_captureGeometry;
 };
 
 }  // namespace colorizing::app

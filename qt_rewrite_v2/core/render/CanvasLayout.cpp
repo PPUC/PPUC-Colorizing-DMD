@@ -2,8 +2,6 @@
 
 #include <algorithm>
 
-#include "render/OriginalFrameMapping.h"
-
 namespace colorizing::render {
 
 bool Rect::isEmpty() const
@@ -15,16 +13,6 @@ bool Rect::contains(Point point) const
 {
     return !isEmpty() && point.x >= x && point.y >= y &&
            point.x < x + width && point.y < y + height;
-}
-
-Size logicalSizeForResolution(Resolution resolution)
-{
-    return resolution == Resolution::Hd ? kHdFrameSize : kSdFrameSize;
-}
-
-int displayScaleForResolution(Resolution resolution)
-{
-    return resolution == Resolution::Hd ? 1 : 2;
 }
 
 CanvasLayout::CanvasLayout(std::vector<CanvasRegionLayout> regions)
@@ -61,18 +49,17 @@ CanvasLayout CanvasLayout::buildFrameLayout(const CanvasLayoutOptions& options)
     auto appendFrameRegion = [&](CanvasRegion region, Resolution resolution) {
         appendRegion(region,
                      resolution,
-                     logicalSizeForResolution(resolution),
-                     displayScaleForResolution(resolution));
+                     options.geometry.planeSize(resolution),
+                     options.geometry.planeDisplayScale(resolution));
     };
 
     appendFrameRegion(CanvasRegion::ColorizedFrame, options.activeResolution);
 
     if (options.showOriginal) {
-        const OriginalFrameMapping mapping(options.originalSize);
         appendRegion(CanvasRegion::OriginalFrame,
-                     mapping.originalResolution(),
-                     mapping.originalSize(),
-                     mapping.originalDisplayScale());
+                     options.geometry.nativePlane(),
+                     options.geometry.romFrameSize(),
+                     options.geometry.romFrameDisplayScale());
     }
 
     if (options.showHdReference && options.hasHdFrame) {

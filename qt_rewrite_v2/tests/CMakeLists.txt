@@ -17,8 +17,9 @@ add_executable(colorizing_qt_v2_tests
     LegacyProjectFileReaderTests.cpp
     LegacyProjectIoTests.cpp
     LegacyProjectSerializerTests.cpp
-    OriginalFrameMappingTests.cpp
+    NativeOriginalProjectTests.cpp
     ProjectDocumentTests.cpp
+    ProjectGeometryTests.cpp
 )
 
 target_link_libraries(colorizing_qt_v2_tests
@@ -47,6 +48,7 @@ if(TARGET colorizing_qt_v2_widgets)
         BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
         FramePreviewWidgetRenderTests.cpp
+        NativeOriginalWidgetTests.cpp
     )
 
     target_link_libraries(colorizing_qt_v2_widget_tests

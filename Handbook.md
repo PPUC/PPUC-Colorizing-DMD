@@ -18,16 +18,29 @@ Saving writes complete `.cROM` and `.cRP` files from the in-memory project in th
 layout, plus the `.cRZ` archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
 saved as revision 20, everything older as revision 19, so a save never moves a project to a
 revision an older libserum cannot read.
-Revision 20 projects can have 256x64 original frames. Such a project has one rendered plane only,
-the 256x64 one; what that means in the editor is described in "Projects With 256x64 Original
-Frames". Other original sizes are not supported.
+
+A project file stores two planes of colorized data, an "original" and an "extra" one. Which sizes
+they have, and which of them has the size of the ROM's own frame, depends on the project. The
+editor opens three layouts and refuses every other combination of sizes with a message that names
+the sizes it found:
+
+| ROM frame | Original plane | Extra plane | Shown and edited |
+| --- | --- | --- | --- |
+| 128x32 (ordinary project) | 128x32, the editor's SD | 256x64, the editor's HD | both |
+| 256x64 (revision 20 flag "256x64 original") | 128x32, kept unchanged | 256x64 | the 256x64 plane only |
+| 192x64 | 192x64 | 96x32, kept unchanged | the 192x64 plane only |
+
+A plane that is smaller than the ROM frame is never shown or edited; its data is loaded and
+written back as it is. See "Projects With 256x64 Original Frames" and "Projects With 192x64
+Original Frames". Everywhere else this handbook describes ordinary projects, where SD means
+128x32 and HD means 256x64.
 
 The in-memory project model currently carries structured comparison-mask data from `.cROM`:
 
 - Per-frame shape comparison mode.
 - Per-frame comparison mask ID.
-- Comparison mask bitmaps, in the size of the original frames (128x32, or 256x64 in projects
-  with 256x64 original frames).
+- Comparison mask bitmaps, in the size of the original frames (128x32, 256x64 or 192x64, see the
+  table above).
 
 It also carries structured dynamic-mask data from `.cROM`:
 
@@ -82,7 +95,9 @@ path and writes the `.cROM`, a `.cRP` and a `.cRZ` with the same base name there
 Use `File -> Export Current Frame PNG...` to export the active colorized frame preview as a PNG.
 The export uses the active SD/HD mode, falls back to SD when the selected frame has no HD data, and
 includes the assigned background layer when `Show BG` is enabled. In a project with 256x64 original
-frames there is no SD picture to fall back to: a frame without HD data is not exported.
+frames there is no SD picture to fall back to: a frame without HD data is not exported. In a
+project with 192x64 original frames the 192x64 frame is exported, and the proposed file name ends
+in `_192x64` instead of `_sd` or `_hd`.
 
 Use `File -> Import Image Into Selected Frames...` or the Frame topic's `Import Image` button to
 replace selected frame pixels from a PNG/BMP/JPEG. The image is scaled to the active SD/HD DMD size.
@@ -172,10 +187,14 @@ Use the `SD` and `HD` toolbar buttons to switch the active editing resolution.
 
 Rules:
 
-- SD edits target 128x32 colorized frame pixels.
-- HD edits target 256x64 colorized frame pixels.
+- SD edits target the colorized frame pixels of the original plane, 128x32 in an ordinary
+  project.
+- HD edits target the colorized frame pixels of the extra plane, 256x64 in an ordinary project.
 - A project with 256x64 original frames has no SD mode: `SD` is disabled and `HD` stays on. See
-  "Projects With 256x64 Original Frames"; the rest of this section is about ordinary projects.
+  "Projects With 256x64 Original Frames".
+- A project with 192x64 original frames has one plane, the 192x64 one: both buttons are disabled
+  and there is no HD data to create or remove. See "Projects With 192x64 Original Frames".
+- The rest of this section is about ordinary projects.
 - If a frame has no HD data, the canvas falls back to SD display/editing.
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
 - The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
@@ -337,6 +356,80 @@ Where the editor's picture can still differ from libserum's for these projects:
   "Preview Rendering TODO": sprite dynamic masks, sprite shape mode and the last column and row
   of the sprite slot bounds.
 
+## Projects With 192x64 Original Frames
+
+Some ROMs deliver 192x64 frames. The Win32 editor stores such a project with the 192x64 ROM frame
+as its original plane and a half-size 96x32 plane as its extra plane. The frame status line of
+such a project reads `Frame <n> | Original 192x64 | only plane | ...`.
+
+The same rule as for 256x64 projects applies: everything happens on the ROM frame at its own
+resolution, and a plane smaller than the ROM frame is not a plane to edit. So the project has one
+plane in the editor, the 192x64 one. It is the ROM frame's own grid: plane pixel (x, y) belongs
+to original pixel (x, y).
+
+### What is edited
+
+Everything on the 192x64 plane, with coordinates 0..191 and 0..63:
+
+- the original frames and the comparison masks (frame identification hashes the whole 192x64
+  original with the 192x64 comparison mask),
+- per frame: the colorized frame, the dynamic mask, dynamic colors and shadows, the color
+  rotations, the background mask, trigger, duration, mask and shape settings,
+- the background images,
+- sprites: the sprite original, the sprite colors, the detection areas; per frame the sprite
+  slots and their `Min X`/`Min Y`/`Max X`/`Max Y` bounds, which range over 0..191 and 0..63.
+
+The canvas, the thumbnails, the frame list, playback, PNG export, image import (the image is
+scaled to 192x64), `Frame -> BG`, `BG -> Frame`, background editing, the `Mask`, `Dynamic` and
+`BG` modes, `Select Capture`, `Capture` and `Show Bounds` all work on that plane. A sprite is
+looked for on the 192x64 original and drawn one to one where it was found. The sprite editor shows
+the same 256x64 sprite cell as in every project.
+
+On the canvas a 192x64 pixel is as large as a pixel of an HD frame or of a 256x64 original; the
+frame is 3:1 instead of 4:1, and the thumbnails keep that shape.
+
+On save a frame counts as colorized ("active") if its 192x64 frame differs from the plain
+original colors or it has dynamic content on the 192x64 plane, or if it lasts 15 ms or longer.
+
+### What is kept unchanged
+
+The file has a full set of 96x32 data: a colorized frame, dynamic mask, dynamic colors and
+shadows, rotations and a background mask per frame, background images, sprite masks, sprite
+colors and sprite dynamic data, and the flags that say which frames, backgrounds and sprites
+have such data. The editor loads all of it and writes it back byte for byte, flags included.
+
+- It is never shown: no frame, background or sprite of such a project is listed as `HD`, and the
+  `HD frames` filter finds nothing.
+- It is never edited, created or removed, and nothing is derived from it or for it. Painting the
+  192x64 frame, or capturing a sprite, does not update the 96x32 counterpart. If a project has
+  96x32 pictures that are in use, they keep showing the old content.
+- A project that is opened and saved without an edit is written back identical to the file it
+  was read from.
+
+### What is disabled
+
+- `SD` and `HD`: both are disabled. `SD` stays checked because the 192x64 plane is the stored
+  original plane; the tool tips of both say that the project has 192x64 original frames and that
+  its 96x32 plane is kept unchanged.
+- `Create HD` and `Remove HD`, and `Create HD Sprite` and `Remove HD Sprite` while `Edit Sprite`
+  is on: disabled, with the reason as their tool tip. The `Create HD` dialog with its upscale
+  options is therefore not reachable.
+- Status texts and proposed file names say `192x64` where they say `SD` or `HD` in other
+  projects.
+
+### Status
+
+Verified with one real project saved by the Win32 editor 3.17.3 (`frankst1`: 11199 frames, no
+sprites, no backgrounds, no 96x32 pictures in use), which loads, shows and saves back identical,
+and with constructed projects in the automated tests and `tools/ui_dump` that also have sprites,
+backgrounds and 96x32 data in use.
+
+Whether such projects are converted to a padded 256x64 layout one day is not decided; the editor
+converts nothing.
+
+The known differences of the preview in every kind of project apply here as well, see "Preview
+Rendering TODO".
+
 ## Canvas
 
 The central canvas shows:
@@ -345,7 +438,8 @@ The central canvas shows:
 - The original/reference frame region below it. It always shows every pixel of the original
   frame and has the same on-screen size as the SD frame: 128x32 pixels, or 256x64 pixels of
   half the size in a project with 256x64 original frames, where the colorized region above it is
-  always the 256x64 plane.
+  always the 256x64 plane. In a project with 192x64 original frames both regions are 192x64
+  pixels of that half size, so they are three quarters as wide.
 
 The canvas does not draw text labels or white frame outlines over the image data.
 
@@ -655,7 +749,8 @@ The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transpare
 
 A comparison mask has one pixel per original pixel. In a project with 256x64 original frames
 the masks are 256x64, and the overlay, the tools, flood fill, erasing and undo all work on those
-256x64 pixels of the original/reference region.
+256x64 pixels of the original/reference region. In a project with 192x64 original frames the
+same holds for its 192x64 masks.
 
 The Inspector exposes per-frame comparison metadata:
 
@@ -839,7 +934,9 @@ The Inspector has a sprite browser and assignment controls:
 
 In projects with 256x64 original frames, sprites are detected, bounded, captured and drawn on
 the 256x64 original, and `Create HD Sprite` / `Remove HD Sprite` behave differently; see
-"Projects With 256x64 Original Frames".
+"Projects With 256x64 Original Frames". In projects with 192x64 original frames all of this
+happens on the 192x64 original and there are no HD sprites; see "Projects With 192x64 Original
+Frames".
 
 Sprite-name edits are limited to 31 characters so the legacy fixed 32-byte `.cRP` name slot
 remains null-terminated.
@@ -857,7 +954,7 @@ Currently implemented:
 - `BG ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
   The original pixel looked at is the one the plane pixel belongs to: (x, y) in SD, (x/2, y/2) in
-  HD, and (x, y) on the single plane of a project with 256x64 original frames.
+  HD, and (x, y) on the single plane of a project with 256x64 or 192x64 original frames.
 - Inspector `Target -> Background` displays the selected background image on the canvas and edits that shared background image with the ordinary drawing tools.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
@@ -927,12 +1024,14 @@ For drawing changes, test at least:
 - With `Mask` active, add and Shift-erase pixels on the original/reference region, undo/redo the mask edits, save, reopen, and verify the mask overlay persists.
 
 For changes that read the original frame (dynamic colors, shadows, backgrounds, sprites,
-comparison masks, anything on the original/reference region), test a project with 128x32 and
-one with 256x64 original frames. The automated tests and `tools/ui_dump` contain a constructed
-256x64 project each, including frames, a background and sprites without HD data.
+comparison masks, anything on the original/reference region), test a project with 128x32, one
+with 256x64 and one with 192x64 original frames. The automated tests and `tools/ui_dump` contain a
+constructed 256x64 project each, including frames, a background and sprites without HD data, and
+a constructed 192x64 project each, with 96x32 data in use.
 
 For changes to SD/HD handling, check in a project with 256x64 original frames that nothing shows,
-edits or falls back to its SD data.
+edits or falls back to its SD data, and in a project with 192x64 original frames that nothing
+shows, edits, creates or removes its 96x32 data.
 
 For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
 projects. It loads a project, serializes it in memory, and reports per block where the result

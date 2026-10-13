@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "document/ProjectDocument.h"
+#include "render/ProjectGeometry.h"
 
 namespace colorizing::document {
 
@@ -40,10 +41,11 @@ struct ProjectSnapshot {
     // cROM header revision (header length in 32-bit words) the project was loaded with, so a
     // save does not silently move it to a revision an older libserum cannot read.
     uint32_t cromRevision = kCurrentCromRevision;
-    // Revision 20: the ROM's original frames and the comparison masks are 256x64. Only the HD
-    // plane is rendered then, one to one with the original; the SD data keeps its 128x32 layout
-    // in the file and is carried unchanged (ProjectDocument::rendersHdPlaneOnly()).
-    bool originalIs256x64 = false;
+    // Sizes of the stored planes and which of them is the ROM frame's. Everything named ...Sd
+    // has the size of the original plane and everything named ...Hd that of the extra plane;
+    // original frames and comparison masks have the size of the ROM frame. A carried plane
+    // keeps its layout in the file and is written back unchanged.
+    render::ProjectGeometry geometry;
     EditorMetadata editorMetadata = makeDefaultEditorMetadata();
 };
 

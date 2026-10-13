@@ -123,7 +123,8 @@ ProjectDocument makeBigOriginalDocument()
     document::ProjectSnapshot snapshot;
     snapshot.colorCount = 16;
     snapshot.romName = "big_original_preview";
-    snapshot.originalIs256x64 = true;
+    snapshot.geometry =
+        colorizing::render::ProjectGeometry(colorizing::render::PlaneLayout::NativeExtra);
 
     document::IndexedFrame mask = document::makeIndexedFrame(kHdFrameSize, 0);
     mask.pixels[at(kHdFrameSize, 200, 50)] = 1;
@@ -667,11 +668,11 @@ void testMissingHdIsFlaggedAndNotRendered()
     refreshFramePanel(2);
     expect(create->isEnabled() && !remove->isEnabled(),
            "Create HD repairs a background without HD");
-    framePanel.showSpriteHdActions(true, true);
+    framePanel.showSpriteHdActions(true, colorizing::render::PlaneLayout::NativeExtra);
     expect(!create->isEnabled() && !remove->isEnabled() &&
                remove->toolTip().contains(QStringLiteral("256x64")),
            "Remove HD Sprite is disabled with a reason");
-    framePanel.showSpriteHdActions(false, true);
+    framePanel.showSpriteHdActions(false, colorizing::render::PlaneLayout::NativeExtra);
     expect(create->isEnabled() && !remove->isEnabled(), "Create HD Sprite repairs a sprite");
 
     expect(colorizing::app::renderSpriteColorizedPreviewImage(document.sprite(0),
@@ -684,7 +685,7 @@ void testMissingHdIsFlaggedAndNotRendered()
                        .pixelColor(0, 0) == QColor(0, 0, 0) &&
                colorizing::app::renderBackgroundPreviewImage(document.background(1),
                                                              Resolution::Hd,
-                                                             true)
+                                                             document.geometry())
                        .pixelColor(0, 0) == QColor(0, 0, 0),
            "sprite and background previews do not fall back to SD");
 
@@ -834,7 +835,8 @@ void testThumbnailShowsWholeOriginal()
     document::ProjectSnapshot snapshot;
     snapshot.colorCount = 4;
     snapshot.romName = "big_original_thumbnail";
-    snapshot.originalIs256x64 = true;
+    snapshot.geometry =
+        colorizing::render::ProjectGeometry(colorizing::render::PlaneLayout::NativeExtra);
     document::IndexedFrame original = document::makeIndexedFrame(kHdFrameSize, 0);
     for (int y = 0; y < kHdFrameSize.height; ++y) {
         for (int x = kHdFrameSize.width / 2; x < kHdFrameSize.width; ++x) {

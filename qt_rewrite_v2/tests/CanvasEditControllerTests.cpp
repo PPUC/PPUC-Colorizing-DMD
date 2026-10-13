@@ -1308,7 +1308,8 @@ ProjectDocument makeBigOriginalDocument()
     document::ProjectSnapshot snapshot;
     snapshot.colorCount = 16;
     snapshot.romName = "canvas_edit_256";
-    snapshot.originalIs256x64 = true;
+    snapshot.geometry =
+        colorizing::render::ProjectGeometry(colorizing::render::PlaneLayout::NativeExtra);
     snapshot.comparisonMasks.assign(2, document::makeIndexedFrame(kHdFrameSize, 0));
     for (uint8_t frameIndex = 0; frameIndex < 2; ++frameIndex) {
         snapshot.frames.push_back(document::ProjectFrameSnapshot{

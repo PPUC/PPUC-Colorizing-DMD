@@ -328,7 +328,7 @@ render::CanvasLayout FramePreviewWidget::currentLayout() const
         false,
         hasHd,
         8,
-        m_document ? m_document->originalFrameSize() : render::kSdFrameSize,
+        m_document ? m_document->geometry() : render::ProjectGeometry(),
     });
 }
 

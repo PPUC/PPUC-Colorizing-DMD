@@ -1,14 +1,12 @@
 #include "document/ProjectSnapshot.h"
 
-#include "render/CanvasLayout.h"
-
 namespace colorizing::document {
 
 namespace {
 
 bool hasSize(Size actual, Size expected)
 {
-    return actual.width == expected.width && actual.height == expected.height;
+    return actual == expected;
 }
 
 bool fail(std::string* errorMessage, const std::string& message)
@@ -35,7 +33,7 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     if (snapshot.colorCount == 0 || snapshot.colorCount > kColorSetColorCount) {
         return fail(errorMessage, "original color count must be between 1 and 16");
     }
-    if (snapshot.originalIs256x64 && snapshot.cromRevision < 20) {
+    if (snapshot.geometry.original256x64Flag() && snapshot.cromRevision < 20) {
         return fail(errorMessage, "256x64 original frames need cROM revision 20");
     }
     if (snapshot.comparisonMasks.size() > kMaxComparisonMasks) {
@@ -49,6 +47,8 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     }
 
     const Size originalSize = originalFrameSize(snapshot);
+    const Size sdSize = snapshot.geometry.planeSize(Resolution::Sd);
+    const Size hdSize = snapshot.geometry.planeSize(Resolution::Hd);
     for (std::size_t i = 0; i < snapshot.comparisonMasks.size(); ++i) {
         const IndexedFrame& mask = snapshot.comparisonMasks[i];
         if (!mask.isValid() || !hasSize(mask.size, originalSize)) {
@@ -60,13 +60,13 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     for (std::size_t i = 0; i < snapshot.backgrounds.size(); ++i) {
         const BackgroundRecord& background = snapshot.backgrounds[i];
         if (!background.colorizedSd.isValid() ||
-            !hasSize(background.colorizedSd.size, render::kSdFrameSize)) {
+            !hasSize(background.colorizedSd.size, sdSize)) {
             return fail(errorMessage, "background " + std::to_string(i) +
                                           " has invalid SD data");
         }
         if (background.colorizedHd &&
             (!background.colorizedHd->isValid() ||
-             !hasSize(background.colorizedHd->size, render::kHdFrameSize))) {
+             !hasSize(background.colorizedHd->size, hdSize))) {
             return fail(errorMessage, "background " + std::to_string(i) +
                                           " has invalid HD data");
         }
@@ -76,7 +76,7 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         const BackgroundRecord& background = snapshot.backgrounds[i];
         if (background.inactiveHd &&
             (background.colorizedHd || !background.inactiveHd->isValid() ||
-             !hasSize(background.inactiveHd->size, render::kHdFrameSize))) {
+             !hasSize(background.inactiveHd->size, hdSize))) {
             return fail(errorMessage, "background " + std::to_string(i) +
                                           " has invalid inactive HD data");
         }
@@ -133,26 +133,26 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         if (!frame.originalSd.isValid() || !hasSize(frame.originalSd.size, originalSize)) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid SD original data");
         }
-        if (!frame.colorizedSd.isValid() || !hasSize(frame.colorizedSd.size, render::kSdFrameSize)) {
+        if (!frame.colorizedSd.isValid() || !hasSize(frame.colorizedSd.size, sdSize)) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid SD colorized data");
         }
         if (frame.colorizedHd &&
-            (!frame.colorizedHd->isValid() || !hasSize(frame.colorizedHd->size, render::kHdFrameSize))) {
+            (!frame.colorizedHd->isValid() || !hasSize(frame.colorizedHd->size, hdSize))) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid HD colorized data");
         }
         if (frame.inactiveHd &&
             (frame.colorizedHd || !frame.inactiveHd->isValid() ||
-             !hasSize(frame.inactiveHd->size, render::kHdFrameSize))) {
+             !hasSize(frame.inactiveHd->size, hdSize))) {
             return fail(errorMessage, "frame " + std::to_string(i) + " has invalid inactive HD data");
         }
         if (frame.dynamicData) {
             if (!frame.dynamicData->maskSd.isValid() ||
-                !hasSize(frame.dynamicData->maskSd.size, render::kSdFrameSize)) {
+                !hasSize(frame.dynamicData->maskSd.size, sdSize)) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                               " has invalid SD dynamic mask data");
             }
             if (!frame.dynamicData->maskHd.isValid() ||
-                !hasSize(frame.dynamicData->maskHd.size, render::kHdFrameSize)) {
+                !hasSize(frame.dynamicData->maskHd.size, hdSize)) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                               " has invalid HD dynamic mask data");
             }
@@ -173,12 +173,12 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
         }
         if (frame.backgroundData) {
             if (!frame.backgroundData->maskSd.isValid() ||
-                !hasSize(frame.backgroundData->maskSd.size, render::kSdFrameSize)) {
+                !hasSize(frame.backgroundData->maskSd.size, sdSize)) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                               " has invalid SD background mask data");
             }
             if (!frame.backgroundData->maskHd.isValid() ||
-                !hasSize(frame.backgroundData->maskHd.size, render::kHdFrameSize)) {
+                !hasSize(frame.backgroundData->maskHd.size, hdSize)) {
                 return fail(errorMessage, "frame " + std::to_string(i) +
                                               " has invalid HD background mask data");
             }
@@ -203,7 +203,7 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
 
 Size originalFrameSize(const ProjectSnapshot& snapshot)
 {
-    return snapshot.originalIs256x64 ? render::kHdFrameSize : render::kSdFrameSize;
+    return snapshot.geometry.romFrameSize();
 }
 
 void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount)

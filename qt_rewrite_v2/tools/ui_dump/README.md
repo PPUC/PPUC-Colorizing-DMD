@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 600 scripted states and after each one prints every widget and the relevant
+through about 630 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -214,7 +214,7 @@ change the settings of the real application.
 
 ## Adding scripted states
 
-The script is plain C++ in four places, executed in this order:
+The script is plain C++ in five places, executed in this order:
 
 | File | Content |
 | --- | --- |
@@ -222,9 +222,11 @@ The script is plain C++ in four places, executed in this order:
 | `sprite_script.inc` | sprite page, sprite editor canvas, capture selection, detection areas |
 | `inspector_script.inc` | frame, mask, background and dynamic pages, image import/export, dialogs, undo/redo, playback controls |
 | `big_original_script.inc` | a project with 256x64 original frames, which has the HD plane only: every inspector page, SD disabled, frames, a background and sprites without HD data and their repair with Create HD, the `HD missing` filter, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite assignment and capture on the native grid, the sprite canvas |
+| `native_original_script.inc` | a project with 192x64 original frames, which is edited on its 192x64 plane only: every inspector page, SD/HD and the Create HD actions disabled, painting, comparison mask and dynamic mask editing with undo at coordinates beyond 128x32, sprite capture and slot bounds on the native grid, the sprite canvas; it prints what a save would write for the carried 96x32 plane |
 
 The `.inc` files are included at the end of `main()` and each form one block.
-`big_original_script.inc` runs after the window was closed (`closed at the end`).
+`big_original_script.inc` runs after the window was closed (`closed at the end`), and
+`native_original_script.inc` after that one closed its project.
 
 A state is: do something, then call `dump("title", w)` (`D("title")` in `inspector_script.inc`).
 Widgets are looked up by tool tip with `byTip<QSpinBox>(w, "...")`, grid buttons with
@@ -238,7 +240,8 @@ Fixtures are built in code, there are no fixture files in the repository:
 
 - the project documents are `ProjectSnapshot` values assembled at the top of each script
   (`snapshot` in `dump.cpp`, `ss` in `sprite_script.inc`, `is` and `loadInspector()` /
-  `loadPlain()` in `inspector_script.inc`, `bs` in `big_original_script.inc`) and loaded with
+  `loadPlain()` in `inspector_script.inc`, `bs` in `big_original_script.inc`, `ns` in
+  `native_original_script.inc`) and loaded with
   `ProjectDocument::fromSnapshot`;
 - images for the import tests are written to a temporary directory by `inspector_script.inc`
   and removed at the end.

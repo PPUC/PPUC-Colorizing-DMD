@@ -213,21 +213,24 @@ std::vector<uint16_t> legacyOriginalColors(uint32_t colorCount)
 }
 
 bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
-                         const std::vector<uint16_t>& originalColors)
+                         const std::vector<uint16_t>& originalColors,
+                         render::Resolution nativePlane)
 {
     if (frame.durationMs >= kSkipFrameDurationMs) {
         return true;
     }
-    // A 256x64 project renders its HD frame only, one to one with the original; its SD frame
-    // is never shown and does not count.
-    const bool hdOnly = frame.originalSd.size.width == render::kHdFrameSize.width;
-    if (hdOnly && !frame.colorizedHd) {
+    // Only the native plane lines up with the original. A 256x64 project renders its HD frame
+    // alone; its SD frame is never shown and does not count.
+    const bool extraIsNative = nativePlane == render::Resolution::Hd;
+    if (extraIsNative && !frame.colorizedHd) {
         return false;
     }
-    const document::Rgb565Frame& colorized = hdOnly ? *frame.colorizedHd : frame.colorizedSd;
+    const document::Rgb565Frame& colorized =
+        extraIsNative ? *frame.colorizedHd : frame.colorizedSd;
     const document::IndexedFrame* dynamicMask =
         !frame.dynamicData ? nullptr
-                           : hdOnly ? &frame.dynamicData->maskHd : &frame.dynamicData->maskSd;
+                           : extraIsNative ? &frame.dynamicData->maskHd
+                                           : &frame.dynamicData->maskSd;
     for (std::size_t index = 0; index < colorized.pixels.size(); ++index) {
         const uint8_t original = index < frame.originalSd.pixels.size()
                                      ? frame.originalSd.pixels[index]
@@ -261,8 +264,8 @@ bool writeLegacyCrom(std::ostream& stream,
         return false;
     }
 
-    const render::Size sdSize = render::kSdFrameSize;
-    const render::Size hdSize = render::kHdFrameSize;
+    const render::Size sdSize = snapshot.geometry.planeSize(render::Resolution::Sd);
+    const render::Size hdSize = snapshot.geometry.planeSize(render::Resolution::Hd);
     // Sprite bounds are original frame pixels.
     const render::Size originalSize = document::originalFrameSize(snapshot);
     const std::size_t sdPixels = pixelCount(sdSize);
@@ -296,7 +299,7 @@ bool writeLegacyCrom(std::ostream& stream,
     writer.u32(static_cast<uint32_t>(snapshot.sprites.size()));
     writer.u16(static_cast<uint16_t>(snapshot.backgrounds.size()));
     if (revision >= 20) {
-        writer.u32(snapshot.originalIs256x64 ? 1 : 0);
+        writer.u32(snapshot.geometry.original256x64Flag() ? 1 : 0);
     }
 
     writer.section("hash codes");
@@ -397,8 +400,9 @@ bool writeLegacyCrom(std::ostream& stream,
         writer.u16s(sprite.colorizedHd.pixels);
     }
     writer.section("active frame flags");
+    const render::Resolution nativePlane = snapshot.geometry.nativePlane();
     for (const auto& frame : frames) {
-        writer.u8(isLegacyFrameActive(frame, originalColors) ? 1 : 0);
+        writer.u8(isLegacyFrameActive(frame, originalColors, nativePlane) ? 1 : 0);
     }
     writer.section("SD color rotations");
     for (const auto& frame : frames) {

@@ -7,7 +7,7 @@
 #include <vector>
 #include <QPainter>
 
-#include "render/OriginalFrameMapping.h"
+#include "render/ProjectGeometry.h"
 
 namespace colorizing::app {
 
@@ -226,7 +226,7 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
     return matches;
 }
 
-// factor: plane pixels per original pixel, see render::OriginalFrameMapping::planeScale().
+// factor: plane pixels per original pixel, see render::ProjectGeometry::planeScale().
 void applySpriteMatch(document::Rgb565Frame& frame,
                       const document::SpriteRecord& sprite,
                       const SpriteMatch& match,
@@ -306,7 +306,7 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
     const render::Point originalPoint =
-        render::OriginalFrameMapping(original.size).toOriginal(resolution, render::Point{x, y});
+        document.geometry().toRomFrame(resolution, render::Point{x, y});
     const std::size_t originalIndex =
         indexedPixelIndex(original, originalPoint.x, originalPoint.y);
     const uint8_t originalValue = original.pixels[originalIndex];
@@ -383,13 +383,13 @@ void applyDynamicShadows(const document::ProjectDocument& document,
     }
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
-    const render::OriginalFrameMapping mapping(original.size);
+    const render::ProjectGeometry& geometry = document.geometry();
     std::vector<uint8_t> occupied(frame.pixels.size(), 0);
     for (int y = 0; y < frame.size.height; ++y) {
         for (int x = 0; x < frame.size.width; ++x) {
             const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
             const render::Point originalPoint =
-                mapping.toOriginal(resolution, render::Point{x, y});
+                geometry.toRomFrame(resolution, render::Point{x, y});
             const uint8_t originalValue =
                 original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
             if (dynamicSet < document::kMaxDynamicSetsPerFrame && originalValue > 0) {
@@ -402,7 +402,7 @@ void applyDynamicShadows(const document::ProjectDocument& document,
         for (int x = 0; x < frame.size.width; ++x) {
             const uint8_t dynamicSet = dynamicMask.pixels[indexedPixelIndex(dynamicMask, x, y)];
             const render::Point originalPoint =
-                mapping.toOriginal(resolution, render::Point{x, y});
+                geometry.toRomFrame(resolution, render::Point{x, y});
             const uint8_t originalValue =
                 original.pixels[indexedPixelIndex(original, originalPoint.x, originalPoint.y)];
             if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||
@@ -441,10 +441,9 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                            render::Resolution resolution,
                                            bool includeBackgroundLayer)
 {
-    const render::OriginalFrameMapping mapping(document.originalFrameSize());
-    const int spriteFactor = mapping.planeScale(resolution);
+    const int spriteFactor = document.geometry().planeScale(resolution);
     if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
-        return document::makeRgb565Frame(render::kHdFrameSize);
+        return document::makeRgb565Frame(document.geometry().planeSize(resolution));
     }
     const document::Rgb565Frame& source = document.colorizedFrame(frameIndex, resolution);
     document::Rgb565Frame frame = document::makeRgb565Frame(source.size);
@@ -677,12 +676,12 @@ QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
 
 QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
                                     render::Resolution resolution,
-                                    bool hdOnly)
+                                    const render::ProjectGeometry& geometry)
 {
     const bool useHd = resolution == render::Resolution::Hd && background.colorizedHd;
-    if (hdOnly && !useHd) {
-        QImage image(render::kHdFrameSize.width, render::kHdFrameSize.height,
-                     QImage::Format_ARGB32);
+    if (geometry.layout() == render::PlaneLayout::NativeExtra && !useHd) {
+        const render::Size size = geometry.planeSize(render::Resolution::Hd);
+        QImage image(size.width, size.height, QImage::Format_ARGB32);
         image.fill(Qt::black);
         return image;
     }

@@ -8,6 +8,7 @@
 
 #include "document/EditorMetadata.h"
 #include "render/CanvasTypes.h"
+#include "render/ProjectGeometry.h"
 
 namespace colorizing::document {
 
@@ -44,6 +45,9 @@ constexpr std::size_t kPaletteColorCount = 64;
 // Trigger ID of a frame that triggers nothing, as stored in the cROM.
 constexpr uint32_t kNoTriggerId = 0xffffffff;
 
+// The names of the record fields follow the stored planes (render::Resolution): ...Sd is the
+// original plane and ...Hd the extra plane, whatever their sizes are in the project's
+// render::ProjectGeometry. originalSd is the ROM frame.
 struct FrameDynamicData {
     IndexedFrame maskSd;
     IndexedFrame maskHd;
@@ -197,13 +201,20 @@ public:
 
     [[nodiscard]] std::size_t frameCount() const;
     [[nodiscard]] uint32_t colorCount() const;
-    // Size of the original frames and comparison masks: 256x64 for such ROMs, else 128x32.
+    [[nodiscard]] const render::ProjectGeometry& geometry() const;
+    // Size of the ROM frame: of the original frames and the comparison masks.
     [[nodiscard]] Size originalFrameSize() const;
-    // A project with 256x64 original frames. The runtime renders its HD plane only, one to one
-    // with the original; the SD data of frames, backgrounds and sprites is stored and written
-    // back but never shown or edited. Sprite originals, detection areas and frame sprite bounds
-    // are original frame pixels in every project.
+    // A project with 256x64 original frames (PlaneLayout::NativeExtra). The runtime renders
+    // its HD plane only, one to one with the original; the SD data of frames, backgrounds and
+    // sprites is stored and written back but never shown or edited. Sprite originals,
+    // detection areas and frame sprite bounds are original frame pixels in every project.
     [[nodiscard]] bool rendersHdPlaneOnly() const;
+    // A project whose extra plane is carried (PlaneLayout::NativeOriginal, 192x64 with a
+    // stored 96x32 plane): only the original plane is shown and edited. The stored extra
+    // plane is invisible here. No frame, background or sprite has HD, HD data cannot be
+    // created, and every access to Resolution::Hd throws std::logic_error. toSnapshot()
+    // returns the extra data, including the "has extra" flags, as fromSnapshot() got it.
+    [[nodiscard]] bool editsOriginalPlaneOnly() const;
     // What keeps the runtime from showing the frame; nothing for other projects.
     [[nodiscard]] FrameHdGaps frameHdGaps(std::size_t frameIndex) const;
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
@@ -408,9 +419,19 @@ public:
     [[nodiscard]] ProjectSnapshot toSnapshot() const;
 
 private:
+    // The "has extra" items of a carried extra plane, taken out of the records so that
+    // nothing sees them as HD. The other extra-plane fields stay in the records, where only
+    // Resolution::Hd reaches them.
+    struct CarriedExtraImage {
+        std::optional<Rgb565Frame> active;
+        std::optional<Rgb565Frame> inactive;
+    };
+
     void replaceCapturedHdOnlySprite(SpriteRecord& sprite,
                                      IndexedFrame original,
                                      Rgb565Frame colorized);
+    void requireEditablePlane(Resolution resolution) const;
+    void requireEditableExtraPlane() const;
 
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
@@ -422,7 +443,10 @@ private:
     EditorMetadata m_editorMetadata = makeDefaultEditorMetadata();
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
-    bool m_originalIs256x64 = false;
+    render::ProjectGeometry m_geometry;
+    std::vector<CarriedExtraImage> m_carriedFrameExtras;
+    std::vector<CarriedExtraImage> m_carriedBackgroundExtras;
+    std::vector<bool> m_carriedSpriteExtraFlags;
     bool m_dirty = false;
 };
 

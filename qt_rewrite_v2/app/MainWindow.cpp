@@ -1133,8 +1133,7 @@ void MainWindow::exportCurrentFramePng()
         exportResolution = render::Resolution::Sd;
     }
 
-    const QString resolutionName =
-        exportResolution == render::Resolution::Hd ? QStringLiteral("hd") : QStringLiteral("sd");
+    const QString resolutionName = planeName(exportResolution).toLower();
     QFileInfo currentCromInfo(m_currentCromPath);
     QString defaultPath = currentCromInfo.dir().absoluteFilePath(
         QStringLiteral("%1_frame_%2_%3.png")
@@ -1196,9 +1195,7 @@ void MainWindow::importImageIntoSelectedFrames()
     }
 
     const render::Resolution targetResolution = m_activeResolution;
-    const render::Size targetSize = targetResolution == render::Resolution::Hd
-                                        ? render::kHdFrameSize
-                                        : render::kSdFrameSize;
+    const render::Size targetSize = m_document->geometry().planeSize(targetResolution);
     const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
 
     int updatedFrames = 0;
@@ -1387,7 +1384,8 @@ void MainWindow::refreshProjectSummary()
     if (m_spriteEditor) {
         m_spriteEditor->setDocument(m_document ? &*m_document : nullptr);
     }
-    m_activeResolution = isHdOnlyProject() ? render::Resolution::Hd : render::Resolution::Sd;
+    m_activeResolution = m_document ? m_document->geometry().nativePlane()
+                                    : render::Resolution::Sd;
     updateFrameFilterChoices();
     updateResolutionMode();
     if (!m_document) {
@@ -1459,6 +1457,20 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
 bool MainWindow::isHdOnlyProject() const
 {
     return m_document && m_document->rendersHdPlaneOnly();
+}
+
+bool MainWindow::isOriginalPlaneOnlyProject() const
+{
+    return m_document && m_document->editsOriginalPlaneOnly();
+}
+
+QString MainWindow::planeName(render::Resolution resolution) const
+{
+    if (isOriginalPlaneOnlyProject()) {
+        const render::Size size = m_document->geometry().planeSize(resolution);
+        return QStringLiteral("%1x%2").arg(size.width).arg(size.height);
+    }
+    return resolution == render::Resolution::Hd ? QStringLiteral("HD") : QStringLiteral("SD");
 }
 
 QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
@@ -1591,7 +1603,7 @@ void MainWindow::refreshComponentBrowsers()
                 auto* item = new QListWidgetItem(
                     previewIcon(renderBackgroundPreviewImage(background,
                                                              m_activeResolution,
-                                                             hdOnly),
+                                                             m_document->geometry()),
                                 iconSize),
                     QStringLiteral("%1%2")
                         .arg(static_cast<int>(backgroundIndex))
@@ -1828,15 +1840,19 @@ void MainWindow::updateFrameStatusText()
     // Kept short: the label's width is part of the window's minimum width. The reasons are in
     // the tool tip, in the frame list and on the canvas.
     const bool hdOnly = isHdOnlyProject();
+    const bool originalOnly = isOriginalPlaneOnlyProject();
     const bool hasHd = m_document->hasHdFrame(*frameIndex);
     const QString gapsText = frameHdGapsText(*frameIndex);
     setFrameStatusText(QStringLiteral("Frame %1 | %2 | %3 | %4 ms%5%6")
                            .arg(static_cast<int>(*frameIndex))
                            .arg(hdOnly ? QStringLiteral("Original 256x64")
-                                       : QStringLiteral("SD 128x32"))
+                                       : originalOnly ? QStringLiteral("Original 192x64")
+                                                      : QStringLiteral("SD 128x32"))
                            .arg(hasHd ? QStringLiteral("HD 256x64")
                                       : hdOnly ? QStringLiteral("no HD frame")
-                                               : QStringLiteral("HD unavailable"))
+                                               : originalOnly
+                                                     ? QStringLiteral("only plane")
+                                                     : QStringLiteral("HD unavailable"))
                            .arg(m_document->frameDurationMs(*frameIndex))
                            .arg(selectedCount > 1
                                     ? QStringLiteral(" | %1 selected").arg(selectedCount)
@@ -1846,7 +1862,11 @@ void MainWindow::updateFrameStatusText()
         hdOnly ? QStringLiteral("This project has 256x64 original frames: only its HD plane is "
                                 "rendered and edited.%1")
                      .arg(gapsText.isEmpty() ? QString() : QStringLiteral(" %1.").arg(gapsText))
-               : QString());
+               : originalOnly
+                     ? QStringLiteral("This project has 192x64 original frames: only that plane "
+                                      "is shown and edited. Its stored 96x32 plane is kept "
+                                      "unchanged.")
+                     : QString());
 }
 
 void MainWindow::updatePlaybackControls()
@@ -1951,19 +1971,30 @@ void MainWindow::updateResolutionMode()
 {
     const bool hasDocument = m_document.has_value();
     const bool hdOnly = isHdOnlyProject();
+    const bool originalOnly = isOriginalPlaneOnlyProject();
     if (hdOnly) {
         m_activeResolution = render::Resolution::Hd;
+    } else if (originalOnly) {
+        m_activeResolution = render::Resolution::Sd;
     }
-    m_sdButton->setEnabled(hasDocument && !hdOnly);
-    m_hdButton->setEnabled(hasDocument);
-    m_sdButton->setToolTip(hdOnly ? QStringLiteral("Not available: this project has 256x64 "
-                                                   "original frames and renders its HD plane "
-                                                   "only. Its stored SD data is kept unchanged.")
-                                  : QString());
-    m_hdButton->setToolTip(hdOnly ? QStringLiteral("This project has 256x64 original frames: "
-                                                   "HD is the only plane that is rendered and "
-                                                   "edited")
-                                  : QString());
+    // With one plane there is nothing to switch: the button of that plane stays checked.
+    m_sdButton->setEnabled(hasDocument && !hdOnly && !originalOnly);
+    m_hdButton->setEnabled(hasDocument && !originalOnly);
+    m_sdButton->setToolTip(
+        hdOnly ? QStringLiteral("Not available: this project has 256x64 original frames and "
+                                "renders its HD plane only. Its stored SD data is kept unchanged.")
+               : originalOnly
+                     ? QStringLiteral("This project has 192x64 original frames: the 192x64 "
+                                      "plane is the only one that is shown and edited")
+                     : QString());
+    m_hdButton->setToolTip(
+        hdOnly ? QStringLiteral("This project has 256x64 original frames: HD is the only plane "
+                                "that is rendered and edited")
+               : originalOnly
+                     ? QStringLiteral("Not available: this project has 192x64 original frames. "
+                                      "Its stored 96x32 plane is smaller than the original and "
+                                      "is kept unchanged, never shown or edited.")
+                     : QString());
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_dynamicMaskOverlayButton->setEnabled(hasDocument);
     m_backgroundMaskOverlayButton->setEnabled(hasDocument);
@@ -2008,7 +2039,7 @@ void MainWindow::updateFrameMetadataControls()
     m_framePanel->refresh(state);
     if (isSpriteCanvasActive()) {
         m_framePanel->showSpriteHdActions(m_document->hasHdSprite(*currentSpriteIndex()),
-                                          isHdOnlyProject());
+                                          m_document->geometry().layout());
     }
 
     if (!hasFrame || m_document->backgroundCount() == 0) {
@@ -2439,8 +2470,7 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
             QStringLiteral("Copied frame %1 to background %2 (%3)")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(static_cast<int>(*backgroundIndex))
-                .arg(targetResolution == render::Resolution::Hd ? QStringLiteral("HD")
-                                                                 : QStringLiteral("SD")),
+                .arg(planeName(targetResolution)),
             2500);
     } catch (const std::exception& ex) {
         updateBackgroundControls();
@@ -2512,8 +2542,7 @@ void MainWindow::copySelectedBackgroundToFrames()
             QStringLiteral("Copied background %1 to %2 frame(s) (%3)")
                 .arg(static_cast<int>(*backgroundIndex))
                 .arg(updatedFrames)
-                .arg(sourceResolution == render::Resolution::Hd ? QStringLiteral("HD")
-                                                                 : QStringLiteral("SD")),
+                .arg(planeName(sourceResolution)),
             2500);
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -2547,9 +2576,7 @@ void MainWindow::importImageIntoSelectedBackground()
     }
 
     const render::Resolution targetResolution = m_activeResolution;
-    const render::Size targetSize = targetResolution == render::Resolution::Hd
-                                        ? render::kHdFrameSize
-                                        : render::kSdFrameSize;
+    const render::Size targetSize = m_document->geometry().planeSize(targetResolution);
     try {
         const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
         const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
@@ -2600,8 +2627,7 @@ void MainWindow::importImageIntoSelectedBackground()
         statusBar()->showMessage(
             QStringLiteral("Imported image into background %1 (%2)")
                 .arg(static_cast<int>(*backgroundIndex))
-                .arg(targetResolution == render::Resolution::Hd ? QStringLiteral("HD")
-                                                                 : QStringLiteral("SD")),
+                .arg(planeName(targetResolution)),
             3000);
     } catch (const std::exception& ex) {
         updateBackgroundControls();
@@ -2627,8 +2653,7 @@ void MainWindow::exportSelectedBackgroundPng()
         exportResolution = render::Resolution::Sd;
     }
 
-    const QString resolutionName =
-        exportResolution == render::Resolution::Hd ? QStringLiteral("hd") : QStringLiteral("sd");
+    const QString resolutionName = planeName(exportResolution).toLower();
     QFileInfo currentCromInfo(m_currentCromPath);
     QString defaultPath = currentCromInfo.dir().absoluteFilePath(
         QStringLiteral("%1_background_%2_%3.png")
@@ -2727,8 +2752,9 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         return;
     }
 
-    // Bounds, selection and the captured pixels are original frame pixels. An HD-only project
-    // takes the colors from the HD frame, which lines up with the original pixel for pixel.
+    // Bounds, selection and the captured pixels are original frame pixels. The colors come
+    // from the native plane, which lines up with the original pixel for pixel: the HD frame of
+    // an HD-only project.
     const bool hdOnly = isHdOnlyProject();
     if (hdOnly && !m_document->hasHdFrame(*frameIndex)) {
         statusBar()->showMessage(
@@ -2819,7 +2845,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         const document::Rgb565Frame sourceColorized =
             composeResolvedFrame(*m_document,
                                  *frameIndex,
-                                 hdOnly ? render::Resolution::Hd : render::Resolution::Sd,
+                                 m_document->geometry().nativePlane(),
                                  includeBackgroundLayer);
         const document::IndexedFrame& sourceOriginal = m_document->originalFrame(*frameIndex);
         if (selectedPixels.empty()) {
@@ -3241,6 +3267,10 @@ void MainWindow::createCurrentSpriteHd()
         updateSpriteControls();
         return;
     }
+    if (isOriginalPlaneOnlyProject()) {
+        showNoExtraPlaneEditing();
+        return;
+    }
 
     try {
         std::unique_ptr<edit::EditCommand> command =
@@ -3257,6 +3287,14 @@ void MainWindow::createCurrentSpriteHd()
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::showNoExtraPlaneEditing()
+{
+    statusBar()->showMessage(
+        QStringLiteral("This project is edited on its 192x64 plane only; its stored 96x32 plane "
+                       "is kept unchanged"),
+        4000);
 }
 
 void MainWindow::removeCurrentSpriteHd()
@@ -3291,6 +3329,10 @@ void MainWindow::createCurrentFrameHd()
     }
     if (isHdOnlyProject()) {
         createCurrentFrameHdFromOriginal(*frameIndex);
+        return;
+    }
+    if (isOriginalPlaneOnlyProject()) {
+        showNoExtraPlaneEditing();
         return;
     }
     if (m_document->hasHdFrame(*frameIndex)) {
@@ -3938,7 +3980,7 @@ void MainWindow::updateSpriteControls()
 
     const document::SpriteRecord& sprite = m_document->sprite(*spriteIndex);
     if (isSpriteCanvasActive()) {
-        m_framePanel->showSpriteHdActions(sprite.hasHd, isHdOnlyProject());
+        m_framePanel->showSpriteHdActions(sprite.hasHd, m_document->geometry().layout());
     }
     if (m_spriteEditor) {
         const std::size_t areaIndex = m_spritePanel->selectedDetectionAreaIndex();

@@ -4,11 +4,9 @@
 #include <vector>
 
 #include "render/CanvasTypes.h"
+#include "render/ProjectGeometry.h"
 
 namespace colorizing::render {
-
-constexpr Size kSdFrameSize{128, 32};
-constexpr Size kHdFrameSize{256, 64};
 
 struct CanvasLayoutOptions {
     Resolution activeResolution = Resolution::Sd;
@@ -16,14 +14,13 @@ struct CanvasLayoutOptions {
     bool showHdReference = false;
     bool hasHdFrame = false;
     int gap = 8;
-    // Size of the ROM's original frames, see OriginalFrameMapping.
-    Size originalSize = kSdFrameSize;
+    // activeResolution has to be an editable plane of it.
+    ProjectGeometry geometry;
 };
 
 struct CanvasRegionLayout {
     CanvasRegion region = CanvasRegion::ColorizedFrame;
-    // For the original region: the grid of the original, see
-    // OriginalFrameMapping::originalResolution().
+    // For the original region: the native plane, see ProjectGeometry::nativePlane().
     Resolution resolution = Resolution::Sd;
     Size logicalSize;
     Rect displayRect;
@@ -45,9 +42,6 @@ private:
     std::vector<CanvasRegionLayout> m_regions;
     Size m_displaySize;
 };
-
-[[nodiscard]] Size logicalSizeForResolution(Resolution resolution);
-[[nodiscard]] int displayScaleForResolution(Resolution resolution);
 
 }  // namespace colorizing::render
 

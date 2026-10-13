@@ -1,5 +1,7 @@
 #include "FrameThumbnail.h"
 
+#include <algorithm>
+
 #include <QPainter>
 #include <QPixmap>
 
@@ -22,17 +24,24 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
     const int frameWidth = iconSize.width() - margin * 2;
     const int frameHeight = (iconSize.height() - margin * 2 - gap) / 2;
 
-    const bool hdOnly = document.rendersHdPlaneOnly();
     const QImage colorized = renderResolvedFrameImage(document,
                                                       frameIndex,
-                                                      hdOnly ? render::Resolution::Hd
-                                                             : render::Resolution::Sd,
+                                                      document.geometry().nativePlane(),
                                                       1,
                                                       true);
     const QImage original = renderIndexedFrameImage(document.originalFrame(frameIndex), 1);
 
-    painter.drawImage(QRect(margin, margin, frameWidth, frameHeight), colorized);
-    painter.drawImage(QRect(margin, margin + frameHeight + gap, frameWidth, frameHeight), original);
+    // The two boxes are filled by a 4:1 frame; another shape keeps its proportions in them.
+    const render::Size frameSize = document.originalFrameSize();
+    const int shownWidth = std::min(frameWidth, frameWidth * frameSize.width /
+                                                    (frameSize.height * 4));
+    const int shownHeight = std::min(frameHeight, frameHeight * frameSize.height * 4 /
+                                                      frameSize.width);
+    const int left = margin + (frameWidth - shownWidth) / 2;
+    const int inset = (frameHeight - shownHeight) / 2;
+    painter.drawImage(QRect(left, margin + inset, shownWidth, shownHeight), colorized);
+    painter.drawImage(QRect(left, margin + frameHeight + gap + inset, shownWidth, shownHeight),
+                      original);
 
     painter.setPen(QPen(QColor(210, 210, 210), 1));
     painter.drawRect(QRect(0, 0, iconSize.width(), iconSize.height()).adjusted(0, 0, -1, -1));

@@ -62,20 +62,21 @@ neither of those holds.
     `LegacyCrzArchive` (the only file that includes libserum headers).
   - `edit/`: `EditCommand` (all undoable commands), `UndoHistories` (scoped stacks with a global
     sequence for chronological undo), `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`.
-  - `render/`: `CanvasLayout`, `CanvasTypes`, `OriginalFrameMapping`.
+  - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
+    plane layouts; `ProjectSnapshot` and `ProjectDocument` carry it).
 - `app/`: `MainWindow` (about 4,600 lines, down from 8,266), `CanvasEditController`, the canvas and
   sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), seven panels under
   `panels/`.
 - `tests/`: core test executable, widget test executable, and `colorizing_qt_v2_roundtrip`
   (loads a real project, re-serializes, reports per block where it differs from disk).
-- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 600 scripted
+- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 630 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
 
 ## What works
 
 - Load and save of cROM/cRP/cRZ. Projects saved by 3.17.3 round-trip byte-identical: `afm_113b`,
-  `trn_174h`, `hook_501`, and earlier `potc_600as`, GoT, `empty128`.
+  `trn_174h`, `hook_501`, `smb3`, `frankst1` (192x64), and earlier `potc_600as`, GoT, `empty128`.
 - Save recomputes frame hashes and active-frame flags and blanks colorized pixels under dynamic
   masks, as the Win32 editor does. Header revision is kept (20 stays 20, older becomes 19).
 - Editing: drawing tools, flood fill, palette gradients, canvas selection, comparison masks,
@@ -84,8 +85,17 @@ neither of those holds.
 - Undo: scoped histories, chronological within a context, covers pixel edits, masks, dynamic
   colours and shadows, palettes, frame settings, HD create/remove for frames and sprites.
 - 256x64-original projects: open, edit and save as native HD only (see below).
+- 192x64-original projects: open, edit and save on the native 192x64 plane only (see below).
 
 ## Resolution model
+
+A project's `render::ProjectGeometry` is derived from the cROM header on load (original plane
+size, extra plane size, the "256x64 original" flag) and written back on save. It says which
+stored plane has the ROM frame's size ("native"), which planes are edited, and how plane pixels
+map to ROM frame pixels. Exactly three layouts are accepted; any other size combination is
+refused on load with a message naming the sizes.
+
+`Resolution::Sd` and `Resolution::Hd` name the stored planes (original and extra), not sizes.
 
 - **128x32 original, optional 256x64 HD** (ordinary projects): sprites and detection on the
   128x32 original; HD is the upscaled plane. Fully supported.
@@ -98,17 +108,28 @@ neither of those holds.
   sprites have HD; the editor flags frames where that is not so and Create HD repairs them.
   **Verified with synthetic projects only; no real 256x64 project exists yet** (authors were
   waiting for a better editor).
-- **192x64 original** (`frankst1`: 192x64 with a 96x32 extra plane): **does not load.** The model
-  is fixed at 128x32 and 256x64. The owner wants these to be HD only as well.
+- **192x64 original** (stored as a 192x64 original plane with a 96x32 extra plane): the 192x64
+  plane is the only plane shown and edited, one to one with the ROM frame; it is the stored
+  original plane, so internally it is `Resolution::Sd` data. Masks, dynamic data, backgrounds,
+  rotations, sprites, slot bounds, capture, import and export all use 192x64 coordinates. The
+  stored 96x32 data, including the flags that mark frames, backgrounds and sprites as having it,
+  is carried through load and save untouched: `ProjectDocument` hides it (no item "has HD",
+  `Resolution::Hd` access throws) and `toSnapshot()` returns it as loaded. The SD/HD switch and
+  all Create/Remove HD actions are disabled with the reason as tool tip. Nothing is padded or
+  converted. Edits of the 192x64 plane do not update 96x32 counterparts.
+  **Verified with one real project (`frankst1`, which has no 96x32 pictures in use, no sprites
+  and no backgrounds) and with synthetic projects** that have them.
 
 ## Open decisions (waiting for the owner)
 
 1. **192x64 in libserum:** drop the 96x32 plane for native 64-row projects, the same contract as
    256x64? It changes behaviour for existing 192x64 projects on 32-row displays (no picture
-   unless the host asks for fallback).
-2. **192x64 in the editor:** keep such projects at 192x64, or pad them to 256x64 on save? The
-   owner said earlier that 192x64 should be treated like 256x64 by padding, the way 128x16 is
-   padded to 128x32; 3.17.3 stores them as native 192x64.
+   unless the host asks for fallback). Until this is decided the editor keeps the 96x32 data as
+   it is in the file and neither updates nor removes it.
+2. **192x64 padded to 256x64:** such projects now load, edit and save as native 192x64, which is
+   how 3.17.3 stores them. Whether they should be converted to a padded 256x64 layout (the owner
+   said earlier that 192x64 should be treated like 256x64 by padding, the way 128x16 is padded to
+   128x32) is still open; nothing is padded or converted today.
 3. **Confirmations asked of the authors**, relayed by the owner, no answer recorded yet:
    - Sprite bounds fields are disabled for an empty slot, so a rectangle capture into an empty
      slot needs Assign or Select Capture first.
@@ -121,6 +142,9 @@ neither of those holds.
 
 ## Known bugs and gaps in the editor (not fixed)
 
+- Opening `frankst1` takes about 28 s, of which loading the files is about 3 s; the rest is
+  building the 11199 frame list thumbnails, at the same cost per pixel as in every project. Its
+  round trip peaks at about 4.4 GB. Not optimised, see the ground rules.
 - **Preview differs from libserum:**
   - sprite bounds check is off by one, so a sprite captured with exact bounds never shows as
     matched;
@@ -161,8 +185,8 @@ neither of those holds.
 
 ## Next steps, in the order I would take them
 
-1. Get the two 192x64 decisions, then generalise the plane sizes so `frankst1` loads, edits on its
-   native plane and round-trips.
+1. Get the two remaining 192x64 decisions (the 96x32 plane at runtime, padding to 256x64) and
+   apply them; the geometry model has one table to extend for a new layout.
 2. Replace the editor's own preview with libserum output (new editor-facing libserum API taking
    cROM data from memory), so preview and runtime cannot drift. This removes the whole
    "preview differs" list above and gives a real frame tester.
@@ -190,7 +214,8 @@ neither of those holds.
 ## Test material (read-only, never commit)
 
 - `/Volumes/data/CDMD_3.17.3_projects/`: `afm_113b`, `trn_174h` (cRZ + cRP), `hook_501`
-  (cROM + cRP, 128x16 padded), `frankst1` (cRZ + cRP, native 192x64, does not load yet).
+  (cROM + cRP, 128x16 padded), `smb3` (cROM + cRP), `frankst1` (cRZ + cRP, native 192x64,
+  11199 frames; the cROM in the archive is 711 MB).
 - Ghostbusters: `/Volumes/data/Downloads/spagb_100.cROMc` and frame dumps (`spagb_100.txt` in
   several places, plus `Serum Frame Dump-20261012T204757Z-1-001.zip` with 20 dumps).
 - Older local projects under `/Volumes/data/Serum/` were rewritten by earlier Qt builds and are

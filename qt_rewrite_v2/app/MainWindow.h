@@ -77,6 +77,11 @@ private:
     [[nodiscard]] QString frameListItemText(std::size_t frameIndex) const;
     // See ProjectDocument::rendersHdPlaneOnly(): SD mode, SD fallbacks and Remove HD are off.
     [[nodiscard]] bool isHdOnlyProject() const;
+    // See ProjectDocument::editsOriginalPlaneOnly(): HD mode and every HD action are off.
+    [[nodiscard]] bool isOriginalPlaneOnlyProject() const;
+    // "SD" or "HD"; the plane's size where those names would mislead.
+    [[nodiscard]] QString planeName(render::Resolution resolution) const;
+    void showNoExtraPlaneEditing();
     // Why the runtime shows nothing for the frame of an HD-only project; empty otherwise.
     [[nodiscard]] QString frameHdGapsText(std::size_t frameIndex) const;
     void updateFrameFilterChoices();

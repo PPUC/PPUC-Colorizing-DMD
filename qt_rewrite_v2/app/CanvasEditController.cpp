@@ -6,7 +6,7 @@
 #include <tuple>
 
 #include "FrameImageUtils.h"
-#include "render/OriginalFrameMapping.h"
+#include "render/ProjectGeometry.h"
 
 namespace colorizing::app {
 
@@ -49,16 +49,15 @@ QString strokeStatusText(DrawingTool tool)
     return QString();
 }
 
-render::OriginalFrameMapping originalMapping(const CanvasEditContext& context)
+render::ProjectGeometry projectGeometry(const CanvasEditContext& context)
 {
-    return render::OriginalFrameMapping(context.document ? context.document->originalFrameSize()
-                                                         : render::kSdFrameSize);
+    return context.document ? context.document->geometry() : render::ProjectGeometry();
 }
 
-bool isOnOriginal(const render::OriginalFrameMapping& mapping, const render::CanvasHit& hit)
+bool isOnOriginal(const render::ProjectGeometry& geometry, const render::CanvasHit& hit)
 {
     return hit.region == render::CanvasRegion::OriginalFrame &&
-           hit.resolution == mapping.originalResolution();
+           hit.resolution == geometry.nativePlane();
 }
 
 QString onFramesText(const QString& statusText, std::size_t frameCount)
@@ -176,7 +175,7 @@ void CanvasEditController::originalPixelClicked(const CanvasEditContext& context
 {
     if (context.spriteCaptureSelection) {
         if (context.tool != DrawingTool::Point ||
-            !isOnOriginal(originalMapping(context), hit)) {
+            !isOnOriginal(projectGeometry(context), hit)) {
             return;
         }
         paintCaptureSelection(context, {render::Point{hit.x, hit.y}}, erase);
@@ -197,7 +196,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
     }
     const bool onColorized = start.region == render::CanvasRegion::ColorizedFrame;
     const bool onOriginal = start.region == render::CanvasRegion::OriginalFrame;
-    const render::OriginalFrameMapping mapping = originalMapping(context);
+    const render::ProjectGeometry geometry = projectGeometry(context);
     const QColor eraseColor(0, 0, 0, 150);
     if (tool == DrawingTool::Selection) {
         if (onColorized) {
@@ -213,9 +212,9 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         return;
     }
     if (context.spriteCaptureSelection) {
-        if (isOnOriginal(mapping, start)) {
+        if (isOnOriginal(geometry, start)) {
             showPreview(render::CanvasRegion::OriginalFrame,
-                        mapping.originalResolution(),
+                        geometry.nativePlane(),
                         strokePixels(context, start, end),
                         erase ? eraseColor : QColor(255, 0, 255, 150));
         }
@@ -225,7 +224,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         case CanvasEditLayer::ComparisonMask:
             if (onOriginal) {
                 showPreview(render::CanvasRegion::OriginalFrame,
-                            mapping.originalResolution(),
+                            geometry.nativePlane(),
                             strokePixels(context, start, end),
                             erase ? eraseColor : QColor(255, 0, 0, 150));
             }
@@ -283,7 +282,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
 
     const bool onColorized = start.region == render::CanvasRegion::ColorizedFrame;
     if (context.spriteCaptureSelection) {
-        if (!isOnOriginal(originalMapping(context), start)) {
+        if (!isOnOriginal(projectGeometry(context), start)) {
             return;
         }
         paintCaptureSelection(context, strokePixels(context, start, end), erase);
@@ -684,11 +683,10 @@ void CanvasEditController::paintCaptureSelection(const CanvasEditContext& contex
     if (!context.document || !context.currentFrame || pixels.empty()) {
         return;
     }
-    const render::Size originalSize = context.document->originalFrameSize();
-    if (originalSize.width != m_captureOriginalSize.width ||
-        originalSize.height != m_captureOriginalSize.height) {
-        m_captureSelection = edit::FramePixelSelection(originalSize);
-        m_captureOriginalSize = originalSize;
+    const render::ProjectGeometry& geometry = context.document->geometry();
+    if (geometry != m_captureGeometry) {
+        m_captureSelection = edit::FramePixelSelection(geometry.romFrameSize());
+        m_captureGeometry = geometry;
     }
     if (!m_captureSelection.paint(*context.currentFrame, pixels, erase)) {
         return;
@@ -980,7 +978,7 @@ void CanvasEditController::showCaptureSelection(std::optional<std::size_t> frame
         return;
     }
     showSelectionOverlay(render::CanvasRegion::OriginalFrame,
-                         render::OriginalFrameMapping(m_captureOriginalSize).originalResolution(),
+                         m_captureGeometry.nativePlane(),
                          std::move(pixels),
                          QColor(255, 0, 255, 110));
 }

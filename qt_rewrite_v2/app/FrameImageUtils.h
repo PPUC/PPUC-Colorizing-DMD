@@ -63,9 +63,10 @@ void paintDmdPixel(QPainter& painter,
 [[nodiscard]] QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
                                                        render::Resolution resolution,
                                                        bool hdOnly = false);
-// One image pixel per background pixel; the same fallback rule.
+// One image pixel per background pixel; the same fallback rule, with the project's geometry
+// saying whether it is an HD-only one.
 [[nodiscard]] QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
                                                   render::Resolution resolution,
-                                                  bool hdOnly = false);
+                                                  const render::ProjectGeometry& geometry = {});
 
 }  // namespace colorizing::app

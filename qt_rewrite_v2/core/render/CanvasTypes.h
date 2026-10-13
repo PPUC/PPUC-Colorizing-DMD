@@ -4,6 +4,8 @@
 
 namespace colorizing::render {
 
+// A stored plane of a project, not a size: Sd is the original plane, Hd the extra plane. What
+// size each has and which one is the ROM frame's is in render::ProjectGeometry.
 enum class Resolution {
     Sd,
     Hd
@@ -23,6 +25,16 @@ struct Size {
     int height = 0;
 };
 
+[[nodiscard]] constexpr bool operator==(Size lhs, Size rhs)
+{
+    return lhs.width == rhs.width && lhs.height == rhs.height;
+}
+
+[[nodiscard]] constexpr bool operator!=(Size lhs, Size rhs)
+{
+    return !(lhs == rhs);
+}
+
 struct Point {
     int x = 0;
     int y = 0;
@@ -40,8 +52,8 @@ struct Rect {
 
 struct CanvasHit {
     CanvasRegion region = CanvasRegion::ColorizedFrame;
-    // The grid x and y are on. On the original region that is the grid of the original frame
-    // (Hd for a 256x64 original), not the resolution being edited.
+    // The plane whose grid x and y are on. On the original region that is the native plane
+    // (ProjectGeometry::nativePlane()), not the plane being edited.
     Resolution resolution = Resolution::Sd;
     int x = 0;
     int y = 0;

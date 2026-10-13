@@ -1,4 +1,4 @@
-#include "render/OriginalFrameMapping.h"
+#include "render/ProjectGeometry.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -19,8 +19,9 @@ using colorizing::render::CanvasLayout;
 using colorizing::render::CanvasLayoutOptions;
 using colorizing::render::CanvasRegion;
 using colorizing::render::CanvasRegionLayout;
-using colorizing::render::OriginalFrameMapping;
+using colorizing::render::PlaneLayout;
 using colorizing::render::Point;
+using colorizing::render::ProjectGeometry;
 using colorizing::render::Resolution;
 using colorizing::render::Size;
 using colorizing::render::kHdFrameSize;
@@ -34,7 +35,7 @@ namespace {
 void expect(bool condition, const std::string& message)
 {
     if (!condition) {
-        std::cerr << "FAIL: original frame mapping: " << message << '\n';
+        std::cerr << "FAIL: project geometry: " << message << '\n';
         std::exit(1);
     }
 }
@@ -55,71 +56,157 @@ bool throwsLogicError(Call call)
     return false;
 }
 
+bool isSize(Size size, int width, int height)
+{
+    return size.width == width && size.height == height;
+}
+
 void testOrdinaryOriginal()
 {
-    const OriginalFrameMapping mapping;
-    expect(mapping.originalSize().width == 128 && mapping.originalSize().height == 32,
-           "default original size");
-    expect(mapping.originalResolution() == Resolution::Sd, "128x32 original is on the SD grid");
-    expect(mapping.originalDisplayScale() == 2, "128x32 original display scale");
-    expect(mapping.hasPlane(Resolution::Sd) && mapping.hasPlane(Resolution::Hd),
+    const ProjectGeometry geometry;
+    expect(geometry.layout() == PlaneLayout::Ordinary && geometry == ProjectGeometry(
+                                                             PlaneLayout::Ordinary),
+           "the default geometry is the ordinary layout");
+    expect(isSize(geometry.romFrameSize(), 128, 32), "default original size");
+    expect(isSize(geometry.planeSize(Resolution::Sd), 128, 32) &&
+               isSize(geometry.planeSize(Resolution::Hd), 256, 64),
+           "stored planes of an ordinary project");
+    expect(geometry.nativePlane() == Resolution::Sd, "128x32 original is on the SD grid");
+    expect(geometry.romFrameDisplayScale() == 2 &&
+               geometry.planeDisplayScale(Resolution::Sd) == 2 &&
+               geometry.planeDisplayScale(Resolution::Hd) == 1,
+           "a 32-row plane is shown doubled, a 64-row plane one to one");
+    expect(geometry.isEditable(Resolution::Sd) && geometry.isEditable(Resolution::Hd),
            "an ordinary project has both planes");
-    expect(mapping.planeScale(Resolution::Sd) == 1 && mapping.planeScale(Resolution::Hd) == 2,
+    expect(!geometry.original256x64Flag(), "an ordinary project has no 256x64 flag");
+    expect(geometry.planeScale(Resolution::Sd) == 1 && geometry.planeScale(Resolution::Hd) == 2,
            "the HD plane is twice the 128x32 original");
 
-    expect(isPoint(mapping.toOriginal(Resolution::Sd, Point{127, 31}), 127, 31),
+    expect(isPoint(geometry.toRomFrame(Resolution::Sd, Point{127, 31}), 127, 31),
            "SD maps one to one");
-    expect(isPoint(mapping.toOriginal(Resolution::Hd, Point{255, 63}), 127, 31) &&
-               isPoint(mapping.toOriginal(Resolution::Hd, Point{11, 6}), 5, 3) &&
-               isPoint(mapping.toOriginal(Resolution::Hd, Point{10, 7}), 5, 3),
+    expect(isPoint(geometry.toRomFrame(Resolution::Hd, Point{255, 63}), 127, 31) &&
+               isPoint(geometry.toRomFrame(Resolution::Hd, Point{11, 6}), 5, 3) &&
+               isPoint(geometry.toRomFrame(Resolution::Hd, Point{10, 7}), 5, 3),
            "HD pixels share the original pixel of their 2x2 block");
-    expect(isPoint(mapping.toOriginal(Resolution::Hd, Point{-1, -3}), -1, -2),
+    expect(isPoint(geometry.toRomFrame(Resolution::Hd, Point{-1, -3}), -1, -2),
            "HD pixels outside the frame stay outside");
 }
 
 void testBigOriginal()
 {
-    const OriginalFrameMapping mapping(kHdFrameSize);
-    expect(mapping.originalSize().width == 256 && mapping.originalSize().height == 64,
-           "256x64 original size");
-    expect(mapping.originalResolution() == Resolution::Hd, "256x64 original is on the HD grid");
-    expect(mapping.originalDisplayScale() == 1, "256x64 original display scale");
-    expect(mapping.hasPlane(Resolution::Hd) && !mapping.hasPlane(Resolution::Sd),
+    const ProjectGeometry geometry(PlaneLayout::NativeExtra);
+    expect(isSize(geometry.romFrameSize(), 256, 64), "256x64 original size");
+    expect(isSize(geometry.planeSize(Resolution::Sd), 128, 32) &&
+               isSize(geometry.planeSize(Resolution::Hd), 256, 64),
+           "a 256x64 project stores the same planes as an ordinary one");
+    expect(geometry.nativePlane() == Resolution::Hd, "256x64 original is on the HD grid");
+    expect(geometry.romFrameDisplayScale() == 1, "256x64 original display scale");
+    expect(geometry.isEditable(Resolution::Hd) && !geometry.isEditable(Resolution::Sd),
            "a 256x64 project has the HD plane only");
-    expect(mapping.planeScale(Resolution::Hd) == 1, "the HD plane is the 256x64 original's size");
+    expect(geometry.original256x64Flag(), "a 256x64 project carries the header flag");
+    expect(geometry.planeScale(Resolution::Hd) == 1, "the HD plane is the 256x64 original's size");
 
-    expect(isPoint(mapping.toOriginal(Resolution::Hd, Point{0, 0}), 0, 0) &&
-               isPoint(mapping.toOriginal(Resolution::Hd, Point{11, 7}), 11, 7) &&
-               isPoint(mapping.toOriginal(Resolution::Hd, Point{255, 63}), 255, 63),
+    expect(isPoint(geometry.toRomFrame(Resolution::Hd, Point{0, 0}), 0, 0) &&
+               isPoint(geometry.toRomFrame(Resolution::Hd, Point{11, 7}), 11, 7) &&
+               isPoint(geometry.toRomFrame(Resolution::Hd, Point{255, 63}), 255, 63),
            "HD maps one to one");
-    expect(throwsLogicError([&]() { (void)mapping.toOriginal(Resolution::Sd, Point{5, 3}); }) &&
-               throwsLogicError([&]() { (void)mapping.planeScale(Resolution::Sd); }),
+    expect(throwsLogicError([&]() { (void)geometry.toRomFrame(Resolution::Sd, Point{5, 3}); }) &&
+               throwsLogicError([&]() { (void)geometry.planeScale(Resolution::Sd); }),
            "nothing maps a 128x32 plane onto a 256x64 original");
 }
 
-void testUnsupportedSizes()
+void testNativeOriginal()
 {
-    expect(OriginalFrameMapping::isSupportedOriginalSize(kSdFrameSize) &&
-               OriginalFrameMapping::isSupportedOriginalSize(kHdFrameSize) &&
-               !OriginalFrameMapping::isSupportedOriginalSize(Size{192, 64}) &&
-               !OriginalFrameMapping::isSupportedOriginalSize(Size{256, 32}) &&
-               !OriginalFrameMapping::isSupportedOriginalSize(Size{}),
-           "supported original sizes");
-    bool thrown = false;
-    try {
-        const OriginalFrameMapping mapping(Size{192, 64});
-        (void)mapping;
-    } catch (const std::invalid_argument&) {
-        thrown = true;
-    }
-    expect(thrown, "other sizes are refused");
+    const ProjectGeometry geometry(PlaneLayout::NativeOriginal);
+    expect(isSize(geometry.romFrameSize(), 192, 64), "192x64 original size");
+    expect(isSize(geometry.planeSize(Resolution::Sd), 192, 64) &&
+               isSize(geometry.planeSize(Resolution::Hd), 96, 32),
+           "a 192x64 project stores a 192x64 original plane and a 96x32 extra plane");
+    expect(geometry.nativePlane() == Resolution::Sd,
+           "the 192x64 original is the stored original plane");
+    expect(geometry.isEditable(Resolution::Sd) && !geometry.isEditable(Resolution::Hd),
+           "the 96x32 extra plane is carried");
+    expect(!geometry.original256x64Flag(), "a 192x64 project has no 256x64 flag");
+    expect(geometry.planeScale(Resolution::Sd) == 1, "the original plane is the ROM frame");
+    expect(geometry.romFrameDisplayScale() == 1 &&
+               geometry.planeDisplayScale(Resolution::Sd) == 1,
+           "a 64-row plane is shown one to one");
+    expect(isPoint(geometry.toRomFrame(Resolution::Sd, Point{191, 63}), 191, 63) &&
+               isPoint(geometry.toRomFrame(Resolution::Sd, Point{129, 33}), 129, 33),
+           "the original plane maps one to one");
+    expect(throwsLogicError([&]() { (void)geometry.toRomFrame(Resolution::Hd, Point{5, 3}); }) &&
+               throwsLogicError([&]() { (void)geometry.planeScale(Resolution::Hd); }),
+           "nothing maps the 96x32 plane onto the 192x64 original");
+    expect(geometry != ProjectGeometry() && geometry != ProjectGeometry(PlaneLayout::NativeExtra),
+           "the layouts differ");
+}
+
+void testHeaderGeometries()
+{
+    const auto fromHeader = [](Size original, Size extra, bool flag) {
+        return ProjectGeometry::fromStoredPlanes(original, extra, flag);
+    };
+    const std::optional<ProjectGeometry> ordinary = fromHeader({128, 32}, {256, 64}, false);
+    const std::optional<ProjectGeometry> nativeExtra = fromHeader({128, 32}, {256, 64}, true);
+    const std::optional<ProjectGeometry> nativeOriginal = fromHeader({192, 64}, {96, 32}, false);
+    expect(ordinary && ordinary->layout() == PlaneLayout::Ordinary, "128x32 + 256x64");
+    expect(nativeExtra && nativeExtra->layout() == PlaneLayout::NativeExtra,
+           "128x32 + 256x64 with the 256x64 flag");
+    expect(nativeOriginal && nativeOriginal->layout() == PlaneLayout::NativeOriginal,
+           "192x64 + 96x32");
+
+    expect(!fromHeader({192, 64}, {96, 32}, true), "192x64 with the 256x64 flag is refused");
+    expect(!fromHeader({192, 64}, {384, 128}, false), "192x64 with a doubled plane is refused");
+    expect(!fromHeader({256, 64}, {128, 32}, false), "256x64 + 128x32 is refused");
+    expect(!fromHeader({128, 16}, {256, 32}, false), "128x16 is refused");
+    expect(!fromHeader({192, 32}, {384, 64}, false), "192x32 is refused");
+    expect(!fromHeader({128, 32}, {128, 32}, false), "an extra plane of the same size is refused");
+    expect(!fromHeader({}, {}, false), "empty sizes are refused");
+
+    std::string message;
+    expect(!ProjectGeometry::fromStoredPlanes({192, 32}, {384, 64}, false, &message) &&
+               message.find("192x32") != std::string::npos &&
+               message.find("384x64") != std::string::npos &&
+               message.find("192x64 with 96x32") != std::string::npos,
+           "the refusal names the sizes found and the supported ones");
+}
+
+void testLayoutOfNativeOriginal()
+{
+    CanvasLayoutOptions options;
+    options.geometry = ProjectGeometry(PlaneLayout::NativeOriginal);
+    const CanvasLayout layout = CanvasLayout::buildFrameLayout(options);
+    expect(layout.regions().size() == 2, "colorized and original region");
+    expect(layout.displaySize().width == 192 && layout.displaySize().height == 64 + 8 + 64,
+           "both regions are 192x64 display pixels at zoom 1");
+
+    const std::optional<CanvasRegionLayout> colorized = layout.region(CanvasRegion::ColorizedFrame);
+    const std::optional<CanvasRegionLayout> original = layout.region(CanvasRegion::OriginalFrame);
+    expect(colorized && original, "both regions exist");
+    expect(isSize(colorized->logicalSize, 192, 64) && colorized->displayScale == 1 &&
+               colorized->resolution == Resolution::Sd,
+           "the edited plane is the 192x64 original plane");
+    expect(isSize(original->logicalSize, 192, 64) && original->displayScale == 1 &&
+               original->resolution == Resolution::Sd,
+           "the original region is on the same grid");
+
+    const std::optional<CanvasHit> corner = layout.hitTest(Point{191, 63});
+    expect(corner && corner->region == CanvasRegion::ColorizedFrame &&
+               corner->resolution == Resolution::Sd && corner->x == 191 && corner->y == 63,
+           "bottom right pixel of the colorized plane");
+    expect(!layout.hitTest(Point{192, 10}), "nothing right of column 191");
+    const std::optional<CanvasHit> originalCorner = layout.hitTest(Point{191, 72 + 63});
+    expect(originalCorner && originalCorner->region == CanvasRegion::OriginalFrame &&
+               originalCorner->x == 191 && originalCorner->y == 63,
+           "bottom right pixel of the original");
+    expect(!layout.hitTest(Point{100, 72 + 64}), "nothing below the original");
 }
 
 void testLayoutShowsBigOriginalAtSdDisplaySize()
 {
     CanvasLayoutOptions ordinaryOptions;
     CanvasLayoutOptions options;
-    options.originalSize = kHdFrameSize;
+    options.geometry = ProjectGeometry(PlaneLayout::NativeExtra);
     const CanvasLayout ordinary = CanvasLayout::buildFrameLayout(ordinaryOptions);
     const CanvasLayout layout = CanvasLayout::buildFrameLayout(options);
 
@@ -156,7 +243,7 @@ document::ProjectDocument makeBigOriginalDocument()
     document::ProjectSnapshot snapshot;
     snapshot.colorCount = 16;
     snapshot.romName = "big_original";
-    snapshot.originalIs256x64 = true;
+    snapshot.geometry = ProjectGeometry(PlaneLayout::NativeExtra);
     snapshot.comparisonMasks.push_back(document::makeIndexedFrame(kHdFrameSize, 0));
     document::IndexedFrame original = document::makeIndexedFrame(kHdFrameSize, 0);
     for (int y = 0; y < 64; ++y) {
@@ -228,7 +315,7 @@ document::ProjectDocument makeHdOnlyDocument()
     document::ProjectSnapshot snapshot;
     snapshot.colorCount = 16;
     snapshot.romName = "hd_only";
-    snapshot.originalIs256x64 = true;
+    snapshot.geometry = ProjectGeometry(PlaneLayout::NativeExtra);
     document::IndexedFrame original = document::makeIndexedFrame(kHdFrameSize, 0);
     for (int y = 0; y < 64; ++y) {
         for (int x = 0; x < 256; ++x) {
@@ -425,11 +512,13 @@ void testNativeSpriteCapture()
 
 }  // namespace
 
-void runOriginalFrameMappingTests()
+void runProjectGeometryTests()
 {
     testOrdinaryOriginal();
     testBigOriginal();
-    testUnsupportedSizes();
+    testNativeOriginal();
+    testHeaderGeometries();
+    testLayoutOfNativeOriginal();
     testLayoutShowsBigOriginalAtSdDisplaySize();
     testComparisonMaskEditsCoverBigOriginal();
     testHdPresenceOfHdOnlyProject();

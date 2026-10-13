@@ -18,6 +18,9 @@ namespace {
 constexpr char kHdOnlyRemoveToolTip[] =
     "Not available: this project has 256x64 original frames and renders HD only. Without HD "
     "data the runtime shows nothing.";
+constexpr char kCarriedExtraPlaneToolTip[] =
+    "Not available: this project has 192x64 original frames and is edited on that plane only. "
+    "Its stored 96x32 plane is kept unchanged.";
 
 }  // namespace
 
@@ -261,7 +264,17 @@ void FramePanel::refresh(const FramePanelState& state)
         m_createHdButton->setEnabled(gaps.frame || gaps.background);
         m_removeHdButton->setToolTip(QString::fromLatin1(kHdOnlyRemoveToolTip));
         m_removeHdButton->setEnabled(false);
+    } else if (document->editsOriginalPlaneOnly()) {
+        disableHdActions();
     }
+}
+
+void FramePanel::disableHdActions()
+{
+    m_createHdButton->setToolTip(QString::fromLatin1(kCarriedExtraPlaneToolTip));
+    m_createHdButton->setEnabled(false);
+    m_removeHdButton->setToolTip(QString::fromLatin1(kCarriedExtraPlaneToolTip));
+    m_removeHdButton->setEnabled(false);
 }
 
 void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
@@ -293,8 +306,9 @@ void FramePanel::setImportImageEnabled(bool enabled)
     m_importImageButton->setEnabled(enabled);
 }
 
-void FramePanel::showSpriteHdActions(bool spriteHasHd, bool hdOnly)
+void FramePanel::showSpriteHdActions(bool spriteHasHd, render::PlaneLayout layout)
 {
+    const bool hdOnly = layout == render::PlaneLayout::NativeExtra;
     m_createHdButton->setText(QStringLiteral("Create HD Sprite"));
     m_createHdButton->setToolTip(
         hdOnly ? QStringLiteral("Create HD sprite from the sprite original in its plain colors")
@@ -304,6 +318,9 @@ void FramePanel::showSpriteHdActions(bool spriteHasHd, bool hdOnly)
     m_removeHdButton->setToolTip(hdOnly ? QString::fromLatin1(kHdOnlyRemoveToolTip)
                                         : QStringLiteral("Remove HD sprite data"));
     m_removeHdButton->setEnabled(spriteHasHd && !hdOnly);
+    if (layout == render::PlaneLayout::NativeOriginal) {
+        disableHdActions();
+    }
 }
 
 PaintTarget FramePanel::paintTarget() const

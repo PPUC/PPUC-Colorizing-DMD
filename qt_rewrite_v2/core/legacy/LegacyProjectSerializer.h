@@ -27,10 +27,12 @@ using LegacySectionOffsets = std::vector<std::pair<std::string, std::size_t>>;
 [[nodiscard]] std::vector<uint16_t> legacyOriginalColors(uint32_t colorCount);
 
 // A frame counts as colorized once it differs from the plain original rendering or has dynamic
-// content. Uncolorized frames shorter than kSkipFrameDurationMs are flagged inactive. A 256x64
-// project is judged by its HD frame and HD dynamic mask, the only ones it renders.
+// content. Uncolorized frames shorter than kSkipFrameDurationMs are flagged inactive. The frame
+// is judged on the project's native plane (render::ProjectGeometry::nativePlane()), by that
+// plane's colorized frame and dynamic mask.
 [[nodiscard]] bool isLegacyFrameActive(const document::ProjectFrameSnapshot& frame,
-                                       const std::vector<uint16_t>& originalColors);
+                                       const std::vector<uint16_t>& originalColors,
+                                       render::Resolution nativePlane);
 
 // Write complete files from the snapshot alone, in the current legacy layout.
 [[nodiscard]] bool writeLegacyCrom(std::ostream& stream,

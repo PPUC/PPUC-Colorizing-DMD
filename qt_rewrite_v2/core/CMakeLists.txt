@@ -17,7 +17,7 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacyProjectSerializer.cpp
     legacy/LegacySnapshotBuilder.cpp
     render/CanvasLayout.cpp
-    render/OriginalFrameMapping.cpp
+    render/ProjectGeometry.cpp
 )
 
 target_include_directories(colorizing_qt_v2_core

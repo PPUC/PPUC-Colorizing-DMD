@@ -329,7 +329,8 @@ void test256x64OriginalsRoundTrip()
     const std::vector<uint16_t> originalColors = legacyOriginalColors(kColorCount);
     ProjectSnapshot snapshot = makeSnapshot();
     snapshot.cromRevision = 20;
-    snapshot.originalIs256x64 = true;
+    snapshot.geometry =
+        colorizing::render::ProjectGeometry(colorizing::render::PlaneLayout::NativeExtra);
     snapshot.comparisonMasks[0] = makeIndexedFrame(kHdFrameSize, 0);
     snapshot.comparisonMasks[0].pixels[300] = 1;
     for (ProjectFrameSnapshot& frame : snapshot.frames) {
@@ -364,16 +365,16 @@ void test256x64OriginalsRoundTrip()
         dynamicData.maskHd = makeIndexedFrame(kHdFrameSize, 255);
         dynamicData.maskSd.pixels[0] = 0;
         dynamic.dynamicData = dynamicData;
-        expect(!isLegacyFrameActive(dynamic, originalColors),
+        expect(!isLegacyFrameActive(dynamic, originalColors, colorizing::render::Resolution::Hd),
                "SD dynamic content of a 256x64 frame does not count");
         dynamic.dynamicData->maskHd.pixels[257] = 0;
-        expect(isLegacyFrameActive(dynamic, originalColors),
+        expect(isLegacyFrameActive(dynamic, originalColors, colorizing::render::Resolution::Hd),
                "HD dynamic content of a 256x64 frame counts");
         dynamic.colorizedHd.reset();
-        expect(!isLegacyFrameActive(dynamic, originalColors),
+        expect(!isLegacyFrameActive(dynamic, originalColors, colorizing::render::Resolution::Hd),
                "dynamic content without an HD frame is not rendered");
         dynamic.durationMs = kSkipFrameDurationMs;
-        expect(isLegacyFrameActive(dynamic, originalColors),
+        expect(isLegacyFrameActive(dynamic, originalColors, colorizing::render::Resolution::Hd),
                "a frame long enough is active in every project");
     }
     const std::size_t sdFrames = sectionOffset(project.cromSections, "SD colorized frames");
@@ -387,7 +388,7 @@ void test256x64OriginalsRoundTrip()
            "hash should cover the full 256x64 original and mask");
 
     const ProjectSnapshot reloaded = parse(project);
-    expect(reloaded.originalIs256x64, "256x64 flag should survive");
+    expect(reloaded.geometry.original256x64Flag(), "256x64 flag should survive");
     expect(reloaded.frames[0].originalSd.size.width == 256 &&
                reloaded.frames[0].originalSd.pixels[2] == 3,
            "256x64 original frame should survive");

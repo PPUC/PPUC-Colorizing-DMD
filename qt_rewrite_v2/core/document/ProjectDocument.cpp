@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "document/ProjectSnapshot.h"
-#include "render/CanvasLayout.h"
 
 namespace colorizing::document {
 
@@ -14,7 +13,7 @@ namespace {
 
 bool hasSize(Size actual, Size expected)
 {
-    return actual.width == expected.width && actual.height == expected.height;
+    return actual == expected;
 }
 
 std::size_t checkedPixelCount(Size size)
@@ -405,7 +404,25 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
     document.m_editorMetadata = snapshot.editorMetadata;
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
-    document.m_originalIs256x64 = snapshot.originalIs256x64;
+    document.m_geometry = snapshot.geometry;
+    if (document.editsOriginalPlaneOnly()) {
+        for (FrameRecord& frame : document.m_frames) {
+            document.m_carriedFrameExtras.push_back(
+                {std::move(frame.colorizedHd), std::move(frame.inactiveHd)});
+            frame.colorizedHd.reset();
+            frame.inactiveHd.reset();
+        }
+        for (BackgroundRecord& background : document.m_backgrounds) {
+            document.m_carriedBackgroundExtras.push_back(
+                {std::move(background.colorizedHd), std::move(background.inactiveHd)});
+            background.colorizedHd.reset();
+            background.inactiveHd.reset();
+        }
+        for (SpriteRecord& sprite : document.m_sprites) {
+            document.m_carriedSpriteExtraFlags.push_back(sprite.hasHd);
+            sprite.hasHd = false;
+        }
+    }
     document.m_dirty = false;
     return document;
 }
@@ -434,21 +451,48 @@ uint32_t ProjectDocument::colorCount() const
     return m_colorCount;
 }
 
+const render::ProjectGeometry& ProjectDocument::geometry() const
+{
+    return m_geometry;
+}
+
 Size ProjectDocument::originalFrameSize() const
 {
-    return m_originalIs256x64 ? render::kHdFrameSize : render::kSdFrameSize;
+    return m_geometry.romFrameSize();
 }
 
 bool ProjectDocument::rendersHdPlaneOnly() const
 {
-    return m_originalIs256x64;
+    return m_geometry.layout() == render::PlaneLayout::NativeExtra;
+}
+
+bool ProjectDocument::editsOriginalPlaneOnly() const
+{
+    return !m_geometry.isEditable(Resolution::Hd);
+}
+
+// The carried SD plane of a project with 256x64 originals stays reachable: it has no "has
+// SD" items that would have to be hidden, and its data is read back through the accessors.
+void ProjectDocument::requireEditablePlane(Resolution resolution) const
+{
+    if (resolution == Resolution::Hd) {
+        requireEditableExtraPlane();
+    }
+}
+
+void ProjectDocument::requireEditableExtraPlane() const
+{
+    if (editsOriginalPlaneOnly()) {
+        throw std::logic_error("the extra plane of this project is smaller than the ROM frame: "
+                               "it is kept unchanged and cannot be edited");
+    }
 }
 
 FrameHdGaps ProjectDocument::frameHdGaps(std::size_t frameIndex) const
 {
     const FrameRecord& frame = requireFrame(m_frames, frameIndex);
     FrameHdGaps gaps;
-    if (!m_originalIs256x64) {
+    if (!rendersHdPlaneOnly()) {
         return gaps;
     }
     gaps.frame = !frame.colorizedHd.has_value();
@@ -488,11 +532,12 @@ bool ProjectDocument::hasHdFrame(std::size_t frameIndex) const
 
 void ProjectDocument::createHdFrame(std::size_t frameIndex)
 {
+    requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (frame.colorizedHd) {
         return;
     }
-    frame.colorizedHd = m_originalIs256x64 ? plainRgb565Frame(frame.originalSd, m_colorCount)
+    frame.colorizedHd = rendersHdPlaneOnly() ? plainRgb565Frame(frame.originalSd, m_colorCount)
                                            : upscaleRgb565Frame2x(frame.colorizedSd);
     frame.inactiveHd.reset();
     m_dirty = true;
@@ -504,7 +549,7 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
     if (!frame.colorizedHd) {
         return;
     }
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         throw std::logic_error("the HD frame is the only one this project renders");
     }
     frame.colorizedHd.reset();
@@ -513,11 +558,12 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
 
 void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
 {
+    requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic mask data is not available");
     }
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         throw std::logic_error("this project has no SD dynamic mask to upscale");
     }
     frame.dynamicData->maskHd = upscaleIndexedFrame2x(frame.dynamicData->maskSd);
@@ -529,11 +575,12 @@ void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
 
 void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
 {
+    requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (!frame.backgroundData) {
         throw std::logic_error("background data is not available");
     }
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         throw std::logic_error("this project has no SD background mask to upscale");
     }
     frame.backgroundData->maskHd = upscaleIndexedFrame2x(frame.backgroundData->maskSd);
@@ -542,6 +589,7 @@ void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
 
 void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
 {
+    requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (!frame.backgroundData) {
         throw std::logic_error("background data is not available");
@@ -550,11 +598,11 @@ void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
         throw std::logic_error("assigned background is not available");
     }
     BackgroundRecord& background = m_backgrounds[frame.backgroundData->backgroundId];
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         if (background.colorizedHd) {
             return;
         }
-        background.colorizedHd = makeRgb565Frame(render::kHdFrameSize);
+        background.colorizedHd = makeRgb565Frame(m_geometry.planeSize(Resolution::Hd));
         background.inactiveHd.reset();
         m_dirty = true;
         return;
@@ -599,8 +647,10 @@ FrameHdState ProjectDocument::frameHdState(std::size_t frameIndex, FrameHdParts 
 
 void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState& state)
 {
+    requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
-    if (state.colorizedHd && !hasSize(state.colorizedHd->size, render::kHdFrameSize)) {
+    const Size hdSize = m_geometry.planeSize(Resolution::Hd);
+    if (state.colorizedHd && !hasSize(state.colorizedHd->size, hdSize)) {
         throw std::invalid_argument("HD frame has invalid size");
     }
     if (state.dynamic && !frame.dynamicData) {
@@ -614,7 +664,7 @@ void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState
             throw std::out_of_range("background index out of range");
         }
         if (state.background->colorizedHd &&
-            !hasSize(state.background->colorizedHd->size, render::kHdFrameSize)) {
+            !hasSize(state.background->colorizedHd->size, hdSize)) {
             throw std::invalid_argument("HD background frame has invalid size");
         }
     }
@@ -646,6 +696,7 @@ const IndexedFrame& ProjectDocument::originalFrame(std::size_t frameIndex) const
 const Rgb565Frame& ProjectDocument::colorizedFrame(std::size_t frameIndex,
                                                    Resolution resolution) const
 {
+    requireEditablePlane(resolution);
     const FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (resolution == Resolution::Sd) {
         return frame.colorizedSd;
@@ -732,6 +783,7 @@ void ProjectDocument::setFrameDurationMs(std::size_t frameIndex, uint32_t durati
 const std::vector<uint16_t>& ProjectDocument::colorRotations(std::size_t frameIndex,
                                                              Resolution resolution) const
 {
+    requireEditablePlane(resolution);
     return requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
 }
 
@@ -739,6 +791,7 @@ uint16_t ProjectDocument::colorRotationLength(std::size_t frameIndex,
                                               Resolution resolution,
                                               std::size_t slotIndex) const
 {
+    requireEditablePlane(resolution);
     const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
     return rotations[colorRotationOffset(slotIndex)];
 }
@@ -747,6 +800,7 @@ uint16_t ProjectDocument::colorRotationDelayMs(std::size_t frameIndex,
                                                Resolution resolution,
                                                std::size_t slotIndex) const
 {
+    requireEditablePlane(resolution);
     const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
     return rotations[colorRotationOffset(slotIndex) + 1];
 }
@@ -756,6 +810,7 @@ uint16_t ProjectDocument::colorRotationColor(std::size_t frameIndex,
                                              std::size_t slotIndex,
                                              std::size_t colorIndex) const
 {
+    requireEditablePlane(resolution);
     const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
     return rotations[colorRotationColorOffset(slotIndex, colorIndex)];
 }
@@ -765,6 +820,7 @@ void ProjectDocument::setColorRotationLength(std::size_t frameIndex,
                                              std::size_t slotIndex,
                                              uint16_t length)
 {
+    requireEditablePlane(resolution);
     if (length > kMaxColorRotationColors) {
         throw std::out_of_range("color rotation length out of range");
     }
@@ -783,6 +839,7 @@ void ProjectDocument::setColorRotationDelayMs(std::size_t frameIndex,
                                               std::size_t slotIndex,
                                               uint16_t delayMs)
 {
+    requireEditablePlane(resolution);
     std::vector<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationOffset(slotIndex) + 1;
@@ -799,6 +856,7 @@ void ProjectDocument::setColorRotationColor(std::size_t frameIndex,
                                             std::size_t colorIndex,
                                             uint16_t rgb565)
 {
+    requireEditablePlane(resolution);
     std::vector<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationColorOffset(slotIndex, colorIndex);
@@ -813,6 +871,7 @@ void ProjectDocument::clearColorRotationSlot(std::size_t frameIndex,
                                              Resolution resolution,
                                              std::size_t slotIndex)
 {
+    requireEditablePlane(resolution);
     std::vector<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationOffset(slotIndex);
@@ -994,6 +1053,7 @@ uint8_t ProjectDocument::dynamicMaskPixel(std::size_t frameIndex,
                                           int x,
                                           int y) const
 {
+    requireEditablePlane(resolution);
     const IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
     return mask.pixels[checkedIndexedPixelIndex(mask, x, y)];
 }
@@ -1004,6 +1064,7 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
                                           int y,
                                           uint8_t value)
 {
+    requireEditablePlane(resolution);
     IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
     if (mask.pixels[pixelIndex] == value) {
@@ -1018,6 +1079,7 @@ uint16_t ProjectDocument::dynamicColor(std::size_t frameIndex,
                                        std::size_t setIndex,
                                        std::size_t originalColorIndex) const
 {
+    requireEditablePlane(resolution);
     const std::vector<uint16_t>& colors =
         requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
     return colors[checkedDynamicColorIndex(colors, setIndex, originalColorIndex)];
@@ -1029,6 +1091,7 @@ void ProjectDocument::setDynamicColor(std::size_t frameIndex,
                                       std::size_t originalColorIndex,
                                       uint16_t rgb565)
 {
+    requireEditablePlane(resolution);
     std::vector<uint16_t>& colors =
         requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t colorIndex =
@@ -1044,6 +1107,7 @@ uint8_t ProjectDocument::dynamicShadowDirection(std::size_t frameIndex,
                                                 Resolution resolution,
                                                 std::size_t setIndex) const
 {
+    requireEditablePlane(resolution);
     requireDynamicSetIndex(setIndex);
     const std::vector<uint8_t>& directions =
         requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
@@ -1057,6 +1121,7 @@ uint16_t ProjectDocument::dynamicShadowColor(std::size_t frameIndex,
                                              Resolution resolution,
                                              std::size_t setIndex) const
 {
+    requireEditablePlane(resolution);
     requireDynamicSetIndex(setIndex);
     const std::vector<uint16_t>& colors =
         requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);
@@ -1071,6 +1136,7 @@ void ProjectDocument::setDynamicShadowDirection(std::size_t frameIndex,
                                                 std::size_t setIndex,
                                                 uint8_t direction)
 {
+    requireEditablePlane(resolution);
     requireDynamicSetIndex(setIndex);
     std::vector<uint8_t>& directions =
         requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
@@ -1087,6 +1153,7 @@ void ProjectDocument::setDynamicShadowColor(std::size_t frameIndex,
                                             std::size_t setIndex,
                                             uint16_t rgb565)
 {
+    requireEditablePlane(resolution);
     requireDynamicSetIndex(setIndex);
     std::vector<uint16_t>& colors =
         requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);
@@ -1168,6 +1235,7 @@ std::size_t checkedRgb565PixelIndex(const Rgb565Frame& frame, int x, int y)
 const Rgb565Frame& ProjectDocument::backgroundFrame(std::size_t backgroundIndex,
                                                     Resolution resolution) const
 {
+    requireEditablePlane(resolution);
     return requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
 }
 
@@ -1175,11 +1243,11 @@ void ProjectDocument::setBackgroundFrame(std::size_t backgroundIndex,
                                          Resolution resolution,
                                          Rgb565Frame frame)
 {
-    if (resolution == Resolution::Sd && !hasSize(frame.size, render::kSdFrameSize)) {
-        throw std::invalid_argument("SD background frame has invalid size");
-    }
-    if (resolution == Resolution::Hd && !hasSize(frame.size, render::kHdFrameSize)) {
-        throw std::invalid_argument("HD background frame has invalid size");
+    requireEditablePlane(resolution);
+    if (!hasSize(frame.size, m_geometry.planeSize(resolution))) {
+        throw std::invalid_argument(resolution == Resolution::Sd
+                                        ? "SD background frame has invalid size"
+                                        : "HD background frame has invalid size");
     }
 
     BackgroundRecord& background = requireBackground(m_backgrounds, backgroundIndex);
@@ -1216,6 +1284,7 @@ uint16_t ProjectDocument::backgroundPixel(std::size_t backgroundIndex,
                                           int x,
                                           int y) const
 {
+    requireEditablePlane(resolution);
     const Rgb565Frame& frame = backgroundFrame(backgroundIndex, resolution);
     return frame.pixels[checkedRgb565PixelIndex(frame, x, y)];
 }
@@ -1226,6 +1295,7 @@ void ProjectDocument::setBackgroundPixel(std::size_t backgroundIndex,
                                          int y,
                                          uint16_t rgb565)
 {
+    requireEditablePlane(resolution);
     Rgb565Frame& frame =
         requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
     const std::size_t pixelIndex = checkedRgb565PixelIndex(frame, x, y);
@@ -1289,6 +1359,7 @@ uint8_t ProjectDocument::backgroundMaskPixel(std::size_t frameIndex,
                                              int x,
                                              int y) const
 {
+    requireEditablePlane(resolution);
     const IndexedFrame& mask =
         requireBackgroundMask(requireFrame(m_frames, frameIndex), resolution);
     return mask.pixels[checkedIndexedPixelIndex(mask, x, y)];
@@ -1300,6 +1371,7 @@ void ProjectDocument::setBackgroundMaskPixel(std::size_t frameIndex,
                                              int y,
                                              uint8_t value)
 {
+    requireEditablePlane(resolution);
     IndexedFrame& mask = requireBackgroundMask(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
     if (mask.pixels[pixelIndex] == value) {
@@ -1393,6 +1465,7 @@ bool ProjectDocument::hasHdSprite(std::size_t spriteIndex) const
 
 void ProjectDocument::createHdSprite(std::size_t spriteIndex)
 {
+    requireEditableExtraPlane();
     if (spriteIndex >= m_sprites.size()) {
         throw std::out_of_range("sprite index out of range");
     }
@@ -1400,7 +1473,7 @@ void ProjectDocument::createHdSprite(std::size_t spriteIndex)
     if (sprite.hasHd) {
         return;
     }
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         sprite.maskHd = sprite.originalSd;
         sprite.colorizedHd = plainRgb565Frame(sprite.originalSd, m_colorCount);
     } else {
@@ -1420,7 +1493,7 @@ void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
     if (!sprite.hasHd) {
         return;
     }
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         throw std::logic_error("the HD sprite is the only one this project renders");
     }
     sprite.hasHd = false;
@@ -1435,6 +1508,7 @@ SpriteHdState ProjectDocument::spriteHdState(std::size_t spriteIndex) const
 
 void ProjectDocument::setSpriteHdState(std::size_t spriteIndex, SpriteHdState state)
 {
+    requireEditableExtraPlane();
     if (spriteIndex >= m_sprites.size()) {
         throw std::out_of_range("sprite index out of range");
     }
@@ -1528,7 +1602,7 @@ void ProjectDocument::replaceSpriteFromFrame(std::size_t spriteIndex,
         }
     }
 
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         replaceCapturedHdOnlySprite(sprite, std::move(newOriginal), std::move(newColorized));
         return;
     }
@@ -1622,7 +1696,7 @@ void ProjectDocument::replaceSpriteFromFrameSelection(
         }
     }
 
-    if (m_originalIs256x64) {
+    if (rendersHdPlaneOnly()) {
         replaceCapturedHdOnlySprite(sprite, std::move(newOriginal), std::move(newColorized));
         return;
     }
@@ -1664,6 +1738,7 @@ uint16_t ProjectDocument::spriteColorizedPixel(std::size_t spriteIndex,
                                                int x,
                                                int y) const
 {
+    requireEditablePlane(resolution);
     if (spriteIndex >= m_sprites.size()) {
         throw std::out_of_range("sprite index out of range");
     }
@@ -1677,6 +1752,7 @@ void ProjectDocument::setSpriteColorizedPixel(std::size_t spriteIndex,
                                               int y,
                                               uint16_t rgb565)
 {
+    requireEditablePlane(resolution);
     if (spriteIndex >= m_sprites.size()) {
         throw std::out_of_range("sprite index out of range");
     }
@@ -1783,6 +1859,7 @@ void ProjectDocument::setColorizedPixel(std::size_t frameIndex,
                                         int y,
                                         uint16_t rgb565)
 {
+    requireEditablePlane(resolution);
     Rgb565Frame& frame = requireColorizedFrame(requireFrame(m_frames, frameIndex), resolution);
     if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
         throw std::out_of_range("pixel coordinate out of range");
@@ -1802,6 +1879,7 @@ uint16_t ProjectDocument::colorizedPixel(std::size_t frameIndex,
                                          int x,
                                          int y) const
 {
+    requireEditablePlane(resolution);
     const Rgb565Frame& frame = colorizedFrame(frameIndex, resolution);
     if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
         throw std::out_of_range("pixel coordinate out of range");
@@ -1852,8 +1930,19 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
     snapshot.colorCount = m_colorCount;
     snapshot.cromRevision = m_cromRevision;
-    snapshot.originalIs256x64 = m_originalIs256x64;
+    snapshot.geometry = m_geometry;
     snapshot.editorMetadata = m_editorMetadata;
+    for (std::size_t i = 0; i < m_carriedFrameExtras.size(); ++i) {
+        snapshot.frames[i].colorizedHd = m_carriedFrameExtras[i].active;
+        snapshot.frames[i].inactiveHd = m_carriedFrameExtras[i].inactive;
+    }
+    for (std::size_t i = 0; i < m_carriedBackgroundExtras.size(); ++i) {
+        snapshot.backgrounds[i].colorizedHd = m_carriedBackgroundExtras[i].active;
+        snapshot.backgrounds[i].inactiveHd = m_carriedBackgroundExtras[i].inactive;
+    }
+    for (std::size_t i = 0; i < m_carriedSpriteExtraFlags.size(); ++i) {
+        snapshot.sprites[i].hasHd = m_carriedSpriteExtraFlags[i];
+    }
     return snapshot;
 }
 

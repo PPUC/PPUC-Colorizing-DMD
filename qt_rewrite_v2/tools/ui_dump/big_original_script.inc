@@ -21,7 +21,7 @@
     document::ProjectSnapshot bs;
     bs.colorCount = 16;
     bs.romName = "big_original";
-    bs.originalIs256x64 = true;
+    bs.geometry = render::ProjectGeometry(render::PlaneLayout::NativeExtra);
     for (int m = 0; m < 2; ++m) {
         document::IndexedFrame mask = document::makeIndexedFrame(render::kHdFrameSize, 0);
         for (int y = 40 + m; y < 60; ++y) {

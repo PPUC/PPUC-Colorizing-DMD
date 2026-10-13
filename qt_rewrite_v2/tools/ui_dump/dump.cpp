@@ -131,6 +131,8 @@ static void dump(const char* title, app::MainWindow& w)
         }
         for (std::size_t f = 0; f < d.frameCount(); ++f) {
             for (auto r : {render::Resolution::Sd, render::Resolution::Hd}) {
+                // A carried extra plane cannot be read through the document.
+                if (r == render::Resolution::Hd && d.editsOriginalPlaneOnly()) continue;
                 for (std::size_t s = 0; s < document::kMaxColorRotations; ++s) {
                     std::cout << " rot" << f << (r == render::Resolution::Sd ? "sd" : "hd") << s << "="
                               << d.colorRotationLength(f, r, s) << '/' << d.colorRotationDelayMs(f, r, s) << '/'
@@ -506,6 +508,8 @@ int main(int argc, char* argv[])
     dump("closed at the end", w);
 
 #include "big_original_script.inc"
+
+#include "native_original_script.inc"
 
     return 0;
 }
