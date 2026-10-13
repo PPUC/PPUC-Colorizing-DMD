@@ -31,7 +31,7 @@ neither of those holds.
 - `ColorizingDMD`, branch `qt_rewrite_v2`. Editor lives in `qt_rewrite_v2/`. Nothing pushed.
 - `../libserum` (origin `PPUC/libserum_concentrate`). The editor links it statically from the
   sibling checkout (`COLORIZINGDMD_LIBSERUM_DIR`), so it needs a libserum that has the
-  `Serum_CRZ_*` API.
+  `Serum_CRZ_*` API and `Serum_LoadFromMemory()`.
   - `master` = cRZ API + native 256x64 rendering + two sprite/plane fixes (merged by the owner
     after an author confirmed the Ghostbusters fix on a real DMD).
   - `master` is one local commit ahead of `origin/master` (`9ac0511`, internal refactoring,
@@ -59,19 +59,30 @@ neither of those holds.
   - `document/`: `ProjectDocument`, `ProjectSnapshot`, `EditorMetadata` (all cRP editor data).
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
-    `LegacyCrzArchive` (the only file that includes libserum headers).
+    `LegacyCrzArchive` (includes libserum headers).
   - `edit/`: `EditCommand` (all undoable commands), `UndoHistories` (scoped stacks with a global
     sequence for chronological undo), `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`.
   - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
     plane layouts; `ProjectSnapshot` and `ProjectDocument` carry it).
+  - `runtime/`: `RuntimePreview`, the libserum-backed renderer (the only other file that
+    includes libserum headers). One instance per process, every call under one mutex, because
+    libserum's state is process-global. `ProjectDocument::toSubsetSnapshot()` gives it a
+    snapshot of the wanted frames and what they reference, with renumbered IDs, which the
+    existing `writeLegacyCrom()` turns into a small cROM in memory. A still is: load that
+    cROM, colorize once, dispose. A sequence keeps one cROM of several frames loaded.
+    `ProjectDocument::revision()` changes with every edit and lets callers cache results.
 - `app/`: `MainWindow` (about 4,600 lines, down from 8,266), `CanvasEditController`, the canvas and
-  sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), `LazyListIcons`
+  sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), `RuntimeView`
+  (state of the canvas's Runtime view: on/off, plane, playback, cached libserum output),
+  `LazyListIcons`
   (frame list thumbnails built for the rows in view), `PlaneLabels` (the one place that decides
   where the UI says "HD"/"SD" and what a single plane is called), seven panels under `panels/`.
-- `tests/`: core test executable, widget test executable, and `colorizing_qt_v2_roundtrip`
+- `tests/`: core test executable, widget test executable, `colorizing_qt_v2_roundtrip`
   (loads a real project, re-serializes, reports per block where it differs from disk; for a
-  192x64 project differences in extra-plane blocks are reported as expected).
-- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 630 scripted
+  192x64 project differences in extra-plane blocks are reported as expected) and
+  `colorizing_qt_v2_preview_diff` (renders every frame of a real project with the editor's
+  renderer and with libserum and reports the differing pixels by class).
+- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 650 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
 
@@ -90,6 +101,13 @@ neither of those holds.
   colours and shadows, palettes, frame settings, HD create/remove for frames and sprites.
 - 256x64-original projects: open, edit and save as native HD only (see below).
 - 192x64-original projects: open, edit and save on the native 192x64 plane only (see below).
+- Runtime view (`Edit -> Runtime View`, `Ctrl+R`): the canvas shows libserum's output for the
+  current frame, 32-row or 64-row plane, read-only; playback through libserum with its color
+  rotations; `Export Current Frame Runtime PNG...`. All three layouts.
+- The editor's own renderer gives the same pixels as libserum on the plane with the ROM frame's
+  size: `afm_113b` 3047/3047 frames, `trn_174h` 5211/5211, `hook_501` 3897/3897, `smb3`
+  4430/4430, `frankst1` 303/303 sampled (`colorizing_qt_v2_preview_diff`). Before this step:
+  `afm_113b` 4 frames differed, `smb3` 40, `trn_174h` 45.
 
 ## Resolution model
 
@@ -174,13 +192,28 @@ Modes".
 - Error texts that come from `ProjectDocument` exceptions and reach the status bar were only
   partly reworded for single-plane projects ("256x64 frame is not available"); other core
   messages may still say "HD" there.
-- **Preview differs from libserum:**
-  - sprite bounds check is off by one, so a sprite captured with exact bounds never shows as
-    matched;
-  - sprite dynamic masks and sprite shape mode are not used;
-  - in ordinary projects a sprite without HD is drawn wrongly on an HD frame;
-  - layer-mode upscaling (how libserum builds the 64-row plane of a 128x32 project) is not
-    reproduced at all.
+- **The editing canvas, thumbnails and the plain PNG export differ from libserum on the HD plane
+  of an ordinary project** wherever the ROM frame decides what is shown. libserum renders that
+  content at 128x32 with the SD dynamic masks and colours and upscales it (layer mode); the
+  editor draws the HD dynamic masks and colours and doubles pixels. Measured on `trn_174h`:
+  4249 of 5211 HD frames differ, 151384 pixels under dynamic masks (e.g. frames 527, 1157), 782
+  pixels at sprite edges (e.g. frames 1455, 697). Frames without HD have no 64-row picture in
+  the editor at all. The Runtime view shows the real picture in all these cases. Not
+  reproduced on purpose: the upscaling. Open: whether HD mode should show what libserum does
+  with the HD dynamic mask, which is nothing.
+- In a 256x64 project a frame whose background or sprite lacks 256x64 data is drawn without it
+  by the editing canvas (to stay editable); libserum shows nothing for the frame.
+- Runtime view: no `.pup.csv` scenes and no `scaling.txt` (libserum's memory load reads neither,
+  so the 64-row plane always uses the default Scale2x and shadow offset); a frame is rendered
+  from a cROM of that frame alone, so which of several frames with the same hash a machine
+  would pick is not shown; runtime playback loads at most 48 frames at a time and starts
+  libserum's state afresh for the next 48; the trigger libserum reports is not shown.
+- Runtime render cost per frame (subset, serialize, load, colorize; release build, M-series
+  Mac): `hook_501` 0.24 ms, `afm_113b` 0.60 ms, `trn_174h` 1.8 ms, `smb3` 2.1 ms, `frankst1`
+  2.0 ms mean; the load is 70 to 90 percent of it. Frames with many sprites cost about 10 ms
+  (`smb3` frames 2200 to 2700, 3.8 MB cROM each). The view renders at paint time and only when
+  the document revision, the frame or the plane changed, so repaints are free and bursts of
+  changes coalesce; no timer and no thread.
 - 16-colour originals show only 4 shades in the reference view (`value & 3`).
 - The Selection tool paints in mask and capture modes instead of selecting.
 - "on N frame(s)" status texts count skipped frames.
@@ -208,7 +241,8 @@ Modes".
 - Images window: video import, crop zones, scroll copy.
 - Animated GIF export.
 - Frame tester (dump playback through libserum, next unidentified, search frame by ID), ZeDMD
-  output, PuP tester.
+  output, PuP tester. Playback of the project's own frames through libserum exists (Runtime
+  view).
 - Autosave and recovery.
 - cROMc export through libserum.
 
@@ -216,15 +250,20 @@ Modes".
 
 1. Confirm the value written for an unused 192x64 extra background mask (open decision 1) and
    check a 192x64 project saved by this editor on a real machine.
-2. Replace the editor's own preview with libserum output (new editor-facing libserum API taking
-   cROM data from memory), so preview and runtime cannot drift. This removes the whole
-   "preview differs" list above and gives a real frame tester.
-3. Fix the remaining editor bugs listed above that the libserum preview does not cover.
-4. Continue shrinking `MainWindow`: toolbar and tool state, frame list and playback, file
+2. Decide what HD mode shows for dynamic content (see "Known bugs and gaps"), and whether
+   thumbnails and the plain PNG export should come from libserum. Measured: a runtime render
+   costs 0.2 to 2 ms against 0.05 to 0.13 ms for the editor's renderer, and on the native plane
+   the two are pixel-identical on all five real projects, so thumbnails gain nothing from it;
+   the export can simply be the runtime export.
+3. Build the frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next
+   unidentified frame, search by ID), and load `.pup.csv`/`scaling.txt` for it if libserum gets
+   a way to pass them from memory.
+4. Fix the remaining editor bugs listed above.
+5. Continue shrinking `MainWindow`: toolbar and tool state, frame list and playback, file
    handling.
-5. Feature parity, most used first: add/delete of frames, sprites and backgrounds; sections and
+6. Feature parity, most used first: add/delete of frames, sprites and backgrounds; sections and
    triggers; copy/paste; TXT import.
-6. Later, by decision of the owner: memory use, save speed, a new project format.
+7. Later, by decision of the owner: memory use, save speed, a new project format.
 
 ## libserum work done in this effort
 
@@ -238,6 +277,9 @@ Modes".
   Fixed in `789f410`.
 - `9ac0511`: internal decoder helpers moved into their own source file; debug-only hashes are
   computed only when a debug switch asks for them. Output is bit-identical.
+- `Serum_LoadFromMemory(crom, size, flags)`: loads a raw cROM from a caller-owned buffer through
+  the same load sequence as `Serum_Load()`; reads and writes no file. Uncommitted working-tree
+  change in `../libserum`, which the editor now needs.
 - Not touched and not testable on a Mac: everything behind `is_real_machine()`.
 
 ## Test material (read-only, never commit)
@@ -257,6 +299,7 @@ cmake -S qt_rewrite_v2 -B <build dir> -G Ninja -DCMAKE_PREFIX_PATH=/opt/homebrew
 cmake --build <build dir>
 (cd <build dir> && QT_QPA_PLATFORM=offscreen ctest --output-on-failure)
 <build dir>/tests/colorizing_qt_v2_roundtrip <project>.cRZ <project>.cRP   # must print "identical" twice
+<build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP   # native plane identical
 qt_rewrite_v2/tools/ui_dump/run.sh baseline   # before a change
 qt_rewrite_v2/tools/ui_dump/run.sh after      # after it
 ```

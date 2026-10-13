@@ -28,6 +28,12 @@
 #define UI_DUMP_HAS_LAZY_THUMBNAILS 1
 #endif
 
+#if __has_include("RuntimeView.h")
+#include "edit/EditCommand.h"
+#include "runtime/RuntimePreview.h"
+#define UI_DUMP_HAS_RUNTIME_VIEW 1
+#endif
+
 // The scripts drive MainWindow and the canvas widgets through their private members. Redefining
 // the keyword is not valid C++; it works with GCC and Clang, where access does not affect
 // layout or symbol names. See README.md.
@@ -536,6 +542,11 @@ int main(int argc, char* argv[])
 #include "big_original_script.inc"
 
 #include "native_original_script.inc"
+
+// States of a tree that has the Runtime view; a tree without it ends here.
+#ifdef UI_DUMP_HAS_RUNTIME_VIEW
+#include "runtime_view_script.inc"
+#endif
 
     return 0;
 }

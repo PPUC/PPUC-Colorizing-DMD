@@ -47,16 +47,6 @@ double clampedPixelCoverage(DmdRenderOptions options)
     return std::clamp(options.pixelCoverage, 0.1, 1.0);
 }
 
-struct SpriteMatch {
-    std::size_t spriteIndex = 0;
-    int frameX = 0;
-    int frameY = 0;
-    int spriteX = 0;
-    int spriteY = 0;
-    int width = 0;
-    int height = 0;
-};
-
 render::Size spriteVisibleSize(const document::SpriteRecord& sprite)
 {
     render::Size size{0, 0};
@@ -71,19 +61,46 @@ render::Size spriteVisibleSize(const document::SpriteRecord& sprite)
     return size;
 }
 
-uint32_t originalDwordAt(const document::IndexedFrame& original, int x, int y)
+// The value libserum compares for a pixel of the ROM frame or of a sprite's original: the shade,
+// or lit/unlit for a sprite in shape mode.
+uint8_t comparedValue(uint8_t value, bool shapeMode)
 {
-    return static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x, y)]) |
-           (static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x + 1, y)]) << 8) |
-           (static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x + 2, y)]) << 16) |
-           (static_cast<uint32_t>(original.pixels[indexedPixelIndex(original, x + 3, y)]) << 24);
+    return shapeMode && value > 0 ? uint8_t{1} : value;
 }
 
+uint32_t originalDwordAt(const document::IndexedFrame& original, int x, int y, bool shapeMode)
+{
+    uint32_t dword = 0;
+    for (int i = 0; i < 4; ++i) {
+        dword |= static_cast<uint32_t>(comparedValue(
+                     original.pixels[indexedPixelIndex(original, x + i, y)], shapeMode))
+                 << (8 * i);
+    }
+    return dword;
+}
+
+// libserum's loader does this to the detection words of a shape-mode sprite.
+uint32_t comparedDetectionWord(uint32_t dword, bool shapeMode)
+{
+    if (!shapeMode) {
+        return dword;
+    }
+    uint32_t compared = 0;
+    for (int i = 0; i < 4; ++i) {
+        if ((dword >> (8 * i)) & 0xff) {
+            compared |= uint32_t{1} << (8 * i);
+        }
+    }
+    return compared;
+}
+
+// Only the opaque pixels of the area count, as in libserum's SpriteAreaMatches().
 bool spriteDetectionAreaMatches(const document::IndexedFrame& original,
                                 const document::SpriteRecord& sprite,
                                 const document::SpriteDetectionArea& area,
                                 int frameX,
-                                int frameY)
+                                int frameY,
+                                bool shapeMode)
 {
     for (int y = 0; y < static_cast<int>(area.height); ++y) {
         for (int x = 0; x < static_cast<int>(area.width); ++x) {
@@ -98,13 +115,37 @@ bool spriteDetectionAreaMatches(const document::IndexedFrame& original,
             const int originalY = frameY + y;
             if (originalX < 0 || originalY < 0 ||
                 originalX >= original.size.width || originalY >= original.size.height ||
-                spriteValue !=
-                    original.pixels[indexedPixelIndex(original, originalX, originalY)]) {
+                comparedValue(spriteValue, shapeMode) !=
+                    comparedValue(
+                        original.pixels[indexedPixelIndex(original, originalX, originalY)],
+                        shapeMode)) {
                 return false;
             }
         }
     }
     return true;
+}
+
+// The detection areas libserum keeps for a sprite (SerumData::BuildSpriteRuntimeSidecars()):
+// set, not empty, inside the sprite, with at least one opaque pixel.
+bool isUsableDetectionArea(const document::SpriteRecord& sprite,
+                           const document::SpriteDetectionArea& area)
+{
+    if (area.x == 0xffff || area.width == 0 || area.height == 0 ||
+        static_cast<std::size_t>(area.x) + area.width > document::kMaxSpriteWidth ||
+        static_cast<std::size_t>(area.y) + area.height > document::kMaxSpriteHeight) {
+        return false;
+    }
+    for (int y = 0; y < static_cast<int>(area.height); ++y) {
+        for (int x = 0; x < static_cast<int>(area.width); ++x) {
+            if (sprite.originalSd.pixels[indexedPixelIndex(sprite.originalSd,
+                                                           static_cast<int>(area.x) + x,
+                                                           static_cast<int>(area.y) + y)] != 255) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool hasEquivalentSpriteMatch(const std::vector<SpriteMatch>& matches, const SpriteMatch& match)
@@ -118,6 +159,8 @@ bool hasEquivalentSpriteMatch(const std::vector<SpriteMatch>& matches, const Spr
     });
 }
 
+}  // namespace
+
 std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& document,
                                            std::size_t frameIndex)
 {
@@ -126,40 +169,62 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
         document.frameSpriteReferences(frameIndex);
     // Sprites are detected on the original frame at its own resolution, as libserum does.
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    std::vector<uint8_t> seenSprites;
     for (const document::FrameSpriteReference& reference : references) {
-        if (reference.spriteId == 255 ||
-            reference.spriteId >= document.spriteCount()) {
+        // The frame's sprite list ends at its first empty slot.
+        if (reference.spriteId == 255 || reference.spriteId >= document.spriteCount()) {
+            break;
+        }
+        // A sprite listed twice is looked for once, with the search area of its first slot.
+        if (std::find(seenSprites.begin(), seenSprites.end(), reference.spriteId) !=
+            seenSprites.end()) {
             continue;
         }
         const document::SpriteRecord& sprite = document.sprite(reference.spriteId);
         const render::Size visibleSize = spriteVisibleSize(sprite);
-        if (visibleSize.width <= 0 || visibleSize.height <= 0) {
+        // libserum stores a sprite original without any shade above 0 as "no data".
+        const bool hasLitPixel =
+            std::any_of(sprite.originalSd.pixels.begin(),
+                        sprite.originalSd.pixels.end(),
+                        [](uint8_t value) { return value != 0 && value != 255; });
+        const bool hasDetectionArea =
+            std::any_of(sprite.detectionAreas.begin(),
+                        sprite.detectionAreas.end(),
+                        [&](const document::SpriteDetectionArea& area) {
+                            return isUsableDetectionArea(sprite, area);
+                        });
+        if (visibleSize.width <= 0 || visibleSize.height <= 0 || !hasLitPixel ||
+            !hasDetectionArea) {
             continue;
         }
-        const int minX = std::clamp(static_cast<int>(reference.minX), 0, original.size.width - 1);
-        const int minY = std::clamp(static_cast<int>(reference.minY), 0, original.size.height - 1);
-        const int maxX =
-            std::clamp(static_cast<int>(reference.maxX), minX, original.size.width - 1);
-        const int maxY =
-            std::clamp(static_cast<int>(reference.maxY), minY, original.size.height - 1);
-        if (maxX - minX + 1 < 4) {
+        seenSprites.push_back(reference.spriteId);
+
+        const int minX = static_cast<int16_t>(reference.minX);
+        const int minY = static_cast<int16_t>(reference.minY);
+        const int maxX = static_cast<int16_t>(reference.maxX);
+        const int maxY = static_cast<int16_t>(reference.maxY);
+        if (minX > maxX || minY > maxY || maxX - minX < 3) {
             continue;
         }
+        const bool shapeMode = sprite.shapeMode > 0;
+        // libserum scans the search area as it is stored; here it is cut to the frame.
+        const int scanMinX = std::max(minX, 0);
+        const int scanMinY = std::max(minY, 0);
+        const int scanMaxX = std::min(maxX, original.size.width - 1);
+        const int scanMaxY = std::min(maxY, original.size.height - 1);
 
         for (std::size_t areaIndex = 0; areaIndex < sprite.detectionAreas.size(); ++areaIndex) {
             const document::SpriteDetectionArea& area = sprite.detectionAreas[areaIndex];
-            if (area.x == 0xffff || area.y == 0xffff ||
-                area.width == 0xffff || area.height == 0xffff ||
-                area.width == 0 || area.height == 0 ||
+            if (!isUsableDetectionArea(sprite, area) ||
                 areaIndex >= sprite.detectionDwords.size() ||
-                areaIndex >= sprite.detectionDwordPositions.size() ||
-                sprite.detectionDwords[areaIndex] == 0xffffffff ||
-                sprite.detectionDwordPositions[areaIndex] == 0xffff) {
+                areaIndex >= sprite.detectionDwordPositions.size()) {
                 continue;
             }
-            for (int y = minY; y <= maxY; ++y) {
-                for (int x = minX; x <= maxX - 3; ++x) {
-                    if (originalDwordAt(original, x, y) != sprite.detectionDwords[areaIndex]) {
+            const uint32_t detectionWord =
+                comparedDetectionWord(sprite.detectionDwords[areaIndex], shapeMode);
+            for (int y = scanMinY; y <= scanMaxY; ++y) {
+                for (int x = scanMinX; x <= scanMaxX - 3; ++x) {
+                    if (originalDwordAt(original, x, y, shapeMode) != detectionWord) {
                         continue;
                     }
 
@@ -178,15 +243,17 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
                         continue;
                     }
 
+                    // The area may end on the last column and row of the search area.
                     const int areaFrameX = x - spriteDwordX + areaX;
                     const int areaFrameY = y - spriteDwordY + areaY;
-                    if (areaFrameX + areaWidth > maxX ||
-                        areaFrameY + areaHeight > maxY ||
+                    if (areaFrameX + areaWidth > maxX + 1 ||
+                        areaFrameY + areaHeight > maxY + 1 ||
                         !spriteDetectionAreaMatches(original,
                                                     sprite,
                                                     area,
                                                     areaFrameX,
-                                                    areaFrameY)) {
+                                                    areaFrameY,
+                                                    shapeMode)) {
                         continue;
                     }
 
@@ -215,9 +282,11 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
                                                 visibleSize.height);
                     }
 
-                    if (match.width > 0 && match.height > 0 &&
-                        !hasEquivalentSpriteMatch(matches, match)) {
+                    if (!hasEquivalentSpriteMatch(matches, match)) {
                         matches.push_back(match);
+                        if (matches.size() == document::kMaxSpritesPerFrame) {
+                            return matches;
+                        }
                     }
                 }
             }
@@ -226,46 +295,118 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
     return matches;
 }
 
-// factor: plane pixels per original pixel, see render::ProjectGeometry::planeScale().
+namespace {
+
+// Draws a found sprite onto a plane the way libserum's Colorize_Spritev2() does.
+//
+// On a plane with the ROM frame's size the sprite's own arrays of that plane are used one to
+// one: opacity, color, and a dynamic pixel takes its set's color for the ROM frame's shade
+// there. On the 256x64 plane of a 128x32 project libserum draws the 128x32 sprite first and
+// upscales it, and then puts the sprite's HD art on top except where the 128x32 sprite is
+// dynamic. The upscale is done here by doubling pixels; libserum rounds edges, see the
+// Handbook.
 void applySpriteMatch(document::Rgb565Frame& frame,
+                      const document::IndexedFrame& original,
                       const document::SpriteRecord& sprite,
                       const SpriteMatch& match,
                       render::Resolution resolution,
-                      int factor,
-                      bool hdOnly)
+                      const render::ProjectGeometry& geometry,
+                      uint32_t colorCount,
+                      bool extraDynamicsLoaded)
 {
+    const bool hdOnly = geometry.layout() == render::PlaneLayout::NativeExtra;
     // The SD sprite of an HD-only project is never drawn; the runtime shows nothing for a
     // frame with such a sprite.
     if (hdOnly && !sprite.hasHd) {
         return;
     }
-    const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
-    const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
-    const document::Rgb565Frame& colors = useHd ? sprite.colorizedHd : sprite.colorizedSd;
-    const int targetX = match.frameX * factor;
-    const int targetY = match.frameY * factor;
-    const int sourceX = match.spriteX * factor;
-    const int sourceY = match.spriteY * factor;
-    const int width = match.width * factor;
-    const int height = match.height * factor;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            const int frameX = targetX + x;
-            const int frameY = targetY + y;
-            const int spriteX = sourceX + x;
-            const int spriteY = sourceY + y;
-            if (frameX < 0 || frameY < 0 ||
-                frameX >= frame.size.width || frameY >= frame.size.height ||
-                spriteX < 0 || spriteY < 0 ||
-                spriteX >= mask.size.width || spriteY >= mask.size.height) {
+    const auto spriteIndexAt = [](int x, int y) {
+        return static_cast<std::size_t>(y) * document::kMaxSpriteWidth +
+               static_cast<std::size_t>(x);
+    };
+    const auto insideSprite = [](int x, int y) {
+        return x >= 0 && y >= 0 && x < static_cast<int>(document::kMaxSpriteWidth) &&
+               y < static_cast<int>(document::kMaxSpriteHeight);
+    };
+    // The color of a dynamic sprite pixel for the ROM frame pixel it lies on.
+    const auto dynamicColor = [&](const std::vector<uint16_t>& colors, uint8_t set, int romX,
+                                  int romY) -> uint16_t {
+        const std::size_t index =
+            static_cast<std::size_t>(set) * colorCount +
+            original.pixels[indexedPixelIndex(original, romX, romY)];
+        return index < colors.size() ? colors[index] : uint16_t{0};
+    };
+    const auto isDynamic = [](const document::IndexedFrame& mask, std::size_t index) {
+        return index < mask.pixels.size() && mask.pixels[index] != 255;
+    };
+    const auto insideOriginal = [&](int x, int y) {
+        return x >= 0 && y >= 0 && x < original.size.width && y < original.size.height;
+    };
+
+    if (geometry.planeScale(resolution) == 1) {
+        const bool extra = resolution == render::Resolution::Hd;
+        const document::IndexedFrame& opacity = extra ? sprite.maskHd : sprite.originalSd;
+        const document::Rgb565Frame& colors = extra ? sprite.colorizedHd : sprite.colorizedSd;
+        const document::IndexedFrame& dynamicMask =
+            extra ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
+        const std::vector<uint16_t>& dynamicColors =
+            extra ? sprite.dynamicColorsHd : sprite.dynamicColorsSd;
+        for (int y = 0; y < match.height; ++y) {
+            for (int x = 0; x < match.width; ++x) {
+                const int frameX = match.frameX + x;
+                const int frameY = match.frameY + y;
+                const int spriteX = match.spriteX + x;
+                const int spriteY = match.spriteY + y;
+                if (!insideOriginal(frameX, frameY) || !insideSprite(spriteX, spriteY)) {
+                    continue;
+                }
+                const std::size_t index = spriteIndexAt(spriteX, spriteY);
+                if (opacity.pixels[index] == 255) {
+                    continue;
+                }
+                frame.pixels[rgb565PixelIndex(frame, frameX, frameY)] =
+                    (!extra || extraDynamicsLoaded) && isDynamic(dynamicMask, index)
+                        ? dynamicColor(dynamicColors, dynamicMask.pixels[index], frameX, frameY)
+                        : colors.pixels[index];
+            }
+        }
+        return;
+    }
+
+    // The 256x64 plane of a 128x32 project.
+    for (int y = 0; y < match.height * 2; ++y) {
+        for (int x = 0; x < match.width * 2; ++x) {
+            const int frameX = match.frameX * 2 + x;
+            const int frameY = match.frameY * 2 + y;
+            const int romX = match.frameX + x / 2;
+            const int romY = match.frameY + y / 2;
+            const int sdSpriteX = match.spriteX + x / 2;
+            const int sdSpriteY = match.spriteY + y / 2;
+            if (frameX >= frame.size.width || frameY >= frame.size.height ||
+                !insideOriginal(romX, romY) || !insideSprite(sdSpriteX, sdSpriteY)) {
                 continue;
             }
-            const std::size_t spriteIndex = indexedPixelIndex(mask, spriteX, spriteY);
-            if (mask.pixels[spriteIndex] == 255) {
+            const std::size_t sdIndex = spriteIndexAt(sdSpriteX, sdSpriteY);
+            const bool sdOpaque = sprite.originalSd.pixels[sdIndex] != 255;
+            const bool sdDynamic = sdOpaque && isDynamic(sprite.dynamicMaskSd, sdIndex);
+            uint16_t& target = frame.pixels[rgb565PixelIndex(frame, frameX, frameY)];
+            // The upscaled 128x32 sprite: all of it without HD art, its dynamic pixels with.
+            if (sdOpaque && (sdDynamic || !sprite.hasHd)) {
+                target = sdDynamic ? dynamicColor(sprite.dynamicColorsSd,
+                                                  sprite.dynamicMaskSd.pixels[sdIndex],
+                                                  romX,
+                                                  romY)
+                                   : sprite.colorizedSd.pixels[sdIndex];
+            }
+            const int hdSpriteX = match.spriteX * 2 + x;
+            const int hdSpriteY = match.spriteY * 2 + y;
+            if (!sprite.hasHd || sdDynamic || !insideSprite(hdSpriteX, hdSpriteY)) {
                 continue;
             }
-            frame.pixels[rgb565PixelIndex(frame, frameX, frameY)] =
-                colors.pixels[rgb565PixelIndex(colors, spriteX, spriteY)];
+            const std::size_t hdIndex = spriteIndexAt(hdSpriteX, hdSpriteY);
+            if (sprite.maskHd.pixels[hdIndex] != 255) {
+                target = sprite.colorizedHd.pixels[hdIndex];
+            }
         }
     }
 }
@@ -441,7 +582,6 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                            render::Resolution resolution,
                                            bool includeBackgroundLayer)
 {
-    const int spriteFactor = document.geometry().planeScale(resolution);
     if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
         return document::makeRgb565Frame(document.geometry().planeSize(resolution));
     }
@@ -464,12 +604,19 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
     const std::vector<SpriteMatch> matches = matchFrameSprites(document, frameIndex);
     for (const SpriteMatch& match : matches) {
         if (match.spriteIndex < document.spriteCount()) {
+            // libserum loads the extra-plane dynamic data of sprite N only if frame N has
+            // extra-plane content (Serum_LoadFilev2Stream reads it with the frame flags as
+            // parent).
+            const bool extraDynamicsLoaded = match.spriteIndex < document.frameCount() &&
+                                             document.hasHdFrame(match.spriteIndex);
             applySpriteMatch(frame,
+                             document.originalFrame(frameIndex),
                              document.sprite(match.spriteIndex),
                              match,
                              resolution,
-                             spriteFactor,
-                             document.rendersHdPlaneOnly());
+                             document.geometry(),
+                             document.colorCount(),
+                             extraDynamicsLoaded);
         }
     }
     return frame;

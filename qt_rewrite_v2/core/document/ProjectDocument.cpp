@@ -1,6 +1,7 @@
 #include "document/ProjectDocument.h"
 
 #include <algorithm>
+#include <atomic>
 #include <map>
 #include <stdexcept>
 #include <utility>
@@ -10,6 +11,12 @@
 namespace colorizing::document {
 
 namespace {
+
+uint64_t nextRevision()
+{
+    static std::atomic<uint64_t> counter{0};
+    return ++counter;
+}
 
 bool hasSize(Size actual, Size expected)
 {
@@ -376,6 +383,7 @@ ProjectDocument ProjectDocument::createEmpty(const ProjectCreateOptions& options
         document.m_frames.push_back(makeEmptyFrame(options.createHdFrames));
     }
     document.m_dirty = false;
+    document.m_revision = nextRevision();
     return document;
 }
 
@@ -446,6 +454,7 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
         }
     }
     document.m_dirty = false;
+    document.m_revision = nextRevision();
     return document;
 }
 
@@ -460,7 +469,7 @@ void ProjectDocument::setRomName(std::string name)
         return;
     }
     m_romName = std::move(name);
-    m_dirty = true;
+    markChanged();
 }
 
 std::size_t ProjectDocument::frameCount() const
@@ -542,6 +551,17 @@ bool ProjectDocument::isDirty() const
     return m_dirty;
 }
 
+uint64_t ProjectDocument::revision() const
+{
+    return m_revision;
+}
+
+void ProjectDocument::markChanged()
+{
+    m_dirty = true;
+    m_revision = nextRevision();
+}
+
 void ProjectDocument::markClean()
 {
     m_dirty = false;
@@ -562,7 +582,7 @@ void ProjectDocument::createHdFrame(std::size_t frameIndex)
     frame.colorizedHd = rendersHdPlaneOnly() ? plainRgb565Frame(frame.originalSd, m_colorCount)
                                            : upscaleRgb565Frame2x(frame.colorizedSd);
     frame.inactiveHd.reset();
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::removeHdFrame(std::size_t frameIndex)
@@ -576,7 +596,7 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
                                " frame is the only one this project renders");
     }
     frame.colorizedHd.reset();
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
@@ -593,7 +613,7 @@ void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
     frame.dynamicData->colorsHd = frame.dynamicData->colorsSd;
     frame.dynamicData->shadowDirectionsHd = frame.dynamicData->shadowDirectionsSd;
     frame.dynamicData->shadowColorsHd = frame.dynamicData->shadowColorsSd;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
@@ -607,7 +627,7 @@ void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
         throw std::logic_error("this project has no smaller background mask to upscale");
     }
     frame.backgroundData->maskHd = upscaleIndexedFrame2x(frame.backgroundData->maskSd);
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
@@ -627,12 +647,12 @@ void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
         }
         background.colorizedHd = makeRgb565Frame(m_geometry.planeSize(Resolution::Hd));
         background.inactiveHd.reset();
-        m_dirty = true;
+        markChanged();
         return;
     }
     background.colorizedHd = upscaleRgb565Frame2x(background.colorizedSd);
     background.inactiveHd.reset();
-    m_dirty = true;
+    markChanged();
 }
 
 FrameHdState ProjectDocument::frameHdState(std::size_t frameIndex, FrameHdParts parts) const
@@ -708,7 +728,7 @@ void ProjectDocument::setFrameHdState(std::size_t frameIndex, const FrameHdState
         background.colorizedHd = state.background->colorizedHd;
         background.inactiveHd = state.background->inactiveHd;
     }
-    m_dirty = true;
+    markChanged();
 }
 
 const IndexedFrame& ProjectDocument::originalFrame(std::size_t frameIndex) const
@@ -745,7 +765,7 @@ void ProjectDocument::setShapeComparisonMode(std::size_t frameIndex, uint8_t mod
         return;
     }
     frame.shapeComparisonMode = mode;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::restoreShapeComparisonMode(std::size_t frameIndex, uint8_t mode)
@@ -755,7 +775,7 @@ void ProjectDocument::restoreShapeComparisonMode(std::size_t frameIndex, uint8_t
         return;
     }
     frame.shapeComparisonMode = mode;
-    m_dirty = true;
+    markChanged();
 }
 
 uint8_t ProjectDocument::comparisonMaskId(std::size_t frameIndex) const
@@ -770,7 +790,7 @@ void ProjectDocument::setComparisonMaskId(std::size_t frameIndex, uint8_t maskId
         return;
     }
     frame.comparisonMaskId = maskId;
-    m_dirty = true;
+    markChanged();
 }
 
 uint32_t ProjectDocument::triggerId(std::size_t frameIndex) const
@@ -785,7 +805,7 @@ void ProjectDocument::setTriggerId(std::size_t frameIndex, uint32_t triggerId)
         return;
     }
     frame.triggerId = triggerId;
-    m_dirty = true;
+    markChanged();
 }
 
 uint32_t ProjectDocument::frameDurationMs(std::size_t frameIndex) const
@@ -800,7 +820,7 @@ void ProjectDocument::setFrameDurationMs(std::size_t frameIndex, uint32_t durati
         return;
     }
     frame.durationMs = durationMs;
-    m_dirty = true;
+    markChanged();
 }
 
 const std::vector<uint16_t>& ProjectDocument::colorRotations(std::size_t frameIndex,
@@ -854,7 +874,7 @@ void ProjectDocument::setColorRotationLength(std::size_t frameIndex,
         return;
     }
     rotations[offset] = length;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::setColorRotationDelayMs(std::size_t frameIndex,
@@ -870,7 +890,7 @@ void ProjectDocument::setColorRotationDelayMs(std::size_t frameIndex,
         return;
     }
     rotations[offset] = delayMs;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::setColorRotationColor(std::size_t frameIndex,
@@ -887,7 +907,7 @@ void ProjectDocument::setColorRotationColor(std::size_t frameIndex,
         return;
     }
     rotations[offset] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::clearColorRotationSlot(std::size_t frameIndex,
@@ -904,7 +924,7 @@ void ProjectDocument::clearColorRotationSlot(std::size_t frameIndex,
         return;
     }
     std::fill(begin, end, uint16_t{0});
-    m_dirty = true;
+    markChanged();
 }
 
 std::size_t ProjectDocument::comparisonMaskCount() const
@@ -951,7 +971,7 @@ void ProjectDocument::setComparisonMaskPixel(std::size_t maskIndex,
         return;
     }
     mask.pixels[pixelIndex] = value;
-    m_dirty = true;
+    markChanged();
 }
 
 const std::optional<FrameDynamicData>& ProjectDocument::dynamicData(std::size_t frameIndex) const
@@ -1094,7 +1114,7 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
         return;
     }
     mask.pixels[pixelIndex] = value;
-    m_dirty = true;
+    markChanged();
 }
 
 uint16_t ProjectDocument::dynamicColor(std::size_t frameIndex,
@@ -1123,7 +1143,7 @@ void ProjectDocument::setDynamicColor(std::size_t frameIndex,
         return;
     }
     colors[colorIndex] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 uint8_t ProjectDocument::dynamicShadowDirection(std::size_t frameIndex,
@@ -1168,7 +1188,7 @@ void ProjectDocument::setDynamicShadowDirection(std::size_t frameIndex,
         return;
     }
     directions[setIndex] = direction;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::setDynamicShadowColor(std::size_t frameIndex,
@@ -1185,7 +1205,7 @@ void ProjectDocument::setDynamicShadowColor(std::size_t frameIndex,
         return;
     }
     colors[setIndex] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 std::size_t ProjectDocument::backgroundCount() const
@@ -1294,7 +1314,7 @@ void ProjectDocument::setBackgroundFrame(std::size_t backgroundIndex,
         background.colorizedHd = std::move(frame);
         background.inactiveHd.reset();
     }
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::removeBackgroundHdFrame(std::size_t backgroundIndex)
@@ -1304,7 +1324,7 @@ void ProjectDocument::removeBackgroundHdFrame(std::size_t backgroundIndex)
         return;
     }
     background.colorizedHd.reset();
-    m_dirty = true;
+    markChanged();
 }
 
 uint16_t ProjectDocument::backgroundPixel(std::size_t backgroundIndex,
@@ -1333,7 +1353,7 @@ void ProjectDocument::setBackgroundPixel(std::size_t backgroundIndex,
         return;
     }
     frame.pixels[pixelIndex] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 const std::optional<FrameBackgroundData>& ProjectDocument::backgroundData(
@@ -1361,7 +1381,7 @@ void ProjectDocument::setBackgroundId(std::size_t frameIndex, uint16_t backgroun
         return;
     }
     frame.backgroundData->backgroundId = backgroundId;
-    m_dirty = true;
+    markChanged();
 }
 
 namespace {
@@ -1408,7 +1428,7 @@ void ProjectDocument::setBackgroundMaskPixel(std::size_t frameIndex,
         return;
     }
     mask.pixels[pixelIndex] = value;
-    m_dirty = true;
+    markChanged();
 }
 
 std::size_t ProjectDocument::spriteCount() const
@@ -1433,7 +1453,7 @@ void ProjectDocument::setSpriteName(std::size_t spriteIndex, std::string name)
         return;
     }
     m_sprites[spriteIndex].name = std::move(name);
-    m_dirty = true;
+    markChanged();
 }
 
 std::size_t ProjectDocument::paletteCount() const
@@ -1473,7 +1493,7 @@ void ProjectDocument::setPaletteColor(std::size_t paletteIndex,
         return;
     }
     record.colors[colorIndex] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::setPaletteName(std::size_t paletteIndex, std::string name)
@@ -1485,7 +1505,7 @@ void ProjectDocument::setPaletteName(std::size_t paletteIndex, std::string name)
         return;
     }
     m_palettes[paletteIndex].name = std::move(name);
-    m_dirty = true;
+    markChanged();
 }
 
 bool ProjectDocument::hasHdSprite(std::size_t spriteIndex) const
@@ -1511,7 +1531,7 @@ void ProjectDocument::createHdSprite(std::size_t spriteIndex)
         sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
     }
     sprite.hasHd = true;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
@@ -1528,7 +1548,7 @@ void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
                                " sprite is the only one this project renders");
     }
     sprite.hasHd = false;
-    m_dirty = true;
+    markChanged();
 }
 
 SpriteHdState ProjectDocument::spriteHdState(std::size_t spriteIndex) const
@@ -1547,7 +1567,7 @@ void ProjectDocument::setSpriteHdState(std::size_t spriteIndex, SpriteHdState st
     record.hasHd = state.hasHd;
     record.maskHd = std::move(state.maskHd);
     record.colorizedHd = std::move(state.colorizedHd);
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::replaceCapturedHdOnlySprite(SpriteRecord& sprite,
@@ -1571,7 +1591,7 @@ void ProjectDocument::replaceCapturedHdOnlySprite(SpriteRecord& sprite,
               uint8_t{255});
     std::fill(sprite.dynamicColorsSd.begin(), sprite.dynamicColorsSd.end(), uint16_t{0});
     recalculateSpriteDetectionDwords(sprite);
-    m_dirty = true;
+    markChanged();
 }
 
 uint8_t ProjectDocument::spriteOriginalPixel(std::size_t spriteIndex, int x, int y) const
@@ -1649,7 +1669,7 @@ void ProjectDocument::replaceSpriteFromFrame(std::size_t spriteIndex,
         sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
     }
     recalculateSpriteDetectionDwords(sprite);
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::replaceSpriteFromFrameSelection(
@@ -1743,7 +1763,7 @@ void ProjectDocument::replaceSpriteFromFrameSelection(
         sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
     }
     recalculateSpriteDetectionDwords(sprite);
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
@@ -1761,7 +1781,7 @@ void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
     }
     sprite.originalSd.pixels[pixelIndex] = value;
     recalculateSpriteDetectionDwords(sprite);
-    m_dirty = true;
+    markChanged();
 }
 
 uint16_t ProjectDocument::spriteColorizedPixel(std::size_t spriteIndex,
@@ -1795,7 +1815,7 @@ void ProjectDocument::setSpriteColorizedPixel(std::size_t spriteIndex,
         return;
     }
     frame.pixels[pixelIndex] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::setSpriteDetectionArea(std::size_t spriteIndex,
@@ -1829,7 +1849,7 @@ void ProjectDocument::setSpriteDetectionArea(std::size_t spriteIndex,
     existing = area;
     sprite.detectionDwords[areaIndex] = dword;
     sprite.detectionDwordPositions[areaIndex] = dwordPosition;
-    m_dirty = true;
+    markChanged();
 }
 
 const std::vector<FrameSpriteReference>& ProjectDocument::frameSpriteReferences(
@@ -1861,7 +1881,7 @@ void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
         return;
     }
     frame.spriteReferences[slotIndex] = reference;
-    m_dirty = true;
+    markChanged();
 }
 
 void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex)
@@ -1907,7 +1927,7 @@ void ProjectDocument::setColorizedPixel(std::size_t frameIndex,
         return;
     }
     frame.pixels[pixelIndex] = rgb565;
-    m_dirty = true;
+    markChanged();
 }
 
 uint16_t ProjectDocument::colorizedPixel(std::size_t frameIndex,
@@ -1929,12 +1949,100 @@ uint16_t ProjectDocument::colorizedPixel(std::size_t frameIndex,
 void ProjectDocument::addUnsupportedPayload(UnsupportedLegacyPayload payload)
 {
     m_unsupportedPayloads.push_back(std::move(payload));
-    m_dirty = true;
+    markChanged();
 }
 
 const std::vector<UnsupportedLegacyPayload>& ProjectDocument::unsupportedPayloads() const
 {
     return m_unsupportedPayloads;
+}
+
+namespace {
+
+ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
+{
+    return ProjectFrameSnapshot{
+        frame.originalSd,
+        frame.colorizedSd,
+        frame.colorizedHd,
+        frame.shapeComparisonMode,
+        frame.comparisonMaskId,
+        frame.dynamicData,
+        frame.backgroundData,
+        frame.spriteReferences,
+        frame.triggerId,
+        frame.durationMs,
+        frame.colorRotationsSd,
+        frame.colorRotationsHd,
+        frame.inactiveHd,
+    };
+}
+
+// The subset's ID for a document item, added to the map on first use.
+std::size_t subsetId(std::vector<std::size_t>& documentIndices, std::size_t documentIndex)
+{
+    const auto found =
+        std::find(documentIndices.begin(), documentIndices.end(), documentIndex);
+    if (found != documentIndices.end()) {
+        return static_cast<std::size_t>(found - documentIndices.begin());
+    }
+    documentIndices.push_back(documentIndex);
+    return documentIndices.size() - 1;
+}
+
+}  // namespace
+
+ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>& frameIndices,
+                                                  SnapshotSubsetMap* map) const
+{
+    SnapshotSubsetMap localMap;
+    SnapshotSubsetMap& ids = map ? *map : localMap;
+    ids = SnapshotSubsetMap{};
+
+    ProjectSnapshot snapshot;
+    snapshot.romName = m_romName;
+    snapshot.colorCount = m_colorCount;
+    snapshot.cromRevision = m_cromRevision;
+    snapshot.geometry = m_geometry;
+    snapshot.frames.reserve(frameIndices.size());
+    for (std::size_t frameIndex : frameIndices) {
+        if (frameIndex >= m_frames.size()) {
+            throw std::out_of_range("frame index is out of range");
+        }
+        ProjectFrameSnapshot frame = frameSnapshot(m_frames[frameIndex]);
+        frame.comparisonMaskId =
+            frame.comparisonMaskId < m_comparisonMasks.size()
+                ? static_cast<uint8_t>(subsetId(ids.comparisonMasks, frame.comparisonMaskId))
+                : uint8_t{255};
+        if (frame.backgroundData) {
+            const uint16_t backgroundId = frame.backgroundData->backgroundId;
+            frame.backgroundData->backgroundId =
+                backgroundId < m_backgrounds.size()
+                    ? static_cast<uint16_t>(subsetId(ids.backgrounds, backgroundId))
+                    : uint16_t{0xffff};
+        }
+        for (FrameSpriteReference& reference : frame.spriteReferences) {
+            reference.spriteId =
+                reference.spriteId < m_sprites.size()
+                    ? static_cast<uint8_t>(subsetId(ids.sprites, reference.spriteId))
+                    : uint8_t{255};
+        }
+        snapshot.frames.push_back(std::move(frame));
+        ids.frames.push_back(frameIndex);
+    }
+    for (std::size_t maskIndex : ids.comparisonMasks) {
+        snapshot.comparisonMasks.push_back(m_comparisonMasks[maskIndex]);
+    }
+    for (std::size_t backgroundIndex : ids.backgrounds) {
+        snapshot.backgrounds.push_back(m_backgrounds[backgroundIndex]);
+    }
+    for (std::size_t spriteIndex : ids.sprites) {
+        snapshot.sprites.push_back(m_sprites[spriteIndex]);
+    }
+    if (m_geometry.discardsExtraPlane()) {
+        discardExtraPlane(snapshot);
+    }
+    return snapshot;
 }
 
 ProjectSnapshot ProjectDocument::toSnapshot() const
@@ -1943,21 +2051,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.romName = m_romName;
     snapshot.frames.reserve(m_frames.size());
     for (const FrameRecord& frame : m_frames) {
-        snapshot.frames.push_back(ProjectFrameSnapshot{
-            frame.originalSd,
-            frame.colorizedSd,
-            frame.colorizedHd,
-            frame.shapeComparisonMode,
-            frame.comparisonMaskId,
-            frame.dynamicData,
-            frame.backgroundData,
-            frame.spriteReferences,
-            frame.triggerId,
-            frame.durationMs,
-            frame.colorRotationsSd,
-            frame.colorRotationsHd,
-            frame.inactiveHd,
-        });
+        snapshot.frames.push_back(frameSnapshot(frame));
     }
     snapshot.comparisonMasks = m_comparisonMasks;
     snapshot.backgrounds = m_backgrounds;

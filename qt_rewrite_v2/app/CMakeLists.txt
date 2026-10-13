@@ -16,6 +16,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     PaintTarget.h
     PlaneLabels.cpp
     PlaneLabels.h
+    RuntimeView.cpp
+    RuntimeView.h
     panels/BackgroundPanel.cpp
     panels/BackgroundPanel.h
     panels/ColorRotationPanel.cpp

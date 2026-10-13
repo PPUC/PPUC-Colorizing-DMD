@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 630 scripted states and after each one prints every widget and the relevant
+through about 650 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -227,7 +227,7 @@ change the settings of the real application.
 
 ## Adding scripted states
 
-The script is plain C++ in five places, executed in this order:
+The script is plain C++ in six places, executed in this order:
 
 | File | Content |
 | --- | --- |
@@ -237,13 +237,20 @@ The script is plain C++ in five places, executed in this order:
 | `big_original_script.inc` | a project with 256x64 original frames, which has the HD plane only: every inspector page, no SD and HD buttons, frames, a background and sprites without HD data and their repair with `Create 256x64 Frame` / `Create 256x64 Sprite`, the `Not rendered` filter, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite assignment and capture on the native grid, the sprite canvas |
 | `native_original_script.inc` | a project with 192x64 original frames, which is edited on its 192x64 plane only: every inspector page, no SD/HD buttons and no Create/Remove HD buttons, painting, comparison mask and dynamic mask editing with undo at coordinates beyond 128x32, sprite capture and slot bounds on the native grid, the sprite canvas; it prints whether a save writes the discarded 96x32 plane as "no extra data" and whether a second save is identical |
 
+| `runtime_view_script.inc` | the Runtime view, in a 128x32, a 256x64-original and a 192x64-original project: on and off through its menu actions, both runtime planes of a frame with and without HD, the runtime PNG export, an edit, undo and redo while the view is on, a click on the canvas, playback through libserum and one playback step, the sprite canvas ending the view, a frame libserum has no picture for; after each dump it prints the view's state, which is not a widget |
+
+`runtime_view_script.inc` is compiled only for a tree that has `app/RuntimeView.h`; a baseline of
+an older revision ends with the states before it, and is compared with `--allow-appended`.
+
 Both of these scripts also run against a tree that still showed SD/HD controls for such
 projects: they look up the repair button under either name and print, instead of assuming,
 whether the SD/HD and Create/Remove buttons are hidden.
 
 The `.inc` files are included at the end of `main()` and each form one block.
-`big_original_script.inc` runs after the window was closed (`closed at the end`), and
-`native_original_script.inc` after that one closed its project.
+`big_original_script.inc` runs after the window was closed (`closed at the end`),
+`native_original_script.inc` after that one closed its project, and `runtime_view_script.inc`
+after that. A line a script prints lands in the section of the dump before it, so a script
+appended after others prints nothing before its first dump.
 
 A state is: do something, then call `dump("title", w)` (`D("title")` in `inspector_script.inc`).
 Widgets are looked up by tool tip with `byTip<QSpinBox>(w, "...")`, grid buttons with

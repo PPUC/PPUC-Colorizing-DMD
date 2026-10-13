@@ -191,6 +191,14 @@ struct ProjectCreateOptions {
 
 struct ProjectSnapshot;
 
+// What the IDs of a subset snapshot stand for: subset index -> document index.
+struct SnapshotSubsetMap {
+    std::vector<std::size_t> frames;
+    std::vector<std::size_t> comparisonMasks;
+    std::vector<std::size_t> backgrounds;
+    std::vector<std::size_t> sprites;
+};
+
 class ProjectDocument {
 public:
     [[nodiscard]] static ProjectDocument createEmpty(const ProjectCreateOptions& options);
@@ -220,6 +228,9 @@ public:
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
     [[nodiscard]] bool isDirty() const;
     void markClean();
+    // Goes up with every change and is not used by another document's content in this
+    // process, so that data derived from a document can tell it is stale.
+    [[nodiscard]] uint64_t revision() const;
 
     [[nodiscard]] bool hasHdFrame(std::size_t frameIndex) const;
     // Upscales the SD frame. In an HD-only project there is nothing to upscale: the HD frame
@@ -417,6 +428,13 @@ public:
     void addUnsupportedPayload(UnsupportedLegacyPayload payload);
     [[nodiscard]] const std::vector<UnsupportedLegacyPayload>& unsupportedPayloads() const;
     [[nodiscard]] ProjectSnapshot toSnapshot() const;
+    // The given frames alone, in that order, with the comparison masks, backgrounds and sprites
+    // they reference and nothing else. The IDs in the frames are renumbered to match, in order
+    // of first use; an ID that points at nothing becomes "none". Palettes, editor metadata and
+    // unsupported payloads are left out. Costs what the listed frames and their items cost,
+    // not what the project costs. Throws std::out_of_range for a frame that does not exist.
+    [[nodiscard]] ProjectSnapshot toSubsetSnapshot(const std::vector<std::size_t>& frameIndices,
+                                                   SnapshotSubsetMap* map = nullptr) const;
 
 private:
     void replaceCapturedHdOnlySprite(SpriteRecord& sprite,
@@ -424,6 +442,7 @@ private:
                                      Rgb565Frame colorized);
     void requireEditablePlane(Resolution resolution) const;
     void requireEditableExtraPlane() const;
+    void markChanged();
 
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
@@ -437,6 +456,7 @@ private:
     uint32_t m_cromRevision = 20;
     render::ProjectGeometry m_geometry;
     bool m_dirty = false;
+    uint64_t m_revision = 0;
 };
 
 // The colors of an uncolorized frame: a ramp over the original color indices, as the Win32

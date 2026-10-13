@@ -14,6 +14,7 @@
 #include "edit/DrawingTools.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
+#include "RuntimeView.h"
 #include "panels/FramePanel.h"
 
 namespace colorizing::app {
@@ -69,6 +70,7 @@ private:
     void saveProject();
     void saveProjectAs();
     void exportCurrentFramePng();
+    void exportCurrentFrameRuntimePng();
     void importImageIntoSelectedFrames();
     void loadProject(const QString& cromPath, const QString& crpPath);
     void rememberRecentProject(const QString& cromPath, const QString& crpPath);
@@ -95,6 +97,8 @@ private:
     [[nodiscard]] std::vector<std::size_t> selectedFrameIndices() const;
     void selectFrame(int frameIndex);
     void updateResolutionMode();
+    // Enabled state of the SD/HD, overlay and tool buttons: off while the Runtime view is on.
+    void updateCanvasModeButtons();
     void setDrawingTool(DrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
     void updateFrameMetadataControls();
@@ -212,6 +216,17 @@ private:
     void updatePlaybackControls();
     void setPlaybackRunning(bool running);
     void advancePlaybackFrame();
+    // The Runtime view shows libserum's output for the current frame on the canvas, see
+    // RuntimeView. While it is on nothing can be edited on the canvas.
+    void setRuntimeViewEnabled(bool enabled);
+    void setRuntimeViewRows(runtime::PlaneRequest rows);
+    // Actions, tool buttons and the status line follow the view's state.
+    void updateRuntimeViewControls();
+    // The frames playback goes through from the current one on, in list order.
+    [[nodiscard]] std::vector<std::size_t> playbackFrameOrder() const;
+    // Shows the current frame through libserum now and starts its color rotations.
+    void startRuntimeRotations();
+    void stepRuntimeRotations();
     [[nodiscard]] int playbackIntervalForCurrentFrame() const;
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
     void updateDmdRenderOptions();
@@ -221,6 +236,10 @@ private:
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
     QAction* m_saveAction = nullptr;
+    QAction* m_runtimeViewAction = nullptr;
+    QAction* m_runtimeRows32Action = nullptr;
+    QAction* m_runtimeRows64Action = nullptr;
+    QAction* m_exportRuntimeFrameAction = nullptr;
     QMenu* m_recentProjectsMenu = nullptr;
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
@@ -257,6 +276,7 @@ private:
     SpriteEditorWidget* m_spriteEditor = nullptr;
     QTimer* m_playbackTimer = nullptr;
     QTimer* m_colorRotationPreviewTimer = nullptr;
+    QTimer* m_runtimeRotationTimer = nullptr;
     QElapsedTimer m_playbackElapsedTimer;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
@@ -268,6 +288,7 @@ private:
     std::optional<std::size_t> m_selectedMaskIndex;
     bool m_spriteDependentViewsDirty = false;
     CanvasEditController m_canvasEdit;
+    RuntimeView m_runtimeView;
     edit::UndoHistories m_undoHistories;
     QString m_currentCromPath;
     QString m_currentCrpPath;

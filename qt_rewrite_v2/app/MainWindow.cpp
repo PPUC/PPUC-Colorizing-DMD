@@ -5,6 +5,7 @@
 
 #include <QAbstractItemView>
 #include <QAction>
+#include <QActionGroup>
 #include <QColorDialog>
 #include <QCheckBox>
 #include <QComboBox>
@@ -327,6 +328,14 @@ void MainWindow::createActions()
         exportCurrentFramePng();
     });
 
+    m_exportRuntimeFrameAction =
+        fileMenu->addAction(QStringLiteral("Export Current Frame R&untime PNG..."));
+    m_exportRuntimeFrameAction->setToolTip(
+        QStringLiteral("Export the current frame as libserum renders it"));
+    connect(m_exportRuntimeFrameAction, &QAction::triggered, this, [this]() {
+        exportCurrentFrameRuntimePng();
+    });
+
     QAction* importFrameImageAction =
         fileMenu->addAction(QStringLiteral("Import Image Into Selected &Frames..."));
     connect(importFrameImageAction, &QAction::triggered, this, [this]() {
@@ -357,6 +366,40 @@ void MainWindow::createActions()
     connect(m_redoAction, &QAction::triggered, this, [this]() {
         redo();
     });
+
+    editMenu->addSeparator();
+    m_runtimeViewAction = editMenu->addAction(QStringLiteral("Runtime &View"));
+    m_runtimeViewAction->setCheckable(true);
+    m_runtimeViewAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
+    m_runtimeViewAction->setShortcutContext(Qt::ApplicationShortcut);
+    m_runtimeViewAction->setToolTip(
+        QStringLiteral("Show the current frame as libserum renders it; editing is off meanwhile"));
+    connect(m_runtimeViewAction, &QAction::toggled, this, [this](bool checked) {
+        setRuntimeViewEnabled(checked);
+    });
+
+    auto* rowsGroup = new QActionGroup(this);
+    m_runtimeRows32Action = editMenu->addAction(QStringLiteral("Runtime Plane: &32 Rows"));
+    m_runtimeRows32Action->setCheckable(true);
+    m_runtimeRows32Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
+    m_runtimeRows32Action->setShortcutContext(Qt::ApplicationShortcut);
+    m_runtimeRows32Action->setToolTip(QStringLiteral("What a display with 32 rows gets"));
+    m_runtimeRows64Action = editMenu->addAction(QStringLiteral("Runtime Plane: &64 Rows"));
+    m_runtimeRows64Action->setCheckable(true);
+    m_runtimeRows64Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
+    m_runtimeRows64Action->setShortcutContext(Qt::ApplicationShortcut);
+    m_runtimeRows64Action->setToolTip(QStringLiteral("What a display with 64 rows gets"));
+    rowsGroup->addAction(m_runtimeRows32Action);
+    rowsGroup->addAction(m_runtimeRows64Action);
+    connect(m_runtimeRows32Action, &QAction::triggered, this, [this]() {
+        setRuntimeViewRows(runtime::PlaneRequest::Rows32);
+    });
+    connect(m_runtimeRows64Action, &QAction::triggered, this, [this]() {
+        setRuntimeViewRows(runtime::PlaneRequest::Rows64);
+    });
+    m_runtimeRows32Action->setChecked(true);
+    m_runtimeRows32Action->setEnabled(false);
+    m_runtimeRows64Action->setEnabled(false);
 }
 
 void MainWindow::createCentralView()
@@ -409,6 +452,7 @@ void MainWindow::createCentralView()
     m_spriteList->setUniformItemSizes(false);
     m_spriteList->setMinimumWidth(230);
     m_preview = new FramePreviewWidget(central);
+    m_preview->setRuntimeView(&m_runtimeView);
     m_spriteEditor = new SpriteEditorWidget(central);
     m_canvasStack = new QStackedWidget(central);
     m_canvasStack->addWidget(m_preview);
@@ -597,6 +641,9 @@ void MainWindow::createCentralView()
     m_spritePanel->onSpriteCanvasToggled = [this](bool checked) {
         if (!checked) {
             applyPendingSpriteDependentViews();
+        } else if (m_runtimeViewAction) {
+            // The sprite canvas takes the place of the frame canvas the view is shown on.
+            m_runtimeViewAction->setChecked(false);
         }
         if (m_canvasStack) {
             m_canvasStack->setCurrentWidget(checked && m_spriteEditor
@@ -879,6 +926,9 @@ void MainWindow::createCentralView()
     });
     m_playbackTimer = new QTimer(this);
     connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::advancePlaybackFrame);
+    m_runtimeRotationTimer = new QTimer(this);
+    m_runtimeRotationTimer->setSingleShot(true);
+    connect(m_runtimeRotationTimer, &QTimer::timeout, this, &MainWindow::stepRuntimeRotations);
     m_colorRotationPreviewTimer = new QTimer(this);
     m_colorRotationPreviewTimer->setInterval(30);
     connect(m_colorRotationPreviewTimer, &QTimer::timeout, this, [this]() {
@@ -1183,6 +1233,66 @@ void MainWindow::exportCurrentFramePng()
     statusBar()->showMessage(QStringLiteral("Exported frame PNG"), 3000);
 }
 
+void MainWindow::exportCurrentFrameRuntimePng()
+{
+    if (!m_document) {
+        return;
+    }
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!frameIndex) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+    // A still of its own; a playing sequence would be replaced by it.
+    setPlaybackRunning(false);
+
+    // The plane the Runtime view shows, or the one the editing mode is on.
+    const runtime::PlaneRequest wanted =
+        m_runtimeView.isEnabled() ? m_runtimeView.rows()
+        : m_activeResolution == render::Resolution::Hd ? runtime::PlaneRequest::Rows64
+                                                        : runtime::PlaneRequest::Rows32;
+    const runtime::PlaneRequest rows =
+        runtime::effectivePlaneRequest(m_document->geometry(), wanted);
+    const runtime::RuntimeFrame frame =
+        runtime::RuntimePreview::instance().renderFrame(*m_document, *frameIndex, rows);
+    const runtime::RuntimePlane* plane = frame.ok() ? frame.plane(rows) : nullptr;
+    if (!plane) {
+        statusBar()->showMessage(
+            frame.ok() ? QStringLiteral("libserum shows no picture for frame %1: nothing to export")
+                             .arg(static_cast<int>(*frameIndex))
+                       : QStringLiteral("libserum: %1").arg(QString::fromStdString(frame.error)),
+            4000);
+        return;
+    }
+
+    QFileInfo currentCromInfo(m_currentCromPath);
+    const QString defaultPath = currentCromInfo.dir().absoluteFilePath(
+        QStringLiteral("%1_frame_%2_runtime_%3rows.png")
+            .arg(currentCromInfo.completeBaseName())
+            .arg(static_cast<int>(*frameIndex), 4, 10, QLatin1Char('0'))
+            .arg(plane->image.size.height));
+    QString targetPath = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Export Current Frame Runtime PNG"),
+        defaultPath,
+        QStringLiteral("PNG image (*.png);;All files (*)"));
+    if (targetPath.isEmpty()) {
+        return;
+    }
+    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        targetPath += QStringLiteral(".png");
+    }
+    const QImage image =
+        renderRgb565FrameImage(plane->image, kExportDmdPixelScale, currentDmdRenderOptions());
+    if (!image.save(targetPath, "PNG")) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Export Failed"),
+                              QStringLiteral("Could not write PNG file."));
+        return;
+    }
+    statusBar()->showMessage(QStringLiteral("Exported runtime frame PNG"), 3000);
+}
+
 void MainWindow::importImageIntoSelectedFrames()
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
@@ -1423,6 +1533,7 @@ void MainWindow::refreshProjectSummary()
             m_saveAction->setEnabled(false);
         }
         updateSpriteControls();
+        updateRuntimeViewControls();
         return;
     }
 
@@ -1436,6 +1547,7 @@ void MainWindow::refreshProjectSummary()
     updateSpriteControls();
     updatePlaybackControls();
     updateProjectHeaderStatus();
+    updateRuntimeViewControls();
 }
 
 void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
@@ -1859,6 +1971,7 @@ void MainWindow::selectFrame(int)
     updateUndoRedoActions();
     m_canvasEdit.showCaptureSelection(currentFrameIndex());
     updatePlaybackControls();
+    startRuntimeRotations();
 }
 
 void MainWindow::updateFrameStatusText()
@@ -1866,6 +1979,19 @@ void MainWindow::updateFrameStatusText()
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
+        return;
+    }
+    if (m_runtimeView.isEnabled()) {
+        setFrameStatusText(
+            QStringLiteral("Frame %1 | Runtime view, %2 rows | editing off")
+                .arg(static_cast<int>(*frameIndex))
+                .arg(m_runtimeView.rowsFor(m_document->geometry()) ==
+                             runtime::PlaneRequest::Rows64
+                         ? 64
+                         : 32));
+        m_frameStatusLabel->setToolTip(
+            QStringLiteral("The canvas shows libserum's output. Switch the Runtime view off "
+                           "in the Edit menu to edit."));
         return;
     }
     const int selectedCount = static_cast<int>(selectedFrameIndices().size());
@@ -1926,6 +2052,15 @@ void MainWindow::setPlaybackRunning(bool running)
         if (m_colorRotationPreviewTimer) {
             m_colorRotationPreviewTimer->stop();
         }
+        if (m_runtimeRotationTimer) {
+            m_runtimeRotationTimer->stop();
+        }
+        if (m_runtimeView.isPlaying()) {
+            m_runtimeView.stopPlayback();
+            if (m_preview) {
+                m_preview->update();
+            }
+        }
         if (m_preview) {
             m_preview->setColorRotationPreviewElapsedMs(std::nullopt);
         }
@@ -1941,14 +2076,128 @@ void MainWindow::setPlaybackRunning(bool running)
         m_canvasStack->setCurrentWidget(m_preview);
     }
     m_playbackElapsedTimer.restart();
-    if (m_preview) {
-        m_preview->setColorRotationPreviewElapsedMs(0);
-    }
     m_playbackTimer->start(playbackIntervalForCurrentFrame());
-    if (m_colorRotationPreviewTimer) {
-        m_colorRotationPreviewTimer->start();
+    if (m_runtimeView.isEnabled()) {
+        // libserum plays: it keeps its state from frame to frame and rotates the colors.
+        m_runtimeView.startPlayback(playbackFrameOrder());
+        if (m_preview) {
+            m_preview->update();
+        }
+        startRuntimeRotations();
+    } else {
+        if (m_preview) {
+            m_preview->setColorRotationPreviewElapsedMs(0);
+        }
+        if (m_colorRotationPreviewTimer) {
+            m_colorRotationPreviewTimer->start();
+        }
     }
     updatePlaybackControls();
+}
+
+std::vector<std::size_t> MainWindow::playbackFrameOrder() const
+{
+    std::vector<std::size_t> order;
+    if (!m_frameList) {
+        return order;
+    }
+    const int rows = m_frameList->count();
+    const int start = std::max(0, m_frameList->currentRow());
+    order.reserve(static_cast<std::size_t>(rows));
+    for (int offset = 0; offset < rows; ++offset) {
+        const QListWidgetItem* item = m_frameList->item((start + offset) % rows);
+        if (item) {
+            order.push_back(static_cast<std::size_t>(item->data(Qt::UserRole).toULongLong()));
+        }
+    }
+    return order;
+}
+
+void MainWindow::setRuntimeViewEnabled(bool enabled)
+{
+    if (m_runtimeView.isEnabled() == enabled) {
+        updateRuntimeViewControls();
+        return;
+    }
+    setPlaybackRunning(false);
+    if (enabled) {
+        leaveSpriteCanvas();
+        m_canvasEdit.cancelFreeGradient();
+        if (m_preview) {
+            m_preview->clearPreviewPixels();
+        }
+        // The plane the editing mode is on is the one shown first.
+        m_runtimeView.setRows(m_activeResolution == render::Resolution::Hd
+                                  ? runtime::PlaneRequest::Rows64
+                                  : runtime::PlaneRequest::Rows32);
+    }
+    m_runtimeView.setEnabled(enabled);
+    updateRuntimeViewControls();
+}
+
+void MainWindow::setRuntimeViewRows(runtime::PlaneRequest rows)
+{
+    if (m_runtimeView.rows() == rows) {
+        return;
+    }
+    setPlaybackRunning(false);
+    m_runtimeView.setRows(rows);
+    updateRuntimeViewControls();
+}
+
+void MainWindow::updateRuntimeViewControls()
+{
+    const bool enabled = m_runtimeView.isEnabled();
+    const bool twoPlanes =
+        m_document && runtime::planeRequestsFor(m_document->geometry()).size() > 1;
+    if (m_runtimeViewAction) {
+        const QSignalBlocker blocker(m_runtimeViewAction);
+        m_runtimeViewAction->setChecked(enabled);
+    }
+    const bool rows64 = !m_document || m_runtimeView.rowsFor(m_document->geometry()) ==
+                                           runtime::PlaneRequest::Rows64;
+    if (m_runtimeRows32Action && m_runtimeRows64Action) {
+        m_runtimeRows32Action->setVisible(twoPlanes);
+        m_runtimeRows64Action->setVisible(twoPlanes);
+        m_runtimeRows32Action->setEnabled(enabled && twoPlanes);
+        m_runtimeRows64Action->setEnabled(enabled && twoPlanes);
+        (rows64 ? m_runtimeRows64Action : m_runtimeRows32Action)->setChecked(true);
+    }
+    updateCanvasModeButtons();
+    updateFrameStatusText();
+    if (m_preview) {
+        m_preview->update();
+    }
+}
+
+void MainWindow::startRuntimeRotations()
+{
+    if (!m_runtimeRotationTimer) {
+        return;
+    }
+    m_runtimeRotationTimer->stop();
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || !m_runtimeView.isPlaying()) {
+        return;
+    }
+    const uint32_t nextMs = m_runtimeView.frame(*m_document, *frameIndex).nextRotationMs;
+    if (nextMs > 0) {
+        m_runtimeRotationTimer->start(static_cast<int>(nextMs));
+    }
+}
+
+void MainWindow::stepRuntimeRotations()
+{
+    if (!m_runtimeView.isPlaying()) {
+        return;
+    }
+    const uint32_t nextMs = m_runtimeView.rotate();
+    if (m_preview) {
+        m_preview->update();
+    }
+    if (nextMs > 0) {
+        m_runtimeRotationTimer->start(static_cast<int>(nextMs));
+    }
 }
 
 void MainWindow::advancePlaybackFrame()
@@ -1989,6 +2238,22 @@ int MainWindow::playbackIntervalForCurrentFrame() const
     return static_cast<int>(durationMs);
 }
 
+void MainWindow::updateCanvasModeButtons()
+{
+    const bool hasDocument = m_document.has_value();
+    const bool twoPlanes = !isHdOnlyProject() && !isOriginalPlaneOnlyProject();
+    // In the Runtime view the plane is chosen in the Edit menu and no overlay is drawn.
+    const bool editing = !m_runtimeView.isEnabled();
+    m_sdButton->setEnabled(hasDocument && twoPlanes && editing);
+    m_hdButton->setEnabled(hasDocument && twoPlanes && editing);
+    m_comparisonMaskOverlayButton->setEnabled(hasDocument && editing);
+    m_dynamicMaskOverlayButton->setEnabled(hasDocument && editing);
+    m_backgroundMaskOverlayButton->setEnabled(hasDocument && editing);
+    for (QToolButton* button : m_toolButtons) {
+        button->setEnabled(editing);
+    }
+}
+
 void MainWindow::updateResolutionMode()
 {
     const bool hasDocument = m_document.has_value();
@@ -2003,11 +2268,7 @@ void MainWindow::updateResolutionMode()
     const bool twoPlanes = !hdOnly && !originalOnly;
     m_sdButton->setVisible(twoPlanes);
     m_hdButton->setVisible(twoPlanes);
-    m_sdButton->setEnabled(hasDocument && twoPlanes);
-    m_hdButton->setEnabled(hasDocument && twoPlanes);
-    m_comparisonMaskOverlayButton->setEnabled(hasDocument);
-    m_dynamicMaskOverlayButton->setEnabled(hasDocument);
-    m_backgroundMaskOverlayButton->setEnabled(hasDocument);
+    updateCanvasModeButtons();
     if (m_framePanel) {
         m_framePanel->setImportImageEnabled(hasDocument && !selectedFrameIndices().empty());
     }
@@ -4379,6 +4640,9 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             updateProjectHeaderStatus();
             break;
     }
+    if (m_runtimeView.isEnabled()) {
+        m_preview->update();
+    }
 }
 
 std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
@@ -4596,6 +4860,10 @@ void MainWindow::updateUndoRedoActions()
 
 void MainWindow::updateProjectHeaderStatus()
 {
+    // Called after every change of the document: the Runtime view shows the document.
+    if (m_runtimeView.isEnabled() && m_preview) {
+        m_preview->update();
+    }
     if (!m_document) {
         setStatusText(QStringLiteral("No project loaded"));
         return;

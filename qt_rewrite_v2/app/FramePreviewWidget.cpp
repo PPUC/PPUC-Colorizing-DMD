@@ -10,6 +10,7 @@
 
 #include "FrameImageUtils.h"
 #include "PlaneLabels.h"
+#include "RuntimeView.h"
 
 namespace colorizing::app {
 
@@ -24,6 +25,12 @@ void FramePreviewWidget::setDocument(const document::ProjectDocument* document)
 {
     m_document = document;
     m_hasFrame = false;
+    update();
+}
+
+void FramePreviewWidget::setRuntimeView(RuntimeView* runtimeView)
+{
+    m_runtimeView = runtimeView;
     update();
 }
 
@@ -258,6 +265,10 @@ void FramePreviewWidget::paintEvent(QPaintEvent* event)
 
 void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
 {
+    if (showsRuntimeView()) {
+        QWidget::mousePressEvent(event);
+        return;
+    }
     if (event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
@@ -285,6 +296,10 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
 
 void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
 {
+    if (showsRuntimeView()) {
+        // A stroke that was under way when the view was switched on is dropped.
+        m_strokeStart.reset();
+    }
     if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == m_strokeStart->region &&
@@ -299,6 +314,9 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
 
 void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (showsRuntimeView()) {
+        m_strokeStart.reset();
+    }
     if (event->button() == Qt::LeftButton && m_strokeStart) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         const std::optional<render::CanvasHit> start = m_strokeStart;
@@ -316,6 +334,12 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
     QWidget::mouseReleaseEvent(event);
 }
 
+bool FramePreviewWidget::showsRuntimeView() const
+{
+    return m_runtimeView && m_runtimeView->isEnabled() && m_document && m_hasFrame &&
+           m_frameIndex < m_document->frameCount();
+}
+
 render::CanvasLayout FramePreviewWidget::currentLayout() const
 {
     const bool hasHd = m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
@@ -323,8 +347,11 @@ render::CanvasLayout FramePreviewWidget::currentLayout() const
     // An HD-only project has no SD plane to fall back to.
     const bool hdOnly = m_document && m_document->rendersHdPlaneOnly();
     return render::CanvasLayout::buildFrameLayout({
-        hdOnly ? render::Resolution::Hd
-               : hasHd ? m_activeResolution : render::Resolution::Sd,
+        // libserum's 64-row plane exists for a frame without HD too.
+        showsRuntimeView() ? m_runtimeView->layoutPlane(m_document->geometry())
+        : hdOnly           ? render::Resolution::Hd
+        : hasHd            ? m_activeResolution
+                           : render::Resolution::Sd,
         true,
         false,
         hasHd,
@@ -380,8 +407,12 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
     painter.translate(origin);
     painter.scale(scale, scale);
 
+    const bool runtimeView = showsRuntimeView();
     for (const render::CanvasRegionLayout& region : layout.regions()) {
         paintRegion(painter, region);
+        if (runtimeView) {
+            continue;
+        }
         paintComparisonMaskOverlay(painter, region);
         paintDynamicMaskOverlay(painter, region);
         paintBackgroundMaskOverlay(painter, region);
@@ -392,6 +423,10 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
 
     painter.restore();
 
+    if (runtimeView) {
+        paintRuntimeViewTexts(painter, layout);
+        return;
+    }
     const std::optional<render::CanvasRegionLayout> colorized =
         layout.region(render::CanvasRegion::ColorizedFrame);
     if (colorized && isHdFrameMissing() && !m_showBackgroundImageEditMode) {
@@ -405,6 +440,39 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
                          QStringLiteral("No %1 frame: the runtime shows nothing for this "
                                         "frame.\nUse Create %1 Frame.")
                              .arg(nativePlaneText(*m_document)));
+    }
+}
+
+// Above the picture, never over it: what is shown and that it cannot be edited; and in place
+// of the picture, why libserum has none.
+void FramePreviewWidget::paintRuntimeViewTexts(QPainter& painter,
+                                              const render::CanvasLayout& layout)
+{
+    const std::optional<render::CanvasRegionLayout> colorized =
+        layout.region(render::CanvasRegion::ColorizedFrame);
+    if (!colorized) {
+        return;
+    }
+    const double scale = currentDisplayScale(layout);
+    const QPointF origin = currentDisplayOrigin(layout);
+    const QRectF pictureRect(origin.x() + colorized->displayRect.x * scale,
+                             origin.y() + colorized->displayRect.y * scale,
+                             colorized->displayRect.width * scale,
+                             colorized->displayRect.height * scale);
+    const int rows =
+        m_runtimeView->rowsFor(m_document->geometry()) == runtime::PlaneRequest::Rows64 ? 64 : 32;
+    painter.setPen(QColor(120, 200, 255));
+    painter.drawText(QRectF(0, std::max(0.0, pictureRect.top() - 18.0), width(), 16.0),
+                     Qt::AlignHCenter | Qt::AlignVCenter,
+                     QStringLiteral("Runtime view: libserum output, %1 rows%2. Editing is off.")
+                         .arg(rows)
+                         .arg(m_runtimeView->isPlaying() ? QStringLiteral(", playing")
+                                                         : QString()));
+    const QString message =
+        QString::fromStdString(m_runtimeView->message(*m_document, m_frameIndex));
+    if (!message.isEmpty()) {
+        painter.setPen(QColor(255, 120, 120));
+        painter.drawText(pictureRect, Qt::AlignCenter | Qt::TextWordWrap, message);
     }
 }
 
@@ -425,6 +493,11 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
 
     if (drawOriginal) {
         original = &m_document->originalFrame(m_frameIndex);
+    } else if (showsRuntimeView()) {
+        colorized = m_runtimeView->image(*m_document, m_frameIndex);
+        if (colorized && colorized->size != region.logicalSize) {
+            colorized = nullptr;
+        }
     } else {
         if (drawBackgroundImage &&
             m_selectedBackgroundIndex &&

@@ -15,11 +15,17 @@
 
 namespace colorizing::app {
 
+class RuntimeView;
+
 class FramePreviewWidget final : public QWidget {
 public:
     explicit FramePreviewWidget(QWidget* parent = nullptr);
 
     void setDocument(const document::ProjectDocument* document);
+    // While the view is enabled the colorized region shows libserum's output for the frame
+    // instead of the editable layers, overlays are not drawn and the mouse does nothing.
+    // Not owned; has to outlive the widget or be reset.
+    void setRuntimeView(RuntimeView* runtimeView);
     void setFrameIndex(std::size_t frameIndex);
     void setActiveResolution(render::Resolution resolution);
     void setComparisonMaskOverlayEnabled(bool enabled);
@@ -58,6 +64,8 @@ protected:
 
 private:
     [[nodiscard]] render::CanvasLayout currentLayout() const;
+    [[nodiscard]] bool showsRuntimeView() const;
+    void paintRuntimeViewTexts(QPainter& painter, const render::CanvasLayout& layout);
     // The frame of an HD-only project has no HD data: nothing to show or to paint on.
     [[nodiscard]] bool isHdFrameMissing() const;
     [[nodiscard]] double currentDisplayScale(const render::CanvasLayout& layout) const;
@@ -73,6 +81,7 @@ private:
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
 
     const document::ProjectDocument* m_document = nullptr;
+    RuntimeView* m_runtimeView = nullptr;
     std::size_t m_frameIndex = 0;
     bool m_hasFrame = false;
     bool m_showComparisonMaskOverlay = false;

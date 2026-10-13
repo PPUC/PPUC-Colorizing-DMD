@@ -18,6 +18,7 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacySnapshotBuilder.cpp
     render/CanvasLayout.cpp
     render/ProjectGeometry.cpp
+    runtime/RuntimePreview.cpp
 )
 
 target_include_directories(colorizing_qt_v2_core
@@ -25,8 +26,8 @@ target_include_directories(colorizing_qt_v2_core
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# PRIVATE: only legacy/LegacyCrzArchive.cpp includes libserum headers, and they must not reach
-# the targets that link the core.
+# PRIVATE: only legacy/LegacyCrzArchive.cpp and runtime/RuntimePreview.cpp include libserum
+# headers, and they must not reach the targets that link the core.
 target_link_libraries(colorizing_qt_v2_core
     PRIVATE
         serum_static

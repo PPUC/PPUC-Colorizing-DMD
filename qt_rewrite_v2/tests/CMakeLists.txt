@@ -20,6 +20,7 @@ add_executable(colorizing_qt_v2_tests
     NativeOriginalProjectTests.cpp
     ProjectDocumentTests.cpp
     ProjectGeometryTests.cpp
+    RuntimePreviewTests.cpp
 )
 
 target_link_libraries(colorizing_qt_v2_tests
@@ -47,9 +48,11 @@ if(TARGET colorizing_qt_v2_widgets)
     add_executable(colorizing_qt_v2_widget_tests
         BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
+        EditorMatchesRuntimeTests.cpp
         FramePreviewWidgetRenderTests.cpp
         NativeOriginalWidgetTests.cpp
         PlaneLabelsWidgetTests.cpp
+        RuntimeViewWidgetTests.cpp
     )
 
     target_link_libraries(colorizing_qt_v2_widget_tests
@@ -60,4 +63,16 @@ if(TARGET colorizing_qt_v2_widgets)
     colorizing_qt_v2_enable_test_warnings(colorizing_qt_v2_widget_tests)
 
     add_test(NAME colorizing_qt_v2_widget_tests COMMAND colorizing_qt_v2_widget_tests)
+
+    # Manual check against real projects: where the editor's renderer differs from libserum.
+    add_executable(colorizing_qt_v2_preview_diff
+        PreviewDiffTool.cpp
+    )
+
+    target_link_libraries(colorizing_qt_v2_preview_diff
+        PRIVATE
+            colorizing_qt_v2_widgets
+    )
+
+    colorizing_qt_v2_enable_warnings(colorizing_qt_v2_preview_diff)
 endif()
