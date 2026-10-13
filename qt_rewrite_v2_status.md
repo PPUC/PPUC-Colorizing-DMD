@@ -34,8 +34,8 @@ neither of those holds.
   `Serum_CRZ_*` API.
   - `master` = cRZ API + native 256x64 rendering + two sprite/plane fixes (merged by the owner
     after an author confirmed the Ghostbusters fix on a real DMD).
-  - `many_optimizations` = `master` + `4947104` (internal seam for the hot-path functions with
-    reference implementations, debug-only hashing; local only).
+  - `master` is one local commit ahead of `origin/master` (`4947104`, internal refactoring,
+    output unchanged).
 
 ## Editor commits so far (oldest first)
 
@@ -183,10 +183,8 @@ neither of those holds.
   or disappeared stayed on the 64-row plane. Fixed in `c584161`.
 - A 64-row plane painted by the monochrome fallback was kept for the next identified frame.
   Fixed in `789f410`.
-- `many_optimizations` (`4947104`): the hot-path helpers (CRC-32, value unpacking, sprite word
-  search and area matching, rotation queries, line-doubled compositing) sit behind an internal
-  seam, `src/serum-accel.h`, with reference implementations in the tree; `SERUM_ACCEL_DIR` can
-  swap in other implementations at build time. Output is bit-identical to `master`.
+- `4947104`: internal decoder helpers moved into their own source file; debug-only hashes are
+  computed only when a debug switch asks for them. Output is bit-identical.
 - Not touched and not testable on a Mac: everything behind `is_real_machine()`.
 
 ## Test material (read-only, never commit)
