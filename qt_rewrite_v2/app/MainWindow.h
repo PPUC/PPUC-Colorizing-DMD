@@ -12,6 +12,7 @@
 #include "CanvasEditController.h"
 #include "document/ProjectDocument.h"
 #include "edit/DrawingTools.h"
+#include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
@@ -26,6 +27,7 @@ class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
 class PalettePanel;
+class RecordListPage;
 class SpritePanel;
 class SpriteEditorWidget;
 }
@@ -196,6 +198,35 @@ private:
     // For a command that has been applied already.
     void recordEdit(std::unique_ptr<edit::EditCommand> command);
     void refreshAfterEdit(const edit::EditCommand& command);
+    // Adding and deleting records, see edit::StructureCommand. The delete functions ask
+    // before they delete.
+    void deleteSelectedFrames();
+    // Asks for the duration and deletes the selected frames that are shorter.
+    void deleteSelectedFramesShorterThan();
+    // note: what chose the frames, for the question; empty for the selection itself.
+    void deleteFrames(const std::vector<std::size_t>& frameIndices, const QString& note);
+    void addSprite();
+    void deleteSelectedSprite();
+    void addBackgroundFromCurrentFrame();
+    void deleteSelectedBackground();
+    void addComparisonMask();
+    void deleteSelectedComparisonMask();
+    [[nodiscard]] bool confirmDeletion(const QString& title,
+                                       const QString& question,
+                                       const QString& consequences);
+    // For a command that has been applied already.
+    void recordStructureEdit(std::unique_ptr<edit::StructureCommand> command);
+    // After a structure command ran in either direction: stops playback, drops the canvas
+    // selections, moves the frame, mask, background or sprite selection to the added or
+    // restored record or to the neighbour of a deleted one, and refreshes every view.
+    void refreshAfterStructureEdit(const edit::StructureCommand& command);
+    // Texts and thumbnails of the frame list rows after a change that leaves the frames
+    // where they are; the list is rebuilt only if other frames match the filter now.
+    void refreshFrameListItems();
+    // Makes the frame, or the nearest listed frame behind it, the current one.
+    void selectFrameNear(std::size_t frameIndex);
+    // Enabled state of the Delete Frames actions and of New and Delete on the browser pages.
+    void updateStructureControls();
     [[nodiscard]] std::vector<edit::HistoryKey> currentHistoryKeys() const;
     [[nodiscard]] std::optional<std::size_t> currentComparisonMaskIndex() const;
     [[nodiscard]] bool isComparisonMaskModeActive() const;
@@ -249,6 +280,10 @@ private:
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
     QAction* m_saveAction = nullptr;
+    QAction* m_deleteFramesAction = nullptr;
+    // The same in the frame list's menu, with the Delete and Backspace keys.
+    QAction* m_deleteFramesListAction = nullptr;
+    QAction* m_deleteShortFramesAction = nullptr;
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;
@@ -262,6 +297,9 @@ private:
     QListWidget* m_backgroundList = nullptr;
     QListWidget* m_spriteList = nullptr;
     QComboBox* m_frameFilterComboBox = nullptr;
+    RecordListPage* m_maskPage = nullptr;
+    RecordListPage* m_backgroundPage = nullptr;
+    RecordListPage* m_spritePage = nullptr;
     QToolButton* m_sdButton = nullptr;
     QToolButton* m_hdButton = nullptr;
     QToolButton* m_comparisonMaskOverlayButton = nullptr;

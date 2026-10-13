@@ -60,8 +60,10 @@ neither of those holds.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).
-  - `edit/`: `EditCommand` (all undoable commands), `UndoHistories` (scoped stacks with a global
-    sequence for chronological undo), `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`.
+  - `edit/`: `EditCommand` (the undoable edits of record content), `StructureCommand` (adding
+    and deleting records, see "Record management" below), `UndoHistories` (scoped stacks with a
+    global sequence for chronological undo; drops histories that name renumbered records),
+    `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`.
   - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
     plane layouts; `ProjectSnapshot` and `ProjectDocument` carry it).
   - `runtime/`: `RuntimePreview`, the libserum-backed renderer (the only other file that
@@ -82,7 +84,8 @@ neither of those holds.
   (state of the canvas's Runtime view: on/off, plane, playback, cached libserum output),
   `LazyListIcons`
   (frame list thumbnails built for the rows in view), `PlaneLabels` (the one place that decides
-  where the UI says "HD"/"SD" and what a single plane is called), seven panels under `panels/`.
+  where the UI says "HD"/"SD" and what a single plane is called), seven panels under `panels/`
+  and `panels/RecordListPage` (a list of the left browser with `New` and `Delete` above it).
 - `tests/`: core test executable, widget test executable, `colorizing_qt_v2_roundtrip`
   (loads a real project, re-serializes, reports per block where it differs from disk; for a
   192x64 project differences in extra-plane blocks are reported as expected) and
@@ -90,7 +93,7 @@ neither of those holds.
   renderer and with libserum and reports the differing pixels by class; with `--playback` it
   plays the frames through the runtime preview's windows and through the whole project and
   compares every step).
-- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 660 scripted
+- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 745 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
 
@@ -106,7 +109,11 @@ neither of those holds.
   dynamic masks/colours/shadows, backgrounds, sprites (capture, slots, detection areas, HD),
   palettes, colour rotations, frame settings, image import, PNG export, playback.
 - Undo: scoped histories, chronological within a context, covers pixel edits, masks, dynamic
-  colours and shadows, palettes, frame settings, HD create/remove for frames and sprites.
+  colours and shadows, palettes, frame settings, HD create/remove for frames and sprites, and
+  adding and deleting records.
+- Record management: delete the selected frames, delete the selected frames shorter than N ms,
+  add and delete sprites, backgrounds and comparison masks, all undoable, with every reference
+  and the cRP tables following. See "Record management" below.
 - 256x64-original projects: open, edit and save as native HD only (see below).
 - 192x64-original projects: open, edit and save on the native 192x64 plane only (see below).
 - Runtime view (`View -> Runtime View`, `Ctrl+R`, and a checkable `Runtime` toolbar button
@@ -199,6 +206,64 @@ filter `Not rendered`), repair `Create 256x64 Frame` / `Create 256x64 Sprite`. A
 has no Create or Remove button. Details and the full table are in the Handbook, "SD And HD
 Modes".
 
+## Record management
+
+Added 2026-10-14. Not committed yet at the time of writing.
+
+- `ProjectDocument` has a `remove...()` / `insert...()` pair per record kind (frames, sprite,
+  background, comparison mask) and `append...()` for the three that can be added. A removal
+  hands back what it took out (`RemovedFrames`, `RemovedSprite`, ...): the records, moved and
+  not copied, the frame references it cleared, and the cRP tables it changed
+  (`RecordTables`: mask names, sections, the four sprite tables) as a whole, so that the insert
+  restores every byte, used or not.
+- `edit::StructureCommand` moves records between the document and itself. A deletion takes them
+  again on every apply, so a redo keeps edits made after an undo. An addition is the same
+  class the other way round. Factories: `deleteFrames` (any frame set, for the later
+  "delete same frames"), `framesShorterThan`, `addSprite`, `deleteSprite`,
+  `addBackgroundFromFrame`, `deleteBackground`, `addComparisonMask`, `deleteComparisonMask`.
+- All structure commands are in one history (`structureHistoryKey()`), which is part of every
+  undo context, so they are undone in reverse order and each runs against the numbering it was
+  made for.
+- History invalidation: every `EditCommand` says which records it names
+  (`recordReferences()`, pure virtual: the frame, mask, background or sprite it edits and each
+  ID it writes, e.g. the old and new background of a `BG ID` edit, the background of a
+  `Create HD`). A structure command says from which index on a kind is renumbered
+  (`renumberedRecords()`), and `UndoHistories` drops every history that holds a command naming
+  such a record, on push, undo and redo. Dropped, not renumbered: what is left needs no proof
+  beyond "no remaining command names a record whose number changed". A new undoable command
+  that names a record (sprite slot edits, when they become undoable) has to list it in
+  `recordReferences()`; a new command that changes the cRP tables in `RecordTables` (sections,
+  sprite source data) has to be a structure command or the wholesale restore of those tables
+  would undo it silently.
+- Rules followed, with the Win32 source (`git show master:ColorizingDMD.cpp`): `Delete_Frame`
+  (4366), `Del_Section_Frame` (5279) and `Delete_Section` (5143), `Delete_Sprite` (5153), the
+  `IDC_ADDSPRITE` handler (17957), `AddBackground` (21002), `DeleteBackground` (21079), the
+  `IDC_MASKLIST` handler (16360), `IDC_DELFRAME` and `IDC_DELDURFRAME` (16564, 16585).
+- Deviations from the Win32 editor, on purpose: a section emptied at the end of the project is
+  removed (Win32 keeps it pointing behind the last frame); a table entry vacated by a deleted
+  sprite, section or mask is cleared (Win32 leaves a copy of the last entry); a new sprite gets
+  "no source rectangle" (`0xFFFF`) and colours 0 (Win32 leaves both as they were in memory); a
+  sprite that is in two neighbouring slots of a frame is removed from both (Win32's loop skips
+  the second); deleting a comparison mask exists at all; all frames cannot be deleted (Win32
+  stops at the last one); every deletion asks first.
+- Checked on real projects with a scratch program (not in the repository): delete a spread of
+  frames, the most used sprite, background and mask, add one of each, save, reload, compare
+  with expectations computed from the loaded file alone (the Win32 rules applied frame by
+  frame). `smb3`: 76 frames deleted, 4354 compared, 923 sprite slots removed and 22496
+  renumbered, 478 background IDs cleared and 143 renumbered, 625 mask IDs cleared and 930
+  renumbered, 0 mismatches; `trn_174h`: 208 frames deleted, 5003 compared, 70 sections became
+  65, 0 mismatches; `afm_113b`: 85 deleted, 2962 compared, 68 sections became 66, 0
+  mismatches. For all three: the saved files round-trip identical, `preview_diff` reports the
+  native plane identical for every frame, libserum loads the complete saved cROM (`smb3`
+  played through, no frame unidentified), and undoing all commands serializes to the bytes of
+  the original files.
+- Memory: a frame deletion keeps the deleted `FrameRecord`s, moved. Nothing is allocated or
+  copied (0.6 ms for 11198 frames of `frankst1`, 0.7 ms for the undo), and nothing is released
+  until the command leaves the history: 62.6 KB per frame for `frankst1` (669 MB for all
+  frames), 56.9 KB for `smb3`, 89.6 KB for `trn_174h`. Memory use therefore never rises through
+  a deletion; it just does not fall. If it ever should, the held records of a large deletion
+  can be spilled to a temporary file as the Win32 editor does for its undo buffer; not built.
+
 ## Dynamic data and the HD plane (ordinary projects)
 
 libserum renders the 64-row picture of a 128x32 colorization in layers (`Colorize_Framev2`,
@@ -289,6 +354,14 @@ for `frankst1`. Memory stays that of a window.
    editor's canvas, classed as edge rounding of upscaled dynamic text. Only the Runtime view shows
    that exactly. Open whether the canvas should say so or try to reproduce it.
 
+9. **Record management, to confirm:** deleting a comparison mask that frames use is allowed
+   after a question that names the frames (they are then compared without a mask); the
+   alternative is to refuse while it is in use, but there is no way yet to list the frames of a
+   mask. A section emptied at the end of the project is removed. `Delete` and `Backspace`
+   delete frames while the frame list has the focus (after the question). The duration preset
+   of `Delete Frames Shorter Than...` is 15 ms. A new background takes the stored colorized
+   frame (Win32 `AddBackground`), while `Frame -> BG` copies the composed picture.
+
 Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
 owner together.
 
@@ -303,6 +376,21 @@ owner together.
   `frankst1` and from 1.4 GB to 1.2 GB for `trn_174h`.
 - The mask, background and sprite lists of the left sidebar still build every icon at once and
   rebuild all of them on many updates. Their counts are small, so this was left as it is.
+- Adding or deleting a record rebuilds the three browser lists and, for frames, the frame list
+  (texts of all rows; thumbnails stay lazy). Deleting frames loses the scroll position of the
+  frame list to the newly selected frame.
+- The sprite `Capture` dialog still shows a disabled `Create New` with the text that creating a
+  sprite is not available; `New` on the `Sprites` page does it. Wiring the button to
+  `edit::addSprite` is a small step.
+- `Remove` on the `Sprite` page clears a slot in place. libserum's sprite list of a frame ends
+  at the first empty slot, so sprites in the slots behind it are no longer looked for (the
+  Handbook says so). Deleting a sprite closes the gap; `Remove` does not.
+- `ProjectDocument::setComparisonMaskId` and `setBackgroundId` accept IDs of records that do
+  not exist. The UI does not offer them, and the record operations never produce them.
+- libserum keeps the 256x64 dynamic data of sprite N only if frame N has 256x64 data
+  (the flag array of the frames is indexed with the sprite number). In a 256x64 project the
+  picture of a frame with sprites can therefore change when frames before it are deleted.
+  Seen in the tests; a libserum matter.
 - Error texts that come from `ProjectDocument` exceptions and reach the status bar were only
   partly reworded for single-plane projects ("256x64 frame is not available"); other core
   messages may still say "HD" there.
@@ -359,11 +447,10 @@ owner together.
 ## Feature parity still missing against 3.17.3
 
 - New project and "add frames" from a TXT dump, with the import filter and dedupe.
-- Frame delete (selected, by duration, same frames), same-frame lists, "spot common".
-- Add and delete sprites, backgrounds and comparison masks (the serializer supports changing
-  counts; the document and UI do not yet).
+- "Delete same frames", same-frame lists, "spot common" (`edit::deleteFrames` takes any frame
+  set, so only the same-frame logic is missing).
 - Sections (list, add, rename, delete, reorder) and the trigger list. The data is loaded and
-  saved, there is no UI.
+  saved and follows frame deletions; there is no UI.
 - Copy/paste, auto copy, scrolling auto fill, selection helpers, mirror.
 - Colour sets, edit colours, colour picker dialog, colour-set replace drawing mode.
 - Sprite dynamic masks and colours, sprite shape mode (data modelled, no UI).
@@ -390,8 +477,10 @@ owner together.
 4. Fix the remaining editor bugs listed above.
 5. Continue shrinking `MainWindow`: toolbar and tool state, frame list and playback, file
    handling.
-6. Feature parity, most used first: add/delete of frames, sprites and backgrounds; sections and
-   triggers; copy/paste; TXT import.
+6. Feature parity. Done: deleting frames, adding and deleting sprites, backgrounds and
+   comparison masks. Next: TXT dump import with "new project", "add frames" and the same-frame
+   tools (dedupe, "delete same frames"); then colour-set drawing and copy/paste; then sections
+   and triggers.
 7. Later, by decision of the owner: memory use, save speed, a new project format.
 
 ## libserum work done in this effort
@@ -442,7 +531,7 @@ cmake --build <build dir>
 <build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP   # native plane identical
 <build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP --playback 48   # playback like the whole project
 qt_rewrite_v2/tools/ui_dump/run.sh baseline   # before a change
-qt_rewrite_v2/tools/ui_dump/run.sh after      # after it
+qt_rewrite_v2/tools/ui_dump/run.sh after      # after it (--allow-appended for new states)
 ```
 
 The build is warning-free with `-Wall -Wextra` and must stay so.

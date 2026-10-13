@@ -136,6 +136,7 @@ void runNativeOriginalProjectTests();
 void runProjectGeometryTests();
 void runRuntimePreviewTests();
 void runPlaybackIdentificationTests();
+void runStructureCommandTests();
 
 int main()
 {
@@ -156,6 +157,7 @@ int main()
     runProjectGeometryTests();
     runRuntimePreviewTests();
     runPlaybackIdentificationTests();
+    runStructureCommandTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

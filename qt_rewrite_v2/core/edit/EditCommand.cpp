@@ -10,6 +10,11 @@ std::vector<ReplacedData> EditCommand::replacedData() const
     return {};
 }
 
+std::vector<RenumberedRecords> EditCommand::renumberedRecords() const
+{
+    return {};
+}
+
 PixelEditCommand::PixelEditCommand(EditKind kind,
                                    std::size_t index,
                                    render::Resolution resolution,
@@ -42,6 +47,15 @@ EditTarget PixelEditCommand::target() const
         target.frameIndices.push_back(m_index);
     }
     return target;
+}
+
+std::vector<RecordReference> PixelEditCommand::recordReferences() const
+{
+    const RecordKind kind = m_kind == EditKind::FramePixels
+                                ? RecordKind::Frame
+                                : m_kind == EditKind::BackgroundImage ? RecordKind::Background
+                                                                      : RecordKind::Sprite;
+    return {{kind, m_index}};
 }
 
 void PixelEditCommand::write(document::ProjectDocument& document, bool useNewColor) const
@@ -80,6 +94,11 @@ EditTarget BackgroundHdCreateCommand::target() const
     return EditTarget{EditKind::BackgroundImage, m_backgroundIndex, render::Resolution::Hd, {}};
 }
 
+std::vector<RecordReference> BackgroundHdCreateCommand::recordReferences() const
+{
+    return {{RecordKind::Background, m_backgroundIndex}};
+}
+
 MaskEditCommand::MaskEditCommand(EditKind kind,
                                  std::size_t index,
                                  render::Resolution resolution,
@@ -112,6 +131,12 @@ EditTarget MaskEditCommand::target() const
         target.frameIndices.push_back(m_index);
     }
     return target;
+}
+
+std::vector<RecordReference> MaskEditCommand::recordReferences() const
+{
+    return {{m_kind == EditKind::ComparisonMask ? RecordKind::ComparisonMask : RecordKind::Frame,
+             m_index}};
 }
 
 void MaskEditCommand::write(document::ProjectDocument& document, bool useNewValue) const
@@ -166,6 +191,11 @@ EditTarget DynamicColorEditCommand::target() const
     return EditTarget{EditKind::DynamicColor, m_frameIndex, m_resolution, {m_frameIndex}};
 }
 
+std::vector<RecordReference> DynamicColorEditCommand::recordReferences() const
+{
+    return {{RecordKind::Frame, m_frameIndex}};
+}
+
 DynamicShadowEditCommand::DynamicShadowEditCommand(std::size_t frameIndex,
                                                    render::Resolution resolution,
                                                    std::size_t setIndex,
@@ -194,6 +224,11 @@ void DynamicShadowEditCommand::revert(document::ProjectDocument& document) const
 EditTarget DynamicShadowEditCommand::target() const
 {
     return EditTarget{EditKind::DynamicShadow, m_frameIndex, m_resolution, {m_frameIndex}};
+}
+
+std::vector<RecordReference> DynamicShadowEditCommand::recordReferences() const
+{
+    return {{RecordKind::Frame, m_frameIndex}};
 }
 
 void DynamicShadowEditCommand::write(document::ProjectDocument& document, bool useNewValue) const
@@ -233,6 +268,11 @@ void PaletteEditCommand::revert(document::ProjectDocument& document) const
 EditTarget PaletteEditCommand::target() const
 {
     return EditTarget{EditKind::Palette, m_paletteIndex, render::Resolution::Sd, {}};
+}
+
+std::vector<RecordReference> PaletteEditCommand::recordReferences() const
+{
+    return {};
 }
 
 void PaletteEditCommand::write(document::ProjectDocument& document, bool useNewColor) const
@@ -333,6 +373,21 @@ EditTarget FrameAttributeEditCommand::target() const
                       {m_frameIndex}};
 }
 
+std::vector<RecordReference> FrameAttributeEditCommand::recordReferences() const
+{
+    std::vector<RecordReference> references{{RecordKind::Frame, m_frameIndex}};
+    for (uint32_t value : {m_oldValue, m_newValue}) {
+        if (m_attribute == FrameAttribute::ComparisonMaskId &&
+            value != document::kNoComparisonMaskId) {
+            references.push_back({RecordKind::ComparisonMask, value});
+        } else if (m_attribute == FrameAttribute::BackgroundId &&
+                   value != document::kNoBackgroundId) {
+            references.push_back({RecordKind::Background, value});
+        }
+    }
+    return references;
+}
+
 FrameAttribute FrameAttributeEditCommand::attribute() const
 {
     return m_attribute;
@@ -363,6 +418,17 @@ EditTarget FrameHdCommand::target() const
                       m_frameIndex,
                       render::Resolution::Sd,
                       {m_frameIndex}};
+}
+
+std::vector<RecordReference> FrameHdCommand::recordReferences() const
+{
+    std::vector<RecordReference> references{{RecordKind::Frame, m_frameIndex}};
+    for (const document::FrameHdState* state : {&m_before, &m_after}) {
+        if (state->background) {
+            references.push_back({RecordKind::Background, state->background->backgroundIndex});
+        }
+    }
+    return references;
 }
 
 std::vector<ReplacedData> FrameHdCommand::replacedData() const
@@ -402,6 +468,11 @@ void SpriteHdCommand::revert(document::ProjectDocument& document) const
 EditTarget SpriteHdCommand::target() const
 {
     return EditTarget{EditKind::SpriteAttributes, m_spriteIndex, render::Resolution::Sd, {}};
+}
+
+std::vector<RecordReference> SpriteHdCommand::recordReferences() const
+{
+    return {{RecordKind::Sprite, m_spriteIndex}};
 }
 
 std::vector<ReplacedData> SpriteHdCommand::replacedData() const

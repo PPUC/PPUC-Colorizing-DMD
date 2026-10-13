@@ -191,6 +191,66 @@ struct SnapshotSubsetMap {
     std::vector<std::size_t> sprites;
 };
 
+constexpr std::size_t kMaxBackgrounds = 255;
+constexpr uint16_t kNoBackgroundId = 0xffff;
+constexpr uint8_t kNoComparisonMaskId = 255;
+constexpr uint8_t kNoSpriteId = 255;
+// SpriteRect[0] of a sprite whose source rectangle is not known.
+constexpr uint16_t kNoSpriteSourceRect = 0xffff;
+
+// The cRP tables that are indexed by a mask, a section or a sprite. A structural edit hands
+// back the tables it changes as a whole, so that undoing it restores every byte of them,
+// including entries behind the last record, which the Win32 editor leaves filled.
+struct RecordTables {
+    std::vector<uint8_t> maskNames;
+    uint32_t sectionCount = 0;
+    std::vector<uint32_t> sectionFirstFrames;
+    std::vector<uint8_t> sectionNames;
+    std::vector<uint8_t> spriteNames;
+    std::vector<uint32_t> spriteSourceFrames;
+    std::vector<uint16_t> spriteSourceRects;
+    std::vector<uint32_t> spriteSourceMirrors;
+};
+
+// What ProjectDocument::removeFrames() took out; insertFrames() puts it back.
+struct RemovedFrames {
+    // Ascending and unique, as the frames were numbered before the removal.
+    std::vector<std::size_t> indices;
+    std::vector<FrameRecord> frames;
+    // The imported palettes of those of the frames that had one, in the order of indices.
+    std::vector<uint8_t> importedPalettes;
+    RecordTables tables;
+};
+
+struct RemovedSpriteReference {
+    std::size_t frameIndex = 0;
+    std::size_t slotIndex = 0;
+    FrameSpriteReference reference;
+};
+
+struct RemovedSprite {
+    std::size_t index = 0;
+    SpriteRecord sprite;
+    // The frame slots that held the sprite, by frame and then by slot.
+    std::vector<RemovedSpriteReference> references;
+    RecordTables tables;
+};
+
+struct RemovedBackground {
+    std::size_t index = 0;
+    BackgroundRecord background;
+    // The frames it was assigned to, ascending.
+    std::vector<std::size_t> frames;
+};
+
+struct RemovedComparisonMask {
+    std::size_t index = 0;
+    IndexedFrame mask;
+    // The frames it was assigned to, ascending.
+    std::vector<std::size_t> frames;
+    RecordTables tables;
+};
+
 class ProjectDocument {
 public:
     [[nodiscard]] static ProjectDocument createEmpty(const ProjectCreateOptions& options);
@@ -426,6 +486,59 @@ public:
                                           int x,
                                           int y) const;
 
+    // Structural edits: records are removed or added, and every ID that refers to a record
+    // of that kind follows. Each remove...() returns what it took out, moved and not copied,
+    // and the matching insert...() puts that back where it was, with the references and
+    // the cRP tables as they were. An insert...() is only meant for the state its
+    // remove...() left behind, apart from edits that neither add nor remove records;
+    // edit::StructureCommand guarantees that by keeping all of them in one undo history.
+    // All of them throw, without changing anything, when the request does not fit the
+    // document.
+
+    [[nodiscard]] RecordTables recordTables() const;
+    void restoreRecordTables(RecordTables tables);
+
+    // Any frames, in any order; none changes nothing. At least one frame has to remain.
+    // What follows a frame in the cRP goes with it: its imported palette, and by the Win32
+    // editor's rules (Delete_Frame, Del_Section_Frame)
+    // - a section starts at the first remaining frame at or behind its first frame, and is
+    //   removed when another section starts between the two or no frame remains there;
+    // - a sprite whose source frame is removed loses its source rectangle
+    //   (kNoSpriteSourceRect), and source frame numbers behind a removed frame move down.
+    [[nodiscard]] RemovedFrames removeFrames(const std::vector<std::size_t>& frameIndices);
+    void insertFrames(RemovedFrames removed);
+
+    // A sprite without any pixel, as the Win32 editor creates it. In a project that renders
+    // its extra plane only it has that plane's data, which the runtime needs.
+    [[nodiscard]] SpriteRecord makeBlankSprite(std::string name) const;
+    [[nodiscard]] bool isSpriteNameUsed(const std::string& name) const;
+    // Returns the new sprite's index. sourceFrameIndex is the frame the cRP records the
+    // sprite as taken from.
+    [[nodiscard]] std::size_t appendSprite(SpriteRecord sprite, std::size_t sourceFrameIndex);
+    // The sprite leaves every frame's slot list, which closes up as the runtime needs it
+    // (a list ends at its first empty slot), and higher sprite IDs move down.
+    [[nodiscard]] RemovedSprite removeSprite(std::size_t spriteIndex);
+    void insertSprite(RemovedSprite removed);
+
+    // The colorized frame as a background, as the Win32 editor's AddBackground takes it:
+    // without extra-plane data in an ordinary project. A project that renders its extra
+    // plane only takes that plane too and needs the frame to have it.
+    [[nodiscard]] BackgroundRecord makeBackgroundFromFrame(std::size_t frameIndex) const;
+    [[nodiscard]] std::size_t appendBackground(BackgroundRecord background);
+    // Frames that used it get kNoBackgroundId, higher background IDs move down.
+    [[nodiscard]] RemovedBackground removeBackground(std::size_t backgroundIndex);
+    void insertBackground(RemovedBackground removed);
+
+    // An empty mask (nothing masked) behind the last one.
+    [[nodiscard]] std::size_t appendComparisonMask();
+    // Frames that used it get kNoComparisonMaskId, higher mask IDs and mask names move down.
+    [[nodiscard]] RemovedComparisonMask removeComparisonMask(std::size_t maskIndex);
+    void insertComparisonMask(RemovedComparisonMask removed);
+    // How many frames a comparison mask, background or sprite is assigned to.
+    [[nodiscard]] std::size_t comparisonMaskUseCount(std::size_t maskIndex) const;
+    [[nodiscard]] std::size_t backgroundUseCount(std::size_t backgroundIndex) const;
+    [[nodiscard]] std::size_t spriteUseCount(std::size_t spriteIndex) const;
+
     void addUnsupportedPayload(UnsupportedLegacyPayload payload);
     [[nodiscard]] const std::vector<UnsupportedLegacyPayload>& unsupportedPayloads() const;
     [[nodiscard]] ProjectSnapshot toSnapshot() const;
@@ -444,6 +557,7 @@ private:
     void requireEditablePlane(Resolution resolution) const;
     void requireEditableExtraPlane() const;
     void requireDynamicPlane(Resolution resolution) const;
+    void requireFittingRecordTables(const RecordTables& tables) const;
     void markChanged();
 
     std::string m_romName;

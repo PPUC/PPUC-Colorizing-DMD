@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 650 scripted states and after each one prints every widget and the relevant
+through about 745 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -254,7 +254,7 @@ change the settings of the real application.
 
 ## Adding scripted states
 
-The script is plain C++ in six places, executed in this order:
+The script is plain C++ in seven places, executed in this order:
 
 | File | Content |
 | --- | --- |
@@ -265,6 +265,14 @@ The script is plain C++ in six places, executed in this order:
 | `native_original_script.inc` | a project with 192x64 original frames, which is edited on its 192x64 plane only: every inspector page, no SD/HD buttons and no Create/Remove HD buttons, painting, comparison mask and dynamic mask editing with undo at coordinates beyond 128x32, sprite capture and slot bounds on the native grid, the sprite canvas; it prints whether a save writes the discarded 96x32 plane as "no extra data" and whether a second save is identical |
 
 | `runtime_view_script.inc` | the Runtime view, in a 128x32, a 256x64-original and a 192x64-original project: on and off through its menu actions, both runtime planes of a frame with and without HD, the PNG export (`File -> Export Current Frame PNG...`, which writes libserum's output), an edit, undo and redo while the view is on, a click on the canvas, playback through libserum and one playback step, the sprite canvas ending the view, a frame libserum has no picture for; after each dump it prints the view's state, which is not a widget. Then, with the title prefix `identification: `, a project with an inactive frame and three frames that share an original: the `inactive` marker in the frame list and the status line, the `Inactive` filter and a frame leaving it when it is colorized, the export refusing the inactive frame, the hint in the status line when a machine would identify a frame's original as another frame, and playback that identifies another frame than the one fed |
+| `structure_script.inc` | adding and deleting records, title prefix `structure: `: deleting the selected frames through the Edit menu action (cancelled, accepted, undone, redone, a section start, the last frame, all frames refused), `Delete Frames Shorter Than...` with its input dialog, a deletion under a frame filter, a stroke history behind and before a deleted frame, then `New` and `Delete` on the `Masks`, `Backgrounds` and `Sprites` pages of the left browser with undo and redo, a mask, a background and a sprite in use, the refused sprite names, a deletion while the sprite canvas is on; then briefly a 256x64-original project (a new sprite and background with their 256x64 data, no background from a frame without it) and a 192x64-original one. After each dump it prints what the dump does not hold: record counts, the sprite slots of every frame, sections, the sprite tables of the cRP, the browser selections and the frame list's menu actions |
+
+`structure_script.inc` is compiled only for a tree that has `core/edit/StructureCommand.h`; a
+baseline of an older revision ends with the states before it and is compared with
+`--allow-appended`. The tree it was introduced in also added the `New` and `Delete` buttons of
+the browser pages, which show in every state: six `QToolButton` lines and three page `QWidget`
+lines more, the three lists 28 pixels lower, and one more history key (`11/0/sd/..`) in the
+`keys=` list of the `--- sprite state` line.
 
 `runtime_view_script.inc` is compiled only for a tree that has `app/RuntimeView.h`; a baseline of
 an older revision ends with the states before it, and is compared with `--allow-appended`. Its
@@ -284,8 +292,8 @@ whether the SD/HD and Create/Remove buttons are hidden.
 
 The `.inc` files are included at the end of `main()` and each form one block.
 `big_original_script.inc` runs after the window was closed (`closed at the end`),
-`native_original_script.inc` after that one closed its project, and `runtime_view_script.inc`
-after that. A line a script prints lands in the section of the dump before it, so a script
+`native_original_script.inc` after that one closed its project, `runtime_view_script.inc`
+after that and `structure_script.inc` last. A line a script prints lands in the section of the dump before it, so a script
 appended after others prints nothing before its first dump.
 
 A state is: do something, then call `dump("title", w)` (`D("title")` in `inspector_script.inc`).

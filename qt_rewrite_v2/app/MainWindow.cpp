@@ -20,6 +20,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QInputDialog>
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -54,6 +55,7 @@
 #include "panels/FramePanel.h"
 #include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
+#include "panels/RecordListPage.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
@@ -274,8 +276,53 @@ QString editKindStatusSuffix(edit::EditKind kind, bool showsHdAndSd)
         case edit::EditKind::SpriteAttributes:
             return showsHdAndSd ? QStringLiteral(" sprite HD change")
                                 : QStringLiteral(" sprite change");
+        case edit::EditKind::ProjectStructure:
+            break;
     }
     return QString();
+}
+
+// "delete 3 frame(s)", "add sprite 4": what a structure command does when it is applied.
+QString structureCommandText(const edit::StructureCommand& command)
+{
+    const int index = static_cast<int>(command.recordIndices().front());
+    const QString verb = command.addsRecords() ? QStringLiteral("add") : QStringLiteral("delete");
+    switch (command.recordKind()) {
+        case edit::RecordKind::Frame:
+            return QStringLiteral("%1 %2 frame(s)")
+                .arg(verb)
+                .arg(static_cast<int>(command.recordIndices().size()));
+        case edit::RecordKind::Sprite:
+            return QStringLiteral("%1 sprite %2").arg(verb).arg(index);
+        case edit::RecordKind::Background:
+            return QStringLiteral("%1 background %2").arg(verb).arg(index);
+        case edit::RecordKind::ComparisonMask:
+            return QStringLiteral("%1 comparison mask %2").arg(verb).arg(index);
+    }
+    return QString();
+}
+
+// "3, 5-7, 12": at most maxRanges runs of frame numbers, then "...".
+QString frameRangesText(const std::vector<std::size_t>& frameIndices, int maxRanges = 8)
+{
+    QStringList ranges;
+    for (std::size_t i = 0; i < frameIndices.size();) {
+        std::size_t last = i;
+        while (last + 1 < frameIndices.size() &&
+               frameIndices[last + 1] == frameIndices[last] + 1) {
+            ++last;
+        }
+        if (ranges.size() == maxRanges) {
+            ranges << QStringLiteral("...");
+            break;
+        }
+        ranges << (last == i ? QString::number(static_cast<qulonglong>(frameIndices[i]))
+                             : QStringLiteral("%1-%2")
+                                   .arg(static_cast<qulonglong>(frameIndices[i]))
+                                   .arg(static_cast<qulonglong>(frameIndices[last])));
+        i = last + 1;
+    }
+    return ranges.join(QStringLiteral(", "));
 }
 
 // "3 frame(s)" or, when frames could not take the edit, "3 frame(s), 1 skipped (reason)".
@@ -366,6 +413,22 @@ void MainWindow::createActions()
         redo();
     });
 
+    editMenu->addSeparator();
+    m_deleteFramesAction = editMenu->addAction(QStringLiteral("&Delete Frames..."));
+    m_deleteFramesAction->setToolTip(QStringLiteral("Delete the selected frames"));
+    m_deleteFramesAction->setEnabled(false);
+    connect(m_deleteFramesAction, &QAction::triggered, this, [this]() {
+        deleteSelectedFrames();
+    });
+    m_deleteShortFramesAction =
+        editMenu->addAction(QStringLiteral("Delete Frames &Shorter Than..."));
+    m_deleteShortFramesAction->setToolTip(
+        QStringLiteral("Delete the selected frames that are shorter than a duration"));
+    m_deleteShortFramesAction->setEnabled(false);
+    connect(m_deleteShortFramesAction, &QAction::triggered, this, [this]() {
+        deleteSelectedFramesShorterThan();
+    });
+
     m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
     // What the toolbar button of the action shows.
     m_runtimeViewAction->setIconText(QStringLiteral("Runtime"));
@@ -433,6 +496,20 @@ void MainWindow::createCentralView()
     m_frameList->setResizeMode(QListView::Adjust);
     m_frameList->setUniformItemSizes(false);
     m_frameList->setMinimumWidth(230);
+    // The keys belong to the frame list alone, so that they keep their meaning everywhere
+    // else. An action of the menu bar cannot have them: a native menu bar takes a key of
+    // its entries whatever has the focus.
+    m_deleteFramesListAction = new QAction(m_deleteFramesAction->text(), m_frameList);
+    m_deleteFramesListAction->setShortcuts({QKeySequence(QKeySequence::Delete),
+                                            QKeySequence(Qt::Key_Backspace)});
+    m_deleteFramesListAction->setShortcutContext(Qt::WidgetShortcut);
+    m_deleteFramesListAction->setEnabled(false);
+    connect(m_deleteFramesListAction, &QAction::triggered, this, [this]() {
+        deleteSelectedFrames();
+    });
+    m_frameList->setContextMenuPolicy(Qt::ActionsContextMenu);
+    m_frameList->addAction(m_deleteFramesListAction);
+    m_frameList->addAction(m_deleteShortFramesAction);
     m_frameThumbnails = new LazyListIcons(
         m_frameList,
         makeFrameThumbnailPlaceholder(kFrameThumbnailSize),
@@ -779,9 +856,28 @@ void MainWindow::createCentralView()
     frameListLayout->addWidget(m_frameFilterComboBox);
     frameListLayout->addWidget(m_frameList, 1);
     m_leftBrowserTabs->addTab(frameListPanel, QStringLiteral("Frames"));
-    m_leftBrowserTabs->addTab(m_maskList, QStringLiteral("Masks"));
-    m_leftBrowserTabs->addTab(m_backgroundList, QStringLiteral("Backgrounds"));
-    m_leftBrowserTabs->addTab(m_spriteList, QStringLiteral("Sprites"));
+    m_maskPage = new RecordListPage(m_maskList,
+                                    QStringLiteral("Add an empty comparison mask"),
+                                    QStringLiteral("Delete the selected comparison mask"),
+                                    m_leftBrowserTabs);
+    m_maskPage->onNewRequested = [this]() { addComparisonMask(); };
+    m_maskPage->onDeleteRequested = [this]() { deleteSelectedComparisonMask(); };
+    m_backgroundPage = new RecordListPage(
+        m_backgroundList,
+        QStringLiteral("Add a background with the picture of the current frame"),
+        QStringLiteral("Delete the selected background"),
+        m_leftBrowserTabs);
+    m_backgroundPage->onNewRequested = [this]() { addBackgroundFromCurrentFrame(); };
+    m_backgroundPage->onDeleteRequested = [this]() { deleteSelectedBackground(); };
+    m_spritePage = new RecordListPage(m_spriteList,
+                                      QStringLiteral("Add an empty sprite"),
+                                      QStringLiteral("Delete the selected sprite"),
+                                      m_leftBrowserTabs);
+    m_spritePage->onNewRequested = [this]() { addSprite(); };
+    m_spritePage->onDeleteRequested = [this]() { deleteSelectedSprite(); };
+    m_leftBrowserTabs->addTab(m_maskPage, QStringLiteral("Masks"));
+    m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"));
+    m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"));
     auto* inspector = new QWidget(central);
     auto* inspectorLayout = new QVBoxLayout(inspector);
     auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
@@ -1045,6 +1141,15 @@ void MainWindow::createCentralView()
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
     updateDmdRenderOptions();
+
+    // The browser pages follow the frame list, each with New and Delete before its list.
+    QWidget* previous = m_frameList;
+    for (const RecordListPage* page : {m_maskPage, m_backgroundPage, m_spritePage}) {
+        for (QWidget* next : page->tabOrder()) {
+            QWidget::setTabOrder(previous, next);
+            previous = next;
+        }
+    }
 
     setCentralWidget(central);
 }
@@ -2378,6 +2483,7 @@ void MainWindow::updateMaskControls()
                                   currentFrameIndex(),
                                   m_document ? m_selectedMaskIndex : std::nullopt,
                                   !selectedFrameIndices().empty());
+    updateStructureControls();
 }
 
 void MainWindow::updateBackgroundControls()
@@ -2435,6 +2541,7 @@ void MainWindow::updateBackgroundControls()
     if (selectedBackground) {
         updateBackgroundBrowserSelection();
     }
+    updateStructureControls();
 }
 
 MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
@@ -4272,6 +4379,7 @@ void MainWindow::updateSpriteControls()
     state.hasCaptureSelection = !m_canvasEdit.captureSelectionPixels(frameIndex).empty();
     state.spriteEditsPending = m_spriteDependentViewsDirty;
     m_spritePanel->refresh(state);
+    updateStructureControls();
 
     const std::optional<std::size_t> slotIndex = m_spritePanel->selectedSlotIndex();
     std::optional<document::FrameSpriteReference> selectedReference;
@@ -4584,6 +4692,506 @@ void MainWindow::recordEdit(std::unique_ptr<edit::EditCommand> command)
     refreshAfterEdit(applied);
 }
 
+bool MainWindow::confirmDeletion(const QString& title,
+                                 const QString& question,
+                                 const QString& consequences)
+{
+    QMessageBox confirm(this);
+    confirm.setIcon(QMessageBox::Warning);
+    confirm.setWindowTitle(title);
+    confirm.setText(question);
+    confirm.setInformativeText(consequences);
+    QPushButton* deleteButton =
+        confirm.addButton(QStringLiteral("Delete"), QMessageBox::DestructiveRole);
+    confirm.setDefaultButton(confirm.addButton(QMessageBox::Cancel));
+    confirm.exec();
+    return confirm.clickedButton() == deleteButton;
+}
+
+void MainWindow::deleteSelectedFrames()
+{
+    deleteFrames(selectedFrameIndices(), QString());
+}
+
+void MainWindow::deleteSelectedFramesShorterThan()
+{
+    const std::vector<std::size_t> selected = selectedFrameIndices();
+    if (!m_document || selected.empty()) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+    bool accepted = false;
+    const int durationMs = QInputDialog::getInt(
+        this,
+        QStringLiteral("Delete Short Frames"),
+        QStringLiteral("Delete the selected frames that are shorter than (ms):"),
+        static_cast<int>(legacy::kSkipFrameDurationMs),
+        1,
+        600000,
+        1,
+        &accepted);
+    if (!accepted) {
+        return;
+    }
+    const std::vector<std::size_t> shortFrames =
+        edit::framesShorterThan(*m_document, selected, static_cast<uint32_t>(durationMs));
+    if (shortFrames.empty()) {
+        statusBar()->showMessage(
+            QStringLiteral("None of the %1 selected frame(s) is shorter than %2 ms")
+                .arg(static_cast<int>(selected.size()))
+                .arg(durationMs),
+            4000);
+        return;
+    }
+    deleteFrames(shortFrames,
+                 QStringLiteral("%1 of the %2 selected frame(s) are shorter than %3 ms.")
+                     .arg(static_cast<int>(shortFrames.size()))
+                     .arg(static_cast<int>(selected.size()))
+                     .arg(durationMs));
+}
+
+void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, const QString& note)
+{
+    if (!m_document || frameIndices.empty()) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+    const int count = static_cast<int>(frameIndices.size());
+    const int total = static_cast<int>(m_document->frameCount());
+    if (count >= total) {
+        statusBar()->showMessage(
+            QStringLiteral("Not deleted: all %1 frame(s) would go, and a project keeps at "
+                           "least one frame")
+                .arg(total),
+            5000);
+        return;
+    }
+    QStringList consequences;
+    if (!note.isEmpty()) {
+        consequences << note;
+    }
+    consequences << QStringLiteral("Frames: %1. %2 frame(s) remain. Sections and the source "
+                                   "frames of sprites follow. The deletion can be undone.")
+                        .arg(frameRangesText(frameIndices))
+                        .arg(total - count);
+    if (!confirmDeletion(QStringLiteral("Delete Frames"),
+                         count == 1 ? QStringLiteral("Delete frame %1?")
+                                          .arg(static_cast<qulonglong>(frameIndices.front()))
+                                    : QStringLiteral("Delete %1 frames?").arg(count),
+                         consequences.join(QChar(' ')))) {
+        return;
+    }
+    try {
+        recordStructureEdit(edit::deleteFrames(*m_document, frameIndices));
+        statusBar()->showMessage(
+            QStringLiteral("Deleted %1 frame(s), %2 remain").arg(count).arg(total - count),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::addSprite()
+{
+    if (!m_document) {
+        return;
+    }
+    if (m_document->spriteCount() >= document::kMaxSprites) {
+        statusBar()->showMessage(
+            QStringLiteral("Not added: a project holds at most %1 sprites")
+                .arg(static_cast<int>(document::kMaxSprites)),
+            4000);
+        return;
+    }
+    bool accepted = false;
+    const QString name = QInputDialog::getText(
+                             this,
+                             QStringLiteral("New Sprite"),
+                             QStringLiteral("Name of the new sprite (up to 31 characters):"),
+                             QLineEdit::Normal,
+                             QString(),
+                             &accepted)
+                             .trimmed();
+    if (!accepted) {
+        return;
+    }
+    const std::string problem = edit::spriteNameProblem(*m_document, name.toStdString());
+    if (!problem.empty()) {
+        statusBar()->showMessage(
+            QStringLiteral("Not added: %1").arg(QString::fromStdString(problem)), 4000);
+        return;
+    }
+    try {
+        // The cRP records the frame a sprite was made on, as the Win32 editor does.
+        recordStructureEdit(
+            edit::addSprite(*m_document, name.toStdString(), currentFrameIndex().value_or(0)));
+        statusBar()->showMessage(
+            QStringLiteral("Added sprite %1 \"%2\", %3 sprite(s) now")
+                .arg(static_cast<int>(m_document->spriteCount() - 1))
+                .arg(name)
+                .arg(static_cast<int>(m_document->spriteCount())),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::deleteSelectedSprite()
+{
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!m_document || !spriteIndex) {
+        statusBar()->showMessage(QStringLiteral("No sprite selected"), 2500);
+        return;
+    }
+    const int useCount = static_cast<int>(m_document->spriteUseCount(*spriteIndex));
+    const QString name = QString::fromStdString(m_document->sprite(*spriteIndex).name);
+    if (!confirmDeletion(
+            QStringLiteral("Delete Sprite"),
+            name.isEmpty() ? QStringLiteral("Delete sprite %1?").arg(static_cast<int>(*spriteIndex))
+                           : QStringLiteral("Delete sprite %1 \"%2\"?")
+                                 .arg(static_cast<int>(*spriteIndex))
+                                 .arg(name),
+            QStringLiteral("%1 Sprites behind it get a number one lower. The deletion can be "
+                           "undone.")
+                .arg(useCount > 0 ? QStringLiteral("It is removed from the sprite slots of %1 "
+                                                   "frame(s).")
+                                        .arg(useCount)
+                                  : QStringLiteral("No frame uses it.")))) {
+        return;
+    }
+    try {
+        recordStructureEdit(edit::deleteSprite(*m_document, *spriteIndex));
+        statusBar()->showMessage(
+            QStringLiteral("Deleted sprite %1%2; %3 sprite(s) remain")
+                .arg(static_cast<int>(*spriteIndex))
+                .arg(useCount > 0 ? QStringLiteral(", removed from %1 frame(s)").arg(useCount)
+                                  : QString())
+                .arg(static_cast<int>(m_document->spriteCount())),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::addBackgroundFromCurrentFrame()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        statusBar()->showMessage(QStringLiteral("Select a frame first"), 2500);
+        return;
+    }
+    if (m_document->backgroundCount() >= document::kMaxBackgrounds) {
+        statusBar()->showMessage(
+            QStringLiteral("Not added: a project holds at most %1 backgrounds")
+                .arg(static_cast<int>(document::kMaxBackgrounds)),
+            4000);
+        return;
+    }
+    if (isHdOnlyProject() && !m_document->hasHdFrame(*frameIndex)) {
+        statusBar()->showMessage(
+            QStringLiteral("Not added: frame %1 has no %2 frame to make a background of")
+                .arg(static_cast<int>(*frameIndex))
+                .arg(nativePlaneText(*m_document)),
+            5000);
+        return;
+    }
+    try {
+        recordStructureEdit(edit::addBackgroundFromFrame(*m_document, *frameIndex));
+        statusBar()->showMessage(
+            QStringLiteral("Added background %1 from frame %2, %3 background(s) now")
+                .arg(static_cast<int>(m_document->backgroundCount() - 1))
+                .arg(static_cast<int>(*frameIndex))
+                .arg(static_cast<int>(m_document->backgroundCount())),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::deleteSelectedBackground()
+{
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || !backgroundIndex) {
+        statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
+        return;
+    }
+    const int useCount = static_cast<int>(m_document->backgroundUseCount(*backgroundIndex));
+    if (!confirmDeletion(
+            QStringLiteral("Delete Background"),
+            QStringLiteral("Delete background %1?").arg(static_cast<int>(*backgroundIndex)),
+            QStringLiteral("%1 Backgrounds behind it get a number one lower. The deletion can "
+                           "be undone.")
+                .arg(useCount > 0 ? QStringLiteral("%1 frame(s) use it and will have no "
+                                                   "background.")
+                                        .arg(useCount)
+                                  : QStringLiteral("No frame uses it.")))) {
+        return;
+    }
+    try {
+        recordStructureEdit(edit::deleteBackground(*m_document, *backgroundIndex));
+        statusBar()->showMessage(
+            QStringLiteral("Deleted background %1%2; %3 background(s) remain")
+                .arg(static_cast<int>(*backgroundIndex))
+                .arg(useCount > 0 ? QStringLiteral(", %1 frame(s) have no background now")
+                                        .arg(useCount)
+                                  : QString())
+                .arg(static_cast<int>(m_document->backgroundCount())),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::addComparisonMask()
+{
+    if (!m_document) {
+        return;
+    }
+    if (m_document->comparisonMaskCount() >= document::kMaxComparisonMasks) {
+        statusBar()->showMessage(
+            QStringLiteral("Not added: a project holds at most %1 comparison masks")
+                .arg(static_cast<int>(document::kMaxComparisonMasks)),
+            4000);
+        return;
+    }
+    try {
+        recordStructureEdit(edit::addComparisonMask(*m_document));
+        statusBar()->showMessage(
+            QStringLiteral("Added comparison mask %1, %2 mask(s) now; no frame uses it yet")
+                .arg(static_cast<int>(m_document->comparisonMaskCount() - 1))
+                .arg(static_cast<int>(m_document->comparisonMaskCount())),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::deleteSelectedComparisonMask()
+{
+    if (!m_document || !m_selectedMaskIndex ||
+        *m_selectedMaskIndex >= m_document->comparisonMaskCount()) {
+        statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
+        return;
+    }
+    const std::size_t maskIndex = *m_selectedMaskIndex;
+    std::vector<std::size_t> users;
+    for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
+        if (m_document->comparisonMaskId(frameIndex) == maskIndex) {
+            users.push_back(frameIndex);
+        }
+    }
+    // A mask in use decides how its frames are identified, so that case is spelled out.
+    const QString consequences =
+        users.empty()
+            ? QStringLiteral("No frame uses it. Masks behind it get a number one lower. The "
+                             "deletion can be undone.")
+            : QStringLiteral("%1 frame(s) use it (%2). They will be compared without a mask, "
+                             "which changes how the runtime identifies them. Masks behind it "
+                             "get a number one lower. The deletion can be undone.")
+                  .arg(static_cast<int>(users.size()))
+                  .arg(frameRangesText(users));
+    if (!confirmDeletion(
+            QStringLiteral("Delete Comparison Mask"),
+            QStringLiteral("Delete comparison mask %1?").arg(static_cast<int>(maskIndex)),
+            consequences)) {
+        return;
+    }
+    try {
+        recordStructureEdit(edit::deleteComparisonMask(*m_document, maskIndex));
+        statusBar()->showMessage(
+            QStringLiteral("Deleted comparison mask %1%2; %3 mask(s) remain")
+                .arg(static_cast<int>(maskIndex))
+                .arg(users.empty() ? QString()
+                                   : QStringLiteral(", %1 frame(s) have no mask now")
+                                         .arg(static_cast<int>(users.size())))
+                .arg(static_cast<int>(m_document->comparisonMaskCount())),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::recordStructureEdit(std::unique_ptr<edit::StructureCommand> command)
+{
+    if (!m_document || !command) {
+        return;
+    }
+    const edit::StructureCommand& applied = *command;
+    m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    refreshAfterStructureEdit(applied);
+    updateUndoRedoActions();
+}
+
+void MainWindow::refreshAfterStructureEdit(const edit::StructureCommand& command)
+{
+    if (!m_document) {
+        return;
+    }
+    setPlaybackRunning(false);
+    m_canvasEdit.cancelFreeGradient();
+    m_canvasEdit.clearSelection(canvasEditContext());
+    // Everything that shows a sprite is refreshed below.
+    m_spriteDependentViewsDirty = false;
+    if (m_spritePanel) {
+        m_spritePanel->setApplySpriteEditsEnabled(false);
+    }
+
+    const std::size_t first = command.recordIndices().front();
+    const bool present = command.recordsPresent();
+    // The added or restored record, or the one that took the place of a deleted one; the
+    // last one if the deleted record was the last.
+    const auto neighbour = [first](std::size_t count) -> std::optional<std::size_t> {
+        return count == 0 ? std::nullopt : std::optional<std::size_t>(std::min(first, count - 1));
+    };
+    std::optional<std::size_t> selectedBackground;
+    switch (command.recordKind()) {
+        case edit::RecordKind::Frame:
+            // The capture selection belongs to a frame number.
+            m_canvasEdit.clearCaptureSelection();
+            refreshFrameList(std::nullopt);
+            selectFrameNear(*neighbour(m_document->frameCount()));
+            if (present && m_frameList && command.recordIndices().size() > 1) {
+                // All restored frames that are listed; told to the window once, below.
+                QSignalBlocker blocker(m_frameList);
+                for (int row = 0; row < m_frameList->count(); ++row) {
+                    QListWidgetItem* item = m_frameList->item(row);
+                    const std::size_t frameIndex = item->data(Qt::UserRole).toULongLong();
+                    if (std::binary_search(command.recordIndices().begin(),
+                                           command.recordIndices().end(),
+                                           frameIndex)) {
+                        item->setSelected(true);
+                    }
+                }
+            }
+            break;
+        case edit::RecordKind::Sprite: {
+            const std::optional<std::size_t> sprite = neighbour(m_document->spriteCount());
+            m_selectedSpriteIndex = sprite ? static_cast<int>(*sprite) : -1;
+            break;
+        }
+        case edit::RecordKind::Background:
+            selectedBackground = neighbour(m_document->backgroundCount());
+            break;
+        case edit::RecordKind::ComparisonMask:
+            m_selectedMaskIndex = neighbour(m_document->comparisonMaskCount());
+            break;
+    }
+    if (command.recordKind() != edit::RecordKind::Frame) {
+        refreshFrameListItems();
+    }
+    refreshComponentBrowsers();
+    updateBackgroundControls();
+    if (selectedBackground && m_backgroundComboBox) {
+        const int comboIndex =
+            m_backgroundComboBox->findData(static_cast<int>(*selectedBackground));
+        if (comboIndex >= 0) {
+            m_backgroundComboBox->setCurrentIndex(comboIndex);
+        }
+    }
+    updateFrameMetadataControls();
+    updateColorRotationControls();
+    updateSpriteControls();
+    updatePaintTargetMode();
+    if (m_preview) {
+        m_preview->update();
+    }
+    if (m_spriteEditor) {
+        m_spriteEditor->update();
+    }
+    updateFrameStatusText();
+    updatePlaybackControls();
+    updateProjectHeaderStatus();
+}
+
+void MainWindow::refreshFrameListItems()
+{
+    if (!m_document || !m_frameList) {
+        return;
+    }
+    int row = 0;
+    bool sameFrames = true;
+    for (std::size_t frameIndex = 0; sameFrames && frameIndex < m_document->frameCount();
+         ++frameIndex) {
+        if (!frameMatchesFilter(frameIndex)) {
+            continue;
+        }
+        const QListWidgetItem* item = row < m_frameList->count() ? m_frameList->item(row) : nullptr;
+        sameFrames = item && item->data(Qt::UserRole).toULongLong() == frameIndex;
+        ++row;
+    }
+    if (!sameFrames || row != m_frameList->count()) {
+        const std::optional<std::size_t> current = currentFrameIndex();
+        refreshFrameList(std::nullopt);
+        if (current) {
+            selectFrameNear(*current);
+        }
+        return;
+    }
+    for (row = 0; row < m_frameList->count(); ++row) {
+        QListWidgetItem* item = m_frameList->item(row);
+        const std::size_t frameIndex = item->data(Qt::UserRole).toULongLong();
+        item->setText(frameListItemText(frameIndex));
+        item->setToolTip(frameListItemToolTip(frameIndex));
+        m_frameThumbnails->invalidate(item);
+    }
+}
+
+void MainWindow::selectFrameNear(std::size_t frameIndex)
+{
+    if (!m_frameList || m_frameList->count() == 0) {
+        return;
+    }
+    int nearestRow = m_frameList->count() - 1;
+    for (int row = 0; row < m_frameList->count(); ++row) {
+        if (m_frameList->item(row)->data(Qt::UserRole).toULongLong() >= frameIndex) {
+            nearestRow = row;
+            break;
+        }
+    }
+    if (m_frameList->currentRow() != nearestRow) {
+        m_frameList->setCurrentRow(nearestRow);
+    }
+}
+
+void MainWindow::updateStructureControls()
+{
+    const bool hasDocument = m_document.has_value();
+    const bool canDeleteFrames =
+        hasDocument && m_document->frameCount() > 1 && !selectedFrameIndices().empty();
+    if (m_deleteFramesAction) {
+        m_deleteFramesAction->setEnabled(canDeleteFrames);
+    }
+    if (m_deleteFramesListAction) {
+        m_deleteFramesListAction->setEnabled(canDeleteFrames);
+    }
+    if (m_deleteShortFramesAction) {
+        m_deleteShortFramesAction->setEnabled(canDeleteFrames);
+    }
+    RecordListPageState state;
+    state.hasProject = hasDocument;
+    if (m_maskPage) {
+        state.recordCount = hasDocument ? m_document->comparisonMaskCount() : 0;
+        state.maxRecordCount = document::kMaxComparisonMasks;
+        state.hasSelection = hasDocument && m_selectedMaskIndex &&
+                             *m_selectedMaskIndex < m_document->comparisonMaskCount();
+        m_maskPage->refresh(state);
+    }
+    if (m_backgroundPage) {
+        state.recordCount = hasDocument ? m_document->backgroundCount() : 0;
+        state.maxRecordCount = document::kMaxBackgrounds;
+        state.hasSource = currentFrameIndex().has_value();
+        state.hasSelection = selectedBackgroundIndex().has_value();
+        m_backgroundPage->refresh(state);
+    }
+    if (m_spritePage) {
+        state.recordCount = hasDocument ? m_document->spriteCount() : 0;
+        state.maxRecordCount = document::kMaxSprites;
+        state.hasSource = true;
+        state.hasSelection = currentSpriteIndex().has_value();
+        m_spritePage->refresh(state);
+    }
+}
+
 void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
 {
     if (!m_document) {
@@ -4668,6 +5276,11 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             }
             updateProjectHeaderStatus();
             break;
+        case edit::EditKind::ProjectStructure:
+            if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(&command)) {
+                refreshAfterStructureEdit(*structure);
+            }
+            break;
         case edit::EditKind::SpriteAttributes:
             if (m_activeResolution == render::Resolution::Hd &&
                 !m_document->hasHdSprite(target.index) && !isHdOnlyProject()) {
@@ -4690,8 +5303,12 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
 
 std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
 {
+    if (!m_document) {
+        return {};
+    }
     const render::Resolution sd = render::Resolution::Sd;
-    std::vector<edit::HistoryKey> keys;
+    // Adding and deleting records belongs to every context.
+    std::vector<edit::HistoryKey> keys{edit::structureHistoryKey()};
     if (isSpriteCanvasActive()) {
         const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
         if (spriteIndex) {
@@ -4872,6 +5489,11 @@ void MainWindow::undo()
     const edit::EditKind kind = command->target().kind;
     refreshAfterEdit(*command);
     updateUndoRedoActions();
+    if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
+        statusBar()->showMessage(
+            QStringLiteral("Undo: %1").arg(structureCommandText(*structure)), 2500);
+        return;
+    }
     statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(kind, showsHdAndSd()),
                              1500);
 }
@@ -4896,6 +5518,11 @@ void MainWindow::redo()
     const edit::EditKind kind = command->target().kind;
     refreshAfterEdit(*command);
     updateUndoRedoActions();
+    if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
+        statusBar()->showMessage(
+            QStringLiteral("Redo: %1").arg(structureCommandText(*structure)), 2500);
+        return;
+    }
     statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(kind, showsHdAndSd()),
                              1500);
 }

@@ -156,6 +156,10 @@ Save behavior:
   it. The Runtime view shows that; the editing canvas shows the painted color.
 - Editor metadata the app does not expose yet (color sets, mask names, sections, sprite source
   frames, image crop presets, imported palettes, project time, PuP pack) is carried through.
+  Deleting frames, sprites and comparison masks keeps the parts of it that are numbered by
+  them in step, see "Adding And Deleting Records".
+- The numbers of frames, comparison masks, sprites and backgrounds in the file headers are
+  those of the project as it is; every block is written for exactly these records.
 - HD pixels that the Win32 editor left in a frame or background whose HD is switched off are
   carried through until HD is created or removed for it here.
 - Marks the document clean after successful save.
@@ -239,6 +243,123 @@ When an edit cannot apply to some of the selected frames, those frames are skipp
 are edited. The status bar then reports both counts, for example
 `Assigned background 1 on 3 frame(s), 1 skipped (no background data)`. Frames that already have the
 requested value are neither changed nor counted.
+
+The selected frames are deleted with `Edit -> Delete Frames...`, with `Delete Frames...` in the
+context menu of the frame list, or with the `Delete` or `Backspace` key while the frame list has
+the focus. `Delete Frames Shorter Than...` (Edit menu and context menu) deletes those of the
+selected frames that are shorter than a duration. See "Adding And Deleting Records".
+
+## Adding And Deleting Records
+
+Frames can be deleted; sprites, backgrounds and comparison masks can be added and deleted. Every
+number that refers to such a record follows, in the project and in the `.cRP`, and every one of
+these operations can be undone (see "Undo And Redo").
+
+Where:
+
+| Operation | Where |
+| --- | --- |
+| Delete the selected frames | `Edit -> Delete Frames...`; the frame list's context menu; `Delete` or `Backspace` in the frame list |
+| Delete the selected frames that are shorter than N ms | `Edit -> Delete Frames Shorter Than...`; the frame list's context menu |
+| New comparison mask, delete the selected one | `New` and `Delete` above the list on the `Masks` page of the left browser |
+| New background from the current frame, delete the selected one | `New` and `Delete` on the `Backgrounds` page |
+| New sprite, delete the selected one | `New` and `Delete` on the `Sprites` page |
+
+Limits, which are the file format's and the Win32 editor's: at least 1 frame, at most 64
+comparison masks, 255 sprites and 255 backgrounds. `New` is disabled at the limit, `Delete`
+while nothing is selected, the two frame entries while no frame is selected or the project has
+one frame only.
+
+Every deletion asks first. The question names what goes and what follows from it (how many
+frames remain, how many frames use the record), `Cancel` is the default button, and the status
+bar reports the result with its counts, for example `Deleted 3 frame(s), 12 remain` or
+`Deleted background 1, 4 frame(s) have no background now; 6 background(s) remain`. Adding asks
+nothing, except for the name of a new sprite.
+
+After an operation, and after its undo or redo, the selection is on the new or restored
+record, or on the record that took the place of a deleted one (the last one if the deleted one
+was the last). Restored frames are all selected. The frame filter stays as it is: if the frame
+that would be selected is filtered out, the next listed frame is. Playback stops, a canvas
+selection and a pending free gradient are dropped, and after a change of the frames the sprite
+capture selection as well.
+
+### Deleting frames
+
+Everything a frame has goes with it: original, colorized frame, dynamic data, background mask,
+rotations, sprite slots, mask and background assignment, trigger and duration. The frames behind
+it move up, so frame numbers change. Comparison masks, backgrounds and sprites stay, also those
+no remaining frame uses.
+
+All selected frames cannot be deleted: the status bar says
+`Not deleted: all N frame(s) would go, and a project keeps at least one frame`.
+
+`Delete Frames Shorter Than...` asks for a duration in milliseconds (preset: 15, the duration
+below which an uncolorized frame is inactive) and deletes those of the selected frames whose
+duration is lower. A frame of exactly that duration stays. The question then says how many of
+the selected frames that is; if it is none the status bar says so and nothing is asked.
+
+What follows a deleted frame in the `.cRP`, by the Win32 editor's rules:
+
+- its imported palette, if the project has imported palettes for it;
+- sections: a section whose first frame is deleted starts at the next remaining frame. If
+  another section starts between its old first frame and that frame (the section has no frame
+  left), it is removed. First frames behind a deleted frame move up. One case differs from the
+  Win32 editor: a section whose frames reach to the end of the project and are all deleted is
+  removed too, where the Win32 editor keeps it with a first frame behind the last frame;
+- sprite source frames: the `.cRP` records for each sprite the frame it was taken from and the
+  rectangle. A source frame number behind a deleted frame moves up; a sprite whose source frame
+  is deleted loses its source rectangle (the first value is set to `0xFFFF`), as in the Win32
+  editor.
+
+### Sprites
+
+`New` asks for a name and adds an empty sprite behind the last one: no pixel, no detection
+area, shape mode off, no dynamic content. A name has 1 to 31 characters and must not be the
+name of another sprite; otherwise nothing is added and the status bar says why. The new sprite
+is selected. `Capture` then gives it its picture. The `.cRP` records the current frame as its
+source frame and no source rectangle.
+
+What a new sprite has besides, by project:
+
+| Project | New sprite |
+| --- | --- |
+| ordinary | no HD (as in the Win32 editor); `Create HD Sprite` adds it |
+| 256x64 original | its 256x64 data, empty, because the runtime renders a frame only if every sprite assigned to it has it |
+| 192x64 original | no extra-plane data, like every sprite there |
+
+`Delete` removes the sprite from the sprite slots of every frame. The slots behind it close up,
+so that the remaining sprites of the frame are still looked for (the runtime's list ends at the
+first empty slot); the emptied slot at the end keeps the bounds of the last slot. Sprites with a
+higher number get a number one lower, in every frame and in the `.cRP` tables (names, source
+frames, source rectangles and mirror flags).
+
+### Backgrounds
+
+`New` adds a background with the colorized picture of the current frame, as it is stored: not
+the composed picture with the frame's own background, dynamic content and sprites. No frame is
+assigned to it.
+
+| Project | New background |
+| --- | --- |
+| ordinary | the SD picture; no HD image (as in the Win32 editor) |
+| 256x64 original | the 256x64 picture, and needs a current frame that has one: otherwise `Not added: frame N has no 256x64 frame to make a background of` |
+| 192x64 original | the 192x64 picture |
+
+`Delete` takes the background away from the frames that use it (they have no background then)
+and gives backgrounds with a higher number a number one lower in every frame.
+
+### Comparison masks
+
+`New` adds an empty mask (nothing masked) behind the last one and selects it. No frame uses it:
+`Assign Mask` assigns it. The mask has the name its slot has in the `.cRP`.
+
+`Delete` deletes the selected mask. If frames use it, the question says how many and which, and
+that they will be compared without a mask, which changes how the runtime identifies them; they
+are set to `None`. Masks with a higher number get a number one lower in every frame, and the
+mask names of the `.cRP` move with them. (The Win32 editor has no way to delete a mask. There
+the 64 mask slots always exist and the number of masks in the file is the highest assigned
+number plus one. The Qt editor writes the masks the project has; a frame never refers to a mask
+that is not written.)
 
 ## SD And HD Modes
 
@@ -401,6 +522,11 @@ Repairing:
 - All three can be undone.
 - A button is disabled when there is nothing to create.
 
+A sprite added with `New` has its 256x64 data from the start (empty), and a background added
+with `New` takes the 256x64 picture of the current frame, so neither makes a frame "not
+rendered". `New` on the `Backgrounds` page needs a current frame with its 256x64 frame. See
+"Adding And Deleting Records".
+
 ### Sprites
 
 Sprite coordinates are pixels of the 256x64 original. That holds for the sprite original, the
@@ -528,6 +654,9 @@ What this means:
   data".
 - Everything on the 192x64 plane, and the whole `.cRP`, is written back as it was loaded or
   edited.
+
+A new sprite or background (`New` on the `Sprites` and `Backgrounds` pages) has 192x64 data only
+and is written with "no extra data" like every other record.
 
 ### What is not there
 
@@ -928,8 +1057,11 @@ Histories:
 - Sprite HD: per sprite, for both resolutions together. It holds `Create HD Sprite` and
   `Remove HD Sprite`.
 - Palette colors: per palette.
+- Records: one history for the project. It holds the deletion of frames and the addition and
+  deletion of sprites, backgrounds and comparison masks.
 
-Which histories Undo and Redo use, by context:
+Which histories Undo and Redo use, by context. The record history belongs to every one of
+them:
 
 1. `Edit Sprite` active with a sprite selected: the selected sprite's color image history for the
    active resolution (its SD history when the sprite has no HD data) and its sprite HD history.
@@ -973,6 +1105,7 @@ mask and HD colors.
 Histories are dropped when the data they refer to is replaced as a whole:
 
 - Opening a project drops all histories.
+- Adding and deleting records drops the histories that name a renumbered record, see below.
 - `Remove HD` drops the frame's HD pixel history.
 - `Create HD` drops the frame's HD pixel history. Each related item that is upscaled in the dialog
   also drops its HD history: the frame's background mask and the image of the assigned
@@ -985,6 +1118,38 @@ Histories are dropped when the data they refer to is replaced as a whole:
 
 All other histories stay available. Importing an image into a background and copying a frame to a
 background are ordinary undoable edits and do not drop any history.
+
+Adding and deleting records:
+
+- Undo puts back exactly what was there: the records with their content, their numbers, the
+  references of the frames (sprite slots at their old places, background and mask assignments),
+  the sections, the sprite tables and mask names of the `.cRP`, and the imported palettes. Undo
+  of an addition removes the record again and takes it away from the frames that were given it
+  in between; Redo brings it back with those assignments and with what was edited on it.
+- Redo of a deletion deletes the records as they are then, so edits made to them after the Undo
+  are not lost if the deletion is undone again.
+- These operations are undone in the reverse order in which they were made, whatever the
+  context: they are all in the one record history.
+- Other histories refer to records by number. Whenever one of these operations runs (when it is
+  made, undone or redone), every history that names a record whose number changes or that
+  appears or disappears is dropped, so that no edit can ever be undone on another record than
+  the one it was made on:
+  - frames: the histories of the deleted frames and of all frames behind the first deleted one
+    (pixels, settings, dynamic mask, colors and shadows, background mask). Histories of frames
+    before it stay;
+  - a sprite: the color image and HD histories of that sprite and of all sprites behind it;
+  - a background: the image histories of that background and of all behind it, and every
+    frame's settings history that holds a background assignment to one of them or a `Create HD`
+    that upscaled one of them;
+  - a comparison mask: the histories of that mask and of all behind it, and every frame's
+    settings history that holds an assignment of one of them;
+  - the settings history of each frame that lost its mask or background through the deletion.
+  A history dropped by a deletion stays dropped when the deletion is undone. An edit made
+  between an operation and its Undo on a record with a changed number can therefore not be
+  undone by itself afterwards; the edit itself stays.
+- A deleted record is kept by the history until the history is dropped (a project is opened) or
+  the step can no longer be redone. Nothing is copied for that; the memory of deleted frames is
+  simply not released before.
 
 Not undoable: sprite slot assignment, removal and bounds, sprite detection areas, sprite and palette
 names, sprite capture, and color rotation settings.
@@ -1013,6 +1178,8 @@ The Inspector exposes per-frame comparison metadata:
 - `Shape` selects `Full comparison` or `Shape mode` for all selected frames.
 - Both fields are saved back into `.cROM`.
 - Mask ID and shape mode edits can be undone, see "Undo And Redo".
+- `New` and `Delete` above the mask list of the left sidebar add an empty mask and delete the
+  selected one, see "Adding And Deleting Records". `Mask ID` offers the masks the project has.
 
 Editing rules:
 
@@ -1161,8 +1328,9 @@ next steps.
 
 ## Sprites
 
-Existing sprite data is loaded into the document model and saved back through the legacy `.cROM`
-layout without changing record counts or binary structure.
+Sprite data is loaded into the document model and saved back through the legacy `.cROM` layout.
+`New` and `Delete` above the sprite list of the left sidebar add an empty sprite and delete the
+selected one, see "Adding And Deleting Records".
 
 Currently preserved sprite data includes:
 
@@ -1213,9 +1381,9 @@ The Inspector has a sprite browser and assignment controls:
   The selected pixels are copied into the sprite relative to the selection bounds, unselected pixels
   inside those bounds remain transparent, and selected black original pixels remain real sprite
   pixels.
-- `Capture` currently replaces the selected sprite record after confirmation. The dialog shows the
-  planned `Create New` path, but it stays disabled until sprite allocation updates all cROM and
-  `.cRP` sprite tables together.
+- `Capture` replaces the selected sprite record after confirmation. To capture into a new sprite,
+  add one with `New` on the `Sprites` page first and capture into it. The dialog's `Create New`
+  button is still disabled.
 - Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - `Assign` writes the selected sprite into the selected slot for all selected frames.
@@ -1275,9 +1443,9 @@ Currently implemented:
 - Hold `Shift` while clicking, drawing, or flood filling to erase background-mask pixels back to `0`.
 - Background-mask edits are undoable per frame and per resolution.
 
-Creating or deleting background records is not exposed in the UI yet.
-Background import/copy operations replace existing background records only, because the first release
-must not change the loaded cROM format.
+`New` and `Delete` above the background list of the left sidebar add a background with the picture
+of the current frame and delete the selected one, see "Adding And Deleting Records".
+Background import/copy operations replace the image of an existing background.
 
 ## Missing Editing Features
 
@@ -1446,6 +1614,32 @@ For changes to dynamic data, check in an ordinary project that `Dynamic` is disa
 with its tool tip, that the `Dyn` page there shows the SD colors with its note, that a color
 changed there shows in the HD picture, and that a project with stored HD dynamic data still
 round-trips byte-identical.
+
+For changes to adding and deleting records (`core/edit/StructureCommand`, the `remove...` and
+`insert...` functions of `ProjectDocument`), test in a project of each layout:
+
+- delete the first, the last, several separate and all but one of the frames; a frame that
+  starts a section and all frames of a section; frames below and above the number of imported
+  palettes; all frames (refused);
+- `Delete Frames Shorter Than...` with a duration no, some and all selected frames are below;
+- add a sprite, a background and a mask up to the limits (255, 255, 64); delete the first, a
+  middle and the last one, one that many frames use (a sprite in several slots of one frame,
+  and in slot 32) and one nothing uses;
+- undo and redo each of them, also after editing the record in between and after assigning a
+  new record to frames, and check that Undo is offered on every page and frame;
+- after each: the frame list (numbers, flags, thumbnails, filter still applied), the three
+  browser lists, the inspector pages and the Runtime view show the new numbering; an edit of a
+  frame, sprite, background or mask behind the changed one has no stale Undo;
+- save, reopen and compare; `colorizing_qt_v2_roundtrip` on the saved files must say
+  `identical` twice and `colorizing_qt_v2_preview_diff` must report the native plane identical
+  for all frames. Undoing everything and saving a project of the Win32 editor must give back
+  its files byte for byte.
+
+The automated tests (`tests/StructureCommandTests.cpp`) do this on constructed projects of the
+three layouts, including a load of the complete saved cROM in libserum, and run 20000 random
+edits, record operations, undos and redos while checking that no command is ever run against
+another record than the one it was made for. `tools/ui_dump` has the window's states
+(`structure_script.inc`).
 
 For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
 projects. It loads a project, serializes it in memory, and reports per block where the result

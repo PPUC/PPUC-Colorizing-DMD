@@ -11,6 +11,7 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointingDevice>
@@ -27,6 +28,7 @@
 #include "panels/FramePanel.h"
 #include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
+#include "panels/RecordListPage.h"
 #include "panels/SpritePanel.h"
 #include "SpriteEditorWidget.h"
 
@@ -2992,6 +2994,67 @@ void testFramePanel()
            "frame panel should leave the document untouched");
 }
 
+void testRecordListPage()
+{
+    auto* list = new QListWidget();
+    colorizing::app::RecordListPage page(list, QStringLiteral("Add a record"),
+                                         QStringLiteral("Delete the selected record"));
+    int newRequests = 0;
+    int deleteRequests = 0;
+    page.onNewRequested = [&]() { ++newRequests; };
+    page.onDeleteRequested = [&]() { ++deleteRequests; };
+    auto* newButton = childByToolTip<QToolButton>(page, "Add a record");
+    auto* deleteButton = childByToolTip<QToolButton>(page, "Delete the selected record");
+    expect(newButton->text() == QStringLiteral("New") &&
+               deleteButton->text() == QStringLiteral("Delete"),
+           "record list page should have New and Delete");
+    expect(list->parentWidget() == &page, "record list page should hold the list");
+    expect(!newButton->isEnabled() && !deleteButton->isEnabled(),
+           "record list page should start with both buttons disabled");
+    expect(page.tabOrder() == std::vector<QWidget*>({newButton, deleteButton, list}),
+           "record list page should put New and Delete before the list");
+
+    colorizing::app::RecordListPageState state;
+    state.recordCount = 3;
+    state.maxRecordCount = 255;
+    state.hasSelection = true;
+    page.refresh(state);
+    expect(!newButton->isEnabled() && !deleteButton->isEnabled(),
+           "record list page should offer nothing without a project");
+    state.hasProject = true;
+    page.refresh(state);
+    expect(newButton->isEnabled() && deleteButton->isEnabled(),
+           "record list page should offer New and Delete for a project with a selection");
+    state.hasSelection = false;
+    page.refresh(state);
+    expect(newButton->isEnabled() && !deleteButton->isEnabled(),
+           "record list page should not offer Delete without a selection");
+    state.recordCount = 255;
+    state.hasSelection = true;
+    page.refresh(state);
+    expect(!newButton->isEnabled() && deleteButton->isEnabled(),
+           "record list page should not offer New at the record limit");
+    state.recordCount = 254;
+    state.hasSource = false;
+    page.refresh(state);
+    expect(!newButton->isEnabled(),
+           "record list page should not offer New while there is nothing to make a record of");
+    state.hasSource = true;
+    state.recordCount = 0;
+    state.hasSelection = false;
+    page.refresh(state);
+    expect(newButton->isEnabled() && !deleteButton->isEnabled(),
+           "record list page should offer New for an empty list");
+
+    newButton->click();
+    state.hasSelection = true;
+    page.refresh(state);
+    deleteButton->click();
+    expect(newRequests == 1 && deleteRequests == 1,
+           "record list page should report New and Delete once each");
+    expect(list->count() == 0, "record list page should not change the list itself");
+}
+
 void runBigOriginalWidgetTests();
 void runCanvasEditControllerTests();
 void runEditorMatchesRuntimeTests();
@@ -3033,6 +3096,7 @@ int main(int argc, char* argv[])
     testDynamicPanel();
     testBackgroundPanel();
     testFramePanel();
+    testRecordListPage();
     runCanvasEditControllerTests();
     runBigOriginalWidgetTests();
     runNativeOriginalWidgetTests();

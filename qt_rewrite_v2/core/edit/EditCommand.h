@@ -25,6 +25,28 @@ enum class EditKind {
     FrameAttributes,
     // Creating or removing a sprite's HD data. One history per sprite for both resolutions.
     SpriteAttributes,
+    // Adding and deleting frames, sprites, backgrounds and comparison masks. One history for
+    // the project (index 0), see StructureCommand.
+    ProjectStructure,
+};
+
+// The records other data refers to by index.
+enum class RecordKind {
+    Frame,
+    ComparisonMask,
+    Background,
+    Sprite,
+};
+
+struct RecordReference {
+    RecordKind kind = RecordKind::Frame;
+    std::size_t index = 0;
+};
+
+// The records of a kind from firstIndex on are removed, added or renumbered.
+struct RenumberedRecords {
+    RecordKind kind = RecordKind::Frame;
+    std::size_t firstIndex = 0;
 };
 
 // What a command touches, so the UI knows what to refresh and which history owns the command.
@@ -56,6 +78,13 @@ public:
     // Commands recorded earlier for this data no longer describe it once this command ran in
     // either direction, so their histories have to be dropped.
     [[nodiscard]] virtual std::vector<ReplacedData> replacedData() const;
+    // Every record the command names by index: the one it edits and each ID it writes into
+    // another record, in either direction. A history is dropped when a later command
+    // renumbers one of them, so a command is never run against another record than the one
+    // it was made for. Pure, so that no command can forget to say.
+    [[nodiscard]] virtual std::vector<RecordReference> recordReferences() const = 0;
+    // What this command removes, adds or renumbers, whenever it runs in either direction.
+    [[nodiscard]] virtual std::vector<RenumberedRecords> renumberedRecords() const;
 };
 
 struct PixelChange {
@@ -77,6 +106,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
 
 private:
     void write(document::ProjectDocument& document, bool useNewColor) const;
@@ -95,6 +125,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
 
 private:
     std::size_t m_backgroundIndex;
@@ -121,6 +152,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
 
 private:
     void write(document::ProjectDocument& document, bool useNewValue) const;
@@ -143,6 +175,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
 
 private:
     std::size_t m_frameIndex;
@@ -173,6 +206,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
 
 private:
     void write(document::ProjectDocument& document, bool useNewValue) const;
@@ -198,6 +232,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
 
 private:
     void write(document::ProjectDocument& document, bool useNewColor) const;
@@ -231,6 +266,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
     [[nodiscard]] FrameAttribute attribute() const;
 
 private:
@@ -251,6 +287,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
     [[nodiscard]] std::vector<ReplacedData> replacedData() const override;
 
 private:
@@ -269,6 +306,7 @@ public:
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
     [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
     [[nodiscard]] std::vector<ReplacedData> replacedData() const override;
 
 private:

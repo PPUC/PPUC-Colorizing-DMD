@@ -22,6 +22,7 @@ add_executable(colorizing_qt_v2_tests
     ProjectDocumentTests.cpp
     ProjectGeometryTests.cpp
     RuntimePreviewTests.cpp
+    StructureCommandTests.cpp
 )
 
 target_link_libraries(colorizing_qt_v2_tests

@@ -1,5 +1,7 @@
 #include "edit/UndoHistories.h"
 
+#include <algorithm>
+#include <iterator>
 #include <stdexcept>
 #include <utility>
 
@@ -24,6 +26,11 @@ bool HistoryKey::operator==(const HistoryKey& other) const
 HistoryKey historyKey(const EditTarget& target)
 {
     return HistoryKey{target.kind, target.index, target.resolution};
+}
+
+HistoryKey structureHistoryKey()
+{
+    return HistoryKey{EditKind::ProjectStructure, 0, render::Resolution::Sd};
 }
 
 void UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> command)
@@ -143,6 +150,27 @@ void UndoHistories::dropReplacedHistories(const EditCommand& command)
 {
     for (const ReplacedData& replaced : command.replacedData()) {
         m_histories.erase(HistoryKey{replaced.kind, replaced.index, replaced.resolution});
+    }
+    const std::vector<RenumberedRecords> renumbered = command.renumberedRecords();
+    if (renumbered.empty()) {
+        return;
+    }
+    const auto isRenumbered = [&renumbered](const Entry& entry) {
+        for (const RecordReference& reference : entry.command->recordReferences()) {
+            for (const RenumberedRecords& records : renumbered) {
+                if (reference.kind == records.kind && reference.index >= records.firstIndex) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    for (auto history = m_histories.begin(); history != m_histories.end();) {
+        const History& stacks = history->second;
+        const bool stale =
+            std::any_of(stacks.undoStack.begin(), stacks.undoStack.end(), isRenumbered) ||
+            std::any_of(stacks.redoStack.begin(), stacks.redoStack.end(), isRenumbered);
+        history = stale ? m_histories.erase(history) : std::next(history);
     }
 }
 

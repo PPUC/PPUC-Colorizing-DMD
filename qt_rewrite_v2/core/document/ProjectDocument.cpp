@@ -1938,6 +1938,577 @@ uint16_t ProjectDocument::colorizedPixel(std::size_t frameIndex,
     return frame.pixels[pixelIndex];
 }
 
+namespace {
+
+// Moves the entries behind entryIndex of a table of fixed-size entries down by one and
+// clears the last of the first entryCount entries.
+template <typename T>
+void removeTableEntry(std::vector<T>& table,
+                      std::size_t entryIndex,
+                      std::size_t entryCount,
+                      std::size_t entrySize)
+{
+    if (entryIndex >= entryCount || entryCount * entrySize > table.size()) {
+        return;
+    }
+    const auto begin = table.begin();
+    std::move(begin + static_cast<std::ptrdiff_t>((entryIndex + 1) * entrySize),
+              begin + static_cast<std::ptrdiff_t>(entryCount * entrySize),
+              begin + static_cast<std::ptrdiff_t>(entryIndex * entrySize));
+    std::fill(begin + static_cast<std::ptrdiff_t>((entryCount - 1) * entrySize),
+              begin + static_cast<std::ptrdiff_t>(entryCount * entrySize),
+              T{});
+}
+
+std::vector<std::size_t> sortedUnique(std::vector<std::size_t> values)
+{
+    std::sort(values.begin(), values.end());
+    values.erase(std::unique(values.begin(), values.end()), values.end());
+    return values;
+}
+
+bool isAscending(const std::vector<std::size_t>& values)
+{
+    return std::adjacent_find(values.begin(), values.end(),
+                              [](std::size_t a, std::size_t b) { return a >= b; }) ==
+           values.end();
+}
+
+}  // namespace
+
+RecordTables ProjectDocument::recordTables() const
+{
+    RecordTables tables;
+    tables.maskNames = m_editorMetadata.maskNames;
+    tables.sectionCount = m_editorMetadata.sectionCount;
+    tables.sectionFirstFrames = m_editorMetadata.sectionFirstFrames;
+    tables.sectionNames = m_editorMetadata.sectionNames;
+    tables.spriteNames = m_editorMetadata.spriteNames;
+    tables.spriteSourceFrames = m_editorMetadata.spriteSourceFrames;
+    tables.spriteSourceRects = m_editorMetadata.spriteSourceRects;
+    tables.spriteSourceMirrors = m_editorMetadata.spriteSourceMirrors;
+    return tables;
+}
+
+void ProjectDocument::requireFittingRecordTables(const RecordTables& tables) const
+{
+    if (tables.maskNames.size() != m_editorMetadata.maskNames.size() ||
+        tables.sectionFirstFrames.size() != m_editorMetadata.sectionFirstFrames.size() ||
+        tables.sectionNames.size() != m_editorMetadata.sectionNames.size() ||
+        tables.spriteNames.size() != m_editorMetadata.spriteNames.size() ||
+        tables.spriteSourceFrames.size() != m_editorMetadata.spriteSourceFrames.size() ||
+        tables.spriteSourceRects.size() != m_editorMetadata.spriteSourceRects.size() ||
+        tables.spriteSourceMirrors.size() != m_editorMetadata.spriteSourceMirrors.size() ||
+        tables.sectionCount > kMaxSections) {
+        throw std::invalid_argument("record tables have invalid sizes");
+    }
+}
+
+void ProjectDocument::restoreRecordTables(RecordTables tables)
+{
+    requireFittingRecordTables(tables);
+    m_editorMetadata.maskNames = std::move(tables.maskNames);
+    m_editorMetadata.sectionCount = tables.sectionCount;
+    m_editorMetadata.sectionFirstFrames = std::move(tables.sectionFirstFrames);
+    m_editorMetadata.sectionNames = std::move(tables.sectionNames);
+    m_editorMetadata.spriteNames = std::move(tables.spriteNames);
+    m_editorMetadata.spriteSourceFrames = std::move(tables.spriteSourceFrames);
+    m_editorMetadata.spriteSourceRects = std::move(tables.spriteSourceRects);
+    m_editorMetadata.spriteSourceMirrors = std::move(tables.spriteSourceMirrors);
+    markChanged();
+}
+
+RemovedFrames ProjectDocument::removeFrames(const std::vector<std::size_t>& frameIndices)
+{
+    RemovedFrames removed;
+    removed.indices = sortedUnique(frameIndices);
+    if (removed.indices.empty()) {
+        return removed;
+    }
+    const std::size_t oldCount = m_frames.size();
+    if (removed.indices.back() >= oldCount) {
+        throw std::out_of_range("frame index out of range");
+    }
+    if (removed.indices.size() >= oldCount) {
+        throw std::logic_error("at least one frame has to remain");
+    }
+    removed.tables = recordTables();
+
+    const std::vector<std::size_t>& gone = removed.indices;
+    const auto isGone = [&gone](std::size_t frameIndex) {
+        return std::binary_search(gone.begin(), gone.end(), frameIndex);
+    };
+    // The new number of a remaining frame, and of the place a removed frame left.
+    const auto goneBefore = [&gone](std::size_t frameIndex) {
+        return static_cast<std::size_t>(
+            std::lower_bound(gone.begin(), gone.end(), frameIndex) - gone.begin());
+    };
+    const auto nextRemaining = [&](std::size_t frameIndex) {
+        while (frameIndex < oldCount && isGone(frameIndex)) {
+            ++frameIndex;
+        }
+        return frameIndex;
+    };
+
+    removed.frames.reserve(gone.size());
+    std::size_t next = 0;
+    std::size_t write = gone.front();
+    for (std::size_t read = gone.front(); read < oldCount; ++read) {
+        if (next < gone.size() && gone[next] == read) {
+            removed.frames.push_back(std::move(m_frames[read]));
+            ++next;
+        } else {
+            m_frames[write++] = std::move(m_frames[read]);
+        }
+    }
+    m_frames.resize(write);
+
+    std::vector<uint8_t>& palettes = m_editorMetadata.importedPalettes;
+    const std::size_t paletteCount = palettes.size() / kImportedPaletteBytes;
+    if (gone.front() < paletteCount) {
+        std::vector<uint8_t> kept;
+        kept.reserve(palettes.size());
+        for (std::size_t frameIndex = 0; frameIndex < paletteCount; ++frameIndex) {
+            const auto begin =
+                palettes.begin() + static_cast<std::ptrdiff_t>(frameIndex * kImportedPaletteBytes);
+            const auto end = begin + static_cast<std::ptrdiff_t>(kImportedPaletteBytes);
+            std::vector<uint8_t>& target = isGone(frameIndex) ? removed.importedPalettes : kept;
+            target.insert(target.end(), begin, end);
+        }
+        palettes = std::move(kept);
+    }
+
+    EditorMetadata& metadata = m_editorMetadata;
+    const std::size_t sectionCount = std::min<std::size_t>(metadata.sectionCount, kMaxSections);
+    std::vector<uint32_t> firstFrames;
+    std::vector<uint8_t> names;
+    for (std::size_t section = 0; section < sectionCount; ++section) {
+        const std::size_t first = metadata.sectionFirstFrames[section];
+        std::size_t newFirst = first - goneBefore(std::min(first, oldCount));
+        if (first < oldCount && isGone(first)) {
+            const std::size_t target = nextRemaining(first);
+            bool otherSectionStartsBetween = false;
+            for (std::size_t other = 0; other < sectionCount; ++other) {
+                const std::size_t otherFirst = metadata.sectionFirstFrames[other];
+                otherSectionStartsBetween = otherSectionStartsBetween ||
+                                            (otherFirst > first && otherFirst <= target);
+            }
+            if (target >= oldCount || otherSectionStartsBetween) {
+                continue;
+            }
+            newFirst = target - goneBefore(target);
+        }
+        firstFrames.push_back(static_cast<uint32_t>(newFirst));
+        const auto nameBegin = metadata.sectionNames.begin() +
+                               static_cast<std::ptrdiff_t>(section * kSectionNameBytes);
+        names.insert(names.end(), nameBegin,
+                     nameBegin + static_cast<std::ptrdiff_t>(kSectionNameBytes));
+    }
+    std::fill_n(metadata.sectionFirstFrames.begin(), sectionCount, uint32_t{0});
+    std::fill_n(metadata.sectionNames.begin(), sectionCount * kSectionNameBytes, uint8_t{0});
+    std::copy(firstFrames.begin(), firstFrames.end(), metadata.sectionFirstFrames.begin());
+    std::copy(names.begin(), names.end(), metadata.sectionNames.begin());
+    metadata.sectionCount = static_cast<uint32_t>(firstFrames.size());
+
+    for (std::size_t sprite = 0; sprite < m_sprites.size(); ++sprite) {
+        const std::size_t source = metadata.spriteSourceFrames[sprite];
+        if (source < oldCount && isGone(source)) {
+            metadata.spriteSourceRects[sprite * 4] = kNoSpriteSourceRect;
+        }
+        metadata.spriteSourceFrames[sprite] =
+            static_cast<uint32_t>(source - goneBefore(std::min(source, oldCount)));
+    }
+
+    markChanged();
+    m_identificationRevision = m_revision;
+    return removed;
+}
+
+void ProjectDocument::insertFrames(RemovedFrames removed)
+{
+    const std::size_t insertCount = removed.indices.size();
+    if (insertCount == 0) {
+        return;
+    }
+    const std::size_t total = m_frames.size() + insertCount;
+    const std::size_t paletteInsertCount = removed.importedPalettes.size() / kImportedPaletteBytes;
+    if (removed.frames.size() != insertCount || !isAscending(removed.indices) ||
+        removed.indices.back() >= total ||
+        removed.importedPalettes.size() % kImportedPaletteBytes != 0 ||
+        paletteInsertCount > insertCount) {
+        throw std::invalid_argument("removed frames do not fit the document");
+    }
+    for (const FrameRecord& frame : removed.frames) {
+        if (!hasSize(frame.originalSd.size, m_geometry.romFrameSize()) ||
+            !hasSize(frame.colorizedSd.size, m_geometry.planeSize(Resolution::Sd))) {
+            throw std::invalid_argument("removed frames do not fit the document");
+        }
+    }
+    requireFittingRecordTables(removed.tables);
+
+    std::vector<FrameRecord> merged;
+    merged.reserve(total);
+    std::size_t next = 0;
+    std::size_t kept = 0;
+    for (std::size_t frameIndex = 0; frameIndex < total; ++frameIndex) {
+        if (next < insertCount && removed.indices[next] == frameIndex) {
+            merged.push_back(std::move(removed.frames[next++]));
+        } else {
+            merged.push_back(std::move(m_frames[kept++]));
+        }
+    }
+    m_frames = std::move(merged);
+
+    if (paletteInsertCount > 0) {
+        const std::vector<uint8_t>& current = m_editorMetadata.importedPalettes;
+        const std::size_t paletteTotal =
+            current.size() / kImportedPaletteBytes + paletteInsertCount;
+        std::vector<uint8_t> palettes;
+        palettes.reserve(paletteTotal * kImportedPaletteBytes);
+        std::size_t nextInserted = 0;
+        std::size_t nextKept = 0;
+        for (std::size_t frameIndex = 0; frameIndex < paletteTotal; ++frameIndex) {
+            const bool inserted = nextInserted < paletteInsertCount &&
+                                  removed.indices[nextInserted] == frameIndex;
+            const std::vector<uint8_t>& source = inserted ? removed.importedPalettes : current;
+            std::size_t& position = inserted ? nextInserted : nextKept;
+            const auto begin =
+                source.begin() + static_cast<std::ptrdiff_t>(position * kImportedPaletteBytes);
+            palettes.insert(palettes.end(), begin,
+                            begin + static_cast<std::ptrdiff_t>(kImportedPaletteBytes));
+            ++position;
+        }
+        m_editorMetadata.importedPalettes = std::move(palettes);
+    }
+
+    restoreRecordTables(std::move(removed.tables));
+    m_identificationRevision = m_revision;
+}
+
+SpriteRecord ProjectDocument::makeBlankSprite(std::string name) const
+{
+    const Size spriteSize{static_cast<int>(kMaxSpriteWidth), static_cast<int>(kMaxSpriteHeight)};
+    SpriteRecord sprite;
+    sprite.originalSd = makeIndexedFrame(spriteSize, 255);
+    sprite.colorizedSd = makeRgb565Frame(spriteSize, 0);
+    sprite.detectionDwords.assign(kMaxSpriteDetectAreas, 0xffffffff);
+    sprite.detectionDwordPositions.assign(kMaxSpriteDetectAreas, 0xffff);
+    sprite.detectionAreas.assign(kMaxSpriteDetectAreas, SpriteDetectionArea{});
+    sprite.name = std::move(name);
+    if (editsOriginalPlaneOnly()) {
+        // No extra-plane data is held, see fromSnapshot().
+        sprite.dynamicMaskSd = makeIndexedFrame(spriteSize, 255);
+        sprite.dynamicColorsSd.assign(kMaxDynamicSetsPerSprite * m_colorCount, 0);
+        return sprite;
+    }
+    sprite.maskHd = makeIndexedFrame(spriteSize, 255);
+    sprite.colorizedHd = makeRgb565Frame(spriteSize, 0);
+    sprite.hasHd = rendersHdPlaneOnly();
+    normalizeSpriteRecord(sprite, m_colorCount);
+    return sprite;
+}
+
+bool ProjectDocument::isSpriteNameUsed(const std::string& name) const
+{
+    return std::any_of(m_sprites.begin(), m_sprites.end(),
+                       [&name](const SpriteRecord& sprite) { return sprite.name == name; });
+}
+
+std::size_t ProjectDocument::appendSprite(SpriteRecord sprite, std::size_t sourceFrameIndex)
+{
+    if (m_sprites.size() >= kMaxSprites) {
+        throw std::length_error("a project holds at most 255 sprites");
+    }
+    const Size spriteSize{static_cast<int>(kMaxSpriteWidth), static_cast<int>(kMaxSpriteHeight)};
+    const bool hasExtra = !editsOriginalPlaneOnly();
+    if (!sprite.originalSd.isValid() || !hasSize(sprite.originalSd.size, spriteSize) ||
+        !sprite.colorizedSd.isValid() || !hasSize(sprite.colorizedSd.size, spriteSize) ||
+        (hasExtra && (!sprite.maskHd.isValid() || !hasSize(sprite.maskHd.size, spriteSize) ||
+                      !sprite.colorizedHd.isValid() ||
+                      !hasSize(sprite.colorizedHd.size, spriteSize))) ||
+        (!hasExtra && sprite.hasHd) ||
+        sprite.detectionDwords.size() != kMaxSpriteDetectAreas ||
+        sprite.detectionDwordPositions.size() != kMaxSpriteDetectAreas ||
+        sprite.detectionAreas.size() != kMaxSpriteDetectAreas) {
+        throw std::invalid_argument("sprite record does not fit the project");
+    }
+    const std::size_t spriteIndex = m_sprites.size();
+    EditorMetadata& metadata = m_editorMetadata;
+    setFixedName(metadata.spriteNames, spriteIndex, kSpriteNameBytes, sprite.name);
+    metadata.spriteSourceFrames[spriteIndex] = static_cast<uint32_t>(sourceFrameIndex);
+    metadata.spriteSourceRects[spriteIndex * 4] = kNoSpriteSourceRect;
+    std::fill_n(metadata.spriteSourceRects.begin() +
+                    static_cast<std::ptrdiff_t>(spriteIndex * 4 + 1),
+                3,
+                uint16_t{0});
+    std::fill_n(metadata.spriteSourceMirrors.begin() +
+                    static_cast<std::ptrdiff_t>(spriteIndex * 2),
+                2,
+                uint32_t{0});
+    m_sprites.push_back(std::move(sprite));
+    markChanged();
+    return spriteIndex;
+}
+
+RemovedSprite ProjectDocument::removeSprite(std::size_t spriteIndex)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    RemovedSprite removed;
+    removed.index = spriteIndex;
+    removed.tables = recordTables();
+    removed.sprite = std::move(m_sprites[spriteIndex]);
+    const std::size_t oldCount = m_sprites.size();
+    m_sprites.erase(m_sprites.begin() + static_cast<std::ptrdiff_t>(spriteIndex));
+
+    for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
+        std::vector<FrameSpriteReference>& references = m_frames[frameIndex].spriteReferences;
+        if (references.empty()) {
+            continue;
+        }
+        // An emptied slot at the end keeps the bounds of the last slot, as the Win32
+        // editor's Delete_Sprite leaves it.
+        FrameSpriteReference emptySlot = references.back();
+        emptySlot.spriteId = kNoSpriteId;
+        std::size_t write = 0;
+        for (std::size_t slot = 0; slot < references.size(); ++slot) {
+            if (references[slot].spriteId == spriteIndex) {
+                removed.references.push_back({frameIndex, slot, references[slot]});
+            } else {
+                references[write++] = references[slot];
+            }
+        }
+        std::fill(references.begin() + static_cast<std::ptrdiff_t>(write), references.end(),
+                  emptySlot);
+        for (FrameSpriteReference& reference : references) {
+            if (reference.spriteId != kNoSpriteId && reference.spriteId > spriteIndex) {
+                --reference.spriteId;
+            }
+        }
+    }
+
+    EditorMetadata& metadata = m_editorMetadata;
+    removeTableEntry(metadata.spriteNames, spriteIndex, oldCount, kSpriteNameBytes);
+    removeTableEntry(metadata.spriteSourceFrames, spriteIndex, oldCount, 1);
+    removeTableEntry(metadata.spriteSourceRects, spriteIndex, oldCount, 4);
+    removeTableEntry(metadata.spriteSourceMirrors, spriteIndex, oldCount, 2);
+    markChanged();
+    return removed;
+}
+
+void ProjectDocument::insertSprite(RemovedSprite removed)
+{
+    if (removed.index > m_sprites.size() || m_sprites.size() >= kMaxSprites) {
+        throw std::invalid_argument("removed sprite does not fit the document");
+    }
+    for (const RemovedSpriteReference& reference : removed.references) {
+        if (reference.frameIndex >= m_frames.size() ||
+            reference.slotIndex >= kMaxSpritesPerFrame) {
+            throw std::invalid_argument("removed sprite does not fit the document");
+        }
+    }
+    requireFittingRecordTables(removed.tables);
+    for (FrameRecord& frame : m_frames) {
+        for (FrameSpriteReference& reference : frame.spriteReferences) {
+            // 254 would become "no sprite".
+            if (reference.spriteId >= removed.index && reference.spriteId < kNoSpriteId - 1) {
+                ++reference.spriteId;
+            }
+        }
+    }
+    for (const RemovedSpriteReference& reference : removed.references) {
+        std::vector<FrameSpriteReference>& references =
+            m_frames[reference.frameIndex].spriteReferences;
+        if (references.size() != kMaxSpritesPerFrame) {
+            references.assign(kMaxSpritesPerFrame, FrameSpriteReference{});
+        }
+        references.insert(references.begin() + static_cast<std::ptrdiff_t>(reference.slotIndex),
+                          reference.reference);
+        references.pop_back();
+    }
+    m_sprites.insert(m_sprites.begin() + static_cast<std::ptrdiff_t>(removed.index),
+                     std::move(removed.sprite));
+    restoreRecordTables(std::move(removed.tables));
+}
+
+BackgroundRecord ProjectDocument::makeBackgroundFromFrame(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    BackgroundRecord background;
+    background.colorizedSd = frame.colorizedSd;
+    if (rendersHdPlaneOnly()) {
+        if (!frame.colorizedHd) {
+            throwMissingExtra(m_geometry, "frame");
+        }
+        background.colorizedHd = frame.colorizedHd;
+    }
+    return background;
+}
+
+std::size_t ProjectDocument::appendBackground(BackgroundRecord background)
+{
+    if (m_backgrounds.size() >= kMaxBackgrounds) {
+        throw std::length_error("a project holds at most 255 backgrounds");
+    }
+    if (!background.colorizedSd.isValid() ||
+        !hasSize(background.colorizedSd.size, m_geometry.planeSize(Resolution::Sd)) ||
+        (background.colorizedHd &&
+         (editsOriginalPlaneOnly() || !background.colorizedHd->isValid() ||
+          !hasSize(background.colorizedHd->size, m_geometry.planeSize(Resolution::Hd)))) ||
+        background.inactiveHd) {
+        throw std::invalid_argument("background record does not fit the project");
+    }
+    m_backgrounds.push_back(std::move(background));
+    markChanged();
+    return m_backgrounds.size() - 1;
+}
+
+RemovedBackground ProjectDocument::removeBackground(std::size_t backgroundIndex)
+{
+    if (backgroundIndex >= m_backgrounds.size()) {
+        throw std::out_of_range("background index out of range");
+    }
+    RemovedBackground removed;
+    removed.index = backgroundIndex;
+    removed.background = std::move(m_backgrounds[backgroundIndex]);
+    m_backgrounds.erase(m_backgrounds.begin() + static_cast<std::ptrdiff_t>(backgroundIndex));
+    for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
+        std::optional<FrameBackgroundData>& data = m_frames[frameIndex].backgroundData;
+        if (!data || data->backgroundId == kNoBackgroundId) {
+            continue;
+        }
+        if (data->backgroundId == backgroundIndex) {
+            data->backgroundId = kNoBackgroundId;
+            removed.frames.push_back(frameIndex);
+        } else if (data->backgroundId > backgroundIndex) {
+            --data->backgroundId;
+        }
+    }
+    markChanged();
+    return removed;
+}
+
+void ProjectDocument::insertBackground(RemovedBackground removed)
+{
+    if (removed.index > m_backgrounds.size() || m_backgrounds.size() >= kMaxBackgrounds ||
+        (!removed.frames.empty() && removed.frames.back() >= m_frames.size())) {
+        throw std::invalid_argument("removed background does not fit the document");
+    }
+    for (FrameRecord& frame : m_frames) {
+        if (frame.backgroundData && frame.backgroundData->backgroundId >= removed.index &&
+            frame.backgroundData->backgroundId < kNoBackgroundId - 1) {
+            ++frame.backgroundData->backgroundId;
+        }
+    }
+    for (std::size_t frameIndex : removed.frames) {
+        if (m_frames[frameIndex].backgroundData) {
+            m_frames[frameIndex].backgroundData->backgroundId =
+                static_cast<uint16_t>(removed.index);
+        }
+    }
+    m_backgrounds.insert(m_backgrounds.begin() + static_cast<std::ptrdiff_t>(removed.index),
+                         std::move(removed.background));
+    markChanged();
+}
+
+std::size_t ProjectDocument::appendComparisonMask()
+{
+    if (m_comparisonMasks.size() >= kMaxComparisonMasks) {
+        throw std::length_error("a project holds at most 64 comparison masks");
+    }
+    m_comparisonMasks.push_back(makeIndexedFrame(originalFrameSize(), 0));
+    markChanged();
+    m_identificationRevision = m_revision;
+    return m_comparisonMasks.size() - 1;
+}
+
+RemovedComparisonMask ProjectDocument::removeComparisonMask(std::size_t maskIndex)
+{
+    if (maskIndex >= m_comparisonMasks.size()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    RemovedComparisonMask removed;
+    removed.index = maskIndex;
+    removed.tables = recordTables();
+    removed.mask = std::move(m_comparisonMasks[maskIndex]);
+    m_comparisonMasks.erase(m_comparisonMasks.begin() + static_cast<std::ptrdiff_t>(maskIndex));
+    for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
+        uint8_t& maskId = m_frames[frameIndex].comparisonMaskId;
+        if (maskId == kNoComparisonMaskId) {
+            continue;
+        }
+        if (maskId == maskIndex) {
+            maskId = kNoComparisonMaskId;
+            removed.frames.push_back(frameIndex);
+        } else if (maskId > maskIndex) {
+            --maskId;
+        }
+    }
+    // The Win32 editor has a name for each of the 64 mask slots, used or not.
+    removeTableEntry(m_editorMetadata.maskNames, maskIndex, kMaxComparisonMasks, kMaskNameBytes);
+    markChanged();
+    m_identificationRevision = m_revision;
+    return removed;
+}
+
+void ProjectDocument::insertComparisonMask(RemovedComparisonMask removed)
+{
+    if (removed.index > m_comparisonMasks.size() ||
+        m_comparisonMasks.size() >= kMaxComparisonMasks ||
+        !removed.mask.isValid() || !hasSize(removed.mask.size, originalFrameSize()) ||
+        (!removed.frames.empty() && removed.frames.back() >= m_frames.size())) {
+        throw std::invalid_argument("removed comparison mask does not fit the document");
+    }
+    requireFittingRecordTables(removed.tables);
+    for (FrameRecord& frame : m_frames) {
+        if (frame.comparisonMaskId >= removed.index &&
+            frame.comparisonMaskId < kNoComparisonMaskId - 1) {
+            ++frame.comparisonMaskId;
+        }
+    }
+    for (std::size_t frameIndex : removed.frames) {
+        m_frames[frameIndex].comparisonMaskId = static_cast<uint8_t>(removed.index);
+    }
+    m_comparisonMasks.insert(
+        m_comparisonMasks.begin() + static_cast<std::ptrdiff_t>(removed.index),
+        std::move(removed.mask));
+    restoreRecordTables(std::move(removed.tables));
+    m_identificationRevision = m_revision;
+}
+
+std::size_t ProjectDocument::comparisonMaskUseCount(std::size_t maskIndex) const
+{
+    return static_cast<std::size_t>(
+        std::count_if(m_frames.begin(), m_frames.end(), [maskIndex](const FrameRecord& frame) {
+            return frame.comparisonMaskId != kNoComparisonMaskId &&
+                   frame.comparisonMaskId == maskIndex;
+        }));
+}
+
+std::size_t ProjectDocument::backgroundUseCount(std::size_t backgroundIndex) const
+{
+    return static_cast<std::size_t>(
+        std::count_if(m_frames.begin(), m_frames.end(),
+                      [backgroundIndex](const FrameRecord& frame) {
+                          return frame.backgroundData &&
+                                 frame.backgroundData->backgroundId != kNoBackgroundId &&
+                                 frame.backgroundData->backgroundId == backgroundIndex;
+                      }));
+}
+
+std::size_t ProjectDocument::spriteUseCount(std::size_t spriteIndex) const
+{
+    return static_cast<std::size_t>(
+        std::count_if(m_frames.begin(), m_frames.end(), [spriteIndex](const FrameRecord& frame) {
+            return std::any_of(frame.spriteReferences.begin(), frame.spriteReferences.end(),
+                               [spriteIndex](const FrameSpriteReference& reference) {
+                                   return reference.spriteId != kNoSpriteId &&
+                                          reference.spriteId == spriteIndex;
+                               });
+        }));
+}
+
 void ProjectDocument::addUnsupportedPayload(UnsupportedLegacyPayload payload)
 {
     m_unsupportedPayloads.push_back(std::move(payload));

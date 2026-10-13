@@ -21,6 +21,8 @@ struct HistoryKey {
 
 // The history a command belongs to: its kind, primary index and resolution.
 [[nodiscard]] HistoryKey historyKey(const EditTarget& target);
+// The one history of all structure commands, see StructureCommand.
+[[nodiscard]] HistoryKey structureHistoryKey();
 
 // Independent undo/redo stacks, one per key. Every command also carries a position in the
 // order in which all commands were pushed or redone, so that several histories can be undone
@@ -28,6 +30,13 @@ struct HistoryKey {
 //
 // A command that replaces data wholesale (EditCommand::replacedData) drops the histories of
 // that data whenever it is pushed, undone or redone.
+//
+// A command that removes, adds or renumbers records (EditCommand::renumberedRecords) drops,
+// whenever it is pushed, undone or redone, every history that holds a command naming one of
+// those records (EditCommand::recordReferences), on its undo or its redo stack. Dropping
+// instead of renumbering the commands: what is left needs no proof beyond "no remaining
+// command names a record whose number changed", and that holds by construction. The
+// history of the structure commands themselves stays, see StructureCommand.
 class UndoHistories {
 public:
     // Records an already applied command and clears that key's redo stack.
