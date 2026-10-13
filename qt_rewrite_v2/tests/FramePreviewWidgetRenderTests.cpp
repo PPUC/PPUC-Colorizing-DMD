@@ -3057,6 +3057,7 @@ void testRecordListPage()
 
 void runBigOriginalWidgetTests();
 void runCanvasEditControllerTests();
+void runDumpImportWidgetTests();
 void runEditorMatchesRuntimeTests();
 void runNativeOriginalWidgetTests();
 void runPlaneLabelsWidgetTests();
@@ -3103,6 +3104,7 @@ int main(int argc, char* argv[])
     runPlaneLabelsWidgetTests();
     runRuntimeViewWidgetTests();
     runEditorMatchesRuntimeTests();
+    runDumpImportWidgetTests();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

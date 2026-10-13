@@ -254,7 +254,8 @@ struct RemovedComparisonMask {
 class ProjectDocument {
 public:
     [[nodiscard]] static ProjectDocument createEmpty(const ProjectCreateOptions& options);
-    [[nodiscard]] static ProjectDocument fromSnapshot(const ProjectSnapshot& snapshot);
+    // Taken by value so that a snapshot that is no longer needed can be moved in.
+    [[nodiscard]] static ProjectDocument fromSnapshot(ProjectSnapshot snapshot);
 
     [[nodiscard]] const std::string& romName() const;
     void setRomName(std::string name);
@@ -280,6 +281,8 @@ public:
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
     [[nodiscard]] bool isDirty() const;
     void markClean();
+    // For a document that is in no file yet, e.g. a new project.
+    void markUnsaved();
     // Goes up with every change and is not used by another document's content in this
     // process, so that data derived from a document can tell it is stale.
     [[nodiscard]] uint64_t revision() const;
@@ -507,6 +510,11 @@ public:
     //   (kNoSpriteSourceRect), and source frame numbers behind a removed frame move down.
     [[nodiscard]] RemovedFrames removeFrames(const std::vector<std::size_t>& frameIndices);
     void insertFrames(RemovedFrames removed);
+    // A frame for insertFrames() that nobody has worked on, see
+    // makeUncolorizedFrameSnapshot(). Throws std::invalid_argument for an original that has
+    // not the size of the ROM frame or has a shade the project has no color for.
+    [[nodiscard]] FrameRecord makeUncolorizedFrame(IndexedFrame original,
+                                                   uint32_t durationMs) const;
 
     // A sprite without any pixel, as the Win32 editor creates it. In a project that renders
     // its extra plane only it has that plane's data, which the runtime needs.

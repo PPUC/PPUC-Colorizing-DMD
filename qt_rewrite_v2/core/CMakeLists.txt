@@ -6,8 +6,11 @@ add_library(colorizing_qt_v2_core STATIC
     edit/DrawingTools.cpp
     edit/EditCommand.cpp
     edit/FramePixelSelection.cpp
+    edit/SameFrames.cpp
     edit/StructureCommand.cpp
     edit/UndoHistories.cpp
+    import/FrameDumpImport.cpp
+    import/FrameDumpReader.cpp
     legacy/LegacyCromFrames.cpp
     legacy/LegacyCromMetadata.cpp
     legacy/LegacyCrpOriginals.cpp

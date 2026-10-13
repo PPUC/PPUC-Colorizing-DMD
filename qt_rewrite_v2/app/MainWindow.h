@@ -12,6 +12,7 @@
 #include "CanvasEditController.h"
 #include "document/ProjectDocument.h"
 #include "edit/DrawingTools.h"
+#include "edit/SameFrames.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
@@ -28,6 +29,7 @@ class LazyListIcons;
 class MaskPanel;
 class PalettePanel;
 class RecordListPage;
+class SameFramesPanel;
 class SpritePanel;
 class SpriteEditorWidget;
 }
@@ -71,9 +73,18 @@ private:
     void createActions();
     void createCentralView();
     void openProject();
+    // File -> New Project From Dump and Add Frames From Dump, see DumpImportDialog.
+    void newProjectFromDump();
+    void addFramesFromDump();
+    // Asks before a project with unsaved changes is replaced; true if it may be.
+    [[nodiscard]] bool confirmReplacingProject();
     void openRecentProject(const QString& entry);
-    void saveProject();
-    void saveProjectAs();
+    // A project that has no files yet (a new project) asks for them, as Save As does.
+    // Both return whether the project was written.
+    bool saveProject();
+    bool saveProjectAs();
+    [[nodiscard]] bool isUntitledProject() const;
+    void updateWindowTitle();
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();
@@ -112,6 +123,22 @@ private:
     void setActiveDrawColor(uint16_t rgb565);
     void updateFrameMetadataControls();
     void updateMaskControls();
+    // The comparison side of the Mask page, see SameFramesPanel. The same frames are worked
+    // out only while the page is shown.
+    void updateSameFrameControls();
+    void updateSameFrameCounts();
+    void updateSpotCommonOverlay();
+    enum class SameFrameDeletion {
+        SameAsCurrent,
+        SameAsSelected,
+        AllDuplicates,
+    };
+    void deleteSameFrames(SameFrameDeletion deletion);
+    void writeCommonPixelsToMask();
+    void showFramesUsingMask();
+    void selectFramesUsingMask();
+    // Makes the frame the current one if the frame filter lists it.
+    void goToFrame(std::size_t frameIndex);
     void updateBackgroundControls();
     void updatePaintTargetMode();
     void setPaintTarget(PaintTarget target);
@@ -280,6 +307,7 @@ private:
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
     QAction* m_saveAction = nullptr;
+    QAction* m_addFramesFromDumpAction = nullptr;
     QAction* m_deleteFramesAction = nullptr;
     // The same in the frame list's menu, with the Delete and Backspace keys.
     QAction* m_deleteFramesListAction = nullptr;
@@ -319,6 +347,7 @@ private:
     DynamicPanel* m_dynamicPanel = nullptr;
     FramePanel* m_framePanel = nullptr;
     MaskPanel* m_maskPanel = nullptr;
+    SameFramesPanel* m_sameFramesPanel = nullptr;
     PalettePanel* m_palettePanel = nullptr;
     SpritePanel* m_spritePanel = nullptr;
     QToolButton* m_activeColorButton = nullptr;
@@ -341,6 +370,16 @@ private:
     CanvasEditController m_canvasEdit;
     RuntimeView m_runtimeView;
     edit::UndoHistories m_undoHistories;
+    edit::SameFrameFinder m_sameFrameFinder;
+    // The counts of "Update Same List" and what they were made for.
+    struct SameFrameCountsFor {
+        std::size_t frameIndex = 0;
+        uint64_t identificationRevision = 0;
+        std::vector<edit::SameFrameCounts> counts;
+    };
+    std::optional<SameFrameCountsFor> m_sameFrameCounts;
+    // Where the last dump came from: the place a new project is offered to be saved in.
+    QString m_dumpDirectory;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

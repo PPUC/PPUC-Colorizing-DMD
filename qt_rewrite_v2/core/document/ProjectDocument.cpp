@@ -388,7 +388,47 @@ ProjectDocument ProjectDocument::createEmpty(const ProjectCreateOptions& options
     return document;
 }
 
-ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
+namespace {
+
+// What a document does not hold of a frame when the layout discards the extra plane.
+void dropDiscardedPlane(FrameRecord& frame)
+{
+    frame.colorizedHd.reset();
+    frame.inactiveHd.reset();
+    frame.colorRotationsHd = {};
+    if (frame.dynamicData) {
+        frame.dynamicData->maskHd = {};
+        frame.dynamicData->colorsHd = {};
+        frame.dynamicData->shadowDirectionsHd = {};
+        frame.dynamicData->shadowColorsHd = {};
+    }
+    if (frame.backgroundData) {
+        frame.backgroundData->maskHd = {};
+    }
+}
+
+FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
+{
+    return FrameRecord{
+        std::move(frameSnapshot.originalSd),
+        std::move(frameSnapshot.colorizedSd),
+        std::move(frameSnapshot.colorizedHd),
+        frameSnapshot.shapeComparisonMode,
+        frameSnapshot.comparisonMaskId,
+        std::move(frameSnapshot.dynamicData),
+        std::move(frameSnapshot.backgroundData),
+        std::move(frameSnapshot.spriteReferences),
+        frameSnapshot.triggerId,
+        frameSnapshot.durationMs,
+        normalizedColorRotations(frameSnapshot.colorRotationsSd),
+        normalizedColorRotations(frameSnapshot.colorRotationsHd),
+        std::move(frameSnapshot.inactiveHd),
+    };
+}
+
+}  // namespace
+
+ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
 {
     std::string errorMessage;
     if (!isValidProjectSnapshot(snapshot, &errorMessage)) {
@@ -396,51 +436,26 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
     }
 
     ProjectDocument document;
-    document.m_romName = snapshot.romName;
+    document.m_romName = std::move(snapshot.romName);
     document.m_frames.reserve(snapshot.frames.size());
-    for (const ProjectFrameSnapshot& frameSnapshot : snapshot.frames) {
-        document.m_frames.push_back(FrameRecord{
-            frameSnapshot.originalSd,
-            frameSnapshot.colorizedSd,
-            frameSnapshot.colorizedHd,
-            frameSnapshot.shapeComparisonMode,
-            frameSnapshot.comparisonMaskId,
-            frameSnapshot.dynamicData,
-            frameSnapshot.backgroundData,
-            frameSnapshot.spriteReferences,
-            frameSnapshot.triggerId,
-            frameSnapshot.durationMs,
-            normalizedColorRotations(frameSnapshot.colorRotationsSd),
-            normalizedColorRotations(frameSnapshot.colorRotationsHd),
-            frameSnapshot.inactiveHd,
-        });
+    for (ProjectFrameSnapshot& frameSnapshot : snapshot.frames) {
+        document.m_frames.push_back(frameRecord(std::move(frameSnapshot)));
     }
-    document.m_comparisonMasks = snapshot.comparisonMasks;
-    document.m_backgrounds = snapshot.backgrounds;
-    document.m_sprites = snapshot.sprites;
+    document.m_comparisonMasks = std::move(snapshot.comparisonMasks);
+    document.m_backgrounds = std::move(snapshot.backgrounds);
+    document.m_sprites = std::move(snapshot.sprites);
     for (SpriteRecord& sprite : document.m_sprites) {
         normalizeSpriteRecord(sprite, snapshot.colorCount);
     }
-    document.m_palettes = snapshot.palettes;
-    document.m_unsupportedPayloads = snapshot.unsupportedPayloads;
-    document.m_editorMetadata = snapshot.editorMetadata;
+    document.m_palettes = std::move(snapshot.palettes);
+    document.m_unsupportedPayloads = std::move(snapshot.unsupportedPayloads);
+    document.m_editorMetadata = std::move(snapshot.editorMetadata);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
     document.m_geometry = snapshot.geometry;
     if (document.m_geometry.discardsExtraPlane()) {
         for (FrameRecord& frame : document.m_frames) {
-            frame.colorizedHd.reset();
-            frame.inactiveHd.reset();
-            frame.colorRotationsHd = {};
-            if (frame.dynamicData) {
-                frame.dynamicData->maskHd = {};
-                frame.dynamicData->colorsHd = {};
-                frame.dynamicData->shadowDirectionsHd = {};
-                frame.dynamicData->shadowColorsHd = {};
-            }
-            if (frame.backgroundData) {
-                frame.backgroundData->maskHd = {};
-            }
+            dropDiscardedPlane(frame);
         }
         for (BackgroundRecord& background : document.m_backgrounds) {
             background.colorizedHd.reset();
@@ -583,6 +598,11 @@ void ProjectDocument::markChanged()
 {
     m_dirty = true;
     m_revision = nextRevision();
+}
+
+void ProjectDocument::markUnsaved()
+{
+    m_dirty = true;
 }
 
 void ProjectDocument::markClean()
@@ -2183,6 +2203,22 @@ void ProjectDocument::insertFrames(RemovedFrames removed)
 
     restoreRecordTables(std::move(removed.tables));
     m_identificationRevision = m_revision;
+}
+
+FrameRecord ProjectDocument::makeUncolorizedFrame(IndexedFrame original,
+                                                  uint32_t durationMs) const
+{
+    for (uint8_t shade : original.pixels) {
+        if (shade >= m_colorCount) {
+            throw std::invalid_argument("the original has a shade the project has no color for");
+        }
+    }
+    FrameRecord frame = frameRecord(
+        makeUncolorizedFrameSnapshot(m_geometry, m_colorCount, std::move(original), durationMs));
+    if (m_geometry.discardsExtraPlane()) {
+        dropDiscardedPlane(frame);
+    }
+    return frame;
 }
 
 SpriteRecord ProjectDocument::makeBlankSprite(std::string name) const

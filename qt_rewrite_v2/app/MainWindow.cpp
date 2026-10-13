@@ -5,6 +5,7 @@
 
 #include <QAbstractItemView>
 #include <QAction>
+#include <QApplication>
 #include <QActionGroup>
 #include <QColorDialog>
 #include <QCheckBox>
@@ -49,6 +50,8 @@
 #include "LazyListIcons.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
+#include "dialogs/DumpImportDialog.h"
+#include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
 #include "panels/DynamicPanel.h"
@@ -56,6 +59,7 @@
 #include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
 #include "panels/RecordListPage.h"
+#include "panels/SameFramesPanel.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
@@ -70,6 +74,7 @@ constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
 constexpr QSize kFrameThumbnailSize{160, 84};
 constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
+constexpr char kWindowTitle[] = "ColorizingDMD Qt Rewrite v2";
 
 QString favoriteColorButtonStyle(uint16_t rgb565)
 {
@@ -119,6 +124,18 @@ protected:
 
 private:
     std::function<void(uint16_t)> m_dropHandler;
+};
+
+// A page of the inspector that asks for no width of its own: it takes the width the other
+// pages give the inspector and scrolls if that is too little.
+class NarrowPage final : public QWidget {
+public:
+    using QWidget::QWidget;
+
+    [[nodiscard]] QSize sizeHint() const override
+    {
+        return QSize(0, QWidget::sizeHint().height());
+    }
 };
 
 QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
@@ -344,7 +361,7 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_canvasEdit(canvasEditOutputs())
 {
-    setWindowTitle(QStringLiteral("ColorizingDMD Qt Rewrite v2"));
+    setWindowTitle(QString::fromLatin1(kWindowTitle));
     resize(1000, 700);
     createActions();
     createCentralView();
@@ -356,6 +373,13 @@ void MainWindow::createActions()
     QMenu* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
     QMenu* editMenu = menuBar()->addMenu(QStringLiteral("&Edit"));
     QMenu* viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
+
+    QAction* newFromDumpAction =
+        fileMenu->addAction(QStringLiteral("&New Project From Dump..."));
+    newFromDumpAction->setToolTip(QStringLiteral("Create a project of the frames of a frame dump"));
+    connect(newFromDumpAction, &QAction::triggered, this, [this]() {
+        newProjectFromDump();
+    });
 
     QAction* openAction = fileMenu->addAction(QStringLiteral("&Open Project..."));
     openAction->setShortcut(QKeySequence::Open);
@@ -386,6 +410,14 @@ void MainWindow::createActions()
         fileMenu->addAction(QStringLiteral("Import Image Into Selected &Frames..."));
     connect(importFrameImageAction, &QAction::triggered, this, [this]() {
         importImageIntoSelectedFrames();
+    });
+
+    m_addFramesFromDumpAction = fileMenu->addAction(QStringLiteral("A&dd Frames From Dump..."));
+    m_addFramesFromDumpAction->setToolTip(
+        QStringLiteral("Add the frames of a frame dump that the project does not have yet"));
+    m_addFramesFromDumpAction->setEnabled(false);
+    connect(m_addFramesFromDumpAction, &QAction::triggered, this, [this]() {
+        addFramesFromDump();
     });
 
     m_recentProjectsMenu = fileMenu->addMenu(QStringLiteral("Open &Recent"));
@@ -581,6 +613,24 @@ void MainWindow::createCentralView()
     m_maskPanel->onEditRequested = [this]() {
         editAssignedMask();
     };
+    m_sameFramesPanel = new SameFramesPanel(central);
+    m_sameFramesPanel->onFrameRequested = [this](std::size_t frameIndex) {
+        goToFrame(frameIndex);
+    };
+    m_sameFramesPanel->onUpdateCountsRequested = [this]() { updateSameFrameCounts(); };
+    m_sameFramesPanel->onDeleteSameAsCurrentRequested = [this]() {
+        deleteSameFrames(SameFrameDeletion::SameAsCurrent);
+    };
+    m_sameFramesPanel->onDeleteSameAsSelectedRequested = [this]() {
+        deleteSameFrames(SameFrameDeletion::SameAsSelected);
+    };
+    m_sameFramesPanel->onDeleteAllDuplicatesRequested = [this]() {
+        deleteSameFrames(SameFrameDeletion::AllDuplicates);
+    };
+    m_sameFramesPanel->onSpotCommonToggled = [this](bool) { updateSpotCommonOverlay(); };
+    m_sameFramesPanel->onCommonToMaskRequested = [this]() { writeCommonPixelsToMask(); };
+    m_sameFramesPanel->onUsingMaskChanged = [this]() { showFramesUsingMask(); };
+    m_sameFramesPanel->onSelectUsingMaskRequested = [this]() { selectFramesUsingMask(); };
     m_colorRotationPanel = new ColorRotationPanel(central);
     m_colorRotationPanel->onSlotSelectionChanged = [this]() {
         updateColorRotationControls();
@@ -887,7 +937,22 @@ void MainWindow::createCentralView()
 
     inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"));
 
-    inspectorTabs->addTab(m_maskPanel, QStringLiteral("Mask"));
+    // The mask of the frame and, below it, the comparison tools; they scroll together.
+    auto* maskPage = new NarrowPage(inspectorTabs);
+    auto* maskPageLayout = new QVBoxLayout(maskPage);
+    maskPageLayout->setContentsMargins(0, 0, 0, 0);
+    maskPageLayout->setSpacing(0);
+    maskPageLayout->addWidget(m_maskPanel);
+    maskPageLayout->addWidget(m_sameFramesPanel);
+    maskPageLayout->addStretch(1);
+    auto* maskScrollArea = new QScrollArea(inspectorTabs);
+    maskScrollArea->setWidgetResizable(true);
+    maskScrollArea->setFrameShape(QFrame::NoFrame);
+    maskScrollArea->setWidget(maskPage);
+    inspectorTabs->addTab(maskScrollArea, QStringLiteral("Mask"));
+    connect(inspectorTabs, &QTabWidget::currentChanged, this, [this](int) {
+        updateSameFrameControls();
+    });
 
     inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"));
 
@@ -1205,18 +1270,34 @@ void MainWindow::openRecentProject(const QString& entry)
     loadProject(cromPath, crpPath);
 }
 
-void MainWindow::saveProject()
+bool MainWindow::isUntitledProject() const
+{
+    return m_document && (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty());
+}
+
+void MainWindow::updateWindowTitle()
+{
+    const QString application = QString::fromLatin1(kWindowTitle);
+    if (!m_document) {
+        setWindowTitle(application);
+    } else if (isUntitledProject()) {
+        setWindowTitle(QStringLiteral("%1 (not saved yet) \u2014 %2")
+                           .arg(QString::fromStdString(m_document->romName()), application));
+    } else {
+        setWindowTitle(QStringLiteral("%1 \u2014 %2")
+                           .arg(QFileInfo(m_currentCromPath).fileName(), application));
+    }
+}
+
+bool MainWindow::saveProject()
 {
     if (!m_document) {
-        return;
+        return false;
+    }
+    if (isUntitledProject()) {
+        return saveProjectAs();
     }
     applyPendingSpriteDependentViews();
-    if (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty()) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Save Project Failed"),
-                              QStringLiteral("The current project paths are incomplete."));
-        return;
-    }
 
     const legacy::LegacyProjectFileWriter writer;
     const legacy::LegacySaveResult result = writer.save(legacy::LegacyProjectPaths{
@@ -1230,35 +1311,40 @@ void MainWindow::saveProject()
                               QStringLiteral("Save Project Failed"),
                               QString::fromStdString(result.error.message));
         statusBar()->showMessage(QStringLiteral("Save failed"), 4000);
-        return;
+        return false;
     }
 
     m_document->markClean();
     updateProjectHeaderStatus();
     statusBar()->showMessage(QStringLiteral("Project saved"), 3000);
+    return true;
 }
 
-void MainWindow::saveProjectAs()
+bool MainWindow::saveProjectAs()
 {
     if (!m_document) {
-        return;
+        return false;
     }
-    if (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty()) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Save Project As Failed"),
-                              QStringLiteral("The current project paths are incomplete."));
-        return;
+    const bool untitled = isUntitledProject();
+    // A new project is offered under its ROM name, which is the name the runtime looks for,
+    // beside the dump it was made of.
+    QString proposedPath;
+    if (untitled) {
+        const QDir directory(m_dumpDirectory.isEmpty() ? QDir::homePath() : m_dumpDirectory);
+        proposedPath = directory.absoluteFilePath(QString::fromStdString(m_document->romName()) +
+                                                  QStringLiteral(".cROM"));
+    } else {
+        const QFileInfo currentCromInfo(m_currentCromPath);
+        proposedPath = currentCromInfo.dir().absoluteFilePath(
+            currentCromInfo.completeBaseName() + QStringLiteral("_copy.cROM"));
     }
-
-    const QFileInfo currentCromInfo(m_currentCromPath);
     QString targetCromPath = QFileDialog::getSaveFileName(
         this,
-        QStringLiteral("Save cROM As"),
-        currentCromInfo.dir().absoluteFilePath(currentCromInfo.completeBaseName() +
-                                               QStringLiteral("_copy.cROM")),
+        untitled ? QStringLiteral("Save New Project As") : QStringLiteral("Save cROM As"),
+        proposedPath,
         QStringLiteral("Serum colorization (*.cROM);;All files (*)"));
     if (targetCromPath.isEmpty()) {
-        return;
+        return false;
     }
     if (!targetCromPath.endsWith(QStringLiteral(".cROM"), Qt::CaseInsensitive)) {
         targetCromPath += QStringLiteral(".cROM");
@@ -1268,24 +1354,128 @@ void MainWindow::saveProjectAs()
     const QString targetCrpPath =
         targetCromInfo.dir().absoluteFilePath(targetCromInfo.completeBaseName() +
                                               QStringLiteral(".cRP"));
-    if (targetCromPath == m_currentCromPath) {
-        saveProject();
-        return;
+    if (!untitled && targetCromPath == m_currentCromPath) {
+        return saveProject();
     }
 
     const QString oldCromPath = m_currentCromPath;
     const QString oldCrpPath = m_currentCrpPath;
     m_currentCromPath = targetCromPath;
     m_currentCrpPath = targetCrpPath;
-    saveProject();
-    if (m_document && !m_document->isDirty()) {
+    if (saveProject()) {
         rememberRecentProject(m_currentCromPath, m_currentCrpPath);
-        statusBar()->showMessage(QStringLiteral("Project saved as copy"), 3000);
-        return;
+        updateWindowTitle();
+        statusBar()->showMessage(untitled ? QStringLiteral("Project saved as %1")
+                                                .arg(targetCromInfo.fileName())
+                                          : QStringLiteral("Project saved as copy"),
+                                 3000);
+        return true;
     }
 
     m_currentCromPath = oldCromPath;
     m_currentCrpPath = oldCrpPath;
+    return false;
+}
+
+bool MainWindow::confirmReplacingProject()
+{
+    if (!m_document || !m_document->isDirty()) {
+        return true;
+    }
+    QMessageBox confirm(this);
+    confirm.setIcon(QMessageBox::Warning);
+    confirm.setWindowTitle(QStringLiteral("New Project"));
+    confirm.setText(QStringLiteral("The current project has changes that are not saved."));
+    confirm.setInformativeText(
+        QStringLiteral("Creating a new project closes it and the changes are lost."));
+    QPushButton* discardButton =
+        confirm.addButton(QStringLiteral("Discard Changes"), QMessageBox::DestructiveRole);
+    confirm.setDefaultButton(confirm.addButton(QMessageBox::Cancel));
+    confirm.exec();
+    return confirm.clickedButton() == discardButton;
+}
+
+void MainWindow::newProjectFromDump()
+{
+    if (!confirmReplacingProject()) {
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Choose Frame Dump For New Project"),
+        m_dumpDirectory,
+        QStringLiteral("Frame dumps (*.txt);;All files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    DumpImportDialog dialog(DumpImportDialog::Mode::NewProject, nullptr, this);
+    dialog.setDumpPath(path);
+    if (dialog.exec() != QDialog::Accepted || !dialog.result()) {
+        return;
+    }
+    m_dumpDirectory = QFileInfo(dialog.dumpPath()).absolutePath();
+    importing::DumpImportResult dump = dialog.takeResult();
+    const QString summary = dumpCountsText(dump, false);
+    try {
+        setPlaybackRunning(false);
+        m_document = document::ProjectDocument::fromSnapshot(
+            importing::makeProjectSnapshot(dialog.romName().toStdString(), std::move(dump)));
+        m_document->markUnsaved();
+        m_currentCromPath.clear();
+        m_currentCrpPath.clear();
+        m_undoHistories.clear();
+        updateUndoRedoActions();
+        if (m_saveAction) {
+            m_saveAction->setEnabled(true);
+        }
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this,
+                              QStringLiteral("New Project Failed"),
+                              QString::fromUtf8(ex.what()));
+        return;
+    }
+    refreshProjectSummary();
+    statusBar()->showMessage(
+        QStringLiteral("New project %1, not saved yet: %2")
+            .arg(QString::fromStdString(m_document->romName()), summary),
+        8000);
+}
+
+void MainWindow::addFramesFromDump()
+{
+    if (!m_document) {
+        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Choose Frame Dump To Add"),
+        m_dumpDirectory,
+        QStringLiteral("Frame dumps (*.txt);;All files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    // The dialog's worker reads the document: nothing may change it meanwhile.
+    setPlaybackRunning(false);
+    applyPendingSpriteDependentViews();
+    DumpImportDialog dialog(DumpImportDialog::Mode::AddFrames, &*m_document, this);
+    dialog.setDumpPath(path);
+    if (dialog.exec() != QDialog::Accepted || !dialog.result()) {
+        return;
+    }
+    m_dumpDirectory = QFileInfo(dialog.dumpPath()).absolutePath();
+    importing::DumpImportResult dump = dialog.takeResult();
+    const QString summary = dumpCountsText(dump, true);
+    try {
+        recordStructureEdit(edit::addFrames(
+            *m_document, importing::makeProjectFrames(*m_document, std::move(dump))));
+        statusBar()->showMessage(QStringLiteral("Frames added: %1; %2 frames now")
+                                     .arg(summary)
+                                     .arg(static_cast<qulonglong>(m_document->frameCount())),
+                                 8000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
 }
 
 void MainWindow::exportCurrentFramePng()
@@ -1498,6 +1688,251 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
     refreshProjectSummary();
 }
 
+void MainWindow::updateSameFrameControls()
+{
+    if (!m_sameFramesPanel) {
+        return;
+    }
+    updateSpotCommonOverlay();
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    SameFramesPanelState state;
+    state.hasFrame = m_document && frameIndex;
+    // Hidden, the page costs nothing; it is brought up to date when it is shown.
+    if (state.hasFrame && !m_sameFramesPanel->isVisible()) {
+        return;
+    }
+    if (!state.hasFrame) {
+        m_sameFramesPanel->refresh(state);
+        m_sameFramesPanel->setMaskCounts(nullptr);
+        m_sameFramesPanel->setMaskChoices(0, {});
+        m_sameFramesPanel->setFramesUsingMask({});
+        return;
+    }
+    state.frameCount = m_document->frameCount();
+    state.selectedFrameCount = selectedFrameIndices().size();
+    state.hasAssignedMask = currentComparisonMaskIndex().has_value();
+    state.sameFrames = m_sameFrameFinder.sameFrames(
+        *m_document, *frameIndex, edit::comparisonRuleOf(*m_document, *frameIndex));
+    m_sameFramesPanel->refresh(state);
+    const bool countsFit = m_sameFrameCounts && m_sameFrameCounts->frameIndex == *frameIndex &&
+                           m_sameFrameCounts->identificationRevision ==
+                               m_document->identificationRevision();
+    m_sameFramesPanel->setMaskCounts(countsFit ? &m_sameFrameCounts->counts : nullptr);
+    std::vector<std::size_t> useCounts;
+    for (std::size_t mask = 0; mask < m_document->comparisonMaskCount(); ++mask) {
+        useCounts.push_back(m_document->comparisonMaskUseCount(mask));
+    }
+    m_sameFramesPanel->setMaskChoices(
+        edit::framesUsingComparisonMask(*m_document, document::kNoComparisonMaskId).size(),
+        useCounts);
+    showFramesUsingMask();
+}
+
+void MainWindow::updateSameFrameCounts()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || !m_sameFramesPanel) {
+        return;
+    }
+    // One pass over all originals per mask and mode the first time.
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    SameFrameCountsFor counts;
+    counts.frameIndex = *frameIndex;
+    counts.identificationRevision = m_document->identificationRevision();
+    counts.counts = m_sameFrameFinder.countsPerMask(*m_document, *frameIndex);
+    QApplication::restoreOverrideCursor();
+    m_sameFrameCounts = std::move(counts);
+    m_sameFramesPanel->setMaskCounts(&m_sameFrameCounts->counts);
+    statusBar()->showMessage(
+        QStringLiteral("Same frames of frame %1 counted for %2 mask(s)")
+            .arg(static_cast<qulonglong>(*frameIndex))
+            .arg(static_cast<int>(m_document->comparisonMaskCount())),
+        3000);
+}
+
+void MainWindow::updateSpotCommonOverlay()
+{
+    if (!m_preview || !m_sameFramesPanel) {
+        return;
+    }
+    if (!m_document || !m_sameFramesPanel->isSpotCommonChecked()) {
+        m_preview->setDifferenceOverlay(std::nullopt);
+        return;
+    }
+    m_preview->setDifferenceOverlay(edit::differingPixels(*m_document, selectedFrameIndices()));
+}
+
+void MainWindow::deleteSameFrames(SameFrameDeletion deletion)
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex || !m_sameFramesPanel) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+    const std::vector<std::size_t> selected = selectedFrameIndices();
+    const std::vector<std::size_t> kept =
+        m_sameFramesPanel->keepsSelectedFrames() ? selected : std::vector<std::size_t>();
+    std::vector<std::size_t> frames;
+    QString what;
+    switch (deletion) {
+        case SameFrameDeletion::SameAsCurrent:
+            frames = m_sameFrameFinder.duplicatesOf(*m_document, {*frameIndex}, kept);
+            what = QStringLiteral("the same as frame %1 under its mask and shape mode")
+                       .arg(static_cast<qulonglong>(*frameIndex));
+            break;
+        case SameFrameDeletion::SameAsSelected:
+            frames = m_sameFrameFinder.duplicatesOf(*m_document, selected, kept);
+            what = QStringLiteral("the same as one of the %1 selected frame(s) under that "
+                                  "frame's mask and shape mode")
+                       .arg(static_cast<qulonglong>(selected.size()));
+            break;
+        case SameFrameDeletion::AllDuplicates:
+            frames = m_sameFrameFinder.allDuplicates(*m_document, kept);
+            what = QStringLiteral("the same as another frame under that frame's mask and "
+                                  "shape mode");
+            break;
+    }
+    if (frames.empty()) {
+        statusBar()->showMessage(QStringLiteral("Nothing to delete: no frame is %1%2")
+                                     .arg(what, kept.empty() ? QString()
+                                                             : QStringLiteral(" and not selected")),
+                                 5000);
+        return;
+    }
+    deleteFrames(frames,
+                 QStringLiteral("%1 frame(s) are %2%3. The runtime cannot tell them apart.")
+                     .arg(static_cast<qulonglong>(frames.size()))
+                     .arg(what, kept.empty() ? QString()
+                                             : QStringLiteral("; selected frames are kept")));
+}
+
+void MainWindow::writeCommonPixelsToMask()
+{
+    const std::vector<std::size_t> selected = selectedFrameIndices();
+    if (!m_document || selected.size() < 2) {
+        statusBar()->showMessage(
+            QStringLiteral("Select the frames whose differing pixels the mask is to cover"), 4000);
+        return;
+    }
+    const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
+    if (!maskIndex) {
+        statusBar()->showMessage(
+            QStringLiteral("Assign a comparison mask to the current frame first"), 4000);
+        return;
+    }
+    const document::IndexedFrame differing = edit::differingPixels(*m_document, selected);
+    const auto differingCount =
+        std::count_if(differing.pixels.begin(), differing.pixels.end(),
+                      [](uint8_t value) { return value != 0; });
+    try {
+        std::unique_ptr<edit::EditCommand> command =
+            edit::replaceComparisonMask(*m_document, *maskIndex, differing);
+        if (!command) {
+            statusBar()->showMessage(
+                QStringLiteral("Comparison mask %1 covers exactly the differing pixels already")
+                    .arg(static_cast<int>(*maskIndex)),
+                4000);
+            return;
+        }
+        leaveSpriteCanvas();
+        commitEdit(std::move(command));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+    // The mask is shown, and its history is the one Undo reaches now.
+    if (m_comparisonMaskOverlayButton && !m_runtimeView.isEnabled()) {
+        m_comparisonMaskOverlayButton->setChecked(true);
+    }
+    refreshComponentBrowsers();
+    updateSameFrameControls();
+    updateUndoRedoActions();
+    statusBar()->showMessage(
+        QStringLiteral("Comparison mask %1 now covers the %2 pixel(s) that differ among the %3 "
+                       "selected frames; %4 frame(s) use it")
+            .arg(static_cast<int>(*maskIndex))
+            .arg(static_cast<qlonglong>(differingCount))
+            .arg(static_cast<qulonglong>(selected.size()))
+            .arg(static_cast<qulonglong>(m_document->comparisonMaskUseCount(*maskIndex))),
+        6000);
+}
+
+void MainWindow::showFramesUsingMask()
+{
+    if (!m_sameFramesPanel) {
+        return;
+    }
+    if (!m_document) {
+        m_sameFramesPanel->setFramesUsingMask({});
+        return;
+    }
+    const int maskId = m_sameFramesPanel->usingMaskId();
+    m_sameFramesPanel->setFramesUsingMask(edit::framesUsingComparisonMask(
+        *m_document, maskId < 0 ? document::kNoComparisonMaskId : static_cast<uint8_t>(maskId)));
+}
+
+void MainWindow::selectFramesUsingMask()
+{
+    if (!m_document || !m_sameFramesPanel || !m_frameList) {
+        return;
+    }
+    const int maskId = m_sameFramesPanel->usingMaskId();
+    const std::vector<std::size_t> frames = edit::framesUsingComparisonMask(
+        *m_document, maskId < 0 ? document::kNoComparisonMaskId : static_cast<uint8_t>(maskId));
+    QListWidgetItem* first = nullptr;
+    int listed = 0;
+    {
+        // Told to the window once, below.
+        QSignalBlocker blocker(m_frameList);
+        m_frameList->clearSelection();
+        for (int row = 0; row < m_frameList->count(); ++row) {
+            QListWidgetItem* item = m_frameList->item(row);
+            const std::size_t frameIndex = item->data(Qt::UserRole).toULongLong();
+            if (std::binary_search(frames.begin(), frames.end(), frameIndex)) {
+                if (!first) {
+                    first = item;
+                    m_frameList->setCurrentItem(item, QItemSelectionModel::Select);
+                }
+                item->setSelected(true);
+                ++listed;
+            }
+        }
+    }
+    const QString maskText = maskId < 0 ? QStringLiteral("no mask")
+                                        : QStringLiteral("mask %1").arg(maskId);
+    if (!first) {
+        statusBar()->showMessage(
+            QStringLiteral("No frame with %1 is in the frame list").arg(maskText), 4000);
+        return;
+    }
+    selectFrame(m_frameList->currentRow());
+    const int hidden = static_cast<int>(frames.size()) - listed;
+    statusBar()->showMessage(
+        QStringLiteral("Selected %1 frame(s) with %2%3")
+            .arg(listed)
+            .arg(maskText, hidden > 0 ? QStringLiteral("; %1 more are hidden by the frame "
+                                                       "filter")
+                                            .arg(hidden)
+                                      : QString()),
+        4000);
+}
+
+void MainWindow::goToFrame(std::size_t frameIndex)
+{
+    if (!m_frameList) {
+        return;
+    }
+    for (int row = 0; row < m_frameList->count(); ++row) {
+        if (m_frameList->item(row)->data(Qt::UserRole).toULongLong() == frameIndex) {
+            m_frameList->setCurrentRow(row, QItemSelectionModel::ClearAndSelect);
+            return;
+        }
+    }
+    statusBar()->showMessage(QStringLiteral("Frame %1 is hidden by the frame filter")
+                                 .arg(static_cast<qulonglong>(frameIndex)),
+                             4000);
+}
+
 void MainWindow::rememberRecentProject(const QString& cromPath, const QString& crpPath)
 {
     QSettings settings;
@@ -1561,6 +1996,14 @@ void MainWindow::setFrameStatusText(const QString& text)
 
 void MainWindow::refreshProjectSummary()
 {
+    updateWindowTitle();
+    m_sameFrameCounts.reset();
+    if (m_sameFramesPanel) {
+        m_sameFramesPanel->setSpotCommonChecked(false);
+    }
+    if (m_addFramesFromDumpAction) {
+        m_addFramesFromDumpAction->setEnabled(m_document.has_value());
+    }
     m_spriteDependentViewsDirty = false;
     m_canvasEdit.resetCaptureSelection();
     if (m_spritePanel) {
@@ -2484,6 +2927,7 @@ void MainWindow::updateMaskControls()
                                   m_document ? m_selectedMaskIndex : std::nullopt,
                                   !selectedFrameIndices().empty());
     updateStructureControls();
+    updateSameFrameControls();
 }
 
 void MainWindow::updateBackgroundControls()
@@ -5217,6 +5661,10 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
         case edit::EditKind::BackgroundMask:
             m_preview->update();
             updateProjectHeaderStatus();
+            if (target.kind == edit::EditKind::ComparisonMask) {
+                // What is the same as the current frame follows its mask.
+                updateSameFrameControls();
+            }
             break;
         case edit::EditKind::DynamicColor:
             updateDynamicColorControls();

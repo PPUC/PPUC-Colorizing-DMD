@@ -90,6 +90,12 @@ private:
 [[nodiscard]] std::unique_ptr<StructureCommand> deleteFrames(
     document::ProjectDocument& document,
     const std::vector<std::size_t>& frameIndices);
+// Appends the frames behind the last one, e.g. those of
+// ProjectDocument::makeUncolorizedFrame(); nullptr for none. Throws std::invalid_argument
+// for a frame that does not fit the project's planes.
+[[nodiscard]] std::unique_ptr<StructureCommand> addFrames(
+    document::ProjectDocument& document,
+    std::vector<document::FrameRecord> frames);
 [[nodiscard]] std::unique_ptr<StructureCommand> addSprite(document::ProjectDocument& document,
                                                           const std::string& name,
                                                           std::size_t sourceFrameIndex);

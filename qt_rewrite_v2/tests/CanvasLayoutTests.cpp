@@ -137,6 +137,8 @@ void runProjectGeometryTests();
 void runRuntimePreviewTests();
 void runPlaybackIdentificationTests();
 void runStructureCommandTests();
+void runFrameDumpImportTests();
+void runSameFramesTests();
 
 int main()
 {
@@ -158,6 +160,8 @@ int main()
     runRuntimePreviewTests();
     runPlaybackIdentificationTests();
     runStructureCommandTests();
+    runFrameDumpImportTests();
+    runSameFramesTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

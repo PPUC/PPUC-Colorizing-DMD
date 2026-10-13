@@ -32,6 +32,12 @@
 #define UI_DUMP_HAS_STRUCTURE_COMMANDS 1
 #endif
 
+#if __has_include("dialogs/DumpImportDialog.h")
+#include "dialogs/DumpImportDialog.h"
+#include "import/FrameDumpImport.h"
+#define UI_DUMP_HAS_DUMP_IMPORT 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -555,6 +561,11 @@ int main(int argc, char* argv[])
 // States of a tree that can add and delete records; a tree without that ends here.
 #ifdef UI_DUMP_HAS_STRUCTURE_COMMANDS
 #include "structure_script.inc"
+#endif
+
+// States of a tree that imports frame dumps; a tree without that ends here.
+#ifdef UI_DUMP_HAS_DUMP_IMPORT
+#include "dump_import_script.inc"
 #endif
 
     return 0;

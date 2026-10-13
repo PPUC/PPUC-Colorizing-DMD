@@ -11,6 +11,7 @@ add_executable(colorizing_qt_v2_tests
     CanvasLayoutTests.cpp
     DrawingToolsTests.cpp
     EditCommandTests.cpp
+    FrameDumpImportTests.cpp
     LegacyCromFramesTests.cpp
     LegacyCromMetadataTests.cpp
     LegacyCrpOriginalsTests.cpp
@@ -22,6 +23,7 @@ add_executable(colorizing_qt_v2_tests
     ProjectDocumentTests.cpp
     ProjectGeometryTests.cpp
     RuntimePreviewTests.cpp
+    SameFramesTests.cpp
     StructureCommandTests.cpp
 )
 
@@ -50,6 +52,7 @@ if(TARGET colorizing_qt_v2_widgets)
     add_executable(colorizing_qt_v2_widget_tests
         BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
+        DumpImportWidgetTests.cpp
         EditorMatchesRuntimeTests.cpp
         FramePreviewWidgetRenderTests.cpp
         NativeOriginalWidgetTests.cpp

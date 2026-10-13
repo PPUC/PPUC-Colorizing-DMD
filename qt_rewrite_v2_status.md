@@ -60,8 +60,13 @@ neither of those holds.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).
+  - `import/`: `FrameDumpReader` (streaming, strict reader of TXT frame dumps) and
+    `FrameDumpImport` (durations, the import filter, removal of repeated frames and of frames
+    the project has, a new project's snapshot), see "Dump import and same frames" below.
   - `edit/`: `EditCommand` (the undoable edits of record content), `StructureCommand` (adding
-    and deleting records, see "Record management" below), `UndoHistories` (scoped stacks with a
+    and deleting records, see "Record management" below), `SameFrames` (which frames have
+    the same hash under a mask and shape mode, the frames "delete same frames" removes, the
+    pixels that differ among frames), `UndoHistories` (scoped stacks with a
     global sequence for chronological undo; drops histories that name renumbered records),
     `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`.
   - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
@@ -84,8 +89,9 @@ neither of those holds.
   (state of the canvas's Runtime view: on/off, plane, playback, cached libserum output),
   `LazyListIcons`
   (frame list thumbnails built for the rows in view), `PlaneLabels` (the one place that decides
-  where the UI says "HD"/"SD" and what a single plane is called), seven panels under `panels/`
-  and `panels/RecordListPage` (a list of the left browser with `New` and `Delete` above it).
+  where the UI says "HD"/"SD" and what a single plane is called), eight panels under `panels/`
+  (`SameFramesPanel` is the lower part of the `Mask` page), `panels/RecordListPage` (a list of
+  the left browser with `New` and `Delete` above it) and `dialogs/DumpImportDialog`.
 - `tests/`: core test executable, widget test executable, `colorizing_qt_v2_roundtrip`
   (loads a real project, re-serializes, reports per block where it differs from disk; for a
   192x64 project differences in extra-plane blocks are reported as expected) and
@@ -93,7 +99,7 @@ neither of those holds.
   renderer and with libserum and reports the differing pixels by class; with `--playback` it
   plays the frames through the runtime preview's windows and through the whole project and
   compares every step).
-- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 745 scripted
+- `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 785 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
 
@@ -114,6 +120,9 @@ neither of those holds.
 - Record management: delete the selected frames, delete the selected frames shorter than N ms,
   add and delete sprites, backgrounds and comparison masks, all undoable, with every reference
   and the cRP tables following. See "Record management" below.
+- New project from a TXT frame dump and adding the frames of a dump to the open project, with
+  the Win32 import filter and removal of repeated and known frames; a new project is untitled
+  until its first save. Same-frame tools on the `Mask` page. See "Dump import and same frames".
 - 256x64-original projects: open, edit and save as native HD only (see below).
 - 192x64-original projects: open, edit and save on the native 192x64 plane only (see below).
 - Runtime view (`View -> Runtime View`, `Ctrl+R`, and a checkable `Runtime` toolbar button
@@ -167,7 +176,8 @@ refused on load with a message naming the sizes.
 - **128x32 original, optional 256x64 HD** (ordinary projects): sprites and detection on the
   128x32 original; HD is the upscaled plane. Fully supported.
 - **128x16 ROMs** are stored padded to 128x32 by the Win32 editor (`hook_501`); they are ordinary
-  projects to the Qt editor. TXT import with padding is not implemented.
+  projects to the Qt editor. A 128x16 dump is imported with that padding (8 black rows above
+  and below); tested with generated dumps only, no real 128x16 dump was at hand.
 - **256x64 original** (`is256x64`, revision 20): the 256x64 plane is the only rendered plane, one
   to one with the ROM frame. Sprite originals, detection areas, slot bounds and capture selection
   are native coordinates. Stored SD data is carried through untouched and never shown. There is
@@ -263,6 +273,98 @@ Added 2026-10-14. Not committed yet at the time of writing.
   frames), 56.9 KB for `smb3`, 89.6 KB for `trn_174h`. Memory use therefore never rises through
   a deletion; it just does not fall. If it ever should, the held records of a large deletion
   can be spilled to a temporary file as the Win32 editor does for its undo buffer; not built.
+
+## Dump import and same frames
+
+Added 2026-10-14. Not committed at the time of writing.
+
+**Format** (checked on `smb3.txt`, 105 MB, 25127 frames, and `serum-3mmy13yy.txt`, 34 MB,
+8056 frames and a 19-row rest of a 8057th): a line `0x` + 8 hex digits (upper or lower case),
+32 lines of 128 hex digits, a blank line, CRLF throughout. `smb3.txt` uses the shades 0, 3, 7,
+B, F, has 2 time steps backwards and 21 gaps over 4000 ms.
+
+**Reader** (`core/import/FrameDumpReader`): streaming over a 64 KB buffer, one frame in memory;
+`smb3.txt` in 0.22 s at 1.7 MB peak. Strict: any other line is an error with its line (and
+column); frames of mixed sizes are an error; a dump that ends inside its last frame drops that
+frame and reports its line. Deviations from `Get_Frames_Ptr_Size_And_Number_Of_Colors`
+(`master:ColorizingDMD.cpp` 12130), on purpose: the Win32 parser takes every `x` in the file as
+the start of a frame, accepts any letter as a digit (values up to 35), and stops silently at
+the first other character, keeping the frames before it.
+
+**Import** (`core/import/FrameDumpImport`), semantics of `CompareFrames` (12261),
+`CompareAdditionalFrames` (12332) and `Filter_Proc` (13205):
+
+- Duration = next timecode minus this one; 30 ms (`DEFAULT_FRAME_DURATION`) if the next is
+  smaller, more than 4000 ms later (`MAX_FRAME_DURATION`), or there is none. The last complete
+  frame before a cut-off frame gets 30 ms too, as in Win32.
+- Short frames: dropped if the duration was measured and is below the limit (5..3000). A
+  defaulted duration is never dropped, whatever the limit.
+- Colors: dropped if the frame has more distinct shades than the limit (1..16), counted on
+  the stored frame (a padded 128x16 frame always has shade 0). Checked after the duration.
+- Repetitions: by the plain CRC alone, as Win32 does (no pixel compare); the first frame that
+  passed the filters stays with its own duration, the durations of the dropped ones are
+  discarded. A different picture with the same CRC would be dropped; the runtime could not
+  tell it apart either. Such cases are counted (`hashCollisions`; none in the real dumps).
+- Against the project, option off: dropped if any project frame has the same plain CRC.
+  Option on: project frames with a mask are compared under their mask and shape mode, frames
+  in shape mode without a mask in shape mode, the others plainly, which is exactly "libserum
+  identifies it" (`ProjectFrameMatcher`, cross-checked with `FrameIdentification::matches`).
+- Deviations: a dump of one frame is compared with the project (Win32 returns early for
+  `nFrames < 2`); the split of "already in the project" into identical and mask/shape is by
+  rule, not by the first matching project frame in file order (the sum is the same); adding
+  refuses another frame size and 16 shades into 4 colors (Win32 overwrites the project's size
+  and color count from the dump); 4 shades into a 16-color project are taken as they are.
+- The project's color count is 16 if any complete frame of the dump has a shade above 3,
+  including frames the filter drops, as in Win32.
+
+**New project** (`makeProjectSnapshot`, `document::makeUncolorizedFrameSnapshot`): defaults
+from `CopyTXTFrames2Frame` (12496), `Init_cFrame_Palette2` (4099), `InitVariables` (4797):
+picture = original in the plain colors on the native plane; shape mode 0; mask ID 255; dynamic
+masks 255, dynamic colors and shadows 0; sprite slots 255 with the whole frame as bounds;
+trigger 0xFFFFFFFF; rotations 0; background ID 0xFFFF, background masks 1; extra flag 0 and
+extra picture 0 (ordinary, 192x64) or flag 1 with the picture (256x64, whose 128x32 plane gets
+every second pixel); no masks, sprites, backgrounds; revision 20. cRP: all zero except the
+plain colors at the start of palette 0 and as edit colors.
+**Not verifiable:** no file of a project freshly created by Win32 exists here. The cRP defaults
+assume a freshly started Win32 editor; one that had a project open keeps that project's color
+sets, names and drawing settings (its `MycRP` is never cleared). In a 256x64 project the
+sprite slot bounds are 255/63 where Win32 writes 127/31 (its `fWidth` is 128 there).
+
+**Add frames**: `edit::addFrames` appends through `insertFrames`; one structure command, undo
+removes exactly the added frames and restores the tables.
+
+**Same frames** (`core/edit/SameFrames`): by hash under a rule, cached per rule until
+`identificationRevision()` changes. Win32 `CheckSameFrames` (4506) compares pixels; equal up to
+CRC collisions. The list is capped at 10000 for display as in Win32 (`MAX_SAME_FRAMES`); the
+deletions are not capped (Win32 deletes from its capped list). The deletion loops follow
+`IDC_DELSAMEFR` / `IDC_DELSELSAMEFR` / `IDC_DELALLSAMEFR` (16452 ff.), checked against a
+literal simulation in the tests. `Common To Mask` (`IDC_COMMON2MASK`, 17134) replaces the mask
+of the current frame; it does not need `Spot Common` to be on (Win32 does). `Spot Common` marks
+the differing pixels (Win32 tints the common ones).
+
+**UI**: `File -> New Project From Dump...`, `File -> Add Frames From Dump...`, one
+`DumpImportDialog`. The dump is read by a `std::thread` that runs the Qt-free import only; it
+shares three atomics with the dialog (bytes read, total, stop), a `QTimer` of the dialog shows
+progress and notices the end. With a project the worker reads the document, so the dialog is
+modal. `waitForAnalysis()` joins without the event loop, for tests and `ui_dump`.
+
+**Real data** (scratch program, not in the repository):
+
+- `smb3.txt`: 25127 frames, 21671 different (3456 repetitions); import 0.4 s, 90 MB peak.
+  `serum-3mmy13yy.txt`: 8056 frames, 3421 different; 0.12 s.
+- `smb3.txt` added to the real `smb3` project (4430 frames, 24 masks): option off 383 known,
+  21288 new; option on 9173 known (24 identical, 9149 through a mask or shape mode), 12498
+  new; 1.0 s. All 25127 dump frames fed to libserum with the unmodified cROM loaded: 11469
+  identified and 13658 not, the same frames the matcher says, no disagreement.
+- New project from `smb3.txt`: 21671 frames, cROM 1.85 GB (serialized in memory only, to stay
+  within the scratch limit); libserum loads it and identifies all 21671 as themselves, 102 of
+  them inactive (shorter than 15 ms). From the first 10000 dump frames, on disk: 8925 frames,
+  save 3.8 s, reload serializes to the same bytes, `colorizing_qt_v2_roundtrip` identical for
+  cROM, cRZ and cRP, `preview_diff` native plane identical (36 inactive frames have no
+  picture in libserum).
+- `afm_113b`, frames 0, 16, 500, 1200, 2900 under their own rule and under no mask and masks
+  0 to 2 with and without shape mode (45 cases): the same-frame list equals the frames
+  libserum identifies with a colorization of that frame alone.
 
 ## Dynamic data and the HD plane (ordinary projects)
 
@@ -362,6 +464,15 @@ for `frankst1`. Memory stays that of a window.
    of `Delete Frames Shorter Than...` is 15 ms. A new background takes the stored colorized
    frame (Win32 `AddBackground`), while `Frame -> BG` copies the composed picture.
 
+10. **Dump import and same frames, to confirm:** a dump with a bad line is refused as a whole
+    (Win32 keeps the frames before it); a 4-shade dump is accepted into a 16-color project;
+    `Common To Mask` writes the mask assigned to the current frame and replaces its content
+    (as Win32), not the mask selected in the browser; `Spot Common` marks the differing pixels;
+    the same-frame deletions are not capped at 10000 per frame; the same frames are worked
+    out only while the `Mask` page is shown; a new project is proposed for saving beside its
+    dump; replacing a project with unsaved changes asks only in `New Project From Dump`
+    (opening another project still does not ask).
+
 Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
 owner together.
 
@@ -440,15 +551,22 @@ owner together.
   rotations.
 - Sprite capture does not record the source frame, rectangle and mirror flags in the cRP, and
   leaves the sprite's old dynamic mask in place.
-- New frames from `createEmpty` are not a complete new-project path; there is no "new project".
+- `ProjectDocument::createEmpty` is still not a complete new-project path (tests only); new
+  projects come from a dump (`importing::makeProjectSnapshot`).
+- A new project of a large dump is as heavy as any project of that size: 21671 frames of
+  `smb3.txt` are 1.3 GB in memory and a 1.85 GB cROM. Not optimised, see the ground rules.
+- Opening a project and quitting do not ask about unsaved changes; only `New Project From
+  Dump` does.
+- The same-frame combo box and `Frames using` list are refilled on every refresh (up to 10000
+  entries); `Update Same List` runs on the UI thread with a wait cursor and cannot be stopped.
+- `ProjectFrameMatcher` hashes a dump frame once per (mask, shape mode) pair of the project
+  with the plain `legacyFrameHash`; fast enough for `smb3` (1 s), not tuned.
+- Dump frames cannot be imported from other formats (the Win32 editor has none either).
 - Windows and Linux builds are untested (only macOS arm64). The ui_dump private-access trick is
   not expected to link with MSVC.
 
 ## Feature parity still missing against 3.17.3
 
-- New project and "add frames" from a TXT dump, with the import filter and dedupe.
-- "Delete same frames", same-frame lists, "spot common" (`edit::deleteFrames` takes any frame
-  set, so only the same-frame logic is missing).
 - Sections (list, add, rename, delete, reorder) and the trigger list. The data is loaded and
   saved and follows frame deletions; there is no UI.
 - Copy/paste, auto copy, scrolling auto fill, selection helpers, mirror.
@@ -478,10 +596,10 @@ owner together.
 5. Continue shrinking `MainWindow`: toolbar and tool state, frame list and playback, file
    handling.
 6. Feature parity. Done: deleting frames, adding and deleting sprites, backgrounds and
-   comparison masks. Next: TXT dump import with "new project", "add frames" and the same-frame
-   tools (dedupe, "delete same frames"); then colour-set drawing and copy/paste; then sections
-   and triggers.
-7. Later, by decision of the owner: memory use, save speed, a new project format.
+   comparison masks, TXT dump import with "new project" and "add frames", the same-frame
+   tools. Next: colour-set drawing and copy/paste; then sections and triggers.
+7. Windows and Linux builds (only macOS arm64 is built and tested so far).
+8. Later, by decision of the owner: memory use, save speed, a new project format.
 
 ## libserum work done in this effort
 

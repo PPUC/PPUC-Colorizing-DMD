@@ -29,6 +29,10 @@ public:
     void setFrameIndex(std::size_t frameIndex);
     void setActiveResolution(render::Resolution resolution);
     void setComparisonMaskOverlayEnabled(bool enabled);
+    // Marks pixels of the original frame, e.g. those that differ among the selected frames:
+    // every pixel of the frame that is not 0 is marked. The frame has the size of the ROM
+    // frame; nothing switches the overlay off.
+    void setDifferenceOverlay(std::optional<document::IndexedFrame> differingPixels);
     void setDynamicMaskOverlayEnabled(bool enabled);
     void setBackgroundMaskOverlayEnabled(bool enabled);
     void setBackgroundLayerEnabled(bool enabled);
@@ -74,6 +78,7 @@ private:
     void paintFrame(QPainter& painter);
     void paintRegion(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintComparisonMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
+    void paintDifferenceOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintDynamicMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintBackgroundMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectedSpriteBounds(QPainter& painter, const render::CanvasRegionLayout& region);
@@ -85,6 +90,7 @@ private:
     std::size_t m_frameIndex = 0;
     bool m_hasFrame = false;
     bool m_showComparisonMaskOverlay = false;
+    std::optional<document::IndexedFrame> m_differenceOverlay;
     bool m_showDynamicMaskOverlay = false;
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;

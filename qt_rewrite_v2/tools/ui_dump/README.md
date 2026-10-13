@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 745 scripted states and after each one prints every widget and the relevant
+through about 785 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -254,7 +254,7 @@ change the settings of the real application.
 
 ## Adding scripted states
 
-The script is plain C++ in seven places, executed in this order:
+The script is plain C++ in eight places, executed in this order:
 
 | File | Content |
 | --- | --- |
@@ -266,6 +266,20 @@ The script is plain C++ in seven places, executed in this order:
 
 | `runtime_view_script.inc` | the Runtime view, in a 128x32, a 256x64-original and a 192x64-original project: on and off through its menu actions, both runtime planes of a frame with and without HD, the PNG export (`File -> Export Current Frame PNG...`, which writes libserum's output), an edit, undo and redo while the view is on, a click on the canvas, playback through libserum and one playback step, the sprite canvas ending the view, a frame libserum has no picture for; after each dump it prints the view's state, which is not a widget. Then, with the title prefix `identification: `, a project with an inactive frame and three frames that share an original: the `inactive` marker in the frame list and the status line, the `Inactive` filter and a frame leaving it when it is colorized, the export refusing the inactive frame, the hint in the status line when a machine would identify a frame's original as another frame, and playback that identifies another frame than the one fed |
 | `structure_script.inc` | adding and deleting records, title prefix `structure: `: deleting the selected frames through the Edit menu action (cancelled, accepted, undone, redone, a section start, the last frame, all frames refused), `Delete Frames Shorter Than...` with its input dialog, a deletion under a frame filter, a stroke history behind and before a deleted frame, then `New` and `Delete` on the `Masks`, `Backgrounds` and `Sprites` pages of the left browser with undo and redo, a mask, a background and a sprite in use, the refused sprite names, a deletion while the sprite canvas is on; then briefly a 256x64-original project (a new sprite and background with their 256x64 data, no background from a frame without it) and a 192x64-original one. After each dump it prints what the dump does not hold: record counts, the sprite slots of every frame, sections, the sprite tables of the cRP, the browser selections and the frame list's menu actions |
+| `dump_import_script.inc` | frame dumps and the same-frame tools, title prefix `dump import: `: `File -> New Project From Dump...` (no file chosen, the import dialog cancelled, a dump with a bad line, a project created with a ROM name of its own and the duration filter), the first save of the new project (cancelled, answered, the second save without a question), `File -> Add Frames From Dump...` with undo and redo, a dump of another size refused; then the comparison side of the `Mask` page: `Spot Common`, `Common To Mask` with undo and redo, `Update Same List`, going to a same frame, `Frames using` and `Select Them`, the three deletions of same frames with `Keep selected frames` and their undo; then the question before a project with changes is replaced and a 192x64 and a 256x64 project from a dump. The dumps are generated into a temporary directory. The script answers the import dialog after `waitForAnalysis()`, so no timer is involved, and prints what the dialog shows. After each dump it prints the window title, whether the project has files, every frame's duration, mask and shape mode, the masks and the selected frames |
+
+`dump_import_script.inc` is compiled only for a tree that has `app/dialogs/DumpImportDialog.h`;
+a baseline of an older revision ends with the states before it and is compared with
+`--allow-appended`. The tree it was introduced in also added the comparison tools to the `Mask`
+page of the inspector, which show in every state: the 13 controls of `SameFramesPanel` with
+their labels and list internals, a `QScrollArea` around the page, and the page's former controls
+at other positions inside it (the page itself keeps its place and the inspector its width); the
+focus chain has the new controls behind `Edit Mask`. Nothing else differs: with
+`--ignore-geometry` such a comparison lists added lines only, and no `---` line (status,
+document, canvas grab) differs without it. To see `REAL DIFFERENCES: 0` for the states before,
+dump that tree once with the include of `dump_import_script.inc` taken out of `dump.cpp`, make
+that dump the baseline (see "A baseline of the working tree") and compare the complete script
+against it with `--allow-appended`.
 
 `structure_script.inc` is compiled only for a tree that has `core/edit/StructureCommand.h`; a
 baseline of an older revision ends with the states before it and is compared with
@@ -293,7 +307,7 @@ whether the SD/HD and Create/Remove buttons are hidden.
 The `.inc` files are included at the end of `main()` and each form one block.
 `big_original_script.inc` runs after the window was closed (`closed at the end`),
 `native_original_script.inc` after that one closed its project, `runtime_view_script.inc`
-after that and `structure_script.inc` last. A line a script prints lands in the section of the dump before it, so a script
+after that, `structure_script.inc` after that and `dump_import_script.inc` last. A line a script prints lands in the section of the dump before it, so a script
 appended after others prints nothing before its first dump.
 
 A state is: do something, then call `dump("title", w)` (`D("title")` in `inspector_script.inc`).

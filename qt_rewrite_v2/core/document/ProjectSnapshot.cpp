@@ -1,5 +1,8 @@
 #include "document/ProjectSnapshot.h"
 
+#include <stdexcept>
+#include <utility>
+
 namespace colorizing::document {
 
 namespace {
@@ -237,6 +240,77 @@ void discardExtraPlane(ProjectSnapshot& snapshot)
         sprite.dynamicMaskHd = makeIndexedFrame(spriteSize, 255);
         sprite.dynamicColorsHd.assign(kMaxDynamicSetsPerSprite * colorCount, 0);
     }
+}
+
+ProjectFrameSnapshot makeUncolorizedFrameSnapshot(const render::ProjectGeometry& geometry,
+                                                  uint32_t colorCount,
+                                                  IndexedFrame original,
+                                                  uint32_t durationMs)
+{
+    const Size romSize = geometry.romFrameSize();
+    if (!original.isValid() || !hasSize(original.size, romSize)) {
+        throw std::invalid_argument("the original has not the size of the ROM frame");
+    }
+    const Size sdSize = geometry.planeSize(Resolution::Sd);
+    const Size hdSize = geometry.planeSize(Resolution::Hd);
+    const std::vector<uint16_t> colors = plainOriginalColors(colorCount);
+    Rgb565Frame plain = makeRgb565Frame(romSize);
+    for (std::size_t index = 0; index < original.pixels.size(); ++index) {
+        const uint8_t shade = original.pixels[index];
+        plain.pixels[index] = shade < colors.size() ? colors[shade] : uint16_t{0};
+    }
+
+    ProjectFrameSnapshot frame;
+    if (geometry.nativePlane() == Resolution::Hd) {
+        frame.colorizedSd = makeRgb565Frame(sdSize);
+        for (int y = 0; y < sdSize.height; ++y) {
+            for (int x = 0; x < sdSize.width; ++x) {
+                frame.colorizedSd.pixels[static_cast<std::size_t>(y) *
+                                             static_cast<std::size_t>(sdSize.width) +
+                                         static_cast<std::size_t>(x)] =
+                    plain.pixels[static_cast<std::size_t>(2 * y) *
+                                     static_cast<std::size_t>(romSize.width) +
+                                 static_cast<std::size_t>(2 * x)];
+            }
+        }
+        frame.colorizedHd = std::move(plain);
+    } else {
+        frame.colorizedSd = std::move(plain);
+    }
+    frame.originalSd = std::move(original);
+    frame.shapeComparisonMode = 0;
+    frame.comparisonMaskId = kNoComparisonMaskId;
+
+    const std::size_t dynamicColorCount =
+        kMaxDynamicSetsPerFrame * static_cast<std::size_t>(colorCount);
+    FrameDynamicData dynamicData;
+    dynamicData.maskSd = makeIndexedFrame(sdSize, 255);
+    dynamicData.maskHd = makeIndexedFrame(hdSize, 255);
+    dynamicData.colorsSd.assign(dynamicColorCount, 0);
+    dynamicData.colorsHd.assign(dynamicColorCount, 0);
+    dynamicData.shadowDirectionsSd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowColorsSd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowDirectionsHd.assign(kMaxDynamicSetsPerFrame, 0);
+    dynamicData.shadowColorsHd.assign(kMaxDynamicSetsPerFrame, 0);
+    frame.dynamicData = std::move(dynamicData);
+
+    FrameBackgroundData backgroundData;
+    backgroundData.backgroundId = kNoBackgroundId;
+    backgroundData.maskSd = makeIndexedFrame(sdSize, 1);
+    backgroundData.maskHd = makeIndexedFrame(hdSize, 1);
+    frame.backgroundData = std::move(backgroundData);
+
+    FrameSpriteReference noSprite;
+    noSprite.spriteId = kNoSpriteId;
+    noSprite.maxX = static_cast<uint16_t>(romSize.width - 1);
+    noSprite.maxY = static_cast<uint16_t>(romSize.height - 1);
+    frame.spriteReferences.assign(kMaxSpritesPerFrame, noSprite);
+
+    frame.triggerId = kNoTriggerId;
+    frame.durationMs = durationMs;
+    frame.colorRotationsSd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);
+    frame.colorRotationsHd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);
+    return frame;
 }
 
 void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount)

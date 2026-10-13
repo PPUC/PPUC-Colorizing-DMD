@@ -13,6 +13,8 @@ The Qt rewrite edits legacy Serum editor projects directly:
   form in which a colorization is usually handed around, together with the `.cRP`. The editor
   opens it directly and writes it on every save.
 - `.cROMc` is not edited directly.
+- A frame dump (`.txt`) is what a project starts from and what frames are added from: the
+  frames a ROM showed, as text. It is only read, see "Creating A Project From A Dump".
 
 Saving writes complete `.cROM` and `.cRP` files from the in-memory project in the legacy file
 layout, plus the `.cRZ` archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
@@ -85,9 +87,151 @@ internally remember that path and the `.cRP` path. If that file no longer exists
 is used, the file with the same base name and the other of the two extensions is opened instead,
 so an entry keeps working whether only the archive or only the loose `.cROM` is left.
 
+## Creating A Project From A Dump
+
+`File -> New Project From Dump...` makes a new project of the frames of a frame dump, as
+`New project` of the Win32 editor does.
+
+### The dump
+
+A frame dump is a text file. Each frame is
+
+- a line with the time the frame arrived, in milliseconds, as a hexadecimal number: `0x` and up
+  to 8 digits (`0x29D89DCF`). `0X` and a bare `x` are accepted too;
+- one line per row of the frame, one hexadecimal digit per pixel: the pixel's shade, `0` to `F`,
+  upper or lower case.
+
+Blank lines may stand between frames. Lines end with LF or CRLF; blanks around a line and a
+byte order mark at the start of the file are ignored.
+
+All frames of a dump have the size of its first frame. Four sizes are accepted:
+
+| Dump | Project |
+| --- | --- |
+| 128x32 | ordinary project, 128x32 with an optional 256x64 HD |
+| 128x16 | ordinary project; each frame is stored in the middle of a 128x32 frame, with 8 black rows above and below |
+| 192x64 | project with 192x64 original frames |
+| 256x64 | project with 256x64 original frames; every frame gets the 256x64 picture the runtime needs |
+
+The project has 16 original colors if any frame of the dump has a shade above 3, otherwise 4.
+Frames that the filter leaves out count for that too.
+
+The file is read strictly. Anything that is neither a time line, a row of the dump's width nor
+blank is an error, and so is a frame with more or fewer rows than the first one (frames of
+different sizes in one dump are not supported). The message names the line, and the column for a
+character that is no hexadecimal digit, and nothing is imported. The one exception is a dump that
+ends inside its last frame, which is what an interrupted recording leaves: that frame is left
+out and the dialog says so with its line. (The Win32 editor stops silently at the first
+character it cannot read and takes the frames before it.)
+
+Reading does not load the file into memory; a dump of 100 MB is read in well under a second and
+only the frames that are kept are held.
+
+### The dialog
+
+After the file was chosen, the dialog reads it at once and shows
+
+- what it found: the frame size, 4 or 16 colors and the number of frames;
+- what would be done: `N read, a duplicates, b too short, c with too many colors, e for the
+  project`.
+
+Nothing is changed before `Create Project` is pressed.
+
+- `ROM name` is proposed from the file name up to its first dot. It is the name the runtime
+  looks the colorization up by and the name `Save` proposes for the files. It has 1 to 63
+  characters, unaccented, and none of `/ \ : * ? " < > |`; while it is not usable the line
+  below it says why and `Create Project` is disabled.
+- `Leave out frames shown for less than N ms` (5 to 3000). A frame is shown until the next
+  frame of the dump arrives. A frame whose time cannot be told is taken as 30 ms and is never
+  left out by this: the last frame, a frame followed by an earlier time, and a frame followed
+  by a gap of more than 4000 ms.
+- `Leave out frames with more than N shades` (1 to 16): frames with many shades are mostly
+  fades between two pictures.
+- Repeated frames are always left out: of frames with the same picture the first one that
+  passes the filter stays, with its own duration; the time of the repetitions is not added.
+- `Read Dump Again` reads the file with the options as they are now. Changing an option makes
+  the shown result stale: the dialog says so and `Create Project` stays disabled until the dump
+  was read again.
+- `Stop` ends the reading; so does closing the dialog. A bar shows how far it is.
+- `Choose...` takes another file.
+
+The filter is applied in this order, as in the Win32 editor: duration, shades, repetition. A
+frame counted as too short is not counted for its shades.
+
+### The new project
+
+- Every frame is uncolorized: its picture is the original in the plain original colors (a ramp
+  from black to the brightest color), no comparison mask, no shape mode, no dynamic zone, no
+  background, no sprite, no trigger, no color rotation.
+- No comparison masks, sprites, backgrounds, sections or color sets. Palette 0 starts with the
+  plain original colors, which are also the edit colors.
+- The file header is revision 20.
+- The project has no files yet: the window title says `<ROM name> (not saved yet)`, and the
+  first `Save` asks where to (see "Saving"). It is not in `Open Recent` before that.
+- A frame shorter than 15 ms is marked `inactive` in the frame list until it is colorized, as
+  in every project (see "Frame List"). The runtime identifies it and shows nothing new for it.
+
+If the open project has unsaved changes, the editor asks before it is replaced.
+
+Checked with libserum: a project made from a dump loads, and every frame of the dump that was
+kept is identified as its own frame (the dump of `smb3`, 25127 frames, of which 21671 differ:
+all 21671).
+
+Not verified: there is no file of a project freshly created by the Win32 editor to compare
+with. What a new project holds was taken from the Win32 source (`CopyTXTFrames2Frame`,
+`Init_cFrame_Palette2`, `InitVariables`) and assumes a freshly started Win32 editor, whose
+`.cRP` fields are all zero; a Win32 editor that had another project open before keeps that
+project's color sets, mask names and drawing settings in the new one. One value differs on
+purpose: in a project with 256x64 frames the unused bounds of a frame's sprite slots are the
+whole 256x64 frame, where the Win32 editor writes 128x32.
+
+## Adding Frames From A Dump
+
+`File -> Add Frames From Dump...` appends the frames of a dump that the open project does not
+have yet. The dialog is the one of "Creating A Project From A Dump", without the ROM name and
+with one more option:
+
+- `Leave out frames the project identifies with its masks and shape modes`, on by default.
+  - On: a frame of the dump is left out if the runtime would identify it as a frame of the
+    project, that is if some frame of the project has the same hash under that frame's own
+    comparison mask and shape mode. This is exactly libserum's test; checked on `smb3` by
+    feeding all 25127 frames of its dump to libserum with the project loaded: the 11469 frames
+    the editor calls known are the ones libserum identifies, the other 13658 are not.
+  - Off: a frame is left out only if a frame of the project has exactly the same original,
+    whatever that frame's mask is.
+
+The summary then reads `N read, a duplicates, b too short, c with too many colors, d already in
+the project (x identical, y identified through a mask or shape mode), e to add`.
+
+The dump has to fit the project:
+
+- its frames must have the size of the project's original frames (a 128x16 dump fits a 128x32
+  project);
+- a dump with shades above 3 cannot be added to a project with 4 original colors. A dump
+  without them is added to a project with 16 colors as it is; the shades 0 to 3 are valid
+  there.
+
+Otherwise the dialog says why and offers nothing to add. (The Win32 editor does not check and
+damages the project.)
+
+The new frames are appended behind the last frame, in the order of the dump, uncolorized like
+the frames of a new project. Sections and sprite source frames stay where they are. Adding is
+one step for `Undo`, which removes exactly the added frames again; see "Undo And Redo". The
+added frames are selected afterwards.
+
+The document must not change while the dialog is open, which is why the dialog is modal;
+playback is stopped when it opens.
+
 ## Saving
 
 Use `File -> Save` or the standard Save shortcut.
+
+A new project (see "Creating A Project From A Dump") has no files until it is saved for the
+first time. `Save` and `Save As...` then ask for the `.cROM` to write, proposing `<ROM
+name>.cROM` in the folder of the dump; the name the runtime looks for is the ROM name. If the
+question is cancelled nothing is written and the project stays unsaved. After the first save the
+window title shows the file name instead of `<ROM name> (not saved yet)`, the project is in
+`File -> Open Recent`, and `Save` writes to those files without asking.
 
 Every save writes three files with the same base name into the project folder: `<name>.cROM`,
 `<name>.cRP` and `<name>.cRZ`. The archive holds exactly the bytes of the `.cROM` just written,
@@ -261,6 +405,8 @@ Where:
 | --- | --- |
 | Delete the selected frames | `Edit -> Delete Frames...`; the frame list's context menu; `Delete` or `Backspace` in the frame list |
 | Delete the selected frames that are shorter than N ms | `Edit -> Delete Frames Shorter Than...`; the frame list's context menu |
+| Add the frames of a dump | `File -> Add Frames From Dump...`, see "Adding Frames From A Dump" |
+| Delete frames that are the same as others | the `Mask` page of the Inspector, see "Same Frames And Common Pixels" |
 | New comparison mask, delete the selected one | `New` and `Delete` above the list on the `Masks` page of the left browser |
 | New background from the current frame, delete the selected one | `New` and `Delete` on the `Backgrounds` page |
 | New sprite, delete the selected one | `New` and `Delete` on the `Sprites` page |
@@ -1130,6 +1276,9 @@ Adding and deleting records:
   are not lost if the deletion is undone again.
 - These operations are undone in the reverse order in which they were made, whatever the
   context: they are all in the one record history.
+- Adding the frames of a dump is one such operation: Undo removes exactly the added frames,
+  Redo appends them again with what was edited on them in between. Deleting same frames is a
+  deletion of frames like any other.
 - Other histories refer to records by number. Whenever one of these operations runs (when it is
   made, undone or redone), every history that names a record whose number changes or that
   appears or disappears is dropped, so that no edit can ever be undone on another record than
@@ -1180,6 +1329,10 @@ The Inspector exposes per-frame comparison metadata:
 - Mask ID and shape mode edits can be undone, see "Undo And Redo".
 - `New` and `Delete` above the mask list of the left sidebar add an empty mask and delete the
   selected one, see "Adding And Deleting Records". `Mask ID` offers the masks the project has.
+- Below these controls the page holds the comparison tools: which frames are the same as the
+  current one under its mask, the pixels that differ among the selected frames and a mask made
+  of them, and the frames that use a mask. See "Same Frames And Common Pixels". The page
+  scrolls if the window is too low for all of it.
 
 Editing rules:
 
@@ -1193,6 +1346,65 @@ Editing rules:
 - Edits apply to the assigned comparison mask, not just the current frame.
 - If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
 - Mask pixels are saved back into `.cROM`.
+
+## Same Frames And Common Pixels
+
+The lower part of the Inspector's `Mask` page. It answers what a comparison mask is drawn for:
+which frames the runtime cannot tell apart.
+
+Two frames are "the same" under a comparison mask and a shape mode if their originals have the
+same hash under them: without the pixels the mask covers, and in shape mode with every shade
+above 1 taken as 1. That is the hash libserum identifies frames by, so "the same" means exactly
+"the runtime identifies one as the other". (The Win32 editor compares the pixels instead; the
+two differ only if two different pictures have the same CRC.) Checked on `afm_113b` against
+libserum with a colorization of one frame alone: 45 combinations of frame, mask and shape mode,
+the same list of frames each time.
+
+- `Same frames: N` is the number of frames that are the same as the current frame under its own
+  mask and shape mode. It follows the frame, its `Mask ID` and `Shape`, and every stroke on its
+  mask. The box beside it lists them; choosing one goes to that frame. From 10000 on the label
+  reads `>=10000` and the box lists the first 10000, as in the Win32 editor.
+- `Update Same List` counts the same frames of the current frame for no mask and for every mask
+  of the project, each as `full comparison / shape N`. It helps to choose a mask. The list is
+  emptied when the frame or anything the comparison depends on changes.
+- `Delete Same As Current...` deletes the frames that are the same as the current frame.
+- `Delete Same As Selected...` does that for every selected frame, each under its own mask and
+  shape mode.
+- `Delete All Duplicates...` does it for every frame of the project, from the first frame on.
+- `Keep selected frames`: none of the three deletes a selected frame.
+
+The three deletions work as in the Win32 editor: the frames are taken in ascending order, each
+one that is still there removes every other frame that is the same as it, and a frame that was
+removed removes nothing. "The same" is not symmetric when frames have different masks, so a
+frame can remove an earlier one. At least one frame always remains. Each deletion asks first,
+naming the frames, and is one step for `Undo`, like every deletion of frames (see "Adding And
+Deleting Records"). Unlike the Win32 editor, a deletion is not limited to the first 10000 same
+frames of a frame.
+
+- `Spot Common` marks, in yellow on the original/reference region, the pixels in which the
+  originals of the selected frames differ. With fewer than two frames selected nothing is
+  marked. The marking follows the selection. (The Win32 editor tints the other pixels, the
+  common ones.)
+- `Common To Mask` makes the comparison mask of the current frame cover exactly those pixels,
+  replacing what the mask held. It needs at least two selected frames and a mask assigned to
+  the current frame; it does not need `Spot Common` to be on. The `Mask` toggle is switched on,
+  and the step is undone with `Undo` like a stroke on the mask. The mask is shared: every frame
+  that uses it is compared with it, and the status bar says how many do.
+
+  A typical use: select the frames that show the same scene with a changing score, add a mask
+  (`New` on the `Masks` page), assign it to them with `Mask ID`, press `Common To Mask`. `Same
+  frames` then counts them, and `Delete Same As Current...` leaves one of them.
+
+- `Frames using` lists the frames that have the chosen mask assigned, or no mask; the entries
+  show how many there are. A click on a frame goes to it. `Select Them` selects them in the
+  frame list.
+
+A frame that the frame filter hides cannot be gone to or selected; the status bar says so.
+
+The same frames are worked out only while the `Mask` page is shown. The first question about a
+mask reads every original once (a fraction of a second for a few thousand frames); after that
+the answers are kept until an original, a mask or an assignment changes. `Update Same List`
+does that for every mask and can take seconds in a large project with many masks.
 
 ## Dynamic Masks
 
@@ -1670,6 +1882,27 @@ cROM: 710862076 bytes on disk, 710862076 bytes serialized
 cRP: 139931019 bytes on disk, 139931019 bytes serialized
   identical
 ```
+
+For changes to the dump import (`core/import`, `app/dialogs/DumpImportDialog`), test:
+
+- A new project from a 128x32 dump: the summary before `Create Project`, the frame count, the
+  title `(not saved yet)`, the first `Save` asking for the file and the second not asking.
+- The filter: a duration limit, a shade limit, and that a changed option needs `Read Dump
+  Again`.
+- A dump that ends inside a frame (the last frame is left out and named) and a dump with a bad
+  line (the message has the line; nothing is imported).
+- `Add Frames From Dump...` with the mask option on and off, a dump of another size (refused),
+  `Undo` and `Redo` of the addition.
+- A large dump (100 MB): the window stays usable while it is read, `Stop` works.
+- Save the new project, reopen it, run `colorizing_qt_v2_roundtrip` (identical) and
+  `colorizing_qt_v2_preview_diff` (the native plane identical; frames shorter than 15 ms are
+  inactive and libserum shows no picture for them).
+
+For changes to the same-frame tools (`core/edit/SameFrames`, `app/panels/SameFramesPanel`),
+test on the `Mask` page: the count follows the frame and a stroke on its mask; `Update Same
+List`; each of the three deletions with and without `Keep selected frames`, and its `Undo`;
+`Spot Common` with two and with one selected frame; `Common To Mask` and its `Undo`; `Frames
+using` and `Select Them` with a frame filter active.
 
 For project-loading changes, test:
 

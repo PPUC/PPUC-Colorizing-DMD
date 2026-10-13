@@ -114,8 +114,11 @@ namespace {
 
 class FramesCommand final : public StructureCommand {
 public:
-    explicit FramesCommand(std::vector<std::size_t> frameIndices)
-        : StructureCommand(RecordKind::Frame, std::move(frameIndices), false, std::nullopt)
+    FramesCommand(std::vector<std::size_t> frameIndices,
+                  bool addsRecords,
+                  std::optional<document::RecordTables> tablesWithout)
+        : StructureCommand(RecordKind::Frame, std::move(frameIndices), addsRecords,
+                           std::move(tablesWithout))
     {
     }
 
@@ -263,7 +266,27 @@ std::unique_ptr<StructureCommand> deleteFrames(document::ProjectDocument& docume
     if (indices.empty()) {
         return nullptr;
     }
-    return applied<FramesCommand>(document, std::move(indices));
+    return applied<FramesCommand>(document, std::move(indices), false, std::nullopt);
+}
+
+std::unique_ptr<StructureCommand> addFrames(document::ProjectDocument& document,
+                                            std::vector<document::FrameRecord> frames)
+{
+    if (frames.empty()) {
+        return nullptr;
+    }
+    document::RemovedFrames added;
+    added.indices.reserve(frames.size());
+    for (std::size_t offset = 0; offset < frames.size(); ++offset) {
+        added.indices.push_back(document.frameCount() + offset);
+    }
+    std::vector<std::size_t> indices = added.indices;
+    added.frames = std::move(frames);
+    // Frames behind the last one start no section and are no sprite's source.
+    added.tables = document.recordTables();
+    document::RecordTables tablesWithout = added.tables;
+    document.insertFrames(std::move(added));
+    return std::make_unique<FramesCommand>(std::move(indices), true, std::move(tablesWithout));
 }
 
 std::unique_ptr<StructureCommand> addSprite(document::ProjectDocument& document,

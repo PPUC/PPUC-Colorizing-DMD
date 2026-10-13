@@ -5,6 +5,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     CanvasEditController.h
     ColorGridWidget.cpp
     ColorGridWidget.h
+    dialogs/DumpImportDialog.cpp
+    dialogs/DumpImportDialog.h
     FrameImageUtils.cpp
     FrameImageUtils.h
     FramePreviewWidget.cpp
@@ -32,6 +34,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/PalettePanel.h
     panels/RecordListPage.cpp
     panels/RecordListPage.h
+    panels/SameFramesPanel.cpp
+    panels/SameFramesPanel.h
     panels/SpritePanel.cpp
     panels/SpritePanel.h
     SpriteEditorWidget.cpp

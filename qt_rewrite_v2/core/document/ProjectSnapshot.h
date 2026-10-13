@@ -61,6 +61,20 @@ void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount);
 // masks 1). Sizes and the header stay as the geometry says.
 void discardExtraPlane(ProjectSnapshot& snapshot);
 
+// A frame nobody has worked on, as the Win32 editor makes it from a frame of a dump
+// (CopyTXTFrames2Frame): its picture on the native plane is the original in the plain
+// original colors, it has no comparison mask, no shape mode, no dynamic zone, no background
+// (with the background masks set), no sprite (each slot's bounds are the whole frame), no
+// trigger and no color rotation. An ordinary project gets no extra-plane picture; a
+// project with 256x64 originals gets the 256x64 picture the runtime needs and, on its
+// unused 128x32 plane, every second pixel of it. Throws std::invalid_argument for an
+// original that has not the size of the ROM frame.
+[[nodiscard]] ProjectFrameSnapshot makeUncolorizedFrameSnapshot(
+    const render::ProjectGeometry& geometry,
+    uint32_t colorCount,
+    IndexedFrame original,
+    uint32_t durationMs);
+
 [[nodiscard]] bool isValidProjectSnapshot(const ProjectSnapshot& snapshot,
                                           std::string* errorMessage = nullptr);
 

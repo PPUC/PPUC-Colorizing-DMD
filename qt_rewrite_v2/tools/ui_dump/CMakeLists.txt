@@ -30,6 +30,7 @@ endif()
 add_executable(colorizing_qt_v2_ui_dump
     dump.cpp
     big_original_script.inc
+    dump_import_script.inc
     inspector_script.inc
     native_original_script.inc
     runtime_view_script.inc
@@ -38,7 +39,8 @@ add_executable(colorizing_qt_v2_ui_dump
     "${UI_DUMP_TREE}/app/MainWindow.cpp"
 )
 
-set_source_files_properties(big_original_script.inc inspector_script.inc
+set_source_files_properties(big_original_script.inc dump_import_script.inc
+                            inspector_script.inc
                             native_original_script.inc runtime_view_script.inc
                             sprite_script.inc structure_script.inc
                             PROPERTIES HEADER_FILE_ONLY ON)
