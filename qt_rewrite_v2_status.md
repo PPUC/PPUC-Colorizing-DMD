@@ -34,8 +34,8 @@ neither of those holds.
   `Serum_CRZ_*` API.
   - `master` = cRZ API + native 256x64 rendering + two sprite/plane fixes (merged by the owner
     after an author confirmed the Ghostbusters fix on a real DMD).
-  - `many_optimizations` = `master` + `9cd5667` (performance work, local only, waiting for a test
-    on a Raspberry Pi Zero 2).
+  - `many_optimizations` = `master` + `acfb07d` (internal seam for the hot-path functions with
+    reference implementations, debug-only hashing; local only).
 
 ## Editor commits so far (oldest first)
 
@@ -183,10 +183,10 @@ neither of those holds.
   or disappeared stayed on the 64-row plane. Fixed in `c584161`.
 - A 64-row plane painted by the monochrome fallback was kept for the next identified frame.
   Fixed in `789f410`.
-- Performance (`many_optimizations`, `9cd5667`): on a Mac the 24-sprite Ghostbusters frame went
-  from 672 to 55 µs and an ordinary frame from 210 to 44 µs, output bit-identical over 8.5 million
-  replayed frame records. Needs measuring on the Pi; the fast CRC path needs the ARMv8 CRC
-  instructions enabled in the build.
+- `many_optimizations` (`acfb07d`): the hot-path helpers (CRC-32, value unpacking, sprite word
+  search and area matching, rotation queries, line-doubled compositing) sit behind an internal
+  seam, `src/serum-accel.h`, with reference implementations in the tree; `SERUM_ACCEL_DIR` can
+  swap in other implementations at build time. Output is bit-identical to `master`.
 - Not touched and not testable on a Mac: everything behind `is_real_machine()`.
 
 ## Test material (read-only, never commit)
