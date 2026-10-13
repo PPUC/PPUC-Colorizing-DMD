@@ -514,16 +514,21 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                 colorized = nullptr;
             }
         } else {
-            composedColorized = composeResolvedFrame(*m_document,
-                                                     m_frameIndex,
-                                                     region.resolution,
-                                                     m_showBackgroundLayer);
+            // Dynamic content and its shadows stand still while the rest rotates.
+            std::vector<uint8_t> notRotating;
+            composedColorized =
+                composeResolvedFrame(*m_document,
+                                     m_frameIndex,
+                                     region.resolution,
+                                     m_showBackgroundLayer,
+                                     m_colorRotationPreviewElapsedMs ? &notRotating : nullptr);
             if (m_colorRotationPreviewElapsedMs) {
                 applyColorRotations(*m_document,
                                     m_frameIndex,
                                     region.resolution,
                                     *m_colorRotationPreviewElapsedMs,
-                                    *composedColorized);
+                                    *composedColorized,
+                                    &notRotating);
             }
             colorized = &*composedColorized;
         }

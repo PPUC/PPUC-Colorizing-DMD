@@ -50,16 +50,27 @@ struct SpriteMatch {
 // The frame as the runtime renders it on the plane, with dynamic content, background and
 // sprites. An HD-only project has the HD plane alone: asking for SD throws std::logic_error,
 // and a frame without HD data is black, as nothing is rendered for it.
+//
+// notRotating, if given, gets one entry per pixel: 1 for a pixel the frame's color rotations
+// leave alone whatever its color is. Those are libserum's: a pixel colored from a dynamic
+// zone's set and a dynamic shadow (Colorize_Framev2 gives both the rotation entry 0xffff).
+// Background, static and sprite pixels rotate if their color is in a rotation.
 [[nodiscard]] document::Rgb565Frame composeResolvedFrame(
     const document::ProjectDocument& document,
     std::size_t frameIndex,
     render::Resolution resolution,
-    bool includeBackgroundLayer);
+    bool includeBackgroundLayer,
+    std::vector<uint8_t>* notRotating = nullptr);
+// The frame's color rotations elapsedMs after they started, every slot stepping at its own
+// delay: a pixel whose color is in a rotation takes the color that many places further in it.
+// frame and notRotating are those of composeResolvedFrame(); without notRotating every pixel
+// of a rotating color moves, which is right only for a picture without dynamic content.
 void applyColorRotations(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,
                          int elapsedMs,
-                         document::Rgb565Frame& frame);
+                         document::Rgb565Frame& frame,
+                         const std::vector<uint8_t>* notRotating = nullptr);
 void paintDmdPixel(QPainter& painter,
                    double x,
                    double y,

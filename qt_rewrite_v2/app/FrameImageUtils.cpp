@@ -312,8 +312,16 @@ void applySpriteMatch(document::Rgb565Frame& frame,
                       render::Resolution resolution,
                       const render::ProjectGeometry& geometry,
                       uint32_t colorCount,
-                      bool extraDynamicsLoaded)
+                      bool extraDynamicsLoaded,
+                      std::vector<uint8_t>* notRotating)
 {
+    // A sprite pixel takes part in the frame's color rotations whatever it covers, its
+    // dynamic pixels too (Colorize_Spritev2 looks every sprite pixel's color up).
+    const auto painted = [&](int frameX, int frameY) {
+        if (notRotating) {
+            (*notRotating)[rgb565PixelIndex(frame, frameX, frameY)] = 0;
+        }
+    };
     const bool hdOnly = geometry.layout() == render::PlaneLayout::NativeExtra;
     // The SD sprite of an HD-only project is never drawn; the runtime shows nothing for a
     // frame with such a sprite.
@@ -368,6 +376,7 @@ void applySpriteMatch(document::Rgb565Frame& frame,
                     (!extra || extraDynamicsLoaded) && isDynamic(dynamicMask, index)
                         ? dynamicColor(dynamicColors, dynamicMask.pixels[index], frameX, frameY)
                         : colors.pixels[index];
+                painted(frameX, frameY);
             }
         }
         return;
@@ -397,6 +406,7 @@ void applySpriteMatch(document::Rgb565Frame& frame,
                                                   romX,
                                                   romY)
                                    : sprite.colorizedSd.pixels[sdIndex];
+                painted(frameX, frameY);
             }
             const int hdSpriteX = match.spriteX * 2 + x;
             const int hdSpriteY = match.spriteY * 2 + y;
@@ -406,6 +416,7 @@ void applySpriteMatch(document::Rgb565Frame& frame,
             const std::size_t hdIndex = spriteIndexAt(hdSpriteX, hdSpriteY);
             if (sprite.maskHd.pixels[hdIndex] != 255) {
                 target = sprite.colorizedHd.pixels[hdIndex];
+                painted(frameX, frameY);
             }
         }
     }
@@ -435,13 +446,18 @@ QColor originalIndexToColor(uint8_t value)
     }
 }
 
-uint16_t resolvedFramePixel(const document::ProjectDocument& document,
-                            std::size_t frameIndex,
-                            render::Resolution resolution,
-                            int x,
-                            int y,
-                            bool includeBackgroundLayer)
+namespace {
+
+// resolvedFramePixel(), and whether the pixel is taken from a dynamic zone's color set.
+uint16_t resolveFramePixel(const document::ProjectDocument& document,
+                           std::size_t frameIndex,
+                           render::Resolution resolution,
+                           int x,
+                           int y,
+                           bool includeBackgroundLayer,
+                           bool& fromDynamicZone)
 {
+    fromDynamicZone = false;
     const document::Rgb565Frame& colorized = document.colorizedFrame(frameIndex, resolution);
     const uint16_t color = colorized.pixels[rgb565PixelIndex(colorized, x, y)];
 
@@ -515,6 +531,7 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                                                        backgroundData->maskSd.pixels.size() &&
             backgroundData->maskSd.pixels[originalIndex] != 0;
         if (dynamicZone && !originalPlaneShowsBackground) {
+            fromDynamicZone = true;
             return dynamicColor.value_or(color);
         }
         return backgroundPixel().value_or(color);
@@ -523,8 +540,25 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
     if (const std::optional<uint16_t> background = backgroundPixel()) {
         return *background;
     }
+    fromDynamicZone = dynamicZone;
     return dynamicColor.value_or(color);
 }
+
+}  // namespace
+
+uint16_t resolvedFramePixel(const document::ProjectDocument& document,
+                            std::size_t frameIndex,
+                            render::Resolution resolution,
+                            int x,
+                            int y,
+                            bool includeBackgroundLayer)
+{
+    bool fromDynamicZone = false;
+    return resolveFramePixel(document, frameIndex, resolution, x, y, includeBackgroundLayer,
+                             fromDynamicZone);
+}
+
+namespace {
 
 // Dynamic shadows as libserum draws them. On the plane with the ROM frame's size a lit dynamic
 // pixel shades its neighbors in its set's directions (CheckDynaShadow). On the 256x64 plane
@@ -532,10 +566,12 @@ uint16_t resolvedFramePixel(const document::ProjectDocument& document,
 // zones, one 256x64 pixel wide (GenerateExtraPlaneShadows, default offset); a set without a
 // 128x32 shadow direction takes direction and color from the stored 256x64 tables, which is
 // the one thing libserum reads of the 256x64 dynamic data there.
+// A pixel that takes a shadow is marked in notRotating, if that is given.
 void applyDynamicShadows(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,
-                         document::Rgb565Frame& frame)
+                         document::Rgb565Frame& frame,
+                         std::vector<uint8_t>* notRotating)
 {
     const std::optional<document::FrameDynamicData>& dynamicData =
         document.dynamicData(frameIndex);
@@ -619,34 +655,53 @@ void applyDynamicShadows(const document::ProjectDocument& document,
                 }
                 frame.pixels[shadowIndex] = shadowColor;
                 occupied[shadowIndex] = 1;
+                if (notRotating) {
+                    (*notRotating)[shadowIndex] = 1;
+                }
             }
         }
     }
 }
 
+}  // namespace
+
 document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& document,
                                            std::size_t frameIndex,
                                            render::Resolution resolution,
-                                           bool includeBackgroundLayer)
+                                           bool includeBackgroundLayer,
+                                           std::vector<uint8_t>* notRotating)
 {
     if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
-        return document::makeRgb565Frame(document.geometry().planeSize(resolution));
+        document::Rgb565Frame empty =
+            document::makeRgb565Frame(document.geometry().planeSize(resolution));
+        if (notRotating) {
+            notRotating->assign(empty.pixels.size(), 1);
+        }
+        return empty;
     }
     const document::Rgb565Frame& source = document.colorizedFrame(frameIndex, resolution);
     document::Rgb565Frame frame = document::makeRgb565Frame(source.size);
+    if (notRotating) {
+        notRotating->assign(frame.pixels.size(), 0);
+    }
     for (int y = 0; y < source.size.height; ++y) {
         for (int x = 0; x < source.size.width; ++x) {
-            frame.pixels[rgb565PixelIndex(frame, x, y)] =
-                resolvedFramePixel(document,
-                                   frameIndex,
-                                   resolution,
-                                   x,
-                                   y,
-                                   includeBackgroundLayer);
+            bool fromDynamicZone = false;
+            const std::size_t index = rgb565PixelIndex(frame, x, y);
+            frame.pixels[index] = resolveFramePixel(document,
+                                                    frameIndex,
+                                                    resolution,
+                                                    x,
+                                                    y,
+                                                    includeBackgroundLayer,
+                                                    fromDynamicZone);
+            if (notRotating && fromDynamicZone) {
+                (*notRotating)[index] = 1;
+            }
         }
     }
 
-    applyDynamicShadows(document, frameIndex, resolution, frame);
+    applyDynamicShadows(document, frameIndex, resolution, frame, notRotating);
 
     const std::vector<SpriteMatch> matches = matchFrameSprites(document, frameIndex);
     for (const SpriteMatch& match : matches) {
@@ -663,7 +718,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                              resolution,
                              document.geometry(),
                              document.colorCount(),
-                             extraDynamicsLoaded);
+                             extraDynamicsLoaded,
+                             notRotating);
         }
     }
     return frame;
@@ -673,45 +729,62 @@ void applyColorRotations(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,
                          int elapsedMs,
-                         document::Rgb565Frame& frame)
+                         document::Rgb565Frame& frame,
+                         const std::vector<uint8_t>* notRotating)
 {
     if (elapsedMs <= 0) {
         return;
     }
 
-    std::vector<std::pair<uint16_t, uint16_t>> replacements;
-    replacements.reserve(document::kMaxColorRotations * document::kMaxColorRotationColors);
+    // libserum's rule (SerumData::BuildColorRotationLookup, Serum_Rotate): a color belongs to
+    // the first slot, and the first place in it, that lists it, whether that slot runs or
+    // not; a slot runs if it has a length and a delay.
+    struct Place {
+        uint16_t color = 0;
+        std::size_t slot = 0;
+        std::size_t position = 0;
+    };
+    std::vector<Place> places;
+    places.reserve(document::kMaxColorRotations * document::kMaxColorRotationColors);
+    std::array<std::vector<uint16_t>, document::kMaxColorRotations> slotColors;
+    std::array<std::size_t, document::kMaxColorRotations> slotSteps{};
+    bool anyStep = false;
     for (std::size_t slotIndex = 0; slotIndex < document::kMaxColorRotations; ++slotIndex) {
         const uint16_t length = document.colorRotationLength(frameIndex, resolution, slotIndex);
         const uint16_t delayMs = document.colorRotationDelayMs(frameIndex, resolution, slotIndex);
-        if (length < 2 || delayMs == 0) {
-            continue;
-        }
-        const std::size_t step =
-            static_cast<std::size_t>(elapsedMs / delayMs) % static_cast<std::size_t>(length);
-        if (step == 0) {
-            continue;
-        }
-        std::vector<uint16_t> colors(length);
+        std::vector<uint16_t>& colors = slotColors[slotIndex];
+        colors.resize(length);
         for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {
             colors[colorIndex] =
                 document.colorRotationColor(frameIndex, resolution, slotIndex, colorIndex);
+            const bool listed =
+                std::any_of(places.begin(), places.end(), [&](const Place& place) {
+                    return place.color == colors[colorIndex];
+                });
+            if (!listed) {
+                places.push_back({colors[colorIndex], slotIndex, colorIndex});
+            }
         }
-        for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {
-            replacements.push_back({
-                colors[colorIndex],
-                colors[(colorIndex + step) % colors.size()],
-            });
+        if (length > 0 && delayMs > 0) {
+            slotSteps[slotIndex] =
+                static_cast<std::size_t>(elapsedMs / delayMs) % static_cast<std::size_t>(length);
+            anyStep = anyStep || slotSteps[slotIndex] != 0;
         }
     }
-    if (replacements.empty()) {
+    if (!anyStep) {
         return;
     }
 
-    for (uint16_t& pixel : frame.pixels) {
-        for (const auto& replacement : replacements) {
-            if (pixel == replacement.first) {
-                pixel = replacement.second;
+    const bool masked = notRotating && notRotating->size() == frame.pixels.size();
+    for (std::size_t index = 0; index < frame.pixels.size(); ++index) {
+        if (masked && (*notRotating)[index] != 0) {
+            continue;
+        }
+        uint16_t& pixel = frame.pixels[index];
+        for (const Place& place : places) {
+            if (pixel == place.color) {
+                const std::vector<uint16_t>& colors = slotColors[place.slot];
+                pixel = colors[(place.position + slotSteps[place.slot]) % colors.size()];
                 break;
             }
         }

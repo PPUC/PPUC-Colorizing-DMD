@@ -177,8 +177,9 @@ Playback respects the current frame filter in the left `Frames` tab. When `cRP` 
 frames with missing, zero, or unusually large durations use the fallback interval.
 
 During playback, the central preview advances color-rotation slots for the displayed frame using
-each slot's stored delay. This is an editor preview; libserum remains the runtime source of truth for
-final composition order.
+each slot's stored delay, counted from the start of playback. Which pixels rotate follows libserum,
+see "Color Rotations". This is an editor preview; libserum remains the runtime source of truth, and
+its own rotation, with its own clock, is what playback in the Runtime view shows.
 
 With the Runtime view on, playback is done by libserum instead: the frames are fed to it in the
 order of the list, with the same timings, libserum rotates the colors, and it identifies every
@@ -686,7 +687,10 @@ When libserum has no picture, the reason is shown in its place:
 
 Playback with the view on is done by libserum. `Play` feeds the frames of the list to it in list
 order, from the current one on, with the usual timings; libserum keeps its state from one frame
-to the next as it does on a machine, and its color rotations run on libserum's own clock.
+to the next as it does on a machine, and its color rotations run on libserum's own clock: the
+editor calls libserum's rotation step when libserum says the next one is due and shows the
+planes libserum then holds. It does not rotate anything itself in this view. Outside playback
+the view is a still; nothing rotates in it.
 Switching the view or its plane stops playback.
 
 **Frame identification depends on order.** libserum does not recognise a frame by its picture
@@ -1111,6 +1115,23 @@ Length, delay, grid color edits, and clear operations apply to all selected fram
 loaded from and saved back to `.cROM`. The static canvas shows unrotated frame data; playback applies
 an editor-side rotation preview.
 
+Which pixels a rotation moves, at runtime and in the preview:
+
+- A background, static or sprite pixel whose color is listed in a slot takes the color that many
+  places further in the slot at every step. A color listed more than once belongs to the first
+  slot, and the first place in it, that lists it.
+- **Dynamic content does not rotate**: a pixel colored from a dynamic zone's color set keeps its
+  color even if a rotation lists that color. White score digits over a background whose stars
+  rotate through white stay white.
+- **A dynamic shadow does not rotate** either, whatever it covers and whatever its color is.
+- The dynamic pixels of a sprite do rotate, like the rest of the sprite. That is what libserum
+  does (`Colorize_Spritev2`).
+
+The editor's preview follows these rules pixel for pixel; an automated test steps libserum's
+rotation and compares (see "Testing Checklist"). Its timing is the editor's own: every slot
+steps at its delay from the moment playback starts, while libserum keeps a clock per slot that
+carries on from frame to frame.
+
 ## Palettes
 
 Legacy `.cRP` files can store 256 palettes with 64 RGB565 colors each, plus 64-byte palette-name
@@ -1386,6 +1407,16 @@ see "Preview Rendering"; for `trn_174h` that is 4249 of 5211 frames and 114722 p
 `dynamic, upscale rounding` (113940), `sprite` (527) and `sprite area` (255), and none in the
 class `dynamic`. A full run takes 2 to 25 seconds per project; `frankst1` needs about 3.2 GB
 to load, so sample it with `--step`.
+
+Color rotations are not part of that tool. The automated tests cover them
+(`EditorMatchesRuntimeTests`): for a constructed project of each layout and for the HD plane of
+an ordinary one, every frame gets a rotation made of colors it shows, dynamic and shadow colors
+among them, libserum's rotation is stepped three times and the editor's rotation preview has to
+show the same pixels after each step; one more case is white digits from a dynamic zone, with
+their shadow, over rotating stars, on the 32-row plane, the 64-row plane and both. On the real
+projects the preview and libserum were compared once by hand in the same way, three steps on
+every frame that has a rotation: `afm_113b` 61 frames, `trn_174h` 2, no pixel different
+(`hook_501` and `smb3` have no rotation).
 
 `--playback N` checks runtime playback instead of the pictures of single frames. It plays the
 frames of the range in order through the runtime preview, in windows of at most N played frames

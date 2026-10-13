@@ -5,9 +5,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -17,6 +19,7 @@
 #include "RuntimeFixtures.h"
 
 using colorizing::app::SpriteMatch;
+using colorizing::app::applyColorRotations;
 using colorizing::app::composeResolvedFrame;
 using colorizing::app::matchFrameSprites;
 using colorizing::document::ProjectDocument;
@@ -370,6 +373,260 @@ void testHdDynamicZonesOfOrdinaryProject()
            "a set without a 128x32 shadow takes the stored 256x64 shadow on the 64-row plane");
 }
 
+
+// Color rotations, step by step: the editor's rotation preview against libserum's
+// Serum_Rotate(). libserum steps a slot once per call when the slot's delay has passed, so
+// the test waits longer than the delay before every call.
+constexpr uint16_t kRotationDelayMs = 30;
+
+std::vector<uint16_t> rotationTable(const std::vector<uint16_t>& colors)
+{
+    std::vector<uint16_t> table(4 * 64, 0);
+    table[0] = static_cast<uint16_t>(colors.size());
+    table[1] = kRotationDelayMs;
+    std::copy(colors.begin(), colors.end(), table.begin() + 2);
+    return table;
+}
+
+// Colors the plane shows, for a rotation that touches every kind of content: first those of
+// pixels the editor says stand still (dynamic content and shadows), then those of the sprites
+// found, then others spread over the picture.
+std::vector<uint16_t> shownColors(const ProjectDocument& document, std::size_t frame,
+                                  Resolution plane)
+{
+    std::vector<uint8_t> notRotating;
+    const Rgb565Frame picture = composeResolvedFrame(document, frame, plane, true, &notRotating);
+    std::vector<uint16_t> colors;
+    const auto add = [&](uint16_t color, std::size_t limit) {
+        if (colors.size() < limit &&
+            std::find(colors.begin(), colors.end(), color) == colors.end()) {
+            colors.push_back(color);
+        }
+    };
+    for (std::size_t i = 0; i < picture.pixels.size(); ++i) {
+        if (notRotating[i] != 0) {
+            add(picture.pixels[i], 16);
+        }
+    }
+    if (document.geometry().planeScale(plane) == 1) {
+        for (const SpriteMatch& match : matchFrameSprites(document, frame)) {
+            for (int y = 0; y < match.height; ++y) {
+                for (int x = 0; x < match.width; ++x) {
+                    add(picture.pixels[static_cast<std::size_t>(match.frameY + y) *
+                                           picture.size.width +
+                                       match.frameX + x],
+                        40);
+                }
+            }
+        }
+    }
+    const std::size_t stride = std::max<std::size_t>(1, picture.pixels.size() / 61);
+    for (std::size_t i = 0; i < picture.pixels.size(); i += stride) {
+        add(picture.pixels[i], colorizing::document::kMaxColorRotationColors);
+    }
+    return colors;
+}
+
+struct RotationStepCounts {
+    std::size_t moved = 0;
+    // Pixels that stand still although their color is one of the rotation's.
+    std::size_t standing = 0;
+};
+
+// Plays the frame through libserum, steps its rotations and expects the editor's preview of
+// the same number of steps to show the same pixels.
+RotationStepCounts expectRotationStepsEqualRuntime(const ProjectDocument& document,
+                                                   std::size_t frame,
+                                                   Resolution plane,
+                                                   PlaneRequest rows,
+                                                   const std::string& text)
+{
+    RotationStepCounts counts;
+    RuntimePreview& preview = RuntimePreview::instance();
+    std::string error;
+    expect(preview.openSequence(document, {frame}, rows, &error),
+           text + ": the sequence opens: " + error);
+    const RuntimeFrame shown = preview.renderSequenceFrame(frame);
+    const RuntimePlane* still = shown.plane(rows);
+    if (!still) {
+        preview.close();
+        return counts;
+    }
+    std::vector<uint8_t> notRotating;
+    const Rgb565Frame editorStill = composeResolvedFrame(document, frame, plane, true,
+                                                         &notRotating);
+    expect(differingPixels(editorStill, *still) == 0, text + ": the still pictures are the same");
+    expect(still->rotates() && shown.nextRotationMs > 0, text + ": libserum rotates the frame");
+    const std::vector<uint16_t>& table = document.colorRotations(frame, plane);
+    for (std::size_t i = 0; i < editorStill.pixels.size(); ++i) {
+        const bool inRotation =
+            std::find(table.begin() + 2, table.begin() + 2 + table[0], editorStill.pixels[i]) !=
+            table.begin() + 2 + table[0];
+        counts.standing += notRotating[i] != 0 && inRotation ? 1 : 0;
+    }
+    for (int step = 1; step <= 3; ++step) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(kRotationDelayMs + 15));
+        const RuntimeFrame rotated = preview.rotate();
+        const RuntimePlane* runtime = rotated.plane(rows);
+        const std::string stepText = text + ", rotation step " + std::to_string(step);
+        expect(rotated.ok() && !rotated.unchanged && runtime, stepText + ": libserum stepped");
+        Rgb565Frame editor = composeResolvedFrame(document, frame, plane, true, &notRotating);
+        applyColorRotations(document, frame, plane, step * kRotationDelayMs, editor,
+                            &notRotating);
+        const std::size_t differing = differingPixels(editor, *runtime);
+        expect(differing == 0, stepText + ": " + std::to_string(differing) +
+                                   " pixels differ between the editor's rotation preview and "
+                                   "libserum");
+        for (std::size_t i = 0; i < editor.pixels.size(); ++i) {
+            counts.moved += editor.pixels[i] != editorStill.pixels[i] ? 1 : 0;
+            expect(notRotating[i] == 0 || runtime->image.pixels[i] == still->image.pixels[i],
+                   stepText + ": dynamic content and shadows stand still in libserum");
+        }
+    }
+    preview.close();
+    return counts;
+}
+
+// Every frame of the full project, on the plane with the ROM frame's size, with a rotation
+// made of colors the frame shows.
+void testRotationSteps(PlaneLayout layout)
+{
+    ProjectSnapshot snapshot = makeProjectWithSpriteListCases(layout);
+    const bool extra = extraIsNative(snapshot.geometry);
+    {
+        const ProjectDocument plain = ProjectDocument::fromSnapshot(snapshot);
+        const Resolution native = plain.geometry().nativePlane();
+        for (std::size_t frame = 0; frame < plain.frameCount(); ++frame) {
+            (extra ? snapshot.frames[frame].colorRotationsHd
+                   : snapshot.frames[frame].colorRotationsSd) =
+                rotationTable(shownColors(plain, frame, native));
+        }
+    }
+    const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    const Resolution native = document.geometry().nativePlane();
+    RotationStepCounts total;
+    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
+        const std::string text = std::string(layout == PlaneLayout::Ordinary      ? "128x32"
+                                             : layout == PlaneLayout::NativeExtra ? "256x64"
+                                                                                  : "192x64") +
+                                 " project, frame " + std::to_string(frame);
+        const RotationStepCounts counts = expectRotationStepsEqualRuntime(
+            document, frame, native, nativeRows(document.geometry()), text);
+        total.moved += counts.moved;
+        total.standing += counts.standing;
+    }
+    expect(total.moved > 0, "the rotations move pixels");
+    expect(total.standing > 0,
+           "dynamic content and shadows in a rotation's color are part of the comparison");
+}
+
+// The report this is for (afm_113b, frames 16 to 77): white digits from a dynamic zone, with
+// their shadow, over a background whose stars rotate through white. The stars rotate; the
+// digits and the shadow do not, although the rotation lists both their colors.
+void testDynamicContentStandsStillInRotations()
+{
+    constexpr uint16_t kStar = 0x0808;
+    constexpr uint16_t kWhite = 0xffff;
+    ProjectSnapshot snapshot = makeProject(PlaneLayout::Ordinary, 1);
+    const Size sd = snapshot.geometry.planeSize(Resolution::Sd);
+    makeDark(snapshot, 0);
+    const std::size_t glyph = static_cast<std::size_t>(10) * sd.width + 20;
+    snapshot.frames[0].originalSd.pixels[glyph] = 3;
+    FrameDynamicData& dynamic = addDynamicData(snapshot, 0);
+    for (int y = 8; y <= 12; ++y) {
+        std::fill_n(dynamic.maskSd.pixels.begin() + static_cast<std::ptrdiff_t>(y) * sd.width + 16,
+                    8, uint8_t{1});
+    }
+    dynamic.colorsSd[1 * kColorCount + 3] = kWhite;
+    dynamic.shadowDirectionsSd[1] = 0x02 | 0x20;  // above and below
+    dynamic.shadowColorsSd[1] = kShadowColor;
+    assignBackground(snapshot, 0, addBackground(snapshot));
+    Rgb565Frame& background = snapshot.backgrounds[0].colorizedSd;
+    std::fill(background.pixels.begin(), background.pixels.end(), uint16_t{0});
+    const std::size_t star = static_cast<std::size_t>(3) * sd.width + 5;
+    background.pixels[star] = kStar;
+    // Stars right above and under the digit: the shadow covers them. libserum has rendered
+    // the one above when the digit casts its shadow, and not yet the one below.
+    background.pixels[glyph - sd.width] = kStar;
+    background.pixels[glyph + sd.width] = kStar;
+    snapshot.frames[0].colorRotationsSd = rotationTable({kStar, kWhite, kShadowColor});
+    const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+
+    std::vector<uint8_t> notRotating;
+    const Rgb565Frame still = composeResolvedFrame(document, 0, Resolution::Sd, true,
+                                                   &notRotating);
+    expect(still.pixels[glyph] == kWhite && still.pixels[glyph - sd.width] == kShadowColor &&
+               still.pixels[glyph + sd.width] == kShadowColor && still.pixels[star] == kStar,
+           "the picture has the digit, its shadow above and below, and a star");
+    expect(notRotating[glyph] == 1 && notRotating[glyph - sd.width] == 1 &&
+               notRotating[glyph + sd.width] == 1 && notRotating[star] == 0,
+           "the digit and its shadow are marked as standing still, the star is not");
+    constexpr std::array<uint16_t, 3> kStarSteps{kWhite, kShadowColor, kStar};
+    for (int step = 1; step <= 3; ++step) {
+        Rgb565Frame editor = still;
+        applyColorRotations(document, 0, Resolution::Sd, step * kRotationDelayMs, editor,
+                            &notRotating);
+        expect(editor.pixels[glyph] == kWhite, "the digit stays white in the editor's preview");
+        expect(editor.pixels[glyph - sd.width] == kShadowColor &&
+                   editor.pixels[glyph + sd.width] == kShadowColor,
+               "the shadow keeps its color in the editor's preview");
+        expect(editor.pixels[star] == kStarSteps[static_cast<std::size_t>(step - 1)],
+               "the star rotates in the editor's preview");
+    }
+    for (PlaneRequest rows : {PlaneRequest::Rows32, PlaneRequest::Rows64, PlaneRequest::Both}) {
+        RuntimePreview& preview = RuntimePreview::instance();
+        std::string error;
+        expect(preview.openSequence(document, {0}, rows, &error), "the sequence opens: " + error);
+        const RuntimeFrame shown = preview.renderSequenceFrame(0);
+        RuntimeFrame rotated = shown;
+        for (int step = 1; step <= 3; ++step) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(kRotationDelayMs + 15));
+            rotated = preview.rotate();
+            expect(rotated.ok() && !rotated.unchanged, "libserum stepped the rotation");
+            const uint16_t starNow = kStarSteps[static_cast<std::size_t>(step - 1)];
+            if (rows != PlaneRequest::Rows64) {
+                const Rgb565Frame& plane = rotated.rows32->image;
+                expect(plane.pixels[glyph] == kWhite &&
+                           plane.pixels[glyph - sd.width] == kShadowColor &&
+                           plane.pixels[glyph + sd.width] == kShadowColor,
+                       "the digit and its shadow stand still on libserum's 32-row plane");
+                expect(plane.pixels[star] == starNow, "the star rotates on the 32-row plane");
+            }
+            if (rows != PlaneRequest::Rows32) {
+                const Rgb565Frame& plane = rotated.rows64->image;
+                const Rgb565Frame& first = shown.rows64->image;
+                const std::size_t width = static_cast<std::size_t>(plane.size.width);
+                expect(first.pixels[20 * width + 40] == kWhite &&
+                           first.pixels[6 * width + 10] == kStar,
+                       "the 64-row plane has the digit and the star");
+                // The shadow is one pixel thick there, so half of each star it covers shows
+                // beside it and rotates like the other star.
+                for (std::size_t i = 0; i < plane.pixels.size(); ++i) {
+                    expect(plane.pixels[i] == (first.pixels[i] == kStar ? starNow : first.pixels[i]),
+                           "on libserum's 64-row plane the stars rotate and nothing else");
+                }
+            }
+        }
+        preview.close();
+    }
+}
+
+// The 256x64 plane of a 128x32 project, on the picture built of rows.
+void testHdPlaneRotationSteps()
+{
+    ProjectSnapshot snapshot = makeRowProject();
+    {
+        const ProjectDocument plain = ProjectDocument::fromSnapshot(snapshot);
+        snapshot.frames[0].colorRotationsHd =
+            rotationTable(shownColors(plain, 0, Resolution::Hd));
+    }
+    const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    const RotationStepCounts counts = expectRotationStepsEqualRuntime(
+        document, 0, Resolution::Hd, PlaneRequest::Rows64, "256x64 plane of a 128x32 project");
+    expect(counts.moved > 0 && counts.standing > 0,
+           "the 256x64 rotation moves pixels and leaves dynamic content alone");
+}
+
 }  // namespace
 
 void runEditorMatchesRuntimeTests()
@@ -380,4 +637,10 @@ void runEditorMatchesRuntimeTests()
     }
     testHdPlaneOfOrdinaryProject();
     testHdDynamicZonesOfOrdinaryProject();
+    testDynamicContentStandsStillInRotations();
+    for (PlaneLayout layout :
+         {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
+        testRotationSteps(layout);
+    }
+    testHdPlaneRotationSteps();
 }

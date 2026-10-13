@@ -132,6 +132,16 @@ neither of those holds.
 - The editor's own renderer gives the same pixels as libserum on the plane with the ROM frame's
   size: `afm_113b` 3047/3047 frames, `trn_174h` 5211/5211, `hook_501` 3897/3897, `smb3`
   4430/4430, `frankst1` sampled (`colorizing_qt_v2_preview_diff`).
+- Color rotations: neither dynamic-zone content nor a dynamic shadow rotates, whatever its
+  color; background, static and sprite pixels do. That is libserum's rule and the Win32
+  editor's (`Predraw_Frame_For_Rotations` skips dynamic pixels, its draw skips `isdynapix`).
+  The editor's rotation preview during playback follows it (`composeResolvedFrame()` marks the
+  pixels that stand still, `applyColorRotations()` leaves them alone) and is compared with
+  `Serum_Rotate` step by step in `EditorMatchesRuntimeTests`; on the real projects, three steps
+  on every frame with a rotation: `afm_113b` 61 frames, `trn_174h` 2, no difference. Before, the
+  preview rotated every pixel of a listed color, dynamic digits included. The Runtime view
+  never rotates by itself: it shows the planes libserum holds after `Serum_Rotate`, during
+  playback only.
 - On the HD plane of an ordinary project the renderer follows libserum's layers (SD dynamic
   zones and colors, pixels doubled). What is left on `trn_174h` is the edge rounding of
   libserum's Scale2x: 114722 pixels in 4249 of 5211 frames (113940 at zone edges, 782 at sprite
@@ -305,6 +315,12 @@ owner together.
   shows the HD frame (no real project has that case). The Runtime view shows the real picture.
 - An HD pixel painted under a stored HD dynamic mask is saved as 0 and the canvas does not show
   that, see open decision 5.
+- libserum looks the dynamic pixels of a sprite up in the frame's rotations
+  (`Colorize_Spritev2`), unlike the dynamic pixels of a frame, and the editor's preview follows
+  it. Whether that is intended is not known.
+- libserum leaves the rotation entry of a pixel alone where it keeps or takes the picture of a
+  background scene (`suppressFrameBackgroundImage`, `applySceneBackground`). Not reachable from
+  the editor, which loads no scenes; not looked into.
 - A frame's thumbnail is not redrawn after a dynamic mask edit (it is after a dynamic color or
   shadow edit); it shows the old zones until something else redraws it.
 - In a 256x64 project a frame whose background or sprite lacks 256x64 data is drawn without it
@@ -393,6 +409,19 @@ owner together.
 - `Serum_LoadFromMemory(crom, size, flags)`: loads a raw cROM from a caller-owned buffer through
   the same load sequence as `Serum_Load()`; reads and writes no file. Uncommitted working-tree
   change in `../libserum`, which the editor now needs.
+- Dynamic shadows rotated (reported on `afm_113b`, frames 16 to 77, Runtime view, 32 rows: the
+  white high-score digits seemed to rotate with the stars). Outside layer mode, so for every
+  32-row-only request, `CheckDynaShadow()` painted a shadow without setting its rotation entry,
+  and the pixel loop skips a shadow pixel: the entry was whatever an earlier frame or the
+  allocation had left, and `Serum_Rotate` ran the shadow under each digit through the
+  rotation's colors. In libserum since at least 2.6.1; the editor shows it more than a machine
+  because every still and every playback window is a fresh load. Fixed by setting the entry to
+  `0xffff`, with three unit tests (`rotation/dynamic_content_and_shadow_*`). Output of
+  `afm_113b`, `smb3`, `trn_174h` and `hook_501` compared before and after for request flags 1,
+  2 and 3 (planes, rotation entries and tables, three rotation steps): 22 frames differ, all
+  with flags 1, every differing pixel a shadow pixel. **Uncommitted working-tree change in
+  `../libserum`** (`src/serum-decode.cpp`, `tests/unit_tests.cpp`, `tests/README.md`,
+  `AGENTS.md`).
 - Not touched and not testable on a Mac: everything behind `is_real_machine()`.
 
 ## Test material (read-only, never commit)
