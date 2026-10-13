@@ -270,6 +270,17 @@ for `frankst1`. Memory stays that of a window.
    the HD plane of ordinary projects without losing the round trip.
 6. **The 15 ms rule** (a frame shorter than 15 ms that is not colorized is saved inactive) is
    unchanged and asked about separately. Such frames are now marked.
+7. **Playback pictures differ by one or two pixels on the 64-row plane.** Runtime playback through
+   windows of frames identifies every frame as the whole project does, and the 32-row plane is
+   always identical, but in a few steps one or two 64-row pixels differ from playing the whole
+   project (`smb3` 19 steps, `trn_174h` 13), starting at window boundaries. It looks like libserum
+   keeping a pixel an earlier frame painted. Cause not found.
+8. **`trn_174h` HD plane against libserum**: 114,722 pixels in 4,249 frames still differ in the
+   editor's canvas, classed as edge rounding of upscaled dynamic text. Only the Runtime view shows
+   that exactly. Open whether the canvas should say so or try to reproduce it.
+
+Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
+owner together.
 
 ## Known bugs and gaps in the editor (not fixed)
 
