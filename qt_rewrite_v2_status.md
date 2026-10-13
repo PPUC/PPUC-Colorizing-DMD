@@ -34,7 +34,7 @@ neither of those holds.
   `Serum_CRZ_*` API.
   - `master` = cRZ API + native 256x64 rendering + two sprite/plane fixes (merged by the owner
     after an author confirmed the Ghostbusters fix on a real DMD).
-  - `master` is one local commit ahead of `origin/master` (`4947104`, internal refactoring,
+  - `master` is one local commit ahead of `origin/master` (`9ac0511`, internal refactoring,
     output unchanged).
 
 ## Editor commits so far (oldest first)
@@ -183,7 +183,7 @@ neither of those holds.
   or disappeared stayed on the 64-row plane. Fixed in `c584161`.
 - A 64-row plane painted by the monochrome fallback was kept for the next identified frame.
   Fixed in `789f410`.
-- `4947104`: internal decoder helpers moved into their own source file; debug-only hashes are
+- `9ac0511`: internal decoder helpers moved into their own source file; debug-only hashes are
   computed only when a debug switch asks for them. Output is bit-identical.
 - Not touched and not testable on a Mac: everything behind `is_real_machine()`.
 
