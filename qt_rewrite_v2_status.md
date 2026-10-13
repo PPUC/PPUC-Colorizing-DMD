@@ -407,8 +407,8 @@ owner together.
 - `9ac0511`: internal decoder helpers moved into their own source file; debug-only hashes are
   computed only when a debug switch asks for them. Output is bit-identical.
 - `Serum_LoadFromMemory(crom, size, flags)`: loads a raw cROM from a caller-owned buffer through
-  the same load sequence as `Serum_Load()`; reads and writes no file. Uncommitted working-tree
-  change in `../libserum`, which the editor now needs.
+  the same load sequence as `Serum_Load()`; reads and writes no file. libserum `50ec91f`, pushed;
+  the editor needs it.
 - Dynamic shadows rotated (reported on `afm_113b`, frames 16 to 77, Runtime view, 32 rows: the
   white high-score digits seemed to rotate with the stars). Outside layer mode, so for every
   32-row-only request, `CheckDynaShadow()` painted a shadow without setting its rotation entry,
@@ -419,9 +419,7 @@ owner together.
   `0xffff`, with three unit tests (`rotation/dynamic_content_and_shadow_*`). Output of
   `afm_113b`, `smb3`, `trn_174h` and `hook_501` compared before and after for request flags 1,
   2 and 3 (planes, rotation entries and tables, three rotation steps): 22 frames differ, all
-  with flags 1, every differing pixel a shadow pixel. **Uncommitted working-tree change in
-  `../libserum`** (`src/serum-decode.cpp`, `tests/unit_tests.cpp`, `tests/README.md`,
-  `AGENTS.md`).
+  with flags 1, every differing pixel a shadow pixel. libserum `c8d8166`, pushed.
 - Not touched and not testable on a Mac: everything behind `is_real_machine()`.
 
 ## Test material (read-only, never commit)
