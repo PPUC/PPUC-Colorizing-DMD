@@ -20,7 +20,13 @@
 #include "edit/DrawingTools.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
+#include "legacy/LegacyProjectSerializer.h"
 #include "render/CanvasLayout.h"
+// Not in every tree the scripts are built against, see "When MainWindow changes" in README.md.
+#if __has_include("LazyListIcons.h")
+#include "LazyListIcons.h"
+#define UI_DUMP_HAS_LAZY_THUMBNAILS 1
+#endif
 
 // The scripts drive MainWindow and the canvas widgets through their private members. Redefining
 // the keyword is not valid C++; it works with GCC and Clang, where access does not affect
@@ -106,9 +112,28 @@ static QString ownerTag(QWidget* w)
     return QString();
 }
 
+// One hash over the thumbnails of all frame list rows. The application builds a thumbnail
+// when its row comes into view; the dump asks for all of them, so that it shows the same for
+// a tree that builds them up front.
+static size_t frameThumbnailsHash(app::MainWindow& w)
+{
+#ifdef UI_DUMP_HAS_LAZY_THUMBNAILS
+    w.m_frameThumbnails->ensureBuilt(0, w.m_frameList->count() - 1);
+#endif
+    size_t hash = 0;
+    for (int row = 0; row < w.m_frameList->count(); ++row) {
+        const QImage image = w.m_frameList->item(row)->icon().pixmap(w.m_frameList->iconSize())
+                                 .toImage().convertToFormat(QImage::Format_ARGB32);
+        // Seed 0, as everywhere in this file: a seeded qHashBits is not stable across runs.
+        hash = hash * 31 + qHashBits(image.constBits(), static_cast<size_t>(image.sizeInBytes()));
+    }
+    return hash;
+}
+
 static void dump(const char* title, app::MainWindow& w)
 {
     QApplication::processEvents();
+    const size_t thumbnailsHash = frameThumbnailsHash(w);
     std::cout << "===== " << title << " =====\n";
     QStringList lines;
     for (QWidget* child : w.findChildren<QWidget*>()) {
@@ -117,6 +142,7 @@ static void dump(const char* title, app::MainWindow& w)
     lines.sort();
     for (const QString& line : lines) std::cout << line.toStdString() << '\n';
     std::cout << "--- status: " << w.statusBar()->currentMessage().toStdString() << '\n';
+    std::cout << "--- frame thumbnails: " << w.m_frameList->count() << " hash=" << thumbnailsHash << '\n';
     std::cout << "--- undo=" << w.m_undoAction->isEnabled() << " redo=" << w.m_redoAction->isEnabled()
               << " activeColor=" << w.m_activeDrawColor
               << " dirMode=" << w.m_canvasEdit.isSelectionDirectionMode()
@@ -131,7 +157,7 @@ static void dump(const char* title, app::MainWindow& w)
         }
         for (std::size_t f = 0; f < d.frameCount(); ++f) {
             for (auto r : {render::Resolution::Sd, render::Resolution::Hd}) {
-                // A carried extra plane cannot be read through the document.
+                // A project that is edited on its original plane only has no other to read.
                 if (r == render::Resolution::Hd && d.editsOriginalPlaneOnly()) continue;
                 for (std::size_t s = 0; s < document::kMaxColorRotations; ++s) {
                     std::cout << " rot" << f << (r == render::Resolution::Sd ? "sd" : "hd") << s << "="

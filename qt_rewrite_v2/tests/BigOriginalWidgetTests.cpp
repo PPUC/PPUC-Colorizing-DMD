@@ -642,11 +642,14 @@ void testMissingHdIsFlaggedAndNotRendered()
             .pixmap(QSize(160, 84))
             .toImage();
     };
+    // The badge ends four pixels left of the thumbnail's right edge; its text is centred.
     const QColor warning(190, 45, 45);
-    expect(thumbnail(1).pixelColor(116, 5) == warning &&
-               thumbnail(2).pixelColor(116, 5) == warning &&
-               thumbnail(0).pixelColor(116, 5) != warning,
+    expect(thumbnail(1).pixelColor(155, 4) == warning &&
+               thumbnail(2).pixelColor(155, 4) == warning &&
+               thumbnail(0).pixelColor(155, 4) != warning,
            "thumbnails of frames the runtime does not show carry a warning badge");
+    expect(thumbnail(0).pixelColor(133, 5) != QColor(35, 95, 160),
+           "a complete frame has no HD badge: the plane is the only one");
 
     colorizing::app::FramePanel framePanel;
     const auto refreshFramePanel = [&](std::size_t frameIndex) {
@@ -658,22 +661,23 @@ void testMissingHdIsFlaggedAndNotRendered()
     QToolButton* create = buttonWithText(framePanel, QStringLiteral("Create HD"));
     QToolButton* remove = buttonWithText(framePanel, QStringLiteral("Remove HD"));
     refreshFramePanel(0);
-    expect(!create->isEnabled() && !remove->isEnabled() &&
-               remove->toolTip().contains(QStringLiteral("256x64")),
-           "Remove HD is disabled with a reason; nothing to create on a complete frame");
+    expect(create->text() == QStringLiteral("Create 256x64 Frame") && !create->isHidden() &&
+               !create->isEnabled() && remove->isHidden(),
+           "Remove is hidden; nothing to create on a complete frame");
     refreshFramePanel(1);
-    expect(create->isEnabled() && !remove->isEnabled() &&
+    expect(create->isEnabled() && remove->isHidden() &&
                create->toolTip().contains(QStringLiteral("original")),
-           "Create HD repairs a frame without HD");
+           "Create 256x64 Frame repairs a frame without its picture");
     refreshFramePanel(2);
-    expect(create->isEnabled() && !remove->isEnabled(),
-           "Create HD repairs a background without HD");
+    expect(create->isEnabled() && remove->isHidden(),
+           "Create 256x64 Frame repairs a background without its picture");
     framePanel.showSpriteHdActions(true, colorizing::render::PlaneLayout::NativeExtra);
-    expect(!create->isEnabled() && !remove->isEnabled() &&
-               remove->toolTip().contains(QStringLiteral("256x64")),
-           "Remove HD Sprite is disabled with a reason");
+    expect(!create->isEnabled() && remove->isHidden(),
+           "a complete sprite has nothing to create or remove");
     framePanel.showSpriteHdActions(false, colorizing::render::PlaneLayout::NativeExtra);
-    expect(create->isEnabled() && !remove->isEnabled(), "Create HD Sprite repairs a sprite");
+    expect(create->isEnabled() && remove->isHidden() &&
+               create->text() == QStringLiteral("Create 256x64 Sprite"),
+           "Create 256x64 Sprite repairs a sprite");
 
     expect(colorizing::app::renderSpriteColorizedPreviewImage(document.sprite(0),
                                                               Resolution::Hd,

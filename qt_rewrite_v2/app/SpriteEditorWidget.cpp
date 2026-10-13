@@ -388,7 +388,7 @@ bool SpriteEditorWidget::isHdOnly() const
 
 int SpriteEditorWidget::hdScale() const
 {
-    // Only asked for an HD sprite, which a project with a carried extra plane never has.
+    // Only asked for an HD sprite, which a project without an editable extra plane never has.
     return m_document && m_document->geometry().isEditable(render::Resolution::Hd)
                ? m_document->geometry().planeScale(render::Resolution::Hd)
                : 2;

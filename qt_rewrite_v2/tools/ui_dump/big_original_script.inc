@@ -2,6 +2,10 @@
 // the original. Included at the end of main() in dump.cpp, after the window was closed, so that
 // no earlier state depends on it.
 //
+// "HD" in the comments and titles below is the stored extra plane. The window never calls it
+// that for such a project: it has no SD and HD buttons, the plane is "256x64", missing data is
+// "no picture" / "not rendered" and the repair is "Create 256x64 Frame" / "... Sprite".
+//
 //   frame 0: HD, dynamic data, background 0 (HD)
 //   frame 1: HD
 //   frame 2: no HD frame
@@ -225,6 +229,18 @@
         for (int round = 0; round < 5; ++round) QApplication::processEvents();
     };
 
+    // "Create 256x64 Frame" / "Create 256x64 Sprite"; "Create HD ..." in trees that called it so.
+    const auto repairButton = [&]() {
+        QToolButton* found = nullptr;
+        for (QToolButton* button : w.findChildren<QToolButton*>()) {
+            if (button->text().startsWith(QLatin1String("Create 256x64")) ||
+                button->text().startsWith(QLatin1String("Create HD"))) {
+                found = button;
+            }
+        }
+        if (!found) { std::cerr << "no repair button\n"; std::exit(7); }
+        return found;
+    };
     w.m_undoHistories = edit::UndoHistories();
     w.m_document = document::ProjectDocument::fromSnapshot(bs);
     w.m_document->markClean();
@@ -239,10 +255,8 @@
         D(title.c_str());
     }
     showTab("Frame");
-    w.m_sdButton->click();
-    D("256 original: sd is not available");
-    w.m_hdButton->click();
-    D("256 original: hd stays on");
+    D("256 original: no sd and hd buttons");
+    std::cout << "sd/hd buttons hidden: " << w.m_sdButton->isHidden() << '/' << w.m_hdButton->isHidden() << '\n';
     w.setDrawingTool(Tool::Point);
     w.m_preview->m_pixelClickedHandler(col(201, 51), false);
     D("256 original: hd pixel painted");
@@ -252,7 +266,7 @@
     row(2);
     printFrameHd(2);
     D("256 original: frame without hd");
-    toolButtonByTextPrefix(w, "Create HD")->click();
+    repairButton()->click();
     settle();
     printFrameHd(2);
     D("256 original: hd frame created from the original");
@@ -260,11 +274,13 @@
     redo("256 original: redo create hd");
     row(3);
     D("256 original: background and sprite without hd");
-    w.m_frameFilterComboBox->setCurrentIndex(w.m_frameFilterComboBox->findText(QStringLiteral("HD missing")));
-    D("256 original: filter hd missing");
+    w.m_frameFilterComboBox->setCurrentIndex(
+        std::max(w.m_frameFilterComboBox->findText(QStringLiteral("Not rendered")),
+                 w.m_frameFilterComboBox->findText(QStringLiteral("HD missing"))));
+    D("256 original: filter not rendered");
     w.m_frameFilterComboBox->setCurrentIndex(0);
     row(3);
-    toolButtonByTextPrefix(w, "Create HD")->click();
+    repairButton()->click();
     settle();
     D("256 original: hd background created");
     undo("256 original: undo create hd background");
@@ -382,7 +398,7 @@
     w.m_spriteList->setCurrentRow(2);
     settle();
     D("256 original: sprite canvas, sprite without hd");
-    toolButtonByTextPrefix(w, "Create HD")->click();
+    repairButton()->click();
     settle();
     printSprite(2);
     D("256 original: hd sprite created from the sprite original");

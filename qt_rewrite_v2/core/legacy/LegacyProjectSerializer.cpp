@@ -187,6 +187,12 @@ const document::IndexedFrame* comparisonMaskForFrame(const document::ProjectSnap
 
 }  // namespace
 
+bool isLegacyExtraPlaneSection(const std::string& name)
+{
+    return name.rfind("HD ", 0) == 0 || (name.rfind("extra ", 0) == 0 &&
+                                         name.find(" flags") != std::string::npos);
+}
+
 uint32_t legacyFrameHash(const document::IndexedFrame& original,
                          const document::IndexedFrame* comparisonMask,
                          bool shapeMode)

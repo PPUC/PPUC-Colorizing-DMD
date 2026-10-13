@@ -16,12 +16,14 @@ constexpr Size kHdFrameSize{256, 64};
 //   layout          ROM frame  original plane (Sd)   extra plane (Hd)       cROM header
 //   Ordinary        128x32     128x32, native        256x64, twice          128x32 + 256x64
 //   NativeExtra     256x64     128x32, carried       256x64, native         128x32 + 256x64, flag
-//   NativeOriginal  192x64     192x64, native        96x32, carried         192x64 + 96x32
+//   NativeOriginal  192x64     192x64, native        96x32, discarded       192x64 + 96x32
 //
 // Resolution names a stored plane, not a size: Sd is the original plane (cFrames, DynaMasks,
 // ...), Hd the extra plane (the ...X arrays). The native plane has the ROM frame's size and
-// lines up with it pixel for pixel. A carried plane is smaller than the ROM frame: its data
-// is loaded and written back unchanged and never shown, edited, created or removed.
+// lines up with it pixel for pixel. The other plane of a native layout is smaller than the
+// ROM frame and is never shown, edited, created or removed. A carried plane is loaded and
+// written back unchanged. A discarded plane is dropped on load and written as "no extra
+// data" in its stored size, see document::discardExtraPlane().
 //
 // Original frames, comparison masks, sprite originals, detection areas and the bounds of a
 // frame's sprite slots are ROM frame pixels in every layout. A sprite found at a ROM frame
@@ -51,14 +53,15 @@ public:
     // The header flag of the NativeExtra layout.
     [[nodiscard]] bool original256x64Flag() const;
 
-    // Stored size of a plane, carried or not.
+    // Stored size of a plane, editable or not.
     [[nodiscard]] Size planeSize(Resolution plane) const;
     [[nodiscard]] Size romFrameSize() const;
     [[nodiscard]] Resolution nativePlane() const;
-    // False for a carried plane.
+    // False for a carried and for a discarded plane.
     [[nodiscard]] bool isEditable(Resolution plane) const;
+    [[nodiscard]] bool discardsExtraPlane() const;
     // Plane pixels per ROM frame pixel along one axis: 1 or 2. Throws std::logic_error for a
-    // carried plane, as toRomFrame() does.
+    // plane that is not editable, as toRomFrame() does.
     [[nodiscard]] int planeScale(Resolution plane) const;
     // The ROM frame pixel a pixel of the plane shows.
     [[nodiscard]] Point toRomFrame(Resolution plane, Point planePixel) const;

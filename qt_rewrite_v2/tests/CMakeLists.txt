@@ -49,6 +49,7 @@ if(TARGET colorizing_qt_v2_widgets)
         CanvasEditControllerTests.cpp
         FramePreviewWidgetRenderTests.cpp
         NativeOriginalWidgetTests.cpp
+        PlaneLabelsWidgetTests.cpp
     )
 
     target_link_libraries(colorizing_qt_v2_widget_tests

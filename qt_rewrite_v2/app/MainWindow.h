@@ -22,6 +22,7 @@ class ColorRotationPanel;
 class DynamicPanel;
 class FramePanel;
 class FramePreviewWidget;
+class LazyListIcons;
 class MaskPanel;
 class PalettePanel;
 class SpritePanel;
@@ -51,11 +52,13 @@ private:
 
     enum class FrameFilter {
         All,
+        // Offered where HD is an extra resolution only.
         Hd,
         Background,
         Dynamic,
         Sprites,
-        // Offered for HD-only projects alone: frames the runtime shows nothing for.
+        // Offered for HD-only projects alone, as "Not rendered": frames the runtime shows
+        // nothing for.
         HdIncomplete,
     };
 
@@ -75,13 +78,15 @@ private:
     void refreshProjectSummary();
     void refreshFrameList(std::optional<std::size_t> selectedFrameIndex = std::nullopt);
     [[nodiscard]] QString frameListItemText(std::size_t frameIndex) const;
-    // See ProjectDocument::rendersHdPlaneOnly(): SD mode, SD fallbacks and Remove HD are off.
+    // See ProjectDocument::rendersHdPlaneOnly(): there are no SD mode and no SD fallbacks, and
+    // the 256x64 data cannot be removed.
     [[nodiscard]] bool isHdOnlyProject() const;
-    // See ProjectDocument::editsOriginalPlaneOnly(): HD mode and every HD action are off.
+    // See ProjectDocument::editsOriginalPlaneOnly(): there is no extra plane at all.
     [[nodiscard]] bool isOriginalPlaneOnlyProject() const;
-    // "SD" or "HD"; the plane's size where those names would mislead.
+    // Whether "HD" and "SD" are shown at all, see PlaneLabels.h.
+    [[nodiscard]] bool showsHdAndSd() const;
+    // "SD" or "HD"; the plane's size in a project with one plane.
     [[nodiscard]] QString planeName(render::Resolution resolution) const;
-    void showNoExtraPlaneEditing();
     // Why the runtime shows nothing for the frame of an HD-only project; empty otherwise.
     [[nodiscard]] QString frameHdGapsText(std::size_t frameIndex) const;
     void updateFrameFilterChoices();
@@ -195,6 +200,7 @@ private:
     void redo();
     void updateUndoRedoActions();
     void updateProjectHeaderStatus();
+    // The frame's thumbnail is out of date, see LazyListIcons::invalidate().
     void updateFrameThumbnail(std::size_t frameIndex);
     void updateFrameListItem(std::size_t frameIndex);
     void updateFrameListItemText(std::size_t frameIndex);
@@ -220,6 +226,7 @@ private:
     QLabel* m_frameStatusLabel = nullptr;
     QTabWidget* m_leftBrowserTabs = nullptr;
     QListWidget* m_frameList = nullptr;
+    LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;
     QListWidget* m_backgroundList = nullptr;
     QListWidget* m_spriteList = nullptr;

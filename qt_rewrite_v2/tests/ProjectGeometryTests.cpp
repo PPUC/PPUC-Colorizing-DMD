@@ -124,8 +124,12 @@ void testNativeOriginal()
            "a 192x64 project stores a 192x64 original plane and a 96x32 extra plane");
     expect(geometry.nativePlane() == Resolution::Sd,
            "the 192x64 original is the stored original plane");
-    expect(geometry.isEditable(Resolution::Sd) && !geometry.isEditable(Resolution::Hd),
-           "the 96x32 extra plane is carried");
+    expect(geometry.isEditable(Resolution::Sd) && !geometry.isEditable(Resolution::Hd) &&
+               geometry.discardsExtraPlane(),
+           "the 96x32 extra plane is discarded");
+    expect(!ProjectGeometry().discardsExtraPlane() &&
+               !ProjectGeometry(PlaneLayout::NativeExtra).discardsExtraPlane(),
+           "the other layouts keep their second plane");
     expect(!geometry.original256x64Flag(), "a 192x64 project has no 256x64 flag");
     expect(geometry.planeScale(Resolution::Sd) == 1, "the original plane is the ROM frame");
     expect(geometry.romFrameDisplayScale() == 1 &&

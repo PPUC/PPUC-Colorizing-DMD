@@ -2991,6 +2991,7 @@ void testFramePanel()
 void runBigOriginalWidgetTests();
 void runCanvasEditControllerTests();
 void runNativeOriginalWidgetTests();
+void runPlaneLabelsWidgetTests();
 
 int main(int argc, char* argv[])
 {
@@ -3029,6 +3030,7 @@ int main(int argc, char* argv[])
     runCanvasEditControllerTests();
     runBigOriginalWidgetTests();
     runNativeOriginalWidgetTests();
+    runPlaneLabelsWidgetTests();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

@@ -11,18 +11,9 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "PlaneLabels.h"
+
 namespace colorizing::app {
-
-namespace {
-
-constexpr char kHdOnlyRemoveToolTip[] =
-    "Not available: this project has 256x64 original frames and renders HD only. Without HD "
-    "data the runtime shows nothing.";
-constexpr char kCarriedExtraPlaneToolTip[] =
-    "Not available: this project has 192x64 original frames and is edited on that plane only. "
-    "Its stored 96x32 plane is kept unchanged.";
-
-}  // namespace
 
 FramePanel::FramePanel(QWidget* parent)
     : QWidget(parent)
@@ -258,23 +249,30 @@ void FramePanel::refresh(const FramePanelState& state)
     showFrameHdActions(!hasHdFrame, hasHdFrame);
     if (document->rendersHdPlaneOnly()) {
         const document::FrameHdGaps gaps = document->frameHdGaps(frameIndex);
+        const QString size = nativePlaneText(*document);
+        m_createHdButton->setText(QStringLiteral("Create %1 Frame").arg(size));
         m_createHdButton->setToolTip(
-            QStringLiteral("Create the missing HD data: the HD frame from the original frame in "
-                           "its plain colors, a black HD image for the assigned background"));
+            QStringLiteral("Create what the frame lacks to be rendered: the %1 frame from the "
+                           "original frame in its plain colors, a black %1 image for the "
+                           "assigned background")
+                .arg(size));
         m_createHdButton->setEnabled(gaps.frame || gaps.background);
-        m_removeHdButton->setToolTip(QString::fromLatin1(kHdOnlyRemoveToolTip));
-        m_removeHdButton->setEnabled(false);
-    } else if (document->editsOriginalPlaneOnly()) {
-        disableHdActions();
     }
+    showHdActionsFor(document->geometry().layout());
 }
 
-void FramePanel::disableHdActions()
+void FramePanel::showHdActionsFor(render::PlaneLayout layout)
 {
-    m_createHdButton->setToolTip(QString::fromLatin1(kCarriedExtraPlaneToolTip));
-    m_createHdButton->setEnabled(false);
-    m_removeHdButton->setToolTip(QString::fromLatin1(kCarriedExtraPlaneToolTip));
-    m_removeHdButton->setEnabled(false);
+    const bool canCreate = layout != render::PlaneLayout::NativeOriginal;
+    const bool canRemove = layout == render::PlaneLayout::Ordinary;
+    m_createHdButton->setVisible(canCreate);
+    m_removeHdButton->setVisible(canRemove);
+    if (!canCreate) {
+        m_createHdButton->setEnabled(false);
+    }
+    if (!canRemove) {
+        m_removeHdButton->setEnabled(false);
+    }
 }
 
 void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
@@ -285,6 +283,7 @@ void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
     m_removeHdButton->setText(QStringLiteral("Remove HD"));
     m_removeHdButton->setToolTip(QStringLiteral("Remove HD frame data"));
     m_removeHdButton->setEnabled(canRemove);
+    showHdActionsFor(render::PlaneLayout::Ordinary);
 }
 
 void FramePanel::setPaintTarget(PaintTarget target)
@@ -308,19 +307,21 @@ void FramePanel::setImportImageEnabled(bool enabled)
 
 void FramePanel::showSpriteHdActions(bool spriteHasHd, render::PlaneLayout layout)
 {
-    const bool hdOnly = layout == render::PlaneLayout::NativeExtra;
-    m_createHdButton->setText(QStringLiteral("Create HD Sprite"));
-    m_createHdButton->setToolTip(
-        hdOnly ? QStringLiteral("Create HD sprite from the sprite original in its plain colors")
-               : QStringLiteral("Create HD sprite from SD sprite"));
+    if (layout == render::PlaneLayout::NativeExtra) {
+        const QString size = planeSizeText(render::ProjectGeometry(layout).romFrameSize());
+        m_createHdButton->setText(QStringLiteral("Create %1 Sprite").arg(size));
+        m_createHdButton->setToolTip(
+            QStringLiteral("Create the %1 sprite from the sprite original in its plain colors")
+                .arg(size));
+    } else {
+        m_createHdButton->setText(QStringLiteral("Create HD Sprite"));
+        m_createHdButton->setToolTip(QStringLiteral("Create HD sprite from SD sprite"));
+    }
     m_createHdButton->setEnabled(!spriteHasHd);
     m_removeHdButton->setText(QStringLiteral("Remove HD Sprite"));
-    m_removeHdButton->setToolTip(hdOnly ? QString::fromLatin1(kHdOnlyRemoveToolTip)
-                                        : QStringLiteral("Remove HD sprite data"));
-    m_removeHdButton->setEnabled(spriteHasHd && !hdOnly);
-    if (layout == render::PlaneLayout::NativeOriginal) {
-        disableHdActions();
-    }
+    m_removeHdButton->setToolTip(QStringLiteral("Remove HD sprite data"));
+    m_removeHdButton->setEnabled(spriteHasHd);
+    showHdActionsFor(layout);
 }
 
 PaintTarget FramePanel::paintTarget() const

@@ -5,6 +5,8 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "PlaneLabels.h"
+
 namespace colorizing::app {
 
 BackgroundPanel::BackgroundPanel(QWidget* parent)
@@ -110,8 +112,9 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
     const document::BackgroundRecord& background = document->background(backgroundIndex);
     m_selectedBackgroundLabel->setText(QStringLiteral("Selected: %1%2")
                                            .arg(static_cast<int>(backgroundIndex))
-                                           .arg(background.colorizedHd ? QStringLiteral(" (HD)")
-                                                                       : QString()));
+                                           .arg(extraDataSuffix(
+                                               *document,
+                                               background.colorizedHd.has_value())));
 }
 
 }  // namespace colorizing::app

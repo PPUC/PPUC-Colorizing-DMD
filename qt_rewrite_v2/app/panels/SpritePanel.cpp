@@ -14,6 +14,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "PlaneLabels.h"
 #include "render/CanvasLayout.h"
 
 namespace colorizing::app {
@@ -376,7 +377,8 @@ void SpritePanel::refresh(const SpritePanelState& state)
                                    .arg(reference.minY)
                                    .arg(reference.maxX)
                                    .arg(reference.maxY)
-                                   .arg(hdMissing ? QStringLiteral(" no HD: frame not shown")
+                                   .arg(hdMissing ? QStringLiteral(" %1: frame not rendered")
+                                                        .arg(kNoPictureText)
                                                   : QString());
         }
         m_frameSpritesLabel->setText(
@@ -465,9 +467,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
     m_selectedSpriteLabel->setText(
         QStringLiteral("Selected: %1%2")
             .arg(label)
-            .arg(sprite.hasHd ? QStringLiteral(" (HD)")
-                              : document->rendersHdPlaneOnly() ? QStringLiteral(" (no HD)")
-                                                               : QString()));
+            .arg(extraDataSuffix(*document, sprite.hasHd)));
     {
         QSignalBlocker blocker(m_nameLineEdit);
         m_nameLineEdit->setText(QString::fromStdString(sprite.name));

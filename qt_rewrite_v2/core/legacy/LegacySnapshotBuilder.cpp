@@ -96,6 +96,9 @@ LegacySnapshotBuildResult buildProjectSnapshot(const LegacyCromFrameData& cromFr
     if (!document::isValidProjectSnapshot(snapshot, &validationError)) {
         return fail(validationError);
     }
+    if (geometry->discardsExtraPlane()) {
+        document::discardExtraPlane(snapshot);
+    }
 
     LegacySnapshotBuildResult result;
     result.snapshot = std::move(snapshot);

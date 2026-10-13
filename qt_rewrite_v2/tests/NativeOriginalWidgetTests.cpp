@@ -1,6 +1,6 @@
 // Rendering, hit testing and editing of a project whose original frames are 192x64: its
 // 192x64 original plane is the only one shown and edited, the stored 96x32 extra plane is
-// carried.
+// discarded.
 
 #include <algorithm>
 #include <cstdlib>
@@ -67,7 +67,8 @@ std::size_t at(int x, int y)
     return static_cast<std::size_t>(y) * 192 + static_cast<std::size_t>(x);
 }
 
-// Everything not listed is 0. Magenta is in the 96x32 data only and must never be seen.
+// Everything not listed is 0. Magenta is in the 96x32 data only: it must never be seen and
+// never be written back.
 //
 // Frame 0:
 //   original 1,2,3,1 from (150,40), (130,5)=1, (191,63)=2
@@ -377,17 +378,19 @@ void testPaintAndMaskEditsAtTheEdges()
            "background mask shape beyond 128x32");
 
     const document::ProjectSnapshot edited = document.toSnapshot();
-    expect(edited.frames[0].colorizedHd &&
-               std::all_of(edited.frames[0].colorizedHd->pixels.begin(),
-                           edited.frames[0].colorizedHd->pixels.end(),
-                           [](uint16_t pixel) { return pixel == kMagenta; }) &&
+    expect(!edited.frames[0].colorizedHd && !edited.frames[0].inactiveHd &&
+               !edited.backgrounds[0].colorizedHd &&
+               edited.frames[0].dynamicData->maskHd.size == kExtraSize &&
                std::all_of(edited.frames[0].dynamicData->maskHd.pixels.begin(),
                            edited.frames[0].dynamicData->maskHd.pixels.end(),
-                           [](uint8_t value) { return value == 1; }) &&
+                           [](uint8_t value) { return value == 255; }) &&
+               std::all_of(edited.frames[0].dynamicData->colorsHd.begin(),
+                           edited.frames[0].dynamicData->colorsHd.end(),
+                           [](uint16_t color) { return color == 0; }) &&
                std::all_of(edited.frames[0].backgroundData->maskHd.pixels.begin(),
                            edited.frames[0].backgroundData->maskHd.pixels.end(),
                            [](uint8_t value) { return value == 1; }),
-           "the 96x32 data is untouched by edits of the native plane");
+           "the 96x32 data is discarded: an edited project saves no extra data");
 
     editing.undoAll();
     editing.widget.update();
@@ -454,11 +457,14 @@ void testSpriteCaptureAndMatchBeyondColumn127()
     expect(outside.pixels[at(186, 60)] == kBase, "128x32 bounds do not reach a sprite at 186,60");
 
     const document::ProjectSnapshot edited = document.toSnapshot();
-    expect(edited.sprites[0].hasHd &&
+    expect(!edited.sprites[0].hasHd &&
                std::all_of(edited.sprites[0].colorizedHd.pixels.begin(),
                            edited.sprites[0].colorizedHd.pixels.end(),
-                           [](uint16_t pixel) { return pixel == kMagenta; }),
-           "the stored extra sprite data and its flag are untouched by a capture");
+                           [](uint16_t pixel) { return pixel == 0; }) &&
+               std::all_of(edited.sprites[0].maskHd.pixels.begin(),
+                           edited.sprites[0].maskHd.pixels.end(),
+                           [](uint8_t value) { return value == 255; }),
+           "the stored 96x32 sprite data is discarded, also after a capture");
 }
 
 QToolButton* buttonWithText(QWidget& parent, const QString& text)
@@ -481,22 +487,16 @@ void testPanelsAndThumbnail()
     frameState.document = &document;
     frameState.frameIndex = 0;
     frameState.hasSelectedFrames = true;
-    framePanel.refresh(frameState);
     QToolButton* create = buttonWithText(framePanel, QStringLiteral("Create HD"));
     QToolButton* remove = buttonWithText(framePanel, QStringLiteral("Remove HD"));
-    expect(!create->isEnabled() && !remove->isEnabled() &&
-               create->toolTip().contains(QStringLiteral("192x64")) &&
-               create->toolTip().contains(QStringLiteral("96x32")) &&
-               remove->toolTip() == create->toolTip(),
-           "Create HD and Remove HD are disabled and say why");
+    framePanel.refresh(frameState);
+    expect(create->isHidden() && remove->isHidden(),
+           "there is no extra plane: Create HD and Remove HD are hidden");
     framePanel.showSpriteHdActions(false, PlaneLayout::NativeOriginal);
-    create = buttonWithText(framePanel, QStringLiteral("Create HD Sprite"));
-    remove = buttonWithText(framePanel, QStringLiteral("Remove HD Sprite"));
-    expect(!create->isEnabled() && !remove->isEnabled() &&
-               create->toolTip().contains(QStringLiteral("192x64")),
-           "the sprite HD actions are disabled and say why");
+    expect(create->isHidden() && remove->isHidden(), "the sprite actions are hidden as well");
     framePanel.showSpriteHdActions(false);
-    expect(create->isEnabled(), "an ordinary project can create an HD sprite");
+    expect(!create->isHidden() && !remove->isHidden() && create->isEnabled(),
+           "an ordinary project can create an HD sprite");
 
     colorizing::app::SpritePanel spritePanel;
     colorizing::app::SpritePanelState spriteState;
@@ -529,7 +529,7 @@ void testPanelsAndThumbnail()
     for (int y = 0; y < 20; ++y) {
         for (int x = 100; x < thumbnail.width(); ++x) {
             expect(thumbnail.pixelColor(x, y) != QColor(35, 95, 160),
-                   "a frame with a flagged 96x32 frame has no HD badge");
+                   "a frame whose file had a 96x32 frame has no HD badge");
         }
     }
 }

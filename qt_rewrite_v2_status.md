@@ -65,10 +65,12 @@ neither of those holds.
   - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
     plane layouts; `ProjectSnapshot` and `ProjectDocument` carry it).
 - `app/`: `MainWindow` (about 4,600 lines, down from 8,266), `CanvasEditController`, the canvas and
-  sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), seven panels under
-  `panels/`.
+  sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), `LazyListIcons`
+  (frame list thumbnails built for the rows in view), `PlaneLabels` (the one place that decides
+  where the UI says "HD"/"SD" and what a single plane is called), seven panels under `panels/`.
 - `tests/`: core test executable, widget test executable, and `colorizing_qt_v2_roundtrip`
-  (loads a real project, re-serializes, reports per block where it differs from disk).
+  (loads a real project, re-serializes, reports per block where it differs from disk; for a
+  192x64 project differences in extra-plane blocks are reported as expected).
 - `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 630 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
@@ -76,7 +78,9 @@ neither of those holds.
 ## What works
 
 - Load and save of cROM/cRP/cRZ. Projects saved by 3.17.3 round-trip byte-identical: `afm_113b`,
-  `trn_174h`, `hook_501`, `smb3`, `frankst1` (192x64), and earlier `potc_600as`, GoT, `empty128`.
+  `trn_174h`, `hook_501`, `smb3`, and earlier `potc_600as`, GoT, `empty128`. `frankst1` (192x64)
+  round-trips identical in every block of the original plane and in the cRP; its extra-plane
+  blocks are rewritten, see "Resolution model".
 - Save recomputes frame hashes and active-frame flags and blanks colorized pixels under dynamic
   masks, as the Win32 editor does. Header revision is kept (20 stays 20, older becomes 19).
 - Editing: drawing tools, flood fill, palette gradients, canvas selection, comparison masks,
@@ -103,48 +107,73 @@ refused on load with a message naming the sizes.
   projects to the Qt editor. TXT import with padding is not implemented.
 - **256x64 original** (`is256x64`, revision 20): the 256x64 plane is the only rendered plane, one
   to one with the ROM frame. Sprite originals, detection areas, slot bounds and capture selection
-  are native coordinates. Stored SD data is carried through untouched and never shown. SD mode and
-  Remove HD are disabled. A frame renders at runtime only if it, its background and all its
-  sprites have HD; the editor flags frames where that is not so and Create HD repairs them.
+  are native coordinates. Stored SD data is carried through untouched and never shown. There is
+  no SD mode and nothing can be removed from the 256x64 plane. A frame renders at runtime only
+  if it, its background and all its sprites have their 256x64 data; the editor flags frames
+  where that is not so and `Create 256x64 Frame` / `Create 256x64 Sprite` repair them.
   **Verified with synthetic projects only; no real 256x64 project exists yet** (authors were
   waiting for a better editor).
 - **192x64 original** (stored as a 192x64 original plane with a 96x32 extra plane): the 192x64
   plane is the only plane shown and edited, one to one with the ROM frame; it is the stored
   original plane, so internally it is `Resolution::Sd` data. Masks, dynamic data, backgrounds,
-  rotations, sprites, slot bounds, capture, import and export all use 192x64 coordinates. The
-  stored 96x32 data, including the flags that mark frames, backgrounds and sprites as having it,
-  is carried through load and save untouched: `ProjectDocument` hides it (no item "has HD",
-  `Resolution::Hd` access throws) and `toSnapshot()` returns it as loaded. The SD/HD switch and
-  all Create/Remove HD actions are disabled with the reason as tool tip. Nothing is padded or
-  converted. Edits of the 192x64 plane do not update 96x32 counterparts.
+  rotations, sprites, slot bounds, capture, import and export all use 192x64 coordinates.
+  **The 96x32 data is discarded on load** (owner decision): `LegacySnapshotBuilder` and
+  `ProjectDocument::fromSnapshot()` drop it, the document holds none (`Resolution::Hd` access
+  throws), and a save writes the extra-plane blocks as "no extra data" through
+  `document::discardExtraPlane()`: every extra flag 0, colorized frames, backgrounds, dynamic
+  colors, shadows, rotations, sprite colors and sprite dynamic colors 0, dynamic masks, sprite
+  masks and sprite dynamic masks 255, background masks 1. These are the values the Win32 editor
+  gives a new frame, sprite or background without extra resolution (`CopyTXTFrames2Frame`,
+  `AddTXTFrames2Frame`, add sprite, `AddBackground`). Block sizes and the header (192x64 with
+  96x32) are unchanged; nothing is padded or converted. A second save is byte-identical to the
+  first.
   **Verified with one real project (`frankst1`, which has no 96x32 pictures in use, no sprites
-  and no backgrounds) and with synthetic projects** that have them.
+  and no backgrounds) and with synthetic projects** that have them. `frankst1` differs from its
+  file in two extra-plane blocks after a load and save: `HD dynamic colors` (688808 of 2866944
+  bytes; the file has values there) and `HD background masks` (all 34403328 bytes; the file has
+  0, the editor writes 1). The Win32 editor has both values for an unused extra background mask:
+  1 for frames added from a TXT dump, 0 when it converts an old-format file.
+
+**"HD" and "SD" in the UI** are shown only for the ordinary layout, where HD is an extra
+resolution. For the two single-plane layouts the SD/HD buttons, HD badges, the HD counter, the
+`HD frames` filter, `(HD)` suffixes and `Remove HD` are hidden, and the plane is called `256x64`
+or `192x64`. A 256x64 project keeps the marking of items that lack the data the runtime needs,
+worded without "HD": `no picture` (badge, list lines, suffix), `not rendered` (status lines,
+filter `Not rendered`), repair `Create 256x64 Frame` / `Create 256x64 Sprite`. A 192x64 project
+has no Create or Remove button. Details and the full table are in the Handbook, "SD And HD
+Modes".
 
 ## Open decisions (waiting for the owner)
 
-1. **192x64 in libserum:** drop the 96x32 plane for native 64-row projects, the same contract as
-   256x64? It changes behaviour for existing 192x64 projects on 32-row displays (no picture
-   unless the host asks for fallback). Until this is decided the editor keeps the 96x32 data as
-   it is in the file and neither updates nor removes it.
-2. **192x64 padded to 256x64:** such projects now load, edit and save as native 192x64, which is
-   how 3.17.3 stores them. Whether they should be converted to a padded 256x64 layout (the owner
-   said earlier that 192x64 should be treated like 256x64 by padding, the way 128x16 is padded to
-   128x32) is still open; nothing is padded or converted today.
-3. **Confirmations asked of the authors**, relayed by the owner, no answer recorded yet:
+1. **192x64: decided.** The 96x32 data is discarded on load and written as "no extra data";
+   nothing is padded or converted to 256x64. Padding could be done in libserum later if it is
+   ever needed. Still open inside that decision: which value an unused extra background mask
+   gets. The editor writes 1 (what the Win32 editor gives new frames); `frankst1` has 0 there
+   (what the Win32 editor writes when it converts an old-format file).
+2. **Confirmations asked of the authors**, relayed by the owner, no answer recorded yet:
    - Sprite bounds fields are disabled for an empty slot, so a rectangle capture into an empty
      slot needs Assign or Select Capture first.
    - Switching monochrome off on a multi-selection clears the trigger only on frames that carry
      the monochrome trigger.
    - Undoing Create/Remove HD discards HD pixel edits made in between.
    - Frame settings cannot be undone while Dynamic mask mode is active.
-4. **256x64 details:** the monochrome palette trigger in libserum now reads its palette from the
-   HD dynamic colour set; a background repaired by Create HD becomes black.
+3. **256x64 details:** the monochrome palette trigger in libserum now reads its palette from the
+   HD dynamic colour set; a background repaired by `Create 256x64 Frame` becomes black.
 
 ## Known bugs and gaps in the editor (not fixed)
 
-- Opening `frankst1` takes about 28 s, of which loading the files is about 3 s; the rest is
-  building the 11199 frame list thumbnails, at the same cost per pixel as in every project. Its
-  round trip peaks at about 4.4 GB. Not optimised, see the ground rules.
+- Large projects still need a lot of memory while they are loaded and saved: opening `frankst1`
+  peaks at 3.1 to 3.5 GB (the loaded file, the snapshot and the document exist side by side), its
+  round trip at about 4.4 GB. Not optimised, see the ground rules. Open time is no longer an
+  issue: frame list thumbnails are built for the rows in view, so `frankst1` opens in about
+  2.7 s instead of 27 s and `trn_174h` in about 1.5 s instead of 5.3 s (release build, offscreen,
+  M-series Mac), and the memory held after opening dropped from about 2.0 GB to 1.4 GB for
+  `frankst1` and from 1.4 GB to 1.2 GB for `trn_174h`.
+- The mask, background and sprite lists of the left sidebar still build every icon at once and
+  rebuild all of them on many updates. Their counts are small, so this was left as it is.
+- Error texts that come from `ProjectDocument` exceptions and reach the status bar were only
+  partly reworded for single-plane projects ("256x64 frame is not available"); other core
+  messages may still say "HD" there.
 - **Preview differs from libserum:**
   - sprite bounds check is off by one, so a sprite captured with exact bounds never shows as
     matched;
@@ -185,8 +214,8 @@ refused on load with a message naming the sizes.
 
 ## Next steps, in the order I would take them
 
-1. Get the two remaining 192x64 decisions (the 96x32 plane at runtime, padding to 256x64) and
-   apply them; the geometry model has one table to extend for a new layout.
+1. Confirm the value written for an unused 192x64 extra background mask (open decision 1) and
+   check a 192x64 project saved by this editor on a real machine.
 2. Replace the editor's own preview with libserum output (new editor-facing libserum API taking
    cROM data from memory), so preview and runtime cannot drift. This removes the whole
    "preview differs" list above and gives a real frame tester.

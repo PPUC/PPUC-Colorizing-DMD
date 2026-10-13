@@ -6,15 +6,37 @@
 #include <QPixmap>
 
 #include "FrameImageUtils.h"
+#include "PlaneLabels.h"
 
 namespace colorizing::app {
+
+namespace {
+
+const QColor kBackdrop(18, 20, 22);
+
+void drawBorder(QPainter& painter, const QSize& iconSize)
+{
+    painter.setPen(QPen(QColor(210, 210, 210), 1));
+    painter.drawRect(QRect(0, 0, iconSize.width(), iconSize.height()).adjusted(0, 0, -1, -1));
+}
+
+}  // namespace
+
+QIcon makeFrameThumbnailPlaceholder(const QSize& iconSize)
+{
+    QPixmap pixmap(iconSize);
+    pixmap.fill(kBackdrop);
+    QPainter painter(&pixmap);
+    drawBorder(painter, iconSize);
+    return QIcon(pixmap);
+}
 
 QIcon makeFrameThumbnail(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          const QSize& iconSize)
 {
     QPixmap pixmap(iconSize);
-    pixmap.fill(QColor(18, 20, 22));
+    pixmap.fill(kBackdrop);
 
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
@@ -43,16 +65,16 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
     painter.drawImage(QRect(left, margin + frameHeight + gap + inset, shownWidth, shownHeight),
                       original);
 
-    painter.setPen(QPen(QColor(210, 210, 210), 1));
-    painter.drawRect(QRect(0, 0, iconSize.width(), iconSize.height()).adjusted(0, 0, -1, -1));
+    drawBorder(painter, iconSize);
 
     if (document.frameHdGaps(frameIndex).any()) {
         // The runtime shows nothing for this frame, see ProjectDocument::frameHdGaps().
-        QRect badge(iconSize.width() - 46, 4, 42, 14);
+        const int badgeWidth = painter.fontMetrics().horizontalAdvance(kNoPictureText) + 10;
+        QRect badge(iconSize.width() - 4 - badgeWidth, 4, badgeWidth, 14);
         painter.fillRect(badge, QColor(190, 45, 45));
         painter.setPen(Qt::white);
-        painter.drawText(badge, Qt::AlignCenter, QStringLiteral("no HD"));
-    } else if (document.hasHdFrame(frameIndex)) {
+        painter.drawText(badge, Qt::AlignCenter, kNoPictureText);
+    } else if (hasHdAsExtraResolution(&document) && document.hasHdFrame(frameIndex)) {
         QRect badge(iconSize.width() - 28, 4, 24, 14);
         painter.fillRect(badge, QColor(35, 95, 160));
         painter.setPen(Qt::white);

@@ -1,5 +1,6 @@
 // A synthetic project with 192x64 original frames and a stored 96x32 extra plane
-// (render::PlaneLayout::NativeOriginal): validation, serialization and the document.
+// (render::PlaneLayout::NativeOriginal): validation, serialization, the document, and that
+// the 96x32 data is discarded on load and written as "no extra data".
 
 #include <cstdlib>
 #include <iostream>
@@ -272,14 +273,44 @@ const std::vector<std::string>& extraSections()
     return names;
 }
 
-void expectSameExtraSections(const SerializedProject& expected,
-                             const SerializedProject& actual,
-                             const std::string& when)
+// The value every byte of an extra-plane block has for "no extra data".
+uint8_t neutralExtraByte(const std::string& name)
 {
-    for (const std::string& name : extraSections()) {
-        expect(sectionBytes(expected, name) == sectionBytes(actual, name),
-               "\"" + name + "\" should be unchanged " + when);
+    if (name == "HD dynamic masks" || name == "HD sprite masks" ||
+        name == "HD sprite dynamic masks") {
+        return 255;
     }
+    return name == "HD background masks" ? 1 : 0;
+}
+
+void expectNeutralExtraSections(const SerializedProject& project, const std::string& when)
+{
+    std::size_t extraCount = 0;
+    for (const auto& section : project.cromSections) {
+        extraCount += colorizing::legacy::isLegacyExtraPlaneSection(section.first) ? 1 : 0;
+    }
+    expect(extraCount == extraSections().size(), "every extra-plane block is known as one");
+    for (const std::string& name : extraSections()) {
+        const std::vector<uint8_t> bytes = sectionBytes(project, name);
+        expect(!bytes.empty() &&
+                   bytes == std::vector<uint8_t>(bytes.size(), neutralExtraByte(name)),
+               "\"" + name + "\" should be written as no extra data " + when);
+    }
+}
+
+void expectSameOriginalSections(const SerializedProject& expected,
+                                const SerializedProject& actual,
+                                const std::string& when)
+{
+    expect(expected.crom.size() == actual.crom.size(), "the cROM keeps its size " + when);
+    for (std::size_t i = 0; i + 1 < expected.cromSections.size(); ++i) {
+        const std::string& name = expected.cromSections[i].first;
+        if (!colorizing::legacy::isLegacyExtraPlaneSection(name)) {
+            expect(sectionBytes(expected, name) == sectionBytes(actual, name),
+                   "\"" + name + "\" should be unchanged " + when);
+        }
+    }
+    expect(expected.crp == actual.crp, "the cRP should be unchanged " + when);
 }
 
 void testSnapshotValidation()
@@ -424,45 +455,67 @@ void testDerivedFields()
            "its neighbour is not");
 }
 
-void testExtraPlaneSurvivesSerialization()
+// The serializer writes a snapshot as it is; the fixture with its 96x32 data stands for a file
+// the Win32 editor saved.
+void testSerializerWritesExtraPlaneOfSnapshot()
 {
-    const ProjectSnapshot snapshot = makeSnapshot();
-    const SerializedProject project = serialize(snapshot);
-
-    expect(sectionBytes(project, "extra frame flags") == std::vector<uint8_t>({0, 1, 0, 0}),
-           "extra frame flags are written as they were set");
-    expect(sectionBytes(project, "extra background flags") == std::vector<uint8_t>({1, 0}),
-           "extra background flags are written as they were set");
-    expect(sectionBytes(project, "extra sprite flags") == std::vector<uint8_t>({1}),
-           "extra sprite flags are written as they were set");
+    const SerializedProject project = serialize(makeSnapshot());
+    expect(sectionBytes(project, "extra frame flags") == std::vector<uint8_t>({0, 1, 0, 0}) &&
+               sectionBytes(project, "extra background flags") == std::vector<uint8_t>({1, 0}) &&
+               sectionBytes(project, "extra sprite flags") == std::vector<uint8_t>({1}),
+           "the fixture file has extra flags set");
     const std::size_t hdFrames = sectionOffset(project, "HD colorized frames");
-    expect(readU16(project.crom, hdFrames) == 0x7777,
-           "96x32 pixels behind a cleared flag are written back");
-    expect(readU16(project.crom, hdFrames + 96 * 32 * 2) == 0x4321 &&
-               readU16(project.crom, hdFrames + 96 * 32 * 2 + 6 * 2) == 0,
-           "a flagged 96x32 frame is written back");
-    const std::size_t hdBackgrounds = sectionOffset(project, "HD backgrounds");
-    expect(readU16(project.crom, hdBackgrounds) == 0x0a0a &&
-               readU16(project.crom, hdBackgrounds + 96 * 32 * 2) == 0x0d0d,
-           "96x32 backgrounds are written back, flagged or not");
-
-    const ProjectSnapshot reloaded = parse(project);
-    expect(reloaded.geometry == ProjectGeometry(PlaneLayout::NativeOriginal),
-           "the geometry is derived from the header");
-    expect(reloaded.frames[1].originalSd.size == kNativeSize &&
-               reloaded.frames[1].colorizedSd.size == kNativeSize &&
-               reloaded.frames[1].colorizedHd &&
-               reloaded.frames[1].colorizedHd->size == kExtraSize &&
-               reloaded.comparisonMasks[1].size == kNativeSize,
-           "reloaded sizes");
-    expect(reloaded.frames[0].inactiveHd && reloaded.frames[0].inactiveHd->pixels[0] == 0x7777,
-           "leftover 96x32 pixels are loaded");
-    const SerializedProject again = serialize(reloaded);
-    expect(again.crom == project.crom && again.crp == project.crp,
-           "a reloaded 192x64 project serializes byte for byte");
+    expect(readU16(project.crom, hdFrames) == 0x7777 &&
+               readU16(project.crom, hdFrames + 96 * 32 * 2) == 0x4321,
+           "the fixture file has 96x32 pixels");
 }
 
-void testDocumentHidesAndKeepsExtraPlane()
+void testExtraPlaneIsDiscardedOnLoad()
+{
+    const SerializedProject project = serialize(makeSnapshot());
+
+    const ProjectSnapshot loaded = parse(project);
+    expect(loaded.geometry == ProjectGeometry(PlaneLayout::NativeOriginal),
+           "the geometry is derived from the header");
+    expect(loaded.frames[1].originalSd.size == kNativeSize &&
+               loaded.frames[1].colorizedSd.size == kNativeSize &&
+               loaded.comparisonMasks[1].size == kNativeSize,
+           "reloaded sizes");
+    for (const ProjectFrameSnapshot& frame : loaded.frames) {
+        expect(!frame.colorizedHd && !frame.inactiveHd, "no 96x32 frame is loaded");
+    }
+    expect(!loaded.backgrounds[0].colorizedHd && !loaded.backgrounds[1].inactiveHd &&
+               !loaded.sprites[0].hasHd,
+           "no 96x32 background or sprite is loaded");
+    expect(loaded.frames[1].dynamicData->maskHd.size == kExtraSize &&
+               loaded.frames[1].dynamicData->maskHd.pixels[6] == 255 &&
+               loaded.frames[1].dynamicData->colorsHd[0] == 0 &&
+               loaded.frames[1].dynamicData->shadowDirectionsHd[2] == 0 &&
+               loaded.frames[1].dynamicData->shadowColorsHd[2] == 0 &&
+               loaded.frames[1].backgroundData->maskHd.size == kExtraSize &&
+               loaded.frames[1].backgroundData->maskHd.pixels[0] == 1 &&
+               loaded.frames[1].colorRotationsHd[0] == 0 &&
+               loaded.sprites[0].maskHd.pixels[1] == 255 &&
+               loaded.sprites[0].colorizedHd.pixels[0] == 0 &&
+               loaded.sprites[0].dynamicMaskHd.pixels[4] == 255 &&
+               loaded.sprites[0].dynamicColorsHd[0] == 0,
+           "the loaded extra arrays hold the values of an item without extra resolution");
+    std::string error;
+    expect(isValidProjectSnapshot(loaded, &error), "the loaded snapshot is valid: " + error);
+
+    const SerializedProject saved = serialize(loaded);
+    expect(readU32(saved.crom, 68) == 192 && readU32(saved.crom, 72) == 64 &&
+               readU32(saved.crom, 76) == 96 && readU32(saved.crom, 80) == 32,
+           "the saved header still carries 192x64 and 96x32");
+    expectNeutralExtraSections(saved, "after a load");
+    expectSameOriginalSections(project, saved, "by discarding the 96x32 data");
+
+    const SerializedProject again = serialize(parse(saved));
+    expect(again.crom == saved.crom && again.crp == saved.crp,
+           "a second load and save is byte-identical to the first");
+}
+
+void testDocumentDiscardsExtraPlane()
 {
     const ProjectSnapshot snapshot = makeSnapshot();
     const SerializedProject project = serialize(snapshot);
@@ -477,10 +530,29 @@ void testDocumentHidesAndKeepsExtraPlane()
                !document.background(0).colorizedHd && !document.background(1).inactiveHd &&
                !document.frameHdGaps(1).any(),
            "nothing of the 96x32 plane shows as HD");
+    expect(document.dynamicData(1)->maskHd.pixels.empty() &&
+               document.dynamicData(1)->colorsHd.empty() &&
+               document.backgroundData(1)->maskHd.pixels.empty() &&
+               document.sprite(0).maskHd.pixels.empty() &&
+               document.sprite(0).colorizedHd.pixels.empty() &&
+               document.sprite(0).dynamicMaskHd.pixels.empty() &&
+               document.sprite(0).dynamicColorsHd.empty(),
+           "the document holds no 96x32 data");
     {
-        const SerializedProject unedited = serialize(document.toSnapshot());
-        expect(unedited.crom == project.crom && unedited.crp == project.crp,
-               "an unedited document saves byte for byte");
+        const ProjectSnapshot unedited = document.toSnapshot();
+        std::string error;
+        expect(isValidProjectSnapshot(unedited, &error),
+               "the unedited snapshot is valid: " + error);
+        const SerializedProject saved = serialize(unedited);
+        expectNeutralExtraSections(saved, "by an unedited document");
+        expectSameOriginalSections(project, saved, "by an unedited document");
+        const SerializedProject loadedAndSaved = serialize(parse(project));
+        expect(saved.crom == loadedAndSaved.crom && saved.crp == loadedAndSaved.crp,
+               "the document and the loader write the same file");
+        const SerializedProject again =
+            serialize(ProjectDocument::fromSnapshot(parse(saved)).toSnapshot());
+        expect(again.crom == saved.crom && again.crp == saved.crp,
+               "a second save is byte-identical to the first");
     }
 
     const Resolution extra = Resolution::Hd;
@@ -546,22 +618,40 @@ void testDocumentHidesAndKeepsExtraPlane()
     expect(edited.frames[0].colorizedSd.pixels[nativeIndex(191, 63)] == 0x2222 &&
                edited.comparisonMasks[0].pixels[nativeIndex(191, 63)] == 1 &&
                edited.frames[1].dynamicData->maskSd.pixels[nativeIndex(191, 63)] == 3 &&
+               edited.frames[1].dynamicData->colorsSd[3 * kColorCount + 1] == 0x3333 &&
+               edited.frames[1].dynamicData->shadowDirectionsSd[3] == 0x04 &&
                edited.frames[1].backgroundData->maskSd.pixels[nativeIndex(190, 62)] == 1 &&
                edited.backgrounds[0].colorizedSd.pixels[nativeIndex(191, 63)] == 0x4444 &&
-               edited.backgrounds[1].colorizedSd.pixels[0] == 0x5555,
+               edited.backgrounds[1].colorizedSd.pixels[0] == 0x5555 &&
+               edited.frames[1].colorRotationsSd[64] == 5 &&
+               edited.frames[2].spriteReferences[3].minX == 129,
            "native edits are in the snapshot");
-    expect(edited.frames[1].colorizedHd && edited.frames[0].inactiveHd &&
-               edited.backgrounds[0].colorizedHd && edited.backgrounds[1].inactiveHd &&
-               edited.sprites[0].hasHd,
-           "the extra flags and leftovers are back in the snapshot");
+    expect(!edited.frames[1].colorizedHd && !edited.frames[0].inactiveHd &&
+               !edited.backgrounds[0].colorizedHd && !edited.backgrounds[1].inactiveHd &&
+               !edited.sprites[0].hasHd,
+           "no extra flag or leftover comes back");
     const SerializedProject saved = serialize(edited);
-    expectSameExtraSections(project, saved, "by edits of the native plane");
+    expectNeutralExtraSections(saved, "after edits of the native plane");
     for (const char* name : {"SD colorized frames", "comparison masks", "SD sprite colors"}) {
         expect(sectionBytes(saved, name) != sectionBytes(project, name),
                std::string("the native block \"") + name + "\" carries the edits");
     }
     expect(sectionBytes(saved, "active frame flags") == std::vector<uint8_t>({1, 1, 1, 1}),
            "painting the last native pixel of frame 0 activates it");
+
+    // What was edited on the native plane comes back from the file.
+    const ProjectSnapshot reloaded = parse(saved);
+    expect(reloaded.frames[0].colorizedSd.pixels[nativeIndex(191, 63)] == 0x2222 &&
+               reloaded.comparisonMasks[0].pixels[nativeIndex(191, 63)] == 1 &&
+               reloaded.frames[1].dynamicData->maskSd.pixels[nativeIndex(191, 63)] == 3 &&
+               reloaded.frames[1].backgroundData->maskSd.pixels[nativeIndex(190, 62)] == 1 &&
+               reloaded.backgrounds[1].colorizedSd.pixels[0] == 0x5555 &&
+               reloaded.sprites[0].colorizedSd.pixels[3 * 256 + 3] == 0x1234,
+           "original-plane data round-trips through the file");
+    const SerializedProject again =
+        serialize(ProjectDocument::fromSnapshot(reloaded).toSnapshot());
+    expect(again.crom == saved.crom && again.crp == saved.crp,
+           "saving the edited project a second time is byte-identical");
 }
 
 void testUnsupportedHeaderGeometryIsRefused()
@@ -598,7 +688,8 @@ void runNativeOriginalProjectTests()
     testSnapshotValidation();
     testHeaderAndBlockSizes();
     testDerivedFields();
-    testExtraPlaneSurvivesSerialization();
-    testDocumentHidesAndKeepsExtraPlane();
+    testSerializerWritesExtraPlaneOfSnapshot();
+    testExtraPlaneIsDiscardedOnLoad();
+    testDocumentDiscardsExtraPlane();
     testUnsupportedHeaderGeometryIsRefused();
 }

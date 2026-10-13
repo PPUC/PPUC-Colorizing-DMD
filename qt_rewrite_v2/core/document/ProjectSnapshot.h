@@ -44,7 +44,8 @@ struct ProjectSnapshot {
     // Sizes of the stored planes and which of them is the ROM frame's. Everything named ...Sd
     // has the size of the original plane and everything named ...Hd that of the extra plane;
     // original frames and comparison masks have the size of the ROM frame. A carried plane
-    // keeps its layout in the file and is written back unchanged.
+    // is written back unchanged; a discarded one holds "no extra data", see
+    // discardExtraPlane().
     render::ProjectGeometry geometry;
     EditorMetadata editorMetadata = makeDefaultEditorMetadata();
 };
@@ -53,6 +54,12 @@ struct ProjectSnapshot {
 
 // Fills in the optional per-sprite dynamic data with its "no dynamic content" defaults.
 void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount);
+
+// Makes the extra plane "no extra data": no frame, background or sprite has it, and every
+// extra-plane array holds what the Win32 editor gives an item without extra resolution
+// (colors, dynamic colors, shadows and rotations 0, dynamic and sprite masks 255, background
+// masks 1). Sizes and the header stay as the geometry says.
+void discardExtraPlane(ProjectSnapshot& snapshot);
 
 [[nodiscard]] bool isValidProjectSnapshot(const ProjectSnapshot& snapshot,
                                           std::string* errorMessage = nullptr);

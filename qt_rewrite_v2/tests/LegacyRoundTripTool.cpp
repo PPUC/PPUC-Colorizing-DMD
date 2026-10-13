@@ -1,6 +1,10 @@
 // Loads a real .cROM/.cRP project, serializes it again and reports where the result differs from
 // the files on disk. The first argument may be a .cRZ archive; the comparison is then against
 // the cROM stored in it. Nothing is written. Usage: colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP>
+//
+// The 96x32 data of a project with 192x64 original frames is discarded on load, so its
+// extra-plane blocks are expected to differ from a file that had such data. Those blocks are
+// reported as expected and do not count; every other block and the cRP must be identical.
 
 #include <cstdint>
 #include <fstream>
@@ -28,11 +32,13 @@ std::vector<uint8_t> readFile(const std::string& path)
 bool report(const char* label,
             const std::vector<uint8_t>& original,
             const std::string& written,
-            const LegacySectionOffsets& sections)
+            const LegacySectionOffsets& sections,
+            bool extraPlaneDiscarded)
 {
     std::cout << label << ": " << original.size() << " bytes on disk, " << written.size()
               << " bytes serialized\n";
     bool identical = original.size() == written.size();
+    bool expectedDifference = false;
     for (std::size_t i = 0; i + 1 < sections.size(); ++i) {
         const std::size_t begin = sections[i].second;
         const std::size_t end = sections[i + 1].second;
@@ -46,12 +52,22 @@ bool report(const char* label,
             }
         }
         if (differing > 0) {
-            identical = false;
+            const bool expected = extraPlaneDiscarded &&
+                                  colorizing::legacy::isLegacyExtraPlaneSection(sections[i].first);
+            if (expected) {
+                expectedDifference = true;
+            } else {
+                identical = false;
+            }
             std::cout << "  " << sections[i].first << ": " << differing << " of " << (end - begin)
-                      << " bytes differ, first at offset " << first << '\n';
+                      << " bytes differ, first at offset " << first
+                      << (expected ? " (expected: 96x32 data is discarded)" : "") << '\n';
         }
     }
-    std::cout << (identical ? "  identical\n" : "  DIFFERENT\n");
+    std::cout << (!identical ? "  DIFFERENT\n"
+                             : expectedDifference
+                                   ? "  identical except the discarded 96x32 extra plane\n"
+                                   : "  identical\n");
     return identical;
 }
 
@@ -92,7 +108,8 @@ int main(int argc, char* argv[])
         cromOnDisk = readFile(argv[1]);
     }
 
-    const bool cromSame = report("cROM", cromOnDisk, crom.str(), cromSections);
-    const bool crpSame = report("cRP", readFile(argv[2]), crp.str(), crpSections);
+    const bool discarded = loaded.snapshot.geometry.discardsExtraPlane();
+    const bool cromSame = report("cROM", cromOnDisk, crom.str(), cromSections, discarded);
+    const bool crpSame = report("cRP", readFile(argv[2]), crp.str(), crpSections, false);
     return cromSame && crpSame ? 0 : 1;
 }

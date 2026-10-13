@@ -44,6 +44,8 @@
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
+#include "LazyListIcons.h"
+#include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
 #include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
@@ -62,6 +64,7 @@ namespace {
 constexpr int kMaxRecentProjects = 8;
 constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
+constexpr QSize kFrameThumbnailSize{160, 84};
 constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 
 QString favoriteColorButtonStyle(uint16_t rgb565)
@@ -239,7 +242,7 @@ QString siblingProjectFile(const QString& path, const QString& extension)
     return info.dir().absoluteFilePath(baseName + QChar('.') + extension);
 }
 
-QString editKindStatusSuffix(edit::EditKind kind)
+QString editKindStatusSuffix(edit::EditKind kind, bool showsHdAndSd)
 {
     switch (kind) {
         case edit::EditKind::FramePixels:
@@ -263,7 +266,8 @@ QString editKindStatusSuffix(edit::EditKind kind)
         case edit::EditKind::FrameAttributes:
             return QStringLiteral(" frame change");
         case edit::EditKind::SpriteAttributes:
-            return QStringLiteral(" sprite HD change");
+            return showsHdAndSd ? QStringLiteral(" sprite HD change")
+                                : QStringLiteral(" sprite change");
     }
     return QString();
 }
@@ -376,10 +380,19 @@ void MainWindow::createCentralView()
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new QListWidget(central);
     m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    m_frameList->setIconSize(QSize(160, 84));
+    m_frameList->setIconSize(kFrameThumbnailSize);
     m_frameList->setResizeMode(QListView::Adjust);
     m_frameList->setUniformItemSizes(false);
     m_frameList->setMinimumWidth(230);
+    m_frameThumbnails = new LazyListIcons(
+        m_frameList,
+        makeFrameThumbnailPlaceholder(kFrameThumbnailSize),
+        [this](const QListWidgetItem& item) {
+            const std::size_t frameIndex = item.data(Qt::UserRole).toULongLong();
+            return m_document && frameIndex < m_document->frameCount()
+                       ? makeFrameThumbnail(*m_document, frameIndex, kFrameThumbnailSize)
+                       : QIcon();
+        });
     m_maskList = new QListWidget(central);
     m_maskList->setIconSize(QSize(160, 42));
     m_maskList->setResizeMode(QListView::Adjust);
@@ -1125,8 +1138,9 @@ void MainWindow::exportCurrentFramePng()
     if (exportResolution == render::Resolution::Hd && !m_document->hasHdFrame(*frameIndex)) {
         if (isHdOnlyProject()) {
             statusBar()->showMessage(
-                QStringLiteral("Frame %1 has no HD frame: there is no picture to export")
-                    .arg(static_cast<int>(*frameIndex)),
+                QStringLiteral("Frame %1 has no %2 frame: there is no picture to export")
+                    .arg(static_cast<int>(*frameIndex))
+                    .arg(nativePlaneText(*m_document)),
                 4000);
             return;
         }
@@ -1242,9 +1256,12 @@ void MainWindow::importImageIntoSelectedFrames()
 
     if (updatedFrames == 0) {
         statusBar()->showMessage(
-            skippedFrames > 0
-                ? QStringLiteral("No selected HD frames were available for import")
-                : QStringLiteral("Selected frames already match the imported image"),
+            skippedFrames == 0
+                ? QStringLiteral("Selected frames already match the imported image")
+                : showsHdAndSd()
+                      ? QStringLiteral("No selected HD frames were available for import")
+                      : QStringLiteral("No selected frame has a %1 frame to import into")
+                            .arg(nativePlaneText(*m_document)),
             3000);
         updateUndoRedoActions();
         return;
@@ -1255,9 +1272,13 @@ void MainWindow::importImageIntoSelectedFrames()
     statusBar()->showMessage(
         QStringLiteral("Imported image into %1 frame(s)%2")
             .arg(updatedFrames)
-            .arg(skippedFrames > 0
-                     ? QStringLiteral(" (%1 skipped without HD)").arg(skippedFrames)
-                     : QString()),
+            .arg(skippedFrames == 0
+                     ? QString()
+                     : showsHdAndSd()
+                           ? QStringLiteral(" (%1 skipped without HD)").arg(skippedFrames)
+                           : QStringLiteral(" (%1 skipped without %2 frame)")
+                                 .arg(skippedFrames)
+                                 .arg(nativePlaneText(*m_document))),
         3000);
 }
 
@@ -1432,9 +1453,8 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
         if (!frameMatchesFilter(frameIndex)) {
             continue;
         }
-        auto* item = new QListWidgetItem(
-            makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)),
-            frameListItemText(frameIndex));
+        auto* item = new QListWidgetItem(m_frameThumbnails->placeholder(),
+                                         frameListItemText(frameIndex));
         item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
         item->setToolTip(frameHdGapsText(frameIndex));
         item->setSizeHint(QSize(210, 96));
@@ -1451,6 +1471,7 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
     } else {
         selectFrame(-1);
     }
+    m_frameThumbnails->scheduleRowsInView();
     updatePlaybackControls();
 }
 
@@ -1464,13 +1485,16 @@ bool MainWindow::isOriginalPlaneOnlyProject() const
     return m_document && m_document->editsOriginalPlaneOnly();
 }
 
+bool MainWindow::showsHdAndSd() const
+{
+    return hasHdAsExtraResolution(m_document ? &*m_document : nullptr);
+}
+
 QString MainWindow::planeName(render::Resolution resolution) const
 {
-    if (isOriginalPlaneOnlyProject()) {
-        const render::Size size = m_document->geometry().planeSize(resolution);
-        return QStringLiteral("%1x%2").arg(size.width).arg(size.height);
-    }
-    return resolution == render::Resolution::Hd ? QStringLiteral("HD") : QStringLiteral("SD");
+    return m_document ? planeLabel(*m_document, resolution)
+                      : resolution == render::Resolution::Hd ? QStringLiteral("HD")
+                                                             : QStringLiteral("SD");
 }
 
 QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
@@ -1479,26 +1503,29 @@ QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
         return QString();
     }
     const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
+    const QString size = nativePlaneText(*m_document);
     QStringList reasons;
     if (gaps.frame) {
-        reasons << QStringLiteral("no HD frame");
+        reasons << QStringLiteral("no %1 frame").arg(size);
     }
     if (gaps.background) {
-        reasons << QStringLiteral("background %1 has no HD image")
-                       .arg(static_cast<int>(m_document->backgroundId(frameIndex)));
+        reasons << QStringLiteral("background %1 has no %2 image")
+                       .arg(static_cast<int>(m_document->backgroundId(frameIndex)))
+                       .arg(size);
     }
     if (!gaps.sprites.empty()) {
         QStringList ids;
         for (uint8_t spriteId : gaps.sprites) {
             ids << QString::number(static_cast<int>(spriteId));
         }
-        reasons << QStringLiteral("%1 %2 without HD")
+        reasons << QStringLiteral("%1 %2 without %3 picture")
                        .arg(ids.size() > 1 ? QStringLiteral("sprites") : QStringLiteral("sprite"))
-                       .arg(ids.join(QStringLiteral(", ")));
+                       .arg(ids.join(QStringLiteral(", ")))
+                       .arg(size);
     }
-    return reasons.isEmpty()
-               ? QString()
-               : QStringLiteral("Not shown at runtime: %1").arg(reasons.join(QStringLiteral("; ")));
+    return reasons.isEmpty() ? QString()
+                             : QStringLiteral("Not rendered at runtime: %1")
+                                   .arg(reasons.join(QStringLiteral("; ")));
 }
 
 void MainWindow::updateFrameFilterChoices()
@@ -1506,21 +1533,26 @@ void MainWindow::updateFrameFilterChoices()
     if (!m_frameFilterComboBox) {
         return;
     }
-    const int index =
-        m_frameFilterComboBox->findData(static_cast<int>(FrameFilter::HdIncomplete));
-    if (isHdOnlyProject() == (index >= 0)) {
-        return;
-    }
     QSignalBlocker blocker(m_frameFilterComboBox);
-    if (index >= 0) {
+    const auto offer = [this](FrameFilter filter, const QString& text, int position, bool wanted) {
+        const int index = m_frameFilterComboBox->findData(static_cast<int>(filter));
+        if ((index >= 0) == wanted) {
+            return;
+        }
+        if (wanted) {
+            m_frameFilterComboBox->insertItem(position, text, static_cast<int>(filter));
+            return;
+        }
         if (m_frameFilterComboBox->currentIndex() == index) {
             m_frameFilterComboBox->setCurrentIndex(0);
         }
         m_frameFilterComboBox->removeItem(index);
-    } else {
-        m_frameFilterComboBox->addItem(QStringLiteral("HD missing"),
-                                       static_cast<int>(FrameFilter::HdIncomplete));
-    }
+    };
+    offer(FrameFilter::Hd, QStringLiteral("HD frames"), 1, showsHdAndSd());
+    offer(FrameFilter::HdIncomplete,
+          QStringLiteral("Not rendered"),
+          m_frameFilterComboBox->count(),
+          isHdOnlyProject());
 }
 
 QString MainWindow::frameListItemText(std::size_t frameIndex) const
@@ -1531,7 +1563,7 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
 
     QStringList details;
     details << QStringLiteral("%1 ms").arg(m_document->frameDurationMs(frameIndex));
-    if (m_document->hasHdFrame(frameIndex)) {
+    if (showsHdAndSd() && m_document->hasHdFrame(frameIndex)) {
         details << QStringLiteral("HD");
     }
     if (m_document->dynamicData(frameIndex)) {
@@ -1556,13 +1588,13 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     }
     const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
     if (gaps.frame) {
-        details << QStringLiteral("no HD");
+        details << kNoPictureText;
     }
     if (gaps.background) {
-        details << QStringLiteral("BG: no HD");
+        details << QStringLiteral("BG: %1").arg(kNoPictureText);
     }
     if (!gaps.sprites.empty()) {
-        details << QStringLiteral("Spr: no HD");
+        details << QStringLiteral("Spr: %1").arg(kNoPictureText);
     }
     return QStringLiteral("%1\n%2")
         .arg(static_cast<int>(frameIndex))
@@ -1573,7 +1605,6 @@ void MainWindow::refreshComponentBrowsers()
 {
     constexpr QSize iconSize{160, 42};
     const bool hdOnly = isHdOnlyProject();
-    const QString noHdSuffix = hdOnly ? QStringLiteral(" (no HD)") : QString();
     if (m_maskList) {
         QSignalBlocker blocker(m_maskList);
         m_maskList->clear();
@@ -1607,7 +1638,8 @@ void MainWindow::refreshComponentBrowsers()
                                 iconSize),
                     QStringLiteral("%1%2")
                         .arg(static_cast<int>(backgroundIndex))
-                        .arg(background.colorizedHd ? QStringLiteral(" (HD)") : noHdSuffix));
+                        .arg(extraDataSuffix(*m_document,
+                                             background.colorizedHd.has_value())));
                 item->setData(Qt::UserRole, static_cast<int>(backgroundIndex));
                 item->setSizeHint(QSize(210, 54));
                 m_backgroundList->addItem(item);
@@ -1635,7 +1667,7 @@ void MainWindow::refreshComponentBrowsers()
                                 iconSize),
                     QStringLiteral("%1%2")
                         .arg(spriteLabel)
-                        .arg(sprite.hasHd ? QStringLiteral(" (HD)") : noHdSuffix));
+                        .arg(extraDataSuffix(*m_document, sprite.hasHd)));
                 item->setData(Qt::UserRole, static_cast<int>(spriteIndex));
                 item->setSizeHint(QSize(210, 54));
                 m_spriteList->addItem(item);
@@ -1839,34 +1871,24 @@ void MainWindow::updateFrameStatusText()
     const int selectedCount = static_cast<int>(selectedFrameIndices().size());
     // Kept short: the label's width is part of the window's minimum width. The reasons are in
     // the tool tip, in the frame list and on the canvas.
-    const bool hdOnly = isHdOnlyProject();
-    const bool originalOnly = isOriginalPlaneOnlyProject();
-    const bool hasHd = m_document->hasHdFrame(*frameIndex);
     const QString gapsText = frameHdGapsText(*frameIndex);
-    setFrameStatusText(QStringLiteral("Frame %1 | %2 | %3 | %4 ms%5%6")
+    const QString planes =
+        showsHdAndSd() ? QStringLiteral("SD 128x32 | %1")
+                             .arg(m_document->hasHdFrame(*frameIndex)
+                                      ? QStringLiteral("HD 256x64")
+                                      : QStringLiteral("HD unavailable"))
+                       : nativePlaneText(*m_document);
+    setFrameStatusText(QStringLiteral("Frame %1 | %2 | %3 ms%4%5")
                            .arg(static_cast<int>(*frameIndex))
-                           .arg(hdOnly ? QStringLiteral("Original 256x64")
-                                       : originalOnly ? QStringLiteral("Original 192x64")
-                                                      : QStringLiteral("SD 128x32"))
-                           .arg(hasHd ? QStringLiteral("HD 256x64")
-                                      : hdOnly ? QStringLiteral("no HD frame")
-                                               : originalOnly
-                                                     ? QStringLiteral("only plane")
-                                                     : QStringLiteral("HD unavailable"))
+                           .arg(planes)
                            .arg(m_document->frameDurationMs(*frameIndex))
                            .arg(selectedCount > 1
                                     ? QStringLiteral(" | %1 selected").arg(selectedCount)
                                     : QString())
-                           .arg(gapsText.isEmpty() ? QString() : QStringLiteral(" | not shown")));
-    m_frameStatusLabel->setToolTip(
-        hdOnly ? QStringLiteral("This project has 256x64 original frames: only its HD plane is "
-                                "rendered and edited.%1")
-                     .arg(gapsText.isEmpty() ? QString() : QStringLiteral(" %1.").arg(gapsText))
-               : originalOnly
-                     ? QStringLiteral("This project has 192x64 original frames: only that plane "
-                                      "is shown and edited. Its stored 96x32 plane is kept "
-                                      "unchanged.")
-                     : QString());
+                           .arg(gapsText.isEmpty() ? QString()
+                                                   : QStringLiteral(" | not rendered")));
+    m_frameStatusLabel->setToolTip(gapsText.isEmpty() ? QString()
+                                                      : QStringLiteral("%1.").arg(gapsText));
 }
 
 void MainWindow::updatePlaybackControls()
@@ -1977,24 +1999,12 @@ void MainWindow::updateResolutionMode()
     } else if (originalOnly) {
         m_activeResolution = render::Resolution::Sd;
     }
-    // With one plane there is nothing to switch: the button of that plane stays checked.
-    m_sdButton->setEnabled(hasDocument && !hdOnly && !originalOnly);
-    m_hdButton->setEnabled(hasDocument && !originalOnly);
-    m_sdButton->setToolTip(
-        hdOnly ? QStringLiteral("Not available: this project has 256x64 original frames and "
-                                "renders its HD plane only. Its stored SD data is kept unchanged.")
-               : originalOnly
-                     ? QStringLiteral("This project has 192x64 original frames: the 192x64 "
-                                      "plane is the only one that is shown and edited")
-                     : QString());
-    m_hdButton->setToolTip(
-        hdOnly ? QStringLiteral("This project has 256x64 original frames: HD is the only plane "
-                                "that is rendered and edited")
-               : originalOnly
-                     ? QStringLiteral("Not available: this project has 192x64 original frames. "
-                                      "Its stored 96x32 plane is smaller than the original and "
-                                      "is kept unchanged, never shown or edited.")
-                     : QString());
+    // With one plane there is nothing to switch and nothing called SD or HD.
+    const bool twoPlanes = !hdOnly && !originalOnly;
+    m_sdButton->setVisible(twoPlanes);
+    m_hdButton->setVisible(twoPlanes);
+    m_sdButton->setEnabled(hasDocument && twoPlanes);
+    m_hdButton->setEnabled(hasDocument && twoPlanes);
     m_comparisonMaskOverlayButton->setEnabled(hasDocument);
     m_dynamicMaskOverlayButton->setEnabled(hasDocument);
     m_backgroundMaskOverlayButton->setEnabled(hasDocument);
@@ -2085,7 +2095,8 @@ void MainWindow::updateBackgroundControls()
                 m_backgroundComboBox->addItem(
                     QStringLiteral("Background %1%2")
                         .arg(static_cast<int>(backgroundIndex))
-                        .arg(background.colorizedHd ? QStringLiteral(" (HD)") : QString()),
+                        .arg(extraDataSuffix(*m_document,
+                                             background.colorizedHd.has_value())),
                     static_cast<int>(backgroundIndex));
             }
         }
@@ -2393,9 +2404,10 @@ void MainWindow::editAssignedBackground()
         !m_document->background(*backgroundIndex).colorizedHd) {
         if (isHdOnlyProject()) {
             statusBar()->showMessage(
-                QStringLiteral("Background %1 has no HD image yet: import an image, or use "
-                               "Create HD on a frame it is assigned to")
-                    .arg(static_cast<int>(*backgroundIndex)),
+                QStringLiteral("Background %1 has no %2 image yet: import an image, or use "
+                               "Create %2 Frame on a frame it is assigned to")
+                    .arg(static_cast<int>(*backgroundIndex))
+                    .arg(nativePlaneText(*m_document)),
                 5000);
             updateBackgroundControls();
             return;
@@ -2431,7 +2443,9 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
     }
     if (isHdOnlyProject() && targetResolution != render::Resolution::Hd) {
         statusBar()->showMessage(
-            QStringLiteral("The frame and the background both need HD data first"), 4000);
+            QStringLiteral("The frame and the background both need their %1 data first")
+                .arg(nativePlaneText(*m_document)),
+            4000);
         return;
     }
 
@@ -2492,7 +2506,9 @@ void MainWindow::copySelectedBackgroundToFrames()
     render::Resolution sourceResolution = m_activeResolution;
     if (sourceResolution == render::Resolution::Hd && !background.colorizedHd) {
         if (isHdOnlyProject()) {
-            statusBar()->showMessage(QStringLiteral("The background has no HD image yet"), 4000);
+            statusBar()->showMessage(QStringLiteral("The background has no %1 image yet")
+                                         .arg(nativePlaneText(*m_document)),
+                                     4000);
             return;
         }
         sourceResolution = render::Resolution::Sd;
@@ -2647,7 +2663,9 @@ void MainWindow::exportSelectedBackgroundPng()
     render::Resolution exportResolution = m_activeResolution;
     if (exportResolution == render::Resolution::Hd && !background.colorizedHd) {
         if (isHdOnlyProject()) {
-            statusBar()->showMessage(QStringLiteral("The background has no HD image yet"), 4000);
+            statusBar()->showMessage(QStringLiteral("The background has no %1 image yet")
+                                         .arg(nativePlaneText(*m_document)),
+                                     4000);
             return;
         }
         exportResolution = render::Resolution::Sd;
@@ -2725,8 +2743,9 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
                 .arg(static_cast<int>(frameIndices.size()))
                 .arg(isHdOnlyProject() &&
                              !m_document->hasHdSprite(static_cast<std::size_t>(spriteIndex))
-                         ? QStringLiteral(". The sprite has no HD data: these frames are not "
-                                          "shown at runtime until it has")
+                         ? QStringLiteral(". The sprite has no %1 picture: these frames are not "
+                                          "rendered at runtime until it has")
+                               .arg(nativePlaneText(*m_document))
                          : QString()),
             isHdOnlyProject() ? 6000 : 2500);
     } catch (const std::exception& ex) {
@@ -2758,8 +2777,10 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     const bool hdOnly = isHdOnlyProject();
     if (hdOnly && !m_document->hasHdFrame(*frameIndex)) {
         statusBar()->showMessage(
-            QStringLiteral("Frame %1 has no HD frame to capture colors from: use Create HD first")
-                .arg(static_cast<int>(*frameIndex)),
+            QStringLiteral("Frame %1 has no %2 frame to capture colors from: use Create %2 "
+                           "Frame first")
+                .arg(static_cast<int>(*frameIndex))
+                .arg(nativePlaneText(*m_document)),
             4000);
         updateSpriteControls();
         return;
@@ -3268,7 +3289,6 @@ void MainWindow::createCurrentSpriteHd()
         return;
     }
     if (isOriginalPlaneOnlyProject()) {
-        showNoExtraPlaneEditing();
         return;
     }
 
@@ -3280,21 +3300,15 @@ void MainWindow::createCurrentSpriteHd()
         updateUndoRedoActions();
         statusBar()->showMessage(
             isHdOnlyProject()
-                ? QStringLiteral("Created HD sprite from the sprite original in its plain colors")
+                ? QStringLiteral("Created the %1 sprite from the sprite original in its plain "
+                                 "colors")
+                      .arg(nativePlaneText(*m_document))
                 : QStringLiteral("Created HD sprite from SD"),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
-}
-
-void MainWindow::showNoExtraPlaneEditing()
-{
-    statusBar()->showMessage(
-        QStringLiteral("This project is edited on its 192x64 plane only; its stored 96x32 plane "
-                       "is kept unchanged"),
-        4000);
 }
 
 void MainWindow::removeCurrentSpriteHd()
@@ -3306,7 +3320,9 @@ void MainWindow::removeCurrentSpriteHd()
     }
     if (isHdOnlyProject()) {
         statusBar()->showMessage(
-            QStringLiteral("HD is the only sprite data this project renders; it cannot be removed"),
+            QStringLiteral("The %1 sprite is the only sprite data this project renders; it "
+                           "cannot be removed")
+                .arg(nativePlaneText(*m_document)),
             4000);
         return;
     }
@@ -3332,7 +3348,6 @@ void MainWindow::createCurrentFrameHd()
         return;
     }
     if (isOriginalPlaneOnlyProject()) {
-        showNoExtraPlaneEditing();
         return;
     }
     if (m_document->hasHdFrame(*frameIndex)) {
@@ -3414,10 +3429,12 @@ void MainWindow::createCurrentFrameHdFromOriginal(std::size_t frameIndex)
         updateUndoRedoActions();
         QStringList created;
         if (gaps.frame) {
-            created << QStringLiteral("the HD frame from the original in its plain colors");
+            created << QStringLiteral("the %1 frame from the original in its plain colors")
+                           .arg(nativePlaneText(*m_document));
         }
         if (gaps.background) {
-            created << QStringLiteral("a black HD image for background %1")
+            created << QStringLiteral("a black %1 image for background %2")
+                           .arg(nativePlaneText(*m_document))
                            .arg(static_cast<int>(m_document->backgroundId(frameIndex)));
         }
         statusBar()->showMessage(
@@ -3438,7 +3455,9 @@ void MainWindow::removeCurrentFrameHd()
     }
     if (isHdOnlyProject()) {
         statusBar()->showMessage(
-            QStringLiteral("HD is the only frame data this project renders; it cannot be removed"),
+            QStringLiteral("The %1 frame is the only frame data this project renders; it "
+                           "cannot be removed")
+                .arg(nativePlaneText(*m_document)),
             4000);
         return;
     }
@@ -4536,7 +4555,8 @@ void MainWindow::undo()
     const edit::EditKind kind = command->target().kind;
     refreshAfterEdit(*command);
     updateUndoRedoActions();
-    statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(kind), 1500);
+    statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(kind, showsHdAndSd()),
+                             1500);
 }
 
 void MainWindow::redo()
@@ -4559,7 +4579,8 @@ void MainWindow::redo()
     const edit::EditKind kind = command->target().kind;
     refreshAfterEdit(*command);
     updateUndoRedoActions();
-    statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(kind), 1500);
+    statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(kind, showsHdAndSd()),
+                             1500);
 }
 
 void MainWindow::updateUndoRedoActions()
@@ -4580,28 +4601,24 @@ void MainWindow::updateProjectHeaderStatus()
         return;
     }
     int hdCount = 0;
+    int notRenderedCount = 0;
     for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
         if (m_document->hasHdFrame(frameIndex)) {
             ++hdCount;
         }
-    }
-    int notShownCount = 0;
-    for (std::size_t frameIndex = 0;
-         isHdOnlyProject() && frameIndex < m_document->frameCount();
-         ++frameIndex) {
-        if (m_document->frameHdGaps(frameIndex).any()) {
-            ++notShownCount;
+        if (isHdOnlyProject() && m_document->frameHdGaps(frameIndex).any()) {
+            ++notRenderedCount;
         }
     }
-    setStatusText(QStringLiteral("%1: %2 frames, %3 HD, %4 backgrounds, %5 sprites%6%7")
+    setStatusText(QStringLiteral("%1: %2 frames%3, %4 backgrounds, %5 sprites%6%7")
                       .arg(QString::fromStdString(m_document->romName()))
                       .arg(static_cast<int>(m_document->frameCount()))
-                      .arg(hdCount)
+                      .arg(showsHdAndSd() ? QStringLiteral(", %1 HD").arg(hdCount) : QString())
                       .arg(static_cast<int>(m_document->backgroundCount()))
                       .arg(static_cast<int>(m_document->spriteCount()))
-                      .arg(notShownCount > 0
-                               ? QStringLiteral(", %1 not shown at runtime (HD missing)")
-                                     .arg(notShownCount)
+                      .arg(notRenderedCount > 0
+                               ? QStringLiteral(", %1 not rendered at runtime")
+                                     .arg(notRenderedCount)
                                : QString())
                       .arg(m_document->isDirty() ? QStringLiteral(" (modified)") : QString()));
 }
@@ -4614,7 +4631,7 @@ void MainWindow::updateFrameThumbnail(std::size_t frameIndex)
     for (int row = 0; row < m_frameList->count(); ++row) {
         QListWidgetItem* item = m_frameList->item(row);
         if (item && item->data(Qt::UserRole).toULongLong() == frameIndex) {
-            item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
+            m_frameThumbnails->invalidate(item);
             return;
         }
     }
@@ -4656,7 +4673,7 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
         }
         item->setText(frameListItemText(frameIndex));
         item->setToolTip(frameHdGapsText(frameIndex));
-        item->setIcon(makeFrameThumbnail(*m_document, frameIndex, QSize(160, 84)));
+        m_frameThumbnails->invalidate(item);
         return;
     }
     refreshFrameList(frameIndex);

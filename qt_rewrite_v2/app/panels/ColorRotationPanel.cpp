@@ -11,6 +11,7 @@
 #include <QVBoxLayout>
 
 #include "ColorGridWidget.h"
+#include "PlaneLabels.h"
 
 namespace colorizing::app {
 
@@ -93,6 +94,9 @@ void ColorRotationPanel::refresh(const document::ProjectDocument* document,
                                  render::Resolution resolution)
 {
     const bool hasFrame = document && frameIndex.has_value();
+    m_slotComboBox->setToolTip(hasHdAsExtraResolution(document)
+                                   ? QStringLiteral("Color rotation slot for the active SD/HD mode")
+                                   : QStringLiteral("Color rotation slot"));
     QSignalBlocker slotBlocker(m_slotComboBox);
     QSignalBlocker lengthBlocker(m_lengthSpinBox);
     QSignalBlocker delayBlocker(m_delaySpinBox);

@@ -103,10 +103,15 @@ bool ProjectGeometry::isEditable(Resolution plane) const
     return plane == Resolution::Hd ? data.extraEditable : data.originalEditable;
 }
 
+bool ProjectGeometry::discardsExtraPlane() const
+{
+    return m_layout == PlaneLayout::NativeOriginal;
+}
+
 int ProjectGeometry::planeScale(Resolution plane) const
 {
     if (!isEditable(plane)) {
-        throw std::logic_error("a plane smaller than the ROM frame is carried, not rendered");
+        throw std::logic_error("a plane smaller than the ROM frame is not rendered");
     }
     return planeSize(plane).width / romFrameSize().width;
 }

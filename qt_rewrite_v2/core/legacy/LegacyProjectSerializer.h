@@ -17,6 +17,10 @@ constexpr uint32_t kSkipFrameDurationMs = 15;
 // Name and start offset of each block written, in file order. Used to locate differences.
 using LegacySectionOffsets = std::vector<std::pair<std::string, std::size_t>>;
 
+// Whether a cROM block of that name holds data of the extra plane (the ...X arrays and the
+// "has extra" flags).
+[[nodiscard]] bool isLegacyExtraPlaneSection(const std::string& name);
+
 // Frame identification hash exactly as libserum computes it: CRC32 over the original frame,
 // skipping pixels covered by the comparison mask and folding colors above 1 in shape mode.
 [[nodiscard]] uint32_t legacyFrameHash(const document::IndexedFrame& original,

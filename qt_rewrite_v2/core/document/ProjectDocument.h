@@ -209,11 +209,11 @@ public:
     // sprites is stored and written back but never shown or edited. Sprite originals,
     // detection areas and frame sprite bounds are original frame pixels in every project.
     [[nodiscard]] bool rendersHdPlaneOnly() const;
-    // A project whose extra plane is carried (PlaneLayout::NativeOriginal, 192x64 with a
-    // stored 96x32 plane): only the original plane is shown and edited. The stored extra
-    // plane is invisible here. No frame, background or sprite has HD, HD data cannot be
-    // created, and every access to Resolution::Hd throws std::logic_error. toSnapshot()
-    // returns the extra data, including the "has extra" flags, as fromSnapshot() got it.
+    // A project without an editable extra plane (PlaneLayout::NativeOriginal, 192x64 with a
+    // stored 96x32 plane): only the original plane is shown and edited. The 96x32 data of a
+    // snapshot is discarded by fromSnapshot() and not held here; toSnapshot() returns it as
+    // "no extra data" (discardExtraPlane()). No frame, background or sprite has HD, HD data
+    // cannot be created, and every access to Resolution::Hd throws std::logic_error.
     [[nodiscard]] bool editsOriginalPlaneOnly() const;
     // What keeps the runtime from showing the frame; nothing for other projects.
     [[nodiscard]] FrameHdGaps frameHdGaps(std::size_t frameIndex) const;
@@ -419,14 +419,6 @@ public:
     [[nodiscard]] ProjectSnapshot toSnapshot() const;
 
 private:
-    // The "has extra" items of a carried extra plane, taken out of the records so that
-    // nothing sees them as HD. The other extra-plane fields stay in the records, where only
-    // Resolution::Hd reaches them.
-    struct CarriedExtraImage {
-        std::optional<Rgb565Frame> active;
-        std::optional<Rgb565Frame> inactive;
-    };
-
     void replaceCapturedHdOnlySprite(SpriteRecord& sprite,
                                      IndexedFrame original,
                                      Rgb565Frame colorized);
@@ -444,9 +436,6 @@ private:
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
     render::ProjectGeometry m_geometry;
-    std::vector<CarriedExtraImage> m_carriedFrameExtras;
-    std::vector<CarriedExtraImage> m_carriedBackgroundExtras;
-    std::vector<bool> m_carriedSpriteExtraFlags;
     bool m_dirty = false;
 };
 

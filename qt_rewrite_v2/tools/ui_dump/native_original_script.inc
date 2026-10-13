@@ -1,11 +1,13 @@
 // Project with 192x64 original frames: its 192x64 original plane is the only one shown and
-// edited, the stored 96x32 extra plane is carried. Included at the end of main() in dump.cpp,
-// after big_original_script.inc closed its project, so that no earlier state depends on it.
+// edited, the 96x32 extra plane of the snapshot is discarded. Included at the end of main() in
+// dump.cpp, after big_original_script.inc closed its project, so that no earlier state depends
+// on it.
 //
+// The snapshot has 96x32 data everywhere, as a file of the Win32 editor can have:
 //   frame 0: dynamic data, background 0
 //   frame 1: a flagged 96x32 frame
 //   frame 2: 96x32 pixels behind a cleared flag
-//   background 0 and sprite 1 carry flagged 96x32 data; sprite 0 is empty
+//   background 0 and sprite 1 have flagged 96x32 data; sprite 0 is empty
 {
     using render::CanvasHit;
     using render::CanvasRegion;
@@ -189,10 +191,37 @@
     const auto settle = []() {
         for (int round = 0; round < 5; ++round) QApplication::processEvents();
     };
-    // The document hides the 96x32 plane, so the dump's hashes cannot show that it is kept:
-    // print what a save would write for it, and the last pixels of the native plane.
+    // The document has no 96x32 plane, so the dump's hashes cannot show what a save writes
+    // for it: print that (it has to be "no extra data", whatever was edited, and the same
+    // every time), and the last pixels of the native plane.
     const auto printPlanes = [&]() {
         const document::ProjectSnapshot saved = w.m_document->toSnapshot();
+        const auto write = [](const document::ProjectSnapshot& snapshot, legacy::LegacySectionOffsets* sections) {
+            std::ostringstream stream;
+            std::string saveError;
+            if (!legacy::writeLegacyCrom(stream, snapshot, saveError, sections)) {
+                std::cerr << "192 original: save failed: " << saveError << '\n';
+                std::exit(7);
+            }
+            return stream.str();
+        };
+        legacy::LegacySectionOffsets sections;
+        const std::string file = write(saved, &sections);
+        // Flags, colors, dynamic colors, shadows and rotations 0, dynamic and sprite masks 255,
+        // background masks 1.
+        bool neutral = true;
+        for (std::size_t i = 0; i + 1 < sections.size(); ++i) {
+            const std::string& name = sections[i].first;
+            const bool extraBlock = name.rfind("HD ", 0) == 0 || (name.rfind("extra ", 0) == 0 && name.find(" flags") != std::string::npos);
+            if (!extraBlock) continue;
+            const char expected = name == "HD background masks" ? char(1)
+                                  : name.find(" masks") != std::string::npos ? char(255) : char(0);
+            for (std::size_t offset = sections[i].second; offset < sections[i + 1].second; ++offset) {
+                neutral = neutral && file[offset] == expected;
+            }
+        }
+        std::cout << "save: second save identical=" << (file == write(w.m_document->toSnapshot(), nullptr))
+                  << " extra plane written as no extra data=" << neutral << '\n';
         std::cout << "extra plane:";
         for (const document::ProjectFrameSnapshot& frame : saved.frames) {
             std::cout << " f" << (frame.colorizedHd ? "+" : "-")
@@ -237,6 +266,9 @@
         std::cout << " | hd " << sprite.hasHd << '\n';
     };
 
+    // Looked up while no project is loaded: their texts change with the project.
+    QToolButton* const nativeCreateHd = toolButtonByTextPrefix(w, "Create HD");
+    QToolButton* const nativeRemoveHd = toolButtonByTextPrefix(w, "Remove HD");
     w.m_undoHistories = edit::UndoHistories();
     w.m_document = document::ProjectDocument::fromSnapshot(ns);
     w.m_document->markClean();
@@ -254,15 +286,11 @@
         D(title.c_str());
     }
     showTab("Frame");
-    w.m_hdButton->click();
-    D("192 original: hd is not available");
-    w.m_sdButton->click();
-    D("192 original: the original plane stays on");
-    toolButtonByTextPrefix(w, "Create HD")->click();
-    settle();
-    D("192 original: create hd is not available");
+    D("192 original: no sd, hd, create hd and remove hd buttons");
+    std::cout << "sd/hd/create/remove hidden: " << w.m_sdButton->isHidden() << '/' << w.m_hdButton->isHidden() << '/'
+              << nativeCreateHd->isHidden() << '/' << nativeRemoveHd->isHidden() << '\n';
     row(1);
-    D("192 original: frame with a flagged 96x32 frame");
+    D("192 original: frame whose file had a 96x32 frame");
     row(0);
 
     // ===== paint on the native plane
@@ -337,9 +365,7 @@
     nativeCanvas->click();
     settle();
     D("192 original: sprite canvas");
-    toolButtonByTextPrefix(w, "Create HD")->click();
-    settle();
-    D("192 original: create hd sprite is not available");
+    std::cout << "sprite create/remove hidden: " << nativeCreateHd->isHidden() << '/' << nativeRemoveHd->isHidden() << '\n';
     nativeCanvas->click();
     settle();
     showTab("Frame");

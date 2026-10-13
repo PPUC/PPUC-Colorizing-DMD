@@ -102,7 +102,8 @@ A dump is a sequence of sections. A section starts with `===== title =====` and 
   visible/enabled, size constraints, focus policy, tool tip, style sheet, and depending on the
   class the text, check state, value and range, list or combo items, current tab and a hash of
   a label pixmap. The lines of a section are sorted;
-- `---` lines with state that is not a widget: status bar text, undo/redo availability, hashes
+- `---` lines with state that is not a widget: status bar text, one hash over the thumbnails
+  of all frame list rows (see "Frame list thumbnails"), undo/redo availability, hashes
   of the document (palettes, rotations, pixels, sprites, masks, backgrounds, dynamic data), the
   private state of the main window, the preview and the sprite editor, and a hash of a grab of
   the canvas;
@@ -183,6 +184,18 @@ Lines of widgets inside the hidden sprite selection combo box start with the tag
 `[hidden sprite selection combo] ` so that they can be matched by such an expression; see
 `ownerTag()` in `dump.cpp` to tag another group of widgets.
 
+### Frame list thumbnails
+
+The application builds a frame list thumbnail when its row comes into view
+(`app/LazyListIcons`), so in an offscreen dump most rows of a long list would still show the
+placeholder, and which ones would depend on the window size. Before every dump the tool
+therefore calls `LazyListIcons::ensureBuilt()` for all rows, the same function the list uses
+for the rows in view, and prints one hash over all thumbnails as
+`--- frame thumbnails: <rows> hash=<n>`. A tree that builds its thumbnails up front has no
+`LazyListIcons.h`; `dump.cpp` checks for the header with `__has_include` and then hashes the
+icons as they are. The line is therefore the same for both kinds of tree whenever every row
+ends up with the same picture.
+
 ## What it covers and what it does not
 
 Covered, in every scripted state: geometry, texts, tool tips, enabled and visible state, values
@@ -221,8 +234,12 @@ The script is plain C++ in five places, executed in this order:
 | `dump.cpp`, `main()` | empty window, color rotation page, palette page, gradient tools |
 | `sprite_script.inc` | sprite page, sprite editor canvas, capture selection, detection areas |
 | `inspector_script.inc` | frame, mask, background and dynamic pages, image import/export, dialogs, undo/redo, playback controls |
-| `big_original_script.inc` | a project with 256x64 original frames, which has the HD plane only: every inspector page, SD disabled, frames, a background and sprites without HD data and their repair with Create HD, the `HD missing` filter, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite assignment and capture on the native grid, the sprite canvas |
-| `native_original_script.inc` | a project with 192x64 original frames, which is edited on its 192x64 plane only: every inspector page, SD/HD and the Create HD actions disabled, painting, comparison mask and dynamic mask editing with undo at coordinates beyond 128x32, sprite capture and slot bounds on the native grid, the sprite canvas; it prints what a save would write for the carried 96x32 plane |
+| `big_original_script.inc` | a project with 256x64 original frames, which has the HD plane only: every inspector page, no SD and HD buttons, frames, a background and sprites without HD data and their repair with `Create 256x64 Frame` / `Create 256x64 Sprite`, the `Not rendered` filter, comparison mask editing and undo on the original, dynamic overlay, background layer, sprite assignment and capture on the native grid, the sprite canvas |
+| `native_original_script.inc` | a project with 192x64 original frames, which is edited on its 192x64 plane only: every inspector page, no SD/HD buttons and no Create/Remove HD buttons, painting, comparison mask and dynamic mask editing with undo at coordinates beyond 128x32, sprite capture and slot bounds on the native grid, the sprite canvas; it prints whether a save writes the discarded 96x32 plane as "no extra data" and whether a second save is identical |
+
+Both of these scripts also run against a tree that still showed SD/HD controls for such
+projects: they look up the repair button under either name and print, instead of assuming,
+whether the SD/HD and Create/Remove buttons are hidden.
 
 The `.inc` files are included at the end of `main()` and each form one block.
 `big_original_script.inc` runs after the window was closed (`closed at the end`), and

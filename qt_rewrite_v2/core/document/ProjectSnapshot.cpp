@@ -206,6 +206,39 @@ Size originalFrameSize(const ProjectSnapshot& snapshot)
     return snapshot.geometry.romFrameSize();
 }
 
+void discardExtraPlane(ProjectSnapshot& snapshot)
+{
+    const Size extraSize = snapshot.geometry.planeSize(Resolution::Hd);
+    const Size spriteSize{static_cast<int>(kMaxSpriteWidth),
+                          static_cast<int>(kMaxSpriteHeight)};
+    const auto colorCount = static_cast<std::size_t>(snapshot.colorCount);
+    for (ProjectFrameSnapshot& frame : snapshot.frames) {
+        frame.colorizedHd.reset();
+        frame.inactiveHd.reset();
+        if (frame.dynamicData) {
+            frame.dynamicData->maskHd = makeIndexedFrame(extraSize, 255);
+            frame.dynamicData->colorsHd.assign(kMaxDynamicSetsPerFrame * colorCount, 0);
+            frame.dynamicData->shadowDirectionsHd.assign(kMaxDynamicSetsPerFrame, 0);
+            frame.dynamicData->shadowColorsHd.assign(kMaxDynamicSetsPerFrame, 0);
+        }
+        if (frame.backgroundData) {
+            frame.backgroundData->maskHd = makeIndexedFrame(extraSize, 1);
+        }
+        frame.colorRotationsHd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);
+    }
+    for (BackgroundRecord& background : snapshot.backgrounds) {
+        background.colorizedHd.reset();
+        background.inactiveHd.reset();
+    }
+    for (SpriteRecord& sprite : snapshot.sprites) {
+        sprite.hasHd = false;
+        sprite.maskHd = makeIndexedFrame(spriteSize, 255);
+        sprite.colorizedHd = makeRgb565Frame(spriteSize, 0);
+        sprite.dynamicMaskHd = makeIndexedFrame(spriteSize, 255);
+        sprite.dynamicColorsHd.assign(kMaxDynamicSetsPerSprite * colorCount, 0);
+    }
+}
+
 void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount)
 {
     const Size spriteSize{static_cast<int>(kMaxSpriteWidth),

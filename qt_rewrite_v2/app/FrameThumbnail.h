@@ -13,5 +13,8 @@ namespace colorizing::app {
                                        std::size_t frameIndex,
                                        const QSize& iconSize);
 
+// The empty box a frame list row shows until its thumbnail is built.
+[[nodiscard]] QIcon makeFrameThumbnailPlaceholder(const QSize& iconSize);
+
 }  // namespace colorizing::app
 

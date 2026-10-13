@@ -11,7 +11,11 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramePreviewWidget.h
     FrameThumbnail.cpp
     FrameThumbnail.h
+    LazyListIcons.cpp
+    LazyListIcons.h
     PaintTarget.h
+    PlaneLabels.cpp
+    PlaneLabels.h
     panels/BackgroundPanel.cpp
     panels/BackgroundPanel.h
     panels/ColorRotationPanel.cpp

@@ -176,27 +176,40 @@ std::size_t checkedSpritePixelIndex(int x, int y)
     return spritePixelIndex(x, y);
 }
 
-const Rgb565Frame& requireSpriteColorizedFrame(const SpriteRecord& sprite,
-                                               Resolution resolution)
+// What error messages call the extra plane: "HD" where it is an extra resolution, its size
+// where it is the only plane a project renders.
+std::string extraPlaneName(const render::ProjectGeometry& geometry)
 {
-    if (resolution == Resolution::Hd && sprite.hasHd) {
-        return sprite.colorizedHd;
+    if (geometry.layout() == render::PlaneLayout::Ordinary) {
+        return "HD";
     }
-    if (resolution == Resolution::Hd && !sprite.hasHd) {
-        throw std::logic_error("HD sprite is not available");
-    }
-    return sprite.colorizedSd;
+    const Size size = geometry.planeSize(Resolution::Hd);
+    return std::to_string(size.width) + "x" + std::to_string(size.height);
 }
 
-Rgb565Frame& requireSpriteColorizedFrame(SpriteRecord& sprite, Resolution resolution)
+[[noreturn]] void throwMissingExtra(const render::ProjectGeometry& geometry, const char* item)
 {
-    if (resolution == Resolution::Hd && sprite.hasHd) {
-        return sprite.colorizedHd;
-    }
+    throw std::logic_error(extraPlaneName(geometry) + " " + item + " is not available");
+}
+
+const Rgb565Frame& requireSpriteColorizedFrame(const SpriteRecord& sprite,
+                                               Resolution resolution,
+                                               const render::ProjectGeometry& geometry)
+{
     if (resolution == Resolution::Hd && !sprite.hasHd) {
-        throw std::logic_error("HD sprite is not available");
+        throwMissingExtra(geometry, "sprite");
     }
-    return sprite.colorizedSd;
+    return resolution == Resolution::Hd ? sprite.colorizedHd : sprite.colorizedSd;
+}
+
+Rgb565Frame& requireSpriteColorizedFrame(SpriteRecord& sprite,
+                                         Resolution resolution,
+                                         const render::ProjectGeometry& geometry)
+{
+    if (resolution == Resolution::Hd && !sprite.hasHd) {
+        throwMissingExtra(geometry, "sprite");
+    }
+    return resolution == Resolution::Hd ? sprite.colorizedHd : sprite.colorizedSd;
 }
 
 bool isValidDetectionArea(SpriteDetectionArea area)
@@ -405,22 +418,31 @@ ProjectDocument ProjectDocument::fromSnapshot(const ProjectSnapshot& snapshot)
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
     document.m_geometry = snapshot.geometry;
-    if (document.editsOriginalPlaneOnly()) {
+    if (document.m_geometry.discardsExtraPlane()) {
         for (FrameRecord& frame : document.m_frames) {
-            document.m_carriedFrameExtras.push_back(
-                {std::move(frame.colorizedHd), std::move(frame.inactiveHd)});
             frame.colorizedHd.reset();
             frame.inactiveHd.reset();
+            frame.colorRotationsHd = {};
+            if (frame.dynamicData) {
+                frame.dynamicData->maskHd = {};
+                frame.dynamicData->colorsHd = {};
+                frame.dynamicData->shadowDirectionsHd = {};
+                frame.dynamicData->shadowColorsHd = {};
+            }
+            if (frame.backgroundData) {
+                frame.backgroundData->maskHd = {};
+            }
         }
         for (BackgroundRecord& background : document.m_backgrounds) {
-            document.m_carriedBackgroundExtras.push_back(
-                {std::move(background.colorizedHd), std::move(background.inactiveHd)});
             background.colorizedHd.reset();
             background.inactiveHd.reset();
         }
         for (SpriteRecord& sprite : document.m_sprites) {
-            document.m_carriedSpriteExtraFlags.push_back(sprite.hasHd);
             sprite.hasHd = false;
+            sprite.maskHd = {};
+            sprite.colorizedHd = {};
+            sprite.dynamicMaskHd = {};
+            sprite.dynamicColorsHd = {};
         }
     }
     document.m_dirty = false;
@@ -471,8 +493,8 @@ bool ProjectDocument::editsOriginalPlaneOnly() const
     return !m_geometry.isEditable(Resolution::Hd);
 }
 
-// The carried SD plane of a project with 256x64 originals stays reachable: it has no "has
-// SD" items that would have to be hidden, and its data is read back through the accessors.
+// The carried SD plane of a project with 256x64 originals stays reachable: its data is read
+// back through the accessors.
 void ProjectDocument::requireEditablePlane(Resolution resolution) const
 {
     if (resolution == Resolution::Hd) {
@@ -483,8 +505,8 @@ void ProjectDocument::requireEditablePlane(Resolution resolution) const
 void ProjectDocument::requireEditableExtraPlane() const
 {
     if (editsOriginalPlaneOnly()) {
-        throw std::logic_error("the extra plane of this project is smaller than the ROM frame: "
-                               "it is kept unchanged and cannot be edited");
+        throw std::logic_error("this project has no extra plane: only its original plane is "
+                               "edited");
     }
 }
 
@@ -550,7 +572,8 @@ void ProjectDocument::removeHdFrame(std::size_t frameIndex)
         return;
     }
     if (rendersHdPlaneOnly()) {
-        throw std::logic_error("the HD frame is the only one this project renders");
+        throw std::logic_error("the " + extraPlaneName(m_geometry) +
+                               " frame is the only one this project renders");
     }
     frame.colorizedHd.reset();
     m_dirty = true;
@@ -564,7 +587,7 @@ void ProjectDocument::upscaleDynamicMaskToHd(std::size_t frameIndex)
         throw std::logic_error("dynamic mask data is not available");
     }
     if (rendersHdPlaneOnly()) {
-        throw std::logic_error("this project has no SD dynamic mask to upscale");
+        throw std::logic_error("this project has no smaller dynamic mask to upscale");
     }
     frame.dynamicData->maskHd = upscaleIndexedFrame2x(frame.dynamicData->maskSd);
     frame.dynamicData->colorsHd = frame.dynamicData->colorsSd;
@@ -581,7 +604,7 @@ void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
         throw std::logic_error("background data is not available");
     }
     if (rendersHdPlaneOnly()) {
-        throw std::logic_error("this project has no SD background mask to upscale");
+        throw std::logic_error("this project has no smaller background mask to upscale");
     }
     frame.backgroundData->maskHd = upscaleIndexedFrame2x(frame.backgroundData->maskSd);
     m_dirty = true;
@@ -702,7 +725,7 @@ const Rgb565Frame& ProjectDocument::colorizedFrame(std::size_t frameIndex,
         return frame.colorizedSd;
     }
     if (!frame.colorizedHd) {
-        throw std::logic_error("HD frame is not available");
+        throwMissingExtra(m_geometry, "frame");
     }
     return *frame.colorizedHd;
 }
@@ -1199,24 +1222,27 @@ BackgroundRecord& requireBackground(std::vector<BackgroundRecord>& backgrounds,
 }
 
 const Rgb565Frame& requireBackgroundFrame(const BackgroundRecord& background,
-                                          Resolution resolution)
+                                          Resolution resolution,
+                                          const render::ProjectGeometry& geometry)
 {
     if (resolution == Resolution::Sd) {
         return background.colorizedSd;
     }
     if (!background.colorizedHd) {
-        throw std::logic_error("HD background is not available");
+        throwMissingExtra(geometry, "background");
     }
     return *background.colorizedHd;
 }
 
-Rgb565Frame& requireBackgroundFrame(BackgroundRecord& background, Resolution resolution)
+Rgb565Frame& requireBackgroundFrame(BackgroundRecord& background,
+                                    Resolution resolution,
+                                    const render::ProjectGeometry& geometry)
 {
     if (resolution == Resolution::Sd) {
         return background.colorizedSd;
     }
     if (!background.colorizedHd) {
-        throw std::logic_error("HD background is not available");
+        throwMissingExtra(geometry, "background");
     }
     return *background.colorizedHd;
 }
@@ -1236,7 +1262,9 @@ const Rgb565Frame& ProjectDocument::backgroundFrame(std::size_t backgroundIndex,
                                                     Resolution resolution) const
 {
     requireEditablePlane(resolution);
-    return requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
+    return requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex),
+                                  resolution,
+                                  m_geometry);
 }
 
 void ProjectDocument::setBackgroundFrame(std::size_t backgroundIndex,
@@ -1297,7 +1325,9 @@ void ProjectDocument::setBackgroundPixel(std::size_t backgroundIndex,
 {
     requireEditablePlane(resolution);
     Rgb565Frame& frame =
-        requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex), resolution);
+        requireBackgroundFrame(requireBackground(m_backgrounds, backgroundIndex),
+                               resolution,
+                               m_geometry);
     const std::size_t pixelIndex = checkedRgb565PixelIndex(frame, x, y);
     if (frame.pixels[pixelIndex] == rgb565) {
         return;
@@ -1494,7 +1524,8 @@ void ProjectDocument::removeHdSprite(std::size_t spriteIndex)
         return;
     }
     if (rendersHdPlaneOnly()) {
-        throw std::logic_error("the HD sprite is the only one this project renders");
+        throw std::logic_error("the " + extraPlaneName(m_geometry) +
+                               " sprite is the only one this project renders");
     }
     sprite.hasHd = false;
     m_dirty = true;
@@ -1742,7 +1773,8 @@ uint16_t ProjectDocument::spriteColorizedPixel(std::size_t spriteIndex,
     if (spriteIndex >= m_sprites.size()) {
         throw std::out_of_range("sprite index out of range");
     }
-    const Rgb565Frame& frame = requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution);
+    const Rgb565Frame& frame =
+        requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution, m_geometry);
     return frame.pixels[checkedSpritePixelIndex(x, y)];
 }
 
@@ -1756,7 +1788,8 @@ void ProjectDocument::setSpriteColorizedPixel(std::size_t spriteIndex,
     if (spriteIndex >= m_sprites.size()) {
         throw std::out_of_range("sprite index out of range");
     }
-    Rgb565Frame& frame = requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution);
+    Rgb565Frame& frame =
+        requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution, m_geometry);
     const std::size_t pixelIndex = checkedSpritePixelIndex(x, y);
     if (frame.pixels[pixelIndex] == rgb565) {
         return;
@@ -1840,13 +1873,15 @@ void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::siz
 
 namespace {
 
-Rgb565Frame& requireColorizedFrame(FrameRecord& frame, Resolution resolution)
+Rgb565Frame& requireColorizedFrame(FrameRecord& frame,
+                                   Resolution resolution,
+                                   const render::ProjectGeometry& geometry)
 {
     if (resolution == Resolution::Sd) {
         return frame.colorizedSd;
     }
     if (!frame.colorizedHd) {
-        throw std::logic_error("HD frame is not available");
+        throwMissingExtra(geometry, "frame");
     }
     return *frame.colorizedHd;
 }
@@ -1860,7 +1895,8 @@ void ProjectDocument::setColorizedPixel(std::size_t frameIndex,
                                         uint16_t rgb565)
 {
     requireEditablePlane(resolution);
-    Rgb565Frame& frame = requireColorizedFrame(requireFrame(m_frames, frameIndex), resolution);
+    Rgb565Frame& frame =
+        requireColorizedFrame(requireFrame(m_frames, frameIndex), resolution, m_geometry);
     if (x < 0 || y < 0 || x >= frame.size.width || y >= frame.size.height) {
         throw std::out_of_range("pixel coordinate out of range");
     }
@@ -1932,16 +1968,8 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.cromRevision = m_cromRevision;
     snapshot.geometry = m_geometry;
     snapshot.editorMetadata = m_editorMetadata;
-    for (std::size_t i = 0; i < m_carriedFrameExtras.size(); ++i) {
-        snapshot.frames[i].colorizedHd = m_carriedFrameExtras[i].active;
-        snapshot.frames[i].inactiveHd = m_carriedFrameExtras[i].inactive;
-    }
-    for (std::size_t i = 0; i < m_carriedBackgroundExtras.size(); ++i) {
-        snapshot.backgrounds[i].colorizedHd = m_carriedBackgroundExtras[i].active;
-        snapshot.backgrounds[i].inactiveHd = m_carriedBackgroundExtras[i].inactive;
-    }
-    for (std::size_t i = 0; i < m_carriedSpriteExtraFlags.size(); ++i) {
-        snapshot.sprites[i].hasHd = m_carriedSpriteExtraFlags[i];
+    if (m_geometry.discardsExtraPlane()) {
+        discardExtraPlane(snapshot);
     }
     return snapshot;
 }

@@ -9,6 +9,7 @@
 #include <QPaintEvent>
 
 #include "FrameImageUtils.h"
+#include "PlaneLabels.h"
 
 namespace colorizing::app {
 
@@ -401,8 +402,9 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
                                 rect.width * scale,
                                 rect.height * scale),
                          Qt::AlignCenter | Qt::TextWordWrap,
-                         QStringLiteral("No HD frame: the runtime shows nothing for this frame.\n"
-                                        "Use Create HD."));
+                         QStringLiteral("No %1 frame: the runtime shows nothing for this "
+                                        "frame.\nUse Create %1 Frame.")
+                             .arg(nativePlaneText(*m_document)));
     }
 }
 

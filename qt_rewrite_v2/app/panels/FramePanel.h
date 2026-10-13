@@ -40,14 +40,18 @@ public:
 
     // Also labels the Create/Remove HD buttons for the frame again. Whether the drawing target
     // can be chosen is the owner's decision alone, see setPaintTargetEnabled().
+    //
+    // The two buttons follow the project's layout, see PlaneLabels.h: "Create HD" and
+    // "Remove HD" in an ordinary project; "Create 256x64 Frame" alone, enabled while the frame
+    // or its background lacks what the runtime needs, with PlaneLayout::NativeExtra; neither
+    // with PlaneLayout::NativeOriginal. A button that does not apply is hidden.
     void refresh(const FramePanelState& state);
     // Does not notify.
     void setPaintTarget(PaintTarget target);
     void setPaintTargetEnabled(bool enabled);
     void setImportImageEnabled(bool enabled);
-    // While a sprite is edited in the canvas, the Create/Remove HD buttons act on that sprite.
-    // With PlaneLayout::NativeExtra (an HD-only project) HD cannot be removed, with
-    // PlaneLayout::NativeOriginal there is no HD to create or remove.
+    // While a sprite is edited in the canvas, the Create/Remove HD buttons act on that sprite:
+    // "Create HD Sprite" and "Remove HD Sprite", "Create 256x64 Sprite" alone, or neither.
     void showSpriteHdActions(bool spriteHasHd,
                              render::PlaneLayout layout = render::PlaneLayout::Ordinary);
 
@@ -75,7 +79,8 @@ public:
 
 private:
     void showFrameHdActions(bool canCreate, bool canRemove);
-    void disableHdActions();
+    // Hides what the layout has no use for.
+    void showHdActionsFor(render::PlaneLayout layout);
 
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_triggerIdSpinBox = nullptr;
