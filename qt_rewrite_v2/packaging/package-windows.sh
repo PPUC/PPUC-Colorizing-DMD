@@ -71,15 +71,30 @@ while :; do
     [ "${added}" -eq 1 ] || break
 done
 
-# With the MSYS2 prefix off PATH, everything the exe loads must resolve inside the folder or in
-# Windows. (Plugins are not checked this way: ntldd would not look for their Qt DLLs in the
-# folder above them. The start below loads the platform plugin.)
-system_path="$(cygpath -u "${SYSTEMROOT}")/System32:$(cygpath -u "${SYSTEMROOT}")"
-ntldd_bin=$(command -v ntldd)
+# Every DLL a shipped file imports must be in the folder or a Windows system DLL. Only the
+# shipped files are checked, not what system DLLs import in turn: those pull in optional
+# components a given Windows installation may lack, which the loader never asks for here.
+system_dirs=("$(cygpath -u "${SYSTEMROOT}")/System32" "$(cygpath -u "${SYSTEMROOT}")")
+system_path="${system_dirs[0]}:${system_dirs[1]}"
 timeout_bin=$(command -v timeout)
-# API set names (api-ms-*, ext-ms-*) are resolved by the loader, not found as files.
-missing=$(cd "${package}" && PATH="${system_path}" "${ntldd_bin}" -R ColorizingDMD.exe 2>&1 |
-    grep -i "not found" | grep -viE '^[[:space:]]*(api|ext)-ms-' | sort -u || true)
+is_available() {
+    local name=$1 dir
+    # API set names (api-ms-*, ext-ms-*) are resolved by the loader, not found as files.
+    case "${name,,}" in api-ms-* | ext-ms-*) return 0 ;; esac
+    [ -n "$(find "${package}" -maxdepth 1 -iname "${name}" -print -quit)" ] && return 0
+    for dir in "${system_dirs[@]}"; do
+        [ -n "$(find "${dir}" -maxdepth 1 -iname "${name}" -print -quit 2>/dev/null)" ] && return 0
+    done
+    return 1
+}
+missing=""
+while IFS= read -r -d '' file; do
+    while IFS= read -r name; do
+        [ -n "${name}" ] || continue
+        is_available "${name}" || missing+="${name} (needed by ${file#"${package}"/})"$'\n'
+    done < <(ntldd "${file}" 2>/dev/null | awk '{print $1}')
+done < <(find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0)
+missing=$(printf '%s' "${missing}" | sort -u)
 if [ -n "${missing}" ]; then
     echo "The package lacks DLLs:" >&2
     echo "${missing}" >&2
