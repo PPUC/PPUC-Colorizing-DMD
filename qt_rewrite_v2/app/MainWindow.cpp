@@ -9,6 +9,8 @@
 #include <QApplication>
 #include <QActionGroup>
 #include <QCheckBox>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -46,6 +48,7 @@
 #include <QWidget>
 
 #include "EditColorKeys.h"
+#include "EditMenuActions.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
@@ -55,6 +58,8 @@
 #include "SpriteEditorWidget.h"
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "dialogs/SelectionDialogs.h"
+#include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
 #include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
@@ -369,6 +374,8 @@ QString frameEditCountText(int changed, int skipped, const QString& skipReason =
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_canvasEdit(canvasEditOutputs())
+    , m_pasteMode(pasteModeOutputs())
+    , m_editHelpers(editHelpersOutputs())
 {
     setWindowTitle(QString::fromLatin1(kWindowTitle));
     resize(1000, 700);
@@ -469,6 +476,7 @@ void MainWindow::createActions()
     connect(m_deleteShortFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFramesShorterThan();
     });
+    createSelectionActions(editMenu);
 
     m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
     // What the toolbar button of the action shows.
@@ -787,6 +795,9 @@ void MainWindow::createCentralView()
             // The sprite canvas takes the place of the frame canvas the view is shown on.
             m_runtimeViewAction->setChecked(false);
         }
+        if (checked) {
+            m_pasteMode.cancel();
+        }
         if (m_canvasStack) {
             m_canvasStack->setCurrentWidget(checked && m_spriteEditor
                                                 ? static_cast<QWidget*>(m_spriteEditor)
@@ -1083,12 +1094,14 @@ void MainWindow::createCentralView()
                 refreshFrameList(currentFrameIndex());
             });
     connect(m_sdButton, &QToolButton::clicked, this, [this]() {
+        m_pasteMode.cancel();
         m_canvasEdit.cancelFreeGradient();
         m_canvasEdit.clearSelection(canvasEditContext());
         m_activeResolution = render::Resolution::Sd;
         updateResolutionMode();
     });
     connect(m_hdButton, &QToolButton::clicked, this, [this]() {
+        m_pasteMode.cancel();
         m_canvasEdit.cancelFreeGradient();
         m_canvasEdit.clearSelection(canvasEditContext());
         m_activeResolution = render::Resolution::Hd;
@@ -1183,17 +1196,29 @@ void MainWindow::createCentralView()
                 updateUndoRedoActions();
             });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
-        m_canvasEdit.colorizedPixelClicked(canvasEditContext(), hit, erase);
+        colorizedCanvasClicked(hit, erase);
+    });
+    m_preview->setPressInterceptor([this](render::CanvasHit hit, Qt::KeyboardModifiers modifiers) {
+        return interceptCanvasPress(hit, modifiers);
     });
     m_preview->setOriginalClickedHandler([this](render::CanvasHit hit, bool erase) {
         m_canvasEdit.originalPixelClicked(canvasEditContext(), hit, erase);
     });
     m_preview->setStrokePreviewHandler(
         [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
+            if (selectsWithPress()) {
+                m_canvasEdit.previewSelectionStroke(canvasEditContext(), start, end, erase);
+                return;
+            }
             m_canvasEdit.strokePreviewed(canvasEditContext(), start, end, erase);
     });
     m_preview->setStrokeFinishedHandler(
         [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
+            if (selectsWithPress()) {
+                m_canvasEdit.editSelectionWithStroke(canvasEditContext(), start, end, erase,
+                                                     selectsNonBlackOnly());
+                return;
+            }
             m_canvasEdit.strokeFinished(canvasEditContext(), start, end, erase);
     });
     m_spriteEditor->setDetectionAreaChangedHandler(
@@ -1507,6 +1532,7 @@ void MainWindow::newProjectFromDump()
         m_currentCromPath.clear();
         m_currentCrpPath.clear();
         m_undoHistories.clear();
+        m_pasteMode.clearClipboard();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -1756,6 +1782,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         m_currentCrpPath = crpPath;
         rememberRecentProject(cromPath, crpPath);
         m_undoHistories.clear();
+        m_pasteMode.clearClipboard();
         updateUndoRedoActions();
         if (m_saveAction) {
             m_saveAction->setEnabled(true);
@@ -2078,6 +2105,7 @@ void MainWindow::setFrameStatusText(const QString& text)
 void MainWindow::refreshProjectSummary()
 {
     updateWindowTitle();
+    updateEditMenuActions();
     m_selectedEditColor.reset();
     m_drawColorMode =
         m_document ? edit::drawColorModeFromStored(m_document->editorMetadata().drawColorMode)
@@ -2874,6 +2902,7 @@ void MainWindow::setRuntimeViewEnabled(bool enabled)
     setPlaybackRunning(false);
     if (enabled) {
         leaveSpriteCanvas();
+        m_pasteMode.cancel();
         m_canvasEdit.cancelFreeGradient();
         if (m_preview) {
             m_preview->clearPreviewPixels();
@@ -5182,6 +5211,8 @@ CanvasEditContext MainWindow::canvasEditContext() const
     context.drawColor = m_activeDrawColor;
     context.drawColorMode = m_drawColorMode;
     context.dynamicSet = activeDynamicSet();
+    context.activePlane = m_activeResolution;
+    context.includeBackgroundLayer = m_framePanel && m_framePanel->isBackgroundLayerChecked();
     if (m_palettePanel) {
         context.gradientShape = m_palettePanel->gradientShape();
         context.gradientDirection = m_palettePanel->gradientDirection();
@@ -5259,6 +5290,355 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
         updateSpriteControls();
     };
     return outputs;
+}
+
+PasteModeOutputs MainWindow::pasteModeOutputs()
+{
+    PasteModeOutputs outputs;
+    outputs.commit = [this](std::unique_ptr<edit::EditCommand> command) {
+        commitEdit(std::move(command));
+    };
+    outputs.commitsFinished = [this]() { updateUndoRedoActions(); };
+    outputs.showStatus = [this](const QString& text, int timeoutMs) {
+        statusBar()->showMessage(text, timeoutMs);
+    };
+    outputs.showOverlay = [this](std::optional<CanvasPasteOverlay> overlay) {
+        if (m_preview) {
+            m_preview->setPasteOverlay(std::move(overlay));
+        }
+    };
+    outputs.activeChanged = [this](bool active) {
+        if (!m_preview) {
+            return;
+        }
+        if (active) {
+            m_preview->setHoverHandler([this](render::CanvasHit hit) { m_pasteMode.follow(hit); });
+            m_preview->setFocus(Qt::OtherFocusReason);
+        } else {
+            m_preview->setHoverHandler(nullptr);
+        }
+    };
+    outputs.exportImage = [](const QImage& image) {
+        if (QClipboard* clipboard = QGuiApplication::clipboard()) {
+            clipboard->setImage(image);
+        }
+    };
+    return outputs;
+}
+
+EditHelpersOutputs MainWindow::editHelpersOutputs()
+{
+    EditHelpersOutputs outputs;
+    outputs.commit = [this](std::unique_ptr<edit::EditCommand> command) {
+        commitEdit(std::move(command));
+    };
+    outputs.commitsFinished = [this]() { updateUndoRedoActions(); };
+    outputs.showStatus = [this](const QString& text, int timeoutMs) {
+        statusBar()->showMessage(text, timeoutMs);
+    };
+    return outputs;
+}
+
+void MainWindow::createSelectionActions(QMenu* editMenu)
+{
+    m_editMenuActions = new EditMenuActions(editMenu, this);
+    EditMenuActions& actions = *m_editMenuActions;
+    actions.onCopy = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_pasteMode.copy(canvasEditContext(), m_canvasEdit.selection());
+            updateEditMenuActions();
+        }
+    };
+    actions.onPaste = [this]() { startPaste(edit::PasteMode::All); };
+    actions.onPasteWhereOriginalsMatch = [this]() {
+        startPaste(edit::PasteMode::WhereOriginalsMatch);
+    };
+    actions.onPasteDynamicMaskOnly = [this]() { startPaste(edit::PasteMode::DynamicMaskOnly); };
+    actions.onSelectAll = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.selectAll(canvasEditContext());
+        }
+    };
+    actions.onSelectNone = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.clearSelection(canvasEditContext());
+            statusBar()->showMessage(QStringLiteral("Selection cleared"), 1500);
+        }
+    };
+    actions.onInvertSelection = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.invertSelection(canvasEditContext());
+        }
+    };
+    actions.onSelectByColor = [this]() { armCanvasClick(PendingCanvasClick::SelectByColor); };
+    actions.onSelectBackgroundMask = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.selectBackgroundMask(canvasEditContext());
+        }
+    };
+    actions.onMirrorHorizontally = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.mirrorSelection(canvasEditContext(), true, false);
+        }
+    };
+    actions.onMirrorVertically = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.mirrorSelection(canvasEditContext(), false, true);
+        }
+    };
+    actions.onAutoSelect = [this]() { showAutoSelectDialog(); };
+    actions.onAutoCopy = [this]() { showAutoCopyDialog(); };
+    actions.onScrollingFill = [this]() { runScrollingAutoFill(); };
+    actions.onRecolor = [this]() { armCanvasClick(PendingCanvasClick::Recolor); };
+    actions.onBlackOriginalToBlack = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_editHelpers.blackOriginalToBlack(canvasEditContext(), m_canvasEdit.selection());
+        }
+    };
+    actions.onRemoveDynamicZones = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_editHelpers.removeDynamicContent(canvasEditContext(), m_canvasEdit.selection());
+        }
+    };
+    actions.onAssignDynamicSet = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_editHelpers.assignDynamicSet(canvasEditContext(), m_canvasEdit.selection());
+        }
+    };
+}
+
+void MainWindow::updateEditMenuActions()
+{
+    if (m_editMenuActions) {
+        m_editMenuActions->setState(m_document.has_value(), m_pasteMode.clipboard() != nullptr);
+    }
+}
+
+bool MainWindow::canUseFrameCanvasHelpers()
+{
+    if (!m_document || !currentFrameIndex()) {
+        statusBar()->showMessage(QStringLiteral("No frame"), 2000);
+        return false;
+    }
+    if (isSpriteCanvasActive()) {
+        statusBar()->showMessage(
+            QStringLiteral("Selection, copy and paste work on the frame canvas"), 3000);
+        return false;
+    }
+    if (m_runtimeView.isEnabled()) {
+        statusBar()->showMessage(QStringLiteral("Nothing can be edited in the Runtime view"),
+                                 3000);
+        return false;
+    }
+    return true;
+}
+
+void MainWindow::startPaste(edit::PasteMode mode)
+{
+    if (!canUseFrameCanvasHelpers()) {
+        return;
+    }
+    armCanvasClick(PendingCanvasClick::None);
+    m_canvasEdit.cancelFreeGradient();
+    m_pasteMode.begin(canvasEditContext(), mode);
+}
+
+void MainWindow::showAutoSelectDialog()
+{
+    if (!canUseFrameCanvasHelpers()) {
+        return;
+    }
+    AutoSelectDialog dialog(this);
+    dialog.setPattern(m_autoSelectPattern);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    m_autoSelectPattern = dialog.pattern();
+    m_canvasEdit.selectStripes(canvasEditContext(), m_autoSelectPattern);
+}
+
+void MainWindow::showAutoCopyDialog()
+{
+    if (!canUseFrameCanvasHelpers()) {
+        return;
+    }
+    const CanvasEditContext context = canvasEditContext();
+    const edit::PlaneSelection* selection = m_canvasEdit.selection();
+    const QString refusal = EditHelpersController::autoCopyRefusal(context, selection);
+    if (!refusal.isEmpty()) {
+        statusBar()->showMessage(refusal, 4000);
+        return;
+    }
+    std::optional<AutoCopyPlan> plan;
+    const std::vector<std::size_t> selectedOthers = [&context]() {
+        std::vector<std::size_t> frames;
+        for (std::size_t frameIndex : context.selectedFrames) {
+            if (frameIndex != *context.currentFrame) {
+                frames.push_back(frameIndex);
+            }
+        }
+        return frames;
+    }();
+    AutoCopyDialog dialog(
+        !selectedOthers.empty(),
+        [&](bool selectedOnly) {
+            plan = m_editHelpers.planAutoCopy(
+                context, *selection, selectedOnly ? selectedOthers : std::vector<std::size_t>{});
+            QString text =
+                QStringLiteral("%1 pixels selected. %2 frame(s) show the same there, %3 of them "
+                               "would change.")
+                    .arg(static_cast<qulonglong>(selection->count()))
+                    .arg(static_cast<qulonglong>(plan->scan.matches.size()))
+                    .arg(static_cast<qulonglong>(plan->changingFrames.size()));
+            if (plan->scan.withoutPlane > 0) {
+                text += QStringLiteral(" %1 more without a picture on this plane are left alone.")
+                            .arg(static_cast<qulonglong>(plan->scan.withoutPlane));
+            }
+            if (plan->scan.hashCollisions > 0) {
+                text += QStringLiteral(" %1 frame(s) had the same hash but other pixels.")
+                            .arg(static_cast<qulonglong>(plan->scan.hashCollisions));
+            }
+            return text;
+        },
+        this);
+    if (dialog.exec() != QDialog::Accepted || !plan) {
+        return;
+    }
+    if (plan->changingFrames.empty()) {
+        statusBar()->showMessage(QStringLiteral("Auto copy: nothing to change"), 2500);
+        return;
+    }
+    m_editHelpers.applyAutoCopy(context, *selection, *plan);
+}
+
+void MainWindow::runScrollingAutoFill()
+{
+    if (!canUseFrameCanvasHelpers()) {
+        return;
+    }
+    const CanvasEditContext context = canvasEditContext();
+    const QString refusal = EditHelpersController::scrollFillRefusal(context);
+    if (!refusal.isEmpty()) {
+        statusBar()->showMessage(refusal, 4000);
+        return;
+    }
+    ScrollFillPlan plan = m_editHelpers.planScrollFill(context);
+    if (plan.lastFrame < plan.firstFrame + 2) {
+        statusBar()->showMessage(
+            QStringLiteral("Select the frames of the scrolling, the current one among them: the "
+                           "frames between the first and the last are filled"),
+            5000);
+        return;
+    }
+    std::size_t fromFirst = 0;
+    std::size_t fromLast = 0;
+    for (const edit::ScrollFillFrame& frame : plan.frames) {
+        fromFirst += frame.fromFirst ? 1 : 0;
+        fromLast += frame.fromLast ? 1 : 0;
+    }
+    QMessageBox question(this);
+    question.setIcon(QMessageBox::Question);
+    question.setWindowTitle(QStringLiteral("Scrolling Auto Fill"));
+    question.setText(QStringLiteral("Fill the %1 frame(s) between frame %2 and frame %3?")
+                         .arg(static_cast<qulonglong>(plan.frames.size()))
+                         .arg(static_cast<qulonglong>(plan.firstFrame))
+                         .arg(static_cast<qulonglong>(plan.lastFrame)));
+    question.setInformativeText(
+        QStringLiteral("%1 scroll from the first frame, %2 from the last; %3 would change.")
+            .arg(static_cast<qulonglong>(fromFirst))
+            .arg(static_cast<qulonglong>(fromLast))
+            .arg(static_cast<qulonglong>(plan.changingCount())));
+    question.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    question.setDefaultButton(QMessageBox::Ok);
+    if (question.exec() != QMessageBox::Ok) {
+        return;
+    }
+    m_editHelpers.applyScrollFill(context, std::move(plan));
+}
+
+void MainWindow::armCanvasClick(PendingCanvasClick click)
+{
+    m_pendingCanvasClick = click;
+    if (click == PendingCanvasClick::None) {
+        return;
+    }
+    if (!canUseFrameCanvasHelpers()) {
+        m_pendingCanvasClick = PendingCanvasClick::None;
+        return;
+    }
+    m_pasteMode.cancel();
+    statusBar()->showMessage(click == PendingCanvasClick::SelectByColor
+                                 ? QStringLiteral("Click a pixel to select every pixel of its "
+                                                  "color (Esc cancels)")
+                                 : QStringLiteral("Click a pixel to recolor every pixel of its "
+                                                  "color (Esc cancels)"),
+                             5000);
+    if (m_preview) {
+        m_preview->setFocus(Qt::OtherFocusReason);
+    }
+}
+
+bool MainWindow::interceptCanvasPress(render::CanvasHit hit, Qt::KeyboardModifiers modifiers)
+{
+    if (m_pasteMode.isActive()) {
+        m_pasteMode.follow(hit);
+        m_pasteMode.stamp(canvasEditContext(), modifiers);
+        return true;
+    }
+    if (m_pendingCanvasClick == PendingCanvasClick::None) {
+        return false;
+    }
+    const PendingCanvasClick click = m_pendingCanvasClick;
+    m_pendingCanvasClick = PendingCanvasClick::None;
+    if (click == PendingCanvasClick::SelectByColor) {
+        m_canvasEdit.selectByColor(canvasEditContext(),
+                                   hit,
+                                   modifiers.testFlag(Qt::ShiftModifier));
+    } else {
+        m_editHelpers.recolor(canvasEditContext(), hit);
+    }
+    return true;
+}
+
+bool MainWindow::selectsWithPress() const
+{
+    // Ctrl, which is Cmd on macOS; there the Control key (Meta to Qt) works too, as a plain
+    // Control+click may be a right click to the system.
+    const Qt::KeyboardModifiers modifiers = m_preview ? m_preview->pressModifiers()
+                                                      : Qt::KeyboardModifiers();
+    return (modifiers & (Qt::ControlModifier | Qt::MetaModifier)) &&
+           CanvasEditController::canEditSelection(canvasEditContext());
+}
+
+bool MainWindow::selectsNonBlackOnly() const
+{
+    return m_nonBlackKeyDown || (m_editMenuActions && m_editMenuActions->nonBlackOnly());
+}
+
+void MainWindow::colorizedCanvasClicked(render::CanvasHit hit, bool erase)
+{
+    const CanvasEditContext context = canvasEditContext();
+    const Qt::KeyboardModifiers modifiers =
+        m_preview ? m_preview->pressModifiers() : Qt::KeyboardModifiers();
+    const bool alt = modifiers.testFlag(Qt::AltModifier);
+    if (selectsWithPress()) {
+        if (alt) {
+            // Win32: Alt+Ctrl+click with the fill tool selects every pixel of the color.
+            if (m_drawingTool == DrawingTool::FloodFill) {
+                m_canvasEdit.selectByColor(context, hit, erase);
+            }
+            return;
+        }
+        m_canvasEdit.editSelectionAtPoint(context, hit, erase, selectsNonBlackOnly());
+        return;
+    }
+    if (alt && m_drawingTool == DrawingTool::FloodFill &&
+        context.layer == CanvasEditLayer::FramePixels) {
+        // Win32: Alt+click with the fill tool recolors every pixel of the color.
+        m_editHelpers.recolor(context, hit);
+        return;
+    }
+    m_canvasEdit.colorizedPixelClicked(context, hit, erase);
 }
 
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
@@ -5515,8 +5895,26 @@ void MainWindow::updateEditColorControls(bool projectChanged)
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    if (watched == m_preview && event->type() == QEvent::KeyRelease) {
+        const auto* keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
+            m_nonBlackKeyDown = false;
+        }
+    }
     if (watched == m_preview && event->type() == QEvent::KeyPress && m_document) {
         const auto* keyEvent = static_cast<QKeyEvent*>(event);
+        if (m_pasteMode.handleKey(canvasEditContext(), keyEvent->key(), keyEvent->modifiers())) {
+            return true;
+        }
+        if (keyEvent->key() == Qt::Key_Escape &&
+            m_pendingCanvasClick != PendingCanvasClick::None) {
+            armCanvasClick(PendingCanvasClick::None);
+            statusBar()->showMessage(QStringLiteral("Cancelled"), 1500);
+            return true;
+        }
+        if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
+            m_nonBlackKeyDown = true;
+        }
         const std::optional<std::size_t> slot = editColorSlotForKeyEvent(
             *keyEvent, m_document->colorCount(), currentNativeKeyCodes());
         if (slot) {
@@ -5952,6 +6350,7 @@ void MainWindow::refreshAfterStructureEdit(const edit::StructureCommand& command
         return;
     }
     setPlaybackRunning(false);
+    m_pasteMode.cancel();
     m_canvasEdit.cancelFreeGradient();
     m_canvasEdit.clearSelection(canvasEditContext());
     // Everything that shows a sprite is refreshed below.
@@ -6236,6 +6635,15 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             updateSpriteControls();
             updateProjectHeaderStatus();
             break;
+    }
+    // Paste, auto copy and the helpers change the dynamic zones and sets with the pixels.
+    if (const auto* content = dynamic_cast<const edit::FrameContentCommand*>(&command);
+        content && content->changes().changesDynamicData()) {
+        updateFrameListItem(content->frameIndex());
+        updateInactiveFrameMarker(content->frameIndex());
+        updateDynamicColorControls();
+        updateDynamicShadowControls();
+        m_preview->update();
     }
     if (m_runtimeView.isEnabled()) {
         m_preview->update();

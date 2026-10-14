@@ -1315,7 +1315,9 @@ Clear or replace a selection:
 
 Selections are cleared when the frame, SD/HD mode, target, selected background, or tool context
 changes. Selection gradient fills are undoable through the same frame/background edit histories as
-ordinary pixel edits.
+ordinary pixel edits. A selection can also be made and changed with `Ctrl`, the `Edit` menu and
+the other helpers, see "Selection"; `Grad Sel` then fills the selected pixels over their bounding
+box.
 
 ### Pick
 
@@ -1343,6 +1345,181 @@ filled there with its own shades.
 TODO: consolidate frame, mask, background, and sprite drawing behind a shared editable-surface
 pipeline so tools, previews, flood fill, undo/redo, and deferred dependent-view refresh are
 implemented once and reused across canvas targets.
+
+## Selection
+
+The selection is a set of pixels of the plane being edited (the Win32 editor's copy mask). It is
+shown as the translucent cyan overlay of `Sel` and is what `Grad Sel`, `Copy`, `Auto Copy...`,
+`Black Original To Black` and the dynamic helpers work on. It is editor state, not project data:
+it is not saved, it is not part of Undo (the Win32 editor records its changes in its one undo
+buffer; here a selection step would sit between the edits of the frame's histories and make
+Undo skip over invisible steps, and every selection command is one click to repeat), and it is
+dropped when the frame, the SD/HD mode, the paint target or the selected background changes, as
+the `Sel` selection always was. The Win32 editor keeps its selection across frames.
+
+Making and changing a selection on the frame canvas (frame pixels or, with `Target` `Background`,
+the selected background image; not in the `Mask`, `Dynamic` or `BG` modes):
+
+- `Sel` tool: drag a rectangle, circle or ellipse (the `Shape` of the `Palette` page); it replaces
+  the selection.
+- `Ctrl`+drag with `Line`, `Rect`, `Fill Rect`, `Circle`, `Fill Circle`, `Ellipse` or
+  `Fill Ellipse`: the shape's pixels join the selection. `Ctrl`+`Shift`+drag removes them.
+- `Ctrl`+click with `Point`: the pixel joins (with `Shift`: leaves) the selection.
+- `Ctrl`+click with `Flood`: the connected pixels of the clicked color join (with `Shift`:
+  leave) the selection.
+- Hold `W` while selecting, or check `Edit -> Select Non-Black Pixels Only`, and black pixels
+  (stored color 0) stay out of what is added, as in the Win32 editor.
+- `Ctrl`+`Alt`+click with `Flood`, or `Edit -> Select By Color` and then a click: every pixel of
+  the clicked color joins the selection, with `Shift` leaves it. The color is the one the canvas
+  shows (with dynamic content, sprites and, when shown, the background layer); the Win32 editor
+  compares stored colors and leaves dynamic pixels out.
+- `Edit -> Select All` (`Ctrl+A`), `Select None` (`Ctrl+Shift+A` or `Ctrl+D`), `Invert
+  Selection` (`Ctrl+Shift+I`).
+- `Edit -> Selection From Background Mask` (`Ctrl+B`): the current frame's background mask on
+  the plane; the frame needs a background.
+- `Edit -> Mirror Selection Horizontally` (`Ctrl+K`) and `Vertically` (`Ctrl+L`).
+- `Edit -> Auto Select...`: stripes of rows or columns: from `Offset` on, `Selected` lines are
+  selected and `Skipped` lines are not, to the edge of the plane (Win32 limits: offset 0 to 256,
+  1 to 256 lines each). It replaces the selection.
+
+A selection edited in any of these ways is a set of pixels, not a shape: `Grad Sel` spreads its
+gradient over the selection's bounding box. On macOS `Ctrl` means `Cmd` throughout; the
+`Control` key works as well for selecting (a `Control`+click can also be the system's right
+click, hence `Cmd`).
+
+## Copy And Paste
+
+`Edit -> Copy` (`Ctrl+C`) copies the selected pixels of the current frame: their colors on the
+plane, the original shades of the ROM pixels they show and, on the plane dynamic zones live on
+(see "Dynamic Masks"), their dynamic mask values and the colors and shadow of every dynamic set
+they use. What is kept is the selection's bounding box. The colors also go to the system
+clipboard as a PNG image (transparent outside the selection). The internal clipboard is emptied
+when a project is opened.
+
+`Edit -> Paste` (`Ctrl+V`) starts paste mode: the copied pixels float over the frame canvas,
+first where they were copied from, then centred on the mouse. In paste mode:
+
+- the arrow keys move them by a pixel, with `Shift` by 10; the keypad's `2`, `4`, `6`, `8` as in
+  the Win32 editor;
+- `K` mirrors them horizontally, `L` vertically (again to turn back);
+- a click or `Enter` pastes them on the current frame or, with several frames selected, on every
+  selected frame, and ends paste mode (as in the Win32 editor);
+- `Esc` cancels.
+
+What a paste writes, per frame: the colors, the dynamic mask, and the colors and shadow of the
+dynamic sets the copied pixels use (Win32 `CopyDynaCol`). Variants:
+
+- `Paste Where Originals Match` (`Ctrl+Shift+V`), or `Shift` held at the click or `Enter`: only
+  pixels whose original shade on the target frame equals the copied pixel's.
+- `Paste Dynamic Mask Only` (`Ctrl+Alt+V`), or `Alt` held at the click: only the dynamic mask,
+  no colors and no set colors. The Win32 editor does not mirror this variant; here it is
+  mirrored like the others.
+
+Pixels that land outside the plane are left out. Frames without a picture on the HD plane are
+left alone when pasting there. Each changed frame is one undoable step in its own pixel history
+(in the `Dynamic` mode its dynamic mask history), see "Undo And Redo".
+
+Content is pasted only on the plane it was copied from (the Win32 editor's `Copy_Content`
+check): SD content on the HD plane and HD content on the SD plane are refused with a message
+naming the planes, and so is content of a project of another layout. On the HD plane of an
+ordinary project nothing dynamic is copied or pasted, since the zones are the SD plane's. `Paste
+Dynamic Mask Only` needs the dynamic plane.
+
+Copy and paste work on the frame canvas. The Win32 sprite window's copy (a sprite into the
+clipboard) and paste (the clipboard into a sprite) are not built; `Capture` on the `Sprites` page
+takes a sprite from a frame.
+
+## Auto Copy And Scrolling Fill
+
+### Auto copy
+
+`Edit -> Auto Copy...` (Win32 `IDC_AUTOCOPY`) copies the current frame's colorization inside the
+selection to every frame whose original frame shows exactly what the current frame's shows
+there. The selection is turned into ROM frame pixels first (on the doubled HD plane of an
+ordinary project a ROM pixel counts when any of its 2x2 pixels is selected). Candidates are
+found by a CRC32 over the selected original pixels, as the Win32 editor does, and every
+candidate is then compared pixel by pixel, so two different pictures with the same CRC are not
+taken.
+
+The dialog chooses `All frames` or `Selected frames only` and, before anything changes, says how
+many frames show the same and how many of them would change (a frame that already has those
+colors does not change), how many have no picture on the HD plane, and how many had the same CRC
+but other pixels. `Apply` writes the colors and, on the dynamic plane, the dynamic mask of the
+selected pixels; the dynamic set colors are not copied (Win32 `AutoCopy` copies the frame and the
+mask only). One undoable step per changed frame. Unlike the Win32 editor (which asks nothing and
+cannot undo it), the count comes first and every frame can be undone.
+
+### Scrolling auto fill
+
+`Edit -> Scrolling Auto Fill...` (Win32 `IDC_SCROLLFILL`, `AutoFillScrolling`) colorizes the
+frames of a scrolling between two colorized frames. Select the frames of the scrolling in the
+frame list, the current frame among them: the run of selected frames without a gap around the
+current frame is used, its first and last frame are the references, and the frames strictly
+between them are filled.
+
+For each frame between, the editor looks for the smallest shift at which the frame's original
+is the reference's moved up, down, left or right (in that order: "camera moving down" first;
+the overlapping whole rows or columns have to be equal). The rows or columns the two share then
+get the reference's colors and, on the dynamic plane, its dynamic mask; the uncovered ones stay.
+This is done with the first frame, then with the last, which wins where both apply. On the HD
+plane of an ordinary project the shift counts twice. Frames without a picture on the plane take
+no part. The question before it runs says how many frames scroll from each reference and how
+many change; one undoable step per changed frame.
+
+The Win32 editor compares the rows and columns by CRC32; here they are compared exactly. A
+single shared row is enough for a match, as in the Win32 editor, so rows that repeat (blank
+rows) can match at another shift than the true one.
+
+## Recolor Helpers
+
+- `Recolor`: `Alt`+click with `Flood` (Win32: Alt+click with the fill tool), or `Edit ->
+  Recolor...` and then a click: every pixel that has the clicked pixel's stored color, in the
+  current frame or in every selected frame, gets the draw color, or in `Set Replace` mode the edit
+  color of its original shade. Refused on a dynamic pixel ("works only for static content", as
+  in the Win32 editor). One undoable step per changed frame.
+- `Black Original To Black` (`Ctrl+Shift+O`; Win32 `Ctrl+O`, which is `Open` here): pixels
+  whose original shade is 0 become black on every selected frame, in the selection if there is
+  one on the plane, else everywhere. The original pixel is the ROM pixel the plane pixel shows,
+  as libserum lays the planes out; the Win32 editor's handling of 256x64 originals is not
+  followed.
+- `Remove Dynamic Zones` (`Ctrl+E` or `Alt+D`, as in the Win32 editor) and `Assign Dynamic Set`
+  (`Alt+A`), see "Dynamic Masks".
+
+## Keyboard Shortcuts
+
+`Ctrl` is `Cmd` and `Alt` is `Option` on macOS.
+
+| Keys | Action | Win32 |
+|---|---|---|
+| `Ctrl+C` | Copy the selection | same |
+| `Ctrl+V` | Paste | same |
+| `Ctrl+Shift+V` | Paste where the originals match | `Shift`+click in paste mode |
+| `Ctrl+Alt+V` | Paste the dynamic mask only | `Alt`+click in paste mode |
+| Arrows, `Shift`+arrows, keypad `2 4 6 8` | Move the paste (1 or 10 pixels) | keypad |
+| `K`, `L` | Mirror the paste | held when paste starts |
+| Click, `Enter` | Stamp the paste (`Shift`, `Alt`: variants) | same |
+| `Esc` | Cancel paste mode or a pending `Select By Color` / `Recolor` click | - |
+| `Ctrl+A` | Select all pixels | same |
+| `Ctrl+Shift+A`, `Ctrl+D` | Select none | `Ctrl+D` |
+| `Ctrl+Shift+I` | Invert the selection | button |
+| `Ctrl+B` | Selection from the background mask | same |
+| `Ctrl+K`, `Ctrl+L` | Mirror the selection | same |
+| `Ctrl`(+`Shift`)+click or drag | Add to (remove from) the selection | same |
+| hold `W` | Select non-black pixels only | same |
+| `Ctrl+Alt`+click, fill tool | Select by color | same |
+| `Alt`+click, fill tool | Recolor every pixel of the color | same |
+| `Ctrl+Shift+O` | Black original to black | `Ctrl+O` |
+| `Ctrl+E`, `Alt+D` | Remove dynamic zones | same |
+| `Alt+A` | Assign the dynamic set | same |
+
+With a text field, a spin box or a list in focus, `Ctrl+C`, `Ctrl+V` and `Ctrl+A` do what they do
+there (`Ctrl+A` in the frame list selects every frame). A single letter cannot be a menu
+shortcut (a native macOS menu bar takes it from every widget), so `Invert Selection` is not `I`;
+`K`, `L` and `W` act only while the frame canvas has the focus. Other shortcuts of the editor:
+the platform's keys for Open (`Ctrl+O`), Save, Save As, Quit, Undo and Redo, `Ctrl+R` Runtime
+view, `Ctrl+3` / `Ctrl+6` its planes, `Delete` / `Backspace` delete frames in the frame list,
+and the edit color keys on the canvas (see "Keys for the edit colors"). No two actions share a
+key (`tools/ui_dump` prints every shortcut of the window and the shared ones).
 
 ## Undo And Redo
 
@@ -1405,6 +1582,15 @@ An edit applied to several selected frames is recorded once per changed frame, i
 history. Undo therefore reverts it only on the current frame; select another frame to undo it
 there. This applies to drawing (also in `Set Replace` mode), to dynamic shadow direction and color
 changes, to `Edit > Dyn`, and to all frame settings.
+
+Paste, `Auto Copy...`, `Scrolling Auto Fill...`, `Recolor`, `Black Original To Black`, `Remove
+Dynamic Zones` and `Assign Dynamic Set` are recorded the same way, one step per changed frame,
+even when a step changes the frame's colors, its dynamic mask and its dynamic set colors
+together. The step goes into the frame's pixel history of the plane it was made on, or, when it
+was made in the `Dynamic` mode, into the frame's dynamic mask history, so that it is undone in
+the context it was made in. Auto copy and the scrolling fill change other frames than the current
+one: their steps are undone on those frames. The selection itself is not part of Undo (see
+"Selection").
 
 Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
 overwritten: the frame's HD background mask and the HD image of the background that was assigned
@@ -1628,6 +1814,17 @@ So in an ordinary project:
   switched off in this editor.
 - The save rule that writes colorized pixels under a dynamic mask as 0 still uses the stored HD
   mask for the HD frame, see "Saving".
+
+Helpers of the `Edit` menu, on every selected frame and on the dynamic plane only (in HD mode of
+an ordinary project they are refused with a message), in the selection if there is one on the
+plane and otherwise on the whole frame (the Win32 editor always takes the whole frame):
+
+- `Remove Dynamic Zones` (`Ctrl+E`, `Alt+D`): the pixels leave their zones (mask `255`) and get
+  the plain color of their original shade, as in the Win32 editor.
+- `Assign Dynamic Set` (`Alt+A`): the pixels join the `Dyn Set` of the `Dynamic` page.
+- Copy and paste carry the dynamic mask and the colors and shadow of the sets used; `Paste
+  Dynamic Mask Only` pastes the mask alone; auto copy and the scrolling fill copy the mask with
+  the colors. See "Copy And Paste" and "Auto Copy And Scrolling Fill".
 
 Rules:
 
@@ -1865,7 +2062,8 @@ Known feature gaps that affect first-release completeness:
 - Palette import/export and reusable gradient definitions.
 - Directional palette-gradient fills for masks, sprites, and dynamic masks.
 - Filling with palette gradients while respecting outline-only tool shapes.
-- Wand/free selections for arbitrary saved selections.
+- Saved (named) selections.
+- Copy and paste on the sprite canvas (the Win32 sprite window's copy and paste).
 
 ## Preview Rendering
 
@@ -1941,6 +2139,19 @@ For drawing changes, test at least:
 - Switching SD/HD does not interleave undo histories.
 - Save, reopen, and verify edits persist.
 - With `Mask` active, add and Shift-erase pixels on the original/reference region, undo/redo the mask edits, save, reopen, and verify the mask overlay persists.
+
+For changes to the selection, copy and paste and the helpers of the `Edit` menu, test at least:
+
+- `Ctrl`+drag adds and `Ctrl+Shift`+drag removes, on SD and HD; `Grad Sel` fills the result.
+- Copy on one frame, paste on another (moved with the mouse and the arrows, mirrored with `K`
+  and `L`), on two selected frames at once, then undo on each frame; the dynamic zone and its set
+  colors come along on the dynamic plane.
+- `Shift`+click pastes only where the originals match; `Alt`+click pastes the dynamic mask
+  alone; SD content is refused on HD and the other way round.
+- Auto copy: the count in the dialog, the frames changed, undo on one of them; save, reopen,
+  and check with `colorizing_qt_v2_preview_diff` that the native plane is still identical.
+- The scrolling fill on a real scrolling (the run of selected frames around the current one).
+- `Ctrl+C`, `Ctrl+V` and `Ctrl+A` in a text field and in the frame list still work there.
 
 For changes that read the original frame (dynamic colors, shadows, backgrounds, sprites,
 comparison masks, anything on the original/reference region), test a project with 128x32, one

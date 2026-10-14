@@ -794,22 +794,13 @@ void CanvasEditController::setSelectionFromStroke(const CanvasEditContext& conte
         start.resolution != end.resolution) {
         return;
     }
-    std::vector<render::Point> pixels = strokePixels(context, start, end);
-    if (pixels.empty()) {
+    edit::PlaneSelection pixels(start.resolution,
+                                projectGeometry(context).planeSize(start.resolution));
+    pixels.add(strokePixels(context, start, end));
+    if (pixels.isEmpty()) {
         clearSelection(context);
         return;
     }
-    std::sort(pixels.begin(),
-              pixels.end(),
-              [](const render::Point& left, const render::Point& right) {
-                  return std::tie(left.y, left.x) < std::tie(right.y, right.x);
-              });
-    pixels.erase(std::unique(pixels.begin(),
-                             pixels.end(),
-                             [](const render::Point& left, const render::Point& right) {
-                                 return left.x == right.x && left.y == right.y;
-                             }),
-                 pixels.end());
     m_selection = Selection{
         start,
         end,
@@ -864,7 +855,7 @@ void CanvasEditController::showSelection()
     if (!m_selection) {
         return;
     }
-    std::vector<render::Point> pixels = m_selection->pixels;
+    std::vector<render::Point> pixels = m_selection->pixels.pixels();
     if (m_selection->gradientStart && m_selection->gradientEnd) {
         pixels =
             withLine(std::move(pixels), *m_selection->gradientStart, *m_selection->gradientEnd);
@@ -903,13 +894,13 @@ void CanvasEditController::previewSelectionDirection(const render::CanvasHit& st
     }
     showSelectionOverlay(m_selection->shapeStart.region,
                          m_selection->shapeStart.resolution,
-                         withLine(m_selection->pixels, start, end),
+                         withLine(m_selection->pixels.pixels(), start, end),
                          QColor(0, 220, 180, 120));
 }
 
 void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditContext& context)
 {
-    if (!context.document || !m_selection || m_selection->pixels.empty()) {
+    if (!context.document || !m_selection || m_selection->pixels.isEmpty()) {
         showStatus(QStringLiteral("No canvas selection"), kStatusMs);
         return;
     }
@@ -951,11 +942,12 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
             if (!commitPixelChanges(layer,
                                     edit::makePixelChanges(document,
                                                            layer,
-                                                           m_selection->pixels,
+                                                           m_selection->pixels.pixels(),
                                                            colorForPoint))) {
                 return;
             }
         } else {
+            const std::vector<render::Point> pixels = m_selection->pixels.pixels();
             bool changed = false;
             for (std::size_t frameIndex : context.selectedFrames) {
                 if (shapeStart.resolution == render::Resolution::Hd &&
@@ -968,7 +960,7 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
                 if (commitPixelChanges(layer,
                                        edit::makePixelChanges(document,
                                                               layer,
-                                                              m_selection->pixels,
+                                                              pixels,
                                                               colorForPoint))) {
                     changed = true;
                 }
@@ -982,6 +974,316 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
     } catch (const std::exception& ex) {
         showError(ex);
     }
+}
+
+const edit::PlaneSelection* CanvasEditController::selection() const
+{
+    return m_selection && !m_selection->pixels.isEmpty() ? &m_selection->pixels : nullptr;
+}
+
+bool CanvasEditController::canEditSelection(const CanvasEditContext& context)
+{
+    return context.document && !context.spriteCaptureSelection &&
+           (context.layer == CanvasEditLayer::FramePixels ||
+            context.layer == CanvasEditLayer::BackgroundImage);
+}
+
+CanvasEditController::Selection CanvasEditController::selectionFor(
+    const CanvasEditContext& context,
+    render::Resolution plane) const
+{
+    const bool onBackground = context.layer == CanvasEditLayer::BackgroundImage;
+    const PaintTarget target = onBackground ? PaintTarget::Background : PaintTarget::Frame;
+    const std::optional<std::size_t> backgroundIndex =
+        onBackground ? context.selectedBackground : std::nullopt;
+    if (m_selection && m_selection->pixels.plane() == plane && m_selection->target == target &&
+        (!onBackground || m_selection->backgroundIndex == backgroundIndex)) {
+        return *m_selection;
+    }
+    const render::CanvasHit corner{render::CanvasRegion::ColorizedFrame, plane, 0, 0};
+    return Selection{corner,
+                     corner,
+                     target,
+                     backgroundIndex,
+                     edit::PlaneSelection(plane, projectGeometry(context).planeSize(plane)),
+                     std::nullopt,
+                     std::nullopt};
+}
+
+void CanvasEditController::setSelection(const CanvasEditContext& context,
+                                        Selection selection,
+                                        const QString& status)
+{
+    m_selectionDirectionMode = false;
+    selectionDirectionModeChanged();
+    const std::optional<render::Rect> bounds = selection.pixels.bounds();
+    if (!bounds) {
+        clearSelection(context);
+        if (!status.isEmpty()) {
+            showStatus(status, kShortStatusMs);
+        }
+        return;
+    }
+    const render::Resolution plane = selection.pixels.plane();
+    selection.shapeStart = render::CanvasHit{render::CanvasRegion::ColorizedFrame,
+                                             plane,
+                                             bounds->x,
+                                             bounds->y};
+    selection.shapeEnd = render::CanvasHit{render::CanvasRegion::ColorizedFrame,
+                                           plane,
+                                           bounds->x + bounds->width - 1,
+                                           bounds->y + bounds->height - 1};
+    selection.gradientStart.reset();
+    selection.gradientEnd.reset();
+    m_selection = std::move(selection);
+    showSelection();
+    selectionChanged();
+    if (!status.isEmpty()) {
+        showStatus(QStringLiteral("%1 (%2 pixels selected)")
+                       .arg(status)
+                       .arg(static_cast<qulonglong>(m_selection->pixels.count())),
+                   kShortStatusMs);
+    }
+}
+
+const document::Rgb565Frame* CanvasEditController::selectionPicture(
+    const CanvasEditContext& context,
+    render::Resolution plane) const
+{
+    if (!context.document) {
+        return nullptr;
+    }
+    const document::ProjectDocument& document = *context.document;
+    if (!document.geometry().isEditable(plane)) {
+        return nullptr;
+    }
+    if (context.layer == CanvasEditLayer::BackgroundImage) {
+        if (!context.selectedBackground ||
+            *context.selectedBackground >= document.backgroundCount()) {
+            return nullptr;
+        }
+        const document::BackgroundRecord& background =
+            document.background(*context.selectedBackground);
+        if (plane == render::Resolution::Hd && !background.colorizedHd) {
+            return nullptr;
+        }
+        return &document.backgroundFrame(*context.selectedBackground, plane);
+    }
+    if (!context.currentFrame ||
+        (plane == render::Resolution::Hd && !document.hasHdFrame(*context.currentFrame))) {
+        return nullptr;
+    }
+    return &document.colorizedFrame(*context.currentFrame, plane);
+}
+
+void CanvasEditController::editSelectionAtPoint(const CanvasEditContext& context,
+                                                const render::CanvasHit& hit,
+                                                bool remove,
+                                                bool nonBlackOnly)
+{
+    if (!canEditSelection(context) || hit.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+    const document::Rgb565Frame* picture = selectionPicture(context, hit.resolution);
+    if (!picture) {
+        showStatus(QStringLiteral("Nothing to select on this plane"), kStatusMs);
+        return;
+    }
+    const render::Point point{hit.x, hit.y};
+    std::vector<render::Point> pixels;
+    if (context.tool == DrawingTool::FloodFill) {
+        const uint16_t color = picture->pixels[static_cast<std::size_t>(hit.y) *
+                                                   static_cast<std::size_t>(picture->size.width) +
+                                               static_cast<std::size_t>(hit.x)];
+        pixels = edit::floodFillMatching(picture->pixels, picture->size, point, color);
+    } else if (context.tool == DrawingTool::Point) {
+        pixels = {point};
+    } else {
+        // The other tools select by dragging; their click is the first point of the drag.
+        return;
+    }
+    if (nonBlackOnly && !remove) {
+        pixels = edit::nonBlackPixels(*picture, pixels);
+    }
+    Selection selection = selectionFor(context, hit.resolution);
+    if (!selection.pixels.paint(pixels, remove)) {
+        return;
+    }
+    setSelection(context,
+                 std::move(selection),
+                 remove ? QStringLiteral("Removed from the selection")
+                        : QStringLiteral("Added to the selection"));
+}
+
+void CanvasEditController::previewSelectionStroke(const CanvasEditContext& context,
+                                                  const render::CanvasHit& start,
+                                                  const render::CanvasHit& end,
+                                                  bool remove)
+{
+    if (!canEditSelection(context) || start.region != render::CanvasRegion::ColorizedFrame ||
+        start.region != end.region || start.resolution != end.resolution) {
+        return;
+    }
+    showPreview(render::CanvasRegion::ColorizedFrame,
+                start.resolution,
+                strokePixels(context, start, end),
+                remove ? QColor(0, 0, 0, 150) : QColor(0, 220, 180, 130));
+}
+
+void CanvasEditController::editSelectionWithStroke(const CanvasEditContext& context,
+                                                   const render::CanvasHit& start,
+                                                   const render::CanvasHit& end,
+                                                   bool remove,
+                                                   bool nonBlackOnly)
+{
+    clearPreview();
+    if (!canEditSelection(context) || start.region != render::CanvasRegion::ColorizedFrame ||
+        start.region != end.region || start.resolution != end.resolution) {
+        return;
+    }
+    const DrawingTool tool = context.tool;
+    if (tool == DrawingTool::Point || tool == DrawingTool::FloodFill ||
+        tool == DrawingTool::ColorPicker) {
+        return;
+    }
+    const document::Rgb565Frame* picture = selectionPicture(context, start.resolution);
+    if (!picture) {
+        showStatus(QStringLiteral("Nothing to select on this plane"), kStatusMs);
+        return;
+    }
+    std::vector<render::Point> pixels = strokePixels(context, start, end);
+    if (nonBlackOnly && !remove) {
+        pixels = edit::nonBlackPixels(*picture, pixels);
+    }
+    Selection selection = selectionFor(context, start.resolution);
+    if (!selection.pixels.paint(pixels, remove)) {
+        return;
+    }
+    setSelection(context,
+                 std::move(selection),
+                 remove ? QStringLiteral("Removed from the selection")
+                        : QStringLiteral("Added to the selection"));
+}
+
+void CanvasEditController::selectAll(const CanvasEditContext& context)
+{
+    if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
+        showStatus(QStringLiteral("Nothing to select"), kStatusMs);
+        return;
+    }
+    Selection selection = selectionFor(context, context.activePlane);
+    selection.pixels.selectAll();
+    setSelection(context, std::move(selection), QStringLiteral("Selected all"));
+}
+
+void CanvasEditController::invertSelection(const CanvasEditContext& context)
+{
+    if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
+        showStatus(QStringLiteral("Nothing to select"), kStatusMs);
+        return;
+    }
+    Selection selection = selectionFor(context, context.activePlane);
+    selection.pixels.invert();
+    setSelection(context, std::move(selection), QStringLiteral("Inverted the selection"));
+}
+
+void CanvasEditController::mirrorSelection(const CanvasEditContext& context,
+                                           bool horizontally,
+                                           bool vertically)
+{
+    if (!m_selection || m_selection->pixels.isEmpty()) {
+        showStatus(QStringLiteral("No canvas selection"), kStatusMs);
+        return;
+    }
+    Selection selection = *m_selection;
+    selection.pixels.mirror(horizontally, vertically);
+    setSelection(context,
+                 std::move(selection),
+                 horizontally ? QStringLiteral("Mirrored the selection horizontally")
+                              : QStringLiteral("Mirrored the selection vertically"));
+}
+
+void CanvasEditController::selectByColor(const CanvasEditContext& context,
+                                         const render::CanvasHit& hit,
+                                         bool remove)
+{
+    if (!canEditSelection(context) || hit.region != render::CanvasRegion::ColorizedFrame) {
+        return;
+    }
+    const document::Rgb565Frame* stored = selectionPicture(context, hit.resolution);
+    if (!stored) {
+        showStatus(QStringLiteral("Nothing to select on this plane"), kStatusMs);
+        return;
+    }
+    try {
+        document::Rgb565Frame shown = *stored;
+        if (context.layer == CanvasEditLayer::FramePixels) {
+            shown = composeResolvedFrame(*context.document,
+                                         *context.currentFrame,
+                                         hit.resolution,
+                                         context.includeBackgroundLayer);
+        }
+        const uint16_t color = shown.pixels[static_cast<std::size_t>(hit.y) *
+                                                static_cast<std::size_t>(shown.size.width) +
+                                            static_cast<std::size_t>(hit.x)];
+        Selection selection = selectionFor(context, hit.resolution);
+        selection.pixels.paint(edit::pixelsOfColor(shown, color), remove);
+        setSelection(context,
+                     std::move(selection),
+                     QStringLiteral("%1 the pixels of color 0x%2")
+                         .arg(remove ? QStringLiteral("Unselected") : QStringLiteral("Selected"))
+                         .arg(color, 4, 16, QLatin1Char('0')));
+    } catch (const std::exception& ex) {
+        showError(ex);
+    }
+}
+
+void CanvasEditController::selectBackgroundMask(const CanvasEditContext& context)
+{
+    if (!canEditSelection(context) || context.layer != CanvasEditLayer::FramePixels ||
+        !context.currentFrame || !selectionPicture(context, context.activePlane)) {
+        showStatus(QStringLiteral("The selection from the background mask needs a frame"),
+                   kStatusMs);
+        return;
+    }
+    const document::ProjectDocument& document = *context.document;
+    const std::optional<document::FrameBackgroundData>& backgroundData =
+        document.backgroundData(*context.currentFrame);
+    if (!backgroundData || backgroundData->backgroundId >= document.backgroundCount()) {
+        showStatus(QStringLiteral("The frame has no background"), kStatusMs);
+        return;
+    }
+    const document::IndexedFrame& mask = context.activePlane == render::Resolution::Hd
+                                             ? backgroundData->maskHd
+                                             : backgroundData->maskSd;
+    Selection selection = selectionFor(context, context.activePlane);
+    try {
+        selection.pixels.assignMask(mask.pixels);
+    } catch (const std::exception& ex) {
+        showError(ex);
+        return;
+    }
+    setSelection(context, std::move(selection), QStringLiteral("Selected the background mask"));
+}
+
+void CanvasEditController::selectStripes(const CanvasEditContext& context,
+                                         const edit::StripePattern& pattern)
+{
+    if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
+        showStatus(QStringLiteral("Nothing to select"), kStatusMs);
+        return;
+    }
+    Selection selection = selectionFor(context, context.activePlane);
+    try {
+        selection.pixels.assignMask(edit::stripeMask(selection.pixels.size(), pattern));
+    } catch (const std::exception& ex) {
+        showError(ex);
+        return;
+    }
+    setSelection(context,
+                 std::move(selection),
+                 pattern.columns ? QStringLiteral("Selected columns")
+                                 : QStringLiteral("Selected rows"));
 }
 
 std::optional<std::size_t> CanvasEditController::captureSelectionFrame() const

@@ -52,6 +52,13 @@
 #define UI_DUMP_HAS_COLOR_SETS 1
 #endif
 
+#if __has_include("PasteModeController.h")
+#include "EditMenuActions.h"
+#include "edit/CopyPaste.h"
+#include "edit/PlaneSelection.h"
+#define UI_DUMP_HAS_SELECTION_TOOLS 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -605,6 +612,11 @@ int main(int argc, char* argv[])
 // States of a tree with edit colors and color sets; a tree without them ends here.
 #ifdef UI_DUMP_HAS_COLOR_SETS
 #include "colors_script.inc"
+#endif
+
+// States of a tree with copy and paste and the selection helpers; a tree without them ends here.
+#ifdef UI_DUMP_HAS_SELECTION_TOOLS
+#include "selection_script.inc"
 #endif
 
     return 0;

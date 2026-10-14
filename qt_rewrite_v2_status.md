@@ -70,7 +70,11 @@ neither of those holds.
     global sequence for chronological undo; drops histories that name renumbered records),
     `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`, `ColorModel` (RGB565/RGB888/HSV/hex
     conversions of the color picker) and `ColorSetEdits` (edit colors, color sets, the draw color
-    mode, `EditorColorsCommand`, Edit <-> Dyn), see "Colors" below.
+    mode, `EditorColorsCommand`, Edit <-> Dyn), see "Colors" below; `PlaneSelection` (the
+    selection mask of a plane, stripes, ROM masks), `FrameContentCommand` (one frame's pixels,
+    dynamic mask and dynamic sets as one undoable step, with `FrameContentBuilder`),
+    `CopyPaste`, `AutoCopy`, `ScrollFill` and `RecolorHelpers`, see "Selection, copy and paste"
+    below.
   - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
     plane layouts; `ProjectSnapshot` and `ProjectDocument` carry it).
   - `runtime/`: `RuntimePreview`, the libserum-backed renderer (the only other file that
@@ -94,7 +98,10 @@ neither of those holds.
   pieces of MainWindow behaviour kept testable), `PlaneLabels` (the one place that decides
   where the UI says "HD"/"SD" and what a single plane is called), `EditColorKeys` (the keys of the
   edit color slots), ten panels under `panels/` (`EditColorBar` is the row under the toolbar,
-  `ColorSetPanel` the `Sets` page)
+  `ColorSetPanel` the `Sets` page), `PasteModeController` (clipboard and paste mode),
+`EditHelpersController` (auto copy, scrolling fill, recolor, black to black, dynamic helpers),
+`EditMenuActions` (the Edit menu section and its shortcuts), `dialogs/SelectionDialogs`
+(`AutoSelectDialog`, `AutoCopyDialog`)
   (`SameFramesPanel` is the lower part of the `Mask` page), `panels/RecordListPage` (a list of
   the left browser with `New` and `Delete` above it), `dialogs/DumpImportDialog` and
   `dialogs/ColorPickerDialog`.
@@ -129,6 +136,14 @@ neither of those holds.
   editor's own color picker everywhere (Win32 `ColorPicker` fields, 8 recent colors), the pipette
   with `Shift`, `Edit > Dyn` / `Dyn > Edit`, keys for the slots. All undoable; untouched color data
   round-trips byte-identical. See "Colors" below.
+- Selection, copy and paste (2026-10-14): a pixel selection of the edited plane made with `Sel`,
+  `Ctrl`/`Cmd` (and macOS `Control`) + the tools, the fill tool, by color, from the background
+  mask, by stripes, inverted and mirrored; copy with the dynamic mask and sets; paste mode with
+  mouse, arrows, keypad, `K`/`L` mirror, `Enter`/click stamping on the selected frames, the
+  originals-match and dynamic-mask-only variants; auto copy with a count before it runs (hash
+  then exact compare); the scrolling auto fill; the recolor wand, black original to black and the
+  dynamic helpers. One undoable step per frame. All three layouts. See "Selection, copy and
+  paste" below.
 - Record management: delete the selected frames, delete the selected frames shorter than N ms,
   add and delete sprites, backgrounds and comparison masks, all undoable, with every reference
   and the cRP tables following. See "Record management" below.
@@ -510,16 +525,16 @@ What the Win32 editor does and what the Qt editor does:
   frame's shades for every selected frame (`acFrame`), the shapes each frame's own; Qt uses each
   frame's own everywhere. Shift does not erase frame pixels in Qt (unchanged). Backgrounds (no
   Win32 equivalent) take the current frame's shades. Sprite painting ignores the mode, as
-  `ConvertSurfaceToSprite` does. The Alt-click "recolor all pixels of this color" has no Qt
-  tool yet.
+  `ConvertSurfaceToSprite` does. The Alt-click "recolor all pixels of this color" is the
+  `Recolor` helper now (see "Selection, copy and paste"), in both modes.
 - **Flood fill region** (`drawfill` / `floodfill` 6265, 6328): the region is the current frame's
   connected pixels of the clicked color and dynamic set, whatever the mode; the color comes later
   per frame. Qt keeps its region rule (current frame, clicked color; the dynamic mask is not part
   of it, as before) and colors per frame. The single-color early return when the area has the
   draw color already does not apply in replace mode.
 - **Selection fills**: the only selection fill is `Grad Sel` (palette gradient), which like the
-  Win32 gradient mode ignores the color mode. A fill of the selection with the draw color belongs
-  to the copy/paste and selection-helper step.
+  Win32 gradient mode ignores the color mode. The Win32 editor has no fill of its copy mask with
+  the draw color either (its shapes are drawn, the mask is only copied); none was added.
 - **Color sets** (`ColSet_Proc` 14617, `activeColSet`, `ColSets`, `nameColSet`, `preColSet`,
   `acColSet`): "Set" stores the first `noColors` edit colors and activates; a click on an active
   set loads `noColors` colors (`SA_ACCOLORS`); the name field of an active set renames it
@@ -584,6 +599,116 @@ focus chain after `Runtime` (8 focus chain sections), the `keys=` list of 709 sp
 with `12/0/sd/00` appended, nothing else (no document, status, thumbnail or private-state line);
 that dump as the baseline and the full script with `--allow-appended`: `REAL DIFFERENCES: 0`, 42
 appended sections.
+
+## Selection, copy and paste
+
+Added 2026-10-14, not committed at the time of writing. Win32 reference
+`git show master:ColorizingDMD.cpp` (3.17.3); line numbers are of that file.
+
+**Selection** (`Copy_Mask`; `Add_Surface_To_Copy` 4647, `GetSelectionSize` 10141, mouse handling
+23132 ff. and 23460, W filter 22784): Ctrl+left with the point tool marks pixels, with the shape
+tools and the fill tool (`drawfill`) on release; Shift removes; holding W keeps pixels whose
+colorized color is 0 out (the check is on `cFrames`, the colorized frame, not on the original).
+Ctrl+A / Ctrl+D (21881, 21904) select all / none, Ctrl+B (21934) copies the frame's background
+mask, Ctrl+K / Ctrl+L (22002) mirror, `IDC_INVERTSEL2` (16950) inverts, `IDC_DOAUTOSEL` (17573)
+makes stripes (offset 0..256, selected and skipped 1..256; `IDC_VERTSEL` checked gives columns),
+Alt+Ctrl+click with the fill tool (23216) adds every pixel of the clicked stored color that is
+not dynamic. All record `SA_COPYMASK` undo steps. Qt: `edit::PlaneSelection`, held by
+`CanvasEditController` (the existing `Sel` selection, generalised: its pixels are a mask now; the
+gradient box is the drawn shape or the selection's bounds). Same gestures; `Ctrl` is Qt's
+ControlModifier (Cmd on macOS) and MetaModifier (the macOS Control key) works too; `W` is tracked
+on the canvas and there is a menu toggle `Select Non-Black Pixels Only`. Deviations, on purpose:
+the selection is dropped on a change of frame, plane, target or background (as the `Sel`
+selection always was; Win32 keeps one global mask); it is not undoable (Win32 records it);
+select by color compares the composed colors the canvas shows, dynamic pixels included (Win32:
+stored colors, dynamic pixels skipped) and is also in the menu (`Select By Color`, then a
+click). Selection editing is off in the mask modes and in sprite capture (Win32: colorization
+mode only).
+
+**Copy** (`IDC_COPY` 16629): refused when the selection was made on the other plane
+(`Copy_Content`); fills `Paste_Mask`, `Paste_ColN` (colors), `Paste_Colo` (original shades) and
+`Paste_Dyna` (dynamic mask) cut to the bounding box. The Win32 HD branches index `Copy_Colo` with
+mixed widths (16680 ff.); Qt maps every plane pixel through `ProjectGeometry::toRomFrame`. Qt:
+`edit::copySelection` -> `CopyBuffer`; dynamic data only on `dynamicPlane()`; the colors and
+shadow of the dynamic sets used are taken at copy time (Win32 `CopyDynaCol` 3021 reads the
+source frame at paste time). A PNG of the colors goes to the system clipboard.
+
+**Paste** (`IDC_PASTE` 16754, Ctrl+V 22050, stamping 22990, Enter 22192, keypad 21679 ff.,
+`Draw_Paste_Over` 6506): the box follows the mouse, centred; a click stamps on every selected
+frame and ends paste mode; Alt = dynamic mask only (not mirrored in Win32), Shift = only where
+`Paste_Colo` equals the target's original (`condpaste`), otherwise colors + mask + `CopyDynaCol`;
+frames without HD skipped in HD mode; K/L mirror only when held as paste starts. Qt:
+`PasteModeController` + `edit::makePasteChanges`; starts at the copied place; arrows (Shift =
+10) and keypad 2/4/6/8 nudge; K/L toggle while pasting; Enter/click stamp, Esc cancels; variants
+from the menu or Shift/Alt at the stamp; the dynamic-only variant is mirrored; one
+`FrameContentCommand` per changed frame. Its history is the frame's pixel history of the plane,
+or in the `Dynamic` mode its dynamic mask history, so the step is undone where it was made (the
+undo contexts are unchanged). Pasting refuses another plane and another project layout with a
+message (Win32 checks only at copy time). The clipboard is emptied when a project is opened.
+
+**Auto copy** (`IDC_AUTOCOPY` 17379, `AutoCopy` 9832, `ConvertMaskToSourceReso` 9790): masked
+CRC32 (`crc32_fast_mask`) of every frame's original over the selection in ROM pixels; every
+other frame with the current frame's CRC gets `cFrames` and `DynaMasks` of the selected pixels
+(HD: `Copy_ColN` / `Copy_Dyna` from selection time). No undo, no question, all frames; the
+256x64 and HD branches are not followed. Qt (`edit::scanAutoCopy`, `makeAutoCopyChanges`): the
+same hash finds the candidates, then every candidate is compared pixel by pixel; the colors of
+the selection's plane from the current frame, the dynamic mask only on the dynamic plane, no
+dynamic set colors (as Win32); frames without the plane are skipped and counted; a dialog shows
+the counts first and offers "selected frames only". Tested with a constructed CRC32 collision
+(Gaussian elimination over GF(2): a 20-pixel difference of shades 0..3 whose CRC is that of
+zeros), which the hash takes and the compare drops.
+
+**Scrolling auto fill** (`IDC_SCROLLFILL` 17297, `AutoFillScrolling` 8020, `CopyRows` 7949,
+`CopyCols` 7983): well defined and implemented completely: the run of selected frames around the
+current one; for each frame between, the first match in the order camera down, up, right, left,
+smallest shift first, of whole rows/columns (the frame's lines 0.. are the reference's lines
+shift.., or the reverse); the shared rows/columns (colors and dynamic mask) are copied from the
+first frame, then from the last. Deviations: lines are compared exactly instead of by CRC; the
+shift is multiplied by the plane's scale (Win32's 256x64 branch doubles it on the native plane);
+the dynamic mask moves only on the dynamic plane; frames without the plane take no part; a
+question with the counts comes first; undoable per frame. As in Win32: one shared line at the
+largest shift is a match.
+
+**Recolor helpers**: the wand (Alt+click with the fill tool, 23264: every pixel of the clicked
+stored color on each selected frame gets the draw color, or in set replace the edit color of its
+shade; refused on a dynamic pixel), Ctrl+O (21958; here `Ctrl+Shift+O`, as Ctrl+O is Open; the
+ROM pixel through `toRomFrame`, not `ValuePlus2x2`), Ctrl+E (22056) and Alt+D (22111): mask 255
+and the plain color (`MycRP.Palette`, which is `plainOriginalColors`) under the removed dynamic
+pixels; Alt+A (22164): the active set. Deviations: black to black and the dynamic helpers work on
+the selection when there is one on the plane, else on the whole frame (Win32: whole frame); the
+dynamic ones only on `dynamicPlane()`.
+
+**Shortcuts** (`EditMenuActions`): Copy `Ctrl+C`, Paste `Ctrl+V`, Paste Where Originals Match
+`Ctrl+Shift+V`, Paste Dynamic Mask Only `Ctrl+Alt+V`, Select All `Ctrl+A`, Select None
+`Ctrl+Shift+A` and `Ctrl+D`, Invert `Ctrl+Shift+I` (a plain `I` cannot be a menu shortcut: a
+native menu bar takes it from every widget), Selection From Background Mask `Ctrl+B`, mirror
+`Ctrl+K` / `Ctrl+L`, Black Original To Black `Ctrl+Shift+O`, Remove Dynamic Zones `Ctrl+E` and
+`Alt+D`, Assign Dynamic Set `Alt+A`; Select By Color, Auto Select..., Auto Copy..., Scrolling
+Auto Fill... and Recolor... have no key. Ctrl is Cmd on macOS, Alt is Option. Copy, Paste and
+Select All go to a focused line edit, spin box, text edit or item view first
+(`forwardStandardKey`), so `Ctrl+A` in the frame list still selects all frames. No shortcut of
+the window is shared (the ui_dump selection script prints them). Checked with synthetic events
+and offscreen only.
+
+**Real projects** (scratch program, not in the repository; auto copy applied as the dialog
+would, then saved to scratch, reloaded and checked):
+
+- `afm_113b`: frame 0, rows 0..7: 309 frames match, 307 change (a blank area); frame 500, rows
+  24..31: 1 match, 1 changes; frame 1200, 64x16 at 32,8: 4 match, 0 change (already colored that
+  way); frame 16 left half and frame 2900 whole frame: none. 308 steps, no CRC collision, scans
+  of 8 to 25 ms. The saved project re-serializes to its bytes, `colorizing_qt_v2_roundtrip`
+  identical (cROM, cRP), `preview_diff` native plane 3047/3047 identical; undoing every step
+  gives the original bytes.
+- `smb3`: frame 2000, 16x8 at 112,24: 20 match, 5 change; frame 2000, 16x8 at 56,12: 202 match,
+  165 change; frame 1000, 16x8 at 112,0: 34 match, 33 change; 203 steps, no collision, scans of
+  about 5 ms. Same checks: round trip identical, `preview_diff` 4430/4430 identical, undo back
+  to the original bytes. Larger areas of `smb3` frames match nothing; 16x8 corner blocks match
+  up to 1986 frames, mostly black ones.
+
+**ui_dump**: baseline of `HEAD` (850 sections, deterministic); the working tree without the new
+script: `REAL DIFFERENCES: 0` (the new entries are menu actions, not widgets, so no intermediate
+baseline was needed); with `selection_script.inc` appended and `--allow-appended`: `REAL
+DIFFERENCES: 0`, 45 appended sections.
 
 ## Dynamic data and the HD plane (ordinary projects)
 
@@ -698,6 +823,16 @@ for `frankst1`. Memory stays that of a window.
     entry is zero filled; the keys work only while the frame canvas has the focus; a background
     in set replace takes the current frame's shades.
 
+12. **Selection, copy and paste, to confirm:** the selection is dropped on a frame change (Win32
+    keeps it) and is not undoable (Win32 records it); select by color takes the composed colors
+    with dynamic pixels; paste ends with one stamp as in Win32 (staying in paste mode for several
+    stamps would be easy); the dynamic-mask-only paste is mirrored; dynamic data is never copied,
+    pasted, auto-copied or scrolled on the HD plane of an ordinary project (the SD zones would
+    need their own placement); black-to-black and the dynamic helpers act on the selection when
+    there is one (Win32: whole frame); `Black Original To Black` is `Ctrl+Shift+O`; auto copy
+    and scrolling fill ask first and are undoable per frame, so undoing them means visiting each
+    frame (a multi-frame undo step would need a new kind of history entry).
+
 Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
 owner together.
 
@@ -762,7 +897,10 @@ owner together.
   (`smb3` frames 2200 to 2700, 3.8 MB cROM each). The view renders at paint time and only when
   the document revision, the frame or the plane changed, so repaints are free and bursts of
   changes coalesce; no timer and no thread.
-- The Selection tool paints in mask and capture modes instead of selecting.
+- The Selection tool paints in mask and capture modes instead of selecting (seen again while
+  adding the selection helpers; not changed).
+- An undo step of a multi-frame edit (drawing, paste, auto copy, scrolling fill) is in each
+  frame's own history, so after an auto copy to 300 frames the frames are undone one by one.
 - Not undoable: sprite slot assign/remove/bounds, detection areas, names, sprite capture, colour
   rotations.
 - Sprite capture does not record the source frame, rectangle and mirror flags in the cRP, and
@@ -786,12 +924,12 @@ owner together.
 
 - Sections (list, add, rename, delete, reorder) and the trigger list. The data is loaded and
   saved and follows frame deletions; there is no UI.
-- Copy/paste, auto copy, scrolling auto fill, selection helpers, mirror, filling a selection
-  with the draw color or in set replace mode.
-- Alt-click "recolor every pixel of this color" (Win32, also in set replace mode), the palette
-  popup on an edit color click, the palette's Ctrl/Alt right-click (pipette into a palette color,
-  edit color into a palette color), the composed-color pipette and the pipette writing into the
-  selected edit color.
+- Copy and paste on the sprite canvas (Win32 sprite window `IDC_COPY` 18133 / `IDC_PASTE` 18203:
+  a sprite to the clipboard, the clipboard into a sprite with K/L mirror and its source
+  rectangle); `Capture` covers taking a sprite from a frame.
+- The palette popup on an edit color click, the palette's Ctrl/Alt right-click (pipette into a
+  palette color, edit color into a palette color), the composed-color pipette and the pipette
+  writing into the selected edit color.
 - Sprite dynamic masks and colours, sprite shape mode (data modelled, no UI).
 - Auto shadow, brightness, black and white, Dyn>Stat, "to source frame".
 - Selectable resize filters for HD creation.
@@ -805,23 +943,18 @@ owner together.
 
 ## Next steps, in the order I would take them
 
-1. Confirm the value written for an unused 192x64 extra background mask (open decision 1) and
-   check a 192x64 project saved by this editor on a real machine.
-2. Decide open decisions 4 and 5 (HD dynamic shadows as a fallback, the save rule under a stored
-   HD dynamic mask). Done in this step: HD mode offers no dynamic masks, the renderer follows
-   libserum there, the PNG export is libserum's output, playback identifies like a machine.
-3. Build the frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next
-   unidentified frame, search by ID), and load `.pup.csv`/`scaling.txt` for it if libserum gets
-   a way to pass them from memory.
-4. Fix the remaining editor bugs listed above.
-5. Continue shrinking `MainWindow`: toolbar and tool state, frame list and playback, file
-   handling.
-6. Feature parity. Done: deleting frames, adding and deleting sprites, backgrounds and
-   comparison masks, TXT dump import with "new project" and "add frames", the same-frame
-   tools, edit colors, color sets, set replace drawing, the color picker. Next: copy/paste and
-   the selection helpers; then sections and triggers.
-7. Windows and Linux builds (only macOS arm64 is built and tested so far); check the edit color
-   keys there with real keyboards (Windows scan codes, XKB key codes, an AZERTY layout).
+1. Windows and Linux builds and packaging (only macOS arm64 is built and tested so far); check
+   the edit color keys there with real keyboards (Windows scan codes, XKB key codes, an AZERTY
+   layout), and the Ctrl shortcuts and Ctrl+click selection on both.
+2. Sprite dynamic content UI (sprite dynamic masks and colors, sprite shape mode).
+3. Sections and the trigger list UI.
+4. Image and video import with crop zones (the Images window).
+5. The frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next unidentified
+   frame, search by ID).
+6. Autosave and recovery.
+7. Still open from before: confirm the value written for an unused 192x64 extra background mask
+   (open decision 1), decide open decisions 4 and 5, fix the editor bugs listed below, keep
+   shrinking `MainWindow`.
 8. Later, by decision of the owner: memory use, save speed, a new project format.
 
 ## libserum work done in this effort

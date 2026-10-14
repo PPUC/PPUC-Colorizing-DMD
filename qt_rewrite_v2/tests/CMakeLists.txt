@@ -25,6 +25,7 @@ add_executable(colorizing_qt_v2_tests
     ProjectGeometryTests.cpp
     RuntimePreviewTests.cpp
     SameFramesTests.cpp
+    SelectionEditTests.cpp
     StructureCommandTests.cpp
 )
 
@@ -61,6 +62,7 @@ if(TARGET colorizing_qt_v2_widgets)
         NativeOriginalWidgetTests.cpp
         PlaneLabelsWidgetTests.cpp
         RuntimeViewWidgetTests.cpp
+        SelectionWidgetTests.cpp
     )
 
     target_link_libraries(colorizing_qt_v2_widget_tests

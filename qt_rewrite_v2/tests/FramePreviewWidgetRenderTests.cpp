@@ -3067,6 +3067,7 @@ void runEditorMatchesRuntimeTests();
 void runNativeOriginalWidgetTests();
 void runPlaneLabelsWidgetTests();
 void runRuntimeViewWidgetTests();
+void runSelectionWidgetTests();
 
 int main(int argc, char* argv[])
 {
@@ -3108,6 +3109,7 @@ int main(int argc, char* argv[])
     runNativeOriginalWidgetTests();
     runPlaneLabelsWidgetTests();
     runRuntimeViewWidgetTests();
+    runSelectionWidgetTests();
     runEditorMatchesRuntimeTests();
     runDumpImportWidgetTests();
     runAppHelpersWidgetTests();

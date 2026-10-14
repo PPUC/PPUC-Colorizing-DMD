@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include <QPoint>
@@ -16,6 +17,13 @@
 namespace colorizing::app {
 
 class RuntimeView;
+
+// The floating picture of paste mode: colored pixels of one plane and the frame of the box.
+struct CanvasPasteOverlay {
+    render::Resolution resolution = render::Resolution::Sd;
+    render::Rect box;
+    std::vector<std::pair<render::Point, QColor>> pixels;
+};
 
 class FramePreviewWidget final : public QWidget {
 public:
@@ -56,6 +64,15 @@ public:
                           std::vector<render::Point> pixels,
                           QColor color);
     void clearPreviewPixels();
+    void setPasteOverlay(std::optional<CanvasPasteOverlay> overlay);
+    // Called first on a left press over the colorized frame; returning true takes the press,
+    // so that no click or stroke follows (paste mode stamps with it).
+    void setPressInterceptor(std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> handler);
+    // Called on mouse moves without a button over the colorized frame; while one is set the
+    // widget tracks the mouse.
+    void setHoverHandler(std::function<void(render::CanvasHit)> handler);
+    // The keyboard modifiers of the last left press, for the handlers of its click and stroke.
+    [[nodiscard]] Qt::KeyboardModifiers pressModifiers() const;
 
     [[nodiscard]] QSize sizeHint() const override;
     [[nodiscard]] std::optional<render::CanvasHit> hitTestAt(QPoint position) const;
@@ -84,6 +101,7 @@ private:
     void paintSelectedSpriteBounds(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectionOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
+    void paintPasteOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
 
     const document::ProjectDocument* m_document = nullptr;
     RuntimeView* m_runtimeView = nullptr;
@@ -115,6 +133,10 @@ private:
     std::optional<render::Resolution> m_previewResolution;
     std::vector<render::Point> m_previewPixels;
     QColor m_previewColor;
+    std::optional<CanvasPasteOverlay> m_pasteOverlay;
+    std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> m_pressInterceptor;
+    std::function<void(render::CanvasHit)> m_hoverHandler;
+    Qt::KeyboardModifiers m_pressModifiers;
 };
 
 }  // namespace colorizing::app

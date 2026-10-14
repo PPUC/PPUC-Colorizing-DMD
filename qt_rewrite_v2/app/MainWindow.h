@@ -12,6 +12,8 @@
 #include <QStringList>
 
 #include "CanvasEditController.h"
+#include "EditHelpersController.h"
+#include "PasteModeController.h"
 #include "document/ProjectDocument.h"
 #include "edit/DrawingTools.h"
 #include "edit/SameFrames.h"
@@ -28,6 +30,7 @@ class ColorRotationPanel;
 class ColorSetPanel;
 class DynamicPanel;
 class EditColorBar;
+class EditMenuActions;
 class FramePanel;
 class FramePreviewWidget;
 class LazyListIcons;
@@ -260,6 +263,30 @@ private:
     [[nodiscard]] PaintTarget activePaintTarget() const;
     [[nodiscard]] CanvasEditContext canvasEditContext() const;
     [[nodiscard]] CanvasEditOutputs canvasEditOutputs();
+    // Copy and paste and the selection helpers of the Edit menu, see EditMenuActions,
+    // PasteModeController and EditHelpersController.
+    [[nodiscard]] PasteModeOutputs pasteModeOutputs();
+    [[nodiscard]] EditHelpersOutputs editHelpersOutputs();
+    void createSelectionActions(QMenu* editMenu);
+    void updateEditMenuActions();
+    // The helpers work on the frame canvas only; says so in the status line otherwise.
+    [[nodiscard]] bool canUseFrameCanvasHelpers();
+    void startPaste(edit::PasteMode mode);
+    void showAutoSelectDialog();
+    void showAutoCopyDialog();
+    void runScrollingAutoFill();
+    // A press on the colorized frame before it becomes a click or stroke: stamps in paste mode
+    // and picks the pixel of Select By Color or Recolor. True when it took the press.
+    bool interceptCanvasPress(render::CanvasHit hit, Qt::KeyboardModifiers modifiers);
+    void colorizedCanvasClicked(render::CanvasHit hit, bool erase);
+    [[nodiscard]] bool selectsWithPress() const;
+    [[nodiscard]] bool selectsNonBlackOnly() const;
+    enum class PendingCanvasClick {
+        None,
+        SelectByColor,
+        Recolor,
+    };
+    void armCanvasClick(PendingCanvasClick click);
     // Returns false, without committing, when there is nothing to change.
     bool commitPixelChanges(const edit::EditLayer& layer, std::vector<edit::PixelChange> changes);
     void commitEdit(std::unique_ptr<edit::EditCommand> command);
@@ -419,6 +446,13 @@ private:
     std::optional<std::size_t> m_selectedMaskIndex;
     bool m_spriteDependentViewsDirty = false;
     CanvasEditController m_canvasEdit;
+    PasteModeController m_pasteMode;
+    EditHelpersController m_editHelpers;
+    EditMenuActions* m_editMenuActions = nullptr;
+    PendingCanvasClick m_pendingCanvasClick = PendingCanvasClick::None;
+    // W held on the canvas: selection strokes leave black pixels out (Win32).
+    bool m_nonBlackKeyDown = false;
+    edit::StripePattern m_autoSelectPattern;
     RuntimeView m_runtimeView;
     edit::UndoHistories m_undoHistories;
     edit::SameFrameFinder m_sameFrameFinder;

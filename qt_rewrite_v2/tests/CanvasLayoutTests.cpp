@@ -140,6 +140,7 @@ void runStructureCommandTests();
 void runFrameDumpImportTests();
 void runSameFramesTests();
 void runColorSetTests();
+void runSelectionEditTests();
 
 int main()
 {
@@ -164,6 +165,7 @@ int main()
     runFrameDumpImportTests();
     runSameFramesTests();
     runColorSetTests();
+    runSelectionEditTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

@@ -2,13 +2,19 @@ add_library(colorizing_qt_v2_core STATIC
     document/EditorMetadata.cpp
     document/ProjectSnapshot.cpp
     document/ProjectDocument.cpp
+    edit/AutoCopy.cpp
     edit/ColorModel.cpp
     edit/ColorSetEdits.cpp
+    edit/CopyPaste.cpp
     edit/DrawingGeometry.cpp
     edit/DrawingTools.cpp
     edit/EditCommand.cpp
+    edit/FrameContentCommand.cpp
     edit/FramePixelSelection.cpp
+    edit/PlaneSelection.cpp
+    edit/RecolorHelpers.cpp
     edit/SameFrames.cpp
+    edit/ScrollFill.cpp
     edit/StructureCommand.cpp
     edit/UndoHistories.cpp
     import/FrameDumpImport.cpp

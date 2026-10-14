@@ -280,7 +280,14 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
     }
     if (event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
+        m_pressModifiers = event->modifiers();
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        if (hit && hit->region == render::CanvasRegion::ColorizedFrame && m_pressInterceptor &&
+            m_pressInterceptor(*hit, event->modifiers())) {
+            m_strokeStart.reset();
+            event->accept();
+            return;
+        }
         if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
             m_strokeStart = *hit;
             m_strokeErase = event->modifiers().testFlag(Qt::ShiftModifier);
@@ -308,6 +315,14 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
     if (showsRuntimeView()) {
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
+    }
+    if (event->buttons() == Qt::NoButton && m_hoverHandler && !showsRuntimeView()) {
+        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
+            m_hoverHandler(*hit);
+            event->accept();
+            return;
+        }
     }
     if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
@@ -429,6 +444,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
         paintSelectedSpriteBounds(painter, region);
         paintSelectionOverlay(painter, region);
         paintPreview(painter, region);
+        paintPasteOverlay(painter, region);
     }
 
     painter.restore();
@@ -788,6 +804,62 @@ void FramePreviewWidget::paintSelectionOverlay(QPainter& painter,
                                scale,
                                scale));
     }
+    painter.restore();
+}
+
+void FramePreviewWidget::setPasteOverlay(std::optional<CanvasPasteOverlay> overlay)
+{
+    m_pasteOverlay = std::move(overlay);
+    update();
+}
+
+void FramePreviewWidget::setPressInterceptor(
+    std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> handler)
+{
+    m_pressInterceptor = std::move(handler);
+}
+
+void FramePreviewWidget::setHoverHandler(std::function<void(render::CanvasHit)> handler)
+{
+    m_hoverHandler = std::move(handler);
+    setMouseTracking(static_cast<bool>(m_hoverHandler));
+}
+
+Qt::KeyboardModifiers FramePreviewWidget::pressModifiers() const
+{
+    return m_pressModifiers;
+}
+
+void FramePreviewWidget::paintPasteOverlay(QPainter& painter,
+                                           const render::CanvasRegionLayout& region)
+{
+    if (!m_pasteOverlay || region.region != render::CanvasRegion::ColorizedFrame ||
+        region.resolution != m_pasteOverlay->resolution) {
+        return;
+    }
+    const int scale = region.displayScale;
+    painter.save();
+    painter.setClipRect(QRectF(region.displayRect.x,
+                               region.displayRect.y,
+                               region.displayRect.width,
+                               region.displayRect.height));
+    for (const auto& [pixel, color] : m_pasteOverlay->pixels) {
+        QColor shown = color;
+        shown.setAlpha(200);
+        paintDmdPixel(painter,
+                      region.displayRect.x + pixel.x * scale,
+                      region.displayRect.y + pixel.y * scale,
+                      scale,
+                      shown,
+                      m_renderOptions);
+    }
+    const render::Rect& box = m_pasteOverlay->box;
+    painter.setPen(QPen(QColor(255, 255, 255, 220), 1));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(QRectF(region.displayRect.x + box.x * scale,
+                            region.displayRect.y + box.y * scale,
+                            box.width * scale - 1,
+                            box.height * scale - 1));
     painter.restore();
 }
 

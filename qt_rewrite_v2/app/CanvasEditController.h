@@ -17,6 +17,7 @@
 #include "edit/DrawingTools.h"
 #include "edit/EditCommand.h"
 #include "edit/FramePixelSelection.h"
+#include "edit/PlaneSelection.h"
 #include "PaintTarget.h"
 #include "render/CanvasLayout.h"
 #include "render/CanvasTypes.h"
@@ -56,6 +57,10 @@ struct CanvasEditContext {
     edit::PaletteGradientShape gradientShape = edit::PaletteGradientShape::Rectangle;
     edit::PaletteGradientDirection gradientDirection = edit::PaletteGradientDirection::LeftToRight;
     edit::PaletteGradientPattern gradientPattern = edit::PaletteGradientPattern::Linear;
+    // The plane being edited, for the selection commands that have no canvas hit.
+    render::Resolution activePlane = render::Resolution::Sd;
+    // Whether the canvas shows the background layer, for the colors "select by color" sees.
+    bool includeBackgroundLayer = false;
     // Zero-based palette color indices. Asked only when a gradient is filled, because reading
     // them makes the inspector interpret a half-typed number.
     std::function<std::pair<int, int>()> gradientEndpoints;
@@ -128,6 +133,39 @@ public:
     void clearSelection(const CanvasEditContext& context);
     void fillSelectionWithPaletteGradient(const CanvasEditContext& context);
 
+    // The selection, or null when nothing is selected. It is on the plane of the frame or
+    // background it was made on and is dropped when the frame, plane or target changes.
+    [[nodiscard]] const edit::PlaneSelection* selection() const;
+    // Whether a click or stroke edits the selection instead of the layer: frame pixels or a
+    // background image are being edited.
+    [[nodiscard]] static bool canEditSelection(const CanvasEditContext& context);
+    // Ctrl+click and Ctrl+drag (the Win32 Copy_Mask editing): the tool's pixels join the
+    // selection, or leave it with remove; the fill tool takes the connected pixels of the
+    // clicked color. nonBlackOnly keeps black pixels out (Win32: W held). A selection of another
+    // plane or target is replaced.
+    void editSelectionAtPoint(const CanvasEditContext& context,
+                              const render::CanvasHit& hit,
+                              bool remove,
+                              bool nonBlackOnly);
+    void editSelectionWithStroke(const CanvasEditContext& context,
+                                 const render::CanvasHit& start,
+                                 const render::CanvasHit& end,
+                                 bool remove,
+                                 bool nonBlackOnly);
+    void previewSelectionStroke(const CanvasEditContext& context,
+                                const render::CanvasHit& start,
+                                const render::CanvasHit& end,
+                                bool remove);
+    void selectAll(const CanvasEditContext& context);
+    void invertSelection(const CanvasEditContext& context);
+    void mirrorSelection(const CanvasEditContext& context, bool horizontally, bool vertically);
+    // Every pixel of the clicked pixel's color as the canvas shows it (with dynamic content,
+    // sprites and, when shown, the background layer); remove takes them out instead.
+    void selectByColor(const CanvasEditContext& context, const render::CanvasHit& hit, bool remove);
+    // The current frame's background mask on the plane (Win32 Ctrl+B).
+    void selectBackgroundMask(const CanvasEditContext& context);
+    void selectStripes(const CanvasEditContext& context, const edit::StripePattern& pattern);
+
     [[nodiscard]] std::optional<std::size_t> captureSelectionFrame() const;
     // Pixels of the original frame, which is the grid sprites are detected on.
     [[nodiscard]] std::vector<render::Point> captureSelectionPixels(
@@ -147,14 +185,27 @@ private:
     };
 
     struct Selection {
+        // The box the gradient fill spreads over: the drawn shape, or the selection's bounds
+        // once it was edited in another way.
         render::CanvasHit shapeStart;
         render::CanvasHit shapeEnd;
         PaintTarget target = PaintTarget::Frame;
         std::optional<std::size_t> backgroundIndex;
-        std::vector<render::Point> pixels;
+        edit::PlaneSelection pixels;
         std::optional<render::CanvasHit> gradientStart;
         std::optional<render::CanvasHit> gradientEnd;
     };
+
+    // The selection to edit for the context on the plane: the current one if it belongs to
+    // the same target and plane, otherwise a new empty one.
+    [[nodiscard]] Selection selectionFor(const CanvasEditContext& context,
+                                         render::Resolution plane) const;
+    // Makes the selection current (or clears it when empty), shows it and tells the owner.
+    void setSelection(const CanvasEditContext& context, Selection selection, const QString& status);
+    // The colorized picture the selection is made on: the current frame's or the selected
+    // background's, on the plane; null when there is none.
+    [[nodiscard]] const document::Rgb565Frame* selectionPicture(const CanvasEditContext& context,
+                                                                render::Resolution plane) const;
 
     void pickDynamicSet(const CanvasEditContext& context, const render::CanvasHit& hit);
     void pickFrameColor(const CanvasEditContext& context,

@@ -9,6 +9,12 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/ColorPickerDialog.h
     dialogs/DumpImportDialog.cpp
     dialogs/DumpImportDialog.h
+    dialogs/SelectionDialogs.cpp
+    dialogs/SelectionDialogs.h
+    EditHelpersController.cpp
+    EditHelpersController.h
+    EditMenuActions.cpp
+    EditMenuActions.h
     EditColorKeys.cpp
     EditColorKeys.h
     FrameImageUtils.cpp
@@ -22,6 +28,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     ListSelection.cpp
     ListSelection.h
     PaintTarget.h
+    PasteModeController.cpp
+    PasteModeController.h
     PlaneLabels.cpp
     PlaneLabels.h
     RuntimeView.cpp
