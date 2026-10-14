@@ -2114,7 +2114,10 @@ does that for every mask and can take seconds in a large project with many masks
 
 ## Dynamic Masks
 
-The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a semi-transparent cyan overlay.
+The `Dynamic` toolbar toggle outlines the current frame's dynamic zones in cyan, also where two
+zones of different sets meet. The pixels stay visible in the colors the runtime gives them: each
+one in its set's color for its original shade (the canvas always shows them so), without
+switching to the Runtime view.
 Every dynamic mask edit, Undo and Redo also redraws the frame's thumbnail and its `Dyn` flag in
 the frame list.
 

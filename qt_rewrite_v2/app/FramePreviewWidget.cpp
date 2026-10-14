@@ -675,26 +675,45 @@ void FramePreviewWidget::paintDynamicMaskOverlay(
         return;
     }
 
+    // The pixels show the colors of their zone's set, as the runtime renders them; the zones
+    // are outlined, also where two zones of different sets meet.
     const document::IndexedFrame& mask =
         region.resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
     const int scale = region.displayScale;
-    const QColor overlayColor(0, 180, 255, 170);
+    const int width = mask.size.width;
+    const int height = mask.size.height;
+    const auto setAt = [&mask, width, height](int x, int y) -> int {
+        if (x < 0 || y < 0 || x >= width || y >= height) {
+            return 255;
+        }
+        return mask.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
+                           static_cast<std::size_t>(x)];
+    };
+    QPen pen(QColor(0, 200, 255), 2);
+    pen.setCosmetic(true);
     painter.save();
-    painter.setPen(Qt::NoPen);
+    painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
-    for (int y = 0; y < mask.size.height; ++y) {
-        for (int x = 0; x < mask.size.width; ++x) {
-            const std::size_t index =
-                static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
-                static_cast<std::size_t>(x);
-            if (mask.pixels[index] == 255) {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int set = setAt(x, y);
+            if (set == 255) {
                 continue;
             }
-            painter.fillRect(QRect(region.displayRect.x + x * scale,
-                                   region.displayRect.y + y * scale,
-                                   scale,
-                                   scale),
-                             overlayColor);
+            const int left = region.displayRect.x + x * scale;
+            const int top = region.displayRect.y + y * scale;
+            if (setAt(x - 1, y) != set) {
+                painter.drawLine(QPointF(left, top), QPointF(left, top + scale));
+            }
+            if (setAt(x + 1, y) != set) {
+                painter.drawLine(QPointF(left + scale, top), QPointF(left + scale, top + scale));
+            }
+            if (setAt(x, y - 1) != set) {
+                painter.drawLine(QPointF(left, top), QPointF(left + scale, top));
+            }
+            if (setAt(x, y + 1) != set) {
+                painter.drawLine(QPointF(left, top + scale), QPointF(left + scale, top + scale));
+            }
         }
     }
     painter.restore();
