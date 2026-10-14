@@ -8,7 +8,7 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QSettings>
-#include <QStandardPaths>
+#include <QTemporaryDir>
 
 #include "DmdOutput.h"
 #include "document/ProjectDocument.h"
@@ -70,8 +70,13 @@ void runDmdOutputWidgetTests()
     output.stop();
     expect(!output.isRunning(), "stopped");
 
-    // The settings survive a round trip through QSettings.
-    QStandardPaths::setTestModeEnabled(true);
+    // The settings survive a round trip through QSettings: an INI file of a test organization
+    // in a folder of its own (the native format on Windows, the registry, needs an
+    // organization name, and the user's own settings stay untouched).
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("DmdOutputWidgetTests"));
     app::DmdOutputSettings stored;
     stored.target = app::DmdOutputSettings::Target::DmdServer;
     stored.serverAddress = QStringLiteral("pi.local");
@@ -86,5 +91,6 @@ void runDmdOutputWidgetTests()
                loaded.picture == app::DmdOutputSettings::Picture::Extra,
            "settings are kept");
     QSettings().remove(QStringLiteral("dmdOutput"));
-    QStandardPaths::setTestModeEnabled(false);
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
