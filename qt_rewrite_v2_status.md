@@ -41,17 +41,17 @@ neither of those holds.
 
 | Commit | Content |
 |---|---|
-| `7844332` | Full cROM/cRP serializer, revision 20, undo and drawing logic moved to `core/edit` |
-| `721f1ec` | Undo scoping fixes, palette ramp rounding, `-Wall -Wextra` |
-| `449a07f` | Colour rotation and palette panels |
-| `1e6b7ce` | Sprite panel |
-| `3513ca0` | Mask, dynamic, background and frame panels |
-| `6fee258` | `tools/ui_dump` harness, per-page tab order |
-| `710cb82` | Chronological undo, undoable frame settings and HD create/remove, inspector bug fixes |
-| `6e223c9` | Open and save `.cRZ` through libserum |
-| `a0a39c7` | `CanvasEditController` |
-| `f26ecaa` | First 256x64 support (SD-grid model, superseded) |
-| `a2ae34a` | 256x64 projects as native HD only |
+| `d602fef` | Full cROM/cRP serializer, revision 20, undo and drawing logic moved to `core/edit` |
+| `82f43e7` | Undo scoping fixes, palette ramp rounding, `-Wall -Wextra` |
+| `4bf5f67` | Colour rotation and palette panels |
+| `fd2da48` | Sprite panel |
+| `415e8c8` | Mask, dynamic, background and frame panels |
+| `1c6c5ca` | `tools/ui_dump` harness, per-page tab order |
+| `8a5be9c` | Chronological undo, undoable frame settings and HD create/remove, inspector bug fixes |
+| `a0ef101` | Open and save `.cRZ` through libserum |
+| `999ebc3` | `CanvasEditController` |
+| `76d7720` | First 256x64 support (SD-grid model, superseded) |
+| `fabcda9` | 256x64 projects as native HD only |
 
 ## Architecture as it is now
 
