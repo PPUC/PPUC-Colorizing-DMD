@@ -1256,10 +1256,14 @@ Not there: output to a real DMD (ZeDMD) and the PuP tester.
 
 ## DMD Output
 
-`View -> Output To DMD` shows the canvas picture on a real DMD, through libdmdutil:
+`View -> Output To DMD`, or the `DMD` button in the toolbar beside `Runtime`, shows the canvas
+picture on a real DMD, through libdmdutil, as a live preview (colors on a DMD differ from those on
+a monitor). Switching it on makes libdmdutil look for attached displays; switching it off lets
+them go.
 
 - What is shown: the frame as the editor composes it on the plane the canvas shows (with the
-  background when the canvas's background layer is on), libserum's picture while the Runtime
+  background when the canvas's background layer is on; a stroke appears when it is finished,
+  overlays such as the selection or the mask are not sent), libserum's picture while the Runtime
   view is on (playback and color rotations included), and while the Frame Tester is open, the
   frame it last fed (its 64-row plane on a display with 64 rows). The picture follows every
   edit, frame change and playback step. libdmdutil scales it to the display.

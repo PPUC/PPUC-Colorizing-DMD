@@ -526,6 +526,7 @@ void MainWindow::createActions()
 
     m_dmdOutputAction = viewMenu->addAction(QStringLiteral("Output To &DMD"));
     m_dmdOutputAction->setCheckable(true);
+    m_dmdOutputAction->setIconText(QStringLiteral("DMD"));
     m_dmdOutputAction->setEnabled(DmdOutput::isAvailable());
     m_dmdOutputAction->setToolTip(
         DmdOutput::isAvailable()
@@ -1061,6 +1062,11 @@ void MainWindow::createCentralView()
     m_runtimeViewButton = new QToolButton(central);
     m_runtimeViewButton->setDefaultAction(m_runtimeViewAction);
     toolbarLayout->addWidget(m_runtimeViewButton);
+    // The same action as View -> Output To DMD: on, libdmdutil looks for displays and the
+    // display follows the canvas; off, it lets them go.
+    auto* dmdOutputButton = new QToolButton(central);
+    dmdOutputButton->setDefaultAction(m_dmdOutputAction);
+    toolbarLayout->addWidget(dmdOutputButton);
     toolbarLayout->addSpacing(12);
     // The rest of the row, whatever its text: a long one (the identification hint) is cut
     // instead of widening the window.
