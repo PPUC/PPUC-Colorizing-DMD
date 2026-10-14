@@ -1,6 +1,7 @@
 #include "render/CanvasLayout.h"
 
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -144,7 +145,7 @@ void runSelectionEditTests();
 void runCompactStorageTests();
 
 int main()
-{
+try {
     testSdAndOriginalHaveSameDisplaySize();
     testHdActiveFrameUsesHdCoordinates();
     testOptionalHdReferenceRegion();
@@ -171,4 +172,8 @@ int main()
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;
+} catch (const std::exception& ex) {
+    // A test that throws is a failure with its reason, not a crash without one.
+    std::cerr << "FAIL: unexpected exception: " << ex.what() << '\n';
+    return 1;
 }

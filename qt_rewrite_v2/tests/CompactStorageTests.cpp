@@ -486,24 +486,28 @@ void testByteSourceAcrossBufferBoundaries()
     }
     const auto path = uniqueTempPath(".bin");
     writeFile(path, bytes);
-    legacy::LegacyByteSource file(platform::utf8FromPath(path));
-    legacy::LegacyByteSource memory(reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size());
-    expect(file.isOpen() && file.size() == bytes.size(), "the file source opens");
-    std::vector<uint8_t> a(4099);
-    std::vector<uint8_t> b(4099);
-    while (memory.remaining() >= a.size() + 6) {
-        uint16_t u16a = 0;
-        uint16_t u16b = 0;
-        uint32_t u32a = 0;
-        uint32_t u32b = 0;
-        expect(file.readBytes(a.data(), a.size()) && memory.readBytes(b.data(), b.size()) &&
-                   a == b,
-               "bytes agree");
-        expect(file.readU16(u16a) && memory.readU16(u16b) && u16a == u16b, "u16 agree");
-        expect(file.readU32(u32a) && memory.readU32(u32b) && u32a == u32b, "u32 agree");
+    {
+        // Closed before the file is removed: Windows does not delete an open file.
+        legacy::LegacyByteSource file(platform::utf8FromPath(path));
+        legacy::LegacyByteSource memory(reinterpret_cast<const uint8_t*>(bytes.data()),
+                                        bytes.size());
+        expect(file.isOpen() && file.size() == bytes.size(), "the file source opens");
+        std::vector<uint8_t> a(4099);
+        std::vector<uint8_t> b(4099);
+        while (memory.remaining() >= a.size() + 6) {
+            uint16_t u16a = 0;
+            uint16_t u16b = 0;
+            uint32_t u32a = 0;
+            uint32_t u32b = 0;
+            expect(file.readBytes(a.data(), a.size()) && memory.readBytes(b.data(), b.size()) &&
+                       a == b,
+                   "bytes agree");
+            expect(file.readU16(u16a) && memory.readU16(u16b) && u16a == u16b, "u16 agree");
+            expect(file.readU32(u32a) && memory.readU32(u32b) && u32a == u32b, "u32 agree");
+        }
+        expect(file.offset() == memory.offset(), "offsets agree");
+        expect(!file.readBytes(a.data(), file.remaining() + 1), "reading past the end fails");
     }
-    expect(file.offset() == memory.offset(), "offsets agree");
-    expect(!file.readBytes(a.data(), file.remaining() + 1), "reading past the end fails");
     std::filesystem::remove(path);
 }
 
