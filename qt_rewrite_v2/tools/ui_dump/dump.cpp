@@ -92,6 +92,10 @@
 #define UI_DUMP_HAS_FRAME_MOVE 1
 #endif
 
+#if __has_include("FlowLayout.h")
+#define UI_DUMP_HAS_TOOLBAR_FLOW 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -671,6 +675,11 @@ int main(int argc, char* argv[])
 // States of a tree with the section bar; a tree without it ends here.
 #ifdef UI_DUMP_HAS_SECTIONS
 #include "sections_script.inc"
+#endif
+
+// States of a tree whose toolbar wraps; a tree without it ends here.
+#ifdef UI_DUMP_HAS_TOOLBAR_FLOW
+#include "toolbar_wrap_script.inc"
 #endif
 
 // States of a tree that moves frames; a tree without it ends here.

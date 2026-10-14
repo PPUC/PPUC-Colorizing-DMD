@@ -54,6 +54,7 @@
 #include "EditMenuActions.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
+#include "FlowLayout.h"
 #include "FrameListWidget.h"
 #include "GifExport.h"
 #include "FrameThumbnail.h"
@@ -713,7 +714,18 @@ void MainWindow::createCentralView()
 
     layout->addWidget(m_statusLabel);
 
-    auto* toolbarLayout = new QHBoxLayout();
+    // The row above the canvas: groups of controls that wrap onto another row when the window
+    // is too narrow for them, each group kept together; the frame status takes the rest.
+    auto* toolbar = new QWidget(central);
+    auto* toolbarFlow = new FlowLayout(toolbar, 12, 4);
+    QHBoxLayout* toolbarLayout = nullptr;
+    const auto startToolbarGroup = [&toolbar, &toolbarFlow, &toolbarLayout]() {
+        auto* group = new QWidget(toolbar);
+        toolbarLayout = new QHBoxLayout(group);
+        toolbarLayout->setContentsMargins(0, 0, 0, 0);
+        toolbarFlow->addWidget(group);
+    };
+    startToolbarGroup();
     m_sdButton = new QToolButton(central);
     m_sdButton->setText(QStringLiteral("SD"));
     m_sdButton->setCheckable(true);
@@ -1032,7 +1044,7 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
     toolbarLayout->addWidget(m_dynamicMaskOverlayButton);
     toolbarLayout->addWidget(m_backgroundMaskOverlayButton);
-    toolbarLayout->addSpacing(12);
+    startToolbarGroup();
 
     const std::vector<std::pair<DrawingTool, QString>> tools{
         {DrawingTool::Point, QStringLiteral("Point")},
@@ -1061,7 +1073,7 @@ void MainWindow::createCentralView()
             setDrawingTool(tool);
         });
     }
-    toolbarLayout->addSpacing(12);
+    startToolbarGroup();
 
     m_favoriteColors = {0xf800, 0x07e0, 0x001f, 0x0000};
     for (std::size_t colorIndex = 0; colorIndex < m_favoriteColors.size(); ++colorIndex) {
@@ -1093,7 +1105,7 @@ void MainWindow::createCentralView()
     m_activeColorButton->setEnabled(false);
     m_activeColorButton->setToolTip(QStringLiteral("Active draw color"));
     toolbarLayout->addWidget(m_activeColorButton);
-    toolbarLayout->addSpacing(12);
+    startToolbarGroup();
     m_playbackButton = new QToolButton(central);
     m_playbackButton->setText(QStringLiteral("Play"));
     m_playbackButton->setToolTip(QStringLiteral("Play visible frames"));
@@ -1130,12 +1142,12 @@ void MainWindow::createCentralView()
     auto* dmdOutputButton = new QToolButton(central);
     dmdOutputButton->setDefaultAction(m_dmdOutputAction);
     toolbarLayout->addWidget(dmdOutputButton);
-    toolbarLayout->addSpacing(12);
-    // The rest of the row, whatever its text: a long one (the identification hint) is cut
-    // instead of widening the window.
+    // The rest of the last row, whatever its text: a long one (the identification hint) is
+    // cut instead of widening the window; a row of its own when too little is left.
     m_frameStatusLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    toolbarLayout->addWidget(m_frameStatusLabel, 1);
-    layout->addLayout(toolbarLayout);
+    toolbarFlow->addWidget(m_frameStatusLabel);
+    toolbarFlow->setStretchLastItem(true, 200);
+    layout->addWidget(toolbar);
     m_editColorBar = new EditColorBar(central);
     m_editColorBar->setSlotKeyNames(editColorSlotKeyNames());
     m_editColorBar->onSlotClicked = [this](std::size_t slot) { selectEditColorSlot(slot); };
