@@ -28,6 +28,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramePreviewWidget.cpp
     FramePreviewWidget.h
     FrameThumbnail.cpp
+    GifExport.cpp
+    GifExport.h
     FrameThumbnail.h
     LazyListIcons.cpp
     LazyListIcons.h

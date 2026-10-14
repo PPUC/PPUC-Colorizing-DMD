@@ -68,6 +68,8 @@ if(TARGET colorizing_qt_v2_widgets)
         EditorMatchesRuntimeTests.cpp
         FramePreviewWidgetRenderTests.cpp
         FrameTesterWidgetTests.cpp
+        GifExportWidgetTests.cpp
+        GifWriterWidgetTests.cpp
         NativeOriginalWidgetTests.cpp
         PlaneLabelsWidgetTests.cpp
         ProjectTaskWidgetTests.cpp

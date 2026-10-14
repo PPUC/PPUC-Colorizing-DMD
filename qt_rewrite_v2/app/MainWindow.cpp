@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 
 #include <algorithm>
+#include <fstream>
 #include <functional>
 
 #include <QAbstractItemView>
@@ -53,6 +54,7 @@
 #include "EditMenuActions.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
+#include "GifExport.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
 #include "ListSelection.h"
@@ -445,6 +447,11 @@ void MainWindow::createActions()
     connect(exportCromcAction, &QAction::triggered, this, [this]() {
         exportCromc();
     });
+
+    QAction* exportGifAction = fileMenu->addAction(QStringLiteral("Export Animated &GIF..."));
+    exportGifAction->setToolTip(QStringLiteral(
+        "Write the selected frames, with their colour rotations, as an animated GIF"));
+    connect(exportGifAction, &QAction::triggered, this, [this]() { exportAnimatedGif(); });
 
     QAction* exportFrameAction = fileMenu->addAction(QStringLiteral("Export Current &Frame PNG..."));
     exportFrameAction->setToolTip(QStringLiteral("Export the current frame as libserum renders it"));
@@ -1673,6 +1680,94 @@ void MainWindow::addFramesFromDump()
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::exportAnimatedGif()
+{
+    if (!m_document) {
+        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        return;
+    }
+    std::vector<std::size_t> frames = selectedFrameIndices();
+    std::sort(frames.begin(), frames.end());
+    if (frames.empty()) {
+        statusBar()->showMessage(QStringLiteral("Select the frames to export"), 2500);
+        return;
+    }
+    GifExportOptions options;
+    options.plane = isHdOnlyProject() ? render::Resolution::Hd
+                    : m_document->editsOriginalPlaneOnly() ? render::Resolution::Sd
+                                                           : m_activeResolution;
+    options.includeBackground = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
+    const render::Size planeSize = m_document->geometry().planeSize(options.plane);
+    // About 640 picture pixels across: 5 per pixel of a 128-wide plane, 3 of 192, 2 of 256.
+    options.pixelScale = std::max(2, 640 / std::max(1, planeSize.width));
+
+    const QDir untitledDirectory(m_dumpDirectory.isEmpty() ? QDir::homePath()
+                                                           : m_dumpDirectory);
+    const QString base =
+        isUntitledProject()
+            ? untitledDirectory.absoluteFilePath(QString::fromStdString(m_document->romName()))
+            : QFileInfo(m_currentCromPath).absoluteDir().absoluteFilePath(
+                  QFileInfo(m_currentCromPath).completeBaseName());
+    QString path = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Export Animated GIF"),
+        QStringLiteral("%1_%2-%3.gif")
+            .arg(base)
+            .arg(static_cast<qulonglong>(frames.front()))
+            .arg(static_cast<qulonglong>(frames.back())),
+        QStringLiteral("Animated GIF (*.gif);;All files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    if (!path.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive)) {
+        path += QStringLiteral(".gif");
+    }
+
+    GifExportResult result;
+    const QString partial = path + QStringLiteral(".saving");
+    {
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, QStringLiteral("Exporting Animated GIF"), progress, [&]() {
+                std::ofstream stream(platform::pathFromUtf8(partial.toStdString()),
+                                     std::ios::binary | std::ios::trunc);
+                if (!stream) {
+                    result.error = "the file cannot be written";
+                    return;
+                }
+                result = writeAnimatedGif(*m_document, frames, options, stream, &progress);
+            });
+        if (failure) {
+            result = {};
+            result.error = *failure;
+        }
+    }
+    if (!result.ok) {
+        QFile::remove(partial);
+        if (result.cancelled) {
+            statusBar()->showMessage(QStringLiteral("Export cancelled"), 3000);
+        } else {
+            QMessageBox::critical(this,
+                                  QStringLiteral("Export Animated GIF Failed"),
+                                  QString::fromStdString(result.error));
+        }
+        return;
+    }
+    QFile::remove(path);
+    if (!QFile::rename(partial, path)) {
+        QFile::remove(partial);
+        QMessageBox::critical(this,
+                              QStringLiteral("Export Animated GIF Failed"),
+                              QStringLiteral("%1 cannot be replaced").arg(path));
+        return;
+    }
+    statusBar()->showMessage(QStringLiteral("Exported %1 frame(s) as %2 picture(s) to %3")
+                                 .arg(static_cast<qulonglong>(frames.size()))
+                                 .arg(static_cast<qulonglong>(result.pictures))
+                                 .arg(QDir::toNativeSeparators(path)),
+                             6000);
 }
 
 void MainWindow::openFrameTester()

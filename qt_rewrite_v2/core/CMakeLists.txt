@@ -20,6 +20,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/StateCommands.cpp
     edit/StructureCommand.cpp
     edit/UndoHistories.cpp
+    export/GifWriter.cpp
     import/FrameDumpImport.cpp
     import/FrameDumpReader.cpp
     legacy/LegacyByteSource.cpp

@@ -99,7 +99,8 @@ void ProjectTaskDialog::updateProgress()
     const uint64_t total = m_progress.total.load();
     const bool cancelling = m_progress.cancel.load();
     const bool measured = (stage == legacy::LegacyIoStage::Reading ||
-                           stage == legacy::LegacyIoStage::Writing) &&
+                           stage == legacy::LegacyIoStage::Writing ||
+                           stage == legacy::LegacyIoStage::ExportingFrames) &&
                           total > 0;
     QString text;
     switch (stage) {
@@ -122,6 +123,11 @@ void ProjectTaskDialog::updateProgress()
         break;
     case legacy::LegacyIoStage::Replacing:
         text = QStringLiteral("Replacing the project files…");
+        break;
+    case legacy::LegacyIoStage::ExportingFrames:
+        text = QStringLiteral("Writing frame %1 of %2…")
+                   .arg(static_cast<qulonglong>(std::min(done + 1, total)))
+                   .arg(static_cast<qulonglong>(total));
         break;
     case legacy::LegacyIoStage::Generating:
         text = QStringLiteral("libserum generates the .cROMc (this step cannot be interrupted)…");

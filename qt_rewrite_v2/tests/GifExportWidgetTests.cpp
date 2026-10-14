@@ -1,0 +1,100 @@
+// The animated GIF export: pictures of the composed frames, rotation steps, timing.
+
+#include <cstdlib>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <QBuffer>
+#include <QByteArray>
+#include <QImage>
+#include <QImageReader>
+
+#include "FrameImageUtils.h"
+#include "GifExport.h"
+#include "RuntimeFixtures.h"
+#include "document/ProjectDocument.h"
+#include "export/GifWriter.h"
+
+namespace {
+
+using namespace colorizing;
+
+void expect(bool condition, const std::string& message)
+{
+    if (!condition) {
+        std::cerr << "FAIL: GIF export: " << message << '\n';
+        std::exit(1);
+    }
+}
+
+}  // namespace
+
+void runGifExportWidgetTests()
+{
+    if (!QImageReader::supportedImageFormats().contains("gif")) {
+        std::cout << "GIF export tests skipped: Qt has no GIF reader here\n";
+        return;
+    }
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary);
+    snapshot.frames[2].durationMs = 5;
+    snapshot.frames[0].durationMs = 100;
+    // Frame 5 has a rotation that steps every 500 ms.
+    snapshot.frames[5].durationMs = 1200;
+    const document::ProjectDocument document =
+        document::ProjectDocument::fromSnapshot(std::move(snapshot));
+    expect(app::colorRotationSteps(document, 5, render::Resolution::Sd, 1200) ==
+               std::vector<uint32_t>({0, 500, 1000}),
+           "the rotation steps within the duration");
+
+    app::GifExportOptions options;
+    options.plane = render::Resolution::Sd;
+    options.pixelScale = 5;
+    std::ostringstream stream;
+    legacy::LegacyIoProgress progress;
+    const app::GifExportResult result =
+        app::writeAnimatedGif(document, {2, 0, 5}, options, stream, &progress);
+    expect(result.ok, "written: " + result.error);
+    // Frame 2 (5 ms) is too short to show: its time goes to frame 0.
+    expect(result.pictures == 4, "pictures: " + std::to_string(result.pictures));
+    expect(progress.done.load() == 3 && progress.total.load() == 3, "progress counts frames");
+
+    const std::string bytes = stream.str();
+    QByteArray data(bytes.data(), static_cast<qsizetype>(bytes.size()));
+    QBuffer buffer(&data);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader reader(&buffer, "gif");
+    std::vector<QImage> images;
+    std::vector<int> delays;
+    while (reader.canRead()) {
+        const QImage image = reader.read();
+        if (image.isNull()) {
+            break;
+        }
+        images.push_back(image.convertToFormat(QImage::Format_RGB32));
+        delays.push_back(reader.nextImageDelay());
+    }
+    expect(images.size() == 4, "four pictures read back");
+    expect(images[0].width() == 128 * 5 && images[0].height() == 32 * 5, "five pixels a dot");
+    expect(delays == std::vector<int>({110, 500, 500, 200}),
+           "the delays add up as the durations do");
+
+    const document::Rgb565Frame frame0 =
+        app::composeResolvedFrame(document, 0, render::Resolution::Sd, true);
+    uint8_t r = 0, g = 0, b = 0;
+    exporting::rgb565ToRgb888(frame0.pixels[1], r, g, b);
+    expect(images[0].pixel(5 + 1, 1) == qRgb(r, g, b), "a dot has the frame's color");
+    expect(images[0].pixel(5 + 4, 1) == qRgb(0, 0, 0), "and a black gap");
+    expect(images[1] != images[2], "the rotation step changes the picture");
+
+    document::ProjectSnapshot withoutHd =
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary);
+    const document::ProjectDocument noHd =
+        document::ProjectDocument::fromSnapshot(std::move(withoutHd));
+    options.plane = render::Resolution::Hd;
+    std::ostringstream unused;
+    expect(!app::writeAnimatedGif(noHd, {0}, options, unused).ok,
+           "a frame without the plane is refused");
+}

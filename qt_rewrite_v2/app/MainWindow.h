@@ -112,6 +112,8 @@ private:
     void exportCromc();
     // See FrameTesterDialog.
     void openFrameTester();
+    // The selected frames as an animated GIF, see GifExport.h.
+    void exportAnimatedGif();
     // Copy and Paste on the sprite canvas, see edit/SpriteClipboard.h.
     [[nodiscard]] render::Resolution spriteCanvasPlane(std::size_t spriteIndex) const;
     void copySpriteToClipboard();

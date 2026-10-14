@@ -370,6 +370,27 @@ Save behavior:
 Files written by earlier Qt editor builds are not supported; only projects saved by the Win32
 editor (currently 3.17.3) or by this serializer are.
 
+### Exporting an animated GIF
+
+`File -> Export Animated GIF...` writes the selected frames, in frame order, as an animated GIF
+that loops, as CDMD's GIF export:
+
+- The pictures are the ones the editor composes on the plane the canvas shows (SD or HD; the
+  native plane of a 256x64 or 192x64 project), with the background when the canvas's background
+  layer is on. Every frame must have that plane.
+- A frame pixel becomes a square dot with a black gap, about 640 picture pixels across (5 per
+  pixel of a 128-wide plane, 3 of 192, 2 of 256, which has no gap).
+- Colour rotations step as in the editor's preview: a picture at every step within the frame's
+  duration; they start again with every frame.
+- Each picture shows for its frame's duration or until the next rotation step. GIF counts time
+  in 1/100 s: the times are rounded as they add up, so the whole stays right. A picture that
+  would show less than 2/100 s (which viewers stretch to about 1/10 s), such as a frame shorter
+  than 15 ms, is left out and its time given to the next picture.
+- A picture with more than 256 colours keeps its 255 most frequent ones; other pixels take the
+  nearest of them.
+- The export shows its progress and can be cancelled; an existing file is replaced only when the
+  new one is complete.
+
 ### Exporting the .cROMc
 
 `File -> Export .cROMc...` writes the file a machine loads, `<rom>.cROMc`, proposed beside the

@@ -1067,7 +1067,6 @@ owner together.
 - Auto shadow, brightness, black and white, Dyn>Stat ("to source frame" is done).
 - Selectable resize filters for HD creation.
 - Images window: video import, crop zones, scroll copy.
-- Animated GIF export.
 - ZeDMD output, PuP tester. The frame tester exists (`dialogs/FrameTesterDialog`,
   `runtime/FrameTester`).
 

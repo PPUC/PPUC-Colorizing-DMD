@@ -36,6 +36,8 @@ enum class LegacyIoStage : int {
     Replacing,
     // libserum loads the written .cROM and generates its .cROMc; no progress inside it.
     Generating,
+    // Writing pictures of frames (an animated GIF); done/total count frames.
+    ExportingFrames,
 };
 
 // Shared between a load or save running on a worker thread and whoever shows its progress.
