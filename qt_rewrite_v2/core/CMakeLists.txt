@@ -11,6 +11,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/DrawingTools.cpp
     edit/EditCommand.cpp
     edit/FrameContentCommand.cpp
+    edit/FrameMove.cpp
     edit/FramePixelSelection.cpp
     edit/PlaneSelection.cpp
     edit/RecolorHelpers.cpp

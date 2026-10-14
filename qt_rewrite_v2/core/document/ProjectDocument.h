@@ -648,6 +648,12 @@ public:
     // extra-plane data in a project that discards that plane. Throws std::invalid_argument
     // naming the frame and the block otherwise.
     void insertFrames(RemovedFrames removed);
+    // Puts the frames in a new order: the frame numbered newOrder[i] becomes frame i. The
+    // source frames of sprites and the first frames of sections follow their frames, and so
+    // do imported palettes. Throws std::invalid_argument when newOrder is no order of all
+    // frames, and std::logic_error when the frames that have an imported palette would no
+    // longer be the first ones (the cRP stores them for the first frames only).
+    void reorderFrames(const std::vector<std::size_t>& newOrder);
     // A frame for insertFrames() that nobody has worked on, see
     // makeUncolorizedFrameSnapshot(). Throws std::invalid_argument for an original that has
     // not the size of the ROM frame or has a shade the project has no color for.

@@ -19,6 +19,8 @@ struct BackgroundPanelState {
     std::optional<std::size_t> selectedBackgroundIndex;
     bool hasCurrentFrame = false;
     bool hasSelectedFrames = false;
+    // One of the selected frames has a background assigned.
+    bool selectedFramesHaveBackground = false;
 };
 
 // Inspector page for the selected background. It only displays and reports what the user
@@ -30,6 +32,8 @@ public:
     void refresh(const BackgroundPanelState& state);
 
     std::function<void()> onAssignRequested;
+    // Remove BG: the selected frames get no background.
+    std::function<void()> onRemoveRequested;
     std::function<void()> onEditRequested;
     std::function<void()> onCopyFrameToBackgroundRequested;
     std::function<void()> onCopyBackgroundToFramesRequested;
@@ -39,6 +43,7 @@ public:
 private:
     QLabel* m_selectedBackgroundLabel = nullptr;
     QToolButton* m_assignButton = nullptr;
+    QToolButton* m_removeButton = nullptr;
     QToolButton* m_editButton = nullptr;
     QToolButton* m_copyFrameToBackgroundButton = nullptr;
     QToolButton* m_copyBackgroundToFramesButton = nullptr;

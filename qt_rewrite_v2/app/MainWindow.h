@@ -19,6 +19,7 @@
 #include "PasteModeController.h"
 #include "document/ProjectDocument.h"
 #include "edit/DrawingTools.h"
+#include "edit/FrameMove.h"
 #include "edit/SameFrames.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
@@ -34,6 +35,7 @@ class ColorSetPanel;
 class DynamicPanel;
 class EditColorBar;
 class EditMenuActions;
+class FrameListWidget;
 class FramePanel;
 class SectionBar;
 class FramePreviewWidget;
@@ -350,6 +352,19 @@ private:
     void deleteSelectedFramesShorterThan();
     // note: what chose the frames, for the question; empty for the selection itself.
     void deleteFrames(const std::vector<std::size_t>& frameIndices, const QString& note);
+    // Moving the selected frames, see edit::moveFrames(): before the frame of a frame list
+    // row (count() for behind the last frame), one row up or down, or before a frame number
+    // the user gives.
+    void moveSelectedFramesBeforeRow(int row);
+    void moveSelectedFramesUp();
+    void moveSelectedFramesDown();
+    void moveSelectedFramesTo();
+    void moveFrames(const std::vector<std::size_t>& frameIndices,
+                    std::size_t beforeFrame,
+                    bool joinSection = true);
+    // After a frame move ran in either direction: the moved frames are selected where they
+    // are now, and every view is refreshed.
+    void refreshAfterFrameMove(const edit::FrameMoveCommand& command);
     void addSprite();
     // Asks for a name and adds the sprite; its index, or nothing when none was added.
     std::optional<std::size_t> addNamedSprite();
@@ -441,6 +456,9 @@ private:
     // The same in the frame list's menu, with the Delete and Backspace keys.
     QAction* m_deleteFramesListAction = nullptr;
     QAction* m_deleteShortFramesAction = nullptr;
+    QAction* m_moveFramesUpAction = nullptr;
+    QAction* m_moveFramesDownAction = nullptr;
+    QAction* m_moveFramesToAction = nullptr;
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;
@@ -448,7 +466,7 @@ private:
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
     QTabWidget* m_leftBrowserTabs = nullptr;
-    QListWidget* m_frameList = nullptr;
+    FrameListWidget* m_frameList = nullptr;
     LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;
     QListWidget* m_backgroundList = nullptr;

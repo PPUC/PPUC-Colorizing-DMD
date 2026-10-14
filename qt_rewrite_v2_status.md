@@ -1075,6 +1075,25 @@ owner together.
 - PuP tester (next on the plugin route: VPX's PUP plugin on the editor's plugin bus). DMD
   output exists through VPX's DMDUtil plugin (see "VPX plugins"), the frame tester too.
 
+## SortingCDump (2026-10-15)
+
+Owner: authors use Zedrummer's SortingCDump (`../SortingCDump`, Win32) with CDMD 3.17.3;
+the goal is to make it unnecessary. It opens and saves the cROM/cRP itself (no hand-off
+format). What it does, and the state here:
+
+- Move selected frames before a frame: done (`edit::moveFrames`, `FrameMoveCommand`,
+  `ProjectDocument::reorderFrames`; drag and drop, Alt+Up/Down, Move Frames To...).
+- Delete frames, with sections and sprite sources re-indexed: done. Not done: its check that
+  lists frames a section starts at or a sprite was taken from, and offers deleting only the
+  others.
+- Sections: add/rename at a frame, delete, reorder, jump: done. Not done: alphabetical sort.
+- Import TXT dumps with filters (minimum duration, maximum colors, exact duplicates, duplicates
+  of project frames under their masks/shape mode): the dump import has its own filters; compare
+  them with SortingCDump's before saying it is covered.
+- `.cDump` import (binary: nFrames, romname[64], w, h, noColors, then per frame timestamp,
+  original, colorized, 64-color palette): not done; where the files come from is unknown.
+- Its strip of original and colorized frames with number, duration and section labels.
+
 ## VPX plugins (2026-10-14)
 
 The editor hosts VPX plugins on libvpxhost's bus (github.com/PPUC/libvpxhost, shared with ppuc;

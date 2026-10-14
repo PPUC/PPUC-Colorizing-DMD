@@ -16,6 +16,10 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     m_assignButton->setText(QStringLiteral("Assign BG"));
     m_assignButton->setToolTip(QStringLiteral("Assign selected background to selected frames"));
     m_assignButton->setEnabled(false);
+    m_removeButton = new QToolButton(this);
+    m_removeButton->setText(QStringLiteral("Remove BG"));
+    m_removeButton->setToolTip(QStringLiteral("Remove the background from the selected frames"));
+    m_removeButton->setEnabled(false);
     m_editButton = new QToolButton(this);
     m_editButton->setText(QStringLiteral("Edit BG"));
     m_editButton->setToolTip(QStringLiteral("Switch drawing target to the selected background"));
@@ -47,6 +51,7 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     pageLayout->addWidget(m_selectedBackgroundLabel);
     auto* buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(m_assignButton);
+    buttonLayout->addWidget(m_removeButton);
     buttonLayout->addWidget(m_editButton);
     pageLayout->addLayout(buttonLayout);
     auto* copyLayout = new QHBoxLayout();
@@ -62,6 +67,11 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     connect(m_assignButton, &QToolButton::clicked, this, [this]() {
         if (onAssignRequested) {
             onAssignRequested();
+        }
+    });
+    connect(m_removeButton, &QToolButton::clicked, this, [this]() {
+        if (onRemoveRequested) {
+            onRemoveRequested();
         }
     });
     connect(m_editButton, &QToolButton::clicked, this, [this]() {
@@ -97,6 +107,7 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
     const bool hasBackground = document && state.selectedBackgroundIndex &&
                                *state.selectedBackgroundIndex < document->backgroundCount();
     m_assignButton->setEnabled(hasBackground && state.hasSelectedFrames);
+    m_removeButton->setEnabled(document && state.selectedFramesHaveBackground);
     m_copyFrameToBackgroundButton->setEnabled(hasBackground && state.hasCurrentFrame);
     m_copyBackgroundToFramesButton->setEnabled(hasBackground && state.hasSelectedFrames);
     m_importImageButton->setEnabled(hasBackground);

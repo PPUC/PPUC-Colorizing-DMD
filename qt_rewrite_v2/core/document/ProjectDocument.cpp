@@ -2684,6 +2684,70 @@ RemovedFrames ProjectDocument::removeFrames(const std::vector<std::size_t>& fram
     return removed;
 }
 
+void ProjectDocument::reorderFrames(const std::vector<std::size_t>& newOrder)
+{
+    const std::size_t count = m_frames.size();
+    std::vector<std::size_t> newIndex(count, count);
+    if (newOrder.size() != count) {
+        throw std::invalid_argument("the new frame order does not name every frame");
+    }
+    for (std::size_t position = 0; position < count; ++position) {
+        if (newOrder[position] >= count || newIndex[newOrder[position]] != count) {
+            throw std::invalid_argument("the new frame order does not name every frame once");
+        }
+        newIndex[newOrder[position]] = position;
+    }
+
+    std::vector<uint8_t>& palettes = m_editorMetadata.importedPalettes;
+    const std::size_t paletteCount = std::min(palettes.size() / kImportedPaletteBytes, count);
+    for (std::size_t position = 0; position < paletteCount; ++position) {
+        if (newOrder[position] >= paletteCount) {
+            throw std::logic_error(
+                "the frames with an imported palette have to stay the first frames");
+        }
+    }
+
+    std::vector<FrameRecord> frames;
+    frames.reserve(count);
+    for (std::size_t oldIndex : newOrder) {
+        frames.push_back(std::move(m_frames[oldIndex]));
+    }
+    m_frames = std::move(frames);
+    m_dynamicPixelStates.clear();
+
+    if (paletteCount > 0) {
+        std::vector<uint8_t> reordered(palettes.begin(),
+                                       palettes.begin() + static_cast<std::ptrdiff_t>(
+                                                              paletteCount * kImportedPaletteBytes));
+        for (std::size_t position = 0; position < paletteCount; ++position) {
+            std::copy_n(palettes.begin() +
+                            static_cast<std::ptrdiff_t>(newOrder[position] * kImportedPaletteBytes),
+                        kImportedPaletteBytes,
+                        reordered.begin() +
+                            static_cast<std::ptrdiff_t>(position * kImportedPaletteBytes));
+        }
+        std::copy(reordered.begin(), reordered.end(), palettes.begin());
+    }
+
+    EditorMetadata& metadata = m_editorMetadata;
+    const std::size_t sectionCount = std::min<std::size_t>(metadata.sectionCount, kMaxSections);
+    for (std::size_t section = 0; section < sectionCount; ++section) {
+        uint32_t& first = metadata.sectionFirstFrames[section];
+        if (first < count) {
+            first = static_cast<uint32_t>(newIndex[first]);
+        }
+    }
+    for (std::size_t sprite = 0; sprite < m_sprites.size(); ++sprite) {
+        uint32_t& source = metadata.spriteSourceFrames[sprite];
+        if (source < count) {
+            source = static_cast<uint32_t>(newIndex[source]);
+        }
+    }
+
+    markChanged();
+    m_identificationRevision = m_revision;
+}
+
 void ProjectDocument::insertFrames(RemovedFrames removed)
 {
     const std::size_t insertCount = removed.indices.size();

@@ -138,6 +138,7 @@ void runProjectGeometryTests();
 void runRuntimePreviewTests();
 void runPlaybackIdentificationTests();
 void runSectionsTests();
+void runFrameMoveTests();
 void runSpriteClipboardTests();
 void runStateCommandsTests();
 void runStructureCommandTests();
@@ -169,6 +170,7 @@ try {
     runRuntimePreviewTests();
     runPlaybackIdentificationTests();
     runSectionsTests();
+    runFrameMoveTests();
     runSpriteClipboardTests();
     runStateCommandsTests();
     runStructureCommandTests();

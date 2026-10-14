@@ -630,6 +630,38 @@ that would be selected is filtered out, the next listed frame is. Playback stops
 selection and a pending free gradient are dropped, and after a change of the frames the sprite
 capture selection as well.
 
+### Moving frames
+
+The selected frames can be put elsewhere in the project, so a project can be sorted without
+another tool. They go as one block, in their order, and are renumbered with the frames between;
+everything a frame has goes with it. One undo step.
+
+- Drag the selected frames in the frame list and drop them: in the upper half of a row they go
+  before that row's frame, in the lower half behind it, below the last row behind the last
+  frame. (Pressing on a selected frame and moving the mouse starts the drag; select ranges with
+  Shift+click.)
+- `Edit -> Move Frames Up` (`Alt+Up` in the frame list) puts them before the frame shown above
+  the first selected one; `Move Frames Down` (`Alt+Down`) behind the frame shown below the last
+  selected one. With a frame filter that is the neighbour in the list, not necessarily in the
+  project.
+- `Edit -> Move Frames To...` asks for the frame number to put them before; the frame count puts
+  them behind the last frame.
+- Afterwards the moved frames are selected where they are now; the status bar gives their new
+  numbers.
+
+Sections follow their frames:
+
+- a section whose frames all move goes with them;
+- a section whose first frame moves without the rest starts at its first frame that stays;
+- frames dropped (or moved with `Move Frames To...`) right before the first frame of a section
+  join that section, which then starts at the first moved frame, unless the frames bring a
+  section of their own; `Move Frames Down` past the last frame of a section keeps them in it;
+- otherwise moved frames belong to the section of the frame before them.
+
+The source frames of sprites follow their frames. A project with imported palettes (old
+Win32 projects) keeps them for its first frames only: a move that would put a frame without one
+before a frame with one is refused.
+
 ### Deleting frames
 
 Everything a frame has goes with it: original, colorized frame, dynamic data, background mask,
@@ -1117,6 +1149,9 @@ The `Background` topic exposes:
 - Backgrounds are selected visually from the left sidebar.
 - The tab shows the selected background ID.
 - `Assign BG` assigns the selected background to all selected frames.
+- `Remove BG` takes the background off all selected frames (they then have none; the background
+  itself stays). It is enabled while one of the selected frames has a background, and undoable.
+  The Inspector's `BG ID` set to `None` does the same.
 - `Edit BG` switches ordinary drawing tools to the selected background image. If the sprite editor
   is open, it is closed first (`Edit Sprite` is switched off).
 - `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.

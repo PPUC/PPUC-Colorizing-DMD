@@ -54,6 +54,7 @@
 #include "EditMenuActions.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
+#include "FrameListWidget.h"
 #include "GifExport.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
@@ -541,6 +542,24 @@ void MainWindow::createActions()
     connect(m_deleteShortFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFramesShorterThan();
     });
+    m_moveFramesUpAction = editMenu->addAction(QStringLiteral("Move Frames &Up"));
+    m_moveFramesUpAction->setToolTip(
+        QStringLiteral("Move the selected frames before the frame above them (Alt+Up in the "
+                       "frame list)"));
+    m_moveFramesUpAction->setEnabled(false);
+    connect(m_moveFramesUpAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
+    m_moveFramesDownAction = editMenu->addAction(QStringLiteral("Move Frames Do&wn"));
+    m_moveFramesDownAction->setToolTip(
+        QStringLiteral("Move the selected frames behind the frame below them (Alt+Down in the "
+                       "frame list)"));
+    m_moveFramesDownAction->setEnabled(false);
+    connect(m_moveFramesDownAction, &QAction::triggered, this,
+            [this]() { moveSelectedFramesDown(); });
+    m_moveFramesToAction = editMenu->addAction(QStringLiteral("&Move Frames To..."));
+    m_moveFramesToAction->setToolTip(
+        QStringLiteral("Move the selected frames before a frame number, or to the end"));
+    m_moveFramesToAction->setEnabled(false);
+    connect(m_moveFramesToAction, &QAction::triggered, this, [this]() { moveSelectedFramesTo(); });
     createSelectionActions(editMenu);
 
     QAction* frameTesterAction = viewMenu->addAction(QStringLiteral("Frame &Tester..."));
@@ -627,7 +646,8 @@ void MainWindow::createCentralView()
                                        kInactiveFrameToolTip,
                                        Qt::ToolTipRole);
     m_frameFilterComboBox->setEnabled(false);
-    m_frameList = new QListWidget(central);
+    m_frameList = new FrameListWidget(central);
+    m_frameList->onMoveRequested = [this](int row) { moveSelectedFramesBeforeRow(row); };
     m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_frameList->setIconSize(kFrameThumbnailSize);
     m_frameList->setResizeMode(QListView::Adjust);
@@ -647,6 +667,19 @@ void MainWindow::createCentralView()
     m_frameList->setContextMenuPolicy(Qt::ActionsContextMenu);
     m_frameList->addAction(m_deleteFramesListAction);
     m_frameList->addAction(m_deleteShortFramesAction);
+    // Alt+Up and Alt+Down in the list only, as Delete above.
+    auto* moveUpListAction = new QAction(m_moveFramesUpAction->text(), m_frameList);
+    moveUpListAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Up));
+    moveUpListAction->setShortcutContext(Qt::WidgetShortcut);
+    connect(moveUpListAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
+    auto* moveDownListAction = new QAction(m_moveFramesDownAction->text(), m_frameList);
+    moveDownListAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Down));
+    moveDownListAction->setShortcutContext(Qt::WidgetShortcut);
+    connect(moveDownListAction, &QAction::triggered, this,
+            [this]() { moveSelectedFramesDown(); });
+    m_frameList->addAction(moveUpListAction);
+    m_frameList->addAction(moveDownListAction);
+    m_frameList->addAction(m_moveFramesToAction);
     m_frameThumbnails = new LazyListIcons(
         m_frameList,
         makeFrameThumbnailPlaceholder(kFrameThumbnailSize),
@@ -829,6 +862,10 @@ void MainWindow::createCentralView()
     m_backgroundPanel = new BackgroundPanel(central);
     m_backgroundPanel->onAssignRequested = [this]() {
         assignSelectedBackgroundToFrames();
+    };
+    m_backgroundPanel->onRemoveRequested = [this]() {
+        setCurrentFrameBackgroundId(-1);
+        updateBackgroundControls();
     };
     m_backgroundPanel->onEditRequested = [this]() {
         editAssignedBackground();
@@ -4134,7 +4171,16 @@ void MainWindow::updateBackgroundControls()
     state.document = m_document ? &*m_document : nullptr;
     state.selectedBackgroundIndex = selectedBackground;
     state.hasCurrentFrame = currentFrameIndex().has_value();
-    state.hasSelectedFrames = !selectedFrameIndices().empty();
+    const std::vector<std::size_t> selectedFrames = selectedFrameIndices();
+    state.hasSelectedFrames = !selectedFrames.empty();
+    state.selectedFramesHaveBackground =
+        m_document && std::any_of(selectedFrames.begin(), selectedFrames.end(),
+                                  [this](std::size_t frame) {
+                                      return frame < m_document->frameCount() &&
+                                             m_document->backgroundData(frame) &&
+                                             m_document->backgroundData(frame)->backgroundId !=
+                                                 document::kNoBackgroundId;
+                                  });
     m_backgroundPanel->refresh(state);
 
     if (m_preview) {
@@ -7505,6 +7551,155 @@ void MainWindow::deleteSelectedComparisonMask()
     }
 }
 
+void MainWindow::moveSelectedFramesBeforeRow(int row)
+{
+    if (!m_document || !m_frameList) {
+        return;
+    }
+    const std::size_t beforeFrame =
+        row >= 0 && row < m_frameList->count()
+            ? static_cast<std::size_t>(m_frameList->item(row)->data(Qt::UserRole).toULongLong())
+            : m_document->frameCount();
+    moveFrames(selectedFrameIndices(), beforeFrame);
+}
+
+void MainWindow::moveSelectedFramesUp()
+{
+    if (!m_document || !m_frameList) {
+        return;
+    }
+    // The row above the first selected one; with a filter, the frame shown above.
+    int firstRow = m_frameList->count();
+    for (const QListWidgetItem* item : m_frameList->selectedItems()) {
+        firstRow = std::min(firstRow, m_frameList->row(item));
+    }
+    if (firstRow <= 0 || firstRow >= m_frameList->count()) {
+        statusBar()->showMessage(QStringLiteral("Not moved: the frames are at the top"), 2500);
+        return;
+    }
+    moveSelectedFramesBeforeRow(firstRow - 1);
+}
+
+void MainWindow::moveSelectedFramesDown()
+{
+    if (!m_document || !m_frameList) {
+        return;
+    }
+    // Behind the frame of the row below the last selected one.
+    int lastRow = -1;
+    for (const QListWidgetItem* item : m_frameList->selectedItems()) {
+        lastRow = std::max(lastRow, m_frameList->row(item));
+    }
+    if (lastRow < 0 || lastRow + 1 >= m_frameList->count()) {
+        statusBar()->showMessage(QStringLiteral("Not moved: the frames are at the bottom"), 2500);
+        return;
+    }
+    // Behind it, not into a section that starts after it.
+    const std::size_t below = m_frameList->item(lastRow + 1)->data(Qt::UserRole).toULongLong();
+    moveFrames(selectedFrameIndices(), below + 1, false);
+}
+
+void MainWindow::moveSelectedFramesTo()
+{
+    const std::vector<std::size_t> frames = selectedFrameIndices();
+    if (!m_document || frames.empty()) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+    const int count = static_cast<int>(m_document->frameCount());
+    bool accepted = false;
+    const int beforeFrame = QInputDialog::getInt(
+        this,
+        QStringLiteral("Move Frames"),
+        QStringLiteral("Move the %1 selected frame(s) before frame (%2 = behind the last "
+                       "frame):")
+            .arg(static_cast<int>(frames.size()))
+            .arg(count),
+        static_cast<int>(frames.front()),
+        0,
+        count,
+        1,
+        &accepted);
+    if (accepted) {
+        moveFrames(frames, static_cast<std::size_t>(beforeFrame));
+    }
+}
+
+void MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
+                            std::size_t beforeFrame,
+                            bool joinSection)
+{
+    if (!m_document || frameIndices.empty()) {
+        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        return;
+    }
+    try {
+        std::unique_ptr<edit::FrameMoveCommand> command =
+            edit::moveFrames(*m_document, frameIndices, beforeFrame, joinSection);
+        if (!command) {
+            statusBar()->showMessage(QStringLiteral("The frames are there already"), 2500);
+            return;
+        }
+        const edit::FrameMoveCommand& applied = *command;
+        m_droppedStructureSteps =
+            m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+        refreshAfterFrameMove(applied);
+        updateUndoRedoActions();
+        const std::vector<std::size_t> moved = applied.movedFrames();
+        showStructureEditStatus(
+            QStringLiteral("Moved %1 frame(s); they are frames %2 now")
+                .arg(static_cast<int>(moved.size()))
+                .arg(frameRangesText(moved)),
+            4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::refreshAfterFrameMove(const edit::FrameMoveCommand& command)
+{
+    if (!m_document) {
+        return;
+    }
+    setPlaybackRunning(false);
+    m_pasteMode.cancel();
+    m_canvasEdit.cancelFreeGradient();
+    m_canvasEdit.clearSelection(canvasEditContext());
+    // The capture selection belongs to a frame number.
+    m_canvasEdit.clearCaptureSelection();
+    m_spriteDependentViewsDirty = false;
+    const std::vector<std::size_t> moved = command.movedFrames();
+    refreshFrameList(std::nullopt);
+    selectFrameNear(moved.front());
+    if (m_frameList && moved.size() > 1) {
+        // All moved frames that are listed; told to the window once, below.
+        QSignalBlocker blocker(m_frameList);
+        for (int row = 0; row < m_frameList->count(); ++row) {
+            QListWidgetItem* item = m_frameList->item(row);
+            const std::size_t frameIndex = item->data(Qt::UserRole).toULongLong();
+            if (std::binary_search(moved.begin(), moved.end(), frameIndex)) {
+                item->setSelected(true);
+            }
+        }
+    }
+    refreshComponentBrowsers();
+    updateSectionControls();
+    updateFrameMetadataControls();
+    updateColorRotationControls();
+    updateSpriteControls();
+    updatePaintTargetMode();
+    if (m_preview) {
+        m_preview->update();
+    }
+    if (m_spriteEditor) {
+        m_spriteEditor->update();
+    }
+    updateFrameStatusText();
+    updatePlaybackControls();
+    updateProjectHeaderStatus();
+    updateStructureControls();
+}
+
 void MainWindow::recordStructureEdit(std::unique_ptr<edit::StructureCommand> command)
 {
     if (!m_document || !command) {
@@ -7685,6 +7880,11 @@ void MainWindow::updateStructureControls()
     if (m_deleteShortFramesAction) {
         m_deleteShortFramesAction->setEnabled(canDeleteFrames);
     }
+    for (QAction* action : {m_moveFramesUpAction, m_moveFramesDownAction, m_moveFramesToAction}) {
+        if (action) {
+            action->setEnabled(canDeleteFrames);
+        }
+    }
     RecordListPageState state;
     state.hasProject = hasDocument;
     if (m_maskPage) {
@@ -7792,6 +7992,8 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             }
             m_preview->update();
             updateFrameMetadataControls();
+            // Remove BG follows the backgrounds the selected frames have.
+            updateBackgroundControls();
             // Sprite slots, a capture and color rotations are frame changes too.
             setSpriteDependentViewsDirty();
             updateSpriteControls();
@@ -7815,6 +8017,8 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
         case edit::EditKind::ProjectStructure:
             if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(&command)) {
                 refreshAfterStructureEdit(*structure);
+            } else if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(&command)) {
+                refreshAfterFrameMove(*move);
             }
             break;
         case edit::EditKind::Sections:
@@ -8061,6 +8265,12 @@ void MainWindow::undo()
             QStringLiteral("Undo: %1").arg(structureCommandText(*structure)), 2500);
         return;
     }
+    if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(command)) {
+        statusBar()->showMessage(
+            QStringLiteral("Undo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
+            2500);
+        return;
+    }
     statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(*command, showsHdAndSd()),
                              1500);
 }
@@ -8091,6 +8301,12 @@ void MainWindow::redo()
     if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
         statusBar()->showMessage(
             QStringLiteral("Redo: %1").arg(structureCommandText(*structure)), 2500);
+        return;
+    }
+    if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(command)) {
+        statusBar()->showMessage(
+            QStringLiteral("Redo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
+            2500);
         return;
     }
     statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(*command, showsHdAndSd()),
