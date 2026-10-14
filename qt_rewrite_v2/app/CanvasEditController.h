@@ -18,6 +18,7 @@
 #include "edit/EditCommand.h"
 #include "edit/FramePixelSelection.h"
 #include "edit/PlaneSelection.h"
+#include "edit/RecolorHelpers.h"
 #include "PaintTarget.h"
 #include "render/CanvasLayout.h"
 #include "render/CanvasTypes.h"
@@ -158,6 +159,8 @@ public:
                                 bool remove);
     void selectAll(const CanvasEditContext& context);
     void invertSelection(const CanvasEditContext& context);
+    // Adds the pixels next to the selection in the direction (Win32 Ctrl+shadow buttons).
+    void growSelection(const CanvasEditContext& context, edit::SelectionDirection direction);
     void mirrorSelection(const CanvasEditContext& context, bool horizontally, bool vertically);
     // Every pixel of the clicked pixel's color as the canvas shows it (with dynamic content,
     // sprites and, when shown, the background layer); remove takes them out instead.

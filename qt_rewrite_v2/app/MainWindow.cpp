@@ -6065,6 +6065,39 @@ void MainWindow::createSelectionActions(QMenu* editMenu)
         startPaste(edit::PasteMode::WhereOriginalsMatch);
     };
     actions.onPasteDynamicMaskOnly = [this]() { startPaste(edit::PasteMode::DynamicMaskOnly); };
+    actions.onDynamicToStatic = [this]() {
+        if (canUseFrameCanvasHelpers()) {
+            m_editHelpers.dynamicToStatic(canvasEditContext(), m_canvasEdit.selection());
+        }
+    };
+    actions.onBrightness = [this]() {
+        if (!canUseFrameCanvasHelpers()) {
+            return;
+        }
+        bool accepted = false;
+        const int percent = QInputDialog::getInt(
+            this,
+            QStringLiteral("Brightness"),
+            QStringLiteral("Brightness of the selected pixels, in percent of their color "
+                           "(below 100 darker, above brighter):"),
+            m_brightnessPercent, 0, 2000, 5, &accepted);
+        if (accepted) {
+            m_brightnessPercent = percent;
+            m_editHelpers.brightness(canvasEditContext(), m_canvasEdit.selection(),
+                                     percent / 100.0);
+        }
+    };
+    actions.onShadowSelection = [this](edit::SelectionDirection direction) {
+        if (canUseFrameCanvasHelpers()) {
+            m_editHelpers.shadowSelection(canvasEditContext(), m_canvasEdit.selection(),
+                                          direction);
+        }
+    };
+    actions.onGrowSelection = [this](edit::SelectionDirection direction) {
+        if (canUseFrameCanvasHelpers()) {
+            m_canvasEdit.growSelection(canvasEditContext(), direction);
+        }
+    };
     actions.onSelectAll = [this]() {
         if (canUseFrameCanvasHelpers()) {
             m_canvasEdit.selectAll(canvasEditContext());

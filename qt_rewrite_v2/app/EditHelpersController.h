@@ -70,6 +70,16 @@ public:
     void removeDynamicContent(const CanvasEditContext& context,
                               const edit::PlaneSelection* selection);
     void assignDynamicSet(const CanvasEditContext& context, const edit::PlaneSelection* selection);
+    // Dynamic pixels (of the selection if there is one) keep their color as a fixed one.
+    void dynamicToStatic(const CanvasEditContext& context, const edit::PlaneSelection* selection);
+    // The selection's colors times the coefficient, on the selected frames.
+    void brightness(const CanvasEditContext& context,
+                    const edit::PlaneSelection* selection,
+                    double coefficient);
+    // The draw color next to the selection, see edit::makeSelectionShadowChanges().
+    void shadowSelection(const CanvasEditContext& context,
+                         const edit::PlaneSelection* selection,
+                         edit::SelectionDirection direction);
 
 private:
     // Commits the frames' changes; returns how many frames changed.

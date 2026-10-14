@@ -86,7 +86,56 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     add(menu, QStringLiteral("Assign Dynamic S&et"),
         QStringLiteral("Put the selection, or the frames, into the active dynamic set"),
         {alt(Qt::Key_A)}, &EditMenuActions::onAssignDynamicSet);
+    add(menu, QStringLiteral("D&ynamic To Static"),
+        QStringLiteral("Dynamic pixels of the selection, or of the frames, keep the color they "
+                       "show as a fixed one"),
+        {}, &EditMenuActions::onDynamicToStatic);
+    add(menu, QStringLiteral("Bri&ghtness..."),
+        QStringLiteral("Make the selected pixels brighter or darker by a percentage"), {},
+        &EditMenuActions::onBrightness);
+    addDirections(menu, QStringLiteral("S&hadow Next To Selection"),
+                  QStringLiteral("Draw the draw color next to the selection, where it is not "
+                                 "dynamic"),
+                  &EditMenuActions::onShadowSelection);
+    addDirections(menu, QStringLiteral("&Grow Selection"),
+                  QStringLiteral("Add the pixels next to the selection"),
+                  &EditMenuActions::onGrowSelection);
     setState(false, false);
+}
+
+void EditMenuActions::addDirections(
+    QMenu* menu,
+    const QString& title,
+    const QString& toolTip,
+    std::function<void(edit::SelectionDirection)> EditMenuActions::*handler)
+{
+    using edit::SelectionDirection;
+    QMenu* submenu = menu->addMenu(title);
+    submenu->setToolTipsVisible(true);
+    submenu->menuAction()->setToolTip(toolTip);
+    const std::pair<const char*, SelectionDirection> directions[] = {
+        {"All Around", SelectionDirection::AllAround},
+        {"Left", SelectionDirection::Left},
+        {"Bottom Left", SelectionDirection::BottomLeft},
+        {"Bottom", SelectionDirection::Bottom},
+        {"Bottom Right", SelectionDirection::BottomRight},
+        {"Right", SelectionDirection::Right},
+        {"Top Right", SelectionDirection::TopRight},
+        {"Top", SelectionDirection::Top},
+        {"Top Left", SelectionDirection::TopLeft},
+    };
+    for (const auto& [text, direction] : directions) {
+        QAction* action = submenu->addAction(QString::fromLatin1(text));
+        const SelectionDirection chosen = direction;
+        connect(action, &QAction::triggered, this, [this, handler, chosen]() {
+            if (this->*handler) {
+                (this->*handler)(chosen);
+            }
+        });
+        m_actions.push_back(action);
+        m_projectActions.push_back(action);
+    }
+    m_projectActions.push_back(submenu->menuAction());
 }
 
 QAction* EditMenuActions::add(QMenu* menu,

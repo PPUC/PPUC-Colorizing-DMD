@@ -1,5 +1,6 @@
 #pragma once
 
+#include "edit/RecolorHelpers.h"
 #include <functional>
 #include <vector>
 
@@ -57,6 +58,12 @@ public:
     std::function<void()> onBlackOriginalToBlack;
     std::function<void()> onRemoveDynamicZones;
     std::function<void()> onAssignDynamicSet;
+    std::function<void()> onDynamicToStatic;
+    std::function<void()> onBrightness;
+    // The Win32 shadow buttons: a shadow in the draw color next to the selection, or (Ctrl)
+    // the selection grown by a pixel, in a direction or all around.
+    std::function<void(edit::SelectionDirection direction)> onShadowSelection;
+    std::function<void(edit::SelectionDirection direction)> onGrowSelection;
 
     // Whether a project is open and whether something was copied.
     void setState(bool hasProject, bool hasClipboard);
@@ -69,6 +76,11 @@ public:
     static bool forwardStandardKey(QWidget* focus, QKeySequence::StandardKey key);
 
 private:
+    // A submenu with an entry per direction.
+    void addDirections(QMenu* menu,
+                       const QString& title,
+                       const QString& toolTip,
+                       std::function<void(edit::SelectionDirection)> EditMenuActions::*handler);
     QAction* add(QMenu* menu,
                  const QString& text,
                  const QString& toolTip,

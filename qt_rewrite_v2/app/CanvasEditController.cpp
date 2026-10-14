@@ -1190,6 +1190,18 @@ void CanvasEditController::invertSelection(const CanvasEditContext& context)
     setSelection(context, std::move(selection), QStringLiteral("Inverted the selection"));
 }
 
+void CanvasEditController::growSelection(const CanvasEditContext& context,
+                                         edit::SelectionDirection direction)
+{
+    if (!m_selection || m_selection->pixels.isEmpty()) {
+        showStatus(QStringLiteral("No canvas selection"), kStatusMs);
+        return;
+    }
+    Selection selection = *m_selection;
+    selection.pixels = edit::grownSelection(selection.pixels, direction);
+    setSelection(context, std::move(selection), QStringLiteral("Grew the selection"));
+}
+
 void CanvasEditController::mirrorSelection(const CanvasEditContext& context,
                                            bool horizontally,
                                            bool vertically)

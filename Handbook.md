@@ -1678,6 +1678,23 @@ rows) can match at another shift than the true one.
   followed.
 - `Remove Dynamic Zones` (`Ctrl+E` or `Alt+D`, as in the Win32 editor) and `Assign Dynamic Set`
   (`Alt+A`), see "Dynamic Masks".
+- `Dynamic To Static` (CDMD's `Dyn>Stat`): the dynamic pixels of the selection, or of the whole
+  frame, on every selected frame, leave their zone and keep, as a fixed color, the color their
+  dynamic set gives their original shade. A dynamic shadow the runtime draws around the zone is
+  not kept. Works on the plane dynamic zones are on (128x32 in an ordinary project).
+- `Brightness...` (CDMD's brightness box): asks for a percentage (0 to 2000; the last one is
+  offered again) and multiplies the red, green and blue of the selected pixels on every selected
+  frame by it, rounded down; a channel the factor would leave unchanged still moves one step up
+  (above 100 %) or down (below), as in CDMD. Needs a selection.
+- `Shadow Next To Selection` (CDMD's shadow buttons): `All Around` or a direction; every pixel
+  next to the selection on that side that is neither selected nor dynamic gets the draw color,
+  on every selected frame. Needs a selection.
+- `Grow Selection` (CDMD's shadow buttons with `Ctrl`): adds the pixels next to the selection,
+  all around or on one side. A dynamic shadow (CDMD's shadow buttons with `Alt`) is set on the
+  `Dynamic` page.
+
+Each is one undoable step per changed frame. CDMD's `Black And White` (the whole project to
+grey, not undoable there) is not offered.
 
 ## Keyboard Shortcuts
 

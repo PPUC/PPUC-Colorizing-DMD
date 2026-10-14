@@ -850,6 +850,76 @@ void testRecolorHelpers()
            "an HD pixel over an SD zone shows dynamic content");
 }
 
+void testMoreHelpers()
+{
+    const Size rom{128, 32};
+    ProjectDocument document = makeDocument(PlaneLayout::Ordinary,
+                                            {patterned(rom, 0), patterned(rom, 1)}, {0, 1});
+    addDynamicZone(document, 0);
+    const Resolution plane = Resolution::Sd;
+
+    // Dynamic to static: the zone's pixels keep their set's color for their shade.
+    edit::FrameContentChanges changes = edit::makeDynamicToStaticChanges(document, 0, nullptr);
+    expect(changes.dynamicMask.size() == 3, "dyn to static leaves the zone");
+    for (const edit::PixelChange& change : changes.pixels) {
+        const uint8_t shade = document.originalFrame(0).pixels[at(rom, change.x, change.y)];
+        expect(change.newColor == 0xA0 + shade, "dyn to static keeps the set's color");
+    }
+    PlaneSelection one(plane, rom);
+    one.add({Point{5, 3}});
+    changes = edit::makeDynamicToStaticChanges(document, 0, &one);
+    expect(changes.dynamicMask.size() == 1, "dyn to static in the selection");
+
+    // Brightness, as CDMD's Brightness(): channels scaled and rounded down, at least a step.
+    expect(edit::brightenedColor(0x0841, 2.0) == 0x1082, "brightness doubles the channels");
+    expect(edit::brightenedColor(0x0841, 1.05) == 0x1062, "a small factor still moves a step");
+    expect(edit::brightenedColor(0xffff, 1.5) == 0xffff, "up to white");
+    expect(edit::brightenedColor(0x0000, 0.5) == 0x0000, "down to black");
+    expect(edit::brightenedColor(0x1234, 1.0) == 0x1234, "100 percent changes nothing");
+    PlaneSelection area(plane, rom);
+    area.add({Point{20, 10}, Point{21, 10}});
+    changes = edit::makeBrightnessChanges(document, 1, plane, area, 0.5);
+    for (const edit::PixelChange& change : changes.pixels) {
+        expect(area.contains(Point{change.x, change.y}) &&
+                   change.newColor == edit::brightenedColor(change.oldColor, 0.5),
+               "brightness on the selected pixels");
+    }
+
+    // A shadow next to the selection, not on dynamic pixels.
+    PlaneSelection dot(plane, rom);
+    dot.add({Point{10, 10}});
+    changes = edit::makeSelectionShadowChanges(document, 1, plane, dot,
+                                               edit::SelectionDirection::AllAround, 0x0001);
+    std::size_t shadowed = 0;
+    for (const edit::PixelChange& change : changes.pixels) {
+        shadowed += change.newColor == 0x0001 && std::abs(change.x - 10) <= 1 &&
+                            std::abs(change.y - 10) <= 1 && !(change.x == 10 && change.y == 10)
+                        ? 1
+                        : 0;
+    }
+    expect(shadowed == changes.pixels.size() && shadowed >= 7, "a shadow all around");
+    changes = edit::makeSelectionShadowChanges(document, 1, plane, dot,
+                                               edit::SelectionDirection::Left, 0x0001);
+    expect(changes.pixels.size() <= 1 &&
+               (changes.pixels.empty() || (changes.pixels[0].x == 9 && changes.pixels[0].y == 10)),
+           "a shadow to the left");
+    PlaneSelection besideZone(plane, rom);
+    besideZone.add({Point{7, 3}});
+    changes = edit::makeSelectionShadowChanges(document, 0, plane, besideZone,
+                                               edit::SelectionDirection::Left, 0x0001);
+    expect(changes.pixels.empty(), "no shadow on a dynamic pixel");
+
+    // Growing the selection, clipped at the edges.
+    PlaneSelection corner(plane, rom);
+    corner.add({Point{0, 0}});
+    expect(edit::grownSelection(corner, edit::SelectionDirection::AllAround).count() == 4,
+           "grown all around at a corner");
+    expect(edit::grownSelection(corner, edit::SelectionDirection::Right).count() == 2,
+           "grown to the right");
+    expect(edit::grownSelection(corner, edit::SelectionDirection::Left).count() == 1,
+           "nothing left of the edge");
+}
+
 }  // namespace
 
 void runSelectionEditTests()
@@ -861,4 +931,5 @@ void runSelectionEditTests()
     testAutoCopy();
     testScrollFill();
     testRecolorHelpers();
+    testMoreHelpers();
 }

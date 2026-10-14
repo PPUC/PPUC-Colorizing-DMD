@@ -52,4 +52,50 @@ namespace colorizing::edit {
     const PlaneSelection* area,
     uint8_t dynamicSet);
 
+// IDC_DYNATOSTAT (17636) on the dynamic plane: dynamic pixels of the area leave their zone and
+// keep, as a fixed color, the color their set gives their shade. A dynamic shadow drawn around
+// them is not kept. Empty changes for a frame without dynamic data.
+[[nodiscard]] FrameContentChanges makeDynamicToStaticChanges(
+    const document::ProjectDocument& document,
+    std::size_t frameIndex,
+    const PlaneSelection* area);
+
+// IDC_APPLYLUM (17560, Brightness): the selected pixels' colors with each channel multiplied by
+// coefficient (CDMD's percentage / 100, 0 to 20), rounded down; a channel the factor leaves
+// unchanged still moves by one step, up for a factor above 1, down for one below.
+[[nodiscard]] uint16_t brightenedColor(uint16_t color, double coefficient);
+[[nodiscard]] FrameContentChanges makeBrightnessChanges(const document::ProjectDocument& document,
+                                                        std::size_t frameIndex,
+                                                        render::Resolution plane,
+                                                        const PlaneSelection& selection,
+                                                        double coefficient);
+
+// The directions of the Win32 shadow buttons (IDC_OUTA, IDC_OUTL, ...).
+enum class SelectionDirection {
+    AllAround,
+    Left,
+    BottomLeft,
+    Bottom,
+    BottomRight,
+    Right,
+    TopRight,
+    Top,
+    TopLeft,
+};
+
+// ShadowSelection (IDC_OUT*): each pixel next to the selection in the direction (or all
+// around) that is neither selected nor dynamic gets the color.
+[[nodiscard]] FrameContentChanges makeSelectionShadowChanges(
+    const document::ProjectDocument& document,
+    std::size_t frameIndex,
+    render::Resolution plane,
+    const PlaneSelection& selection,
+    SelectionDirection direction,
+    uint16_t color);
+
+// ExtendSelection (Ctrl+IDC_OUT*): the selection with every pixel next to it in the direction
+// (or all around) added.
+[[nodiscard]] PlaneSelection grownSelection(const PlaneSelection& selection,
+                                            SelectionDirection direction);
+
 }  // namespace colorizing::edit

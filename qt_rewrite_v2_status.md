@@ -1064,7 +1064,9 @@ owner together.
   palette color, edit color into a palette color), the composed-color pipette and the pipette
   writing into the selected edit color.
 - Sprite dynamic masks and colours, sprite shape mode (data modelled, no UI).
-- Auto shadow, brightness, black and white, Dyn>Stat ("to source frame" is done).
+- Black and white of the whole project (CDMD `IDC_BAW`, not undoable there; its rotation loop
+  also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
+  Dyn>Stat and "to source frame" are done.
 - Selectable resize filters for HD creation.
 - Images window: video import, crop zones, scroll copy.
 - ZeDMD output, PuP tester. The frame tester exists (`dialogs/FrameTesterDialog`,

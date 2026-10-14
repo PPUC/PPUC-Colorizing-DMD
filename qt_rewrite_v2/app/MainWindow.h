@@ -523,6 +523,8 @@ private:
     uint64_t m_autosavedRevision = 0;
     std::unique_ptr<Autosaver> m_autosaver;
     SectionBar* m_sectionBar = nullptr;
+    // The last percentage given to Edit -> Brightness.
+    int m_brightnessPercent = 110;
     // The document revision the section bar's lists show.
     std::optional<uint64_t> m_sectionBarRevision;
 };

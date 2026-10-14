@@ -259,6 +259,92 @@ void EditHelpersController::removeDynamicContent(const CanvasEditContext& contex
                kStatusMs);
 }
 
+void EditHelpersController::dynamicToStatic(const CanvasEditContext& context,
+                                            const edit::PlaneSelection* selection)
+{
+    if (!requireDynamicPlane(context)) {
+        return;
+    }
+    const edit::PlaneSelection* area = areaOn(selection, context.activePlane);
+    std::vector<std::pair<std::size_t, edit::FrameContentChanges>> changes;
+    try {
+        for (std::size_t frameIndex : context.selectedFrames) {
+            changes.emplace_back(
+                frameIndex, edit::makeDynamicToStaticChanges(*context.document, frameIndex, area));
+        }
+    } catch (const std::exception& ex) {
+        showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
+        return;
+    }
+    const std::size_t changed = commitAll(context, std::move(changes));
+    showStatus(QStringLiteral("Made the dynamic content static%1: %2 changed")
+                   .arg(area ? QStringLiteral(" in the selection") : QString())
+                   .arg(framesText(changed)),
+               kStatusMs);
+}
+
+void EditHelpersController::brightness(const CanvasEditContext& context,
+                                       const edit::PlaneSelection* selection,
+                                       double coefficient)
+{
+    const edit::PlaneSelection* area = areaOn(selection, context.activePlane);
+    if (!context.document || !area) {
+        showStatus(QStringLiteral("Brightness works on the selected pixels: select them first"),
+                   kLongStatusMs);
+        return;
+    }
+    std::vector<std::pair<std::size_t, edit::FrameContentChanges>> changes;
+    try {
+        for (std::size_t frameIndex : context.selectedFrames) {
+            changes.emplace_back(frameIndex,
+                                 edit::makeBrightnessChanges(*context.document,
+                                                             frameIndex,
+                                                             context.activePlane,
+                                                             *area,
+                                                             coefficient));
+        }
+    } catch (const std::exception& ex) {
+        showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
+        return;
+    }
+    const std::size_t changed = commitAll(context, std::move(changes));
+    showStatus(QStringLiteral("Brightness %1%: %2 changed")
+                   .arg(qRound(coefficient * 100))
+                   .arg(framesText(changed)),
+               kStatusMs);
+}
+
+void EditHelpersController::shadowSelection(const CanvasEditContext& context,
+                                            const edit::PlaneSelection* selection,
+                                            edit::SelectionDirection direction)
+{
+    const edit::PlaneSelection* area = areaOn(selection, context.activePlane);
+    if (!context.document || !area) {
+        showStatus(QStringLiteral("A shadow goes around the selection: select first"),
+                   kLongStatusMs);
+        return;
+    }
+    std::vector<std::pair<std::size_t, edit::FrameContentChanges>> changes;
+    try {
+        for (std::size_t frameIndex : context.selectedFrames) {
+            changes.emplace_back(frameIndex,
+                                 edit::makeSelectionShadowChanges(*context.document,
+                                                                  frameIndex,
+                                                                  context.activePlane,
+                                                                  *area,
+                                                                  direction,
+                                                                  context.drawColor));
+        }
+    } catch (const std::exception& ex) {
+        showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
+        return;
+    }
+    const std::size_t changed = commitAll(context, std::move(changes));
+    showStatus(QStringLiteral("Drew a shadow next to the selection: %1 changed")
+                   .arg(framesText(changed)),
+               kStatusMs);
+}
+
 void EditHelpersController::assignDynamicSet(const CanvasEditContext& context,
                                              const edit::PlaneSelection* selection)
 {
