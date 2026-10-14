@@ -4,7 +4,7 @@
 main window?**
 
 It builds the real `app/MainWindow.cpp` into a small executable, runs it offscreen, drives it
-through about 785 scripted states and after each one prints every widget and the relevant
+through about 850 scripted states and after each one prints every widget and the relevant
 document and canvas state. Two such dumps, one of a git revision and one of the working tree,
 are then compared.
 
@@ -254,7 +254,7 @@ change the settings of the real application.
 
 ## Adding scripted states
 
-The script is plain C++ in eight places, executed in this order:
+The script is plain C++ in ten places, executed in this order:
 
 | File | Content |
 | --- | --- |
@@ -268,9 +268,23 @@ The script is plain C++ in eight places, executed in this order:
 | `structure_script.inc` | adding and deleting records, title prefix `structure: `: deleting the selected frames through the Edit menu action (cancelled, accepted, undone, redone, a section start, the last frame, all frames refused), `Delete Frames Shorter Than...` with its input dialog, a deletion under a frame filter, a stroke history behind and before a deleted frame, then `New` and `Delete` on the `Masks`, `Backgrounds` and `Sprites` pages of the left browser with undo and redo, a mask, a background and a sprite in use, the refused sprite names, a deletion while the sprite canvas is on; then briefly a 256x64-original project (a new sprite and background with their 256x64 data, no background from a frame without it) and a 192x64-original one. After each dump it prints what the dump does not hold: record counts, the sprite slots of every frame, sections, the sprite tables of the cRP, the browser selections and the frame list's menu actions |
 | `dump_import_script.inc` | frame dumps and the same-frame tools, title prefix `dump import: `: `File -> New Project From Dump...` (no file chosen, the import dialog cancelled, a dump with a bad line, a project created with a ROM name of its own and the duration filter), the first save of the new project (cancelled, answered, the second save without a question), `File -> Add Frames From Dump...` with undo and redo, a dump of another size refused; then the comparison side of the `Mask` page: `Spot Common`, `Common To Mask` with undo and redo, `Update Same List`, going to a same frame, `Frames using` and `Select Them`, the three deletions of same frames with `Keep selected frames` and their undo; then the question before a project with changes is replaced and a 192x64 and a 256x64 project from a dump. The dumps are generated into a temporary directory. The script answers the import dialog after `waitForAnalysis()`, so no timer is involved, and prints what the dialog shows. After each dump it prints the window title, whether the project has files, every frame's duration, mask and shape mode, the masks and the selected frames |
 | `fixes_script.inc` | the bug fixes of 2026-10-14, title prefix `fixes: `, in a small 128x32 project whose frames all carry dynamic data and one of which has a gap in its sprite slots: `Dyn` and the `Dynamic` filter only for a frame with a dynamic pixel, the thumbnail and `Dyn` after a dynamic mask edit and its undo, the mask browser icon after a mask edit, undo and redo (printed as a hash), a mask ID without a mask refused, the single selection after `selectFrameNear`, `Remove` closing the slot list up, `Assign` into an empty slot behind the first one, the `ref. problem` marker, and the question about unsaved changes for Quit, Open Project, New Project From Dump and Open Recent (answered through `m_unsavedChangesAnswer`: Cancel, Save that fails, Discard). After each dump it prints the mask icon hash, the selection, the questions asked and every frame's sprite slots |
+| `colors_script.inc` | edit colors, color sets and color set replace drawing, title prefix `colors: `, in a 4-color and a 16-color 128x32 project whose three frames have other shades at the same places: selecting an edit color, `Set Replace` with a rectangle on two frames, a line on the HD plane and a flood fill on two frames, their undo, the pipette with and without `Shift`, a dropped edit color and its undo, an edit color from the picker (the script prints the picker's fields before and after entering a hex value and an R5 value) and a cancelled picker, the keys of the slots, `Store`, renaming, `Load`, `Deactivate` and undo on the `Sets` page, scrolling the set list by a program and by the user, `Edit > Dyn` on three frames and `Dyn > Edit` with undo, a 16-color project stored in `Set Replace` mode, a palette color from the picker. After each dump it prints the mode, the selected slot, the draw color, the stored mode and first displayed set, the edit colors, sets 0 to 3, some pixels of every frame and dynamic set 0 |
 
 `fixes_script.inc` is compiled only for a tree that has `app/UnsavedChanges.h`, so a baseline from
 before it is compared with `--allow-appended`.
+
+`colors_script.inc` is compiled only for a tree that has `app/panels/ColorSetPanel.h`. The tree it
+was introduced in also added the edit color row under the toolbar and the `Sets` page of the
+inspector, which show in every state: the row's 22 widgets and the page's widgets as added lines,
+the window taller and the canvas smaller, the inspector's tab list with `Sets` (its scroll arrow
+enabled, scroll bars of some pages no longer shown), the focus chain with the row's buttons after
+`Runtime`, and one more history key (`12/0/sd/00`, the edit colors) at the end of the `keys=` list
+of the `--- sprite state` line. No document, status or private-state line differs. To see
+`REAL DIFFERENCES: 0` for the states before, dump that tree once with the include of
+`colors_script.inc` taken out of `dump.cpp`, make that dump the baseline (see "A baseline of the
+working tree") and compare the complete script against it with `--allow-appended`. The color
+dialog answers of `inspector_script.inc` handle both the `QColorDialog` of older trees and the
+editor's color picker (found by its object name `colorPickerDialog`) and print the same line.
 
 `dump_import_script.inc` is compiled only for a tree that has `app/dialogs/DumpImportDialog.h`;
 a baseline of an older revision ends with the states before it and is compared with
@@ -311,7 +325,7 @@ whether the SD/HD and Create/Remove buttons are hidden.
 The `.inc` files are included at the end of `main()` and each form one block.
 `big_original_script.inc` runs after the window was closed (`closed at the end`),
 `native_original_script.inc` after that one closed its project, `runtime_view_script.inc`
-after that, `structure_script.inc` after that and `dump_import_script.inc` last. A line a script prints lands in the section of the dump before it, so a script
+after that, `structure_script.inc`, `dump_import_script.inc` and `fixes_script.inc` after that and `colors_script.inc` last. A line a script prints lands in the section of the dump before it, so a script
 appended after others prints nothing before its first dump.
 
 A state is: do something, then call `dump("title", w)` (`D("title")` in `inspector_script.inc`).

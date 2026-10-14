@@ -25,7 +25,9 @@
 namespace colorizing::app {
 class BackgroundPanel;
 class ColorRotationPanel;
+class ColorSetPanel;
 class DynamicPanel;
+class EditColorBar;
 class FramePanel;
 class FramePreviewWidget;
 class LazyListIcons;
@@ -60,6 +62,8 @@ public:
 protected:
     // Asks about unsaved changes first, see confirmClosingProject().
     void closeEvent(QCloseEvent* event) override;
+    // The edit color keys while the frame canvas has the focus, see EditColorKeys.h.
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     using DrawingTool = edit::DrawingTool;
@@ -214,6 +218,25 @@ private:
     void editCurrentPaletteColor(std::size_t colorIndex);
     void applyCurrentPaletteGradient();
     void setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565);
+    void editFavoriteColor(std::size_t favoriteIndex);
+    // Edit colors and color sets, see EditColorBar and ColorSetPanel. A selected slot makes
+    // its edit color the draw color, also after the edit color changes; any other choice of
+    // draw color (favorite, palette, pipette) leaves no slot selected.
+    void selectEditColorSlot(std::size_t slot);
+    void editEditColor(std::size_t slot);
+    void setEditColor(std::size_t slot, uint16_t rgb565);
+    void setDrawColorMode(edit::DrawColorMode mode);
+    // Records the change of the edit colors and color sets as one undoable step.
+    void commitEditorColors(document::ColorSetTables after, const QString& statusText);
+    void storeColorSet(std::size_t setIndex);
+    void loadColorSet(std::size_t setIndex);
+    void deactivateColorSet(std::size_t setIndex);
+    void renameColorSet(std::size_t setIndex, const QString& name);
+    void copyEditColorsToDynamicSet();
+    void copyDynamicSetToEditColors();
+    // The pipette with Shift (Win32 behaviour): selects the edit color slot of the color.
+    void pickEditColorSlot(uint16_t rgb565);
+    void updateEditColorControls(bool projectChanged);
     void paintSpriteColorizedPixel(std::size_t spriteIndex,
                                    render::Resolution resolution,
                                    int x,
@@ -366,6 +389,10 @@ private:
     std::vector<QToolButton*> m_toolButtons;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<uint16_t> m_favoriteColors;
+    EditColorBar* m_editColorBar = nullptr;
+    ColorSetPanel* m_colorSetPanel = nullptr;
+    std::optional<std::size_t> m_selectedEditColor;
+    edit::DrawColorMode m_drawColorMode = edit::DrawColorMode::SingleColor;
     BackgroundPanel* m_backgroundPanel = nullptr;
     ColorRotationPanel* m_colorRotationPanel = nullptr;
     DynamicPanel* m_dynamicPanel = nullptr;

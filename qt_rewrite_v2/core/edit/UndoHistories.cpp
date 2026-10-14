@@ -33,6 +33,11 @@ HistoryKey structureHistoryKey()
     return HistoryKey{EditKind::ProjectStructure, 0, render::Resolution::Sd};
 }
 
+HistoryKey editorColorsHistoryKey()
+{
+    return HistoryKey{EditKind::EditorColors, 0, render::Resolution::Sd};
+}
+
 void UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> command)
 {
     if (!command) {

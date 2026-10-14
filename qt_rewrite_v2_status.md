@@ -68,7 +68,9 @@ neither of those holds.
     the same hash under a mask and shape mode, the frames "delete same frames" removes, the
     pixels that differ among frames), `UndoHistories` (scoped stacks with a
     global sequence for chronological undo; drops histories that name renumbered records),
-    `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`.
+    `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`, `ColorModel` (RGB565/RGB888/HSV/hex
+    conversions of the color picker) and `ColorSetEdits` (edit colors, color sets, the draw color
+    mode, `EditorColorsCommand`, Edit <-> Dyn), see "Colors" below.
   - `render/`: `CanvasLayout`, `CanvasTypes`, `ProjectGeometry` (the one place that knows the
     plane layouts; `ProjectSnapshot` and `ProjectDocument` carry it).
   - `runtime/`: `RuntimePreview`, the libserum-backed renderer (the only other file that
@@ -90,9 +92,12 @@ neither of those holds.
   `LazyListIcons`
   (frame list thumbnails built for the rows in view), `ListSelection` and `UnsavedChanges` (small
   pieces of MainWindow behaviour kept testable), `PlaneLabels` (the one place that decides
-  where the UI says "HD"/"SD" and what a single plane is called), eight panels under `panels/`
+  where the UI says "HD"/"SD" and what a single plane is called), `EditColorKeys` (the keys of the
+  edit color slots), ten panels under `panels/` (`EditColorBar` is the row under the toolbar,
+  `ColorSetPanel` the `Sets` page)
   (`SameFramesPanel` is the lower part of the `Mask` page), `panels/RecordListPage` (a list of
-  the left browser with `New` and `Delete` above it) and `dialogs/DumpImportDialog`.
+  the left browser with `New` and `Delete` above it), `dialogs/DumpImportDialog` and
+  `dialogs/ColorPickerDialog`.
 - `tests/`: core test executable, widget test executable, `colorizing_qt_v2_roundtrip`
   (loads a real project, re-serializes, reports per block where it differs from disk; for a
   192x64 project differences in extra-plane blocks are reported as expected) and
@@ -118,6 +123,12 @@ neither of those holds.
 - Undo: scoped histories, chronological within a context, covers pixel edits, masks, dynamic
   colours and shadows, palettes, frame settings, HD create/remove for frames and sprites, and
   adding and deleting records.
+- Colors (2026-10-14): the 4 or 16 edit colors of the cRP under the toolbar, the 64 color sets on
+  the `Sets` page (store, load, rename, deactivate), `Set Replace` drawing (color set replace) for
+  points, shapes, flood fill and multi-frame edits on all three layouts and both planes, the
+  editor's own color picker everywhere (Win32 `ColorPicker` fields, 8 recent colors), the pipette
+  with `Shift`, `Edit > Dyn` / `Dyn > Edit`, keys for the slots. All undoable; untouched color data
+  round-trips byte-identical. See "Colors" below.
 - Record management: delete the selected frames, delete the selected frames shorter than N ms,
   add and delete sprites, backgrounds and comparison masks, all undoable, with every reference
   and the cRP tables following. See "Record management" below.
@@ -467,6 +478,113 @@ script `tools/ui_dump/fixes_script.inc` (appended states, `fixes: ...`) shows th
   same amber ramp; shades 0/5/10/15 of 16 are shades 0 to 3 of 4); `Assign` counts the frames
   it changed instead of the selection.
 
+## Colors
+
+Added 2026-10-14, not committed at the time of writing. Win32 reference
+`git show master:ColorizingDMD.cpp` (3.17.3).
+
+What the Win32 editor does and what the Qt editor does:
+
+- **Edit colors** (`MycRP.acEditColorsS[16]`, `IDC_COL1..16`, toolbar handler 16188): a click
+  selects slot `noColSel` (the draw color is always an edit color there) and opens the palette
+  popup (`Choose_Color_Palette`, `PalProc` 14011/14081), where a click sets the edit color
+  (`SA_ACCOLORS` undo). Qt: the row of `EditColorBar`, as many swatches as the project has colors,
+  each with the strip of its shade; click selects the slot and makes its color the draw color;
+  double click / context menu opens the picker; a palette color dropped on a swatch sets it. The
+  draw color stays free (favorites, palette, pipette) and a slot is "selected" only while the draw
+  color came from it; a selected slot's draw color follows its edit color.
+- **Draw color mode** (`MycRP.DrawColMode`, `IDC_1COLMODE` / `IDC_4COLMODE` / `IDC_GRADMODE(B)`,
+  16241 ff.): 0 single, 1 set replace, 2 gradient; saved in the cRP, the loader turns 2 into 0
+  (12038). Qt: `edit::DrawColorMode` (single, replace) is app state taken from `drawColorMode` on
+  open (1 -> replace, anything else single; `frankst1` is stored in mode 1 and opens in it) and
+  written back only when the user changes the mode, so a stored 2 survives an untouched save
+  (byte identity) while it reads as 0. Not undoable, not dirtying. Mode 2 is the `Grad` tool.
+  `drawMode` and `fillMode` (Win32 tool and Fill checkbox) are not used: the Qt tools differ
+  (separate filled tools), so their meaning does not match; they are written back unchanged.
+- **Set replace pixels** (`ConvertSurfaceToFrame` 5417 for shapes and fills, the point handler
+  22701 / 23106, Alt-click "same color" 23291): `acEditColorsS[oFrames[...]]`; in HD
+  `oFrames[y/2][x/2]` (ordinary), `isDel` (Shift) writes `originalcolors[...]`. Qt:
+  `edit::colorSetReplaceColorSource(document, frame, plane)` maps a plane pixel through
+  `ProjectGeometry::toRomFrame()` (libserum's layout, not the Win32 256x64 code, which indexes a
+  256x64 `oFrames` with 128x32 coordinates). Deviations: the Win32 point tool uses the current
+  frame's shades for every selected frame (`acFrame`), the shapes each frame's own; Qt uses each
+  frame's own everywhere. Shift does not erase frame pixels in Qt (unchanged). Backgrounds (no
+  Win32 equivalent) take the current frame's shades. Sprite painting ignores the mode, as
+  `ConvertSurfaceToSprite` does. The Alt-click "recolor all pixels of this color" has no Qt
+  tool yet.
+- **Flood fill region** (`drawfill` / `floodfill` 6265, 6328): the region is the current frame's
+  connected pixels of the clicked color and dynamic set, whatever the mode; the color comes later
+  per frame. Qt keeps its region rule (current frame, clicked color; the dynamic mask is not part
+  of it, as before) and colors per frame. The single-color early return when the area has the
+  draw color already does not apply in replace mode.
+- **Selection fills**: the only selection fill is `Grad Sel` (palette gradient), which like the
+  Win32 gradient mode ignores the color mode. A fill of the selection with the draw color belongs
+  to the copy/paste and selection-helper step.
+- **Color sets** (`ColSet_Proc` 14617, `activeColSet`, `ColSets`, `nameColSet`, `preColSet`,
+  `acColSet`): "Set" stores the first `noColors` edit colors and activates; a click on an active
+  set loads `noColors` colors (`SA_ACCOLORS`); the name field of an active set renames it
+  (`strcpy_s`, `SA_COLSETS`); scrolling sets `preColSet`; `acColSet` is only loaded and saved,
+  never changed. Qt: `ColorSetPanel` (`Store`, `Load` / double click, name field, `Deactivate`,
+  which Win32 lacks); `firstDisplayedColorSet` follows user scrolling only (clamped to 56 as
+  the Win32 dialog), without dirtying; `currentColorSet` is never written (selects the row on
+  open). A rename zero-fills the 64-byte entry (Win32 `strcpy_s` leaves the bytes after the NUL;
+  only renamed entries are affected).
+- **Picker** (`ColPickProc` 3498, `ColorPicker` 3811): HSV square/bar, RGB888 hex, R8/G8/B8,
+  RGB565 decimal, R5/G6/B5, H/S/V as integers, 8 `previousPickedColors` (not persisted).
+  Qt: `ColorPickerDialog`, same fields; H/S/V with one decimal (with integers 10,000+ RGB565
+  colors do not survive re-entry; Win32's truncating `hsv_to_rgb888` drifts too); recent colors
+  in `QSettings` (`colorPicker/recentColors`). Used for palette, dynamic, shadow, rotation,
+  favorite (new context menu) and edit colors; `QColorDialog` is gone.
+- **Pipette** (`Color_Pipette`, 22930 ff.): picks the composed color (background, dynamic,
+  static); without Shift it writes that color into the selected edit color (undoable), with
+  Shift it selects the last slot whose color matches. Qt: picks the stored colorized pixel as
+  before and sets the draw color; with Shift selects the last matching slot (or says that none
+  matches). Deviation: no write into the edit color without Shift.
+- **Edit <-> Dyn** (`IDC_COLTODYNA` 16891, `IDC_DYNATOCOL` 16910): copy `noColors` colors into
+  `acDynaSet` of all selected frames / from the current frame, on the edited plane. Qt: on
+  `dynamicPlane()`, one `DynamicColorsEditCommand` per changed frame (new: several colors of one
+  set in one step, same history as `DynamicColorEditCommand`), `Dyn > Edit` one
+  `EditorColorsCommand`.
+- **Keys** (`SCKeyState` 21571, 22198 ff.): scan codes 2-5, 16-19, 30-33, 44-47 while the frame
+  window has focus in colorization mode; letters only for 16 colors and without Ctrl/Alt/Shift.
+  Qt: same physical places while the frame canvas has the focus (`EditColorKeys`): macOS virtual
+  key codes, Windows scan codes, XKB key codes on X11/Wayland, otherwise Qt keys read as QWERTY.
+  On macOS a real key event is told from a synthetic one by its native modifier flags (the virtual
+  key of `A` is 0); only checked on macOS with synthetic events. No conflicts: the editor has no
+  single-key shortcuts except `Delete`/`Backspace` on the frame list. Not configurable yet.
+
+Undo: one history `EditKind::EditorColors` (index 0) for edit colors and color sets together,
+`EditorColorsCommand` holds the four tables before and after (6.4 KB per step) and names no
+record, so structure commands never drop it. It is part of the default, `Dynamic` and sprite
+canvas contexts (all places edit colors are used), not of the comparison and background mask
+contexts. The Win32 editor has two records (`SA_ACCOLORS`, `SA_COLSETS`) in its one global undo.
+
+Real projects (scratch programs, not in the repository):
+
+- `afm_113b` (4 colors): edit colors `0000 5140 a280 fbe0` (the plain ramp); set 0 active named
+  "150" (a grey ramp), sets 1 to 17 active but all zero, names "", "9" to "17" (leftovers of the
+  `%02i` numbers), 7 entries with bytes after the NUL; set 18 inactive with a name. Mode 0.
+- `hook_501` (4 colors): 13 real sets, named "White", "Red", "Green Dark", "Green Light", "Blue",
+  "Cyan", "Yellow", "Gold", "Brown", "Maroon", "Skin", "11", "12" with 4 colors each. Mode 0.
+- `trn_174h` (16 colors): edit colors the plain 16-step ramp; sets 0 to 3 with 16 colors (a
+  modified ramp, red, grey, blue-grey), 4 to 12 active and zero, 13 named "13". Mode 0.
+- `smb3` (16 colors): no set used, plain ramp. Mode 0.
+- `frankst1` (4 colors, 192x64): sets 0 to 8 active and zero; mode **1** (opens in `Set
+  Replace`).
+- All have `drawMode` 2, `fillMode` 1, `currentColorSet` 0, `firstDisplayedColorSet` 0.
+- For all five: the cRP serialized from the loaded document is byte-identical to the file;
+  after an edit color change, store, two renames, load and deactivate it differs, and after
+  undoing all of them it is byte-identical again.
+
+ui_dump (2026-10-14): baseline of `HEAD` (808 sections, deterministic); the tree with the colors
+UI but without `colors_script.inc` against it with `--ignore-geometry`: added widget lines (the
+row under the toolbar, the `Sets` page), the tab list with `Sets`, scroll bars of some pages no
+longer visible and the tab bar's arrow enabled (the window is taller), the row's buttons in the
+focus chain after `Runtime` (8 focus chain sections), the `keys=` list of 709 sprite state lines
+with `12/0/sd/00` appended, nothing else (no document, status, thumbnail or private-state line);
+that dump as the baseline and the full script with `--allow-appended`: `REAL DIFFERENCES: 0`, 42
+appended sections.
+
 ## Dynamic data and the HD plane (ordinary projects)
 
 libserum renders the 64-row picture of a 128x32 colorization in layers (`Colorize_Framev2`,
@@ -573,6 +691,13 @@ for `frankst1`. Memory stays that of a window.
     out only while the `Mask` page is shown; a new project is proposed for saving beside its
     dump.
 
+11. **Colors, to confirm:** the draw color stays free (Win32: always an edit color, the pipette
+    writes into it); set replace uses each selected frame's own shades also for `Point` (Win32:
+    the current frame's); a mode change is not a project change (not undoable, no "modified");
+    a stored mode 2 is kept until the mode changes; `Deactivate` exists; a renamed set's name
+    entry is zero filled; the keys work only while the frame canvas has the focus; a background
+    in set replace takes the current frame's shades.
+
 Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
 owner together.
 
@@ -653,13 +778,20 @@ owner together.
 - Dump frames cannot be imported from other formats (the Win32 editor has none either).
 - Windows and Linux builds are untested (only macOS arm64). The ui_dump private-access trick is
   not expected to link with MSVC.
+- The edit color keys are tested with synthetic events only; the physical-key tables for macOS,
+  Windows and X11/Wayland follow the platforms' documented codes and were not tried on a real
+  keyboard.
 
 ## Feature parity still missing against 3.17.3
 
 - Sections (list, add, rename, delete, reorder) and the trigger list. The data is loaded and
   saved and follows frame deletions; there is no UI.
-- Copy/paste, auto copy, scrolling auto fill, selection helpers, mirror.
-- Colour sets, edit colours, colour picker dialog, colour-set replace drawing mode.
+- Copy/paste, auto copy, scrolling auto fill, selection helpers, mirror, filling a selection
+  with the draw color or in set replace mode.
+- Alt-click "recolor every pixel of this color" (Win32, also in set replace mode), the palette
+  popup on an edit color click, the palette's Ctrl/Alt right-click (pipette into a palette color,
+  edit color into a palette color), the composed-color pipette and the pipette writing into the
+  selected edit color.
 - Sprite dynamic masks and colours, sprite shape mode (data modelled, no UI).
 - Auto shadow, brightness, black and white, Dyn>Stat, "to source frame".
 - Selectable resize filters for HD creation.
@@ -686,8 +818,10 @@ owner together.
    handling.
 6. Feature parity. Done: deleting frames, adding and deleting sprites, backgrounds and
    comparison masks, TXT dump import with "new project" and "add frames", the same-frame
-   tools. Next: colour-set drawing and copy/paste; then sections and triggers.
-7. Windows and Linux builds (only macOS arm64 is built and tested so far).
+   tools, edit colors, color sets, set replace drawing, the color picker. Next: copy/paste and
+   the selection helpers; then sections and triggers.
+7. Windows and Linux builds (only macOS arm64 is built and tested so far); check the edit color
+   keys there with real keyboards (Windows scan codes, XKB key codes, an AZERTY layout).
 8. Later, by decision of the owner: memory use, save speed, a new project format.
 
 ## libserum work done in this effort

@@ -115,6 +115,17 @@ using PixelColorSource = std::function<uint16_t(render::Point)>;
     std::size_t paletteIndex,
     const PaletteGradient& gradient);
 
+// Color set replace (the Win32 "4 color mode"): each point of the frame's plane takes the
+// edit color of the original shade of the ROM frame pixel it shows (ProjectGeometry::
+// toRomFrame: the same pixel on the native plane, the pixel at half the coordinates on the
+// extra plane of an ordinary project). The edit colors are read when the source is made, the
+// original frame when it is asked. Points that map outside the ROM frame throw
+// std::out_of_range.
+[[nodiscard]] PixelColorSource colorSetReplaceColorSource(
+    const document::ProjectDocument& document,
+    std::size_t frameIndex,
+    render::Resolution plane);
+
 // One change per distinct point, in first-occurrence order, with the old value read from the
 // document; points that already have the new value are skipped. Points outside the layer throw
 // like the document accessors do. layer.kind must be FramePixels, BackgroundImage or

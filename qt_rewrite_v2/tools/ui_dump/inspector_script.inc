@@ -266,9 +266,26 @@
         return dialog;
     };
     // color: accept with that color; no color: cancel.
+    // A tree with the editor's own color picker (ColorPickerDialog) is answered through its
+    // RGB888 field, found by object name so that the script compiles against both trees.
     const auto answerColorDialog = [&](std::optional<QColor> color) {
         QTimer::singleShot(0, [color, modalDialog]() {
-            auto* dialog = qobject_cast<QColorDialog*>(modalDialog());
+            QDialog* found = modalDialog();
+            if (found && found->objectName() == QStringLiteral("colorPickerDialog")) {
+                auto* hex = found->findChild<QLineEdit*>(QStringLiteral("colorPickerHex"));
+                if (!hex) { std::cerr << "no color picker hex field\n"; std::exit(3); }
+                std::cout << "color dialog: " << found->windowTitle().toStdString() << " | current "
+                          << QColor(QStringLiteral("#") + hex->text()).name().toStdString() << '\n';
+                if (color) {
+                    hex->setText(color->name().mid(1));
+                    Q_EMIT hex->editingFinished();
+                    found->accept();
+                } else {
+                    found->reject();
+                }
+                return;
+            }
+            auto* dialog = qobject_cast<QColorDialog*>(found);
             if (!dialog) { std::cerr << "no color dialog\n"; std::exit(3); }
             std::cout << "color dialog: " << dialog->windowTitle().toStdString() << " | current "
                       << dialog->currentColor().name().toStdString() << '\n';

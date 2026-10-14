@@ -1069,20 +1069,137 @@ rounded edges; see the known differences there.
 
 ## Colors
 
-The toolbar contains fixed swatches:
+### Draw color, favorites and edit colors
 
-- White `0xffff`
-- Red `0xf800`
-- Green `0x07e0`
-- Blue `0x001f`
-- Black `0x0000`
+The active draw color is what `Point`, the shapes and `Flood` paint with in single color mode.
+It is shown in the read-only box at the end of the favorite swatches of the toolbar. It is set
+by a click on a favorite, a palette color, an edit color or with the `Pick` tool.
 
-The active draw color can also be set with the `Pick` tool. If the picked RGB565 color is not one of the fixed swatches, no swatch is checked, but the picked color is still used by later drawing tools.
-The read-only color box next to the fixed swatches always shows the current active draw color.
+- **Favorites**: four toolbar swatches (red `0xf800`, green `0x07e0`, blue `0x001f`, black
+  `0x0000`). A click makes one the draw color; drag a palette color onto one, or use its context
+  menu `Edit Color...`, to change it. Favorites are not saved in the project.
+- **Edit colors**: the row under the toolbar shows the project's edit colors, the 16 colors the
+  `.cRP` keeps (`acEditColorsS` of the Win32 editor). A project with 4 colors shows 4 swatches,
+  one with 16 colors 16: one per shade of the original frames. Under each swatch a strip in the
+  shade's own color (the amber ramp of the original frame) shows which shade the edit color
+  stands for in color set replace mode.
+  - Click a swatch to select it: its edit color becomes the draw color, and stays the draw color
+    when the edit color changes (undo, a loaded color set, `Dyn > Edit`). Choosing another draw
+    color (favorite, palette, `Pick`) leaves no swatch selected.
+  - Double-click a swatch, or use its context menu `Edit Color...`, to change the edit color in
+    the color picker. Drag a palette color onto a swatch to set it.
+  - The tool tip names the color, the shade it replaces and its key.
+- Edit colors are project data: they are saved in the `.cRP`, and every change is undoable (see
+  "Undo And Redo").
+
+### Draw color modes
+
+The two buttons at the start of the row choose how `Point`, the shapes, `Flood` and multi-frame
+edits color the frame (the Win32 editor's `IDC_1COLMODE` / `IDC_4COLMODE`):
+
+- `1 Color`: every painted pixel takes the draw color.
+- `Set Replace` (color set replace, the Win32 "4 color mode"): every painted pixel takes the edit
+  color of **its own original shade**: a pixel whose original frame pixel has shade 2 becomes edit
+  color 2. In a 16-color project shades 0 to 15 take edit colors 0 to 15.
+  - On several selected frames each frame uses its own original frame, so the same stroke can
+    give each frame other colors. (The Win32 editor's `Point` tool takes the shades of the current
+    frame for all selected frames, its shapes and fills each frame's own; here all tools take each
+    frame's own.)
+  - On the HD plane of an ordinary project an HD pixel takes the shade of the original pixel it
+    shows (the one at half its coordinates). On the 256x64 plane of a project with 256x64
+    originals and on the 192x64 plane of a project with 192x64 originals the plane lines up with
+    the original frame pixel for pixel.
+  - `Flood` fills the same area as in `1 Color` mode: the pixels of the current frame connected to
+    the clicked one that have its color (the Win32 fill does not depend on the mode either). Each
+    selected frame then gets its own shades' edit colors in that area. Unlike `1 Color`, a fill
+    on an area that already has the draw color still runs.
+  - With Inspector `Target` set to `Background`, the background takes the edit colors of the
+    current frame's shades (a background has no original frame of its own).
+  - The `Grad` tool and `Grad Sel` always paint palette gradients; the Win32 editor's third mode
+    (gradient) is that tool here. The sprite canvas always paints with the draw color, as in the
+    Win32 editor. The preview while dragging shows the shape in the draw color.
+  - `Shift` does not erase frame pixels in either mode.
+
+The mode is stored in the `.cRP` (`DrawColMode`), as the Win32 editor stores it: a project saved
+in color set replace mode opens in it. A stored `2` (the Win32 gradient mode) opens in `1 Color`
+mode, as the Win32 loader does, and is kept in the file until the mode is changed. Changing the
+mode is not an edit: it is neither undoable nor does it mark the project as changed; the next
+save writes it.
+
+### Keys for the edit colors
+
+While the frame canvas has the keyboard focus (click it), keys select an edit color slot. The keys
+are chosen by their place on the keyboard, as in the Win32 editor:
+
+| Slots | QWERTY | AZERTY (Win32 names) |
+|---|---|---|
+| 0-3 | `1` `2` `3` `4` | `1` `2` `3` `4` |
+| 4-7 | `Q` `W` `E` `R` | `A` `Z` `E` `R` |
+| 8-11 | `A` `S` `D` `F` | `Q` `S` `D` `F` |
+| 12-15 | `Z` `X` `C` `V` | `W` `X` `C` `V` |
+
+The letters work in 16-color projects only, and not with `Shift`; no key works with `Ctrl`,
+`Alt` or `Cmd`. None of them is a shortcut elsewhere in the editor. The place of a key is read
+from the native key code where the platform gives one (the macOS virtual key, the Windows scan
+code, the X11/Wayland key code); elsewhere the key is taken by its letter on a QWERTY layout. The
+keys are not configurable yet.
+
+### Color sets
+
+The Inspector's `Sets` topic lists the 64 color sets of the `.cRP` (the Win32 color set dialog):
+the number, the name and the colors of each active set, `(inactive)` for the others.
+
+- `Store` (Win32 `Set`): the selected set takes the edit colors and becomes active. Only as many
+  colors as the project has are stored (4 or 16); the other entries of the set stay as they
+  were.
+- `Load`, or a double click on an active set (Win32: a click): the edit colors take the set's
+  colors, again only as many as the project has.
+- The name field renames the selected active set when it is left or `Enter` is pressed (63
+  characters at most). Inactive sets cannot be renamed, as in the Win32 dialog.
+- `Deactivate` makes the set inactive and keeps its colors and name; `Store` activates it again.
+  The Win32 editor has no way to deactivate a set.
+- All of these are undoable. Sets, names and active flags are saved in the `.cRP`; a project that
+  is opened and saved without changing them writes their bytes unchanged, including what the
+  Win32 editor left behind the end of a name.
+- The `.cRP` also stores the first set the Win32 dialog showed: the list scrolls to it when a
+  project is opened, and scrolling the list by hand updates it (not counted as a change, like the
+  draw color mode). The current set the file names is selected when a project is opened; the
+  Win32 editor never changes that value, and neither does this one.
+
+### Color picker
+
+Everywhere a color is chosen (edit colors, favorites, palette colors, dynamic colors, the
+dynamic shadow color, color rotation colors) the editor's color picker opens. It has the fields
+of the Win32 picker, all kept in step with each other:
+
+- a hue/saturation square and a value bar,
+- `RGB888` as six hex digits,
+- `R8 G8 B8` (0-255),
+- `RGB565` as one decimal number (0-65535),
+- `R5 G6 B5` (0-31, 0-63, 0-31), each of which changes its own component only,
+- `H S V`: hue in degrees, saturation and value in percent, with one decimal,
+- the last 8 picked colors (most recent first; a click takes one), kept in the application
+  settings and shared by all projects,
+- `Before` and `Now`.
+
+The result is the RGB565 color of the fields. A color that is shown and entered again in any field
+gives the same RGB565 value back; that holds for all 65536 RGB565 colors (with whole numbers for
+H, S and V, as the Win32 picker shows them, about 10,000 colors would come back different).
+
+### Edit colors and dynamic sets
+
+`Edit > Dyn` (Win32 `IDC_COLTODYNA`) copies the edit colors into the current dynamic set
+(`Dyn Set` on the `Dyn` page) of every selected frame that has dynamic data; `Dyn > Edit`
+(`IDC_DYNATOCOL`) copies the current frame's dynamic set into the edit colors. Both use the plane
+dynamic data is edited on (see "Dynamic Masks") and as many colors as the project has. `Edit >
+Dyn` is one undoable step per frame, in the frame's dynamic color history; `Dyn > Edit` is one step
+in the edit color history.
 
 ## Drawing Tools
 
-Drawing tools operate on the active SD/HD mode.
+Drawing tools operate on the active SD/HD mode. `Point`, the shapes and `Flood` paint with the
+draw color or, in `Set Replace` mode, with the edit color of each pixel's original shade (see
+"Draw color modes" under "Colors").
 
 When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
 
@@ -1090,7 +1207,8 @@ When Inspector `Target` is `Background`, ordinary drawing tools edit the selecte
 
 ### Point
 
-Click one pixel to paint it with the active draw color.
+Click one pixel to paint it with the active draw color (in `Set Replace` mode: the edit color of its
+original shade).
 
 ### Line
 
@@ -1203,6 +1321,11 @@ ordinary pixel edits.
 
 Click a colorized frame pixel to set the active draw color to that pixel's RGB565 value.
 
+Hold `Shift` while clicking to select the edit color slot whose color is the pixel's color instead
+(the last one if several are, as in the Win32 editor); the draw color becomes that edit color. The
+status bar says when no edit color has the color. Without `Shift` the Win32 editor writes the
+picked color into the selected edit color; here it only becomes the draw color.
+
 When the `Dynamic` overlay is enabled, click a colorized frame pixel to select the dynamic set
 stored at that pixel instead. This is useful before editing the set's dynamic colors or shadows.
 
@@ -1212,7 +1335,10 @@ This tool does not modify project data and does not create an undo entry.
 
 Click a colorized frame pixel to flood-fill the contiguous four-neighbor area that matches the clicked pixel's current color.
 
-The fill uses the active draw color. The whole filled area is committed as one undoable edit.
+The fill uses the active draw color. The whole filled area is committed as one undoable edit. In
+`Set Replace` mode the area is the same and each pixel takes the edit color of its original shade;
+with several frames selected the area comes from the current frame and every selected frame is
+filled there with its own shades.
 
 TODO: consolidate frame, mask, background, and sprite drawing behind a shared editable-surface
 pipeline so tools, previews, flood fill, undo/redo, and deferred dependent-view refresh are
@@ -1241,22 +1367,26 @@ Histories:
 - Palette colors: per palette.
 - Records: one history for the project. It holds the deletion of frames and the addition and
   deletion of sprites, backgrounds and comparison masks.
+- Edit colors and color sets: one history for the project. It holds edit color changes (picker,
+  dropped colors, `Dyn > Edit`) and `Store`, `Load`, renaming and `Deactivate` of color sets.
+  Each step restores the edit colors and the color sets as a whole, so Undo puts back every byte.
 
 Which histories Undo and Redo use, by context. The record history belongs to every one of
 them:
 
 1. `Edit Sprite` active with a sprite selected: the selected sprite's color image history for the
-   active resolution (its SD history when the sprite has no HD data) and its sprite HD history.
+   active resolution (its SD history when the sprite has no HD data), its sprite HD history and
+   the edit color history.
 2. `Mask` active: the comparison mask assigned to the current frame and the current frame's
    settings.
 3. `Dynamic` active: the current frame's dynamic-mask, dynamic-color, and dynamic-shadow
-   histories.
+   histories and the edit color history.
 4. `BG` active: the current frame's background-mask history for the active resolution and the
    current frame's settings.
 5. Otherwise: the current frame's pixel history for the active resolution, the current frame's
    settings, the selected palette, the current frame's dynamic-color and dynamic-shadow histories
-   (the same ones in SD and in HD mode), and the image history of the selected background for the
-   active resolution. This is the same whether Inspector `Target` is `Frame` or `Background`, so a
+   (the same ones in SD and in HD mode), the image history of the selected background for the
+   active resolution and the edit color history. This is the same whether Inspector `Target` is `Frame` or `Background`, so a
    `Frame -> BG` copy or a background image import can be undone without switching the target.
 
 Within a context, Undo reverts the edit that was made most recently among all of the context's
@@ -1273,8 +1403,8 @@ whether Undo and Redo are available.
 
 An edit applied to several selected frames is recorded once per changed frame, in that frame's own
 history. Undo therefore reverts it only on the current frame; select another frame to undo it
-there. This applies to drawing, to dynamic shadow direction and color changes, and to all frame
-settings.
+there. This applies to drawing (also in `Set Replace` mode), to dynamic shadow direction and color
+changes, to `Edit > Dyn`, and to all frame settings.
 
 Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
 overwritten: the frame's HD background mask and the HD image of the background that was assigned
@@ -1342,7 +1472,8 @@ project is left as it was, the step stays where it is in its history, and the st
 stays undoable: it is not dropped, so it never becomes permanent that way.
 
 Not undoable: sprite slot assignment, removal and bounds, sprite detection areas, sprite and palette
-names, sprite capture, and color rotation settings.
+names, sprite capture, color rotation settings, and the draw color mode (a setting, see "Draw
+color modes").
 
 ## Comparison Masks
 
@@ -1513,6 +1644,10 @@ Rules:
 - Dynamic color changes are undoable per frame.
 - Dynamic shadow direction and color changes apply to all selected frames that have dynamic data
   and are undoable per frame.
+- `Edit > Dyn` under the toolbar copies the edit colors into the selected `Dyn Set` of all selected
+  frames that have dynamic data, one undoable step per frame; `Dyn > Edit` copies the current
+  frame's set into the edit colors (see "Edit colors and dynamic sets" under "Colors").
+- The color swatches and `Shadow Color` open the editor's color picker (see "Color picker").
 
 Dynamic shadows are loaded from and saved back to the legacy `.cROM` dynamic-shadow blocks. The
 canvas and thumbnails render shadows after dynamic-color replacement and before sprite
@@ -1573,7 +1708,8 @@ The Inspector's `Palette` topic provides a palette selector, the selected palett
 - Edit the name field to rename the selected palette. Names are capped at 63 characters so they fit
   the fixed cRP name slot.
 - Click any palette color to make it the active drawing color.
-- Drag any palette color onto one of the four toolbar favorite color slots to replace that favorite.
+- Drag any palette color onto one of the four toolbar favorite color slots to replace that favorite,
+  or onto an edit color swatch under the toolbar to set that edit color (undoable).
 - Double-click any palette color to open a color picker for that RGB565 palette entry.
 - Palette color cells and `From`/`To` controls are displayed as `1` through `64`.
 - Use `From`, `To`, and `Apply Gradient` to fill a palette range by interpolating between the
@@ -1726,7 +1862,7 @@ Background import/copy operations replace the image of an existing background.
 
 Known feature gaps that affect first-release completeness:
 
-- Palette import/export, color-set management, and reusable gradient definitions.
+- Palette import/export and reusable gradient definitions.
 - Directional palette-gradient fills for masks, sprites, and dynamic masks.
 - Filling with palette gradients while respecting outline-only tool shapes.
 - Wand/free selections for arbitrary saved selections.
@@ -1884,6 +2020,30 @@ view on over a frame with a color rotation and over frames that share an origina
 line names the frame libserum identified), `File -> Export Current Frame PNG...` with the view on
 and off and on an inactive frame, and the same in a project with 256x64 and one with 192x64
 original frames.
+
+For changes to colors, edit colors and color sets (`core/edit/ColorModel`,
+`core/edit/ColorSetEdits`, `app/panels/EditColorBar`, `app/panels/ColorSetPanel`,
+`app/dialogs/ColorPickerDialog`), test:
+
+- In a 4-color and a 16-color project: the number of edit color swatches and their shade strips;
+  click, double-click (picker), drop of a palette color, the keys of the slots, and Undo/Redo of
+  every edit color change.
+- `Set Replace` with `Point`, a shape, `Flood` and on several selected frames, in SD and in HD
+  mode, and in a project with 256x64 and one with 192x64 original frames: every pixel takes the
+  edit color of its own frame's shade; Undo per frame.
+- `Pick` with and without `Shift`.
+- `Store`, `Load`, renaming, `Deactivate` and their Undo on the `Sets` page; save and reopen.
+- The picker: change each field and read the others; the recent colors.
+- `Edit > Dyn` on several frames and `Dyn > Edit`, with Undo.
+- Open and save a project of the Win32 editor without touching its colors and run
+  `colorizing_qt_v2_roundtrip`: the cRP must be `identical`; also after color edits that were all
+  undone.
+
+The automated tests cover the conversions for all 65536 RGB565 colors (and RGB888 -> HSV ->
+RGB888 for all 16.7 million RGB888 colors), the set operations with undo, the replace color
+source on the three layouts and both planes, multi-frame and flood fill in replace mode, the
+picker's field sync, the pipette with `Shift`, the keys and the panels; `tools/ui_dump`
+has the window's states (`colors_script.inc`).
 
 For changes to dynamic data, check in an ordinary project that `Dynamic` is disabled in HD mode
 with its tool tip, that the `Dyn` page there shows the SD colors with its note, that a color

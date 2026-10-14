@@ -2,6 +2,8 @@ add_library(colorizing_qt_v2_core STATIC
     document/EditorMetadata.cpp
     document/ProjectSnapshot.cpp
     document/ProjectDocument.cpp
+    edit/ColorModel.cpp
+    edit/ColorSetEdits.cpp
     edit/DrawingGeometry.cpp
     edit/DrawingTools.cpp
     edit/EditCommand.cpp

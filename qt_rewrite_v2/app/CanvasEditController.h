@@ -12,6 +12,7 @@
 #include <QString>
 
 #include "document/ProjectDocument.h"
+#include "edit/ColorSetEdits.h"
 #include "edit/DrawingGeometry.h"
 #include "edit/DrawingTools.h"
 #include "edit/EditCommand.h"
@@ -48,6 +49,9 @@ struct CanvasEditContext {
     std::optional<std::size_t> selectedPalette;
     edit::DrawingTool tool = edit::DrawingTool::Point;
     uint16_t drawColor = 0xffff;
+    // Points, shapes and flood fills of frame and background pixels; the edit colors come
+    // from the document. Gradients ignore it.
+    edit::DrawColorMode drawColorMode = edit::DrawColorMode::SingleColor;
     uint8_t dynamicSet = 0;
     edit::PaletteGradientShape gradientShape = edit::PaletteGradientShape::Rectangle;
     edit::PaletteGradientDirection gradientDirection = edit::PaletteGradientDirection::LeftToRight;
@@ -73,6 +77,8 @@ struct CanvasEditOutputs {
     std::function<void()> commitsFinished;
     std::function<void(const QString& text, int timeoutMs)> showStatus;
     std::function<void(uint16_t rgb565)> pickColor;
+    // The pipette with Shift: select the edit color slot of this color instead.
+    std::function<void(uint16_t rgb565)> pickEditColorSlot;
     std::function<void(uint8_t dynamicSet)> pickDynamicSet;
     std::function<void(CanvasPixelOverlay overlay)> showPreview;
     std::function<void()> clearPreview;
@@ -151,10 +157,14 @@ private:
     };
 
     void pickDynamicSet(const CanvasEditContext& context, const render::CanvasHit& hit);
-    void pickFrameColor(const CanvasEditContext& context, const render::CanvasHit& hit);
+    void pickFrameColor(const CanvasEditContext& context,
+                        const render::CanvasHit& hit,
+                        bool selectEditColorSlot);
     void floodFillFrame(const CanvasEditContext& context, const render::CanvasHit& hit);
     void pickBackgroundImageColor(const CanvasEditContext& context,
-                                  const render::CanvasHit& hit);
+                                  const render::CanvasHit& hit,
+                                  bool selectEditColorSlot);
+    void pickedColor(uint16_t color, bool selectEditColorSlot, const QString& statusText);
     void floodFillBackgroundImage(const CanvasEditContext& context,
                                   const render::CanvasHit& hit);
     void paintComparisonMaskPixel(const CanvasEditContext& context,
@@ -215,6 +225,13 @@ private:
                                 const std::vector<render::Point>& pixels,
                                 const edit::PixelColorSource& colorForPoint,
                                 const QString& statusText);
+    // With a color source per frame, for color set replace: each frame's own original shades.
+    void commitFramePixelColors(
+        const CanvasEditContext& context,
+        render::Resolution resolution,
+        const std::vector<render::Point>& pixels,
+        const std::function<edit::PixelColorSource(std::size_t frameIndex)>& sourceForFrame,
+        const QString& statusText);
     void commitComparisonMaskPixels(const CanvasEditContext& context,
                                     const std::vector<render::Point>& pixels,
                                     uint8_t value,

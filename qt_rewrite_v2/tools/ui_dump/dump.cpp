@@ -45,6 +45,13 @@
 #define UI_DUMP_HAS_FIXES_2026_10_14 1
 #endif
 
+#if __has_include("panels/ColorSetPanel.h")
+#include "edit/ColorSetEdits.h"
+#include "panels/ColorSetPanel.h"
+#include "panels/EditColorBar.h"
+#define UI_DUMP_HAS_COLOR_SETS 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -593,6 +600,11 @@ int main(int argc, char* argv[])
 // States of a tree with the bug fixes of 2026-10-14; a tree without them ends here.
 #ifdef UI_DUMP_HAS_FIXES_2026_10_14
 #include "fixes_script.inc"
+#endif
+
+// States of a tree with edit colors and color sets; a tree without them ends here.
+#ifdef UI_DUMP_HAS_COLOR_SETS
+#include "colors_script.inc"
 #endif
 
     return 0;

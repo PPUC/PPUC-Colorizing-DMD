@@ -196,6 +196,55 @@ std::vector<RecordReference> DynamicColorEditCommand::recordReferences() const
     return {{RecordKind::Frame, m_frameIndex}};
 }
 
+DynamicColorsEditCommand::DynamicColorsEditCommand(std::size_t frameIndex,
+                                                   render::Resolution resolution,
+                                                   std::size_t setIndex,
+                                                   std::vector<DynamicColorChange> changes)
+    : m_frameIndex(frameIndex),
+      m_resolution(resolution),
+      m_setIndex(setIndex),
+      m_changes(std::move(changes))
+{
+}
+
+void DynamicColorsEditCommand::apply(document::ProjectDocument& document) const
+{
+    write(document, true);
+}
+
+void DynamicColorsEditCommand::revert(document::ProjectDocument& document) const
+{
+    write(document, false);
+}
+
+void DynamicColorsEditCommand::write(document::ProjectDocument& document, bool useNewColor) const
+{
+    // Reading every color first throws for a bad index before anything is written.
+    for (const DynamicColorChange& change : m_changes) {
+        static_cast<void>(document.dynamicColor(m_frameIndex,
+                                                m_resolution,
+                                                m_setIndex,
+                                                change.originalColorIndex));
+    }
+    for (const DynamicColorChange& change : m_changes) {
+        document.setDynamicColor(m_frameIndex,
+                                 m_resolution,
+                                 m_setIndex,
+                                 change.originalColorIndex,
+                                 useNewColor ? change.newColor : change.oldColor);
+    }
+}
+
+EditTarget DynamicColorsEditCommand::target() const
+{
+    return EditTarget{EditKind::DynamicColor, m_frameIndex, m_resolution, {m_frameIndex}};
+}
+
+std::vector<RecordReference> DynamicColorsEditCommand::recordReferences() const
+{
+    return {{RecordKind::Frame, m_frameIndex}};
+}
+
 DynamicShadowEditCommand::DynamicShadowEditCommand(std::size_t frameIndex,
                                                    render::Resolution resolution,
                                                    std::size_t setIndex,

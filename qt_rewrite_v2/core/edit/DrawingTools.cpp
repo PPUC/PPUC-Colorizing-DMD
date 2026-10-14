@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "render/ProjectGeometry.h"
+
 namespace colorizing::edit {
 
 namespace {
@@ -321,6 +323,31 @@ PixelColorSource paletteGradientColorSource(const document::ProjectDocument& doc
 {
     return [&document, paletteIndex, gradient](render::Point point) {
         return document.paletteColor(paletteIndex, paletteGradientColorIndex(gradient, point));
+    };
+}
+
+PixelColorSource colorSetReplaceColorSource(const document::ProjectDocument& document,
+                                            std::size_t frameIndex,
+                                            render::Resolution plane)
+{
+    const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    const render::ProjectGeometry geometry = document.geometry();
+    // Throws now for a plane that has no ROM pixels to map to.
+    static_cast<void>(geometry.planeScale(plane));
+    return [&original,
+            geometry,
+            plane,
+            editColors = document.editorMetadata().editColors](render::Point point) {
+        const render::Point rom = geometry.toRomFrame(plane, point);
+        if (point.x < 0 || point.y < 0 || rom.x >= original.size.width ||
+            rom.y >= original.size.height) {
+            throw std::out_of_range("pixel outside the frame");
+        }
+        const uint8_t shade =
+            original.pixels[static_cast<std::size_t>(rom.y) *
+                                static_cast<std::size_t>(original.size.width) +
+                            static_cast<std::size_t>(rom.x)];
+        return editColors[std::min<std::size_t>(shade, editColors.size() - 1)];
     };
 }
 

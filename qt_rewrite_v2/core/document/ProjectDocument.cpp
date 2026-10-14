@@ -696,6 +696,64 @@ const EditorMetadata& ProjectDocument::editorMetadata() const
     return m_editorMetadata;
 }
 
+bool ColorSetTables::operator==(const ColorSetTables& other) const
+{
+    return editColors == other.editColors && activeColorSets == other.activeColorSets &&
+           colorSets == other.colorSets && colorSetNames == other.colorSetNames;
+}
+
+bool ColorSetTables::operator!=(const ColorSetTables& other) const
+{
+    return !(*this == other);
+}
+
+ColorSetTables ProjectDocument::colorSetTables() const
+{
+    return ColorSetTables{m_editorMetadata.editColors,
+                          m_editorMetadata.activeColorSets,
+                          m_editorMetadata.colorSets,
+                          m_editorMetadata.colorSetNames};
+}
+
+void ProjectDocument::setColorSetTables(ColorSetTables tables)
+{
+    if (tables.editColors.size() != kEditColorCount ||
+        tables.activeColorSets.size() != kMaxColorSets ||
+        tables.colorSets.size() != kMaxColorSets * kColorSetColorCount ||
+        tables.colorSetNames.size() != kMaxColorSets * kColorSetNameBytes) {
+        throw std::invalid_argument("color set tables have the wrong sizes");
+    }
+    if (tables == colorSetTables()) {
+        return;
+    }
+    m_editorMetadata.editColors = std::move(tables.editColors);
+    m_editorMetadata.activeColorSets = std::move(tables.activeColorSets);
+    m_editorMetadata.colorSets = std::move(tables.colorSets);
+    m_editorMetadata.colorSetNames = std::move(tables.colorSetNames);
+    markChanged();
+}
+
+uint16_t ProjectDocument::editColor(std::size_t slot) const
+{
+    if (slot >= m_editorMetadata.editColors.size()) {
+        throw std::out_of_range("edit color slot out of range");
+    }
+    return m_editorMetadata.editColors[slot];
+}
+
+void ProjectDocument::setFirstDisplayedColorSet(uint8_t setIndex)
+{
+    if (setIndex >= kMaxColorSets) {
+        throw std::out_of_range("color set index out of range");
+    }
+    m_editorMetadata.firstDisplayedColorSet = setIndex;
+}
+
+void ProjectDocument::setDrawColorMode(uint32_t mode)
+{
+    m_editorMetadata.drawColorMode = mode;
+}
+
 bool ProjectDocument::isDirty() const
 {
     return m_dirty;

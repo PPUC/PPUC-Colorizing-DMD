@@ -181,6 +181,22 @@ struct FrameReferenceProblems {
     }
 };
 
+// The edit colors and the 64 color sets of the cRP, as one unit for undo (the Win32 editor
+// keeps them in two undo records, SA_ACCOLORS and SA_COLSETS).
+struct ColorSetTables {
+    // kEditColorCount RGB565 colors; the first colorCount() are used.
+    std::vector<uint16_t> editColors;
+    // kMaxColorSets flags, 0 or 1 (BOOL in the cRP).
+    std::vector<uint32_t> activeColorSets;
+    // kMaxColorSets * kColorSetColorCount RGB565 colors.
+    std::vector<uint16_t> colorSets;
+    // kMaxColorSets names of kColorSetNameBytes bytes, NUL terminated.
+    std::vector<uint8_t> colorSetNames;
+
+    [[nodiscard]] bool operator==(const ColorSetTables& other) const;
+    [[nodiscard]] bool operator!=(const ColorSetTables& other) const;
+};
+
 struct UnsupportedLegacyPayload {
     std::string name;
     std::vector<uint8_t> bytes;
@@ -296,6 +312,17 @@ public:
     // What keeps the runtime from showing the frame; nothing for other projects.
     [[nodiscard]] FrameHdGaps frameHdGaps(std::size_t frameIndex) const;
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
+    [[nodiscard]] ColorSetTables colorSetTables() const;
+    // Replaces the edit colors and color sets. Throws std::invalid_argument, without changing
+    // anything, for tables of the wrong sizes. Tables equal to the current ones change
+    // nothing.
+    void setColorSetTables(ColorSetTables tables);
+    [[nodiscard]] uint16_t editColor(std::size_t slot) const;
+    // Drawing settings of the cRP that the Win32 editor writes as they are when the project is
+    // saved, without counting them as a change: neither marks the document dirty nor changes
+    // its revision.
+    void setFirstDisplayedColorSet(uint8_t setIndex);
+    void setDrawColorMode(uint32_t mode);
     [[nodiscard]] bool isDirty() const;
     void markClean();
     // For a document that is in no file yet, e.g. a new project.

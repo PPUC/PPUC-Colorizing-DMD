@@ -142,7 +142,7 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
             return;
         case CanvasEditLayer::BackgroundImage:
             if (tool == DrawingTool::ColorPicker) {
-                pickBackgroundImageColor(context, hit);
+                pickBackgroundImageColor(context, hit, erase);
             } else if (tool == DrawingTool::FloodFill) {
                 floodFillBackgroundImage(context, hit);
             } else if (tool == DrawingTool::Point && context.document) {
@@ -158,7 +158,7 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
             break;
     }
     if (tool == DrawingTool::ColorPicker) {
-        pickFrameColor(context, hit);
+        pickFrameColor(context, hit, erase);
     } else if (tool == DrawingTool::FloodFill) {
         floodFillFrame(context, hit);
     } else if (tool == DrawingTool::Point) {
@@ -447,7 +447,8 @@ void CanvasEditController::pickDynamicSet(const CanvasEditContext& context,
 }
 
 void CanvasEditController::pickFrameColor(const CanvasEditContext& context,
-                                          const render::CanvasHit& hit)
+                                          const render::CanvasHit& hit,
+                                          bool selectEditColorSlot)
 {
     if (!context.document || !context.currentFrame) {
         return;
@@ -457,14 +458,29 @@ void CanvasEditController::pickFrameColor(const CanvasEditContext& context,
                                                                 hit.resolution,
                                                                 hit.x,
                                                                 hit.y);
-        if (m_outputs.pickColor) {
-            m_outputs.pickColor(color);
-        }
-        showStatus(QStringLiteral("Picked color 0x%1").arg(color, 4, 16, QLatin1Char('0')),
-                   kStatusMs);
+        pickedColor(color,
+                    selectEditColorSlot,
+                    QStringLiteral("Picked color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
     } catch (const std::exception& ex) {
         showError(ex);
     }
+}
+
+void CanvasEditController::pickedColor(uint16_t color,
+                                       bool selectEditColorSlot,
+                                       const QString& statusText)
+{
+    if (selectEditColorSlot) {
+        // The owner says in the status line which slot it selected, if any.
+        if (m_outputs.pickEditColorSlot) {
+            m_outputs.pickEditColorSlot(color);
+        }
+        return;
+    }
+    if (m_outputs.pickColor) {
+        m_outputs.pickColor(color);
+    }
+    showStatus(statusText, kStatusMs);
 }
 
 void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
@@ -479,9 +495,14 @@ void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
             context.document->colorizedFrame(frameIndex, hit.resolution);
         const uint16_t targetColor =
             context.document->colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y);
-        if (targetColor == context.drawColor) {
+        if (targetColor == context.drawColor &&
+            context.drawColorMode == edit::DrawColorMode::SingleColor) {
             return;
         }
+        // The region does not depend on the color mode: the pixels of the current frame
+        // connected to the clicked one that have its color, as in the Win32 editor, whose
+        // drawfill ignores the mode too. Color set replace then colors each selected
+        // frame's pixels of that region by their own original shades.
         commitFramePixels(context,
                           hit.resolution,
                           edit::floodFillMatching(frame.pixels,
@@ -495,7 +516,8 @@ void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
 }
 
 void CanvasEditController::pickBackgroundImageColor(const CanvasEditContext& context,
-                                                    const render::CanvasHit& hit)
+                                                    const render::CanvasHit& hit,
+                                                    bool selectEditColorSlot)
 {
     if (!context.document || !context.selectedBackground) {
         return;
@@ -505,12 +527,10 @@ void CanvasEditController::pickBackgroundImageColor(const CanvasEditContext& con
                                                                  hit.resolution,
                                                                  hit.x,
                                                                  hit.y);
-        if (m_outputs.pickColor) {
-            m_outputs.pickColor(color);
-        }
-        showStatus(
-            QStringLiteral("Picked background color 0x%1").arg(color, 4, 16, QLatin1Char('0')),
-            kStatusMs);
+        pickedColor(
+            color,
+            selectEditColorSlot,
+            QStringLiteral("Picked background color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -528,7 +548,8 @@ void CanvasEditController::floodFillBackgroundImage(const CanvasEditContext& con
             context.document->backgroundFrame(backgroundIndex, hit.resolution);
         const uint16_t targetColor =
             context.document->backgroundPixel(backgroundIndex, hit.resolution, hit.x, hit.y);
-        if (targetColor == context.drawColor) {
+        if (targetColor == context.drawColor &&
+            context.drawColorMode == edit::DrawColorMode::SingleColor) {
             return;
         }
         commitBackgroundImagePixels(context,
@@ -1040,6 +1061,18 @@ void CanvasEditController::commitFramePixels(const CanvasEditContext& context,
                                              const std::vector<render::Point>& pixels,
                                              const QString& statusText)
 {
+    if (context.drawColorMode == edit::DrawColorMode::ColorSetReplace && context.document) {
+        const document::ProjectDocument& document = *context.document;
+        commitFramePixelColors(
+            context,
+            resolution,
+            pixels,
+            [&document, resolution](std::size_t frameIndex) {
+                return edit::colorSetReplaceColorSource(document, frameIndex, resolution);
+            },
+            statusText);
+        return;
+    }
     const uint16_t drawColor = context.drawColor;
     commitFramePixelColors(context,
                            resolution,
@@ -1080,6 +1113,21 @@ void CanvasEditController::commitFramePixelColors(const CanvasEditContext& conte
                                                   const edit::PixelColorSource& colorForPoint,
                                                   const QString& statusText)
 {
+    commitFramePixelColors(
+        context,
+        resolution,
+        pixels,
+        [&colorForPoint](std::size_t) { return colorForPoint; },
+        statusText);
+}
+
+void CanvasEditController::commitFramePixelColors(
+    const CanvasEditContext& context,
+    render::Resolution resolution,
+    const std::vector<render::Point>& pixels,
+    const std::function<edit::PixelColorSource(std::size_t frameIndex)>& sourceForFrame,
+    const QString& statusText)
+{
     const std::vector<std::size_t>& frameIndices = context.selectedFrames;
     if (!context.document || frameIndices.empty() || pixels.empty()) {
         return;
@@ -1097,7 +1145,7 @@ void CanvasEditController::commitFramePixelColors(const CanvasEditContext& conte
                                    edit::makePixelChanges(document,
                                                           layer,
                                                           pixels,
-                                                          colorForPoint))) {
+                                                          sourceForFrame(frameIndex)))) {
                 changed = true;
             }
         }
@@ -1240,6 +1288,23 @@ void CanvasEditController::commitBackgroundImagePixels(const CanvasEditContext& 
     const uint16_t drawColor = context.drawColor;
     if (!context.selectedBackground) {
         showStatus(QStringLiteral("No background selected"), kStatusMs);
+        return;
+    }
+    // A background has no original frame; color set replace takes the shades of the frame it
+    // is painted over.
+    if (context.drawColorMode == edit::DrawColorMode::ColorSetReplace && context.currentFrame) {
+        try {
+            commitBackgroundImageColors(context,
+                                        *context.selectedBackground,
+                                        resolution,
+                                        pixels,
+                                        edit::colorSetReplaceColorSource(*context.document,
+                                                                         *context.currentFrame,
+                                                                         resolution),
+                                        statusText);
+        } catch (const std::exception& ex) {
+            showError(ex);
+        }
         return;
     }
     commitBackgroundImageColors(context,

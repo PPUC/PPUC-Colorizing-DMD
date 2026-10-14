@@ -8,7 +8,6 @@
 #include <QCloseEvent>
 #include <QApplication>
 #include <QActionGroup>
-#include <QColorDialog>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -16,6 +15,7 @@
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QKeyEvent>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -45,6 +45,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "EditColorKeys.h"
 #include "FramePreviewWidget.h"
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
@@ -52,11 +53,15 @@
 #include "ListSelection.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
+#include "dialogs/ColorPickerDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "edit/ColorSetEdits.h"
 #include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
+#include "panels/ColorSetPanel.h"
 #include "panels/DynamicPanel.h"
+#include "panels/EditColorBar.h"
 #include "panels/FramePanel.h"
 #include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
@@ -297,6 +302,8 @@ QString editKindStatusSuffix(edit::EditKind kind, bool showsHdAndSd)
                                 : QStringLiteral(" sprite change");
         case edit::EditKind::ProjectStructure:
             break;
+        case edit::EditKind::EditorColors:
+            return QStringLiteral(" edit colors and color sets change");
     }
     return QString();
 }
@@ -855,6 +862,15 @@ void MainWindow::createCentralView()
                 setActiveDrawColor(m_favoriteColors[colorIndex]);
             }
         });
+        button->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(button, &QWidget::customContextMenuRequested, this,
+                [this, button, colorIndex](const QPoint& position) {
+                    QMenu menu(button);
+                    QAction* editAction = menu.addAction(QStringLiteral("Edit Color..."));
+                    if (menu.exec(button->mapToGlobal(position)) == editAction) {
+                        editFavoriteColor(colorIndex);
+                    }
+                });
     }
     m_activeColorButton = new QToolButton(central);
     m_activeColorButton->setFixedSize(34, 24);
@@ -897,6 +913,19 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_frameStatusLabel);
     toolbarLayout->addStretch(1);
     layout->addLayout(toolbarLayout);
+    m_editColorBar = new EditColorBar(central);
+    m_editColorBar->setSlotKeyNames(editColorSlotKeyNames());
+    m_editColorBar->onSlotClicked = [this](std::size_t slot) { selectEditColorSlot(slot); };
+    m_editColorBar->onSlotEditRequested = [this](std::size_t slot) { editEditColor(slot); };
+    m_editColorBar->onColorDropped = [this](std::size_t slot, uint16_t rgb565) {
+        setEditColor(slot, rgb565);
+    };
+    m_editColorBar->onDrawColorModeChanged = [this](edit::DrawColorMode mode) {
+        setDrawColorMode(mode);
+    };
+    m_editColorBar->onEditColorsToDynamicRequested = [this]() { copyEditColorsToDynamicSet(); };
+    m_editColorBar->onDynamicToEditColorsRequested = [this]() { copyDynamicSetToEditColors(); };
+    layout->addWidget(m_editColorBar);
 
     auto* contentLayout = new QHBoxLayout();
     m_leftBrowserTabs = new QTabWidget(central);
@@ -975,6 +1004,23 @@ void MainWindow::createCentralView()
 
     inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"));
     inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"));
+
+    m_colorSetPanel = new ColorSetPanel(central);
+    m_colorSetPanel->onStoreRequested = [this](std::size_t setIndex) { storeColorSet(setIndex); };
+    m_colorSetPanel->onLoadRequested = [this](std::size_t setIndex) { loadColorSet(setIndex); };
+    m_colorSetPanel->onDeactivateRequested = [this](std::size_t setIndex) {
+        deactivateColorSet(setIndex);
+    };
+    m_colorSetPanel->onNameEdited = [this](std::size_t setIndex, const QString& name) {
+        renameColorSet(setIndex, name);
+    };
+    m_colorSetPanel->onScrolled = [this](std::size_t firstVisibleSet) {
+        // A view setting of the cRP (preColSet), not a change of the project.
+        if (m_document && firstVisibleSet < document::kMaxColorSets) {
+            m_document->setFirstDisplayedColorSet(static_cast<uint8_t>(firstVisibleSet));
+        }
+    };
+    inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"));
 
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addWidget(inspectorTabs, 1);
@@ -1207,6 +1253,7 @@ void MainWindow::createCentralView()
         });
     setDrawingTool(m_drawingTool);
     setActiveDrawColor(m_activeDrawColor);
+    m_preview->installEventFilter(this);
     updateDmdRenderOptions();
 
     // The browser pages follow the frame list, each with New and Delete before its list.
@@ -2031,6 +2078,11 @@ void MainWindow::setFrameStatusText(const QString& text)
 void MainWindow::refreshProjectSummary()
 {
     updateWindowTitle();
+    m_selectedEditColor.reset();
+    m_drawColorMode =
+        m_document ? edit::drawColorModeFromStored(m_document->editorMetadata().drawColorMode)
+                   : edit::DrawColorMode::SingleColor;
+    updateEditColorControls(true);
     m_sameFrameCounts.reset();
     if (m_sameFramesPanel) {
         m_sameFramesPanel->setSpotCommonChecked(false);
@@ -4559,14 +4611,13 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
                                                             dynamicPlane(),
                                                             activeDynamicSet(),
                                                             originalColorIndex);
-        const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldRgb565),
-                                                       this,
-                                                       QStringLiteral("Dynamic Color"));
-        if (!newColor.isValid()) {
+        const std::optional<uint16_t> picked =
+            ColorPickerDialog::getColor(oldRgb565, this, QStringLiteral("Dynamic Color"));
+        if (!picked) {
             return;
         }
 
-        const uint16_t newRgb565 = colorToRgb565(newColor);
+        const uint16_t newRgb565 = *picked;
         if (newRgb565 == oldRgb565) {
             return;
         }
@@ -4642,14 +4693,13 @@ void MainWindow::editDynamicShadowColor()
     try {
         const uint16_t oldRgb565 =
             m_document->dynamicShadowColor(*frameIndex, dynamicPlane(), activeDynamicSet());
-        const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldRgb565),
-                                                       this,
-                                                       QStringLiteral("Dynamic Shadow Color"));
-        if (!newColor.isValid()) {
+        const std::optional<uint16_t> picked =
+            ColorPickerDialog::getColor(oldRgb565, this, QStringLiteral("Dynamic Shadow Color"));
+        if (!picked) {
             return;
         }
 
-        const uint16_t newRgb565 = colorToRgb565(newColor);
+        const uint16_t newRgb565 = *picked;
         if (newRgb565 == oldRgb565) {
             return;
         }
@@ -4781,13 +4831,12 @@ void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_
 
     const uint16_t oldColor =
         m_document->colorRotationColor(*frameIndex, m_activeResolution, slotIndex, colorIndex);
-    const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldColor),
-                                                   this,
-                                                   QStringLiteral("Color Rotation Color"));
-    if (!newColor.isValid()) {
+    const std::optional<uint16_t> picked =
+        ColorPickerDialog::getColor(oldColor, this, QStringLiteral("Color Rotation Color"));
+    if (!picked) {
         return;
     }
-    const uint16_t newRgb565 = colorToRgb565(newColor);
+    const uint16_t newRgb565 = *picked;
     if (newRgb565 == oldColor) {
         return;
     }
@@ -4924,13 +4973,12 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
     }
 
     const uint16_t oldColor = m_document->paletteColor(*paletteIndex, colorIndex);
-    const QColor newColor = QColorDialog::getColor(rgb565ToColor(oldColor),
-                                                   this,
-                                                   QStringLiteral("Palette Color"));
-    if (!newColor.isValid()) {
+    const std::optional<uint16_t> picked =
+        ColorPickerDialog::getColor(oldColor, this, QStringLiteral("Palette Color"));
+    if (!picked) {
         return;
     }
-    const uint16_t newRgb565 = colorToRgb565(newColor);
+    const uint16_t newRgb565 = *picked;
     if (newRgb565 == oldColor) {
         return;
     }
@@ -5132,6 +5180,7 @@ CanvasEditContext MainWindow::canvasEditContext() const
     context.selectedPalette = selectedPaletteIndex();
     context.tool = m_drawingTool;
     context.drawColor = m_activeDrawColor;
+    context.drawColorMode = m_drawColorMode;
     context.dynamicSet = activeDynamicSet();
     if (m_palettePanel) {
         context.gradientShape = m_palettePanel->gradientShape();
@@ -5158,6 +5207,9 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
     };
     outputs.pickColor = [this](uint16_t rgb565) {
         setActiveDrawColor(rgb565);
+    };
+    outputs.pickEditColorSlot = [this](uint16_t rgb565) {
+        pickEditColorSlot(rgb565);
     };
     outputs.pickDynamicSet = [this](uint8_t dynamicSet) {
         if (!m_dynamicPanel) {
@@ -5212,6 +5264,10 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
 void MainWindow::setActiveDrawColor(uint16_t rgb565)
 {
     m_activeDrawColor = rgb565;
+    m_selectedEditColor.reset();
+    if (m_editColorBar) {
+        m_editColorBar->setSelectedSlot(std::nullopt);
+    }
     if (m_spriteEditor) {
         m_spriteEditor->setActiveDrawColor(rgb565);
     }
@@ -5245,6 +5301,230 @@ void MainWindow::setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565
             .arg(static_cast<int>(favoriteIndex + 1))
             .arg(rgb565, 4, 16, QLatin1Char('0')),
         2000);
+}
+
+void MainWindow::editFavoriteColor(std::size_t favoriteIndex)
+{
+    if (favoriteIndex >= m_favoriteColors.size()) {
+        return;
+    }
+    const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
+        m_favoriteColors[favoriteIndex], this, QStringLiteral("Favorite Color"));
+    if (picked) {
+        setFavoriteDrawColor(favoriteIndex, *picked);
+    }
+}
+
+void MainWindow::selectEditColorSlot(std::size_t slot)
+{
+    if (!m_document || slot >= m_document->colorCount() ||
+        slot >= document::kEditColorCount) {
+        return;
+    }
+    setActiveDrawColor(m_document->editColor(slot));
+    m_selectedEditColor = slot;
+    if (m_editColorBar) {
+        m_editColorBar->setSelectedSlot(slot);
+    }
+}
+
+void MainWindow::editEditColor(std::size_t slot)
+{
+    if (!m_document || slot >= m_document->colorCount()) {
+        return;
+    }
+    const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
+        m_document->editColor(slot),
+        this,
+        QStringLiteral("Edit Color %1").arg(static_cast<int>(slot)));
+    if (picked) {
+        setEditColor(slot, *picked);
+    }
+}
+
+void MainWindow::setEditColor(std::size_t slot, uint16_t rgb565)
+{
+    if (!m_document || slot >= m_document->colorCount()) {
+        return;
+    }
+    commitEditorColors(edit::withEditColor(m_document->colorSetTables(), slot, rgb565),
+                       QStringLiteral("Edit color %1 is 0x%2")
+                           .arg(static_cast<int>(slot))
+                           .arg(rgb565, 4, 16, QLatin1Char('0')));
+}
+
+void MainWindow::setDrawColorMode(edit::DrawColorMode mode)
+{
+    m_drawColorMode = mode;
+    if (m_editColorBar) {
+        m_editColorBar->setDrawColorMode(mode);
+    }
+    if (m_document) {
+        const uint32_t stored = m_document->editorMetadata().drawColorMode;
+        // A stored 2 (gradient) reads as single color and is kept until the mode changes.
+        if (edit::drawColorModeFromStored(stored) != mode) {
+            m_document->setDrawColorMode(edit::storedDrawColorMode(mode));
+        }
+    }
+    statusBar()->showMessage(mode == edit::DrawColorMode::ColorSetReplace
+                                 ? QStringLiteral("Drawing replaces each original shade by its "
+                                                  "edit color")
+                                 : QStringLiteral("Drawing with a single color"),
+                             2000);
+}
+
+void MainWindow::commitEditorColors(document::ColorSetTables after, const QString& statusText)
+{
+    if (!m_document) {
+        return;
+    }
+    try {
+        std::unique_ptr<edit::EditCommand> command =
+            edit::makeEditorColorsCommand(*m_document, std::move(after));
+        if (!command) {
+            return;
+        }
+        commitEdit(std::move(command));
+        updateUndoRedoActions();
+        statusBar()->showMessage(statusText, 2500);
+    } catch (const std::exception& ex) {
+        updateEditColorControls(false);
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::storeColorSet(std::size_t setIndex)
+{
+    if (!m_document) {
+        return;
+    }
+    commitEditorColors(edit::withStoredColorSet(m_document->colorSetTables(),
+                                                setIndex,
+                                                m_document->colorCount()),
+                       QStringLiteral("Stored the edit colors in color set %1")
+                           .arg(static_cast<int>(setIndex)));
+}
+
+void MainWindow::loadColorSet(std::size_t setIndex)
+{
+    if (!m_document) {
+        return;
+    }
+    commitEditorColors(edit::withLoadedColorSet(m_document->colorSetTables(),
+                                                setIndex,
+                                                m_document->colorCount()),
+                       QStringLiteral("Loaded color set %1 into the edit colors")
+                           .arg(static_cast<int>(setIndex)));
+}
+
+void MainWindow::deactivateColorSet(std::size_t setIndex)
+{
+    if (!m_document) {
+        return;
+    }
+    commitEditorColors(
+        edit::withColorSetActive(m_document->colorSetTables(), setIndex, false),
+        QStringLiteral("Deactivated color set %1").arg(static_cast<int>(setIndex)));
+}
+
+void MainWindow::renameColorSet(std::size_t setIndex, const QString& name)
+{
+    if (!m_document) {
+        return;
+    }
+    commitEditorColors(
+        edit::withColorSetName(m_document->colorSetTables(), setIndex, name.toStdString()),
+        QStringLiteral("Renamed color set %1").arg(static_cast<int>(setIndex)));
+}
+
+void MainWindow::copyEditColorsToDynamicSet()
+{
+    if (!m_document) {
+        return;
+    }
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    try {
+        std::vector<std::unique_ptr<edit::EditCommand>> commands =
+            edit::makeEditColorsToDynamicSetCommands(
+                *m_document, frameIndices, dynamicPlane(), activeDynamicSet());
+        const std::size_t changedFrames = commands.size();
+        for (std::unique_ptr<edit::EditCommand>& command : commands) {
+            commitEdit(std::move(command));
+        }
+        updateUndoRedoActions();
+        statusBar()->showMessage(
+            QStringLiteral("Copied the edit colors to dynamic set %1 of %2 frame(s)")
+                .arg(static_cast<int>(activeDynamicSet()))
+                .arg(static_cast<int>(changedFrames)),
+            2500);
+    } catch (const std::exception& ex) {
+        updateDynamicColorControls();
+        updateUndoRedoActions();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::copyDynamicSetToEditColors()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+    try {
+        commitEditorColors(edit::withEditColorsFromDynamicSet(
+                               *m_document, *frameIndex, dynamicPlane(), activeDynamicSet()),
+                           QStringLiteral("Copied dynamic set %1 to the edit colors")
+                               .arg(static_cast<int>(activeDynamicSet())));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::pickEditColorSlot(uint16_t rgb565)
+{
+    if (!m_document) {
+        return;
+    }
+    const std::optional<std::size_t> slot = edit::matchingEditColorSlot(
+        m_document->editorMetadata().editColors, m_document->colorCount(), rgb565);
+    if (!slot) {
+        statusBar()->showMessage(
+            QStringLiteral("No edit color is 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')), 2500);
+        return;
+    }
+    selectEditColorSlot(*slot);
+    statusBar()->showMessage(
+        QStringLiteral("Selected edit color %1 (0x%2)")
+            .arg(static_cast<int>(*slot))
+            .arg(rgb565, 4, 16, QLatin1Char('0')),
+        2500);
+}
+
+void MainWindow::updateEditColorControls(bool projectChanged)
+{
+    const document::ProjectDocument* document = m_document ? &*m_document : nullptr;
+    if (m_editColorBar) {
+        m_editColorBar->refresh(document);
+        m_editColorBar->setDrawColorMode(m_drawColorMode);
+        m_editColorBar->setSelectedSlot(m_selectedEditColor);
+    }
+    if (m_colorSetPanel) {
+        m_colorSetPanel->refresh(document, projectChanged);
+    }
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_preview && event->type() == QEvent::KeyPress && m_document) {
+        const auto* keyEvent = static_cast<QKeyEvent*>(event);
+        const std::optional<std::size_t> slot = editColorSlotForKeyEvent(
+            *keyEvent, m_document->colorCount(), currentNativeKeyCodes());
+        if (slot) {
+            selectEditColorSlot(*slot);
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::setDrawingTool(DrawingTool tool)
@@ -5930,6 +6210,13 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             }
             updateProjectHeaderStatus();
             break;
+        case edit::EditKind::EditorColors:
+            updateEditColorControls(false);
+            if (m_selectedEditColor) {
+                selectEditColorSlot(*m_selectedEditColor);
+            }
+            updateProjectHeaderStatus();
+            break;
         case edit::EditKind::ProjectStructure:
             if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(&command)) {
                 refreshAfterStructureEdit(*structure);
@@ -5977,6 +6264,7 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
             keys.push_back({edit::EditKind::SpriteImage, *spriteIndex, resolution});
             keys.push_back({edit::EditKind::SpriteAttributes, *spriteIndex, sd});
         }
+        keys.push_back(edit::editorColorsHistoryKey());
         return keys;
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -5996,6 +6284,7 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
             keys.push_back({edit::EditKind::DynamicColor, *frameIndex, dynamicPlane()});
             keys.push_back({edit::EditKind::DynamicShadow, *frameIndex, dynamicPlane()});
         }
+        keys.push_back(edit::editorColorsHistoryKey());
         return keys;
     }
     if (isBackgroundMaskModeActive()) {
@@ -6023,6 +6312,7 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     if (frameIndex) {
         keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
     }
+    keys.push_back(edit::editorColorsHistoryKey());
     return keys;
 }
 

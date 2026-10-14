@@ -28,6 +28,9 @@ enum class EditKind {
     // Adding and deleting frames, sprites, backgrounds and comparison masks. One history for
     // the project (index 0), see StructureCommand.
     ProjectStructure,
+    // The edit colors and color sets of the cRP. One history for the project (index 0), see
+    // ColorSetEdits.
+    EditorColors,
 };
 
 // The records other data refers to by index.
@@ -184,6 +187,35 @@ private:
     std::size_t m_originalColorIndex;
     uint16_t m_oldColor;
     uint16_t m_newColor;
+};
+
+struct DynamicColorChange {
+    std::size_t originalColorIndex = 0;
+    uint16_t oldColor = 0;
+    uint16_t newColor = 0;
+};
+
+// Several colors of one dynamic set of one frame in one step, e.g. the edit colors copied
+// into the set. Same history as DynamicColorEditCommand.
+class DynamicColorsEditCommand final : public EditCommand {
+public:
+    DynamicColorsEditCommand(std::size_t frameIndex,
+                             render::Resolution resolution,
+                             std::size_t setIndex,
+                             std::vector<DynamicColorChange> changes);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
+
+private:
+    void write(document::ProjectDocument& document, bool useNewColor) const;
+
+    std::size_t m_frameIndex;
+    render::Resolution m_resolution;
+    std::size_t m_setIndex;
+    std::vector<DynamicColorChange> m_changes;
 };
 
 struct DynamicShadowChange {
