@@ -1061,7 +1061,6 @@ owner together.
 - The palette popup on an edit color click, the palette's Ctrl/Alt right-click (pipette into a
   palette color, edit color into a palette color), the composed-color pipette and the pipette
   writing into the selected edit color.
-- Sprite dynamic masks and colours, sprite shape mode (data modelled, no UI).
 - Black and white of the whole project (CDMD `IDC_BAW`, not undoable there; its rotation loop
   also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
   Dyn>Stat and "to source frame" are done.
@@ -1168,7 +1167,7 @@ Reviewed for Windows/MinGW and left unchanged:
    Ctrl+click selection on Windows and Linux. Later: Developer ID signing and notarisation for
    macOS, an application icon for the Windows exe and the macOS bundle, Wayland plugins in the
    AppImage.
-2. Sprite dynamic content UI (sprite dynamic masks and colors, sprite shape mode).
+2. (done) Sprite dynamic content and shape mode on the Sprites page and the sprite canvas.
 3. (done) Sections and the trigger list (`edit/Sections.h`, `panels/SectionBar.h`).
 4. Image and video import with crop zones (the Images window).
 5. (done) The frame tester: the whole project through `RuntimePreview::openCrom()`, frames fed

@@ -453,6 +453,20 @@ void SpriteEditorWidget::paintEmpty(QPainter& painter)
     painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("No sprite selected"));
 }
 
+void SpriteEditorWidget::setDynamicPaintMode(bool enabled)
+{
+    if (m_dynamicPaint == enabled) {
+        return;
+    }
+    m_dynamicPaint = enabled;
+    update();
+}
+
+bool SpriteEditorWidget::isDynamicPaintMode() const
+{
+    return m_dynamicPaint;
+}
+
 void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout& region)
 {
     painter.fillRect(QRect(region.rect.x, region.rect.y, region.rect.width, region.rect.height),
@@ -488,6 +502,27 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
                           cellSize,
                           color,
                           m_renderOptions);
+        }
+    }
+    // The dynamic zones, over the picture of the plane they are on.
+    const render::Resolution shownPlane = useHd ? render::Resolution::Hd : render::Resolution::Sd;
+    if (m_dynamicPaint && region.region == render::CanvasRegion::SpriteColorized &&
+        shownPlane == m_document->dynamicPlane()) {
+        const document::IndexedFrame& dynamicMask =
+            useHd ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
+        for (int y = 0; y < kSpriteSize.height; ++y) {
+            for (int x = 0; x < kSpriteSize.width; ++x) {
+                const std::size_t index = spritePixelIndex(x, y);
+                if (mask.pixels[index] == 255 || index >= dynamicMask.pixels.size() ||
+                    dynamicMask.pixels[index] == 255) {
+                    continue;
+                }
+                painter.fillRect(QRectF(region.rect.x + x * cellSize,
+                                        region.rect.y + y * cellSize,
+                                        cellSize,
+                                        cellSize),
+                                 QColor(0, 180, 255, 150));
+            }
         }
     }
 }
@@ -595,6 +630,10 @@ bool SpriteEditorWidget::isColorizedPixelEditable(const document::SpriteRecord& 
     const std::size_t index = spritePixelIndex(point.x, point.y);
     if (mask.pixels[index] == 255) {
         return false;
+    }
+    if (m_dynamicPaint) {
+        return (useHd ? render::Resolution::Hd : render::Resolution::Sd) ==
+               m_document->dynamicPlane();
     }
     return erase || colorized.pixels[index] != 0;
 }

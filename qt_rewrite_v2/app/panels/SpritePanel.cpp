@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <vector>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -14,6 +15,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "ColorGridWidget.h"
 #include "PlaneLabels.h"
 #include "render/CanvasLayout.h"
 
@@ -208,6 +210,72 @@ SpritePanel::SpritePanel(QWidget* parent)
     detectionAreaGrid->addWidget(m_detectionAreaHeightSpinBox, 1, 3);
     pageLayout->addLayout(detectionAreaGrid);
     pageLayout->addWidget(m_frameSpritesLabel);
+
+    // Shape mode and dynamic content of the selected sprite.
+    m_shapeModeCheckBox = new QCheckBox(QStringLiteral("Shape mode"), this);
+    m_shapeModeCheckBox->setToolTip(QStringLiteral(
+        "Find the sprite by its shape (lit or not) instead of its shades"));
+    m_dynamicPaintButton = new QToolButton(this);
+    m_dynamicPaintButton->setText(QStringLiteral("Paint Dynamic"));
+    m_dynamicPaintButton->setCheckable(true);
+    m_dynamicPaintButton->setToolTip(QStringLiteral(
+        "On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: "
+        "out of it); dynamic pixels are tinted"));
+    m_dynamicSetSpinBox = new QSpinBox(this);
+    m_dynamicSetSpinBox->setRange(1, static_cast<int>(document::kMaxDynamicSetsPerSprite));
+    m_dynamicSetSpinBox->setPrefix(QStringLiteral("Set "));
+    m_dynamicSetSpinBox->setToolTip(QStringLiteral("Sprite dynamic set"));
+    m_dynamicColorGrid = new ColorGridWidget(16, 8, this);
+    m_dynamicColorGrid->setToolTip(QStringLiteral(
+        "The set's color for each original shade: a dynamic sprite pixel shows the color of the "
+        "frame's shade under it. Click to change"));
+    m_editColorsToSetButton = new QToolButton(this);
+    m_editColorsToSetButton->setText(QStringLiteral("Edit Colors > Set"));
+    m_editColorsToSetButton->setToolTip(QStringLiteral("Copy the edit colors into the set"));
+    m_setToEditColorsButton = new QToolButton(this);
+    m_setToEditColorsButton->setText(QStringLiteral("Set > Edit Colors"));
+    m_setToEditColorsButton->setToolTip(QStringLiteral("Copy the set's colors to the edit colors"));
+    auto* dynamicRow = new QHBoxLayout();
+    dynamicRow->addWidget(m_shapeModeCheckBox);
+    dynamicRow->addStretch(1);
+    dynamicRow->addWidget(m_dynamicPaintButton);
+    dynamicRow->addWidget(m_dynamicSetSpinBox);
+    pageLayout->addLayout(dynamicRow);
+    pageLayout->addWidget(m_dynamicColorGrid);
+    auto* dynamicCopyRow = new QHBoxLayout();
+    dynamicCopyRow->addWidget(m_editColorsToSetButton);
+    dynamicCopyRow->addWidget(m_setToEditColorsButton);
+    pageLayout->addLayout(dynamicCopyRow);
+    connect(m_shapeModeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        if (onShapeModeToggled) {
+            onShapeModeToggled(checked);
+        }
+    });
+    connect(m_dynamicPaintButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (onDynamicPaintToggled) {
+            onDynamicPaintToggled(checked);
+        }
+    });
+    connect(m_dynamicSetSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int) { refreshDynamic(m_dynamicDocument, m_dynamicSprite); });
+    m_dynamicColorGrid->setColorClickedHandler([this](std::size_t colorIndex) {
+        if (onDynamicColorClicked) {
+            onDynamicColorClicked(colorIndex);
+        }
+    });
+    connect(m_editColorsToSetButton, &QToolButton::clicked, this, [this]() {
+        if (onEditColorsToDynamicSet) {
+            onEditColorsToDynamicSet();
+        }
+    });
+    connect(m_setToEditColorsButton, &QToolButton::clicked, this, [this]() {
+        if (onDynamicSetToEditColors) {
+            onDynamicSetToEditColors();
+        }
+    });
+    refreshDynamic(nullptr, std::nullopt);
     pageLayout->addStretch(1);
 
     connect(m_nameLineEdit, &QLineEdit::editingFinished, this, [this]() {
@@ -321,8 +389,46 @@ SpritePanel::SpritePanel(QWidget* parent)
     }
 }
 
+std::size_t SpritePanel::dynamicSet() const
+{
+    return static_cast<std::size_t>(m_dynamicSetSpinBox->value() - 1);
+}
+
+void SpritePanel::setDynamicPaintChecked(bool checked)
+{
+    QSignalBlocker blocker(m_dynamicPaintButton);
+    m_dynamicPaintButton->setChecked(checked);
+}
+
+void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
+                                 std::optional<std::size_t> spriteIndex)
+{
+    m_dynamicDocument = document;
+    m_dynamicSprite = spriteIndex;
+    const bool hasSprite = document && spriteIndex && *spriteIndex < document->spriteCount();
+    for (QWidget* widget : std::initializer_list<QWidget*>{
+             m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox, m_dynamicColorGrid,
+             m_editColorsToSetButton, m_setToEditColorsButton}) {
+        widget->setEnabled(hasSprite);
+    }
+    if (!hasSprite) {
+        m_dynamicColorGrid->setColors({}, 0);
+        return;
+    }
+    {
+        QSignalBlocker blocker(m_shapeModeCheckBox);
+        m_shapeModeCheckBox->setChecked(document->sprite(*spriteIndex).shapeMode > 0);
+    }
+    std::vector<uint16_t> colors;
+    for (std::size_t shade = 0; shade < document->colorCount(); ++shade) {
+        colors.push_back(document->spriteDynamicColor(*spriteIndex, dynamicSet(), shade));
+    }
+    m_dynamicColorGrid->setColors(colors, colors.size());
+}
+
 void SpritePanel::refresh(const SpritePanelState& state)
 {
+    refreshDynamic(state.document, state.spriteIndex);
     const document::ProjectDocument* document = state.document;
     const std::optional<std::size_t> frameIndex = state.frameIndex;
     const QVariant previousSlotData = m_slotComboBox->currentData();

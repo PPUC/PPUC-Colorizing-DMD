@@ -551,6 +551,22 @@ public:
                             Resolution plane,
                             IndexedFrame shades,
                             Rgb565Frame colors);
+    // Sprite shape mode: libserum compares the sprite's shape (lit or not) instead of its
+    // shades when it looks for it.
+    void setSpriteShapeMode(std::size_t spriteIndex, bool shapeMode);
+    // The sprite's dynamic content lives on dynamicPlane(), as the frames' does. Pixels the
+    // sprite does not cover (transparent on that plane) are left alone; 255 is "not dynamic".
+    // Returns how many pixels changed.
+    std::size_t setSpriteDynamicMaskPixels(std::size_t spriteIndex,
+                                           const std::vector<render::Point>& points,
+                                           uint8_t value);
+    [[nodiscard]] uint16_t spriteDynamicColor(std::size_t spriteIndex,
+                                              std::size_t setIndex,
+                                              std::size_t originalColorIndex) const;
+    void setSpriteDynamicColor(std::size_t spriteIndex,
+                               std::size_t setIndex,
+                               std::size_t originalColorIndex,
+                               uint16_t rgb565);
     void setSpriteOriginalPixel(std::size_t spriteIndex,
                                 int x,
                                 int y,

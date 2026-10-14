@@ -2194,6 +2194,22 @@ The Inspector has a sprite browser and assignment controls:
   Detection-area edits update the sprite editor immediately. Frame thumbnails and composed frame
   previews refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
 - Sprite source/original pixels are not freehand editable.
+- `Shape mode` (CDMD's `IDC_SHAPEM`): libserum finds the sprite by its shape, lit or not,
+  instead of its shades. One undo step of the sprite.
+- Sprite dynamic content (CDMD's sprite window): a dynamic sprite pixel shows, at runtime, the
+  color its set gives the frame's original shade under it, as libserum's sprite drawing does;
+  the canvas and the Runtime view show it so. A sprite has 9 sets (`Set 1` to `Set 9`).
+  - `Paint Dynamic`: on the sprite canvas (`Edit Sprite`) strokes of the point, line and shape
+    tools put the sprite's pixels into the selected set; with `Shift` (erase) they leave it.
+    Every covered pixel can be painted, black ones too; transparent pixels never become
+    dynamic. Dynamic pixels are tinted blue while the mode is on. The fill tool does not paint
+    dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
+    sprite of an ordinary project (switch the canvas to SD), the native sprite otherwise.
+  - The color grid shows the set's color for each original shade; a click changes one.
+    `Edit Colors > Set` copies the edit colors into the set, `Set > Edit Colors` the set's
+    colors into the edit colors (an edit color step).
+  - Each stroke and each color change is one undo step of the sprite; the sprite's pixel
+    edits before it stay undoable.
 - `Source Frame` goes to the frame the sprite was taken from, as CDMD's "to source frame": the
   frame it was added or last captured on (the `.cRP` keeps it; deleting frames moves it along).
   Its tool tip names the frame.

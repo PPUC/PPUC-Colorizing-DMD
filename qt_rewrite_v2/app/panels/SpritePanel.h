@@ -9,6 +9,7 @@
 
 #include "document/ProjectDocument.h"
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -16,6 +17,8 @@ class QSpinBox;
 class QToolButton;
 
 namespace colorizing::app {
+
+class ColorGridWidget;
 
 // What the sprite page displays. The slot, the detection area and the toggles are the page's
 // own state and are kept across refreshes.
@@ -85,6 +88,16 @@ public:
     std::function<void()> onApplySpriteEditsRequested;
     // Go to the frame the sprite was taken from (CDMD's "to source frame").
     std::function<void()> onSourceFrameRequested;
+    // Sprite shape mode and dynamic content (CDMD's sprite window: IDC_SHAPEM, the dynamic
+    // sets and their colors).
+    std::function<void(bool shapeMode)> onShapeModeToggled;
+    std::function<void(bool enabled)> onDynamicPaintToggled;
+    std::function<void(std::size_t originalColorIndex)> onDynamicColorClicked;
+    std::function<void()> onEditColorsToDynamicSet;
+    std::function<void()> onDynamicSetToEditColors;
+    // 0 to 8, shown as 1 to 9.
+    [[nodiscard]] std::size_t dynamicSet() const;
+    void setDynamicPaintChecked(bool checked);
     // Read the new values with slotBounds().
     std::function<void()> onSlotBoundsEdited;
     std::function<void()> onDetectionAreaSelectionChanged;
@@ -106,6 +119,16 @@ private:
     QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_applySpriteEditsButton = nullptr;
     QToolButton* m_sourceFrameButton = nullptr;
+    QCheckBox* m_shapeModeCheckBox = nullptr;
+    QToolButton* m_dynamicPaintButton = nullptr;
+    QSpinBox* m_dynamicSetSpinBox = nullptr;
+    ColorGridWidget* m_dynamicColorGrid = nullptr;
+    QToolButton* m_editColorsToSetButton = nullptr;
+    QToolButton* m_setToEditColorsButton = nullptr;
+    const document::ProjectDocument* m_dynamicDocument = nullptr;
+    std::optional<std::size_t> m_dynamicSprite;
+    void refreshDynamic(const document::ProjectDocument* document,
+                        std::optional<std::size_t> spriteIndex);
     QSpinBox* m_minXSpinBox = nullptr;
     QSpinBox* m_minYSpinBox = nullptr;
     QSpinBox* m_maxXSpinBox = nullptr;

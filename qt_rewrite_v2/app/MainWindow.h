@@ -117,6 +117,11 @@ private:
     // Copy and Paste on the sprite canvas, see edit/SpriteClipboard.h.
     [[nodiscard]] render::Resolution spriteCanvasPlane(std::size_t spriteIndex) const;
     void copySpriteToClipboard();
+    // The sprite canvas in dynamic paint mode: pixels into the sprite panel's dynamic set, or
+    // out of any (erase).
+    void paintSpriteDynamic(std::size_t spriteIndex,
+                            const std::vector<render::Point>& pixels,
+                            bool erase);
     void pasteClipboardIntoSprite();
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();

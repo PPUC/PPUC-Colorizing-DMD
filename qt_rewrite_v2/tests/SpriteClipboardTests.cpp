@@ -9,6 +9,7 @@
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
 #include "edit/PlaneSelection.h"
+#include "edit/StateCommands.h"
 
 using colorizing::document::ProjectDocument;
 using colorizing::document::ProjectSnapshot;
@@ -160,6 +161,64 @@ void testHdOnlyProject()
            "the original and the mask are the pasted shape");
 }
 
+void testSpriteDynamicEditing()
+{
+    ProjectDocument document = makeDocument(PlaneLayout::Ordinary);
+    const document::SpriteRecord& sprite = document.sprite(0);
+    // An opaque and a transparent pixel of sprite 0.
+    int opaqueX = -1, opaqueY = -1, clearX = -1, clearY = -1;
+    for (int y = 0; y < 8 && opaqueX < 0; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            if (sprite.originalSd.pixels[at(x, y)] != 255) {
+                opaqueX = x;
+                opaqueY = y;
+                break;
+            }
+        }
+    }
+    for (int y = 0; y < 8 && clearX < 0; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            if (sprite.originalSd.pixels[at(x, y)] == 255) {
+                clearX = x;
+                clearY = y;
+                break;
+            }
+        }
+    }
+    expect(opaqueX >= 0 && clearX >= 0, "the fixture sprite has both kinds of pixels");
+
+    edit::SpriteState before = edit::spriteState(document, 0);
+    const std::size_t changed = document.setSpriteDynamicMaskPixels(
+        0, {{opaqueX, opaqueY}, {clearX, clearY}}, 3);
+    expect(changed == 1 && document.sprite(0).dynamicMaskSd.pixels[at(opaqueX, opaqueY)] == 3 &&
+               document.sprite(0).dynamicMaskSd.pixels[at(clearX, clearY)] == 255,
+           "only covered pixels become dynamic");
+    expect([&]() {
+        try {
+            (void)document.setSpriteDynamicMaskPixels(0, {{opaqueX, opaqueY}}, 9);
+        } catch (const std::out_of_range&) {
+            return true;
+        }
+        return false;
+    }(), "a sprite has 9 dynamic sets");
+    document.setSpriteDynamicColor(0, 3, 2, 0xabcd);
+    expect(document.spriteDynamicColor(0, 3, 2) == 0xabcd, "a set's color");
+    document.setSpriteShapeMode(0, true);
+    std::unique_ptr<EditCommand> command = edit::spriteStateCommand(document, 0, before);
+    expect(command && command->replacedData().empty(),
+           "a dynamic or shape change keeps the sprite's pixel histories");
+    command->revert(document);
+    expect(document.sprite(0).dynamicMaskSd.pixels[at(opaqueX, opaqueY)] == 255 &&
+               document.spriteDynamicColor(0, 3, 2) != 0xabcd && document.sprite(0).shapeMode == 0,
+           "undo puts all of it back");
+
+    // In an HD-only project the sprite's dynamic content is on the native plane.
+    ProjectDocument native = makeDocument(PlaneLayout::NativeExtra);
+    native.setSpriteDynamicColor(0, 1, 0, 0x1111);
+    expect(native.sprite(0).dynamicColorsHd[1 * native.colorCount()] == 0x1111,
+           "native plane colors");
+}
+
 }  // namespace
 
 void runSpriteClipboardTests()
@@ -168,4 +227,5 @@ void runSpriteClipboardTests()
     testPasteSpriteIntoSprite();
     testPasteFrameSelectionIntoSprite();
     testHdOnlyProject();
+    testSpriteDynamicEditing();
 }

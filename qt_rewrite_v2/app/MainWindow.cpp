@@ -852,6 +852,80 @@ void MainWindow::createCentralView()
         updateSpriteControls();
         updateUndoRedoActions();
     };
+    m_spritePanel->onShapeModeToggled = [this](bool shapeMode) {
+        const std::optional<std::size_t> sprite = currentSpriteIndex();
+        if (!m_document || !sprite) {
+            return;
+        }
+        edit::SpriteState before = edit::spriteState(*m_document, *sprite);
+        m_document->setSpriteShapeMode(*sprite, shapeMode);
+        recordEdit(edit::spriteStateCommand(*m_document, *sprite, std::move(before)));
+        statusBar()->showMessage(shapeMode ? QStringLiteral("Sprite %1 is found by its shape")
+                                                 .arg(static_cast<int>(*sprite))
+                                           : QStringLiteral("Sprite %1 is found by its shades")
+                                                 .arg(static_cast<int>(*sprite)),
+                                 2500);
+    };
+    m_spritePanel->onDynamicPaintToggled = [this](bool enabled) {
+        if (m_spriteEditor) {
+            m_spriteEditor->setDynamicPaintMode(enabled);
+        }
+        if (enabled) {
+            statusBar()->showMessage(
+                QStringLiteral("Paint dynamic zones on the sprite canvas (Edit Sprite), on the "
+                               "%1 sprite")
+                    .arg(m_document && m_document->dynamicPlane() == render::Resolution::Hd
+                             ? nativePlaneText(*m_document)
+                             : QStringLiteral("128x32")),
+                4000);
+        }
+    };
+    m_spritePanel->onDynamicColorClicked = [this](std::size_t shade) {
+        const std::optional<std::size_t> sprite = currentSpriteIndex();
+        if (!m_document || !sprite) {
+            return;
+        }
+        const std::size_t set = m_spritePanel->dynamicSet();
+        const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
+            m_document->spriteDynamicColor(*sprite, set, shade),
+            this,
+            QStringLiteral("Sprite Dynamic Color"));
+        if (!picked) {
+            return;
+        }
+        edit::SpriteState before = edit::spriteState(*m_document, *sprite);
+        m_document->setSpriteDynamicColor(*sprite, set, shade, *picked);
+        recordEdit(edit::spriteStateCommand(*m_document, *sprite, std::move(before)));
+    };
+    m_spritePanel->onEditColorsToDynamicSet = [this]() {
+        const std::optional<std::size_t> sprite = currentSpriteIndex();
+        if (!m_document || !sprite) {
+            return;
+        }
+        const std::size_t set = m_spritePanel->dynamicSet();
+        edit::SpriteState before = edit::spriteState(*m_document, *sprite);
+        for (std::size_t shade = 0; shade < m_document->colorCount(); ++shade) {
+            m_document->setSpriteDynamicColor(*sprite, set, shade, m_document->editColor(shade));
+        }
+        recordEdit(edit::spriteStateCommand(*m_document, *sprite, std::move(before)));
+        statusBar()->showMessage(QStringLiteral("Copied the edit colors to sprite set %1")
+                                     .arg(static_cast<int>(set) + 1),
+                                 2500);
+    };
+    m_spritePanel->onDynamicSetToEditColors = [this]() {
+        const std::optional<std::size_t> sprite = currentSpriteIndex();
+        if (!m_document || !sprite) {
+            return;
+        }
+        const std::size_t set = m_spritePanel->dynamicSet();
+        std::vector<uint16_t> colors;
+        for (std::size_t shade = 0; shade < m_document->colorCount(); ++shade) {
+            colors.push_back(m_document->spriteDynamicColor(*sprite, set, shade));
+        }
+        commitEditorColors(edit::withEditColors(m_document->colorSetTables(), colors),
+                           QStringLiteral("Copied sprite set %1 to the edit colors")
+                               .arg(static_cast<int>(set) + 1));
+    };
     m_spritePanel->onSourceFrameRequested = [this]() {
         const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
         if (m_document && spriteIndex) {
@@ -1324,6 +1398,10 @@ void MainWindow::createCentralView()
                int x,
                int y,
                bool erase) {
+            if (m_spriteEditor->isDynamicPaintMode()) {
+                paintSpriteDynamic(spriteIndex, {render::Point{x, y}}, erase);
+                return;
+            }
             paintSpriteColorizedPixel(spriteIndex, resolution, x, y, erase);
         });
     m_spriteEditor->setColorizedPixelsEditedHandler(
@@ -1331,6 +1409,10 @@ void MainWindow::createCentralView()
                render::Resolution resolution,
                const std::vector<render::Point>& pixels,
                bool erase) {
+            if (m_spriteEditor->isDynamicPaintMode()) {
+                paintSpriteDynamic(spriteIndex, pixels, erase);
+                return;
+            }
             paintSpriteColorizedPixels(spriteIndex, resolution, pixels, erase);
         });
     m_spriteEditor->setColorizedPixelPickedHandler(
@@ -1339,6 +1421,12 @@ void MainWindow::createCentralView()
         });
     m_spriteEditor->setColorizedFloodFillHandler(
         [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
+            if (m_spriteEditor->isDynamicPaintMode()) {
+                statusBar()->showMessage(
+                    QStringLiteral("Dynamic zones are painted with the point and shape tools"),
+                    3000);
+                return;
+            }
             floodFillSpriteColorized(spriteIndex, resolution, x, y);
         });
     setDrawingTool(m_drawingTool);
@@ -6216,6 +6304,30 @@ render::Resolution MainWindow::spriteCanvasPlane(std::size_t spriteIndex) const
         return render::Resolution::Hd;
     }
     return render::Resolution::Sd;
+}
+
+void MainWindow::paintSpriteDynamic(std::size_t spriteIndex,
+                                    const std::vector<render::Point>& pixels,
+                                    bool erase)
+{
+    if (!m_document || spriteIndex >= m_document->spriteCount() || !m_spritePanel) {
+        return;
+    }
+    const uint8_t value = erase ? uint8_t{255} : static_cast<uint8_t>(m_spritePanel->dynamicSet());
+    edit::SpriteState before = edit::spriteState(*m_document, spriteIndex);
+    try {
+        if (m_document->setSpriteDynamicMaskPixels(spriteIndex, pixels, value) == 0) {
+            return;
+        }
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+    recordEdit(edit::spriteStateCommand(*m_document, spriteIndex, std::move(before)));
+    if (m_spriteEditor) {
+        m_spriteEditor->update();
+    }
+    setSpriteDependentViewsDirty();
 }
 
 void MainWindow::copySpriteToClipboard()

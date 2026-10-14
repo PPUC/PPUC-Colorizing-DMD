@@ -433,6 +433,36 @@
     dump("sprite canvas back to sprite 0", w);
     w.m_sdButton->click();
     dump("sprite canvas sd", w);
+#ifdef UI_DUMP_HAS_SPRITE_DYNAMICS
+    {
+        // Sprite dynamic content: paint, undo, shape mode.
+        const auto spriteDyn = [&](const char* title) {
+            dump(title, w);
+            const document::SpriteRecord& sprite = w.m_document->sprite(0);
+            int dynamic = 0;
+            for (uint8_t value : sprite.dynamicMaskSd.pixels) {
+                dynamic += value != 255 ? 1 : 0;
+            }
+            std::cout << "sprite dynamics: dynamic pixels " << dynamic << " shape "
+                      << int(sprite.shapeMode) << " paint "
+                      << w.m_spriteEditor->isDynamicPaintMode()
+                      << " status '" << w.statusBar()->currentMessage().toStdString() << "'\n";
+        };
+        w.m_spritePanel->setDynamicPaintChecked(true);
+        w.m_spritePanel->onDynamicPaintToggled(true);
+        spriteDyn("sprite dynamic paint on");
+        w.m_spriteEditor->m_colorizedPixelsEditedHandler(0, Resolution::Sd, spritePixels, false);
+        spriteDyn("sprite dynamic pixels painted");
+        w.m_undoAction->trigger();
+        spriteDyn("sprite dynamic paint undone");
+        w.m_spritePanel->onShapeModeToggled(true);
+        spriteDyn("sprite shape mode on");
+        w.m_undoAction->trigger();
+        spriteDyn("sprite shape mode undone");
+        w.m_spritePanel->setDynamicPaintChecked(false);
+        w.m_spritePanel->onDynamicPaintToggled(false);
+    }
+#endif
     w.m_frameList->setCurrentRow(1);
     dump("sprite canvas frame 1", w);
     w.m_frameList->setCurrentRow(0);

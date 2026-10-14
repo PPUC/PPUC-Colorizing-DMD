@@ -40,6 +40,11 @@ public:
     void setActiveDrawColor(uint16_t rgb565);
     void setDmdRenderOptions(DmdRenderOptions options);
     void setDetectionAreasVisible(bool visible);
+    // Strokes paint the sprite's dynamic zones (every covered pixel can be painted, black ones
+    // too) and the dynamic pixels are tinted. Only on the plane the sprite's dynamic content is
+    // on (ProjectDocument::dynamicPlane()).
+    void setDynamicPaintMode(bool enabled);
+    [[nodiscard]] bool isDynamicPaintMode() const;
     void setSelectedDetectionAreaIndex(std::optional<std::size_t> areaIndex);
     void setDetectionAreaChangedHandler(
         std::function<void(std::size_t, document::SpriteDetectionArea)> handler);
@@ -98,6 +103,7 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     SpriteDrawingTool m_drawingTool = SpriteDrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
+    bool m_dynamicPaint = false;
     DmdRenderOptions m_renderOptions;
     bool m_showDetectionAreas = true;
     std::optional<std::size_t> m_selectedAreaIndex;

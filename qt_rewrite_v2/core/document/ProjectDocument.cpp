@@ -2125,6 +2125,91 @@ void ProjectDocument::replaceSpritePlane(std::size_t spriteIndex,
     markChanged();
 }
 
+void ProjectDocument::setSpriteShapeMode(std::size_t spriteIndex, bool shapeMode)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const uint8_t value = shapeMode ? 1 : 0;
+    if (m_sprites[spriteIndex].shapeMode == value) {
+        return;
+    }
+    m_sprites[spriteIndex].shapeMode = value;
+    markChanged();
+}
+
+std::size_t ProjectDocument::setSpriteDynamicMaskPixels(std::size_t spriteIndex,
+                                                        const std::vector<render::Point>& points,
+                                                        uint8_t value)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    if (value != 255 && value >= kMaxDynamicSetsPerSprite) {
+        throw std::out_of_range("sprite dynamic set out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    const bool extra = dynamicPlane() == Resolution::Hd;
+    const IndexedFrame& opacity = extra ? sprite.maskHd : sprite.originalSd;
+    IndexedFrame& mask = extra ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
+    std::size_t changed = 0;
+    for (const render::Point& point : points) {
+        if (point.x < 0 || point.y < 0 || point.x >= static_cast<int>(kMaxSpriteWidth) ||
+            point.y >= static_cast<int>(kMaxSpriteHeight)) {
+            continue;
+        }
+        const std::size_t index = spritePixelIndex(point.x, point.y);
+        if (opacity.pixels[index] == 255 || std::as_const(mask.pixels)[index] == value) {
+            continue;
+        }
+        mask.pixels[index] = value;
+        ++changed;
+    }
+    if (changed > 0) {
+        markChanged();
+    }
+    return changed;
+}
+
+uint16_t ProjectDocument::spriteDynamicColor(std::size_t spriteIndex,
+                                             std::size_t setIndex,
+                                             std::size_t originalColorIndex) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    if (setIndex >= kMaxDynamicSetsPerSprite || originalColorIndex >= m_colorCount) {
+        throw std::out_of_range("sprite dynamic color out of range");
+    }
+    const SpriteRecord& sprite = m_sprites[spriteIndex];
+    const CompactArray<uint16_t>& colors =
+        dynamicPlane() == Resolution::Hd ? sprite.dynamicColorsHd : sprite.dynamicColorsSd;
+    const std::size_t index = setIndex * m_colorCount + originalColorIndex;
+    return index < colors.size() ? colors[index] : uint16_t{0};
+}
+
+void ProjectDocument::setSpriteDynamicColor(std::size_t spriteIndex,
+                                            std::size_t setIndex,
+                                            std::size_t originalColorIndex,
+                                            uint16_t rgb565)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    if (setIndex >= kMaxDynamicSetsPerSprite || originalColorIndex >= m_colorCount) {
+        throw std::out_of_range("sprite dynamic color out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    CompactArray<uint16_t>& colors =
+        dynamicPlane() == Resolution::Hd ? sprite.dynamicColorsHd : sprite.dynamicColorsSd;
+    const std::size_t index = setIndex * m_colorCount + originalColorIndex;
+    if (index >= colors.size() || std::as_const(colors)[index] == rgb565) {
+        return;
+    }
+    colors[index] = rgb565;
+    markChanged();
+}
+
 void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
                                              int x,
                                              int y,

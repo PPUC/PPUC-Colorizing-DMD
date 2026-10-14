@@ -72,6 +72,10 @@
 #define UI_DUMP_HAS_AUTOSAVE 1
 #endif
 
+#if __has_include("edit/SpriteClipboard.h")
+#define UI_DUMP_HAS_SPRITE_DYNAMICS 1
+#endif
+
 #if __has_include("panels/SectionBar.h")
 #include "edit/Sections.h"
 #define UI_DUMP_HAS_SECTIONS 1
@@ -92,6 +96,9 @@
 #include "MainWindow.h"
 #ifdef UI_DUMP_HAS_SECTIONS
 #include "panels/SectionBar.h"
+#endif
+#ifdef UI_DUMP_HAS_SPRITE_DYNAMICS
+#include "panels/SpritePanel.h"
 #endif
 #undef private
 
