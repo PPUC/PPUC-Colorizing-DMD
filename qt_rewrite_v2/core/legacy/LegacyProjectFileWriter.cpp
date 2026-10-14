@@ -7,6 +7,7 @@
 
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectSerializer.h"
+#include "platform/Utf8Path.h"
 
 namespace colorizing::legacy {
 
@@ -17,9 +18,10 @@ using WriteFunction = bool (*)(std::ostream&,
                                std::string&,
                                LegacySectionOffsets*);
 
-std::filesystem::path temporaryPathFor(const std::string& path)
+// Paths are UTF-8 (see platform/Utf8Path.h) until a file is opened, renamed or removed.
+std::string temporaryPathFor(const std::string& path)
 {
-    return std::filesystem::path(path + ".saving");
+    return path + ".saving";
 }
 
 bool writeTemporaryFile(const std::string& path,
@@ -28,8 +30,8 @@ bool writeTemporaryFile(const std::string& path,
                         const document::ProjectSnapshot& snapshot,
                         std::string& errorMessage)
 {
-    const std::filesystem::path temporaryPath = temporaryPathFor(path);
-    std::ofstream stream(temporaryPath, std::ios::binary | std::ios::trunc);
+    std::ofstream stream(platform::pathFromUtf8(temporaryPathFor(path)),
+                         std::ios::binary | std::ios::trunc);
     if (!stream) {
         errorMessage = "could not open " + std::string(label) + " file for writing: " + path;
         return false;
@@ -50,7 +52,7 @@ void removeTemporaryFiles(const LegacyProjectPaths& paths)
     std::error_code ignored;
     for (const std::string* path : {&paths.cromPath, &paths.crpPath, &paths.crzPath}) {
         if (!path->empty()) {
-            std::filesystem::remove(temporaryPathFor(*path), ignored);
+            std::filesystem::remove(platform::pathFromUtf8(temporaryPathFor(*path)), ignored);
         }
     }
 }
@@ -80,9 +82,9 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
         writeTemporaryFile(paths.crpPath, ".cRP", writeLegacyCrp, snapshot, errorMessage);
     if (written && !paths.crzPath.empty()) {
         std::string detail;
-        written = writeCrzArchive(temporaryPathFor(paths.crzPath).string(),
+        written = writeCrzArchive(temporaryPathFor(paths.crzPath),
                                   crzEntryNameFor(snapshot.romName),
-                                  temporaryPathFor(paths.cromPath).string(),
+                                  temporaryPathFor(paths.cromPath),
                                   detail);
         if (!written) {
             errorMessage = "could not write .cRZ file: " + paths.crzPath + " (" + detail + ")";
@@ -93,13 +95,19 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
         return makeSaveFailure(errorMessage);
     }
 
+    // std::filesystem::rename replaces an existing target on every platform: POSIX rename(),
+    // and MoveFileExW(MOVEFILE_REPLACE_EXISTING) in both MSVC's and MinGW's libstdc++.
     std::error_code error;
-    std::filesystem::rename(temporaryPathFor(paths.cromPath), paths.cromPath, error);
+    const auto replace = [&error](const std::string& target) {
+        std::filesystem::rename(platform::pathFromUtf8(temporaryPathFor(target)),
+                                platform::pathFromUtf8(target), error);
+    };
+    replace(paths.cromPath);
     if (!error) {
-        std::filesystem::rename(temporaryPathFor(paths.crpPath), paths.crpPath, error);
+        replace(paths.crpPath);
     }
     if (!error && !paths.crzPath.empty()) {
-        std::filesystem::rename(temporaryPathFor(paths.crzPath), paths.crzPath, error);
+        replace(paths.crzPath);
     }
     if (error) {
         removeTemporaryFiles(paths);

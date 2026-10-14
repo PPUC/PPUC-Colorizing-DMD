@@ -1,6 +1,7 @@
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -9,9 +10,8 @@
 #include <string>
 #include <vector>
 
-#include <unistd.h>
-
 #include "legacy/LegacyCrzArchive.h"
+#include "platform/Utf8Path.h"
 #include "render/CanvasLayout.h"
 
 using colorizing::document::makeRgb565Frame;
@@ -20,6 +20,8 @@ using colorizing::legacy::LegacyProjectFileReader;
 using colorizing::legacy::LegacyProjectFileWriter;
 using colorizing::legacy::LegacyProjectPaths;
 using colorizing::legacy::LegacySaveResult;
+using colorizing::platform::pathFromUtf8;
+using colorizing::platform::utf8FromPath;
 
 namespace {
 
@@ -293,23 +295,33 @@ std::vector<uint8_t> makeLegacyPalettedCrom()
     return bytes;
 }
 
+// The names hold a Greek capital omega (U+03A9), which code page 1252 (Western Windows, and
+// the CI runners) does not have: a path that goes through the ANSI code page anywhere between
+// the test and the file fails these tests on Windows. Paths reach the code under test as UTF-8.
 std::filesystem::path uniqueTempPath(const std::string& suffix)
 {
     static int counter = 0;
+    static const std::string run =
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
     return std::filesystem::temp_directory_path() /
-           ("colorizing_qt_v2_reader_" + std::to_string(::getpid()) + "_" +
-            std::to_string(counter++) + suffix);
+           pathFromUtf8("colorizing_qt_v2_reader_\xce\xa9_" + run + "_" +
+                        std::to_string(counter++) + suffix);
+}
+
+std::filesystem::path savingPathFor(const std::filesystem::path& path)
+{
+    return pathFromUtf8(utf8FromPath(path) + ".saving");
 }
 
 void writeBytes(const std::filesystem::path& path, const std::vector<uint8_t>& bytes)
 {
     std::ofstream stream(path, std::ios::binary);
     if (!stream) {
-        fail("could not create temp file: " + path.string());
+        fail("could not create temp file: " + utf8FromPath(path));
     }
     stream.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (!stream) {
-        fail("could not write temp file: " + path.string());
+        fail("could not write temp file: " + utf8FromPath(path));
     }
 }
 
@@ -322,8 +334,8 @@ void testFileReaderLoadsModernProject()
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
-        cromPath.string(),
-        crpPath.string(),
+        utf8FromPath(cromPath),
+        utf8FromPath(crpPath),
     });
 
     std::filesystem::remove(cromPath);
@@ -450,8 +462,8 @@ void testFileReaderRejectsLegacyPalettedCrom()
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
-        cromPath.string(),
-        crpPath.string(),
+        utf8FromPath(cromPath),
+        utf8FromPath(crpPath),
     });
 
     std::filesystem::remove(cromPath);
@@ -470,8 +482,8 @@ void testFileWriterSavesEditedModernCrom()
     writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
 
     const LegacyProjectPaths paths{
-        cromPath.string(),
-        crpPath.string(),
+        utf8FromPath(cromPath),
+        utf8FromPath(crpPath),
     };
 
     const LegacyProjectFileReader reader;
@@ -536,8 +548,8 @@ void testFileWriterSavesEditedModernCrom()
     const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
     expect(saveResult.ok, "file writer should save edited modern cROM");
 
-    expect(!std::filesystem::exists(cromPath.string() + ".saving") &&
-               !std::filesystem::exists(crpPath.string() + ".saving"),
+    expect(!std::filesystem::exists(savingPathFor(cromPath)) &&
+               !std::filesystem::exists(savingPathFor(crpPath)),
            "file writer should not leave temporary files behind");
 
     const LegacyLoadResult reloadResult = reader.load(paths);
@@ -650,8 +662,8 @@ void testFileWriterCreatesProjectWithoutExistingFiles()
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult loadResult = reader.load(LegacyProjectPaths{
-        sourceCromPath.string(),
-        sourceCrpPath.string(),
+        utf8FromPath(sourceCromPath),
+        utf8FromPath(sourceCrpPath),
     });
     std::filesystem::remove(sourceCromPath);
     std::filesystem::remove(sourceCrpPath);
@@ -659,7 +671,7 @@ void testFileWriterCreatesProjectWithoutExistingFiles()
 
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    const LegacyProjectPaths paths{cromPath.string(), crpPath.string()};
+    const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpPath)};
     const LegacyProjectFileWriter writer;
     const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
     expect(saveResult.ok, "file writer should create files that do not exist yet");
@@ -697,7 +709,7 @@ std::vector<uint8_t> readBytes(const std::filesystem::path& path)
 
 bool savingFileExists(const std::filesystem::path& path)
 {
-    return std::filesystem::exists(path.string() + ".saving");
+    return std::filesystem::exists(savingPathFor(path));
 }
 
 // Builds the archive the way a project is handed around: only the .cRZ, no loose .cROM.
@@ -709,8 +721,8 @@ std::filesystem::path makeCrzFile(const std::string& suffix,
     const std::filesystem::path crzPath = uniqueTempPath(suffix);
     writeBytes(cromPath, cromBytes);
     std::string error;
-    const bool written = colorizing::legacy::writeCrzArchive(crzPath.string(), entryName,
-                                                             cromPath.string(), error);
+    const bool written = colorizing::legacy::writeCrzArchive(
+        utf8FromPath(crzPath), entryName, utf8FromPath(cromPath), error);
     std::filesystem::remove(cromPath);
     expect(written, "test archive should be written: " + error);
     return crzPath;
@@ -737,8 +749,8 @@ void testFileReaderLoadsProjectFromCrz()
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
-        crzPath.string(),
-        crpPath.string(),
+        utf8FromPath(crzPath),
+        utf8FromPath(crpPath),
     });
 
     std::filesystem::remove(crzPath);
@@ -762,13 +774,13 @@ void testFileReaderReportsUnreadableCrz()
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult invalid = reader.load(LegacyProjectPaths{
-        crzPath.string(),
-        crpPath.string(),
+        utf8FromPath(crzPath),
+        utf8FromPath(crpPath),
     });
     std::filesystem::remove(crzPath);
     const LegacyLoadResult missing = reader.load(LegacyProjectPaths{
-        crzPath.string(),
-        crpPath.string(),
+        utf8FromPath(crzPath),
+        utf8FromPath(crpPath),
     });
     std::filesystem::remove(crpPath);
 
@@ -788,8 +800,8 @@ LegacyLoadResult loadSyntheticProject()
     writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
     const LegacyProjectFileReader reader;
     const LegacyLoadResult result = reader.load(LegacyProjectPaths{
-        cromPath.string(),
-        crpPath.string(),
+        utf8FromPath(cromPath),
+        utf8FromPath(crpPath),
     });
     std::filesystem::remove(cromPath);
     std::filesystem::remove(crpPath);
@@ -807,7 +819,8 @@ void testFileWriterWritesCrzOfTheSavedCrom()
     const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
     // A stale archive must be replaced, not kept or appended to.
     writeBytes(crzPath, {1, 2, 3});
-    const LegacyProjectPaths paths{cromPath.string(), crpPath.string(), crzPath.string()};
+    const LegacyProjectPaths paths{
+        utf8FromPath(cromPath), utf8FromPath(crpPath), utf8FromPath(crzPath)};
 
     const LegacyProjectFileWriter writer;
     const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
@@ -821,14 +834,14 @@ void testFileWriterWritesCrzOfTheSavedCrom()
     std::string entryName;
     std::string error;
     const bool archiveRead =
-        colorizing::legacy::readCrzArchive(crzPath.string(), archivedBytes, error);
+        colorizing::legacy::readCrzArchive(utf8FromPath(crzPath), archivedBytes, error);
     const bool nameRead =
-        colorizing::legacy::readCrzEntryName(crzPath.string(), entryName, error);
+        colorizing::legacy::readCrzEntryName(utf8FromPath(crzPath), entryName, error);
 
     const LegacyProjectFileReader reader;
     const LegacyLoadResult reloadResult = reader.load(LegacyProjectPaths{
-        crzPath.string(),
-        crpPath.string(),
+        utf8FromPath(crzPath),
+        utf8FromPath(crpPath),
     });
 
     std::filesystem::remove(cromPath);
@@ -859,7 +872,8 @@ void testFileWriterFailureLeavesNoTemporaryFiles()
     // The archive cannot be created: its directory does not exist.
     const std::filesystem::path unreachableCrz = uniqueTempPath("_missing_dir") / "rom.cRZ";
     const LegacySaveResult unreachable = writer.save(
-        LegacyProjectPaths{cromPath.string(), crpPath.string(), unreachableCrz.string()},
+        LegacyProjectPaths{
+            utf8FromPath(cromPath), utf8FromPath(crpPath), utf8FromPath(unreachableCrz)},
         loadResult.snapshot);
     expect(!unreachable.ok, "save should fail when the cRZ cannot be created");
     expect(unreachable.error.message.find("could not write .cRZ file:") == 0,
@@ -871,7 +885,8 @@ void testFileWriterFailureLeavesNoTemporaryFiles()
 
     // The archive is created but its entry is refused: a ROM name that is not a plain file name.
     loadResult.snapshot.romName = "bad:name";
-    const LegacyProjectPaths paths{cromPath.string(), crpPath.string(), crzPath.string()};
+    const LegacyProjectPaths paths{
+        utf8FromPath(cromPath), utf8FromPath(crpPath), utf8FromPath(crzPath)};
     const LegacySaveResult refused = writer.save(paths, loadResult.snapshot);
     expect(!refused.ok, "save should fail when the cRZ entry cannot be written");
     expect(!savingFileExists(cromPath) && !savingFileExists(crpPath) &&
@@ -883,7 +898,7 @@ void testFileWriterFailureLeavesNoTemporaryFiles()
 
     // Raw cROM bytes must never land in a file named .cRZ.
     const LegacySaveResult swapped = writer.save(
-        LegacyProjectPaths{crzPath.string(), crpPath.string()}, loadResult.snapshot);
+        LegacyProjectPaths{utf8FromPath(crzPath), utf8FromPath(crpPath)}, loadResult.snapshot);
     expect(!swapped.ok, "a cRZ path should be refused as the cROM target");
     expect(readBytes(crzPath) == oldCrz && !savingFileExists(crzPath),
            "refused cRZ target should stay untouched");

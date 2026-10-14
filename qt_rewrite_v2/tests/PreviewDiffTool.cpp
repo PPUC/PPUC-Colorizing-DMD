@@ -483,8 +483,12 @@ int comparePlayback(const ProjectDocument& document,
             !samePicture(played.rows64, expected.rows64)) {
             rows32Mismatches += samePicture(played.rows32, expected.rows32) ? 0 : 1;
             rows64Mismatches += samePicture(played.rows64, expected.rows64) ? 0 : 1;
-            for (const auto& planes : {std::make_pair(&played.rows32, &expected.rows32),
-                                       std::make_pair(&played.rows64, &expected.rows64)}) {
+            // A named array, not a braced list of make_pair() results: GCC 16 takes the
+            // pointers inside those temporaries for dangling references.
+            using PlanePair = std::pair<decltype(&played.rows32), decltype(&expected.rows32)>;
+            const PlanePair planePairs[] = {{&played.rows32, &expected.rows32},
+                                            {&played.rows64, &expected.rows64}};
+            for (const PlanePair& planes : planePairs) {
                 if (*planes.first && *planes.second &&
                     (*planes.first)->image.size == (*planes.second)->image.size) {
                     for (std::size_t p = 0; p < (*planes.first)->image.pixels.size(); ++p) {

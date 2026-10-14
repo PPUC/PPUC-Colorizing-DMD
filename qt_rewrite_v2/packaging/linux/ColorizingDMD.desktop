@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ColorizingDMD
+Comment=Editor for Serum colorizations of pinball DMD frames
+Exec=ColorizingDMD
+Icon=colorizingdmd
+Categories=Graphics;
+Terminal=false

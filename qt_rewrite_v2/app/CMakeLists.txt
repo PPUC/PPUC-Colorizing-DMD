@@ -98,3 +98,22 @@ target_compile_definitions(${COLORIZING_QT_V2_APP_NAME}
     PRIVATE
         QT_NO_KEYWORDS
 )
+
+if(COLORIZINGDMD_QT_V2_PACKAGE)
+    # The target keeps its name; only the file (and bundle) is called ColorizingDMD.
+    # WIN32_EXECUTABLE: no console window; Qt6::Core links its WinMain entry point for it.
+    set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
+        OUTPUT_NAME ColorizingDMD
+        WIN32_EXECUTABLE ON
+    )
+    if(APPLE)
+        set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
+            MACOSX_BUNDLE ON
+            MACOSX_BUNDLE_INFO_PLIST "${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in"
+            MACOSX_BUNDLE_BUNDLE_NAME ColorizingDMD
+            MACOSX_BUNDLE_GUI_IDENTIFIER org.ppuc.colorizingdmd
+            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        )
+    endif()
+endif()

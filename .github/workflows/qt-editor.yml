@@ -1,0 +1,356 @@
+# Builds, tests and packages the Qt editor in qt_rewrite_v2/ for Windows (MinGW), Linux and
+# macOS. The legacy Win32 editor in the repository root is not built here; the path filters keep
+# this workflow out of changes that only touch it.
+#
+# Every run uploads one package per platform. A tag qt-v<version> (matching the project VERSION
+# in qt_rewrite_v2/CMakeLists.txt) additionally collects them into a draft GitHub release, which
+# is published by hand.
+name: Qt editor
+
+on:
+  push:
+    # Any branch, so feature branches of the editor are checked too; the path filter decides.
+    # (Listing tags alone would stop branch pushes from running at all.)
+    branches:
+      - '**'
+    tags:
+      - 'qt-v*'
+    # Not evaluated for tag pushes: a tag always runs.
+    paths:
+      - 'qt_rewrite_v2/**'
+      - 'cRom256.png'
+      - '.github/workflows/qt-editor.yml'
+  pull_request:
+    paths:
+      - 'qt_rewrite_v2/**'
+      - 'cRom256.png'
+      - '.github/workflows/qt-editor.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: qt-editor-${{ github.ref }}
+  # A newer push to a pull request makes the older run worthless; on branches and tags every
+  # run is kept.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # libserum is built from source into the editor (add_subdirectory, static). It must have the
+  # Serum_CRZ_* API, Serum_LoadFromMemory and the dynamic-shadow rotation fix: c8d8166 or later.
+  LIBSERUM_REPOSITORY: PPUC/libserum
+  LIBSERUM_SHA: c8d8166323f437044d8bb3aaa6d0eb91885ada94
+  # Qt for the macOS package (official universal binaries, macOS 13 or later).
+  MACOS_QT_VERSION: 6.11.3
+  MACOS_DEPLOYMENT_TARGET: '13.0'
+  # AppImage tools, pinned to releases and checked against these hashes.
+  LINUXDEPLOY_VERSION: 1-alpha-20251107-1
+  LINUXDEPLOY_SHA256_X86_64: c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d
+  LINUXDEPLOY_SHA256_AARCH64: 620095110d693282b8ebeb244a95b5e911cf8f65f76c88b4b47d16ae6346fcff
+  LINUXDEPLOY_PLUGIN_QT_VERSION: 1-alpha-20250213-1
+  LINUXDEPLOY_PLUGIN_QT_SHA256_X86_64: 15106be885c1c48a021198e7e1e9a48ce9d02a86dd0a1848f00bdbf3c1c92724
+  LINUXDEPLOY_PLUGIN_QT_SHA256_AARCH64: bf1c24aff6d749b5cf423afad6f15abd4440f81dec1aab95706b25f6667cdcf1
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_MAXSIZE: 500M
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # MinGW-w64 (GCC, UCRT) with Qt from MSYS2: what the VPX community uses on Windows.
+          - name: Windows x86_64 (MinGW UCRT64)
+            os: windows-2025
+            platform: windows
+            arch: x86_64
+            libserum_platform: win-mingw/x64
+          # Ubuntu's own Qt (6.4.2) and GCC 13: no Qt download, and the oldest Qt the editor
+          # is built with, so it keeps building on a current Ubuntu LTS from distribution
+          # packages. The AppImage then needs glibc 2.39 (Ubuntu 24.04, Debian 13, Fedora 40).
+          - name: Linux x86_64
+            os: ubuntu-24.04
+            platform: linux
+            arch: x86_64
+            libserum_platform: linux/x64
+          - name: Linux aarch64
+            os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            libserum_platform: linux/aarch64
+          # One universal app for Apple silicon and Intel, built and tested on an arm64 runner;
+          # the x86_64 half of the tests runs under Rosetta.
+          - name: macOS universal (arm64 + x86_64)
+            os: macos-15
+            platform: macos
+            arch: universal
+            libserum_platform: macos/arm64
+    steps:
+      - name: Check out the editor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: ColorizingDMD
+          persist-credentials: false
+
+      # Beside the editor checkout, where qt_rewrite_v2/CMakeLists.txt looks for it by default
+      # (COLORIZINGDMD_LIBSERUM_DIR = ../../libserum).
+      - name: Check out libserum ${{ env.LIBSERUM_SHA }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.LIBSERUM_REPOSITORY }}
+          ref: ${{ env.LIBSERUM_SHA }}
+          path: libserum
+          persist-credentials: false
+
+      # FrameUtil.h from PPUC/libframeutil, at the revision libserum itself pins
+      # (LIBFRAMEUTIL_SHA in libserum's platforms/config.sh), fetched by libserum's own script.
+      # On Windows this runs in Git Bash, as in libserum's CI.
+      - name: Fetch libserum's external headers
+        working-directory: libserum
+        run: ./platforms/${{ matrix.libserum_platform }}/external.sh
+
+      - name: Name the package
+        run: |
+          # A pull request is named after its head commit, not the merge commit it is built as.
+          SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          case "${{ matrix.platform }}" in
+            windows) EXTENSION=zip ;;
+            macos) EXTENSION=zip ;;
+            linux) EXTENSION=AppImage ;;
+          esac
+          echo "PACKAGE=ColorizingDMD-${{ matrix.platform }}-${{ matrix.arch }}-${SHA:0:7}.${EXTENSION}" >> "${GITHUB_ENV}"
+
+      #
+      # Toolchain and Qt
+      #
+      - name: Install MSYS2 UCRT64 with Qt (Windows)
+        if: matrix.platform == 'windows'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: UCRT64
+          update: true
+          # setup-msys2 caches the downloaded packages itself.
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-ccache
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-ntldd
+            zip
+
+      - name: Install Qt and tools (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qt6-base-dev qt6-base-dev-tools libgl-dev ninja-build ccache
+
+      - name: Install Qt (macOS)
+        if: matrix.platform == 'macos'
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.MACOS_QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          # Qt Base only (QtWidgets and macdeployqt); the editor needs no other module.
+          archives: qtbase
+          cache: true
+
+      - name: Install tools (macOS)
+        if: matrix.platform == 'macos'
+        run: brew install ninja ccache
+
+      - name: Restore the compiler cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.platform }}-${{ matrix.arch }}-
+
+      #
+      # Configure, build, test. Release with the tests and the packaged app; warnings are
+      # errors here (the project's own code is built with -Wall -Wextra, libserum with -w).
+      #
+      - name: Configure (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          cmake -S ColorizingDMD/qt_rewrite_v2 -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
+            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON
+
+      - name: Configure (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          cmake -S ColorizingDMD/qt_rewrite_v2 -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
+            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON
+
+      - name: Configure (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          cmake -S ColorizingDMD/qt_rewrite_v2 -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}" \
+            "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.MACOS_DEPLOYMENT_TARGET }} \
+            -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
+            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON
+
+      - name: Build (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          ccache --zero-stats
+          cmake --build build --parallel
+          ccache --show-stats
+
+      - name: Build
+        if: matrix.platform != 'windows'
+        run: |
+          ccache --zero-stats
+          cmake --build build --parallel
+          ccache --show-stats
+
+      # The MSYS2 shell has the UCRT64 bin directory, and with it Qt's DLLs and the GCC
+      # runtime, on PATH; Qt finds its plugins from there.
+      - name: Test (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Test
+        if: matrix.platform != 'windows'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Test the x86_64 half (macOS, Rosetta)
+        if: matrix.platform == 'macos'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+            echo "::warning::Rosetta is not installed on this runner; the x86_64 half is built but not tested."
+            exit 0
+          fi
+          arch -x86_64 build/tests/colorizing_qt_v2_tests
+          arch -x86_64 build/tests/colorizing_qt_v2_widget_tests
+
+      #
+      # Package
+      #
+      - name: Package (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          mkdir -p dist
+          ColorizingDMD/qt_rewrite_v2/packaging/package-windows.sh build "dist/${PACKAGE}"
+
+      - name: Package (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          TOOLS="${RUNNER_TEMP}/linuxdeploy"
+          mkdir -p "${TOOLS}" dist
+          case "${{ matrix.arch }}" in
+            x86_64)
+              LINUXDEPLOY_SHA256="${LINUXDEPLOY_SHA256_X86_64}"
+              PLUGIN_QT_SHA256="${LINUXDEPLOY_PLUGIN_QT_SHA256_X86_64}" ;;
+            aarch64)
+              LINUXDEPLOY_SHA256="${LINUXDEPLOY_SHA256_AARCH64}"
+              PLUGIN_QT_SHA256="${LINUXDEPLOY_PLUGIN_QT_SHA256_AARCH64}" ;;
+          esac
+          LINUXDEPLOY="${TOOLS}/linuxdeploy-${{ matrix.arch }}.AppImage"
+          PLUGIN_QT="${TOOLS}/linuxdeploy-plugin-qt-${{ matrix.arch }}.AppImage"
+          curl -fsSL -o "${LINUXDEPLOY}" \
+            "https://github.com/linuxdeploy/linuxdeploy/releases/download/${LINUXDEPLOY_VERSION}/linuxdeploy-${{ matrix.arch }}.AppImage"
+          curl -fsSL -o "${PLUGIN_QT}" \
+            "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/${LINUXDEPLOY_PLUGIN_QT_VERSION}/linuxdeploy-plugin-qt-${{ matrix.arch }}.AppImage"
+          echo "${LINUXDEPLOY_SHA256}  ${LINUXDEPLOY}" | sha256sum --check
+          echo "${PLUGIN_QT_SHA256}  ${PLUGIN_QT}" | sha256sum --check
+          chmod +x "${LINUXDEPLOY}" "${PLUGIN_QT}"
+          LINUXDEPLOY="${LINUXDEPLOY}" QMAKE=/usr/bin/qmake6 \
+            ColorizingDMD/qt_rewrite_v2/packaging/package-linux.sh build "dist/${PACKAGE}"
+
+      - name: Package (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p dist
+          # install-qt-action exports QT_ROOT_DIR.
+          MACDEPLOYQT="${QT_ROOT_DIR}/bin/macdeployqt" \
+            ColorizingDMD/qt_rewrite_v2/packaging/package-macos.sh build "dist/${PACKAGE}"
+
+      # Uploaded as the file itself, not zipped again.
+      - name: Upload the package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ env.PACKAGE }}
+          path: dist/${{ env.PACKAGE }}
+          archive: false
+          if-no-files-found: error
+
+  release:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/qt-v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the project version
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: qt_rewrite_v2/CMakeLists.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Check the tag against the project version
+        run: |
+          VERSION=$(sed -nE 's/^project\(ColorizingDMDQtRewriteV2 VERSION ([0-9.]+).*/\1/p' qt_rewrite_v2/CMakeLists.txt)
+          if [ "${GITHUB_REF_NAME}" != "qt-v${VERSION}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the project version ${VERSION} (expected qt-v${VERSION})."
+            exit 1
+          fi
+
+      - name: Download the packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ColorizingDMD-*
+          path: dist
+          skip-decompress: true
+
+      - name: List the packages
+        run: find dist -type f -exec ls -l {} +
+
+      - name: Create the draft release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          name: ColorizingDMD ${{ github.ref_name }}
+          draft: true
+          prerelease: true
+          fail_on_unmatched_files: true
+          files: dist/**/*

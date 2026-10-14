@@ -9,6 +9,7 @@
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyCrpOriginals.h"
 #include "legacy/LegacySnapshotBuilder.h"
+#include "platform/Utf8Path.h"
 
 namespace colorizing::legacy {
 
@@ -26,7 +27,7 @@ FileReadResult readFileBytes(const std::string& path, const char* label)
         return FileReadResult{{}, std::string(label) + " path is empty", false};
     }
 
-    std::ifstream stream(path, std::ios::binary);
+    std::ifstream stream(platform::pathFromUtf8(path), std::ios::binary);
     if (!stream) {
         return FileReadResult{{}, "could not open " + std::string(label) + " file: " + path, false};
     }

@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "legacy/LegacyProjectSerializer.h"
+#include "platform/Utf8Path.h"
 
 namespace colorizing::importing {
 
@@ -234,7 +235,7 @@ DumpImportResult importFrameDumpFile(const std::string& path,
                                      const DumpProgress& progress,
                                      uint64_t* totalBytes)
 {
-    std::ifstream stream(path, std::ios::binary);
+    std::ifstream stream(platform::pathFromUtf8(path), std::ios::binary);
     if (!stream) {
         return failed({}, "The file cannot be opened: " + path);
     }

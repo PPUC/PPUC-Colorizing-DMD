@@ -112,6 +112,12 @@ neither of those holds.
   renderer and with libserum and reports the differing pixels by class; with `--playback` it
   plays the frames through the runtime preview's windows and through the whole project and
   compares every step).
+- `core/platform/Utf8Path.h`: paths cross the core as UTF-8 `std::string`; every place that
+  opens, renames or removes a file converts with `pathFromUtf8()` (see "Windows, Linux and CI").
+- `packaging/`: the scripts that make the release packages (`package-windows.sh`,
+  `package-linux.sh`, `package-macos.sh`), the macOS `Info.plist.in` and the Linux desktop
+  file. CMake option `COLORIZINGDMD_QT_V2_PACKAGE` (off by default) builds the app the way they
+  expect it: called `ColorizingDMD`, an app bundle on macOS, no console window on Windows.
 - `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 785 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
@@ -941,11 +947,105 @@ owner together.
 - Autosave and recovery.
 - cROMc export through libserum.
 
+## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
+
+`.github/workflows/qt-editor.yml` builds, tests and packages the editor on every push and pull
+request that touches `qt_rewrite_v2/**` (any branch; the legacy sources in the repository root do
+not trigger it) and on `workflow_dispatch`. It has not run yet: it can only run once the branch
+is pushed.
+
+| Job | Runner | Toolchain and Qt | Package |
+|---|---|---|---|
+| Windows x86_64 | `windows-2025` | MSYS2 UCRT64: GCC 16.2, Qt 6.11.2 (`qt6-base`) | zip: exe, `windeployqt6`, every DLL from `/ucrt64/bin` it needs (found with `ntldd -R`) |
+| Linux x86_64 | `ubuntu-24.04` | GCC 13.3, Ubuntu's Qt 6.4.2 | AppImage (linuxdeploy + plugin-qt), needs glibc 2.39 |
+| Linux aarch64 | `ubuntu-24.04-arm` | as above | AppImage |
+| macOS universal | `macos-15` (arm64) | Apple clang, official Qt 6.11.3 (install-qt-action, Qt Base only), macOS 13 or later | zip of an ad-hoc signed `ColorizingDMD.app` (macdeployqt) |
+
+- Each job checks out libserum (`PPUC/libserum`, pinned `LIBSERUM_SHA`, now `c8d8166`) beside
+  the editor, so the default `COLORIZINGDMD_LIBSERUM_DIR` finds it, and runs libserum's own
+  `platforms/<platform>/<arch>/external.sh` for `FrameUtil.h` (libframeutil at the
+  `LIBFRAMEUTIL_SHA` libserum pins, now `711ab21`). libserum-accel is not used.
+- Release build with the tests, `-DCMAKE_COMPILE_WARNING_AS_ERROR=ON`, ccache (cached per job),
+  `ctest` with `QT_QPA_PLATFORM=offscreen`. On macOS the x86_64 half of the tests runs again
+  under Rosetta.
+- Each packaging script checks its result and starts the packaged app once (offscreen; the
+  offscreen platform plugin is added to a throwaway copy on Windows and macOS, and shipped in
+  the AppImage). The Windows script also checks with `ntldd` that, with MSYS2 off PATH, the
+  exe needs nothing outside the folder and Windows.
+- Packages are uploaded per job as `ColorizingDMD-<platform>-<arch>-<short commit>.<zip|AppImage>`.
+  A tag `qt-v<version>` (it must match `project(... VERSION ...)` in `qt_rewrite_v2/CMakeLists.txt`,
+  now 0.1.0) also creates a draft pre-release with all packages; publishing is by hand.
+- Actions are pinned to commit hashes (with the version in a comment), linuxdeploy
+  (`1-alpha-20251107-1`) and linuxdeploy-plugin-qt (`1-alpha-20250213-1`) to releases with
+  SHA-256 checks.
+- Why Ubuntu's Qt on Linux: no download, the same GCC/Qt pair that was verified locally, and it
+  keeps the editor building from distribution packages on the current LTS (6.4 is the oldest
+  Qt it is built with). The price is an old Qt in the AppImage and the glibc 2.39 floor;
+  switching the Linux jobs to install-qt-action on `ubuntu-22.04` would give a newer Qt and an
+  older glibc floor.
+
+Verified locally (2026-10-14):
+
+- Ubuntu 24.04 aarch64 container (Apple `container`): GCC 13.3.0, Qt 6.4.2, CMake 3.28.3,
+  libserum cloned at the pin with `external.sh`. Warning-free with `-Wall -Wextra` and
+  `-Werror`; both test executables pass; `package-linux.sh` builds an AppImage that starts.
+- Fedora 44 aarch64 container: GCC 16.2.1 and Qt 6.11.2, the versions MSYS2 has now. One GCC 16
+  warning (`-Wdangling-reference`, a false positive in `PreviewDiffTool.cpp`) fixed; then
+  warning-free, both test executables pass.
+- macOS: the usual Homebrew build (Qt 6.11.2) warning-free, tests pass; the CI configuration
+  (official Qt 6.11.3, universal, macOS 13) warning-free with `-Werror`, tests pass for arm64
+  and under Rosetta for x86_64, `package-macos.sh` makes a signed bundle that starts.
+
+Not verified: anything on Windows (no MinGW toolchain here): the MinGW build, the tests there,
+`package-windows.sh` (`windeployqt6`, `ntldd`, the DLL collection) and the non-ASCII path
+tests on a Windows file system. The workflow itself (only linted with actionlint and
+shellcheck). Linux x86_64 (only aarch64 was built locally).
+
+Portability fixes made for this:
+
+- Paths: `std::ifstream`/`std::ofstream`/`std::filesystem` were given the UTF-8 `std::string`
+  from `QString::toStdString()`. On Windows that is read in the ANSI code page, so projects or
+  dumps in folders with other characters would not open or save. Now converted with
+  `platform::pathFromUtf8()` in `LegacyProjectFileReader` (cROM, cRP), `FrameDumpImport`
+  (dump file) and `LegacyProjectFileWriter` (temporary files, rename, removal; the temporary
+  paths go to libserum as UTF-8 instead of `path::string()`). libserum's `Serum_CRZ_*` already
+  take UTF-8 (miniz converts with `MultiByteToWideChar` under MSVC and MinGW-w64).
+- The reader/writer tests and the dump dialog test now use temporary names with a character
+  outside code page 1252 (U+03A9), so a Windows run catches a regression; the reader tests no
+  longer use `<unistd.h>`/`getpid()`.
+- `qt_rewrite_v2/.gitattributes` keeps `*.sh` at LF on Windows checkouts (the packaging script
+  runs in MSYS2 bash).
+
+Reviewed for Windows/MinGW and left unchanged:
+
+- `std::filesystem::rename` replaces an existing target on Windows too (MSVC and libstdc++ both
+  use `MoveFileExW(MOVEFILE_REPLACE_EXISTING)`). Still, a target held open by another program
+  without delete sharing makes it fail; then the save can be half done (cROM replaced, cRP not),
+  as on any platform when the second rename fails.
+- `colorizing_qt_v2_roundtrip` and `colorizing_qt_v2_preview_diff` take paths from `argv`,
+  which is ANSI on Windows: manual tools, ASCII paths only there.
+- `MainWindow.cpp` has about 250 sections in an ELF object, far from the COFF limit; no
+  `-Wa,-mbig-obj`.
+- No `ssize_t`, `printf` formats, `long` sizes, POSIX headers or non-trivial globals across
+  translation units; include spelling is checked by the case-sensitive Linux build; test dumps
+  are built in code (CRLF included), not read from checked-in files.
+- libserum: the editor already passes `PLATFORM=win-mingw` (libserum's own MinGW setting,
+  built by its CI); it needs no change to build with MinGW. Observed for later: on Windows its
+  first API call installs a process-wide `SetUnhandledExceptionFilter` that does not chain, so
+  in the editor any crash, not only one in libserum, is reported as a libserum fatal error
+  (through `OutputDebugString`) before the normal crash handling.
+
 ## Next steps, in the order I would take them
 
-1. Windows and Linux builds and packaging (only macOS arm64 is built and tested so far); check
-   the edit color keys there with real keyboards (Windows scan codes, XKB key codes, an AZERTY
-   layout), and the Ctrl shortcuts and Ctrl+click selection on both.
+1. Push the branch and let `qt-editor.yml` run; fix what the first Windows run finds (it was
+   never compiled with MinGW). Then try the packages on real machines: the zip on a Windows
+   PC without MSYS2, the AppImage on another distribution, the macOS zip on an Intel Mac and
+   on a Mac that has never run it (Gatekeeper: ad-hoc signed only, so "Open" from the context
+   menu or `xattr -d com.apple.quarantine`). Check the edit color keys there with real
+   keyboards (Windows scan codes, XKB key codes, an AZERTY layout), and the Ctrl shortcuts and
+   Ctrl+click selection on Windows and Linux. Later: Developer ID signing and notarisation for
+   macOS, an application icon for the Windows exe and the macOS bundle, Wayland plugins in the
+   AppImage.
 2. Sprite dynamic content UI (sprite dynamic masks and colors, sprite shape mode).
 3. Sections and the trigger list UI.
 4. Image and video import with crop zones (the Images window).
@@ -994,6 +1094,45 @@ owner together.
   several places, plus `Serum Frame Dump-20261012T204757Z-1-001.zip` with 20 dumps).
 - Older local projects under `/Volumes/data/Serum/` were rewritten by earlier Qt builds and are
   not trustworthy.
+
+## Building
+
+The editor needs CMake 3.25 or later (libserum's minimum), Ninja, a C++17 compiler, Qt 6.4 or
+later (Qt Widgets only) and a libserum checkout with `FrameUtil.h`. libserum is expected beside
+the ColorizingDMD checkout (`../libserum`), or anywhere with `-DCOLORIZINGDMD_LIBSERUM_DIR=`:
+
+```sh
+git clone https://github.com/PPUC/libserum.git
+git -C libserum checkout c8d8166323f437044d8bb3aaa6d0eb91885ada94   # LIBSERUM_SHA of the workflow
+(cd libserum && ./platforms/<platform>/<arch>/external.sh)           # fetches FrameUtil.h
+```
+
+macOS (Homebrew: `brew install qt cmake ninja`):
+
+```sh
+cmake -S qt_rewrite_v2 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt
+cmake --build build
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+Linux (Ubuntu 24.04: `sudo apt install qt6-base-dev qt6-base-dev-tools libgl-dev cmake ninja-build g++`):
+
+```sh
+cmake -S qt_rewrite_v2 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+Windows: MSYS2, UCRT64 shell
+(`pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,qt6-base,ntldd} zip`), then the same three
+commands as on Linux. The UCRT64 shell has Qt's DLLs on PATH, so the tests and the app run
+from the build directory.
+
+Packages: configure with `-DCOLORIZINGDMD_QT_V2_PACKAGE=ON` (macOS release packages also with
+`"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0` and the official
+Qt), build, then `qt_rewrite_v2/packaging/package-<windows|linux|macos>.sh <build dir> <output>`;
+the comment at the top of each script says what it needs. `.github/workflows/qt-editor.yml`
+does exactly this.
 
 ## How to build and check
 

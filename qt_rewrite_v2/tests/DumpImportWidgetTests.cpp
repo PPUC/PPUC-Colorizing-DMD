@@ -11,6 +11,7 @@
 #include <QComboBox>
 #include <QDeadlineTimer>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
@@ -28,6 +29,7 @@
 #include "FramePreviewWidget.h"
 #include "import/FrameDumpImport.h"
 #include "panels/SameFramesPanel.h"
+#include "platform/Utf8Path.h"
 
 using colorizing::app::DumpImportDialog;
 using colorizing::app::FramePreviewWidget;
@@ -97,7 +99,7 @@ std::string frameText(uint32_t timecode, const IndexedFrame& frame)
 QString writeFile(const QTemporaryDir& directory, const char* name, const std::string& text)
 {
     const QString path = directory.filePath(QString::fromLatin1(name));
-    std::ofstream stream(path.toStdString(), std::ios::binary);
+    std::ofstream stream(colorizing::platform::pathFromUtf8(path.toStdString()), std::ios::binary);
     stream << text;
     return path;
 }
@@ -297,7 +299,9 @@ void spinUntilRead(DumpImportDialog& dialog)
 
 void testDumpImportDialog()
 {
-    QTemporaryDir directory;
+    // A Greek capital omega in the directory name: not in code page 1252, so a dump path that
+    // goes through the ANSI code page on its way to the reader fails on Windows.
+    QTemporaryDir directory(QDir::tempPath() + QStringLiteral("/dump_import_\u03a9_XXXXXX"));
     expect(directory.isValid(), "a temporary directory");
     // Five frames, one repeated, one shown for 5 ms.
     const std::string good = frameText(1000, pattern(1)) + frameText(1040, pattern(2)) +
