@@ -1060,9 +1060,6 @@ owner together.
 
 ## Feature parity still missing against 3.17.3
 
-- Copy and paste on the sprite canvas (Win32 sprite window `IDC_COPY` 18133 / `IDC_PASTE` 18203:
-  a sprite to the clipboard, the clipboard into a sprite with K/L mirror and its source
-  rectangle); `Capture` covers taking a sprite from a frame.
 - The palette popup on an edit color click, the palette's Ctrl/Alt right-click (pipette into a
   palette color, edit color into a palette color), the composed-color pipette and the pipette
   writing into the selected edit color.

@@ -66,6 +66,7 @@
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
 #include "edit/Sections.h"
+#include "edit/SpriteClipboard.h"
 #include "edit/StateCommands.h"
 #include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
@@ -5949,12 +5950,22 @@ void MainWindow::createSelectionActions(QMenu* editMenu)
     m_editMenuActions = new EditMenuActions(editMenu, this);
     EditMenuActions& actions = *m_editMenuActions;
     actions.onCopy = [this]() {
+        if (isSpriteCanvasActive()) {
+            copySpriteToClipboard();
+            return;
+        }
         if (canUseFrameCanvasHelpers()) {
             m_pasteMode.copy(canvasEditContext(), m_canvasEdit.selection());
             updateEditMenuActions();
         }
     };
-    actions.onPaste = [this]() { startPaste(edit::PasteMode::All); };
+    actions.onPaste = [this]() {
+        if (isSpriteCanvasActive()) {
+            pasteClipboardIntoSprite();
+            return;
+        }
+        startPaste(edit::PasteMode::All);
+    };
     actions.onPasteWhereOriginalsMatch = [this]() {
         startPaste(edit::PasteMode::WhereOriginalsMatch);
     };
@@ -6027,7 +6038,9 @@ bool MainWindow::canUseFrameCanvasHelpers()
     }
     if (isSpriteCanvasActive()) {
         statusBar()->showMessage(
-            QStringLiteral("Selection, copy and paste work on the frame canvas"), 3000);
+            QStringLiteral("On the sprite canvas only Copy and Paste work: the selection tools "
+                           "work on the frame canvas"),
+            3000);
         return false;
     }
     if (m_runtimeView.isEnabled()) {
@@ -6036,6 +6049,66 @@ bool MainWindow::canUseFrameCanvasHelpers()
         return false;
     }
     return true;
+}
+
+render::Resolution MainWindow::spriteCanvasPlane(std::size_t spriteIndex) const
+{
+    // As the sprite canvas and its undo histories: SD for a sprite without HD data.
+    if (isHdOnlyProject()) {
+        return render::Resolution::Hd;
+    }
+    if (m_activeResolution == render::Resolution::Hd && m_document &&
+        m_document->hasHdSprite(spriteIndex)) {
+        return render::Resolution::Hd;
+    }
+    return render::Resolution::Sd;
+}
+
+void MainWindow::copySpriteToClipboard()
+{
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!m_document || !spriteIndex) {
+        return;
+    }
+    try {
+        edit::CopyBuffer buffer =
+            edit::copySprite(*m_document, *spriteIndex, spriteCanvasPlane(*spriteIndex));
+        const QString text = QStringLiteral("Copied sprite %1 (%2x%3)")
+                                 .arg(static_cast<int>(*spriteIndex))
+                                 .arg(buffer.box.width)
+                                 .arg(buffer.box.height);
+        m_pasteMode.setClipboard(std::move(buffer));
+        updateEditMenuActions();
+        statusBar()->showMessage(text, 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QStringLiteral("Not copied: %1").arg(QString::fromUtf8(ex.what())),
+                                 4000);
+    }
+}
+
+void MainWindow::pasteClipboardIntoSprite()
+{
+    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    const edit::CopyBuffer* buffer = m_pasteMode.clipboard();
+    if (!m_document || !spriteIndex) {
+        return;
+    }
+    if (!buffer) {
+        statusBar()->showMessage(QStringLiteral("Nothing has been copied"), 2500);
+        return;
+    }
+    try {
+        recordEdit(edit::pasteIntoSprite(
+            *m_document, *spriteIndex, *buffer, spriteCanvasPlane(*spriteIndex), false, false));
+        setSpriteDependentViewsDirty();
+        updateSpriteControls();
+        statusBar()->showMessage(QStringLiteral("Pasted into sprite %1")
+                                     .arg(static_cast<int>(*spriteIndex)),
+                                 2500);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QStringLiteral("Not pasted: %1").arg(QString::fromUtf8(ex.what())),
+                                 4000);
+    }
 }
 
 void MainWindow::startPaste(edit::PasteMode mode)

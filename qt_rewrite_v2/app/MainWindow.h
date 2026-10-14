@@ -112,6 +112,10 @@ private:
     void exportCromc();
     // See FrameTesterDialog.
     void openFrameTester();
+    // Copy and Paste on the sprite canvas, see edit/SpriteClipboard.h.
+    [[nodiscard]] render::Resolution spriteCanvasPlane(std::size_t spriteIndex) const;
+    void copySpriteToClipboard();
+    void pasteClipboardIntoSprite();
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();

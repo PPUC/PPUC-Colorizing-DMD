@@ -32,6 +32,8 @@ struct CopyBuffer {
     uint32_t colorCount = 4;
     render::Resolution plane = render::Resolution::Sd;
     std::size_t sourceFrame = 0;
+    // Copied from a sprite (copySprite()): sourceFrame means nothing then.
+    bool fromSprite = false;
     // The box on the source plane.
     render::Rect box;
     std::vector<uint8_t> mask;

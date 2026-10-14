@@ -2093,6 +2093,53 @@ void ProjectDocument::replaceSpriteFromFrameSelection(
     markChanged();
 }
 
+void ProjectDocument::replaceSpritePlane(std::size_t spriteIndex,
+                                         Resolution plane,
+                                         IndexedFrame shades,
+                                         Rgb565Frame colors)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const Size spriteSize{static_cast<int>(kMaxSpriteWidth), static_cast<int>(kMaxSpriteHeight)};
+    if (!hasSize(shades.size, spriteSize) || !hasSize(colors.size, spriteSize) ||
+        !shades.isValid() || !colors.isValid()) {
+        throw std::invalid_argument("sprite pictures have the size of a sprite");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    if (rendersHdPlaneOnly()) {
+        if (plane != Resolution::Hd) {
+            throw std::logic_error("the sprite has its picture on the native plane only");
+        }
+        replaceCapturedHdOnlySprite(sprite, std::move(shades), std::move(colors));
+        return;
+    }
+    if (plane == Resolution::Hd) {
+        requireEditableExtraPlane();
+        if (!sprite.hasHd) {
+            throw std::logic_error("the sprite has no HD data");
+        }
+        if (sprite.maskHd.pixels == shades.pixels && sprite.colorizedHd.pixels == colors.pixels) {
+            return;
+        }
+        sprite.maskHd = std::move(shades);
+        sprite.colorizedHd = std::move(colors);
+        markChanged();
+        return;
+    }
+    if (sprite.originalSd.pixels == shades.pixels && sprite.colorizedSd.pixels == colors.pixels) {
+        return;
+    }
+    sprite.originalSd = std::move(shades);
+    sprite.colorizedSd = std::move(colors);
+    if (sprite.hasHd) {
+        sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
+        sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+    }
+    recalculateSpriteDetectionDwords(sprite);
+    markChanged();
+}
+
 void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
                                              int x,
                                              int y,

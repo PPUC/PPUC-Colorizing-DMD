@@ -523,6 +523,16 @@ public:
                                          const IndexedFrame& originalFrame,
                                          const Rgb565Frame& colorizedFrame,
                                          const std::vector<render::Point>& sourcePixels);
+    // Replaces the sprite's picture on one plane with sprite-sized (256x64) shades (255 for
+    // transparent) and colors, as a capture does: on the SD plane of a project with two
+    // planes the HD picture of a sprite that has one is made again from it; on its HD plane
+    // only the HD picture changes (the sprite needs HD data); in an HD-only project the plane
+    // is the HD one and the shades are also the sprite's original. Throws std::logic_error
+    // for a plane the sprite cannot have, std::invalid_argument for frames of another size.
+    void replaceSpritePlane(std::size_t spriteIndex,
+                            Resolution plane,
+                            IndexedFrame shades,
+                            Rgb565Frame colors);
     void setSpriteOriginalPixel(std::size_t spriteIndex,
                                 int x,
                                 int y,

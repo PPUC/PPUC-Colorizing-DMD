@@ -82,6 +82,11 @@ const edit::CopyBuffer* PasteModeController::clipboard() const
     return m_clipboard ? &*m_clipboard : nullptr;
 }
 
+void PasteModeController::setClipboard(edit::CopyBuffer buffer)
+{
+    m_clipboard = std::move(buffer);
+}
+
 void PasteModeController::clearClipboard()
 {
     cancel();

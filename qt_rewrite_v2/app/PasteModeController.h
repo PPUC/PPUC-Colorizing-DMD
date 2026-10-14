@@ -42,6 +42,8 @@ public:
     // Copies the selection of the current frame. Returns whether the clipboard was filled.
     bool copy(const CanvasEditContext& context, const edit::PlaneSelection* selection);
     [[nodiscard]] const edit::CopyBuffer* clipboard() const;
+    // What a copy from elsewhere (the sprite canvas) put into the clipboard.
+    void setClipboard(edit::CopyBuffer buffer);
     void clearClipboard();
 
     // Starts paste mode with the box where it was copied from. Refused (status line) without
