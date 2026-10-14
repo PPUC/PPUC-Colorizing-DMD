@@ -3242,7 +3242,8 @@ MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
                                                                              oldValue,
                                                                              value);
             command->apply(*m_document);
-            m_undoHistories.push(edit::historyKey(command->target()), std::move(command));
+            const edit::HistoryKey key = edit::historyKey(command->target());
+            m_undoHistories.push(key, std::move(command));
             changedFrames.push_back(frameIndex);
             ++count.changed;
         }
