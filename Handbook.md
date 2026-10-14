@@ -406,6 +406,9 @@ project. libserum makes it, exactly as it does on a machine when it finds the `.
 - An existing file is replaced only once the new one is complete. A target name other than
   `<rom>.cROMc` is allowed; the status bar reminds that libserum looks for `<rom>.cROMc`.
 - The Runtime view is switched off for the export and on again afterwards; playback stops.
+- On Windows libserum opens files by paths in the system code page. If the temporary folder has
+  other characters (a user name in another script) and Windows keeps no short name for it, the
+  export works in `%ProgramData%\ColorizingDMD` instead and removes its files afterwards.
 - On a desktop, libserum loads a `<rom>.cROMc` it finds in the colorization folder instead of
   the `<rom>.cROM` beside it, without comparing their dates. An outdated `.cROMc` there hides
   later changes of the project: export again or remove it.

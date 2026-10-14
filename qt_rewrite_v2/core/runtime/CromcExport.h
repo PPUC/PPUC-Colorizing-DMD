@@ -23,6 +23,9 @@ struct CromcExportResult {
 // libserum loads it with cROMc generation on. sidecarDirectory may be empty for none.
 //
 // target is replaced only when everything worked. workDirectory is created and removed again.
+// On Windows libserum opens files by ANSI paths: when it cannot open files in workDirectory
+// (characters outside the code page, no short name), a folder of the same name in
+// %ProgramData%\ColorizingDMD is used instead.
 // libserum holds one colorization per process: this loads and releases one, so whatever
 // RuntimePreview had loaded is gone (close it first; it loads again when asked). progress
 // covers writing the cROM; libserum's part cannot be cancelled.

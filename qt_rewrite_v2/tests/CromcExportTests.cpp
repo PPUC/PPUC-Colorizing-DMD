@@ -59,7 +59,11 @@ void testExportLoadsInLibserum()
            "the cROM write is reported");
 
     // libserum loads it as a machine does: from <altcolor>/<rom>/<rom>.cROMc, no cROM beside.
-    const fs::path altcolor = base / "altcolor";
+    // libserum's paths are ANSI on Windows: this folder has no character outside it.
+    const fs::path altcolor =
+        fs::temp_directory_path() /
+        ("colorizing_qt_v2_cromc_altcolor_" +
+         std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
     fs::create_directories(altcolor / snapshot.romName);
     fs::copy_file(target, altcolor / snapshot.romName / (snapshot.romName + ".cROMc"));
     Serum_SetGenerateCRomC(false);
@@ -72,6 +76,7 @@ void testExportLoadsInLibserum()
            "and identifies the project's first frame");
     Serum_Dispose();
     Serum_SetGenerateCRomC(true);
+    fs::remove_all(altcolor);
     fs::remove_all(base);
 }
 

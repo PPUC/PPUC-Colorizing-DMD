@@ -4,9 +4,11 @@
 #include <cctype>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <system_error>
+#include <vector>
 
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
@@ -49,25 +51,69 @@ std::optional<fs::path> findCaseInsensitive(const fs::path& directory, const std
     return std::nullopt;
 }
 
-// The folder as libserum's char paths take it. On Windows those are in the ANSI code page, so
-// a folder with other characters (a user name in the temp path) is given by its short name.
-std::string libserumPath(const fs::path& directory)
+// The folder as libserum's char paths take it, or nothing if it cannot take it. On Windows
+// those paths are in the ANSI code page: a folder with other characters (a user name in the
+// temp path) is given by its short name, and without one (volumes can have short names off)
+// it cannot be used. The folder must exist.
+std::optional<std::string> libserumPath(const fs::path& directory)
 {
 #ifdef _WIN32
-    const std::wstring wide = directory.wstring();
+    std::wstring wide = directory.wstring();
     const DWORD length = GetShortPathNameW(wide.c_str(), nullptr, 0);
     if (length > 0) {
         std::wstring shortPath(length, L'\0');
         const DWORD written = GetShortPathNameW(wide.c_str(), shortPath.data(), length);
         if (written > 0 && written < length) {
             shortPath.resize(written);
-            return fs::path(shortPath).string();
+            wide = shortPath;
         }
     }
-    return directory.string();
+    // With UTF-8 as the system code page every name can be given, and Windows refuses the
+    // "lossy" check for it.
+    const bool utf8 = GetACP() == CP_UTF8;
+    const DWORD flags = utf8 ? 0 : WC_NO_BEST_FIT_CHARS;
+    BOOL lossy = FALSE;
+    const int bytes = WideCharToMultiByte(CP_ACP, flags, wide.c_str(),
+                                          static_cast<int>(wide.size()), nullptr, 0, nullptr,
+                                          utf8 ? nullptr : &lossy);
+    if (bytes <= 0 || lossy) {
+        return std::nullopt;
+    }
+    std::string narrow(static_cast<std::size_t>(bytes), '\0');
+    WideCharToMultiByte(CP_ACP, flags, wide.c_str(), static_cast<int>(wide.size()),
+                        narrow.data(), bytes, nullptr, nullptr);
+    return narrow;
 #else
     return platform::utf8FromPath(directory);
 #endif
+}
+
+// Where libserum can work: the folder asked for, or on Windows, when libserum cannot open that
+// one, a folder of the same name in %ProgramData%\ColorizingDMD (ASCII, and users may create
+// folders there). Created empty; the error says why none could be used.
+std::optional<fs::path> makeWorkDirectory(const fs::path& requested, std::string& error)
+{
+    std::vector<fs::path> candidates{requested};
+#ifdef _WIN32
+    if (const wchar_t* programData = _wgetenv(L"ProgramData")) {
+        candidates.push_back(fs::path(programData) / L"ColorizingDMD" / requested.filename());
+    }
+#endif
+    for (const fs::path& candidate : candidates) {
+        std::error_code code;
+        fs::remove_all(candidate, code);
+        if (!fs::create_directories(candidate, code)) {
+            error = "cannot create " + platform::utf8FromPath(candidate) + ": " + code.message();
+            continue;
+        }
+        if (libserumPath(candidate)) {
+            return candidate;
+        }
+        fs::remove_all(candidate, code);
+        error = "libserum cannot open files in " + platform::utf8FromPath(candidate) +
+                ": its name has characters outside the system code page";
+    }
+    return std::nullopt;
 }
 
 void logLine(const char* format, va_list args, const void* userData)
@@ -93,10 +139,8 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
         return result;
     }
     std::error_code error;
-    fs::remove_all(workDirectory, error);
-    const fs::path folder = workDirectory / platform::pathFromUtf8(rom);
-    if (!fs::create_directories(folder, error)) {
-        result.error = "cannot create " + platform::utf8FromPath(folder) + ": " + error.message();
+    const std::optional<fs::path> work = makeWorkDirectory(workDirectory, result.error);
+    if (!work) {
         return result;
     }
     struct Cleanup {
@@ -106,7 +150,13 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
             std::error_code ignored;
             fs::remove_all(directory, ignored);
         }
-    } cleanup{workDirectory};
+    } cleanup{*work};
+    const fs::path folder = *work / platform::pathFromUtf8(rom);
+    if (!fs::create_directories(folder, error)) {
+        result.error = "cannot create " + platform::utf8FromPath(folder) + ": " + error.message();
+        return result;
+    }
+    result.error.clear();
 
     {
         std::ofstream crom(folder / platform::pathFromUtf8(rom + ".cROM"), std::ios::binary);
@@ -153,7 +203,7 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
     Serum_SetLogCallback(logLine, &log);
     Serum_SetGenerateCRomC(true);
     const Serum_Frame_Struc* loaded =
-        Serum_Load(libserumPath(workDirectory).c_str(), rom.c_str(), 0);
+        Serum_Load(libserumPath(*work).value_or(std::string()).c_str(), rom.c_str(), 0);
     const char* lastError = Serum_GetLastErrorMessage();
     const std::string serumError = lastError ? lastError : "";
     Serum_Dispose();
