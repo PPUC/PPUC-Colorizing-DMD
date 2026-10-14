@@ -281,6 +281,13 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
     }
 
     const bool onColorized = start.region == render::CanvasRegion::ColorizedFrame;
+    if (tool == DrawingTool::Selection) {
+        // Selects in every edit mode, as its preview shows; it never paints a mask.
+        if (onColorized) {
+            setSelectionFromStroke(context, start, end);
+        }
+        return;
+    }
     if (context.spriteCaptureSelection) {
         if (!isOnOriginal(projectGeometry(context), start)) {
             return;
@@ -352,10 +359,6 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         return;
     }
     const bool onBackground = context.layer == CanvasEditLayer::BackgroundImage;
-    if (tool == DrawingTool::Selection) {
-        setSelectionFromStroke(context, start, end);
-        return;
-    }
     if (tool != DrawingTool::PaletteGradient) {
         if (onBackground) {
             commitBackgroundImagePixels(

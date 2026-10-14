@@ -1330,6 +1330,9 @@ Create a selection:
 4. Press, drag, and release on the colorized canvas.
 5. The selected pixels are shown as a translucent cyan overlay.
 
+`Sel` selects in every mode, also while a mask or the sprite capture is being edited; it never
+paints a mask.
+
 Fill a selection with a fixed-direction gradient:
 
 1. Create a selection.

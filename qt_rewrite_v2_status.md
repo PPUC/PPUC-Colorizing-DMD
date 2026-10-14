@@ -1037,8 +1037,6 @@ owner together.
   (`smb3` frames 2200 to 2700, 3.8 MB cROM each). The view renders at paint time and only when
   the document revision, the frame or the plane changed, so repaints are free and bursts of
   changes coalesce; no timer and no thread.
-- The Selection tool paints in mask and capture modes instead of selecting (seen again while
-  adding the selection helpers; not changed).
 - An undo step of a multi-frame edit (drawing, paste, auto copy, scrolling fill) is in each
   frame's own history, so after an auto copy to 300 frames the frames are undone one by one.
 - Not undoable: sprite slot assign/remove/bounds, detection areas, names, sprite capture, colour

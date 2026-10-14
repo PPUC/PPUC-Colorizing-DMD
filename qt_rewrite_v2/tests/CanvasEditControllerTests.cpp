@@ -1191,14 +1191,26 @@ void testCanvasSelectionOnBackground()
                !controller.hasSelection() && owner.selectionChanges == 1,
            "the selection does not move to another background");
 
-    // Mask modes paint the selection shape instead of selecting (existing behavior).
+    // Mask and capture modes select too; nothing is painted.
+    for (const CanvasEditLayer layer : {CanvasEditLayer::BackgroundMask,
+                                        CanvasEditLayer::DynamicMask,
+                                        CanvasEditLayer::ComparisonMask}) {
+        owner.next();
+        controller.clearSelection(context);
+        CanvasEditContext mask = makeContext(document, layer, DrawingTool::Selection, {0});
+        controller.strokeFinished(mask, colorized(1, 1), colorized(2, 2), false);
+        expect(controller.hasSelection() && owner.commits.empty(),
+               "the selection tool selects in a mask mode");
+    }
     owner.next();
-    CanvasEditContext mask =
-        makeContext(document, CanvasEditLayer::BackgroundMask, DrawingTool::Selection, {0});
-    controller.strokeFinished(mask, colorized(1, 1), colorized(2, 2), false);
-    expect(!controller.hasSelection() && owner.committed(EditKind::BackgroundMask, {0}) &&
-               owner.status == "Selected canvas area",
-           "existing behavior: the selection tool paints masks");
+    controller.clearSelection(context);
+    CanvasEditContext capture =
+        makeContext(document, CanvasEditLayer::ComparisonMask, DrawingTool::Selection, {0});
+    capture.spriteCaptureSelection = true;
+    controller.strokeFinished(capture, original(1, 1), original(2, 2), false);
+    expect(!controller.hasSelection() && owner.commits.empty() &&
+               owner.captureChanges == 0,
+           "on the original in capture mode it neither selects nor paints the capture");
 }
 
 void testSpriteCaptureSelection()
