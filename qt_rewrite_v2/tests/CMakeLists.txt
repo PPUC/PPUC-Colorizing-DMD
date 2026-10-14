@@ -66,6 +66,7 @@ if(TARGET colorizing_qt_v2_widgets)
         DumpImportWidgetTests.cpp
         EditorMatchesRuntimeTests.cpp
         FramePreviewWidgetRenderTests.cpp
+        FrameTesterWidgetTests.cpp
         NativeOriginalWidgetTests.cpp
         PlaneLabelsWidgetTests.cpp
         ProjectTaskWidgetTests.cpp

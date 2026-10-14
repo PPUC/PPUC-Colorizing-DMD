@@ -60,6 +60,7 @@
 #include "SpriteEditorWidget.h"
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "dialogs/SelectionDialogs.h"
 #include "edit/FrameContentCommand.h"
@@ -505,6 +506,13 @@ void MainWindow::createActions()
         deleteSelectedFramesShorterThan();
     });
     createSelectionActions(editMenu);
+
+    QAction* frameTesterAction = viewMenu->addAction(QStringLiteral("Frame &Tester..."));
+    frameTesterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
+    frameTesterAction->setToolTip(QStringLiteral(
+        "Feed the selected frames or a frame dump to libserum with the whole project loaded"));
+    connect(frameTesterAction, &QAction::triggered, this, [this]() { openFrameTester(); });
+    viewMenu->addSeparator();
 
     m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
     // What the toolbar button of the action shows.
@@ -1657,6 +1665,48 @@ void MainWindow::addFramesFromDump()
                                  8000);
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::openFrameTester()
+{
+    if (!m_document) {
+        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        return;
+    }
+    // libserum holds one colorization: the Runtime view lets go of its own meanwhile.
+    setPlaybackRunning(false);
+    const bool runtimeWasOn = m_runtimeViewAction && m_runtimeViewAction->isChecked();
+    if (runtimeWasOn) {
+        m_runtimeViewAction->setChecked(false);
+    }
+    std::optional<std::size_t> frameToShow;
+    {
+        FrameTesterDialog dialog(*m_document, selectedFrameIndices(), this);
+        dialog.onAddFrameRequested = [this](const runtime::TesterFrame& frame) {
+            try {
+                std::vector<document::FrameRecord> frames;
+                frames.push_back(m_document->makeUncolorizedFrame(frame.original,
+                                                                  frame.durationMs));
+                recordStructureEdit(edit::addFrames(*m_document, std::move(frames)));
+                showStructureEditStatus(QStringLiteral("Added the dump frame as frame %1")
+                                            .arg(static_cast<qulonglong>(
+                                                m_document->frameCount() - 1)),
+                                        4000);
+                return true;
+            } catch (const std::exception& ex) {
+                statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+                return false;
+            }
+        };
+        dialog.exec();
+        frameToShow = dialog.frameToShow();
+    }
+    if (runtimeWasOn) {
+        m_runtimeViewAction->setChecked(true);
+    }
+    if (frameToShow && *frameToShow < m_document->frameCount()) {
+        goToFrame(*frameToShow);
     }
 }
 

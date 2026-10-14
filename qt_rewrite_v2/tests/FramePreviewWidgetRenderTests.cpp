@@ -3065,6 +3065,7 @@ void runCanvasEditControllerTests();
 void runColorWidgetTests();
 void runDumpImportWidgetTests();
 void runEditorMatchesRuntimeTests();
+void runFrameTesterWidgetTests();
 void runNativeOriginalWidgetTests();
 void runPlaneLabelsWidgetTests();
 void runRuntimeViewWidgetTests();
@@ -3108,6 +3109,7 @@ int main(int argc, char* argv[])
     testRecordListPage();
     runCanvasEditControllerTests();
     runAutosaveWidgetTests();
+    runFrameTesterWidgetTests();
     runBigOriginalWidgetTests();
     runNativeOriginalWidgetTests();
     runPlaneLabelsWidgetTests();

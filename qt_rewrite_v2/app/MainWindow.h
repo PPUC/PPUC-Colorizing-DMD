@@ -110,6 +110,8 @@ private:
     void updateWindowTitle();
     // Writes the project's .cROMc through libserum, see runtime::exportCromc().
     void exportCromc();
+    // See FrameTesterDialog.
+    void openFrameTester();
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();

@@ -1071,9 +1071,8 @@ owner together.
 - Selectable resize filters for HD creation.
 - Images window: video import, crop zones, scroll copy.
 - Animated GIF export.
-- Frame tester (dump playback through libserum, next unidentified, search frame by ID), ZeDMD
-  output, PuP tester. Playback of the project's own frames through libserum exists (Runtime
-  view).
+- ZeDMD output, PuP tester. The frame tester exists (`dialogs/FrameTesterDialog`,
+  `runtime/FrameTester`).
 
 ## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
 
@@ -1177,8 +1176,8 @@ Reviewed for Windows/MinGW and left unchanged:
 2. Sprite dynamic content UI (sprite dynamic masks and colors, sprite shape mode).
 3. (done) Sections and the trigger list (`edit/Sections.h`, `panels/SectionBar.h`).
 4. Image and video import with crop zones (the Images window).
-5. The frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next unidentified
-   frame, search by ID).
+5. (done) The frame tester: the whole project through `RuntimePreview::openCrom()`, frames fed
+   with `colorize()`.
 6. (done) Autosave and recovery, see `app/Autosave.h` and the handbook.
    (done) cROMc export through libserum (`runtime/CromcExport.h`): byte-identical to
    libserum's own generation on five real projects.

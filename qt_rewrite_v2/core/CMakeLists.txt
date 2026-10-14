@@ -35,6 +35,7 @@ add_library(colorizing_qt_v2_core STATIC
     render/ProjectGeometry.cpp
     runtime/FrameIdentification.cpp
     runtime/CromcExport.cpp
+    runtime/FrameTester.cpp
     runtime/RuntimePreview.cpp
 )
 
