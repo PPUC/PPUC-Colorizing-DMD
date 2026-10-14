@@ -68,6 +68,10 @@
     w.refreshProjectSummary();
     std::cout << "autosave: a run starts: " << w.m_autosaver->runNow() << '\n';
     waitForAutosave();
+    // The time of day would differ from dump to dump.
+    QString autosaved = w.statusBar()->currentMessage();
+    autosaved.replace(QRegularExpression(QStringLiteral(" at [^ ]+$")), QStringLiteral(" at <time>"));
+    w.statusBar()->showMessage(autosaved);
     D("autosave: written beside the project");
     std::cout << "autosave: unchanged since, nothing to write: " << !w.m_autosaver->runNow()
               << '\n';

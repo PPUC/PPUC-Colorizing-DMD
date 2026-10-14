@@ -123,10 +123,14 @@ void ProjectTaskDialog::updateProgress()
     case legacy::LegacyIoStage::Replacing:
         text = QStringLiteral("Replacing the project files…");
         break;
+    case legacy::LegacyIoStage::Generating:
+        text = QStringLiteral("libserum generates the .cROMc (this step cannot be interrupted)…");
+        break;
     }
     if (cancelling) {
         text = stage == legacy::LegacyIoStage::Decompressing ||
-                       stage == legacy::LegacyIoStage::Compressing
+                       stage == legacy::LegacyIoStage::Compressing ||
+                       stage == legacy::LegacyIoStage::Generating
                    ? QStringLiteral("Cancelling when this step ends…")
                    : QStringLiteral("Cancelling…");
     }

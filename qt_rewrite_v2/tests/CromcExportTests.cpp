@@ -1,0 +1,106 @@
+#include "runtime/CromcExport.h"
+
+#include <chrono>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "RuntimeFixtures.h"
+#include "platform/Utf8Path.h"
+#include "runtime/RuntimePreview.h"
+#include "serum-decode.h"
+
+namespace {
+
+using namespace colorizing;
+namespace fs = std::filesystem;
+
+void expect(bool condition, const std::string& message)
+{
+    if (!condition) {
+        std::cerr << "FAIL: cROMc export: " << message << '\n';
+        std::exit(1);
+    }
+}
+
+fs::path uniqueDirectory(const std::string& name)
+{
+    static const std::string run =
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+    // A character outside code page 1252, as a user name in the temp path can have.
+    return fs::temp_directory_path() /
+           platform::pathFromUtf8("colorizing_qt_v2_cromc_\xce\xa9_" + run + "_" + name);
+}
+
+void testExportLoadsInLibserum()
+{
+    runtime::RuntimePreview::instance().close();
+    const document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    const fs::path base = uniqueDirectory("export");
+    const fs::path sidecars = base / "project";
+    fs::create_directories(sidecars);
+    // A sidecar in another case is found as libserum finds it.
+    std::ofstream(sidecars / (snapshot.romName + ".PUP.csv")).put('\n');
+    const fs::path target = base / "out.cROMc";
+
+    legacy::LegacyIoProgress progress;
+    const runtime::CromcExportResult result =
+        runtime::exportCromc(snapshot, base / "work", sidecars, target, &progress);
+    expect(result.ok, "the export works: " + result.error);
+    expect(fs::is_regular_file(target) && fs::file_size(target) > 0, "the cROMc is there");
+    expect(!fs::exists(base / "work"), "the work folder is removed");
+    expect(result.sidecars == std::vector<std::string>{snapshot.romName + ".PUP.csv"},
+           "the PUP csv went in");
+    expect(progress.done.load() == progress.total.load() && progress.total.load() > 0,
+           "the cROM write is reported");
+
+    // libserum loads it as a machine does: from <altcolor>/<rom>/<rom>.cROMc, no cROM beside.
+    const fs::path altcolor = base / "altcolor";
+    fs::create_directories(altcolor / snapshot.romName);
+    fs::copy_file(target, altcolor / snapshot.romName / (snapshot.romName + ".cROMc"));
+    Serum_SetGenerateCRomC(false);
+    const Serum_Frame_Struc* loaded =
+        Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(), 0);
+    expect(loaded != nullptr, "libserum loads the cROMc");
+    std::vector<uint8_t> original(snapshot.frames[0].originalSd.pixels.begin(),
+                                  snapshot.frames[0].originalSd.pixels.end());
+    expect(Serum_Colorize(original.data()) != IDENTIFY_NO_FRAME,
+           "and identifies the project's first frame");
+    Serum_Dispose();
+    Serum_SetGenerateCRomC(true);
+    fs::remove_all(base);
+}
+
+void testFailureLeavesTarget()
+{
+    runtime::RuntimePreview::instance().close();
+    const document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
+    const fs::path base = uniqueDirectory("failure");
+    // The target's folder does not exist: nothing is written, no partial file.
+    const fs::path target = base / "missing" / "out.cROMc";
+    const runtime::CromcExportResult result =
+        runtime::exportCromc(snapshot, base / "work", {}, target);
+    expect(!result.ok && !result.error.empty(), "a target that cannot be written fails");
+    expect(!fs::exists(target) && !fs::exists(fs::path(target).concat(".saving")),
+           "and leaves nothing behind");
+
+    legacy::LegacyIoProgress cancelled;
+    cancelled.cancel = true;
+    const runtime::CromcExportResult stopped =
+        runtime::exportCromc(snapshot, base / "work", {}, base / "out.cROMc", &cancelled);
+    expect(stopped.cancelled && !fs::exists(base / "out.cROMc"), "a cancel writes nothing");
+    fs::remove_all(base);
+}
+
+}  // namespace
+
+void runCromcExportTests()
+{
+    testExportLoadsInLibserum();
+    testFailureLeavesTarget();
+}

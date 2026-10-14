@@ -370,6 +370,29 @@ Save behavior:
 Files written by earlier Qt editor builds are not supported; only projects saved by the Win32
 editor (currently 3.17.3) or by this serializer are.
 
+### Exporting the .cROMc
+
+`File -> Export .cROMc...` writes the file a machine loads, `<rom>.cROMc`, proposed beside the
+project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone:
+
+- The project is taken as it is in the editor, saved or not. It is written as `<rom>.cROM`
+  into a temporary folder together with the `<rom>.pup.csv` and `scaling.txt` of the
+  project's folder, if they are there (in any case of the letters), and libserum loads it with
+  `.cROMc` generation on. PUP scenes and the scaling settings are therefore in the `.cROMc`,
+  as they would be on the machine. The status bar names the files that went in.
+- Writing the `.cROM` shows its progress and can be cancelled; libserum's part cannot be
+  interrupted and takes from about a second to half a minute for large HD projects.
+- An existing file is replaced only once the new one is complete. A target name other than
+  `<rom>.cROMc` is allowed; the status bar reminds that libserum looks for `<rom>.cROMc`.
+- The Runtime view is switched off for the export and on again afterwards; playback stops.
+- On a desktop, libserum loads a `<rom>.cROMc` it finds in the colorization folder instead of
+  the `<rom>.cROM` beside it, without comparing their dates. An outdated `.cROMc` there hides
+  later changes of the project: export again or remove it.
+
+For an unedited project the result is byte for byte the `.cROMc` libserum generates from the
+project's files (checked on `afm_113b`, `hook_501`, `trn_174h`, `smb3` and the 192x64
+`frankst1`).
+
 ### Autosave and recovery
 
 Every 10 minutes, as in CDMD, a project with changes that were not autosaved yet is written to

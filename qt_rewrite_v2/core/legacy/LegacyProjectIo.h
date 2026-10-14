@@ -34,6 +34,8 @@ enum class LegacyIoStage : int {
     Compressing,
     // Renaming the written files over the old ones.
     Replacing,
+    // libserum loads the written .cROM and generates its .cROMc; no progress inside it.
+    Generating,
 };
 
 // Shared between a load or save running on a worker thread and whoever shows its progress.

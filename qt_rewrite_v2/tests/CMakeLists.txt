@@ -11,6 +11,7 @@ add_executable(colorizing_qt_v2_tests
     CanvasLayoutTests.cpp
     ColorSetTests.cpp
     CompactStorageTests.cpp
+    CromcExportTests.cpp
     DrawingToolsTests.cpp
     EditCommandTests.cpp
     FrameDumpImportTests.cpp
@@ -31,9 +32,11 @@ add_executable(colorizing_qt_v2_tests
     StructureCommandTests.cpp
 )
 
+# libserum directly too: the cROMc export test loads what it wrote as a machine does.
 target_link_libraries(colorizing_qt_v2_tests
     PRIVATE
         colorizing_qt_v2_core
+        serum_static
 )
 
 colorizing_qt_v2_enable_test_warnings(colorizing_qt_v2_tests)

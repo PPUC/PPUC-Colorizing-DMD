@@ -107,6 +107,8 @@ private:
     bool saveProjectAs();
     [[nodiscard]] bool isUntitledProject() const;
     void updateWindowTitle();
+    // Writes the project's .cROMc through libserum, see runtime::exportCromc().
+    void exportCromc();
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();

@@ -79,6 +79,8 @@
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
+#include "platform/Utf8Path.h"
+#include "runtime/CromcExport.h"
 #include "legacy/LegacyProjectSerializer.h"
 
 namespace colorizing::app {
@@ -429,6 +431,13 @@ void MainWindow::createActions()
     saveAsAction->setShortcut(QKeySequence::SaveAs);
     connect(saveAsAction, &QAction::triggered, this, [this]() {
         saveProjectAs();
+    });
+
+    QAction* exportCromcAction = fileMenu->addAction(QStringLiteral("Export .cRO&Mc..."));
+    exportCromcAction->setToolTip(
+        QStringLiteral("Write the project's .cROMc as libserum generates it on a machine"));
+    connect(exportCromcAction, &QAction::triggered, this, [this]() {
+        exportCromc();
     });
 
     QAction* exportFrameAction = fileMenu->addAction(QStringLiteral("Export Current &Frame PNG..."));
@@ -1634,6 +1643,91 @@ void MainWindow::addFramesFromDump()
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::exportCromc()
+{
+    if (!m_document) {
+        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        return;
+    }
+    const QString rom = QString::fromStdString(m_document->romName());
+    const QString projectDirectory =
+        isUntitledProject() ? QString() : QFileInfo(m_currentCromPath).absolutePath();
+    const QDir proposedDirectory(!projectDirectory.isEmpty() ? projectDirectory
+                                 : !m_dumpDirectory.isEmpty() ? m_dumpDirectory
+                                                              : QDir::homePath());
+    QString target = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Export .cROMc"),
+        proposedDirectory.absoluteFilePath(rom + QStringLiteral(".cROMc")),
+        QStringLiteral("Serum colorization for machines (*.cROMc);;All files (*)"));
+    if (target.isEmpty()) {
+        return;
+    }
+    if (!target.endsWith(QStringLiteral(".cROMc"), Qt::CaseInsensitive)) {
+        target += QStringLiteral(".cROMc");
+    }
+
+    // libserum holds one colorization: the Runtime view lets go of its own and takes it up
+    // again afterwards.
+    setPlaybackRunning(false);
+    const bool runtimeWasOn = m_runtimeViewAction && m_runtimeViewAction->isChecked();
+    if (runtimeWasOn) {
+        m_runtimeViewAction->setChecked(false);
+    }
+    runtime::RuntimePreview::instance().close();
+
+    const QString work = QDir::temp().absoluteFilePath(
+        QStringLiteral("colorizingdmd_cromc_%1").arg(QCoreApplication::applicationPid()));
+    runtime::CromcExportResult result;
+    {
+        const document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, QStringLiteral("Exporting .cROMc"), progress, [&]() {
+                result = runtime::exportCromc(
+                    snapshot,
+                    platform::pathFromUtf8(work.toStdString()),
+                    platform::pathFromUtf8(projectDirectory.toStdString()),
+                    platform::pathFromUtf8(target.toStdString()),
+                    &progress);
+            });
+        if (failure) {
+            result = {};
+            result.error = *failure;
+        }
+    }
+    if (runtimeWasOn) {
+        m_runtimeViewAction->setChecked(true);
+    }
+
+    if (result.cancelled) {
+        statusBar()->showMessage(QStringLiteral("Export cancelled"), 3000);
+        return;
+    }
+    if (!result.ok) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Export .cROMc Failed"),
+                              QString::fromStdString(result.error));
+        return;
+    }
+    QStringList sidecars;
+    for (const std::string& sidecar : result.sidecars) {
+        sidecars << QString::fromStdString(sidecar);
+    }
+    QString note;
+    if (QFileInfo(target).completeBaseName().compare(rom, Qt::CaseInsensitive) != 0) {
+        note = QStringLiteral(". libserum looks for %1.cROMc").arg(rom);
+    }
+    statusBar()->showMessage(
+        QStringLiteral("Exported %1%2%3")
+            .arg(QDir::toNativeSeparators(target),
+                 sidecars.isEmpty() ? QString()
+                                    : QStringLiteral(" with %1").arg(sidecars.join(
+                                          QStringLiteral(" and "))),
+                 note),
+        8000);
 }
 
 void MainWindow::exportCurrentFramePng()
