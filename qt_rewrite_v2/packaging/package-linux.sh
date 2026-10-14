@@ -50,10 +50,18 @@ cp "${here}/../../cRom256.png" "${stage}/colorizingdmd.png"
 mkdir -p "${stage}/AppDir/usr/share/doc/colorizingdmd"
 cp "${here}/../../LICENSE" "${stage}/AppDir/usr/share/doc/colorizingdmd/LICENSE"
 
-# A build with DMD output: linuxdeploy finds libdmdutil through the build's rpath, and the
-# libraries libdmdutil loads through this path (packaging/build-libdmdutil.sh stages them).
-if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
-    export LD_LIBRARY_PATH="$(cd "${DMDUTIL_LIB_DIR}" && pwd -P)${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+# The VPX plugins the build made (DMDUtil with libdmdutil and the libraries it loads), each in
+# its folder in usr/bin/plugins, where the app looks for them; they find each other through
+# $ORIGIN. linuxdeploy also deploys what they need from the system, and finds their own
+# libraries through this path.
+vpx_plugins="${build_dir}/vpx-plugins"
+if [ -d "${vpx_plugins}" ]; then
+    mkdir -p "${stage}/AppDir/usr/bin/plugins"
+    cp -R -P "${vpx_plugins}/." "${stage}/AppDir/usr/bin/plugins/"
+    for folder in "${stage}/AppDir/usr/bin/plugins"/*/; do
+        LD_LIBRARY_PATH="$(cd "${folder}" && pwd -P)${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+    done
+    export LD_LIBRARY_PATH
 fi
 
 (
@@ -82,5 +90,9 @@ set -e
 if [ "${running}" -ne 0 ]; then
     echo "The AppImage did not keep running." >&2
     exit 1
+fi
+# Every VPX plugin of the package loads, with the libraries shipped beside it.
+if [ -d "${vpx_plugins}" ]; then
+    env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen "${stage}/squashfs-root/AppRun" --check-plugins
 fi
 echo "Wrote ${output}"

@@ -1072,9 +1072,42 @@ owner together.
   also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
   Dyn>Stat and "to source frame" are done.
 - Images window: video import, crop zones, scroll copy.
-- PuP tester. DMD output through libdmdutil exists (`app/DmdOutput`; CI builds libdmdutil from
-  vpinball/libdmdutil at LIBDMDUTIL_SHA with `packaging/build-libdmdutil.sh`; untested there
-  until the next push), the frame tester too.
+- PuP tester (next on the plugin route: VPX's PUP plugin on the editor's plugin bus). DMD
+  output exists through VPX's DMDUtil plugin (see "VPX plugins"), the frame tester too.
+
+## VPX plugins (2026-10-14)
+
+The editor hosts VPX plugins on libvpxhost's bus (github.com/PPUC/libvpxhost, shared with ppuc;
+checkout in `PPUC_stack/libvpxhost`), so DMD output, PuP and video use the same plugins as VPX
+and ppuc. Owner decisions: the plugin route, a library shared with ppuc in PPUC_stack, SDK
+instability is no obstacle (the owner works with the plugin developers).
+
+- `app/vpx/VpxHost.{h,cpp}` (target `colorizing_qt_v2_vpx`, the only C++20 target and the only
+  one that sees the plugin SDK): `vpx::Host`, one bus per process (created on first use, kept
+  until exit), plugin folder lookup (`COLORIZINGDMD_VPX_PLUGIN_DIR`, `plugins` beside the exe,
+  `../PlugIns/vpx` in the bundle, `<build>/vpx-plugins`); `vpx::DisplaySource`, a picture
+  offered as an SRGB565 `DisplaySrcId` (three buffers, reserved for 256x64, so a pointer a
+  plugin thread got stays valid).
+- `app/DmdOutput` loads the `DMDUtil` plugin with the settings of the DMD Output dialog as
+  plugin settings and offers the picture as a display. No direct libdmdutil link any more;
+  "display found / 64 rows" are gone (the plugin does not say), the status bar shows the
+  plugin's or libdmdutil's last log line instead. The frame tester sends its 64-row plane when
+  there is one; libdmdutil scales down.
+- Build: `-DCOLORIZINGDMD_LIBVPXHOST_DIR` and `-DCOLORIZINGDMD_VPINBALL_DIR` (PPUC's vpinball
+  fork; only `plugins/plugins`, `plugins/dmdutil` and a few `third-party/include` headers are
+  used). With `COLORIZINGDMD_DMDUTIL_PREFIX` too, `app/vpx/CMakeLists.txt` builds
+  `plugins/dmdutil/DMDUtilPlugin.cpp` against the staged libdmdutil into
+  `<build>/vpx-plugins/dmdutil` with its `plugin.cfg` and libdmdutil's libraries (rpath
+  `@loader_path` / `$ORIGIN`; Windows: the loader adds the folder to the DLL path). CI pins
+  `LIBVPXHOST_SHA` and `VPINBALL_SHA` to ppuc's pins.
+- The plugin needs macOS 13.3 (std::format), so the macOS deployment target is 13.3.
+- Packages ship `vpx-plugins` (`plugins/` beside the exe, `Contents/PlugIns/vpx`,
+  `usr/bin/plugins` in the AppImage), and each packaging script runs the packaged app with the
+  hidden option `--check-plugins`, which loads every plugin and fails if one does not load.
+- Tests: `DmdOutputWidgetTests` loads the real plugin from the build and waits until the
+  plugin's thread fetches the picture (128x32, then 256x64).
+- Verified locally on macOS (build, tests, `--check-plugins` in a bundle layout). Windows and
+  Linux only in CI.
 
 ## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
 
@@ -1088,7 +1121,7 @@ is pushed.
 | Windows x86_64 | `windows-2025` | MSYS2 UCRT64: GCC 16.2, Qt 6.11.2 (`qt6-base`) | zip: exe, `windeployqt6`, every DLL from `/ucrt64/bin` it needs (found with `ntldd -R`) |
 | Linux x86_64 | `ubuntu-24.04` | GCC 13.3, Ubuntu's Qt 6.4.2 | AppImage (linuxdeploy + plugin-qt), needs glibc 2.39 |
 | Linux aarch64 | `ubuntu-24.04-arm` | as above | AppImage |
-| macOS arm64 (Apple silicon only; Intel dropped 2026-10-14) | `macos-15` (arm64) | Apple clang, official Qt 6.11.3 (install-qt-action, Qt Base only), macOS 13 or later | zip of an ad-hoc signed `ColorizingDMD.app` (macdeployqt) |
+| macOS arm64 (Apple silicon only; Intel dropped 2026-10-14) | `macos-15` (arm64) | Apple clang, official Qt 6.11.3 (install-qt-action, Qt Base only), macOS 13.3 or later | zip of an ad-hoc signed `ColorizingDMD.app` (macdeployqt) |
 
 - Each job checks out libserum (`PPUC/libserum`, pinned `LIBSERUM_SHA`, now `c8d8166`) beside
   the editor, so the default `COLORIZINGDMD_LIBSERUM_DIR` finds it, and runs libserum's own
@@ -1228,8 +1261,9 @@ Reviewed for Windows/MinGW and left unchanged:
 
 ## Building
 
-The editor needs CMake 3.25 or later (libserum's minimum), Ninja, a C++17 compiler, Qt 6.4 or
-later (Qt Widgets only) and a libserum checkout with `FrameUtil.h`. libserum is expected beside
+The editor needs CMake 3.25 or later (libserum's minimum), Ninja, a C++20 compiler, Qt 6.4 or
+later (Qt Widgets only) and a libserum checkout with `FrameUtil.h`. For VPX plugins and DMD
+output also libvpxhost, a vpinball checkout and libdmdutil (see "VPX plugins"). libserum is expected beside
 the ColorizingDMD checkout (`../libserum`), or anywhere with `-DCOLORIZINGDMD_LIBSERUM_DIR=`:
 
 ```sh
@@ -1260,7 +1294,7 @@ commands as on Linux. The UCRT64 shell has Qt's DLLs on PATH, so the tests and t
 from the build directory.
 
 Packages: configure with `-DCOLORIZINGDMD_QT_V2_PACKAGE=ON` (macOS release packages also with
-`-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0` and the official
+`-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3` and the official
 Qt), build, then `qt_rewrite_v2/packaging/package-<windows|linux|macos>.sh <build dir> <output>`;
 the comment at the top of each script says what it needs. `.github/workflows/qt-editor.yml`
 does exactly this.

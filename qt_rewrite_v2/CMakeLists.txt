@@ -85,9 +85,15 @@ function(colorizing_qt_v2_add_libserum)
 endfunction()
 colorizing_qt_v2_add_libserum()
 
-# libdmdutil sends pictures to hardware DMDs (ZeDMD, Pixelcade, PIN2DMD) and to a dmdserver.
-# It is optional: packaging/build-libdmdutil.sh builds it and stages its headers and shared
-# libraries into a prefix; without one the editor is built without DMD output.
+# VPX plugins: the editor hosts them on libvpxhost's plugin bus (github.com/PPUC/libvpxhost,
+# shared with ppuc), built against the plugin SDK of a vpinball checkout (PPUC's fork). Both
+# are optional together; without them the editor hosts no plugins and has no DMD output.
+set(COLORIZINGDMD_LIBVPXHOST_DIR "" CACHE PATH "libvpxhost source checkout")
+set(COLORIZINGDMD_VPINBALL_DIR "" CACHE PATH
+    "vpinball checkout providing the plugin SDK and the plugins built here")
+# DMD output goes through VPX's DMDUtil plugin, which is built here against libdmdutil:
+# packaging/build-libdmdutil.sh builds libdmdutil and stages its headers and shared libraries
+# into a prefix. Needs the two folders above.
 set(COLORIZINGDMD_DMDUTIL_PREFIX "" CACHE PATH
     "libdmdutil staged by packaging/build-libdmdutil.sh; empty builds without DMD output")
 

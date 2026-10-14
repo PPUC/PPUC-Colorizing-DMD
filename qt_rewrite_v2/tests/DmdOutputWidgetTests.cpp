@@ -1,10 +1,12 @@
-// DMD output through libdmdutil, without hardware: every display switched off, so libdmdutil
-// finds none and takes the pictures anyway.
+// DMD output through VPX's DMDUtil plugin, without hardware: every display switched off, so
+// libdmdutil finds none, and the plugin takes the pictures anyway.
 
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QSettings>
 #include <QStandardPaths>
 
@@ -35,17 +37,36 @@ void runDmdOutputWidgetTests()
 
     app::DmdOutput output;
     expect(!output.isRunning() && output.picturesSent() == 0, "off at first");
-    output.start(settings);
-    expect(output.isRunning() == app::DmdOutput::isAvailable(),
-           "runs where the build has libdmdutil");
+    const bool available = app::DmdOutput::isAvailable();
+    expect(output.start(settings) == available && output.isRunning() == available,
+           "runs where the build has the DMDUtil plugin: " +
+               output.lastMessage().toStdString());
     document::Rgb565Frame picture = document::makeRgb565Frame(render::Size{128, 32}, 0x07e0);
     output.show(picture);
     output.show(picture);
     picture.pixels[5] = 0xf800;
     output.show(picture);
-    expect(output.picturesSent() == (app::DmdOutput::isAvailable() ? 2u : 0u),
+    expect(output.picturesSent() == (available ? 2u : 0u),
            "a picture is sent once, a changed one again");
-    expect(!output.hasDisplay(), "no display without hardware");
+    if (available) {
+        // The plugin picks the display up and fetches the picture on its own thread.
+        QElapsedTimer timer;
+        timer.start();
+        while (output.pictureReads() == 0 && timer.elapsed() < 10000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        }
+        expect(output.pictureReads() > 0, "the DMDUtil plugin fetches the picture");
+        // A picture of another size replaces the display, and the plugin takes that one too.
+        output.show(document::makeRgb565Frame(render::Size{256, 64}, 0x001f));
+        const unsigned int before = output.pictureReads();
+        timer.restart();
+        while (output.pictureReads() == before && timer.elapsed() < 10000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        }
+        expect(output.pictureReads() > before, "and the 256x64 one");
+        // Settings changed while it runs: started again.
+        expect(output.start(settings) && output.isRunning(), "starts again");
+    }
     output.stop();
     expect(!output.isRunning(), "stopped");
 

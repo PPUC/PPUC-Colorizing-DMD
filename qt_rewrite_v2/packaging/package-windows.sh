@@ -7,8 +7,9 @@
 # Usage, in an MSYS2 UCRT64 shell: package-windows.sh <build dir> <output .zip>
 #
 # The build must be configured with -DCOLORIZINGDMD_QT_V2_PACKAGE=ON. Needs the MSYS2 packages
-# qt6-base (windeployqt6), ntldd and zip of the UCRT64 environment. A build with DMD output
-# names the libdmdutil DLLs it was linked with in DMDUTIL_LIB_DIR.
+# qt6-base (windeployqt6), ntldd and zip of the UCRT64 environment. The VPX plugins the build
+# made (<build dir>/vpx-plugins: DMDUtil with libdmdutil and the DLLs it loads) go into
+# plugins\ beside the exe, where the app looks for them.
 
 set -euo pipefail
 
@@ -46,10 +47,12 @@ cp "${here}/../../LICENSE" "${package}/LICENSE.txt"
 windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw \
     "${package}/ColorizingDMD.exe"
 
-# A build with DMD output: libdmdutil and the DLLs it loads (packaging/build-libdmdutil.sh
-# stages them in DMDUTIL_LIB_DIR). The check below finds anything still missing.
-if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
-    cp "${DMDUTIL_LIB_DIR}"/*.dll "${package}/"
+# The VPX plugins, each in its folder with the DLLs it loads; the plugin loader adds that
+# folder to the DLL search path. The GCC runtime they need is found beside the exe.
+vpx_plugins="${build_dir}/vpx-plugins"
+if [ -d "${vpx_plugins}" ]; then
+    mkdir -p "${package}/plugins"
+    cp -R "${vpx_plugins}/." "${package}/plugins/"
 fi
 
 # Prints, for every exe and DLL in the folder, the DLLs it loads that resolve into the MSYS2
@@ -87,10 +90,12 @@ system_dirs=("$(cygpath -u "${SYSTEMROOT}")/System32" "$(cygpath -u "${SYSTEMROO
 system_path="${system_dirs[0]}:${system_dirs[1]}"
 timeout_bin=$(command -v timeout)
 is_available() {
-    local name=$1 dir
+    local name=$1 own_dir=$2 dir
     # API set names (api-ms-*, ext-ms-*) are resolved by the loader, not found as files.
     case "${name,,}" in api-ms-* | ext-ms-*) return 0 ;; esac
     [ -n "$(find "${package}" -maxdepth 1 -iname "${name}" -print -quit)" ] && return 0
+    # A plugin's DLLs lie in its own folder.
+    [ -n "$(find "${own_dir}" -maxdepth 1 -iname "${name}" -print -quit)" ] && return 0
     for dir in "${system_dirs[@]}"; do
         [ -n "$(find "${dir}" -maxdepth 1 -iname "${name}" -print -quit 2>/dev/null)" ] && return 0
     done
@@ -100,7 +105,7 @@ missing=""
 while IFS= read -r -d '' file; do
     while IFS= read -r name; do
         [ -n "${name}" ] || continue
-        is_available "${name}" || missing+="${name} (needed by ${file#"${package}"/})"$'\n'
+        is_available "${name}" "$(dirname "${file}")" || missing+="${name} (needed by ${file#"${package}"/})"$'\n'
     done < <(ntldd "${file}" 2>/dev/null | awk '{print $1}')
 done < <(find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0)
 missing=$(printf '%s' "${missing}" | sort -u)
@@ -124,6 +129,11 @@ set -e
 if [ "${status}" -ne 124 ]; then
     echo "The packaged app did not keep running (exit status ${status})." >&2
     exit 1
+fi
+# Every VPX plugin of the package loads, with the DLLs shipped beside it.
+if [ -d "${vpx_plugins}" ]; then
+    (cd "${check}" && PATH="${system_path}" QT_QPA_PLATFORM=offscreen \
+        "${timeout_bin}" 60 ./ColorizingDMD.exe --check-plugins)
 fi
 
 rm -f "${output}"

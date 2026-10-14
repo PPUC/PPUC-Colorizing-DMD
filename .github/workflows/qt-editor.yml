@@ -42,12 +42,21 @@ env:
   LIBSERUM_REPOSITORY: PPUC/libserum
   LIBSERUM_SHA: c8d8166323f437044d8bb3aaa6d0eb91885ada94
   # libdmdutil (DMD output: ZeDMD, Pixelcade, PIN2DMD, dmdserver) is built as a shared library
-  # with its dependencies and shipped beside the app, see packaging/build-libdmdutil.sh.
+  # with its dependencies and shipped with VPX's DMDUtil plugin, which the editor builds
+  # against it and hosts; see packaging/build-libdmdutil.sh and app/vpx/CMakeLists.txt.
   LIBDMDUTIL_REPOSITORY: vpinball/libdmdutil
   LIBDMDUTIL_SHA: ce450bd89076df2819746d1716e9a8f52eafc465
-  # Qt for the macOS package (official binaries, used for arm64; macOS 13 or later).
+  # VPX plugin hosting: libvpxhost (the plugin bus, shared with ppuc) and the plugin SDK and
+  # DMDUtil plugin source of PPUC's vpinball fork, at the commits ppuc pins
+  # (LIBVPXHOST_SHA and VPINBALL_SHA in ppuc's platforms/config.sh).
+  LIBVPXHOST_REPOSITORY: PPUC/libvpxhost
+  LIBVPXHOST_SHA: 8236ca462a841b7a1e69d80116b327f7555a2f50
+  VPINBALL_REPOSITORY: PPUC/vpinball
+  VPINBALL_SHA: 5330759c6d5d26eebbec4f275884d97c93dc03c4
+  # Qt for the macOS package (official binaries, used for arm64; macOS 13.3 or later: the
+  # DMDUtil plugin formats with std::format).
   MACOS_QT_VERSION: 6.11.3
-  MACOS_DEPLOYMENT_TARGET: '13.0'
+  MACOS_DEPLOYMENT_TARGET: '13.3'
   # AppImage tools, pinned to releases and checked against these hashes.
   LINUXDEPLOY_VERSION: 1-alpha-20251107-1
   LINUXDEPLOY_SHA256_X86_64: c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d
@@ -135,6 +144,31 @@ jobs:
           ref: ${{ env.LIBDMDUTIL_SHA }}
           path: libdmdutil
           persist-credentials: false
+
+      - name: Check out libvpxhost ${{ env.LIBVPXHOST_SHA }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.LIBVPXHOST_REPOSITORY }}
+          ref: ${{ env.LIBVPXHOST_SHA }}
+          path: libvpxhost
+          persist-credentials: false
+
+      # Only the plugin SDK, the DMDUtil plugin and the few headers the SDK includes.
+      - name: Check out the vpinball plugin SDK ${{ env.VPINBALL_SHA }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.VPINBALL_REPOSITORY }}
+          ref: ${{ env.VPINBALL_SHA }}
+          path: vpinball
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /plugins/plugins/
+            /plugins/dmdutil/
+            /third-party/include/mINI/
+            /third-party/include/plog/
+            /third-party/include/unordered_dense.h
+            /third-party/include/stl.h
 
       - name: Name the package
         run: |
@@ -246,6 +280,8 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
+            -DCOLORIZINGDMD_LIBVPXHOST_DIR="${GITHUB_WORKSPACE}/libvpxhost" \
+            -DCOLORIZINGDMD_VPINBALL_DIR="${GITHUB_WORKSPACE}/vpinball" \
             -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
 
       - name: Configure (Linux)
@@ -258,6 +294,8 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
+            -DCOLORIZINGDMD_LIBVPXHOST_DIR="${GITHUB_WORKSPACE}/libvpxhost" \
+            -DCOLORIZINGDMD_VPINBALL_DIR="${GITHUB_WORKSPACE}/vpinball" \
             -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
 
       - name: Configure (macOS)
@@ -273,6 +311,8 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.MACOS_DEPLOYMENT_TARGET }} \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
+            -DCOLORIZINGDMD_LIBVPXHOST_DIR="${GITHUB_WORKSPACE}/libvpxhost" \
+            -DCOLORIZINGDMD_VPINBALL_DIR="${GITHUB_WORKSPACE}/vpinball" \
             -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
 
       - name: Build (Windows)
@@ -297,10 +337,8 @@ jobs:
         shell: msys2 {0}
         env:
           QT_QPA_PLATFORM: offscreen
-        # libdmdutil's DLLs are found on PATH.
-        run: |
-          export PATH="$(pwd)/dmdutil/lib:${PATH}"
-          ctest --test-dir build --output-on-failure
+        # The DMDUtil plugin and libdmdutil's DLLs are loaded from build/vpx-plugins.
+        run: ctest --test-dir build --output-on-failure
 
       - name: Test
         if: matrix.platform != 'windows'
@@ -316,8 +354,7 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          DMDUTIL_LIB_DIR=dmdutil/lib \
-            ColorizingDMD/qt_rewrite_v2/packaging/package-windows.sh build "dist/${PACKAGE}"
+          ColorizingDMD/qt_rewrite_v2/packaging/package-windows.sh build "dist/${PACKAGE}"
 
       - name: Package (Linux)
         if: matrix.platform == 'linux'
@@ -341,7 +378,7 @@ jobs:
           echo "${LINUXDEPLOY_SHA256}  ${LINUXDEPLOY}" | sha256sum --check
           echo "${PLUGIN_QT_SHA256}  ${PLUGIN_QT}" | sha256sum --check
           chmod +x "${LINUXDEPLOY}" "${PLUGIN_QT}"
-          LINUXDEPLOY="${LINUXDEPLOY}" QMAKE=/usr/bin/qmake6 DMDUTIL_LIB_DIR=dmdutil/lib \
+          LINUXDEPLOY="${LINUXDEPLOY}" QMAKE=/usr/bin/qmake6 \
             ColorizingDMD/qt_rewrite_v2/packaging/package-linux.sh build "dist/${PACKAGE}"
 
       - name: Package (macOS)
@@ -349,7 +386,7 @@ jobs:
         run: |
           mkdir -p dist
           # install-qt-action exports QT_ROOT_DIR.
-          MACDEPLOYQT="${QT_ROOT_DIR}/bin/macdeployqt" DMDUTIL_LIB_DIR=dmdutil/lib \
+          MACDEPLOYQT="${QT_ROOT_DIR}/bin/macdeployqt" \
             ColorizingDMD/qt_rewrite_v2/packaging/package-macos.sh build "dist/${PACKAGE}"
 
       # Uploaded as the file itself, not zipped again.

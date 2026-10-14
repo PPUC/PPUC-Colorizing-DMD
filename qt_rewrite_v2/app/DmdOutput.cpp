@@ -3,13 +3,11 @@
 #include <QSettings>
 
 #include <algorithm>
+#include <mutex>
 #include <string>
 #include <utility>
 
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-#include "DMDUtil/Config.h"
-#include "DMDUtil/DMD.h"
-#endif
+#include "vpx/VpxHost.h"
 
 namespace colorizing::app {
 
@@ -64,10 +62,29 @@ void saveDmdOutputSettings(const DmdOutputSettings& value)
     settings.setValue(kGroup + QStringLiteral("serverPort"), value.serverPort);
 }
 
+namespace {
+
+const std::string kPluginId = "DMDUtil";
+
+const char* boolSetting(bool value)
+{
+    return value ? "1" : "0";
+}
+
+}  // namespace
+
 struct DmdOutput::Impl {
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    std::unique_ptr<DMDUtil::DMD> dmd;
-#endif
+    vpx::DisplaySource display;
+    bool running = false;
+    // Written by the plugin's and libdmdutil's threads as they log.
+    mutable std::mutex messageMutex;
+    QString message;
+
+    void setMessage(const QString& text)
+    {
+        const std::lock_guard<std::mutex> lock(messageMutex);
+        message = text;
+    }
     std::vector<uint16_t> lastPixels;
     int lastWidth = 0;
     int lastHeight = 0;
@@ -86,97 +103,86 @@ DmdOutput::~DmdOutput()
 
 bool DmdOutput::isAvailable()
 {
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    return true;
-#else
-    return false;
-#endif
+    return vpx::Host::isBuiltIn() && vpx::Host::instance().hasPlugin(kPluginId);
 }
 
-void DmdOutput::start(const DmdOutputSettings& settings)
+bool DmdOutput::start(const DmdOutputSettings& settings)
 {
     stop();
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    // libdmdutil copies the strings; an empty one means "look for it".
-    const std::string zedmdDevice = settings.zedmdDevice.trimmed().toStdString();
-    const std::string zedmdWiFiAddress = settings.zedmdWiFiAddress.trimmed().toStdString();
-    const std::string pixelcadeDevice = settings.pixelcadeDevice.trimmed().toStdString();
-    const std::string serverAddress = settings.serverAddress.trimmed().toStdString();
-    DMDUtil::Config* config = DMDUtil::Config::GetInstance();
+    Impl& impl = *m_impl;
     const bool server = settings.target == DmdOutputSettings::Target::DmdServer;
-    config->SetDMDServer(server);
-    config->SetLocalDisplaysActive(!server);
-    config->SetDMDServerAddr(serverAddress.c_str());
-    config->SetDMDServerPort(settings.serverPort);
-    config->SetZeDMD(!server && settings.zedmd);
-    config->SetZeDMDDevice(zedmdDevice.c_str());
-    config->SetZeDMDWiFiEnabled(!server && settings.zedmdWiFi);
-    config->SetZeDMDWiFiAddr(zedmdWiFiAddress.c_str());
-    config->SetZeDMDBrightness(settings.zedmdBrightness);
-    config->SetPixelcade(!server && settings.pixelcade);
-    config->SetPixelcadeDevice(pixelcadeDevice.c_str());
-    config->SetPIN2DMD(!server && settings.pin2dmd);
-    // The editor sends finished pictures: nothing for libdmdutil to colorize or dump.
-    config->SetAltColor(false);
-    m_impl->dmd = std::make_unique<DMDUtil::DMD>();
-    m_impl->dmd->FindDisplays();
-#else
-    (void)settings;
-#endif
+    // An empty device or address keeps the plugin's default: libdmdutil looks for it.
+    vpx::Host::Settings values = {
+        {"ZeDMD", boolSetting(!server && settings.zedmd)},
+        {"ZeDMDWiFiEnabled", boolSetting(!server && settings.zedmdWiFi)},
+        {"ZeDMDBrightness", std::to_string(settings.zedmdBrightness)},
+        {"Pixelcade", boolSetting(!server && settings.pixelcade)},
+        {"PIN2DMD", boolSetting(!server && settings.pin2dmd)},
+        {"DMDServer", boolSetting(server)},
+        {"DMDServerPort", std::to_string(settings.serverPort)},
+        // A dmdserver drives its own displays; this computer's are not looked for.
+        {"FindDisplays", boolSetting(!server)},
+    };
+    const auto addText = [&values](const char* setting, const QString& text) {
+        if (!text.trimmed().isEmpty()) {
+            values.emplace_back(setting, text.trimmed().toStdString());
+        }
+    };
+    addText("ZeDMDDevice", settings.zedmdDevice);
+    addText("ZeDMDWiFiAddr", settings.zedmdWiFiAddress);
+    addText("PixelcadeDevice", settings.pixelcadeDevice);
+    addText("DMDServerAddr", settings.serverAddress);
+
+    vpx::Host& host = vpx::Host::instance();
+    host.setLogHandler([this](unsigned int level, const std::string& source,
+                              const std::string& message) {
+        // The plugin's own lines and libdmdutil's, which it passes on.
+        if (source == kPluginId || (source.empty() && level >= vpx::Host::kLogError)) {
+            m_impl->setMessage(QString::fromStdString(message));
+        }
+    });
+    impl.setMessage({});
+    std::string error;
+    if (!host.load(kPluginId, values, &error)) {
+        impl.setMessage(QString::fromStdString(error));
+        return false;
+    }
+    impl.running = true;
+    return true;
 }
 
 void DmdOutput::stop()
 {
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    m_impl->dmd.reset();
-#endif
-    m_impl->lastPixels.clear();
-    m_impl->lastWidth = 0;
-    m_impl->lastHeight = 0;
+    Impl& impl = *m_impl;
+    impl.display.clear();
+    if (impl.running) {
+        vpx::Host::instance().unload(kPluginId);
+        vpx::Host::instance().setLogHandler({});
+    }
+    impl.running = false;
+    impl.lastPixels.clear();
+    impl.lastWidth = 0;
+    impl.lastHeight = 0;
 }
 
 bool DmdOutput::isRunning() const
 {
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    return m_impl->dmd != nullptr;
-#else
-    return false;
-#endif
+    return m_impl->running;
 }
 
-bool DmdOutput::isFinding() const
+QString DmdOutput::lastMessage() const
 {
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    return m_impl->dmd && DMDUtil::DMD::IsFinding();
-#else
-    return false;
-#endif
-}
-
-bool DmdOutput::hasDisplay() const
-{
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    return m_impl->dmd && m_impl->dmd->HasDisplay();
-#else
-    return false;
-#endif
-}
-
-bool DmdOutput::hasHdDisplay() const
-{
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    return m_impl->dmd && m_impl->dmd->HasHDDisplay();
-#else
-    return false;
-#endif
+    const std::lock_guard<std::mutex> lock(m_impl->messageMutex);
+    return m_impl->message;
 }
 
 void DmdOutput::show(const document::Rgb565Frame& picture)
 {
     Impl& impl = *m_impl;
-    if (!isRunning() || !picture.isValid()) {
+    if (!impl.running || !picture.isValid()) {
         return;
     }
+    vpx::Host::instance().process();
     if (impl.lastWidth == picture.size.width && impl.lastHeight == picture.size.height &&
         std::equal(impl.lastPixels.begin(), impl.lastPixels.end(), picture.pixels.begin(),
                    picture.pixels.end())) {
@@ -185,17 +191,18 @@ void DmdOutput::show(const document::Rgb565Frame& picture)
     impl.lastPixels.assign(picture.pixels.begin(), picture.pixels.end());
     impl.lastWidth = picture.size.width;
     impl.lastHeight = picture.size.height;
-#ifdef COLORIZINGDMD_HAS_DMDUTIL
-    impl.dmd->UpdateRGB16Data(impl.lastPixels.data(),
-                              static_cast<uint16_t>(impl.lastWidth),
-                              static_cast<uint16_t>(impl.lastHeight));
-#endif
+    impl.display.setPicture(impl.lastWidth, impl.lastHeight, impl.lastPixels.data());
     ++impl.sent;
 }
 
 std::size_t DmdOutput::picturesSent() const
 {
     return m_impl->sent;
+}
+
+unsigned int DmdOutput::pictureReads() const
+{
+    return m_impl->display.reads();
 }
 
 }  // namespace colorizing::app

@@ -11,7 +11,8 @@
 namespace colorizing::app {
 
 // Where pictures go: displays connected to this computer, which libdmdutil finds itself, or a
-// dmdserver (libdmdutil's server process) that drives the displays.
+// dmdserver (libdmdutil's server process) that drives the displays. Applied as settings of
+// VPX's DMDUtil plugin.
 struct DmdOutputSettings {
     enum class Target {
         LocalDisplays,
@@ -35,9 +36,10 @@ struct DmdOutputSettings {
 [[nodiscard]] DmdOutputSettings loadDmdOutputSettings();
 void saveDmdOutputSettings(const DmdOutputSettings& settings);
 
-// Sends pictures to DMDs through libdmdutil. libdmdutil looks for displays in the background
-// and scales a picture to a display of another size. Without libdmdutil in the build
-// (COLORIZINGDMD_DMDUTIL_PREFIX) isAvailable() is false and the rest does nothing.
+// Sends pictures to DMDs through VPX's DMDUtil plugin (vpx::Host), which hands them to
+// libdmdutil. libdmdutil looks for displays in the background and scales a picture to a
+// display of another size. Without plugin hosting in the build, or without the DMDUtil plugin
+// in the plugin folder, isAvailable() is false and the rest does nothing.
 class DmdOutput {
 public:
     DmdOutput();
@@ -47,20 +49,21 @@ public:
 
     [[nodiscard]] static bool isAvailable();
 
-    // Starts looking for displays with the settings; stops an output that runs. libdmdutil has
-    // one configuration per process.
-    void start(const DmdOutputSettings& settings);
+    // Loads the plugin with the settings; an output that runs is started again with them
+    // (the plugin and libdmdutil read their settings when they start). Returns false, with
+    // the reason in lastMessage(), when the plugin does not load.
+    bool start(const DmdOutputSettings& settings);
     void stop();
     [[nodiscard]] bool isRunning() const;
-    // Still looking for displays.
-    [[nodiscard]] bool isFinding() const;
-    [[nodiscard]] bool hasDisplay() const;
-    // A display with 64 rows (256x64 or 192x64) was found.
-    [[nodiscard]] bool hasHdDisplay() const;
+    // The last thing the DMDUtil plugin or libdmdutil logged (which displays it found, why one
+    // failed), or why the output did not start.
+    [[nodiscard]] QString lastMessage() const;
 
-    // Sends the picture unless it is the one sent last.
+    // Offers the picture to the plugin unless it is the one offered last.
     void show(const document::Rgb565Frame& picture);
     [[nodiscard]] std::size_t picturesSent() const;
+    // How often the plugin fetched the picture (it does so at 60 Hz while it shows one).
+    [[nodiscard]] unsigned int pictureReads() const;
 
 private:
     struct Impl;

@@ -557,7 +557,7 @@ void MainWindow::createActions()
     m_dmdOutputAction->setToolTip(
         DmdOutput::isAvailable()
             ? QStringLiteral("Show the canvas picture on a ZeDMD, Pixelcade, PIN2DMD or dmdserver")
-            : QStringLiteral("This build has no DMD output (built without libdmdutil)"));
+            : QStringLiteral("No DMD output: this build has no DMDUtil plugin"));
     connect(m_dmdOutputAction, &QAction::toggled, this, [this](bool on) {
         setDmdOutputEnabled(on);
     });
@@ -1853,23 +1853,26 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
         connect(&m_dmdTimer, &QTimer::timeout, this, [this]() { sendDmdPicture(); },
                 Qt::UniqueConnection);
     }
-    m_dmdOutput.start(loadDmdOutputSettings());
+    if (!m_dmdOutput.start(loadDmdOutputSettings())) {
+        setDmdOutputEnabled(false);
+        statusBar()->showMessage(
+            QStringLiteral("DMD output failed: %1").arg(m_dmdOutput.lastMessage()), 8000);
+        return;
+    }
     m_dmdPictureKey.reset();
     m_dmdTimer.start();
     statusBar()->showMessage(QStringLiteral("DMD output: looking for displays"), 3000);
-    // libdmdutil looks in the background; say what it found once it is done.
+    // libdmdutil looks in the background and logs what it found.
     QTimer::singleShot(4000, this, [this]() {
         if (!m_dmdOutput.isRunning()) {
             return;
         }
+        const QString message = m_dmdOutput.lastMessage();
         statusBar()->showMessage(
-            m_dmdOutput.hasDisplay()
-                ? QStringLiteral("DMD output to a %1 display").arg(m_dmdOutput.hasHdDisplay()
-                                                                       ? QStringLiteral("64-row")
-                                                                       : QStringLiteral("32-row"))
-            : m_dmdOutput.isFinding()
-                ? QStringLiteral("DMD output: still looking for displays")
-                : QStringLiteral("DMD output: no display found; see View -> DMD Output Settings"),
+            message.isEmpty()
+                ? QStringLiteral("DMD output on; see View -> DMD Output Settings if no display "
+                                 "shows the picture")
+                : QStringLiteral("DMD output: %1").arg(message),
             6000);
     });
 }
@@ -2045,10 +2048,10 @@ void MainWindow::openFrameTester()
                 return false;
             }
         };
-        // The display shows the tester's picture while it is open.
-        m_dmdPictureOverride = [this, &dialog]() -> std::optional<document::Rgb565Frame> {
-            if (const document::Rgb565Frame* picture =
-                    dialog.currentPicture(m_dmdOutput.hasHdDisplay())) {
+        // The display shows the tester's picture while it is open: the 64-row plane when
+        // there is one, which libdmdutil scales down for a 32-row display.
+        m_dmdPictureOverride = [&dialog]() -> std::optional<document::Rgb565Frame> {
+            if (const document::Rgb565Frame* picture = dialog.currentPicture(true)) {
                 return *picture;
             }
             return std::nullopt;

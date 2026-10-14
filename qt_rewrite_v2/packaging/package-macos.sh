@@ -6,9 +6,9 @@
 # Usage: package-macos.sh <build dir> <output .zip>
 #
 # The build must be configured with -DCOLORIZINGDMD_QT_V2_PACKAGE=ON. macdeployqt must belong to
-# the Qt the build used: it is taken from MACDEPLOYQT, or from PATH. A build with DMD output
-# names the libdmdutil libraries it was linked with (packaging/build-libdmdutil.sh) in
-# DMDUTIL_LIB_DIR; they go into the bundle.
+# the Qt the build used: it is taken from MACDEPLOYQT, or from PATH. The VPX plugins the build
+# made (<build dir>/vpx-plugins: DMDUtil with libdmdutil and the libraries it loads) go into
+# Contents/PlugIns/vpx, where the app looks for them.
 
 set -euo pipefail
 
@@ -39,28 +39,15 @@ bundle="${stage}/ColorizingDMD.app"
 mkdir -p "${bundle}/Contents/Resources"
 cp "${here}/../../LICENSE" "${bundle}/Contents/Resources/LICENSE"
 
-if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
-    # libdmdutil and what it loads, found through the bundle's @rpath (Contents/Frameworks).
-    mkdir -p "${bundle}/Contents/Frameworks"
-    # -P keeps the symbolic links, -X leaves the extended attributes of the build behind
-    # (they would end up as __MACOSX entries in the zip).
-    cp -R -P -X "${DMDUTIL_LIB_DIR}"/*.dylib "${bundle}/Contents/Frameworks/"
-    # They look for each other beside the executable (@executable_path, as VPX ships them);
-    # in the bundle they are beside each other.
-    for library in "${DMDUTIL_LIB_DIR}"/*.dylib; do
-        copied="${bundle}/Contents/Frameworks/$(basename "${library}")"
-        [ -L "${copied}" ] && continue
-        install_name_tool -delete_rpath @executable_path "${copied}" 2>/dev/null || true
-        install_name_tool -add_rpath @loader_path "${copied}" 2>/dev/null || true
-    done
-    dmdutil_dir=$(cd "${DMDUTIL_LIB_DIR}" && pwd -P)
-    install_name_tool -delete_rpath "${dmdutil_dir}" "${bundle}/Contents/MacOS/ColorizingDMD" \
-        2>/dev/null || true
-    install_name_tool -add_rpath "@executable_path/../Frameworks" \
-        "${bundle}/Contents/MacOS/ColorizingDMD" 2>/dev/null || true
-fi
-
 "${macdeployqt}" "${bundle}" -verbose=1
+# After macdeployqt, which deploys Qt's plugins only. -P keeps the symbolic links, -X leaves
+# the extended attributes of the build behind (they would end up as __MACOSX entries in the
+# zip). Each plugin finds the libraries beside it through its @loader_path rpath.
+vpx_plugins="${build_dir}/vpx-plugins"
+if [ -d "${vpx_plugins}" ]; then
+    mkdir -p "${bundle}/Contents/PlugIns/vpx"
+    cp -R -P -X "${vpx_plugins}/." "${bundle}/Contents/PlugIns/vpx/"
+fi
 # Without a signature an arm64 binary does not start at all; ad-hoc is enough for that.
 codesign --force --deep --sign - "${bundle}"
 codesign --verify --deep --strict "${bundle}"
@@ -98,6 +85,10 @@ set -e
 if [ "${running}" -ne 0 ]; then
     echo "The packaged app did not keep running." >&2
     exit 1
+fi
+# Every VPX plugin of the package loads, with the libraries shipped beside it.
+if [ -d "${vpx_plugins}" ]; then
+    QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/ColorizingDMD" --check-plugins
 fi
 
 rm -f "${output}"
