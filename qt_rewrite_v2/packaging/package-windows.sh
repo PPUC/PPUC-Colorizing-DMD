@@ -55,17 +55,30 @@ if [ -d "${vpx_plugins}" ]; then
     cp -R "${vpx_plugins}/." "${package}/plugins/"
 fi
 
+# ntldd of one file, with the file's own folder searched first (a VPX plugin's DLLs lie beside
+# it), and limited in time: ntldd can hang on a DLL whose imports it cannot resolve, which
+# would stop the package without a word. Extra arguments go to ntldd.
+ntldd_of() {
+    local file=$1 dir status
+    shift
+    dir=$(dirname "${file}")
+    status=0
+    PATH="${dir}:${PATH}" timeout 120 ntldd "$@" "${file}" 2>/dev/null || status=$?
+    if [ "${status}" -eq 124 ]; then
+        echo "ntldd did not finish for ${file#"${package}"/}" >&2
+    fi
+    return 0
+}
+
 # Prints, for every exe and DLL in the folder, the DLLs it loads that resolve into the MSYS2
 # prefix. ntldd reads the import tables; it starts nothing.
 prefix_dependencies() {
     local prefix_lower
     prefix_lower=$(echo "${prefix_bin}/" | tr '[:upper:]' '[:lower:]')
-    # One file at a time, and past failures: ntldd fails on a plugin DLL whose own DLLs lie
-    # in its folder, and xargs would stop at the first failure (status 255) with the rest
-    # of the files unread.
+    # One file at a time, past failures: xargs would stop at the first one (status 255).
     find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0 |
         while IFS= read -r -d '' file; do
-            ntldd -R "${file}" 2>/dev/null || true
+            ntldd_of "${file}" -R </dev/null
         done |
         awk '$2 == "=>" && $3 != "not" {print $3}' |
         while IFS= read -r path; do
@@ -111,7 +124,7 @@ while IFS= read -r -d '' file; do
     while IFS= read -r name; do
         [ -n "${name}" ] || continue
         is_available "${name}" "$(dirname "${file}")" || missing+="${name} (needed by ${file#"${package}"/})"$'\n'
-    done < <(ntldd "${file}" 2>/dev/null | awk '{print $1}')
+    done < <(ntldd_of "${file}" </dev/null | awk '{print $1}')
 done < <(find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0)
 missing=$(printf '%s' "${missing}" | sort -u)
 if [ -n "${missing}" ]; then
