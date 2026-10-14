@@ -1,6 +1,8 @@
 set(COLORIZING_QT_V2_APP_NAME ColorizingDMDQtV2)
 
 add_library(colorizing_qt_v2_widgets STATIC
+    Appearance.cpp
+    Appearance.h
     Autosave.cpp
     Autosave.h
     DmdOutput.cpp
@@ -11,13 +13,15 @@ add_library(colorizing_qt_v2_widgets STATIC
     ColorGridWidget.h
     dialogs/ColorPickerDialog.cpp
     dialogs/ColorPickerDialog.h
-    dialogs/DmdOutputDialog.cpp
-    dialogs/DmdOutputDialog.h
+    dialogs/DmdOutputSettingsPage.cpp
+    dialogs/DmdOutputSettingsPage.h
     dialogs/DumpImportDialog.cpp
     dialogs/DumpImportDialog.h
     dialogs/FrameTesterDialog.cpp
     dialogs/FrameTesterDialog.h
     dialogs/ProjectTaskDialog.cpp
+    dialogs/SettingsDialog.cpp
+    dialogs/SettingsDialog.h
     dialogs/ProjectTaskDialog.h
     dialogs/SelectionDialogs.cpp
     dialogs/SelectionDialogs.h

@@ -1331,7 +1331,7 @@ switching it off unloads it and lets them go.
   view is on (playback and color rotations included), and while the Frame Tester is open, the
   frame it last fed. The picture follows every edit, frame change and playback step. libdmdutil
   scales it to the display, a 256x64 picture down to a 128x32 display as well.
-- Which plane: `Picture` in `View -> DMD Output Settings...`, for projects with a native
+- Which plane: `Picture` on the `DMD Output` page of the Settings, for projects with a native
   128x32 plane and an extra 256x64 one:
   - `The plane the canvas shows` (the default): the plane being edited, in the Runtime view the
     rows it shows, in the Frame Tester the plane of the canvas;
@@ -1342,7 +1342,8 @@ switching it off unloads it and lets them go.
   The canvas keeps showing its own plane; in the Runtime view libserum renders both planes in
   one go, so playback and color rotations stay the same on screen and display. A project with
   one plane always sends that one.
-- `View -> DMD Output Settings...` says where it goes:
+- The `DMD Output` page of the Settings (see "Settings"; `View -> DMD Output Settings...`
+  opens the dialog at that page) says where it goes:
   - displays connected to this computer: ZeDMD (any serial port, or the one given; or over
     Wi-Fi at an address), with its brightness (0 to 15, or the display's own), Pixelcade (any
     port or the one given) and PIN2DMD;
@@ -1359,6 +1360,19 @@ switching it off unloads it and lets them go.
   environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Without the
   DMDUtil plugin there the two menu entries are disabled. The release packages ship it.
 
+
+## Settings
+
+`File -> Settings...` (on macOS `ColorizingDMD -> Settings...`; `Ctrl+,`, `Cmd+,` on macOS)
+holds the editor's settings, one page per topic. `OK` stores and applies them, `Cancel` leaves
+them as they were. They are the editor's, not a project's: kept for the next start.
+
+- `Appearance`: `Theme` is `Follow the system` (the default: light or dark as the operating
+  system has it, also when that changes while the editor runs), `Light` or `Dark`, whatever the
+  system uses. A forced theme applies at once. Where the platform cannot switch its own style
+  (Windows 10's classic style, some Linux desktops, Qt before 6.8), the editor uses Qt's Fusion
+  style in the chosen colors; `Follow the system` brings the platform's style back.
+- `DMD Output`: the settings of the DMD output, see "DMD Output".
 
 ## Colors
 

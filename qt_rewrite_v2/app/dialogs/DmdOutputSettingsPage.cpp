@@ -1,8 +1,7 @@
-#include "dialogs/DmdOutputDialog.h"
+#include "dialogs/DmdOutputSettingsPage.h"
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
@@ -13,10 +12,9 @@
 
 namespace colorizing::app {
 
-DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* parent)
-    : QDialog(parent)
+DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, QWidget* parent)
+    : QWidget(parent)
 {
-    setWindowTitle(QStringLiteral("DMD Output Settings"));
     m_localButton = new QRadioButton(QStringLiteral("Displays connected to this computer"), this);
     m_serverButton = new QRadioButton(QStringLiteral("A dmdserver"), this);
     m_serverButton->setToolTip(QStringLiteral(
@@ -76,9 +74,6 @@ DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* par
                        "scales it to the display."),
         this);
     note->setWordWrap(true);
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(m_localButton);
@@ -87,7 +82,7 @@ DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* par
     layout->addWidget(server);
     layout->addLayout(pictureForm);
     layout->addWidget(note);
-    layout->addWidget(buttons);
+    layout->addStretch(1);
 
     const bool toServer = settings.target == DmdOutputSettings::Target::DmdServer;
     m_localButton->setChecked(!toServer);
@@ -112,7 +107,7 @@ DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* par
     updateEnabled();
 }
 
-void DmdOutputDialog::updateEnabled()
+void DmdOutputSettingsPage::updateEnabled()
 {
     const bool local = m_localButton->isChecked();
     m_localGroup->setEnabled(local);
@@ -124,7 +119,7 @@ void DmdOutputDialog::updateEnabled()
     m_pixelcadeDeviceEdit->setEnabled(m_pixelcadeCheckBox->isChecked());
 }
 
-DmdOutputSettings DmdOutputDialog::settings() const
+DmdOutputSettings DmdOutputSettingsPage::settings() const
 {
     DmdOutputSettings result;
     result.target = m_serverButton->isChecked() ? DmdOutputSettings::Target::DmdServer

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QDialog>
+#include <QWidget>
 
 #include "DmdOutput.h"
 
@@ -9,14 +9,14 @@ class QComboBox;
 class QLineEdit;
 class QRadioButton;
 class QSpinBox;
-class QWidget;
 
 namespace colorizing::app {
 
-// View -> DMD Output Settings: which displays libdmdutil drives (see DmdOutputSettings).
-class DmdOutputDialog final : public QDialog {
+// The DMD Output page of the Settings dialog: which displays libdmdutil drives and which
+// plane they get (see DmdOutputSettings).
+class DmdOutputSettingsPage final : public QWidget {
 public:
-    explicit DmdOutputDialog(const DmdOutputSettings& settings, QWidget* parent = nullptr);
+    explicit DmdOutputSettingsPage(const DmdOutputSettings& settings, QWidget* parent = nullptr);
 
     [[nodiscard]] DmdOutputSettings settings() const;
 

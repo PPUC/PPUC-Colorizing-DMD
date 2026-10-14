@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <string>
 
+#include "Appearance.h"
 #include "MainWindow.h"
 #include "vpx/VpxHost.h"
 
@@ -38,6 +39,7 @@ int main(int argc, char* argv[])
     if (QApplication::arguments().contains(QStringLiteral("--check-plugins"))) {
         return checkPlugins();
     }
+    colorizing::app::applyTheme(colorizing::app::loadTheme());
     colorizing::app::MainWindow window;
     window.show();
     window.offerUntitledAutosave();

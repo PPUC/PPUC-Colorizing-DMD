@@ -63,7 +63,7 @@
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
 #include "dialogs/ColorPickerDialog.h"
-#include "dialogs/DmdOutputDialog.h"
+#include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
@@ -507,6 +507,13 @@ void MainWindow::createActions()
     refreshRecentProjectsMenu();
 
     fileMenu->addSeparator();
+    // On macOS Qt moves it to the application menu, by its role.
+    QAction* settingsAction = fileMenu->addAction(QStringLiteral("Se&ttings..."));
+    settingsAction->setShortcut(QKeySequence::Preferences);
+    settingsAction->setMenuRole(QAction::PreferencesRole);
+    connect(settingsAction, &QAction::triggered, this,
+            [this]() { editSettings(SettingsDialog::Page::Appearance); });
+    fileMenu->addSeparator();
 
     QAction* quitAction = fileMenu->addAction(QStringLiteral("&Quit"));
     quitAction->setShortcut(QKeySequence::Quit);
@@ -583,7 +590,8 @@ void MainWindow::createActions()
     });
     QAction* dmdSettingsAction = viewMenu->addAction(QStringLiteral("DMD Output &Settings..."));
     dmdSettingsAction->setEnabled(DmdOutput::isAvailable());
-    connect(dmdSettingsAction, &QAction::triggered, this, [this]() { editDmdOutputSettings(); });
+    connect(dmdSettingsAction, &QAction::triggered, this,
+            [this]() { editSettings(SettingsDialog::Page::DmdOutput); });
     viewMenu->addSeparator();
 
     m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
@@ -1930,13 +1938,18 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
     });
 }
 
-void MainWindow::editDmdOutputSettings()
+void MainWindow::editSettings(SettingsDialog::Page page)
 {
-    DmdOutputDialog dialog(loadDmdOutputSettings(), this);
+    SettingsDialog dialog(loadTheme(), loadDmdOutputSettings(), DmdOutput::isAvailable(), this);
+    dialog.showPage(page);
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
-    saveDmdOutputSettings(dialog.settings());
+    if (dialog.theme() != loadTheme()) {
+        saveTheme(dialog.theme());
+        applyTheme(dialog.theme());
+    }
+    saveDmdOutputSettings(dialog.dmdOutputSettings());
     if (m_dmdOutput.isRunning()) {
         setDmdOutputEnabled(true);
     }

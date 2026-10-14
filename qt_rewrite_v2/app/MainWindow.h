@@ -14,6 +14,7 @@
 
 #include "Autosave.h"
 #include "DmdOutput.h"
+#include "dialogs/SettingsDialog.h"
 #include "CanvasEditController.h"
 #include "EditHelpersController.h"
 #include "PasteModeController.h"
@@ -120,7 +121,8 @@ private:
     void exportAnimatedGif();
     // View -> Output To DMD, see DmdOutput.h.
     void setDmdOutputEnabled(bool enabled);
-    void editDmdOutputSettings();
+    // File -> Settings (the application menu on macOS), opened at the page.
+    void editSettings(SettingsDialog::Page page);
     void sendDmdPicture();
     // Copy and Paste on the sprite canvas, see edit/SpriteClipboard.h.
     [[nodiscard]] render::Resolution spriteCanvasPlane(std::size_t spriteIndex) const;
