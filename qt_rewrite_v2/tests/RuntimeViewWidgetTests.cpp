@@ -346,10 +346,36 @@ void testCanvas(PlaneLayout layout)
 
 }  // namespace
 
+// The DMD output's plane besides the shown one: one render gives both.
+void testOtherRows()
+{
+    const ProjectDocument document = makeDocument(PlaneLayout::Ordinary, 3);
+    RuntimeView view;
+    view.setEnabled(true);
+    view.setOtherRows(PlaneRequest::Rows64);
+    const Rgb565Frame* shown = view.image(document, 1);
+    const Rgb565Frame* other = view.image(document, 1, PlaneRequest::Rows64);
+    expect(shown && shown->size == Size{128, 32} && shown->pixels[77] == frameColor(1),
+           "the view still shows the 32-row plane");
+    expect(other && other->size == Size{256, 64} && view.renderCount() == 1,
+           "and has the 64-row one of the same render");
+    view.setOtherRows(PlaneRequest::Rows32);
+    expect(view.image(document, 1, PlaneRequest::Rows32) == view.image(document, 1),
+           "other rows equal to the shown ones are the shown plane");
+    view.setOtherRows(std::nullopt);
+
+    // A project with one plane has that plane for every request.
+    const ProjectDocument big = makeDocument(PlaneLayout::NativeExtra, 2);
+    view.setOtherRows(PlaneRequest::Rows32);
+    const Rgb565Frame* native = view.image(big, 0, PlaneRequest::Rows32);
+    expect(native && native == view.image(big, 0), "one plane: the native one");
+}
+
 void runRuntimeViewWidgetTests()
 {
     testState();
     testRendersOnlyWhenSomethingChanged();
+    testOtherRows();
     testPlayback();
     for (PlaneLayout layout :
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {

@@ -5,6 +5,7 @@
 #include "DmdOutput.h"
 
 class QCheckBox;
+class QComboBox;
 class QLineEdit;
 class QRadioButton;
 class QSpinBox;
@@ -36,6 +37,7 @@ private:
     QCheckBox* m_pin2dmdCheckBox = nullptr;
     QLineEdit* m_serverAddressEdit = nullptr;
     QSpinBox* m_serverPortSpinBox = nullptr;
+    QComboBox* m_pictureComboBox = nullptr;
 };
 
 }  // namespace colorizing::app

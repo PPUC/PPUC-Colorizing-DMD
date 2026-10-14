@@ -44,6 +44,20 @@ PlaneRequest RuntimeView::rowsFor(const render::ProjectGeometry& geometry) const
     return runtime::effectivePlaneRequest(geometry, m_rows);
 }
 
+void RuntimeView::setOtherRows(std::optional<PlaneRequest> rows)
+{
+    m_otherRows = rows;
+}
+
+PlaneRequest RuntimeView::requestFor(const render::ProjectGeometry& geometry) const
+{
+    const PlaneRequest shown = rowsFor(geometry);
+    if (!m_otherRows || runtime::effectivePlaneRequest(geometry, *m_otherRows) == shown) {
+        return shown;
+    }
+    return PlaneRequest::Both;
+}
+
 render::Resolution RuntimeView::layoutPlane(const render::ProjectGeometry& geometry) const
 {
     if (geometry.layout() != render::PlaneLayout::Ordinary) {
@@ -80,7 +94,7 @@ bool RuntimeView::isPlaying() const
 const runtime::RuntimeFrame& RuntimeView::frame(const document::ProjectDocument& document,
                                                 std::size_t frameIndex)
 {
-    const PlaneRequest rows = rowsFor(document.geometry());
+    const PlaneRequest rows = requestFor(document.geometry());
     if (m_hasFrame && m_revision == document.revision() && m_frameIndex == frameIndex &&
         m_frameRows == rows && m_framePlaying == m_playing) {
         return m_frame;
@@ -140,6 +154,18 @@ const document::Rgb565Frame* RuntimeView::image(const document::ProjectDocument&
         return nullptr;
     }
     const runtime::RuntimePlane* plane = shown.plane(rowsFor(document.geometry()));
+    return plane ? &plane->image : nullptr;
+}
+
+const document::Rgb565Frame* RuntimeView::image(const document::ProjectDocument& document,
+                                                std::size_t frameIndex, PlaneRequest rows)
+{
+    const runtime::RuntimeFrame& rendered = frame(document, frameIndex);
+    if (!rendered.ok()) {
+        return nullptr;
+    }
+    const runtime::RuntimePlane* plane =
+        rendered.plane(runtime::effectivePlaneRequest(document.geometry(), rows));
     return plane ? &plane->image : nullptr;
 }
 

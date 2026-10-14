@@ -36,6 +36,10 @@ public:
     void setRows(runtime::PlaneRequest rows);
     // The rows shown for a project: one with a single plane shows that plane.
     [[nodiscard]] runtime::PlaneRequest rowsFor(const render::ProjectGeometry& geometry) const;
+    // Rows wanted besides the shown ones (the DMD output's plane), or none. When they differ
+    // from the shown rows, libserum renders both planes in the same call, so playback and
+    // color rotations stay one.
+    void setOtherRows(std::optional<runtime::PlaneRequest> rows);
     // The stored plane that has the size of the shown rows, for laying out the canvas.
     [[nodiscard]] render::Resolution layoutPlane(const render::ProjectGeometry& geometry) const;
 
@@ -51,6 +55,10 @@ public:
     // The shown plane of frame(), or nullptr when libserum has no picture; message() says why.
     [[nodiscard]] const document::Rgb565Frame* image(const document::ProjectDocument& document,
                                                      std::size_t frameIndex);
+    // The plane of those rows (the shown ones or setOtherRows()), or nullptr.
+    [[nodiscard]] const document::Rgb565Frame* image(const document::ProjectDocument& document,
+                                                     std::size_t frameIndex,
+                                                     runtime::PlaneRequest rows);
     [[nodiscard]] std::string message(const document::ProjectDocument& document,
                                       std::size_t frameIndex);
     // The frame a machine identifies the frame's ROM frame as, if that is another frame.
@@ -81,7 +89,11 @@ public:
 
 private:
     bool m_enabled = false;
+    // What libserum is asked for: the shown rows, or both with other rows.
+    [[nodiscard]] runtime::PlaneRequest requestFor(const render::ProjectGeometry& geometry) const;
+
     runtime::PlaneRequest m_rows = runtime::PlaneRequest::Rows32;
+    std::optional<runtime::PlaneRequest> m_otherRows;
     bool m_playing = false;
     std::vector<std::size_t> m_playOrder;
     bool m_hasFrame = false;

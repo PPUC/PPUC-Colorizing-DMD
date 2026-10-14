@@ -1091,8 +1091,10 @@ instability is no obstacle (the owner works with the plugin developers).
 - `app/DmdOutput` loads the `DMDUtil` plugin with the settings of the DMD Output dialog as
   plugin settings and offers the picture as a display. No direct libdmdutil link any more;
   "display found / 64 rows" are gone (the plugin does not say), the status bar shows the
-  plugin's or libdmdutil's last log line instead. The frame tester sends its 64-row plane when
-  there is one; libdmdutil scales down.
+  plugin's or libdmdutil's last log line instead. `DmdOutputSettings::picture` (owner's
+  request 2026-10-15): the canvas plane, native or extra, for ordinary projects; the Runtime
+  view then renders both planes in one call (`RuntimeView::setOtherRows`, `PlaneRequest::Both`),
+  the frame tester sends the plane asked for.
 - Build: `-DCOLORIZINGDMD_LIBVPXHOST_DIR` and `-DCOLORIZINGDMD_VPINBALL_DIR` (PPUC's vpinball
   fork; only `plugins/plugins`, `plugins/dmdutil` and a few `third-party/include` headers are
   used). With `COLORIZINGDMD_DMDUTIL_PREFIX` too, `app/vpx/CMakeLists.txt` builds

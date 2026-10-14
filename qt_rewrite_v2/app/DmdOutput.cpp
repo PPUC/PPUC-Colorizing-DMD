@@ -40,6 +40,10 @@ DmdOutputSettings loadDmdOutputSettings()
         settings.value(kGroup + QStringLiteral("serverAddress"), result.serverAddress).toString();
     result.serverPort =
         settings.value(kGroup + QStringLiteral("serverPort"), result.serverPort).toInt();
+    const QString picture = settings.value(kGroup + QStringLiteral("picture")).toString();
+    result.picture = picture == QStringLiteral("native") ? DmdOutputSettings::Picture::Native
+                     : picture == QStringLiteral("extra") ? DmdOutputSettings::Picture::Extra
+                                                          : DmdOutputSettings::Picture::Canvas;
     return result;
 }
 
@@ -60,6 +64,10 @@ void saveDmdOutputSettings(const DmdOutputSettings& value)
     settings.setValue(kGroup + QStringLiteral("pin2dmd"), value.pin2dmd);
     settings.setValue(kGroup + QStringLiteral("serverAddress"), value.serverAddress);
     settings.setValue(kGroup + QStringLiteral("serverPort"), value.serverPort);
+    settings.setValue(kGroup + QStringLiteral("picture"),
+                      value.picture == DmdOutputSettings::Picture::Native  ? QStringLiteral("native")
+                      : value.picture == DmdOutputSettings::Picture::Extra ? QStringLiteral("extra")
+                                                                           : QStringLiteral("canvas"));
 }
 
 namespace {

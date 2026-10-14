@@ -1846,6 +1846,7 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
         m_dmdTimer.stop();
         m_dmdOutput.stop();
         m_dmdPictureKey.reset();
+        m_runtimeView.setOtherRows(std::nullopt);
         return;
     }
     if (!m_dmdTimer.isActive()) {
@@ -1853,7 +1854,10 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
         connect(&m_dmdTimer, &QTimer::timeout, this, [this]() { sendDmdPicture(); },
                 Qt::UniqueConnection);
     }
-    if (!m_dmdOutput.start(loadDmdOutputSettings())) {
+    const DmdOutputSettings settings = loadDmdOutputSettings();
+    m_dmdPicture = settings.picture;
+    m_runtimeView.setOtherRows(dmdRuntimeRows());
+    if (!m_dmdOutput.start(settings)) {
         setDmdOutputEnabled(false);
         statusBar()->showMessage(
             QStringLiteral("DMD output failed: %1").arg(m_dmdOutput.lastMessage()), 8000);
@@ -1889,6 +1893,27 @@ void MainWindow::editDmdOutputSettings()
     }
 }
 
+std::optional<runtime::PlaneRequest> MainWindow::dmdRuntimeRows() const
+{
+    switch (m_dmdPicture) {
+        case DmdOutputSettings::Picture::Native:
+            return runtime::PlaneRequest::Rows32;
+        case DmdOutputSettings::Picture::Extra:
+            return runtime::PlaneRequest::Rows64;
+        case DmdOutputSettings::Picture::Canvas:
+            break;
+    }
+    return std::nullopt;
+}
+
+bool MainWindow::dmdPrefersRows64() const
+{
+    if (const std::optional<runtime::PlaneRequest> rows = dmdRuntimeRows()) {
+        return *rows == runtime::PlaneRequest::Rows64;
+    }
+    return m_activeResolution == render::Resolution::Hd;
+}
+
 void MainWindow::sendDmdPicture()
 {
     if (!m_dmdOutput.isRunning()) {
@@ -1908,6 +1933,15 @@ void MainWindow::sendDmdPicture()
     render::Resolution plane = isHdOnlyProject()                       ? render::Resolution::Hd
                                : m_document->editsOriginalPlaneOnly() ? render::Resolution::Sd
                                                                       : m_activeResolution;
+    // The plane the settings ask for, in a project that has both.
+    if (m_document->geometry().layout() == render::PlaneLayout::Ordinary &&
+        !m_document->editsOriginalPlaneOnly()) {
+        if (m_dmdPicture == DmdOutputSettings::Picture::Native) {
+            plane = render::Resolution::Sd;
+        } else if (m_dmdPicture == DmdOutputSettings::Picture::Extra) {
+            plane = render::Resolution::Hd;
+        }
+    }
     if (plane == render::Resolution::Hd && !m_document->hasHdFrame(*frameIndex)) {
         plane = render::Resolution::Sd;
     }
@@ -1921,7 +1955,10 @@ void MainWindow::sendDmdPicture()
     }
     m_dmdPictureKey = key;
     if (runtime) {
-        if (const document::Rgb565Frame* picture = m_runtimeView.image(*m_document, *frameIndex)) {
+        const std::optional<runtime::PlaneRequest> rows = dmdRuntimeRows();
+        if (const document::Rgb565Frame* picture =
+                rows ? m_runtimeView.image(*m_document, *frameIndex, *rows)
+                     : m_runtimeView.image(*m_document, *frameIndex)) {
             m_dmdOutput.show(*picture);
         }
         return;
@@ -2048,10 +2085,11 @@ void MainWindow::openFrameTester()
                 return false;
             }
         };
-        // The display shows the tester's picture while it is open: the 64-row plane when
-        // there is one, which libdmdutil scales down for a 32-row display.
-        m_dmdPictureOverride = [&dialog]() -> std::optional<document::Rgb565Frame> {
-            if (const document::Rgb565Frame* picture = dialog.currentPicture(true)) {
+        // The display shows the tester's picture while it is open, of the plane the DMD
+        // output settings ask for (the other one when the frame has only that).
+        m_dmdPictureOverride = [this, &dialog]() -> std::optional<document::Rgb565Frame> {
+            if (const document::Rgb565Frame* picture =
+                    dialog.currentPicture(dmdPrefersRows64())) {
                 return *picture;
             }
             return std::nullopt;

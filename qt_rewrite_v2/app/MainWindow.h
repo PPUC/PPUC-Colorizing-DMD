@@ -552,6 +552,12 @@ private:
         }
     };
     std::optional<DmdPictureKey> m_dmdPictureKey;
+    // Which plane goes to the display (DMD Output Settings), while the output runs.
+    DmdOutputSettings::Picture m_dmdPicture = DmdOutputSettings::Picture::Canvas;
+    // The rows of the Runtime view's picture the display gets; none for the shown rows.
+    [[nodiscard]] std::optional<runtime::PlaneRequest> dmdRuntimeRows() const;
+    // The Frame Tester's picture for the display: its 64-row plane or its 32-row one.
+    [[nodiscard]] bool dmdPrefersRows64() const;
     // The last percentage given to Edit -> Brightness.
     int m_brightnessPercent = 110;
     // The filter last chosen for Create HD.

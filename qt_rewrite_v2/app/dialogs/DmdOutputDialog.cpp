@@ -1,6 +1,7 @@
 #include "dialogs/DmdOutputDialog.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -56,10 +57,23 @@ DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* par
     serverForm->addRow(QStringLiteral("Address"), m_serverAddressEdit);
     serverForm->addRow(QStringLiteral("Port"), m_serverPortSpinBox);
 
+    m_pictureComboBox = new QComboBox(this);
+    m_pictureComboBox->addItem(QStringLiteral("The plane the canvas shows"),
+                               static_cast<int>(DmdOutputSettings::Picture::Canvas));
+    m_pictureComboBox->addItem(QStringLiteral("Native plane (128x32)"),
+                               static_cast<int>(DmdOutputSettings::Picture::Native));
+    m_pictureComboBox->addItem(QStringLiteral("Extra plane (256x64)"),
+                               static_cast<int>(DmdOutputSettings::Picture::Extra));
+    m_pictureComboBox->setToolTip(
+        QStringLiteral("For projects with both planes; a project with one plane sends that one. "
+                       "A frame without extra data sends its native plane."));
+    auto* pictureForm = new QFormLayout;
+    pictureForm->addRow(QStringLiteral("Picture"), m_pictureComboBox);
+
     auto* note = new QLabel(
-        QStringLiteral("The display shows what the canvas shows: libserum's picture in the "
-                       "Runtime view and in the Frame Tester, otherwise the frame as the editor "
-                       "composes it. libdmdutil scales it to the display."),
+        QStringLiteral("The display shows libserum's picture in the Runtime view and in the "
+                       "Frame Tester, otherwise the frame as the editor composes it. libdmdutil "
+                       "scales it to the display."),
         this);
     note->setWordWrap(true);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -71,6 +85,7 @@ DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* par
     layout->addWidget(local);
     layout->addWidget(m_serverButton);
     layout->addWidget(server);
+    layout->addLayout(pictureForm);
     layout->addWidget(note);
     layout->addWidget(buttons);
 
@@ -87,6 +102,8 @@ DmdOutputDialog::DmdOutputDialog(const DmdOutputSettings& settings, QWidget* par
     m_pin2dmdCheckBox->setChecked(settings.pin2dmd);
     m_serverAddressEdit->setText(settings.serverAddress);
     m_serverPortSpinBox->setValue(settings.serverPort);
+    m_pictureComboBox->setCurrentIndex(
+        m_pictureComboBox->findData(static_cast<int>(settings.picture)));
     for (QAbstractButton* button : std::initializer_list<QAbstractButton*>{
              m_localButton, m_serverButton, m_zedmdCheckBox, m_zedmdWiFiCheckBox,
              m_pixelcadeCheckBox}) {
@@ -122,6 +139,8 @@ DmdOutputSettings DmdOutputDialog::settings() const
     result.pin2dmd = m_pin2dmdCheckBox->isChecked();
     result.serverAddress = m_serverAddressEdit->text().trimmed();
     result.serverPort = m_serverPortSpinBox->value();
+    result.picture =
+        static_cast<DmdOutputSettings::Picture>(m_pictureComboBox->currentData().toInt());
     return result;
 }
 

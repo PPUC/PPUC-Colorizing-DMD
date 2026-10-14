@@ -78,10 +78,12 @@ void runDmdOutputWidgetTests()
     stored.serverPort = 6790;
     stored.zedmdBrightness = 7;
     stored.pin2dmd = false;
+    stored.picture = app::DmdOutputSettings::Picture::Extra;
     app::saveDmdOutputSettings(stored);
     const app::DmdOutputSettings loaded = app::loadDmdOutputSettings();
     expect(loaded.target == stored.target && loaded.serverAddress == stored.serverAddress &&
-               loaded.serverPort == 6790 && loaded.zedmdBrightness == 7 && !loaded.pin2dmd,
+               loaded.serverPort == 6790 && loaded.zedmdBrightness == 7 && !loaded.pin2dmd &&
+               loaded.picture == app::DmdOutputSettings::Picture::Extra,
            "settings are kept");
     QSettings().remove(QStringLiteral("dmdOutput"));
     QStandardPaths::setTestModeEnabled(false);

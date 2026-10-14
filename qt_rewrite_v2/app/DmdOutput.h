@@ -31,6 +31,18 @@ struct DmdOutputSettings {
     bool pin2dmd = true;
     QString serverAddress = QStringLiteral("localhost");
     int serverPort = 6789;
+
+    // Which plane of an ordinary project (128x32 native plane, 256x64 extra plane) goes to the
+    // display. A project with one plane always sends that one.
+    enum class Picture {
+        // The plane the canvas shows (in the Runtime view, the rows it shows).
+        Canvas,
+        Native,
+        // A frame without extra data sends its native plane, which libdmdutil scales up; in
+        // the Runtime view libserum's 64-row picture, which it upscales as on a machine.
+        Extra,
+    };
+    Picture picture = Picture::Canvas;
 };
 
 [[nodiscard]] DmdOutputSettings loadDmdOutputSettings();
