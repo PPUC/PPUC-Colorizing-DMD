@@ -9,5 +9,6 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral("ColorizingDMDQtV2"));
     colorizing::app::MainWindow window;
     window.show();
+    window.offerUntitledAutosave();
     return app.exec();
 }

@@ -1076,7 +1076,6 @@ owner together.
 - Frame tester (dump playback through libserum, next unidentified, search frame by ID), ZeDMD
   output, PuP tester. Playback of the project's own frames through libserum exists (Runtime
   view).
-- Autosave and recovery.
 - cROMc export through libserum.
 
 ## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
@@ -1183,7 +1182,7 @@ Reviewed for Windows/MinGW and left unchanged:
 4. Image and video import with crop zones (the Images window).
 5. The frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next unidentified
    frame, search by ID).
-6. Autosave and recovery.
+6. (done) Autosave and recovery, see `app/Autosave.h` and the handbook.
 7. Still open from before: confirm the value written for an unused 192x64 extra background mask
    (open decision 1), decide open decisions 4 and 5, fix the editor bugs listed below, keep
    shrinking `MainWindow`.

@@ -28,6 +28,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QLocale>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -42,6 +43,7 @@
 #include <QStringList>
 #include <QScrollArea>
 #include <QTabWidget>
+#include <QTime>
 #include <QToolButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -385,6 +387,16 @@ MainWindow::MainWindow(QWidget* parent)
     createActions();
     createCentralView();
     setStatusText(QStringLiteral("No project loaded"));
+    // Every 10 minutes, as the Win32 editor (AUTOSAVE_TICKS).
+    m_autosaver = std::make_unique<Autosaver>(
+        this,
+        std::chrono::minutes(10),
+        [this]() { return autosaveJob(); },
+        [this](const AutosaveFiles& files,
+               uint64_t revision,
+               const legacy::LegacySaveResult& result) {
+            autosaveFinished(files, revision, result);
+        });
 }
 
 void MainWindow::createActions()
@@ -1304,6 +1316,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
         return;
     }
     setPlaybackRunning(false);
+    // A write still running is stopped; the autosave files it was replacing stay as they were.
+    m_autosaver->cancelAndWait();
     event->accept();
 }
 
@@ -1476,6 +1490,12 @@ bool MainWindow::saveProjectAs()
     m_currentCromPath = targetCromPath;
     m_currentCrpPath = targetCrpPath;
     if (saveProject()) {
+        if (untitled) {
+            // Its autosave goes beside the saved files from now on.
+            const AutosaveFiles untitledFiles = untitledAutosaveFiles(m_document->romName());
+            QFile::remove(untitledFiles.cromPath);
+            QFile::remove(untitledFiles.crpPath);
+        }
         rememberRecentProject(m_currentCromPath, m_currentCrpPath);
         updateWindowTitle();
         statusBar()->showMessage(untitled ? QStringLiteral("Project saved as %1")
@@ -1522,7 +1542,13 @@ bool MainWindow::confirmClosingProject(const QString& action)
 {
     return mayCloseProject(
         m_document && m_document->isDirty(),
-        [this, &action]() { return askAboutUnsavedChanges(action); },
+        [this, &action]() {
+            const UnsavedChangesAnswer answer = askAboutUnsavedChanges(action);
+            if (answer == UnsavedChangesAnswer::Discard) {
+                forgetAutosave();
+            }
+            return answer;
+        },
         [this]() { return saveProject(); });
 }
 
@@ -1781,10 +1807,71 @@ void MainWindow::importImageIntoSelectedFrames()
 
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 {
+    // Saving a project opened from its archive writes the loose .cROM next to it.
+    const QString savedCromPath =
+        isCrzPath(cromPath) ? siblingProjectFile(cromPath, QStringLiteral("cROM")) : cromPath;
+    if (!isAutosavePath(cromPath)) {
+        const AutosaveFiles autosave = autosaveFilesFor(savedCromPath, crpPath);
+        std::optional<QDateTime> autosaved = newerAutosaveTime(cromPath, crpPath, autosave);
+        // An autosave whose changes were discarded is not offered again.
+        const QDateTime discarded =
+            QSettings()
+                .value(QStringLiteral("autosave/discarded/") + autosave.cromPath)
+                .toDateTime();
+        if (autosaved && discarded.isValid() && *autosaved <= discarded) {
+            autosaved.reset();
+        }
+        if (autosaved) {
+            QMessageBox question(this);
+            question.setIcon(QMessageBox::Question);
+            question.setWindowTitle(QStringLiteral("Open Project"));
+            question.setText(QStringLiteral("The project has an autosave from %1 that is newer "
+                                            "than its files.")
+                                 .arg(QLocale().toString(*autosaved, QLocale::ShortFormat)));
+            question.setInformativeText(
+                QStringLiteral("It holds changes that were not saved, for example after a "
+                               "crash. Open Autosave opens it as this project with unsaved "
+                               "changes: Save then writes them to the project files. %1 and "
+                               "%2 are kept either way.")
+                    .arg(QFileInfo(autosave.cromPath).fileName(),
+                         QFileInfo(autosave.crpPath).fileName()));
+            QPushButton* autosaveButton =
+                question.addButton(QStringLiteral("Open Autosave"), QMessageBox::AcceptRole);
+            QPushButton* projectButton =
+                question.addButton(QStringLiteral("Open Project"), QMessageBox::RejectRole);
+            question.addButton(QMessageBox::Cancel);
+            question.setDefaultButton(autosaveButton);
+            question.exec();
+            if (question.clickedButton() == autosaveButton) {
+                loadProjectFiles(autosave.cromPath, autosave.crpPath, cromPath, crpPath, true);
+                return;
+            }
+            if (question.clickedButton() != projectButton) {
+                return;
+            }
+        }
+    }
+    loadProjectFiles(cromPath, crpPath, cromPath, crpPath, false);
+}
+
+void MainWindow::loadProjectFrom(const AutosaveFiles& readFrom,
+                                 const QString& cromPath,
+                                 const QString& crpPath)
+{
+    loadProjectFiles(readFrom.cromPath, readFrom.crpPath, cromPath, crpPath, true);
+}
+
+void MainWindow::loadProjectFiles(const QString& readCromPath,
+                                  const QString& readCrpPath,
+                                  const QString& cromPath,
+                                  const QString& crpPath,
+                                  bool recovered)
+{
     // Read and turned into a document on a worker thread (runProjectTask); the project that
     // is open stays open, unchanged, until the new one is complete, and is kept when the open
     // fails or is cancelled.
-    const legacy::LegacyProjectPaths paths{cromPath.toStdString(), crpPath.toStdString(), {}};
+    const legacy::LegacyProjectPaths paths{
+        readCromPath.toStdString(), readCrpPath.toStdString(), {}};
     legacy::LegacyDocumentLoadResult result;
     {
         legacy::LegacyIoProgress progress;
@@ -1818,7 +1905,13 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
                                 ? siblingProjectFile(cromPath, QStringLiteral("cROM"))
                                 : cromPath;
         m_currentCrpPath = crpPath;
-        rememberRecentProject(cromPath, crpPath);
+        if (!cromPath.isEmpty() && !crpPath.isEmpty()) {
+            rememberRecentProject(cromPath, crpPath);
+        }
+        if (recovered) {
+            // What the autosave holds is not in the project files.
+            m_document->markUnsaved();
+        }
         m_undoHistories.clear();
         m_pasteMode.clearClipboard();
         updateUndoRedoActions();
@@ -1834,6 +1927,110 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
     }
 
     refreshProjectSummary();
+}
+
+std::optional<Autosaver::Job> MainWindow::autosaveJob()
+{
+    // Not while the user is in a dialog, an open or a save: the next interval catches up.
+    if (!m_document || !m_document->isDirty() ||
+        m_document->revision() == m_autosavedRevision || QApplication::activeModalWidget()) {
+        return std::nullopt;
+    }
+    Autosaver::Job job;
+    job.files = isUntitledProject() ? untitledAutosaveFiles(m_document->romName())
+                                    : autosaveFilesFor(m_currentCromPath, m_currentCrpPath);
+    // A project opened from an autosave by hand is written over itself.
+    if (isAutosavePath(m_currentCromPath)) {
+        job.files = AutosaveFiles{m_currentCromPath, m_currentCrpPath};
+    }
+    job.revision = m_document->revision();
+    job.snapshot = m_document->toSnapshot();
+    return job;
+}
+
+void MainWindow::autosaveFinished(const AutosaveFiles& files,
+                                  uint64_t revision,
+                                  const legacy::LegacySaveResult& result)
+{
+    if (result.cancelled) {
+        return;
+    }
+    if (!result.ok) {
+        statusBar()->showMessage(QStringLiteral("Autosave failed: %1")
+                                     .arg(QString::fromStdString(result.error.message)),
+                                 8000);
+        return;
+    }
+    m_autosavedRevision = revision;
+    statusBar()->showMessage(QStringLiteral("Autosaved to %1 at %2")
+                                 .arg(QDir::toNativeSeparators(files.cromPath),
+                                      QLocale().toString(QTime::currentTime(),
+                                                         QLocale::ShortFormat)),
+                             5000);
+}
+
+void MainWindow::forgetAutosave()
+{
+    if (!m_document) {
+        return;
+    }
+    // Nothing more of the discarded changes is written.
+    m_autosaver->cancelAndWait();
+    if (isUntitledProject()) {
+        const AutosaveFiles files = untitledAutosaveFiles(m_document->romName());
+        QFile::remove(files.cromPath);
+        QFile::remove(files.crpPath);
+        return;
+    }
+    // The files beside the project stay, as the Win32 editor leaves them; only the offer to
+    // open them is dropped, up to their present time.
+    const AutosaveFiles files = autosaveFilesFor(m_currentCromPath, m_currentCrpPath);
+    const QFileInfo crom(files.cromPath);
+    const QFileInfo crp(files.crpPath);
+    if (crom.isFile() && crp.isFile()) {
+        QSettings().setValue(QStringLiteral("autosave/discarded/") + files.cromPath,
+                             std::max(crom.lastModified(), crp.lastModified()));
+    }
+}
+
+void MainWindow::offerUntitledAutosave()
+{
+    const std::vector<AutosaveFiles> autosaves = untitledAutosaves();
+    if (autosaves.empty()) {
+        return;
+    }
+    const AutosaveFiles& newest = autosaves.front();
+    const QFileInfo crom(newest.cromPath);
+    QString name = crom.completeBaseName();
+    name.chop(static_cast<int>(QStringLiteral("(auto)").size()));
+    QMessageBox question(this);
+    question.setIcon(QMessageBox::Question);
+    question.setWindowTitle(QStringLiteral("Autosave Found"));
+    question.setText(QStringLiteral("A new project of %1 that was never saved has an autosave "
+                                    "from %2.")
+                         .arg(name, QLocale().toString(crom.lastModified(),
+                                                       QLocale::ShortFormat)));
+    question.setInformativeText(
+        QStringLiteral("Open opens it as a new project with unsaved changes. Delete removes the "
+                       "autosave. Later keeps it and asks again at the next start.%1")
+            .arg(autosaves.size() > 1
+                     ? QStringLiteral(" %1 more autosave(s) of never saved projects are in %2.")
+                           .arg(static_cast<int>(autosaves.size() - 1))
+                           .arg(QDir::toNativeSeparators(untitledAutosaveDirectory()))
+                     : QString()));
+    QPushButton* openButton = question.addButton(QStringLiteral("Open"), QMessageBox::AcceptRole);
+    QPushButton* deleteButton =
+        question.addButton(QStringLiteral("Delete"), QMessageBox::DestructiveRole);
+    QPushButton* laterButton = question.addButton(QStringLiteral("Later"), QMessageBox::RejectRole);
+    question.setDefaultButton(openButton);
+    question.setEscapeButton(laterButton);
+    question.exec();
+    if (question.clickedButton() == openButton) {
+        loadProjectFrom(newest, QString(), QString());
+    } else if (question.clickedButton() == deleteButton) {
+        QFile::remove(newest.cromPath);
+        QFile::remove(newest.crpPath);
+    }
 }
 
 void MainWindow::updateSameFrameControls()

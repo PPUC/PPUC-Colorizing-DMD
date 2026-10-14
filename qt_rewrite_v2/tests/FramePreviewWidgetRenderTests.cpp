@@ -3059,6 +3059,7 @@ void testRecordListPage()
 }
 
 void runAppHelpersWidgetTests();
+void runAutosaveWidgetTests();
 void runBigOriginalWidgetTests();
 void runCanvasEditControllerTests();
 void runColorWidgetTests();
@@ -3106,6 +3107,7 @@ int main(int argc, char* argv[])
     testFramePanel();
     testRecordListPage();
     runCanvasEditControllerTests();
+    runAutosaveWidgetTests();
     runBigOriginalWidgetTests();
     runNativeOriginalWidgetTests();
     runPlaneLabelsWidgetTests();

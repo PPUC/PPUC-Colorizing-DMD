@@ -67,6 +67,11 @@
 #define UI_DUMP_HAS_PROJECT_TASKS 1
 #endif
 
+#if __has_include("Autosave.h")
+#include <QElapsedTimer>
+#define UI_DUMP_HAS_AUTOSAVE 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -630,6 +635,11 @@ int main(int argc, char* argv[])
 // States of a tree that opens and saves on a worker thread; a tree without that ends here.
 #ifdef UI_DUMP_HAS_PROJECT_TASKS
 #include "progress_script.inc"
+#endif
+
+// States of a tree with autosave and recovery; a tree without them ends here.
+#ifdef UI_DUMP_HAS_AUTOSAVE
+#include "autosave_script.inc"
 #endif
 
     return 0;

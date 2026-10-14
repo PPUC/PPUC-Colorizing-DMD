@@ -370,6 +370,33 @@ Save behavior:
 Files written by earlier Qt editor builds are not supported; only projects saved by the Win32
 editor (currently 3.17.3) or by this serializer are.
 
+### Autosave and recovery
+
+Every 10 minutes, as in CDMD, a project with changes that were not autosaved yet is written to
+`<name>(auto).cROM` and `<name>(auto).cRP` beside its files (`afm_113b(auto).cROM` for
+`afm_113b.cROM`; for a project opened from its `.cRZ`, beside the `.cRZ`). A new project that
+was never saved is autosaved under its ROM name in the editor's own folder (on Windows
+`%LOCALAPPDATA%\ColorizingDMD\ColorizingDMDQtV2\autosave`, on macOS
+`~/Library/Application Support/ColorizingDMD/ColorizingDMDQtV2/autosave`, on Linux
+`~/.local/share/ColorizingDMD/ColorizingDMDQtV2/autosave`).
+
+- The files are written in the background while you go on working; they show the project as it
+  was when the autosave started. The status bar says `Autosaved to <file> at <time>`, or why
+  it failed. Nothing is written while a dialog is open or the project is unchanged.
+- An autosave never replaces the project files and adds no `.cRZ`. An autosave stopped by
+  quitting leaves the earlier autosave files as they were.
+- Opening a project whose autosave files are both newer than its files asks first:
+  `Open Autosave` opens the autosave as that project with unsaved changes (`Save` then writes it
+  to the project files), `Open Project` opens the project files. The autosave files are kept
+  either way, as CDMD keeps them.
+- After `Discard Changes` the autosave holding those changes is not offered again; the files
+  stay. A new project's autosave is deleted when its changes are discarded or when it is saved
+  for the first time.
+- At start the editor offers the newest autosave of a new project that was never saved:
+  `Open` (as a new project with unsaved changes), `Delete` or `Later`.
+- Opening an `(auto)` file directly works as for any project; its autosave then goes to the same
+  files.
+
 ## Playback
 
 The top toolbar contains editor-only playback controls:

@@ -11,6 +11,7 @@
 #include <QString>
 #include <QStringList>
 
+#include "Autosave.h"
 #include "CanvasEditController.h"
 #include "EditHelpersController.h"
 #include "PasteModeController.h"
@@ -61,6 +62,8 @@ namespace colorizing::app {
 class MainWindow final : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+    // At start: offers the newest autosave of a project that was never saved, if there is one.
+    void offerUntitledAutosave();
 
 protected:
     // Asks about unsaved changes first, see confirmClosingProject().
@@ -107,7 +110,24 @@ private:
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();
+    // Offers the project's autosave when it is newer than the project files (see Autosave.h).
     void loadProject(const QString& cromPath, const QString& crpPath);
+    // Reads the project from readFrom (an autosave) instead; it is then the project at
+    // cromPath/crpPath with unsaved changes (an untitled one when both are empty).
+    void loadProjectFrom(const AutosaveFiles& readFrom,
+                         const QString& cromPath,
+                         const QString& crpPath);
+    void loadProjectFiles(const QString& readCromPath,
+                          const QString& readCrpPath,
+                          const QString& cromPath,
+                          const QString& crpPath,
+                          bool recovered);
+    [[nodiscard]] std::optional<Autosaver::Job> autosaveJob();
+    void autosaveFinished(const AutosaveFiles& files,
+                          uint64_t revision,
+                          const legacy::LegacySaveResult& result);
+    // Changes were discarded: the autosave holding them is not offered again.
+    void forgetAutosave();
     void rememberRecentProject(const QString& cromPath, const QString& crpPath);
     void refreshRecentProjectsMenu();
     void setStatusText(const QString& text);
@@ -482,6 +502,9 @@ private:
     std::optional<document::ProjectDocument> m_document;
     // Structure undo steps the last structure edit dropped, see showStructureEditStatus().
     std::size_t m_droppedStructureSteps = 0;
+    // The document revision the last finished autosave wrote.
+    uint64_t m_autosavedRevision = 0;
+    std::unique_ptr<Autosaver> m_autosaver;
 };
 
 }  // namespace colorizing::app

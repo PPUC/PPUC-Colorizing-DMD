@@ -1,6 +1,8 @@
 set(COLORIZING_QT_V2_APP_NAME ColorizingDMDQtV2)
 
 add_library(colorizing_qt_v2_widgets STATIC
+    Autosave.cpp
+    Autosave.h
     CanvasEditController.cpp
     CanvasEditController.h
     ColorGridWidget.cpp
