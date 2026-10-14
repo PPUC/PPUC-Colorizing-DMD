@@ -100,6 +100,12 @@ bool LegacyByteSource::fill(std::size_t count)
     return available() >= count;
 }
 
+void LegacyByteSource::limitTo(std::size_t end)
+{
+    m_size = std::clamp(end, offset(), m_size);
+    m_windowSize = std::min(m_windowSize, m_size - m_windowOffset);
+}
+
 const uint8_t* LegacyByteSource::peek(std::size_t count, std::size_t& availableBytes)
 {
     const std::size_t wanted = std::min({count, remaining(), m_buffer.empty() ? count

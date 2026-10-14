@@ -31,7 +31,7 @@ AutosaveFiles autosaveFilesFor(const QString& cromPath, const QString& crpPath)
     // The cROM of a project opened from its .cRZ is saved as .cROM beside it; so is its
     // autosave.
     return AutosaveFiles{autosaveSibling(cromPath, QStringLiteral("cROM")),
-                         autosaveSibling(crpPath, QStringLiteral("cRP"))};
+                         autosaveSibling(crpPath, QStringLiteral("cRPX"))};
 }
 
 QString untitledAutosaveDirectory()
@@ -45,7 +45,7 @@ AutosaveFiles untitledAutosaveFiles(const std::string& romName)
     const QDir directory(untitledAutosaveDirectory());
     const QString base = QString::fromStdString(romName) + kAutoSuffix;
     return AutosaveFiles{directory.absoluteFilePath(base + QStringLiteral(".cROM")),
-                         directory.absoluteFilePath(base + QStringLiteral(".cRP"))};
+                         directory.absoluteFilePath(base + QStringLiteral(".cRPX"))};
 }
 
 bool isAutosavePath(const QString& path)
@@ -80,7 +80,7 @@ std::vector<AutosaveFiles> untitledAutosaves()
         {QStringLiteral("*") + kAutoSuffix + QStringLiteral(".cROM")}, QDir::Files);
     for (const QFileInfo& crom : croms) {
         const QFileInfo crp(directory.absoluteFilePath(crom.completeBaseName() +
-                                                       QStringLiteral(".cRP")));
+                                                       QStringLiteral(".cRPX")));
         if (crp.isFile()) {
             found.emplace_back(std::max(crom.lastModified(), crp.lastModified()),
                                AutosaveFiles{crom.absoluteFilePath(), crp.absoluteFilePath()});

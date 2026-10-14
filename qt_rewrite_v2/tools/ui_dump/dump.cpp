@@ -81,6 +81,11 @@
 #define UI_DUMP_HAS_SECTIONS 1
 #endif
 
+#if __has_include("legacy/CrpxFile.h")
+#include "legacy/LegacyProjectFileWriter.h"
+#define UI_DUMP_HAS_CRPX 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -660,6 +665,11 @@ int main(int argc, char* argv[])
 // States of a tree with the section bar; a tree without it ends here.
 #ifdef UI_DUMP_HAS_SECTIONS
 #include "sections_script.inc"
+#endif
+
+// States of a tree that saves a .cRPX; a tree without it ends here.
+#ifdef UI_DUMP_HAS_CRPX
+#include "format_script.inc"
 #endif
 
     return 0;

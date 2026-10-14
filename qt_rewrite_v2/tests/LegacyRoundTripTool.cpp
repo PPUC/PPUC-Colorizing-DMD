@@ -4,7 +4,8 @@
 // comparison is then against the cROM stored in it. Nothing is written: the serialized bytes
 // are compared with the files as they are produced, so the tool holds the project and small
 // buffers only (plus, for a .cRZ, the cROM libserum unpacks). Usage:
-// colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP>
+// colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP|cRPX>
+// A .cRPX is compared with writeCrpx(); the sections it reports are then 24 bytes early.
 //
 // The 96x32 data of a project with 192x64 original frames is discarded on load, so its
 // extra-plane blocks are expected to differ from a file that had such data. Those blocks are
@@ -23,6 +24,7 @@
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
+#include "legacy/CrpxFile.h"
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectSerializer.h"
@@ -171,7 +173,7 @@ bool report(const char* label,
 int main(int argc, char* argv[])
 {
     if (argc != 3) {
-        std::cerr << "usage: " << argv[0] << " <cROM|cRZ> <cRP>\n";
+        std::cerr << "usage: " << argv[0] << " <cROM|cRZ> <cRP|cRPX>\n";
         return 2;
     }
 
@@ -221,10 +223,13 @@ int main(int argc, char* argv[])
     LegacySectionOffsets sections;
     ComparingBuffer crpBuffer(sections, std::string(argv[2]));
     std::ostream crpStream(&crpBuffer);
-    if (!colorizing::legacy::writeLegacyCrp(crpStream, snapshot, error, &sections)) {
+    const bool crpx = colorizing::legacy::hasCrpxExtension(argv[2]);
+    if (!(crpx ? colorizing::legacy::writeCrpx
+               : colorizing::legacy::writeLegacyCrp)(crpStream, snapshot, error, &sections,
+                                                     nullptr)) {
         std::cerr << "serialize failed: " << error << '\n';
         return 2;
     }
-    const bool crpSame = report("cRP", crpBuffer, sections, false);
+    const bool crpSame = report(crpx ? "cRPX" : "cRP", crpBuffer, sections, false);
     return cromSame && crpSame ? 0 : 1;
 }

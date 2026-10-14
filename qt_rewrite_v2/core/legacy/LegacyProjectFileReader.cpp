@@ -7,6 +7,7 @@
 #include <system_error>
 #include <utility>
 
+#include "legacy/CrpxFile.h"
 #include "legacy/LegacyByteSource.h"
 #include "legacy/LegacyCromFrames.h"
 #include "legacy/LegacyCrzArchive.h"
@@ -98,6 +99,10 @@ LegacyLoadResult LegacyProjectFileReader::load(const LegacyProjectPaths& paths,
     LegacyByteSource crpSource(paths.crpPath, progress, cromBytes);
     if (!crpSource.isOpen()) {
         return makeLoadFailure("could not open .cRP file: " + paths.crpPath);
+    }
+    std::string crpxError;
+    if (probeCrpx(crpSource, crpxError) == CrpxProbe::Invalid) {
+        return makeLoadFailure(crpxError + ": " + paths.crpPath);
     }
     LegacyCrpOriginalParseResult crpOriginals =
         parseLegacyCrpOriginalFrames(crpSource, cromFrames.frameData.metadata);

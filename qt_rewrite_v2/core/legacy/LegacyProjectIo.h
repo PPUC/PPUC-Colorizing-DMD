@@ -12,6 +12,9 @@ namespace colorizing::legacy {
 struct LegacyProjectPaths {
     // For loading this may name a .cRZ archive instead; the cROM is then read from it.
     std::string cromPath;
+    // The editor file. Loading reads a .cRPX (see CrpxFile.h) or a .cRP of the Win32 editor,
+    // whatever the name. Saving writes a .cRPX unless the name ends in something else: a
+    // Win32 .cRP is written only for comparisons with the Win32 editor's files.
     std::string crpPath;
     // Only used for saving: where the .cRZ archive of the saved .cROM goes. Empty writes none.
     std::string crzPath = {};
@@ -28,7 +31,7 @@ enum class LegacyIoStage : int {
     Reading,
     // libserum unpacks the .cRZ; no progress inside it.
     Decompressing,
-    // Writing the .cROM and .cRP; done/total count bytes.
+    // Writing the .cROM and the editor file; done/total count bytes.
     Writing,
     // libserum packs the written .cROM into the .cRZ; no progress inside it.
     Compressing,

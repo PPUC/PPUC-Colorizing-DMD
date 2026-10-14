@@ -115,7 +115,7 @@ void ProjectTaskDialog::updateProgress()
         text = QStringLiteral("Unpacking the .cRZ archive…");
         break;
     case legacy::LegacyIoStage::Writing:
-        text = QStringLiteral("Writing the .cROM and .cRP: %1 of %2 MB")
+        text = QStringLiteral("Writing the .cROM and .cRPX: %1 of %2 MB")
                    .arg(megabytes(done), megabytes(total));
         break;
     case legacy::LegacyIoStage::Compressing:

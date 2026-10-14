@@ -247,7 +247,7 @@ void testDialogTexts()
     progress.total = 4 * 1024 * 1024;
     progress.done = 1024 * 1024;
     dialog.updateProgress();
-    expect(dialog.statusText() == QStringLiteral("Writing the .cROM and .cRP: 1 of 4 MB"),
+    expect(dialog.statusText() == QStringLiteral("Writing the .cROM and .cRPX: 1 of 4 MB"),
            "writing shows the bytes: " + dialog.statusText().toStdString());
     progress.setStage(legacy::LegacyIoStage::Compressing);
     dialog.updateProgress();

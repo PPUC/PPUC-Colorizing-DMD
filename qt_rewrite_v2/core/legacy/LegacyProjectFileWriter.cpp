@@ -5,6 +5,7 @@
 #include <string>
 #include <system_error>
 
+#include "legacy/CrpxFile.h"
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
@@ -81,6 +82,9 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
         return makeSaveFailure("the .cRZ path must differ from the .cROM and .cRP paths");
     }
 
+    // The editor file is a .cRPX unless a .cRP of the Win32 editor is asked for by name.
+    const bool crpx = hasCrpxExtension(paths.crpPath);
+
     // All files are written completely beside their targets first, so a failed or interrupted
     // save never leaves a truncated project behind. The archive is built from the temporary
     // .cROM, so it holds exactly the bytes that become the .cROM.
@@ -89,14 +93,16 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     // nothing but the temporary files has been touched.
     if (progress) {
         progress->done.store(0);
-        progress->total.store(legacyCromByteCount(snapshot) + legacyCrpByteCount(snapshot));
+        progress->total.store(legacyCromByteCount(snapshot) +
+                              (crpx ? crpxByteCount(snapshot) : legacyCrpByteCount(snapshot)));
         progress->setStage(LegacyIoStage::Writing);
     }
     std::string errorMessage;
     bool written = !isCancelled(progress) &&
                    writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot,
                                       progress, errorMessage) &&
-                   writeTemporaryFile(paths.crpPath, ".cRP", writeLegacyCrp, snapshot, progress,
+                   writeTemporaryFile(paths.crpPath, crpx ? ".cRPX" : ".cRP",
+                                      crpx ? writeCrpx : writeLegacyCrp, snapshot, progress,
                                       errorMessage);
     if (written && !paths.crzPath.empty() && !isCancelled(progress)) {
         if (progress) {

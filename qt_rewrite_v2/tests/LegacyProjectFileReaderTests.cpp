@@ -1,6 +1,7 @@
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -10,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "legacy/CrpxFile.h"
 #include "legacy/LegacyCrzArchive.h"
 #include "platform/Utf8Path.h"
 #include "render/CanvasLayout.h"
@@ -909,8 +911,85 @@ void testFileWriterFailureLeavesNoTemporaryFiles()
 
 }  // namespace
 
+void testFileWriterSavesCrpx()
+{
+    const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path sourceCrpPath = uniqueTempPath(".cRP");
+    writeBytes(sourceCromPath, makeModernCromWithFrames());
+    writeBytes(sourceCrpPath, makeCrpWithPalettes("file_rom"));
+    const LegacyProjectFileReader reader;
+    const LegacyLoadResult source = reader.load(
+        LegacyProjectPaths{utf8FromPath(sourceCromPath), utf8FromPath(sourceCrpPath)});
+    std::filesystem::remove(sourceCromPath);
+    std::filesystem::remove(sourceCrpPath);
+    expect(source.ok, "cRPX test initial load");
+
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    const LegacyProjectFileWriter writer;
+    expect(writer.save({utf8FromPath(cromPath), utf8FromPath(crpxPath)}, source.snapshot).ok,
+           "the writer saves a .cRPX");
+    expect(writer.save({utf8FromPath(uniqueTempPath(".cROM")), utf8FromPath(crpPath)},
+                       source.snapshot)
+               .ok,
+           "and a .cRP when asked for one by name");
+
+    // The Win32 editor's cRP behind a header it does not know.
+    const std::vector<uint8_t> crpx = readBytes(crpxPath);
+    const std::vector<uint8_t> crp = readBytes(crpPath);
+    expect(crpx.size() == colorizing::legacy::kCrpxHeaderBytes + crp.size(),
+           "the .cRPX is the header and the cRP");
+    expect(std::string(crpx.begin(), crpx.begin() + 8) == "CDMDcRPX" && crpx[8] == 1 &&
+               crpx[12] == colorizing::legacy::kCrpxHeaderBytes,
+           "the .cRPX header names the format and its version");
+    uint64_t crpSize = 0;
+    for (int i = 7; i >= 0; --i) {
+        crpSize = (crpSize << 8) | crpx[16 + i];
+    }
+    expect(crpSize == crp.size() &&
+               std::equal(crp.begin(), crp.end(),
+                          crpx.begin() + colorizing::legacy::kCrpxHeaderBytes),
+           "the cRP part is the .cRP");
+
+    const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpxPath)};
+    const LegacyLoadResult reloaded = reader.load(paths);
+    expect(reloaded.ok && reloaded.snapshot.frames.size() == 2 &&
+               reloaded.snapshot.palettes[1].name == "Warm palette",
+           "the .cRPX loads");
+
+    // Chunks of later versions after the cRP part are skipped.
+    std::vector<uint8_t> extended = crpx;
+    for (const char c : std::string("TEST")) {
+        extended.push_back(static_cast<uint8_t>(c));
+    }
+    appendU32(extended, 0);
+    appendU32(extended, 3);
+    appendU32(extended, 0);
+    appendRepeatedU8(extended, 7, 3);
+    writeBytes(crpxPath, extended);
+    expect(reader.load(paths).ok, "a .cRPX with a chunk it does not know loads");
+
+    std::vector<uint8_t> newer = crpx;
+    newer[8] = 2;
+    writeBytes(crpxPath, newer);
+    const LegacyLoadResult refused = reader.load(paths);
+    expect(!refused.ok && refused.error.message.find("newer") != std::string::npos,
+           "a .cRPX of a newer format is refused");
+
+    std::vector<uint8_t> damaged = crpx;
+    damaged[20] = 1;
+    writeBytes(crpxPath, damaged);
+    expect(!reader.load(paths).ok, "a .cRPX whose cRP part is cut off is refused");
+
+    for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath}) {
+        std::filesystem::remove(path);
+    }
+}
+
 void runLegacyProjectFileReaderTests()
 {
+    testFileWriterSavesCrpx();
     testFileReaderLoadsModernProject();
     testFileReaderReportsMissingCrom();
     testFileReaderRejectsLegacyPalettedCrom();

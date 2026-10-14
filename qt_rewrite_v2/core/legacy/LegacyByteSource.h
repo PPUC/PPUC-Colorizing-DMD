@@ -37,6 +37,9 @@ public:
     // The file could not be read although it is long enough.
     [[nodiscard]] bool readFailed() const { return m_readFailed; }
     [[nodiscard]] bool cancelled() const { return m_cancelled; }
+    // Ends the data at `end` (an offset from the start), for a file that holds more after
+    // what is parsed. size() becomes end.
+    void limitTo(std::size_t end);
 
     // Up to `count` bytes from the current position without consuming them (fewer at the end
     // of the data). Valid until the next call.

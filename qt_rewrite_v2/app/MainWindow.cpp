@@ -293,6 +293,32 @@ QString siblingProjectFile(const QString& path, const QString& extension)
     return info.dir().absoluteFilePath(baseName + QChar('.') + extension);
 }
 
+// The editor file this editor saves beside a .cROM (or .cRZ): "<name>.cRPX". The Win32
+// editor's "<name>.cRP" is only read.
+QString editorFileFor(const QString& cromPath)
+{
+    return siblingProjectFile(cromPath, QStringLiteral("cRPX"));
+}
+
+bool isCrpxPath(const QString& path)
+{
+    return path.endsWith(QStringLiteral(".cRPX"), Qt::CaseInsensitive);
+}
+
+// After a save: renames the Win32 editor's "<name>.cRP" beside the saved .cROM to
+// "<name>.cRP.bak". The Win32 editor opens a .cROM with the .cRP of the same name, so it
+// cannot open a project saved here any more. Returns the renamed file, or nothing.
+QString retireWin32EditorFile(const QString& cromPath)
+{
+    const QString crpPath = siblingProjectFile(cromPath, QStringLiteral("cRP"));
+    if (!QFileInfo(crpPath).isFile()) {
+        return {};
+    }
+    const QString backupPath = crpPath + QStringLiteral(".bak");
+    QFile::remove(backupPath);
+    return QFile::rename(crpPath, backupPath) ? crpPath : QString();
+}
+
 QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd)
 {
     switch (command.target().kind) {
@@ -1496,17 +1522,18 @@ void MainWindow::openProject()
         return;
     }
 
-    QFileInfo cromInfo(cromPath);
-    const QString defaultCrpPath =
-        cromInfo.dir().absoluteFilePath(cromInfo.completeBaseName() + QStringLiteral(".cRP"));
-
-    QString crpPath = defaultCrpPath;
+    // The project's editor file: the .cRPX this editor saves, or the .cRP of a project the
+    // Win32 editor saved last.
+    QString crpPath = editorFileFor(cromPath);
+    if (!QFileInfo::exists(crpPath)) {
+        crpPath = siblingProjectFile(cromPath, QStringLiteral("cRP"));
+    }
     if (!QFileInfo::exists(crpPath)) {
         crpPath = QFileDialog::getOpenFileName(
             this,
-            QStringLiteral("Open matching cRP"),
-            cromInfo.dir().absolutePath(),
-            QStringLiteral("Serum editor project (*.cRP *.crp);;All files (*)"));
+            QStringLiteral("Open matching cRPX or cRP"),
+            QFileInfo(cromPath).dir().absolutePath(),
+            QStringLiteral("Serum editor project (*.cRPX *.cRP);;All files (*)"));
         if (crpPath.isEmpty()) {
             return;
         }
@@ -1521,7 +1548,7 @@ void MainWindow::openRecentProject(const QString& entry)
         return;
     }
     QString cromPath = recentProjectCromPath(entry);
-    const QString crpPath = recentProjectCrpPath(entry);
+    QString crpPath = recentProjectCrpPath(entry);
     if (cromPath.isEmpty() || crpPath.isEmpty()) {
         statusBar()->showMessage(QStringLiteral("Recent project entry is incomplete"), 4000);
         return;
@@ -1534,6 +1561,10 @@ void MainWindow::openRecentProject(const QString& entry)
         if (QFileInfo::exists(other)) {
             cromPath = other;
         }
+    }
+    // A Win32 project has its .cRPX beside the .cRP since it was saved here.
+    if (!isCrpxPath(crpPath) && QFileInfo::exists(editorFileFor(cromPath))) {
+        crpPath = editorFileFor(cromPath);
     }
     loadProject(cromPath, crpPath);
 }
@@ -1603,7 +1634,13 @@ bool MainWindow::saveProject()
 
     m_document->markClean();
     updateProjectHeaderStatus();
-    statusBar()->showMessage(QStringLiteral("Project saved"), 3000);
+    const QString retired = retireWin32EditorFile(m_currentCromPath);
+    statusBar()->showMessage(
+        retired.isEmpty()
+            ? QStringLiteral("Project saved")
+            : QStringLiteral("Project saved; the Win32 editor's %1 was renamed to %1.bak")
+                  .arg(QFileInfo(retired).fileName()),
+        retired.isEmpty() ? 3000 : 8000);
     return true;
 }
 
@@ -1640,7 +1677,7 @@ bool MainWindow::saveProjectAs()
     const QFileInfo targetCromInfo(targetCromPath);
     const QString targetCrpPath =
         targetCromInfo.dir().absoluteFilePath(targetCromInfo.completeBaseName() +
-                                              QStringLiteral(".cRP"));
+                                              QStringLiteral(".cRPX"));
     if (!untitled && targetCromPath == m_currentCromPath) {
         return saveProject();
     }
@@ -2374,6 +2411,8 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
         return;
     }
 
+    // A project of the Win32 editor (a .cRP) is saved with a .cRPX beside its .cROM.
+    const bool win32Project = !crpPath.isEmpty() && !isCrpxPath(crpPath);
     try {
         m_document = std::move(*result.document);
         result.document.reset();
@@ -2381,7 +2420,7 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
         m_currentCromPath = isCrzPath(cromPath)
                                 ? siblingProjectFile(cromPath, QStringLiteral("cROM"))
                                 : cromPath;
-        m_currentCrpPath = crpPath;
+        m_currentCrpPath = win32Project ? editorFileFor(m_currentCromPath) : crpPath;
         if (!cromPath.isEmpty() && !crpPath.isEmpty()) {
             rememberRecentProject(cromPath, crpPath);
         }
@@ -2404,6 +2443,12 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
     }
 
     refreshProjectSummary();
+    if (win32Project) {
+        statusBar()->showMessage(
+            QStringLiteral("A project of the Win32 editor: once saved here, the Win32 editor "
+                           "cannot open it any more"),
+            8000);
+    }
 }
 
 std::optional<Autosaver::Job> MainWindow::autosaveJob()

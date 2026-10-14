@@ -49,10 +49,14 @@ void touch(const QString& path, const QDateTime& time)
 void testNames()
 {
     const AutosaveFiles files = app::autosaveFilesFor(QStringLiteral("/p/afm_113b.cROM"),
-                                                      QStringLiteral("/p/afm_113b.cRP"));
+                                                      QStringLiteral("/p/afm_113b.cRPX"));
     expect(files.cromPath == QStringLiteral("/p/afm_113b(auto).cROM") &&
-               files.crpPath == QStringLiteral("/p/afm_113b(auto).cRP"),
-           "the Win32 editor's names beside the project");
+               files.crpPath == QStringLiteral("/p/afm_113b(auto).cRPX"),
+           "the Win32 editor's names beside the project, with a .cRPX");
+    expect(app::autosaveFilesFor(QStringLiteral("/p/afm_113b.cROM"),
+                                 QStringLiteral("/p/afm_113b.cRP"))
+                   .crpPath == QStringLiteral("/p/afm_113b(auto).cRPX"),
+           "a Win32 project's autosave has a .cRPX too");
     expect(app::isAutosavePath(files.cromPath) &&
                !app::isAutosavePath(QStringLiteral("/p/afm_113b.cROM")),
            "an autosave is recognised by its name");
@@ -67,7 +71,7 @@ void testWhichAutosaveIsOffered()
 {
     QTemporaryDir directory;
     const QString crom = directory.filePath(QStringLiteral("rom.cROM"));
-    const QString crp = directory.filePath(QStringLiteral("rom.cRP"));
+    const QString crp = directory.filePath(QStringLiteral("rom.cRPX"));
     const AutosaveFiles autosave = app::autosaveFilesFor(crom, crp);
     const QDateTime base = QDateTime::currentDateTime().addSecs(-3600);
     touch(crom, base);
@@ -120,7 +124,7 @@ void testWriter()
     QTemporaryDir directory;
     const AutosaveFiles files =
         app::autosaveFilesFor(directory.filePath(QStringLiteral("sub/rom.cROM")),
-                              directory.filePath(QStringLiteral("sub/rom.cRP")));
+                              directory.filePath(QStringLiteral("sub/rom.cRPX")));
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
     document.setFrameDurationMs(0, 77);

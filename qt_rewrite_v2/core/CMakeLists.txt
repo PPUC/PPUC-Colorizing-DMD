@@ -24,6 +24,7 @@ add_library(colorizing_qt_v2_core STATIC
     export/GifWriter.cpp
     import/FrameDumpImport.cpp
     import/FrameDumpReader.cpp
+    legacy/CrpxFile.cpp
     legacy/LegacyByteSource.cpp
     legacy/LegacyCromFrames.cpp
     legacy/LegacyCromMetadata.cpp

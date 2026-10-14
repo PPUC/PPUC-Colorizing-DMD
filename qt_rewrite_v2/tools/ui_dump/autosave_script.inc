@@ -6,7 +6,7 @@
     QDir().mkpath(workPath);
     const QDir work(workPath);
     const QString cromPath = work.filePath(QStringLiteral("auto.cROM"));
-    const QString crpPath = work.filePath(QStringLiteral("auto.cRP"));
+    const QString crpPath = work.filePath(QStringLiteral("auto.cRPX"));
 
     const auto D = [&](const char* title) {
         dump(title, w);

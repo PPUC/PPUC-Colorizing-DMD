@@ -9,7 +9,7 @@
     QDir().mkpath(workPath);
     const QDir work(workPath);
     const QString cromPath = work.filePath(QStringLiteral("progress.cROM"));
-    const QString crpPath = work.filePath(QStringLiteral("progress.cRP"));
+    const QString crpPath = work.filePath(QStringLiteral("progress.cRPX"));
 
     // What the dialog hook saw; printed after the dump of the state it led to.
     std::string dialogLog;

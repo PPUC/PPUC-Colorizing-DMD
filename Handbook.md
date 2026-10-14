@@ -5,19 +5,24 @@ Update it in the same change set whenever a user-visible feature changes.
 
 ## Project Files
 
-The Qt rewrite edits legacy Serum editor projects directly:
+The Qt rewrite opens the projects of the Win32 editor (CDMD 3.17.3) and saves its own:
 
-- `.cROM` stores colorized frame data and runtime project data.
-- `.cRP` stores original/reference frames and editor-side metadata such as sprite names and frame durations.
+- `.cROM` stores colorized frame data and runtime project data. It is what libserum reads, and
+  stays in the format libserum knows.
+- `.cRPX` is this editor's editor file: original/reference frames and editor-side metadata such
+  as sprite names and frame durations. Every save writes it.
+- `.cRP` is the Win32 editor's editor file, with the same content. It is only read: a project
+  of the Win32 editor is opened with it and saved with a `.cRPX` (see "The .cRPX and the Win32
+  editor").
 - `.cRZ` is a zip archive holding the `.cROM`, in one entry named `<ROM name>.cRom`. It is the
-  form in which a colorization is usually handed around, together with the `.cRP`. The editor
-  opens it directly and writes it on every save.
+  form in which a colorization is usually handed around, together with the editor file. The
+  editor opens it directly and writes it on every save.
 - `.cROMc` is not edited directly.
 - A frame dump (`.txt`) is what a project starts from and what frames are added from: the
   frames a ROM showed, as text. It is only read, see "Creating A Project From A Dump".
 
-Saving writes complete `.cROM` and `.cRP` files from the in-memory project in the legacy file
-layout, plus the `.cRZ` archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
+Saving writes complete `.cROM` and `.cRPX` files from the in-memory project, plus the `.cRZ`
+archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
 saved as revision 20, everything older as revision 19, so a save never moves a project to a
 revision an older libserum cannot read.
 
@@ -62,6 +67,25 @@ It also carries structured background data from `.cROM`:
 - Per-frame background assignments.
 - Per-frame SD and HD background masks.
 
+### The .cRPX and the Win32 editor
+
+A project saved by this editor can no longer be opened by the Win32 editor. This is on purpose:
+the editor file has to grow for new features, which the Win32 editor would not understand.
+
+- The Win32 editor opens a `.cROM` with the `.cRP` of the same name, and reads that file without
+  any check. This editor never writes a `.cRP`: its `.cRPX` holds what a `.cRP` holds, behind a
+  header the Win32 editor does not know (`CDMDcRPX`, a format version, the size of that part),
+  and room for more data after it.
+- When a save writes a project that has a `.cRP` beside it (a project of the Win32 editor saved
+  here for the first time), that `.cRP` is renamed to `<name>.cRP.bak`, so that the Win32 editor
+  cannot open the new `.cROM` with the old editor file. The status bar says so. Opening a
+  project of the Win32 editor says in the status bar that saving it here has this effect.
+- To go back to the Win32 editor, the `.cRP.bak` belongs to the `.cROM` of the save before; it
+  does not match the `.cROM` this editor wrote.
+- A `.cRPX` of a newer format version than this editor knows is refused when opened.
+
+The `.cROM` and `.cRZ` stay readable by libserum, and so by every machine.
+
 ## Opening Projects
 
 Use `File -> Open Project...` and select a `.cROM` or a `.cRZ` file.
@@ -72,7 +96,10 @@ project asks where to first) and goes on only if it was written, `Discard Change
 without saving, `Cancel` (or Escape) stays with the project as it is. A project without unsaved
 changes is closed without a question.
 
-The app looks for a matching `.cRP` next to it with the same base name. If it cannot find that file, it asks for the `.cRP` path.
+The app looks for the editor file next to it with the same base name: the `.cRPX`, or, for a
+project of the Win32 editor, the `.cRP`. If it finds neither, it asks for one. A project opened
+with its `.cRP` is saved with a `.cRPX` beside its `.cROM` (see "The .cRPX and the Win32
+editor").
 
 Opening a `.cRZ` reads the colorization from the archive; nothing is unpacked to disk. The
 archive's first file entry is taken, whatever it is named. If a `.cROM` with the same base name
@@ -117,9 +144,10 @@ Opening a project always starts in the frame view: `Edit Sprite` and `Select Cap
 off, a pending sprite capture selection is dropped, and the mask browser selection starts again at
 the first frame's mask.
 Recent-project entries show the full path of the file that was opened (`.cROM` or `.cRZ`) and
-internally remember that path and the `.cRP` path. If that file no longer exists when the entry
-is used, the file with the same base name and the other of the two extensions is opened instead,
-so an entry keeps working whether only the archive or only the loose `.cROM` is left.
+internally remember that path and the editor file's path. If that file no longer exists when the
+entry is used, the file with the same base name and the other of the two extensions is opened
+instead, so an entry keeps working whether only the archive or only the loose `.cROM` is left. An
+entry of a project of the Win32 editor that was saved here since opens its `.cRPX`.
 
 ## Creating A Project From A Dump
 
@@ -279,13 +307,13 @@ window title shows the file name instead of `<ROM name> (not saved yet)`, the pr
 `File -> Open Recent`, and `Save` writes to those files without asking.
 
 Every save writes three files with the same base name into the project folder: `<name>.cROM`,
-`<name>.cRP` and `<name>.cRZ`. The archive holds exactly the bytes of the `.cROM` just written,
+`<name>.cRPX` and `<name>.cRZ`. The archive holds exactly the bytes of the `.cROM` just written,
 deflate-compressed, in one entry named `<ROM name>.cRom` (the ROM name stored in the project,
 which need not be the file name), as the Win32 editor writes it. An archive that already exists
 under another spelling of the extension (`.crz`) is the one that is replaced.
 
 Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cROM`
-path and writes the `.cROM`, a `.cRP` and a `.cRZ` with the same base name there.
+path and writes the `.cROM`, a `.cRPX` and a `.cRZ` with the same base name there.
 
 Use `File -> Export Current Frame PNG...` to export the current frame as a PNG. The picture is
 libserum's output for the frame, the one a machine shows, not the editor's own rendering; see
@@ -317,7 +345,7 @@ In HD mode, selected frames without HD data are skipped. The import is undoable 
 Save behavior:
 
 - Saving runs in the background. A save that is done within a moment (about 0.3 s) shows
-  nothing; a longer one brings up the `Saving Project` window: `Writing the .cROM and .cRP: N of
+  nothing; a longer one brings up the `Saving Project` window: `Writing the .cROM and .cRPX: N of
   M MB` with a bar, then `Packing the .cRZ archive (this step cannot be interrupted)...` with a
   busy bar, then `Replacing the project files...`. While it is up the main window takes no
   input at all: nothing can be edited, no menu or shortcut works, so the files hold exactly the
@@ -420,7 +448,7 @@ project's files (checked on `afm_113b`, `hook_501`, `trn_174h`, `smb3` and the 1
 ### Autosave and recovery
 
 Every 10 minutes, as in CDMD, a project with changes that were not autosaved yet is written to
-`<name>(auto).cROM` and `<name>(auto).cRP` beside its files (`afm_113b(auto).cROM` for
+`<name>(auto).cROM` and `<name>(auto).cRPX` beside its files (`afm_113b(auto).cROM` for
 `afm_113b.cROM`; for a project opened from its `.cRZ`, beside the `.cRZ`). A new project that
 was never saved is autosaved under its ROM name in the editor's own folder (on Windows
 `%LOCALAPPDATA%\ColorizingDMD\ColorizingDMDQtV2\autosave`, on macOS
