@@ -5,6 +5,7 @@
 
 #include <QAbstractItemView>
 #include <QAction>
+#include <QCloseEvent>
 #include <QApplication>
 #include <QActionGroup>
 #include <QColorDialog>
@@ -48,6 +49,7 @@
 #include "FrameImageUtils.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
+#include "ListSelection.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
 #include "dialogs/DumpImportDialog.h"
@@ -1219,8 +1221,21 @@ void MainWindow::createCentralView()
     setCentralWidget(central);
 }
 
+void MainWindow::closeEvent(QCloseEvent* event)
+{
+    if (!confirmClosingProject(QStringLiteral("Quit"))) {
+        event->ignore();
+        return;
+    }
+    setPlaybackRunning(false);
+    event->accept();
+}
+
 void MainWindow::openProject()
 {
+    if (!confirmClosingProject(QStringLiteral("Open Project"))) {
+        return;
+    }
     const QString cromPath = QFileDialog::getOpenFileName(
         this,
         QStringLiteral("Open cROM or cRZ"),
@@ -1252,6 +1267,9 @@ void MainWindow::openProject()
 
 void MainWindow::openRecentProject(const QString& entry)
 {
+    if (!confirmClosingProject(QStringLiteral("Open Recent Project"))) {
+        return;
+    }
     QString cromPath = recentProjectCromPath(entry);
     const QString crpPath = recentProjectCrpPath(entry);
     if (cromPath.isEmpty() || crpPath.isEmpty()) {
@@ -1377,27 +1395,45 @@ bool MainWindow::saveProjectAs()
     return false;
 }
 
-bool MainWindow::confirmReplacingProject()
+UnsavedChangesAnswer MainWindow::askAboutUnsavedChanges(const QString& action)
 {
-    if (!m_document || !m_document->isDirty()) {
-        return true;
+    if (m_unsavedChangesAnswer) {
+        return m_unsavedChangesAnswer(action);
     }
-    QMessageBox confirm(this);
-    confirm.setIcon(QMessageBox::Warning);
-    confirm.setWindowTitle(QStringLiteral("New Project"));
-    confirm.setText(QStringLiteral("The current project has changes that are not saved."));
-    confirm.setInformativeText(
-        QStringLiteral("Creating a new project closes it and the changes are lost."));
+    QMessageBox question(this);
+    question.setIcon(QMessageBox::Warning);
+    question.setWindowTitle(action);
+    question.setText(QStringLiteral("The current project has changes that are not saved."));
+    question.setInformativeText(
+        isUntitledProject()
+            ? QStringLiteral("Save asks where to save the new project first. Discard Changes "
+                             "loses them.")
+            : QStringLiteral("Save writes them first. Discard Changes loses them."));
+    QPushButton* saveButton = question.addButton(QStringLiteral("Save"), QMessageBox::AcceptRole);
     QPushButton* discardButton =
-        confirm.addButton(QStringLiteral("Discard Changes"), QMessageBox::DestructiveRole);
-    confirm.setDefaultButton(confirm.addButton(QMessageBox::Cancel));
-    confirm.exec();
-    return confirm.clickedButton() == discardButton;
+        question.addButton(QStringLiteral("Discard Changes"), QMessageBox::DestructiveRole);
+    QPushButton* cancelButton = question.addButton(QMessageBox::Cancel);
+    question.setDefaultButton(saveButton);
+    question.setEscapeButton(cancelButton);
+    question.exec();
+    if (question.clickedButton() == saveButton) {
+        return UnsavedChangesAnswer::Save;
+    }
+    return question.clickedButton() == discardButton ? UnsavedChangesAnswer::Discard
+                                                     : UnsavedChangesAnswer::Cancel;
+}
+
+bool MainWindow::confirmClosingProject(const QString& action)
+{
+    return mayCloseProject(
+        m_document && m_document->isDirty(),
+        [this, &action]() { return askAboutUnsavedChanges(action); },
+        [this]() { return saveProject(); });
 }
 
 void MainWindow::newProjectFromDump()
 {
-    if (!confirmReplacingProject()) {
+    if (!confirmClosingProject(QStringLiteral("New Project From Dump"))) {
         return;
     }
     const QString path = QFileDialog::getOpenFileName(
@@ -1922,11 +1958,9 @@ void MainWindow::goToFrame(std::size_t frameIndex)
     if (!m_frameList) {
         return;
     }
-    for (int row = 0; row < m_frameList->count(); ++row) {
-        if (m_frameList->item(row)->data(Qt::UserRole).toULongLong() == frameIndex) {
-            m_frameList->setCurrentRow(row, QItemSelectionModel::ClearAndSelect);
-            return;
-        }
+    if (QListWidgetItem* item = frameListItem(frameIndex)) {
+        selectSingleRow(*m_frameList, m_frameList->row(item));
+        return;
     }
     statusBar()->showMessage(QStringLiteral("Frame %1 is hidden by the frame filter")
                                  .arg(static_cast<qulonglong>(frameIndex)),
@@ -2063,6 +2097,7 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
     if (!m_frameList) {
         return;
     }
+    m_frameRows.clear();
     m_frameList->clear();
     if (!m_document) {
         return;
@@ -2084,15 +2119,44 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
         }
     }
 
+    rebuildFrameRows();
+
     if (selectedRow >= 0) {
-        m_frameList->setCurrentRow(selectedRow);
+        selectSingleRow(*m_frameList, selectedRow);
     } else if (m_frameList->count() > 0) {
-        m_frameList->setCurrentRow(0);
+        selectSingleRow(*m_frameList, 0);
     } else {
         selectFrame(-1);
     }
     m_frameThumbnails->scheduleRowsInView();
     updatePlaybackControls();
+}
+
+void MainWindow::rebuildFrameRows()
+{
+    m_frameRows.assign(m_document ? m_document->frameCount() : 0, -1);
+    if (!m_frameList) {
+        return;
+    }
+    for (int row = 0; row < m_frameList->count(); ++row) {
+        const std::size_t frameIndex = m_frameList->item(row)->data(Qt::UserRole).toULongLong();
+        if (frameIndex < m_frameRows.size()) {
+            m_frameRows[frameIndex] = row;
+        }
+    }
+}
+
+QListWidgetItem* MainWindow::frameListItem(std::size_t frameIndex) const
+{
+    if (!m_frameList || frameIndex >= m_frameRows.size() || m_frameRows[frameIndex] < 0) {
+        return nullptr;
+    }
+    QListWidgetItem* item = m_frameList->item(m_frameRows[frameIndex]);
+    // The map is rebuilt with the list; an item that says otherwise means it was not.
+    if (!item || item->data(Qt::UserRole).toULongLong() != frameIndex) {
+        return nullptr;
+    }
+    return item;
 }
 
 bool MainWindow::isHdOnlyProject() const
@@ -2148,6 +2212,34 @@ QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
                                    .arg(reasons.join(QStringLiteral("; ")));
 }
 
+QStringList MainWindow::frameReferenceProblemTexts(std::size_t frameIndex) const
+{
+    QStringList lines;
+    if (!m_document || frameIndex >= m_document->frameCount()) {
+        return lines;
+    }
+    const document::FrameReferenceProblems problems =
+        m_document->frameReferenceProblems(frameIndex);
+    if (problems.comparisonMask) {
+        lines << QStringLiteral("Comparison mask %1 does not exist; the frame is compared "
+                                "without a mask")
+                     .arg(static_cast<int>(m_document->comparisonMaskId(frameIndex)));
+    }
+    if (problems.background) {
+        lines << QStringLiteral("Background %1 does not exist")
+                     .arg(static_cast<int>(m_document->backgroundId(frameIndex)));
+    }
+    if (problems.sprite) {
+        lines << QStringLiteral("A sprite slot names a sprite that does not exist");
+    }
+    if (problems.spriteSlotGap) {
+        lines << QStringLiteral("Sprite slot %1 is empty: the sprites after slot %1 are ignored "
+                                "by the runtime")
+                     .arg(static_cast<int>(*problems.spriteSlotGap));
+    }
+    return lines;
+}
+
 QString MainWindow::frameListItemToolTip(std::size_t frameIndex) const
 {
     QStringList lines;
@@ -2155,6 +2247,7 @@ QString MainWindow::frameListItemToolTip(std::size_t frameIndex) const
     if (!gaps.isEmpty()) {
         lines << gaps;
     }
+    lines << frameReferenceProblemTexts(frameIndex);
     if (m_document && frameIndex < m_document->frameCount() &&
         legacy::isFrameSkippedAtRuntime(*m_document, frameIndex)) {
         lines << kInactiveFrameToolTip;
@@ -2211,7 +2304,7 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     if (showsHdAndSd() && m_document->hasHdFrame(frameIndex)) {
         details << QStringLiteral("HD");
     }
-    if (m_document->dynamicData(frameIndex)) {
+    if (m_document->hasDynamicPixels(frameIndex)) {
         details << QStringLiteral("Dyn");
     }
     const std::optional<document::FrameBackgroundData>& backgroundData =
@@ -2243,6 +2336,9 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     }
     if (!gaps.sprites.empty()) {
         details << QStringLiteral("Spr: %1").arg(kNoPictureText);
+    }
+    if (m_document->frameReferenceProblems(frameIndex).any()) {
+        details << QStringLiteral("ref. problem");
     }
     return QStringLiteral("%1\n%2")
         .arg(static_cast<int>(frameIndex))
@@ -2333,6 +2429,38 @@ void MainWindow::refreshComponentBrowsers()
     updatePaletteBrowserSelection();
     updateMaskControls();
     updatePaletteControls();
+}
+
+void MainWindow::scheduleMaskIconUpdate(std::size_t maskIndex)
+{
+    if (std::find(m_pendingMaskIcons.begin(), m_pendingMaskIcons.end(), maskIndex) !=
+        m_pendingMaskIcons.end()) {
+        return;
+    }
+    if (m_pendingMaskIcons.empty()) {
+        QTimer::singleShot(0, this, [this]() { updatePendingMaskIcons(); });
+    }
+    m_pendingMaskIcons.push_back(maskIndex);
+}
+
+void MainWindow::updatePendingMaskIcons()
+{
+    const std::vector<std::size_t> pending = std::move(m_pendingMaskIcons);
+    m_pendingMaskIcons.clear();
+    if (!m_maskList || !m_document) {
+        return;
+    }
+    for (std::size_t maskIndex : pending) {
+        if (maskIndex >= m_document->comparisonMaskCount() ||
+            maskIndex >= static_cast<std::size_t>(m_maskList->count())) {
+            continue;
+        }
+        QListWidgetItem* item = m_maskList->item(static_cast<int>(maskIndex));
+        if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(maskIndex)) {
+            item->setIcon(previewIcon(renderMaskPreviewImage(m_document->comparisonMask(maskIndex)),
+                                      QSize(160, 42)));
+        }
+    }
 }
 
 void MainWindow::updateMaskBrowserSelection()
@@ -2426,7 +2554,7 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         return backgroundData && backgroundData->backgroundId < m_document->backgroundCount();
     }
     if (filter == FrameFilter::Dynamic) {
-        return m_document->dynamicData(frameIndex).has_value();
+        return m_document->hasDynamicPixels(frameIndex);
     }
     if (filter == FrameFilter::Sprites) {
         const std::vector<document::FrameSpriteReference>& references =
@@ -2579,6 +2707,9 @@ void MainWindow::updateFrameStatusText()
     }
     if (inactive) {
         toolTip << kInactiveFrameToolTip;
+    }
+    for (const QString& problem : frameReferenceProblemTexts(*frameIndex)) {
+        toolTip << QStringLiteral("%1.").arg(problem);
     }
     m_frameStatusLabel->setToolTip(toolTip.join(QChar('\n')));
 }
@@ -2784,7 +2915,7 @@ void MainWindow::advancePlaybackFrame()
             return;
         }
     }
-    m_frameList->setCurrentRow(nextRow);
+    selectSingleRow(*m_frameList, nextRow);
     if (m_playbackTimer && m_playbackTimer->isActive()) {
         m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
     }
@@ -2996,22 +3127,49 @@ MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
     if (!m_document) {
         return count;
     }
-    for (std::size_t frameIndex : selectedFrameIndices()) {
-        if (attribute == edit::FrameAttribute::BackgroundId &&
-            !m_document->backgroundData(frameIndex)) {
-            ++count.skipped;
-            continue;
+    // Each frame gets its own command, but the views are refreshed once for all of them, as
+    // refreshAfterEdit() does for one: with every frame selected, a refresh per frame would
+    // cost the number of frames squared.
+    std::vector<std::size_t> changedFrames;
+    const auto refreshViews = [this, &changedFrames]() {
+        if (changedFrames.empty()) {
+            return;
         }
-        const uint32_t oldValue = edit::frameAttributeValue(*m_document, frameIndex, attribute);
-        if (oldValue == value) {
-            continue;
+        m_preview->update();
+        updateFrameMetadataControls();
+        updateFrameListItems(changedFrames);
+        updateFrameStatusText();
+        if (m_playbackTimer && m_playbackTimer->isActive()) {
+            m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
         }
-        commitEdit(std::make_unique<edit::FrameAttributeEditCommand>(frameIndex,
-                                                                     attribute,
-                                                                     oldValue,
-                                                                     value));
-        ++count.changed;
+        updateProjectHeaderStatus();
+    };
+    try {
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            if (attribute == edit::FrameAttribute::BackgroundId &&
+                !m_document->backgroundData(frameIndex)) {
+                ++count.skipped;
+                continue;
+            }
+            const uint32_t oldValue =
+                edit::frameAttributeValue(*m_document, frameIndex, attribute);
+            if (oldValue == value) {
+                continue;
+            }
+            auto command = std::make_unique<edit::FrameAttributeEditCommand>(frameIndex,
+                                                                             attribute,
+                                                                             oldValue,
+                                                                             value);
+            command->apply(*m_document);
+            m_undoHistories.push(edit::historyKey(command->target()), std::move(command));
+            changedFrames.push_back(frameIndex);
+            ++count.changed;
+        }
+    } catch (...) {
+        refreshViews();
+        throw;
     }
+    refreshViews();
     updateUndoRedoActions();
     return count;
 }
@@ -3574,28 +3732,52 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
     }
 
     try {
+        // A sprite meant for an empty slot goes to the frame's first empty slot: libserum's
+        // sprite list ends at the first empty slot, so none may come before a used one.
+        int assigned = 0;
+        int moved = 0;
+        const std::optional<std::size_t> currentFrame = currentFrameIndex();
+        std::optional<std::size_t> currentSlot;
         for (std::size_t frameIndex : frameIndices) {
-            std::vector<document::FrameSpriteReference> references =
+            const std::size_t slot = m_document->spriteSlotForAssignment(frameIndex, *slotIndex);
+            const std::vector<document::FrameSpriteReference>& references =
                 m_document->frameSpriteReferences(frameIndex);
-            if (*slotIndex >= references.size()) {
-                continue;
+            document::FrameSpriteReference reference =
+                slot < references.size() ? references[slot] : document::FrameSpriteReference{};
+            if (slot >= references.size()) {
+                // A frame without a slot list: the whole frame, as for a new frame.
+                const render::Size size = m_document->originalFrameSize();
+                reference.maxX = static_cast<uint16_t>(size.width - 1);
+                reference.maxY = static_cast<uint16_t>(size.height - 1);
             }
-            document::FrameSpriteReference reference = references[*slotIndex];
             reference.spriteId = static_cast<uint8_t>(spriteIndex);
-            m_document->setFrameSpriteReference(frameIndex, *slotIndex, reference);
+            m_document->setFrameSpriteReference(frameIndex, slot, reference);
             updateFrameListItem(frameIndex);
+            ++assigned;
+            moved += slot != *slotIndex ? 1 : 0;
+            if (currentFrame && frameIndex == *currentFrame) {
+                currentSlot = slot;
+            }
         }
         if (m_preview) {
             m_preview->update();
         }
         updateSpriteControls();
+        if (currentSlot) {
+            m_spritePanel->setSelectedSlotIndex(*currentSlot);
+            updateSpriteControls();
+        }
         updateFrameStatusText();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Assigned sprite %1 to slot %2 on %3 frame(s)%4")
+            QStringLiteral("Assigned sprite %1 to slot %2 on %3 frame(s)%4%5")
                 .arg(spriteIndex)
                 .arg(static_cast<int>(*slotIndex))
-                .arg(static_cast<int>(frameIndices.size()))
+                .arg(assigned)
+                .arg(moved > 0 ? QStringLiteral(" (on %1 of them to the first empty slot, "
+                                                "before which no slot may stay empty)")
+                                     .arg(moved)
+                               : QString())
                 .arg(isHdOnlyProject() &&
                              !m_document->hasHdSprite(static_cast<std::size_t>(spriteIndex))
                          ? QStringLiteral(". The sprite has no %1 picture: these frames are not "
@@ -3749,8 +3931,10 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                                static_cast<uint16_t>(captureWidth),
                                                static_cast<uint16_t>(captureHeight),
                                            });
+        // As for Assign: an empty slot behind the first empty one is not used.
+        const std::size_t targetSlot = m_document->spriteSlotForAssignment(*frameIndex, *slotIndex);
         m_document->setFrameSpriteReference(*frameIndex,
-                                            *slotIndex,
+                                            targetSlot,
                                             document::FrameSpriteReference{
                                                 static_cast<uint8_t>(*spriteIndex),
                                                 static_cast<uint16_t>(captureMinX),
@@ -3765,6 +3949,10 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         applyPendingSpriteDependentViews();
         refreshComponentBrowsers();
         updateSpriteControls();
+        if (targetSlot != *slotIndex) {
+            m_spritePanel->setSelectedSlotIndex(targetSlot);
+            updateSpriteControls();
+        }
         updateProjectHeaderStatus();
         statusBar()->showMessage(
             QStringLiteral("Captured frame region [%1,%2-%3,%4] into sprite %5")
@@ -3791,30 +3979,41 @@ bool MainWindow::isSpriteCaptureSelectionModeActive() const
 void MainWindow::removeCurrentSpriteSlot()
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || !m_spritePanel) {
+    const std::optional<std::size_t> currentFrame = currentFrameIndex();
+    if (!m_document || frameIndices.empty() || !currentFrame || !m_spritePanel) {
         return;
     }
 
     const std::optional<std::size_t> slotIndex = m_spritePanel->selectedSlotIndex();
-    if (!slotIndex) {
+    const std::vector<document::FrameSpriteReference>& currentReferences =
+        m_document->frameSpriteReferences(*currentFrame);
+    if (!slotIndex || *slotIndex >= currentReferences.size() ||
+        currentReferences[*slotIndex].spriteId == document::kNoSpriteId) {
         updateSpriteControls();
         return;
     }
 
+    // As the Win32 editor's IDC_DELSPRITE2: the sprite of the current frame's selected slot
+    // leaves every selected frame that has it, from the last slot that holds it, and the
+    // slots behind move up so that the list keeps no empty slot before a used one.
+    const uint8_t spriteId = currentReferences[*slotIndex].spriteId;
     try {
         int changed = 0;
         int skipped = 0;
         for (std::size_t frameIndex : frameIndices) {
             const std::vector<document::FrameSpriteReference>& references =
                 m_document->frameSpriteReferences(frameIndex);
-            if (*slotIndex >= references.size()) {
+            std::optional<std::size_t> last;
+            for (std::size_t slot = 0; slot < references.size(); ++slot) {
+                if (references[slot].spriteId == spriteId) {
+                    last = slot;
+                }
+            }
+            if (!last) {
                 ++skipped;
                 continue;
             }
-            if (references[*slotIndex].spriteId == 255) {
-                continue;
-            }
-            m_document->clearFrameSpriteReference(frameIndex, *slotIndex);
+            m_document->clearFrameSpriteReference(frameIndex, *last);
             updateFrameListItem(frameIndex);
             ++changed;
         }
@@ -3824,9 +4023,10 @@ void MainWindow::removeCurrentSpriteSlot()
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Cleared sprite slot %1 on %2")
-                .arg(static_cast<int>(*slotIndex))
-                .arg(frameEditCountText(changed, skipped, QStringLiteral("no sprite slots"))),
+            QStringLiteral("Removed sprite %1 from %2")
+                .arg(static_cast<int>(spriteId))
+                .arg(frameEditCountText(changed, skipped,
+                                        QStringLiteral("without that sprite"))),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
@@ -5585,16 +5785,19 @@ void MainWindow::selectFrameNear(std::size_t frameIndex)
     if (!m_frameList || m_frameList->count() == 0) {
         return;
     }
-    int nearestRow = m_frameList->count() - 1;
-    for (int row = 0; row < m_frameList->count(); ++row) {
-        if (m_frameList->item(row)->data(Qt::UserRole).toULongLong() >= frameIndex) {
-            nearestRow = row;
-            break;
+    // The rows are in frame order: the first row at or behind the frame.
+    int low = 0;
+    int high = m_frameList->count();
+    while (low < high) {
+        const int middle = low + (high - low) / 2;
+        if (m_frameList->item(middle)->data(Qt::UserRole).toULongLong() < frameIndex) {
+            low = middle + 1;
+        } else {
+            high = middle;
         }
     }
-    if (m_frameList->currentRow() != nearestRow) {
-        m_frameList->setCurrentRow(nearestRow);
-    }
+    // Also when the row is current already: a multi-selection left from before is dropped.
+    selectSingleRow(*m_frameList, std::min(low, m_frameList->count() - 1));
 }
 
 void MainWindow::updateStructureControls()
@@ -5653,7 +5856,9 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             updateProjectHeaderStatus();
             break;
         case edit::EditKind::DynamicMask:
+            // The thumbnail shows the zones, and the list's "Dyn" follows them.
             for (std::size_t frameIndex : target.frameIndices) {
+                updateFrameListItem(frameIndex);
                 updateInactiveFrameMarker(frameIndex);
             }
             [[fallthrough]];
@@ -5662,6 +5867,7 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             m_preview->update();
             updateProjectHeaderStatus();
             if (target.kind == edit::EditKind::ComparisonMask) {
+                scheduleMaskIconUpdate(target.index);
                 // What is the same as the current frame follows its mask.
                 updateSameFrameControls();
             }
@@ -5926,9 +6132,13 @@ void MainWindow::undo()
     try {
         command = m_undoHistories.undoLatest(currentHistoryKeys(), *m_document);
     } catch (const std::exception& ex) {
-        // The edited data no longer exists in that shape, e.g. its HD frame was removed.
+        // The command could not run and stays where it was (UndoHistories leaves it on its
+        // stack), and the document is unchanged.
         updateUndoRedoActions();
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        statusBar()->showMessage(
+            QStringLiteral("Undo failed, the step stays in the history: %1")
+                .arg(QString::fromUtf8(ex.what())),
+            6000);
         return;
     }
     if (!command) {
@@ -5955,9 +6165,13 @@ void MainWindow::redo()
     try {
         command = m_undoHistories.redoLatest(currentHistoryKeys(), *m_document);
     } catch (const std::exception& ex) {
-        // The edited data no longer exists in that shape, e.g. its HD frame was removed.
+        // The command could not run and stays where it was (UndoHistories leaves it on its
+        // stack), and the document is unchanged.
         updateUndoRedoActions();
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        statusBar()->showMessage(
+            QStringLiteral("Redo failed, the step stays in the history: %1")
+                .arg(QString::fromUtf8(ex.what())),
+            6000);
         return;
     }
     if (!command) {
@@ -6024,12 +6238,8 @@ void MainWindow::updateFrameThumbnail(std::size_t frameIndex)
     if (!m_document || frameIndex >= m_document->frameCount()) {
         return;
     }
-    for (int row = 0; row < m_frameList->count(); ++row) {
-        QListWidgetItem* item = m_frameList->item(row);
-        if (item && item->data(Qt::UserRole).toULongLong() == frameIndex) {
-            m_frameThumbnails->invalidate(item);
-            return;
-        }
+    if (QListWidgetItem* item = frameListItem(frameIndex)) {
+        m_frameThumbnails->invalidate(item);
     }
 }
 
@@ -6042,15 +6252,30 @@ void MainWindow::updateFrameListItemText(std::size_t frameIndex)
         refreshFrameList(currentFrameIndex());
         return;
     }
-    for (int row = 0; row < m_frameList->count(); ++row) {
-        QListWidgetItem* item = m_frameList->item(row);
-        if (item && item->data(Qt::UserRole).toULongLong() == frameIndex) {
-            item->setText(frameListItemText(frameIndex));
-            item->setToolTip(frameListItemToolTip(frameIndex));
+    if (QListWidgetItem* item = frameListItem(frameIndex)) {
+        item->setText(frameListItemText(frameIndex));
+        item->setToolTip(frameListItemToolTip(frameIndex));
+        return;
+    }
+    refreshFrameList(frameIndex);
+}
+
+void MainWindow::updateFrameListItems(const std::vector<std::size_t>& frameIndices)
+{
+    if (!m_document) {
+        return;
+    }
+    for (std::size_t frameIndex : frameIndices) {
+        if (frameIndex < m_document->frameCount() &&
+            (!frameMatchesFilter(frameIndex) || !frameListItem(frameIndex))) {
+            // The list changes: one rebuild instead of one per frame.
+            refreshFrameList(currentFrameIndex());
             return;
         }
     }
-    refreshFrameList(frameIndex);
+    for (std::size_t frameIndex : frameIndices) {
+        updateFrameListItem(frameIndex);
+    }
 }
 
 void MainWindow::updateFrameListItem(std::size_t frameIndex)
@@ -6062,11 +6287,7 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
         refreshFrameList(currentFrameIndex());
         return;
     }
-    for (int row = 0; row < m_frameList->count(); ++row) {
-        QListWidgetItem* item = m_frameList->item(row);
-        if (!item || item->data(Qt::UserRole).toULongLong() != frameIndex) {
-            continue;
-        }
+    if (QListWidgetItem* item = frameListItem(frameIndex)) {
         item->setText(frameListItemText(frameIndex));
         item->setToolTip(frameListItemToolTip(frameIndex));
         m_frameThumbnails->invalidate(item);

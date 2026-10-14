@@ -62,7 +62,9 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_captureButton->setEnabled(false);
     m_removeButton = new QToolButton(this);
     m_removeButton->setText(QStringLiteral("Remove"));
-    m_removeButton->setToolTip(QStringLiteral("Clear selected sprite slot"));
+    m_removeButton->setToolTip(
+        QStringLiteral("Remove the selected slot's sprite from the selected frames; the slots "
+                       "behind it move up"));
     m_removeButton->setEnabled(false);
     m_captureSelectionButton = new QToolButton(this);
     m_captureSelectionButton->setText(QStringLiteral("Select Capture"));
@@ -552,6 +554,15 @@ std::optional<std::size_t> SpritePanel::selectedSlotIndex() const
         return std::nullopt;
     }
     return static_cast<std::size_t>(slotIndex);
+}
+
+void SpritePanel::setSelectedSlotIndex(std::size_t slotIndex)
+{
+    const int index = m_slotComboBox->findData(static_cast<int>(slotIndex));
+    if (index >= 0) {
+        QSignalBlocker blocker(m_slotComboBox);
+        m_slotComboBox->setCurrentIndex(index);
+    }
 }
 
 std::size_t SpritePanel::selectedDetectionAreaIndex() const

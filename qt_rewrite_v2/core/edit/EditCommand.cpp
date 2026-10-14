@@ -294,7 +294,11 @@ void writeFrameAttribute(document::ProjectDocument& document,
 {
     switch (attribute) {
         case FrameAttribute::ComparisonMaskId:
-            document.setComparisonMaskId(frameIndex, static_cast<uint8_t>(value));
+            if (restoring) {
+                document.restoreComparisonMaskId(frameIndex, static_cast<uint8_t>(value));
+            } else {
+                document.setComparisonMaskId(frameIndex, static_cast<uint8_t>(value));
+            }
             break;
         case FrameAttribute::ShapeComparisonMode:
             if (restoring) {
@@ -304,7 +308,11 @@ void writeFrameAttribute(document::ProjectDocument& document,
             }
             break;
         case FrameAttribute::BackgroundId:
-            document.setBackgroundId(frameIndex, static_cast<uint16_t>(value));
+            if (restoring) {
+                document.restoreBackgroundId(frameIndex, static_cast<uint16_t>(value));
+            } else {
+                document.setBackgroundId(frameIndex, static_cast<uint16_t>(value));
+            }
             break;
         case FrameAttribute::TriggerId:
             document.setTriggerId(frameIndex, value);

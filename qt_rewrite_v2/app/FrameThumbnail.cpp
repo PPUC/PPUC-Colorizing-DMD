@@ -51,7 +51,7 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
                                                       document.geometry().nativePlane(),
                                                       1,
                                                       true);
-    const QImage original = renderIndexedFrameImage(document.originalFrame(frameIndex), 1);
+    const QImage original = renderIndexedFrameImage(document.originalFrame(frameIndex), 1, {}, document.colorCount());
 
     // The two boxes are filled by a 4:1 frame; another shape keeps its proportions in them.
     const render::Size frameSize = document.originalFrameSize();

@@ -1030,6 +1030,87 @@ void testReplacingCommandDropsHistories()
     expect(unchanged.replacedData().size() == 1, "a frame HD command always replaces HD pixels");
 }
 
+// A command whose revert or apply can be made to fail, standing in for a structure command
+// that cannot run (e.g. the document does not fit it any more).
+class FailingCommand final : public EditCommand {
+public:
+    explicit FailingCommand(bool* failing) : m_failing(failing) {}
+    void apply(ProjectDocument& document) const override
+    {
+        if (*m_failing) {
+            throw std::runtime_error("apply failed");
+        }
+        document.setFrameDurationMs(0, 77);
+    }
+    void revert(ProjectDocument& document) const override
+    {
+        if (*m_failing) {
+            throw std::runtime_error("revert failed");
+        }
+        document.setFrameDurationMs(0, 0);
+    }
+    [[nodiscard]] EditTarget target() const override
+    {
+        return EditTarget{EditKind::ProjectStructure, 0, Resolution::Sd};
+    }
+    [[nodiscard]] std::vector<colorizing::edit::RecordReference> recordReferences() const override
+    {
+        return {};
+    }
+    [[nodiscard]] std::vector<colorizing::edit::RenumberedRecords> renumberedRecords()
+        const override
+    {
+        return {{colorizing::edit::RecordKind::Frame, 0}};
+    }
+
+private:
+    bool* m_failing;
+};
+
+void testCommandThatFailsStaysInItsHistory()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    bool failing = false;
+    const HistoryKey structure = colorizing::edit::structureHistoryKey();
+    auto command = std::make_unique<FailingCommand>(&failing);
+    command->apply(document);
+    histories.push(structure, std::move(command));
+    // Pushed after the structure command: a successful undo of that command would drop it.
+    const HistoryKey pixels =
+        commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 0x0009));
+    histories.undo(pixels, document);
+    histories.redo(pixels, document);
+
+    failing = true;
+    expectThrows<std::runtime_error>([&]() { histories.undo(structure, document); },
+                                     "an undo whose revert throws");
+    expect(histories.canUndo(structure) && !histories.canRedo(structure) &&
+               document.frameDurationMs(0) == 77,
+           "a command whose revert throws stays on the undo stack, the document unchanged");
+    expect(histories.canUndo(pixels),
+           "a failed undo drops no history");
+    expectThrows<std::runtime_error>([&]() { histories.undoLatest({structure}, document); },
+                                     "undoLatest whose revert throws");
+    expect(histories.canUndo(structure), "undoLatest keeps the command too");
+
+    failing = false;
+    expect(histories.undo(structure, document) != nullptr && document.frameDurationMs(0) == 0 &&
+               histories.canRedo(structure) && !histories.canUndo(pixels),
+           "once the revert works the command is undone");
+
+    failing = true;
+    expectThrows<std::runtime_error>([&]() { histories.redo(structure, document); },
+                                     "a redo whose apply throws");
+    expect(histories.canRedo(structure) && !histories.canUndo(structure) &&
+               document.frameDurationMs(0) == 0,
+           "a command whose apply throws stays on the redo stack");
+    failing = false;
+    expect(histories.redoLatest({structure}, document) != nullptr &&
+               document.frameDurationMs(0) == 77,
+           "once the apply works the command is redone");
+}
+
 }  // namespace
 
 void runEditCommandTests()
@@ -1059,4 +1140,5 @@ void runEditCommandTests()
     testSpriteHdCommands();
     testHistoryUndoLatestIsChronological();
     testReplacingCommandDropsHistories();
+    testCommandThatFailsStaysInItsHistory();
 }

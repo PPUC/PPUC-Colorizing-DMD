@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -60,7 +61,10 @@ using colorizing::edit::UndoHistories;
 using colorizing::edit::historyKey;
 using colorizing::edit::structureHistoryKey;
 using colorizing::render::PlaneLayout;
+using colorizing::document::makeIndexedFrame;
+using colorizing::document::makeRgb565Frame;
 using colorizing::render::Resolution;
+using colorizing::render::Size;
 using colorizing::runtime::PlaneRequest;
 using colorizing::runtime::RuntimeFrame;
 using colorizing::runtime::RuntimePreview;
@@ -1563,6 +1567,84 @@ void testDeletedFramesAreMovedNotCopied()
            "and back");
 }
 
+// insertFrames() checks every block of every frame against the document before it changes
+// anything.
+void testInsertFramesRejectsFramesThatDoNotFit(PlaneLayout layout)
+{
+    const std::string what = layoutName(layout) + ", inserting a frame that does not fit";
+    ProjectDocument document = makeDocument(layout);
+    // Frame 4 has a background and sprites; it gets frame 2's dynamic data too, so that every
+    // kind of block is there.
+    const std::size_t source = 4;
+    expect(document.backgroundData(source) && !document.frameSpriteReferences(source).empty() &&
+               document.dynamicData(2),
+           what + ": the fixture has the blocks");
+    const auto dynamic = document.dynamicData(2);
+    colorizing::document::RemovedFrames template_ = document.removeFrames({source});
+    template_.frames[0].dynamicData = dynamic;
+    const ProjectSnapshot before = document.toSnapshot();
+    const bool extra = !document.geometry().discardsExtraPlane();
+    const Size sd = document.geometry().planeSize(Resolution::Sd);
+    const Size hd = document.geometry().planeSize(Resolution::Hd);
+    const Size wrong{sd.width, sd.height / 2};
+
+    using Frame = colorizing::document::FrameRecord;
+    std::vector<std::pair<std::string, std::function<void(Frame&)>>> misfits{
+        {"original", [&](Frame& f) { f.originalSd = makeIndexedFrame(wrong); }},
+        {"original pixel count", [](Frame& f) { f.originalSd.pixels.pop_back(); }},
+        {"colorized frame", [&](Frame& f) { f.colorizedSd = makeRgb565Frame(wrong); }},
+        {"color rotations", [](Frame& f) { f.colorRotationsSd.resize(3); }},
+        {"dynamic mask", [&](Frame& f) { f.dynamicData->maskSd = makeIndexedFrame(wrong); }},
+        {"dynamic colors", [](Frame& f) { f.dynamicData->colorsSd.pop_back(); }},
+        {"dynamic shadow directions",
+         [](Frame& f) { f.dynamicData->shadowDirectionsSd.assign(5, 0); }},
+        {"background mask",
+         [&](Frame& f) { f.backgroundData->maskSd = makeIndexedFrame(wrong); }},
+        {"sprite slots", [](Frame& f) { f.spriteReferences.resize(3); }},
+    };
+    if (extra) {
+        misfits.push_back({"extra-plane frame",
+                           [&](Frame& f) { f.colorizedHd = makeRgb565Frame(sd); }});
+        misfits.push_back({"inactive extra-plane",
+                           [&](Frame& f) {
+                               f.colorizedHd = makeRgb565Frame(hd);
+                               f.inactiveHd = makeRgb565Frame(hd);
+                           }});
+        misfits.push_back({"extra-plane color rotations",
+                           [](Frame& f) { f.colorRotationsHd.clear(); }});
+        misfits.push_back({"extra-plane dynamic mask",
+                           [&](Frame& f) { f.dynamicData->maskHd = makeIndexedFrame(sd); }});
+        misfits.push_back({"extra-plane dynamic colors",
+                           [](Frame& f) { f.dynamicData->colorsHd.clear(); }});
+        misfits.push_back({"extra-plane background mask",
+                           [&](Frame& f) { f.backgroundData->maskHd = makeIndexedFrame(sd); }});
+    } else {
+        misfits.push_back({"extra-plane frame",
+                           [&](Frame& f) { f.colorizedHd = makeRgb565Frame(hd); }});
+        misfits.push_back({"extra-plane color rotations",
+                           [](Frame& f) { f.colorRotationsHd.assign(256, 0); }});
+        misfits.push_back({"extra-plane dynamic data",
+                           [&](Frame& f) { f.dynamicData->maskHd = makeIndexedFrame(hd); }});
+        misfits.push_back({"extra-plane background mask",
+                           [&](Frame& f) { f.backgroundData->maskHd = makeIndexedFrame(hd); }});
+    }
+    for (const auto& [block, damage] : misfits) {
+        colorizing::document::RemovedFrames removed = template_;
+        damage(removed.frames[0]);
+        bool threw = false;
+        try {
+            document.insertFrames(std::move(removed));
+        } catch (const std::invalid_argument& error) {
+            threw = std::string(error.what()).find("frame " + std::to_string(source) +
+                                                   " to insert: ") == 0;
+        }
+        expect(threw, what + ": " + block + " is refused with a message that names the frame");
+        expectSame(document, before, what + ": " + block + " changes nothing");
+    }
+    document.insertFrames(std::move(template_));
+    expect(document.frameCount() == before.frames.size() + 1, what + ": a fitting frame goes in");
+}
+
 }  // namespace
 
 void runStructureCommandTests()
@@ -1575,6 +1657,7 @@ void runStructureCommandTests()
         testDeleteFrames(layout, {0, 1, 2, 3, 4, 5, 6, 7});
         testDeleteFrames(layout, {1, 2, 3, 4, 5, 6, 7, 8});
         testDeleteFrames(layout, {0, 2, 4, 6, 8});
+        testInsertFramesRejectsFramesThatDoNotFit(layout);
         testAddSprite(layout);
         for (std::size_t sprite = 0; sprite < 3; ++sprite) {
             testDeleteSprite(layout, sprite);

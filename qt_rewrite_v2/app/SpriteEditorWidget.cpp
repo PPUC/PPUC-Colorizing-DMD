@@ -480,7 +480,7 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
             }
             const QColor color =
                 region.region == render::CanvasRegion::SpriteOriginal
-                    ? originalIndexToColor(mask.pixels[index])
+                    ? originalIndexToColor(mask.pixels[index], m_document->colorCount())
                     : rgb565ToColor(colorized.pixels[index]);
             paintDmdPixel(painter,
                           region.rect.x + x * cellSize,

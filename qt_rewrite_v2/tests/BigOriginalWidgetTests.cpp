@@ -326,12 +326,12 @@ void testOriginalRegionShowsEveryOriginalPixel()
     const QImage image = grab(widget);
     const RegionLocator position = locate(widget, CanvasRegion::OriginalFrame);
     const auto shown = [&](int x, int y) { return image.pixelColor(position(x, y)); };
-    expect(shown(10, 6) == colorizing::app::originalIndexToColor(1) &&
-               shown(11, 6) == colorizing::app::originalIndexToColor(2) &&
-               shown(10, 7) == colorizing::app::originalIndexToColor(3) &&
-               shown(11, 7) == colorizing::app::originalIndexToColor(0) &&
-               shown(102, 41) == colorizing::app::originalIndexToColor(2) &&
-               shown(5, 3) == colorizing::app::originalIndexToColor(0),
+    expect(shown(10, 6) == colorizing::app::originalIndexToColor(1, 16) &&
+               shown(11, 6) == colorizing::app::originalIndexToColor(2, 16) &&
+               shown(10, 7) == colorizing::app::originalIndexToColor(3, 16) &&
+               shown(11, 7) == colorizing::app::originalIndexToColor(0, 16) &&
+               shown(102, 41) == colorizing::app::originalIndexToColor(2, 16) &&
+               shown(5, 3) == colorizing::app::originalIndexToColor(0, 16),
            "original pixels are drawn one to one");
 }
 

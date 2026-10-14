@@ -40,7 +40,9 @@ struct SpriteMatch {
                                                          std::size_t frameIndex);
 
 [[nodiscard]] QColor rgb565ToColor(uint16_t value);
-[[nodiscard]] QColor originalIndexToColor(uint8_t value);
+// The color the editor shows a shade of an original frame in: an amber ramp over the 4 or 16
+// shades of the project (colorCount, ProjectDocument::colorCount()).
+[[nodiscard]] QColor originalIndexToColor(uint8_t value, uint32_t colorCount = 4);
 [[nodiscard]] uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                                           std::size_t frameIndex,
                                           render::Resolution resolution,
@@ -86,9 +88,11 @@ void paintDmdPixel(QPainter& painter,
                                               int pixelScale,
                                               bool includeBackgroundLayer,
                                               DmdRenderOptions options = {});
+// colorCount: the project's original colors, see originalIndexToColor().
 [[nodiscard]] QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
                                              int pixelScale,
-                                             DmdRenderOptions options = {});
+                                             DmdRenderOptions options = {},
+                                             uint32_t colorCount = 4);
 // One image pixel per sprite pixel; falls back to SD when the sprite has no HD data. With
 // hdOnly (ProjectDocument::rendersHdPlaneOnly()) there is no such fallback: the image is black.
 [[nodiscard]] QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,

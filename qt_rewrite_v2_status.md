@@ -88,7 +88,8 @@ neither of those holds.
   sprite editor widgets, `FrameImageUtils` (the editor's own preview renderer), `RuntimeView`
   (state of the canvas's Runtime view: on/off, plane, playback, cached libserum output),
   `LazyListIcons`
-  (frame list thumbnails built for the rows in view), `PlaneLabels` (the one place that decides
+  (frame list thumbnails built for the rows in view), `ListSelection` and `UnsavedChanges` (small
+  pieces of MainWindow behaviour kept testable), `PlaneLabels` (the one place that decides
   where the UI says "HD"/"SD" and what a single plane is called), eight panels under `panels/`
   (`SameFramesPanel` is the lower part of the `Mask` page), `panels/RecordListPage` (a list of
   the left browser with `New` and `Delete` above it) and `dialogs/DumpImportDialog`.
@@ -177,7 +178,14 @@ refused on load with a message naming the sizes.
   128x32 original; HD is the upscaled plane. Fully supported.
 - **128x16 ROMs** are stored padded to 128x32 by the Win32 editor (`hook_501`); they are ordinary
   projects to the Qt editor. A 128x16 dump is imported with that padding (8 black rows above
-  and below); tested with generated dumps only, no real 128x16 dump was at hand.
+  and below). **Verified with a real 128x16 dump** (`hook_501 128x16.txt`), see "Dump import
+  and same frames". libserum does not pad: `Serum_Colorize` reads `fwidth * fheight` bytes
+  (128x32 for such a project), so the host has to hand it the padded frame. DMDext does
+  (`Serum.Convert`: `PadSmallFrames`, `CenterFrame`, 8 rows above, as the editor); libdmdutil
+  (`807c987`, `DMD.cpp`) passes the 128x16 update buffer as it is, which libserum then reads
+  as a frame with the 16 rows at the top and 16 zero rows below (the rest of the zeroed
+  `Update::data`), so it would not identify the centred frames of such a project. A host
+  matter, not the editor's; reported, not changed.
 - **256x64 original** (`is256x64`, revision 20): the 256x64 plane is the only rendered plane, one
   to one with the ROM frame. Sprite originals, detection areas, slot bounds and capture selection
   are native coordinates. Stored SD data is carried through untouched and never shown. There is
@@ -350,6 +358,31 @@ modal. `waitForAnalysis()` joins without the event loop, for tests and `ui_dump`
 
 **Real data** (scratch program, not in the repository):
 
+- `hook_501 128x16.txt` (26.9 MB, a real 128x16 dump, checked 2026-10-14): CRLF throughout,
+  lower-case timecodes (`0x00140abc`), 12838 frames of 16 rows of 128 digits, shades 0 to 3
+  only, no truncated last frame (it ends with a blank line), time never goes back, 2 gaps over
+  4000 ms. Reader: 128x16, stored 128x32, every stored frame has its rows 0 to 7 and 24 to 31
+  black. 10476 different frames (2362 repetitions, no hash collision).
+  - The existing `hook_501` project (3897 frames, 4 colors, 35 masks) stores its originals the
+    same way: 3781 frames (one of them all black) have nothing outside rows 8 to 23; the other 116 (frames 217 to 228,
+    405 to 427, 1236 to 1251, ... 2352) are 128x32 service menu screens (text from row 2 to 28)
+    that came from a 128x32 capture, and one frame is all black. Every one of the 35 masks
+    covers all of rows 0 to 7 and 24 to 31 (2048 pixels). 1327 dump frames have exactly the
+    original of a project frame.
+  - New project: 10476 frames, 4 colors, 128x32 with the 256x64 extra plane (no HD frames),
+    durations mostly 16 ms (5771) and 15 ms (3461), none under 15 ms, so no frame is inactive.
+    Save 1.3 s (cROM 879 MB, cRP 43 MB), reload serializes to the same bytes,
+    `colorizing_qt_v2_roundtrip` identical for cROM and cRP, `preview_diff` native plane
+    10476/10476 identical. libserum with the saved cROM identifies all 12838 dump frames, and
+    each of the 10476 project frames as itself.
+  - Added to the real `hook_501`: option on 9491 already known (66 identical, 9425 through a
+    mask or shape mode) and 985 new; option off 564 known and 9912 new; 2362 repetitions
+    either way. Per dump frame, against libserum with the unmodified cROM loaded: 11661 of
+    12838 identified (90.8 %), exactly the frames the matcher with the option on calls known,
+    0 disagreements (with the option off the matcher knows 1327 and libserum 10334 more). With
+    the added frames libserum identifies all 12838 in both cases, and undoing the addition
+    serializes to the bytes of the original file.
+
 - `smb3.txt`: 25127 frames, 21671 different (3456 repetitions); import 0.4 s, 90 MB peak.
   `serum-3mmy13yy.txt`: 8056 frames, 3421 different; 0.12 s.
 - `smb3.txt` added to the real `smb3` project (4430 frames, 24 masks): option off 383 known,
@@ -365,6 +398,74 @@ modal. `waitForAnalysis()` joins without the event loop, for tests and `ui_dump`
 - `afm_113b`, frames 0, 16, 500, 1200, 2900 under their own rule and under no mask and masks
   0 to 2 with and without shape mode (45 cases): the same-frame list equals the frames
   libserum identifies with a colorization of that frame alone.
+
+## Bug fixes of 2026-10-14
+
+Not committed at the time of writing. Each with a test where it can be tested; the ui_dump
+script `tools/ui_dump/fixes_script.inc` (appended states, `fixes: ...`) shows them in the UI.
+
+- **Sprite slot lists stay closed up.** `ProjectDocument::clearFrameSpriteReference` moves the
+  slots behind up with their bounds, the last slot becomes empty and keeps its bounds (Win32
+  `IDC_DELSPRITE2`, `master:ColorizingDMD.cpp` 17037). `setFrameSpriteReference` throws
+  `std::invalid_argument` for a sprite put into an empty slot behind the first empty one, and an
+  empty sprite ID for a used slot removes it the same way; `spriteSlotForAssignment()` says
+  where a sprite meant for a slot goes. `Remove` follows Win32 exactly: the sprite of the current
+  frame's selected slot leaves every selected frame that has it, from the last slot holding it
+  (Win32's loop keeps the last match). `Assign` and `Capture` put a sprite meant for an empty
+  slot into the frame's first empty slot (Win32's `IDC_ADDSPRITE2` uses the first empty slot,
+  or the slot that already holds the sprite; the Qt editor keeps "this slot" for used slots).
+  Bounds edits on empty slots were already skipped. Loaded gaps are kept and flagged
+  (`frameReferenceProblems()`, list line `ref. problem`, tool tips `Sprite slot N is empty: the
+  sprites after slot N are ignored by the runtime`). **Real projects with gaps: none** of
+  `afm_113b`, `trn_174h`, `hook_501`, `smb3`, `frankst1`.
+- **Unsaved changes.** Window close and `Quit` (`closeEvent`), `Open Project`, `Open Recent`
+  and `New Project From Dump` ask Save / Discard Changes / Cancel when the document is dirty;
+  Save goes through `saveProject()` (an untitled project asks for its path) and goes on only if
+  the project was written. The decision is `app::mayCloseProject()` (tested with injected
+  answers); `MainWindow::m_unsavedChangesAnswer` replaces the message box for ui_dump. The
+  button text `Discard Changes` is kept so that the ui_dump scripts run against both trees.
+- **Mask browser icons** are redrawn after every comparison mask edit, undo and redo, once per
+  mask when the event loop runs again (`scheduleMaskIconUpdate`).
+- **Frame thumbnail and `Dyn` after dynamic mask edits** (and their undo/redo): `refreshAfterEdit`
+  calls `updateFrameListItem` for the frames of a `DynamicMask` command.
+- **`Dyn` and the `Dynamic` filter** use `ProjectDocument::hasDynamicPixels()`: a pixel of the
+  dynamic mask on `dynamicPlane()` that is not 255. Cached per frame (a byte per frame, filled on
+  demand, updated by `setDynamicMaskPixel`, dropped by `removeFrames`/`insertFrames`). Before,
+  every frame of every loaded project and of every new project said `Dyn`.
+- **Record IDs.** `setComparisonMaskId` / `setBackgroundId` throw `std::out_of_range` for an ID
+  that names no record (other than 255 / 0xFFFF). `restoreComparisonMaskId` /
+  `restoreBackgroundId` accept any value; `FrameAttributeEditCommand::revert` uses them, so undo
+  can put back a dangling ID a loaded frame had. The spin boxes already followed the counts.
+  Loaded dangling IDs are kept and flagged like sprite gaps. **Real projects with dangling IDs:
+  none** of the five (no mask, background or sprite ID).
+- **Single selection.** `selectSingleRow()` (`app/ListSelection`) sets the current row with
+  `ClearAndSelect`; Qt's `setCurrentRow(row)` in `ExtendedSelection` keeps part of a
+  multi-selection, and does nothing when the row is current already (tested). Used by
+  `selectFrameNear` (now a binary search over the rows, which are in frame order),
+  `refreshFrameList`, `goToFrame` and playback. `selectFramesUsingMask` and the selection of
+  restored frames after an undo make multi-selections on purpose and are unchanged.
+- **`insertFrames` validates every block** of every frame before anything changes: original,
+  colorized and extra-plane frames, inactive extra-plane pixels, rotations, dynamic mask,
+  colors and shadows, background masks, sprite slots, and no extra-plane data in a project that
+  discards that plane; the message names the frame and the block. IDs are not checked (an undo
+  must be able to put back a dangling one).
+- **Frame list rows**: `m_frameRows` (frame index -> row, rebuilt by `refreshFrameList`) and
+  `frameListItem()` replace the linear searches of `updateFrameThumbnail`,
+  `updateFrameListItem(Text)` and `goToFrame`. That alone saved little (select-all duration
+  edit on `trn_174h` 4.70 s -> 4.52 s): the cost was `refreshAfterEdit` per frame, whose
+  `updateFrameMetadataControls`, `updateFrameStatusText` and others call
+  `selectedFrameIndices()` (all selected items) every time. `editSelectedFramesAttribute` now
+  applies and records one command per frame as before and refreshes the views once
+  (`updateFrameListItems`: one list rebuild if any frame leaves the filter). Select-all
+  duration or trigger edit, release build, offscreen, M-series Mac: `trn_174h` (5211 frames)
+  4.7 s -> 18 ms, `frankst1` (11199 frames) 19.2 s -> 42 ms.
+- **`UndoHistories` keeps a command whose revert or apply throws** on its stack (it leaves its
+  stack only after it ran); no history is dropped; the status bar says `Undo failed, the step
+  stays in the history: ...`. Tested with an injected failing command.
+- Smaller ones from the known-bug list: the reference view, the thumbnails and the sprite
+  editor show 16 shades in a 16-color project (`originalIndexToColor(value, colorCount)`, the
+  same amber ramp; shades 0/5/10/15 of 16 are shades 0 to 3 of 4); `Assign` counts the frames
+  it changed instead of the selection.
 
 ## Dynamic data and the HD plane (ordinary projects)
 
@@ -470,8 +571,7 @@ for `frankst1`. Memory stays that of a window.
     (as Win32), not the mask selected in the browser; `Spot Common` marks the differing pixels;
     the same-frame deletions are not capped at 10000 per frame; the same frames are worked
     out only while the `Mask` page is shown; a new project is proposed for saving beside its
-    dump; replacing a project with unsaved changes asks only in `New Project From Dump`
-    (opening another project still does not ask).
+    dump.
 
 Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
 owner together.
@@ -493,11 +593,6 @@ owner together.
 - The sprite `Capture` dialog still shows a disabled `Create New` with the text that creating a
   sprite is not available; `New` on the `Sprites` page does it. Wiring the button to
   `edit::addSprite` is a small step.
-- `Remove` on the `Sprite` page clears a slot in place. libserum's sprite list of a frame ends
-  at the first empty slot, so sprites in the slots behind it are no longer looked for (the
-  Handbook says so). Deleting a sprite closes the gap; `Remove` does not.
-- `ProjectDocument::setComparisonMaskId` and `setBackgroundId` accept IDs of records that do
-  not exist. The UI does not offer them, and the record operations never produce them.
 - libserum keeps the 256x64 dynamic data of sprite N only if frame N has 256x64 data
   (the flag array of the frames is indexed with the sprite number). In a 256x64 project the
   picture of a frame with sprites can therefore change when frames before it are deleted.
@@ -520,8 +615,6 @@ owner together.
 - libserum leaves the rotation entry of a pixel alone where it keeps or takes the picture of a
   background scene (`suppressFrameBackgroundImage`, `applySceneBackground`). Not reachable from
   the editor, which loads no scenes; not looked into.
-- A frame's thumbnail is not redrawn after a dynamic mask edit (it is after a dynamic color or
-  shadow edit); it shows the old zones until something else redraws it.
 - In a 256x64 project a frame whose background or sprite lacks 256x64 data is drawn without it
   by the editing canvas (to stay editable); libserum shows nothing for the frame.
 - Runtime view: no `.pup.csv` scenes and no `scaling.txt` (libserum's memory load reads neither,
@@ -544,9 +637,7 @@ owner together.
   (`smb3` frames 2200 to 2700, 3.8 MB cROM each). The view renders at paint time and only when
   the document revision, the frame or the plane changed, so repaints are free and bursts of
   changes coalesce; no timer and no thread.
-- 16-colour originals show only 4 shades in the reference view (`value & 3`).
 - The Selection tool paints in mask and capture modes instead of selecting.
-- "on N frame(s)" status texts count skipped frames.
 - Not undoable: sprite slot assign/remove/bounds, detection areas, names, sprite capture, colour
   rotations.
 - Sprite capture does not record the source frame, rectangle and mirror flags in the cRP, and
@@ -555,8 +646,6 @@ owner together.
   projects come from a dump (`importing::makeProjectSnapshot`).
 - A new project of a large dump is as heavy as any project of that size: 21671 frames of
   `smb3.txt` are 1.3 GB in memory and a 1.85 GB cROM. Not optimised, see the ground rules.
-- Opening a project and quitting do not ask about unsaved changes; only `New Project From
-  Dump` does.
 - The same-frame combo box and `Frames using` list are refilled on every refresh (up to 10000
   entries); `Update Same List` runs on the UI thread with a wait cursor and cannot be stopped.
 - `ProjectFrameMatcher` hashes a dump frame once per (mask, shape mode) pair of the project

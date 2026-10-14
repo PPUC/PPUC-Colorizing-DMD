@@ -83,9 +83,11 @@ const EditCommand* UndoHistories::undo(const HistoryKey& key,
     if (history == m_histories.end() || history->second.undoStack.empty()) {
         return nullptr;
     }
+    // The command leaves its stack only once it has run: a command that throws stays where it
+    // is, so that a failed undo of a deletion cannot make the deletion permanent.
+    history->second.undoStack.back().command->revert(document);
     std::unique_ptr<EditCommand> command = std::move(history->second.undoStack.back().command);
     history->second.undoStack.pop_back();
-    command->revert(document);
     dropReplacedHistories(*command);
     History& own = m_histories[key];
     own.redoStack.push_back(Entry{std::move(command), m_nextSequence++});
@@ -99,9 +101,11 @@ const EditCommand* UndoHistories::redo(const HistoryKey& key,
     if (history == m_histories.end() || history->second.redoStack.empty()) {
         return nullptr;
     }
+    // The command leaves its stack only once it has run: a command that throws stays where it
+    // is, so that a failed undo of a deletion cannot make the deletion permanent.
+    history->second.redoStack.back().command->apply(document);
     std::unique_ptr<EditCommand> command = std::move(history->second.redoStack.back().command);
     history->second.redoStack.pop_back();
-    command->apply(document);
     dropReplacedHistories(*command);
     History& own = m_histories[key];
     own.undoStack.push_back(Entry{std::move(command), m_nextSequence++});

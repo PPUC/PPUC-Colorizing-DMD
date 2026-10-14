@@ -164,6 +164,23 @@ struct FrameHdGaps {
     [[nodiscard]] bool any() const { return frame || background || !sprites.empty(); }
 };
 
+// What a frame refers to that the runtime cannot follow. Only loaded projects have these; the
+// editor's own edits never make them. They are kept as they are and flagged.
+struct FrameReferenceProblems {
+    // A comparison mask, background or sprite ID that names no record.
+    bool comparisonMask = false;
+    bool background = false;
+    bool sprite = false;
+    // The first empty sprite slot that has used slots behind it; libserum looks for the
+    // sprites before it only.
+    std::optional<std::size_t> spriteSlotGap;
+
+    [[nodiscard]] bool any() const
+    {
+        return comparisonMask || background || sprite || spriteSlotGap.has_value();
+    }
+};
+
 struct UnsupportedLegacyPayload {
     std::string name;
     std::vector<uint8_t> bytes;
@@ -314,7 +331,11 @@ public:
     // setShapeComparisonMode rejects.
     void restoreShapeComparisonMode(std::size_t frameIndex, uint8_t mode);
     [[nodiscard]] uint8_t comparisonMaskId(std::size_t frameIndex) const;
+    // kNoComparisonMaskId or an existing mask; throws std::out_of_range for another ID.
     void setComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
+    // Puts back an ID the frame had, also one of a mask that does not exist, which a loaded
+    // project can have (the Win32 editor writes what it holds). For undo only.
+    void restoreComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
     [[nodiscard]] uint32_t triggerId(std::size_t frameIndex) const;
     void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
     [[nodiscard]] uint32_t frameDurationMs(std::size_t frameIndex) const;
@@ -359,6 +380,10 @@ public:
     // false). The 256x64 dynamic data such a project stores is loaded, readable and written
     // back unchanged; the setters below throw std::logic_error for it.
     [[nodiscard]] Resolution dynamicPlane() const;
+    // Whether the frame has a dynamic zone the runtime renders: a pixel of its dynamic mask on
+    // dynamicPlane() that is not 255. Loaded frames always carry dynamic data, mostly all 255,
+    // so dynamicData() alone does not tell. Cached per frame.
+    [[nodiscard]] bool hasDynamicPixels(std::size_t frameIndex) const;
     [[nodiscard]] uint8_t dynamicMaskPixel(std::size_t frameIndex,
                                            Resolution resolution,
                                            int x,
@@ -411,7 +436,10 @@ public:
     [[nodiscard]] const std::optional<FrameBackgroundData>& backgroundData(
         std::size_t frameIndex) const;
     [[nodiscard]] uint16_t backgroundId(std::size_t frameIndex) const;
+    // kNoBackgroundId or an existing background; throws std::out_of_range for another ID.
     void setBackgroundId(std::size_t frameIndex, uint16_t backgroundId);
+    // As restoreComparisonMaskId(), for undo only.
+    void restoreBackgroundId(std::size_t frameIndex, uint16_t backgroundId);
     [[nodiscard]] uint8_t backgroundMaskPixel(std::size_t frameIndex,
                                               Resolution resolution,
                                               int x,
@@ -474,10 +502,28 @@ public:
                                 SpriteDetectionArea area);
     [[nodiscard]] const std::vector<FrameSpriteReference>& frameSpriteReferences(
         std::size_t frameIndex) const;
+    // A frame's sprite list ends, for the runtime, at its first empty slot (libserum stops
+    // there), so no edit may leave an empty slot before a used one. Putting a sprite into an
+    // empty slot behind the first empty one throws std::invalid_argument (see
+    // spriteSlotForAssignment()); kNoSpriteId for a used slot removes it as
+    // clearFrameSpriteReference() does. Changing the sprite or the bounds of a used slot and
+    // the bounds of an empty one is always possible.
     void setFrameSpriteReference(std::size_t frameIndex,
                                  std::size_t slotIndex,
                                  FrameSpriteReference reference);
+    // Removes the sprite of the slot: the slots behind it move up with their bounds and the
+    // last slot becomes empty, keeping its bounds (IDC_DELSPRITE2 of the Win32 editor). An
+    // empty slot is left as it is.
     void clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex);
+    // Where a sprite meant for the slot goes: the slot itself if it holds a sprite, otherwise
+    // the first empty slot (which is the slot itself or one before it).
+    [[nodiscard]] std::size_t spriteSlotForAssignment(std::size_t frameIndex,
+                                                      std::size_t slotIndex) const;
+    // The first empty slot of a frame that has a used slot behind it: the runtime ignores the
+    // sprites from there on. Only a loaded project can have one; nothing here makes one.
+    [[nodiscard]] std::optional<std::size_t> firstSpriteSlotGap(std::size_t frameIndex) const;
+    // References of the frame the runtime cannot follow.
+    [[nodiscard]] FrameReferenceProblems frameReferenceProblems(std::size_t frameIndex) const;
 
     void setColorizedPixel(std::size_t frameIndex,
                            Resolution resolution,
@@ -509,6 +555,11 @@ public:
     // - a sprite whose source frame is removed loses its source rectangle
     //   (kNoSpriteSourceRect), and source frame numbers behind a removed frame move down.
     [[nodiscard]] RemovedFrames removeFrames(const std::vector<std::size_t>& frameIndices);
+    // Checks every frame before anything changes: each block must have the size of its plane
+    // in this document (original, colorized and extra-plane frames, dynamic masks, colors and
+    // shadows, background masks, color rotations, sprite slots), and there must be no
+    // extra-plane data in a project that discards that plane. Throws std::invalid_argument
+    // naming the frame and the block otherwise.
     void insertFrames(RemovedFrames removed);
     // A frame for insertFrames() that nobody has worked on, see
     // makeUncolorizedFrameSnapshot(). Throws std::invalid_argument for an original that has
@@ -582,6 +633,10 @@ private:
     bool m_dirty = false;
     uint64_t m_revision = 0;
     uint64_t m_identificationRevision = 0;
+    // hasDynamicPixels() per frame: 0 not known, 1 no dynamic pixel, 2 at least one. Filled
+    // on demand; a dynamic mask edit updates its frame, adding or removing frames drops it.
+    // Like the rest of the document, not for concurrent use from several threads.
+    mutable std::vector<uint8_t> m_dynamicPixelStates;
 };
 
 // The colors of an uncolorized frame: a ramp over the original color indices, as the Win32

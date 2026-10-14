@@ -589,7 +589,7 @@ void testDocumentDiscardsExtraPlane()
     document.setBackgroundMaskPixel(1, Resolution::Sd, 190, 62, 1);
     document.setBackgroundPixel(0, Resolution::Sd, 191, 63, 0x4444);
     document.setColorRotationLength(1, Resolution::Sd, 1, 5);
-    document.setFrameSpriteReference(2, 3, {0, 129, 33, 191, 63});
+    document.setFrameSpriteReference(2, 0, {0, 129, 33, 191, 63});
     Rgb565Frame newBackground = makeRgb565Frame(kNativeSize, 0x5555);
     document.setBackgroundFrame(1, Resolution::Sd, newBackground);
     bool refused = false;
@@ -623,7 +623,7 @@ void testDocumentDiscardsExtraPlane()
                edited.backgrounds[0].colorizedSd.pixels[nativeIndex(191, 63)] == 0x4444 &&
                edited.backgrounds[1].colorizedSd.pixels[0] == 0x5555 &&
                edited.frames[1].colorRotationsSd[64] == 5 &&
-               edited.frames[2].spriteReferences[3].minX == 129,
+               edited.frames[2].spriteReferences[0].minX == 129,
            "native edits are in the snapshot");
     expect(!edited.frames[1].colorizedHd && !edited.frames[0].inactiveHd &&
                !edited.backgrounds[0].colorizedHd && !edited.backgrounds[1].inactiveHd &&

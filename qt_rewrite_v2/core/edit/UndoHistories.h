@@ -48,7 +48,10 @@ public:
     [[nodiscard]] bool canRedoAny(const std::vector<HistoryKey>& keys) const;
 
     // Reverts or reapplies the key's latest command and returns it, or nullptr when there is
-    // none. The pointer stays valid until the next push or clear.
+    // none. The pointer stays valid until the next push or clear. When the command throws, the
+    // exception is passed on and the histories are left as they were: the command stays on
+    // its stack, so a later attempt can run it again. A command that throws has to leave the
+    // document as it was (every command here does: it checks before it changes anything).
     const EditCommand* undo(const HistoryKey& key, document::ProjectDocument& document);
     const EditCommand* redo(const HistoryKey& key, document::ProjectDocument& document);
 

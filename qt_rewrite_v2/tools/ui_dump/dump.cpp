@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <initializer_list>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -36,6 +37,12 @@
 #include "dialogs/DumpImportDialog.h"
 #include "import/FrameDumpImport.h"
 #define UI_DUMP_HAS_DUMP_IMPORT 1
+#endif
+
+#if __has_include("UnsavedChanges.h")
+#include "UnsavedChanges.h"
+#include "edit/EditCommand.h"
+#define UI_DUMP_HAS_FIXES_2026_10_14 1
 #endif
 
 #if __has_include("RuntimeView.h")
@@ -359,6 +366,21 @@ static T* byTip(app::MainWindow& w, const char* tip)
     return found;
 }
 
+// For a widget whose tool tip a change rewrote: the scripts run against both trees.
+template <typename T>
+static T* byAnyTip(app::MainWindow& w, std::initializer_list<const char*> tips)
+{
+    for (const char* tip : tips) {
+        for (T* child : w.findChildren<T*>()) {
+            if (child->toolTip() == QLatin1String(tip)) {
+                return byTip<T>(w, tip);
+            }
+        }
+    }
+    std::cerr << "missing tip " << *tips.begin() << '\n';
+    std::exit(2);
+}
+
 static QToolButton* gridButton(app::MainWindow& w, const char* gridTip, int index)
 {
     QWidget* grid = byTip<QWidget>(w, gridTip);
@@ -566,6 +588,11 @@ int main(int argc, char* argv[])
 // States of a tree that imports frame dumps; a tree without that ends here.
 #ifdef UI_DUMP_HAS_DUMP_IMPORT
 #include "dump_import_script.inc"
+#endif
+
+// States of a tree with the bug fixes of 2026-10-14; a tree without them ends here.
+#ifdef UI_DUMP_HAS_FIXES_2026_10_14
+#include "fixes_script.inc"
 #endif
 
     return 0;

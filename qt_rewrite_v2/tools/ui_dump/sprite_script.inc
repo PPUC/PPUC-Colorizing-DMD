@@ -105,7 +105,10 @@
     auto* spCapture = byTip<QToolButton>(w, "Copy original/colorized pixels from current frame bounds into selected sprite");
     auto* spSelectCapture = byTip<QToolButton>(w, "Draw a shaped sprite capture selection on the original frame");
     auto* spClearCapture = byTip<QToolButton>(w, "Clear the current sprite capture selection");
-    auto* spRemove = byTip<QToolButton>(w, "Clear selected sprite slot");
+    auto* spRemove = byAnyTip<QToolButton>(
+        w, {"Remove the selected slot's sprite from the selected frames; the slots behind it "
+            "move up",
+            "Clear selected sprite slot"});
     auto* spShowBounds = byTip<QToolButton>(w, "Show selected sprite slot bounds on original frame");
     auto* spShowAreas = byTip<QToolButton>(w, "Show sprite detection areas on original sprite preview");
     auto* spCanvas = byTip<QToolButton>(w, "Show selected sprite in the main canvas");

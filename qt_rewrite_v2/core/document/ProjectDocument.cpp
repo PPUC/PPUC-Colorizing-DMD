@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <map>
+#include <string>
 #include <stdexcept>
 #include <utility>
 
@@ -407,6 +408,122 @@ void dropDiscardedPlane(FrameRecord& frame)
     }
 }
 
+std::string sizeText(Size size)
+{
+    return std::to_string(size.width) + "x" + std::to_string(size.height);
+}
+
+// Throws std::invalid_argument, naming the block, when a frame that is to be inserted does
+// not fit the document: every block in the size of its plane, as a frame of this document
+// holds it (without extra-plane data where the document discards that plane).
+void requireFittingFrameRecord(const FrameRecord& frame,
+                               std::size_t position,
+                               const render::ProjectGeometry& geometry,
+                               uint32_t colorCount)
+{
+    const std::string prefix = "frame " + std::to_string(position) + " to insert: ";
+    const auto requireBlock = [&prefix](bool valid, Size actual, Size expected,
+                                        const char* what) {
+        if (!hasSize(actual, expected)) {
+            throw std::invalid_argument(prefix + what + " is " + sizeText(actual) +
+                                        ", the project needs " + sizeText(expected));
+        }
+        if (!valid) {
+            throw std::invalid_argument(prefix + what +
+                                        " has a pixel count that does not match its size");
+        }
+    };
+    const auto requireCount = [&prefix](std::size_t actual, std::size_t expected,
+                                        const char* what) {
+        if (actual != expected) {
+            throw std::invalid_argument(prefix + what + " has " + std::to_string(actual) +
+                                        " values, the project needs " +
+                                        std::to_string(expected));
+        }
+    };
+    const auto requireAbsent = [&prefix](bool present, const char* what) {
+        if (present) {
+            throw std::invalid_argument(prefix + what +
+                                        " is present, but the project has no extra plane");
+        }
+    };
+    const bool extra = !geometry.discardsExtraPlane();
+    const Size romSize = geometry.romFrameSize();
+    const Size sdSize = geometry.planeSize(Resolution::Sd);
+    const Size hdSize = geometry.planeSize(Resolution::Hd);
+    const std::size_t rotationValues = kMaxColorRotations * kMaxColorRotationLength;
+    const std::size_t dynamicColors = kMaxDynamicSetsPerFrame * colorCount;
+
+    requireBlock(frame.originalSd.isValid(), frame.originalSd.size, romSize, "the original");
+    requireBlock(frame.colorizedSd.isValid(), frame.colorizedSd.size, sdSize,
+                 "the colorized frame");
+    requireCount(frame.colorRotationsSd.size(), rotationValues, "the color rotations");
+    if (extra) {
+        if (frame.colorizedHd) {
+            requireBlock(frame.colorizedHd->isValid(), frame.colorizedHd->size, hdSize,
+                         "the extra-plane frame");
+        }
+        if (frame.inactiveHd) {
+            if (frame.colorizedHd) {
+                throw std::invalid_argument(prefix +
+                                            "has both an extra-plane frame and inactive "
+                                            "extra-plane pixels");
+            }
+            requireBlock(frame.inactiveHd->isValid(), frame.inactiveHd->size, hdSize,
+                         "the inactive extra-plane frame");
+        }
+        requireCount(frame.colorRotationsHd.size(), rotationValues,
+                     "the extra-plane color rotations");
+    } else {
+        requireAbsent(frame.colorizedHd.has_value(), "an extra-plane frame");
+        requireAbsent(frame.inactiveHd.has_value(), "an inactive extra-plane frame");
+        requireAbsent(!frame.colorRotationsHd.empty(), "extra-plane color rotations");
+    }
+    if (frame.dynamicData) {
+        const FrameDynamicData& dynamic = *frame.dynamicData;
+        requireBlock(dynamic.maskSd.isValid(), dynamic.maskSd.size, sdSize, "the dynamic mask");
+        requireCount(dynamic.colorsSd.size(), dynamicColors, "the dynamic colors");
+        if (!dynamic.shadowDirectionsSd.empty() || !dynamic.shadowColorsSd.empty()) {
+            requireCount(dynamic.shadowDirectionsSd.size(), kMaxDynamicSetsPerFrame,
+                         "the dynamic shadow directions");
+            requireCount(dynamic.shadowColorsSd.size(), kMaxDynamicSetsPerFrame,
+                         "the dynamic shadow colors");
+        }
+        if (extra) {
+            requireBlock(dynamic.maskHd.isValid(), dynamic.maskHd.size, hdSize,
+                         "the extra-plane dynamic mask");
+            requireCount(dynamic.colorsHd.size(), dynamicColors,
+                         "the extra-plane dynamic colors");
+            if (!dynamic.shadowDirectionsHd.empty() || !dynamic.shadowColorsHd.empty()) {
+                requireCount(dynamic.shadowDirectionsHd.size(), kMaxDynamicSetsPerFrame,
+                             "the extra-plane dynamic shadow directions");
+                requireCount(dynamic.shadowColorsHd.size(), kMaxDynamicSetsPerFrame,
+                             "the extra-plane dynamic shadow colors");
+            }
+        } else {
+            requireAbsent(!dynamic.maskHd.pixels.empty() || !dynamic.colorsHd.empty() ||
+                              !dynamic.shadowDirectionsHd.empty() ||
+                              !dynamic.shadowColorsHd.empty(),
+                          "extra-plane dynamic data");
+        }
+    }
+    if (frame.backgroundData) {
+        requireBlock(frame.backgroundData->maskSd.isValid(), frame.backgroundData->maskSd.size,
+                     sdSize, "the background mask");
+        if (extra) {
+            requireBlock(frame.backgroundData->maskHd.isValid(),
+                         frame.backgroundData->maskHd.size, hdSize,
+                         "the extra-plane background mask");
+        } else {
+            requireAbsent(!frame.backgroundData->maskHd.pixels.empty(),
+                          "an extra-plane background mask");
+        }
+    }
+    if (!frame.spriteReferences.empty()) {
+        requireCount(frame.spriteReferences.size(), kMaxSpritesPerFrame, "the sprite slots");
+    }
+}
+
 FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
 {
     return FrameRecord{
@@ -795,6 +912,16 @@ uint8_t ProjectDocument::comparisonMaskId(std::size_t frameIndex) const
 
 void ProjectDocument::setComparisonMaskId(std::size_t frameIndex, uint8_t maskId)
 {
+    if (maskId != kNoComparisonMaskId && maskId >= m_comparisonMasks.size()) {
+        throw std::out_of_range("comparison mask " + std::to_string(maskId) +
+                                " does not exist; the project has " +
+                                std::to_string(m_comparisonMasks.size()));
+    }
+    restoreComparisonMaskId(frameIndex, maskId);
+}
+
+void ProjectDocument::restoreComparisonMaskId(std::size_t frameIndex, uint8_t maskId)
+{
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (frame.comparisonMaskId == maskId) {
         return;
@@ -1126,7 +1253,31 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
         return;
     }
     mask.pixels[pixelIndex] = value;
+    if (frameIndex < m_dynamicPixelStates.size()) {
+        // A new dynamic pixel decides it; a removed one may have been the last.
+        m_dynamicPixelStates[frameIndex] = value != 255 ? 2 : 0;
+    }
     markChanged();
+}
+
+bool ProjectDocument::hasDynamicPixels(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (m_dynamicPixelStates.size() != m_frames.size()) {
+        m_dynamicPixelStates.assign(m_frames.size(), 0);
+    }
+    uint8_t& state = m_dynamicPixelStates[frameIndex];
+    if (state == 0) {
+        bool found = false;
+        if (frame.dynamicData) {
+            const IndexedFrame& mask = dynamicPlane() == Resolution::Hd ? frame.dynamicData->maskHd
+                                                                        : frame.dynamicData->maskSd;
+            found = std::any_of(mask.pixels.begin(), mask.pixels.end(),
+                                [](uint8_t value) { return value != 255; });
+        }
+        state = found ? 2 : 1;
+    }
+    return state == 2;
 }
 
 uint16_t ProjectDocument::dynamicColor(std::size_t frameIndex,
@@ -1384,6 +1535,16 @@ uint16_t ProjectDocument::backgroundId(std::size_t frameIndex) const
 }
 
 void ProjectDocument::setBackgroundId(std::size_t frameIndex, uint16_t backgroundId)
+{
+    if (backgroundId != kNoBackgroundId && backgroundId >= m_backgrounds.size()) {
+        throw std::out_of_range("background " + std::to_string(backgroundId) +
+                                " does not exist; the project has " +
+                                std::to_string(m_backgrounds.size()));
+    }
+    restoreBackgroundId(frameIndex, backgroundId);
+}
+
+void ProjectDocument::restoreBackgroundId(std::size_t frameIndex, uint16_t backgroundId)
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (!frame.backgroundData) {
@@ -1870,27 +2031,58 @@ const std::vector<FrameSpriteReference>& ProjectDocument::frameSpriteReferences(
     return requireFrame(m_frames, frameIndex).spriteReferences;
 }
 
+namespace {
+
+// The first empty slot of a sprite list; the list's size when it is full.
+std::size_t firstEmptySpriteSlot(const std::vector<FrameSpriteReference>& references)
+{
+    std::size_t slot = 0;
+    while (slot < references.size() && references[slot].spriteId != kNoSpriteId) {
+        ++slot;
+    }
+    return slot;
+}
+
+}  // namespace
+
 void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
                                               std::size_t slotIndex,
                                               FrameSpriteReference reference)
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
-    if (frame.spriteReferences.empty()) {
-        frame.spriteReferences.assign(kMaxSpritesPerFrame, FrameSpriteReference{});
-    }
-    if (slotIndex >= frame.spriteReferences.size() ||
-        frame.spriteReferences.size() != kMaxSpritesPerFrame) {
+    if (slotIndex >= kMaxSpritesPerFrame ||
+        (!frame.spriteReferences.empty() &&
+         frame.spriteReferences.size() != kMaxSpritesPerFrame)) {
         throw std::out_of_range("sprite slot index out of range");
     }
-    if (reference.spriteId != 255 && reference.spriteId >= m_sprites.size()) {
+    if (reference.spriteId != kNoSpriteId && reference.spriteId >= m_sprites.size()) {
         throw std::out_of_range("sprite reference index out of range");
     }
-    if (frame.spriteReferences[slotIndex].spriteId == reference.spriteId &&
-        frame.spriteReferences[slotIndex].minX == reference.minX &&
-        frame.spriteReferences[slotIndex].minY == reference.minY &&
-        frame.spriteReferences[slotIndex].maxX == reference.maxX &&
-        frame.spriteReferences[slotIndex].maxY == reference.maxY) {
+    const FrameSpriteReference current = frame.spriteReferences.empty()
+                                             ? FrameSpriteReference{}
+                                             : frame.spriteReferences[slotIndex];
+    if (current.spriteId != kNoSpriteId && reference.spriteId == kNoSpriteId) {
+        clearFrameSpriteReference(frameIndex, slotIndex);
         return;
+    }
+    if (current.spriteId == kNoSpriteId && reference.spriteId != kNoSpriteId) {
+        const std::size_t firstEmpty = frame.spriteReferences.empty()
+                                           ? 0
+                                           : firstEmptySpriteSlot(frame.spriteReferences);
+        if (slotIndex > firstEmpty) {
+            throw std::invalid_argument(
+                "sprite slot " + std::to_string(slotIndex) + " cannot be used while slot " +
+                std::to_string(firstEmpty) +
+                " is empty: the runtime stops looking for sprites at the first empty slot");
+        }
+    }
+    if (current.spriteId == reference.spriteId && current.minX == reference.minX &&
+        current.minY == reference.minY && current.maxX == reference.maxX &&
+        current.maxY == reference.maxY) {
+        return;
+    }
+    if (frame.spriteReferences.empty()) {
+        frame.spriteReferences.assign(kMaxSpritesPerFrame, FrameSpriteReference{});
     }
     frame.spriteReferences[slotIndex] = reference;
     markChanged();
@@ -1898,9 +2090,69 @@ void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
 
 void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex)
 {
-    FrameSpriteReference reference = frameSpriteReferences(frameIndex).at(slotIndex);
-    reference.spriteId = 255;
-    setFrameSpriteReference(frameIndex, slotIndex, reference);
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    std::vector<FrameSpriteReference>& references = frame.spriteReferences;
+    if (slotIndex >= kMaxSpritesPerFrame ||
+        (!references.empty() && references.size() != kMaxSpritesPerFrame)) {
+        throw std::out_of_range("sprite slot index out of range");
+    }
+    if (references.empty() || references[slotIndex].spriteId == kNoSpriteId) {
+        return;
+    }
+    // IDC_DELSPRITE2 of the Win32 editor: the slots behind move up with their bounds, and the
+    // last slot becomes empty and keeps its bounds.
+    for (std::size_t slot = slotIndex; slot + 1 < references.size(); ++slot) {
+        references[slot] = references[slot + 1];
+    }
+    references.back().spriteId = kNoSpriteId;
+    markChanged();
+}
+
+std::size_t ProjectDocument::spriteSlotForAssignment(std::size_t frameIndex,
+                                                     std::size_t slotIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (slotIndex >= kMaxSpritesPerFrame) {
+        throw std::out_of_range("sprite slot index out of range");
+    }
+    if (frame.spriteReferences.empty()) {
+        return 0;
+    }
+    if (frame.spriteReferences.at(slotIndex).spriteId != kNoSpriteId) {
+        return slotIndex;
+    }
+    return std::min(slotIndex, firstEmptySpriteSlot(frame.spriteReferences));
+}
+
+std::optional<std::size_t> ProjectDocument::firstSpriteSlotGap(std::size_t frameIndex) const
+{
+    const std::vector<FrameSpriteReference>& references =
+        requireFrame(m_frames, frameIndex).spriteReferences;
+    const std::size_t firstEmpty = firstEmptySpriteSlot(references);
+    for (std::size_t slot = firstEmpty; slot < references.size(); ++slot) {
+        if (references[slot].spriteId != kNoSpriteId) {
+            return firstEmpty;
+        }
+    }
+    return std::nullopt;
+}
+
+FrameReferenceProblems ProjectDocument::frameReferenceProblems(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    FrameReferenceProblems problems;
+    problems.comparisonMask = frame.comparisonMaskId != kNoComparisonMaskId &&
+                              frame.comparisonMaskId >= m_comparisonMasks.size();
+    problems.background = frame.backgroundData &&
+                          frame.backgroundData->backgroundId != kNoBackgroundId &&
+                          frame.backgroundData->backgroundId >= m_backgrounds.size();
+    for (const FrameSpriteReference& reference : frame.spriteReferences) {
+        if (reference.spriteId != kNoSpriteId && reference.spriteId >= m_sprites.size()) {
+            problems.sprite = true;
+        }
+    }
+    problems.spriteSlotGap = firstSpriteSlotGap(frameIndex);
+    return problems;
 }
 
 namespace {
@@ -2082,6 +2334,7 @@ RemovedFrames ProjectDocument::removeFrames(const std::vector<std::size_t>& fram
         }
     }
     m_frames.resize(write);
+    m_dynamicPixelStates.clear();
 
     std::vector<uint8_t>& palettes = m_editorMetadata.importedPalettes;
     const std::size_t paletteCount = palettes.size() / kImportedPaletteBytes;
@@ -2158,11 +2411,9 @@ void ProjectDocument::insertFrames(RemovedFrames removed)
         paletteInsertCount > insertCount) {
         throw std::invalid_argument("removed frames do not fit the document");
     }
-    for (const FrameRecord& frame : removed.frames) {
-        if (!hasSize(frame.originalSd.size, m_geometry.romFrameSize()) ||
-            !hasSize(frame.colorizedSd.size, m_geometry.planeSize(Resolution::Sd))) {
-            throw std::invalid_argument("removed frames do not fit the document");
-        }
+    for (std::size_t position = 0; position < insertCount; ++position) {
+        requireFittingFrameRecord(removed.frames[position], removed.indices[position], m_geometry,
+                                  m_colorCount);
     }
     requireFittingRecordTables(removed.tables);
 
@@ -2178,6 +2429,7 @@ void ProjectDocument::insertFrames(RemovedFrames removed)
         }
     }
     m_frames = std::move(merged);
+    m_dynamicPixelStates.clear();
 
     if (paletteInsertCount > 0) {
         const std::vector<uint8_t>& current = m_editorMetadata.importedPalettes;

@@ -1878,7 +1878,10 @@ void testSpritePanel()
     auto* captureButton = childByToolTip<QToolButton>(
         panel,
         "Copy original/colorized pixels from current frame bounds into selected sprite");
-    auto* removeButton = childByToolTip<QToolButton>(panel, "Clear selected sprite slot");
+    auto* removeButton = childByToolTip<QToolButton>(
+        panel,
+        "Remove the selected slot's sprite from the selected frames; the slots behind it move "
+        "up");
     auto* captureSelectionButton = childByToolTip<QToolButton>(
         panel,
         "Draw a shaped sprite capture selection on the original frame");
@@ -3055,6 +3058,7 @@ void testRecordListPage()
     expect(list->count() == 0, "record list page should not change the list itself");
 }
 
+void runAppHelpersWidgetTests();
 void runBigOriginalWidgetTests();
 void runCanvasEditControllerTests();
 void runDumpImportWidgetTests();
@@ -3105,6 +3109,7 @@ int main(int argc, char* argv[])
     runRuntimeViewWidgetTests();
     runEditorMatchesRuntimeTests();
     runDumpImportWidgetTests();
+    runAppHelpersWidgetTests();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

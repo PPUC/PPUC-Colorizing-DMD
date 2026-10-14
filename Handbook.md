@@ -66,6 +66,12 @@ It also carries structured background data from `.cROM`:
 
 Use `File -> Open Project...` and select a `.cROM` or a `.cRZ` file.
 
+If the open project has unsaved changes, `Open Project...`, an entry of `Open Recent`, `New
+Project From Dump...`, `Quit` and closing the window ask first: `Save` writes the project (a new
+project asks where to first) and goes on only if it was written, `Discard Changes` goes on
+without saving, `Cancel` (or Escape) stays with the project as it is. A project without unsaved
+changes is closed without a question.
+
 The app looks for a matching `.cRP` next to it with the same base name. If it cannot find that file, it asks for the `.cRP` path.
 
 Opening a `.cRZ` reads the colorization from the archive; nothing is unpacked to disk. The
@@ -114,6 +120,13 @@ All frames of a dump have the size of its first frame. Four sizes are accepted:
 | 256x64 | project with 256x64 original frames; every frame gets the 256x64 picture the runtime needs |
 
 The project has 16 original colors if any frame of the dump has a shade above 3, otherwise 4.
+
+Checked with a real 128x16 dump (`hook_501`, 12838 frames, 10476 different, shades 0 to 3): the
+new project is a 4-color 128x32 project whose frames have the 16 dump rows in rows 8 to 23; it
+saves, reloads to the same bytes, and libserum identifies every frame of the dump. The Win32
+editor stored the existing `hook_501` project the same way (every one of its masks covers rows 0
+to 7 and 24 to 31). The hosts that pad a 128x16 frame for libserum center it in the same way
+(DMDext: `CenterFrame`, 8 rows above); libserum itself does not pad.
 Frames that the filter leaves out count for that too.
 
 The file is read strictly. Anything that is neither a time line, a row of the dump's width nor
@@ -171,7 +184,8 @@ frame counted as too short is not counted for its shades.
 - A frame shorter than 15 ms is marked `inactive` in the frame list until it is colorized, as
   in every project (see "Frame List"). The runtime identifies it and shows nothing new for it.
 
-If the open project has unsaved changes, the editor asks before it is replaced.
+If the open project has unsaved changes, the editor asks before it is replaced (Save, Discard
+Changes or Cancel, see "Opening Projects").
 
 Checked with libserum: a project made from a dump loads, and every frame of the dump that was
 kept is identified as its own frame (the dump of `smb3`, 25127 frames, of which 21671 differ:
@@ -196,7 +210,10 @@ with one more option:
     project, that is if some frame of the project has the same hash under that frame's own
     comparison mask and shape mode. This is exactly libserum's test; checked on `smb3` by
     feeding all 25127 frames of its dump to libserum with the project loaded: the 11469 frames
-    the editor calls known are the ones libserum identifies, the other 13658 are not.
+    the editor calls known are the ones libserum identifies, the other 13658 are not. Checked
+    the same way on `hook_501` with its real 128x16 dump: 11661 of 12838 dump frames known and
+    identified by libserum, 1177 not, no disagreement; of the 10476 different frames 9491 are
+    left out as known and 985 are added.
   - Off: a frame is left out only if a frame of the project has exactly the same original,
     whatever that frame's mask is.
 
@@ -351,7 +368,21 @@ longer waits for one thumbnail per frame.
 
 Frame items show the project frame number, the loaded cRP duration, and compact flags such as
 `HD`, `Dyn`, assigned `BG`, and sprite assignment count when present.
+`Dyn` means that the frame has a dynamic zone the runtime renders: at least one pixel of its
+dynamic mask on the plane libserum takes dynamic zones from (the 128x32 plane of an ordinary
+project, the 256x64 or 192x64 plane of the other layouts). Every frame of a loaded project carries
+dynamic data, mostly all "not dynamic", so the flag does not just say that the data exists. It
+follows dynamic mask edits, their undo and redo, and so does the frame's thumbnail.
 Selecting a frame updates the central canvas and the frame status line.
+Whenever the editor picks the current frame itself (after deleting or adding frames, after undo
+and redo of such a step, after a filter change, during playback, `Go to frame`), that frame
+becomes the only selected one; an earlier multi-selection does not stay behind.
+
+A frame with a reference the runtime cannot follow has the line `ref. problem`, and its tool tip
+and the frame status line's tool tip say which: a comparison mask, background or sprite ID that
+names no record, or an empty sprite slot with used slots behind it (see "Sprites"). Only loaded
+projects can have these, since the Win32 editor writes what it holds; the editor loads and saves
+them unchanged and never makes new ones. None of the five 3.17.3 test projects has one.
 
 A frame the runtime skips has the line `inactive`, and its tool tip and the tool tip of the
 frame status line say `inactive: shorter than 15 ms and not colorized — the runtime skips it`.
@@ -363,8 +394,8 @@ by libserum and is not marked. The marker follows edits: painting the frame, giv
 zone or a background, or a duration of 15 ms or more removes it.
 
 The filter above the frame list can show all frames, only frames with HD data (`HD frames`),
-frames with an assigned background, frames with dynamic data, frames with sprite assignments, or
-the frames marked `inactive` (`Inactive`).
+frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
+with sprite assignments, or the frames marked `inactive` (`Inactive`).
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 
@@ -843,6 +874,11 @@ The canvas does not draw text labels or white frame outlines over the image data
 
 Drawing previews are transient overlays. They do not modify project data until mouse release or click commit.
 
+The original/reference region shows the ROM frame's shades on an amber ramp from dark to
+bright: 4 steps in a project with 4 original colors, 16 in one with 16 (shades 0, 5, 10 and 15 of
+16 have the colors of shades 0 to 3 of 4); the frame thumbnails and the sprite editor's original
+use the same colors.
+
 Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
 When `Mask` is active, clicks on the original/reference region add pixels to the assigned comparison mask.
 
@@ -1300,6 +1336,11 @@ Adding and deleting records:
   the step can no longer be redone. Nothing is copied for that; the memory of deleted frames is
   simply not released before.
 
+When an edit cannot be undone or redone because it no longer fits the project (it throws), the
+project is left as it was, the step stays where it is in its history, and the status bar says
+`Undo failed, the step stays in the history: <reason>`. In particular a deletion whose Undo fails
+stays undoable: it is not dropped, so it never becomes permanent that way.
+
 Not undoable: sprite slot assignment, removal and bounds, sprite detection areas, sprite and palette
 names, sprite capture, and color rotation settings.
 
@@ -1319,11 +1360,18 @@ The Inspector exposes per-frame comparison metadata:
   selects it, in the same way as selecting a background or a sprite does; no frame is changed. The
   selection starts as the mask of the first frame and then stays until another mask is selected.
 - `Assign Mask` assigns the selected mask to all selected frames.
+- The picture of a mask in the left sidebar follows every edit of that mask, its Undo and its
+  Redo (redrawn once when the editor is idle again, not per pixel).
 - `Edit Mask` enables the mask overlay and returns the canvas to the frame preview. If the sprite
   editor is open, it is closed first (`Edit Sprite` is switched off). It edits the mask assigned to
   the current frame, which is not necessarily the mask selected in the sidebar.
 - `Mask ID` shows the comparison mask assigned to the current frame and assigns the entered mask
-  directly to all selected frames. `None` stores the legacy no-mask assignment.
+  directly to all selected frames. `None` stores the legacy no-mask assignment. Its range is the
+  masks the project has; a mask number that does not exist is refused, also by the project
+  itself (`comparison mask 5 does not exist; the project has 2`). The same holds for the
+  `Background` ID and backgrounds. A loaded frame whose ID names no mask or background keeps it
+  and is marked `ref. problem` (see "Frame List"); the field then shows `None`, which is what the
+  runtime does with it.
 - `Shape` selects `Full comparison` or `Shape mode` for all selected frames.
 - Both fields are saved back into `.cROM`.
 - Mask ID and shape mode edits can be undone, see "Undo And Redo".
@@ -1409,6 +1457,8 @@ does that for every mask and can take seconds in a large project with many masks
 ## Dynamic Masks
 
 The `Dynamic` toolbar toggle shows the current frame's dynamic-mask pixels as a semi-transparent cyan overlay.
+Every dynamic mask edit, Undo and Redo also redraws the frame's thumbnail and its `Dyn` flag in
+the frame list.
 
 **Dynamic zones belong to one plane: the one with the size of the original frame.** That is the
 128x32 (SD) plane in an ordinary project, the 256x64 plane in a project with 256x64 original
@@ -1598,17 +1648,30 @@ The Inspector has a sprite browser and assignment controls:
   button is still disabled.
 - Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
-- `Assign` writes the selected sprite into the selected slot for all selected frames.
-- `Remove` clears the selected slot's sprite assignment for all selected frames. Selected frames
-  without sprite slots are skipped, and the status bar reports how many frames were changed and how
-  many were skipped.
+- A frame's sprite slots never have an empty slot before a used one: libserum stops looking for
+  sprites at the first empty slot, so the sprites behind it would be ignored. Every edit keeps the
+  list closed up:
+  - `Assign` writes the selected sprite into the selected slot for all selected frames. Where
+    that slot of a frame is empty, the sprite goes to the frame's first empty slot instead (the
+    slot itself or one before it), with that slot's bounds; the status bar says on how many
+    frames that happened, and the current frame's slot selection follows.
+  - `Capture` assigns the captured sprite by the same rule.
+  - `Remove` works as in the Win32 editor (`IDC_DELSPRITE2`): it takes the sprite of the current
+    frame's selected slot and removes it from every selected frame that has it, from the last
+    slot that holds it; the slots behind move up with their bounds, and the last slot becomes
+    empty, keeping its bounds. Selected frames without that sprite are skipped and counted in the
+    status bar (`Removed sprite 2 from 3 frame(s), 1 skipped (without that sprite)`).
+  - A project loaded from a file can have such a gap (the Win32 editor before `Remove` closed up
+    could leave one; none of the five 3.17.3 test projects has one). It is kept as it is, and the
+    frame is marked: its list item has the line `ref. problem` and its tool tip and the frame
+    status line's tool tip say `Sprite slot N is empty: the sprites after slot N are ignored by
+    the runtime`. Removing a sprite in front of the gap or assigning one into the gap closes it.
 - `Min X`, `Min Y`, `Max X`, and `Max Y` edit the selected slot's bounding box for all selected
   frames in which that slot has a sprite. They are disabled while the slot of the current frame is
   empty. A minimum cannot be raised above its maximum and a maximum cannot be lowered below its
   minimum; the edited value stops at the other one.
-- Removing a sprite assignment preserves the slot's bounding box, so a replacement sprite can reuse it.
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
-  The overlay also shows the bounds an emptied slot has kept.
+  The overlay also shows the bounds an empty slot holds.
 - `Edit Sprite` and `Select Capture` are switched off when a project is opened. `Edit Mask` and
   `Edit BG` switch `Edit Sprite` off, since they return to the frame view.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.

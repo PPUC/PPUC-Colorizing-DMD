@@ -62,6 +62,8 @@ public:
 
     // Empty when the frame has no sprite slots.
     [[nodiscard]] std::optional<std::size_t> selectedSlotIndex() const;
+    // Does not notify; ignored for a slot the page does not list.
+    void setSelectedSlotIndex(std::size_t slotIndex);
     [[nodiscard]] std::size_t selectedDetectionAreaIndex() const;
     [[nodiscard]] SpriteSlotBounds slotBounds() const;
     [[nodiscard]] SpriteDetectionAreaInput detectionAreaInput() const;

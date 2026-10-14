@@ -628,7 +628,7 @@ void testAgainstProject()
 
     // A project frame with a mask ID the project has no mask for is compared plainly.
     ProjectDocument odd = projectOf(existing);
-    odd.setComparisonMaskId(1, 7);
+    odd.restoreComparisonMaskId(1, 7);
     const ProjectFrameMatcher oddMatcher(odd, true);
     const IndexedFrame oddFrame = indexed(underMask);
     expect(oddMatcher.match(oddFrame, legacy::legacyFrameHash(oddFrame, nullptr, false)) ==

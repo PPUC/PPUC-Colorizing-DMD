@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -8,6 +9,7 @@
 #include <QMainWindow>
 #include <QElapsedTimer>
 #include <QString>
+#include <QStringList>
 
 #include "CanvasEditController.h"
 #include "document/ProjectDocument.h"
@@ -17,6 +19,7 @@
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
+#include "UnsavedChanges.h"
 #include "panels/FramePanel.h"
 
 namespace colorizing::app {
@@ -40,6 +43,8 @@ class QStackedWidget;
 class QTabWidget;
 class QToolButton;
 class QAction;
+class QCloseEvent;
+class QListWidgetItem;
 class QMenu;
 class QComboBox;
 class QCheckBox;
@@ -51,6 +56,10 @@ namespace colorizing::app {
 class MainWindow final : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+
+protected:
+    // Asks about unsaved changes first, see confirmClosingProject().
+    void closeEvent(QCloseEvent* event) override;
 
 private:
     using DrawingTool = edit::DrawingTool;
@@ -76,8 +85,11 @@ private:
     // File -> New Project From Dump and Add Frames From Dump, see DumpImportDialog.
     void newProjectFromDump();
     void addFramesFromDump();
-    // Asks before a project with unsaved changes is replaced; true if it may be.
-    [[nodiscard]] bool confirmReplacingProject();
+    // Asks (Save / Discard / Cancel) before a project with unsaved changes is closed or
+    // replaced; true if it may be. action names what is about to happen, for the question.
+    // See mayCloseProject().
+    [[nodiscard]] bool confirmClosingProject(const QString& action);
+    [[nodiscard]] UnsavedChangesAnswer askAboutUnsavedChanges(const QString& action);
     void openRecentProject(const QString& entry);
     // A project that has no files yet (a new project) asks for them, as Save As does.
     // Both return whether the project was written.
@@ -96,6 +108,12 @@ private:
     void refreshProjectSummary();
     void refreshFrameList(std::optional<std::size_t> selectedFrameIndex = std::nullopt);
     [[nodiscard]] QString frameListItemText(std::size_t frameIndex) const;
+    // The frame list row of a frame, through m_frameRows; nullptr when it is not listed.
+    [[nodiscard]] QListWidgetItem* frameListItem(std::size_t frameIndex) const;
+    void rebuildFrameRows();
+    // References of the frame the runtime cannot follow (dangling IDs, a gap in the sprite
+    // slots), one line each; empty if there are none.
+    [[nodiscard]] QStringList frameReferenceProblemTexts(std::size_t frameIndex) const;
     // See ProjectDocument::rendersHdPlaneOnly(): there are no SD mode and no SD fallbacks, and
     // the 256x64 data cannot be removed.
     [[nodiscard]] bool isHdOnlyProject() const;
@@ -278,8 +296,14 @@ private:
     // The frame's thumbnail is out of date, see LazyListIcons::invalidate().
     void updateFrameThumbnail(std::size_t frameIndex);
     void updateFrameListItem(std::size_t frameIndex);
+    // The same for several frames; the list is rebuilt once if it has to be.
+    void updateFrameListItems(const std::vector<std::size_t>& frameIndices);
     void updateFrameListItemText(std::size_t frameIndex);
     void refreshComponentBrowsers();
+    // The mask browser icon of the mask follows its pixels; several edits before the event
+    // loop runs again redraw it once.
+    void scheduleMaskIconUpdate(std::size_t maskIndex);
+    void updatePendingMaskIcons();
     void updateMaskBrowserSelection();
     void updateBackgroundBrowserSelection();
     void updateSpriteBrowserSelection();
@@ -380,6 +404,11 @@ private:
     std::optional<SameFrameCountsFor> m_sameFrameCounts;
     // Where the last dump came from: the place a new project is offered to be saved in.
     QString m_dumpDirectory;
+    // Instead of the message box, when set (tests, tools/ui_dump).
+    std::function<UnsavedChangesAnswer(const QString& action)> m_unsavedChangesAnswer;
+    // Frame index -> row of m_frameList, -1 for a frame the filter hides; rebuilt with the list.
+    std::vector<int> m_frameRows;
+    std::vector<std::size_t> m_pendingMaskIcons;
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

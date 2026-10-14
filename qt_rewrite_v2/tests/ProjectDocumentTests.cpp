@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "edit/EditCommand.h"
 #include "render/CanvasLayout.h"
 
 using colorizing::document::ProjectCreateOptions;
@@ -420,6 +421,33 @@ void testFrameComparisonMetadataEditing()
     expectThrows<std::out_of_range>(
         [&]() { document.setComparisonMaskId(1, 0); },
         "comparison mask ID frame bounds");
+
+    // Only existing masks and "none".
+    const std::size_t maskCount = document.comparisonMaskCount();
+    document.markClean();
+    expectThrows<std::out_of_range>(
+        [&]() { document.setComparisonMaskId(0, static_cast<uint8_t>(maskCount)); },
+        "a comparison mask that does not exist");
+    expect(document.comparisonMaskId(0) == 0 && !document.isDirty(),
+           "a refused mask ID changes nothing");
+    expect(!document.frameReferenceProblems(0).any(), "no dangling references yet");
+    document.setComparisonMaskId(0, 255);
+    expect(document.comparisonMaskId(0) == 255, "no mask is always possible");
+    // A loaded project can have a dangling ID; undo puts it back.
+    document.restoreComparisonMaskId(0, 200);
+    expect(document.comparisonMaskId(0) == 200 && document.frameReferenceProblems(0).comparisonMask,
+           "a dangling mask ID can be restored and is reported");
+    colorizing::edit::FrameAttributeEditCommand command(
+        0, colorizing::edit::FrameAttribute::ComparisonMaskId, 200, 0);
+    command.apply(document);
+    expect(document.comparisonMaskId(0) == 0 && !document.frameReferenceProblems(0).any(),
+           "a dangling mask ID can be replaced by an existing one");
+    command.revert(document);
+    expect(document.comparisonMaskId(0) == 200, "and undone, which puts the dangling ID back");
+    const colorizing::edit::FrameAttributeEditCommand dangling(
+        0, colorizing::edit::FrameAttribute::ComparisonMaskId, 0, 201);
+    expectThrows<std::out_of_range>([&]() { dangling.apply(document); },
+                                    "an edit command cannot set a dangling mask ID");
 }
 
 void testFrameTriggerIdEditing()
@@ -755,6 +783,17 @@ void testBackgroundMetadataAndMaskEditing()
     document.markClean();
     document.setBackgroundId(0, 0);
     expect(!document.isDirty(), "identical background ID edit should not mark dirty");
+    expectThrows<std::out_of_range>([&]() { document.setBackgroundId(0, 1); },
+                                    "a background that does not exist");
+    expect(document.backgroundId(0) == 0 && !document.isDirty(),
+           "a refused background ID changes nothing");
+    document.restoreBackgroundId(0, 9);
+    expect(document.backgroundId(0) == 9 && document.frameReferenceProblems(0).background,
+           "a dangling background ID can be restored and is reported");
+    document.setBackgroundId(0, 0xffff);
+    expect(!document.frameReferenceProblems(0).any(), "no background is always possible");
+    document.setBackgroundId(0, 0);
+    document.markClean();
 
     document.setBackgroundMaskPixel(0, Resolution::Sd, 4, 2, 1);
     expect(document.backgroundMaskPixel(0, Resolution::Sd, 4, 2) == 1,
@@ -857,25 +896,53 @@ void testFrameSpriteReferenceEditing()
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
 
-    document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 2, 3, 4, 5});
-    expect(document.frameSpriteReferences(0)[1].spriteId == 0,
+    document.setFrameSpriteReference(0, 0, FrameSpriteReference{0, 2, 3, 4, 5});
+    expect(document.frameSpriteReferences(0)[0].spriteId == 0,
            "frame sprite assignment should be readable");
-    expect(document.frameSpriteReferences(0)[1].maxY == 5,
+    expect(document.frameSpriteReferences(0)[0].maxY == 5,
            "frame sprite bounding box should be readable");
     expect(document.isDirty(), "frame sprite assignment should mark dirty");
 
     document.markClean();
-    document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 2, 3, 4, 5});
+    document.setFrameSpriteReference(0, 0, FrameSpriteReference{0, 2, 3, 4, 5});
     expect(!document.isDirty(), "identical frame sprite assignment should not mark dirty");
 
-    document.clearFrameSpriteReference(0, 1);
-    expect(document.frameSpriteReferences(0)[1].spriteId == 255,
-           "frame sprite clear should store empty sprite ID");
-    expect(document.frameSpriteReferences(0)[1].minX == 2,
-           "frame sprite clear should preserve bounding box min x");
-    expect(document.frameSpriteReferences(0)[1].maxY == 5,
-           "frame sprite clear should preserve bounding box max y");
-    expect(document.isDirty(), "frame sprite clear should mark dirty");
+    // No edit leaves an empty slot before a used one: libserum stops at the first empty slot.
+    expect(!document.firstSpriteSlotGap(0), "a frame without gaps has none");
+    expect(document.spriteSlotForAssignment(0, 0) == 0 &&
+               document.spriteSlotForAssignment(0, 5) == 1 &&
+               document.spriteSlotForAssignment(0, 1) == 1,
+           "a sprite meant for an empty slot goes to the first empty slot");
+    expectThrows<std::invalid_argument>(
+        [&]() { document.setFrameSpriteReference(0, 2, FrameSpriteReference{0, 0, 0, 1, 1}); },
+        "a sprite in a slot behind the first empty one");
+    expect(!document.isDirty() && document.frameSpriteReferences(0)[2].spriteId == 255,
+           "the refused assignment changes nothing");
+    document.setFrameSpriteReference(0, 5, FrameSpriteReference{255, 7, 7, 8, 8});
+    expect(document.frameSpriteReferences(0)[5].minX == 7 && !document.firstSpriteSlotGap(0),
+           "the bounds of an empty slot can be set");
+    document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 9, 9, 10, 10});
+    document.setFrameSpriteReference(0, 2, FrameSpriteReference{0, 11, 11, 12, 12});
+
+    document.markClean();
+    document.clearFrameSpriteReference(0, 0);
+    expect(document.frameSpriteReferences(0)[0].minX == 9 &&
+               document.frameSpriteReferences(0)[1].minX == 11 &&
+               document.frameSpriteReferences(0)[1].spriteId == 0 &&
+               document.frameSpriteReferences(0)[2].spriteId == 255,
+           "removing a slot moves the slots behind it up with their bounds");
+    expect(document.frameSpriteReferences(0)[31].spriteId == 255 &&
+               !document.firstSpriteSlotGap(0),
+           "the last slot becomes empty, and no gap is left");
+    expect(document.isDirty(), "frame sprite removal should mark dirty");
+    document.markClean();
+    document.clearFrameSpriteReference(0, 4);
+    expect(!document.isDirty(), "removing an empty slot changes nothing");
+    document.setFrameSpriteReference(0, 0, FrameSpriteReference{255, 1, 1, 2, 2});
+    expect(document.frameSpriteReferences(0)[0].minX == 11 &&
+               document.frameSpriteReferences(0)[0].spriteId == 0 &&
+               document.frameSpriteReferences(0)[1].spriteId == 255,
+           "writing an empty sprite ID into a used slot removes it the same way");
 
     expectThrows<std::out_of_range>(
         [&]() { document.setFrameSpriteReference(0, 32, FrameSpriteReference{0, 0, 0, 1, 1}); },

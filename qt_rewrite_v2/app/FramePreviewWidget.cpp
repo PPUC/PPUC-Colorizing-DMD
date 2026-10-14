@@ -552,7 +552,7 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                 const std::size_t index =
                     static_cast<std::size_t>(y) * static_cast<std::size_t>(original->size.width) +
                     static_cast<std::size_t>(x);
-                color = originalIndexToColor(original->pixels[index]);
+                color = originalIndexToColor(original->pixels[index], m_document->colorCount());
             } else if (colorized) {
                 const std::size_t index =
                     static_cast<std::size_t>(y) * static_cast<std::size_t>(colorized->size.width) +

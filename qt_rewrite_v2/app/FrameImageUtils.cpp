@@ -432,18 +432,23 @@ QColor rgb565ToColor(uint16_t value)
     return QColor((r5 * 255) / 31, (g6 * 255) / 63, (b5 * 255) / 31);
 }
 
-QColor originalIndexToColor(uint8_t value)
+QColor originalIndexToColor(uint8_t value, uint32_t colorCount)
 {
-    switch (value & 0x03) {
-    case 0:
-        return QColor(22, 18, 12);
-    case 1:
-        return QColor(110, 54, 8);
-    case 2:
-        return QColor(210, 112, 16);
-    default:
-        return QColor(255, 184, 48);
+    static const QColor kRamp[4] = {QColor(22, 18, 12), QColor(110, 54, 8),
+                                    QColor(210, 112, 16), QColor(255, 184, 48)};
+    if (colorCount <= 4) {
+        return kRamp[value & 0x03];
     }
+    // 16 shades along the same ramp: 0, 5, 10 and 15 are its four colors, the others lie
+    // between them.
+    const int shade = std::min<int>(value, 15);
+    const int segment = std::min(shade / 5, 2);
+    const int step = shade - segment * 5;
+    const QColor& from = kRamp[segment];
+    const QColor& to = kRamp[segment + 1];
+    const auto mix = [step](int a, int b) { return a + (b - a) * step / 5; };
+    return QColor(mix(from.red(), to.red()), mix(from.green(), to.green()),
+                  mix(from.blue(), to.blue()));
 }
 
 namespace {
@@ -888,7 +893,8 @@ QImage renderResolvedFrameImage(const document::ProjectDocument& document,
 
 QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
                                int pixelScale,
-                               DmdRenderOptions options)
+                               DmdRenderOptions options,
+                               uint32_t colorCount)
 {
     const int scale = std::max(1, pixelScale);
     QImage image(frame.size.width * scale, frame.size.height * scale, QImage::Format_ARGB32);
@@ -906,7 +912,7 @@ QImage renderIndexedFrameImage(const document::IndexedFrame& frame,
                           x * scale,
                           y * scale,
                           scale,
-                          originalIndexToColor(frame.pixels[index]),
+                          originalIndexToColor(frame.pixels[index], colorCount),
                           options);
         }
     }

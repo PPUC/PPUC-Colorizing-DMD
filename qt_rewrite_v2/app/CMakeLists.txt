@@ -15,6 +15,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     FrameThumbnail.h
     LazyListIcons.cpp
     LazyListIcons.h
+    ListSelection.cpp
+    ListSelection.h
     PaintTarget.h
     PlaneLabels.cpp
     PlaneLabels.h
@@ -40,6 +42,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/SpritePanel.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
+    UnsavedChanges.cpp
+    UnsavedChanges.h
 )
 
 target_link_libraries(colorizing_qt_v2_widgets
