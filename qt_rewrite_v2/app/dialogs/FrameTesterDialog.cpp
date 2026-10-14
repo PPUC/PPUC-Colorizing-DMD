@@ -434,6 +434,17 @@ QString FrameTesterDialog::errorText() const
     return m_error;
 }
 
+const document::Rgb565Frame* FrameTesterDialog::currentPicture(bool preferRows64) const
+{
+    // A frame libserum keeps the picture for: the planes of the call before still show.
+    const runtime::PlaneRequest rows64 = runtime::PlaneRequest::Rows64;
+    const runtime::PlaneRequest rows32 = runtime::PlaneRequest::Rows32;
+    const runtime::RuntimePlane* first = m_result.plane(preferRows64 ? rows64 : rows32);
+    const runtime::RuntimePlane* other = m_result.plane(preferRows64 ? rows32 : rows64);
+    const runtime::RuntimePlane* plane = first ? first : other;
+    return plane && plane->image.isValid() ? &plane->image : nullptr;
+}
+
 bool FrameTesterDialog::nextUnidentified()
 {
     setPlaying(0);

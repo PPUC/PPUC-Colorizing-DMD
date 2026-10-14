@@ -7,7 +7,8 @@
 # Usage, in an MSYS2 UCRT64 shell: package-windows.sh <build dir> <output .zip>
 #
 # The build must be configured with -DCOLORIZINGDMD_QT_V2_PACKAGE=ON. Needs the MSYS2 packages
-# qt6-base (windeployqt6), ntldd and zip of the UCRT64 environment.
+# qt6-base (windeployqt6), ntldd and zip of the UCRT64 environment. A build with DMD output
+# names the libdmdutil DLLs it was linked with in DMDUTIL_LIB_DIR.
 
 set -euo pipefail
 
@@ -42,6 +43,12 @@ cp "${exe}" "${package}/"
 
 windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw \
     "${package}/ColorizingDMD.exe"
+
+# A build with DMD output: libdmdutil and the DLLs it loads (packaging/build-libdmdutil.sh
+# stages them in DMDUTIL_LIB_DIR). The check below finds anything still missing.
+if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
+    cp "${DMDUTIL_LIB_DIR}"/*.dll "${package}/"
+fi
 
 # Prints, for every exe and DLL in the folder, the DLLs it loads that resolve into the MSYS2
 # prefix. ntldd reads the import tables; it starts nothing.

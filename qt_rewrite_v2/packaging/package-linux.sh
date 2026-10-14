@@ -48,6 +48,12 @@ trap 'rm -rf "${stage}"' EXIT
 # linuxdeploy names the icon after the file; the desktop file asks for "colorizingdmd".
 cp "${here}/../../cRom256.png" "${stage}/colorizingdmd.png"
 
+# A build with DMD output: linuxdeploy finds libdmdutil through the build's rpath, and the
+# libraries libdmdutil loads through this path (packaging/build-libdmdutil.sh stages them).
+if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
+    export LD_LIBRARY_PATH="$(cd "${DMDUTIL_LIB_DIR}" && pwd -P)${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
+
 (
     cd "${stage}"
     OUTPUT="${output}" "${LINUXDEPLOY}" \

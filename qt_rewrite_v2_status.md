@@ -1065,8 +1065,9 @@ owner together.
   also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
   Dyn>Stat and "to source frame" are done.
 - Images window: video import, crop zones, scroll copy.
-- ZeDMD output, PuP tester. The frame tester exists (`dialogs/FrameTesterDialog`,
-  `runtime/FrameTester`).
+- PuP tester. DMD output through libdmdutil exists (`app/DmdOutput`; CI builds libdmdutil from
+  vpinball/libdmdutil at LIBDMDUTIL_SHA with `packaging/build-libdmdutil.sh`; untested there
+  until the next push), the frame tester too.
 
 ## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
 

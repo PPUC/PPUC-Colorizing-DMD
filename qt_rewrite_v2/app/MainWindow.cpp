@@ -61,6 +61,7 @@
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
 #include "dialogs/ColorPickerDialog.h"
+#include "dialogs/DmdOutputDialog.h"
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
@@ -521,6 +522,21 @@ void MainWindow::createActions()
     frameTesterAction->setToolTip(QStringLiteral(
         "Feed the selected frames or a frame dump to libserum with the whole project loaded"));
     connect(frameTesterAction, &QAction::triggered, this, [this]() { openFrameTester(); });
+    viewMenu->addSeparator();
+
+    m_dmdOutputAction = viewMenu->addAction(QStringLiteral("Output To &DMD"));
+    m_dmdOutputAction->setCheckable(true);
+    m_dmdOutputAction->setEnabled(DmdOutput::isAvailable());
+    m_dmdOutputAction->setToolTip(
+        DmdOutput::isAvailable()
+            ? QStringLiteral("Show the canvas picture on a ZeDMD, Pixelcade, PIN2DMD or dmdserver")
+            : QStringLiteral("This build has no DMD output (built without libdmdutil)"));
+    connect(m_dmdOutputAction, &QAction::toggled, this, [this](bool on) {
+        setDmdOutputEnabled(on);
+    });
+    QAction* dmdSettingsAction = viewMenu->addAction(QStringLiteral("DMD Output &Settings..."));
+    dmdSettingsAction->setEnabled(DmdOutput::isAvailable());
+    connect(dmdSettingsAction, &QAction::triggered, this, [this]() { editDmdOutputSettings(); });
     viewMenu->addSeparator();
 
     m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
@@ -1455,6 +1471,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     setPlaybackRunning(false);
     // A write still running is stopped; the autosave files it was replacing stay as they were.
     m_autosaver->cancelAndWait();
+    setDmdOutputEnabled(false);
     event->accept();
 }
 
@@ -1773,6 +1790,99 @@ void MainWindow::addFramesFromDump()
     }
 }
 
+void MainWindow::setDmdOutputEnabled(bool enabled)
+{
+    if (!DmdOutput::isAvailable()) {
+        return;
+    }
+    if (m_dmdOutputAction && m_dmdOutputAction->isChecked() != enabled) {
+        const QSignalBlocker blocker(m_dmdOutputAction);
+        m_dmdOutputAction->setChecked(enabled);
+    }
+    if (!enabled) {
+        m_dmdTimer.stop();
+        m_dmdOutput.stop();
+        m_dmdPictureKey.reset();
+        return;
+    }
+    if (!m_dmdTimer.isActive()) {
+        m_dmdTimer.setInterval(33);
+        connect(&m_dmdTimer, &QTimer::timeout, this, [this]() { sendDmdPicture(); },
+                Qt::UniqueConnection);
+    }
+    m_dmdOutput.start(loadDmdOutputSettings());
+    m_dmdPictureKey.reset();
+    m_dmdTimer.start();
+    statusBar()->showMessage(QStringLiteral("DMD output: looking for displays"), 3000);
+    // libdmdutil looks in the background; say what it found once it is done.
+    QTimer::singleShot(4000, this, [this]() {
+        if (!m_dmdOutput.isRunning()) {
+            return;
+        }
+        statusBar()->showMessage(
+            m_dmdOutput.hasDisplay()
+                ? QStringLiteral("DMD output to a %1 display").arg(m_dmdOutput.hasHdDisplay()
+                                                                       ? QStringLiteral("64-row")
+                                                                       : QStringLiteral("32-row"))
+            : m_dmdOutput.isFinding()
+                ? QStringLiteral("DMD output: still looking for displays")
+                : QStringLiteral("DMD output: no display found; see View -> DMD Output Settings"),
+            6000);
+    });
+}
+
+void MainWindow::editDmdOutputSettings()
+{
+    DmdOutputDialog dialog(loadDmdOutputSettings(), this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    saveDmdOutputSettings(dialog.settings());
+    if (m_dmdOutput.isRunning()) {
+        setDmdOutputEnabled(true);
+    }
+}
+
+void MainWindow::sendDmdPicture()
+{
+    if (!m_dmdOutput.isRunning()) {
+        return;
+    }
+    if (m_dmdPictureOverride) {
+        if (const std::optional<document::Rgb565Frame> picture = m_dmdPictureOverride()) {
+            m_dmdOutput.show(*picture);
+        }
+        m_dmdPictureKey.reset();
+        return;
+    }
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+    render::Resolution plane = isHdOnlyProject()                       ? render::Resolution::Hd
+                               : m_document->editsOriginalPlaneOnly() ? render::Resolution::Sd
+                                                                      : m_activeResolution;
+    if (plane == render::Resolution::Hd && !m_document->hasHdFrame(*frameIndex)) {
+        plane = render::Resolution::Sd;
+    }
+    const bool runtime = m_runtimeView.isEnabled();
+    const bool background = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
+    // The same picture as last time: nothing to compose (playback steps the frame, edits the
+    // revision; the Runtime view's colour rotations change its picture without either).
+    const DmdPictureKey key{m_document->revision(), *frameIndex, plane, runtime, background};
+    if (!runtime && m_dmdPictureKey && *m_dmdPictureKey == key) {
+        return;
+    }
+    m_dmdPictureKey = key;
+    if (runtime) {
+        if (const document::Rgb565Frame* picture = m_runtimeView.image(*m_document, *frameIndex)) {
+            m_dmdOutput.show(*picture);
+        }
+        return;
+    }
+    m_dmdOutput.show(composeResolvedFrame(*m_document, *frameIndex, plane, background));
+}
+
 void MainWindow::exportAnimatedGif()
 {
     if (!m_document) {
@@ -1892,7 +2002,16 @@ void MainWindow::openFrameTester()
                 return false;
             }
         };
+        // The display shows the tester's picture while it is open.
+        m_dmdPictureOverride = [this, &dialog]() -> std::optional<document::Rgb565Frame> {
+            if (const document::Rgb565Frame* picture =
+                    dialog.currentPicture(m_dmdOutput.hasHdDisplay())) {
+                return *picture;
+            }
+            return std::nullopt;
+        };
         dialog.exec();
+        m_dmdPictureOverride = nullptr;
         frameToShow = dialog.frameToShow();
     }
     if (runtimeWasOn) {

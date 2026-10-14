@@ -7,11 +7,13 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QTimer>
 #include <QElapsedTimer>
 #include <QString>
 #include <QStringList>
 
 #include "Autosave.h"
+#include "DmdOutput.h"
 #include "CanvasEditController.h"
 #include "EditHelpersController.h"
 #include "PasteModeController.h"
@@ -114,6 +116,10 @@ private:
     void openFrameTester();
     // The selected frames as an animated GIF, see GifExport.h.
     void exportAnimatedGif();
+    // View -> Output To DMD, see DmdOutput.h.
+    void setDmdOutputEnabled(bool enabled);
+    void editDmdOutputSettings();
+    void sendDmdPicture();
     // Copy and Paste on the sprite canvas, see edit/SpriteClipboard.h.
     [[nodiscard]] render::Resolution spriteCanvasPlane(std::size_t spriteIndex) const;
     void copySpriteToClipboard();
@@ -528,6 +534,24 @@ private:
     uint64_t m_autosavedRevision = 0;
     std::unique_ptr<Autosaver> m_autosaver;
     SectionBar* m_sectionBar = nullptr;
+    DmdOutput m_dmdOutput;
+    QAction* m_dmdOutputAction = nullptr;
+    QTimer m_dmdTimer;
+    // What the display shows while a dialog has its own picture (the Frame Tester).
+    std::function<std::optional<document::Rgb565Frame>()> m_dmdPictureOverride;
+    struct DmdPictureKey {
+        uint64_t revision = 0;
+        std::size_t frame = 0;
+        render::Resolution plane = render::Resolution::Sd;
+        bool runtime = false;
+        bool background = false;
+        bool operator==(const DmdPictureKey& other) const
+        {
+            return revision == other.revision && frame == other.frame && plane == other.plane &&
+                   runtime == other.runtime && background == other.background;
+        }
+    };
+    std::optional<DmdPictureKey> m_dmdPictureKey;
     // The last percentage given to Edit -> Brightness.
     int m_brightnessPercent = 110;
     // The filter last chosen for Create HD.

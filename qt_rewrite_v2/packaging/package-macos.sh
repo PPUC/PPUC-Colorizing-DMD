@@ -6,7 +6,9 @@
 # Usage: package-macos.sh <build dir> <output .zip>
 #
 # The build must be configured with -DCOLORIZINGDMD_QT_V2_PACKAGE=ON. macdeployqt must belong to
-# the Qt the build used: it is taken from MACDEPLOYQT, or from PATH.
+# the Qt the build used: it is taken from MACDEPLOYQT, or from PATH. A build with DMD output
+# names the libdmdutil libraries it was linked with (packaging/build-libdmdutil.sh) in
+# DMDUTIL_LIB_DIR; they go into the bundle.
 
 set -euo pipefail
 
@@ -33,6 +35,27 @@ stage=$(mktemp -d)
 trap 'rm -rf "${stage}"' EXIT
 cp -R "${app}" "${stage}/"
 bundle="${stage}/ColorizingDMD.app"
+
+if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
+    # libdmdutil and what it loads, found through the bundle's @rpath (Contents/Frameworks).
+    mkdir -p "${bundle}/Contents/Frameworks"
+    # -P keeps the symbolic links, -X leaves the extended attributes of the build behind
+    # (they would end up as __MACOSX entries in the zip).
+    cp -R -P -X "${DMDUTIL_LIB_DIR}"/*.dylib "${bundle}/Contents/Frameworks/"
+    # They look for each other beside the executable (@executable_path, as VPX ships them);
+    # in the bundle they are beside each other.
+    for library in "${DMDUTIL_LIB_DIR}"/*.dylib; do
+        copied="${bundle}/Contents/Frameworks/$(basename "${library}")"
+        [ -L "${copied}" ] && continue
+        install_name_tool -delete_rpath @executable_path "${copied}" 2>/dev/null || true
+        install_name_tool -add_rpath @loader_path "${copied}" 2>/dev/null || true
+    done
+    dmdutil_dir=$(cd "${DMDUTIL_LIB_DIR}" && pwd -P)
+    install_name_tool -delete_rpath "${dmdutil_dir}" "${bundle}/Contents/MacOS/ColorizingDMD" \
+        2>/dev/null || true
+    install_name_tool -add_rpath "@executable_path/../Frameworks" \
+        "${bundle}/Contents/MacOS/ColorizingDMD" 2>/dev/null || true
+fi
 
 "${macdeployqt}" "${bundle}" -verbose=1
 # Without a signature an arm64 binary does not start at all; ad-hoc is enough for that.
@@ -75,5 +98,7 @@ if [ "${running}" -ne 0 ]; then
 fi
 
 rm -f "${output}"
-ditto -c -k --sequesterRsrc --keepParent "${bundle}" "${output}"
+# Without the extended attributes (a build machine's com.apple.provenance and the like would
+# become __MACOSX entries); the signatures are inside the binaries.
+ditto -c -k --norsrc --keepParent "${bundle}" "${output}"
 echo "Wrote ${output}"

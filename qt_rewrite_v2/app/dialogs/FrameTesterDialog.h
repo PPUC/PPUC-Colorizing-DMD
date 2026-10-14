@@ -62,6 +62,9 @@ public:
     [[nodiscard]] const runtime::RuntimeFrame& lastResult() const;
     [[nodiscard]] QString infoText() const;
     [[nodiscard]] QString errorText() const;
+    // libserum's picture of the current frame: the 64-row plane when asked for and present,
+    // otherwise the other one; nothing before a frame was fed.
+    [[nodiscard]] const document::Rgb565Frame* currentPicture(bool preferRows64) const;
 
 private:
     bool loadProject();

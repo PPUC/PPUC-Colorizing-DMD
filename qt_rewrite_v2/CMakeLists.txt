@@ -85,6 +85,12 @@ function(colorizing_qt_v2_add_libserum)
 endfunction()
 colorizing_qt_v2_add_libserum()
 
+# libdmdutil sends pictures to hardware DMDs (ZeDMD, Pixelcade, PIN2DMD) and to a dmdserver.
+# It is optional: packaging/build-libdmdutil.sh builds it and stages its headers and shared
+# libraries into a prefix; without one the editor is built without DMD output.
+set(COLORIZINGDMD_DMDUTIL_PREFIX "" CACHE PATH
+    "libdmdutil staged by packaging/build-libdmdutil.sh; empty builds without DMD output")
+
 add_subdirectory(core)
 
 if(COLORIZINGDMD_QT_V2_BUILD_APP)

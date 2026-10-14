@@ -3,12 +3,16 @@ set(COLORIZING_QT_V2_APP_NAME ColorizingDMDQtV2)
 add_library(colorizing_qt_v2_widgets STATIC
     Autosave.cpp
     Autosave.h
+    DmdOutput.cpp
+    DmdOutput.h
     CanvasEditController.cpp
     CanvasEditController.h
     ColorGridWidget.cpp
     ColorGridWidget.h
     dialogs/ColorPickerDialog.cpp
     dialogs/ColorPickerDialog.h
+    dialogs/DmdOutputDialog.cpp
+    dialogs/DmdOutputDialog.h
     dialogs/DumpImportDialog.cpp
     dialogs/DumpImportDialog.h
     dialogs/FrameTesterDialog.cpp
@@ -89,6 +93,28 @@ target_compile_definitions(colorizing_qt_v2_widgets
     PUBLIC
         QT_NO_KEYWORDS
 )
+
+if(COLORIZINGDMD_DMDUTIL_PREFIX)
+    get_filename_component(dmdutil_prefix "${COLORIZINGDMD_DMDUTIL_PREFIX}" ABSOLUTE)
+    find_library(COLORIZINGDMD_DMDUTIL_LIBRARY NAMES dmdutil dmdutil64
+        PATHS "${dmdutil_prefix}/lib" NO_DEFAULT_PATH)
+    if(NOT COLORIZINGDMD_DMDUTIL_LIBRARY OR
+       NOT EXISTS "${dmdutil_prefix}/include/DMDUtil/DMD.h")
+        message(FATAL_ERROR
+            "No libdmdutil in '${dmdutil_prefix}': stage it with packaging/build-libdmdutil.sh, "
+            "or leave COLORIZINGDMD_DMDUTIL_PREFIX empty to build without DMD output.")
+    endif()
+    message(STATUS "DMD output with libdmdutil from ${dmdutil_prefix}")
+    target_include_directories(colorizing_qt_v2_widgets SYSTEM PRIVATE "${dmdutil_prefix}/include")
+    target_link_libraries(colorizing_qt_v2_widgets PRIVATE "${COLORIZINGDMD_DMDUTIL_LIBRARY}")
+    target_compile_definitions(colorizing_qt_v2_widgets PRIVATE COLORIZINGDMD_HAS_DMDUTIL)
+    # Linked by its full path, CMake gives everything that links it (the app, the widget
+    # tests) the folder as build rpath; a package ships the libraries beside the app instead
+    # (see the packaging scripts). Windows finds DLLs on PATH or beside the exe.
+    set(COLORIZINGDMD_DMDUTIL_LIBRARY_DIR "${dmdutil_prefix}/lib" CACHE INTERNAL "")
+else()
+    message(STATUS "DMD output: off (no COLORIZINGDMD_DMDUTIL_PREFIX)")
+endif()
 
 add_executable(${COLORIZING_QT_V2_APP_NAME}
     MainWindow.cpp

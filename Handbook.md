@@ -1254,6 +1254,27 @@ in the editor, saved or not.
 
 Not there: output to a real DMD (ZeDMD) and the PuP tester.
 
+## DMD Output
+
+`View -> Output To DMD` shows the canvas picture on a real DMD, through libdmdutil:
+
+- What is shown: the frame as the editor composes it on the plane the canvas shows (with the
+  background when the canvas's background layer is on), libserum's picture while the Runtime
+  view is on (playback and color rotations included), and while the Frame Tester is open, the
+  frame it last fed (its 64-row plane on a display with 64 rows). The picture follows every
+  edit, frame change and playback step. libdmdutil scales it to the display.
+- `View -> DMD Output Settings...` says where it goes:
+  - displays connected to this computer: ZeDMD (any serial port, or the one given; or over
+    Wi-Fi at an address), with its brightness (0 to 15, or the display's own), Pixelcade (any
+    port or the one given) and PIN2DMD;
+  - or a `dmdserver` (libdmdutil's server process) at an address and port, which drives the
+    displays itself.
+  The settings are kept; changing them restarts a running output.
+- After switching it on, libdmdutil looks for displays in the background; after a few seconds
+  the status bar says whether it found a 32-row or 64-row display, or none.
+- A build without libdmdutil has the two menu entries disabled. The release packages ship it.
+
+
 ## Colors
 
 ### Draw color, favorites and edit colors

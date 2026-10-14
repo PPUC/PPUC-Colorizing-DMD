@@ -41,6 +41,10 @@ env:
   # Serum_CRZ_* API, Serum_LoadFromMemory and the dynamic-shadow rotation fix: c8d8166 or later.
   LIBSERUM_REPOSITORY: PPUC/libserum
   LIBSERUM_SHA: c8d8166323f437044d8bb3aaa6d0eb91885ada94
+  # libdmdutil (DMD output: ZeDMD, Pixelcade, PIN2DMD, dmdserver) is built as a shared library
+  # with its dependencies and shipped beside the app, see packaging/build-libdmdutil.sh.
+  LIBDMDUTIL_REPOSITORY: vpinball/libdmdutil
+  LIBDMDUTIL_SHA: ce450bd89076df2819746d1716e9a8f52eafc465
   # Qt for the macOS package (official universal binaries, macOS 13 or later).
   MACOS_QT_VERSION: 6.11.3
   MACOS_DEPLOYMENT_TARGET: '13.0'
@@ -73,6 +77,8 @@ jobs:
             platform: windows
             arch: x86_64
             libserum_platform: win-mingw/x64
+            dmdutil_platform: win-mingw
+            dmdutil_arch: x64
           # Ubuntu's own Qt (6.4.2) and GCC 13: no Qt download, and the oldest Qt the editor
           # is built with, so it keeps building on a current Ubuntu LTS from distribution
           # packages. The AppImage then needs glibc 2.39 (Ubuntu 24.04, Debian 13, Fedora 40).
@@ -81,11 +87,15 @@ jobs:
             platform: linux
             arch: x86_64
             libserum_platform: linux/x64
+            dmdutil_platform: linux
+            dmdutil_arch: x64
           - name: Linux aarch64
             os: ubuntu-24.04-arm
             platform: linux
             arch: aarch64
             libserum_platform: linux/aarch64
+            dmdutil_platform: linux
+            dmdutil_arch: aarch64
           # One universal app for Apple silicon and Intel, built and tested on an arm64 runner;
           # the x86_64 half of the tests runs under Rosetta.
           - name: macOS universal (arm64 + x86_64)
@@ -93,6 +103,8 @@ jobs:
             platform: macos
             arch: universal
             libserum_platform: macos/arm64
+            dmdutil_platform: macos
+            dmdutil_arch: universal
     steps:
       - name: Check out the editor
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,6 +128,14 @@ jobs:
       - name: Fetch libserum's external headers
         working-directory: libserum
         run: ./platforms/${{ matrix.libserum_platform }}/external.sh
+
+      - name: Check out libdmdutil ${{ env.LIBDMDUTIL_SHA }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.LIBDMDUTIL_REPOSITORY }}
+          ref: ${{ env.LIBDMDUTIL_SHA }}
+          path: libdmdutil
+          persist-credentials: false
 
       - name: Name the package
         run: |
@@ -146,13 +166,22 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-base
             mingw-w64-ucrt-x86_64-ntldd
             zip
+            make
+            diffutils
+            autoconf
+            automake
+            libtool
 
       - name: Install Qt and tools (Linux)
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            qt6-base-dev qt6-base-dev-tools libgl-dev ninja-build ccache
+            qt6-base-dev qt6-base-dev-tools libgl-dev ninja-build ccache \
+            libudev-dev autoconf automake libtool pkg-config
+          if [ "${{ matrix.arch }}" = aarch64 ]; then
+            sudo apt-get install -y --no-install-recommends libgpiod-dev
+          fi
 
       - name: Install Qt (macOS)
         if: matrix.platform == 'macos'
@@ -168,7 +197,32 @@ jobs:
 
       - name: Install tools (macOS)
         if: matrix.platform == 'macos'
-        run: brew install ninja ccache
+        run: brew install ninja ccache autoconf automake libtool
+
+      #
+      # libdmdutil, built once per revision and platform
+      #
+      - name: Restore libdmdutil
+        id: dmdutil-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: dmdutil
+          key: libdmdutil-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.LIBDMDUTIL_SHA }}-${{ hashFiles('ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh') }}
+
+      - name: Build libdmdutil (Windows)
+        if: matrix.platform == 'windows' && steps.dmdutil-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh libdmdutil \
+            ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} dmdutil
+
+      - name: Build libdmdutil
+        if: matrix.platform != 'windows' && steps.dmdutil-cache.outputs.cache-hit != 'true'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ env.MACOS_DEPLOYMENT_TARGET }}
+        run: |
+          ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh libdmdutil \
+            ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} dmdutil
 
       - name: Restore the compiler cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -192,7 +246,8 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
-            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON
+            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
+            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
 
       - name: Configure (Linux)
         if: matrix.platform == 'linux'
@@ -203,7 +258,8 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
-            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON
+            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
+            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
 
       - name: Configure (macOS)
         if: matrix.platform == 'macos'
@@ -217,7 +273,8 @@ jobs:
             "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.MACOS_DEPLOYMENT_TARGET }} \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
-            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON
+            -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
+            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
 
       - name: Build (Windows)
         if: matrix.platform == 'windows'
@@ -241,7 +298,10 @@ jobs:
         shell: msys2 {0}
         env:
           QT_QPA_PLATFORM: offscreen
-        run: ctest --test-dir build --output-on-failure
+        # libdmdutil's DLLs are found on PATH.
+        run: |
+          export PATH="$(pwd)/dmdutil/lib:${PATH}"
+          ctest --test-dir build --output-on-failure
 
       - name: Test
         if: matrix.platform != 'windows'
@@ -269,7 +329,8 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          ColorizingDMD/qt_rewrite_v2/packaging/package-windows.sh build "dist/${PACKAGE}"
+          DMDUTIL_LIB_DIR=dmdutil/lib \
+            ColorizingDMD/qt_rewrite_v2/packaging/package-windows.sh build "dist/${PACKAGE}"
 
       - name: Package (Linux)
         if: matrix.platform == 'linux'
@@ -293,7 +354,7 @@ jobs:
           echo "${LINUXDEPLOY_SHA256}  ${LINUXDEPLOY}" | sha256sum --check
           echo "${PLUGIN_QT_SHA256}  ${PLUGIN_QT}" | sha256sum --check
           chmod +x "${LINUXDEPLOY}" "${PLUGIN_QT}"
-          LINUXDEPLOY="${LINUXDEPLOY}" QMAKE=/usr/bin/qmake6 \
+          LINUXDEPLOY="${LINUXDEPLOY}" QMAKE=/usr/bin/qmake6 DMDUTIL_LIB_DIR=dmdutil/lib \
             ColorizingDMD/qt_rewrite_v2/packaging/package-linux.sh build "dist/${PACKAGE}"
 
       - name: Package (macOS)
@@ -301,7 +362,7 @@ jobs:
         run: |
           mkdir -p dist
           # install-qt-action exports QT_ROOT_DIR.
-          MACDEPLOYQT="${QT_ROOT_DIR}/bin/macdeployqt" \
+          MACDEPLOYQT="${QT_ROOT_DIR}/bin/macdeployqt" DMDUTIL_LIB_DIR=dmdutil/lib \
             ColorizingDMD/qt_rewrite_v2/packaging/package-macos.sh build "dist/${PACKAGE}"
 
       # Uploaded as the file itself, not zipped again.
