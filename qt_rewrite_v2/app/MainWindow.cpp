@@ -972,8 +972,10 @@ void MainWindow::createCentralView()
     m_runtimeViewButton->setDefaultAction(m_runtimeViewAction);
     toolbarLayout->addWidget(m_runtimeViewButton);
     toolbarLayout->addSpacing(12);
-    toolbarLayout->addWidget(m_frameStatusLabel);
-    toolbarLayout->addStretch(1);
+    // The rest of the row, whatever its text: a long one (the identification hint) is cut
+    // instead of widening the window.
+    m_frameStatusLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    toolbarLayout->addWidget(m_frameStatusLabel, 1);
     layout->addLayout(toolbarLayout);
     m_editColorBar = new EditColorBar(central);
     m_editColorBar->setSlotKeyNames(editColorSlotKeyNames());
@@ -7340,7 +7342,10 @@ void MainWindow::selectFrameNear(std::size_t frameIndex)
         }
     }
     // Also when the row is current already: a multi-selection left from before is dropped.
-    selectSingleRow(*m_frameList, std::min(low, m_frameList->count() - 1));
+    const int row = std::min(low, m_frameList->count() - 1);
+    selectSingleRow(*m_frameList, row);
+    // A rebuilt list starts at the top; the frame is shown, also when its row was current.
+    m_frameList->scrollToItem(m_frameList->item(row), QAbstractItemView::PositionAtCenter);
 }
 
 void MainWindow::updateStructureControls()

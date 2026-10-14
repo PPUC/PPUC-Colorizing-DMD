@@ -988,8 +988,8 @@ owner together.
 - The mask, background and sprite lists of the left sidebar still build every icon at once and
   rebuild all of them on many updates. Their counts are small, so this was left as it is.
 - Adding or deleting a record rebuilds the three browser lists and, for frames, the frame list
-  (texts of all rows; thumbnails stay lazy). Deleting frames loses the scroll position of the
-  frame list to the newly selected frame.
+  (texts of all rows; thumbnails stay lazy). The frame list then scrolls to the frame selected
+  after the deletion.
 - libserum keeps the 256x64 dynamic data of sprite N only if frame N has 256x64 data
   (the flag array of the frames is indexed with the sprite number). In a 256x64 project the
   picture of a frame with sprites can therefore change when frames before it are deleted.
@@ -1026,8 +1026,6 @@ owner together.
   `smb3` (e.g. frames 672 to 678, pixel 213,63) and 13 of 5211 of `trn_174h` (frames 3792 to
   3795, 4032 to 4040, pixel 21,12), only on the 64-row plane, and with one-frame windows at more
   steps. A libserum matter, not looked into further.
-- The frame status label is part of the toolbar row and so of the window's minimum width: a
-  longer text (the identification hint) can widen the window.
 - Runtime render cost per frame (subset, serialize, load, colorize; release build, M-series
   Mac): `hook_501` 0.24 ms, `afm_113b` 0.60 ms, `trn_174h` 1.8 ms, `smb3` 2.1 ms, `frankst1`
   2.0 ms mean; the load is 70 to 90 percent of it. Frames with many sprites cost about 10 ms
