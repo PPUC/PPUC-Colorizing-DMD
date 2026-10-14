@@ -1657,7 +1657,8 @@ Histories are dropped when the data they refer to is replaced as a whole:
 - Undoing or redoing any of these four drops the same histories again, because the HD data is
   replaced as a whole in both directions. Pixel edits made on HD data in between can therefore not
   be undone separately afterwards.
-- Sprite `Capture` drops the sprite's SD and HD color image histories and its sprite HD history.
+- Sprite `Capture` drops the sprite's SD and HD color image histories. The capture itself is one
+  undoable step (see "Sprites" below).
 
 All other histories stay available. Importing an image into a background and copying a frame to a
 background are ordinary undoable edits and do not drop any history.
@@ -1709,9 +1710,15 @@ project is left as it was, the step stays where it is in its history, and the st
 `Undo failed, the step stays in the history: <reason>`. In particular a deletion whose Undo fails
 stays undoable: it is not dropped, so it never becomes permanent that way.
 
-Not undoable: sprite slot assignment, removal and bounds, sprite detection areas, sprite and palette
-names, sprite capture, color rotation settings, and the draw color mode (a setting, see "Draw
-color modes").
+Undoable besides: sprite slot assignment, removal and bounds and color rotation settings (in the
+history of each frame they change, one step per frame), sprite capture (one step in the history
+of the frame it was made on: the sprite's picture, detection area `0`, source frame and the
+frame's slot together), sprite detection areas and sprite names (in the selected sprite's
+history, which Undo reaches while that sprite is selected).
+
+Not undoable: palette names and the draw color mode (a setting, see "Draw color modes").
+The rotation `Length` and `Delay` boxes count a typed value as one change when it is confirmed
+(Enter or leaving the box); each arrow click is a change of its own.
 
 ## Comparison Masks
 
@@ -2017,7 +2024,12 @@ The Inspector has a sprite browser and assignment controls:
 - `Capture` copies original and colorized pixels from the current frame into a sprite, using the
   selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
   origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
-  captured rectangle, and the selected sprite is assigned to the current frame slot.
+  captured rectangle, and the selected sprite is assigned to the current frame slot. The `.cRP`
+  records the current frame as the sprite's source frame, as CDMD does.
+- The confirmation offers `Replace Current` (the selected sprite) and `Create New`. `Create New`
+  asks for the new sprite's name as `New` does and captures into the new sprite; adding the
+  sprite and the capture are two undo steps. Without a selected sprite only `Create New` is
+  offered. As in CDMD, a capture keeps the sprite's dynamic mask and colors.
   Because the bounds of an empty slot cannot be edited, capturing a rectangle into an empty slot
   takes `Assign` first, then the bounds, then `Capture`; or use `Select Capture`, which needs no
   bounds.

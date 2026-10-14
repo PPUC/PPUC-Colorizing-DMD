@@ -29,11 +29,14 @@ ColorRotationPanel::ColorRotationPanel(QWidget* parent)
     m_lengthSpinBox->setToolTip(QStringLiteral("Number of colors in this rotation"));
     m_lengthSpinBox->setRange(0, static_cast<int>(document::kMaxColorRotationColors));
     m_lengthSpinBox->setEnabled(false);
+    // A typed value is one edit (and one undo step) when it is confirmed, not one per digit.
+    m_lengthSpinBox->setKeyboardTracking(false);
     m_delaySpinBox = new QSpinBox(this);
     m_delaySpinBox->setToolTip(QStringLiteral("Delay between rotation steps"));
     m_delaySpinBox->setRange(0, 2048);
     m_delaySpinBox->setSingleStep(10);
     m_delaySpinBox->setSuffix(QStringLiteral(" ms"));
+    m_delaySpinBox->setKeyboardTracking(false);
     m_delaySpinBox->setEnabled(false);
     m_grid = new ColorGridWidget(document::kMaxColorRotationColors, 8, this);
     m_grid->setToolTip(QStringLiteral("Colors in the selected rotation"));

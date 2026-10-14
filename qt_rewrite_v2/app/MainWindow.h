@@ -292,6 +292,8 @@ private:
     void commitEdit(std::unique_ptr<edit::EditCommand> command);
     // For a command that has been applied already.
     void recordEdit(std::unique_ptr<edit::EditCommand> command);
+    // Records a command the caller has already shown the effects of.
+    void pushEdit(std::unique_ptr<edit::EditCommand> command);
     void refreshAfterEdit(const edit::EditCommand& command);
     // Adding and deleting records, see edit::StructureCommand. The delete functions ask
     // before they delete.
@@ -301,6 +303,8 @@ private:
     // note: what chose the frames, for the question; empty for the selection itself.
     void deleteFrames(const std::vector<std::size_t>& frameIndices, const QString& note);
     void addSprite();
+    // Asks for a name and adds the sprite; its index, or nothing when none was added.
+    std::optional<std::size_t> addNamedSprite();
     void deleteSelectedSprite();
     void addBackgroundFromCurrentFrame();
     void deleteSelectedBackground();

@@ -398,6 +398,10 @@ public:
     void clearColorRotationSlot(std::size_t frameIndex,
                                 Resolution resolution,
                                 std::size_t slotIndex);
+    // Puts a frame's color rotations back as they were before an edit. For undo only.
+    void restoreColorRotations(std::size_t frameIndex,
+                               Resolution resolution,
+                               CompactArray<uint16_t> rotations);
     [[nodiscard]] std::size_t comparisonMaskCount() const;
     [[nodiscard]] const IndexedFrame& comparisonMask(std::size_t maskIndex) const;
     [[nodiscard]] uint8_t comparisonMaskPixel(std::size_t maskIndex, int x, int y) const;
@@ -497,6 +501,11 @@ public:
     void removeHdSprite(std::size_t spriteIndex);
     [[nodiscard]] SpriteHdState spriteHdState(std::size_t spriteIndex) const;
     void setSpriteHdState(std::size_t spriteIndex, SpriteHdState state);
+    // Puts a sprite back as it was before an edit. For undo only.
+    void restoreSprite(std::size_t spriteIndex, SpriteRecord sprite);
+    // The frame the cRP names as the one a sprite was taken from (Sprite_Col_From_Frame).
+    [[nodiscard]] uint32_t spriteSourceFrame(std::size_t spriteIndex) const;
+    void setSpriteSourceFrame(std::size_t spriteIndex, uint32_t frameIndex);
     [[nodiscard]] uint8_t spriteOriginalPixel(std::size_t spriteIndex,
                                               int x,
                                               int y) const;
@@ -545,6 +554,10 @@ public:
     // last slot becomes empty, keeping its bounds (IDC_DELSPRITE2 of the Win32 editor). An
     // empty slot is left as it is.
     void clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex);
+    // Puts a frame's sprite slots back as they were before an edit, gaps included. For undo
+    // only.
+    void restoreFrameSpriteReferences(std::size_t frameIndex,
+                                      std::vector<FrameSpriteReference> references);
     // Where a sprite meant for the slot goes: the slot itself if it holds a sprite, otherwise
     // the first empty slot (which is the slot itself or one before it).
     [[nodiscard]] std::size_t spriteSlotForAssignment(std::size_t frameIndex,

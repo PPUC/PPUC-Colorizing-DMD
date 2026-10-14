@@ -1168,6 +1168,23 @@ void ProjectDocument::clearColorRotationSlot(std::size_t frameIndex,
     markChanged();
 }
 
+void ProjectDocument::restoreColorRotations(std::size_t frameIndex,
+                                            Resolution resolution,
+                                            CompactArray<uint16_t> rotations)
+{
+    requireEditablePlane(resolution);
+    CompactArray<uint16_t>& current =
+        requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
+    if (rotations.size() != current.size()) {
+        throw std::invalid_argument("color rotations do not fit the frame");
+    }
+    if (rotations == current) {
+        return;
+    }
+    current = std::move(rotations);
+    markChanged();
+}
+
 std::size_t ProjectDocument::comparisonMaskCount() const
 {
     return m_comparisonMasks.size();
@@ -1846,6 +1863,42 @@ void ProjectDocument::setSpriteHdState(std::size_t spriteIndex, SpriteHdState st
     markChanged();
 }
 
+void ProjectDocument::restoreSprite(std::size_t spriteIndex, SpriteRecord sprite)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const SpriteRecord& current = m_sprites[spriteIndex];
+    if (sprite.originalSd.size.width != current.originalSd.size.width ||
+        sprite.originalSd.size.height != current.originalSd.size.height ||
+        sprite.detectionAreas.size() != current.detectionAreas.size()) {
+        throw std::invalid_argument("sprite record does not fit the project");
+    }
+    m_sprites[spriteIndex] = std::move(sprite);
+    markChanged();
+}
+
+uint32_t ProjectDocument::spriteSourceFrame(std::size_t spriteIndex) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    return m_editorMetadata.spriteSourceFrames[spriteIndex];
+}
+
+void ProjectDocument::setSpriteSourceFrame(std::size_t spriteIndex, uint32_t frameIndex)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    uint32_t& source = m_editorMetadata.spriteSourceFrames[spriteIndex];
+    if (source == frameIndex) {
+        return;
+    }
+    source = frameIndex;
+    markChanged();
+}
+
 void ProjectDocument::replaceCapturedHdOnlySprite(SpriteRecord& sprite,
                                                   IndexedFrame original,
                                                   Rgb565Frame colorized)
@@ -2206,6 +2259,22 @@ void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::siz
         references[slot] = references[slot + 1];
     }
     references.back().spriteId = kNoSpriteId;
+    markChanged();
+}
+
+void ProjectDocument::restoreFrameSpriteReferences(std::size_t frameIndex,
+                                                   std::vector<FrameSpriteReference> references)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!references.empty() && references.size() != kMaxSpritesPerFrame) {
+        throw std::invalid_argument("sprite slots do not fit the frame");
+    }
+    for (const FrameSpriteReference& reference : references) {
+        if (reference.spriteId != kNoSpriteId && reference.spriteId >= m_sprites.size()) {
+            throw std::out_of_range("sprite reference index out of range");
+        }
+    }
+    frame.spriteReferences = std::move(references);
     markChanged();
 }
 

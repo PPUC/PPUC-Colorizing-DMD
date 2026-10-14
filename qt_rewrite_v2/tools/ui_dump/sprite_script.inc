@@ -337,6 +337,40 @@
     answerNextMessageBox(QStringLiteral("Replace Current"));
     spCapture->click();
     dump("captured bounds into sprite 2", w);
+    w.m_undoAction->trigger();
+    dump("capture into sprite 2 undone", w);
+    w.m_redoAction->trigger();
+    dump("capture into sprite 2 redone", w);
+    // Create New: the box, then the name of the new sprite.
+    QTimer::singleShot(0, [answerNextMessageBox]() {
+        QTimer::singleShot(0, []() {
+            auto* input = qobject_cast<QInputDialog*>(QApplication::activeModalWidget());
+            if (!input) { std::cerr << "no input dialog\n"; std::exit(3); }
+            std::cout << "modal: " << input->windowTitle().toStdString() << " | "
+                      << input->labelText().toStdString() << '\n';
+            input->setTextValue(QStringLiteral("captured new"));
+            input->accept();
+        });
+    });
+    answerNextMessageBox(QStringLiteral("Create New"));
+    spCapture->click();
+    dump("captured bounds into a new sprite", w);
+    w.m_undoAction->trigger();
+    dump("capture into the new sprite undone", w);
+    w.m_undoAction->trigger();
+    dump("new sprite undone", w);
+    w.m_redoAction->trigger();
+    w.m_redoAction->trigger();
+    dump("new sprite and capture redone", w);
+    spMinX->setValue(101);
+    dump("slot bounds changed", w);
+    w.m_undoAction->trigger();
+    dump("slot bounds change undone", w);
+    spName->setText(QStringLiteral("renamed sprite"));
+    spName->editingFinished();
+    dump("sprite renamed", w);
+    w.m_undoAction->trigger();
+    dump("sprite rename undone", w);
     w.m_spriteList->setCurrentRow(0);
     spSlot->setCurrentIndex(0);
 

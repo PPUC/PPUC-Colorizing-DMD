@@ -62,6 +62,7 @@
 #include "dialogs/SelectionDialogs.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
+#include "edit/StateCommands.h"
 #include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
@@ -280,9 +281,9 @@ QString siblingProjectFile(const QString& path, const QString& extension)
     return info.dir().absoluteFilePath(baseName + QChar('.') + extension);
 }
 
-QString editKindStatusSuffix(edit::EditKind kind, bool showsHdAndSd)
+QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd)
 {
-    switch (kind) {
+    switch (command.target().kind) {
         case edit::EditKind::FramePixels:
             break;
         case edit::EditKind::ComparisonMask:
@@ -304,8 +305,9 @@ QString editKindStatusSuffix(edit::EditKind kind, bool showsHdAndSd)
         case edit::EditKind::FrameAttributes:
             return QStringLiteral(" frame change");
         case edit::EditKind::SpriteAttributes:
-            return showsHdAndSd ? QStringLiteral(" sprite HD change")
-                                : QStringLiteral(" sprite change");
+            return showsHdAndSd && dynamic_cast<const edit::SpriteHdCommand*>(&command)
+                       ? QStringLiteral(" sprite HD change")
+                       : QStringLiteral(" sprite change");
         case edit::EditKind::ProjectStructure:
             break;
         case edit::EditKind::EditorColors:
@@ -1235,9 +1237,10 @@ void MainWindow::createCentralView()
                 return;
             }
             try {
-                m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
-                                                   areaIndex,
-                                                   area);
+                const std::size_t sprite = static_cast<std::size_t>(spriteIndex);
+                edit::SpriteState before = edit::spriteState(*m_document, sprite);
+                m_document->setSpriteDetectionArea(sprite, areaIndex, area);
+                pushEdit(edit::spriteStateCommand(*m_document, sprite, std::move(before)));
                 if (m_spriteEditor) {
                     m_spriteEditor->update();
                 }
@@ -3868,7 +3871,9 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
                 reference.maxY = static_cast<uint16_t>(size.height - 1);
             }
             reference.spriteId = static_cast<uint8_t>(spriteIndex);
+            std::vector<document::FrameSpriteReference> before = references;
             m_document->setFrameSpriteReference(frameIndex, slot, reference);
+            pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
             updateFrameListItem(frameIndex);
             ++assigned;
             moved += slot != *slotIndex ? 1 : 0;
@@ -3911,9 +3916,9 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
 void MainWindow::captureSelectedSpriteFromCurrentFrame()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
-    if (!m_document || !frameIndex || !spriteIndex || !m_spritePanel) {
-        statusBar()->showMessage(QStringLiteral("Select a frame and sprite first"), 2500);
+    std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+    if (!m_document || !frameIndex || !m_spritePanel) {
+        statusBar()->showMessage(QStringLiteral("Select a frame first"), 2500);
         updateSpriteControls();
         return;
     }
@@ -3998,19 +4003,26 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                   .arg(captureMaxX)
                   .arg(captureMaxY));
     confirm.setInformativeText(
-        QStringLiteral("Replace sprite %1 with the captured pixels. Creating a new sprite "
-                       "record is not available yet because it must update all cROM and .cRP "
-                       "sprite tables together.")
-            .arg(static_cast<int>(*spriteIndex)));
+        spriteIndex ? QStringLiteral("Replace sprite %1 with the captured pixels, or create a new "
+                                     "sprite from them.")
+                          .arg(static_cast<int>(*spriteIndex))
+                    : QStringLiteral("Create a new sprite from the captured pixels."));
     QPushButton* replaceButton =
         confirm.addButton(QStringLiteral("Replace Current"), QMessageBox::AcceptRole);
+    replaceButton->setEnabled(spriteIndex.has_value());
     QPushButton* createButton =
         confirm.addButton(QStringLiteral("Create New"), QMessageBox::ActionRole);
-    createButton->setEnabled(false);
-    createButton->setToolTip(QStringLiteral("Planned for the sprite allocation step"));
+    createButton->setEnabled(m_document->spriteCount() < document::kMaxSprites);
     confirm.addButton(QMessageBox::Cancel);
+    confirm.setDefaultButton(spriteIndex ? replaceButton : createButton);
     confirm.exec();
-    if (confirm.clickedButton() != replaceButton) {
+    if (confirm.clickedButton() == createButton) {
+        // The new sprite is its own undo step, the capture into it another.
+        spriteIndex = addNamedSprite();
+        if (!spriteIndex) {
+            return;
+        }
+    } else if (confirm.clickedButton() != replaceButton) {
         return;
     }
 
@@ -4023,42 +4035,59 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                                  m_document->geometry().nativePlane(),
                                  includeBackgroundLayer);
         const document::IndexedFrame& sourceOriginal = m_document->originalFrame(*frameIndex);
-        if (selectedPixels.empty()) {
-            m_document->replaceSpriteFromFrame(*spriteIndex,
-                                               sourceOriginal,
-                                               sourceColorized,
-                                               captureMinX,
-                                               captureMinY,
-                                               captureWidth,
-                                               captureHeight);
-        } else {
-            m_document->replaceSpriteFromFrameSelection(*spriteIndex,
-                                                        sourceOriginal,
-                                                        sourceColorized,
-                                                        selectedPixels);
-        }
-        m_undoHistories.clear(edit::EditKind::SpriteImage, *spriteIndex);
-        m_undoHistories.clear(edit::EditKind::SpriteAttributes, *spriteIndex);
-        updateUndoRedoActions();
-        m_document->setSpriteDetectionArea(*spriteIndex,
-                                           0,
-                                           document::SpriteDetectionArea{
-                                               0,
-                                               0,
-                                               static_cast<uint16_t>(captureWidth),
-                                               static_cast<uint16_t>(captureHeight),
-                                           });
+        edit::SpriteState spriteBefore = edit::spriteState(*m_document, *spriteIndex);
+        std::vector<document::FrameSpriteReference> slotsBefore =
+            m_document->frameSpriteReferences(*frameIndex);
         // As for Assign: an empty slot behind the first empty one is not used.
         const std::size_t targetSlot = m_document->spriteSlotForAssignment(*frameIndex, *slotIndex);
-        m_document->setFrameSpriteReference(*frameIndex,
-                                            targetSlot,
-                                            document::FrameSpriteReference{
-                                                static_cast<uint8_t>(*spriteIndex),
-                                                static_cast<uint16_t>(captureMinX),
-                                                static_cast<uint16_t>(captureMinY),
-                                                static_cast<uint16_t>(captureMaxX),
-                                                static_cast<uint16_t>(captureMaxY),
-                                            });
+        try {
+            if (selectedPixels.empty()) {
+                m_document->replaceSpriteFromFrame(*spriteIndex,
+                                                   sourceOriginal,
+                                                   sourceColorized,
+                                                   captureMinX,
+                                                   captureMinY,
+                                                   captureWidth,
+                                                   captureHeight);
+            } else {
+                m_document->replaceSpriteFromFrameSelection(*spriteIndex,
+                                                            sourceOriginal,
+                                                            sourceColorized,
+                                                            selectedPixels);
+            }
+            m_document->setSpriteDetectionArea(*spriteIndex,
+                                               0,
+                                               document::SpriteDetectionArea{
+                                                   0,
+                                                   0,
+                                                   static_cast<uint16_t>(captureWidth),
+                                                   static_cast<uint16_t>(captureHeight),
+                                               });
+            // The cRP names the frame a sprite was taken from, as the Win32 editor does.
+            m_document->setSpriteSourceFrame(*spriteIndex, static_cast<uint32_t>(*frameIndex));
+            m_document->setFrameSpriteReference(*frameIndex,
+                                                targetSlot,
+                                                document::FrameSpriteReference{
+                                                    static_cast<uint8_t>(*spriteIndex),
+                                                    static_cast<uint16_t>(captureMinX),
+                                                    static_cast<uint16_t>(captureMinY),
+                                                    static_cast<uint16_t>(captureMaxX),
+                                                    static_cast<uint16_t>(captureMaxY),
+                                                });
+        } catch (...) {
+            m_document->restoreSprite(*spriteIndex, spriteBefore.sprite);
+            m_document->setSpriteSourceFrame(*spriteIndex, spriteBefore.sourceFrame);
+            m_document->restoreFrameSpriteReferences(*frameIndex, slotsBefore);
+            throw;
+        }
+        // One undo step in the history of the frame the capture was made on, also when its
+        // slots stay as they were.
+        std::vector<std::unique_ptr<edit::EditCommand>> commands;
+        commands.push_back(std::make_unique<edit::FrameSpriteSlotsCommand>(
+            *frameIndex, std::move(slotsBefore), m_document->frameSpriteReferences(*frameIndex)));
+        commands.push_back(
+            edit::spriteStateCommand(*m_document, *spriteIndex, std::move(spriteBefore)));
+        pushEdit(edit::groupCommands(std::move(commands)));
         if (!selectedPixels.empty()) {
             m_canvasEdit.clearCaptureSelection();
         }
@@ -4130,7 +4159,9 @@ void MainWindow::removeCurrentSpriteSlot()
                 ++skipped;
                 continue;
             }
+            std::vector<document::FrameSpriteReference> before = references;
             m_document->clearFrameSpriteReference(frameIndex, *last);
+            pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
             updateFrameListItem(frameIndex);
             ++changed;
         }
@@ -4194,7 +4225,9 @@ void MainWindow::setCurrentSpriteSlotBounds()
                 updated.maxY == reference.maxY) {
                 continue;
             }
+            std::vector<document::FrameSpriteReference> before = references;
             m_document->setFrameSpriteReference(frameIndex, *slotIndex, updated);
+            pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
             updateFrameListItem(frameIndex);
             ++changed;
         }
@@ -4231,8 +4264,10 @@ void MainWindow::setCurrentSpriteName(const QString& name)
     }
 
     try {
-        m_document->setSpriteName(static_cast<std::size_t>(spriteIndex),
-                                  name.toStdString());
+        const std::size_t sprite = static_cast<std::size_t>(spriteIndex);
+        edit::SpriteState before = edit::spriteState(*m_document, sprite);
+        m_document->setSpriteName(sprite, name.toStdString());
+        pushEdit(edit::spriteStateCommand(*m_document, sprite, std::move(before)));
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(QStringLiteral("Renamed sprite %1").arg(spriteIndex), 1500);
@@ -4276,6 +4311,8 @@ void MainWindow::setCurrentSpriteDetectionArea()
     }
 
     try {
+        edit::SpriteState before =
+            edit::spriteState(*m_document, static_cast<std::size_t>(spriteIndex));
         m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
                                            areaIndex,
                                            document::SpriteDetectionArea{
@@ -4284,6 +4321,8 @@ void MainWindow::setCurrentSpriteDetectionArea()
                                                static_cast<uint16_t>(width),
                                                static_cast<uint16_t>(height),
                                            });
+        pushEdit(edit::spriteStateCommand(
+            *m_document, static_cast<std::size_t>(spriteIndex), std::move(before)));
         if (m_spriteEditor) {
             m_spriteEditor->update();
         }
@@ -4316,6 +4355,8 @@ void MainWindow::clearCurrentSpriteDetectionArea()
     }
 
     try {
+        edit::SpriteState before =
+            edit::spriteState(*m_document, static_cast<std::size_t>(spriteIndex));
         m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
                                            areaIndex,
                                            document::SpriteDetectionArea{
@@ -4324,6 +4365,8 @@ void MainWindow::clearCurrentSpriteDetectionArea()
                                                0xffff,
                                                0xffff,
                                            });
+        pushEdit(edit::spriteStateCommand(
+            *m_document, static_cast<std::size_t>(spriteIndex), std::move(before)));
         if (m_spriteEditor) {
             m_spriteEditor->update();
         }
@@ -4827,10 +4870,14 @@ void MainWindow::setCurrentColorRotationLength(std::size_t slotIndex, int length
     const bool wasDirty = m_document->isDirty();
     try {
         for (std::size_t frameIndex : frameIndices) {
+            document::CompactArray<uint16_t> before =
+                m_document->colorRotations(frameIndex, m_activeResolution);
             m_document->setColorRotationLength(frameIndex,
                                                m_activeResolution,
                                                slotIndex,
                                                storedLength);
+            pushEdit(edit::colorRotationsCommand(
+                *m_document, frameIndex, m_activeResolution, std::move(before)));
         }
         updateColorRotationControls();
         if (!wasDirty && m_document->isDirty()) {
@@ -4859,10 +4906,14 @@ void MainWindow::setCurrentColorRotationDelayMs(std::size_t slotIndex, int delay
     const bool wasDirty = m_document->isDirty();
     try {
         for (std::size_t frameIndex : frameIndices) {
+            document::CompactArray<uint16_t> before =
+                m_document->colorRotations(frameIndex, m_activeResolution);
             m_document->setColorRotationDelayMs(frameIndex,
                                                 m_activeResolution,
                                                 slotIndex,
                                                 storedDelayMs);
+            pushEdit(edit::colorRotationsCommand(
+                *m_document, frameIndex, m_activeResolution, std::move(before)));
         }
         updateColorRotationControls();
         if (!wasDirty && m_document->isDirty()) {
@@ -4914,11 +4965,15 @@ void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_
                                                 m_activeResolution,
                                                 slotIndex);
             if (selectedLength > colorIndex) {
+                document::CompactArray<uint16_t> before =
+                    m_document->colorRotations(selectedFrameIndex, m_activeResolution);
                 m_document->setColorRotationColor(selectedFrameIndex,
                                                   m_activeResolution,
                                                   slotIndex,
                                                   colorIndex,
                                                   newRgb565);
+                pushEdit(edit::colorRotationsCommand(
+                    *m_document, selectedFrameIndex, m_activeResolution, std::move(before)));
             }
         }
         updateColorRotationControls();
@@ -4945,7 +5000,11 @@ void MainWindow::clearCurrentColorRotationSlot(std::size_t slotIndex)
     const bool wasDirty = m_document->isDirty();
     try {
         for (std::size_t frameIndex : frameIndices) {
+            document::CompactArray<uint16_t> before =
+                m_document->colorRotations(frameIndex, m_activeResolution);
             m_document->clearColorRotationSlot(frameIndex, m_activeResolution, slotIndex);
+            pushEdit(edit::colorRotationsCommand(
+                *m_document, frameIndex, m_activeResolution, std::move(before)));
         }
         updateColorRotationControls();
         if (!wasDirty && m_document->isDirty()) {
@@ -6050,6 +6109,16 @@ void MainWindow::recordEdit(std::unique_ptr<edit::EditCommand> command)
     refreshAfterEdit(applied);
 }
 
+void MainWindow::pushEdit(std::unique_ptr<edit::EditCommand> command)
+{
+    if (!m_document || !command) {
+        return;
+    }
+    const edit::HistoryKey key = edit::historyKey(command->target());
+    m_undoHistories.push(key, std::move(command));
+    updateUndoRedoActions();
+}
+
 bool MainWindow::confirmDeletion(const QString& title,
                                  const QString& question,
                                  const QString& consequences)
@@ -6151,15 +6220,20 @@ void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, cons
 
 void MainWindow::addSprite()
 {
+    addNamedSprite();
+}
+
+std::optional<std::size_t> MainWindow::addNamedSprite()
+{
     if (!m_document) {
-        return;
+        return std::nullopt;
     }
     if (m_document->spriteCount() >= document::kMaxSprites) {
         statusBar()->showMessage(
             QStringLiteral("Not added: a project holds at most %1 sprites")
                 .arg(static_cast<int>(document::kMaxSprites)),
             4000);
-        return;
+        return std::nullopt;
     }
     bool accepted = false;
     const QString name = QInputDialog::getText(
@@ -6171,13 +6245,13 @@ void MainWindow::addSprite()
                              &accepted)
                              .trimmed();
     if (!accepted) {
-        return;
+        return std::nullopt;
     }
     const std::string problem = edit::spriteNameProblem(*m_document, name.toStdString());
     if (!problem.empty()) {
         statusBar()->showMessage(
             QStringLiteral("Not added: %1").arg(QString::fromStdString(problem)), 4000);
-        return;
+        return std::nullopt;
     }
     try {
         // The cRP records the frame a sprite was made on, as the Win32 editor does.
@@ -6189,8 +6263,10 @@ void MainWindow::addSprite()
                 .arg(name)
                 .arg(static_cast<int>(m_document->spriteCount())),
             4000);
+        return m_document->spriteCount() - 1;
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return std::nullopt;
     }
 }
 
@@ -6653,6 +6729,10 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             }
             m_preview->update();
             updateFrameMetadataControls();
+            // Sprite slots, a capture and color rotations are frame changes too.
+            setSpriteDependentViewsDirty();
+            updateSpriteControls();
+            updateColorRotationControls();
             for (std::size_t frameIndex : target.frameIndices) {
                 updateFrameListItem(frameIndex);
             }
@@ -6737,6 +6817,10 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
         if (frameIndex) {
             keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
         }
+        // Sprite capture and detection areas are edited beside the frame.
+        if (const std::optional<std::size_t> spriteIndex = currentSpriteIndex()) {
+            keys.push_back({edit::EditKind::SpriteAttributes, *spriteIndex, sd});
+        }
         return keys;
     }
     if (isDynamicMaskModeActive()) {
@@ -6772,6 +6856,10 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     }
     if (frameIndex) {
         keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
+    }
+    // The selected sprite's name and detection areas are edited beside the frame.
+    if (const std::optional<std::size_t> spriteIndex = currentSpriteIndex()) {
+        keys.push_back({edit::EditKind::SpriteAttributes, *spriteIndex, sd});
     }
     keys.push_back(edit::editorColorsHistoryKey());
     return keys;
@@ -6895,7 +6983,6 @@ void MainWindow::undo()
     if (!command) {
         return;
     }
-    const edit::EditKind kind = command->target().kind;
     refreshAfterEdit(*command);
     updateUndoRedoActions();
     if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
@@ -6903,7 +6990,7 @@ void MainWindow::undo()
             QStringLiteral("Undo: %1").arg(structureCommandText(*structure)), 2500);
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(kind, showsHdAndSd()),
+    statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(*command, showsHdAndSd()),
                              1500);
 }
 
@@ -6928,7 +7015,6 @@ void MainWindow::redo()
     if (!command) {
         return;
     }
-    const edit::EditKind kind = command->target().kind;
     refreshAfterEdit(*command);
     updateUndoRedoActions();
     if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
@@ -6936,7 +7022,7 @@ void MainWindow::redo()
             QStringLiteral("Redo: %1").arg(structureCommandText(*structure)), 2500);
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(kind, showsHdAndSd()),
+    statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(*command, showsHdAndSd()),
                              1500);
 }
 

@@ -990,9 +990,6 @@ owner together.
 - Adding or deleting a record rebuilds the three browser lists and, for frames, the frame list
   (texts of all rows; thumbnails stay lazy). Deleting frames loses the scroll position of the
   frame list to the newly selected frame.
-- The sprite `Capture` dialog still shows a disabled `Create New` with the text that creating a
-  sprite is not available; `New` on the `Sprites` page does it. Wiring the button to
-  `edit::addSprite` is a small step.
 - libserum keeps the 256x64 dynamic data of sprite N only if frame N has 256x64 data
   (the flag array of the frames is indexed with the sprite number). In a 256x64 project the
   picture of a frame with sprites can therefore change when frames before it are deleted.
@@ -1039,10 +1036,12 @@ owner together.
   changes coalesce; no timer and no thread.
 - An undo step of a multi-frame edit (drawing, paste, auto copy, scrolling fill) is in each
   frame's own history, so after an auto copy to 300 frames the frames are undone one by one.
-- Not undoable: sprite slot assign/remove/bounds, detection areas, names, sprite capture, colour
-  rotations.
-- Sprite capture does not record the source frame, rectangle and mirror flags in the cRP, and
-  leaves the sprite's old dynamic mask in place.
+- Not undoable: palette names. Sprite slots, capture, detection areas, sprite names and colour
+  rotations are undoable through `edit/StateCommands` (state before/after; capture is one
+  `CommandGroup` in the frame's history). The source rectangle and mirror flags of a sprite
+  (`SpriteRect`, `SpriteRectMirror`) are not written by capture: CDMD writes them relative to its
+  clipboard and reads them only in commented-out code; `Sprite_Col_From_Frame` is written.
+  As in CDMD, a capture keeps the sprite's dynamic mask.
 - `ProjectDocument::createEmpty` is still not a complete new-project path (tests only); new
   projects come from a dump (`importing::makeProjectSnapshot`).
 - A new project of a large dump is as heavy as its originals and colorized pictures: its other

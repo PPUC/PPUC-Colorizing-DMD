@@ -27,6 +27,7 @@ add_executable(colorizing_qt_v2_tests
     RuntimePreviewTests.cpp
     SameFramesTests.cpp
     SelectionEditTests.cpp
+    StateCommandsTests.cpp
     StructureCommandTests.cpp
 )
 

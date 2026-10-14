@@ -137,6 +137,7 @@ void runNativeOriginalProjectTests();
 void runProjectGeometryTests();
 void runRuntimePreviewTests();
 void runPlaybackIdentificationTests();
+void runStateCommandsTests();
 void runStructureCommandTests();
 void runFrameDumpImportTests();
 void runSameFramesTests();
@@ -163,6 +164,7 @@ try {
     runProjectGeometryTests();
     runRuntimePreviewTests();
     runPlaybackIdentificationTests();
+    runStateCommandsTests();
     runStructureCommandTests();
     runFrameDumpImportTests();
     runSameFramesTests();
