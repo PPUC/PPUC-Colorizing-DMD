@@ -17,6 +17,7 @@ if [ "$#" -ne 2 ]; then
     exit 2
 fi
 
+here=$(cd "$(dirname "$0")" && pwd -P)
 build_dir=$1
 output=$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")
 app="${build_dir}/app/ColorizingDMD.app"
@@ -35,6 +36,8 @@ stage=$(mktemp -d)
 trap 'rm -rf "${stage}"' EXIT
 cp -R "${app}" "${stage}/"
 bundle="${stage}/ColorizingDMD.app"
+mkdir -p "${bundle}/Contents/Resources"
+cp "${here}/../../LICENSE" "${bundle}/Contents/Resources/LICENSE"
 
 if [ -n "${DMDUTIL_LIB_DIR:-}" ]; then
     # libdmdutil and what it loads, found through the bundle's @rpath (Contents/Frameworks).

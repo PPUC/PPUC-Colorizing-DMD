@@ -21,6 +21,7 @@ if [ -z "${MINGW_PREFIX:-}" ]; then
     exit 1
 fi
 
+here=$(cd "$(dirname "$0")" && pwd -P)
 build_dir=$1
 output=$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")
 exe="${build_dir}/app/ColorizingDMD.exe"
@@ -40,6 +41,7 @@ trap 'rm -rf "${stage}"' EXIT
 package="${stage}/ColorizingDMD"
 mkdir -p "${package}"
 cp "${exe}" "${package}/"
+cp "${here}/../../LICENSE" "${package}/LICENSE.txt"
 
 windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw \
     "${package}/ColorizingDMD.exe"

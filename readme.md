@@ -21,3 +21,9 @@ You should also check the videos made by Dtatane here https://www.youtube.com/wa
 
 Depending on whether you are using the 64bit or the 32bit version of VPinMame (if you don't know, chances are that you are using the 32bit version), download respectively the 2 files (DmdDevice.dll and DmdExt.exe) in "DMD-extensions x64" or "DMD-extensions x86" from the [DMD Extensions](https://github.com/freezy/dmd-extensions) download. Then copy them to your "VPinMame" directory.
 If you are using Windows 10 or more recent, right click on each file and choose "Properties". If in the Properties window, there is a box "Unblock" in the bottom right, check it and click "OK".
+
+# License
+
+ColorizingDMD is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. See [LICENSE](LICENSE).

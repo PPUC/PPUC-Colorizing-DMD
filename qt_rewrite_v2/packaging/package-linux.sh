@@ -47,6 +47,8 @@ stage=$(mktemp -d)
 trap 'rm -rf "${stage}"' EXIT
 # linuxdeploy names the icon after the file; the desktop file asks for "colorizingdmd".
 cp "${here}/../../cRom256.png" "${stage}/colorizingdmd.png"
+mkdir -p "${stage}/AppDir/usr/share/doc/colorizingdmd"
+cp "${here}/../../LICENSE" "${stage}/AppDir/usr/share/doc/colorizingdmd/LICENSE"
 
 # A build with DMD output: linuxdeploy finds libdmdutil through the build's rpath, and the
 # libraries libdmdutil loads through this path (packaging/build-libdmdutil.sh stages them).
