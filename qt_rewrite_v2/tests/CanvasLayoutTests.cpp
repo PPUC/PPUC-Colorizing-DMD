@@ -141,6 +141,7 @@ void runSectionsTests();
 void runSpriteClipboardTests();
 void runStateCommandsTests();
 void runStructureCommandTests();
+void runUpscaleTests();
 void runFrameDumpImportTests();
 void runSameFramesTests();
 void runColorSetTests();
@@ -171,6 +172,7 @@ try {
     runSpriteClipboardTests();
     runStateCommandsTests();
     runStructureCommandTests();
+    runUpscaleTests();
     runFrameDumpImportTests();
     runSameFramesTests();
     runColorSetTests();

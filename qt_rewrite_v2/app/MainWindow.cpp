@@ -67,6 +67,7 @@
 #include "dialogs/SelectionDialogs.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
+#include "document/Upscale.h"
 #include "edit/Sections.h"
 #include "edit/SpriteClipboard.h"
 #include "edit/StateCommands.h"
@@ -5201,6 +5202,23 @@ void MainWindow::createCurrentFrameHd()
     backgroundImageCheckBox->setEnabled(hasAssignedBackground);
     backgroundImageCheckBox->setToolTip(QStringLiteral("Scale assigned SD background image to HD"));
     dialogLayout->addWidget(backgroundImageCheckBox);
+    auto* filterRow = new QHBoxLayout();
+    filterRow->addWidget(new QLabel(QStringLiteral("Filter"), &dialog));
+    auto* filterComboBox = new QComboBox(&dialog);
+    filterComboBox->setToolTip(QStringLiteral(
+        "How the SD picture becomes twice as large: Nearest doubles every pixel, Scale2x keeps "
+        "the colors and smooths diagonal edges, the others blend neighbouring colors"));
+    for (document::UpscaleFilter filter :
+         {document::UpscaleFilter::Nearest, document::UpscaleFilter::Scale2x,
+          document::UpscaleFilter::Bilinear, document::UpscaleFilter::Bicubic,
+          document::UpscaleFilter::Lanczos4}) {
+        filterComboBox->addItem(QString::fromStdString(document::upscaleFilterName(filter)),
+                                static_cast<int>(filter));
+    }
+    filterComboBox->setCurrentIndex(
+        std::max(0, filterComboBox->findData(static_cast<int>(m_createHdFilter))));
+    filterRow->addWidget(filterComboBox, 1);
+    dialogLayout->addLayout(filterRow);
     auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
                                            &dialog);
     dialogLayout->addWidget(buttonBox);
@@ -5214,12 +5232,18 @@ void MainWindow::createCurrentFrameHd()
         document::FrameHdParts parts;
         parts.backgroundMask = backgroundMaskCheckBox->isChecked();
         parts.backgroundImage = backgroundImageCheckBox->isChecked();
+        m_createHdFilter =
+            static_cast<document::UpscaleFilter>(filterComboBox->currentData().toInt());
+        parts.filter = m_createHdFilter;
         std::unique_ptr<edit::EditCommand> command =
             edit::createFrameHd(*m_document, *frameIndex, parts);
         m_activeResolution = render::Resolution::Hd;
         recordEdit(std::move(command));
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Created HD frame from SD"), 2500);
+        statusBar()->showMessage(
+            QStringLiteral("Created HD frame from SD (%1)")
+                .arg(QString::fromStdString(document::upscaleFilterName(parts.filter))),
+            2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
         updateUndoRedoActions();

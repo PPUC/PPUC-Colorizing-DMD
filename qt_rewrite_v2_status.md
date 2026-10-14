@@ -1067,7 +1067,6 @@ owner together.
 - Black and white of the whole project (CDMD `IDC_BAW`, not undoable there; its rotation loop
   also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
   Dyn>Stat and "to source frame" are done.
-- Selectable resize filters for HD creation.
 - Images window: video import, crop zones, scroll copy.
 - ZeDMD output, PuP tester. The frame tester exists (`dialogs/FrameTesterDialog`,
   `runtime/FrameTester`).

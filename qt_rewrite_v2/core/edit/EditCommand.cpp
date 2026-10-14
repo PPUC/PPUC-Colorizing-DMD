@@ -553,12 +553,12 @@ std::unique_ptr<EditCommand> createFrameHd(document::ProjectDocument& document,
     }
     document::FrameHdState before = document.frameHdState(frameIndex, parts);
     try {
-        document.createHdFrame(frameIndex);
+        document.createHdFrame(frameIndex, parts.filter);
         if (parts.backgroundMask) {
             document.upscaleBackgroundMaskToHd(frameIndex);
         }
         if (parts.backgroundImage) {
-            document.upscaleAssignedBackgroundToHd(frameIndex);
+            document.upscaleAssignedBackgroundToHd(frameIndex, parts.filter);
         }
     } catch (...) {
         document.setFrameHdState(frameIndex, before);

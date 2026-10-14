@@ -715,6 +715,13 @@ Rules:
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
 - The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
 - When creating HD, a dialog asks whether to also upscale the frame background mask and the assigned background image.
+- The dialog's `Filter`, as CDMD's filter box, says how the SD picture and the background image
+  become twice as large (the masks are always doubled): `Nearest` doubles every pixel (as
+  before), `Scale2x` keeps the colors and smooths diagonal edges (the way libserum upscales
+  dynamic content and sprites at runtime), `Bilinear`, `Bicubic` and `Lanczos4` blend
+  neighbouring colors as OpenCV does in CDMD (centres aligned, edges repeated), which adds
+  colors the SD picture did not have. The last choice is offered again. The status bar names
+  the filter used.
 - `Create HD` does not create HD dynamic data and the dialog does not offer it: the runtime renders
   the dynamic zones of the SD plane into the HD picture and does not read an HD dynamic mask. The
   frame's stored HD dynamic mask, colors and shadows are written as they are: for a frame that

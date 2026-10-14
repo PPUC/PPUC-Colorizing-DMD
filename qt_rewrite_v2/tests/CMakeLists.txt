@@ -32,6 +32,7 @@ add_executable(colorizing_qt_v2_tests
     SpriteClipboardTests.cpp
     StateCommandsTests.cpp
     StructureCommandTests.cpp
+    UpscaleTests.cpp
 )
 
 # libserum directly too: the cROMc export test loads what it wrote as a machine does.

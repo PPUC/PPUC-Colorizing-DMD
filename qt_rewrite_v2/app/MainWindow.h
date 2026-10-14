@@ -525,6 +525,8 @@ private:
     SectionBar* m_sectionBar = nullptr;
     // The last percentage given to Edit -> Brightness.
     int m_brightnessPercent = 110;
+    // The filter last chosen for Create HD.
+    document::UpscaleFilter m_createHdFilter = document::UpscaleFilter::Nearest;
     // The document revision the section bar's lists show.
     std::optional<uint64_t> m_sectionBarRevision;
 };

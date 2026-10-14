@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "document/ProjectSnapshot.h"
+#include "document/Upscale.h"
 
 namespace colorizing::document {
 
@@ -94,22 +95,6 @@ std::size_t colorRotationColorOffset(std::size_t slotIndex, std::size_t colorInd
         throw std::out_of_range("color rotation color index out of range");
     }
     return colorRotationOffset(slotIndex) + 2 + colorIndex;
-}
-
-Rgb565Frame upscaleRgb565Frame2x(const Rgb565Frame& source)
-{
-    Rgb565Frame target = makeRgb565Frame(Size{source.size.width * 2, source.size.height * 2});
-    for (int y = 0; y < target.size.height; ++y) {
-        for (int x = 0; x < target.size.width; ++x) {
-            target.pixels[static_cast<std::size_t>(y) *
-                              static_cast<std::size_t>(target.size.width) +
-                          static_cast<std::size_t>(x)] =
-                source.pixels[static_cast<std::size_t>(y / 2) *
-                                  static_cast<std::size_t>(source.size.width) +
-                              static_cast<std::size_t>(x / 2)];
-        }
-    }
-    return target;
 }
 
 IndexedFrame upscaleIndexedFrame2x(const IndexedFrame& source)
@@ -834,7 +819,7 @@ bool ProjectDocument::hasHdFrame(std::size_t frameIndex) const
     return requireFrame(m_frames, frameIndex).colorizedHd.has_value();
 }
 
-void ProjectDocument::createHdFrame(std::size_t frameIndex)
+void ProjectDocument::createHdFrame(std::size_t frameIndex, UpscaleFilter filter)
 {
     requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
@@ -842,7 +827,7 @@ void ProjectDocument::createHdFrame(std::size_t frameIndex)
         return;
     }
     frame.colorizedHd = rendersHdPlaneOnly() ? plainRgb565Frame(frame.originalSd, m_colorCount)
-                                           : upscaleRgb565Frame2x(frame.colorizedSd);
+                                           : upscale2x(frame.colorizedSd, filter);
     frame.inactiveHd.reset();
     markChanged();
 }
@@ -875,7 +860,7 @@ void ProjectDocument::upscaleBackgroundMaskToHd(std::size_t frameIndex)
     markChanged();
 }
 
-void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
+void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex, UpscaleFilter filter)
 {
     requireEditableExtraPlane();
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
@@ -895,7 +880,7 @@ void ProjectDocument::upscaleAssignedBackgroundToHd(std::size_t frameIndex)
         markChanged();
         return;
     }
-    background.colorizedHd = upscaleRgb565Frame2x(background.colorizedSd);
+    background.colorizedHd = upscale2x(background.colorizedSd, filter);
     background.inactiveHd.reset();
     markChanged();
 }

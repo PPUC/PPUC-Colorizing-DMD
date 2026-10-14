@@ -129,9 +129,24 @@ struct FrameRecord {
 
 // Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
 // among them: the runtime takes it from the original plane, see ProjectDocument::dynamicPlane().
+// How Create HD makes a picture twice the size (CDMD's filter box: OpenCV's INTER_NEAREST,
+// INTER_LINEAR, INTER_CUBIC and INTER_LANCZOS4, and its own Scale2x). The interpolating ones
+// follow OpenCV: pixel centres aligned, edges repeated, bicubic with a = -0.75, Lanczos over 8
+// pixels; they make colors the picture did not have. Scale2x keeps the colors and smooths
+// diagonal edges, as libserum does when it upscales at runtime.
+enum class UpscaleFilter {
+    Nearest,
+    Bilinear,
+    Bicubic,
+    Lanczos4,
+    Scale2x,
+};
+
 struct FrameHdParts {
     bool backgroundMask = false;
     bool backgroundImage = false;
+    // For the frame's picture and the background image; masks are always doubled.
+    UpscaleFilter filter = UpscaleFilter::Nearest;
 };
 
 struct BackgroundHdData {
@@ -340,12 +355,15 @@ public:
     [[nodiscard]] bool hasHdFrame(std::size_t frameIndex) const;
     // Upscales the SD frame. In an HD-only project there is nothing to upscale: the HD frame
     // becomes the original in its plain colors (plainOriginalColors).
-    void createHdFrame(std::size_t frameIndex);
+    // filter: how the SD picture becomes the HD one (see Upscale.h); an HD-only project's HD
+    // frame is the original in its plain colors whatever the filter.
+    void createHdFrame(std::size_t frameIndex, UpscaleFilter filter = UpscaleFilter::Nearest);
     // Removing and upscaling from SD throw std::logic_error in an HD-only project.
     void removeHdFrame(std::size_t frameIndex);
     void upscaleBackgroundMaskToHd(std::size_t frameIndex);
     // In an HD-only project: gives the assigned background a black HD image if it has none.
-    void upscaleAssignedBackgroundToHd(std::size_t frameIndex);
+    void upscaleAssignedBackgroundToHd(std::size_t frameIndex,
+                                       UpscaleFilter filter = UpscaleFilter::Nearest);
     // Throws when a requested part does not exist for the frame.
     [[nodiscard]] FrameHdState frameHdState(std::size_t frameIndex, FrameHdParts parts) const;
     // Writes back everything the state holds; a state that does not fit the frame is rejected

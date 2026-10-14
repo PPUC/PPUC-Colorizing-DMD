@@ -1,6 +1,7 @@
 add_library(colorizing_qt_v2_core STATIC
     document/EditorMetadata.cpp
     document/ProjectSnapshot.cpp
+    document/Upscale.cpp
     document/ProjectDocument.cpp
     edit/AutoCopy.cpp
     edit/ColorModel.cpp
