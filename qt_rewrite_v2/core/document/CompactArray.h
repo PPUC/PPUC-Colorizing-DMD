@@ -267,7 +267,15 @@ public:
             return;
         }
         std::vector<T>& values = writableVector();
-        values.resize(count, value);
+        if (count < values.size()) {
+            values.erase(values.begin() + static_cast<std::ptrdiff_t>(count), values.end());
+        } else {
+            // Grown into a new buffer rather than with vector::resize, which GCC 16 at -O3
+            // reports as an overflow it is not.
+            std::vector<T> grown(count, value);
+            std::copy(values.begin(), values.end(), grown.begin());
+            values.swap(grown);
+        }
         refreshAfterResize();
     }
 
