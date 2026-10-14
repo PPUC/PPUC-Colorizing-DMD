@@ -60,8 +60,13 @@ fi
 prefix_dependencies() {
     local prefix_lower
     prefix_lower=$(echo "${prefix_bin}/" | tr '[:upper:]' '[:lower:]')
+    # One file at a time, and past failures: ntldd fails on a plugin DLL whose own DLLs lie
+    # in its folder, and xargs would stop at the first failure (status 255) with the rest
+    # of the files unread.
     find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0 |
-        xargs -0 ntldd -R 2>/dev/null |
+        while IFS= read -r -d '' file; do
+            ntldd -R "${file}" 2>/dev/null || true
+        done |
         awk '$2 == "=>" && $3 != "not" {print $3}' |
         while IFS= read -r path; do
             unix=$(cygpath -u "${path}")
