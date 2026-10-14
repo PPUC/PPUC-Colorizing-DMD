@@ -135,6 +135,15 @@ private:
         m_removed = {};
     }
 
+    std::size_t heldBytes() const override
+    {
+        std::size_t bytes = 0;
+        for (const document::FrameRecord& frame : m_removed.frames) {
+            bytes += document::ownedBytes(frame);
+        }
+        return bytes;
+    }
+
     mutable document::RemovedFrames m_removed;
 };
 
@@ -167,6 +176,11 @@ private:
         m_removed = {};
     }
 
+    std::size_t heldBytes() const override
+    {
+        return recordsPresent() ? 0 : document::ownedBytes(m_removed.sprite);
+    }
+
     mutable document::RemovedSprite m_removed;
 };
 
@@ -188,6 +202,11 @@ private:
     {
         document.insertBackground(std::move(m_removed));
         m_removed = {};
+    }
+
+    std::size_t heldBytes() const override
+    {
+        return recordsPresent() ? 0 : document::ownedBytes(m_removed.background);
     }
 
     mutable document::RemovedBackground m_removed;
@@ -214,6 +233,11 @@ private:
     {
         document.insertComparisonMask(std::move(m_removed));
         m_removed = {};
+    }
+
+    std::size_t heldBytes() const override
+    {
+        return recordsPresent() ? 0 : m_removed.mask.pixels.ownedBytes();
     }
 
     mutable document::RemovedComparisonMask m_removed;

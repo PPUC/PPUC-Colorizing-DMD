@@ -62,11 +62,12 @@ PlaneContent readContent(const document::ProjectDocument& document,
     PlaneContent content;
     const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, plane);
     content.size = frame.size;
-    content.colors = frame.pixels;
+    content.colors = frame.pixels.toVector();
     const std::optional<document::FrameDynamicData>& dynamicData = document.dynamicData(frameIndex);
     if (plane == document.dynamicPlane() && dynamicData) {
         content.dynamicMask =
-            (plane == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd).pixels;
+            (plane == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd)
+                .pixels.toVector();
     }
     return content;
 }

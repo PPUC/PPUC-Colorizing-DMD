@@ -58,6 +58,7 @@
 #include "SpriteEditorWidget.h"
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "dialogs/ProjectTaskDialog.h"
 #include "dialogs/SelectionDialogs.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
@@ -1389,13 +1390,32 @@ bool MainWindow::saveProject()
     }
     applyPendingSpriteDependentViews();
 
-    const legacy::LegacyProjectFileWriter writer;
-    const legacy::LegacySaveResult result = writer.save(legacy::LegacyProjectPaths{
+    // The files are written on a worker thread (runProjectTask) from a snapshot that shares
+    // every block with the document (copy on write), so the save copies no pixels. Nothing
+    // can change the document meanwhile: the UI handles no input until the save has ended.
+    const legacy::LegacyProjectPaths paths{
         m_currentCromPath.toStdString(),
         m_currentCrpPath.toStdString(),
         siblingProjectFile(m_currentCromPath, QStringLiteral("cRZ")).toStdString(),
-    }, m_document->toSnapshot());
+    };
+    legacy::LegacySaveResult result;
+    {
+        const document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, QStringLiteral("Saving Project"), progress, [&]() {
+                result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
+            });
+        if (failure) {
+            result = legacy::makeSaveFailure(*failure);
+        }
+    }
 
+    if (result.cancelled) {
+        statusBar()->showMessage(
+            QStringLiteral("Save cancelled: the project files on disk are unchanged"), 4000);
+        return false;
+    }
     if (!result.ok) {
         QMessageBox::critical(this,
                               QStringLiteral("Save Project Failed"),
@@ -1578,7 +1598,7 @@ void MainWindow::addFramesFromDump()
     try {
         recordStructureEdit(edit::addFrames(
             *m_document, importing::makeProjectFrames(*m_document, std::move(dump))));
-        statusBar()->showMessage(QStringLiteral("Frames added: %1; %2 frames now")
+        showStructureEditStatus(QStringLiteral("Frames added: %1; %2 frames now")
                                      .arg(summary)
                                      .arg(static_cast<qulonglong>(m_document->frameCount())),
                                  8000);
@@ -1758,13 +1778,27 @@ void MainWindow::importImageIntoSelectedFrames()
 
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 {
-    const legacy::LegacyProjectFileReader reader;
-    const legacy::LegacyLoadResult result = reader.load(legacy::LegacyProjectPaths{
-        cromPath.toStdString(),
-        crpPath.toStdString(),
-        {},
-    });
+    // Read and turned into a document on a worker thread (runProjectTask); the project that
+    // is open stays open, unchanged, until the new one is complete, and is kept when the open
+    // fails or is cancelled.
+    const legacy::LegacyProjectPaths paths{cromPath.toStdString(), crpPath.toStdString(), {}};
+    legacy::LegacyDocumentLoadResult result;
+    {
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, QStringLiteral("Opening Project"), progress, [&]() {
+                result = legacy::loadLegacyProjectDocument(paths, &progress);
+            });
+        if (failure) {
+            result = {};
+            result.error.message = *failure;
+        }
+    }
 
+    if (result.cancelled) {
+        setStatusText(QStringLiteral("Open cancelled"));
+        return;
+    }
     if (!result.ok) {
         QMessageBox::critical(this,
                               QStringLiteral("Open Project Failed"),
@@ -1774,7 +1808,8 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
     }
 
     try {
-        m_document = document::ProjectDocument::fromSnapshot(result.snapshot);
+        m_document = std::move(*result.document);
+        result.document.reset();
         // Saving a project opened from its archive writes the loose .cROM next to it.
         m_currentCromPath = isCrzPath(cromPath)
                                 ? siblingProjectFile(cromPath, QStringLiteral("cROM"))
@@ -6106,7 +6141,7 @@ void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, cons
     }
     try {
         recordStructureEdit(edit::deleteFrames(*m_document, frameIndices));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Deleted %1 frame(s), %2 remain").arg(count).arg(total - count),
             4000);
     } catch (const std::exception& ex) {
@@ -6148,7 +6183,7 @@ void MainWindow::addSprite()
         // The cRP records the frame a sprite was made on, as the Win32 editor does.
         recordStructureEdit(
             edit::addSprite(*m_document, name.toStdString(), currentFrameIndex().value_or(0)));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Added sprite %1 \"%2\", %3 sprite(s) now")
                 .arg(static_cast<int>(m_document->spriteCount() - 1))
                 .arg(name)
@@ -6184,7 +6219,7 @@ void MainWindow::deleteSelectedSprite()
     }
     try {
         recordStructureEdit(edit::deleteSprite(*m_document, *spriteIndex));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Deleted sprite %1%2; %3 sprite(s) remain")
                 .arg(static_cast<int>(*spriteIndex))
                 .arg(useCount > 0 ? QStringLiteral(", removed from %1 frame(s)").arg(useCount)
@@ -6220,7 +6255,7 @@ void MainWindow::addBackgroundFromCurrentFrame()
     }
     try {
         recordStructureEdit(edit::addBackgroundFromFrame(*m_document, *frameIndex));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Added background %1 from frame %2, %3 background(s) now")
                 .arg(static_cast<int>(m_document->backgroundCount() - 1))
                 .arg(static_cast<int>(*frameIndex))
@@ -6252,7 +6287,7 @@ void MainWindow::deleteSelectedBackground()
     }
     try {
         recordStructureEdit(edit::deleteBackground(*m_document, *backgroundIndex));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Deleted background %1%2; %3 background(s) remain")
                 .arg(static_cast<int>(*backgroundIndex))
                 .arg(useCount > 0 ? QStringLiteral(", %1 frame(s) have no background now")
@@ -6279,7 +6314,7 @@ void MainWindow::addComparisonMask()
     }
     try {
         recordStructureEdit(edit::addComparisonMask(*m_document));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Added comparison mask %1, %2 mask(s) now; no frame uses it yet")
                 .arg(static_cast<int>(m_document->comparisonMaskCount() - 1))
                 .arg(static_cast<int>(m_document->comparisonMaskCount())),
@@ -6321,7 +6356,7 @@ void MainWindow::deleteSelectedComparisonMask()
     }
     try {
         recordStructureEdit(edit::deleteComparisonMask(*m_document, maskIndex));
-        statusBar()->showMessage(
+        showStructureEditStatus(
             QStringLiteral("Deleted comparison mask %1%2; %3 mask(s) remain")
                 .arg(static_cast<int>(maskIndex))
                 .arg(users.empty() ? QString()
@@ -6340,9 +6375,26 @@ void MainWindow::recordStructureEdit(std::unique_ptr<edit::StructureCommand> com
         return;
     }
     const edit::StructureCommand& applied = *command;
-    m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
     refreshAfterStructureEdit(applied);
     updateUndoRedoActions();
+}
+
+void MainWindow::showStructureEditStatus(const QString& message, int timeoutMs)
+{
+    if (m_droppedStructureSteps == 0) {
+        statusBar()->showMessage(message, timeoutMs);
+        return;
+    }
+    // The deleted records of old steps no longer fit the undo memory; say so with the result.
+    statusBar()->showMessage(
+        QStringLiteral("%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or "
+                       "delete steps can no longer be undone)")
+            .arg(message)
+            .arg(static_cast<qulonglong>(m_undoHistories.structureMemoryLimit() / (1024 * 1024)))
+            .arg(static_cast<qulonglong>(m_droppedStructureSteps)),
+        std::max(timeoutMs, 8000));
+    m_droppedStructureSteps = 0;
 }
 
 void MainWindow::refreshAfterStructureEdit(const edit::StructureCommand& command)

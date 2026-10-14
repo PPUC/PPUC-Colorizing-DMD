@@ -352,7 +352,7 @@ inline ProjectSnapshot makeFullProject(PlaneLayout layout)
     for (std::size_t id : {std::size_t{0}, std::size_t{2}}) {
         SpriteRecord& record = snapshot.sprites[id];
         (extra ? record.dynamicMaskHd : record.dynamicMaskSd).pixels[1 * 256 + 2] = 0;
-        std::vector<uint16_t>& colors = extra ? record.dynamicColorsHd : record.dynamicColorsSd;
+        auto& colors = extra ? record.dynamicColorsHd : record.dynamicColorsSd;
         for (uint8_t value = 0; value < kColorCount; ++value) {
             colors[value] = spriteDynamicColor(id, value);
         }

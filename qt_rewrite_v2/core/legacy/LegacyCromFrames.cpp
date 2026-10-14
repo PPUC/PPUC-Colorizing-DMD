@@ -1,6 +1,7 @@
 #include "legacy/LegacyCromFrames.h"
 
 #include "document/ProjectSnapshot.h"
+#include "legacy/LegacyByteSource.h"
 
 #include <algorithm>
 #include <cstring>
@@ -12,7 +13,6 @@ namespace {
 
 constexpr std::size_t kHashCodeBytes = sizeof(uint32_t);
 constexpr std::size_t kRgb565Bytes = sizeof(uint16_t);
-constexpr std::size_t kU32Bytes = sizeof(uint32_t);
 constexpr std::size_t kMaxSpritesPerFrame = 32;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
@@ -21,69 +21,8 @@ constexpr std::size_t kMaxColorRotationLength = 64;
 constexpr std::size_t kMaxSpriteDetectAreas = 4;
 constexpr uint32_t kSpriteDynamicHeaderThreshold = 18 * sizeof(uint32_t);
 constexpr uint32_t kSpriteShapeModeHeaderThreshold = 19 * sizeof(uint32_t);
-
-class Cursor {
-public:
-    Cursor(const uint8_t* bytes, std::size_t size, std::size_t offset)
-        : m_bytes(bytes)
-        , m_size(size)
-        , m_offset(offset)
-    {
-    }
-
-    [[nodiscard]] std::size_t offset() const
-    {
-        return m_offset;
-    }
-
-    [[nodiscard]] bool skip(std::size_t count)
-    {
-        if (m_offset > m_size || count > m_size - m_offset) {
-            return false;
-        }
-        m_offset += count;
-        return true;
-    }
-
-    [[nodiscard]] bool readBytes(uint8_t* out, std::size_t count)
-    {
-        if (m_offset > m_size || count > m_size - m_offset) {
-            return false;
-        }
-        std::memcpy(out, m_bytes + m_offset, count);
-        m_offset += count;
-        return true;
-    }
-
-    [[nodiscard]] bool readU16(uint16_t& out)
-    {
-        if (m_offset > m_size || kRgb565Bytes > m_size - m_offset) {
-            return false;
-        }
-        out = static_cast<uint16_t>(m_bytes[m_offset]) |
-              static_cast<uint16_t>(static_cast<uint16_t>(m_bytes[m_offset + 1]) << 8);
-        m_offset += kRgb565Bytes;
-        return true;
-    }
-
-    [[nodiscard]] bool readU32(uint32_t& out)
-    {
-        if (m_offset > m_size || kU32Bytes > m_size - m_offset) {
-            return false;
-        }
-        out = static_cast<uint32_t>(m_bytes[m_offset]) |
-              (static_cast<uint32_t>(m_bytes[m_offset + 1]) << 8) |
-              (static_cast<uint32_t>(m_bytes[m_offset + 2]) << 16) |
-              (static_cast<uint32_t>(m_bytes[m_offset + 3]) << 24);
-        m_offset += kU32Bytes;
-        return true;
-    }
-
-private:
-    const uint8_t* m_bytes = nullptr;
-    std::size_t m_size = 0;
-    std::size_t m_offset = 0;
-};
+// More than the longest header (revision 20: name, 12 values, the background count).
+constexpr std::size_t kMaxHeaderBytes = 256;
 
 LegacyCromFrameParseResult fail(std::string message)
 {
@@ -97,7 +36,10 @@ std::size_t checkedProduct(uint32_t a, uint32_t b)
     return static_cast<std::size_t>(a) * static_cast<std::size_t>(b);
 }
 
-bool skipRequired(Cursor& cursor, std::size_t bytes, const char* fieldName, std::string& error)
+bool skipRequired(LegacyByteSource& cursor,
+                  std::size_t bytes,
+                  const char* fieldName,
+                  std::string& error)
 {
     if (cursor.skip(bytes)) {
         return true;
@@ -106,56 +48,53 @@ bool skipRequired(Cursor& cursor, std::size_t bytes, const char* fieldName, std:
     return false;
 }
 
-bool readRgb565Frame(Cursor& cursor,
-                     document::Rgb565Frame& frame,
-                     const char* fieldName,
-                     std::string& error)
+// Reads `count` values into a block, which shares one buffer with every other block of the
+// same values when they are all alike (see document::CompactArray). The scratch buffer is
+// reused from block to block.
+template <typename T>
+bool readValues(LegacyByteSource& cursor,
+                document::CompactArray<T>& values,
+                std::size_t count,
+                std::vector<T>& scratch,
+                const char* fieldName,
+                std::string& error)
 {
-    for (uint16_t& pixel : frame.pixels) {
-        if (!cursor.readU16(pixel)) {
-            error = std::string("unexpected end of cROM while reading ") + fieldName;
-            return false;
-        }
+    scratch.resize(count);
+    bool ok = false;
+    if constexpr (sizeof(T) == 1) {
+        ok = cursor.readBytes(reinterpret_cast<uint8_t*>(scratch.data()), count);
+    } else {
+        static_assert(sizeof(T) == 2, "cROM blocks hold bytes or 16-bit values");
+        ok = cursor.readU16s(reinterpret_cast<uint16_t*>(scratch.data()), count);
     }
+    if (!ok) {
+        error = std::string("unexpected end of cROM while reading ") + fieldName;
+        return false;
+    }
+    values.assignValues(scratch.data(), count);
     return true;
 }
 
-bool readIndexedFrame(Cursor& cursor,
-                      document::IndexedFrame& frame,
-                      const char* fieldName,
-                      std::string& error)
-{
-    if (cursor.readBytes(frame.pixels.data(), frame.pixels.size())) {
-        return true;
-    }
-    error = std::string("unexpected end of cROM while reading ") + fieldName;
-    return false;
-}
-
-bool readRgb565Values(Cursor& cursor,
-                      std::vector<uint16_t>& values,
-                      const char* fieldName,
-                      std::string& error)
-{
-    for (uint16_t& value : values) {
-        if (!cursor.readU16(value)) {
-            error = std::string("unexpected end of cROM while reading ") + fieldName;
-            return false;
-        }
-    }
-    return true;
-}
-
-bool readU32Values(Cursor& cursor,
+bool readU32Values(LegacyByteSource& cursor,
                    std::vector<uint32_t>& values,
                    const char* fieldName,
                    std::string& error)
 {
-    for (uint32_t& value : values) {
-        if (!cursor.readU32(value)) {
-            error = std::string("unexpected end of cROM while reading ") + fieldName;
-            return false;
-        }
+    if (!cursor.readU32s(values.data(), values.size())) {
+        error = std::string("unexpected end of cROM while reading ") + fieldName;
+        return false;
+    }
+    return true;
+}
+
+bool readU16Values(LegacyByteSource& cursor,
+                   std::vector<uint16_t>& values,
+                   const char* fieldName,
+                   std::string& error)
+{
+    if (!cursor.readU16s(values.data(), values.size())) {
+        error = std::string("unexpected end of cROM while reading ") + fieldName;
+        return false;
     }
     return true;
 }
@@ -167,6 +106,11 @@ bool hasNonZeroPixel(const document::Rgb565Frame& frame)
     });
 }
 
+render::Size sizeOf(uint32_t width, uint32_t height)
+{
+    return render::Size{static_cast<int>(width), static_cast<int>(height)};
+}
+
 }  // namespace
 
 LegacyCromFrameParseResult parseModernLegacyCromFrames(const std::vector<uint8_t>& bytes)
@@ -176,20 +120,37 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const std::vector<uint8_t
 
 LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std::size_t size)
 {
-    const LegacyCromParseResult metadataResult = parseLegacyCromMetadata(bytes, size);
+    if (!bytes && size > 0) {
+        return fail("cROM buffer is null");
+    }
+    LegacyByteSource source(bytes, size);
+    return parseModernLegacyCromFrames(source);
+}
+
+LegacyCromFrameParseResult parseModernLegacyCromFrames(LegacyByteSource& cursor)
+{
+    // The header is short; parse it from the front of the data.
+    std::size_t headerAvailable = 0;
+    const uint8_t* header = cursor.peek(kMaxHeaderBytes, headerAvailable);
+    const LegacyCromParseResult metadataResult = parseLegacyCromMetadata(header, headerAvailable);
     if (!metadataResult.ok) {
         return fail(metadataResult.errorMessage);
     }
     if (!metadataResult.metadata.modernRgb565Format) {
         return fail("legacy paletted cROM frame parsing is not implemented yet");
     }
+    if (!cursor.skip(metadataResult.nextOffset)) {
+        return fail("unexpected end of cROM while reading the header");
+    }
 
     const LegacyCromMetadata& metadata = metadataResult.metadata;
-    Cursor cursor(bytes, size, metadataResult.nextOffset);
-
+    const render::Size sdSize = sizeOf(metadata.frameWidth, metadata.frameHeight);
+    const render::Size hdSize = sizeOf(metadata.hdFrameWidth, metadata.hdFrameHeight);
     const std::size_t sdPixels = checkedProduct(metadata.frameWidth, metadata.frameHeight);
     const std::size_t hdPixels = checkedProduct(metadata.hdFrameWidth, metadata.hdFrameHeight);
     const std::size_t frameCount = metadata.frameCount;
+    std::vector<uint8_t> bytes;
+    std::vector<uint16_t> values;
 
     std::string error;
     if (!skipRequired(cursor, frameCount * kHashCodeBytes, "hash codes", error)) {
@@ -214,13 +175,13 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
 
     frameData.comparisonMasksOffset = cursor.offset();
     frameData.comparisonMasks.reserve(metadata.comparisonMaskCount);
+    const render::Size maskSize = metadata.originalIs256x64 ? render::Size{256, 64} : sdSize;
     for (std::size_t maskIndex = 0; maskIndex < metadata.comparisonMaskCount; ++maskIndex) {
-        document::IndexedFrame mask = document::makeIndexedFrame(
-            metadata.originalIs256x64
-                ? render::Size{256, 64}
-                : render::Size{static_cast<int>(metadata.frameWidth),
-                               static_cast<int>(metadata.frameHeight)});
-        if (!cursor.readBytes(mask.pixels.data(), mask.pixels.size())) {
+        document::IndexedFrame mask;
+        mask.size = maskSize;
+        const std::size_t maskPixels = static_cast<std::size_t>(maskSize.width) *
+                                       static_cast<std::size_t>(maskSize.height);
+        if (!readValues(cursor, mask.pixels, maskPixels, bytes, "comparison masks", error)) {
             return fail("unexpected end of cROM while reading comparison masks");
         }
         frameData.comparisonMasks.push_back(std::move(mask));
@@ -233,52 +194,38 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     }
 
     frameData.colorizedSdFramesOffset = cursor.offset();
-    frameData.colorizedSdFrames.reserve(frameCount);
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        document::Rgb565Frame frame =
-            document::makeRgb565Frame(render::Size{static_cast<int>(metadata.frameWidth),
-                                                   static_cast<int>(metadata.frameHeight)});
-        if (frame.pixels.size() != sdPixels ||
-            !readRgb565Frame(cursor, frame, "SD colorized frames", error)) {
+    frameData.colorizedSdFrames.resize(frameCount);
+    for (document::Rgb565Frame& frame : frameData.colorizedSdFrames) {
+        frame.size = sdSize;
+        if (!readValues(cursor, frame.pixels, sdPixels, values, "SD colorized frames", error)) {
             return fail(error);
         }
-        frameData.colorizedSdFrames.push_back(std::move(frame));
     }
 
     frameData.colorizedHdFramesOffset = cursor.offset();
-    frameData.colorizedHdFrames.reserve(frameCount);
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        document::Rgb565Frame frame =
-            document::makeRgb565Frame(render::Size{static_cast<int>(metadata.hdFrameWidth),
-                                                   static_cast<int>(metadata.hdFrameHeight)});
-        if (frame.pixels.size() != hdPixels ||
-            !readRgb565Frame(cursor, frame, "HD colorized frames", error)) {
+    frameData.colorizedHdFrames.resize(frameCount);
+    for (document::Rgb565Frame& frame : frameData.colorizedHdFrames) {
+        frame.size = hdSize;
+        if (!readValues(cursor, frame.pixels, hdPixels, values, "HD colorized frames", error)) {
             return fail(error);
         }
-        frameData.colorizedHdFrames.push_back(std::move(frame));
     }
 
     frameData.dynamicFrames.resize(frameCount);
     frameData.dynamicMasksSdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        document::FrameDynamicData& dynamicFrame = frameData.dynamicFrames[frameIndex];
-        dynamicFrame.maskSd =
-            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.frameWidth),
-                                                    static_cast<int>(metadata.frameHeight)}, 255);
-        if (dynamicFrame.maskSd.pixels.size() != sdPixels ||
-            !readIndexedFrame(cursor, dynamicFrame.maskSd, "SD dynamic masks", error)) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        dynamicFrame.maskSd.size = sdSize;
+        if (!readValues(cursor, dynamicFrame.maskSd.pixels, sdPixels, bytes, "SD dynamic masks",
+                        error)) {
             return fail(error);
         }
     }
 
     frameData.dynamicMasksHdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        document::FrameDynamicData& dynamicFrame = frameData.dynamicFrames[frameIndex];
-        dynamicFrame.maskHd =
-            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.hdFrameWidth),
-                                                    static_cast<int>(metadata.hdFrameHeight)}, 255);
-        if (dynamicFrame.maskHd.pixels.size() != hdPixels ||
-            !readIndexedFrame(cursor, dynamicFrame.maskHd, "HD dynamic masks", error)) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        dynamicFrame.maskHd.size = hdSize;
+        if (!readValues(cursor, dynamicFrame.maskHd.pixels, hdPixels, bytes, "HD dynamic masks",
+                        error)) {
             return fail(error);
         }
     }
@@ -286,24 +233,23 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     const std::size_t dynamicColorCount =
         document::kMaxDynamicSetsPerFrame * static_cast<std::size_t>(metadata.colorCount);
     frameData.dynamicColorsSdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].colorsSd;
-        colors.resize(dynamicColorCount);
-        if (!readRgb565Values(cursor, colors, "SD dynamic color sets", error)) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        if (!readValues(cursor, dynamicFrame.colorsSd, dynamicColorCount, values,
+                        "SD dynamic color sets", error)) {
             return fail(error);
         }
     }
 
     frameData.dynamicColorsHdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].colorsHd;
-        colors.resize(dynamicColorCount);
-        if (!readRgb565Values(cursor, colors, "HD dynamic color sets", error)) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        if (!readValues(cursor, dynamicFrame.colorsHd, dynamicColorCount, values,
+                        "HD dynamic color sets", error)) {
             return fail(error);
         }
     }
 
     const std::size_t spritePixels = kMaxSpriteWidth * kMaxSpriteHeight;
+    const render::Size spriteSize = sizeOf(kMaxSpriteWidth, kMaxSpriteHeight);
     const std::size_t spriteCount = metadata.spriteCount;
     std::vector<uint8_t> extraSpriteFlags(spriteCount);
     frameData.extraSpriteFlagsOffset = cursor.offset();
@@ -315,13 +261,16 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         frameCount,
         std::vector<document::FrameSpriteReference>(kMaxSpritesPerFrame));
     frameData.frameSpritesOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
-            uint8_t spriteId = 255;
-            if (!cursor.readBytes(&spriteId, 1)) {
+    {
+        uint8_t spriteIds[kMaxSpritesPerFrame] = {};
+        for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+            if (!cursor.readBytes(spriteIds, kMaxSpritesPerFrame)) {
                 return fail("unexpected end of cROM while reading frame sprite assignments");
             }
-            frameData.frameSpriteReferences[frameIndex][spriteSlot].spriteId = spriteId;
+            for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
+                frameData.frameSpriteReferences[frameIndex][spriteSlot].spriteId =
+                    spriteIds[spriteSlot];
+            }
         }
     }
 
@@ -330,47 +279,36 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
         document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
         sprite.hasHd = spriteIndex < extraSpriteFlags.size() && extraSpriteFlags[spriteIndex] != 0;
-        sprite.originalSd =
-            document::makeIndexedFrame(render::Size{static_cast<int>(kMaxSpriteWidth),
-                                                    static_cast<int>(kMaxSpriteHeight)}, 255);
-        if (sprite.originalSd.pixels.size() != spritePixels ||
-            !readIndexedFrame(cursor, sprite.originalSd, "sprite originals", error)) {
+        sprite.originalSd.size = spriteSize;
+        if (!readValues(cursor, sprite.originalSd.pixels, spritePixels, bytes, "sprite originals",
+                        error)) {
             return fail(error);
         }
     }
 
     frameData.spriteColorsSdOffset = cursor.offset();
-    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
-        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
-        sprite.colorizedSd =
-            document::makeRgb565Frame(render::Size{static_cast<int>(kMaxSpriteWidth),
-                                                   static_cast<int>(kMaxSpriteHeight)});
-        if (sprite.colorizedSd.pixels.size() != spritePixels ||
-            !readRgb565Frame(cursor, sprite.colorizedSd, "SD sprite colors", error)) {
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        sprite.colorizedSd.size = spriteSize;
+        if (!readValues(cursor, sprite.colorizedSd.pixels, spritePixels, values,
+                        "SD sprite colors", error)) {
             return fail(error);
         }
     }
 
     frameData.spriteMasksHdOffset = cursor.offset();
-    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
-        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
-        sprite.maskHd =
-            document::makeIndexedFrame(render::Size{static_cast<int>(kMaxSpriteWidth),
-                                                    static_cast<int>(kMaxSpriteHeight)}, 255);
-        if (sprite.maskHd.pixels.size() != spritePixels ||
-            !readIndexedFrame(cursor, sprite.maskHd, "HD sprite masks", error)) {
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        sprite.maskHd.size = spriteSize;
+        if (!readValues(cursor, sprite.maskHd.pixels, spritePixels, bytes, "HD sprite masks",
+                        error)) {
             return fail(error);
         }
     }
 
     frameData.spriteColorsHdOffset = cursor.offset();
-    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
-        document::SpriteRecord& sprite = frameData.sprites[spriteIndex];
-        sprite.colorizedHd =
-            document::makeRgb565Frame(render::Size{static_cast<int>(kMaxSpriteWidth),
-                                                   static_cast<int>(kMaxSpriteHeight)});
-        if (sprite.colorizedHd.pixels.size() != spritePixels ||
-            !readRgb565Frame(cursor, sprite.colorizedHd, "HD sprite colors", error)) {
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        sprite.colorizedHd.size = spriteSize;
+        if (!readValues(cursor, sprite.colorizedHd.pixels, spritePixels, values,
+                        "HD sprite colors", error)) {
             return fail(error);
         }
     }
@@ -380,58 +318,46 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         return fail(error);
     }
 
-    const std::size_t colorRotationValueCount =
-        kMaxColorRotations * kMaxColorRotationLength;
-    frameData.colorRotationsSd.assign(frameCount, std::vector<uint16_t>(colorRotationValueCount));
+    const std::size_t colorRotationValueCount = kMaxColorRotations * kMaxColorRotationLength;
+    frameData.colorRotationsSd.resize(frameCount);
     frameData.colorRotationsSdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        if (!readRgb565Values(cursor,
-                              frameData.colorRotationsSd[frameIndex],
-                              "SD color rotations",
-                              error)) {
+    for (document::CompactArray<uint16_t>& rotations : frameData.colorRotationsSd) {
+        if (!readValues(cursor, rotations, colorRotationValueCount, values, "SD color rotations",
+                        error)) {
             return fail(error);
         }
     }
 
-    frameData.colorRotationsHd.assign(frameCount, std::vector<uint16_t>(colorRotationValueCount));
+    frameData.colorRotationsHd.resize(frameCount);
     frameData.colorRotationsHdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        if (!readRgb565Values(cursor,
-                              frameData.colorRotationsHd[frameIndex],
-                              "HD color rotations",
-                              error)) {
+    for (document::CompactArray<uint16_t>& rotations : frameData.colorRotationsHd) {
+        if (!readValues(cursor, rotations, colorRotationValueCount, values, "HD color rotations",
+                        error)) {
             return fail(error);
         }
     }
 
     frameData.spriteDetectionDwordsOffset = cursor.offset();
-    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
-        std::vector<uint32_t>& dwords = frameData.sprites[spriteIndex].detectionDwords;
-        dwords.resize(kMaxSpriteDetectAreas);
-        if (!readU32Values(cursor, dwords, "sprite detection dwords", error)) {
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        sprite.detectionDwords.resize(kMaxSpriteDetectAreas);
+        if (!readU32Values(cursor, sprite.detectionDwords, "sprite detection dwords", error)) {
             return fail(error);
         }
     }
 
     frameData.spriteDetectionDwordPositionsOffset = cursor.offset();
-    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
-        std::vector<uint16_t>& positions =
-            frameData.sprites[spriteIndex].detectionDwordPositions;
-        positions.resize(kMaxSpriteDetectAreas);
-        if (!readRgb565Values(cursor,
-                              positions,
-                              "sprite detection dword positions",
-                              error)) {
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        sprite.detectionDwordPositions.resize(kMaxSpriteDetectAreas);
+        if (!readU16Values(cursor, sprite.detectionDwordPositions,
+                           "sprite detection dword positions", error)) {
             return fail(error);
         }
     }
 
     frameData.spriteDetectionAreasOffset = cursor.offset();
-    for (std::size_t spriteIndex = 0; spriteIndex < spriteCount; ++spriteIndex) {
-        std::vector<document::SpriteDetectionArea>& areas =
-            frameData.sprites[spriteIndex].detectionAreas;
-        areas.resize(kMaxSpriteDetectAreas);
-        for (document::SpriteDetectionArea& area : areas) {
+    for (document::SpriteRecord& sprite : frameData.sprites) {
+        sprite.detectionAreas.resize(kMaxSpriteDetectAreas);
+        for (document::SpriteDetectionArea& area : sprite.detectionAreas) {
             if (!cursor.readU16(area.x) || !cursor.readU16(area.y) ||
                 !cursor.readU16(area.width) || !cursor.readU16(area.height)) {
                 return fail("unexpected end of cROM while reading sprite detection areas");
@@ -446,13 +372,19 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     }
 
     frameData.frameSpriteBoundingBoxesOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
-            document::FrameSpriteReference& reference =
-                frameData.frameSpriteReferences[frameIndex][spriteSlot];
-            if (!cursor.readU16(reference.minX) || !cursor.readU16(reference.minY) ||
-                !cursor.readU16(reference.maxX) || !cursor.readU16(reference.maxY)) {
+    {
+        uint16_t boxes[4 * kMaxSpritesPerFrame] = {};
+        for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+            if (!cursor.readU16s(boxes, 4 * kMaxSpritesPerFrame)) {
                 return fail("unexpected end of cROM while reading frame sprite bounding boxes");
+            }
+            for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
+                document::FrameSpriteReference& reference =
+                    frameData.frameSpriteReferences[frameIndex][spriteSlot];
+                reference.minX = boxes[4 * spriteSlot];
+                reference.minY = boxes[4 * spriteSlot + 1];
+                reference.maxX = boxes[4 * spriteSlot + 2];
+                reference.maxY = boxes[4 * spriteSlot + 3];
             }
         }
     }
@@ -466,14 +398,10 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
 
     frameData.backgrounds.resize(metadata.backgroundCount);
     frameData.backgroundFramesSdOffset = cursor.offset();
-    for (std::size_t backgroundIndex = 0; backgroundIndex < metadata.backgroundCount;
-         ++backgroundIndex) {
-        document::BackgroundRecord& background = frameData.backgrounds[backgroundIndex];
-        background.colorizedSd =
-            document::makeRgb565Frame(render::Size{static_cast<int>(metadata.frameWidth),
-                                                   static_cast<int>(metadata.frameHeight)});
-        if (background.colorizedSd.pixels.size() != sdPixels ||
-            !readRgb565Frame(cursor, background.colorizedSd, "SD background frames", error)) {
+    for (document::BackgroundRecord& background : frameData.backgrounds) {
+        background.colorizedSd.size = sdSize;
+        if (!readValues(cursor, background.colorizedSd.pixels, sdPixels, values,
+                        "SD background frames", error)) {
             return fail(error);
         }
     }
@@ -481,11 +409,10 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
     frameData.backgroundFramesHdOffset = cursor.offset();
     for (std::size_t backgroundIndex = 0; backgroundIndex < metadata.backgroundCount;
          ++backgroundIndex) {
-        document::Rgb565Frame backgroundHd =
-            document::makeRgb565Frame(render::Size{static_cast<int>(metadata.hdFrameWidth),
-                                                   static_cast<int>(metadata.hdFrameHeight)});
-        if (backgroundHd.pixels.size() != hdPixels ||
-            !readRgb565Frame(cursor, backgroundHd, "HD background frames", error)) {
+        document::Rgb565Frame backgroundHd;
+        backgroundHd.size = hdSize;
+        if (!readValues(cursor, backgroundHd.pixels, hdPixels, values, "HD background frames",
+                        error)) {
             return fail(error);
         }
         if (backgroundIndex < frameData.extraBackgroundFlags.size() &&
@@ -498,70 +425,58 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
 
     frameData.frameBackgrounds.resize(frameCount);
     frameData.backgroundIdsOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        if (!cursor.readU16(frameData.frameBackgrounds[frameIndex].backgroundId)) {
+    for (document::FrameBackgroundData& backgroundData : frameData.frameBackgrounds) {
+        if (!cursor.readU16(backgroundData.backgroundId)) {
             return fail("unexpected end of cROM while reading background IDs");
         }
     }
 
     frameData.backgroundMasksSdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        document::FrameBackgroundData& backgroundData = frameData.frameBackgrounds[frameIndex];
-        backgroundData.maskSd =
-            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.frameWidth),
-                                                    static_cast<int>(metadata.frameHeight)}, 0);
-        if (backgroundData.maskSd.pixels.size() != sdPixels ||
-            !readIndexedFrame(cursor, backgroundData.maskSd, "SD background masks", error)) {
+    for (document::FrameBackgroundData& backgroundData : frameData.frameBackgrounds) {
+        backgroundData.maskSd.size = sdSize;
+        if (!readValues(cursor, backgroundData.maskSd.pixels, sdPixels, bytes,
+                        "SD background masks", error)) {
             return fail(error);
         }
     }
 
     frameData.backgroundMasksHdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        document::FrameBackgroundData& backgroundData = frameData.frameBackgrounds[frameIndex];
-        backgroundData.maskHd =
-            document::makeIndexedFrame(render::Size{static_cast<int>(metadata.hdFrameWidth),
-                                                    static_cast<int>(metadata.hdFrameHeight)}, 0);
-        if (backgroundData.maskHd.pixels.size() != hdPixels ||
-            !readIndexedFrame(cursor, backgroundData.maskHd, "HD background masks", error)) {
+    for (document::FrameBackgroundData& backgroundData : frameData.frameBackgrounds) {
+        backgroundData.maskHd.size = hdSize;
+        if (!readValues(cursor, backgroundData.maskHd.pixels, hdPixels, bytes,
+                        "HD background masks", error)) {
             return fail(error);
         }
     }
 
     frameData.dynamicShadowDirectionsSdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        std::vector<uint8_t>& directions =
-            frameData.dynamicFrames[frameIndex].shadowDirectionsSd;
-        directions.resize(document::kMaxDynamicSetsPerFrame);
-        if (!cursor.readBytes(directions.data(), directions.size())) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        if (!readValues(cursor, dynamicFrame.shadowDirectionsSd, document::kMaxDynamicSetsPerFrame,
+                        bytes, "SD dynamic shadow directions", error)) {
             return fail("unexpected end of cROM while reading SD dynamic shadow directions");
         }
     }
 
     frameData.dynamicShadowColorsSdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].shadowColorsSd;
-        colors.resize(document::kMaxDynamicSetsPerFrame);
-        if (!readRgb565Values(cursor, colors, "SD dynamic shadow colors", error)) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        if (!readValues(cursor, dynamicFrame.shadowColorsSd, document::kMaxDynamicSetsPerFrame,
+                        values, "SD dynamic shadow colors", error)) {
             return fail(error);
         }
     }
 
     frameData.dynamicShadowDirectionsHdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        std::vector<uint8_t>& directions =
-            frameData.dynamicFrames[frameIndex].shadowDirectionsHd;
-        directions.resize(document::kMaxDynamicSetsPerFrame);
-        if (!cursor.readBytes(directions.data(), directions.size())) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        if (!readValues(cursor, dynamicFrame.shadowDirectionsHd, document::kMaxDynamicSetsPerFrame,
+                        bytes, "HD dynamic shadow directions", error)) {
             return fail("unexpected end of cROM while reading HD dynamic shadow directions");
         }
     }
 
     frameData.dynamicShadowColorsHdOffset = cursor.offset();
-    for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-        std::vector<uint16_t>& colors = frameData.dynamicFrames[frameIndex].shadowColorsHd;
-        colors.resize(document::kMaxDynamicSetsPerFrame);
-        if (!readRgb565Values(cursor, colors, "HD dynamic shadow colors", error)) {
+    for (document::FrameDynamicData& dynamicFrame : frameData.dynamicFrames) {
+        if (!readValues(cursor, dynamicFrame.shadowColorsHd, document::kMaxDynamicSetsPerFrame,
+                        values, "HD dynamic shadow colors", error)) {
             return fail(error);
         }
     }
@@ -574,33 +489,37 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes, std
         spriteCount * (2 * spriteDynamicColorCount * kRgb565Bytes + 2 * spritePixels);
     const bool hasSpriteDynamicData =
         metadata.headerLengthBytes >= kSpriteDynamicHeaderThreshold &&
-        size - cursor.offset() >= spriteDynamicBytes;
+        cursor.remaining() >= spriteDynamicBytes;
     for (document::SpriteRecord& sprite : frameData.sprites) {
         document::normalizeSpriteRecord(sprite, metadata.colorCount);
     }
     if (hasSpriteDynamicData) {
         for (document::SpriteRecord& sprite : frameData.sprites) {
-            if (!readRgb565Values(cursor, sprite.dynamicColorsSd, "SD sprite dynamic colors", error)) {
+            if (!readValues(cursor, sprite.dynamicColorsSd, sprite.dynamicColorsSd.size(), values,
+                            "SD sprite dynamic colors", error)) {
                 return fail(error);
             }
         }
         for (document::SpriteRecord& sprite : frameData.sprites) {
-            if (!readRgb565Values(cursor, sprite.dynamicColorsHd, "HD sprite dynamic colors", error)) {
+            if (!readValues(cursor, sprite.dynamicColorsHd, sprite.dynamicColorsHd.size(), values,
+                            "HD sprite dynamic colors", error)) {
                 return fail(error);
             }
         }
         for (document::SpriteRecord& sprite : frameData.sprites) {
-            if (!readIndexedFrame(cursor, sprite.dynamicMaskSd, "SD sprite dynamic masks", error)) {
+            if (!readValues(cursor, sprite.dynamicMaskSd.pixels, sprite.dynamicMaskSd.pixels.size(),
+                            bytes, "SD sprite dynamic masks", error)) {
                 return fail(error);
             }
         }
         for (document::SpriteRecord& sprite : frameData.sprites) {
-            if (!readIndexedFrame(cursor, sprite.dynamicMaskHd, "HD sprite dynamic masks", error)) {
+            if (!readValues(cursor, sprite.dynamicMaskHd.pixels, sprite.dynamicMaskHd.pixels.size(),
+                            bytes, "HD sprite dynamic masks", error)) {
                 return fail(error);
             }
         }
         if (metadata.headerLengthBytes >= kSpriteShapeModeHeaderThreshold &&
-            size - cursor.offset() >= spriteCount) {
+            cursor.remaining() >= spriteCount) {
             for (document::SpriteRecord& sprite : frameData.sprites) {
                 if (!cursor.readBytes(&sprite.shapeMode, 1)) {
                     return fail("unexpected end of cROM while reading sprite shape modes");

@@ -10,6 +10,7 @@ endfunction()
 add_executable(colorizing_qt_v2_tests
     CanvasLayoutTests.cpp
     ColorSetTests.cpp
+    CompactStorageTests.cpp
     DrawingToolsTests.cpp
     EditCommandTests.cpp
     FrameDumpImportTests.cpp
@@ -61,6 +62,7 @@ if(TARGET colorizing_qt_v2_widgets)
         FramePreviewWidgetRenderTests.cpp
         NativeOriginalWidgetTests.cpp
         PlaneLabelsWidgetTests.cpp
+        ProjectTaskWidgetTests.cpp
         RuntimeViewWidgetTests.cpp
         SelectionWidgetTests.cpp
     )

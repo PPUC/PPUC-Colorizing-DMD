@@ -141,7 +141,7 @@ void DynamicPanel::refreshColors(const document::ProjectDocument* document,
 
     std::size_t colorCount = 0;
     if (dynamicData && dynamicData->has_value()) {
-        const std::vector<uint16_t>& colors =
+        const document::CompactArray<uint16_t>& colors =
             resolution == render::Resolution::Hd ? (*dynamicData)->colorsHd
                                                  : (*dynamicData)->colorsSd;
         colorCount = colors.size() / document::kMaxDynamicSetsPerFrame;

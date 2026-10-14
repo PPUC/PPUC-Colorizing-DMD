@@ -10,6 +10,8 @@
 
 namespace colorizing::legacy {
 
+class LegacyByteSource;
+
 struct LegacyCrpOriginalData {
     std::string romName;
     std::vector<document::IndexedFrame> originalSdFrames;
@@ -32,6 +34,10 @@ struct LegacyCrpOriginalParseResult {
 [[nodiscard]] LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
     const uint8_t* bytes,
     std::size_t size,
+    const LegacyCromMetadata& cromMetadata);
+// Parses from the start of the source, reading it sequentially.
+[[nodiscard]] LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
+    LegacyByteSource& source,
     const LegacyCromMetadata& cromMetadata);
 
 }  // namespace colorizing::legacy

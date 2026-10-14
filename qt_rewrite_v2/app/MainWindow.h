@@ -314,6 +314,9 @@ private:
     // After a structure command ran in either direction: stops playback, drops the canvas
     // selections, moves the frame, mask, background or sprite selection to the added or
     // restored record or to the neighbour of a deleted one, and refreshes every view.
+    // The status of a structure edit, with a note when old structure undo steps were dropped
+    // to stay within the undo memory limit (edit::UndoHistories).
+    void showStructureEditStatus(const QString& message, int timeoutMs);
     void refreshAfterStructureEdit(const edit::StructureCommand& command);
     // Texts and thumbnails of the frame list rows after a change that leaves the frames
     // where they are; the list is rebuilt only if other frames match the filter now.
@@ -473,6 +476,8 @@ private:
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;
+    // Structure undo steps the last structure edit dropped, see showStructureEditStatus().
+    std::size_t m_droppedStructureSteps = 0;
 };
 
 }  // namespace colorizing::app

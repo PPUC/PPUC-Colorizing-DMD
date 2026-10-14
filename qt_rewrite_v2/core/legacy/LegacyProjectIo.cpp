@@ -35,5 +35,19 @@ LegacySaveResult makeSaveSuccess()
     return result;
 }
 
+LegacyLoadResult makeLoadCancelled()
+{
+    LegacyLoadResult result = makeLoadFailure(kLegacyIoCancelledMessage);
+    result.cancelled = true;
+    return result;
+}
+
+LegacySaveResult makeSaveCancelled()
+{
+    LegacySaveResult result = makeSaveFailure(kLegacyIoCancelledMessage);
+    result.cancelled = true;
+    return result;
+}
+
 }  // namespace colorizing::legacy
 

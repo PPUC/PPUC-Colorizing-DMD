@@ -39,10 +39,26 @@ struct HistoryKey {
 // instead of renumbering the commands: what is left needs no proof beyond "no remaining
 // command names a record whose number changed", and that holds by construction. The
 // history of the structure commands themselves stays, see StructureCommand.
+//
+// Memory: the structure history holds the records its deletions took out (frames above all),
+// which can add up to the size of the project. Its undo steps are kept within a limit
+// (structureMemoryLimit(), EditCommand::heldBytes()): when a push goes beyond it, the oldest
+// structure steps are dropped, never the one just pushed. Dropping the bottom of a stack only
+// shortens how far back undo reaches; every remaining command still finds the state it was
+// made for. The other histories hold changes only and are not limited.
 class UndoHistories {
 public:
-    // Records an already applied command and clears that key's redo stack.
-    void push(const HistoryKey& key, std::unique_ptr<EditCommand> command);
+    static constexpr std::size_t kDefaultStructureMemoryLimit = std::size_t{1024} * 1024 * 1024;
+
+    // Records an already applied command and clears that key's redo stack. Returns how many
+    // of the oldest structure steps were dropped to stay within the memory limit.
+    std::size_t push(const HistoryKey& key, std::unique_ptr<EditCommand> command);
+
+    [[nodiscard]] std::size_t structureMemoryLimit() const;
+    // Applies from the next push on.
+    void setStructureMemoryLimit(std::size_t bytes);
+    // What the structure history's commands hold (EditCommand::heldBytes()), undo and redo.
+    [[nodiscard]] std::size_t structureMemoryBytes() const;
 
     [[nodiscard]] bool canUndo(const HistoryKey& key) const;
     [[nodiscard]] bool canRedo(const HistoryKey& key) const;
@@ -89,6 +105,7 @@ private:
 
     std::map<HistoryKey, History> m_histories;
     uint64_t m_nextSequence = 1;
+    std::size_t m_structureMemoryLimit = kDefaultStructureMemoryLimit;
 };
 
 }  // namespace colorizing::edit

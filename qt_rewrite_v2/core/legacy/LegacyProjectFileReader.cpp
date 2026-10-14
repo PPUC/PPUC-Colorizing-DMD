@@ -1,10 +1,13 @@
 #include "legacy/LegacyProjectFileReader.h"
 
-#include <fstream>
-#include <iterator>
+#include <filesystem>
+#include <exception>
+#include <optional>
 #include <string>
-#include <vector>
+#include <system_error>
+#include <utility>
 
+#include "legacy/LegacyByteSource.h"
 #include "legacy/LegacyCromFrames.h"
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyCrpOriginals.h"
@@ -15,80 +18,131 @@ namespace colorizing::legacy {
 
 namespace {
 
-struct FileReadResult {
-    std::vector<uint8_t> bytes;
-    std::string errorMessage;
-    bool ok = false;
-};
-
-FileReadResult readFileBytes(const std::string& path, const char* label)
+bool isCancelled(const LegacyIoProgress* progress)
 {
-    if (path.empty()) {
-        return FileReadResult{{}, std::string(label) + " path is empty", false};
-    }
-
-    std::ifstream stream(platform::pathFromUtf8(path), std::ios::binary);
-    if (!stream) {
-        return FileReadResult{{}, "could not open " + std::string(label) + " file: " + path, false};
-    }
-
-    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)),
-                               std::istreambuf_iterator<char>());
-    if (!stream.eof() && stream.fail()) {
-        return FileReadResult{{}, "could not read " + std::string(label) + " file: " + path, false};
-    }
-    return FileReadResult{std::move(bytes), "", true};
+    return progress && progress->cancel.load();
 }
 
-FileReadResult readCromBytes(const std::string& path)
+uint64_t fileSize(const std::string& path)
 {
-    if (path.empty() || !hasCrzExtension(path)) {
-        return readFileBytes(path, ".cROM");
-    }
-
-    FileReadResult result;
-    std::string detail;
-    result.ok = readCrzArchive(path, result.bytes, detail);
-    if (!result.ok) {
-        result.errorMessage = "could not read .cRZ file: " + path + " (" + detail + ")";
-    }
-    return result;
+    std::error_code error;
+    const std::uintmax_t size = std::filesystem::file_size(platform::pathFromUtf8(path), error);
+    return error ? 0 : static_cast<uint64_t>(size);
 }
 
 }  // namespace
 
-LegacyLoadResult LegacyProjectFileReader::load(const LegacyProjectPaths& paths) const
+// The files are parsed as they are read, block by block, straight into the records of the
+// snapshot (see LegacyByteSource): no file is held in memory as a whole, except the cROM of
+// a .cRZ, which libserum unpacks into one buffer; that buffer is freed as soon as it is parsed.
+// The parsed blocks are then moved, not copied, into the snapshot.
+LegacyLoadResult LegacyProjectFileReader::load(const LegacyProjectPaths& paths,
+                                               LegacyIoProgress* progress) const
 {
-    const FileReadResult cromFile = readCromBytes(paths.cromPath);
-    if (!cromFile.ok) {
-        return makeLoadFailure(cromFile.errorMessage);
+    if (paths.cromPath.empty()) {
+        return makeLoadFailure(".cROM path is empty");
     }
+    if (isCancelled(progress)) {
+        return makeLoadCancelled();
+    }
+    const uint64_t crpSize = paths.crpPath.empty() ? 0 : fileSize(paths.crpPath);
 
-    const LegacyCromFrameParseResult cromFrames =
-        parseModernLegacyCromFrames(cromFile.bytes);
+    LegacyCromFrameParseResult cromFrames;
+    if (hasCrzExtension(paths.cromPath)) {
+        if (progress) {
+            progress->setStage(LegacyIoStage::Decompressing);
+        }
+        CrzContent content;
+        std::string detail;
+        if (!readCrzArchive(paths.cromPath, content, detail)) {
+            return makeLoadFailure("could not read .cRZ file: " + paths.cromPath + " (" + detail +
+                                   ")");
+        }
+        if (isCancelled(progress)) {
+            return makeLoadCancelled();
+        }
+        if (progress) {
+            progress->total.store(content.size() + crpSize);
+            progress->setStage(LegacyIoStage::Reading);
+        }
+        LegacyByteSource source(content.data(), content.size(), progress);
+        cromFrames = parseModernLegacyCromFrames(source);
+        if (source.cancelled()) {
+            return makeLoadCancelled();
+        }
+    } else {
+        LegacyByteSource source(paths.cromPath, progress);
+        if (!source.isOpen()) {
+            return makeLoadFailure("could not open .cROM file: " + paths.cromPath);
+        }
+        if (progress) {
+            progress->total.store(source.size() + crpSize);
+            progress->setStage(LegacyIoStage::Reading);
+        }
+        cromFrames = parseModernLegacyCromFrames(source);
+        if (source.cancelled()) {
+            return makeLoadCancelled();
+        }
+        if (source.readFailed()) {
+            return makeLoadFailure("could not read .cROM file: " + paths.cromPath);
+        }
+    }
     if (!cromFrames.ok) {
         return makeLoadFailure(cromFrames.errorMessage);
     }
 
-    const FileReadResult crpFile = readFileBytes(paths.crpPath, ".cRP");
-    if (!crpFile.ok) {
-        return makeLoadFailure(crpFile.errorMessage);
+    if (paths.crpPath.empty()) {
+        return makeLoadFailure(".cRP path is empty");
     }
-
-    const LegacyCrpOriginalParseResult crpOriginals =
-        parseLegacyCrpOriginalFrames(crpFile.bytes, cromFrames.frameData.metadata);
+    const uint64_t cromBytes = progress ? progress->total.load() - crpSize : 0;
+    LegacyByteSource crpSource(paths.crpPath, progress, cromBytes);
+    if (!crpSource.isOpen()) {
+        return makeLoadFailure("could not open .cRP file: " + paths.crpPath);
+    }
+    LegacyCrpOriginalParseResult crpOriginals =
+        parseLegacyCrpOriginalFrames(crpSource, cromFrames.frameData.metadata);
+    if (crpSource.cancelled()) {
+        return makeLoadCancelled();
+    }
+    if (crpSource.readFailed()) {
+        return makeLoadFailure("could not read .cRP file: " + paths.crpPath);
+    }
     if (!crpOriginals.ok) {
         return makeLoadFailure(crpOriginals.errorMessage);
     }
 
-    const LegacySnapshotBuildResult snapshot =
-        buildProjectSnapshot(cromFrames.frameData, crpOriginals.originalData);
+    LegacySnapshotBuildResult snapshot =
+        buildProjectSnapshot(std::move(cromFrames.frameData), std::move(crpOriginals.originalData));
     if (!snapshot.ok) {
         return makeLoadFailure(snapshot.errorMessage);
     }
+    if (isCancelled(progress)) {
+        return makeLoadCancelled();
+    }
+    if (progress) {
+        progress->done.store(progress->total.load());
+    }
+    return makeLoadSuccess(std::move(snapshot.snapshot));
+}
 
-    return makeLoadSuccess(snapshot.snapshot);
+LegacyDocumentLoadResult loadLegacyProjectDocument(const LegacyProjectPaths& paths,
+                                                   LegacyIoProgress* progress)
+{
+    LegacyDocumentLoadResult result;
+    try {
+        LegacyLoadResult loaded = LegacyProjectFileReader().load(paths, progress);
+        if (!loaded.ok) {
+            result.error = std::move(loaded.error);
+            result.cancelled = loaded.cancelled;
+            return result;
+        }
+        result.document = document::ProjectDocument::fromSnapshot(std::move(loaded.snapshot));
+        result.ok = true;
+    } catch (const std::exception& ex) {
+        result.document.reset();
+        result.error.message = ex.what();
+    }
+    return result;
 }
 
 }  // namespace colorizing::legacy
-

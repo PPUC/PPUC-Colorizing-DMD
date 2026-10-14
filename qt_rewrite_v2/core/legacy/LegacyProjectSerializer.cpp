@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 
+#include "legacy/LegacyProjectIo.h"
 #include "render/CanvasLayout.h"
 
 namespace colorizing::legacy {
@@ -31,11 +32,16 @@ std::array<uint32_t, 256> buildCrc32Table()
     return table;
 }
 
+// Thrown by Writer when its progress asks to cancel; caught where the file is written.
+struct WriteCancelled {
+};
+
 class Writer {
 public:
-    Writer(std::ostream& stream, LegacySectionOffsets* sections)
+    Writer(std::ostream& stream, LegacySectionOffsets* sections, LegacyIoProgress* progress)
         : m_stream(stream)
         , m_sections(sections)
+        , m_progress(progress)
     {
     }
 
@@ -68,22 +74,30 @@ public:
         advance(4);
     }
 
-    void bytes(const std::vector<uint8_t>& values)
+    template <typename Values>
+    void bytes(const Values& values)
     {
         m_buffer.insert(m_buffer.end(), values.begin(), values.end());
         advance(values.size());
     }
 
-    void u16s(const std::vector<uint16_t>& values)
+    template <typename Values>
+    void u16s(const Values& values)
     {
-        for (uint16_t value : values) {
-            u16(value);
+        const std::size_t start = m_buffer.size();
+        m_buffer.resize(start + 2 * values.size());
+        uint8_t* out = m_buffer.data() + start;
+        for (const uint16_t value : values) {
+            *out++ = static_cast<uint8_t>(value & 0xff);
+            *out++ = static_cast<uint8_t>((value >> 8) & 0xff);
         }
+        advance(2 * values.size());
     }
 
-    void u32s(const std::vector<uint32_t>& values)
+    template <typename Values>
+    void u32s(const Values& values)
     {
-        for (uint32_t value : values) {
+        for (const uint32_t value : values) {
             u32(value);
         }
     }
@@ -96,13 +110,19 @@ public:
 
     void repeatU16(uint16_t value, std::size_t count)
     {
+        const std::size_t start = m_buffer.size();
+        m_buffer.resize(start + 2 * count);
+        uint8_t* out = m_buffer.data() + start;
         for (std::size_t i = 0; i < count; ++i) {
-            u16(value);
+            *out++ = static_cast<uint8_t>(value & 0xff);
+            *out++ = static_cast<uint8_t>((value >> 8) & 0xff);
         }
+        advance(2 * count);
     }
 
-    // Writes the vector, or `count` copies of `fallback` when it was never populated.
-    void bytesOr(const std::vector<uint8_t>& values, std::size_t count, uint8_t fallback)
+    // Writes the values, or `count` copies of `fallback` when they were never populated.
+    template <typename Values>
+    void bytesOr(const Values& values, std::size_t count, uint8_t fallback)
     {
         if (values.size() == count) {
             bytes(values);
@@ -111,7 +131,8 @@ public:
         }
     }
 
-    void u16sOr(const std::vector<uint16_t>& values, std::size_t count, uint16_t fallback)
+    template <typename Values>
+    void u16sOr(const Values& values, std::size_t count, uint16_t fallback)
     {
         if (values.size() == count) {
             u16s(values);
@@ -147,11 +168,19 @@ private:
     {
         m_stream.write(reinterpret_cast<const char*>(m_buffer.data()),
                        static_cast<std::streamsize>(m_buffer.size()));
+        if (m_progress) {
+            m_progress->done.fetch_add(m_buffer.size());
+            if (m_progress->cancel.load()) {
+                m_buffer.clear();
+                throw WriteCancelled{};
+            }
+        }
         m_buffer.clear();
     }
 
     std::ostream& m_stream;
     LegacySectionOffsets* m_sections = nullptr;
+    LegacyIoProgress* m_progress = nullptr;
     std::vector<uint8_t> m_buffer;
     std::size_t m_offset = 0;
 };
@@ -303,10 +332,13 @@ bool isFrameSkippedAtRuntime(const document::ProjectDocument& document, std::siz
     return !(dynamicData && hasZone(dynamicData->maskSd));
 }
 
-bool writeLegacyCrom(std::ostream& stream,
-                     const document::ProjectSnapshot& snapshot,
-                     std::string& errorMessage,
-                     LegacySectionOffsets* sections)
+namespace {
+
+bool writeCromContent(std::ostream& stream,
+                      const document::ProjectSnapshot& snapshot,
+                      std::string& errorMessage,
+                      LegacySectionOffsets* sections,
+                      LegacyIoProgress* progress)
 {
     if (!document::isValidProjectSnapshot(snapshot, &errorMessage)) {
         return false;
@@ -336,8 +368,10 @@ bool writeLegacyCrom(std::ostream& stream,
     const std::size_t shadowCount = document::kMaxDynamicSetsPerFrame;
     const std::vector<uint16_t> originalColors = legacyOriginalColors(snapshot.colorCount);
     const auto& frames = snapshot.frames;
+    const document::CompactArray<uint8_t> noDirections;
+    const document::CompactArray<uint16_t> noColors;
 
-    Writer writer(stream, sections);
+    Writer writer(stream, sections, progress);
     writer.section("header");
     writer.name(snapshot.romName, kRomNameBytes);
     // Older revisions are written as 19, the oldest one that carries every block below.
@@ -418,13 +452,13 @@ bool writeLegacyCrom(std::ostream& stream,
     }
     writer.section("SD dynamic colors");
     for (const auto& frame : frames) {
-        writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsSd : std::vector<uint16_t>{},
+        writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsSd : noColors,
                       dynamicColorCount,
                       0);
     }
     writer.section("HD dynamic colors");
     for (const auto& frame : frames) {
-        writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsHd : std::vector<uint16_t>{},
+        writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsHd : noColors,
                       dynamicColorCount,
                       0);
     }
@@ -545,8 +579,6 @@ bool writeLegacyCrom(std::ostream& stream,
             writer.repeatU8(1, hdPixels);
         }
     }
-    const std::vector<uint8_t> noDirections;
-    const std::vector<uint16_t> noColors;
     writer.section("SD dynamic shadow directions");
     for (const auto& frame : frames) {
         writer.bytesOr(frame.dynamicData ? frame.dynamicData->shadowDirectionsSd : noDirections,
@@ -600,10 +632,11 @@ bool writeLegacyCrom(std::ostream& stream,
     return true;
 }
 
-bool writeLegacyCrp(std::ostream& stream,
-                    const document::ProjectSnapshot& snapshot,
-                    std::string& errorMessage,
-                    LegacySectionOffsets* sections)
+bool writeCrpContent(std::ostream& stream,
+                     const document::ProjectSnapshot& snapshot,
+                     std::string& errorMessage,
+                     LegacySectionOffsets* sections,
+                     LegacyIoProgress* progress)
 {
     if (!document::isValidProjectSnapshot(snapshot, &errorMessage)) {
         return false;
@@ -626,7 +659,7 @@ bool writeLegacyCrp(std::ostream& stream,
                                snapshot.palettes[i].name);
     }
 
-    Writer writer(stream, sections);
+    Writer writer(stream, sections, progress);
     writer.section("ROM name");
     writer.name(snapshot.romName, kRomNameBytes);
     writer.section("original frames");
@@ -693,6 +726,84 @@ bool writeLegacyCrp(std::ostream& stream,
         return false;
     }
     return true;
+}
+
+}  // namespace
+
+bool writeLegacyCrom(std::ostream& stream,
+                     const document::ProjectSnapshot& snapshot,
+                     std::string& errorMessage,
+                     LegacySectionOffsets* sections,
+                     LegacyIoProgress* progress)
+{
+    try {
+        return writeCromContent(stream, snapshot, errorMessage, sections, progress);
+    } catch (const WriteCancelled&) {
+        errorMessage = kLegacyIoCancelledMessage;
+        return false;
+    }
+}
+
+bool writeLegacyCrp(std::ostream& stream,
+                    const document::ProjectSnapshot& snapshot,
+                    std::string& errorMessage,
+                    LegacySectionOffsets* sections,
+                    LegacyIoProgress* progress)
+{
+    try {
+        return writeCrpContent(stream, snapshot, errorMessage, sections, progress);
+    } catch (const WriteCancelled&) {
+        errorMessage = kLegacyIoCancelledMessage;
+        return false;
+    }
+}
+
+uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot)
+{
+    const uint64_t frames = snapshot.frames.size();
+    const uint64_t sd = pixelCount(snapshot.geometry.planeSize(render::Resolution::Sd));
+    const uint64_t hd = pixelCount(snapshot.geometry.planeSize(render::Resolution::Hd));
+    const uint64_t rom = pixelCount(document::originalFrameSize(snapshot));
+    const uint64_t colors = snapshot.colorCount;
+    const uint64_t masks = snapshot.comparisonMasks.size();
+    const uint64_t sprites = snapshot.sprites.size();
+    const uint64_t backgrounds = snapshot.backgrounds.size();
+    const uint64_t spritePixels = document::kMaxSpriteWidth * document::kMaxSpriteHeight;
+    const uint64_t slots = document::kMaxSpritesPerFrame;
+    const uint64_t sets = document::kMaxDynamicSetsPerFrame;
+    const uint64_t rotations = document::kMaxColorRotations * document::kMaxColorRotationLength;
+    const uint64_t areas = document::kMaxSpriteDetectAreas;
+    const uint32_t revision = std::clamp(snapshot.cromRevision,
+                                         document::kOldestWritableCromRevision,
+                                         document::kCurrentCromRevision);
+    const uint64_t header = kRomNameBytes + 9 * 4 + 2 + (revision >= 20 ? 4 : 0);
+    const uint64_t perFrame = 4 + 1 + 1 + 1 + 2 * sd + 2 * hd + sd + hd + 2 * 2 * sets * colors +
+                              slots + 1 + 2 * 2 * rotations + 4 + 8 * slots + 2 + sd + hd +
+                              sets + 2 * sets + sets + 2 * sets;
+    const uint64_t perSprite = 1 + spritePixels + 2 * spritePixels + spritePixels +
+                               2 * spritePixels + 4 * areas + 2 * areas + 8 * areas +
+                               2 * 2 * document::kMaxDynamicSetsPerSprite * colors +
+                               2 * spritePixels + 1;
+    const uint64_t perBackground = 1 + 2 * sd + 2 * hd;
+    return header + frames * perFrame + masks * rom + sprites * perSprite +
+           backgrounds * perBackground;
+}
+
+uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot)
+{
+    const document::EditorMetadata& metadata = snapshot.editorMetadata;
+    const uint64_t frames = snapshot.frames.size();
+    const uint64_t rom = pixelCount(document::originalFrameSize(snapshot));
+    return kRomNameBytes + frames * rom + 4 * metadata.activeColorSets.size() +
+           2 * metadata.colorSets.size() + 1 + 1 + metadata.colorSetNames.size() + 4 + 1 + 4 +
+           4 + metadata.maskNames.size() + 4 + 4 * metadata.sectionFirstFrames.size() +
+           metadata.sectionNames.size() + metadata.spriteNames.size() +
+           4 * metadata.spriteSourceFrames.size() + 4 * frames +
+           2 * metadata.spriteSourceRects.size() + 4 * metadata.spriteSourceMirrors.size() +
+           2 * document::kPaletteCount * document::kPaletteColorCount +
+           2 * metadata.editColors.size() + 4 + metadata.imagePositionNames.size() +
+           4 * metadata.imagePositions.size() + metadata.paletteNames.size() + 4 +
+           metadata.importedPalettes.size() + 4 + 4 + metadata.pupPackName.size();
 }
 
 }  // namespace colorizing::legacy

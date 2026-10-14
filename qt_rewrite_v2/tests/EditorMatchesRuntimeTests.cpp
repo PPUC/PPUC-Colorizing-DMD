@@ -457,7 +457,7 @@ RotationStepCounts expectRotationStepsEqualRuntime(const ProjectDocument& docume
                                                          &notRotating);
     expect(differingPixels(editorStill, *still) == 0, text + ": the still pictures are the same");
     expect(still->rotates() && shown.nextRotationMs > 0, text + ": libserum rotates the frame");
-    const std::vector<uint16_t>& table = document.colorRotations(frame, plane);
+    const auto& table = document.colorRotations(frame, plane);
     for (std::size_t i = 0; i < editorStill.pixels.size(); ++i) {
         const bool inRotation =
             std::find(table.begin() + 2, table.begin() + 2 + table[0], editorStill.pixels[i]) !=

@@ -214,7 +214,7 @@ void testReaderSizes()
     expectEqual(padded.frames.size(), std::size_t{2}, "128x16 frame count");
     expect(padded.dumpFrameSize == Size{128, 16} && padded.storedFrameSize == Size{128, 32},
            "128x16 is stored as 128x32");
-    const std::vector<uint8_t>& pixels = padded.frames[0].pixels.pixels;
+    const auto& pixels = padded.frames[0].pixels.pixels;
     expectEqual(pixels.size(), std::size_t{128 * 32}, "padded pixel count");
     for (std::size_t index = 0; index < pixels.size(); ++index) {
         const std::size_t row = index / 128;
@@ -925,7 +925,7 @@ void testNewProject(Size dumpSize, uint32_t shades)
         // Frame 5 lasted 10 ms and is not colorized.
         expectEqual(static_cast<int>(active[frame]), kept[frame].durationMs >= 15 ? 1 : 0,
                     what + ": active flag of frame " + std::to_string(frame));
-        const std::vector<uint8_t>& original = kept[frame].original.pixels;
+        const auto& original = kept[frame].original.pixels;
         const bool extraNative = expectedLayout == PlaneLayout::NativeExtra;
         const std::string& native = extraNative ? hdFrames : sdFrames;
         const std::size_t nativePixels = extraNative ? hd : sd;

@@ -118,7 +118,7 @@ void ColorRotationPanel::refresh(const document::ProjectDocument* document,
     m_lengthSpinBox->setValue(static_cast<int>(length));
     m_delaySpinBox->setValue(static_cast<int>(delayMs));
 
-    const std::vector<uint16_t>& rotations = document->colorRotations(*frameIndex, resolution);
+    const document::CompactArray<uint16_t>& rotations = document->colorRotations(*frameIndex, resolution);
     const std::size_t slotOffset = slotIndex * document::kMaxColorRotationLength + 2;
     std::vector<uint16_t> colors(document::kMaxColorRotationColors, 0);
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex) {

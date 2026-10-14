@@ -15,6 +15,11 @@ std::vector<RenumberedRecords> EditCommand::renumberedRecords() const
     return {};
 }
 
+std::size_t EditCommand::heldBytes() const
+{
+    return 0;
+}
+
 PixelEditCommand::PixelEditCommand(EditKind kind,
                                    std::size_t index,
                                    render::Resolution resolution,

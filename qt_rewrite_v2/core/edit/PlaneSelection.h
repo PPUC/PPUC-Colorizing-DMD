@@ -43,6 +43,7 @@ public:
     // A mask of size() pixels; any value but 0 selects. Throws std::invalid_argument for
     // another size.
     void assignMask(const std::vector<uint8_t>& mask);
+    void assignMask(const document::CompactArray<uint8_t>& mask);
 
 private:
     render::Resolution m_plane = render::Resolution::Sd;

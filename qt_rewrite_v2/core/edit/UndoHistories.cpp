@@ -38,7 +38,7 @@ HistoryKey editorColorsHistoryKey()
     return HistoryKey{EditKind::EditorColors, 0, render::Resolution::Sd};
 }
 
-void UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> command)
+std::size_t UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> command)
 {
     if (!command) {
         throw std::invalid_argument("edit command must not be null");
@@ -47,6 +47,42 @@ void UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> com
     History& history = m_histories[key];
     history.undoStack.push_back(Entry{std::move(command), m_nextSequence++});
     history.redoStack.clear();
+    if (!(key == structureHistoryKey())) {
+        return 0;
+    }
+    std::size_t held = structureMemoryBytes();
+    std::size_t dropped = 0;
+    while (held > m_structureMemoryLimit && history.undoStack.size() > 1) {
+        held -= std::min(held, history.undoStack.front().command->heldBytes());
+        history.undoStack.erase(history.undoStack.begin());
+        ++dropped;
+    }
+    return dropped;
+}
+
+std::size_t UndoHistories::structureMemoryLimit() const
+{
+    return m_structureMemoryLimit;
+}
+
+void UndoHistories::setStructureMemoryLimit(std::size_t bytes)
+{
+    m_structureMemoryLimit = bytes;
+}
+
+std::size_t UndoHistories::structureMemoryBytes() const
+{
+    const auto history = m_histories.find(structureHistoryKey());
+    if (history == m_histories.end()) {
+        return 0;
+    }
+    std::size_t bytes = 0;
+    for (const auto* stack : {&history->second.undoStack, &history->second.redoStack}) {
+        for (const Entry& entry : *stack) {
+            bytes += entry.command->heldBytes();
+        }
+    }
+    return bytes;
 }
 
 bool UndoHistories::canUndo(const HistoryKey& key) const

@@ -410,7 +410,7 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
     if (replay) {
         // The ROM frame identified last, once more: libserum identifies it as the frame the
         // colorization starts with, which leaves its search exactly where it was.
-        romFrame = replay->pixels;
+        romFrame.assign(replay->pixels.begin(), replay->pixels.end());
         const uint32_t result = Serum_Colorize(romFrame.data());
         if (result != IDENTIFY_NO_FRAME && result != IDENTIFY_SAME_FRAME) {
             RuntimeFrame frame;
@@ -456,7 +456,7 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     if (sequence && identificationRule) {
         expected = identificationRule->identify(original, searchStart);
     }
-    romFrame = original.pixels;
+    romFrame.assign(original.pixels.begin(), original.pixels.end());
     const Clock::time_point start = Clock::now();
     const uint32_t result = Serum_Colorize(romFrame.data());
     frame.cost.colorizeMs = millisecondsSince(start);

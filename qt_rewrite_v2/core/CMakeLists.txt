@@ -19,6 +19,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/UndoHistories.cpp
     import/FrameDumpImport.cpp
     import/FrameDumpReader.cpp
+    legacy/LegacyByteSource.cpp
     legacy/LegacyCromFrames.cpp
     legacy/LegacyCromMetadata.cpp
     legacy/LegacyCrpOriginals.cpp

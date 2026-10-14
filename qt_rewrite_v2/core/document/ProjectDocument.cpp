@@ -61,21 +61,21 @@ const FrameRecord& requireFrame(const std::vector<FrameRecord>& frames, std::siz
     return frames[frameIndex];
 }
 
-std::vector<uint16_t> normalizedColorRotations(const std::vector<uint16_t>& rotations)
+CompactArray<uint16_t> normalizedColorRotations(CompactArray<uint16_t> rotations)
 {
     if (rotations.empty()) {
-        return std::vector<uint16_t>(kMaxColorRotations * kMaxColorRotationLength, 0);
+        return CompactArray<uint16_t>(kMaxColorRotations * kMaxColorRotationLength, 0);
     }
     return rotations;
 }
 
-std::vector<uint16_t>& requireColorRotations(FrameRecord& frame, Resolution resolution)
+CompactArray<uint16_t>& requireColorRotations(FrameRecord& frame, Resolution resolution)
 {
     return resolution == Resolution::Hd ? frame.colorRotationsHd : frame.colorRotationsSd;
 }
 
-const std::vector<uint16_t>& requireColorRotations(const FrameRecord& frame,
-                                                   Resolution resolution)
+const CompactArray<uint16_t>& requireColorRotations(const FrameRecord& frame,
+                                                    Resolution resolution)
 {
     return resolution == Resolution::Hd ? frame.colorRotationsHd : frame.colorRotationsSd;
 }
@@ -374,6 +374,50 @@ IndexedFrame makeIndexedFrame(Size size, uint8_t fill)
     return frame;
 }
 
+namespace {
+
+template <typename Frame>
+std::size_t ownedFrameBytes(const std::optional<Frame>& frame)
+{
+    return frame ? frame->pixels.ownedBytes() : 0;
+}
+
+}  // namespace
+
+std::size_t ownedBytes(const FrameRecord& frame)
+{
+    std::size_t bytes = frame.originalSd.pixels.ownedBytes() + frame.colorizedSd.pixels.ownedBytes() +
+                        ownedFrameBytes(frame.colorizedHd) + ownedFrameBytes(frame.inactiveHd) +
+                        frame.colorRotationsSd.ownedBytes() + frame.colorRotationsHd.ownedBytes() +
+                        frame.spriteReferences.capacity() * sizeof(FrameSpriteReference);
+    if (frame.dynamicData) {
+        const FrameDynamicData& dynamic = *frame.dynamicData;
+        bytes += dynamic.maskSd.pixels.ownedBytes() + dynamic.maskHd.pixels.ownedBytes() +
+                 dynamic.colorsSd.ownedBytes() + dynamic.colorsHd.ownedBytes() +
+                 dynamic.shadowDirectionsSd.ownedBytes() + dynamic.shadowColorsSd.ownedBytes() +
+                 dynamic.shadowDirectionsHd.ownedBytes() + dynamic.shadowColorsHd.ownedBytes();
+    }
+    if (frame.backgroundData) {
+        bytes += frame.backgroundData->maskSd.pixels.ownedBytes() +
+                 frame.backgroundData->maskHd.pixels.ownedBytes();
+    }
+    return bytes;
+}
+
+std::size_t ownedBytes(const SpriteRecord& sprite)
+{
+    return sprite.originalSd.pixels.ownedBytes() + sprite.colorizedSd.pixels.ownedBytes() +
+           sprite.maskHd.pixels.ownedBytes() + sprite.colorizedHd.pixels.ownedBytes() +
+           sprite.dynamicMaskSd.pixels.ownedBytes() + sprite.dynamicMaskHd.pixels.ownedBytes() +
+           sprite.dynamicColorsSd.ownedBytes() + sprite.dynamicColorsHd.ownedBytes();
+}
+
+std::size_t ownedBytes(const BackgroundRecord& background)
+{
+    return background.colorizedSd.pixels.ownedBytes() +
+           ownedFrameBytes(background.colorizedHd) + ownedFrameBytes(background.inactiveHd);
+}
+
 ProjectDocument ProjectDocument::createEmpty(const ProjectCreateOptions& options)
 {
     ProjectDocument document;
@@ -537,8 +581,8 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         std::move(frameSnapshot.spriteReferences),
         frameSnapshot.triggerId,
         frameSnapshot.durationMs,
-        normalizedColorRotations(frameSnapshot.colorRotationsSd),
-        normalizedColorRotations(frameSnapshot.colorRotationsHd),
+        normalizedColorRotations(std::move(frameSnapshot.colorRotationsSd)),
+        normalizedColorRotations(std::move(frameSnapshot.colorRotationsHd)),
         std::move(frameSnapshot.inactiveHd),
     };
 }
@@ -1019,8 +1063,8 @@ void ProjectDocument::setFrameDurationMs(std::size_t frameIndex, uint32_t durati
     markChanged();
 }
 
-const std::vector<uint16_t>& ProjectDocument::colorRotations(std::size_t frameIndex,
-                                                             Resolution resolution) const
+const CompactArray<uint16_t>& ProjectDocument::colorRotations(std::size_t frameIndex,
+                                                              Resolution resolution) const
 {
     requireEditablePlane(resolution);
     return requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
@@ -1031,7 +1075,7 @@ uint16_t ProjectDocument::colorRotationLength(std::size_t frameIndex,
                                               std::size_t slotIndex) const
 {
     requireEditablePlane(resolution);
-    const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
+    const CompactArray<uint16_t>& rotations = colorRotations(frameIndex, resolution);
     return rotations[colorRotationOffset(slotIndex)];
 }
 
@@ -1040,7 +1084,7 @@ uint16_t ProjectDocument::colorRotationDelayMs(std::size_t frameIndex,
                                                std::size_t slotIndex) const
 {
     requireEditablePlane(resolution);
-    const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
+    const CompactArray<uint16_t>& rotations = colorRotations(frameIndex, resolution);
     return rotations[colorRotationOffset(slotIndex) + 1];
 }
 
@@ -1050,7 +1094,7 @@ uint16_t ProjectDocument::colorRotationColor(std::size_t frameIndex,
                                              std::size_t colorIndex) const
 {
     requireEditablePlane(resolution);
-    const std::vector<uint16_t>& rotations = colorRotations(frameIndex, resolution);
+    const CompactArray<uint16_t>& rotations = colorRotations(frameIndex, resolution);
     return rotations[colorRotationColorOffset(slotIndex, colorIndex)];
 }
 
@@ -1063,10 +1107,10 @@ void ProjectDocument::setColorRotationLength(std::size_t frameIndex,
     if (length > kMaxColorRotationColors) {
         throw std::out_of_range("color rotation length out of range");
     }
-    std::vector<uint16_t>& rotations =
+    CompactArray<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationOffset(slotIndex);
-    if (rotations[offset] == length) {
+    if (std::as_const(rotations)[offset] == length) {
         return;
     }
     rotations[offset] = length;
@@ -1079,10 +1123,10 @@ void ProjectDocument::setColorRotationDelayMs(std::size_t frameIndex,
                                               uint16_t delayMs)
 {
     requireEditablePlane(resolution);
-    std::vector<uint16_t>& rotations =
+    CompactArray<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationOffset(slotIndex) + 1;
-    if (rotations[offset] == delayMs) {
+    if (std::as_const(rotations)[offset] == delayMs) {
         return;
     }
     rotations[offset] = delayMs;
@@ -1096,10 +1140,10 @@ void ProjectDocument::setColorRotationColor(std::size_t frameIndex,
                                             uint16_t rgb565)
 {
     requireEditablePlane(resolution);
-    std::vector<uint16_t>& rotations =
+    CompactArray<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationColorOffset(slotIndex, colorIndex);
-    if (rotations[offset] == rgb565) {
+    if (std::as_const(rotations)[offset] == rgb565) {
         return;
     }
     rotations[offset] = rgb565;
@@ -1111,15 +1155,16 @@ void ProjectDocument::clearColorRotationSlot(std::size_t frameIndex,
                                              std::size_t slotIndex)
 {
     requireEditablePlane(resolution);
-    std::vector<uint16_t>& rotations =
+    CompactArray<uint16_t>& rotations =
         requireColorRotations(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t offset = colorRotationOffset(slotIndex);
-    const auto begin = rotations.begin() + static_cast<std::ptrdiff_t>(offset);
-    const auto end = begin + static_cast<std::ptrdiff_t>(kMaxColorRotationLength);
-    if (std::all_of(begin, end, [](uint16_t value) { return value == 0; })) {
+    const uint16_t* values = std::as_const(rotations).data() + offset;
+    if (std::all_of(values, values + kMaxColorRotationLength,
+                    [](uint16_t value) { return value == 0; })) {
         return;
     }
-    std::fill(begin, end, uint16_t{0});
+    uint16_t* begin = rotations.data() + offset;
+    std::fill(begin, begin + kMaxColorRotationLength, uint16_t{0});
     markChanged();
 }
 
@@ -1163,7 +1208,7 @@ void ProjectDocument::setComparisonMaskPixel(std::size_t maskIndex,
     const std::size_t pixelIndex =
         static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
         static_cast<std::size_t>(x);
-    if (mask.pixels[pixelIndex] == value) {
+    if (std::as_const(mask.pixels)[pixelIndex] == value) {
         return;
     }
     mask.pixels[pixelIndex] = value;
@@ -1194,7 +1239,7 @@ IndexedFrame& requireDynamicMask(FrameRecord& frame, Resolution resolution)
     return resolution == Resolution::Hd ? frame.dynamicData->maskHd : frame.dynamicData->maskSd;
 }
 
-const std::vector<uint16_t>& requireDynamicColors(const FrameRecord& frame, Resolution resolution)
+const CompactArray<uint16_t>& requireDynamicColors(const FrameRecord& frame, Resolution resolution)
 {
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic color data is not available");
@@ -1202,7 +1247,7 @@ const std::vector<uint16_t>& requireDynamicColors(const FrameRecord& frame, Reso
     return resolution == Resolution::Hd ? frame.dynamicData->colorsHd : frame.dynamicData->colorsSd;
 }
 
-std::vector<uint16_t>& requireDynamicColors(FrameRecord& frame, Resolution resolution)
+CompactArray<uint16_t>& requireDynamicColors(FrameRecord& frame, Resolution resolution)
 {
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic color data is not available");
@@ -1210,8 +1255,8 @@ std::vector<uint16_t>& requireDynamicColors(FrameRecord& frame, Resolution resol
     return resolution == Resolution::Hd ? frame.dynamicData->colorsHd : frame.dynamicData->colorsSd;
 }
 
-const std::vector<uint8_t>& requireDynamicShadowDirections(const FrameRecord& frame,
-                                                           Resolution resolution)
+const CompactArray<uint8_t>& requireDynamicShadowDirections(const FrameRecord& frame,
+                                                            Resolution resolution)
 {
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic shadow direction data is not available");
@@ -1220,7 +1265,7 @@ const std::vector<uint8_t>& requireDynamicShadowDirections(const FrameRecord& fr
                                         : frame.dynamicData->shadowDirectionsSd;
 }
 
-std::vector<uint8_t>& requireDynamicShadowDirections(FrameRecord& frame, Resolution resolution)
+CompactArray<uint8_t>& requireDynamicShadowDirections(FrameRecord& frame, Resolution resolution)
 {
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic shadow direction data is not available");
@@ -1229,8 +1274,8 @@ std::vector<uint8_t>& requireDynamicShadowDirections(FrameRecord& frame, Resolut
                                         : frame.dynamicData->shadowDirectionsSd;
 }
 
-const std::vector<uint16_t>& requireDynamicShadowColors(const FrameRecord& frame,
-                                                       Resolution resolution)
+const CompactArray<uint16_t>& requireDynamicShadowColors(const FrameRecord& frame,
+                                                        Resolution resolution)
 {
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic shadow color data is not available");
@@ -1239,7 +1284,7 @@ const std::vector<uint16_t>& requireDynamicShadowColors(const FrameRecord& frame
                                         : frame.dynamicData->shadowColorsSd;
 }
 
-std::vector<uint16_t>& requireDynamicShadowColors(FrameRecord& frame, Resolution resolution)
+CompactArray<uint16_t>& requireDynamicShadowColors(FrameRecord& frame, Resolution resolution)
 {
     if (!frame.dynamicData) {
         throw std::logic_error("dynamic shadow color data is not available");
@@ -1249,7 +1294,7 @@ std::vector<uint16_t>& requireDynamicShadowColors(FrameRecord& frame, Resolution
 }
 
 template <typename T>
-void ensureDynamicSetVectorSize(std::vector<T>& values, T fill)
+void ensureDynamicSetVectorSize(CompactArray<T>& values, T fill)
 {
     if (values.size() < kMaxDynamicSetsPerFrame) {
         values.resize(kMaxDynamicSetsPerFrame, fill);
@@ -1265,7 +1310,7 @@ std::size_t checkedIndexedPixelIndex(const IndexedFrame& frame, int x, int y)
            static_cast<std::size_t>(x);
 }
 
-std::size_t checkedDynamicColorIndex(const std::vector<uint16_t>& colors,
+std::size_t checkedDynamicColorIndex(const CompactArray<uint16_t>& colors,
                                      std::size_t setIndex,
                                      std::size_t originalColorIndex)
 {
@@ -1307,7 +1352,7 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
     requireDynamicPlane(resolution);
     IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
-    if (mask.pixels[pixelIndex] == value) {
+    if (std::as_const(mask.pixels)[pixelIndex] == value) {
         return;
     }
     mask.pixels[pixelIndex] = value;
@@ -1344,7 +1389,7 @@ uint16_t ProjectDocument::dynamicColor(std::size_t frameIndex,
                                        std::size_t originalColorIndex) const
 {
     requireEditablePlane(resolution);
-    const std::vector<uint16_t>& colors =
+    const CompactArray<uint16_t>& colors =
         requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
     return colors[checkedDynamicColorIndex(colors, setIndex, originalColorIndex)];
 }
@@ -1356,11 +1401,11 @@ void ProjectDocument::setDynamicColor(std::size_t frameIndex,
                                       uint16_t rgb565)
 {
     requireDynamicPlane(resolution);
-    std::vector<uint16_t>& colors =
+    CompactArray<uint16_t>& colors =
         requireDynamicColors(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t colorIndex =
         checkedDynamicColorIndex(colors, setIndex, originalColorIndex);
-    if (colors[colorIndex] == rgb565) {
+    if (std::as_const(colors)[colorIndex] == rgb565) {
         return;
     }
     colors[colorIndex] = rgb565;
@@ -1373,7 +1418,7 @@ uint8_t ProjectDocument::dynamicShadowDirection(std::size_t frameIndex,
 {
     requireEditablePlane(resolution);
     requireDynamicSetIndex(setIndex);
-    const std::vector<uint8_t>& directions =
+    const CompactArray<uint8_t>& directions =
         requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
     if (setIndex >= directions.size()) {
         return 0;
@@ -1387,7 +1432,7 @@ uint16_t ProjectDocument::dynamicShadowColor(std::size_t frameIndex,
 {
     requireEditablePlane(resolution);
     requireDynamicSetIndex(setIndex);
-    const std::vector<uint16_t>& colors =
+    const CompactArray<uint16_t>& colors =
         requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);
     if (setIndex >= colors.size()) {
         return 0;
@@ -1402,10 +1447,10 @@ void ProjectDocument::setDynamicShadowDirection(std::size_t frameIndex,
 {
     requireDynamicPlane(resolution);
     requireDynamicSetIndex(setIndex);
-    std::vector<uint8_t>& directions =
+    CompactArray<uint8_t>& directions =
         requireDynamicShadowDirections(requireFrame(m_frames, frameIndex), resolution);
     ensureDynamicSetVectorSize<uint8_t>(directions, 0);
-    if (directions[setIndex] == direction) {
+    if (std::as_const(directions)[setIndex] == direction) {
         return;
     }
     directions[setIndex] = direction;
@@ -1419,10 +1464,10 @@ void ProjectDocument::setDynamicShadowColor(std::size_t frameIndex,
 {
     requireDynamicPlane(resolution);
     requireDynamicSetIndex(setIndex);
-    std::vector<uint16_t>& colors =
+    CompactArray<uint16_t>& colors =
         requireDynamicShadowColors(requireFrame(m_frames, frameIndex), resolution);
     ensureDynamicSetVectorSize<uint16_t>(colors, 0);
-    if (colors[setIndex] == rgb565) {
+    if (std::as_const(colors)[setIndex] == rgb565) {
         return;
     }
     colors[setIndex] = rgb565;
@@ -1570,7 +1615,7 @@ void ProjectDocument::setBackgroundPixel(std::size_t backgroundIndex,
                                resolution,
                                m_geometry);
     const std::size_t pixelIndex = checkedRgb565PixelIndex(frame, x, y);
-    if (frame.pixels[pixelIndex] == rgb565) {
+    if (std::as_const(frame.pixels)[pixelIndex] == rgb565) {
         return;
     }
     frame.pixels[pixelIndex] = rgb565;
@@ -1655,7 +1700,7 @@ void ProjectDocument::setBackgroundMaskPixel(std::size_t frameIndex,
     requireEditablePlane(resolution);
     IndexedFrame& mask = requireBackgroundMask(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
-    if (mask.pixels[pixelIndex] == value) {
+    if (std::as_const(mask.pixels)[pixelIndex] == value) {
         return;
     }
     mask.pixels[pixelIndex] = value;
@@ -1816,11 +1861,9 @@ void ProjectDocument::replaceCapturedHdOnlySprite(SpriteRecord& sprite,
     sprite.hasHd = true;
     // The runtime never reads the SD sprite of such a project; the old one belonged to the
     // replaced picture.
-    std::fill(sprite.colorizedSd.pixels.begin(), sprite.colorizedSd.pixels.end(), uint16_t{0});
-    std::fill(sprite.dynamicMaskSd.pixels.begin(),
-              sprite.dynamicMaskSd.pixels.end(),
-              uint8_t{255});
-    std::fill(sprite.dynamicColorsSd.begin(), sprite.dynamicColorsSd.end(), uint16_t{0});
+    sprite.colorizedSd.pixels.assign(sprite.colorizedSd.pixels.size(), uint16_t{0});
+    sprite.dynamicMaskSd.pixels.assign(sprite.dynamicMaskSd.pixels.size(), uint8_t{255});
+    sprite.dynamicColorsSd.assign(sprite.dynamicColorsSd.size(), uint16_t{0});
     recalculateSpriteDetectionDwords(sprite);
     markChanged();
 }
@@ -2007,7 +2050,7 @@ void ProjectDocument::setSpriteOriginalPixel(std::size_t spriteIndex,
     }
     SpriteRecord& sprite = m_sprites[spriteIndex];
     const std::size_t pixelIndex = checkedSpritePixelIndex(x, y);
-    if (sprite.originalSd.pixels[pixelIndex] == value) {
+    if (std::as_const(sprite.originalSd.pixels)[pixelIndex] == value) {
         return;
     }
     sprite.originalSd.pixels[pixelIndex] = value;
@@ -2042,7 +2085,7 @@ void ProjectDocument::setSpriteColorizedPixel(std::size_t spriteIndex,
     Rgb565Frame& frame =
         requireSpriteColorizedFrame(m_sprites[spriteIndex], resolution, m_geometry);
     const std::size_t pixelIndex = checkedSpritePixelIndex(x, y);
-    if (frame.pixels[pixelIndex] == rgb565) {
+    if (std::as_const(frame.pixels)[pixelIndex] == rgb565) {
         return;
     }
     frame.pixels[pixelIndex] = rgb565;
@@ -2245,7 +2288,7 @@ void ProjectDocument::setColorizedPixel(std::size_t frameIndex,
     const std::size_t pixelIndex =
         static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.size.width) +
         static_cast<std::size_t>(x);
-    if (frame.pixels[pixelIndex] == rgb565) {
+    if (std::as_const(frame.pixels)[pixelIndex] == rgb565) {
         return;
     }
     frame.pixels[pixelIndex] = rgb565;

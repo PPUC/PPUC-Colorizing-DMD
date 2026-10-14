@@ -5,89 +5,59 @@
 #include <iterator>
 #include <utility>
 
+#include "legacy/LegacyByteSource.h"
+
 namespace colorizing::legacy {
 
 namespace {
 
 constexpr std::size_t kRomNameBytes = 64;
-constexpr std::size_t kU32Bytes = 4;
 constexpr std::size_t kMaxSpriteNames = 255;
 constexpr std::size_t kSpriteNameBytes = 32;
 constexpr std::size_t kPaletteCount = 256;
 constexpr std::size_t kPaletteColorCount = 64;
 constexpr std::size_t kPaletteNameBytes = 64;
 
+// The reads the parser needs, over a LegacyByteSource.
 class Cursor {
 public:
-    Cursor(const uint8_t* bytes, std::size_t size)
-        : m_bytes(bytes)
-        , m_size(size)
+    explicit Cursor(LegacyByteSource& source)
+        : m_source(source)
     {
     }
 
     [[nodiscard]] std::size_t offset() const
     {
-        return m_offset;
+        return m_source.offset();
     }
 
     bool readBytes(uint8_t* out, std::size_t count)
     {
-        if (m_offset > m_size || count > m_size - m_offset) {
-            return false;
-        }
-        std::memcpy(out, m_bytes + m_offset, count);
-        m_offset += count;
-        return true;
+        return m_source.readBytes(out, count);
     }
 
     bool readU32(uint32_t& out)
     {
-        if (m_offset > m_size || kU32Bytes > m_size - m_offset) {
-            return false;
-        }
-        out = static_cast<uint32_t>(m_bytes[m_offset]) |
-              (static_cast<uint32_t>(m_bytes[m_offset + 1]) << 8) |
-              (static_cast<uint32_t>(m_bytes[m_offset + 2]) << 16) |
-              (static_cast<uint32_t>(m_bytes[m_offset + 3]) << 24);
-        m_offset += kU32Bytes;
-        return true;
+        return m_source.readU32(out);
     }
 
     bool readU16(uint16_t& out)
     {
-        if (m_offset > m_size || 2 > m_size - m_offset) {
-            return false;
-        }
-        out = static_cast<uint16_t>(m_bytes[m_offset]) |
-              static_cast<uint16_t>(static_cast<uint16_t>(m_bytes[m_offset + 1]) << 8);
-        m_offset += 2;
-        return true;
+        return m_source.readU16(out);
     }
 
     bool readU32Values(std::vector<uint32_t>& values)
     {
-        for (uint32_t& value : values) {
-            if (!readU32(value)) {
-                return false;
-            }
-        }
-        return true;
+        return m_source.readU32s(values.data(), values.size());
     }
 
     bool readU16Values(std::vector<uint16_t>& values)
     {
-        for (uint16_t& value : values) {
-            if (!readU16(value)) {
-                return false;
-            }
-        }
-        return true;
+        return m_source.readU16s(values.data(), values.size());
     }
 
 private:
-    const uint8_t* m_bytes = nullptr;
-    std::size_t m_size = 0;
-    std::size_t m_offset = 0;
+    LegacyByteSource& m_source;
 };
 
 std::string fixedNameToString(const uint8_t (&nameBytes)[kRomNameBytes])
@@ -121,12 +91,20 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
     if (!bytes && size > 0) {
         return fail("cRP buffer is null");
     }
+    LegacyByteSource source(bytes, size);
+    return parseLegacyCrpOriginalFrames(source, cromMetadata);
+}
+
+LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(LegacyByteSource& source,
+                                                          const LegacyCromMetadata& cromMetadata)
+{
+    const std::size_t size = source.size();
     if (cromMetadata.frameWidth == 0 || cromMetadata.frameHeight == 0 ||
         cromMetadata.frameCount == 0) {
         return fail("cROM metadata is incomplete for cRP original frame parsing");
     }
 
-    Cursor cursor(bytes, size);
+    Cursor cursor(source);
     uint8_t nameBytes[kRomNameBytes] = {};
     if (!cursor.readBytes(nameBytes, kRomNameBytes)) {
         return fail("unexpected end of cRP while reading ROM name");
@@ -150,12 +128,14 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(
     const std::size_t frameBytes =
         static_cast<std::size_t>(frameSize.width) * static_cast<std::size_t>(frameSize.height);
 
+    std::vector<uint8_t> scratch(frameBytes);
     for (std::size_t frameIndex = 0; frameIndex < cromMetadata.frameCount; ++frameIndex) {
-        document::IndexedFrame frame = document::makeIndexedFrame(frameSize);
-        if (frame.pixels.size() != frameBytes ||
-            !cursor.readBytes(frame.pixels.data(), frame.pixels.size())) {
+        document::IndexedFrame frame;
+        frame.size = frameSize;
+        if (!cursor.readBytes(scratch.data(), scratch.size())) {
             return fail("unexpected end of cRP while reading original frames");
         }
+        frame.pixels.assignValues(scratch.data(), scratch.size());
         originalData.originalSdFrames.push_back(std::move(frame));
     }
 

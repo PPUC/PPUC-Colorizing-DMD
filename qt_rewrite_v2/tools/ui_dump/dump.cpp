@@ -59,6 +59,14 @@
 #define UI_DUMP_HAS_SELECTION_TOOLS 1
 #endif
 
+#if __has_include("dialogs/ProjectTaskDialog.h")
+#include <atomic>
+#include <chrono>
+#include <thread>
+#include "dialogs/ProjectTaskDialog.h"
+#define UI_DUMP_HAS_PROJECT_TASKS 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -617,6 +625,11 @@ int main(int argc, char* argv[])
 // States of a tree with copy and paste and the selection helpers; a tree without them ends here.
 #ifdef UI_DUMP_HAS_SELECTION_TOOLS
 #include "selection_script.inc"
+#endif
+
+// States of a tree that opens and saves on a worker thread; a tree without that ends here.
+#ifdef UI_DUMP_HAS_PROJECT_TASKS
+#include "progress_script.inc"
 #endif
 
     return 0;

@@ -53,14 +53,25 @@ using LegacySectionOffsets = std::vector<std::pair<std::string, std::size_t>>;
 [[nodiscard]] bool isFrameSkippedAtRuntime(const document::ProjectDocument& document,
                                            std::size_t frameIndex);
 
-// Write complete files from the snapshot alone, in the current legacy layout.
+struct LegacyIoProgress;
+
+// Write complete files from the snapshot alone, in the current legacy layout. With a progress,
+// every byte written is added to its `done`, and a set `cancel` stops the write (it returns
+// false with kLegacyIoCancelledMessage; what was written so far stays in the stream).
 [[nodiscard]] bool writeLegacyCrom(std::ostream& stream,
                                    const document::ProjectSnapshot& snapshot,
                                    std::string& errorMessage,
-                                   LegacySectionOffsets* sections = nullptr);
+                                   LegacySectionOffsets* sections = nullptr,
+                                   LegacyIoProgress* progress = nullptr);
 [[nodiscard]] bool writeLegacyCrp(std::ostream& stream,
                                   const document::ProjectSnapshot& snapshot,
                                   std::string& errorMessage,
-                                  LegacySectionOffsets* sections = nullptr);
+                                  LegacySectionOffsets* sections = nullptr,
+                                  LegacyIoProgress* progress = nullptr);
+
+// How many bytes writeLegacyCrom() and writeLegacyCrp() write for a valid snapshot, without
+// writing them (for a progress display).
+[[nodiscard]] uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot);
+[[nodiscard]] uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot);
 
 }  // namespace colorizing::legacy

@@ -141,6 +141,7 @@ void runFrameDumpImportTests();
 void runSameFramesTests();
 void runColorSetTests();
 void runSelectionEditTests();
+void runCompactStorageTests();
 
 int main()
 {
@@ -166,6 +167,7 @@ int main()
     runSameFramesTests();
     runColorSetTests();
     runSelectionEditTests();
+    runCompactStorageTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

@@ -157,16 +157,32 @@ void PlaneSelection::mirror(bool horizontally, bool vertically)
     m_mask = std::move(mirrored);
 }
 
-void PlaneSelection::assignMask(const std::vector<uint8_t>& mask)
+namespace {
+
+template <typename Values>
+std::size_t assignSelectionMask(std::vector<uint8_t>& selection, const Values& mask)
 {
-    if (mask.size() != m_mask.size()) {
+    if (mask.size() != selection.size()) {
         throw std::invalid_argument("selection mask has the wrong size");
     }
-    m_count = 0;
+    std::size_t count = 0;
     for (std::size_t i = 0; i < mask.size(); ++i) {
-        m_mask[i] = mask[i] != 0 ? uint8_t{1} : uint8_t{0};
-        m_count += m_mask[i];
+        selection[i] = mask[i] != 0 ? uint8_t{1} : uint8_t{0};
+        count += selection[i];
     }
+    return count;
+}
+
+}  // namespace
+
+void PlaneSelection::assignMask(const std::vector<uint8_t>& mask)
+{
+    m_count = assignSelectionMask(m_mask, mask);
+}
+
+void PlaneSelection::assignMask(const document::CompactArray<uint8_t>& mask)
+{
+    m_count = assignSelectionMask(m_mask, mask);
 }
 
 bool operator==(const PlaneSelection& lhs, const PlaneSelection& rhs)

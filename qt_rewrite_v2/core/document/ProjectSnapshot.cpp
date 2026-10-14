@@ -20,8 +20,8 @@ bool fail(std::string* errorMessage, const std::string& message)
     return false;
 }
 
-template <typename T>
-bool isEmptyOrSize(const std::vector<T>& values, std::size_t size)
+template <typename Values>
+bool isEmptyOrSize(const Values& values, std::size_t size)
 {
     return values.empty() || values.size() == size;
 }

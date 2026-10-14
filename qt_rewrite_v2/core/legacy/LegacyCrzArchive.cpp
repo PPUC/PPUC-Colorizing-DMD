@@ -60,6 +60,34 @@ bool readCrzArchive(const std::string& crzPath,
     return true;
 }
 
+CrzContent::~CrzContent()
+{
+    release();
+}
+
+void CrzContent::release()
+{
+    if (m_data) {
+        Serum_CRZ_Free(m_data);
+    }
+    m_data = nullptr;
+    m_size = 0;
+}
+
+bool readCrzArchive(const std::string& crzPath, CrzContent& content, std::string& errorMessage)
+{
+    content.release();
+    uint8_t* data = nullptr;
+    std::size_t size = 0;
+    if (!Serum_CRZ_Read(crzPath.c_str(), &data, &size)) {
+        errorMessage = libserumError("could not read .cRZ archive");
+        return false;
+    }
+    content.m_data = data;
+    content.m_size = size;
+    return true;
+}
+
 bool readCrzEntryName(const std::string& crzPath,
                       std::string& entryName,
                       std::string& errorMessage)

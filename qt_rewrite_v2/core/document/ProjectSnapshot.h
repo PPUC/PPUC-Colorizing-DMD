@@ -23,8 +23,8 @@ struct ProjectFrameSnapshot {
     std::vector<FrameSpriteReference> spriteReferences;
     uint32_t triggerId = 0;
     uint32_t durationMs = 0;
-    std::vector<uint16_t> colorRotationsSd;
-    std::vector<uint16_t> colorRotationsHd;
+    CompactArray<uint16_t> colorRotationsSd;
+    CompactArray<uint16_t> colorRotationsHd;
     std::optional<Rgb565Frame> inactiveHd;
 };
 

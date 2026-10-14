@@ -11,6 +11,8 @@
 
 namespace colorizing::legacy {
 
+class LegacyByteSource;
+
 struct LegacyCromFrameData {
     LegacyCromMetadata metadata;
     std::vector<uint8_t> shapeComparisonModes;
@@ -22,8 +24,8 @@ struct LegacyCromFrameData {
     std::vector<document::FrameDynamicData> dynamicFrames;
     std::vector<document::SpriteRecord> sprites;
     std::vector<std::vector<document::FrameSpriteReference>> frameSpriteReferences;
-    std::vector<std::vector<uint16_t>> colorRotationsSd;
-    std::vector<std::vector<uint16_t>> colorRotationsHd;
+    std::vector<document::CompactArray<uint16_t>> colorRotationsSd;
+    std::vector<document::CompactArray<uint16_t>> colorRotationsHd;
     std::vector<uint32_t> triggerIds;
     std::vector<uint8_t> extraBackgroundFlags;
     std::vector<document::BackgroundRecord> backgrounds;
@@ -75,6 +77,8 @@ struct LegacyCromFrameParseResult {
     const std::vector<uint8_t>& bytes);
 [[nodiscard]] LegacyCromFrameParseResult parseModernLegacyCromFrames(const uint8_t* bytes,
                                                                      std::size_t size);
+// Parses from the source's position; reads the file sequentially and holds none of it.
+[[nodiscard]] LegacyCromFrameParseResult parseModernLegacyCromFrames(LegacyByteSource& source);
 [[nodiscard]] std::optional<document::Rgb565Frame> hdFrameIfPresent(
     const LegacyCromFrameData& frameData,
     std::size_t frameIndex);

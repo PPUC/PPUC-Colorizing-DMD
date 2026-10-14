@@ -163,9 +163,9 @@ document::IndexedFrame differingPixels(const document::ProjectDocument& document
     if (frameIndices.size() < 2) {
         return differing;
     }
-    const std::vector<uint8_t>& first = document.originalFrame(frameIndices.front()).pixels;
+    const auto& first = document.originalFrame(frameIndices.front()).pixels;
     for (std::size_t position = 1; position < frameIndices.size(); ++position) {
-        const std::vector<uint8_t>& other = document.originalFrame(frameIndices[position]).pixels;
+        const auto& other = document.originalFrame(frameIndices[position]).pixels;
         for (std::size_t index = 0; index < differing.pixels.size(); ++index) {
             if (first[index] != other[index]) {
                 differing.pixels[index] = 1;

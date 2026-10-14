@@ -337,7 +337,7 @@ void applySpriteMatch(document::Rgb565Frame& frame,
                y < static_cast<int>(document::kMaxSpriteHeight);
     };
     // The color of a dynamic sprite pixel for the ROM frame pixel it lies on.
-    const auto dynamicColor = [&](const std::vector<uint16_t>& colors, uint8_t set, int romX,
+    const auto dynamicColor = [&](const document::CompactArray<uint16_t>& colors, uint8_t set, int romX,
                                   int romY) -> uint16_t {
         const std::size_t index =
             static_cast<std::size_t>(set) * colorCount +
@@ -357,7 +357,7 @@ void applySpriteMatch(document::Rgb565Frame& frame,
         const document::Rgb565Frame& colors = extra ? sprite.colorizedHd : sprite.colorizedSd;
         const document::IndexedFrame& dynamicMask =
             extra ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
-        const std::vector<uint16_t>& dynamicColors =
+        const document::CompactArray<uint16_t>& dynamicColors =
             extra ? sprite.dynamicColorsHd : sprite.dynamicColorsSd;
         for (int y = 0; y < match.height; ++y) {
             for (int x = 0; x < match.width; ++x) {
@@ -491,7 +491,7 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
                                        ? dynamicMask.pixels[originalIndex]
                                        : uint8_t{255};
         dynamicZone = dynamicSet != 255;
-        const std::vector<uint16_t>& dynamicColors =
+        const document::CompactArray<uint16_t>& dynamicColors =
             extraDynamics ? dynamicData->colorsHd : dynamicData->colorsSd;
         const std::size_t colorCount = dynamicColors.size() / document::kMaxDynamicSetsPerFrame;
         if (dynamicSet < document::kMaxDynamicSetsPerFrame && originalValue < colorCount) {
@@ -589,9 +589,9 @@ void applyDynamicShadows(const document::ProjectDocument& document,
     const bool extraDynamics = dynamicPlane == render::Resolution::Hd;
     const document::IndexedFrame& dynamicMask =
         extraDynamics ? dynamicData->maskHd : dynamicData->maskSd;
-    const std::vector<uint8_t>& directions =
+    const document::CompactArray<uint8_t>& directions =
         extraDynamics ? dynamicData->shadowDirectionsHd : dynamicData->shadowDirectionsSd;
-    const std::vector<uint16_t>& colors =
+    const document::CompactArray<uint16_t>& colors =
         extraDynamics ? dynamicData->shadowColorsHd : dynamicData->shadowColorsSd;
     // Per set: the tables of the dynamic plane, or the other plane's where the picture is the
     // scaled one and the set has no direction of its own.

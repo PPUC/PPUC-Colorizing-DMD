@@ -60,7 +60,8 @@ public:
     {
     }
 
-    LegacyLoadResult load(const LegacyProjectPaths& paths) const override
+    LegacyLoadResult load(const LegacyProjectPaths& paths,
+                          colorizing::legacy::LegacyIoProgress* = nullptr) const override
     {
         if (paths.cromPath.empty() || paths.crpPath.empty()) {
             return makeLoadFailure("both .cROM and .cRP paths are required");
@@ -75,7 +76,8 @@ private:
 class CapturingWriter final : public ILegacyProjectWriter {
 public:
     LegacySaveResult save(const LegacyProjectPaths& paths,
-                          const ProjectSnapshot& snapshot) const override
+                          const ProjectSnapshot& snapshot,
+                          colorizing::legacy::LegacyIoProgress* = nullptr) const override
     {
         if (paths.cromPath.empty() || paths.crpPath.empty()) {
             return makeSaveFailure("both .cROM and .cRP paths are required");

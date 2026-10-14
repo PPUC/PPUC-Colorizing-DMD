@@ -9,6 +9,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/ColorPickerDialog.h
     dialogs/DumpImportDialog.cpp
     dialogs/DumpImportDialog.h
+    dialogs/ProjectTaskDialog.cpp
+    dialogs/ProjectTaskDialog.h
     dialogs/SelectionDialogs.cpp
     dialogs/SelectionDialogs.h
     EditHelpersController.cpp

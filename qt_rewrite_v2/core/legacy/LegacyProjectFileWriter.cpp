@@ -16,7 +16,8 @@ namespace {
 using WriteFunction = bool (*)(std::ostream&,
                                const document::ProjectSnapshot&,
                                std::string&,
-                               LegacySectionOffsets*);
+                               LegacySectionOffsets*,
+                               LegacyIoProgress*);
 
 // Paths are UTF-8 (see platform/Utf8Path.h) until a file is opened, renamed or removed.
 std::string temporaryPathFor(const std::string& path)
@@ -28,6 +29,7 @@ bool writeTemporaryFile(const std::string& path,
                         const char* label,
                         WriteFunction write,
                         const document::ProjectSnapshot& snapshot,
+                        LegacyIoProgress* progress,
                         std::string& errorMessage)
 {
     std::ofstream stream(platform::pathFromUtf8(temporaryPathFor(path)),
@@ -36,7 +38,7 @@ bool writeTemporaryFile(const std::string& path,
         errorMessage = "could not open " + std::string(label) + " file for writing: " + path;
         return false;
     }
-    if (!write(stream, snapshot, errorMessage, nullptr)) {
+    if (!write(stream, snapshot, errorMessage, nullptr, progress)) {
         return false;
     }
     stream.close();
@@ -57,10 +59,16 @@ void removeTemporaryFiles(const LegacyProjectPaths& paths)
     }
 }
 
+bool isCancelled(const LegacyIoProgress* progress)
+{
+    return progress && progress->cancel.load();
+}
+
 }  // namespace
 
 LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
-                                               const document::ProjectSnapshot& snapshot) const
+                                               const document::ProjectSnapshot& snapshot,
+                                               LegacyIoProgress* progress) const
 {
     if (paths.cromPath.empty() || paths.crpPath.empty()) {
         return makeSaveFailure("both .cROM and .cRP paths are required");
@@ -76,11 +84,24 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     // All files are written completely beside their targets first, so a failed or interrupted
     // save never leaves a truncated project behind. The archive is built from the temporary
     // .cROM, so it holds exactly the bytes that become the .cROM.
+    // A cancel is honoured between the steps and while the files are written; libserum's
+    // compression runs to its end, and the cancel takes effect after it. Until the renames
+    // nothing but the temporary files has been touched.
+    if (progress) {
+        progress->done.store(0);
+        progress->total.store(legacyCromByteCount(snapshot) + legacyCrpByteCount(snapshot));
+        progress->setStage(LegacyIoStage::Writing);
+    }
     std::string errorMessage;
-    bool written =
-        writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot, errorMessage) &&
-        writeTemporaryFile(paths.crpPath, ".cRP", writeLegacyCrp, snapshot, errorMessage);
-    if (written && !paths.crzPath.empty()) {
+    bool written = !isCancelled(progress) &&
+                   writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot,
+                                      progress, errorMessage) &&
+                   writeTemporaryFile(paths.crpPath, ".cRP", writeLegacyCrp, snapshot, progress,
+                                      errorMessage);
+    if (written && !paths.crzPath.empty() && !isCancelled(progress)) {
+        if (progress) {
+            progress->setStage(LegacyIoStage::Compressing);
+        }
         std::string detail;
         written = writeCrzArchive(temporaryPathFor(paths.crzPath),
                                   crzEntryNameFor(snapshot.romName),
@@ -90,9 +111,16 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
             errorMessage = "could not write .cRZ file: " + paths.crzPath + " (" + detail + ")";
         }
     }
+    if (isCancelled(progress)) {
+        removeTemporaryFiles(paths);
+        return makeSaveCancelled();
+    }
     if (!written) {
         removeTemporaryFiles(paths);
         return makeSaveFailure(errorMessage);
+    }
+    if (progress) {
+        progress->setStage(LegacyIoStage::Replacing);
     }
 
     // std::filesystem::rename replaces an existing target on every platform: POSIX rename(),

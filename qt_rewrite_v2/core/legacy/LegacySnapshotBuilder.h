@@ -14,6 +14,12 @@ struct LegacySnapshotBuildResult {
     bool ok = false;
 };
 
+// Moves the parsed blocks into the snapshot; what is left of the parsed data afterwards is
+// empty.
+[[nodiscard]] LegacySnapshotBuildResult buildProjectSnapshot(
+    LegacyCromFrameData&& cromFrameData,
+    LegacyCrpOriginalData&& crpOriginalData);
+// The same on copies (which share the blocks, see document::CompactArray).
 [[nodiscard]] LegacySnapshotBuildResult buildProjectSnapshot(
     const LegacyCromFrameData& cromFrameData,
     const LegacyCrpOriginalData& crpOriginalData);

@@ -85,6 +85,34 @@ rewrites the archive, and `Save As...` proposes `<name>_copy.cROM`.
 
 After a successful open, the project is added to `File -> Open Recent`.
 
+Opening runs in the background. A project that opens within a moment (about 0.3 s) just
+appears; a larger one brings up the `Opening Project` window with what is being done
+(`Unpacking the .cRZ archive...`, then `Reading the project: N of M MB` with a bar) and a
+`Cancel` button. While it is up the main window takes no input. `Cancel` (or Escape, or closing
+the small window) stops the open: the project that was open stays open, unchanged, and the
+status bar says `Open cancelled`. Unpacking a `.cRZ` is done by libserum in one step that cannot
+be interrupted; a `Cancel` pressed then takes effect when it ends (`Cancelling when this step
+ends...`). The project that was open stays in memory until the new one is complete, so for a
+moment both are held. If the open fails, the project that was open stays as well.
+
+Memory: the editor keeps a project in memory in a compact form. The parts of a frame that hold
+one value throughout, which in real projects are most of them (the dynamic mask of a frame
+without dynamic zones, the background masks of a frame without a background, the 64-row picture
+of a frame without HD, rotation tables, unused dynamic colors), take no memory until they are
+edited. What a project needs is roughly its originals and its colorized pictures:
+
+| Project | `.cROM` | In memory after opening | Most while opening |
+| --- | --- | --- | --- |
+| `afm_113b` (3047 frames, `.cRZ`) | 267 MB | 81 MB | 350 MB |
+| `trn_174h` (5211 frames, `.cRZ`) | 450 MB | 350 MB | 800 MB |
+| `frankst1` (11199 frames at 192x64, `.cRZ`) | 711 MB | 440 MB | 1.2 GB |
+| GoT (19042 frames, `.cROM`) | 1.67 GB | 0.88 GB | 0.92 GB |
+
+A `.cROM` is read straight into the project; a `.cRZ` is first unpacked by libserum into memory
+as a whole, which adds the size of its `.cROM` while it is being read. On a machine with 8 GB a
+project with a `.cROM` of 2 GB opens comfortably; for the largest projects open the `.cROM`
+rather than the `.cRZ`. Saving needs only a little more than the project itself (see "Saving").
+
 Opening a project always starts in the frame view: `Edit Sprite` and `Select Capture` are switched
 off, a pending sprite capture selection is dropped, and the mask browser selection starts again at
 the first frame's mask.
@@ -288,12 +316,26 @@ In HD mode, selected frames without HD data are skipped. The import is undoable 
 
 Save behavior:
 
+- Saving runs in the background. A save that is done within a moment (about 0.3 s) shows
+  nothing; a longer one brings up the `Saving Project` window: `Writing the .cROM and .cRP: N of
+  M MB` with a bar, then `Packing the .cRZ archive (this step cannot be interrupted)...` with a
+  busy bar, then `Replacing the project files...`. While it is up the main window takes no
+  input at all: nothing can be edited, no menu or shortcut works, so the files hold exactly the
+  project as it was when `Save` was chosen. The project is saved from its blocks as they are in
+  memory, without a copy of them, so a save needs little memory beyond the project.
+- `Cancel` (or Escape, or closing the small window) stops the save: the temporary files are
+  removed, the project files on disk stay exactly as they were, the project keeps its unsaved
+  changes, and the status bar says `Save cancelled: the project files on disk are unchanged`.
+  The packing of the archive is libserum's and cannot be interrupted; a `Cancel` pressed then
+  takes effect when it ends (`Cancelling when this step ends...`), and nothing is replaced.
+  Once the files are being replaced, `Cancel` is disabled.
 - All three files are written completely next to their targets first (as `<file>.saving`) and
   then swapped in, so a failed or interrupted save does not leave a truncated project behind. If
   any of them cannot be written, including the archive, the save fails as a whole, the temporary
   files are removed and the existing files stay as they were.
-- Writing the archive compresses the whole `.cROM` and makes saving a large project noticeably
-  slower (about 5 extra seconds for a 450 MB `.cROM`).
+- Writing the archive compresses the whole `.cROM` at libserum's default level and takes most
+  of the time of a save: for a 450 MB `.cROM` about 0.7 s for the `.cROM` and `.cRP` and 5.6 s
+  for the archive; for a 1.67 GB `.cROM` about 2 s and 31 s.
 - The `.cRZ` is a plain zip without zip64 as long as the `.cROM` is smaller than 4 GiB. It is not
   byte-identical to the Win32 editor's archive of the same project (other deflate settings, no
   timestamp extra field); the `.cROM` inside is.
@@ -1650,7 +1692,14 @@ Adding and deleting records:
   undone by itself afterwards; the edit itself stays.
 - A deleted record is kept by the history until the history is dropped (a project is opened) or
   the step can no longer be redone. Nothing is copied for that; the memory of deleted frames is
-  simply not released before.
+  simply not released before. A deleted frame holds what it held in the project (its original
+  and colorized pictures and whatever of its other parts was edited), typically 12 to 45 KB.
+- The add and delete steps keep at most 1 GB of deleted records. When a step goes beyond
+  that, the oldest add and delete steps are dropped (never the one just made, however large):
+  they can no longer be undone, and the status bar says so after the result of the step, for
+  example `Deleted 3000 frame(s), 2 remain (undo keeps at most 1024 MB of deleted records: the 1
+  oldest add or delete steps can no longer be undone)`. The steps that remain undo exactly as
+  before. The other histories keep only the changes and are not limited.
 
 When an edit cannot be undone or redone because it no longer fits the project (it throws), the
 project is left as it was, the step stays where it is in its history, and the status bar says
@@ -2288,8 +2337,10 @@ another record than the one it was made for. `tools/ui_dump` has the window's st
 (`structure_script.inc`).
 
 For load/save changes, build the `colorizing_qt_v2_roundtrip` tool and run it against real
-projects. It loads a project, serializes it in memory, and reports per block where the result
-differs from the files on disk; it writes nothing:
+projects. It loads a project into a document and serializes it the way `Save` does, comparing
+the bytes with the files on disk as they are produced, and reports per block where the result
+differs; it writes nothing and holds only the project (plus, for a `.cRZ`, the `.cROM` libserum
+unpacks):
 
 ```text
 colorizing_qt_v2_roundtrip <project>.cROM <project>.cRP

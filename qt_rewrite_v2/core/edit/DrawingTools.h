@@ -21,8 +21,8 @@ using RegionPredicate = std::function<bool(render::Point)>;
                                                          const RegionPredicate& inRegion);
 
 // Flood fill over a row-major buffer of size.width * size.height values equal to target.
-template <typename Value>
-[[nodiscard]] std::vector<render::Point> floodFillMatching(const std::vector<Value>& values,
+template <typename Values, typename Value>
+[[nodiscard]] std::vector<render::Point> floodFillMatching(const Values& values,
                                                            render::Size size,
                                                            render::Point seed,
                                                            Value target)

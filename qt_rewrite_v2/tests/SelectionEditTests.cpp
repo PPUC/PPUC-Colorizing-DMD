@@ -184,7 +184,7 @@ void testPlaneSelection()
     expect(selection.count() == 32, "select all");
     selection.clear();
     expect(selection.isEmpty(), "select none");
-    expect(throws<std::invalid_argument>([&] { selection.assignMask({1, 0}); }),
+    expect(throws<std::invalid_argument>([&] { selection.assignMask(std::vector<uint8_t>{1, 0}); }),
            "a mask of another size is refused");
     std::vector<uint8_t> mask(32, 0);
     mask[at(Size{8, 4}, 3, 2)] = 7;

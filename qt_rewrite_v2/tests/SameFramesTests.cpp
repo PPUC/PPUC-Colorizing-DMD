@@ -127,9 +127,9 @@ bool samePixels(const ProjectDocument& project,
                 std::size_t other,
                 ComparisonRule rule)
 {
-    const std::vector<uint8_t>& a = project.originalFrame(frame).pixels;
-    const std::vector<uint8_t>& b = project.originalFrame(other).pixels;
-    const std::vector<uint8_t>* mask = rule.maskId < project.comparisonMaskCount()
+    const auto& a = project.originalFrame(frame).pixels;
+    const auto& b = project.originalFrame(other).pixels;
+    const colorizing::document::CompactArray<uint8_t>* mask = rule.maskId < project.comparisonMaskCount()
                                            ? &project.comparisonMask(rule.maskId).pixels
                                            : nullptr;
     for (std::size_t index = 0; index < a.size(); ++index) {

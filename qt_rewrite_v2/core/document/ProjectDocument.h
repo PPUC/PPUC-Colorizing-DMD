@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "document/CompactArray.h"
 #include "document/EditorMetadata.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
@@ -15,9 +16,11 @@ namespace colorizing::document {
 using render::Resolution;
 using render::Size;
 
+// The pixels are a CompactArray: a plane that is one color throughout takes no memory of its
+// own, and copies share the pixels until one of them is written.
 struct Rgb565Frame {
     Size size;
-    std::vector<uint16_t> pixels;
+    CompactArray<uint16_t> pixels;
 
     [[nodiscard]] bool isValid() const;
     [[nodiscard]] std::size_t pixelCount() const;
@@ -25,7 +28,7 @@ struct Rgb565Frame {
 
 struct IndexedFrame {
     Size size;
-    std::vector<uint8_t> pixels;
+    CompactArray<uint8_t> pixels;
 
     [[nodiscard]] bool isValid() const;
     [[nodiscard]] std::size_t pixelCount() const;
@@ -51,12 +54,12 @@ constexpr uint32_t kNoTriggerId = 0xffffffff;
 struct FrameDynamicData {
     IndexedFrame maskSd;
     IndexedFrame maskHd;
-    std::vector<uint16_t> colorsSd;
-    std::vector<uint16_t> colorsHd;
-    std::vector<uint8_t> shadowDirectionsSd;
-    std::vector<uint16_t> shadowColorsSd;
-    std::vector<uint8_t> shadowDirectionsHd;
-    std::vector<uint16_t> shadowColorsHd;
+    CompactArray<uint16_t> colorsSd;
+    CompactArray<uint16_t> colorsHd;
+    CompactArray<uint8_t> shadowDirectionsSd;
+    CompactArray<uint16_t> shadowColorsSd;
+    CompactArray<uint8_t> shadowDirectionsHd;
+    CompactArray<uint16_t> shadowColorsHd;
 };
 
 struct BackgroundRecord {
@@ -94,8 +97,8 @@ struct SpriteRecord {
     // normalized to that default when a document is built.
     IndexedFrame dynamicMaskSd;
     IndexedFrame dynamicMaskHd;
-    std::vector<uint16_t> dynamicColorsSd;
-    std::vector<uint16_t> dynamicColorsHd;
+    CompactArray<uint16_t> dynamicColorsSd;
+    CompactArray<uint16_t> dynamicColorsHd;
     uint8_t shapeMode = 0;
 };
 
@@ -118,8 +121,8 @@ struct FrameRecord {
     std::vector<FrameSpriteReference> spriteReferences;
     uint32_t triggerId = kNoTriggerId;
     uint32_t durationMs = 0;
-    std::vector<uint16_t> colorRotationsSd;
-    std::vector<uint16_t> colorRotationsHd;
+    CompactArray<uint16_t> colorRotationsSd;
+    CompactArray<uint16_t> colorRotationsHd;
     // See BackgroundRecord::inactiveHd.
     std::optional<Rgb565Frame> inactiveHd;
 };
@@ -367,8 +370,8 @@ public:
     void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
     [[nodiscard]] uint32_t frameDurationMs(std::size_t frameIndex) const;
     void setFrameDurationMs(std::size_t frameIndex, uint32_t durationMs);
-    [[nodiscard]] const std::vector<uint16_t>& colorRotations(std::size_t frameIndex,
-                                                              Resolution resolution) const;
+    [[nodiscard]] const CompactArray<uint16_t>& colorRotations(std::size_t frameIndex,
+                                                               Resolution resolution) const;
     [[nodiscard]] uint16_t colorRotationLength(std::size_t frameIndex,
                                                Resolution resolution,
                                                std::size_t slotIndex) const;
@@ -671,6 +674,12 @@ private:
 [[nodiscard]] std::vector<uint16_t> plainOriginalColors(uint32_t colorCount);
 
 [[nodiscard]] Rgb565Frame makeRgb565Frame(Size size, uint16_t fill = 0);
+
+// The memory of the blocks only this record holds: uniform blocks and blocks shared with a
+// copy (see CompactArray) count 0. An estimate for limits such as the undo memory, not exact.
+[[nodiscard]] std::size_t ownedBytes(const FrameRecord& frame);
+[[nodiscard]] std::size_t ownedBytes(const SpriteRecord& sprite);
+[[nodiscard]] std::size_t ownedBytes(const BackgroundRecord& background);
 [[nodiscard]] IndexedFrame makeIndexedFrame(Size size, uint8_t fill = 0);
 
 }  // namespace colorizing::document

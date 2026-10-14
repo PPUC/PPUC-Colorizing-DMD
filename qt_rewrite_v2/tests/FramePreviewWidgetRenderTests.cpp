@@ -3068,6 +3068,7 @@ void runNativeOriginalWidgetTests();
 void runPlaneLabelsWidgetTests();
 void runRuntimeViewWidgetTests();
 void runSelectionWidgetTests();
+void runProjectTaskWidgetTests();
 
 int main(int argc, char* argv[])
 {
@@ -3114,6 +3115,7 @@ int main(int argc, char* argv[])
     runDumpImportWidgetTests();
     runAppHelpersWidgetTests();
     runColorWidgetTests();
+    runProjectTaskWidgetTests();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";
     return 0;
 }

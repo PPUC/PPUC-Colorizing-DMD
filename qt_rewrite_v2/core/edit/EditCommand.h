@@ -88,6 +88,10 @@ public:
     [[nodiscard]] virtual std::vector<RecordReference> recordReferences() const = 0;
     // What this command removes, adds or renumbers, whenever it runs in either direction.
     [[nodiscard]] virtual std::vector<RenumberedRecords> renumberedRecords() const;
+    // The memory of record data the command holds while it is in a history (the records a
+    // deletion took out), for UndoHistories' limit; 0 for the commands that hold only their
+    // changes.
+    [[nodiscard]] virtual std::size_t heldBytes() const;
 };
 
 struct PixelChange {
