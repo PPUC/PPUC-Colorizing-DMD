@@ -357,7 +357,7 @@ Save behavior:
   runtime does not use and the editor does not show (see "Dynamic Masks"): an HD pixel painted
   under it is still written as 0, and is black on a machine wherever no SD dynamic zone covers
   it. The Runtime view shows that; the editing canvas shows the painted color.
-- Editor metadata the app does not expose yet (color sets, mask names, sections, sprite source
+- Editor metadata the app does not expose yet (color sets, mask names, sprite source
   frames, image crop presets, imported palettes, project time, PuP pack) is carried through.
   Deleting frames, sprites and comparison masks keeps the parts of it that are numbered by
   them in step, see "Adding And Deleting Records".
@@ -449,6 +449,32 @@ and must be validated against libserum playback behavior.
 ## Frame List
 
 The left frame list shows one thumbnail per loaded frame plus compact metadata.
+
+### Sections and triggers
+
+Above the frame list:
+
+- The section box shows the section of the current frame: the one with the latest first frame
+  at or before it (`- None -` before the first section). Choosing a section goes to its first
+  frame. The row of a frame that starts a section shows the name, for example `3 [Game]`.
+- `Name` starts a section at the current frame; on a frame that already starts one the button
+  reads `Rename` and renames it. A name has 1 to 31 characters, is not `- None -` and is not
+  the name of another section; otherwise nothing changes and the status bar says why. A
+  project holds at most 512 sections.
+- `Delete` deletes the section of the current frame, after a question. Its frames stay and
+  belong to the section before it then.
+- `Order` opens the list in its own order, which need not be the order of the first frames
+  (as in CDMD): `Up` and `Down` move the selected section, `A-Z` sorts by name. Each step is
+  applied at once.
+- Every change of the sections is an undo step of its own (`Undo section change`), reachable
+  from every view. Deleting frames moves the first frames (see "Deleting frames") and drops the
+  section undo steps made before.
+- The trigger box lists every frame with a trigger ID as `Fr: <frame> / TID: <id>`, sorted by
+  ID and then frame, as CDMD's trigger list; it shows the current frame's entry when it has
+  one. Choosing an entry goes to the frame. A frame hidden by the frame filter is not shown;
+  the status bar says so.
+
+Sections are editor data of the `.cRP`; the runtime does not use them.
 
 Thumbnails are drawn when their rows come into view, not when the project is opened: a row that
 was never scrolled to shows an empty dark box of the thumbnail's size, which is replaced by the

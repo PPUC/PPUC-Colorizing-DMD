@@ -25,6 +25,8 @@ struct HistoryKey {
 [[nodiscard]] HistoryKey structureHistoryKey();
 // The one history of the edit colors and color sets, see EditorColorsCommand.
 [[nodiscard]] HistoryKey editorColorsHistoryKey();
+// The one history of the sections, see SectionsCommand.
+[[nodiscard]] HistoryKey sectionsHistoryKey();
 
 // Independent undo/redo stacks, one per key. Every command also carries a position in the
 // order in which all commands were pushed or redone, so that several histories can be undone

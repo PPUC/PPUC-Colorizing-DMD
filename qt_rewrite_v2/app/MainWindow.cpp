@@ -64,6 +64,7 @@
 #include "dialogs/SelectionDialogs.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
+#include "edit/Sections.h"
 #include "edit/StateCommands.h"
 #include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
@@ -76,6 +77,7 @@
 #include "panels/PalettePanel.h"
 #include "panels/RecordListPage.h"
 #include "panels/SameFramesPanel.h"
+#include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
@@ -316,6 +318,8 @@ QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd
             break;
         case edit::EditKind::EditorColors:
             return QStringLiteral(" edit colors and color sets change");
+        case edit::EditKind::Sections:
+            return QStringLiteral(" section change");
     }
     return QString();
 }
@@ -969,6 +973,17 @@ void MainWindow::createCentralView()
     auto* frameListPanel = new QWidget(m_leftBrowserTabs);
     auto* frameListLayout = new QVBoxLayout(frameListPanel);
     frameListLayout->setContentsMargins(0, 0, 0, 0);
+    m_sectionBar = new SectionBar(frameListPanel);
+    m_sectionBar->onSectionChosen = [this](std::size_t section) {
+        if (m_document) {
+            goToFrame(edit::sections(*m_document).at(section).firstFrame);
+        }
+    };
+    m_sectionBar->onTriggerChosen = [this](std::size_t frameIndex) { goToFrame(frameIndex); };
+    m_sectionBar->onNameRequested = [this]() { nameSectionAtCurrentFrame(); };
+    m_sectionBar->onDeleteRequested = [this]() { deleteCurrentSection(); };
+    m_sectionBar->onOrderRequested = [this]() { orderSections(); };
+    frameListLayout->addWidget(m_sectionBar);
     frameListLayout->addWidget(m_frameFilterComboBox);
     frameListLayout->addWidget(m_frameList, 1);
     m_leftBrowserTabs->addTab(frameListPanel, QStringLiteral("Frames"));
@@ -2356,6 +2371,149 @@ void MainWindow::selectFramesUsingMask()
         4000);
 }
 
+void MainWindow::updateSectionControls()
+{
+    if (!m_sectionBar) {
+        return;
+    }
+    if (!m_document) {
+        m_sectionBar->setContent(false, {}, {});
+        m_sectionBar->setCurrent(std::nullopt, false, std::nullopt);
+        m_sectionBarRevision.reset();
+        return;
+    }
+    // The lists only when the project changed: this runs on every frame change.
+    if (m_sectionBarRevision != m_document->revision()) {
+        m_sectionBarRevision = m_document->revision();
+        std::vector<SectionBarEntry> entries;
+        for (const edit::Section& section : edit::sections(*m_document)) {
+            entries.push_back(SectionBarEntry{QString::fromStdString(section.name),
+                                              section.firstFrame});
+        }
+        std::vector<TriggerBarEntry> triggers;
+        for (const edit::TriggerEntry& trigger : edit::triggerList(*m_document)) {
+            triggers.push_back(TriggerBarEntry{trigger.frameIndex, trigger.triggerId});
+        }
+        m_sectionBar->setContent(true, entries, triggers);
+    }
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    const std::optional<std::size_t> section =
+        frameIndex ? edit::sectionOfFrame(*m_document, *frameIndex) : std::nullopt;
+    const bool startsHere =
+        frameIndex && edit::sectionStartingAt(*m_document, *frameIndex).has_value();
+    m_sectionBar->setCurrent(section, startsHere, frameIndex);
+}
+
+void MainWindow::recordSectionsEdit(std::unique_ptr<edit::EditCommand> command,
+                                    const QString& status)
+{
+    if (!command) {
+        return;
+    }
+    recordEdit(std::move(command));
+    statusBar()->showMessage(status, 3000);
+}
+
+void MainWindow::nameSectionAtCurrentFrame()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+    const std::optional<std::size_t> existing = edit::sectionStartingAt(*m_document, *frameIndex);
+    bool accepted = false;
+    const QString name =
+        QInputDialog::getText(
+            this,
+            existing ? QStringLiteral("Rename Section") : QStringLiteral("New Section"),
+            existing ? QStringLiteral("Name of the section that starts at frame %1:")
+                           .arg(static_cast<qulonglong>(*frameIndex))
+                     : QStringLiteral("Name of the section that starts at frame %1 (up to 31 "
+                                      "characters):")
+                           .arg(static_cast<qulonglong>(*frameIndex)),
+            QLineEdit::Normal,
+            existing ? QString::fromStdString(edit::sectionName(*m_document, *existing))
+                     : QString(),
+            &accepted)
+            .trimmed();
+    if (!accepted) {
+        return;
+    }
+    try {
+        recordSectionsEdit(
+            edit::addOrRenameSection(*m_document, *frameIndex, name.toStdString()),
+            existing ? QStringLiteral("Renamed section %1 to \"%2\"")
+                           .arg(static_cast<int>(*existing))
+                           .arg(name)
+                     : QStringLiteral("Section \"%1\" starts at frame %2")
+                           .arg(name)
+                           .arg(static_cast<qulonglong>(*frameIndex)));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QStringLiteral("Not named: %1").arg(QString::fromUtf8(ex.what())),
+                                 4000);
+    }
+}
+
+void MainWindow::deleteCurrentSection()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+    const std::optional<std::size_t> section = edit::sectionOfFrame(*m_document, *frameIndex);
+    if (!section) {
+        return;
+    }
+    const QString name = QString::fromStdString(edit::sectionName(*m_document, *section));
+    if (!confirmDeletion(QStringLiteral("Delete Section"),
+                         QStringLiteral("Delete the section \"%1\" this frame is part of?")
+                             .arg(name),
+                         QStringLiteral("Its frames stay; they belong to the section before it "
+                                        "then. The deletion can be undone."))) {
+        return;
+    }
+    try {
+        recordSectionsEdit(edit::deleteSection(*m_document, *section),
+                           QStringLiteral("Deleted section \"%1\"").arg(name));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::orderSections()
+{
+    if (!m_document) {
+        return;
+    }
+    const auto names = [this]() {
+        QStringList list;
+        for (const edit::Section& section : edit::sections(*m_document)) {
+            list << QStringLiteral("%1 (frame %2)")
+                        .arg(QString::fromStdString(section.name))
+                        .arg(static_cast<qulonglong>(section.firstFrame));
+        }
+        return list;
+    };
+    SectionOrderDialog dialog(this);
+    dialog.setNames(names(), -1);
+    dialog.onMoveRequested = [this, &dialog, &names](int row, int offset) {
+        try {
+            recordSectionsEdit(
+                edit::moveSection(*m_document, static_cast<std::size_t>(row), offset),
+                QStringLiteral("Moved a section in the list"));
+            dialog.setNames(names(), row + offset);
+        } catch (const std::exception& ex) {
+            statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        }
+    };
+    dialog.onSortRequested = [this, &dialog, &names]() {
+        recordSectionsEdit(edit::sortSectionsByName(*m_document),
+                           QStringLiteral("Sorted the sections by name"));
+        dialog.setNames(names(), -1);
+    };
+    dialog.exec();
+}
+
 void MainWindow::goToFrame(std::size_t frameIndex)
 {
     if (!m_frameList) {
@@ -2749,9 +2907,13 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     if (m_document->frameReferenceProblems(frameIndex).any()) {
         details << QStringLiteral("ref. problem");
     }
-    return QStringLiteral("%1\n%2")
-        .arg(static_cast<int>(frameIndex))
-        .arg(details.join(QStringLiteral("\n")));
+    QString first = QString::number(static_cast<qulonglong>(frameIndex));
+    if (const std::optional<std::size_t> section =
+            edit::sectionStartingAt(*m_document, frameIndex)) {
+        first += QStringLiteral(" [%1]").arg(
+            QString::fromStdString(edit::sectionName(*m_document, *section)));
+    }
+    return QStringLiteral("%1\n%2").arg(first, details.join(QStringLiteral("\n")));
 }
 
 void MainWindow::refreshComponentBrowsers()
@@ -3428,6 +3590,7 @@ void MainWindow::updateResolutionMode()
 
 void MainWindow::updateFrameMetadataControls()
 {
+    updateSectionControls();
     if (!m_maskPanel || !m_framePanel) {
         return;
     }
@@ -7045,6 +7208,14 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
                 refreshAfterStructureEdit(*structure);
             }
             break;
+        case edit::EditKind::Sections:
+            // The rows of the frames that start a section carry its name.
+            for (std::size_t frame = 0; frame < m_document->frameCount(); ++frame) {
+                updateFrameListItemText(frame);
+            }
+            updateSectionControls();
+            updateProjectHeaderStatus();
+            break;
         case edit::EditKind::SpriteAttributes:
             if (m_activeResolution == render::Resolution::Hd &&
                 !m_document->hasHdSprite(target.index) && !isHdOnlyProject()) {
@@ -7081,7 +7252,7 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     }
     const render::Resolution sd = render::Resolution::Sd;
     // Adding and deleting records belongs to every context.
-    std::vector<edit::HistoryKey> keys{edit::structureHistoryKey()};
+    std::vector<edit::HistoryKey> keys{edit::structureHistoryKey(), edit::sectionsHistoryKey()};
     if (isSpriteCanvasActive()) {
         const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
         if (spriteIndex) {

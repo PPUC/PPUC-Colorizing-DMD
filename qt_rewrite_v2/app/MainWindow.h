@@ -33,6 +33,7 @@ class DynamicPanel;
 class EditColorBar;
 class EditMenuActions;
 class FramePanel;
+class SectionBar;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -169,6 +170,12 @@ private:
     void setDrawingTool(DrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
     void updateFrameMetadataControls();
+    // The section and trigger boxes above the frame list, see SectionBar.
+    void updateSectionControls();
+    void recordSectionsEdit(std::unique_ptr<edit::EditCommand> command, const QString& status);
+    void nameSectionAtCurrentFrame();
+    void deleteCurrentSection();
+    void orderSections();
     void updateMaskControls();
     // The comparison side of the Mask page, see SameFramesPanel. The same frames are worked
     // out only while the page is shown.
@@ -507,6 +514,9 @@ private:
     // The document revision the last finished autosave wrote.
     uint64_t m_autosavedRevision = 0;
     std::unique_ptr<Autosaver> m_autosaver;
+    SectionBar* m_sectionBar = nullptr;
+    // The document revision the section bar's lists show.
+    std::optional<uint64_t> m_sectionBarRevision;
 };
 
 }  // namespace colorizing::app

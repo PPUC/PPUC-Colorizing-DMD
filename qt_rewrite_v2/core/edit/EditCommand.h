@@ -31,6 +31,8 @@ enum class EditKind {
     // The edit colors and color sets of the cRP. One history for the project (index 0), see
     // ColorSetEdits.
     EditorColors,
+    // The sections of the cRP. One history for the project (index 0), see Sections.h.
+    Sections,
 };
 
 // The records other data refers to by index.

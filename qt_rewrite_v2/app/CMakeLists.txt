@@ -57,6 +57,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/RecordListPage.cpp
     panels/RecordListPage.h
     panels/SameFramesPanel.cpp
+    panels/SectionBar.cpp
+    panels/SectionBar.h
     panels/SameFramesPanel.h
     panels/SpritePanel.cpp
     panels/SpritePanel.h

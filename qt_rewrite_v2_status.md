@@ -1060,8 +1060,6 @@ owner together.
 
 ## Feature parity still missing against 3.17.3
 
-- Sections (list, add, rename, delete, reorder) and the trigger list. The data is loaded and
-  saved and follows frame deletions; there is no UI.
 - Copy and paste on the sprite canvas (Win32 sprite window `IDC_COPY` 18133 / `IDC_PASTE` 18203:
   a sprite to the clipboard, the clipboard into a sprite with K/L mirror and its source
   rectangle); `Capture` covers taking a sprite from a frame.
@@ -1177,7 +1175,7 @@ Reviewed for Windows/MinGW and left unchanged:
    macOS, an application icon for the Windows exe and the macOS bundle, Wayland plugins in the
    AppImage.
 2. Sprite dynamic content UI (sprite dynamic masks and colors, sprite shape mode).
-3. Sections and the trigger list UI.
+3. (done) Sections and the trigger list (`edit/Sections.h`, `panels/SectionBar.h`).
 4. Image and video import with crop zones (the Images window).
 5. The frame tester on `RuntimePreview`'s sequence mode (feed a TXT dump, next unidentified
    frame, search by ID).

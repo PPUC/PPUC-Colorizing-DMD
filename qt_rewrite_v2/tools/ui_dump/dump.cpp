@@ -72,6 +72,11 @@
 #define UI_DUMP_HAS_AUTOSAVE 1
 #endif
 
+#if __has_include("panels/SectionBar.h")
+#include "edit/Sections.h"
+#define UI_DUMP_HAS_SECTIONS 1
+#endif
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -85,6 +90,9 @@
 #include "FramePreviewWidget.h"
 #include "SpriteEditorWidget.h"
 #include "MainWindow.h"
+#ifdef UI_DUMP_HAS_SECTIONS
+#include "panels/SectionBar.h"
+#endif
 #undef private
 
 using namespace colorizing;
@@ -640,6 +648,11 @@ int main(int argc, char* argv[])
 // States of a tree with autosave and recovery; a tree without them ends here.
 #ifdef UI_DUMP_HAS_AUTOSAVE
 #include "autosave_script.inc"
+#endif
+
+// States of a tree with the section bar; a tree without it ends here.
+#ifdef UI_DUMP_HAS_SECTIONS
+#include "sections_script.inc"
 #endif
 
     return 0;
