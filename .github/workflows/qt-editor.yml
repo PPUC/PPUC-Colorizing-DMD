@@ -45,7 +45,7 @@ env:
   # with its dependencies and shipped beside the app, see packaging/build-libdmdutil.sh.
   LIBDMDUTIL_REPOSITORY: vpinball/libdmdutil
   LIBDMDUTIL_SHA: ce450bd89076df2819746d1716e9a8f52eafc465
-  # Qt for the macOS package (official universal binaries, macOS 13 or later).
+  # Qt for the macOS package (official binaries, used for arm64; macOS 13 or later).
   MACOS_QT_VERSION: 6.11.3
   MACOS_DEPLOYMENT_TARGET: '13.0'
   # AppImage tools, pinned to releases and checked against these hashes.
@@ -96,15 +96,14 @@ jobs:
             libserum_platform: linux/aarch64
             dmdutil_platform: linux
             dmdutil_arch: aarch64
-          # One universal app for Apple silicon and Intel, built and tested on an arm64 runner;
-          # the x86_64 half of the tests runs under Rosetta.
-          - name: macOS universal (arm64 + x86_64)
+          # Apple silicon only; Intel Macs are not supported.
+          - name: macOS arm64
             os: macos-15
             platform: macos
-            arch: universal
+            arch: arm64
             libserum_platform: macos/arm64
             dmdutil_platform: macos
-            dmdutil_arch: universal
+            dmdutil_arch: arm64
     steps:
       - name: Check out the editor
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -270,7 +269,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}" \
-            "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.MACOS_DEPLOYMENT_TARGET }} \
             -DCOLORIZINGDMD_QT_V2_BUILD_TESTS=ON \
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
@@ -308,18 +307,6 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build --output-on-failure
-
-      - name: Test the x86_64 half (macOS, Rosetta)
-        if: matrix.platform == 'macos'
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
-            echo "::warning::Rosetta is not installed on this runner; the x86_64 half is built but not tested."
-            exit 0
-          fi
-          arch -x86_64 build/tests/colorizing_qt_v2_tests
-          arch -x86_64 build/tests/colorizing_qt_v2_widget_tests
 
       #
       # Package

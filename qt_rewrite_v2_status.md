@@ -1081,15 +1081,14 @@ is pushed.
 | Windows x86_64 | `windows-2025` | MSYS2 UCRT64: GCC 16.2, Qt 6.11.2 (`qt6-base`) | zip: exe, `windeployqt6`, every DLL from `/ucrt64/bin` it needs (found with `ntldd -R`) |
 | Linux x86_64 | `ubuntu-24.04` | GCC 13.3, Ubuntu's Qt 6.4.2 | AppImage (linuxdeploy + plugin-qt), needs glibc 2.39 |
 | Linux aarch64 | `ubuntu-24.04-arm` | as above | AppImage |
-| macOS universal | `macos-15` (arm64) | Apple clang, official Qt 6.11.3 (install-qt-action, Qt Base only), macOS 13 or later | zip of an ad-hoc signed `ColorizingDMD.app` (macdeployqt) |
+| macOS arm64 (Apple silicon only; Intel dropped 2026-10-14) | `macos-15` (arm64) | Apple clang, official Qt 6.11.3 (install-qt-action, Qt Base only), macOS 13 or later | zip of an ad-hoc signed `ColorizingDMD.app` (macdeployqt) |
 
 - Each job checks out libserum (`PPUC/libserum`, pinned `LIBSERUM_SHA`, now `c8d8166`) beside
   the editor, so the default `COLORIZINGDMD_LIBSERUM_DIR` finds it, and runs libserum's own
   `platforms/<platform>/<arch>/external.sh` for `FrameUtil.h` (libframeutil at the
   `LIBFRAMEUTIL_SHA` libserum pins, now `711ab21`). libserum-accel is not used.
 - Release build with the tests, `-DCMAKE_COMPILE_WARNING_AS_ERROR=ON`, ccache (cached per job),
-  `ctest` with `QT_QPA_PLATFORM=offscreen`. On macOS the x86_64 half of the tests runs again
-  under Rosetta.
+  `ctest` with `QT_QPA_PLATFORM=offscreen`.
 - Each packaging script checks its result and starts the packaged app once (offscreen; the
   offscreen platform plugin is added to a throwaway copy on Windows and macOS, and shipped in
   the AppImage). The Windows script also checks with `ntldd` that, with MSYS2 off PATH, the
@@ -1161,7 +1160,7 @@ Reviewed for Windows/MinGW and left unchanged:
 
 1. Push the branch and let `qt-editor.yml` run; fix what the first Windows run finds (it was
    never compiled with MinGW). Then try the packages on real machines: the zip on a Windows
-   PC without MSYS2, the AppImage on another distribution, the macOS zip on an Intel Mac and
+   PC without MSYS2, the AppImage on another distribution, the macOS zip
    on a Mac that has never run it (Gatekeeper: ad-hoc signed only, so "Open" from the context
    menu or `xattr -d com.apple.quarantine`). Check the edit color keys there with real
    keyboards (Windows scan codes, XKB key codes, an AZERTY layout), and the Ctrl shortcuts and
@@ -1254,7 +1253,7 @@ commands as on Linux. The UCRT64 shell has Qt's DLLs on PATH, so the tests and t
 from the build directory.
 
 Packages: configure with `-DCOLORIZINGDMD_QT_V2_PACKAGE=ON` (macOS release packages also with
-`"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0` and the official
+`-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0` and the official
 Qt), build, then `qt_rewrite_v2/packaging/package-<windows|linux|macos>.sh <build dir> <output>`;
 the comment at the top of each script says what it needs. `.github/workflows/qt-editor.yml`
 does exactly this.

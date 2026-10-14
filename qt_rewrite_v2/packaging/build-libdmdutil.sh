@@ -6,7 +6,7 @@
 #
 # Usage: build-libdmdutil.sh [--stage-only] <libdmdutil checkout> <platform> <arch> <prefix>
 #   platform: macos, linux or win-mingw (in an MSYS2 UCRT64 shell)
-#   arch:     arm64, x64, universal (macos: arm64 and x64 merged with lipo), aarch64 (linux)
+#   arch:     arm64 (macos), x64 (linux, win-mingw), aarch64 (linux)
 #   --stage-only: the checkout is built already (build/ or build-<arch>/); only stage it.
 #
 # libdmdutil's own platforms/<platform>/<arch>/external.sh fetches and builds its dependencies
@@ -74,32 +74,10 @@ rm -rf "${prefix}/include/DMDUtil" "${prefix}/lib"
 mkdir -p "${prefix}/include" "${prefix}/lib"
 cp -a "${source_dir}/include/DMDUtil" "${prefix}/include/"
 
-if [ "${platform}" = "macos" ] && [ "${arch}" = "universal" ]; then
-    for a in arm64 x64; do
-        if [ "${stage_only}" -eq 0 ]; then
-            build "${a}"
-        fi
-        stage_libs "${a}" "${prefix}/lib-${a}"
-    done
-    # One universal file per library; symbolic links (libfoo.dylib -> libfoo.1.dylib) as they are.
-    for file in "${prefix}/lib-arm64"/*; do
-        name=$(basename "${file}")
-        if [ -L "${file}" ]; then
-            cp -a "${file}" "${prefix}/lib/${name}"
-        elif [ -f "${prefix}/lib-x64/${name}" ]; then
-            lipo -create "${file}" "${prefix}/lib-x64/${name}" -output "${prefix}/lib/${name}"
-        else
-            echo "No x64 build of ${name}" >&2
-            exit 1
-        fi
-    done
-    rm -rf "${prefix}/lib-arm64" "${prefix}/lib-x64"
-else
-    if [ "${stage_only}" -eq 0 ]; then
-        build "${arch}"
-    fi
-    stage_libs "${arch}" "${prefix}/lib"
+if [ "${stage_only}" -eq 0 ]; then
+    build "${arch}"
 fi
+stage_libs "${arch}" "${prefix}/lib"
 
 echo "Staged libdmdutil into ${prefix}:"
 ls "${prefix}/lib"
