@@ -843,6 +843,12 @@ void MainWindow::createCentralView()
         updateSpriteControls();
         updateUndoRedoActions();
     };
+    m_spritePanel->onSourceFrameRequested = [this]() {
+        const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
+        if (m_document && spriteIndex) {
+            goToFrame(m_document->spriteSourceFrame(*spriteIndex));
+        }
+    };
     m_spritePanel->onApplySpriteEditsRequested = [this]() {
         applyPendingSpriteDependentViews();
     };

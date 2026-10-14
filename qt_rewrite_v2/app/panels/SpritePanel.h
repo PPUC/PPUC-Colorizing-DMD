@@ -83,6 +83,8 @@ public:
     std::function<void(bool checked)> onDetectionAreasToggled;
     std::function<void(bool checked)> onSpriteCanvasToggled;
     std::function<void()> onApplySpriteEditsRequested;
+    // Go to the frame the sprite was taken from (CDMD's "to source frame").
+    std::function<void()> onSourceFrameRequested;
     // Read the new values with slotBounds().
     std::function<void()> onSlotBoundsEdited;
     std::function<void()> onDetectionAreaSelectionChanged;
@@ -103,6 +105,7 @@ private:
     QToolButton* m_detectionAreasButton = nullptr;
     QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_applySpriteEditsButton = nullptr;
+    QToolButton* m_sourceFrameButton = nullptr;
     QSpinBox* m_minXSpinBox = nullptr;
     QSpinBox* m_minYSpinBox = nullptr;
     QSpinBox* m_maxXSpinBox = nullptr;

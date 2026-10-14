@@ -1067,7 +1067,7 @@ owner together.
   palette color, edit color into a palette color), the composed-color pipette and the pipette
   writing into the selected edit color.
 - Sprite dynamic masks and colours, sprite shape mode (data modelled, no UI).
-- Auto shadow, brightness, black and white, Dyn>Stat, "to source frame".
+- Auto shadow, brightness, black and white, Dyn>Stat ("to source frame" is done).
 - Selectable resize filters for HD creation.
 - Images window: video import, crop zones, scroll copy.
 - Animated GIF export.

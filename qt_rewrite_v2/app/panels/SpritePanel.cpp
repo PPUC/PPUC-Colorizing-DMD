@@ -101,6 +101,10 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_applySpriteEditsButton->setToolTip(
         QStringLiteral("Refresh frame previews from edited sprite data"));
     m_applySpriteEditsButton->setEnabled(false);
+    m_sourceFrameButton = new QToolButton(this);
+    m_sourceFrameButton->setText(QStringLiteral("Source Frame"));
+    m_sourceFrameButton->setToolTip(QStringLiteral("Go to the frame the sprite was taken from"));
+    m_sourceFrameButton->setEnabled(false);
     m_minXSpinBox = new QSpinBox(this);
     m_minXSpinBox->setRange(0, 127);
     m_minXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
@@ -173,6 +177,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     visualizationGrid->addWidget(m_detectionAreasButton, 0, 1);
     visualizationGrid->addWidget(m_spriteCanvasButton, 1, 0);
     visualizationGrid->addWidget(m_applySpriteEditsButton, 1, 1);
+    visualizationGrid->addWidget(m_sourceFrameButton, 2, 0);
     pageLayout->addLayout(visualizationGrid);
     auto* boundsGrid = new QGridLayout();
     boundsGrid->setHorizontalSpacing(4);
@@ -256,6 +261,11 @@ SpritePanel::SpritePanel(QWidget* parent)
     connect(m_spriteCanvasButton, &QToolButton::toggled, this, [this](bool checked) {
         if (onSpriteCanvasToggled) {
             onSpriteCanvasToggled(checked);
+        }
+    });
+    connect(m_sourceFrameButton, &QToolButton::clicked, this, [this]() {
+        if (onSourceFrameRequested) {
+            onSourceFrameRequested();
         }
     });
     connect(m_applySpriteEditsButton, &QToolButton::clicked, this, [this]() {
@@ -440,6 +450,16 @@ void SpritePanel::refresh(const SpritePanelState& state)
         }
     }
 
+    const std::optional<std::size_t> sourceFrame =
+        document && hasSprite && *state.spriteIndex < document->spriteCount() &&
+                document->spriteSourceFrame(*state.spriteIndex) < document->frameCount()
+            ? std::optional<std::size_t>(document->spriteSourceFrame(*state.spriteIndex))
+            : std::nullopt;
+    m_sourceFrameButton->setEnabled(sourceFrame.has_value());
+    m_sourceFrameButton->setToolTip(
+        sourceFrame ? QStringLiteral("Go to frame %1, the frame the sprite was taken from")
+                          .arg(static_cast<qulonglong>(*sourceFrame))
+                    : QStringLiteral("Go to the frame the sprite was taken from"));
     if (!hasSprite) {
         m_detectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);

@@ -2135,6 +2135,9 @@ The Inspector has a sprite browser and assignment controls:
   Detection-area edits update the sprite editor immediately. Frame thumbnails and composed frame
   previews refresh only after `Apply Sprite`, leaving the sprite canvas, or saving.
 - Sprite source/original pixels are not freehand editable.
+- `Source Frame` goes to the frame the sprite was taken from, as CDMD's "to source frame": the
+  frame it was added or last captured on (the `.cRP` keeps it; deleting frames moves it along).
+  Its tool tip names the frame.
 - `Capture` copies original and colorized pixels from the current frame into a sprite, using the
   selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
   origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
