@@ -2336,7 +2336,9 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
     }
     if (!m_dmdTimer.isActive()) {
         m_dmdTimer.setInterval(33);
-        connect(&m_dmdTimer, &QTimer::timeout, this, [this]() { sendDmdPicture(); },
+        // A member function, not a lambda: Qt refuses a unique connection to a lambda (with
+        // only a warning), and the timer then sent no picture at all.
+        connect(&m_dmdTimer, &QTimer::timeout, this, &MainWindow::sendDmdPicture,
                 Qt::UniqueConnection);
     }
     const DmdOutputSettings settings = loadDmdOutputSettings();

@@ -1109,7 +1109,10 @@ display source is selected, i.e. at the first picture, and the editor sent none 
 frame: now a black 128x32 picture is sent then. The 4 s status showed libdmdutil's last line
 ("Unable to find Pixelcade" when a ZeDMD had been found); it now names the displays found
 (`DmdOutput::foundDisplays`, matching "ZeDMD <v> found:" and "Pixelcade found:"; PIN2DMD logs
-nothing). `--check-dmd-output` runs the output headless for 8 s and prints the found displays
+nothing). The real cause in the window (found right after): `setDmdOutputEnabled` connected
+the 33 ms picture timer to a lambda with `Qt::UniqueConnection`, which Qt refuses (warning on
+stderr only), so since bc72729 the window never sent a picture to the plugin; now connected to
+`&MainWindow::sendDmdPicture`. `--check-dmd-output` runs the output headless for 8 s and prints the found displays
 and the plugin log. Seen with this device: an occasional ack timeout ("Full frame forced,
 error 0", "ZeDMD StreamBytes failed") about 10 frames in, with or without the Pixelcade search;
 libzedmd recovers.
