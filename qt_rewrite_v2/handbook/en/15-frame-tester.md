@@ -1,6 +1,6 @@
 # Frame Tester
 
-`View -> Frame Tester...` (`Ctrl+T`) feeds ROM frames, one after the other, to libserum with
+`View -> Frame Tester...` (`Ctrl/Cmd+T`) feeds ROM frames, one after the other, to libserum with
 the whole project loaded, as on a machine (CDMD's Frame Tester). The project is taken as it is
 in the editor, saved or not.
 

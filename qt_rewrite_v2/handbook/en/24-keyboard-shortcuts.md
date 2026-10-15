@@ -1,37 +1,39 @@
 # Keyboard Shortcuts
 
-`Ctrl` is `Cmd` and `Alt` is `Option` on macOS.
+`Ctrl/Cmd` is `Ctrl` on Windows and Linux and `Cmd` (`⌘`) on macOS; `Alt` is `Option` (`⌥`)
+on macOS. The menus show each shortcut the platform's way, and so do the tooltips that name a
+key. The `Win32` column is CDMD's, a Windows program.
 
 | Keys | Action | Win32 |
 |---|---|---|
-| `Ctrl+C` | Copy the selection | same |
-| `Ctrl+V` | Paste | same |
-| `Ctrl+Shift+V` | Paste where the originals match | `Shift`+click in paste mode |
-| `Ctrl+Alt+V` | Paste the dynamic mask only | `Alt`+click in paste mode |
+| `Ctrl/Cmd+C` | Copy the selection | same |
+| `Ctrl/Cmd+V` | Paste | same |
+| `Ctrl/Cmd+Shift+V` | Paste where the originals match | `Shift`+click in paste mode |
+| `Ctrl/Cmd+Alt+V` | Paste the dynamic mask only | `Alt`+click in paste mode |
 | Arrows, `Shift`+arrows, keypad `2 4 6 8` | Move the paste (1 or 10 pixels) | keypad |
 | `K`, `L` | Mirror the paste | held when paste starts |
 | Click, `Enter` | Stamp the paste (`Shift`, `Alt`: variants) | same |
 | `Esc` | Cancel paste mode or a pending `Select By Color` / `Recolor` click | - |
-| `Ctrl+A` | Select all pixels | same |
-| `Ctrl+Shift+A`, `Ctrl+D` | Select none | `Ctrl+D` |
-| `Ctrl+Shift+I` | Invert the selection | button |
-| `Ctrl+B` | Selection from the background mask | same |
-| `Ctrl+K`, `Ctrl+L` | Mirror the selection | same |
-| `Ctrl`(+`Shift`)+click or drag | Add to (remove from) the selection | same |
+| `Ctrl/Cmd+A` | Select all pixels | same |
+| `Ctrl/Cmd+Shift+A`, `Ctrl/Cmd+D` | Select none | `Ctrl+D` |
+| `Ctrl/Cmd+Shift+I` | Invert the selection | button |
+| `Ctrl/Cmd+B` | Selection from the background mask | same |
+| `Ctrl/Cmd+K`, `Ctrl/Cmd+L` | Mirror the selection | same |
+| `Ctrl/Cmd`(+`Shift`)+click or drag | Add to (remove from) the selection | same |
 | hold `W` | Select non-black pixels only | same |
-| `Ctrl+Alt`+click, fill tool | Select by color | same |
+| `Ctrl/Cmd+Alt`+click, fill tool | Select by color | same |
 | `Alt`+click, fill tool | Recolor every pixel of the color | same |
-| `Ctrl+Shift+O` | Black original to black | `Ctrl+O` |
-| `Ctrl+E`, `Alt+D` | Remove dynamic zones | same |
+| `Ctrl/Cmd+Shift+O` | Black original to black | `Ctrl+O` |
+| `Ctrl/Cmd+E`, `Alt+D` | Remove dynamic zones | same |
 | `Alt+A` | Assign the dynamic set | same |
 
-With a text field, a spin box or a list in focus, `Ctrl+C`, `Ctrl+V` and `Ctrl+A` do what they do
-there (`Ctrl+A` in the frame list selects every frame). A single letter cannot be a menu
+With a text field, a spin box or a list in focus, `Ctrl/Cmd+C`, `Ctrl/Cmd+V` and `Ctrl/Cmd+A` do what they do
+there (`Ctrl/Cmd+A` in the frame list selects every frame). A single letter cannot be a menu
 shortcut (a native macOS menu bar takes it from every widget), so `Invert Selection` is not `I`;
 `K`, `L` and `W` act only while the frame canvas has the focus. Other shortcuts of the editor:
-the platform's keys for Open (`Ctrl+O`), Save, Save As, Quit, Undo and Redo, the platform's
-help key for `Help -> Handbook` (`F1`; `Cmd+?` on macOS), `Ctrl+R` Runtime
-view, `Ctrl+3` / `Ctrl+6` its planes, `Delete` / `Backspace` delete frames in the frame list,
+the platform's keys for Open (`Ctrl/Cmd+O`), Save, Save As, Quit, Undo and Redo, the platform's
+help key for `Help -> Handbook` (`F1`; `Cmd+?` on macOS), `Ctrl/Cmd+R` Runtime
+view, `Ctrl/Cmd+3` / `Ctrl/Cmd+6` its planes, `Delete` / `Backspace` delete frames in the frame list,
 and the edit color keys on the canvas (see "Keys for the edit colors"). No two actions share a
 key (`tools/ui_dump` prints every shortcut of the window and the shared ones).
 

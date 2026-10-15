@@ -9,6 +9,8 @@
 #include <QPlainTextEdit>
 #include <QTextEdit>
 
+#include "KeyNames.h"
+
 namespace colorizing::app {
 
 EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
@@ -44,8 +46,10 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     add(menu, tr("&Invert Selection"), tr("Swap selected and unselected"),
         {ctrlShift(Qt::Key_I)}, &EditMenuActions::onInvertSelection);
     add(menu, tr("Select By &Color"),
+        //: %1+%2: Ctrl+Alt, Cmd+Option on macOS
         tr("Click a pixel: every pixel of its color is selected (also "
-           "Ctrl+Alt+click with the fill tool)"),
+           "%1+%2+click with the fill tool)")
+            .arg(ctrlKeyName(), altKeyName()),
         {}, &EditMenuActions::onSelectByColor);
     add(menu, tr("Selection From &Background Mask"),
         tr("Select the frame's background mask"), {ctrl(Qt::Key_B)},
@@ -59,7 +63,8 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     m_nonBlackOnlyAction = menu->addAction(tr("Select Non-Black Pixels Only"));
     m_nonBlackOnlyAction->setCheckable(true);
     m_nonBlackOnlyAction->setToolTip(
-        tr("Selecting with Ctrl leaves black pixels out (also: hold W)"));
+        //: %1: Ctrl, Cmd on macOS
+        tr("Selecting with %1 leaves black pixels out (also: hold W)").arg(ctrlKeyName()));
     m_actions.push_back(m_nonBlackOnlyAction);
     add(menu, tr("Auto &Select..."),
         tr("Select stripes of rows or columns"), {}, &EditMenuActions::onAutoSelect);
@@ -74,8 +79,10 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
            "selected frame"),
         {}, &EditMenuActions::onScrollingFill);
     add(menu, tr("&Recolor..."),
+        //: %1: Alt, Option on macOS
         tr("Click a pixel: every pixel of its color gets the draw color (also "
-           "Alt+click with the fill tool)"),
+           "%1+click with the fill tool)")
+            .arg(altKeyName()),
         {}, &EditMenuActions::onRecolor);
     add(menu, tr("Black Original &To Black"),
         tr("Pixels whose original is black become black"), {ctrlShift(Qt::Key_O)},

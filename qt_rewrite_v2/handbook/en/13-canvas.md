@@ -28,10 +28,10 @@ pixel). Zooming in, up to `3200%`, the frames grow beyond their halves, and both
 same part, so the author always sees the same pixels in both. Drawing, selecting, mask and pipette clicks hit the pixel
 shown under the mouse at any zoom.
 
-- `View -> Zoom In` (`Ctrl++` or `Ctrl+=`) and `Zoom Out` (`Ctrl+-`) zoom by a quarter around
-  the middle of the shown part; `View -> Show Whole Frame` (`Ctrl+0`) goes back to `100%`. The
+- `View -> Zoom In` (`Ctrl/Cmd++` or `Ctrl/Cmd+=`) and `Zoom Out` (`Ctrl/Cmd+-`) zoom by a quarter around
+  the middle of the shown part; `View -> Show Whole Frame` (`Ctrl/Cmd+0`) goes back to `100%`. The
   toolbar has `-`, the zoom (a click shows the whole frame) and `+`.
-- `Ctrl` (`Cmd` on macOS) with the mouse wheel, and a trackpad pinch, zoom around the mouse:
+- `Ctrl/Cmd` with the mouse wheel, and a trackpad pinch, zoom around the mouse:
   the pixel under it stays there.
 - When the frame is larger than its half, scroll bars at the bottom and the right of the canvas
   move the shown part;

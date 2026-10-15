@@ -1,6 +1,6 @@
 # Settings
 
-`File -> Settings...` (on macOS `ColorizingDMD -> Settings...`; `Ctrl+,`, `Cmd+,` on macOS)
+`File -> Settings...` (on macOS `ColorizingDMD -> Settings...`; `Ctrl/Cmd+,`)
 holds the editor's settings, one page per topic. `OK` stores and applies them, `Cancel` leaves
 them as they were. They are the editor's, not a project's: kept for the next start.
 

@@ -121,7 +121,7 @@ Clear or replace a selection:
 
 Selections are cleared when the frame, SD/HD mode, target, selected background, or tool context
 changes. Selection gradient fills are undoable through the same frame/background edit histories as
-ordinary pixel edits. A selection can also be made and changed with `Ctrl`, the `Edit` menu and
+ordinary pixel edits. A selection can also be made and changed with `Ctrl/Cmd`, the `Edit` menu and
 the other helpers, see "Selection"; `Grad Sel` then fills the selected pixels over their bounding
 box.
 

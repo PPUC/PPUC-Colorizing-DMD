@@ -57,8 +57,16 @@ authors know in English stay English.
 | zoom | Zoom | zoom |
 | handbook | Handbuch | manuel |
 | settings | Einstellungen | Réglages |
+| BG (short for background) | HG | AP |
+| runtime (view) | Runtime(-Ansicht) | runtime (vue Runtime) |
+| edit colors | Bearbeitungsfarben | couleurs d'édition |
+| draw color | Zeichenfarbe | couleur de dessin |
+| shade (of the original) | Graustufe | nuance |
+| shape mode | Formmodus | mode forme |
+| Ctrl key (in texts) | Strg | Ctrl |
 | DMD, cROM, cRP, cRPX, PNG, VPX, Serum | unchanged | unchanged |
 
-German uses the formal "Sie" sparingly; prefer impersonal phrasing as in the English texts.
+The first German and French translations are machine drafts, every text still marked unfinished
+until a reader has checked it in Qt Linguist. German uses the formal "Sie" sparingly; prefer impersonal phrasing as in the English texts.
 French uses "vous". Keep keyboard mnemonics (`&`) on letters of the translated word, unique
 within a menu.

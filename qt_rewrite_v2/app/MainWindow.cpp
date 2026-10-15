@@ -62,6 +62,7 @@
 #include "HandbookWindow.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
+#include "KeyNames.h"
 #include "ListSelection.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
@@ -582,14 +583,16 @@ void MainWindow::createActions()
     });
     m_moveFramesUpAction = editMenu->addAction(tr("Move Frames &Earlier"));
     m_moveFramesUpAction->setToolTip(
-        tr("Move the selected frames before the frame shown before them (Alt+Left "
-           "in the frame strip)"));
+        tr("Move the selected frames before the frame shown before them (%1 in the frame "
+           "strip)")
+            .arg(nativeShortcut(QStringLiteral("Alt+Left"))));
     m_moveFramesUpAction->setEnabled(false);
     connect(m_moveFramesUpAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
     m_moveFramesDownAction = editMenu->addAction(tr("Move Frames &Later"));
     m_moveFramesDownAction->setToolTip(
-        tr("Move the selected frames behind the frame shown after them (Alt+Right "
-           "in the frame strip)"));
+        tr("Move the selected frames behind the frame shown after them (%1 in the frame "
+           "strip)")
+            .arg(nativeShortcut(QStringLiteral("Alt+Right"))));
     m_moveFramesDownAction->setEnabled(false);
     connect(m_moveFramesDownAction, &QAction::triggered, this,
             [this]() { moveSelectedFramesDown(); });
@@ -1239,17 +1242,20 @@ void MainWindow::createCentralView()
     // The canvas zoom: out, the zoom (a click shows the whole frame), in.
     auto* zoomOutButton = new QToolButton(central);
     zoomOutButton->setText(QStringLiteral("-"));
-    zoomOutButton->setToolTip(tr("Zoom out (Ctrl+-)"));
+    zoomOutButton->setToolTip(
+        tr("Zoom out (%1)").arg(nativeShortcut(QStringLiteral("Ctrl+-"))));
     connect(zoomOutButton, &QToolButton::clicked, this, [this]() { m_preview->zoomOut(); });
     m_zoomButton = new QToolButton(central);
     m_zoomButton->setText(QStringLiteral("100%"));
-    m_zoomButton->setToolTip(tr(
-        "Canvas zoom; a click shows the whole frame (Ctrl+0). Ctrl with the mouse wheel or a "
-        "pinch zooms at the mouse."));
+    //: %1: the shortcut, %2: Ctrl (Cmd on macOS)
+    m_zoomButton->setToolTip(tr("Canvas zoom; a click shows the whole frame (%1). %2 with the "
+                                "mouse wheel or a pinch zooms at the mouse.")
+                                 .arg(nativeShortcut(QStringLiteral("Ctrl+0")), ctrlKeyName()));
     connect(m_zoomButton, &QToolButton::clicked, this, [this]() { m_preview->resetZoom(); });
     auto* zoomInButton = new QToolButton(central);
     zoomInButton->setText(QStringLiteral("+"));
-    zoomInButton->setToolTip(tr("Zoom in (Ctrl++)"));
+    zoomInButton->setToolTip(
+        tr("Zoom in (%1)").arg(nativeShortcut(QStringLiteral("Ctrl++"))));
     connect(zoomInButton, &QToolButton::clicked, this, [this]() { m_preview->zoomIn(); });
     toolbarLayout->addWidget(zoomOutButton);
     toolbarLayout->addWidget(m_zoomButton);

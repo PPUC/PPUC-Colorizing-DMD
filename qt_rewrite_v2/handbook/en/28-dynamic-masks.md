@@ -63,7 +63,7 @@ Helpers of the `Edit` menu, on every selected frame and on the dynamic plane onl
 an ordinary project they are refused with a message), in the selection if there is one on the
 plane and otherwise on the whole frame (the Win32 editor always takes the whole frame):
 
-- `Remove Dynamic Zones` (`Ctrl+E`, `Alt+D`): the pixels leave their zones (mask `255`) and get
+- `Remove Dynamic Zones` (`Ctrl/Cmd+E`, `Alt+D`): the pixels leave their zones (mask `255`) and get
   the plain color of their original shade, as in the Win32 editor.
 - `Assign Dynamic Set` (`Alt+A`): the pixels join the `Dyn Set` of the `Dynamic` page.
 - Copy and paste carry the dynamic mask and the colors and shadow of the sets used; `Paste

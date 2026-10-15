@@ -14,27 +14,26 @@ the selected background image; not in the `Mask`, `Dynamic` or `BG` modes):
 
 - `Sel` tool: drag a rectangle, circle or ellipse (the `Shape` of the `Palette` section); it replaces
   the selection.
-- `Ctrl`+drag with `Line`, `Rect`, `Fill Rect`, `Circle`, `Fill Circle`, `Ellipse` or
-  `Fill Ellipse`: the shape's pixels join the selection. `Ctrl`+`Shift`+drag removes them.
-- `Ctrl`+click with `Point`: the pixel joins (with `Shift`: leaves) the selection.
-- `Ctrl`+click with `Flood`: the connected pixels of the clicked color join (with `Shift`:
+- `Ctrl/Cmd`+drag with `Line`, `Rect`, `Fill Rect`, `Circle`, `Fill Circle`, `Ellipse` or
+  `Fill Ellipse`: the shape's pixels join the selection. `Ctrl/Cmd`+`Shift`+drag removes them.
+- `Ctrl/Cmd`+click with `Point`: the pixel joins (with `Shift`: leaves) the selection.
+- `Ctrl/Cmd`+click with `Flood`: the connected pixels of the clicked color join (with `Shift`:
   leave) the selection.
 - Hold `W` while selecting, or check `Edit -> Select Non-Black Pixels Only`, and black pixels
   (stored color 0) stay out of what is added, as in the Win32 editor.
-- `Ctrl`+`Alt`+click with `Flood`, or `Edit -> Select By Color` and then a click: every pixel of
+- `Ctrl/Cmd`+`Alt`+click with `Flood`, or `Edit -> Select By Color` and then a click: every pixel of
   the clicked color joins the selection, with `Shift` leaves it. The color is the one the canvas
   shows (with dynamic content, sprites and, when shown, the background layer); the Win32 editor
   compares stored colors and leaves dynamic pixels out.
-- `Edit -> Select All` (`Ctrl+A`), `Select None` (`Ctrl+Shift+A` or `Ctrl+D`), `Invert
-  Selection` (`Ctrl+Shift+I`).
-- `Edit -> Selection From Background Mask` (`Ctrl+B`): the current frame's background mask on
+- `Edit -> Select All` (`Ctrl/Cmd+A`), `Select None` (`Ctrl/Cmd+Shift+A` or `Ctrl/Cmd+D`), `Invert
+  Selection` (`Ctrl/Cmd+Shift+I`).
+- `Edit -> Selection From Background Mask` (`Ctrl/Cmd+B`): the current frame's background mask on
   the plane; the frame needs a background.
-- `Edit -> Mirror Selection Horizontally` (`Ctrl+K`) and `Vertically` (`Ctrl+L`).
+- `Edit -> Mirror Selection Horizontally` (`Ctrl/Cmd+K`) and `Vertically` (`Ctrl/Cmd+L`).
 - `Edit -> Auto Select...`: stripes of rows or columns: from `Offset` on, `Selected` lines are
   selected and `Skipped` lines are not, to the edge of the plane (Win32 limits: offset 0 to 256,
   1 to 256 lines each). It replaces the selection.
 
 A selection edited in any of these ways is a set of pixels, not a shape: `Grad Sel` spreads its
-gradient over the selection's bounding box. On macOS `Ctrl` means `Cmd` throughout; the
-`Control` key works as well for selecting (a `Control`+click can also be the system's right
-click, hence `Cmd`).
+gradient over the selection's bounding box. On macOS the `Control` key works as well as `Cmd` for
+selecting (a `Control`+click can also be the system's right click, hence `Cmd` first).

@@ -1,13 +1,13 @@
 # Copy And Paste
 
-`Edit -> Copy` (`Ctrl+C`) copies the selected pixels of the current frame: their colors on the
+`Edit -> Copy` (`Ctrl/Cmd+C`) copies the selected pixels of the current frame: their colors on the
 plane, the original shades of the ROM pixels they show and, on the plane dynamic zones live on
 (see "Dynamic Masks"), their dynamic mask values and the colors and shadow of every dynamic set
 they use. What is kept is the selection's bounding box. The colors also go to the system
 clipboard as a PNG image (transparent outside the selection). The internal clipboard is emptied
 when a project is opened.
 
-`Edit -> Paste` (`Ctrl+V`) starts paste mode: the copied pixels float over the frame canvas,
+`Edit -> Paste` (`Ctrl/Cmd+V`) starts paste mode: the copied pixels float over the frame canvas,
 first where they were copied from, then centred on the mouse. In paste mode:
 
 - the arrow keys move them by a pixel, with `Shift` by 10; the keypad's `2`, `4`, `6`, `8` as in
@@ -20,9 +20,9 @@ first where they were copied from, then centred on the mouse. In paste mode:
 What a paste writes, per frame: the colors, the dynamic mask, and the colors and shadow of the
 dynamic sets the copied pixels use (Win32 `CopyDynaCol`). Variants:
 
-- `Paste Where Originals Match` (`Ctrl+Shift+V`), or `Shift` held at the click or `Enter`: only
+- `Paste Where Originals Match` (`Ctrl/Cmd+Shift+V`), or `Shift` held at the click or `Enter`: only
   pixels whose original shade on the target frame equals the copied pixel's.
-- `Paste Dynamic Mask Only` (`Ctrl+Alt+V`), or `Alt` held at the click: only the dynamic mask,
+- `Paste Dynamic Mask Only` (`Ctrl/Cmd+Alt+V`), or `Alt` held at the click: only the dynamic mask,
   no colors and no set colors. The Win32 editor does not mirror this variant; here it is
   mirrored like the others.
 

@@ -1,6 +1,6 @@
 # Runtime View
 
-`View -> Runtime View` (`Ctrl+R`) shows the current frame on the canvas as libserum renders it,
+`View -> Runtime View` (`Ctrl/Cmd+R`) shows the current frame on the canvas as libserum renders it,
 in place of the editable layers. The checkable `Runtime` button in the toolbar, right of the
 playback controls, is the same switch and shows whether the view is on. The picture is libserum's own output, not the editor's
 rendering: the editor writes a small cROM that holds this frame and what it uses (its comparison
@@ -26,8 +26,8 @@ selection.
 
 Which plane is shown:
 
-- In an ordinary project `View -> Runtime Plane: 32 Rows` (`Ctrl+3`) and `Runtime Plane: 64 Rows`
-  (`Ctrl+6`) choose between what a display with 32 rows and one with 64 rows gets. When the view
+- In an ordinary project `View -> Runtime Plane: 32 Rows` (`Ctrl/Cmd+3`) and `Runtime Plane: 64 Rows`
+  (`Ctrl/Cmd+6`) choose between what a display with 32 rows and one with 64 rows gets. When the view
   is switched on it starts with the plane of the editing mode, 32 rows in SD and 64 rows in HD.
   The 64-row plane exists for every frame: for a frame without HD it is libserum's upscale of
   the 128x32 picture, which the editor cannot show in any other way.

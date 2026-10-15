@@ -5,12 +5,12 @@
   current frame or in every selected frame, gets the draw color, or in `Set Replace` mode the edit
   color of its original shade. Refused on a dynamic pixel ("works only for static content", as
   in the Win32 editor). One undoable step per changed frame.
-- `Black Original To Black` (`Ctrl+Shift+O`; Win32 `Ctrl+O`, which is `Open` here): pixels
+- `Black Original To Black` (`Ctrl/Cmd+Shift+O`; Win32 `Ctrl+O`, which is `Open` here): pixels
   whose original shade is 0 become black on every selected frame, in the selection if there is
   one on the plane, else everywhere. The original pixel is the ROM pixel the plane pixel shows,
   as libserum lays the planes out; the Win32 editor's handling of 256x64 originals is not
   followed.
-- `Remove Dynamic Zones` (`Ctrl+E` or `Alt+D`, as in the Win32 editor) and `Assign Dynamic Set`
+- `Remove Dynamic Zones` (`Ctrl/Cmd+E` or `Alt+D`, as in the Win32 editor) and `Assign Dynamic Set`
   (`Alt+A`), see "Dynamic Masks".
 - `Dynamic To Static` (CDMD's `Dyn>Stat`): the dynamic pixels of the selection, or of the whole
   frame, on every selected frame, leave their zone and keep, as a fixed color, the color their
