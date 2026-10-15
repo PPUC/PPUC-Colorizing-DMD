@@ -134,14 +134,14 @@ endif()
 # The plugin's folder: plugin.cfg, the plugin, libdmdutil and its libraries. On Windows the
 # plugin loader adds the folder to the DLL search path while it loads the plugin.
 set(dmdutil_plugin_dir "${vpx_plugin_dir}/dmdutil")
-file(GLOB dmdutil_runtime_libraries
+set(dmdutil_runtime_libraries
     "${dmdutil_prefix}/lib/*.dylib" "${dmdutil_prefix}/lib/*.so*" "${dmdutil_prefix}/lib/*.dll")
 add_custom_command(TARGET DMDUtilPlugin POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${dmdutil_plugin_dir}"
     COMMAND "${CMAKE_COMMAND}" -E copy "${dmdutil_plugin_source}/plugin.cfg"
             "${dmdutil_plugin_dir}/plugin.cfg"
     COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:DMDUtilPlugin>" "${dmdutil_plugin_dir}/"
-    COMMAND "${CMAKE_COMMAND}" "-DFILES=$<JOIN:${dmdutil_runtime_libraries},|>"
+    COMMAND "${CMAKE_COMMAND}" "-DPATTERNS=$<JOIN:${dmdutil_runtime_libraries},|>"
             "-DDESTINATION=${dmdutil_plugin_dir}" -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLibraries.cmake"
     VERBATIM
 )
@@ -229,7 +229,7 @@ endif()
 
 # The plugin's folder: plugin.cfg, the plugin, the media libraries and libpupdmd.
 set(pup_plugin_dir "${vpx_plugin_dir}/pup")
-file(GLOB pup_runtime_libraries
+set(pup_runtime_libraries
     "${media_prefix}/lib/*.dylib" "${media_prefix}/lib/*.so*" "${media_prefix}/bin/*.dll"
     "${dmdutil_prefix}/lib/libpupdmd*.dylib" "${dmdutil_prefix}/lib/libpupdmd.so*"
     "${dmdutil_prefix}/lib/*pupdmd*.dll")
@@ -237,7 +237,7 @@ add_custom_command(TARGET PUPPlugin POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${pup_plugin_dir}"
     COMMAND "${CMAKE_COMMAND}" -E copy "${pup_plugin_source}/plugin.cfg" "${pup_plugin_dir}/plugin.cfg"
     COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:PUPPlugin>" "${pup_plugin_dir}/"
-    COMMAND "${CMAKE_COMMAND}" "-DFILES=$<JOIN:${pup_runtime_libraries},|>"
+    COMMAND "${CMAKE_COMMAND}" "-DPATTERNS=$<JOIN:${pup_runtime_libraries},|>"
             "-DDESTINATION=${pup_plugin_dir}" -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLibraries.cmake"
     VERBATIM
 )
