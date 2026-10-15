@@ -77,13 +77,14 @@ stage_libs() {
 rm -rf "${prefix}/include/DMDUtil" "${prefix}/lib"
 mkdir -p "${prefix}/include" "${prefix}/lib"
 cp -a "${source_dir}/include/DMDUtil" "${prefix}/include/"
-# libpupdmd's header: VPX's PUP plugin, built with the editor, links the libpupdmd staged here.
-cp -a "${source_dir}/third-party/include/pupdmd.h" "${prefix}/include/"
 
 if [ "${stage_only}" -eq 0 ]; then
     build "${arch}"
 fi
 stage_libs "${arch}" "${prefix}/lib"
+# libpupdmd's header: VPX's PUP plugin, built with the editor, links the libpupdmd staged here.
+# external.sh (run by the build) puts it into third-party/include, so only after the build.
+cp -a "${source_dir}/third-party/include/pupdmd.h" "${prefix}/include/"
 
 echo "Staged libdmdutil into ${prefix}:"
 ls "${prefix}/lib"
