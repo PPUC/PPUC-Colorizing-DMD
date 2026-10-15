@@ -29,14 +29,17 @@ FramePreviewWidget::FramePreviewWidget(QWidget* parent)
     for (QScrollBar* bar : {m_horizontalScrollBar, m_verticalScrollBar}) {
         bar->hide();
         bar->setFocusPolicy(Qt::NoFocus);
-        connect(bar, &QScrollBar::valueChanged, this, [this]() {
-            if (m_updatingScrollBars || m_zoom <= 1.0) {
+        connect(bar, &QScrollBar::valueChanged, this, [this, bar](int value) {
+            if (m_updatingScrollBars) {
                 return;
             }
-            // The scroll bars count the zoomed picture in steps of 1/10000 of a region.
-            const double total = 10000.0 * m_zoom;
-            m_viewOffset = QPointF(m_horizontalScrollBar->value() / total,
-                                   m_verticalScrollBar->value() / total);
+            // In steps of 1/10000 of the frame (see updateScrollBars()); each bar moves its
+            // own direction only.
+            if (bar == m_horizontalScrollBar) {
+                m_viewOffset.setX(value / 10000.0);
+            } else {
+                m_viewOffset.setY(value / 10000.0);
+            }
             viewChanged();
         });
     }

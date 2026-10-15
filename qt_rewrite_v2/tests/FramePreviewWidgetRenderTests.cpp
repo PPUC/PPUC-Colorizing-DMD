@@ -15,6 +15,7 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QScrollBar>
 #include <QPointingDevice>
 #include <QSpinBox>
 #include <QToolButton>
@@ -597,6 +598,23 @@ void testFramePreviewZoom()
     const std::optional<CanvasHit> after = widget.hitTestAt(point);
     expect(before && after && before->x == after->x && before->y == after->y,
            "zooming at a point keeps the pixel under it");
+
+    // Each scroll bar moves its own direction only.
+    QScrollBar* horizontal = nullptr;
+    QScrollBar* vertical = nullptr;
+    for (QScrollBar* bar : widget.findChildren<QScrollBar*>()) {
+        (bar->orientation() == Qt::Horizontal ? horizontal : vertical) = bar;
+    }
+    expect(horizontal && vertical, "the canvas has its scroll bars");
+    widget.setViewOffset(QPointF(0.3, 0.4));
+    const QPointF set = widget.viewOffset();
+    vertical->setValue(vertical->value() - 500);
+    expect(widget.viewOffset().x() == set.x() && widget.viewOffset().y() < set.y(),
+           "the vertical scroll bar leaves the horizontal position");
+    const QPointF moved = widget.viewOffset();
+    horizontal->setValue(horizontal->value() - 500);
+    expect(widget.viewOffset().y() == moved.y() && widget.viewOffset().x() < moved.x(),
+           "and the horizontal one the vertical position");
 
     widget.setZoom(100.0);
     expect(widget.zoom() == colorizing::app::FramePreviewWidget::kMaxZoom, "zoom is at most 32");
