@@ -612,7 +612,8 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         QString text;
         if (hit && hit->resolution == m_document->dynamicPlane()) {
-            for (const render::CanvasRegionLayout& region : currentLayout().regions()) {
+            const render::CanvasLayout layout = currentLayout();
+            for (const render::CanvasRegionLayout& region : layout.regions()) {
                 const document::IndexedFrame* mask =
                     region.region == hit->region ? dynamicMaskFor(region) : nullptr;
                 if (!mask) {
