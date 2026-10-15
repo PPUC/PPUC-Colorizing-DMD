@@ -756,6 +756,76 @@ void testScrollFill()
     }
 }
 
+// Two copies of a picture scrolling in from both sides, 8 columns per frame, and meeting in
+// the last frame (a WPC animation): each half is found and copied on its own when it is
+// selected.
+void testScrollFillSelectedPart()
+{
+    const Size rom{128, 32};
+    // Frame k shows the last frame's left half moved 8 * (2 - k) columns to the left and its
+    // right half as far to the right; the columns between stay dark.
+    const auto picture = [](int x, int y) { return static_cast<uint8_t>(1 + noise(x, y) % 3); };
+    std::vector<document::IndexedFrame> originals;
+    for (int frame = 0; frame < 3; ++frame) {
+        const int shift = 8 * (2 - frame);
+        document::IndexedFrame original = document::makeIndexedFrame(rom, 0);
+        for (int y = 0; y < rom.height; ++y) {
+            for (int x = 0; x < rom.width; ++x) {
+                const int fromLeft = x + shift;
+                const int fromRight = x - shift;
+                if (x < 64 && fromLeft < 64) {
+                    original.pixels[at(rom, x, y)] = picture(fromLeft, y);
+                } else if (x >= 64 && fromRight >= 64) {
+                    original.pixels[at(rom, x, y)] = picture(fromRight, y);
+                }
+            }
+        }
+        originals.push_back(original);
+    }
+    ProjectDocument document = makeDocument(PlaneLayout::Ordinary, originals);
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 128; ++x) {
+            document.setColorizedPixel(2, Resolution::Sd, x, y, static_cast<uint16_t>(3000 + x));
+        }
+    }
+    expect(!edit::findScroll(document.originalFrame(2), document.originalFrame(1)),
+           "the whole frame does not scroll: its halves move apart");
+
+    edit::PlaneSelection left(Resolution::Sd, rom);
+    edit::PlaneSelection right(Resolution::Sd, rom);
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 128; ++x) {
+            (x < 64 ? left : right).add({colorizing::render::Point{x, y}});
+        }
+    }
+    const std::vector<uint8_t> leftMask = edit::selectionRomMask(document.geometry(), left);
+    const std::optional<edit::ScrollMatch> leftMatch =
+        edit::findScroll(document.originalFrame(2), document.originalFrame(0), &leftMask);
+    expect(leftMatch && leftMatch->direction == edit::ScrollDirection::CameraRight &&
+               leftMatch->shift == 16,
+           "the selected left half is found 16 columns to the left");
+
+    edit::UndoHistories histories;
+    std::vector<edit::ScrollFillFrame> fill =
+        edit::makeScrollFill(document, Resolution::Sd, 0, 2, &left);
+    expect(fill.size() == 1 && fill[0].fromLast && fill[0].fromLast->shift == 8,
+           "the frame between: the left half 8 columns to the left");
+    applyChanges(document, histories, 1, std::move(fill[0].changes));
+    fill = edit::makeScrollFill(document, Resolution::Sd, 0, 2, &right);
+    expect(fill[0].fromLast && fill[0].fromLast->direction == edit::ScrollDirection::CameraLeft &&
+               fill[0].fromLast->shift == 8,
+           "and the right half 8 columns to the right");
+    applyChanges(document, histories, 1, std::move(fill[0].changes));
+    for (int x = 0; x < 56; ++x) {
+        expect(document.colorizedPixel(1, Resolution::Sd, x, 5) == static_cast<uint16_t>(3008 + x),
+               "the left copy has the colors of the last frame's left half");
+    }
+    for (int x = 72; x < 128; ++x) {
+        expect(document.colorizedPixel(1, Resolution::Sd, x, 5) == static_cast<uint16_t>(2992 + x),
+               "the right copy has the colors of its right half");
+    }
+}
+
 void testRecolorHelpers()
 {
     for (PlaneLayout layout :
@@ -930,6 +1000,7 @@ void runSelectionEditTests()
     testPasteNativeLayouts();
     testAutoCopy();
     testScrollFill();
+    testScrollFillSelectedPart();
     testRecolorHelpers();
     testMoreHelpers();
 }

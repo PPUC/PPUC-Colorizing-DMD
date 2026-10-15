@@ -7660,7 +7660,7 @@ void MainWindow::runScrollingAutoFill()
         statusBar()->showMessage(refusal, 4000);
         return;
     }
-    ScrollFillPlan plan = m_editHelpers.planScrollFill(context);
+    ScrollFillPlan plan = m_editHelpers.planScrollFill(context, m_canvasEdit.selection());
     if (plan.lastFrame < plan.firstFrame + 2) {
         statusBar()->showMessage(
             tr("Select the frames of the scrolling, the current one among them: the "
@@ -7677,10 +7677,14 @@ void MainWindow::runScrollingAutoFill()
     QMessageBox question(this);
     question.setIcon(QMessageBox::Question);
     question.setWindowTitle(tr("Scrolling Auto Fill"));
-    question.setText(tr("Fill the %1 frame(s) between frame %2 and frame %3?")
-                         .arg(static_cast<qulonglong>(plan.frames.size()))
-                         .arg(static_cast<qulonglong>(plan.firstFrame))
-                         .arg(static_cast<qulonglong>(plan.lastFrame)));
+    question.setText(
+        (plan.selectionOnly
+             ? tr("Fill the %1 frame(s) between frame %2 and frame %3 with the selected part "
+                  "of them?")
+             : tr("Fill the %1 frame(s) between frame %2 and frame %3?"))
+            .arg(static_cast<qulonglong>(plan.frames.size()))
+            .arg(static_cast<qulonglong>(plan.firstFrame))
+            .arg(static_cast<qulonglong>(plan.lastFrame)));
     question.setInformativeText(
         tr("%1 scroll from the first frame, %2 from the last; %3 would change.")
             .arg(static_cast<qulonglong>(fromFirst))

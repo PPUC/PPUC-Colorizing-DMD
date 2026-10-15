@@ -125,14 +125,19 @@ QString EditHelpersController::scrollFillRefusal(const CanvasEditContext& contex
     return QString();
 }
 
-ScrollFillPlan EditHelpersController::planScrollFill(const CanvasEditContext& context) const
+ScrollFillPlan EditHelpersController::planScrollFill(const CanvasEditContext& context,
+                                                    const edit::PlaneSelection* selection) const
 {
     ScrollFillPlan plan;
     const auto [first, last] =
         edit::selectedRunAround(context.selectedFrames, *context.currentFrame);
     plan.firstFrame = first;
     plan.lastFrame = last;
-    plan.frames = edit::makeScrollFill(*context.document, context.activePlane, first, last);
+    const bool useSelection =
+        selection && !selection->isEmpty() && selection->plane() == context.activePlane;
+    plan.selectionOnly = useSelection;
+    plan.frames = edit::makeScrollFill(*context.document, context.activePlane, first, last,
+                                       useSelection ? selection : nullptr);
     return plan;
 }
 

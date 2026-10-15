@@ -35,6 +35,17 @@ plane of an ordinary project the shift counts twice. Frames without a picture on
 no part. The question before it runs says how many frames scroll from each reference and how
 many change; one undoable step per changed frame.
 
+With a selection on the plane, only the selected part is looked for and copied (not in the
+Win32 editor): the selected pixels of a reference, moved by a shift, have to show the same as
+the frame wherever they land inside it, and at least one of them has to be lit; the rest of the
+frame is not looked at. So parts that move differently are filled one at a time. For example,
+WPC machines often bring a picture in as two copies, one from the left and one from the right,
+meeting in the middle: colorize the last frame, select its left half, run `Scrolling Auto Fill`,
+then select the right half and run it again. The selection stays when another frame is shown,
+and the question says that only the selected part is filled. Leave out the ghost frames between
+the steps when the dump is read (see "Creating A Project From A Dump"); a ghost matches no
+shift and stays as it is.
+
 The Win32 editor compares the rows and columns by CRC32; here they are compared exactly. A
 single shared row is enough for a match, as in the Win32 editor, so rows that repeat (blank
 rows) can match at another shift than the true one.

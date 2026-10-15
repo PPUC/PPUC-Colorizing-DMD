@@ -3754,6 +3754,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Remplissage auto de défilement</translation>
     </message>
     <message>
+        <source>Fill the %1 frame(s) between frame %2 and frame %3 with the selected part of them?</source>
+        <translation>Remplir les %1 frame(s) entre la frame %2 et la frame %3 avec la partie sélectionnée ?</translation>
+    </message>
+    <message>
         <source>Fill the %1 frame(s) between frame %2 and frame %3?</source>
         <translation>Remplir les %1 frame(s) entre la frame %2 et la frame %3 ?</translation>
     </message>

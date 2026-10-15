@@ -87,6 +87,72 @@ void copyPixel(const PlaneContent& source, int sx, int sy, PlaneContent& target,
     }
 }
 
+// Where a reference pixel lands in the frame for the match, in the same units.
+render::Point movedPoint(const ScrollMatch& match, int shift, int x, int y)
+{
+    switch (match.direction) {
+        case ScrollDirection::CameraDown:
+            return {x, y - shift};
+        case ScrollDirection::CameraUp:
+            return {x, y + shift};
+        case ScrollDirection::CameraRight:
+            return {x - shift, y};
+        case ScrollDirection::CameraLeft:
+            return {x + shift, y};
+    }
+    return {x, y};
+}
+
+bool matchesPart(const document::IndexedFrame& reference,
+                 const document::IndexedFrame& frame,
+                 const std::vector<uint8_t>& romMask,
+                 const ScrollMatch& match)
+{
+    const int width = frame.size.width;
+    const int height = frame.size.height;
+    bool lit = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (!romMask[static_cast<std::size_t>(y) * width + x]) {
+                continue;
+            }
+            const render::Point to = movedPoint(match, match.shift, x, y);
+            if (to.x < 0 || to.y < 0 || to.x >= width || to.y >= height) {
+                continue;
+            }
+            const uint8_t value = pixelAt(reference, x, y);
+            if (pixelAt(frame, to.x, to.y) != value) {
+                return false;
+            }
+            lit = lit || value != 0;
+        }
+    }
+    return lit;
+}
+
+// The selected part of the reference (romMask, scale plane pixels per ROM pixel) moved by
+// the match into the target.
+void applyPartScroll(const PlaneContent& reference,
+                     const ScrollMatch& match,
+                     int scale,
+                     const std::vector<uint8_t>& romMask,
+                     int romWidth,
+                     PlaneContent& target)
+{
+    const int shift = match.shift * scale;
+    for (int y = 0; y < reference.size.height; ++y) {
+        for (int x = 0; x < reference.size.width; ++x) {
+            if (!romMask[static_cast<std::size_t>(y / scale) * romWidth + x / scale]) {
+                continue;
+            }
+            const render::Point to = movedPoint(match, shift, x, y);
+            if (to.x >= 0 && to.y >= 0 && to.x < target.size.width && to.y < target.size.height) {
+                copyPixel(reference, x, y, target, to.x, to.y);
+            }
+        }
+    }
+}
+
 void applyScroll(const PlaneContent& reference,
                  const ScrollMatch& match,
                  int scale,
@@ -137,13 +203,33 @@ bool hasPlane(const document::ProjectDocument& document,
 }  // namespace
 
 std::optional<ScrollMatch> findScroll(const document::IndexedFrame& reference,
-                                      const document::IndexedFrame& frame)
+                                      const document::IndexedFrame& frame,
+                                      const std::vector<uint8_t>* romMask)
 {
     if (reference.size != frame.size) {
         return std::nullopt;
     }
     const int width = frame.size.width;
     const int height = frame.size.height;
+    if (romMask) {
+        if (romMask->size() != frame.pixels.size()) {
+            return std::nullopt;
+        }
+        // The same order as for whole frames: down, up, right, left, smallest shift first.
+        for (const ScrollDirection direction : {ScrollDirection::CameraDown,
+                                                ScrollDirection::CameraUp,
+                                                ScrollDirection::CameraRight,
+                                                ScrollDirection::CameraLeft}) {
+            const bool vertical = direction == ScrollDirection::CameraDown ||
+                                  direction == ScrollDirection::CameraUp;
+            for (int shift = 1; shift < (vertical ? height : width); ++shift) {
+                if (matchesPart(reference, frame, *romMask, ScrollMatch{direction, shift})) {
+                    return ScrollMatch{direction, shift};
+                }
+            }
+        }
+        return std::nullopt;
+    }
     const auto rowsFrameRef = [&](int frameRow, int referenceRow) {
         return rowsEqual(frame, frameRow, reference, referenceRow);
     };
@@ -200,8 +286,13 @@ std::pair<std::size_t, std::size_t> selectedRunAround(
 std::vector<ScrollFillFrame> makeScrollFill(const document::ProjectDocument& document,
                                             render::Resolution plane,
                                             std::size_t firstFrame,
-                                            std::size_t lastFrame)
+                                            std::size_t lastFrame,
+                                            const PlaneSelection* selection)
 {
+    const std::vector<uint8_t> romMask =
+        selection ? selectionRomMask(document.geometry(), *selection) : std::vector<uint8_t>();
+    const std::vector<uint8_t>* mask = selection ? &romMask : nullptr;
+    const int romWidth = document.originalFrameSize().width;
     std::vector<ScrollFillFrame> result;
     if (lastFrame >= document.frameCount() || firstFrame + 1 >= lastFrame) {
         return result;
@@ -222,16 +313,23 @@ std::vector<ScrollFillFrame> makeScrollFill(const document::ProjectDocument& doc
         entry.frameIndex = frameIndex;
         entry.changes.plane = plane;
         const document::IndexedFrame& original = document.originalFrame(frameIndex);
-        entry.fromFirst = findScroll(firstOriginal, original);
-        entry.fromLast = findScroll(lastOriginal, original);
+        entry.fromFirst = findScroll(firstOriginal, original, mask);
+        entry.fromLast = findScroll(lastOriginal, original, mask);
         if (hasPlane(document, frameIndex, plane) &&
             ((first && entry.fromFirst) || (last && entry.fromLast))) {
             PlaneContent content = readContent(document, frameIndex, plane);
+            const auto apply = [&](const PlaneContent& reference, const ScrollMatch& match) {
+                if (mask) {
+                    applyPartScroll(reference, match, scale, romMask, romWidth, content);
+                } else {
+                    applyScroll(reference, match, scale, content);
+                }
+            };
             if (first && entry.fromFirst) {
-                applyScroll(*first, *entry.fromFirst, scale, content);
+                apply(*first, *entry.fromFirst);
             }
             if (last && entry.fromLast) {
-                applyScroll(*last, *entry.fromLast, scale, content);
+                apply(*last, *entry.fromLast);
             }
             FrameContentBuilder builder(document, frameIndex, plane);
             for (int y = 0; y < content.size.height; ++y) {

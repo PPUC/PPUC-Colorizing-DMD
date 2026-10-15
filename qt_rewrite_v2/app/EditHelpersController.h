@@ -33,6 +33,8 @@ struct ScrollFillPlan {
     std::size_t firstFrame = 0;
     std::size_t lastFrame = 0;
     std::vector<edit::ScrollFillFrame> frames;
+    // Only the selected part was looked for and is copied.
+    bool selectionOnly = false;
     [[nodiscard]] std::size_t changingCount() const;
 };
 
@@ -59,7 +61,9 @@ public:
                        const AutoCopyPlan& plan);
 
     [[nodiscard]] static QString scrollFillRefusal(const CanvasEditContext& context);
-    [[nodiscard]] ScrollFillPlan planScrollFill(const CanvasEditContext& context) const;
+    // selection: when there is one on the edited plane, only that part of the references.
+    [[nodiscard]] ScrollFillPlan planScrollFill(const CanvasEditContext& context,
+                                                const edit::PlaneSelection* selection = nullptr) const;
     void applyScrollFill(const CanvasEditContext& context, ScrollFillPlan plan);
 
     // The wand: every pixel of the clicked pixel's color in each selected frame gets the draw

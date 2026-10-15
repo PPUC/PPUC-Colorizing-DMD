@@ -1146,7 +1146,12 @@ the raw dump order (neighbours = frames read, whatever became of them), count `t
 Dialog checkbox + spin box. On the author's `dh_lx2` (12264 frames): 5887 left out, 4201 kept
 instead of 8469. Caveat: a real fade of very short steps matches too (hence off by default and
 the limit). Ghost values can also lie outside [old, new] in multi-pair ghosts, e.g. (1,2)->3;
-a stricter sub-frame model could separate fades if needed. Next proposed: propagate a key
+a stricter sub-frame model could separate fades if needed. The author's animation (dh_lx2
+frames 8-22, again at 199, 341, ...) is two copies of the final picture scrolling in from both
+sides, 8 columns per real frame, ghosts between: Scrolling Auto Fill now works on the
+selection (`findScroll(..., romMask)`, `makeScrollFill(..., selection)`, the part's moved
+pixels must equal the frame where they land and one must be lit; only that part is copied).
+Next proposed: propagate a key
 frame's colors through an animation (shade-adjusted, with motion), then expose both to AI
 Assist.
 

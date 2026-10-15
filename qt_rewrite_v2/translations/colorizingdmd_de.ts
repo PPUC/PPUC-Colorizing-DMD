@@ -3754,6 +3754,10 @@ Use Create %1 Frame.</source>
         <translation>Scrolling automatisch füllen</translation>
     </message>
     <message>
+        <source>Fill the %1 frame(s) between frame %2 and frame %3 with the selected part of them?</source>
+        <translation>Die %1 Frame(s) zwischen Frame %2 und Frame %3 mit dem ausgewählten Teil davon füllen?</translation>
+    </message>
+    <message>
         <source>Fill the %1 frame(s) between frame %2 and frame %3?</source>
         <translation>Die %1 Frame(s) zwischen Frame %2 und Frame %3 füllen?</translation>
     </message>

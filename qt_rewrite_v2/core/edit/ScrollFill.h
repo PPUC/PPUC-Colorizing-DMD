@@ -7,6 +7,7 @@
 
 #include "document/ProjectDocument.h"
 #include "edit/FrameContentCommand.h"
+#include "edit/PlaneSelection.h"
 
 namespace colorizing::edit {
 
@@ -32,8 +33,15 @@ struct ScrollMatch {
 // The first match in the Win32 order: down, up, right, left, each with the smallest shift
 // from 1 on. The overlapping rows (columns) are compared exactly, whole rows (columns) at a
 // time; Win32 compares their CRC32s. Both originals have the ROM frame's size.
+//
+// With romMask (the ROM frame's size, not 0 = selected), only a part of the reference moves:
+// the reference's selected pixels, moved by the shift, have to equal the frame's pixels
+// wherever they land inside the frame, and at least one of those is lit (not shade 0). The
+// rest of the frame is not looked at. So parts of a picture that move apart (two copies
+// scrolling in from both sides) are found one at a time.
 [[nodiscard]] std::optional<ScrollMatch> findScroll(const document::IndexedFrame& reference,
-                                                    const document::IndexedFrame& frame);
+                                                    const document::IndexedFrame& frame,
+                                                    const std::vector<uint8_t>* romMask = nullptr);
 
 // The run of selected frames without a gap that holds the current frame (firstfr .. lastfr).
 // selectedFrames ascending; a current frame that is not selected gives a run of itself.
@@ -55,9 +63,14 @@ struct ScrollFillFrame {
 // match times the plane's scale. Frames without a colorized frame on the plane, and references
 // without one, take no part. Returns one entry per frame between the two, changes empty where
 // nothing changes.
+//
+// With a selection (on the plane, drawn on either reference): only the selected part of the
+// references is looked for (findScroll() with its ROM mask, selectionRomMask()) and only that
+// part is copied, moved by the match.
 [[nodiscard]] std::vector<ScrollFillFrame> makeScrollFill(const document::ProjectDocument& document,
                                                           render::Resolution plane,
                                                           std::size_t firstFrame,
-                                                          std::size_t lastFrame);
+                                                          std::size_t lastFrame,
+                                                          const PlaneSelection* selection = nullptr);
 
 }  // namespace colorizing::edit
