@@ -16,8 +16,12 @@ The Inspector exposes per-frame comparison metadata:
   selects it, in the same way as selecting a background or a sprite does; no frame is changed. The
   selection starts as the mask of the first frame and then stays until another mask is selected.
 - `Assign Mask` assigns the selected mask to all selected frames.
-- The picture of a mask in the left sidebar follows every edit of that mask, its Undo and its
-  Redo (redrawn once when the editor is idle again, not per pixel).
+- The picture of a mask in the left sidebar shows the current frame's original in gray under the
+  mask, the pixels the mask hides tinted magenta: the mask that fits a new frame is easy to find.
+  It follows the current frame once the frame has stayed a quarter of a second (not at every
+  step of a quick scroll through the frames), and every edit of the mask, its Undo and its Redo
+  (redrawn once when the editor is idle again, not per pixel). Without a current frame it shows
+  the mask alone.
 - `Edit Mask` enables the mask overlay and returns the canvas to the frame preview. If the sprite
   editor is open, it is closed first (`Edit Sprite` is switched off). It edits the mask assigned to
   the current frame, which is not necessarily the mask selected in the sidebar.

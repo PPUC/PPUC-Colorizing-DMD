@@ -439,6 +439,10 @@ private:
     // Hides the masks, backgrounds and sprites the current frame does not use while the left
     // sidebar's "Used by the current frame" is on (rows stay: a list's row is its record).
     void applyAssetFilter();
+    // The mask's picture in the left sidebar: the current frame's original under it.
+    [[nodiscard]] QIcon maskIcon(std::size_t maskIndex) const;
+    // Updates what follows the current frame in the left sidebar (see m_frameRestTimer).
+    void updateFrameRestViews();
     // The mask browser icon of the mask follows its pixels; several edits before the event
     // loop runs again redraw it once.
     void scheduleMaskIconUpdate(std::size_t maskIndex);
@@ -583,6 +587,12 @@ private:
     DmdOutput m_dmdOutput;
     QAction* m_dmdOutputAction = nullptr;
     QTimer m_dmdTimer;
+    // Fires once the current frame has stayed the same for a moment: what shows the current
+    // frame in the left sidebar (the mask pictures, "Used by the current frame") follows it
+    // then, not at every step of a quick scroll through the frames.
+    QTimer m_frameRestTimer;
+    // The frame the mask pictures show; they are drawn again when another frame comes to rest.
+    std::optional<std::size_t> m_maskIconFrame;
     // What the display shows while a dialog has its own picture (the Frame Tester).
     std::function<std::optional<document::Rgb565Frame>()> m_dmdPictureOverride;
     struct DmdPictureKey {

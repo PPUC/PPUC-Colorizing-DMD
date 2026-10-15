@@ -178,6 +178,12 @@
         };
         w.m_currentFrameAssetsCheckBox->setChecked(true);
         listed("masks of frame 4", w.m_maskList);
+        // The mask pictures follow the frame once it rests (the timer, run here at once).
+        std::cout << "frame move: frame rest timer running " << w.m_frameRestTimer.isActive()
+                  << '\n';
+        w.updateFrameRestViews();
+        std::cout << "frame move: mask pictures show frame "
+                  << (w.m_maskIconFrame ? static_cast<int>(*w.m_maskIconFrame) : -1) << '\n';
         w.m_currentFrameAssetsCheckBox->setChecked(false);
         listed("masks, unfiltered", w.m_maskList);
         w.m_undoAction->trigger();

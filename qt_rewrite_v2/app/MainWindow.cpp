@@ -222,6 +222,36 @@ document::Rgb565Frame rgb565FrameFromImage(const QImage& source, render::Size ta
     return frame;
 }
 
+// The mask over an original frame of its size: the frame in gray, the pixels the mask hides
+// tinted in the mask color, so that the mask that fits a frame is easy to find.
+QImage renderMaskOverFrameImage(const document::IndexedFrame& mask,
+                                const document::IndexedFrame& original,
+                                uint32_t colorCount)
+{
+    QImage image(mask.size.width, mask.size.height, QImage::Format_ARGB32);
+    const QColor tint = comparisonMaskColor();
+    const int maxShade = std::max<int>(1, static_cast<int>(colorCount) - 1);
+    for (int y = 0; y < mask.size.height; ++y) {
+        for (int x = 0; x < mask.size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(mask.size.width) +
+                static_cast<std::size_t>(x);
+            const int shade = std::min<int>(original.pixels[index], maxShade);
+            const int gray = 30 + shade * 200 / maxShade;
+            if (mask.pixels[index] == 0) {
+                image.setPixelColor(x, y, QColor(gray, gray, gray));
+            } else {
+                // Two thirds mask color, one third the frame.
+                image.setPixelColor(x, y,
+                                    QColor((tint.red() * 2 + gray) / 3,
+                                           (tint.green() * 2 + gray) / 3,
+                                           (tint.blue() * 2 + gray) / 3));
+            }
+        }
+    }
+    return image;
+}
+
 QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
 {
     QImage image(mask.size.width, mask.size.height, QImage::Format_ARGB32);
@@ -446,6 +476,9 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(QString::fromLatin1(kWindowTitle));
     resize(1000, 700);
+    m_frameRestTimer.setSingleShot(true);
+    m_frameRestTimer.setInterval(250);
+    connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() { updateFrameRestViews(); });
     createActions();
     createCentralView();
     setStatusText(tr("No project loaded"));
@@ -3702,13 +3735,12 @@ void MainWindow::refreshComponentBrowsers()
     if (m_maskList) {
         QSignalBlocker blocker(m_maskList);
         m_maskList->clear();
+        m_maskIconFrame = currentFrameIndex();
         if (m_document) {
             for (std::size_t maskIndex = 0; maskIndex < m_document->comparisonMaskCount();
                  ++maskIndex) {
-                auto* item = new QListWidgetItem(
-                    previewIcon(renderMaskPreviewImage(m_document->comparisonMask(maskIndex)),
-                                iconSize),
-                    QString::number(static_cast<int>(maskIndex)));
+                auto* item = new QListWidgetItem(maskIcon(maskIndex),
+                                                 QString::number(static_cast<int>(maskIndex)));
                 item->setData(Qt::UserRole, static_cast<int>(maskIndex));
                 item->setSizeHint(QSize(210, 54));
                 m_maskList->addItem(item);
@@ -3782,6 +3814,42 @@ void MainWindow::refreshComponentBrowsers()
     applyAssetFilter();
 }
 
+QIcon MainWindow::maskIcon(std::size_t maskIndex) const
+{
+    const document::IndexedFrame& mask = m_document->comparisonMask(maskIndex);
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    if (frame && *frame < m_document->frameCount()) {
+        const document::IndexedFrame& original = m_document->originalFrame(*frame);
+        if (original.size.width == mask.size.width && original.size.height == mask.size.height) {
+            return previewIcon(
+                renderMaskOverFrameImage(mask, original, m_document->colorCount()),
+                QSize(160, 42));
+        }
+    }
+    return previewIcon(renderMaskPreviewImage(mask), QSize(160, 42));
+}
+
+void MainWindow::updateFrameRestViews()
+{
+    applyAssetFilter();
+    if (!m_maskList || !m_document) {
+        return;
+    }
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    if (frame == m_maskIconFrame) {
+        return;
+    }
+    m_maskIconFrame = frame;
+    for (int row = 0; row < m_maskList->count(); ++row) {
+        QListWidgetItem* item = m_maskList->item(row);
+        const int maskIndex = item->data(Qt::UserRole).toInt();
+        if (maskIndex >= 0 &&
+            static_cast<std::size_t>(maskIndex) < m_document->comparisonMaskCount()) {
+            item->setIcon(maskIcon(static_cast<std::size_t>(maskIndex)));
+        }
+    }
+}
+
 void MainWindow::applyAssetFilter()
 {
     const bool filtered = m_currentFrameAssetsCheckBox &&
@@ -3839,8 +3907,7 @@ void MainWindow::updatePendingMaskIcons()
         }
         QListWidgetItem* item = m_maskList->item(static_cast<int>(maskIndex));
         if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(maskIndex)) {
-            item->setIcon(previewIcon(renderMaskPreviewImage(m_document->comparisonMask(maskIndex)),
-                                      QSize(160, 42)));
+            item->setIcon(maskIcon(maskIndex));
         }
     }
 }
@@ -4458,7 +4525,8 @@ void MainWindow::updateResolutionMode()
 
 void MainWindow::updateFrameMetadataControls()
 {
-    applyAssetFilter();
+    // The left sidebar follows the frame once it has come to rest.
+    m_frameRestTimer.start();
     updateSectionControls();
     if (!m_maskPanel || !m_framePanel) {
         return;
