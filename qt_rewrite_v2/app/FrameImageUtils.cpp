@@ -816,6 +816,9 @@ void paintDmdPixel(QPainter& painter,
                                center.y() - pixelSize / 2.0,
                                pixelSize,
                                pixelSize);
+        // No outline: a painter on a widget starts with the palette's text color as its pen,
+        // light in a dark theme, which would ring every dot.
+        painter.setPen(Qt::NoPen);
         painter.setBrush(color);
         painter.drawEllipse(pixelRect);
         painter.restore();

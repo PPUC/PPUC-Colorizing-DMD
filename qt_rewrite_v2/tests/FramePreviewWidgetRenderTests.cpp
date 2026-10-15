@@ -736,6 +736,27 @@ void testFramePreviewStrokeCallback()
     expect(!strokeErase, "colorized finished stroke should not erase");
 }
 
+void testDotPixelsHaveNoOutline()
+{
+    // A painter on a widget in a dark theme starts with a light pen; a dark dot must stay dark.
+    QImage image(40, 40, QImage::Format_ARGB32);
+    image.fill(Qt::black);
+    QPainter painter(&image);
+    painter.setPen(QPen(Qt::white, 2));
+    colorizing::app::DmdRenderOptions options;
+    options.pixelShape = colorizing::app::DmdPixelShape::Dot;
+    options.pixelCoverage = 0.8;
+    colorizing::app::paintDmdPixel(painter, 0, 0, 40, QColor(10, 10, 10), options);
+    painter.end();
+    bool light = false;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            light = light || QColor(image.pixel(x, y)).lightness() > 60;
+        }
+    }
+    expect(!light, "a dot pixel is drawn without an outline in the painter's pen");
+}
+
 void testHdPreviewPixelsRender()
 {
     colorizing::document::ProjectDocument document =
@@ -3361,6 +3382,7 @@ int main(int argc, char* argv[])
     testDynamicShadowsRender();
     testSpriteCompositionRendersInSdAndHd();
     testBackgroundImageEditModeRendersInSdAndHd();
+    testDotPixelsHaveNoOutline();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorHdKeepsSdFootprint();
