@@ -1200,6 +1200,50 @@ void testBackgroundImageEditModeRendersInSdAndHd()
     widget.render(&hdPainter);
     hdPainter.end();
     expect(hasVisibleGreenPixel(hdImage), "HD background edit image should render visibly");
+
+    // The original frame's half: the frame (shade 0, dark brown) normally, black while a
+    // background is edited. Sampled at the middle of an original pixel.
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    QPoint inOriginal(-1, -1);
+    for (int y = widget.height() / 2; y < widget.height() && inOriginal.x() < 0; y += 2) {
+        for (int x = 0; x < widget.width() && inOriginal.x() < 0; x += 2) {
+            const auto hit = widget.hitTestAt(QPoint(x, y));
+            if (hit && hit->region == colorizing::render::CanvasRegion::OriginalFrame &&
+                hit->x == 10 && hit->y == 10) {
+                inOriginal = QPoint(x, y);
+            }
+        }
+    }
+    // The middle of that original pixel: the run of points that hit it.
+    int right = inOriginal.x();
+    while (right + 1 < widget.width()) {
+        const auto hit = widget.hitTestAt(QPoint(right + 1, inOriginal.y()));
+        if (!hit || hit->x != 10) {
+            break;
+        }
+        ++right;
+    }
+    int bottom = inOriginal.y();
+    while (bottom + 1 < widget.height()) {
+        const auto hit = widget.hitTestAt(QPoint(inOriginal.x(), bottom + 1));
+        if (!hit || hit->y != 10) {
+            break;
+        }
+        ++bottom;
+    }
+    const QPoint middle((inOriginal.x() + right) / 2, (inOriginal.y() + bottom) / 2);
+    const auto colorAt = [&widget](QPoint point) {
+        QImage image(widget.size(), QImage::Format_ARGB32);
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        widget.render(&painter);
+        painter.end();
+        return QColor(image.pixel(point));
+    };
+    expect(inOriginal.x() >= 0 && colorAt(middle) == QColor(0, 0, 0),
+           "while a background is edited, the original frame is not shown");
+    widget.setBackgroundImageEditModeEnabled(false);
+    expect(colorAt(middle) != QColor(0, 0, 0), "otherwise the original frame is shown");
 }
 
 void testFramePreviewDoesNotShowHdReferenceBelowOriginal()

@@ -116,7 +116,9 @@ The `Background` topic exposes:
   itself stays). It is enabled while one of the selected frames has a background, and undoable.
   The Inspector's `BG ID` set to `None` does the same.
 - `Edit BG` switches ordinary drawing tools to the selected background image. If the sprite editor
-  is open, it is closed first (`Edit Sprite` is switched off).
+  is open, it is closed first (`Edit Sprite` is switched off). A background belongs to no frame:
+  while one is edited, the original frame's half of the canvas stays black, without the frame's
+  overlays.
 - `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
 - `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
 - `Import Image` replaces the selected background image from a PNG/BMP/JPEG, scaled to the active SD/HD DMD size.

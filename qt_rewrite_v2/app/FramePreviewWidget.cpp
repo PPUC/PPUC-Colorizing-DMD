@@ -748,7 +748,11 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
         painter.scale(view.cell, view.cell);
         painter.translate(-rect.x, -rect.y);
         paintRegion(painter, region);
-        if (!runtimeView) {
+        // A background belongs to no frame: while one is edited, the original frame's half
+        // stays black, without the frame's overlays.
+        const bool originalHidden = m_showBackgroundImageEditMode &&
+                                    region.region == render::CanvasRegion::OriginalFrame;
+        if (!runtimeView && !originalHidden) {
             paintComparisonMaskOverlay(painter, region);
             paintDifferenceOverlay(painter, region);
             paintDynamicMaskOverlay(painter, region);
@@ -824,7 +828,10 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
         !drawOriginal && m_showBackgroundImageEditMode;
 
     if (drawOriginal) {
-        original = &m_document->originalFrame(m_frameIndex);
+        // Black while a background is edited (see paintFrame()).
+        if (!m_showBackgroundImageEditMode) {
+            original = &m_document->originalFrame(m_frameIndex);
+        }
     } else if (showsRuntimeView()) {
         colorized = m_runtimeView->image(*m_document, m_frameIndex);
         if (colorized && colorized->size != region.logicalSize) {
