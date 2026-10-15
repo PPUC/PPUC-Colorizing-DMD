@@ -228,8 +228,9 @@ jobs:
           target: desktop
           arch: clang_64
           # Qt Base (QtWidgets and macdeployqt), Qt Linguist's lupdate/lrelease for the
-          # translations, and Qt's own translations to build in.
-          archives: qtbase qttools qttranslations
+          # translations (which link QtQml, from qtdeclarative), and Qt's own translations to
+          # build in. The editor itself uses none but Qt Base.
+          archives: qtbase qtdeclarative qttools qttranslations
           cache: true
 
       - name: Install tools (macOS)

@@ -759,8 +759,23 @@ void testOriginalFrameStrokeCallback()
     widget.setActiveResolution(colorizing::render::Resolution::Sd);
     widget.setFrameIndex(0);
 
+    // A press and a release point inside the original frame, wherever the platform's scroll
+    // bars (whose room the layout keeps) put it.
+    const auto onOriginal = [&widget](QPoint point) {
+        const std::optional<colorizing::render::CanvasHit> hit = widget.hitTestAt(point);
+        return hit && hit->region == colorizing::render::CanvasRegion::OriginalFrame;
+    };
+    QPointF pressPoint;
+    for (int y = widget.height() / 2; y < widget.height() && pressPoint.isNull(); y += 4) {
+        for (int x = 0; x < widget.width() && pressPoint.isNull(); x += 4) {
+            if (onOriginal(QPoint(x, y)) && onOriginal(QPoint(x + 30, y + 10))) {
+                pressPoint = QPointF(x, y);
+            }
+        }
+    }
+    const QPointF releasePoint = pressPoint + QPointF(30, 10);
     const std::optional<colorizing::render::CanvasHit> originalHit =
-        widget.hitTestAt(QPoint(90, 240));
+        widget.hitTestAt(pressPoint.toPoint());
     expect(originalHit.has_value(), "test coordinate should hit original frame");
     expect(originalHit->region == colorizing::render::CanvasRegion::OriginalFrame,
            "test coordinate should target original frame");
@@ -781,18 +796,18 @@ void testOriginalFrameStrokeCallback()
     });
 
     QMouseEvent press(QEvent::MouseButtonPress,
-                      QPointF(90, 240),
-                      QPointF(90, 240),
-                      QPointF(90, 240),
+                      pressPoint,
+                      pressPoint,
+                      pressPoint,
                       Qt::LeftButton,
                       Qt::LeftButton,
                       Qt::ShiftModifier);
     QApplication::sendEvent(&widget, &press);
 
     QMouseEvent release(QEvent::MouseButtonRelease,
-                        QPointF(120, 250),
-                        QPointF(120, 250),
-                        QPointF(120, 250),
+                        releasePoint,
+                        releasePoint,
+                        releasePoint,
                         Qt::LeftButton,
                         Qt::LeftButton,
                         Qt::ShiftModifier);
