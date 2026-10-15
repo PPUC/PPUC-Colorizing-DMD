@@ -117,7 +117,8 @@ DmdRenderOptions loadDmdRenderOptions()
     options.pixelShape = settings.value(kPixelShapeKey).toString() == QStringLiteral("dots")
                              ? DmdPixelShape::Dot
                              : DmdPixelShape::Square;
-    const int percent = std::clamp(settings.value(kPixelSizeKey, 100).toInt(), 50, 100);
+    // 80 % by default: the DMD grid shows, as on a real display.
+    const int percent = std::clamp(settings.value(kPixelSizeKey, 80).toInt(), 50, 100);
     options.pixelCoverage = static_cast<double>((percent + 5) / 10 * 10) / 100.0;
     return options;
 }

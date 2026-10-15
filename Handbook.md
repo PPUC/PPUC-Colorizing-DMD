@@ -1383,8 +1383,8 @@ them as they were. They are the editor's, not a project's: kept for the next sta
   Under `Canvas`:
   - `DMD Shape` draws square pixels or round dot pixels, on the canvas, in the sprite editor
     and in PNG exports;
-  - `DMD Size` sets the pixel fill size in 10% steps. Values below `100%` leave black spacing
-    between pixels, which makes the DMD grid visible.
+  - `DMD Size` sets the pixel fill size in 10% steps (`80%` until set otherwise). Values below
+    `100%` leave black spacing between pixels, which makes the DMD grid visible.
   They are view and export settings only: no project data and no file changes with them.
 - `DMD Output`: the settings of the DMD output, see "DMD Output".
 

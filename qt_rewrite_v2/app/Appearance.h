@@ -21,7 +21,7 @@ void saveTheme(Theme theme);
 void applyTheme(Theme theme);
 
 // How the canvas, the sprite editor and PNG exports draw DMD pixels: squares or dots, at 50 to
-// 100 % of their cell in steps of ten.
+// 100 % of their cell in steps of ten (squares at 80 % until set otherwise).
 [[nodiscard]] DmdRenderOptions loadDmdRenderOptions();
 void saveDmdRenderOptions(const DmdRenderOptions& options);
 

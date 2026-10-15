@@ -61,6 +61,9 @@ void runSettingsWidgetTests()
     app::DmdOutputSettings dmd;
     dmd.picture = app::DmdOutputSettings::Picture::Extra;
     dmd.serverPort = 6791;
+    expect(app::loadDmdRenderOptions().pixelShape == app::DmdPixelShape::Square &&
+               app::loadDmdRenderOptions().pixelCoverage == 0.8,
+           "DMD pixels are squares at 80 % by default");
     app::DmdRenderOptions canvas;
     canvas.pixelShape = app::DmdPixelShape::Dot;
     canvas.pixelCoverage = 0.7;
