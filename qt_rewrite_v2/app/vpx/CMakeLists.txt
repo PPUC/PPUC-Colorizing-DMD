@@ -141,7 +141,7 @@ add_custom_command(TARGET DMDUtilPlugin POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy "${dmdutil_plugin_source}/plugin.cfg"
             "${dmdutil_plugin_dir}/plugin.cfg"
     COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:DMDUtilPlugin>" "${dmdutil_plugin_dir}/"
-    COMMAND "${CMAKE_COMMAND}" "-DPATTERNS=$<JOIN:${dmdutil_runtime_libraries},|>"
+    COMMAND "${CMAKE_COMMAND}" "-DPATTERNS=$<JOIN:${dmdutil_runtime_libraries},$<COMMA>>"
             "-DDESTINATION=${dmdutil_plugin_dir}" -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLibraries.cmake"
     VERBATIM
 )
@@ -237,7 +237,7 @@ add_custom_command(TARGET PUPPlugin POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${pup_plugin_dir}"
     COMMAND "${CMAKE_COMMAND}" -E copy "${pup_plugin_source}/plugin.cfg" "${pup_plugin_dir}/plugin.cfg"
     COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:PUPPlugin>" "${pup_plugin_dir}/"
-    COMMAND "${CMAKE_COMMAND}" "-DPATTERNS=$<JOIN:${pup_runtime_libraries},|>"
+    COMMAND "${CMAKE_COMMAND}" "-DPATTERNS=$<JOIN:${pup_runtime_libraries},$<COMMA>>"
             "-DDESTINATION=${pup_plugin_dir}" -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLibraries.cmake"
     VERBATIM
 )
