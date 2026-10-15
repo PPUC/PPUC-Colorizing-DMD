@@ -26,6 +26,8 @@ struct DmdOutputSettings {
     QString zedmdWiFiAddress;
     // 0 to 15; -1 keeps the display's own setting.
     int zedmdBrightness = -1;
+    // libzedmd's debug messages, into the plugin log (Help -> Plugin Log).
+    bool zedmdDebug = false;
     bool pixelcade = true;
     QString pixelcadeDevice;
     bool pin2dmd = true;

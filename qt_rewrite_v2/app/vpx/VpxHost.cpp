@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <deque>
 #include <mutex>
 
 #ifdef COLORIZINGDMD_HAS_VPX_PLUGINS
@@ -21,7 +23,55 @@ namespace {
 // libdmdutil's update buffers, and so the DMDUtil plugin, take at most this many pixels.
 constexpr int kMaxPixels = 256 * 64;
 
+// The log history: one per process, as the bus. Plugin threads add to it.
+struct LogHistory {
+    mutable std::mutex mutex;
+    std::deque<Host::LogLine> lines;
+    uint64_t count = 0;
+
+    void add(unsigned int level, const std::string& source, const std::string& message)
+    {
+        const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now().time_since_epoch())
+                                .count();
+        const std::lock_guard<std::mutex> lock(mutex);
+        lines.push_back(Host::LogLine{now, level, source, message});
+        while (lines.size() > Host::kMaxLogLines) {
+            lines.pop_front();
+        }
+        ++count;
+    }
+};
+
+LogHistory& logHistory()
+{
+    static LogHistory history;
+    return history;
+}
+
 }  // namespace
+
+std::vector<Host::LogLine> Host::logLines() const
+{
+    const LogHistory& history = logHistory();
+    const std::lock_guard<std::mutex> lock(history.mutex);
+    return std::vector<LogLine>(history.lines.begin(), history.lines.end());
+}
+
+uint64_t Host::logCount() const
+{
+    const LogHistory& history = logHistory();
+    const std::lock_guard<std::mutex> lock(history.mutex);
+    return history.count;
+}
+
+void Host::clearLog()
+{
+    LogHistory& history = logHistory();
+    const std::lock_guard<std::mutex> lock(history.mutex);
+    history.lines.clear();
+    ++history.count;
+}
 
 std::string Host::pluginDirectory()
 {
@@ -86,6 +136,7 @@ bool Host::open(std::string* error)
     auto bus = std::make_unique<vpxhost::PluginBus>(
         vpxhost::HostInfo{"ColorizingDMD", "ColorizingDMD", "Serum colorization editor"},
         [this](unsigned int level, const std::string& source, const std::string& message) {
+            logHistory().add(level, source, message);
             if (m_impl->log) {
                 m_impl->log(level, source, message);
             }

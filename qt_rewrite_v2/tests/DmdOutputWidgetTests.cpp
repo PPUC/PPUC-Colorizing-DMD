@@ -1,6 +1,7 @@
 // DMD output through VPX's DMDUtil plugin, without hardware: every display switched off, so
 // libdmdutil finds none, and the plugin takes the pictures anyway.
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -11,6 +12,8 @@
 #include <QTemporaryDir>
 
 #include "DmdOutput.h"
+#include "PluginLogWindow.h"
+#include "vpx/VpxHost.h"
 #include "document/ProjectDocument.h"
 
 namespace {
@@ -70,6 +73,27 @@ void runDmdOutputWidgetTests()
     output.stop();
     expect(!output.isRunning(), "stopped");
 
+    // The plugin log keeps what the bus and the plugins logged, also with no handler set: the
+    // bus names its plugin folder when it opens, which the output above did.
+    if (vpx::Host::isBuiltIn()) {
+        const std::vector<vpx::Host::LogLine> lines = vpx::Host::instance().logLines();
+        const bool named = std::any_of(lines.begin(), lines.end(), [](const auto& line) {
+            return line.source.empty() &&
+                   line.message.find("Plugin directory") != std::string::npos;
+        });
+        expect(named && vpx::Host::instance().logCount() >= lines.size(),
+               "the plugin log keeps the bus's lines");
+        app::PluginLogWindow window;
+        window.refresh();
+        expect(window.text().contains(QStringLiteral("Plugin directory")),
+               "the Plugin Log window shows them");
+        vpx::Host::instance().clearLog();
+        window.refresh();
+        expect(vpx::Host::instance().logLines().empty() &&
+                   !window.text().contains(QStringLiteral("Plugin directory")),
+               "Clear empties it");
+    }
+
     // The settings survive a round trip through QSettings: an INI file of a test organization
     // in a folder of its own (the native format on Windows, the registry, needs an
     // organization name, and the user's own settings stay untouched).
@@ -82,12 +106,14 @@ void runDmdOutputWidgetTests()
     stored.serverAddress = QStringLiteral("pi.local");
     stored.serverPort = 6790;
     stored.zedmdBrightness = 7;
+    stored.zedmdDebug = true;
     stored.pin2dmd = false;
     stored.picture = app::DmdOutputSettings::Picture::Extra;
     app::saveDmdOutputSettings(stored);
     const app::DmdOutputSettings loaded = app::loadDmdOutputSettings();
     expect(loaded.target == stored.target && loaded.serverAddress == stored.serverAddress &&
-               loaded.serverPort == 6790 && loaded.zedmdBrightness == 7 && !loaded.pin2dmd &&
+               loaded.serverPort == 6790 && loaded.zedmdBrightness == 7 && loaded.zedmdDebug &&
+               !loaded.pin2dmd &&
                loaded.picture == app::DmdOutputSettings::Picture::Extra,
            "settings are kept");
     QSettings().remove(QStringLiteral("dmdOutput"));

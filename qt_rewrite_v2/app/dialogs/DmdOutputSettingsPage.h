@@ -35,6 +35,7 @@ private:
     QCheckBox* m_zedmdWiFiCheckBox = nullptr;
     QLineEdit* m_zedmdWiFiAddressEdit = nullptr;
     QSpinBox* m_zedmdBrightnessSpinBox = nullptr;
+    QCheckBox* m_zedmdDebugCheckBox = nullptr;
     QCheckBox* m_pixelcadeCheckBox = nullptr;
     QLineEdit* m_pixelcadeDeviceEdit = nullptr;
     QCheckBox* m_pin2dmdCheckBox = nullptr;

@@ -35,6 +35,10 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     m_zedmdBrightnessSpinBox->setRange(-1, 15);
     m_zedmdBrightnessSpinBox->setSpecialValueText(tr("Display's own"));
     m_zedmdBrightnessSpinBox->setToolTip(tr("ZeDMD brightness, 0 to 15"));
+    m_zedmdDebugCheckBox = new QCheckBox(tr("ZeDMD debug output"), local);
+    m_zedmdDebugCheckBox->setToolTip(
+        tr("More messages from the ZeDMD connection in Help -> Plugin Log, to find out why a "
+           "ZeDMD stays dark"));
     m_pixelcadeCheckBox = new QCheckBox(QStringLiteral("Pixelcade"), local);
     m_pixelcadeDeviceEdit = new QLineEdit(local);
     m_pixelcadeDeviceEdit->setPlaceholderText(tr("Any serial port"));
@@ -48,9 +52,10 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     localGrid->addWidget(m_zedmdWiFiAddressEdit, 1, 1);
     localGrid->addWidget(new QLabel(tr("ZeDMD brightness"), local), 2, 0);
     localGrid->addWidget(m_zedmdBrightnessSpinBox, 2, 1);
-    localGrid->addWidget(m_pixelcadeCheckBox, 3, 0);
-    localGrid->addWidget(m_pixelcadeDeviceEdit, 3, 1);
-    localGrid->addWidget(m_pin2dmdCheckBox, 4, 0);
+    localGrid->addWidget(m_zedmdDebugCheckBox, 3, 0, 1, 2);
+    localGrid->addWidget(m_pixelcadeCheckBox, 4, 0);
+    localGrid->addWidget(m_pixelcadeDeviceEdit, 4, 1);
+    localGrid->addWidget(m_pin2dmdCheckBox, 5, 0);
     localGrid->setColumnStretch(1, 1);
 
     auto* server = new QGroupBox(this);
@@ -99,6 +104,7 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     m_zedmdWiFiCheckBox->setChecked(settings.zedmdWiFi);
     m_zedmdWiFiAddressEdit->setText(settings.zedmdWiFiAddress);
     m_zedmdBrightnessSpinBox->setValue(settings.zedmdBrightness);
+    m_zedmdDebugCheckBox->setChecked(settings.zedmdDebug);
     m_pixelcadeCheckBox->setChecked(settings.pixelcade);
     m_pixelcadeDeviceEdit->setText(settings.pixelcadeDevice);
     m_pin2dmdCheckBox->setChecked(settings.pin2dmd);
@@ -123,6 +129,8 @@ void DmdOutputSettingsPage::updateEnabled()
     m_zedmdWiFiAddressEdit->setEnabled(m_zedmdWiFiCheckBox->isChecked());
     m_zedmdBrightnessSpinBox->setEnabled(m_zedmdCheckBox->isChecked() ||
                                          m_zedmdWiFiCheckBox->isChecked());
+    m_zedmdDebugCheckBox->setEnabled(m_zedmdCheckBox->isChecked() ||
+                                     m_zedmdWiFiCheckBox->isChecked());
     m_pixelcadeDeviceEdit->setEnabled(m_pixelcadeCheckBox->isChecked());
 }
 
@@ -136,6 +144,7 @@ DmdOutputSettings DmdOutputSettingsPage::settings() const
     result.zedmdWiFi = m_zedmdWiFiCheckBox->isChecked();
     result.zedmdWiFiAddress = m_zedmdWiFiAddressEdit->text().trimmed();
     result.zedmdBrightness = m_zedmdBrightnessSpinBox->value();
+    result.zedmdDebug = m_zedmdDebugCheckBox->isChecked();
     result.pixelcade = m_pixelcadeCheckBox->isChecked();
     result.pixelcadeDevice = m_pixelcadeDeviceEdit->text().trimmed();
     result.pin2dmd = m_pin2dmdCheckBox->isChecked();

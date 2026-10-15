@@ -655,6 +655,14 @@
         <translation type="unfinished">ZeDMD-Helligkeit, 0 bis 15</translation>
     </message>
     <message>
+        <source>ZeDMD debug output</source>
+        <translation type="unfinished">ZeDMD-Debug-Ausgabe</translation>
+    </message>
+    <message>
+        <source>More messages from the ZeDMD connection in Help -&gt; Plugin Log, to find out why a ZeDMD stays dark</source>
+        <translation type="unfinished">Mehr Meldungen der ZeDMD-Verbindung in Hilfe -&gt; Plugin-Protokoll, um herauszufinden, warum ein ZeDMD dunkel bleibt</translation>
+    </message>
+    <message>
         <source>ZeDMD brightness</source>
         <translation type="unfinished">ZeDMD-Helligkeit</translation>
     </message>
@@ -1876,6 +1884,14 @@ Use Create %1 Frame.</source>
         <translation type="unfinished">&amp;Handbuch</translation>
     </message>
     <message>
+        <source>&amp;Plugin Log</source>
+        <translation type="unfinished">&amp;Plugin-Protokoll</translation>
+    </message>
+    <message>
+        <source>What the DMD output and the other plugins log</source>
+        <translation type="unfinished">Was die DMD-Ausgabe und die anderen Plugins protokollieren</translation>
+    </message>
+    <message>
         <source>&amp;New Project From Dump...</source>
         <translation type="unfinished">&amp;Neues Projekt aus Dump...</translation>
     </message>
@@ -2309,6 +2325,14 @@ Use Create %1 Frame.</source>
         <translation type="unfinished">Farbsets</translation>
     </message>
     <message>
+        <source>Used by the current frame</source>
+        <translation type="unfinished">Vom aktuellen Frame verwendet</translation>
+    </message>
+    <message>
+        <source>List only the comparison mask, the background and the sprites of the current frame</source>
+        <translation type="unfinished">Nur die Vergleichsmaske, den Hintergrund und die Sprites des aktuellen Frames auflisten</translation>
+    </message>
+    <message>
         <source>Drop to assign %1 %2 to the %3 selected frame(s)</source>
         <translation type="unfinished">Ablegen, um %1 %2 den %3 ausgewählten Frame(s) zuzuweisen</translation>
     </message>
@@ -2458,7 +2482,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>DMD output failed: %1</source>
-        <translation type="unfinished">DMD-Ausgabe fehlgeschlagen: %1</translation>
+        <translation type="obsolete">DMD-Ausgabe fehlgeschlagen: %1</translation>
     </message>
     <message>
         <source>DMD output: looking for displays</source>
@@ -2466,7 +2490,15 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>DMD output on; see View -&gt; DMD Output Settings if no display shows the picture</source>
-        <translation type="unfinished">DMD-Ausgabe an; falls kein Display das Bild zeigt, siehe Ansicht -&gt; DMD-Ausgabe-Einstellungen</translation>
+        <translation type="obsolete">DMD-Ausgabe an; falls kein Display das Bild zeigt, siehe Ansicht -&gt; DMD-Ausgabe-Einstellungen</translation>
+    </message>
+    <message>
+        <source>DMD output failed: %1 (more in Help -&gt; Plugin Log)</source>
+        <translation type="unfinished">DMD-Ausgabe fehlgeschlagen: %1 (mehr in Hilfe -&gt; Plugin-Protokoll)</translation>
+    </message>
+    <message>
+        <source>DMD output on; if no display shows the picture, see Help -&gt; Plugin Log</source>
+        <translation type="unfinished">DMD-Ausgabe an; zeigt kein Display das Bild, siehe Hilfe -&gt; Plugin-Protokoll</translation>
     </message>
     <message>
         <source>DMD output: %1</source>
@@ -4015,6 +4047,53 @@ Use Create %1 Frame.</source>
     <message>
         <source>no picture</source>
         <translation type="unfinished">kein Bild</translation>
+    </message>
+</context>
+<context>
+    <name>PluginLogWindow</name>
+    <message>
+        <source>Plugin Log</source>
+        <translation type="unfinished">Plugin-Protokoll</translation>
+    </message>
+    <message>
+        <source>Everything</source>
+        <translation type="unfinished">Alles</translation>
+    </message>
+    <message>
+        <source>Information and above</source>
+        <translation type="unfinished">Informationen und darüber</translation>
+    </message>
+    <message>
+        <source>Warnings and errors</source>
+        <translation type="unfinished">Warnungen und Fehler</translation>
+    </message>
+    <message>
+        <source>Errors</source>
+        <translation type="unfinished">Fehler</translation>
+    </message>
+    <message>
+        <source>Copy All</source>
+        <translation type="unfinished">Alles kopieren</translation>
+    </message>
+    <message>
+        <source>Copy the lines shown, to paste them into a report</source>
+        <translation type="unfinished">Die angezeigten Zeilen kopieren, um sie in einen Bericht einzufügen</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="unfinished">Leeren</translation>
+    </message>
+    <message>
+        <source>What the VPX plugins log, among them DMDUtil and libdmdutil for the DMD output. For more detail from a ZeDMD, switch on &quot;ZeDMD debug output&quot; in Settings -&gt; DMD Output and restart the output.</source>
+        <translation type="unfinished">Was die VPX-Plugins protokollieren, darunter DMDUtil und libdmdutil für die DMD-Ausgabe. Für mehr Details von einem ZeDMD „ZeDMD-Debug-Ausgabe“ in Einstellungen -&gt; DMD-Ausgabe einschalten und die Ausgabe neu starten.</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation type="unfinished">Zeigen</translation>
+    </message>
+    <message>
+        <source>Nothing logged yet.</source>
+        <translation type="unfinished">Noch nichts protokolliert.</translation>
     </message>
 </context>
 <context>

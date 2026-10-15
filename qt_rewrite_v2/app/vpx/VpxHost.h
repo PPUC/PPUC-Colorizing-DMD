@@ -47,6 +47,23 @@ public:
     // Receives every plugin's log lines and the bus's own messages (source empty).
     void setLogHandler(LogHandler handler);
 
+    // The last kMaxLogLines log lines of the bus and every plugin, oldest first, kept whether
+    // or not a handler is set (Help -> Plugin Log). Plugins log from their own threads too;
+    // these may be called from any thread.
+    struct LogLine {
+        // Milliseconds since the epoch.
+        int64_t timeMs = 0;
+        unsigned int level = 0;
+        // The plugin's name; empty for the bus itself.
+        std::string source;
+        std::string message;
+    };
+    static constexpr std::size_t kMaxLogLines = 5000;
+    [[nodiscard]] std::vector<LogLine> logLines() const;
+    // Changes with every line logged (also those dropped since) and with clearLog().
+    [[nodiscard]] uint64_t logCount() const;
+    void clearLog();
+
     ~Host();
     Host(const Host&) = delete;
     Host& operator=(const Host&) = delete;

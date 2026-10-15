@@ -40,6 +40,7 @@ class EditColorBar;
 class EditMenuActions;
 class FrameListWidget;
 class HandbookWindow;
+class PluginLogWindow;
 class FramePanel;
 class SectionBar;
 class FramePreviewWidget;
@@ -483,6 +484,7 @@ private:
     QToolButton* m_zoomButton = nullptr;
     // Help -> Handbook, created when first asked for.
     HandbookWindow* m_handbookWindow = nullptr;
+    PluginLogWindow* m_pluginLogWindow = nullptr;
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;

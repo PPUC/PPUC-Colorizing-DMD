@@ -26,8 +26,9 @@ switching it off unloads it and lets them go.
 - The `DMD Output` page of the Settings (see "Settings"; `View -> DMD Output Settings...`
   opens the dialog at that page) says where it goes:
   - displays connected to this computer: ZeDMD (any serial port, or the one given; or over
-    Wi-Fi at an address), with its brightness (0 to 15, or the display's own), Pixelcade (any
-    port or the one given) and PIN2DMD;
+    Wi-Fi at an address), with its brightness (0 to 15, or the display's own) and `ZeDMD debug
+    output` (more messages from the ZeDMD connection in the plugin log), Pixelcade (any port or
+    the one given) and PIN2DMD;
   - or `Use DMDServer`: a `dmdserver` (libdmdutil's server process) at an address and port, which drives the
     displays itself.
   The settings are kept and become the DMDUtil plugin's settings; changing them restarts a
@@ -36,6 +37,11 @@ switching it off unloads it and lets them go.
   the status bar shows the last thing the plugin or libdmdutil reported, such as a display it
   found or why one failed. When the plugin does not load, the output switches off again and the
   status bar says why.
+- `Help -> Plugin Log` shows everything the plugins and the plugin host logged since the editor
+  started (the last 5000 lines): which displays libdmdutil looked for, found or failed to open,
+  with time and level. `Show` limits it to information, warnings or errors; `Copy All` copies the
+  lines shown, for a report; `Clear` starts over. When a display stays dark, switch on `ZeDMD
+  debug output` (for a ZeDMD), switch the output off and on, and look there.
 - The plugins lie in a folder of their own, one folder per plugin as VPX ships them: `plugins`
   beside the program (Windows, Linux) or `ColorizingDMD.app/Contents/PlugIns/vpx` (macOS). The
   environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Without the

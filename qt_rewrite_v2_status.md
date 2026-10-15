@@ -1094,6 +1094,13 @@ format). What it does, and the state here:
   original, colorized, 64-color palette): not done; where the files come from is unknown.
 - Its strip of original and colorized frames with number, duration and section labels.
 
+## Plugin log (2026-10-15)
+
+An author's ZeDMD stayed dark with no way to see why. `vpx::Host` now keeps the last 5000 log
+lines of the bus and every plugin (thread-safe; plugins log from their threads), shown in
+`Help -> Plugin Log` (`PluginLogWindow`, polls twice a second, level filter, Copy All, Clear).
+DMD Output settings got `ZeDMD debug output` (the DMDUtil plugin's `ZeDMDDebug`).
+
 ## Translations (2026-10-15)
 
 Owner: German and French (the owner reads both), drafted here; Qt Linguist workflow.

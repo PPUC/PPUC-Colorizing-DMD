@@ -65,6 +65,7 @@
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
 #include "KeyNames.h"
+#include "PluginLogWindow.h"
 #include "ListSelection.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
@@ -476,6 +477,17 @@ void MainWindow::createActions()
         m_handbookWindow->show();
         m_handbookWindow->raise();
         m_handbookWindow->activateWindow();
+    });
+    // What the VPX plugins (DMD output) log, to find out why a display stays dark.
+    QAction* pluginLogAction = helpMenu->addAction(tr("&Plugin Log"));
+    pluginLogAction->setToolTip(tr("What the DMD output and the other plugins log"));
+    connect(pluginLogAction, &QAction::triggered, this, [this]() {
+        if (!m_pluginLogWindow) {
+            m_pluginLogWindow = new PluginLogWindow(this);
+        }
+        m_pluginLogWindow->show();
+        m_pluginLogWindow->raise();
+        m_pluginLogWindow->activateWindow();
     });
 
     QAction* newFromDumpAction =
@@ -2153,7 +2165,9 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
     if (!m_dmdOutput.start(settings)) {
         setDmdOutputEnabled(false);
         statusBar()->showMessage(
-            tr("DMD output failed: %1").arg(m_dmdOutput.lastMessage()), 8000);
+            tr("DMD output failed: %1 (more in Help -> Plugin Log)")
+                .arg(m_dmdOutput.lastMessage()),
+            8000);
         return;
     }
     m_dmdPictureKey.reset();
@@ -2167,8 +2181,8 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
         const QString message = m_dmdOutput.lastMessage();
         statusBar()->showMessage(
             message.isEmpty()
-                ? tr("DMD output on; see View -> DMD Output Settings if no display "
-                     "shows the picture")
+                ? tr("DMD output on; if no display shows the picture, see Help -> Plugin "
+                     "Log")
                 : tr("DMD output: %1").arg(message),
             6000);
     });

@@ -84,6 +84,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/SpritePanel.h
     KeyNames.cpp
     KeyNames.h
+    PluginLogWindow.cpp
+    PluginLogWindow.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
     Translations.cpp

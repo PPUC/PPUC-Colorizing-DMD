@@ -32,6 +32,7 @@ DmdOutputSettings loadDmdOutputSettings()
         settings.value(kGroup + QStringLiteral("zedmdWiFiAddress")).toString();
     result.zedmdBrightness =
         settings.value(kGroup + QStringLiteral("zedmdBrightness"), result.zedmdBrightness).toInt();
+    result.zedmdDebug = settings.value(kGroup + QStringLiteral("zedmdDebug"), false).toBool();
     result.pixelcade =
         settings.value(kGroup + QStringLiteral("pixelcade"), result.pixelcade).toBool();
     result.pixelcadeDevice = settings.value(kGroup + QStringLiteral("pixelcadeDevice")).toString();
@@ -59,6 +60,7 @@ void saveDmdOutputSettings(const DmdOutputSettings& value)
     settings.setValue(kGroup + QStringLiteral("zedmdWiFi"), value.zedmdWiFi);
     settings.setValue(kGroup + QStringLiteral("zedmdWiFiAddress"), value.zedmdWiFiAddress);
     settings.setValue(kGroup + QStringLiteral("zedmdBrightness"), value.zedmdBrightness);
+    settings.setValue(kGroup + QStringLiteral("zedmdDebug"), value.zedmdDebug);
     settings.setValue(kGroup + QStringLiteral("pixelcade"), value.pixelcade);
     settings.setValue(kGroup + QStringLiteral("pixelcadeDevice"), value.pixelcadeDevice);
     settings.setValue(kGroup + QStringLiteral("pin2dmd"), value.pin2dmd);
@@ -124,6 +126,7 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
         {"ZeDMD", boolSetting(!server && settings.zedmd)},
         {"ZeDMDWiFiEnabled", boolSetting(!server && settings.zedmdWiFi)},
         {"ZeDMDBrightness", std::to_string(settings.zedmdBrightness)},
+        {"ZeDMDDebug", boolSetting(!server && settings.zedmdDebug)},
         {"Pixelcade", boolSetting(!server && settings.pixelcade)},
         {"PIN2DMD", boolSetting(!server && settings.pin2dmd)},
         {"DMDServer", boolSetting(server)},
