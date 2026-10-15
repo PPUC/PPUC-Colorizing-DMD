@@ -344,15 +344,15 @@ void testOverlaysOnOriginalRegion()
     widget.setFrameIndex(0);
     widget.setSelectedSpriteBoundsOverlayEnabled(false);
     const RegionLocator position = locate(widget, CanvasRegion::OriginalFrame);
-    const auto isRedTinted = [](const QColor& color) {
-        return color.red() > 150 && color.green() < 80 && color.blue() < 80;
+    const auto isMaskTinted = [](const QColor& color) {
+        return color.red() > 150 && color.green() < 80 && color.blue() > 120;
     };
 
     const QImage plain = grab(widget);
     widget.setComparisonMaskOverlayEnabled(true);
     const QImage masked = grab(widget);
-    expect(isRedTinted(masked.pixelColor(position(200, 50))) &&
-               isRedTinted(masked.pixelColor(position(255, 63))),
+    expect(isMaskTinted(masked.pixelColor(position(200, 50))) &&
+               isMaskTinted(masked.pixelColor(position(255, 63))),
            "comparison mask overlay marks 256x64 mask pixels");
     expect(masked.pixelColor(position(201, 50)) == plain.pixelColor(position(201, 50)) &&
                masked.pixelColor(position(100, 25)) == plain.pixelColor(position(100, 25)) &&

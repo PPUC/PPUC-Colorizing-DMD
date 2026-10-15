@@ -5,6 +5,7 @@
 #include <set>
 #include <tuple>
 
+#include "Appearance.h"
 #include "FrameImageUtils.h"
 #include "render/ProjectGeometry.h"
 
@@ -286,7 +287,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
                 showPreview(render::CanvasRegion::OriginalFrame,
                             geometry.nativePlane(),
                             strokePixels(context, start, end),
-                            erase ? eraseColor : QColor(255, 0, 0, 150));
+                            erase ? eraseColor : comparisonMaskColor(150));
             }
             return;
         case CanvasEditLayer::DynamicMask:

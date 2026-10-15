@@ -1,6 +1,8 @@
 # Comparison Masks
 
-The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transparent red overlay on the original/reference region.
+The `Mask` toolbar toggle shows the assigned comparison mask as a semi-transparent magenta overlay
+on the original/reference region. Masks are magenta wherever the editor shows them, as in CDMD:
+in the mask list of the left sidebar, on the canvas and in the drawing preview.
 
 A comparison mask has one pixel per original pixel. In a project with 256x64 original frames
 the masks are 256x64, and the overlay, the tools, flood fill, erasing and undo all work on those
@@ -42,7 +44,7 @@ Editing rules:
 - Colorized-frame drawing is paused while the `Mask` toggle is on.
 - Click the original/reference region to set that mask pixel to `1`.
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill also edit the assigned mask from the original/reference region.
-- Shape tools show a red live preview while drawing on the mask.
+- Shape tools show a magenta live preview while drawing on the mask.
 - Hold `Shift` while clicking, drawing, or flood filling the original/reference region to erase mask pixels back to `0`.
 - Shift-erase shape tools show a dark live preview.
 - Edits apply to the assigned comparison mask, not just the current frame.

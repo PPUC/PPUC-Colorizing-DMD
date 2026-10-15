@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QColor>
+
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
@@ -19,6 +21,13 @@ void saveTheme(Theme theme);
 // only), and Qt before 6.8, use the Fusion style with a light or dark palette instead; back to
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
+
+// Comparison masks wherever the editor shows them (the mask list, the canvas, the preview of
+// what a stroke paints into one): magenta, as CDMD shows them.
+[[nodiscard]] inline QColor comparisonMaskColor(int alpha = 255)
+{
+    return QColor(255, 0, 255, alpha);
+}
 
 // How the canvas, the sprite editor and PNG exports draw DMD pixels: squares or dots, at 50 to
 // 100 % of their cell in steps of ten (squares at 80 % until set otherwise).

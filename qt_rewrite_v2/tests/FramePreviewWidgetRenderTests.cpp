@@ -375,6 +375,19 @@ bool hasVisibleRedPixel(const QImage& image)
     return false;
 }
 
+bool hasVisibleMagentaPixel(const QImage& image)
+{
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor color(image.pixel(x, y));
+            if (color.red() > 120 && color.blue() > 120 && color.green() < 40) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool hasRedTintedPixel(const QImage& image)
 {
     for (int y = 0; y < image.height(); ++y) {
@@ -839,7 +852,8 @@ void testComparisonMaskOverlayRenders()
     widget.render(&painter);
     painter.end();
 
-    expect(hasVisibleRedPixel(image), "comparison mask overlay should render visibly");
+    expect(hasVisibleMagentaPixel(image),
+           "comparison mask overlay should render visibly, in magenta");
 }
 
 void testSelectedSpriteBoundsOverlayRenders()

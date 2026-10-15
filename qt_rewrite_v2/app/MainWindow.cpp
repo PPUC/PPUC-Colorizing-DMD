@@ -52,6 +52,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "Appearance.h"
 #include "EditColorKeys.h"
 #include "EditMenuActions.h"
 #include "FramePreviewWidget.h"
@@ -230,7 +231,7 @@ QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
                 static_cast<std::size_t>(x);
             const uint8_t value = mask.pixels[index];
             image.setPixelColor(x, y, value == 0 ? QColor(32, 32, 32)
-                                                  : QColor(0, 220, 220));
+                                                  : comparisonMaskColor());
         }
     }
     return image;

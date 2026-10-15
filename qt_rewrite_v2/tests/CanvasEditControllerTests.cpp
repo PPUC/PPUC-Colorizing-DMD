@@ -467,7 +467,7 @@ void testPointerPreview()
     context.tool = DrawingTool::Point;
     controller.pointerMoved(context, original(4, 5), false);
     expect(isOverlay(owner.preview, CanvasRegion::OriginalFrame, Resolution::Sd, {Point{4, 5}},
-                     QColor(255, 0, 0, 150)),
+                     QColor(255, 0, 255, 150)),
            "on a mask in the mask's color");
     controller.pointerMoved(context, colorized(4, 5), false);
     expect(!owner.preview, "and not where a click does not paint it");
@@ -617,7 +617,7 @@ void testComparisonMaskLayer()
                      CanvasRegion::OriginalFrame,
                      Resolution::Sd,
                      rectangle,
-                     QColor(255, 0, 0, 150)),
+                     QColor(255, 0, 255, 150)),
            "mask stroke preview");
     controller.strokePreviewed(context, original(1, 1), original(3, 2), true);
     expect(isOverlay(owner.preview,
@@ -1473,7 +1473,7 @@ void testComparisonMaskOnBigOriginal()
                      CanvasRegion::OriginalFrame,
                      Resolution::Hd,
                      rectangle,
-                     QColor(255, 0, 0, 150)),
+                     QColor(255, 0, 255, 150)),
            "mask stroke preview is in original coordinates on the original's grid");
     controller.strokeFinished(context, bigOriginal(130, 40), bigOriginal(133, 41), false);
     expect(owner.committed(EditKind::ComparisonMask, {0}) &&

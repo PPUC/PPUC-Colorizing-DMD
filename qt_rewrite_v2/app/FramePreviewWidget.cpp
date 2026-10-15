@@ -13,6 +13,7 @@
 #include <QToolTip>
 #include <QWheelEvent>
 
+#include "Appearance.h"
 #include "FrameImageUtils.h"
 #include "PlaneLabels.h"
 #include "RuntimeView.h"
@@ -905,7 +906,7 @@ void FramePreviewWidget::paintComparisonMaskOverlay(
 
     const document::IndexedFrame& mask = m_document->comparisonMask(maskId);
     const int scale = region.displayScale;
-    const QColor overlayColor(255, 0, 0, 180);
+    const QColor overlayColor = comparisonMaskColor(180);
     painter.save();
     painter.setPen(Qt::NoPen);
     painter.setBrush(Qt::NoBrush);
