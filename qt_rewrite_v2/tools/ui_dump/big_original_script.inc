@@ -140,8 +140,8 @@
         return 6;
     }
 
-    QTabWidget* tabs = nullptr;
-    for (QTabWidget* candidate : w.findChildren<QTabWidget*>()) {
+    UiDumpTabs* tabs = nullptr;
+    for (UiDumpTabs* candidate : uiDumpChildren<UiDumpTabs>(w)) {
         for (int i = 0; i < candidate->count(); ++i) {
             if (candidate->tabText(i) == QLatin1String("Dyn")) tabs = candidate;
         }

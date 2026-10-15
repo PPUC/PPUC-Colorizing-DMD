@@ -53,6 +53,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     PlaneLabels.cpp
     PlaneLabels.h
     RuntimeView.cpp
+    SectionStack.cpp
+    SectionStack.h
     RuntimeView.h
     panels/BackgroundPanel.cpp
     panels/BackgroundPanel.h

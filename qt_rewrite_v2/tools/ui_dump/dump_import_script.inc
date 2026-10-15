@@ -187,8 +187,8 @@
         w.m_frameList->setCurrentRow(*rows.begin());
         for (int r : rows) w.m_frameList->item(r)->setSelected(true);
     };
-    QTabWidget* inspectorTabs = nullptr;
-    for (QTabWidget* candidate : w.findChildren<QTabWidget*>()) {
+    UiDumpTabs* inspectorTabs = nullptr;
+    for (UiDumpTabs* candidate : uiDumpChildren<UiDumpTabs>(w)) {
         for (int i = 0; i < candidate->count(); ++i) {
             if (candidate->tabText(i) == QLatin1String("Mask")) inspectorTabs = candidate;
         }

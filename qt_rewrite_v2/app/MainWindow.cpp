@@ -1252,9 +1252,9 @@ void MainWindow::createCentralView()
     layout->addWidget(m_editColorBar);
 
     auto* contentLayout = new QHBoxLayout();
-    m_leftBrowserTabs = new QTabWidget(central);
-    m_leftBrowserTabs->setDocumentMode(true);
+    m_leftBrowserTabs = new SectionStack(central);
     m_leftBrowserTabs->setMinimumWidth(250);
+    m_leftBrowserTabs->setMaximumWidth(280);
     // The frames run along the bottom of the window, as in the Win32 editor: on the left of
     // the strip the sections and the frame filter, then the frames from left to right.
     auto* frameStrip = new QWidget(central);
@@ -1298,17 +1298,31 @@ void MainWindow::createCentralView()
                                       m_leftBrowserTabs);
     m_spritePage->onNewRequested = [this]() { addSprite(); };
     m_spritePage->onDeleteRequested = [this]() { deleteSelectedSprite(); };
+    // Open together, each list keeps a useful height; the column scrolls.
+    for (QWidget* page : std::initializer_list<QWidget*>{m_maskPage, m_backgroundPage,
+                                                         m_spritePage}) {
+        page->setMinimumHeight(220);
+    }
     m_leftBrowserTabs->addTab(m_maskPage, QStringLiteral("Masks"));
     m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"));
     m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"));
-    connect(m_leftBrowserTabs, &QTabWidget::currentChanged, this,
-            [this]() { refreshSelectedAssetFilter(); });
+    m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
+    // The asset of "Using the selected asset" is that of the list used last: opened, or
+    // clicked in.
+    m_leftBrowserTabs->onCurrentChanged = [this](int) { refreshSelectedAssetFilter(); };
+    for (QListWidget* list : {m_maskList, m_backgroundList, m_spriteList}) {
+        connect(list, &QListWidget::itemPressed, this, [this, list]() {
+            m_leftBrowserTabs->markCurrent(list == m_maskList         ? m_maskPage
+                                           : list == m_backgroundList ? m_backgroundPage
+                                                                      : m_spritePage);
+        });
+    }
     auto* inspector = new QWidget(central);
     auto* inspectorLayout = new QVBoxLayout(inspector);
     auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
     inspectorTitle->setStyleSheet(QStringLiteral("font-weight: 600;"));
-    auto* inspectorTabs = new QTabWidget(inspector);
-    inspectorTabs->setDocumentMode(true);
+    // The inspector's topics in sections that open and close, any number at a time.
+    auto* inspectorTabs = new SectionStack(inspector);
 
     inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"));
 
@@ -1319,17 +1333,11 @@ void MainWindow::createCentralView()
     maskPageLayout->setSpacing(0);
     maskPageLayout->addWidget(m_maskPanel);
     maskPageLayout->addWidget(m_sameFramesPanel);
-    maskPageLayout->addStretch(1);
-    auto* maskScrollArea = new QScrollArea(inspectorTabs);
-    maskScrollArea->setWidgetResizable(true);
-    maskScrollArea->setFrameShape(QFrame::NoFrame);
-    maskScrollArea->setWidget(maskPage);
-    inspectorTabs->addTab(maskScrollArea, QStringLiteral("Mask"));
-    connect(inspectorTabs, &QTabWidget::currentChanged, this, [this](int) {
-        updateSameFrameControls();
-    });
+    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"));
+    inspectorTabs->onCurrentChanged = [this](int) { updateSameFrameControls(); };
 
     inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"));
+    inspectorTabs->addTab(m_spritePanel, QStringLiteral("Sprite"));
 
     m_dynamicPanel = new DynamicPanel(central);
     m_dynamicPanel->onDynamicSetChanged = [this](int setIndex) {
@@ -1368,13 +1376,9 @@ void MainWindow::createCentralView()
 
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addWidget(inspectorTabs, 1);
-    auto* spriteScrollArea = new QScrollArea(inspectorTabs);
-    spriteScrollArea->setWidgetResizable(true);
-    spriteScrollArea->setFrameShape(QFrame::NoFrame);
-    spriteScrollArea->setWidget(m_spritePanel);
-    inspectorTabs->insertTab(3, spriteScrollArea, QStringLiteral("Sprite"));
-    inspector->setMinimumWidth(210);
-    inspector->setMaximumWidth(280);
+    inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
+    inspector->setMinimumWidth(230);
+    inspector->setMaximumWidth(330);
     contentLayout->addWidget(m_leftBrowserTabs, 0);
     contentLayout->addWidget(m_canvasStack, 1);
     contentLayout->addWidget(inspector, 0);
@@ -3795,6 +3799,13 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         return true;
     }
     QWidget* assetTab = m_leftBrowserTabs ? m_leftBrowserTabs->currentWidget() : nullptr;
+    // None used yet: the first open one.
+    for (int index = 0; !assetTab && m_leftBrowserTabs && index < m_leftBrowserTabs->count();
+         ++index) {
+        if (m_leftBrowserTabs->isSectionOpen(index)) {
+            assetTab = m_leftBrowserTabs->widget(index);
+        }
+    }
     if (assetTab && assetTab == m_maskPage) {
         return m_selectedMaskIndex && *m_selectedMaskIndex < m_document->comparisonMaskCount() &&
                m_document->comparisonMaskId(frameIndex) == *m_selectedMaskIndex;

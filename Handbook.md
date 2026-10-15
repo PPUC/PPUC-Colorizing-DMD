@@ -498,6 +498,14 @@ Rotation timing is not a visual preference. The per-slot delay stored in the pro
 runtime behavior and editor playback, so future rotation-editing UI must keep timing edits explicit
 and must be validated against libserum playback behavior.
 
+## Sections
+
+The asset lists on the left (`Masks`, `Backgrounds`, `Sprites`) and the inspector on the right
+(`Frame`, `Mask`, `BG`, `Sprite`, `Dyn`, `Palette`, `Rot`, `Sets`) are sections one below the
+other, each with a header that opens and closes it (a click on the header). Any number can be
+open at a time; when they do not fit, the column scrolls. Which sections are open is kept for
+the next start; at first `Masks` and `Frame` are open.
+
 ## Frame List
 
 The frames run along the bottom of the window, as in the Win32 editor: one row, left to right,
@@ -505,7 +513,7 @@ scrolled sideways. Each frame shows its thumbnail (colorized above, original bel
 its number (with the name of a section it starts) and a line of compact metadata: duration,
 `HD`, `Dyn`, `BG n`, sprites, `inactive` and the like. The section box, the trigger box and the
 frame filter are at the left end of the strip; the comparison masks, backgrounds and sprites are
-in the tabs on the left of the window.
+in the sections on the left of the window (see "Sections").
 
 In the rest of this handbook "the frame list" is this strip.
 
@@ -573,10 +581,10 @@ zone or a background, or a duration of 15 ms or more removes it.
 The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
 with sprite assignments, the frames marked `inactive` (`Inactive`), or `Using the selected
-asset`: the frames that use what is selected in the tab open on the left, the comparison mask
-(`Masks`), the assigned background (`Backgrounds`) or the sprite in one of their sprite slots
-(`Sprites`). It follows both: choosing another asset, or opening another of the three tabs,
-shows its frames.
+asset`: the frames that use what is selected in the asset list used last on the left (opened,
+or clicked in): the comparison mask (`Masks`), the assigned background (`Backgrounds`) or the
+sprite in one of their sprite slots (`Sprites`); before any was used, the first open one. It
+follows both: choosing another asset, or using another of the three lists, shows its frames.
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 

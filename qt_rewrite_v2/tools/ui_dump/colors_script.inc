@@ -191,8 +191,8 @@
             dialog->accept();
         });
     };
-    QTabWidget* inspector = nullptr;
-    for (QTabWidget* candidate : w.findChildren<QTabWidget*>()) {
+    UiDumpTabs* inspector = nullptr;
+    for (UiDumpTabs* candidate : uiDumpChildren<UiDumpTabs>(w)) {
         for (int i = 0; i < candidate->count(); ++i) {
             if (candidate->tabText(i) == QLatin1String("Sets")) inspector = candidate;
         }

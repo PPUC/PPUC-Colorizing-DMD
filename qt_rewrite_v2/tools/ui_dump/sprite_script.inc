@@ -83,8 +83,8 @@
     loadSprites();
     dump("sprites loaded", w);
 
-    QTabWidget* inspectorTabs = nullptr;
-    for (QTabWidget* tabs : w.findChildren<QTabWidget*>()) {
+    UiDumpTabs* inspectorTabs = nullptr;
+    for (UiDumpTabs* tabs : uiDumpChildren<UiDumpTabs>(w)) {
         for (int i = 0; i < tabs->count(); ++i) {
             if (tabs->tabText(i) == QLatin1String("Sprite")) {
                 inspectorTabs = tabs;

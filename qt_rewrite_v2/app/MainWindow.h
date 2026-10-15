@@ -26,6 +26,7 @@
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
+#include "SectionStack.h"
 #include "UnsavedChanges.h"
 #include "panels/FramePanel.h"
 
@@ -477,7 +478,8 @@ private:
     QMenu* m_recentProjectsMenu = nullptr;
     QLabel* m_statusLabel = nullptr;
     QLabel* m_frameStatusLabel = nullptr;
-    QTabWidget* m_leftBrowserTabs = nullptr;
+    // The assets on the left: Masks, Backgrounds, Sprites, in sections that open and close.
+    SectionStack* m_leftBrowserTabs = nullptr;
     FrameListWidget* m_frameList = nullptr;
     LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;

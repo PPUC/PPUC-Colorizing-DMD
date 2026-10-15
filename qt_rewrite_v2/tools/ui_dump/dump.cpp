@@ -96,6 +96,27 @@
 #define UI_DUMP_HAS_TOOLBAR_FLOW 1
 #endif
 
+// The inspector and the asset lists: sections in a tree that has them, tabs before.
+#if __has_include("SectionStack.h")
+#include "SectionStack.h"
+using UiDumpTabs = colorizing::app::SectionStack;
+#else
+using UiDumpTabs = QTabWidget;
+#endif
+
+// findChildren() for a widget class with or without Q_OBJECT.
+template <typename T>
+static std::vector<T*> uiDumpChildren(QWidget& parent)
+{
+    std::vector<T*> found;
+    for (QWidget* child : parent.findChildren<QWidget*>()) {
+        if (auto* typed = dynamic_cast<T*>(child)) {
+            found.push_back(typed);
+        }
+    }
+    return found;
+}
+
 #if __has_include("RuntimeView.h")
 #include "edit/EditCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -177,6 +198,15 @@ static QString describe(QWidget* w, QWidget* window)
         for (int i = 0; i < t->count(); ++i) tabs << t->tabText(i);
         parts << QStringLiteral("tabs cur=%1 [%2]").arg(t->currentIndex()).arg(tabs.join(';'));
     }
+#if __has_include("SectionStack.h")
+    if (auto* t = dynamic_cast<colorizing::app::SectionStack*>(w)) {
+        QStringList sections;
+        for (int i = 0; i < t->count(); ++i) {
+            sections << t->tabText(i) + (t->isSectionOpen(i) ? QStringLiteral(" open") : QString());
+        }
+        parts << QStringLiteral("sections cur=%1 [%2]").arg(t->currentIndex()).arg(sections.join(';'));
+    }
+#endif
     return parts.join(QStringLiteral(" | "));
 }
 
