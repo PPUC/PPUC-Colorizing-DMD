@@ -1,34 +1,39 @@
 #pragma once
 
-#include <QScrollArea>
+#include <QWidget>
 #include <QString>
 
 #include <functional>
 #include <vector>
 
+class QScrollArea;
 class QToolButton;
 class QVBoxLayout;
 
 namespace colorizing::app {
 
 // Sections one below the other, each with a header that opens and closes it, any number open
-// at a time, scrolled together when they do not fit (as the trays of SketchUp). Which sections
-// are open is kept in QSettings under the state key, for the next start.
+// at a time (as the trays of SketchUp). The open sections share the height below the headers
+// equally, each scrolling its own content; the headers of the closed ones stay visible. Which
+// sections are open is kept in QSettings under the state key, for the next start.
 //
-// The calls are those of QTabWidget that the editor uses: "current" is the section opened or
-// marked last.
-class SectionStack final : public QScrollArea {
+// A section has a key, which does not change (kept in the settings, tabText()), and a title, the
+// header's text. The calls are those of QTabWidget that the editor uses: "current" is the
+// section opened or marked last.
+class SectionStack final : public QWidget {
 public:
     explicit SectionStack(QWidget* parent = nullptr);
 
-    int addTab(QWidget* content, const QString& title);
-    int insertTab(int index, QWidget* content, const QString& title);
+    // title: the header's text; empty for the key.
+    int addTab(QWidget* content, const QString& key, const QString& title = QString());
     [[nodiscard]] int count() const;
+    // The key.
     [[nodiscard]] QString tabText(int index) const;
+    [[nodiscard]] QString title(int index) const;
     [[nodiscard]] QWidget* widget(int index) const;
     [[nodiscard]] int indexOf(const QWidget* content) const;
 
-    // Opens the section, makes it the current one and scrolls to it.
+    // Opens the section and makes it the current one.
     void setCurrentIndex(int index);
     void setCurrentWidget(QWidget* content);
     [[nodiscard]] int currentIndex() const;
@@ -48,13 +53,16 @@ public:
 
 private:
     struct Section {
+        QString key;
         QString title;
         QWidget* content = nullptr;
         QToolButton* header = nullptr;
-        QWidget* frame = nullptr;
+        QScrollArea* frame = nullptr;
     };
     void setCurrent(int index);
     void storeOpenSections() const;
+    // The open sections share the height; with none open the headers stay at the top.
+    void updateStretch();
 
     std::vector<Section> m_sections;
     QVBoxLayout* m_layout = nullptr;

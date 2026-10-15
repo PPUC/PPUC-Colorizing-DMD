@@ -500,11 +500,17 @@ and must be validated against libserum playback behavior.
 
 ## Sections
 
-The asset lists on the left (`Masks`, `Backgrounds`, `Sprites`) and the inspector on the right
-(`Frame`, `Mask`, `BG`, `Sprite`, `Dyn`, `Palette`, `Rot`, `Sets`) are sections one below the
-other, each with a header that opens and closes it (a click on the header). Any number can be
-open at a time; when they do not fit, the column scrolls. Which sections are open is kept for
-the next start; at first `Masks` and `Frame` are open.
+The asset lists on the left (`Comparison Masks`, `Backgrounds`, `Sprites`) and the inspector on
+the right (`Frame`, `Comparison Mask`, `Background`, `Sprite`, `Dynamic Sets`, `Palette`,
+`Color Rotations`, `Color Sets`) are sections one below the other, each with a header that opens
+and closes it (a click on the header). Any number can be open at a time: the open sections share
+the height of their column equally (one alone takes all of it, two about half each), each
+scrolling its own content where it does not fit, and the headers of the closed ones stay
+visible. Which sections are open is kept for the next start; at first `Comparison Masks` and
+`Frame` are open.
+
+Both columns can be made wider or narrower by dragging their edge next to the canvas; the widths
+are kept for the next start.
 
 ## Frame List
 
@@ -626,10 +632,10 @@ Where:
 | Delete the selected frames | `Edit -> Delete Frames...`; the frame list's context menu; `Delete` or `Backspace` in the frame list |
 | Delete the selected frames that are shorter than N ms | `Edit -> Delete Frames Shorter Than...`; the frame list's context menu |
 | Add the frames of a dump | `File -> Add Frames From Dump...`, see "Adding Frames From A Dump" |
-| Delete frames that are the same as others | the `Mask` page of the Inspector, see "Same Frames And Common Pixels" |
-| New comparison mask, delete the selected one | `New` and `Delete` above the list on the `Masks` page of the left browser |
-| New background from the current frame, delete the selected one | `New` and `Delete` on the `Backgrounds` page |
-| New sprite, delete the selected one | `New` and `Delete` on the `Sprites` page |
+| Delete frames that are the same as others | the `Comparison Mask` section of the Inspector, see "Same Frames And Common Pixels" |
+| New comparison mask, delete the selected one | `New` and `Delete` above the list on the `Comparison Masks` section of the left browser |
+| New background from the current frame, delete the selected one | `New` and `Delete` on the `Backgrounds` section |
+| New sprite, delete the selected one | `New` and `Delete` on the `Sprites` section |
 
 Limits, which are the file format's and the Win32 editor's: at least 1 frame, at most 64
 comparison masks, 255 sprites and 255 backgrounds. `New` is disabled at the limit, `Delete`
@@ -749,7 +755,7 @@ and gives backgrounds with a higher number a number one lower in every frame.
 ### Comparison masks
 
 `New` adds an empty mask (nothing masked) behind the last one and selects it. No frame uses it:
-`Assign Mask` assigns it, as does dragging the mask from the `Masks` list onto the canvas (see
+`Assign Mask` assigns it, as does dragging the mask from the `Comparison Masks` list onto the canvas (see
 "Drag And Drop Onto The Canvas"). The mask has the name its slot has in the `.cRP`.
 
 `Delete` deletes the selected mask. If frames use it, the question says how many and which, and
@@ -781,7 +787,7 @@ plane). What the window shows for each kind of project:
 | Status texts, export file names | `SD`, `HD`, `_sd`, `_hd` | `256x64`, `_256x64` | `192x64`, `_192x64` |
 
 Buttons and entries that do not apply are hidden, not disabled, and take no room: the toolbar
-starts with `Mask` in a project without SD and HD, and the `Frame` page ends after `Import Image`
+starts with `Mask` in a project without SD and HD, and the `Frame` section ends after `Import Image`
 in a 192x64 project. While no project is loaded the window shows the ordinary set, disabled.
 
 Rules:
@@ -810,7 +816,7 @@ Rules:
   frame's stored HD dynamic mask, colors and shadows are written as they are: for a frame that
   never had any that is a mask of 255 everywhere (no zone) and colors and shadows of 0, which is
   what the Win32 editor gives a frame without HD.
-- In HD mode the `Dynamic` toolbar button is disabled, and the `Dyn` page shows and edits the
+- In HD mode the `Dynamic` toolbar button is disabled, and the `Dynamic Sets` section shows and edits the
   dynamic colors and shadows of the SD plane. See "Dynamic Masks".
 - The Inspector `Remove HD` button removes HD data from the current frame and switches the canvas back to SD when needed.
 - `Create HD` and `Remove HD` can be undone. Undo puts back exactly what was there before: the
@@ -913,14 +919,14 @@ Therefore:
 
 Repairing:
 
-- `Create 256x64 Frame` on the `Frame` page (the ordinary project's `Create HD`) is enabled for a
+- `Create 256x64 Frame` on the `Frame` section (the ordinary project's `Create HD`) is enabled for a
   frame that lacks something. For a frame without its 256x64 frame it creates that frame from the
   256x64 original, each pixel in the plain color of its original color index: the same picture an
   uncolorized frame has. It does not ask anything and upscales nothing; the frame's dynamic mask,
   dynamic colors, background mask and rotations stay as they are stored.
 - `Create 256x64 Frame` is also enabled when only the assigned background lacks its 256x64
   image, and in both cases gives that background a black 256x64 image. An existing background
-  image is never replaced. `Import Image` on the `BG` page is the other way to give a background
+  image is never replaced. `Import Image` on the `Background` section is the other way to give a background
   its image.
 - `Create 256x64 Sprite` (in the same place while `Edit Sprite` is on) creates the 256x64 sprite
   from the sprite original: its mask gets the shape of the sprite original, its colors are the
@@ -930,7 +936,7 @@ Repairing:
 
 A sprite added with `New` has its 256x64 data from the start (empty), and a background added
 with `New` takes the 256x64 picture of the current frame, so neither makes a frame "not
-rendered". `New` on the `Backgrounds` page needs a current frame with its 256x64 frame. See
+rendered". `New` on the `Backgrounds` section needs a current frame with its 256x64 frame. See
 "Adding And Deleting Records".
 
 ### Sprites
@@ -1061,7 +1067,7 @@ What this means:
 - Everything on the 192x64 plane, and the whole `.cRP`, is written back as it was loaded or
   edited.
 
-A new sprite or background (`New` on the `Sprites` and `Backgrounds` pages) has 192x64 data only
+A new sprite or background (`New` on the `Sprites` and `Backgrounds` sections) has 192x64 data only
 and is written with "no extra data" like every other record.
 
 ### What is not there
@@ -1103,7 +1109,7 @@ The canvas does not draw text labels or white frame outlines over the image data
 
 ### Drag And Drop Onto The Canvas
 
-A comparison mask dragged from the `Masks` list, or a background from the `Backgrounds` list, and
+A comparison mask dragged from the `Comparison Masks` list, or a background from the `Backgrounds` list, and
 dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign BG` do.
 While it is over the canvas the status bar says what the drop will do. It is undoable like those
 buttons: one step per frame in each frame's settings history, so Undo takes it back from the
@@ -1168,7 +1174,7 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 - `Palette` contains the selected cRP palette name and all 64 palette colors.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, and sprite editing.
 
-The `Frame` topic exposes:
+The `Frame` section exposes:
 
 - `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
   It is enabled whenever the project has a background to edit, that is, whenever a background is
@@ -1506,7 +1512,7 @@ keys are not configurable yet.
 
 ### Color sets
 
-The Inspector's `Sets` topic lists the 64 color sets of the `.cRP` (the Win32 color set dialog):
+The Inspector's `Color Sets` section lists the 64 color sets of the `.cRP` (the Win32 color set dialog):
 the number, the name and the colors of each active set, `(inactive)` for the others.
 
 - `Store` (Win32 `Set`): the selected set takes the edit colors and becomes active. Only as many
@@ -1549,7 +1555,7 @@ H, S and V, as the Win32 picker shows them, about 10,000 colors would come back 
 ### Edit colors and dynamic sets
 
 `Edit > Dyn` (Win32 `IDC_COLTODYNA`) copies the edit colors into the current dynamic set
-(`Dyn Set` on the `Dyn` page) of every selected frame that has dynamic data; `Dyn > Edit`
+(`Dyn Set` on the `Dynamic Sets` section) of every selected frame that has dynamic data; `Dyn > Edit`
 (`IDC_DYNATOCOL`) copies the current frame's dynamic set into the edit colors. Both use the plane
 dynamic data is edited on (see "Dynamic Masks") and as many colors as the project has. `Edit >
 Dyn` is one undoable step per frame, in the frame's dynamic color history; `Dyn > Edit` is one step
@@ -1642,7 +1648,7 @@ area.
 
 Create a selection:
 
-1. Open the Inspector's `Palette` topic.
+1. Open the Inspector's `Palette` section.
 2. Choose the selection shape in `Shape`: rectangle, circle, or ellipse.
 3. Select the toolbar tool `Sel`.
 4. Press, drag, and release on the colorized canvas.
@@ -1654,7 +1660,7 @@ paints a mask.
 Fill a selection with a fixed-direction gradient:
 
 1. Create a selection.
-2. In the `Palette` topic, set `From` and `To`.
+2. In the `Palette` section, set `From` and `To`.
 3. Set `Pattern` to `Linear`, `Circle`, or `Ellipse`.
 4. Set `Direction` to a fixed direction such as `Left -> Right`, `Top -> Bottom`,
    `Center -> Edge`, or `Edge -> Center`.
@@ -1663,7 +1669,7 @@ Fill a selection with a fixed-direction gradient:
 Fill a selection with a free-direction gradient:
 
 1. Create a selection.
-2. In the `Palette` topic, set `From`, `To`, and `Pattern`.
+2. In the `Palette` section, set `From`, `To`, and `Pattern`.
 3. Set `Direction` to `Free`.
 4. Click `Set Dir`.
 5. Press, drag, and release on the same canvas to draw the virtual gradient direction line.
@@ -1723,7 +1729,7 @@ the `Sel` selection always was. The Win32 editor keeps its selection across fram
 Making and changing a selection on the frame canvas (frame pixels or, with `Target` `Background`,
 the selected background image; not in the `Mask`, `Dynamic` or `BG` modes):
 
-- `Sel` tool: drag a rectangle, circle or ellipse (the `Shape` of the `Palette` page); it replaces
+- `Sel` tool: drag a rectangle, circle or ellipse (the `Shape` of the `Palette` section); it replaces
   the selection.
 - `Ctrl`+drag with `Line`, `Rect`, `Fill Rect`, `Circle`, `Fill Circle`, `Ellipse` or
   `Fill Ellipse`: the shape's pixels join the selection. `Ctrl`+`Shift`+drag removes them.
@@ -2080,7 +2086,7 @@ same holds for its 192x64 masks.
 
 The Inspector exposes per-frame comparison metadata:
 
-- The `Mask` topic shows the visually selected mask from the left sidebar as `Selected: <ID>`, with
+- The `Comparison Mask` section shows the visually selected mask from the left sidebar as `Selected: <ID>`, with
   `(assigned)` when it is the mask of the current frame. Selecting a mask in the sidebar only
   selects it, in the same way as selecting a background or a sprite does; no frame is changed. The
   selection starts as the mask of the first frame and then stays until another mask is selected.
@@ -2122,7 +2128,7 @@ Editing rules:
 
 ## Same Frames And Common Pixels
 
-The lower part of the Inspector's `Mask` page. It answers what a comparison mask is drawn for:
+The lower part of the Inspector's `Comparison Mask` section. It answers what a comparison mask is drawn for:
 which frames the runtime cannot tell apart.
 
 Two frames are "the same" under a comparison mask and a shape mode if their originals have the
@@ -2165,7 +2171,7 @@ frames of a frame.
   that uses it is compared with it, and the status bar says how many do.
 
   A typical use: select the frames that show the same scene with a changing score, add a mask
-  (`New` on the `Masks` page), assign it to them with `Mask ID`, press `Common To Mask`. `Same
+  (`New` on the `Comparison Masks` section), assign it to them with `Mask ID`, press `Common To Mask`. `Same
   frames` then counts them, and `Delete Same As Current...` leaves one of them.
 
 - `Frames using` lists the frames that have the chosen mask assigned, or no mask; the entries
@@ -2174,7 +2180,7 @@ frames of a frame.
 
 A frame that the frame filter hides cannot be gone to or selected; the status bar says so.
 
-The same frames are worked out only while the `Mask` page is shown. The first question about a
+The same frames are worked out only while the `Comparison Mask` section is shown. The first question about a
 mask reads every original once (a fraction of a second for a few thousand frames); after that
 the answers are kept until an original, a mask or an assignment changes. `Update Same List`
 does that for every mask and can take seconds in a large project with many masks.
@@ -2190,7 +2196,7 @@ names its set and its number of pixels. The pixels stay visible in the colors th
 them: each one in its set's color for its original shade (the canvas always shows them so),
 without switching to the Runtime view.
 
-The `Dyn` page lists the sets the frame uses: per set a picture of the frame with that set's
+The `Dynamic Sets` section lists the sets the frame uses: per set a picture of the frame with that set's
 zones in their colors and the rest dimmed, its number and its number of pixels. A click selects
 the set, as `Dyn Set` does; the list follows a set chosen there or picked on the canvas. The
 last row, `New set (n)`, selects the lowest set the frame does not use yet, to paint a new zone.
@@ -2215,7 +2221,7 @@ So in an ordinary project:
   them`. Switching to HD while `Dynamic` is on switches it off, with a message in the status bar.
   The zones are not drawn over the HD frame: at twice the size they would look like something
   that can be painted there, and the HD picture on the canvas already shows what they do.
-- The `Dyn` page works in both modes and always shows and edits the SD plane's dynamic colors
+- The `Dynamic Sets` section works in both modes and always shows and edits the SD plane's dynamic colors
   and shadows, which are the ones both pictures use. In HD mode a note at the top of the page
   says so. An edit made there in HD mode shows in the HD picture at once and is undone from
   either mode.
@@ -2229,7 +2235,7 @@ So in an ordinary project:
 - One thing of the stored HD data does reach the picture: **shadows**. A dynamic set that has no
   shadow direction on the SD plane takes its direction and color from the HD shadow tables when
   libserum renders the 64-row plane (they are settings per set, not pictures). The editor's HD
-  rendering does the same. The `Dyn` page shows and edits the SD shadow only: a shadow that
+  rendering does the same. The `Dynamic Sets` section shows and edits the SD shadow only: a shadow that
   comes from the HD tables can be replaced by setting an SD direction for the set, and cannot be
   switched off in this editor.
 - The save rule that writes colorized pixels under a dynamic mask as 0 still uses the stored HD
@@ -2319,7 +2325,7 @@ Legacy `.cRP` files can store 256 palettes with 64 RGB565 colors each, plus 64-b
 slots. When that table exists, the Qt rewrite loads it into the document model and saves edits back
 to the same `.cRP` offsets.
 
-The Inspector's `Palette` topic provides a palette selector, the selected palette name, and a
+The Inspector's `Palette` section provides a palette selector, the selected palette name, and a
 64-color grid:
 
 - Edit the name field to rename the selected palette. Names are capped at 63 characters so they fit
@@ -2421,7 +2427,7 @@ The Inspector has a sprite browser and assignment controls:
   inside those bounds remain transparent, and selected black original pixels remain real sprite
   pixels.
 - `Capture` replaces the selected sprite record after confirmation. To capture into a new sprite,
-  add one with `New` on the `Sprites` page first and capture into it. The dialog's `Create New`
+  add one with `New` on the `Sprites` section first and capture into it. The dialog's `Create New`
   button is still disabled.
 - Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
@@ -2687,7 +2693,7 @@ For changes to colors, edit colors and color sets (`core/edit/ColorModel`,
   mode, and in a project with 256x64 and one with 192x64 original frames: every pixel takes the
   edit color of its own frame's shade; Undo per frame.
 - `Pick` with and without `Shift`.
-- `Store`, `Load`, renaming, `Deactivate` and their Undo on the `Sets` page; save and reopen.
+- `Store`, `Load`, renaming, `Deactivate` and their Undo on the `Color Sets` section; save and reopen.
 - The picker: change each field and read the others; the recent colors.
 - `Edit > Dyn` on several frames and `Dyn > Edit`, with Undo.
 - Open and save a project of the Win32 editor without touching its colors and run
@@ -2701,7 +2707,7 @@ picker's field sync, the pipette with `Shift`, the keys and the panels; `tools/u
 has the window's states (`colors_script.inc`).
 
 For changes to dynamic data, check in an ordinary project that `Dynamic` is disabled in HD mode
-with its tool tip, that the `Dyn` page there shows the SD colors with its note, that a color
+with its tool tip, that the `Dynamic Sets` section there shows the SD colors with its note, that a color
 changed there shows in the HD picture, and that a project with stored HD dynamic data still
 round-trips byte-identical.
 
@@ -2779,7 +2785,7 @@ For changes to the dump import (`core/import`, `app/dialogs/DumpImportDialog`), 
   inactive and libserum shows no picture for them).
 
 For changes to the same-frame tools (`core/edit/SameFrames`, `app/panels/SameFramesPanel`),
-test on the `Mask` page: the count follows the frame and a stroke on its mask; `Update Same
+test on the `Comparison Mask` section: the count follows the frame and a stroke on its mask; `Update Same
 List`; each of the three deletions with and without `Keep selected frames`, and its `Undo`;
 `Spot Common` with two and with one selected frame; `Common To Mask` and its `Undo`; `Frames
 using` and `Select Them` with a frame filter active.

@@ -40,6 +40,7 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QScrollBar>
+#include <QSplitter>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QStringList>
@@ -1253,8 +1254,7 @@ void MainWindow::createCentralView()
 
     auto* contentLayout = new QHBoxLayout();
     m_leftBrowserTabs = new SectionStack(central);
-    m_leftBrowserTabs->setMinimumWidth(250);
-    m_leftBrowserTabs->setMaximumWidth(280);
+    m_leftBrowserTabs->setMinimumWidth(180);
     // The frames run along the bottom of the window, as in the Win32 editor: on the left of
     // the strip the sections and the frame filter, then the frames from left to right.
     auto* frameStrip = new QWidget(central);
@@ -1298,12 +1298,9 @@ void MainWindow::createCentralView()
                                       m_leftBrowserTabs);
     m_spritePage->onNewRequested = [this]() { addSprite(); };
     m_spritePage->onDeleteRequested = [this]() { deleteSelectedSprite(); };
-    // Open together, each list keeps a useful height; the column scrolls.
-    for (QWidget* page : std::initializer_list<QWidget*>{m_maskPage, m_backgroundPage,
-                                                         m_spritePage}) {
-        page->setMinimumHeight(220);
-    }
-    m_leftBrowserTabs->addTab(m_maskPage, QStringLiteral("Masks"));
+    // Open together, the lists share the height.
+    m_leftBrowserTabs->addTab(m_maskPage, QStringLiteral("Masks"),
+                              QStringLiteral("Comparison Masks"));
     m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"));
     m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"));
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
@@ -1333,10 +1330,10 @@ void MainWindow::createCentralView()
     maskPageLayout->setSpacing(0);
     maskPageLayout->addWidget(m_maskPanel);
     maskPageLayout->addWidget(m_sameFramesPanel);
-    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"));
+    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"), QStringLiteral("Comparison Mask"));
     inspectorTabs->onCurrentChanged = [this](int) { updateSameFrameControls(); };
 
-    inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"));
+    inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"), QStringLiteral("Background"));
     inspectorTabs->addTab(m_spritePanel, QStringLiteral("Sprite"));
 
     m_dynamicPanel = new DynamicPanel(central);
@@ -1352,10 +1349,11 @@ void MainWindow::createCentralView()
     m_dynamicPanel->onShadowColorClicked = [this]() {
         editDynamicShadowColor();
     };
-    inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"));
+    inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"), QStringLiteral("Dynamic Sets"));
 
     inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"));
-    inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"));
+    inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"),
+                          QStringLiteral("Color Rotations"));
 
     m_colorSetPanel = new ColorSetPanel(central);
     m_colorSetPanel->onStoreRequested = [this](std::size_t setIndex) { storeColorSet(setIndex); };
@@ -1372,16 +1370,39 @@ void MainWindow::createCentralView()
             m_document->setFirstDisplayedColorSet(static_cast<uint8_t>(firstVisibleSet));
         }
     };
-    inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"));
+    inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"), QStringLiteral("Color Sets"));
 
     inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
-    inspector->setMinimumWidth(230);
-    inspector->setMaximumWidth(330);
-    contentLayout->addWidget(m_leftBrowserTabs, 0);
-    contentLayout->addWidget(m_canvasStack, 1);
-    contentLayout->addWidget(inspector, 0);
+    inspector->setMinimumWidth(200);
+    // The two sidebars can be made wider or narrower; their widths are kept.
+    auto* contentSplitter = new QSplitter(Qt::Horizontal, central);
+    contentSplitter->setChildrenCollapsible(false);
+    contentSplitter->addWidget(m_leftBrowserTabs);
+    contentSplitter->addWidget(m_canvasStack);
+    contentSplitter->addWidget(inspector);
+    contentSplitter->setStretchFactor(0, 0);
+    contentSplitter->setStretchFactor(1, 1);
+    contentSplitter->setStretchFactor(2, 0);
+    const QList<int> storedWidths =
+        [](const QVariantList& stored) {
+            QList<int> widths;
+            for (const QVariant& width : stored) {
+                widths << width.toInt();
+            }
+            return widths;
+        }(QSettings().value(QStringLiteral("layout/sidebarWidths")).toList());
+    contentSplitter->setSizes(storedWidths.size() == 3 ? storedWidths
+                                                       : QList<int>{260, 700, 280});
+    connect(contentSplitter, &QSplitter::splitterMoved, this, [contentSplitter]() {
+        QVariantList widths;
+        for (const int width : contentSplitter->sizes()) {
+            widths << width;
+        }
+        QSettings().setValue(QStringLiteral("layout/sidebarWidths"), widths);
+    });
+    contentLayout->addWidget(contentSplitter, 1);
     layout->addLayout(contentLayout, 1);
     layout->addWidget(frameStrip, 0);
 
