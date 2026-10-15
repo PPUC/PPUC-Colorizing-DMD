@@ -1176,6 +1176,18 @@ instability is no obstacle (the owner works with the plugin developers).
   plugin's thread fetches the picture (128x32, then 256x64).
 - Verified locally on macOS (build, tests, `--check-plugins` in a bundle layout). Windows and
   Linux only in CI.
+- Owner decisions (restated 2026-10-15): the PuP tester uses VPX's PUP plugin (`plugins/pup`,
+  the new Pin Up Player) on the editor's bus, shipped with the editor as a built-in plugin like
+  DMDUtil; and the editor's own video clip import (Images window) uses the ffmpeg libraries the
+  PUP plugin brings (avformat, avcodec, avutil, swscale, swresample), not a second ffmpeg.
+- PUP plugin dependencies: SDL3, SDL3_image, SDL3_ttf, ffmpeg, libpupdmd. ppuc builds them
+  with vpinball's own dependency scripts and packages `plugins/pup` with ffmpeg and SDL3_ttf
+  beside the plugin, SDL3/SDL3_image/libpupdmd beside the executable
+  (`ppuc/platforms/config.sh`, `ppuc_build_vpinball_media_plugins`; versions from vpinball's
+  pins, `ppuc_vpinball_pin`). vpinball's `make/CMakeLists_plugin_PUP.txt` builds it for
+  macOS, Linux and `windows-mingw` (not for plain `windows` without MSVC); ppuc does not build
+  it on Windows. Hosting it also needs a renderer for PUP's screens and a game/controller on
+  the bus (see ppuc's `src/MediaPluginHost.cpp`).
 
 ## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
 
