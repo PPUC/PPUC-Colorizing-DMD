@@ -1375,7 +1375,7 @@ switching it off unloads it and lets them go.
   - displays connected to this computer: ZeDMD (any serial port, or the one given; or over
     Wi-Fi at an address), with its brightness (0 to 15, or the display's own), Pixelcade (any
     port or the one given) and PIN2DMD;
-  - or a `dmdserver` (libdmdutil's server process) at an address and port, which drives the
+  - or `Use DMDServer`: a `dmdserver` (libdmdutil's server process) at an address and port, which drives the
     displays itself.
   The settings are kept and become the DMDUtil plugin's settings; changing them restarts a
   running output (the plugin reads them when it loads).
