@@ -11,6 +11,12 @@ there paints; with `Shift`, which erases, dark). The pixel to hit is visible bef
 `Flood`, `Pick` and `Grad` show none, nor does the mouse while `Ctrl/Cmd` is held for selecting,
 in paste mode or while a `Select By Color` or `Recolor` click is pending.
 
+A drag starts on the frame but may end beside it, beyond the frame's edge (as in the Win32
+editor): the line, rectangle, circle or ellipse is then larger than the frame, and only its part
+on the frame is painted. A filled circle or ellipse larger than the frame, or a gradient shape,
+gives a curve or a gradient that runs past the frame's edges. The end may lie up to a few frame
+sizes away.
+
 When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
 
 When Inspector `Target` is `Background`, ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.

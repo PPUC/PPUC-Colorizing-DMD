@@ -1131,6 +1131,14 @@ table as a plugin does. The AI assistant plugin that uses it lives in its own re
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 
+## Shapes past the frame's edge (2026-10-15)
+
+Owner: CDMD 3.17.3 lets a circle or ellipse be larger than the frame (gradients). During a drag
+`FramePreviewWidget::strokeHitAt` gives the pixel of the start's frame under the mouse also
+outside it (clamped to -3..4 frame sizes, against huge shapes); `CanvasEditController::
+strokePixels` drops the pixels outside the plane, the canvas drops them from previews and
+selection overlays (`pixelsInPlane`); gradient sources keep the unclipped shape corners.
+
 ## Canvas position and helper lines (2026-10-15)
 
 Owner's requests. The status bar's permanent label shows the pixel under the mouse

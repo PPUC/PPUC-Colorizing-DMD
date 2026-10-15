@@ -1403,10 +1403,21 @@ std::vector<render::Point> CanvasEditController::strokePixels(const CanvasEditCo
                                                               const render::CanvasHit& start,
                                                               const render::CanvasHit& end)
 {
-    return edit::makeStrokePixels(context.tool,
-                                  context.gradientShape,
-                                  render::Point{start.x, start.y},
-                                  render::Point{end.x, end.y});
+    // The end may lie outside the frame (a shape larger than it); its pixels outside are
+    // dropped.
+    std::vector<render::Point> pixels = edit::makeStrokePixels(
+        context.tool, context.gradientShape, render::Point{start.x, start.y},
+        render::Point{end.x, end.y});
+    if (context.document) {
+        const render::Size plane = context.document->geometry().planeSize(start.resolution);
+        pixels.erase(std::remove_if(pixels.begin(), pixels.end(),
+                                    [&plane](const render::Point& point) {
+                                        return point.x < 0 || point.y < 0 ||
+                                               point.x >= plane.width || point.y >= plane.height;
+                                    }),
+                     pixels.end());
+    }
+    return pixels;
 }
 
 edit::PixelColorSource CanvasEditController::gradientColorSource(

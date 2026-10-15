@@ -469,7 +469,7 @@ void FramePreviewWidget::setSelectionOverlayPixels(render::CanvasRegion region,
 {
     m_selectionOverlayRegion = region;
     m_selectionOverlayResolution = resolution;
-    m_selectionOverlayPixels = std::move(pixels);
+    m_selectionOverlayPixels = pixelsInPlane(resolution, std::move(pixels));
     m_selectionOverlayColor = color;
     update();
 }
@@ -514,7 +514,7 @@ void FramePreviewWidget::setPreviewPixels(render::CanvasRegion region,
 {
     m_previewRegion = region;
     m_previewResolution = resolution;
-    m_previewPixels = std::move(pixels);
+    m_previewPixels = pixelsInPlane(resolution, std::move(pixels));
     m_previewColor = color;
     update();
 }
@@ -532,6 +532,49 @@ void FramePreviewWidget::clearPreviewPixels()
 QSize FramePreviewWidget::sizeHint() const
 {
     return QSize(620, 360);
+}
+
+std::vector<render::Point> FramePreviewWidget::pixelsInPlane(render::Resolution resolution,
+                                                              std::vector<render::Point> pixels) const
+{
+    if (!m_document) {
+        return pixels;
+    }
+    const render::Size plane = m_document->geometry().planeSize(resolution);
+    pixels.erase(std::remove_if(pixels.begin(), pixels.end(),
+                                [&plane](const render::Point& point) {
+                                    return point.x < 0 || point.y < 0 || point.x >= plane.width ||
+                                           point.y >= plane.height;
+                                }),
+                 pixels.end());
+    return pixels;
+}
+
+std::optional<render::CanvasHit> FramePreviewWidget::strokeHitAt(QPointF position,
+                                                                 const render::CanvasHit& start) const
+{
+    if (!m_document) {
+        return std::nullopt;
+    }
+    for (const RegionView& view : regionViews()) {
+        if (view.region.region != start.region || view.region.resolution != start.resolution ||
+            view.cell <= 0.0) {
+            continue;
+        }
+        // Display units from the frame's corner, then pixels of its plane, on either side of
+        // the frame; kept within a few frame sizes of it.
+        const double scale = std::max(1, view.region.displayScale);
+        const render::Size plane = m_document->geometry().planeSize(start.resolution);
+        const auto pixel = [scale](double offset, double cell, int extent) {
+            const double value = std::floor(offset / cell / scale);
+            return static_cast<int>(std::clamp(value, -3.0 * extent, 4.0 * extent));
+        };
+        render::CanvasHit hit = start;
+        hit.x = pixel(position.x() - view.origin.x(), view.cell, plane.width);
+        hit.y = pixel(position.y() - view.origin.y(), view.cell, plane.height);
+        return hit;
+    }
+    return std::nullopt;
 }
 
 std::optional<render::CanvasHit> FramePreviewWidget::hitTestAt(QPoint position) const
@@ -707,9 +750,9 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
         m_pointerHandler(showsRuntimeView() ? std::nullopt : hitTestAt(event->pos()));
     }
     if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
-        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
-        if (hit && hit->region == m_strokeStart->region &&
-            hit->resolution == m_strokeStart->resolution) {
+        // Beyond the frame too: a circle or ellipse larger than the frame (for gradients).
+        const std::optional<render::CanvasHit> hit = strokeHitAt(event->position(), *m_strokeStart);
+        if (hit) {
             m_strokePreviewHandler(*m_strokeStart, *hit, m_strokeErase);
             event->accept();
             return;
@@ -735,7 +778,7 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
         return;
     }
     if (event->button() == Qt::LeftButton && m_strokeStart) {
-        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        const std::optional<render::CanvasHit> hit = strokeHitAt(event->position(), *m_strokeStart);
         const std::optional<render::CanvasHit> start = m_strokeStart;
         const bool erase = m_strokeErase;
         m_strokeStart.reset();

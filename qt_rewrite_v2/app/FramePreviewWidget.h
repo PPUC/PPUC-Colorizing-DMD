@@ -114,6 +114,11 @@ public:
 
     [[nodiscard]] QSize sizeHint() const override;
     [[nodiscard]] std::optional<render::CanvasHit> hitTestAt(QPoint position) const;
+    // During a drag that started at start: the pixel of start's frame under the point, also
+    // outside the frame (negative or past its size, up to a few frame sizes away), so that a
+    // shape can be larger than the frame. The pixels outside are dropped where it is painted.
+    [[nodiscard]] std::optional<render::CanvasHit> strokeHitAt(QPointF position,
+                                                               const render::CanvasHit& start) const;
 
     // The canvas is split into halves one above the other, the colorized frame in the upper,
     // the original in the lower. Zoom 1 fits the whole frame into its half; above it the
@@ -169,6 +174,9 @@ protected:
 
 private:
     [[nodiscard]] render::CanvasLayout currentLayout() const;
+    // The pixels that lie on the plane.
+    [[nodiscard]] std::vector<render::Point> pixelsInPlane(render::Resolution resolution,
+                                                           std::vector<render::Point> pixels) const;
     [[nodiscard]] bool showsRuntimeView() const;
     // pictureRect: where the colorized picture is on screen.
     void paintRuntimeViewTexts(QPainter& painter, const QRectF& pictureRect);

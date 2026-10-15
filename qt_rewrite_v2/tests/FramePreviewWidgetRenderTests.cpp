@@ -734,6 +734,22 @@ void testFramePreviewStrokeCallback()
            "preview stroke should stay within one resolution");
     expect(!previewErase, "colorized preview stroke should not erase");
     expect(!strokeErase, "colorized finished stroke should not erase");
+
+    // A drag may end outside the frame (a circle larger than it, as for gradients): the end is
+    // the pixel there, past the frame's edge, on the same plane.
+    QMouseEvent outsidePress(QEvent::MouseButtonPress, QPointF(90, 90), QPointF(90, 90),
+                             QPointF(90, 90), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &outsidePress);
+    QMouseEvent outsideRelease(QEvent::MouseButtonRelease, QPointF(2000, 1500),
+                               QPointF(2000, 1500), QPointF(2000, 1500), Qt::LeftButton,
+                               Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &outsideRelease);
+    const colorizing::render::Size plane =
+        document.geometry().planeSize(strokeStart->resolution);
+    expect(strokeEnd && strokeEnd->resolution == strokeStart->resolution &&
+               strokeEnd->x >= plane.width && strokeEnd->y >= plane.height &&
+               strokeEnd->x <= 4 * plane.width && strokeEnd->y <= 4 * plane.height,
+           "a drag ending outside the frame ends past its edge, a few frame sizes at most");
 }
 
 void testPositionHandler()
