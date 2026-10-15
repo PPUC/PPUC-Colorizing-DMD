@@ -64,8 +64,10 @@
 #include "HandbookWindow.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
+#include "EditorPlugins.h"
 #include "KeyNames.h"
 #include "PluginLogWindow.h"
+#include "vpx/VpxHost.h"
 #include "ListSelection.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
@@ -481,6 +483,25 @@ MainWindow::MainWindow(QWidget* parent)
     connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() { updateFrameRestViews(); });
     createActions();
     createCentralView();
+    EditorPlugins::Window pluginWindow;
+    pluginWindow.parent = this;
+    pluginWindow.menu = m_pluginsMenu;
+    pluginWindow.document = [this]() -> const document::ProjectDocument* {
+        return m_document ? &*m_document : nullptr;
+    };
+    pluginWindow.currentFrame = [this]() { return currentFrameIndex(); };
+    pluginWindow.selectedFrames = [this]() { return selectedFrameIndices(); };
+    pluginWindow.showFrames = [this](std::size_t current,
+                                     const std::vector<std::size_t>& selected) {
+        showFramesForPlugin(current, selected);
+    };
+    pluginWindow.showStatus = [this](const QString& text) {
+        statusBar()->showMessage(text, 5000);
+    };
+    m_plugins = std::make_unique<EditorPlugins>(std::move(pluginWindow));
+    if (const QStringList errors = m_plugins->loadEnabled(); !errors.isEmpty()) {
+        statusBar()->showMessage(errors.join(QStringLiteral("; ")), 8000);
+    }
     setStatusText(tr("No project loaded"));
     // Every 10 minutes, as the Win32 editor (AUTOSAVE_TICKS).
     m_autosaver = std::make_unique<Autosaver>(
@@ -500,6 +521,8 @@ void MainWindow::createActions()
     QMenu* editMenu = menuBar()->addMenu(tr("&Edit"));
     QMenu* viewMenu = menuBar()->addMenu(tr("&View"));
     // Help: the handbook, in a window of its own that stays open beside the editor.
+    // The menu of the editor's plugins, shown while one has entries (EditorPlugins).
+    m_pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
     QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
     QAction* handbookAction = helpMenu->addAction(tr("&Handbook"));
     handbookAction->setShortcut(QKeySequence::HelpContents);
@@ -2212,6 +2235,12 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
             return;
         }
         const QString message = m_dmdOutput.lastMessage();
+        if (message.isEmpty()) {
+            vpx::Host::log(vpx::Host::kLogInfo,
+                           "DMD output: no display reported after 4 seconds. For a ZeDMD, "
+                           "switch on \"ZeDMD debug output\" in the DMD Output settings and "
+                           "restart the output to see its search.");
+        }
         statusBar()->showMessage(
             message.isEmpty()
                 ? tr("DMD output on; if no display shows the picture, see Help -> Plugin "
@@ -2226,9 +2255,22 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     SettingsDialog dialog(loadTheme(), m_dmdRenderOptions, loadDmdOutputSettings(),
                           DmdOutput::isAvailable(), this);
     dialog.setLanguage(loadLanguage());
+    {
+        std::vector<SettingsDialog::PluginChoice> plugins;
+        for (const EditorPlugins::Plugin& plugin : EditorPlugins::available()) {
+            plugins.push_back({plugin.id, plugin.name, plugin.description, plugin.version});
+        }
+        dialog.setPlugins(plugins, EditorPlugins::enabledInSettings());
+    }
     dialog.showPage(page);
     if (dialog.exec() != QDialog::Accepted) {
         return;
+    }
+    if (m_plugins && dialog.enabledPlugins() != EditorPlugins::enabledInSettings()) {
+        const QStringList errors = m_plugins->setEnabled(dialog.enabledPlugins());
+        if (!errors.isEmpty()) {
+            QMessageBox::warning(this, tr("Plugins"), errors.join(QChar('\n')));
+        }
     }
     if (dialog.language() != loadLanguage()) {
         saveLanguage(dialog.language());
@@ -3323,6 +3365,32 @@ void MainWindow::orderSections()
     dialog.exec();
 }
 
+void MainWindow::showFramesForPlugin(std::size_t current, const std::vector<std::size_t>& selected)
+{
+    if (!m_frameList || selected.empty()) {
+        goToFrame(current);
+        return;
+    }
+    QListWidgetItem* currentItem = frameListItem(current);
+    if (!currentItem) {
+        goToFrame(current);
+        return;
+    }
+    {
+        // Told to the window once, below.
+        QSignalBlocker blocker(m_frameList);
+        m_frameList->clearSelection();
+        m_frameList->setCurrentItem(currentItem, QItemSelectionModel::Select);
+        for (std::size_t frame : selected) {
+            if (QListWidgetItem* item = frameListItem(frame)) {
+                item->setSelected(true);
+            }
+        }
+    }
+    m_frameList->scrollToItem(currentItem);
+    selectFrame(m_frameList->currentRow());
+}
+
 void MainWindow::goToFrame(std::size_t frameIndex)
 {
     if (!m_frameList) {
@@ -3861,7 +3929,10 @@ void MainWindow::applyAssetFilter()
     std::set<int> sprites;
     if (filtered && hasFrame) {
         masks.insert(m_document->comparisonMaskId(*frame));
-        backgrounds.insert(m_document->backgroundId(*frame));
+        // backgroundId() throws for a frame without background data.
+        if (const auto& background = m_document->backgroundData(*frame)) {
+            backgrounds.insert(background->backgroundId);
+        }
         for (const document::FrameSpriteReference& reference :
              m_document->frameSpriteReferences(*frame)) {
             sprites.insert(reference.spriteId);

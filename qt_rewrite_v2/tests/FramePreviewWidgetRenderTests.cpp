@@ -3320,6 +3320,7 @@ void testRecordListPage()
 void runAppHelpersWidgetTests();
 void runAutosaveWidgetTests();
 void runDmdOutputWidgetTests();
+void runEditorPluginsWidgetTests();
 void runSettingsWidgetTests();
 void runHandbookWidgetTests();
 void runBigOriginalWidgetTests();
@@ -3376,6 +3377,7 @@ int main(int argc, char* argv[])
     runCanvasEditControllerTests();
     runAutosaveWidgetTests();
     runDmdOutputWidgetTests();
+    runEditorPluginsWidgetTests();
     runSettingsWidgetTests();
     runHandbookWidgetTests();
     runFrameTesterWidgetTests();

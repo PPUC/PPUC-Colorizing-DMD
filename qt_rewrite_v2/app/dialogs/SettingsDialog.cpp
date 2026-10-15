@@ -5,6 +5,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
+#include <QListWidget>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTabWidget>
@@ -95,6 +96,16 @@ SettingsDialog::SettingsDialog(Theme theme,
     dmdLayout->addWidget(m_dmdOutputPage);
     m_tabs->addTab(dmd, tr("DMD Output"));
 
+    auto* plugins = new QWidget(m_tabs);
+    m_pluginNote = new QLabel(plugins);
+    m_pluginNote->setWordWrap(true);
+    m_pluginList = new QListWidget(plugins);
+    auto* pluginsLayout = new QVBoxLayout(plugins);
+    pluginsLayout->addWidget(m_pluginNote);
+    pluginsLayout->addWidget(m_pluginList, 1);
+    m_tabs->addTab(plugins, tr("Plugins"));
+    setPlugins({}, {});
+
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -105,7 +116,17 @@ SettingsDialog::SettingsDialog(Theme theme,
 
 void SettingsDialog::showPage(Page page)
 {
-    m_tabs->setCurrentIndex(page == Page::Appearance ? 0 : 1);
+    switch (page) {
+        case Page::Appearance:
+            m_tabs->setCurrentIndex(0);
+            break;
+        case Page::DmdOutput:
+            m_tabs->setCurrentIndex(1);
+            break;
+        case Page::Plugins:
+            m_tabs->setCurrentIndex(2);
+            break;
+    }
 }
 
 Theme SettingsDialog::theme() const
@@ -129,6 +150,40 @@ DmdRenderOptions SettingsDialog::canvasOptions() const
     options.pixelShape = static_cast<DmdPixelShape>(m_pixelShapeComboBox->currentData().toInt());
     options.pixelCoverage = static_cast<double>(m_pixelSizeSpinBox->value()) / 100.0;
     return options;
+}
+
+void SettingsDialog::setPlugins(const std::vector<PluginChoice>& plugins,
+                                const QStringList& enabled)
+{
+    m_pluginList->clear();
+    for (const PluginChoice& plugin : plugins) {
+        const QString name = plugin.name.isEmpty() ? plugin.id : plugin.name;
+        auto* item = new QListWidgetItem(
+            plugin.version.isEmpty() ? name : tr("%1 (version %2)").arg(name, plugin.version),
+            m_pluginList);
+        item->setData(Qt::UserRole, plugin.id);
+        item->setToolTip(plugin.description);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(enabled.contains(plugin.id) ? Qt::Checked : Qt::Unchecked);
+    }
+    m_pluginNote->setText(
+        plugins.empty()
+            ? tr("No editor plugins in the plugin folder. A plugin is a folder with its "
+                 "plugin.cfg in the editor's plugin folder.")
+            : tr("Plugins checked here are loaded now and at every start of the editor; "
+                 "their entries appear in the Plugins menu."));
+}
+
+QStringList SettingsDialog::enabledPlugins() const
+{
+    QStringList enabled;
+    for (int row = 0; row < m_pluginList->count(); ++row) {
+        const QListWidgetItem* item = m_pluginList->item(row);
+        if (item->checkState() == Qt::Checked) {
+            enabled << item->data(Qt::UserRole).toString();
+        }
+    }
+    return enabled;
 }
 
 DmdOutputSettings SettingsDialog::dmdOutputSettings() const

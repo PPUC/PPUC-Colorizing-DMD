@@ -36,6 +36,14 @@ public:
     [[nodiscard]] bool hasPlugin(const std::string& id);
     // The ids of the plugins in the plugin folder.
     [[nodiscard]] std::vector<std::string> pluginIds();
+    // The plugins in the plugin folder, as their plugin.cfg describes them.
+    struct PluginDescription {
+        std::string id;
+        std::string name;
+        std::string description;
+        std::string version;
+    };
+    [[nodiscard]] std::vector<PluginDescription> plugins();
     // Loads the plugin with the settings (unloading it first if it is loaded: a plugin reads
     // its settings when it loads). Settings not given take the plugin's defaults.
     bool load(const std::string& id, const Settings& settings, std::string* error);
@@ -63,6 +71,10 @@ public:
     // Changes with every line logged (also those dropped since) and with clearLog().
     [[nodiscard]] uint64_t logCount() const;
     void clearLog();
+    // Adds a line of the editor's own to the log (source "Editor"): what the editor asked a
+    // plugin to do, which the plugin itself may not report.
+    static void log(unsigned int level, const std::string& message);
+    static constexpr unsigned int kLogInfo = 0x10;
 
     ~Host();
     Host(const Host&) = delete;

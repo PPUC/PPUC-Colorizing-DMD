@@ -38,3 +38,4 @@ whenever a user-visible feature changes.
 - [Backgrounds](32-backgrounds.md)
 - [Missing Editing Features](33-missing-editing-features.md)
 - [Preview Rendering](34-preview-rendering.md)
+- [Plugins](35-plugins.md)

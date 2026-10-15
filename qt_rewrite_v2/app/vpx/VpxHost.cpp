@@ -13,6 +13,7 @@
 
 #ifdef COLORIZINGDMD_HAS_VPX_PLUGINS
 #include "plugins/ControllerPlugin.h"
+#include "vpx/EditorApiHost.h"
 #include "vpxhost/PluginBus.h"
 #endif
 
@@ -63,6 +64,11 @@ uint64_t Host::logCount() const
     const LogHistory& history = logHistory();
     const std::lock_guard<std::mutex> lock(history.mutex);
     return history.count;
+}
+
+void Host::log(unsigned int level, const std::string& message)
+{
+    logHistory().add(level, "Editor", message);
 }
 
 void Host::clearLog()
@@ -120,7 +126,15 @@ Host::Host()
 {
 }
 
-Host::~Host() = default;
+Host::~Host()
+{
+    if (m_impl->bus) {
+        // While the host's endpoint is still there; unloading plugins still call the API's
+        // functions, which need no subscription.
+        uninstallEditorApi();
+        m_impl->bus->Shutdown();
+    }
+}
 
 bool Host::open(std::string* error)
 {
@@ -150,6 +164,7 @@ bool Host::open(std::string* error)
         return false;
     }
     m_impl->bus = std::move(bus);
+    installEditorApi(&m_impl->bus->Api(), m_impl->bus->HostEndpointId());
     return true;
 }
 
@@ -172,6 +187,17 @@ std::vector<std::string> Host::pluginIds()
         }
     }
     return ids;
+}
+
+std::vector<Host::PluginDescription> Host::plugins()
+{
+    std::vector<PluginDescription> result;
+    if (open(nullptr)) {
+        for (const vpxhost::PluginInfo& plugin : m_impl->bus->Plugins()) {
+            result.push_back({plugin.id, plugin.name, plugin.description, plugin.version});
+        }
+    }
+    return result;
 }
 
 bool Host::load(const std::string& id, const Settings& settings, std::string* error)
@@ -359,6 +385,11 @@ bool Host::hasPlugin(const std::string&)
 }
 
 std::vector<std::string> Host::pluginIds()
+{
+    return {};
+}
+
+std::vector<Host::PluginDescription> Host::plugins()
 {
     return {};
 }

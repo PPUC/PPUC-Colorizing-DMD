@@ -20,3 +20,4 @@ them as they were. They are the editor's, not a project's: kept for the next sta
     `100%` leave black spacing between pixels, which makes the DMD grid visible.
   They are view and export settings only: no project data and no file changes with them.
 - `DMD Output`: the settings of the DMD output, see "DMD Output".
+- `Plugins`: which of the editor's plugins load, see "Plugins".

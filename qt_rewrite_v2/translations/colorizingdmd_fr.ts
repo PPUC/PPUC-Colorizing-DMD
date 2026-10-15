@@ -1376,6 +1376,13 @@
     </message>
 </context>
 <context>
+    <name>EditorPlugins</name>
+    <message>
+        <source>Plugin %1: %2</source>
+        <translation type="unfinished">Plugin %1 : %2</translation>
+    </message>
+</context>
+<context>
     <name>FramePanel</name>
     <message>
         <source>Drawing target</source>
@@ -1874,6 +1881,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>&amp;View</source>
         <translation type="unfinished">&amp;Affichage</translation>
+    </message>
+    <message>
+        <source>&amp;Plugins</source>
+        <translation type="unfinished">&amp;Plugins</translation>
     </message>
     <message>
         <source>&amp;Help</source>
@@ -2503,6 +2514,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>DMD output: %1</source>
         <translation type="unfinished">Sortie DMD : %1</translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation type="unfinished">Plugins</translation>
     </message>
     <message>
         <source>Language</source>
@@ -4444,6 +4459,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>DMD Output</source>
         <translation type="unfinished">Sortie DMD</translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation type="unfinished">Plugins</translation>
+    </message>
+    <message>
+        <source>%1 (version %2)</source>
+        <translation type="unfinished">%1 (version %2)</translation>
+    </message>
+    <message>
+        <source>No editor plugins in the plugin folder. A plugin is a folder with its plugin.cfg in the editor&apos;s plugin folder.</source>
+        <translation type="unfinished">Aucun plugin d&apos;éditeur dans le dossier des plugins. Un plugin est un dossier avec son plugin.cfg dans le dossier des plugins de l&apos;éditeur.</translation>
+    </message>
+    <message>
+        <source>Plugins checked here are loaded now and at every start of the editor; their entries appear in the Plugins menu.</source>
+        <translation type="unfinished">Les plugins cochés ici sont chargés maintenant et à chaque démarrage de l&apos;éditeur ; leurs entrées apparaissent dans le menu Plugins.</translation>
     </message>
 </context>
 <context>

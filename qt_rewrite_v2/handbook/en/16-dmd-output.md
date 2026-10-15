@@ -38,8 +38,11 @@ switching it off unloads it and lets them go.
   found or why one failed. When the plugin does not load, the output switches off again and the
   status bar says why.
 - `Help -> Plugin Log` shows everything the plugins and the plugin host logged since the editor
-  started (the last 5000 lines): which displays libdmdutil looked for, found or failed to open,
-  with time and level. `Show` limits it to information, warnings or errors; `Copy All` copies the
+  started (the last 5000 lines), with time, level and source. libdmdutil reports a display it
+  finds or fails to open, but not one it looks for in vain; so the editor adds its own lines
+  (source `Editor`): what the output looks for when it starts (ZeDMD on which port or over
+  Wi-Fi, Pixelcade, PIN2DMD, or a dmdserver), when no display was reported after 4 seconds, and
+  when it stops. `Show` limits it to information, warnings or errors; `Copy All` copies the
   lines shown, for a report; `Clear` starts over. When a display stays dark, switch on `ZeDMD
   debug output` (for a ZeDMD), switch the output off and on, and look there.
 - The plugins lie in a folder of their own, one folder per plugin as VPX ships them: `plugins`

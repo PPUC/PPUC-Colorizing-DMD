@@ -1101,6 +1101,23 @@ lines of the bus and every plugin (thread-safe; plugins log from their threads),
 `Help -> Plugin Log` (`PluginLogWindow`, polls twice a second, level filter, Copy All, Clear).
 DMD Output settings got `ZeDMD debug output` (the DMDUtil plugin's `ZeDMDDebug`).
 
+libdmdutil logs a display it finds, not one it looks for in vain; `vpx::Host::log()` adds the
+editor's own lines (source `Editor`): what DMD output looks for on start, nothing reported
+after 4 s, stop.
+
+## Editor plugins (2026-10-15)
+
+Editor API for plugins on the VPX plugin bus: `plugin-api/ColorizingDMDPlugin.h` (C, versioned
+table, message `ColorizingDMD.GetEditorAPI:1`, events OnProjectChanged/OnSelectionChanged).
+Host side `app/vpx/EditorApi.{h,cpp}` (installed when the bus opens, released before
+Shutdown), `EditorBackend` implemented by `app/EditorPlugins.{h,cpp}` (loads the plugins chosen
+under Settings -> Plugins, pumps the bus every 20 ms while one is loaded, polls revision and
+selection for the events, Plugins menu, settings under `plugins/<id>/`). v1 reads only;
+undoable edits come in a later version. Tests: `tests/EditorPluginsWidgetTests.cpp` call the
+table as a plugin does. The AI assistant plugin that uses it lives in its own repository
+(`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
+it in the editor's packages.
+
 ## Translations (2026-10-15)
 
 Owner: German and French (the owner reads both), drafted here; Qt Linguist workflow.

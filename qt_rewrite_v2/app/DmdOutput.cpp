@@ -159,6 +159,47 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
         return false;
     }
     impl.running = true;
+    // libdmdutil reports a display it finds, but not one it looks for in vain: what it was
+    // asked to look for goes into the plugin log here.
+    std::string where;
+    if (server) {
+        where = "a dmdserver at " + settings.serverAddress.trimmed().toStdString() + ":" +
+                std::to_string(settings.serverPort);
+    } else {
+        std::vector<std::string> displays;
+        if (settings.zedmd) {
+            displays.push_back(settings.zedmdDevice.trimmed().isEmpty()
+                                   ? "ZeDMD on any serial port"
+                                   : "ZeDMD on " + settings.zedmdDevice.trimmed().toStdString());
+        }
+        if (settings.zedmdWiFi) {
+            const QString address = settings.zedmdWiFiAddress.trimmed();
+            displays.push_back("ZeDMD over Wi-Fi at " +
+                               (address.isEmpty() ? std::string("zedmd-wifi.local")
+                                                  : address.toStdString()));
+        }
+        if (settings.pixelcade) {
+            displays.push_back(settings.pixelcadeDevice.trimmed().isEmpty()
+                                   ? "Pixelcade on any serial port"
+                                   : "Pixelcade on " +
+                                         settings.pixelcadeDevice.trimmed().toStdString());
+        }
+        if (settings.pin2dmd) {
+            displays.push_back("PIN2DMD");
+        }
+        for (std::size_t index = 0; index < displays.size(); ++index) {
+            where += (index == 0 ? "" : ", ") + displays[index];
+        }
+        if (where.empty()) {
+            where = "no display (none is switched on in the DMD Output settings)";
+        }
+        if (settings.zedmdDebug && (settings.zedmd || settings.zedmdWiFi)) {
+            where += "; ZeDMD debug output on";
+        }
+    }
+    vpx::Host::log(vpx::Host::kLogInfo,
+                   "DMD output started, looking for " + where +
+                       ". libdmdutil reports a display it finds, not one it does not find.");
     return true;
 }
 
@@ -169,6 +210,7 @@ void DmdOutput::stop()
     if (impl.running) {
         vpx::Host::instance().unload(kPluginId);
         vpx::Host::instance().setLogHandler({});
+        vpx::Host::log(vpx::Host::kLogInfo, "DMD output stopped.");
     }
     impl.running = false;
     impl.lastPixels.clear();

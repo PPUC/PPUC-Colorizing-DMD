@@ -4,11 +4,14 @@
 # types, so the rest of the editor stays C++17 while this target, like the SDK, is C++20.
 
 add_library(colorizing_qt_v2_vpx STATIC
+    EditorApi.cpp
+    EditorApi.h
+    EditorApiHost.h
     VpxHost.cpp
     VpxHost.h
 )
 target_include_directories(colorizing_qt_v2_vpx PUBLIC "${PROJECT_SOURCE_DIR}/app")
-target_link_libraries(colorizing_qt_v2_vpx PUBLIC Qt6::Core)
+target_link_libraries(colorizing_qt_v2_vpx PUBLIC Qt6::Core PRIVATE colorizing_qt_v2_core)
 colorizing_qt_v2_enable_warnings(colorizing_qt_v2_vpx)
 
 set(vpx_libvpxhost_dir "")
@@ -57,6 +60,11 @@ set_property(TARGET vpxhost APPEND PROPERTY
 set_target_properties(colorizing_qt_v2_vpx PROPERTIES CXX_STANDARD 20)
 target_link_libraries(colorizing_qt_v2_vpx PRIVATE vpxhost::vpxhost)
 target_compile_definitions(colorizing_qt_v2_vpx PRIVATE COLORIZINGDMD_HAS_VPX_PLUGINS)
+# The editor API for plugins (plugin-api/ColorizingDMDPlugin.h, a C header on top of the SDK's
+# MsgPlugin.h). Public, so that tests can call it as a plugin does.
+target_include_directories(colorizing_qt_v2_vpx SYSTEM PUBLIC "${vpx_vpinball_dir}/plugins")
+target_include_directories(colorizing_qt_v2_vpx PUBLIC "${PROJECT_SOURCE_DIR}/plugin-api")
+target_compile_definitions(colorizing_qt_v2_vpx PUBLIC COLORIZINGDMD_HAS_EDITOR_PLUGIN_API)
 message(STATUS "VPX plugins: libvpxhost from ${vpx_libvpxhost_dir}, SDK from ${vpx_vpinball_dir}")
 
 # Plugins built here go into <build>/vpx-plugins/<name>/ with their plugin.cfg, as VPX ships

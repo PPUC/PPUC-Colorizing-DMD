@@ -15,6 +15,7 @@
 
 #include "Autosave.h"
 #include "DmdOutput.h"
+#include "EditorPlugins.h"
 #include "dialogs/SettingsDialog.h"
 #include "CanvasEditController.h"
 #include "EditHelpersController.h"
@@ -620,6 +621,13 @@ private:
     document::UpscaleFilter m_createHdFilter = document::UpscaleFilter::Nearest;
     // The document revision the section bar's lists show.
     std::optional<uint64_t> m_sectionBarRevision;
+
+    // The editor's plugins (Settings -> Plugins) and their menu. Last: they answer plugins
+    // from the members above, and go first when the window does.
+    QMenu* m_pluginsMenu = nullptr;
+    std::unique_ptr<EditorPlugins> m_plugins;
+    // Makes the frame current and selects the frames, for a plugin.
+    void showFramesForPlugin(std::size_t current, const std::vector<std::size_t>& selected);
 };
 
 }  // namespace colorizing::app

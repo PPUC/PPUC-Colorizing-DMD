@@ -2,11 +2,16 @@
 
 #include <QCoreApplication>
 #include <QDialog>
+#include <QStringList>
+
+#include <vector>
 
 #include "Appearance.h"
 #include "DmdOutput.h"
 
 class QComboBox;
+class QLabel;
+class QListWidget;
 class QSpinBox;
 class QTabWidget;
 
@@ -24,6 +29,7 @@ public:
     enum class Page {
         Appearance,
         DmdOutput,
+        Plugins,
     };
 
     SettingsDialog(Theme theme,
@@ -41,6 +47,16 @@ public:
     [[nodiscard]] DmdRenderOptions canvasOptions() const;
     [[nodiscard]] DmdOutputSettings dmdOutputSettings() const;
 
+    // The editor's plugins that can be chosen, and those chosen (EditorPlugins).
+    struct PluginChoice {
+        QString id;
+        QString name;
+        QString description;
+        QString version;
+    };
+    void setPlugins(const std::vector<PluginChoice>& plugins, const QStringList& enabled);
+    [[nodiscard]] QStringList enabledPlugins() const;
+
 private:
     QTabWidget* m_tabs = nullptr;
     QComboBox* m_themeComboBox = nullptr;
@@ -48,6 +64,8 @@ private:
     QComboBox* m_pixelShapeComboBox = nullptr;
     QSpinBox* m_pixelSizeSpinBox = nullptr;
     DmdOutputSettingsPage* m_dmdOutputPage = nullptr;
+    QListWidget* m_pluginList = nullptr;
+    QLabel* m_pluginNote = nullptr;
 };
 
 }  // namespace colorizing::app

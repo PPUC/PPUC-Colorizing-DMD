@@ -1376,6 +1376,13 @@
     </message>
 </context>
 <context>
+    <name>EditorPlugins</name>
+    <message>
+        <source>Plugin %1: %2</source>
+        <translation type="unfinished">Plugin %1: %2</translation>
+    </message>
+</context>
+<context>
     <name>FramePanel</name>
     <message>
         <source>Drawing target</source>
@@ -1874,6 +1881,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>&amp;View</source>
         <translation type="unfinished">&amp;Ansicht</translation>
+    </message>
+    <message>
+        <source>&amp;Plugins</source>
+        <translation type="unfinished">&amp;Plugins</translation>
     </message>
     <message>
         <source>&amp;Help</source>
@@ -2503,6 +2514,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>DMD output: %1</source>
         <translation type="unfinished">DMD-Ausgabe: %1</translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation type="unfinished">Plugins</translation>
     </message>
     <message>
         <source>Language</source>
@@ -4444,6 +4459,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>DMD Output</source>
         <translation type="unfinished">DMD-Ausgabe</translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation type="unfinished">Plugins</translation>
+    </message>
+    <message>
+        <source>%1 (version %2)</source>
+        <translation type="unfinished">%1 (Version %2)</translation>
+    </message>
+    <message>
+        <source>No editor plugins in the plugin folder. A plugin is a folder with its plugin.cfg in the editor&apos;s plugin folder.</source>
+        <translation type="unfinished">Keine Editor-Plugins im Plugin-Ordner. Ein Plugin ist ein Ordner mit seiner plugin.cfg im Plugin-Ordner des Editors.</translation>
+    </message>
+    <message>
+        <source>Plugins checked here are loaded now and at every start of the editor; their entries appear in the Plugins menu.</source>
+        <translation type="unfinished">Hier angehakte Plugins werden jetzt und bei jedem Start des Editors geladen; ihre Einträge erscheinen im Menü Plugins.</translation>
     </message>
 </context>
 <context>

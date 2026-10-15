@@ -83,6 +83,16 @@ void runDmdOutputWidgetTests()
         });
         expect(named && vpx::Host::instance().logCount() >= lines.size(),
                "the plugin log keeps the bus's lines");
+        if (available) {
+            const auto editorSaid = [&lines](const std::string& text) {
+                return std::any_of(lines.begin(), lines.end(), [&text](const auto& line) {
+                    return line.source == "Editor" && line.message.find(text) != std::string::npos;
+                });
+            };
+            expect(editorSaid("DMD output started, looking for no display") &&
+                       editorSaid("DMD output stopped"),
+                   "the editor logs what the output looks for, and its stop");
+        }
         app::PluginLogWindow window;
         window.refresh();
         expect(window.text().contains(QStringLiteral("Plugin directory")),
