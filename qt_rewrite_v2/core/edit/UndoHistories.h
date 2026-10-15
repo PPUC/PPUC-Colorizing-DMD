@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "edit/EditCommand.h"
@@ -85,6 +86,11 @@ public:
                                   document::ProjectDocument& document);
     const EditCommand* redoLatest(const std::vector<HistoryKey>& keys,
                                   document::ProjectDocument& document);
+    // Every history that has a command to undo or redo, for undoing anywhere in the project.
+    [[nodiscard]] std::vector<HistoryKey> keys() const;
+    // The history undoLatest() or redoLatest() would use among the keys, without running it.
+    [[nodiscard]] std::optional<HistoryKey> latestUndoKey(const std::vector<HistoryKey>& keys) const;
+    [[nodiscard]] std::optional<HistoryKey> latestRedoKey(const std::vector<HistoryKey>& keys) const;
 
     void clear();
     // Drops one key's stacks, or those of both resolutions of a kind and index, once the data

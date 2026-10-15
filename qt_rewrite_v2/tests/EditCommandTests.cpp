@@ -904,6 +904,30 @@ std::unique_ptr<EditCommand> makePaletteColor(uint16_t oldColor, uint16_t newCol
         std::vector<colorizing::edit::PaletteColorChange>{{2, oldColor, newColor}});
 }
 
+// Undo Last Edit Anywhere: the latest step among every history, across frames.
+void testHistoryLatestAnywhere()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    expect(histories.keys().empty() && !histories.latestUndoKey(histories.keys()),
+           "no histories, nothing to undo anywhere");
+    const HistoryKey first =
+        commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 0x0001));
+    const HistoryKey second =
+        commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 0x0002));
+    expect(histories.keys().size() == 2, "every history with steps is listed");
+    expect(histories.latestUndoKey(histories.keys()) == second,
+           "the latest step is the one made last, on the other frame");
+    histories.undoLatest({second}, document);
+    expect(histories.latestUndoKey(histories.keys()) == first &&
+               histories.latestRedoKey(histories.keys()) == second,
+           "then the one before it; the undone one can be redone");
+    histories.undoLatest({first}, document);
+    expect(!histories.latestUndoKey(histories.keys()) && histories.keys().size() == 2 &&
+               histories.latestRedoKey(histories.keys()) == first,
+           "histories with only redo steps stay listed; the last undone is redone first");
+}
+
 void testHistoryUndoLatestIsChronological()
 {
     ProjectDocument document = makeDocument();
@@ -1139,6 +1163,7 @@ void runEditCommandTests()
     testFrameHdCommands();
     testSpriteHdCommands();
     testHistoryUndoLatestIsChronological();
+    testHistoryLatestAnywhere();
     testReplacingCommandDropsHistories();
     testCommandThatFailsStaysInItsHistory();
 }

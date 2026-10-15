@@ -1131,6 +1131,15 @@ table as a plugin does. The AI assistant plugin that uses it lives in its own re
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 
+## Undo anywhere (2026-10-15)
+
+Owner reported: after a paste, Undo reached only the paste. Cause: the per-frame histories (by
+design) — a paste into another frame lands in that frame's history. Owner's choice: keep Undo
+per context and add `Edit -> Undo/Redo Last Edit Anywhere` (`Ctrl/Cmd+Alt+(Shift+)Z`):
+`UndoHistories::keys()` / `latestUndoKey` / `latestRedoKey`, `MainWindow::undo(true)` goes to
+the step's frame first (`goToHistory`: frame kinds; SD/HD for pixel edits) and undoes that one
+history. Not selected for it: comparison masks, backgrounds, sprites, palettes.
+
 ## Shapes past the frame's edge (2026-10-15)
 
 Owner: CDMD 3.17.3 lets a circle or ellipse be larger than the frame (gradients). During a drag

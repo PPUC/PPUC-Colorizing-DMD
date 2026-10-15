@@ -2093,6 +2093,22 @@ Utiliser Créer la frame %1.</translation>
         <translation>&amp;Rétablir</translation>
     </message>
     <message>
+        <source>Undo Last Edit &amp;Anywhere</source>
+        <translation>Annuler la dernière modification &amp;partout</translation>
+    </message>
+    <message>
+        <source>Undo the most recent edit of the project, on whichever frame or record it was made, and go to that frame</source>
+        <translation>Annuler la modification la plus récente du projet, quelle que soit la frame ou l&apos;élément concerné, et aller à cette frame</translation>
+    </message>
+    <message>
+        <source>Redo Last Edit A&amp;nywhere</source>
+        <translation>Rétablir la dernière modification pa&amp;rtout</translation>
+    </message>
+    <message>
+        <source>Redo the edit undone most recently anywhere in the project, and go to its frame</source>
+        <translation>Rétablir la dernière modification annulée dans tout le projet, et aller à sa frame</translation>
+    </message>
+    <message>
         <source>&amp;Delete Frames...</source>
         <translation>&amp;Supprimer des frames...</translation>
     </message>

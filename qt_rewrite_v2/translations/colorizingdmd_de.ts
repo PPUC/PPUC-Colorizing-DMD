@@ -2093,6 +2093,22 @@ Use Create %1 Frame.</source>
         <translation>&amp;Wiederholen</translation>
     </message>
     <message>
+        <source>Undo Last Edit &amp;Anywhere</source>
+        <translation>Letzte Änderung über&amp;all rückgängig</translation>
+    </message>
+    <message>
+        <source>Undo the most recent edit of the project, on whichever frame or record it was made, and go to that frame</source>
+        <translation>Die letzte Änderung des Projekts rückgängig machen, auf welchem Frame oder Datensatz sie auch gemacht wurde, und zu diesem Frame gehen</translation>
+    </message>
+    <message>
+        <source>Redo Last Edit A&amp;nywhere</source>
+        <translation>Letzte Änderung überall wie&amp;derholen</translation>
+    </message>
+    <message>
+        <source>Redo the edit undone most recently anywhere in the project, and go to its frame</source>
+        <translation>Die zuletzt rückgängig gemachte Änderung im ganzen Projekt wiederholen und zu ihrem Frame gehen</translation>
+    </message>
+    <message>
         <source>&amp;Delete Frames...</source>
         <translation>Frames &amp;löschen...</translation>
     </message>

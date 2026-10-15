@@ -684,6 +684,24 @@ void MainWindow::createActions()
         redo();
     });
 
+    // Undo and Redo above keep to the frame (or record) shown; these go through the whole
+    // project, most recent first, and show the frame they change.
+    m_undoAnywhereAction = editMenu->addAction(tr("Undo Last Edit &Anywhere"));
+    m_undoAnywhereAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Z));
+    m_undoAnywhereAction->setShortcutContext(Qt::ApplicationShortcut);
+    m_undoAnywhereAction->setToolTip(
+        tr("Undo the most recent edit of the project, on whichever frame or record it was "
+           "made, and go to that frame"));
+    m_undoAnywhereAction->setEnabled(false);
+    connect(m_undoAnywhereAction, &QAction::triggered, this, [this]() { undo(true); });
+    m_redoAnywhereAction = editMenu->addAction(tr("Redo Last Edit A&nywhere"));
+    m_redoAnywhereAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_Z));
+    m_redoAnywhereAction->setShortcutContext(Qt::ApplicationShortcut);
+    m_redoAnywhereAction->setToolTip(
+        tr("Redo the edit undone most recently anywhere in the project, and go to its frame"));
+    m_redoAnywhereAction->setEnabled(false);
+    connect(m_redoAnywhereAction, &QAction::triggered, this, [this]() { redo(true); });
+
     editMenu->addSeparator();
     m_deleteFramesAction = editMenu->addAction(tr("&Delete Frames..."));
     m_deleteFramesAction->setToolTip(tr("Delete the selected frames"));
@@ -9114,14 +9132,24 @@ bool MainWindow::isSpriteCanvasActive() const
            currentSpriteIndex().has_value();
 }
 
-void MainWindow::undo()
+void MainWindow::undo(bool anywhere)
 {
     if (!m_document) {
         return;
     }
+    std::vector<edit::HistoryKey> keys = currentHistoryKeys();
+    if (anywhere) {
+        keys = m_undoHistories.keys();
+        const std::optional<edit::HistoryKey> key = m_undoHistories.latestUndoKey(keys);
+        if (!key) {
+            return;
+        }
+        goToHistory(*key);
+        keys = {*key};
+    }
     const edit::EditCommand* command = nullptr;
     try {
-        command = m_undoHistories.undoLatest(currentHistoryKeys(), *m_document);
+        command = m_undoHistories.undoLatest(keys, *m_document);
     } catch (const std::exception& ex) {
         // The command could not run and stays where it was (UndoHistories leaves it on its
         // stack), and the document is unchanged.
@@ -9152,14 +9180,24 @@ void MainWindow::undo()
                              1500);
 }
 
-void MainWindow::redo()
+void MainWindow::redo(bool anywhere)
 {
     if (!m_document) {
         return;
     }
+    std::vector<edit::HistoryKey> keys = currentHistoryKeys();
+    if (anywhere) {
+        keys = m_undoHistories.keys();
+        const std::optional<edit::HistoryKey> key = m_undoHistories.latestRedoKey(keys);
+        if (!key) {
+            return;
+        }
+        goToHistory(*key);
+        keys = {*key};
+    }
     const edit::EditCommand* command = nullptr;
     try {
-        command = m_undoHistories.redoLatest(currentHistoryKeys(), *m_document);
+        command = m_undoHistories.redoLatest(keys, *m_document);
     } catch (const std::exception& ex) {
         // The command could not run and stays where it was (UndoHistories leaves it on its
         // stack), and the document is unchanged.
@@ -9190,8 +9228,51 @@ void MainWindow::redo()
                              1500);
 }
 
+void MainWindow::goToHistory(const edit::HistoryKey& key)
+{
+    if (!m_document) {
+        return;
+    }
+    switch (key.kind) {
+        case edit::EditKind::FramePixels:
+        case edit::EditKind::DynamicMask:
+        case edit::EditKind::DynamicColor:
+        case edit::EditKind::DynamicShadow:
+        case edit::EditKind::BackgroundMask:
+        case edit::EditKind::FrameAttributes:
+            break;
+        default:
+            // Masks, backgrounds, sprites, palettes and the project's own histories have no
+            // frame to show.
+            return;
+    }
+    if (key.index >= m_document->frameCount()) {
+        return;
+    }
+    if (currentFrameIndex() != key.index) {
+        goToFrame(key.index);
+    }
+    // The plane of a pixel edit, where the frame has both.
+    if (key.kind == edit::EditKind::FramePixels && key.resolution != m_activeResolution &&
+        !isHdOnlyProject() && !isOriginalPlaneOnlyProject() &&
+        (key.resolution == render::Resolution::Sd || m_document->hasHdFrame(key.index))) {
+        QToolButton* button =
+            key.resolution == render::Resolution::Hd ? m_hdButton : m_sdButton;
+        if (button && button->isEnabled()) {
+            button->click();
+        }
+    }
+}
+
 void MainWindow::updateUndoRedoActions()
 {
+    if (m_undoAnywhereAction) {
+        const std::vector<edit::HistoryKey> all = m_undoHistories.keys();
+        m_undoAnywhereAction->setEnabled(m_document &&
+                                         m_undoHistories.latestUndoKey(all).has_value());
+        m_redoAnywhereAction->setEnabled(m_document &&
+                                         m_undoHistories.latestRedoKey(all).has_value());
+    }
     const std::vector<edit::HistoryKey> keys = currentHistoryKeys();
     if (m_undoAction) {
         m_undoAction->setEnabled(m_undoHistories.canUndoAny(keys));

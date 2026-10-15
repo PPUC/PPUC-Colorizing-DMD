@@ -26,6 +26,8 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+Shift+O` | Black original to black | `Ctrl+O` |
 | `Ctrl/Cmd+E`, `Alt+D` | Remove dynamic zones | same |
 | `Alt+A` | Assign the dynamic set | same |
+| `Ctrl/Cmd+Alt+Z` | Undo the most recent edit anywhere in the project | `Ctrl+Z` |
+| `Ctrl/Cmd+Alt+Shift+Z` | Redo the edit undone most recently anywhere | - |
 | `Ctrl/Cmd+Shift+H` | Show or hide all helper lines | - |
 | `Esc` while dragging a helper line | Put the line back | - |
 

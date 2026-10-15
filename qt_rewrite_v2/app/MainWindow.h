@@ -436,8 +436,12 @@ private:
     [[nodiscard]] bool isBackgroundImageTargetActive() const;
     [[nodiscard]] std::optional<std::size_t> currentSpriteIndex() const;
     [[nodiscard]] bool isSpriteCanvasActive() const;
-    void undo();
-    void redo();
+    // anywhere: the most recent step of the whole project (Edit -> Undo Last Edit Anywhere),
+    // after going to its frame; otherwise the most recent of the current context's histories.
+    void undo(bool anywhere = false);
+    void redo(bool anywhere = false);
+    // Shows the frame (and plane) an undo or redo of the history changes.
+    void goToHistory(const edit::HistoryKey& key);
     void updateUndoRedoActions();
     void updateProjectHeaderStatus();
     // The frame's thumbnail is out of date, see LazyListIcons::invalidate().
@@ -486,6 +490,8 @@ private:
 
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
+    QAction* m_undoAnywhereAction = nullptr;
+    QAction* m_redoAnywhereAction = nullptr;
     QAction* m_saveAction = nullptr;
     QAction* m_addFramesFromDumpAction = nullptr;
     QAction* m_deleteFramesAction = nullptr;

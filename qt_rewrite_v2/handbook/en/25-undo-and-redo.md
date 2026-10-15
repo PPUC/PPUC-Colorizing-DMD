@@ -55,6 +55,15 @@ or in the other SD/HD mode stay in their own histories and are skipped; switch t
 undo them. Switching frame, SD/HD mode, edit mode, or selected background or palette updates
 whether Undo and Redo are available.
 
+`Edit -> Undo Last Edit Anywhere` (`Ctrl/Cmd+Alt+Z`) undoes the most recent edit of the whole
+project instead, whichever frame, record or mode it was made in, the way the Win32 editor's one
+undo list does. When it belongs to a frame, the editor goes to that frame first (and, for a
+pixel edit, to its SD or HD plane), so the change can be seen. Repeated, it goes back through the
+project's edits in the order they were made: after pasting into another frame, for instance, it
+undoes the paste and then the edits made before it on the frame copied from. `Redo Last Edit
+Anywhere` (`Ctrl/Cmd+Alt+Shift+Z`) redoes the edit undone most recently anywhere. A comparison
+mask, a background, a sprite or a palette is not selected for it; its edit is undone where it is.
+
 An edit applied to several selected frames is recorded once per changed frame, in that frame's own
 history. Undo therefore reverts it only on the current frame; select another frame to undo it
 there. This applies to drawing (also in `Set Replace` mode), to dynamic shadow direction and color
