@@ -89,7 +89,11 @@
     </message>
     <message>
         <source>Switch drawing target to the selected background</source>
-        <translation>Dessiner sur l&apos;arrière-plan sélectionné</translation>
+        <translation type="vanished">Dessiner sur l&apos;arrière-plan sélectionné</translation>
+    </message>
+    <message>
+        <source>Edit the selected background on the canvas; click again to go back to the frame</source>
+        <translation>Modifier le fond sélectionné sur le canevas ; cliquer à nouveau pour revenir à la frame</translation>
     </message>
     <message>
         <source>Frame -&gt; BG</source>
@@ -2746,6 +2750,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>La frame originale, l&apos;image 128x32 et l&apos;image 256x64, l&apos;une au-dessus de l&apos;autre</translation>
     </message>
     <message>
+        <source>Editing the frame</source>
+        <translation>Modification de la frame</translation>
+    </message>
+    <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
         <translation>Sortie DMD active, mais aucun écran trouvé (un PIN2DMD n&apos;est pas signalé) ; voir Aide -&gt; Journal des plugins</translation>
     </message>
@@ -3371,7 +3379,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Editing background %1</source>
-        <translation>Édition de l&apos;arrière-plan %1</translation>
+        <translation type="vanished">Édition de l&apos;arrière-plan %1</translation>
+    </message>
+    <message>
+        <source>Editing background %1; Edit BG again goes back to the frame</source>
+        <translation>Modification du fond %1 ; Éditer AP à nouveau revient à la frame</translation>
     </message>
     <message>
         <source>Select a frame and background first</source>

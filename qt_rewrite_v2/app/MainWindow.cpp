@@ -1127,6 +1127,8 @@ void MainWindow::createCentralView()
     m_framePanel = new FramePanel(central);
     m_framePanel->onPaintTargetChanged = [this]() {
         paintTargetChanged();
+        // Edit BG shows whether the background is edited.
+        updateBackgroundControls();
     };
     m_framePanel->onBackgroundIdEdited = [this](int backgroundId) {
         setCurrentFrameBackgroundId(backgroundId);
@@ -1174,8 +1176,16 @@ void MainWindow::createCentralView()
         setCurrentFrameBackgroundId(-1);
         updateBackgroundControls();
     };
-    m_backgroundPanel->onEditRequested = [this]() {
-        editAssignedBackground();
+    m_backgroundPanel->onEditRequested = [this](bool editing) {
+        if (editing) {
+            editAssignedBackground();
+            return;
+        }
+        // Back to the frame, as Edit Sprite does when it is clicked again.
+        setPaintTarget(PaintTarget::Frame);
+        updatePaintTargetMode();
+        updateBackgroundControls();
+        statusBar()->showMessage(tr("Editing the frame"), 1500);
     };
     m_backgroundPanel->onCopyFrameToBackgroundRequested = [this]() {
         copyCurrentFrameToSelectedBackground();
@@ -5091,6 +5101,7 @@ void MainWindow::updateBackgroundControls()
     state.hasCurrentFrame = currentFrameIndex().has_value();
     const std::vector<std::size_t> selectedFrames = selectedFrameIndices();
     state.hasSelectedFrames = !selectedFrames.empty();
+    state.editing = isBackgroundImageTargetActive();
     state.selectedFramesHaveBackground =
         m_document && std::any_of(selectedFrames.begin(), selectedFrames.end(),
                                   [this](std::size_t frame) {
@@ -5423,9 +5434,11 @@ void MainWindow::editAssignedBackground()
     leaveSpriteCanvas();
     setPaintTarget(PaintTarget::Background);
     updatePaintTargetMode();
+    updateBackgroundControls();
     statusBar()->showMessage(
-        tr("Editing background %1").arg(static_cast<int>(*backgroundIndex)),
-        1500);
+        tr("Editing background %1; Edit BG again goes back to the frame")
+            .arg(static_cast<int>(*backgroundIndex)),
+        4000);
 }
 
 void MainWindow::copyCurrentFrameToSelectedBackground()
@@ -8863,6 +8876,12 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
         case edit::EditKind::BackgroundMask:
             m_preview->update();
             updateProjectHeaderStatus();
+            if (target.kind == edit::EditKind::BackgroundMask) {
+                // Where the background shows changes the frame's picture in the strip.
+                for (std::size_t frameIndex : target.frameIndices) {
+                    updateFrameThumbnail(frameIndex);
+                }
+            }
             if (target.kind == edit::EditKind::ComparisonMask) {
                 scheduleMaskIconUpdate(target.index);
                 // What is the same as the current frame follows its mask.

@@ -205,9 +205,10 @@ void CanvasEditController::originalPixelClicked(const CanvasEditContext& context
         paintCaptureSelection(context, {render::Point{hit.x, hit.y}}, erase);
         return;
     }
-    // Dynamic zones are on the original's plane: they are painted, filled and picked on the
-    // original as on the colorized picture.
-    if (context.layer == CanvasEditLayer::DynamicMask) {
+    // Dynamic zones and the background mask are on the original's plane too: they are
+    // painted, filled (and dynamic sets picked) on the original as on the colorized picture.
+    if (context.layer == CanvasEditLayer::DynamicMask ||
+        context.layer == CanvasEditLayer::BackgroundMask) {
         if (isOnOriginal(projectGeometry(context), hit)) {
             colorizedPixelClicked(context, hit, erase);
         }
@@ -299,8 +300,8 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
             }
             return;
         case CanvasEditLayer::BackgroundMask:
-            if (onColorized) {
-                showPreview(render::CanvasRegion::ColorizedFrame,
+            if (onColorized || isOnOriginal(geometry, start)) {
+                showPreview(start.region,
                             start.resolution,
                             strokePixels(context, start, end),
                             erase ? eraseColor : QColor(255, 200, 0, 150));
@@ -393,7 +394,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                                       : tr("Painted dynamic mask %1")));
             return;
         case CanvasEditLayer::BackgroundMask:
-            if (!onColorized) {
+            if (!onColorized && !isOnOriginal(projectGeometry(context), start)) {
                 return;
             }
             if (tool == DrawingTool::PaletteGradient) {
@@ -733,29 +734,32 @@ void CanvasEditController::floodFillBackgroundMask(const CanvasEditContext& cont
     const document::ProjectDocument& document = *context.document;
     const std::size_t frameIndex = *context.currentFrame;
     try {
-        const uint8_t targetValue =
-            document.backgroundMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
         const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
-        if (targetValue == newValue) {
-            return;
-        }
-
         const std::optional<document::FrameBackgroundData>& backgroundData =
             document.backgroundData(frameIndex);
         if (!backgroundData || backgroundData->backgroundId >= document.backgroundCount()) {
             showStatus(tr("No background assigned"), kStatusMs);
             return;
         }
-        const document::IndexedFrame& mask = hit.resolution == render::Resolution::Hd
-                                                 ? backgroundData->maskHd
-                                                 : backgroundData->maskSd;
+        // The area comes from the frame, not from the mask (mostly all 0 or all 1): the
+        // pixels connected to the clicked one with its color in the frame's colorized
+        // picture, or with its shade on the original frame.
+        std::vector<render::Point> area;
+        if (hit.region == render::CanvasRegion::OriginalFrame) {
+            const document::IndexedFrame& original = document.originalFrame(frameIndex);
+            area = edit::floodFillMatching(
+                original.pixels, original.size, render::Point{hit.x, hit.y},
+                original.pixels[static_cast<std::size_t>(hit.y) * original.size.width + hit.x]);
+        } else {
+            const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, hit.resolution);
+            area = edit::floodFillMatching(
+                frame.pixels, frame.size, render::Point{hit.x, hit.y},
+                document.colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y));
+        }
         commitFrameMaskPixels(context,
                               edit::EditKind::BackgroundMask,
                               hit.resolution,
-                              edit::floodFillMatching(mask.pixels,
-                                                      mask.size,
-                                                      render::Point{hit.x, hit.y},
-                                                      targetValue),
+                              area,
                               newValue,
                               erase ? tr("Flood erased background mask")
                                     : tr("Flood filled background mask"));

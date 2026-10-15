@@ -89,7 +89,11 @@
     </message>
     <message>
         <source>Switch drawing target to the selected background</source>
-        <translation>Zeichenziel auf den ausgewählten Hintergrund umschalten</translation>
+        <translation type="vanished">Zeichenziel auf den ausgewählten Hintergrund umschalten</translation>
+    </message>
+    <message>
+        <source>Edit the selected background on the canvas; click again to go back to the frame</source>
+        <translation>Den ausgewählten Hintergrund auf der Zeichenfläche bearbeiten; erneut klicken, um zum Frame zurückzukehren</translation>
     </message>
     <message>
         <source>Frame -&gt; BG</source>
@@ -2746,6 +2750,10 @@ Use Create %1 Frame.</source>
         <translation>Der Original-Frame, das 128x32-Bild und das 256x64-Bild übereinander</translation>
     </message>
     <message>
+        <source>Editing the frame</source>
+        <translation>Frame wird bearbeitet</translation>
+    </message>
+    <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
         <translation>DMD-Ausgabe an, aber kein Display gefunden (ein PIN2DMD wird nicht gemeldet); siehe Hilfe -&gt; Plugin-Protokoll</translation>
     </message>
@@ -3371,7 +3379,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Editing background %1</source>
-        <translation>Hintergrund %1 wird bearbeitet</translation>
+        <translation type="vanished">Hintergrund %1 wird bearbeitet</translation>
+    </message>
+    <message>
+        <source>Editing background %1; Edit BG again goes back to the frame</source>
+        <translation>Hintergrund %1 wird bearbeitet; HG bearbeiten erneut führt zum Frame zurück</translation>
     </message>
     <message>
         <source>Select a frame and background first</source>

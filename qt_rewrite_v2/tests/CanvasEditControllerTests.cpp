@@ -834,19 +834,37 @@ void testBackgroundMaskLayer()
                owner.status == "Painted background mask ellipse",
            "background mask stroke");
 
+    // The flood fill takes its area from the frame, not from the mask: a rectangle of
+    // another color on the frame is filled, whatever the mask holds there.
+    owner.next();
+    CanvasEditContext frameContext = context;
+    frameContext.layer = CanvasEditLayer::FramePixels;
+    frameContext.tool = DrawingTool::FilledRectangle;
+    frameContext.selectedFrames = {0};
+    frameContext.drawColor = 0x1234;
+    controller.strokeFinished(frameContext, colorized(20, 5), colorized(30, 11), false);
     owner.next();
     context.tool = DrawingTool::FloodFill;
     controller.colorizedPixelClicked(context, colorized(25, 8), false);
     expect(owner.committed(EditKind::BackgroundMask, {0}) &&
                owner.status == "Flood filled background mask" &&
                document.backgroundMaskPixel(0, Resolution::Sd, 25, 8) == 1 &&
+               document.backgroundMaskPixel(0, Resolution::Sd, 20, 5) == 1 &&
+               document.backgroundMaskPixel(0, Resolution::Sd, 31, 8) == 0 &&
                document.backgroundMaskPixel(0, Resolution::Sd, 0, 0) == 0,
-           "background mask flood fill stays inside the ellipse");
+           "background mask flood fills the frame's area of the clicked color");
     owner.next();
     controller.colorizedPixelClicked(context, colorized(25, 8), true);
     expect(owner.committed(EditKind::BackgroundMask, {0}) &&
-               owner.status == "Flood erased background mask",
-           "background mask flood erase");
+               owner.status == "Flood erased background mask" &&
+               document.backgroundMaskPixel(0, Resolution::Sd, 20, 5) == 0,
+           "background mask flood erase clears that area");
+    owner.next();
+    controller.originalPixelClicked(context, original(0, 0), false);
+    expect(owner.committed(EditKind::BackgroundMask, {0}) &&
+               document.backgroundMaskPixel(0, Resolution::Sd, 0, 0) == 1 &&
+               document.backgroundMaskPixel(0, Resolution::Sd, 25, 8) == 1,
+           "on the original, the area of the clicked shade (here all of it)");
 
     owner.next();
     context.tool = DrawingTool::ColorPicker;

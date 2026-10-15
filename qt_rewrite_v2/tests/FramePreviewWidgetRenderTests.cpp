@@ -2968,7 +2968,11 @@ void testBackgroundPanel()
     colorizing::app::BackgroundPanel panel;
     std::vector<int> requests(6, 0);
     panel.onAssignRequested = [&]() { ++requests[0]; };
-    panel.onEditRequested = [&]() { ++requests[1]; };
+    std::vector<bool> editRequests;
+    panel.onEditRequested = [&](bool editing) {
+        ++requests[1];
+        editRequests.push_back(editing);
+    };
     panel.onCopyFrameToBackgroundRequested = [&]() { ++requests[2]; };
     panel.onCopyBackgroundToFramesRequested = [&]() { ++requests[3]; };
     panel.onImportImageRequested = [&]() { ++requests[4]; };
@@ -2983,8 +2987,8 @@ void testBackgroundPanel()
 
     auto* assignButton =
         childByToolTip<QToolButton>(panel, "Assign selected background to selected frames");
-    auto* editButton =
-        childByToolTip<QToolButton>(panel, "Switch drawing target to the selected background");
+    auto* editButton = childByToolTip<QToolButton>(
+        panel, "Edit the selected background on the canvas; click again to go back to the frame");
     auto* frameToBackgroundButton = childByToolTip<QToolButton>(
         panel, "Copy the current frame image into the selected background");
     auto* backgroundToFramesButton = childByToolTip<QToolButton>(
@@ -3031,6 +3035,23 @@ void testBackgroundPanel()
     panel.refresh(stateFor(1));
     expect(selectedLabel->text() == QStringLiteral("Selected: 1"),
            "background panel should not mark a background without HD");
+
+    // Edit BG is a toggle, as Edit Sprite: down while the background is edited, and clicked
+    // again it asks to go back to the frame.
+    expect(editButton->isCheckable() && !editButton->isChecked(), "Edit BG starts up");
+    editButton->click();
+    expect(editRequests == std::vector<bool>{true}, "Edit BG asks to edit the background");
+    BackgroundPanelState editing = stateFor(1);
+    editing.editing = true;
+    panel.refresh(editing);
+    expect(editButton->isChecked() && editRequests.size() == 1,
+           "while it is edited, Edit BG is down (refresh reports nothing)");
+    editButton->click();
+    expect(editRequests == std::vector<bool>({true, false}),
+           "clicked again, Edit BG asks to go back to the frame");
+    panel.refresh(stateFor(1));
+    expect(!editButton->isChecked(), "and is up when the frame is edited");
+    requests[1] = 0;
 
     BackgroundPanelState withoutCurrentFrame = stateFor(1);
     withoutCurrentFrame.hasCurrentFrame = false;

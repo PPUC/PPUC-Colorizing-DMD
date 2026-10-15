@@ -22,6 +22,8 @@ struct BackgroundPanelState {
     bool hasSelectedFrames = false;
     // One of the selected frames has a background assigned.
     bool selectedFramesHaveBackground = false;
+    // The canvas edits the selected background (Edit BG is down).
+    bool editing = false;
 };
 
 // Inspector page for the selected background. It only displays and reports what the user
@@ -37,7 +39,9 @@ public:
     std::function<void()> onAssignRequested;
     // Remove BG: the selected frames get no background.
     std::function<void()> onRemoveRequested;
-    std::function<void()> onEditRequested;
+    // Edit BG, a toggle as Edit Sprite: down, the canvas edits the selected background; up
+    // again, the frame. editing: the state asked for.
+    std::function<void(bool editing)> onEditRequested;
     std::function<void()> onCopyFrameToBackgroundRequested;
     std::function<void()> onCopyBackgroundToFramesRequested;
     std::function<void()> onImportImageRequested;

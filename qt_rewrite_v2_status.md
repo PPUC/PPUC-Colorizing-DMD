@@ -1134,6 +1134,17 @@ table as a plugin does. The AI assistant plugin that uses it lives in its own re
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 
+## Background author reports (2026-10-15)
+
+- BG mask flood: it filled by the mask's own values (masks are mostly uniform: nothing or
+  everything). Owner's choice: the area comes from the frame — same color in the colorized
+  picture, same shade when clicked on the original; the background mask is now also painted,
+  drawn and filled on the original frame (as dynamic zones). `floodFillBackgroundMask`.
+- Strip not updated: BackgroundMask edits did not invalidate thumbnails (Remove BG and deleting
+  a background did); `refreshAfterEdit` now updates them.
+- Way back from background editing: `Edit BG` is a toggle like `Edit Sprite`
+  (`BackgroundPanelState::editing`, `onEditRequested(bool)`); up again -> PaintTarget::Frame.
+
 ## GIF export with originals (2026-10-15)
 
 Author feedback: CDMD's Shift+click on the GIF export added the originals (master

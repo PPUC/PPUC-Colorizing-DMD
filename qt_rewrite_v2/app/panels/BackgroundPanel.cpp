@@ -2,6 +2,7 @@
 
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QSignalBlocker>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -22,7 +23,9 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     m_removeButton->setEnabled(false);
     m_editButton = new QToolButton(this);
     m_editButton->setText(tr("Edit BG"));
-    m_editButton->setToolTip(tr("Switch drawing target to the selected background"));
+    m_editButton->setToolTip(tr("Edit the selected background on the canvas; click again to "
+                                "go back to the frame"));
+    m_editButton->setCheckable(true);
     m_editButton->setEnabled(false);
     m_copyFrameToBackgroundButton = new QToolButton(this);
     m_copyFrameToBackgroundButton->setText(tr("Frame -> BG"));
@@ -74,9 +77,9 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
             onRemoveRequested();
         }
     });
-    connect(m_editButton, &QToolButton::clicked, this, [this]() {
+    connect(m_editButton, &QToolButton::clicked, this, [this](bool checked) {
         if (onEditRequested) {
-            onEditRequested();
+            onEditRequested(checked);
         }
     });
     connect(m_copyFrameToBackgroundButton, &QToolButton::clicked, this, [this]() {
@@ -112,7 +115,11 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
     m_copyBackgroundToFramesButton->setEnabled(hasBackground && state.hasSelectedFrames);
     m_importImageButton->setEnabled(hasBackground);
     m_exportButton->setEnabled(hasBackground);
-    m_editButton->setEnabled(hasBackground);
+    m_editButton->setEnabled(hasBackground || state.editing);
+    {
+        const QSignalBlocker blocker(m_editButton);
+        m_editButton->setChecked(state.editing);
+    }
 
     if (!hasBackground) {
         m_selectedBackgroundLabel->setText(tr("Selected: None"));
