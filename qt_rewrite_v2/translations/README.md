@@ -66,7 +66,8 @@ authors know in English stay English.
 | Ctrl key (in texts) | Strg | Ctrl |
 | DMD, cROM, cRP, cRPX, PNG, VPX, Serum | unchanged | unchanged |
 
-The first German and French translations are machine drafts, every text still marked unfinished
-until a reader has checked it in Qt Linguist. German uses the formal "Sie" sparingly; prefer impersonal phrasing as in the English texts.
+The first German and French translations were machine drafts; the owner accepted them as they
+are (2026-10-15), so they are marked finished and get corrected where a reader finds a mistake.
+New texts are drafted the same way and marked finished with them. German uses the formal "Sie" sparingly; prefer impersonal phrasing as in the English texts.
 French uses "vous". Keep keyboard mnemonics (`&`) on letters of the translated word, unique
 within a menu.
