@@ -707,9 +707,24 @@ void testDynamicMaskLayer()
            "no dynamic stroke on the HD plane of an ordinary project");
     context.tool = DrawingTool::Point;
 
+    // The zones are on the original's plane: painted on the original as on the colorized one.
     owner.next();
     controller.originalPixelClicked(context, original(1, 1), false);
-    expect(owner.silent(), "clicks on the original frame do nothing outside mask mode");
+    expect(!owner.commits.empty() &&
+               document.dynamicMaskPixel(0, Resolution::Sd, 1, 1) == context.dynamicSet,
+           "a click on the original paints the dynamic zone there");
+    owner.next();
+    context.tool = DrawingTool::Rectangle;
+    controller.strokeFinished(context, original(5, 5), original(7, 6), false);
+    expect(!owner.commits.empty() &&
+               document.dynamicMaskPixel(0, Resolution::Sd, 7, 6) == context.dynamicSet,
+           "a rectangle on the original paints the dynamic zone there");
+    owner.next();
+    context.layer = CanvasEditLayer::FramePixels;
+    context.tool = DrawingTool::Point;
+    controller.originalPixelClicked(context, original(9, 9), false);
+    expect(owner.silent(), "clicks on the original frame do nothing outside mask modes");
+    context.layer = CanvasEditLayer::DynamicMask;
     context.tool = DrawingTool::PaletteGradient;
     controller.strokeFinished(context, colorized(1, 1), colorized(3, 1), false);
     expect(owner.commits.empty() && owner.status == "Palette gradients edit RGB pixels only",

@@ -1019,9 +1019,25 @@ void FramePreviewWidget::paintDynamicMaskOverlay(
         return pen;
     };
     painter.save();
+    // On the original the zones are solid, as a comparison mask is: the selected set in
+    // yellow, the others in cyan.
+    if (region.region == render::CanvasRegion::OriginalFrame) {
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int set = setAt(x, y);
+                if (set == 255) {
+                    continue;
+                }
+                const bool selected = m_selectedDynamicSet && set == *m_selectedDynamicSet;
+                painter.fillRect(QRect(region.displayRect.x + x * scale,
+                                       region.displayRect.y + y * scale, scale, scale),
+                                 selected ? QColor(255, 230, 0, 150) : QColor(0, 200, 255, 130));
+            }
+        }
+    }
     painter.setBrush(Qt::NoBrush);
-    outline(false, cosmetic(QColor(0, 200, 255, m_selectedDynamicSet ? 150 : 255),
-                            m_selectedDynamicSet ? 1.0 : 2.0));
+    outline(false, cosmetic(QColor(0, 0, 0, 180), 4.0));
+    outline(false, cosmetic(QColor(0, 200, 255), 2.0));
     if (m_selectedDynamicSet) {
         outline(true, cosmetic(QColor(0, 0, 0, 200), 4.0));
         outline(true, cosmetic(QColor(255, 230, 0), 2.0));

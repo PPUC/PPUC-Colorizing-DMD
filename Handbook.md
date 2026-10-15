@@ -586,7 +586,8 @@ zone or a background, or a duration of 15 ms or more removes it.
 
 The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
-with sprite assignments, the frames marked `inactive` (`Inactive`), or `Using the selected
+with sprite assignments, frames with a color rotation (`With rotation`: a rotation slot of a
+length above 0 on a plane the frame has), the frames marked `inactive` (`Inactive`), or `Using the selected
 asset`: the frames that use what is selected in the asset list used last on the left (opened,
 or clicked in): the comparison mask (`Masks`), the assigned background (`Backgrounds`) or the
 sprite in one of their sprite slots (`Sprites`); before any was used, the first open one. It
@@ -1697,8 +1698,8 @@ Hold `Shift` while clicking to select the edit color slot whose color is the pix
 status bar says when no edit color has the color. Without `Shift` the Win32 editor writes the
 picked color into the selected edit color; here it only becomes the draw color.
 
-When the `Dynamic` overlay is enabled, click a colorized frame pixel to select the dynamic set
-stored at that pixel instead. This is useful before editing the set's dynamic colors or shadows.
+When the `Dynamic` overlay is enabled, click a pixel of the colorized frame or of the original
+to select the dynamic set stored at that pixel instead. This is useful before editing the set's dynamic colors or shadows.
 
 This tool does not modify project data and does not create an undo entry.
 
@@ -2187,14 +2188,19 @@ does that for every mask and can take seconds in a large project with many masks
 
 ## Dynamic Masks
 
-The `Dynamic` toolbar toggle outlines the current frame's dynamic zones, on the colorized and
-on the original picture, also where two zones of different sets meet. The selected set (the one
-`Dyn Set` paints and edits) is outlined in bright yellow over a dark edge, the others thinner in
-cyan. Each area of a set (its pixels that touch each other) carries the set's number at its top
+The `Dynamic` toolbar toggle shows the current frame's dynamic zones: outlined on the colorized
+picture, also where two zones of different sets meet, and solid on the original, as a comparison
+mask is. The selected set (the one `Dyn Set` paints and edits) is yellow, the others cyan, both
+over a dark edge so they show on any picture. Each area of a set (its pixels that touch each other) carries the set's number at its top
 left once a DMD pixel is at least 5 screen pixels wide (zoom in for that); the mouse over a zone
 names its set and its number of pixels. The pixels stay visible in the colors the runtime gives
 them: each one in its set's color for its original shade (the canvas always shows them so),
 without switching to the Runtime view.
+
+With `Dynamic` on, the zones are painted on either picture: the point, line, rectangle, circle and
+ellipse tools, the flood fill and the pipette work on the original as on the colorized frame,
+in the selected set (with `Shift` they erase), as comparison masks are painted on the original.
+Both pictures show the same pixels of the plane the zones are on.
 
 The `Dynamic Sets` section lists the sets the frame uses: per set a picture of the frame with that set's
 zones in their colors and the rest dimmed, its number and its number of pixels. A click selects

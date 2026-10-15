@@ -32,6 +32,9 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
     QFont font = header->font();
     font.setBold(true);
     header->setFont(font);
+    // A slim bar: the text's height and a little room.
+    header->setIconSize(QSize(9, 9));
+    header->setFixedHeight(QFontMetrics(font).height() + 6);
     // The content scrolls within the section's share of the height.
     auto* frame = new QScrollArea(this);
     frame->setWidgetResizable(true);

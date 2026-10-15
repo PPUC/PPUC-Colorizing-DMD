@@ -676,6 +676,8 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::Dynamic));
     m_frameFilterComboBox->addItem(QStringLiteral("With sprites"),
                                    static_cast<int>(FrameFilter::Sprites));
+    m_frameFilterComboBox->addItem(QStringLiteral("With rotation"),
+                                   static_cast<int>(FrameFilter::Rotations));
     m_frameFilterComboBox->addItem(QStringLiteral("Inactive"),
                                    static_cast<int>(FrameFilter::Inactive));
     m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
@@ -1316,8 +1318,7 @@ void MainWindow::createCentralView()
     }
     auto* inspector = new QWidget(central);
     auto* inspectorLayout = new QVBoxLayout(inspector);
-    auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
-    inspectorTitle->setStyleSheet(QStringLiteral("font-weight: 600;"));
+    inspectorLayout->setContentsMargins(0, 0, 0, 0);
     // The inspector's topics in sections that open and close, any number at a time.
     auto* inspectorTabs = new SectionStack(inspector);
 
@@ -1372,7 +1373,6 @@ void MainWindow::createCentralView()
     };
     inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"), QStringLiteral("Color Sets"));
 
-    inspectorLayout->addWidget(inspectorTitle);
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
     inspector->setMinimumWidth(200);
@@ -3815,6 +3815,21 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
                            [](const document::FrameSpriteReference& reference) {
                                return reference.spriteId != 255;
                            });
+    }
+    if (filter == FrameFilter::Rotations) {
+        const auto rotates = [this, frameIndex](render::Resolution resolution) {
+            for (std::size_t slot = 0; slot < document::kMaxColorRotations; ++slot) {
+                if (m_document->colorRotationLength(frameIndex, resolution, slot) > 0) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        const render::Resolution native = m_document->geometry().nativePlane();
+        if (!m_document->rendersHdPlaneOnly() && rotates(native)) {
+            return true;
+        }
+        return m_document->hasHdFrame(frameIndex) && rotates(render::Resolution::Hd);
     }
     if (filter != FrameFilter::UsesSelectedAsset) {
         return true;

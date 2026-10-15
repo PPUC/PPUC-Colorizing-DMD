@@ -181,6 +181,14 @@ void CanvasEditController::originalPixelClicked(const CanvasEditContext& context
         paintCaptureSelection(context, {render::Point{hit.x, hit.y}}, erase);
         return;
     }
+    // Dynamic zones are on the original's plane: they are painted, filled and picked on the
+    // original as on the colorized picture.
+    if (context.layer == CanvasEditLayer::DynamicMask) {
+        if (isOnOriginal(projectGeometry(context), hit)) {
+            colorizedPixelClicked(context, hit, erase);
+        }
+        return;
+    }
     paintComparisonMaskPixel(context, hit, erase);
 }
 
@@ -230,8 +238,8 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
             }
             return;
         case CanvasEditLayer::DynamicMask:
-            if (onColorized) {
-                showPreview(render::CanvasRegion::ColorizedFrame,
+            if (onColorized || isOnOriginal(geometry, start)) {
+                showPreview(start.region,
                             start.resolution,
                             strokePixels(context, start, end),
                             erase ? eraseColor : QColor(0, 180, 255, 150));
@@ -315,7 +323,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                                          : QStringLiteral("Painted comparison mask")));
             return;
         case CanvasEditLayer::DynamicMask:
-            if (!onColorized) {
+            if (!onColorized && !isOnOriginal(projectGeometry(context), start)) {
                 return;
             }
             if (tool == DrawingTool::PaletteGradient) {

@@ -88,6 +88,8 @@ private:
         Background,
         Dynamic,
         Sprites,
+        // Frames with a color rotation (a slot of length above 0) on a plane they have.
+        Rotations,
         // Offered for HD-only projects alone, as "Not rendered": frames the runtime shows
         // nothing for.
         HdIncomplete,
