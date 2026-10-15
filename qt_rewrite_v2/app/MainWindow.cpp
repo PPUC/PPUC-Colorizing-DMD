@@ -1654,6 +1654,18 @@ void MainWindow::createCentralView()
             }
             m_canvasEdit.strokeFinished(canvasEditContext(), start, end, erase);
     });
+    // The pixel a click would paint, under the mouse before the click. Not while the next click
+    // does something else: paste mode, a pending Select By Color or Recolor click, Ctrl/Cmd
+    // (or Control on macOS) held for selecting.
+    m_preview->setPointerHandler([this](std::optional<render::CanvasHit> hit) {
+        const Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
+        if (m_pasteMode.isActive() || m_pendingCanvasClick != PendingCanvasClick::None ||
+            (modifiers & (Qt::ControlModifier | Qt::MetaModifier))) {
+            hit.reset();
+        }
+        m_canvasEdit.pointerMoved(canvasEditContext(), hit,
+                                  modifiers.testFlag(Qt::ShiftModifier));
+    });
     m_spriteEditor->setDetectionAreaChangedHandler(
         [this](std::size_t areaIndex, document::SpriteDetectionArea area) {
             if (!m_spritePanel) {

@@ -113,6 +113,12 @@ public:
     void originalPixelClicked(const CanvasEditContext& context,
                               const render::CanvasHit& hit,
                               bool erase);
+    // The mouse is over the canvas without a button (no hit: off the frames): previews the
+    // pixel a click of the tool would paint there, in the color of the layer it paints, so
+    // that the right pixel is easy to hit. Tools that do not paint one pixel show nothing.
+    void pointerMoved(const CanvasEditContext& context,
+                      std::optional<render::CanvasHit> hit,
+                      bool erase);
     void strokePreviewed(const CanvasEditContext& context,
                          const render::CanvasHit& start,
                          const render::CanvasHit& end,
@@ -346,6 +352,9 @@ private:
     std::optional<PendingFreeGradient> m_pendingFreeGradient;
     std::optional<Selection> m_selection;
     bool m_selectionDirectionMode = false;
+    // The preview shows pointerMoved()'s pixel, which it may clear (and only then: other
+    // previews, of a pending gradient for one, stay while the mouse moves).
+    mutable bool m_pointerPreviewShown = false;
     // Sized like the original frames of the document it was painted on last.
     edit::FramePixelSelection m_captureSelection{render::ProjectGeometry().romFrameSize()};
     render::ProjectGeometry m_captureGeometry;

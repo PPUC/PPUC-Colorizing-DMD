@@ -432,6 +432,57 @@ void testFramePixelStrokesAndPreview()
     expect(owner.silent() && !owner.preview, "click tools ignore strokes");
 }
 
+void testPointerPreview()
+{
+    ProjectDocument document = makeDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Point, {0});
+
+    // Before a click: the pixel it would paint, in the draw color, and nothing edited.
+    controller.pointerMoved(context, colorized(7, 3), false);
+    expect(isOverlay(owner.preview, CanvasRegion::ColorizedFrame, Resolution::Sd, {Point{7, 3}},
+                     drawColor(150)) &&
+               owner.silent() && !document.isDirty(),
+           "the point tool previews the pixel under the mouse");
+    controller.pointerMoved(context, colorized(8, 3), false);
+    expect(isOverlay(owner.preview, CanvasRegion::ColorizedFrame, Resolution::Sd, {Point{8, 3}},
+                     drawColor(150)),
+           "the preview follows the mouse");
+    controller.pointerMoved(context, std::nullopt, false);
+    expect(!owner.preview, "and goes when the mouse leaves the frame");
+
+    context.tool = DrawingTool::FilledRectangle;
+    controller.pointerMoved(context, colorized(9, 4), false);
+    expect(isOverlay(owner.preview, CanvasRegion::ColorizedFrame, Resolution::Sd, {Point{9, 4}},
+                     drawColor(150)),
+           "a shape tool previews the pixel its stroke starts at");
+    context.tool = DrawingTool::FloodFill;
+    controller.pointerMoved(context, colorized(9, 4), false);
+    expect(!owner.preview, "the fill tool previews nothing");
+
+    // The layer's color: the comparison mask on the original only.
+    context.layer = CanvasEditLayer::ComparisonMask;
+    context.tool = DrawingTool::Point;
+    controller.pointerMoved(context, original(4, 5), false);
+    expect(isOverlay(owner.preview, CanvasRegion::OriginalFrame, Resolution::Sd, {Point{4, 5}},
+                     QColor(255, 0, 0, 150)),
+           "on a mask in the mask's color");
+    controller.pointerMoved(context, colorized(4, 5), false);
+    expect(!owner.preview, "and not where a click does not paint it");
+
+    // Another preview stays: the area of a pending free gradient.
+    context.layer = CanvasEditLayer::FramePixels;
+    context.tool = DrawingTool::PaletteGradient;
+    context.gradientDirection = PaletteGradientDirection::Free;
+    controller.strokeFinished(context, colorized(10, 2), colorized(17, 5), false);
+    expect(controller.isFreeGradientPending() && owner.preview, "a gradient area is pending");
+    controller.pointerMoved(context, colorized(12, 3), false);
+    controller.pointerMoved(context, std::nullopt, false);
+    expect(owner.preview.has_value(), "the pointer leaves the pending gradient's preview alone");
+}
+
 void testBackgroundImageLayer()
 {
     ProjectDocument document = makeDocument();
@@ -1595,6 +1646,7 @@ void runCanvasEditControllerTests()
 {
     testFramePixelPointPickAndFlood();
     testFramePixelStrokesAndPreview();
+    testPointerPreview();
     testBackgroundImageLayer();
     testComparisonMaskLayer();
     testDynamicMaskLayer();

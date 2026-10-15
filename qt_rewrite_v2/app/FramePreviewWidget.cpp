@@ -355,7 +355,8 @@ void FramePreviewWidget::setSelectedDynamicSet(std::optional<uint8_t> setIndex)
 
 void FramePreviewWidget::updateMouseTracking()
 {
-    setMouseTracking(static_cast<bool>(m_hoverHandler) || m_showDynamicMaskOverlay);
+    setMouseTracking(static_cast<bool>(m_hoverHandler) || static_cast<bool>(m_pointerHandler) ||
+                     m_showDynamicMaskOverlay);
 }
 
 void FramePreviewWidget::setBackgroundMaskOverlayEnabled(bool enabled)
@@ -646,6 +647,9 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
             return;
         }
     }
+    if (event->buttons() == Qt::NoButton && m_pointerHandler) {
+        m_pointerHandler(showsRuntimeView() ? std::nullopt : hitTestAt(event->pos()));
+    }
     if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == m_strokeStart->region &&
@@ -678,6 +682,14 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
         }
     }
     QWidget::mouseReleaseEvent(event);
+}
+
+void FramePreviewWidget::leaveEvent(QEvent* event)
+{
+    if (m_pointerHandler) {
+        m_pointerHandler(std::nullopt);
+    }
+    QWidget::leaveEvent(event);
 }
 
 bool FramePreviewWidget::showsRuntimeView() const
@@ -1232,6 +1244,13 @@ void FramePreviewWidget::setPressInterceptor(
 void FramePreviewWidget::setHoverHandler(std::function<void(render::CanvasHit)> handler)
 {
     m_hoverHandler = std::move(handler);
+    updateMouseTracking();
+}
+
+void FramePreviewWidget::setPointerHandler(
+    std::function<void(std::optional<render::CanvasHit>)> handler)
+{
+    m_pointerHandler = std::move(handler);
     updateMouseTracking();
 }
 

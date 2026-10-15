@@ -4,6 +4,13 @@ Drawing tools operate on the active SD/HD mode. `Point`, the shapes and `Flood` 
 draw color or, in `Set Replace` mode, with the edit color of each pixel's original shade (see
 "Draw color modes" under "Colors").
 
+Before a click, the pixel under the mouse shows what the click would paint there: with
+`Point` and the shapes (where their stroke starts), in the draw color on the frame or a
+background, in the layer's color on a mask or dynamic zone (on the original frame where a click
+there paints; with `Shift`, which erases, dark). The pixel to hit is visible before it changes.
+`Flood`, `Pick` and `Grad` show none, nor does the mouse while `Ctrl/Cmd` is held for selecting,
+in paste mode or while a `Select By Color` or `Recolor` click is pending.
+
 When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
 
 When Inspector `Target` is `Background`, ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.

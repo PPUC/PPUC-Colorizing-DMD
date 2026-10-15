@@ -215,6 +215,35 @@ void CanvasEditController::originalPixelClicked(const CanvasEditContext& context
     paintComparisonMaskPixel(context, hit, erase);
 }
 
+void CanvasEditController::pointerMoved(const CanvasEditContext& context,
+                                        std::optional<render::CanvasHit> hit,
+                                        bool erase)
+{
+    switch (context.tool) {
+        case DrawingTool::FloodFill:
+        case DrawingTool::ColorPicker:
+        case DrawingTool::PaletteGradient:
+            hit.reset();
+            break;
+        default:
+            break;
+    }
+    if (!hit || isSelectionDirectionModeActive() || isFreeGradientPending()) {
+        if (m_pointerPreviewShown) {
+            m_pointerPreviewShown = false;
+            clearPreview();
+        }
+        return;
+    }
+    // The pixel under the mouse is where a click (or a stroke) starts: a line of one pixel
+    // previews it as every tool's stroke preview would, on the frame and layer it paints.
+    CanvasEditContext onePixel = context;
+    onePixel.tool = DrawingTool::Line;
+    clearPreview();
+    strokePreviewed(onePixel, *hit, *hit, erase);
+    m_pointerPreviewShown = true;
+}
+
 void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
                                            const render::CanvasHit& start,
                                            const render::CanvasHit& end,
@@ -1763,6 +1792,8 @@ void CanvasEditController::showPreview(render::CanvasRegion region,
                                        std::vector<render::Point> pixels,
                                        QColor color) const
 {
+    // Any preview replaces the pointer's; pointerMoved() sets it again after its own.
+    m_pointerPreviewShown = false;
     if (m_outputs.showPreview) {
         m_outputs.showPreview(CanvasPixelOverlay{region, resolution, std::move(pixels), color});
     }
