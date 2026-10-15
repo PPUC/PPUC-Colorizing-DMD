@@ -65,6 +65,7 @@
 #include "ListSelection.h"
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
+#include "Translations.h"
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
@@ -175,7 +176,8 @@ QToolButton* makeColorButton(QWidget* parent, uint16_t rgb565)
 {
     auto* button = new FavoriteColorButton(parent);
     button->setProperty("rgb565", static_cast<int>(rgb565));
-    button->setToolTip(QStringLiteral("Draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+    button->setToolTip(QCoreApplication::translate("MainWindow", "Draw color 0x%1")
+                           .arg(rgb565, 4, 16, QLatin1Char('0')));
     button->setStyleSheet(favoriteColorButtonStyle(rgb565));
     return button;
 }
@@ -234,8 +236,11 @@ QImage renderMaskPreviewImage(const document::IndexedFrame& mask)
 }
 
 // What "inactive" on a frame means, see legacy::isFrameSkippedAtRuntime().
-const QString kInactiveFrameToolTip = QStringLiteral(
-    "inactive: shorter than 15 ms and not colorized \u2014 the runtime skips it");
+QString inactiveFrameToolTip()
+{
+    return QCoreApplication::translate(
+        "MainWindow", "inactive: shorter than 15 ms and not colorized \u2014 the runtime skips it");
+}
 
 QPixmap previewPixmap(const QImage& image, QSize targetSize);
 
@@ -332,33 +337,33 @@ QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd
         case edit::EditKind::FramePixels:
             break;
         case edit::EditKind::ComparisonMask:
-            return QStringLiteral(" mask edit");
+            return QCoreApplication::translate("MainWindow", " mask edit");
         case edit::EditKind::DynamicMask:
-            return QStringLiteral(" dynamic mask edit");
+            return QCoreApplication::translate("MainWindow", " dynamic mask edit");
         case edit::EditKind::DynamicColor:
-            return QStringLiteral(" dynamic color edit");
+            return QCoreApplication::translate("MainWindow", " dynamic color edit");
         case edit::EditKind::DynamicShadow:
-            return QStringLiteral(" dynamic shadow edit");
+            return QCoreApplication::translate("MainWindow", " dynamic shadow edit");
         case edit::EditKind::BackgroundMask:
-            return QStringLiteral(" background mask edit");
+            return QCoreApplication::translate("MainWindow", " background mask edit");
         case edit::EditKind::BackgroundImage:
-            return QStringLiteral(" background edit");
+            return QCoreApplication::translate("MainWindow", " background edit");
         case edit::EditKind::SpriteImage:
-            return QStringLiteral(" sprite edit");
+            return QCoreApplication::translate("MainWindow", " sprite edit");
         case edit::EditKind::Palette:
-            return QStringLiteral(" palette edit");
+            return QCoreApplication::translate("MainWindow", " palette edit");
         case edit::EditKind::FrameAttributes:
-            return QStringLiteral(" frame change");
+            return QCoreApplication::translate("MainWindow", " frame change");
         case edit::EditKind::SpriteAttributes:
             return showsHdAndSd && dynamic_cast<const edit::SpriteHdCommand*>(&command)
-                       ? QStringLiteral(" sprite HD change")
-                       : QStringLiteral(" sprite change");
+                       ? QCoreApplication::translate("MainWindow", " sprite HD change")
+                       : QCoreApplication::translate("MainWindow", " sprite change");
         case edit::EditKind::ProjectStructure:
             break;
         case edit::EditKind::EditorColors:
-            return QStringLiteral(" edit colors and color sets change");
+            return QCoreApplication::translate("MainWindow", " edit colors and color sets change");
         case edit::EditKind::Sections:
-            return QStringLiteral(" section change");
+            return QCoreApplication::translate("MainWindow", " section change");
     }
     return QString();
 }
@@ -367,18 +372,26 @@ QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd
 QString structureCommandText(const edit::StructureCommand& command)
 {
     const int index = static_cast<int>(command.recordIndices().front());
-    const QString verb = command.addsRecords() ? QStringLiteral("add") : QStringLiteral("delete");
+    const bool adds = command.addsRecords();
     switch (command.recordKind()) {
-        case edit::RecordKind::Frame:
-            return QStringLiteral("%1 %2 frame(s)")
-                .arg(verb)
-                .arg(static_cast<int>(command.recordIndices().size()));
+        case edit::RecordKind::Frame: {
+            const int count = static_cast<int>(command.recordIndices().size());
+            return adds ? QCoreApplication::translate("MainWindow", "add %1 frame(s)").arg(count)
+                        : QCoreApplication::translate("MainWindow", "delete %1 frame(s)")
+                              .arg(count);
+        }
         case edit::RecordKind::Sprite:
-            return QStringLiteral("%1 sprite %2").arg(verb).arg(index);
+            return adds ? QCoreApplication::translate("MainWindow", "add sprite %1").arg(index)
+                        : QCoreApplication::translate("MainWindow", "delete sprite %1").arg(index);
         case edit::RecordKind::Background:
-            return QStringLiteral("%1 background %2").arg(verb).arg(index);
+            return adds ? QCoreApplication::translate("MainWindow", "add background %1").arg(index)
+                        : QCoreApplication::translate("MainWindow", "delete background %1")
+                              .arg(index);
         case edit::RecordKind::ComparisonMask:
-            return QStringLiteral("%1 comparison mask %2").arg(verb).arg(index);
+            return adds ? QCoreApplication::translate("MainWindow", "add comparison mask %1")
+                              .arg(index)
+                        : QCoreApplication::translate("MainWindow", "delete comparison mask %1")
+                              .arg(index);
     }
     return QString();
 }
@@ -409,9 +422,9 @@ QString frameRangesText(const std::vector<std::size_t>& frameIndices, int maxRan
 // "3 frame(s)" or, when frames could not take the edit, "3 frame(s), 1 skipped (reason)".
 QString frameEditCountText(int changed, int skipped, const QString& skipReason = QString())
 {
-    QString text = QStringLiteral("%1 frame(s)").arg(changed);
+    QString text = QCoreApplication::translate("MainWindow", "%1 frame(s)").arg(changed);
     if (skipped > 0) {
-        text += QStringLiteral(", %1 skipped").arg(skipped);
+        text += QCoreApplication::translate("MainWindow", ", %1 skipped").arg(skipped);
         if (!skipReason.isEmpty()) {
             text += QStringLiteral(" (%1)").arg(skipReason);
         }
@@ -431,7 +444,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(1000, 700);
     createActions();
     createCentralView();
-    setStatusText(QStringLiteral("No project loaded"));
+    setStatusText(tr("No project loaded"));
     // Every 10 minutes, as the Win32 editor (AUTOSAVE_TICKS).
     m_autosaver = std::make_unique<Autosaver>(
         this,
@@ -446,12 +459,12 @@ MainWindow::MainWindow(QWidget* parent)
 
 void MainWindow::createActions()
 {
-    QMenu* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
-    QMenu* editMenu = menuBar()->addMenu(QStringLiteral("&Edit"));
-    QMenu* viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
+    QMenu* fileMenu = menuBar()->addMenu(tr("&File"));
+    QMenu* editMenu = menuBar()->addMenu(tr("&Edit"));
+    QMenu* viewMenu = menuBar()->addMenu(tr("&View"));
     // Help: the handbook, in a window of its own that stays open beside the editor.
-    QMenu* helpMenu = menuBar()->addMenu(QStringLiteral("&Help"));
-    QAction* handbookAction = helpMenu->addAction(QStringLiteral("&Handbook"));
+    QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
+    QAction* handbookAction = helpMenu->addAction(tr("&Handbook"));
     handbookAction->setShortcut(QKeySequence::HelpContents);
     connect(handbookAction, &QAction::triggered, this, [this]() {
         if (!m_handbookWindow) {
@@ -463,80 +476,80 @@ void MainWindow::createActions()
     });
 
     QAction* newFromDumpAction =
-        fileMenu->addAction(QStringLiteral("&New Project From Dump..."));
-    newFromDumpAction->setToolTip(QStringLiteral("Create a project of the frames of a frame dump"));
+        fileMenu->addAction(tr("&New Project From Dump..."));
+    newFromDumpAction->setToolTip(tr("Create a project of the frames of a frame dump"));
     connect(newFromDumpAction, &QAction::triggered, this, [this]() {
         newProjectFromDump();
     });
 
-    QAction* openAction = fileMenu->addAction(QStringLiteral("&Open Project..."));
+    QAction* openAction = fileMenu->addAction(tr("&Open Project..."));
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, [this]() {
         openProject();
     });
 
-    m_saveAction = fileMenu->addAction(QStringLiteral("&Save"));
+    m_saveAction = fileMenu->addAction(tr("&Save"));
     m_saveAction->setShortcut(QKeySequence::Save);
     m_saveAction->setEnabled(false);
     connect(m_saveAction, &QAction::triggered, this, [this]() {
         saveProject();
     });
 
-    QAction* saveAsAction = fileMenu->addAction(QStringLiteral("Save &As..."));
+    QAction* saveAsAction = fileMenu->addAction(tr("Save &As..."));
     saveAsAction->setShortcut(QKeySequence::SaveAs);
     connect(saveAsAction, &QAction::triggered, this, [this]() {
         saveProjectAs();
     });
 
-    QAction* exportCromcAction = fileMenu->addAction(QStringLiteral("Export .cRO&Mc..."));
+    QAction* exportCromcAction = fileMenu->addAction(tr("Export .cRO&Mc..."));
     exportCromcAction->setToolTip(
-        QStringLiteral("Write the project's .cROMc as libserum generates it on a machine"));
+        tr("Write the project's .cROMc as libserum generates it on a machine"));
     connect(exportCromcAction, &QAction::triggered, this, [this]() {
         exportCromc();
     });
 
-    QAction* exportGifAction = fileMenu->addAction(QStringLiteral("Export Animated &GIF..."));
-    exportGifAction->setToolTip(QStringLiteral(
+    QAction* exportGifAction = fileMenu->addAction(tr("Export Animated &GIF..."));
+    exportGifAction->setToolTip(tr(
         "Write the selected frames, with their colour rotations, as an animated GIF"));
     connect(exportGifAction, &QAction::triggered, this, [this]() { exportAnimatedGif(); });
 
-    QAction* exportFrameAction = fileMenu->addAction(QStringLiteral("Export Current &Frame PNG..."));
-    exportFrameAction->setToolTip(QStringLiteral("Export the current frame as libserum renders it"));
+    QAction* exportFrameAction = fileMenu->addAction(tr("Export Current &Frame PNG..."));
+    exportFrameAction->setToolTip(tr("Export the current frame as libserum renders it"));
     connect(exportFrameAction, &QAction::triggered, this, [this]() {
         exportCurrentFramePng();
     });
 
     QAction* importFrameImageAction =
-        fileMenu->addAction(QStringLiteral("Import Image Into Selected &Frames..."));
+        fileMenu->addAction(tr("Import Image Into Selected &Frames..."));
     connect(importFrameImageAction, &QAction::triggered, this, [this]() {
         importImageIntoSelectedFrames();
     });
 
-    m_addFramesFromDumpAction = fileMenu->addAction(QStringLiteral("A&dd Frames From Dump..."));
+    m_addFramesFromDumpAction = fileMenu->addAction(tr("A&dd Frames From Dump..."));
     m_addFramesFromDumpAction->setToolTip(
-        QStringLiteral("Add the frames of a frame dump that the project does not have yet"));
+        tr("Add the frames of a frame dump that the project does not have yet"));
     m_addFramesFromDumpAction->setEnabled(false);
     connect(m_addFramesFromDumpAction, &QAction::triggered, this, [this]() {
         addFramesFromDump();
     });
 
-    m_recentProjectsMenu = fileMenu->addMenu(QStringLiteral("Open &Recent"));
+    m_recentProjectsMenu = fileMenu->addMenu(tr("Open &Recent"));
     refreshRecentProjectsMenu();
 
     fileMenu->addSeparator();
     // On macOS Qt moves it to the application menu, by its role.
-    QAction* settingsAction = fileMenu->addAction(QStringLiteral("Se&ttings..."));
+    QAction* settingsAction = fileMenu->addAction(tr("Se&ttings..."));
     settingsAction->setShortcut(QKeySequence::Preferences);
     settingsAction->setMenuRole(QAction::PreferencesRole);
     connect(settingsAction, &QAction::triggered, this,
             [this]() { editSettings(SettingsDialog::Page::Appearance); });
     fileMenu->addSeparator();
 
-    QAction* quitAction = fileMenu->addAction(QStringLiteral("&Quit"));
+    QAction* quitAction = fileMenu->addAction(tr("&Quit"));
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
 
-    m_undoAction = editMenu->addAction(QStringLiteral("&Undo"));
+    m_undoAction = editMenu->addAction(tr("&Undo"));
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setShortcutContext(Qt::ApplicationShortcut);
     m_undoAction->setEnabled(false);
@@ -544,7 +557,7 @@ void MainWindow::createActions()
         undo();
     });
 
-    m_redoAction = editMenu->addAction(QStringLiteral("&Redo"));
+    m_redoAction = editMenu->addAction(tr("&Redo"));
     m_redoAction->setShortcut(QKeySequence::Redo);
     m_redoAction->setShortcutContext(Qt::ApplicationShortcut);
     m_redoAction->setEnabled(false);
@@ -553,79 +566,79 @@ void MainWindow::createActions()
     });
 
     editMenu->addSeparator();
-    m_deleteFramesAction = editMenu->addAction(QStringLiteral("&Delete Frames..."));
-    m_deleteFramesAction->setToolTip(QStringLiteral("Delete the selected frames"));
+    m_deleteFramesAction = editMenu->addAction(tr("&Delete Frames..."));
+    m_deleteFramesAction->setToolTip(tr("Delete the selected frames"));
     m_deleteFramesAction->setEnabled(false);
     connect(m_deleteFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFrames();
     });
     m_deleteShortFramesAction =
-        editMenu->addAction(QStringLiteral("Delete Frames &Shorter Than..."));
+        editMenu->addAction(tr("Delete Frames &Shorter Than..."));
     m_deleteShortFramesAction->setToolTip(
-        QStringLiteral("Delete the selected frames that are shorter than a duration"));
+        tr("Delete the selected frames that are shorter than a duration"));
     m_deleteShortFramesAction->setEnabled(false);
     connect(m_deleteShortFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFramesShorterThan();
     });
-    m_moveFramesUpAction = editMenu->addAction(QStringLiteral("Move Frames &Earlier"));
+    m_moveFramesUpAction = editMenu->addAction(tr("Move Frames &Earlier"));
     m_moveFramesUpAction->setToolTip(
-        QStringLiteral("Move the selected frames before the frame shown before them (Alt+Left "
-                       "in the frame strip)"));
+        tr("Move the selected frames before the frame shown before them (Alt+Left "
+           "in the frame strip)"));
     m_moveFramesUpAction->setEnabled(false);
     connect(m_moveFramesUpAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
-    m_moveFramesDownAction = editMenu->addAction(QStringLiteral("Move Frames &Later"));
+    m_moveFramesDownAction = editMenu->addAction(tr("Move Frames &Later"));
     m_moveFramesDownAction->setToolTip(
-        QStringLiteral("Move the selected frames behind the frame shown after them (Alt+Right "
-                       "in the frame strip)"));
+        tr("Move the selected frames behind the frame shown after them (Alt+Right "
+           "in the frame strip)"));
     m_moveFramesDownAction->setEnabled(false);
     connect(m_moveFramesDownAction, &QAction::triggered, this,
             [this]() { moveSelectedFramesDown(); });
-    m_moveFramesToAction = editMenu->addAction(QStringLiteral("&Move Frames To..."));
+    m_moveFramesToAction = editMenu->addAction(tr("&Move Frames To..."));
     m_moveFramesToAction->setToolTip(
-        QStringLiteral("Move the selected frames before a frame number, or to the end"));
+        tr("Move the selected frames before a frame number, or to the end"));
     m_moveFramesToAction->setEnabled(false);
     connect(m_moveFramesToAction, &QAction::triggered, this, [this]() { moveSelectedFramesTo(); });
     createSelectionActions(editMenu);
 
-    QAction* frameTesterAction = viewMenu->addAction(QStringLiteral("Frame &Tester..."));
+    QAction* frameTesterAction = viewMenu->addAction(tr("Frame &Tester..."));
     frameTesterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
-    frameTesterAction->setToolTip(QStringLiteral(
+    frameTesterAction->setToolTip(tr(
         "Feed the selected frames or a frame dump to libserum with the whole project loaded"));
     connect(frameTesterAction, &QAction::triggered, this, [this]() { openFrameTester(); });
     viewMenu->addSeparator();
 
-    m_dmdOutputAction = viewMenu->addAction(QStringLiteral("Output To &DMD"));
+    m_dmdOutputAction = viewMenu->addAction(tr("Output To &DMD"));
     m_dmdOutputAction->setCheckable(true);
     m_dmdOutputAction->setIconText(QStringLiteral("DMD"));
     m_dmdOutputAction->setEnabled(DmdOutput::isAvailable());
     m_dmdOutputAction->setToolTip(
         DmdOutput::isAvailable()
-            ? QStringLiteral("Show the canvas picture on a ZeDMD, Pixelcade, PIN2DMD or dmdserver")
-            : QStringLiteral("No DMD output: this build has no DMDUtil plugin"));
+            ? tr("Show the canvas picture on a ZeDMD, Pixelcade, PIN2DMD or dmdserver")
+            : tr("No DMD output: this build has no DMDUtil plugin"));
     connect(m_dmdOutputAction, &QAction::toggled, this, [this](bool on) {
         setDmdOutputEnabled(on);
     });
-    QAction* dmdSettingsAction = viewMenu->addAction(QStringLiteral("DMD Output &Settings..."));
+    QAction* dmdSettingsAction = viewMenu->addAction(tr("DMD Output &Settings..."));
     dmdSettingsAction->setEnabled(DmdOutput::isAvailable());
     connect(dmdSettingsAction, &QAction::triggered, this,
             [this]() { editSettings(SettingsDialog::Page::DmdOutput); });
     viewMenu->addSeparator();
     // The canvas zoom; the colorized and the original picture show the same part.
-    QAction* zoomInAction = viewMenu->addAction(QStringLiteral("Zoom &In"));
+    QAction* zoomInAction = viewMenu->addAction(tr("Zoom &In"));
     zoomInAction->setShortcuts({QKeySequence::ZoomIn, QKeySequence(Qt::CTRL | Qt::Key_Equal)});
     connect(zoomInAction, &QAction::triggered, this, [this]() {
         if (m_preview) {
             m_preview->zoomIn();
         }
     });
-    QAction* zoomOutAction = viewMenu->addAction(QStringLiteral("Zoom &Out"));
+    QAction* zoomOutAction = viewMenu->addAction(tr("Zoom &Out"));
     zoomOutAction->setShortcut(QKeySequence::ZoomOut);
     connect(zoomOutAction, &QAction::triggered, this, [this]() {
         if (m_preview) {
             m_preview->zoomOut();
         }
     });
-    QAction* zoomFitAction = viewMenu->addAction(QStringLiteral("Show &Whole Frame"));
+    QAction* zoomFitAction = viewMenu->addAction(tr("Show &Whole Frame"));
     zoomFitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
     connect(zoomFitAction, &QAction::triggered, this, [this]() {
         if (m_preview) {
@@ -634,30 +647,30 @@ void MainWindow::createActions()
     });
     viewMenu->addSeparator();
 
-    m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
+    m_runtimeViewAction = viewMenu->addAction(tr("&Runtime View"));
     // What the toolbar button of the action shows.
-    m_runtimeViewAction->setIconText(QStringLiteral("Runtime"));
+    m_runtimeViewAction->setIconText(tr("Runtime"));
     m_runtimeViewAction->setCheckable(true);
     m_runtimeViewAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     m_runtimeViewAction->setShortcutContext(Qt::ApplicationShortcut);
     m_runtimeViewAction->setToolTip(
-        QStringLiteral("Show the current frame as libserum renders it; editing is off meanwhile"));
+        tr("Show the current frame as libserum renders it; editing is off meanwhile"));
     connect(m_runtimeViewAction, &QAction::toggled, this, [this](bool checked) {
         setRuntimeViewEnabled(checked);
     });
 
     auto* rowsGroup = new QActionGroup(this);
     viewMenu->addSeparator();
-    m_runtimeRows32Action = viewMenu->addAction(QStringLiteral("Runtime Plane: &32 Rows"));
+    m_runtimeRows32Action = viewMenu->addAction(tr("Runtime Plane: &32 Rows"));
     m_runtimeRows32Action->setCheckable(true);
     m_runtimeRows32Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
     m_runtimeRows32Action->setShortcutContext(Qt::ApplicationShortcut);
-    m_runtimeRows32Action->setToolTip(QStringLiteral("What a display with 32 rows gets"));
-    m_runtimeRows64Action = viewMenu->addAction(QStringLiteral("Runtime Plane: &64 Rows"));
+    m_runtimeRows32Action->setToolTip(tr("What a display with 32 rows gets"));
+    m_runtimeRows64Action = viewMenu->addAction(tr("Runtime Plane: &64 Rows"));
     m_runtimeRows64Action->setCheckable(true);
     m_runtimeRows64Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
     m_runtimeRows64Action->setShortcutContext(Qt::ApplicationShortcut);
-    m_runtimeRows64Action->setToolTip(QStringLiteral("What a display with 64 rows gets"));
+    m_runtimeRows64Action->setToolTip(tr("What a display with 64 rows gets"));
     rowsGroup->addAction(m_runtimeRows32Action);
     rowsGroup->addAction(m_runtimeRows64Action);
     connect(m_runtimeRows32Action, &QAction::triggered, this, [this]() {
@@ -679,29 +692,29 @@ void MainWindow::createCentralView()
     m_statusLabel = new QLabel(central);
     m_frameStatusLabel = new QLabel(central);
     m_frameFilterComboBox = new QComboBox(central);
-    m_frameFilterComboBox->addItem(QStringLiteral("All frames"),
+    m_frameFilterComboBox->addItem(tr("All frames"),
                                    static_cast<int>(FrameFilter::All));
-    m_frameFilterComboBox->addItem(QStringLiteral("HD frames"),
+    m_frameFilterComboBox->addItem(tr("HD frames"),
                                    static_cast<int>(FrameFilter::Hd));
-    m_frameFilterComboBox->addItem(QStringLiteral("With background"),
+    m_frameFilterComboBox->addItem(tr("With background"),
                                    static_cast<int>(FrameFilter::Background));
-    m_frameFilterComboBox->addItem(QStringLiteral("With dynamic"),
+    m_frameFilterComboBox->addItem(tr("With dynamic"),
                                    static_cast<int>(FrameFilter::Dynamic));
-    m_frameFilterComboBox->addItem(QStringLiteral("With sprites"),
+    m_frameFilterComboBox->addItem(tr("With sprites"),
                                    static_cast<int>(FrameFilter::Sprites));
-    m_frameFilterComboBox->addItem(QStringLiteral("With rotation"),
+    m_frameFilterComboBox->addItem(tr("With rotation"),
                                    static_cast<int>(FrameFilter::Rotations));
-    m_frameFilterComboBox->addItem(QStringLiteral("Inactive"),
+    m_frameFilterComboBox->addItem(tr("Inactive"),
                                    static_cast<int>(FrameFilter::Inactive));
     m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
-                                       kInactiveFrameToolTip,
+                                       inactiveFrameToolTip(),
                                        Qt::ToolTipRole);
-    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected asset"),
+    m_frameFilterComboBox->addItem(tr("Using the selected asset"),
                                    static_cast<int>(FrameFilter::UsesSelectedAsset));
     m_frameFilterComboBox->setItemData(
         m_frameFilterComboBox->count() - 1,
-        QStringLiteral("The frames that use the mask, background or sprite selected in the tab "
-                       "that is open on the left; follows the selection and the tab"),
+        tr("The frames that use the mask, background or sprite selected in the tab "
+           "that is open on the left; follows the selection and the tab"),
         Qt::ToolTipRole);
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new FrameListWidget(central);
@@ -819,18 +832,18 @@ void MainWindow::createCentralView()
     m_hdButton->setCheckable(true);
     m_hdButton->setEnabled(false);
     m_comparisonMaskOverlayButton = new QToolButton(central);
-    m_comparisonMaskOverlayButton->setText(QStringLiteral("Mask"));
-    m_comparisonMaskOverlayButton->setToolTip(QStringLiteral("Show and edit comparison mask"));
+    m_comparisonMaskOverlayButton->setText(tr("Mask"));
+    m_comparisonMaskOverlayButton->setToolTip(tr("Show and edit comparison mask"));
     m_comparisonMaskOverlayButton->setCheckable(true);
     m_comparisonMaskOverlayButton->setEnabled(false);
     m_dynamicMaskOverlayButton = new QToolButton(central);
-    m_dynamicMaskOverlayButton->setText(QStringLiteral("Dynamic"));
-    m_dynamicMaskOverlayButton->setToolTip(QStringLiteral("Show dynamic mask overlay"));
+    m_dynamicMaskOverlayButton->setText(tr("Dynamic"));
+    m_dynamicMaskOverlayButton->setToolTip(tr("Show dynamic mask overlay"));
     m_dynamicMaskOverlayButton->setCheckable(true);
     m_dynamicMaskOverlayButton->setEnabled(false);
     m_backgroundMaskOverlayButton = new QToolButton(central);
-    m_backgroundMaskOverlayButton->setText(QStringLiteral("BG"));
-    m_backgroundMaskOverlayButton->setToolTip(QStringLiteral("Show and edit background mask"));
+    m_backgroundMaskOverlayButton->setText(tr("BG"));
+    m_backgroundMaskOverlayButton->setToolTip(tr("Show and edit background mask"));
     m_backgroundMaskOverlayButton->setCheckable(true);
     m_backgroundMaskOverlayButton->setEnabled(false);
     m_maskPanel = new MaskPanel(central);
@@ -948,7 +961,7 @@ void MainWindow::createCentralView()
         }
     };
     m_backgroundComboBox = new QComboBox(central);
-    m_backgroundComboBox->setToolTip(QStringLiteral("Loaded background"));
+    m_backgroundComboBox->setToolTip(tr("Loaded background"));
     m_backgroundComboBox->setEnabled(false);
     m_backgroundComboBox->setVisible(false);
     m_backgroundPanel = new BackgroundPanel(central);
@@ -1032,9 +1045,9 @@ void MainWindow::createCentralView()
         edit::SpriteState before = edit::spriteState(*m_document, *sprite);
         m_document->setSpriteShapeMode(*sprite, shapeMode);
         recordEdit(edit::spriteStateCommand(*m_document, *sprite, std::move(before)));
-        statusBar()->showMessage(shapeMode ? QStringLiteral("Sprite %1 is found by its shape")
+        statusBar()->showMessage(shapeMode ? tr("Sprite %1 is found by its shape")
                                                  .arg(static_cast<int>(*sprite))
-                                           : QStringLiteral("Sprite %1 is found by its shades")
+                                           : tr("Sprite %1 is found by its shades")
                                                  .arg(static_cast<int>(*sprite)),
                                  2500);
     };
@@ -1044,8 +1057,8 @@ void MainWindow::createCentralView()
         }
         if (enabled) {
             statusBar()->showMessage(
-                QStringLiteral("Paint dynamic zones on the sprite canvas (Edit Sprite), on the "
-                               "%1 sprite")
+                tr("Paint dynamic zones on the sprite canvas (Edit Sprite), on the "
+                   "%1 sprite")
                     .arg(m_document && m_document->dynamicPlane() == render::Resolution::Hd
                              ? nativePlaneText(*m_document)
                              : QStringLiteral("128x32")),
@@ -1061,7 +1074,7 @@ void MainWindow::createCentralView()
         const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
             m_document->spriteDynamicColor(*sprite, set, shade),
             this,
-            QStringLiteral("Sprite Dynamic Color"));
+            tr("Sprite Dynamic Color"));
         if (!picked) {
             return;
         }
@@ -1080,7 +1093,7 @@ void MainWindow::createCentralView()
             m_document->setSpriteDynamicColor(*sprite, set, shade, m_document->editColor(shade));
         }
         recordEdit(edit::spriteStateCommand(*m_document, *sprite, std::move(before)));
-        statusBar()->showMessage(QStringLiteral("Copied the edit colors to sprite set %1")
+        statusBar()->showMessage(tr("Copied the edit colors to sprite set %1")
                                      .arg(static_cast<int>(set) + 1),
                                  2500);
     };
@@ -1095,7 +1108,7 @@ void MainWindow::createCentralView()
             colors.push_back(m_document->spriteDynamicColor(*sprite, set, shade));
         }
         commitEditorColors(edit::withEditColors(m_document->colorSetTables(), colors),
-                           QStringLiteral("Copied sprite set %1 to the edit colors")
+                           tr("Copied sprite set %1 to the edit colors")
                                .arg(static_cast<int>(set) + 1));
     };
     m_spritePanel->onSourceFrameRequested = [this]() {
@@ -1127,25 +1140,25 @@ void MainWindow::createCentralView()
     startToolbarGroup();
 
     const std::vector<std::pair<DrawingTool, QString>> tools{
-        {DrawingTool::Point, QStringLiteral("Point")},
-        {DrawingTool::Line, QStringLiteral("Line")},
-        {DrawingTool::Rectangle, QStringLiteral("Rect")},
-        {DrawingTool::FilledRectangle, QStringLiteral("Fill Rect")},
-        {DrawingTool::Circle, QStringLiteral("Circle")},
-        {DrawingTool::FilledCircle, QStringLiteral("Fill Circle")},
-        {DrawingTool::Ellipse, QStringLiteral("Ellipse")},
-        {DrawingTool::FilledEllipse, QStringLiteral("Fill Ellipse")},
-        {DrawingTool::PaletteGradient, QStringLiteral("Grad")},
-        {DrawingTool::Selection, QStringLiteral("Sel")},
-        {DrawingTool::ColorPicker, QStringLiteral("Pick")},
-        {DrawingTool::FloodFill, QStringLiteral("Flood")},
+        {DrawingTool::Point, tr("Point")},
+        {DrawingTool::Line, tr("Line")},
+        {DrawingTool::Rectangle, tr("Rect")},
+        {DrawingTool::FilledRectangle, tr("Fill Rect")},
+        {DrawingTool::Circle, tr("Circle")},
+        {DrawingTool::FilledCircle, tr("Fill Circle")},
+        {DrawingTool::Ellipse, tr("Ellipse")},
+        {DrawingTool::FilledEllipse, tr("Fill Ellipse")},
+        {DrawingTool::PaletteGradient, tr("Grad")},
+        {DrawingTool::Selection, tr("Sel")},
+        {DrawingTool::ColorPicker, tr("Pick")},
+        {DrawingTool::FloodFill, tr("Flood")},
     };
     for (const auto& toolOption : tools) {
         const DrawingTool tool = toolOption.first;
         const QString label = toolOption.second;
         QToolButton* button = makeToolButton(central,
                                              label,
-                                             QStringLiteral("%1 tool").arg(label),
+                                             tr("%1 tool").arg(label),
                                              static_cast<int>(tool));
         toolbarLayout->addWidget(button);
         m_toolButtons.push_back(button);
@@ -1174,7 +1187,7 @@ void MainWindow::createCentralView()
         connect(button, &QWidget::customContextMenuRequested, this,
                 [this, button, colorIndex](const QPoint& position) {
                     QMenu menu(button);
-                    QAction* editAction = menu.addAction(QStringLiteral("Edit Color..."));
+                    QAction* editAction = menu.addAction(tr("Edit Color..."));
                     if (menu.exec(button->mapToGlobal(position)) == editAction) {
                         editFavoriteColor(colorIndex);
                     }
@@ -1183,23 +1196,23 @@ void MainWindow::createCentralView()
     m_activeColorButton = new QToolButton(central);
     m_activeColorButton->setFixedSize(34, 24);
     m_activeColorButton->setEnabled(false);
-    m_activeColorButton->setToolTip(QStringLiteral("Active draw color"));
+    m_activeColorButton->setToolTip(tr("Active draw color"));
     toolbarLayout->addWidget(m_activeColorButton);
     startToolbarGroup();
     m_playbackButton = new QToolButton(central);
-    m_playbackButton->setText(QStringLiteral("Play"));
-    m_playbackButton->setToolTip(QStringLiteral("Play visible frames"));
+    m_playbackButton->setText(tr("Play"));
+    m_playbackButton->setToolTip(tr("Play visible frames"));
     m_playbackButton->setCheckable(true);
     m_playbackButton->setEnabled(false);
     m_loopPlaybackButton = new QToolButton(central);
-    m_loopPlaybackButton->setText(QStringLiteral("Loop"));
-    m_loopPlaybackButton->setToolTip(QStringLiteral("Loop playback at the end of the visible frame list"));
+    m_loopPlaybackButton->setText(tr("Loop"));
+    m_loopPlaybackButton->setToolTip(tr("Loop playback at the end of the visible frame list"));
     m_loopPlaybackButton->setCheckable(true);
     m_loopPlaybackButton->setChecked(true);
     m_loopPlaybackButton->setEnabled(false);
     m_useProjectTimingCheckBox = new QCheckBox(QStringLiteral("cRP"), central);
     m_useProjectTimingCheckBox->setToolTip(
-        QStringLiteral("Use per-frame durations loaded from the .cRP file"));
+        tr("Use per-frame durations loaded from the .cRP file"));
     m_useProjectTimingCheckBox->setChecked(true);
     m_useProjectTimingCheckBox->setEnabled(false);
     m_playbackIntervalSpinBox = new QSpinBox(central);
@@ -1207,7 +1220,7 @@ void MainWindow::createCentralView()
     m_playbackIntervalSpinBox->setSingleStep(10);
     m_playbackIntervalSpinBox->setSuffix(QStringLiteral(" ms"));
     m_playbackIntervalSpinBox->setValue(100);
-    m_playbackIntervalSpinBox->setToolTip(QStringLiteral("Playback frame interval"));
+    m_playbackIntervalSpinBox->setToolTip(tr("Playback frame interval"));
     m_playbackIntervalSpinBox->setEnabled(false);
     toolbarLayout->addWidget(m_playbackButton);
     toolbarLayout->addWidget(m_loopPlaybackButton);
@@ -1226,17 +1239,17 @@ void MainWindow::createCentralView()
     // The canvas zoom: out, the zoom (a click shows the whole frame), in.
     auto* zoomOutButton = new QToolButton(central);
     zoomOutButton->setText(QStringLiteral("-"));
-    zoomOutButton->setToolTip(QStringLiteral("Zoom out (Ctrl+-)"));
+    zoomOutButton->setToolTip(tr("Zoom out (Ctrl+-)"));
     connect(zoomOutButton, &QToolButton::clicked, this, [this]() { m_preview->zoomOut(); });
     m_zoomButton = new QToolButton(central);
     m_zoomButton->setText(QStringLiteral("100%"));
-    m_zoomButton->setToolTip(QStringLiteral(
+    m_zoomButton->setToolTip(tr(
         "Canvas zoom; a click shows the whole frame (Ctrl+0). Ctrl with the mouse wheel or a "
         "pinch zooms at the mouse."));
     connect(m_zoomButton, &QToolButton::clicked, this, [this]() { m_preview->resetZoom(); });
     auto* zoomInButton = new QToolButton(central);
     zoomInButton->setText(QStringLiteral("+"));
-    zoomInButton->setToolTip(QStringLiteral("Zoom in (Ctrl++)"));
+    zoomInButton->setToolTip(tr("Zoom in (Ctrl++)"));
     connect(zoomInButton, &QToolButton::clicked, this, [this]() { m_preview->zoomIn(); });
     toolbarLayout->addWidget(zoomOutButton);
     toolbarLayout->addWidget(m_zoomButton);
@@ -1295,29 +1308,29 @@ void MainWindow::createCentralView()
     frameStripLayout->addWidget(frameStripControls);
     frameStripLayout->addWidget(m_frameList, 1);
     m_maskPage = new RecordListPage(m_maskList,
-                                    QStringLiteral("Add an empty comparison mask"),
-                                    QStringLiteral("Delete the selected comparison mask"),
+                                    tr("Add an empty comparison mask"),
+                                    tr("Delete the selected comparison mask"),
                                     m_leftBrowserTabs);
     m_maskPage->onNewRequested = [this]() { addComparisonMask(); };
     m_maskPage->onDeleteRequested = [this]() { deleteSelectedComparisonMask(); };
     m_backgroundPage = new RecordListPage(
         m_backgroundList,
-        QStringLiteral("Add a background with the picture of the current frame"),
-        QStringLiteral("Delete the selected background"),
+        tr("Add a background with the picture of the current frame"),
+        tr("Delete the selected background"),
         m_leftBrowserTabs);
     m_backgroundPage->onNewRequested = [this]() { addBackgroundFromCurrentFrame(); };
     m_backgroundPage->onDeleteRequested = [this]() { deleteSelectedBackground(); };
     m_spritePage = new RecordListPage(m_spriteList,
-                                      QStringLiteral("Add an empty sprite"),
-                                      QStringLiteral("Delete the selected sprite"),
+                                      tr("Add an empty sprite"),
+                                      tr("Delete the selected sprite"),
                                       m_leftBrowserTabs);
     m_spritePage->onNewRequested = [this]() { addSprite(); };
     m_spritePage->onDeleteRequested = [this]() { deleteSelectedSprite(); };
     // Open together, the lists share the height.
     m_leftBrowserTabs->addTab(m_maskPage, QStringLiteral("Masks"),
-                              QStringLiteral("Comparison Masks"));
-    m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"));
-    m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"));
+                              tr("Comparison Masks"));
+    m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"), tr("Backgrounds"));
+    m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"), tr("Sprites"));
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
     // The asset of "Using the selected asset" is that of the list used last: opened, or
     // clicked in.
@@ -1335,7 +1348,7 @@ void MainWindow::createCentralView()
     // The inspector's topics in sections that open and close, any number at a time.
     auto* inspectorTabs = new SectionStack(inspector);
 
-    inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"));
+    inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"), tr("Frame"));
 
     // The mask of the frame and, below it, the comparison tools; they scroll together.
     auto* maskPage = new NarrowPage(inspectorTabs);
@@ -1344,11 +1357,11 @@ void MainWindow::createCentralView()
     maskPageLayout->setSpacing(0);
     maskPageLayout->addWidget(m_maskPanel);
     maskPageLayout->addWidget(m_sameFramesPanel);
-    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"), QStringLiteral("Comparison Mask"));
+    inspectorTabs->addTab(maskPage, QStringLiteral("Mask"), tr("Comparison Mask"));
     inspectorTabs->onCurrentChanged = [this](int) { updateSameFrameControls(); };
 
-    inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"), QStringLiteral("Background"));
-    inspectorTabs->addTab(m_spritePanel, QStringLiteral("Sprite"));
+    inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"), tr("Background"));
+    inspectorTabs->addTab(m_spritePanel, QStringLiteral("Sprite"), tr("Sprite"));
 
     m_dynamicPanel = new DynamicPanel(central);
     m_dynamicPanel->onDynamicSetChanged = [this](int setIndex) {
@@ -1363,11 +1376,11 @@ void MainWindow::createCentralView()
     m_dynamicPanel->onShadowColorClicked = [this]() {
         editDynamicShadowColor();
     };
-    inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"), QStringLiteral("Dynamic Sets"));
+    inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"), tr("Dynamic Sets"));
 
-    inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"));
+    inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"), tr("Palette"));
     inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"),
-                          QStringLiteral("Color Rotations"));
+                          tr("Color Rotations"));
 
     m_colorSetPanel = new ColorSetPanel(central);
     m_colorSetPanel->onStoreRequested = [this](std::size_t setIndex) { storeColorSet(setIndex); };
@@ -1384,7 +1397,7 @@ void MainWindow::createCentralView()
             m_document->setFirstDisplayedColorSet(static_cast<uint8_t>(firstVisibleSet));
         }
     };
-    inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"), QStringLiteral("Color Sets"));
+    inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"), tr("Color Sets"));
 
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
@@ -1592,8 +1605,8 @@ void MainWindow::createCentralView()
         const int frames = static_cast<int>(selectedFrameIndices().size());
         if (!drop) {
             statusBar()->showMessage(
-                QStringLiteral("Drop to assign %1 %2 to the %3 selected frame(s)")
-                    .arg(mask ? QStringLiteral("comparison mask") : QStringLiteral("background"))
+                tr("Drop to assign %1 %2 to the %3 selected frame(s)")
+                    .arg(mask ? tr("comparison mask") : tr("background"))
                     .arg(index)
                     .arg(frames),
                 2000);
@@ -1659,7 +1672,7 @@ void MainWindow::createCentralView()
                 updateSpriteControls();
                 updateProjectHeaderStatus();
                 statusBar()->showMessage(
-                    QStringLiteral("Updated sprite %1 detection area %2")
+                    tr("Updated sprite %1 detection area %2")
                         .arg(spriteIndex)
                         .arg(static_cast<int>(areaIndex)),
                     1500);
@@ -1699,7 +1712,7 @@ void MainWindow::createCentralView()
         [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
             if (m_spriteEditor->isDynamicPaintMode()) {
                 statusBar()->showMessage(
-                    QStringLiteral("Dynamic zones are painted with the point and shape tools"),
+                    tr("Dynamic zones are painted with the point and shape tools"),
                     3000);
                 return;
             }
@@ -1724,7 +1737,7 @@ void MainWindow::createCentralView()
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
-    if (!confirmClosingProject(QStringLiteral("Quit"))) {
+    if (!confirmClosingProject(tr("Quit"))) {
         event->ignore();
         return;
     }
@@ -1737,15 +1750,15 @@ void MainWindow::closeEvent(QCloseEvent* event)
 
 void MainWindow::openProject()
 {
-    if (!confirmClosingProject(QStringLiteral("Open Project"))) {
+    if (!confirmClosingProject(tr("Open Project"))) {
         return;
     }
     const QString cromPath = QFileDialog::getOpenFileName(
         this,
-        QStringLiteral("Open cROM or cRZ"),
+        tr("Open cROM or cRZ"),
         QString(),
-        QStringLiteral("Serum colorization (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
-                       "All files (*)"));
+        tr("Serum colorization (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
+           "All files (*)"));
     if (cromPath.isEmpty()) {
         return;
     }
@@ -1759,9 +1772,9 @@ void MainWindow::openProject()
     if (!QFileInfo::exists(crpPath)) {
         crpPath = QFileDialog::getOpenFileName(
             this,
-            QStringLiteral("Open matching cRPX or cRP"),
+            tr("Open matching cRPX or cRP"),
             QFileInfo(cromPath).dir().absolutePath(),
-            QStringLiteral("Serum editor project (*.cRPX *.cRP);;All files (*)"));
+            tr("Serum editor project (*.cRPX *.cRP);;All files (*)"));
         if (crpPath.isEmpty()) {
             return;
         }
@@ -1772,13 +1785,13 @@ void MainWindow::openProject()
 
 void MainWindow::openRecentProject(const QString& entry)
 {
-    if (!confirmClosingProject(QStringLiteral("Open Recent Project"))) {
+    if (!confirmClosingProject(tr("Open Recent Project"))) {
         return;
     }
     QString cromPath = recentProjectCromPath(entry);
     QString crpPath = recentProjectCrpPath(entry);
     if (cromPath.isEmpty() || crpPath.isEmpty()) {
-        statusBar()->showMessage(QStringLiteral("Recent project entry is incomplete"), 4000);
+        statusBar()->showMessage(tr("Recent project entry is incomplete"), 4000);
         return;
     }
     // A project is passed around as .cRZ and saved as .cROM plus .cRZ, so either may be the one
@@ -1808,7 +1821,7 @@ void MainWindow::updateWindowTitle()
     if (!m_document) {
         setWindowTitle(application);
     } else if (isUntitledProject()) {
-        setWindowTitle(QStringLiteral("%1 (not saved yet) \u2014 %2")
+        setWindowTitle(tr("%1 (not saved yet) \u2014 %2")
                            .arg(QString::fromStdString(m_document->romName()), application));
     } else {
         setWindowTitle(QStringLiteral("%1 \u2014 %2")
@@ -1839,7 +1852,7 @@ bool MainWindow::saveProject()
         const document::ProjectSnapshot snapshot = m_document->toSnapshot();
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
-            runProjectTask(this, QStringLiteral("Saving Project"), progress, [&]() {
+            runProjectTask(this, tr("Saving Project"), progress, [&]() {
                 result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
             });
         if (failure) {
@@ -1849,14 +1862,14 @@ bool MainWindow::saveProject()
 
     if (result.cancelled) {
         statusBar()->showMessage(
-            QStringLiteral("Save cancelled: the project files on disk are unchanged"), 4000);
+            tr("Save cancelled: the project files on disk are unchanged"), 4000);
         return false;
     }
     if (!result.ok) {
         QMessageBox::critical(this,
-                              QStringLiteral("Save Project Failed"),
+                              tr("Save Project Failed"),
                               QString::fromStdString(result.error.message));
-        statusBar()->showMessage(QStringLiteral("Save failed"), 4000);
+        statusBar()->showMessage(tr("Save failed"), 4000);
         return false;
     }
 
@@ -1865,8 +1878,8 @@ bool MainWindow::saveProject()
     const QString retired = retireWin32EditorFile(m_currentCromPath);
     statusBar()->showMessage(
         retired.isEmpty()
-            ? QStringLiteral("Project saved")
-            : QStringLiteral("Project saved; the Win32 editor's %1 was renamed to %1.bak")
+            ? tr("Project saved")
+            : tr("Project saved; the Win32 editor's %1 was renamed to %1.bak")
                   .arg(QFileInfo(retired).fileName()),
         retired.isEmpty() ? 3000 : 8000);
     return true;
@@ -1892,9 +1905,9 @@ bool MainWindow::saveProjectAs()
     }
     QString targetCromPath = QFileDialog::getSaveFileName(
         this,
-        untitled ? QStringLiteral("Save New Project As") : QStringLiteral("Save cROM As"),
+        untitled ? tr("Save New Project As") : tr("Save cROM As"),
         proposedPath,
-        QStringLiteral("Serum colorization (*.cROM);;All files (*)"));
+        tr("Serum colorization (*.cROM);;All files (*)"));
     if (targetCromPath.isEmpty()) {
         return false;
     }
@@ -1923,9 +1936,9 @@ bool MainWindow::saveProjectAs()
         }
         rememberRecentProject(m_currentCromPath, m_currentCrpPath);
         updateWindowTitle();
-        statusBar()->showMessage(untitled ? QStringLiteral("Project saved as %1")
+        statusBar()->showMessage(untitled ? tr("Project saved as %1")
                                                 .arg(targetCromInfo.fileName())
-                                          : QStringLiteral("Project saved as copy"),
+                                          : tr("Project saved as copy"),
                                  3000);
         return true;
     }
@@ -1943,15 +1956,15 @@ UnsavedChangesAnswer MainWindow::askAboutUnsavedChanges(const QString& action)
     QMessageBox question(this);
     question.setIcon(QMessageBox::Warning);
     question.setWindowTitle(action);
-    question.setText(QStringLiteral("The current project has changes that are not saved."));
+    question.setText(tr("The current project has changes that are not saved."));
     question.setInformativeText(
         isUntitledProject()
-            ? QStringLiteral("Save asks where to save the new project first. Discard Changes "
-                             "loses them.")
-            : QStringLiteral("Save writes them first. Discard Changes loses them."));
-    QPushButton* saveButton = question.addButton(QStringLiteral("Save"), QMessageBox::AcceptRole);
+            ? tr("Save asks where to save the new project first. Discard Changes "
+                 "loses them.")
+            : tr("Save writes them first. Discard Changes loses them."));
+    QPushButton* saveButton = question.addButton(tr("Save"), QMessageBox::AcceptRole);
     QPushButton* discardButton =
-        question.addButton(QStringLiteral("Discard Changes"), QMessageBox::DestructiveRole);
+        question.addButton(tr("Discard Changes"), QMessageBox::DestructiveRole);
     QPushButton* cancelButton = question.addButton(QMessageBox::Cancel);
     question.setDefaultButton(saveButton);
     question.setEscapeButton(cancelButton);
@@ -1979,14 +1992,14 @@ bool MainWindow::confirmClosingProject(const QString& action)
 
 void MainWindow::newProjectFromDump()
 {
-    if (!confirmClosingProject(QStringLiteral("New Project From Dump"))) {
+    if (!confirmClosingProject(tr("New Project From Dump"))) {
         return;
     }
     const QString path = QFileDialog::getOpenFileName(
         this,
-        QStringLiteral("Choose Frame Dump For New Project"),
+        tr("Choose Frame Dump For New Project"),
         m_dumpDirectory,
-        QStringLiteral("Frame dumps (*.txt);;All files (*)"));
+        tr("Frame dumps (*.txt);;All files (*)"));
     if (path.isEmpty()) {
         return;
     }
@@ -2013,13 +2026,13 @@ void MainWindow::newProjectFromDump()
         }
     } catch (const std::exception& ex) {
         QMessageBox::critical(this,
-                              QStringLiteral("New Project Failed"),
+                              tr("New Project Failed"),
                               QString::fromUtf8(ex.what()));
         return;
     }
     refreshProjectSummary();
     statusBar()->showMessage(
-        QStringLiteral("New project %1, not saved yet: %2")
+        tr("New project %1, not saved yet: %2")
             .arg(QString::fromStdString(m_document->romName()), summary),
         8000);
 }
@@ -2027,14 +2040,14 @@ void MainWindow::newProjectFromDump()
 void MainWindow::addFramesFromDump()
 {
     if (!m_document) {
-        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        statusBar()->showMessage(tr("No project loaded"), 2500);
         return;
     }
     const QString path = QFileDialog::getOpenFileName(
         this,
-        QStringLiteral("Choose Frame Dump To Add"),
+        tr("Choose Frame Dump To Add"),
         m_dumpDirectory,
-        QStringLiteral("Frame dumps (*.txt);;All files (*)"));
+        tr("Frame dumps (*.txt);;All files (*)"));
     if (path.isEmpty()) {
         return;
     }
@@ -2052,7 +2065,7 @@ void MainWindow::addFramesFromDump()
     try {
         recordStructureEdit(edit::addFrames(
             *m_document, importing::makeProjectFrames(*m_document, std::move(dump))));
-        showStructureEditStatus(QStringLiteral("Frames added: %1; %2 frames now")
+        showStructureEditStatus(tr("Frames added: %1; %2 frames now")
                                      .arg(summary)
                                      .arg(static_cast<qulonglong>(m_document->frameCount())),
                                  8000);
@@ -2088,12 +2101,12 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
     if (!m_dmdOutput.start(settings)) {
         setDmdOutputEnabled(false);
         statusBar()->showMessage(
-            QStringLiteral("DMD output failed: %1").arg(m_dmdOutput.lastMessage()), 8000);
+            tr("DMD output failed: %1").arg(m_dmdOutput.lastMessage()), 8000);
         return;
     }
     m_dmdPictureKey.reset();
     m_dmdTimer.start();
-    statusBar()->showMessage(QStringLiteral("DMD output: looking for displays"), 3000);
+    statusBar()->showMessage(tr("DMD output: looking for displays"), 3000);
     // libdmdutil looks in the background and logs what it found.
     QTimer::singleShot(4000, this, [this]() {
         if (!m_dmdOutput.isRunning()) {
@@ -2102,9 +2115,9 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
         const QString message = m_dmdOutput.lastMessage();
         statusBar()->showMessage(
             message.isEmpty()
-                ? QStringLiteral("DMD output on; see View -> DMD Output Settings if no display "
-                                 "shows the picture")
-                : QStringLiteral("DMD output: %1").arg(message),
+                ? tr("DMD output on; see View -> DMD Output Settings if no display "
+                     "shows the picture")
+                : tr("DMD output: %1").arg(message),
             6000);
     });
 }
@@ -2113,9 +2126,15 @@ void MainWindow::editSettings(SettingsDialog::Page page)
 {
     SettingsDialog dialog(loadTheme(), m_dmdRenderOptions, loadDmdOutputSettings(),
                           DmdOutput::isAvailable(), this);
+    dialog.setLanguage(loadLanguage());
     dialog.showPage(page);
     if (dialog.exec() != QDialog::Accepted) {
         return;
+    }
+    if (dialog.language() != loadLanguage()) {
+        saveLanguage(dialog.language());
+        QMessageBox::information(this, tr("Language"),
+                                 tr("The language changes at the next start."));
     }
     if (dialog.theme() != loadTheme()) {
         saveTheme(dialog.theme());
@@ -2206,13 +2225,13 @@ void MainWindow::sendDmdPicture()
 void MainWindow::exportAnimatedGif()
 {
     if (!m_document) {
-        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        statusBar()->showMessage(tr("No project loaded"), 2500);
         return;
     }
     std::vector<std::size_t> frames = selectedFrameIndices();
     std::sort(frames.begin(), frames.end());
     if (frames.empty()) {
-        statusBar()->showMessage(QStringLiteral("Select the frames to export"), 2500);
+        statusBar()->showMessage(tr("Select the frames to export"), 2500);
         return;
     }
     GifExportOptions options;
@@ -2233,12 +2252,12 @@ void MainWindow::exportAnimatedGif()
                   QFileInfo(m_currentCromPath).completeBaseName());
     QString path = QFileDialog::getSaveFileName(
         this,
-        QStringLiteral("Export Animated GIF"),
+        tr("Export Animated GIF"),
         QStringLiteral("%1_%2-%3.gif")
             .arg(base)
             .arg(static_cast<qulonglong>(frames.front()))
             .arg(static_cast<qulonglong>(frames.back())),
-        QStringLiteral("Animated GIF (*.gif);;All files (*)"));
+        tr("Animated GIF (*.gif);;All files (*)"));
     if (path.isEmpty()) {
         return;
     }
@@ -2251,11 +2270,11 @@ void MainWindow::exportAnimatedGif()
     {
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
-            runProjectTask(this, QStringLiteral("Exporting Animated GIF"), progress, [&]() {
+            runProjectTask(this, tr("Exporting Animated GIF"), progress, [&]() {
                 std::ofstream stream(platform::pathFromUtf8(partial.toStdString()),
                                      std::ios::binary | std::ios::trunc);
                 if (!stream) {
-                    result.error = "the file cannot be written";
+                    result.error = tr("the file cannot be written").toStdString();
                     return;
                 }
                 result = writeAnimatedGif(*m_document, frames, options, stream, &progress);
@@ -2268,10 +2287,10 @@ void MainWindow::exportAnimatedGif()
     if (!result.ok) {
         QFile::remove(partial);
         if (result.cancelled) {
-            statusBar()->showMessage(QStringLiteral("Export cancelled"), 3000);
+            statusBar()->showMessage(tr("Export cancelled"), 3000);
         } else {
             QMessageBox::critical(this,
-                                  QStringLiteral("Export Animated GIF Failed"),
+                                  tr("Export Animated GIF Failed"),
                                   QString::fromStdString(result.error));
         }
         return;
@@ -2280,11 +2299,11 @@ void MainWindow::exportAnimatedGif()
     if (!QFile::rename(partial, path)) {
         QFile::remove(partial);
         QMessageBox::critical(this,
-                              QStringLiteral("Export Animated GIF Failed"),
-                              QStringLiteral("%1 cannot be replaced").arg(path));
+                              tr("Export Animated GIF Failed"),
+                              tr("%1 cannot be replaced").arg(path));
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Exported %1 frame(s) as %2 picture(s) to %3")
+    statusBar()->showMessage(tr("Exported %1 frame(s) as %2 picture(s) to %3")
                                  .arg(static_cast<qulonglong>(frames.size()))
                                  .arg(static_cast<qulonglong>(result.pictures))
                                  .arg(QDir::toNativeSeparators(path)),
@@ -2294,7 +2313,7 @@ void MainWindow::exportAnimatedGif()
 void MainWindow::openFrameTester()
 {
     if (!m_document) {
-        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        statusBar()->showMessage(tr("No project loaded"), 2500);
         return;
     }
     // libserum holds one colorization: the Runtime view lets go of its own meanwhile.
@@ -2312,7 +2331,7 @@ void MainWindow::openFrameTester()
                 frames.push_back(m_document->makeUncolorizedFrame(frame.original,
                                                                   frame.durationMs));
                 recordStructureEdit(edit::addFrames(*m_document, std::move(frames)));
-                showStructureEditStatus(QStringLiteral("Added the dump frame as frame %1")
+                showStructureEditStatus(tr("Added the dump frame as frame %1")
                                             .arg(static_cast<qulonglong>(
                                                 m_document->frameCount() - 1)),
                                         4000);
@@ -2346,7 +2365,7 @@ void MainWindow::openFrameTester()
 void MainWindow::exportCromc()
 {
     if (!m_document) {
-        statusBar()->showMessage(QStringLiteral("No project loaded"), 2500);
+        statusBar()->showMessage(tr("No project loaded"), 2500);
         return;
     }
     const QString rom = QString::fromStdString(m_document->romName());
@@ -2357,9 +2376,9 @@ void MainWindow::exportCromc()
                                                               : QDir::homePath());
     QString target = QFileDialog::getSaveFileName(
         this,
-        QStringLiteral("Export .cROMc"),
+        tr("Export .cROMc"),
         proposedDirectory.absoluteFilePath(rom + QStringLiteral(".cROMc")),
-        QStringLiteral("Serum colorization for machines (*.cROMc);;All files (*)"));
+        tr("Serum colorization for machines (*.cROMc);;All files (*)"));
     if (target.isEmpty()) {
         return;
     }
@@ -2383,7 +2402,7 @@ void MainWindow::exportCromc()
         const document::ProjectSnapshot snapshot = m_document->toSnapshot();
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
-            runProjectTask(this, QStringLiteral("Exporting .cROMc"), progress, [&]() {
+            runProjectTask(this, tr("Exporting .cROMc"), progress, [&]() {
                 result = runtime::exportCromc(
                     snapshot,
                     platform::pathFromUtf8(work.toStdString()),
@@ -2401,12 +2420,12 @@ void MainWindow::exportCromc()
     }
 
     if (result.cancelled) {
-        statusBar()->showMessage(QStringLiteral("Export cancelled"), 3000);
+        statusBar()->showMessage(tr("Export cancelled"), 3000);
         return;
     }
     if (!result.ok) {
         QMessageBox::critical(this,
-                              QStringLiteral("Export .cROMc Failed"),
+                              tr("Export .cROMc Failed"),
                               QString::fromStdString(result.error));
         return;
     }
@@ -2416,14 +2435,14 @@ void MainWindow::exportCromc()
     }
     QString note;
     if (QFileInfo(target).completeBaseName().compare(rom, Qt::CaseInsensitive) != 0) {
-        note = QStringLiteral(". libserum looks for %1.cROMc").arg(rom);
+        note = tr(". libserum looks for %1.cROMc").arg(rom);
     }
     statusBar()->showMessage(
-        QStringLiteral("Exported %1%2%3")
+        tr("Exported %1%2%3")
             .arg(QDir::toNativeSeparators(target),
                  sidecars.isEmpty() ? QString()
-                                    : QStringLiteral(" with %1").arg(sidecars.join(
-                                          QStringLiteral(" and "))),
+                                    : tr(" with %1").arg(sidecars.join(
+                                          tr(" and "))),
                  note),
         8000);
 }
@@ -2435,7 +2454,7 @@ void MainWindow::exportCurrentFramePng()
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!frameIndex) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        statusBar()->showMessage(tr("No frame selected"), 2500);
         return;
     }
     // A still of its own; a playing sequence would be replaced by it.
@@ -2456,7 +2475,7 @@ void MainWindow::exportCurrentFramePng()
         // Nothing is written from the editor's own renderer instead: the file would show
         // what no machine shows.
         statusBar()->showMessage(
-            QStringLiteral("Frame %1 is not exported: %2")
+            tr("Frame %1 is not exported: %2")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(QString::fromStdString(runtimeNoPictureReason(frame, rows))),
             8000);
@@ -2476,9 +2495,9 @@ void MainWindow::exportCurrentFramePng()
             .arg(planeName(exportPlane).toLower()));
     QString targetPath = QFileDialog::getSaveFileName(
         this,
-        QStringLiteral("Export Current Frame PNG"),
+        tr("Export Current Frame PNG"),
         defaultPath,
-        QStringLiteral("PNG image (*.png);;All files (*)"));
+        tr("PNG image (*.png);;All files (*)"));
     if (targetPath.isEmpty()) {
         return;
     }
@@ -2489,11 +2508,11 @@ void MainWindow::exportCurrentFramePng()
         renderRgb565FrameImage(plane->image, kExportDmdPixelScale, currentDmdRenderOptions());
     if (!image.save(targetPath, "PNG")) {
         QMessageBox::critical(this,
-                              QStringLiteral("Export Failed"),
-                              QStringLiteral("Could not write PNG file."));
+                              tr("Export Failed"),
+                              tr("Could not write PNG file."));
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Exported frame PNG as libserum renders it, %1 rows")
+    statusBar()->showMessage(tr("Exported frame PNG as libserum renders it, %1 rows")
                                  .arg(plane->image.size.height),
                              3000);
 }
@@ -2502,15 +2521,15 @@ void MainWindow::importImageIntoSelectedFrames()
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     if (!m_document || frameIndices.empty()) {
-        statusBar()->showMessage(QStringLiteral("Select at least one frame first"), 2500);
+        statusBar()->showMessage(tr("Select at least one frame first"), 2500);
         return;
     }
 
     const QString imagePath = QFileDialog::getOpenFileName(
         this,
-        QStringLiteral("Import Image Into Selected Frames"),
+        tr("Import Image Into Selected Frames"),
         m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
-        QStringLiteral("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
+        tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
     if (imagePath.isEmpty()) {
         return;
     }
@@ -2518,8 +2537,8 @@ void MainWindow::importImageIntoSelectedFrames()
     QImage image(imagePath);
     if (image.isNull()) {
         QMessageBox::critical(this,
-                              QStringLiteral("Import Failed"),
-                              QStringLiteral("Could not read image file."));
+                              tr("Import Failed"),
+                              tr("Could not read image file."));
         return;
     }
 
@@ -2572,10 +2591,10 @@ void MainWindow::importImageIntoSelectedFrames()
     if (updatedFrames == 0) {
         statusBar()->showMessage(
             skippedFrames == 0
-                ? QStringLiteral("Selected frames already match the imported image")
+                ? tr("Selected frames already match the imported image")
                 : showsHdAndSd()
-                      ? QStringLiteral("No selected HD frames were available for import")
-                      : QStringLiteral("No selected frame has a %1 frame to import into")
+                      ? tr("No selected HD frames were available for import")
+                      : tr("No selected frame has a %1 frame to import into")
                             .arg(nativePlaneText(*m_document)),
             3000);
         updateUndoRedoActions();
@@ -2585,13 +2604,13 @@ void MainWindow::importImageIntoSelectedFrames()
     updateUndoRedoActions();
     updateProjectHeaderStatus();
     statusBar()->showMessage(
-        QStringLiteral("Imported image into %1 frame(s)%2")
+        tr("Imported image into %1 frame(s)%2")
             .arg(updatedFrames)
             .arg(skippedFrames == 0
                      ? QString()
                      : showsHdAndSd()
-                           ? QStringLiteral(" (%1 skipped without HD)").arg(skippedFrames)
-                           : QStringLiteral(" (%1 skipped without %2 frame)")
+                           ? tr(" (%1 skipped without HD)").arg(skippedFrames)
+                           : tr(" (%1 skipped without %2 frame)")
                                  .arg(skippedFrames)
                                  .arg(nativePlaneText(*m_document))),
         3000);
@@ -2616,21 +2635,21 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
         if (autosaved) {
             QMessageBox question(this);
             question.setIcon(QMessageBox::Question);
-            question.setWindowTitle(QStringLiteral("Open Project"));
-            question.setText(QStringLiteral("The project has an autosave from %1 that is newer "
-                                            "than its files.")
+            question.setWindowTitle(tr("Open Project"));
+            question.setText(tr("The project has an autosave from %1 that is newer "
+                                "than its files.")
                                  .arg(QLocale().toString(*autosaved, QLocale::ShortFormat)));
             question.setInformativeText(
-                QStringLiteral("It holds changes that were not saved, for example after a "
-                               "crash. Open Autosave opens it as this project with unsaved "
-                               "changes: Save then writes them to the project files. %1 and "
-                               "%2 are kept either way.")
+                tr("It holds changes that were not saved, for example after a "
+                   "crash. Open Autosave opens it as this project with unsaved "
+                   "changes: Save then writes them to the project files. %1 and "
+                   "%2 are kept either way.")
                     .arg(QFileInfo(autosave.cromPath).fileName(),
                          QFileInfo(autosave.crpPath).fileName()));
             QPushButton* autosaveButton =
-                question.addButton(QStringLiteral("Open Autosave"), QMessageBox::AcceptRole);
+                question.addButton(tr("Open Autosave"), QMessageBox::AcceptRole);
             QPushButton* projectButton =
-                question.addButton(QStringLiteral("Open Project"), QMessageBox::RejectRole);
+                question.addButton(tr("Open Project"), QMessageBox::RejectRole);
             question.addButton(QMessageBox::Cancel);
             question.setDefaultButton(autosaveButton);
             question.exec();
@@ -2668,7 +2687,7 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
     {
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
-            runProjectTask(this, QStringLiteral("Opening Project"), progress, [&]() {
+            runProjectTask(this, tr("Opening Project"), progress, [&]() {
                 result = legacy::loadLegacyProjectDocument(paths, &progress);
             });
         if (failure) {
@@ -2678,14 +2697,14 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
     }
 
     if (result.cancelled) {
-        setStatusText(QStringLiteral("Open cancelled"));
+        setStatusText(tr("Open cancelled"));
         return;
     }
     if (!result.ok) {
         QMessageBox::critical(this,
-                              QStringLiteral("Open Project Failed"),
+                              tr("Open Project Failed"),
                               QString::fromStdString(result.error.message));
-        setStatusText(QStringLiteral("Open failed"));
+        setStatusText(tr("Open failed"));
         return;
     }
 
@@ -2714,17 +2733,17 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
         }
     } catch (const std::exception& ex) {
         QMessageBox::critical(this,
-                              QStringLiteral("Open Project Failed"),
+                              tr("Open Project Failed"),
                               QString::fromUtf8(ex.what()));
-        setStatusText(QStringLiteral("Open failed"));
+        setStatusText(tr("Open failed"));
         return;
     }
 
     refreshProjectSummary();
     if (win32Project) {
         statusBar()->showMessage(
-            QStringLiteral("A project of the Win32 editor: once saved here, the Win32 editor "
-                           "cannot open it any more"),
+            tr("A project of the Win32 editor: once saved here, the Win32 editor "
+               "cannot open it any more"),
             8000);
     }
 }
@@ -2756,13 +2775,13 @@ void MainWindow::autosaveFinished(const AutosaveFiles& files,
         return;
     }
     if (!result.ok) {
-        statusBar()->showMessage(QStringLiteral("Autosave failed: %1")
+        statusBar()->showMessage(tr("Autosave failed: %1")
                                      .arg(QString::fromStdString(result.error.message)),
                                  8000);
         return;
     }
     m_autosavedRevision = revision;
-    statusBar()->showMessage(QStringLiteral("Autosaved to %1 at %2")
+    statusBar()->showMessage(tr("Autosaved to %1 at %2")
                                  .arg(QDir::toNativeSeparators(files.cromPath),
                                       QLocale().toString(QTime::currentTime(),
                                                          QLocale::ShortFormat)),
@@ -2805,23 +2824,23 @@ void MainWindow::offerUntitledAutosave()
     name.chop(static_cast<int>(QStringLiteral("(auto)").size()));
     QMessageBox question(this);
     question.setIcon(QMessageBox::Question);
-    question.setWindowTitle(QStringLiteral("Autosave Found"));
-    question.setText(QStringLiteral("A new project of %1 that was never saved has an autosave "
-                                    "from %2.")
+    question.setWindowTitle(tr("Autosave Found"));
+    question.setText(tr("A new project of %1 that was never saved has an autosave "
+                        "from %2.")
                          .arg(name, QLocale().toString(crom.lastModified(),
                                                        QLocale::ShortFormat)));
     question.setInformativeText(
-        QStringLiteral("Open opens it as a new project with unsaved changes. Delete removes the "
-                       "autosave. Later keeps it and asks again at the next start.%1")
+        tr("Open opens it as a new project with unsaved changes. Delete removes the "
+           "autosave. Later keeps it and asks again at the next start.%1")
             .arg(autosaves.size() > 1
-                     ? QStringLiteral(" %1 more autosave(s) of never saved projects are in %2.")
+                     ? tr(" %1 more autosave(s) of never saved projects are in %2.")
                            .arg(static_cast<int>(autosaves.size() - 1))
                            .arg(QDir::toNativeSeparators(untitledAutosaveDirectory()))
                      : QString()));
-    QPushButton* openButton = question.addButton(QStringLiteral("Open"), QMessageBox::AcceptRole);
+    QPushButton* openButton = question.addButton(tr("Open"), QMessageBox::AcceptRole);
     QPushButton* deleteButton =
-        question.addButton(QStringLiteral("Delete"), QMessageBox::DestructiveRole);
-    QPushButton* laterButton = question.addButton(QStringLiteral("Later"), QMessageBox::RejectRole);
+        question.addButton(tr("Delete"), QMessageBox::DestructiveRole);
+    QPushButton* laterButton = question.addButton(tr("Later"), QMessageBox::RejectRole);
     question.setDefaultButton(openButton);
     question.setEscapeButton(laterButton);
     question.exec();
@@ -2889,7 +2908,7 @@ void MainWindow::updateSameFrameCounts()
     m_sameFrameCounts = std::move(counts);
     m_sameFramesPanel->setMaskCounts(&m_sameFrameCounts->counts);
     statusBar()->showMessage(
-        QStringLiteral("Same frames of frame %1 counted for %2 mask(s)")
+        tr("Same frames of frame %1 counted for %2 mask(s)")
             .arg(static_cast<qulonglong>(*frameIndex))
             .arg(static_cast<int>(m_document->comparisonMaskCount())),
         3000);
@@ -2911,7 +2930,7 @@ void MainWindow::deleteSameFrames(SameFrameDeletion deletion)
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex || !m_sameFramesPanel) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        statusBar()->showMessage(tr("No frame selected"), 2500);
         return;
     }
     const std::vector<std::size_t> selected = selectedFrameIndices();
@@ -2922,33 +2941,33 @@ void MainWindow::deleteSameFrames(SameFrameDeletion deletion)
     switch (deletion) {
         case SameFrameDeletion::SameAsCurrent:
             frames = m_sameFrameFinder.duplicatesOf(*m_document, {*frameIndex}, kept);
-            what = QStringLiteral("the same as frame %1 under its mask and shape mode")
+            what = tr("the same as frame %1 under its mask and shape mode")
                        .arg(static_cast<qulonglong>(*frameIndex));
             break;
         case SameFrameDeletion::SameAsSelected:
             frames = m_sameFrameFinder.duplicatesOf(*m_document, selected, kept);
-            what = QStringLiteral("the same as one of the %1 selected frame(s) under that "
-                                  "frame's mask and shape mode")
+            what = tr("the same as one of the %1 selected frame(s) under that "
+                      "frame's mask and shape mode")
                        .arg(static_cast<qulonglong>(selected.size()));
             break;
         case SameFrameDeletion::AllDuplicates:
             frames = m_sameFrameFinder.allDuplicates(*m_document, kept);
-            what = QStringLiteral("the same as another frame under that frame's mask and "
-                                  "shape mode");
+            what = tr("the same as another frame under that frame's mask and "
+                      "shape mode");
             break;
     }
     if (frames.empty()) {
-        statusBar()->showMessage(QStringLiteral("Nothing to delete: no frame is %1%2")
+        statusBar()->showMessage(tr("Nothing to delete: no frame is %1%2")
                                      .arg(what, kept.empty() ? QString()
-                                                             : QStringLiteral(" and not selected")),
+                                                             : tr(" and not selected")),
                                  5000);
         return;
     }
     deleteFrames(frames,
-                 QStringLiteral("%1 frame(s) are %2%3. The runtime cannot tell them apart.")
+                 tr("%1 frame(s) are %2%3. The runtime cannot tell them apart.")
                      .arg(static_cast<qulonglong>(frames.size()))
                      .arg(what, kept.empty() ? QString()
-                                             : QStringLiteral("; selected frames are kept")));
+                                             : tr("; selected frames are kept")));
 }
 
 void MainWindow::writeCommonPixelsToMask()
@@ -2956,13 +2975,13 @@ void MainWindow::writeCommonPixelsToMask()
     const std::vector<std::size_t> selected = selectedFrameIndices();
     if (!m_document || selected.size() < 2) {
         statusBar()->showMessage(
-            QStringLiteral("Select the frames whose differing pixels the mask is to cover"), 4000);
+            tr("Select the frames whose differing pixels the mask is to cover"), 4000);
         return;
     }
     const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
     if (!maskIndex) {
         statusBar()->showMessage(
-            QStringLiteral("Assign a comparison mask to the current frame first"), 4000);
+            tr("Assign a comparison mask to the current frame first"), 4000);
         return;
     }
     const document::IndexedFrame differing = edit::differingPixels(*m_document, selected);
@@ -2974,7 +2993,7 @@ void MainWindow::writeCommonPixelsToMask()
             edit::replaceComparisonMask(*m_document, *maskIndex, differing);
         if (!command) {
             statusBar()->showMessage(
-                QStringLiteral("Comparison mask %1 covers exactly the differing pixels already")
+                tr("Comparison mask %1 covers exactly the differing pixels already")
                     .arg(static_cast<int>(*maskIndex)),
                 4000);
             return;
@@ -2993,8 +3012,8 @@ void MainWindow::writeCommonPixelsToMask()
     updateSameFrameControls();
     updateUndoRedoActions();
     statusBar()->showMessage(
-        QStringLiteral("Comparison mask %1 now covers the %2 pixel(s) that differ among the %3 "
-                       "selected frames; %4 frame(s) use it")
+        tr("Comparison mask %1 now covers the %2 pixel(s) that differ among the %3 "
+           "selected frames; %4 frame(s) use it")
             .arg(static_cast<int>(*maskIndex))
             .arg(static_cast<qlonglong>(differingCount))
             .arg(static_cast<qulonglong>(selected.size()))
@@ -3043,20 +3062,20 @@ void MainWindow::selectFramesUsingMask()
             }
         }
     }
-    const QString maskText = maskId < 0 ? QStringLiteral("no mask")
-                                        : QStringLiteral("mask %1").arg(maskId);
+    const QString maskText = maskId < 0 ? tr("no mask")
+                                        : tr("mask %1").arg(maskId);
     if (!first) {
         statusBar()->showMessage(
-            QStringLiteral("No frame with %1 is in the frame list").arg(maskText), 4000);
+            tr("No frame with %1 is in the frame list").arg(maskText), 4000);
         return;
     }
     selectFrame(m_frameList->currentRow());
     const int hidden = static_cast<int>(frames.size()) - listed;
     statusBar()->showMessage(
-        QStringLiteral("Selected %1 frame(s) with %2%3")
+        tr("Selected %1 frame(s) with %2%3")
             .arg(listed)
-            .arg(maskText, hidden > 0 ? QStringLiteral("; %1 more are hidden by the frame "
-                                                       "filter")
+            .arg(maskText, hidden > 0 ? tr("; %1 more are hidden by the frame "
+                                           "filter")
                                             .arg(hidden)
                                       : QString()),
         4000);
@@ -3116,11 +3135,11 @@ void MainWindow::nameSectionAtCurrentFrame()
     const QString name =
         QInputDialog::getText(
             this,
-            existing ? QStringLiteral("Rename Section") : QStringLiteral("New Section"),
-            existing ? QStringLiteral("Name of the section that starts at frame %1:")
+            existing ? tr("Rename Section") : tr("New Section"),
+            existing ? tr("Name of the section that starts at frame %1:")
                            .arg(static_cast<qulonglong>(*frameIndex))
-                     : QStringLiteral("Name of the section that starts at frame %1 (up to 31 "
-                                      "characters):")
+                     : tr("Name of the section that starts at frame %1 (up to 31 "
+                          "characters):")
                            .arg(static_cast<qulonglong>(*frameIndex)),
             QLineEdit::Normal,
             existing ? QString::fromStdString(edit::sectionName(*m_document, *existing))
@@ -3133,14 +3152,14 @@ void MainWindow::nameSectionAtCurrentFrame()
     try {
         recordSectionsEdit(
             edit::addOrRenameSection(*m_document, *frameIndex, name.toStdString()),
-            existing ? QStringLiteral("Renamed section %1 to \"%2\"")
+            existing ? tr("Renamed section %1 to \"%2\"")
                            .arg(static_cast<int>(*existing))
                            .arg(name)
-                     : QStringLiteral("Section \"%1\" starts at frame %2")
+                     : tr("Section \"%1\" starts at frame %2")
                            .arg(name)
                            .arg(static_cast<qulonglong>(*frameIndex)));
     } catch (const std::exception& ex) {
-        statusBar()->showMessage(QStringLiteral("Not named: %1").arg(QString::fromUtf8(ex.what())),
+        statusBar()->showMessage(tr("Not named: %1").arg(QString::fromUtf8(ex.what())),
                                  4000);
     }
 }
@@ -3156,16 +3175,16 @@ void MainWindow::deleteCurrentSection()
         return;
     }
     const QString name = QString::fromStdString(edit::sectionName(*m_document, *section));
-    if (!confirmDeletion(QStringLiteral("Delete Section"),
-                         QStringLiteral("Delete the section \"%1\" this frame is part of?")
+    if (!confirmDeletion(tr("Delete Section"),
+                         tr("Delete the section \"%1\" this frame is part of?")
                              .arg(name),
-                         QStringLiteral("Its frames stay; they belong to the section before it "
-                                        "then. The deletion can be undone."))) {
+                         tr("Its frames stay; they belong to the section before it "
+                            "then. The deletion can be undone."))) {
         return;
     }
     try {
         recordSectionsEdit(edit::deleteSection(*m_document, *section),
-                           QStringLiteral("Deleted section \"%1\"").arg(name));
+                           tr("Deleted section \"%1\"").arg(name));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -3179,7 +3198,7 @@ void MainWindow::orderSections()
     const auto names = [this]() {
         QStringList list;
         for (const edit::Section& section : edit::sections(*m_document)) {
-            list << QStringLiteral("%1 (frame %2)")
+            list << tr("%1 (frame %2)")
                         .arg(QString::fromStdString(section.name))
                         .arg(static_cast<qulonglong>(section.firstFrame));
         }
@@ -3191,7 +3210,7 @@ void MainWindow::orderSections()
         try {
             recordSectionsEdit(
                 edit::moveSection(*m_document, static_cast<std::size_t>(row), offset),
-                QStringLiteral("Moved a section in the list"));
+                tr("Moved a section in the list"));
             dialog.setNames(names(), row + offset);
         } catch (const std::exception& ex) {
             statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -3199,7 +3218,7 @@ void MainWindow::orderSections()
     };
     dialog.onSortRequested = [this, &dialog, &names]() {
         recordSectionsEdit(edit::sortSectionsByName(*m_document),
-                           QStringLiteral("Sorted the sections by name"));
+                           tr("Sorted the sections by name"));
         dialog.setNames(names(), -1);
     };
     dialog.exec();
@@ -3214,7 +3233,7 @@ void MainWindow::goToFrame(std::size_t frameIndex)
         selectSingleRow(*m_frameList, m_frameList->row(item));
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Frame %1 is hidden by the frame filter")
+    statusBar()->showMessage(tr("Frame %1 is hidden by the frame filter")
                                  .arg(static_cast<qulonglong>(frameIndex)),
                              4000);
 }
@@ -3257,7 +3276,7 @@ void MainWindow::refreshRecentProjectsMenu()
         });
     }
     if (m_recentProjectsMenu->isEmpty()) {
-        QAction* emptyAction = m_recentProjectsMenu->addAction(QStringLiteral("No Recent Projects"));
+        QAction* emptyAction = m_recentProjectsMenu->addAction(tr("No Recent Projects"));
         emptyAction->setEnabled(false);
     }
 }
@@ -3329,7 +3348,7 @@ void MainWindow::refreshProjectSummary()
         if (m_frameFilterComboBox) {
             m_frameFilterComboBox->setEnabled(false);
         }
-        setStatusText(QStringLiteral("No project loaded"));
+        setStatusText(tr("No project loaded"));
         setFrameStatusText(QString());
         if (m_saveAction) {
             m_saveAction->setEnabled(false);
@@ -3450,10 +3469,10 @@ QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
     const QString size = nativePlaneText(*m_document);
     QStringList reasons;
     if (gaps.frame) {
-        reasons << QStringLiteral("no %1 frame").arg(size);
+        reasons << tr("no %1 frame").arg(size);
     }
     if (gaps.background) {
-        reasons << QStringLiteral("background %1 has no %2 image")
+        reasons << tr("background %1 has no %2 image")
                        .arg(static_cast<int>(m_document->backgroundId(frameIndex)))
                        .arg(size);
     }
@@ -3462,13 +3481,13 @@ QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
         for (uint8_t spriteId : gaps.sprites) {
             ids << QString::number(static_cast<int>(spriteId));
         }
-        reasons << QStringLiteral("%1 %2 without %3 picture")
-                       .arg(ids.size() > 1 ? QStringLiteral("sprites") : QStringLiteral("sprite"))
+        reasons << tr("%1 %2 without %3 picture")
+                       .arg(ids.size() > 1 ? tr("sprites") : tr("sprite"))
                        .arg(ids.join(QStringLiteral(", ")))
                        .arg(size);
     }
     return reasons.isEmpty() ? QString()
-                             : QStringLiteral("Not rendered at runtime: %1")
+                             : tr("Not rendered at runtime: %1")
                                    .arg(reasons.join(QStringLiteral("; ")));
 }
 
@@ -3481,20 +3500,20 @@ QStringList MainWindow::frameReferenceProblemTexts(std::size_t frameIndex) const
     const document::FrameReferenceProblems problems =
         m_document->frameReferenceProblems(frameIndex);
     if (problems.comparisonMask) {
-        lines << QStringLiteral("Comparison mask %1 does not exist; the frame is compared "
-                                "without a mask")
+        lines << tr("Comparison mask %1 does not exist; the frame is compared "
+                    "without a mask")
                      .arg(static_cast<int>(m_document->comparisonMaskId(frameIndex)));
     }
     if (problems.background) {
-        lines << QStringLiteral("Background %1 does not exist")
+        lines << tr("Background %1 does not exist")
                      .arg(static_cast<int>(m_document->backgroundId(frameIndex)));
     }
     if (problems.sprite) {
-        lines << QStringLiteral("A sprite slot names a sprite that does not exist");
+        lines << tr("A sprite slot names a sprite that does not exist");
     }
     if (problems.spriteSlotGap) {
-        lines << QStringLiteral("Sprite slot %1 is empty: the sprites after slot %1 are ignored "
-                                "by the runtime")
+        lines << tr("Sprite slot %1 is empty: the sprites after slot %1 are ignored "
+                    "by the runtime")
                      .arg(static_cast<int>(*problems.spriteSlotGap));
     }
     return lines;
@@ -3510,7 +3529,7 @@ QString MainWindow::frameListItemToolTip(std::size_t frameIndex) const
     lines << frameReferenceProblemTexts(frameIndex);
     if (m_document && frameIndex < m_document->frameCount() &&
         legacy::isFrameSkippedAtRuntime(*m_document, frameIndex)) {
-        lines << kInactiveFrameToolTip;
+        lines << inactiveFrameToolTip();
     }
     return lines.join(QChar('\n'));
 }
@@ -3546,9 +3565,9 @@ void MainWindow::updateFrameFilterChoices()
         }
         m_frameFilterComboBox->removeItem(index);
     };
-    offer(FrameFilter::Hd, QStringLiteral("HD frames"), 1, showsHdAndSd());
+    offer(FrameFilter::Hd, tr("HD frames"), 1, showsHdAndSd());
     offer(FrameFilter::HdIncomplete,
-          QStringLiteral("Not rendered"),
+          tr("Not rendered"),
           m_frameFilterComboBox->count(),
           isHdOnlyProject());
 }
@@ -3565,12 +3584,12 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
         details << QStringLiteral("HD");
     }
     if (m_document->hasDynamicPixels(frameIndex)) {
-        details << QStringLiteral("Dyn");
+        details << tr("Dyn");
     }
     const std::optional<document::FrameBackgroundData>& backgroundData =
         m_document->backgroundData(frameIndex);
     if (backgroundData && backgroundData->backgroundId < m_document->backgroundCount()) {
-        details << QStringLiteral("BG %1")
+        details << tr("BG %1")
                        .arg(static_cast<int>(backgroundData->backgroundId));
     }
     const std::vector<document::FrameSpriteReference>& spriteReferences =
@@ -3582,23 +3601,23 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
                           return reference.spriteId != 255;
                       }));
     if (spriteCount > 0) {
-        details << QStringLiteral("%1 sprites").arg(spriteCount);
+        details << tr("%1 sprites").arg(spriteCount);
     }
     if (legacy::isFrameSkippedAtRuntime(*m_document, frameIndex)) {
-        details << QStringLiteral("inactive");
+        details << tr("inactive");
     }
     const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
     if (gaps.frame) {
-        details << kNoPictureText;
+        details << noPictureText();
     }
     if (gaps.background) {
-        details << QStringLiteral("BG: %1").arg(kNoPictureText);
+        details << tr("BG: %1").arg(noPictureText());
     }
     if (!gaps.sprites.empty()) {
-        details << QStringLiteral("Spr: %1").arg(kNoPictureText);
+        details << tr("Spr: %1").arg(noPictureText());
     }
     if (m_document->frameReferenceProblems(frameIndex).any()) {
-        details << QStringLiteral("ref. problem");
+        details << tr("ref. problem");
     }
     QString first = QString::number(static_cast<qulonglong>(frameIndex));
     if (const std::optional<std::size_t> section =
@@ -3978,24 +3997,24 @@ void MainWindow::updateFrameStatusText()
         const QString hint = QString::fromStdString(
             m_runtimeView.identificationHint(*m_document, *frameIndex, true));
         setFrameStatusText(
-            QStringLiteral("Frame %1 | Runtime view, %2 rows | editing off%3%4")
+            tr("Frame %1 | Runtime view, %2 rows | editing off%3%4")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(m_runtimeView.rowsFor(m_document->geometry()) ==
                              runtime::PlaneRequest::Rows64
                          ? 64
                          : 32)
-                .arg(inactive ? QStringLiteral(" | inactive") : QString())
+                .arg(inactive ? tr(" | inactive") : QString())
                 .arg(hint.isEmpty() ? QString() : QStringLiteral(" | %1").arg(hint)));
         QStringList toolTip{
-            QStringLiteral("The canvas shows libserum's output. Switch the Runtime view off "
-                           "in the View menu or the toolbar to edit.")};
+            tr("The canvas shows libserum's output. Switch the Runtime view off "
+               "in the View menu or the toolbar to edit.")};
         if (inactive) {
-            toolTip << kInactiveFrameToolTip;
+            toolTip << inactiveFrameToolTip();
         }
         if (!hint.isEmpty()) {
-            toolTip << QStringLiteral("%1. libserum identifies a ROM frame by order: it "
-                                      "starts at the frame it identified last, and several "
-                                      "frames can match one ROM frame.")
+            toolTip << tr("%1. libserum identifies a ROM frame by order: it "
+                          "starts at the frame it identified last, and several "
+                          "frames can match one ROM frame.")
                            .arg(QString::fromStdString(
                                m_runtimeView.identificationHint(*m_document, *frameIndex)));
         }
@@ -4010,25 +4029,25 @@ void MainWindow::updateFrameStatusText()
         showsHdAndSd() ? QStringLiteral("SD 128x32 | %1")
                              .arg(m_document->hasHdFrame(*frameIndex)
                                       ? QStringLiteral("HD 256x64")
-                                      : QStringLiteral("HD unavailable"))
+                                      : tr("HD unavailable"))
                        : nativePlaneText(*m_document);
     // An inactive frame is marked in the frame list and explained in the tool tip here; the
     // line itself stays as short as it was.
-    setFrameStatusText(QStringLiteral("Frame %1 | %2 | %3 ms%4%5")
+    setFrameStatusText(tr("Frame %1 | %2 | %3 ms%4%5")
                            .arg(static_cast<int>(*frameIndex))
                            .arg(planes)
                            .arg(m_document->frameDurationMs(*frameIndex))
                            .arg(selectedCount > 1
-                                    ? QStringLiteral(" | %1 selected").arg(selectedCount)
+                                    ? tr(" | %1 selected").arg(selectedCount)
                                     : QString())
                            .arg(gapsText.isEmpty() ? QString()
-                                                   : QStringLiteral(" | not rendered")));
+                                                   : tr(" | not rendered")));
     QStringList toolTip;
     if (!gapsText.isEmpty()) {
         toolTip << QStringLiteral("%1.").arg(gapsText);
     }
     if (inactive) {
-        toolTip << kInactiveFrameToolTip;
+        toolTip << inactiveFrameToolTip();
     }
     for (const QString& problem : frameReferenceProblemTexts(*frameIndex)) {
         toolTip << QStringLiteral("%1.").arg(problem);
@@ -4044,7 +4063,7 @@ void MainWindow::updatePlaybackControls()
         QSignalBlocker blocker(m_playbackButton);
         m_playbackButton->setEnabled(hasFrames);
         m_playbackButton->setChecked(running);
-        m_playbackButton->setText(running ? QStringLiteral("Pause") : QStringLiteral("Play"));
+        m_playbackButton->setText(running ? tr("Pause") : tr("Play"));
     }
     if (m_loopPlaybackButton) {
         m_loopPlaybackButton->setEnabled(hasFrames);
@@ -4274,9 +4293,9 @@ void MainWindow::updateCanvasModeButtons()
     const bool dynamicZonesHere = isDynamicPlaneActive();
     m_dynamicMaskOverlayButton->setEnabled(hasDocument && editing && dynamicZonesHere);
     m_dynamicMaskOverlayButton->setToolTip(
-        dynamicZonesHere ? QStringLiteral("Show dynamic mask overlay")
-                         : QStringLiteral("Dynamic zones are defined on the 128x32 plane: "
-                                          "switch to SD to see and paint them"));
+        dynamicZonesHere ? tr("Show dynamic mask overlay")
+                         : tr("Dynamic zones are defined on the 128x32 plane: "
+                              "switch to SD to see and paint them"));
     m_backgroundMaskOverlayButton->setEnabled(hasDocument && editing);
     for (QToolButton* button : m_toolButtons) {
         button->setEnabled(editing);
@@ -4301,8 +4320,8 @@ void MainWindow::updateResolutionMode()
         // Leaves the mode: the overlay goes and the tools paint the frame again.
         m_dynamicMaskOverlayButton->setChecked(false);
         statusBar()->showMessage(
-            QStringLiteral("Dynamic mode is off in HD: dynamic zones are defined on the "
-                           "128x32 plane"),
+            tr("Dynamic mode is off in HD: dynamic zones are defined on the "
+               "128x32 plane"),
             4000);
     }
     updateCanvasModeButtons();
@@ -4310,9 +4329,9 @@ void MainWindow::updateResolutionMode()
         m_dynamicPanel->setNote(
             isDynamicPlaneActive()
                 ? QString()
-                : QStringLiteral("Dynamic zones are defined on the 128x32 plane. The colors "
-                                 "and shadows here are the ones of that plane; switch to SD "
-                                 "to see and paint the zones."));
+                : tr("Dynamic zones are defined on the 128x32 plane. The colors "
+                     "and shadows here are the ones of that plane; switch to SD "
+                     "to see and paint the zones."));
     }
     if (m_framePanel) {
         m_framePanel->setImportImageEnabled(hasDocument && !selectedFrameIndices().empty());
@@ -4402,7 +4421,7 @@ void MainWindow::updateBackgroundControls()
                 const document::BackgroundRecord& background =
                     m_document->background(backgroundIndex);
                 m_backgroundComboBox->addItem(
-                    QStringLiteral("Background %1%2")
+                    tr("Background %1%2")
                         .arg(static_cast<int>(backgroundIndex))
                         .arg(extraDataSuffix(*m_document,
                                              background.colorizedHd.has_value())),
@@ -4411,7 +4430,7 @@ void MainWindow::updateBackgroundControls()
         }
 
         if (m_backgroundComboBox->count() == 0) {
-            m_backgroundComboBox->addItem(QStringLiteral("No backgrounds"), -1);
+            m_backgroundComboBox->addItem(tr("No backgrounds"), -1);
             m_backgroundComboBox->setCurrentIndex(0);
         } else if (previousBackgroundData.isValid()) {
             const int previousIndex = m_backgroundComboBox->findData(previousBackgroundData);
@@ -4519,9 +4538,9 @@ void MainWindow::setCurrentFrameComparisonMaskId(int maskId)
         const FrameEditCount count =
             editSelectedFramesAttribute(edit::FrameAttribute::ComparisonMaskId, storedMaskId);
         statusBar()->showMessage(
-            maskId < 0 ? QStringLiteral("Cleared comparison mask assignment on %1")
+            maskId < 0 ? tr("Cleared comparison mask assignment on %1")
                              .arg(frameEditCountText(count.changed, count.skipped))
-                       : QStringLiteral("Assigned comparison mask %1 on %2")
+                       : tr("Assigned comparison mask %1 on %2")
                              .arg(maskId)
                              .arg(frameEditCountText(count.changed, count.skipped)),
             2500);
@@ -4536,7 +4555,7 @@ void MainWindow::assignSelectedMaskToFrames()
 {
     if (!m_document || !m_selectedMaskIndex || selectedFrameIndices().empty() ||
         *m_selectedMaskIndex >= m_document->comparisonMaskCount()) {
-        statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
+        statusBar()->showMessage(tr("No comparison mask selected"), 2500);
         updateMaskControls();
         return;
     }
@@ -4565,7 +4584,7 @@ void MainWindow::editAssignedMask()
 {
     const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
     if (!maskIndex) {
-        statusBar()->showMessage(QStringLiteral("Assign a comparison mask before editing"), 2500);
+        statusBar()->showMessage(tr("Assign a comparison mask before editing"), 2500);
         updateMaskControls();
         return;
     }
@@ -4575,7 +4594,7 @@ void MainWindow::editAssignedMask()
     }
     updateUndoRedoActions();
     statusBar()->showMessage(
-        QStringLiteral("Editing comparison mask %1").arg(static_cast<int>(*maskIndex)),
+        tr("Editing comparison mask %1").arg(static_cast<int>(*maskIndex)),
         1500);
 }
 
@@ -4590,8 +4609,8 @@ void MainWindow::setCurrentFrameShapeComparisonMode(int mode)
             editSelectedFramesAttribute(edit::FrameAttribute::ShapeComparisonMode,
                                         static_cast<uint32_t>(mode & 0xff));
         statusBar()->showMessage(
-            (mode == 0 ? QStringLiteral("Set full comparison mode on %1")
-                       : QStringLiteral("Set shape mode on %1"))
+            (mode == 0 ? tr("Set full comparison mode on %1")
+                       : tr("Set shape mode on %1"))
                 .arg(frameEditCountText(count.changed, count.skipped)),
             2500);
     } catch (const std::exception& ex) {
@@ -4618,11 +4637,11 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
         }
         const QString countText = frameEditCountText(count.changed,
                                                      count.skipped,
-                                                     QStringLiteral("no background data"));
+                                                     tr("no background data"));
         statusBar()->showMessage(
             backgroundId < 0
-                ? QStringLiteral("Cleared background assignment on %1").arg(countText)
-                : QStringLiteral("Assigned background %1 on %2").arg(backgroundId).arg(countText),
+                ? tr("Cleared background assignment on %1").arg(countText)
+                : tr("Assigned background %1 on %2").arg(backgroundId).arg(countText),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
@@ -4649,8 +4668,8 @@ void MainWindow::setCurrentFrameTriggerId(int triggerId)
         const QString countText = frameEditCountText(count.changed, count.skipped);
         statusBar()->showMessage(
             triggerId < 0
-                ? QStringLiteral("Cleared trigger ID on %1").arg(countText)
-                : QStringLiteral("Set trigger ID %1 on %2").arg(storedTriggerId).arg(countText),
+                ? tr("Cleared trigger ID on %1").arg(countText)
+                : tr("Set trigger ID %1 on %2").arg(storedTriggerId).arg(countText),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
@@ -4671,7 +4690,7 @@ void MainWindow::setCurrentFrameDurationMs(int durationMs)
         const FrameEditCount count =
             editSelectedFramesAttribute(edit::FrameAttribute::DurationMs, storedDurationMs);
         statusBar()->showMessage(
-            QStringLiteral("Set duration %1 ms on %2")
+            tr("Set duration %1 ms on %2")
                 .arg(storedDurationMs)
                 .arg(frameEditCountText(count.changed, count.skipped)),
             2500);
@@ -4711,8 +4730,8 @@ void MainWindow::setCurrentFrameSwitchToMonochrome(bool enabled)
         }
         updateUndoRedoActions();
         statusBar()->showMessage(
-            (enabled ? QStringLiteral("Enabled switch-to-monochrome trigger on %1")
-                     : QStringLiteral("Disabled switch-to-monochrome trigger on %1"))
+            (enabled ? tr("Enabled switch-to-monochrome trigger on %1")
+                     : tr("Disabled switch-to-monochrome trigger on %1"))
                 .arg(frameEditCountText(changed, 0)),
             2500);
     } catch (const std::exception& ex) {
@@ -4729,7 +4748,7 @@ void MainWindow::assignSelectedBackgroundToFrames()
     }
     const int backgroundIndex = m_backgroundComboBox->currentData().toInt();
     if (backgroundIndex < 0) {
-        statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
+        statusBar()->showMessage(tr("No background selected"), 2500);
         updateBackgroundControls();
         return;
     }
@@ -4743,7 +4762,7 @@ void MainWindow::editAssignedBackground()
     }
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("Select a background before editing"), 2500);
+        statusBar()->showMessage(tr("Select a background before editing"), 2500);
         updateBackgroundControls();
         return;
     }
@@ -4751,8 +4770,8 @@ void MainWindow::editAssignedBackground()
         !m_document->background(*backgroundIndex).colorizedHd) {
         if (isHdOnlyProject()) {
             statusBar()->showMessage(
-                QStringLiteral("Background %1 has no %2 image yet: import an image, or use "
-                               "Create %2 Frame on a frame it is assigned to")
+                tr("Background %1 has no %2 image yet: import an image, or use "
+                   "Create %2 Frame on a frame it is assigned to")
                     .arg(static_cast<int>(*backgroundIndex))
                     .arg(nativePlaneText(*m_document)),
                 5000);
@@ -4766,7 +4785,7 @@ void MainWindow::editAssignedBackground()
     setPaintTarget(PaintTarget::Background);
     updatePaintTargetMode();
     statusBar()->showMessage(
-        QStringLiteral("Editing background %1").arg(static_cast<int>(*backgroundIndex)),
+        tr("Editing background %1").arg(static_cast<int>(*backgroundIndex)),
         1500);
 }
 
@@ -4775,7 +4794,7 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!m_document || !frameIndex || !backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("Select a frame and background first"), 2500);
+        statusBar()->showMessage(tr("Select a frame and background first"), 2500);
         updateBackgroundControls();
         return;
     }
@@ -4790,7 +4809,7 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
     }
     if (isHdOnlyProject() && targetResolution != render::Resolution::Hd) {
         statusBar()->showMessage(
-            QStringLiteral("The frame and the background both need their %1 data first")
+            tr("The frame and the background both need their %1 data first")
                 .arg(nativePlaneText(*m_document)),
             4000);
         return;
@@ -4817,7 +4836,7 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
             }
         }
         if (changes.empty()) {
-            statusBar()->showMessage(QStringLiteral("Background already matches frame"), 2500);
+            statusBar()->showMessage(tr("Background already matches frame"), 2500);
             return;
         }
         commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::BackgroundImage,
@@ -4828,7 +4847,7 @@ void MainWindow::copyCurrentFrameToSelectedBackground()
         updateUndoRedoActions();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Copied frame %1 to background %2 (%3)")
+            tr("Copied frame %1 to background %2 (%3)")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(static_cast<int>(*backgroundIndex))
                 .arg(planeName(targetResolution)),
@@ -4844,7 +4863,7 @@ void MainWindow::copySelectedBackgroundToFrames()
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     if (!m_document || !backgroundIndex || frameIndices.empty()) {
-        statusBar()->showMessage(QStringLiteral("Select a background and frames first"), 2500);
+        statusBar()->showMessage(tr("Select a background and frames first"), 2500);
         updateBackgroundControls();
         return;
     }
@@ -4853,7 +4872,7 @@ void MainWindow::copySelectedBackgroundToFrames()
     render::Resolution sourceResolution = m_activeResolution;
     if (sourceResolution == render::Resolution::Hd && !background.colorizedHd) {
         if (isHdOnlyProject()) {
-            statusBar()->showMessage(QStringLiteral("The background has no %1 image yet")
+            statusBar()->showMessage(tr("The background has no %1 image yet")
                                          .arg(nativePlaneText(*m_document)),
                                      4000);
             return;
@@ -4896,13 +4915,13 @@ void MainWindow::copySelectedBackgroundToFrames()
             ++updatedFrames;
         }
         if (updatedFrames == 0) {
-            statusBar()->showMessage(QStringLiteral("No selected frame changed"), 2500);
+            statusBar()->showMessage(tr("No selected frame changed"), 2500);
             return;
         }
         updateUndoRedoActions();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Copied background %1 to %2 frame(s) (%3)")
+            tr("Copied background %1 to %2 frame(s) (%3)")
                 .arg(static_cast<int>(*backgroundIndex))
                 .arg(updatedFrames)
                 .arg(planeName(sourceResolution)),
@@ -4916,16 +4935,16 @@ void MainWindow::importImageIntoSelectedBackground()
 {
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!m_document || !backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("Select a background first"), 2500);
+        statusBar()->showMessage(tr("Select a background first"), 2500);
         updateBackgroundControls();
         return;
     }
 
     const QString imagePath = QFileDialog::getOpenFileName(
         this,
-        QStringLiteral("Import Background Image"),
+        tr("Import Background Image"),
         m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
-        QStringLiteral("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
+        tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
     if (imagePath.isEmpty()) {
         return;
     }
@@ -4933,8 +4952,8 @@ void MainWindow::importImageIntoSelectedBackground()
     QImage image(imagePath);
     if (image.isNull()) {
         QMessageBox::critical(this,
-                              QStringLiteral("Import Failed"),
-                              QStringLiteral("Could not read image file."));
+                              tr("Import Failed"),
+                              tr("Could not read image file."));
         return;
     }
 
@@ -4965,7 +4984,7 @@ void MainWindow::importImageIntoSelectedBackground()
                 }
             }
             if (changes.empty()) {
-                statusBar()->showMessage(QStringLiteral("Background already matches image"), 2500);
+                statusBar()->showMessage(tr("Background already matches image"), 2500);
                 return;
             }
             commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::BackgroundImage,
@@ -4988,7 +5007,7 @@ void MainWindow::importImageIntoSelectedBackground()
         }
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Imported image into background %1 (%2)")
+            tr("Imported image into background %1 (%2)")
                 .arg(static_cast<int>(*backgroundIndex))
                 .arg(planeName(targetResolution)),
             3000);
@@ -5002,7 +5021,7 @@ void MainWindow::exportSelectedBackgroundPng()
 {
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!m_document || !backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("Select a background first"), 2500);
+        statusBar()->showMessage(tr("Select a background first"), 2500);
         return;
     }
 
@@ -5010,7 +5029,7 @@ void MainWindow::exportSelectedBackgroundPng()
     render::Resolution exportResolution = m_activeResolution;
     if (exportResolution == render::Resolution::Hd && !background.colorizedHd) {
         if (isHdOnlyProject()) {
-            statusBar()->showMessage(QStringLiteral("The background has no %1 image yet")
+            statusBar()->showMessage(tr("The background has no %1 image yet")
                                          .arg(nativePlaneText(*m_document)),
                                      4000);
             return;
@@ -5027,9 +5046,9 @@ void MainWindow::exportSelectedBackgroundPng()
             .arg(resolutionName));
     QString targetPath = QFileDialog::getSaveFileName(
         this,
-        QStringLiteral("Export Background PNG"),
+        tr("Export Background PNG"),
         defaultPath,
-        QStringLiteral("PNG image (*.png);;All files (*)"));
+        tr("PNG image (*.png);;All files (*)"));
     if (targetPath.isEmpty()) {
         return;
     }
@@ -5043,11 +5062,11 @@ void MainWindow::exportSelectedBackgroundPng()
         currentDmdRenderOptions());
     if (!image.save(targetPath, "PNG")) {
         QMessageBox::critical(this,
-                              QStringLiteral("Export Failed"),
-                              QStringLiteral("Could not write PNG file."));
+                              tr("Export Failed"),
+                              tr("Could not write PNG file."));
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Exported background PNG"), 3000);
+    statusBar()->showMessage(tr("Exported background PNG"), 3000);
 }
 
 void MainWindow::assignSelectedSpriteToCurrentSlot()
@@ -5106,18 +5125,18 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
         updateFrameStatusText();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Assigned sprite %1 to slot %2 on %3 frame(s)%4%5")
+            tr("Assigned sprite %1 to slot %2 on %3 frame(s)%4%5")
                 .arg(spriteIndex)
                 .arg(static_cast<int>(*slotIndex))
                 .arg(assigned)
-                .arg(moved > 0 ? QStringLiteral(" (on %1 of them to the first empty slot, "
-                                                "before which no slot may stay empty)")
+                .arg(moved > 0 ? tr(" (on %1 of them to the first empty slot, "
+                                    "before which no slot may stay empty)")
                                      .arg(moved)
                                : QString())
                 .arg(isHdOnlyProject() &&
                              !m_document->hasHdSprite(static_cast<std::size_t>(spriteIndex))
-                         ? QStringLiteral(". The sprite has no %1 picture: these frames are not "
-                                          "rendered at runtime until it has")
+                         ? tr(". The sprite has no %1 picture: these frames are not "
+                              "rendered at runtime until it has")
                                .arg(nativePlaneText(*m_document))
                          : QString()),
             isHdOnlyProject() ? 6000 : 2500);
@@ -5132,14 +5151,14 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     std::optional<std::size_t> spriteIndex = currentSpriteIndex();
     if (!m_document || !frameIndex || !m_spritePanel) {
-        statusBar()->showMessage(QStringLiteral("Select a frame first"), 2500);
+        statusBar()->showMessage(tr("Select a frame first"), 2500);
         updateSpriteControls();
         return;
     }
 
     const std::optional<std::size_t> slotIndex = m_spritePanel->selectedSlotIndex();
     if (!slotIndex) {
-        statusBar()->showMessage(QStringLiteral("Select a sprite slot first"), 2500);
+        statusBar()->showMessage(tr("Select a sprite slot first"), 2500);
         updateSpriteControls();
         return;
     }
@@ -5150,8 +5169,8 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     const bool hdOnly = isHdOnlyProject();
     if (hdOnly && !m_document->hasHdFrame(*frameIndex)) {
         statusBar()->showMessage(
-            QStringLiteral("Frame %1 has no %2 frame to capture colors from: use Create %2 "
-                           "Frame first")
+            tr("Frame %1 has no %2 frame to capture colors from: use Create %2 "
+               "Frame first")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(nativePlaneText(*m_document)),
             4000);
@@ -5171,7 +5190,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     if (width <= 0 || height <= 0 ||
         width > static_cast<int>(document::kMaxSpriteWidth) ||
         height > static_cast<int>(document::kMaxSpriteHeight)) {
-        statusBar()->showMessage(QStringLiteral("Sprite capture bounds are invalid"), 2500);
+        statusBar()->showMessage(tr("Sprite capture bounds are invalid"), 2500);
         updateSpriteControls();
         return;
     }
@@ -5196,36 +5215,36 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     if (captureWidth <= 0 || captureHeight <= 0 ||
         captureWidth > static_cast<int>(document::kMaxSpriteWidth) ||
         captureHeight > static_cast<int>(document::kMaxSpriteHeight)) {
-        statusBar()->showMessage(QStringLiteral("Sprite capture selection is invalid"), 2500);
+        statusBar()->showMessage(tr("Sprite capture selection is invalid"), 2500);
         updateSpriteControls();
         return;
     }
 
     QMessageBox confirm(this);
-    confirm.setWindowTitle(QStringLiteral("Capture Sprite"));
+    confirm.setWindowTitle(tr("Capture Sprite"));
     confirm.setText(
         selectedPixels.empty()
-            ? QStringLiteral("Capture frame region [%1,%2-%3,%4]?")
+            ? tr("Capture frame region [%1,%2-%3,%4]?")
                   .arg(captureMinX)
                   .arg(captureMinY)
                   .arg(captureMaxX)
                   .arg(captureMaxY)
-            : QStringLiteral("Capture %1 selected pixel(s) from [%2,%3-%4,%5]?")
+            : tr("Capture %1 selected pixel(s) from [%2,%3-%4,%5]?")
                   .arg(static_cast<int>(selectedPixels.size()))
                   .arg(captureMinX)
                   .arg(captureMinY)
                   .arg(captureMaxX)
                   .arg(captureMaxY));
     confirm.setInformativeText(
-        spriteIndex ? QStringLiteral("Replace sprite %1 with the captured pixels, or create a new "
-                                     "sprite from them.")
+        spriteIndex ? tr("Replace sprite %1 with the captured pixels, or create a new "
+                         "sprite from them.")
                           .arg(static_cast<int>(*spriteIndex))
-                    : QStringLiteral("Create a new sprite from the captured pixels."));
+                    : tr("Create a new sprite from the captured pixels."));
     QPushButton* replaceButton =
-        confirm.addButton(QStringLiteral("Replace Current"), QMessageBox::AcceptRole);
+        confirm.addButton(tr("Replace Current"), QMessageBox::AcceptRole);
     replaceButton->setEnabled(spriteIndex.has_value());
     QPushButton* createButton =
-        confirm.addButton(QStringLiteral("Create New"), QMessageBox::ActionRole);
+        confirm.addButton(tr("Create New"), QMessageBox::ActionRole);
     createButton->setEnabled(m_document->spriteCount() < document::kMaxSprites);
     confirm.addButton(QMessageBox::Cancel);
     confirm.setDefaultButton(spriteIndex ? replaceButton : createButton);
@@ -5315,7 +5334,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         }
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Captured frame region [%1,%2-%3,%4] into sprite %5")
+            tr("Captured frame region [%1,%2-%3,%4] into sprite %5")
                 .arg(captureMinX)
                 .arg(captureMinY)
                 .arg(captureMaxX)
@@ -5385,10 +5404,10 @@ void MainWindow::removeCurrentSpriteSlot()
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Removed sprite %1 from %2")
+            tr("Removed sprite %1 from %2")
                 .arg(static_cast<int>(spriteId))
                 .arg(frameEditCountText(changed, skipped,
-                                        QStringLiteral("without that sprite"))),
+                                        tr("without that sprite"))),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
@@ -5455,7 +5474,7 @@ void MainWindow::setCurrentSpriteSlotBounds()
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Updated sprite slot %1 bounds on %2 frame(s)")
+            tr("Updated sprite slot %1 bounds on %2 frame(s)")
                 .arg(static_cast<int>(*slotIndex))
                 .arg(changed),
             1500);
@@ -5484,7 +5503,7 @@ void MainWindow::setCurrentSpriteName(const QString& name)
         pushEdit(edit::spriteStateCommand(*m_document, sprite, std::move(before)));
         updateSpriteControls();
         updateProjectHeaderStatus();
-        statusBar()->showMessage(QStringLiteral("Renamed sprite %1").arg(spriteIndex), 1500);
+        statusBar()->showMessage(tr("Renamed sprite %1").arg(spriteIndex), 1500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -5544,7 +5563,7 @@ void MainWindow::setCurrentSpriteDetectionArea()
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Updated sprite %1 detection area %2")
+            tr("Updated sprite %1 detection area %2")
                 .arg(spriteIndex)
                 .arg(static_cast<int>(areaIndex)),
             1500);
@@ -5588,7 +5607,7 @@ void MainWindow::clearCurrentSpriteDetectionArea()
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(
-            QStringLiteral("Cleared sprite %1 detection area %2")
+            tr("Cleared sprite %1 detection area %2")
                 .arg(spriteIndex)
                 .arg(static_cast<int>(areaIndex)),
             1500);
@@ -5647,7 +5666,7 @@ void MainWindow::pickSpriteColorizedPixel(std::size_t spriteIndex,
     try {
         const uint16_t color = m_document->spriteColorizedPixel(spriteIndex, resolution, x, y);
         setActiveDrawColor(color);
-        statusBar()->showMessage(QStringLiteral("Picked sprite color 0x%1")
+        statusBar()->showMessage(tr("Picked sprite color 0x%1")
                                      .arg(color, 4, 16, QLatin1Char('0')),
                                  2500);
     } catch (const std::exception& ex) {
@@ -5703,7 +5722,7 @@ void MainWindow::applyPendingSpriteDependentViews()
     refreshFrameList(currentFrameIndex());
     updateSpriteControls();
     updateProjectHeaderStatus();
-    statusBar()->showMessage(QStringLiteral("Applied sprite edits to previews"), 1000);
+    statusBar()->showMessage(tr("Applied sprite edits to previews"), 1000);
 }
 
 void MainWindow::createCurrentSpriteHd()
@@ -5729,10 +5748,10 @@ void MainWindow::createCurrentSpriteHd()
         updateUndoRedoActions();
         statusBar()->showMessage(
             isHdOnlyProject()
-                ? QStringLiteral("Created the %1 sprite from the sprite original in its plain "
-                                 "colors")
+                ? tr("Created the %1 sprite from the sprite original in its plain "
+                     "colors")
                       .arg(nativePlaneText(*m_document))
-                : QStringLiteral("Created HD sprite from SD"),
+                : tr("Created HD sprite from SD"),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
@@ -5749,8 +5768,8 @@ void MainWindow::removeCurrentSpriteHd()
     }
     if (isHdOnlyProject()) {
         statusBar()->showMessage(
-            QStringLiteral("The %1 sprite is the only sprite data this project renders; it "
-                           "cannot be removed")
+            tr("The %1 sprite is the only sprite data this project renders; it "
+               "cannot be removed")
                 .arg(nativePlaneText(*m_document)),
             4000);
         return;
@@ -5759,7 +5778,7 @@ void MainWindow::removeCurrentSpriteHd()
     try {
         recordEdit(edit::removeSpriteHd(*m_document, *spriteIndex));
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Removed HD sprite"), 2500);
+        statusBar()->showMessage(tr("Removed HD sprite"), 2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -5791,28 +5810,28 @@ void MainWindow::createCurrentFrameHd()
         backgroundData && backgroundData->backgroundId < m_document->backgroundCount();
 
     QDialog dialog(this);
-    dialog.setWindowTitle(QStringLiteral("Create HD Frame"));
+    dialog.setWindowTitle(tr("Create HD Frame"));
     auto* dialogLayout = new QVBoxLayout(&dialog);
     // No dynamic data among them: the runtime renders the dynamic zones of the SD plane into
     // the HD picture and does not read an HD dynamic mask.
-    auto* description = new QLabel(QStringLiteral("Create HD frame from SD. Upscale related data?"),
+    auto* description = new QLabel(tr("Create HD frame from SD. Upscale related data?"),
                                    &dialog);
     description->setWordWrap(true);
     dialogLayout->addWidget(description);
-    auto* backgroundMaskCheckBox = new QCheckBox(QStringLiteral("Background mask"), &dialog);
+    auto* backgroundMaskCheckBox = new QCheckBox(tr("Background mask"), &dialog);
     backgroundMaskCheckBox->setChecked(hasBackgroundData);
     backgroundMaskCheckBox->setEnabled(hasBackgroundData);
-    backgroundMaskCheckBox->setToolTip(QStringLiteral("Scale SD background mask to HD"));
+    backgroundMaskCheckBox->setToolTip(tr("Scale SD background mask to HD"));
     dialogLayout->addWidget(backgroundMaskCheckBox);
-    auto* backgroundImageCheckBox = new QCheckBox(QStringLiteral("Assigned background image"), &dialog);
+    auto* backgroundImageCheckBox = new QCheckBox(tr("Assigned background image"), &dialog);
     backgroundImageCheckBox->setChecked(hasAssignedBackground);
     backgroundImageCheckBox->setEnabled(hasAssignedBackground);
-    backgroundImageCheckBox->setToolTip(QStringLiteral("Scale assigned SD background image to HD"));
+    backgroundImageCheckBox->setToolTip(tr("Scale assigned SD background image to HD"));
     dialogLayout->addWidget(backgroundImageCheckBox);
     auto* filterRow = new QHBoxLayout();
-    filterRow->addWidget(new QLabel(QStringLiteral("Filter"), &dialog));
+    filterRow->addWidget(new QLabel(tr("Filter"), &dialog));
     auto* filterComboBox = new QComboBox(&dialog);
-    filterComboBox->setToolTip(QStringLiteral(
+    filterComboBox->setToolTip(tr(
         "How the SD picture becomes twice as large: Nearest doubles every pixel, Scale2x keeps "
         "the colors and smooths diagonal edges, the others blend neighbouring colors"));
     for (document::UpscaleFilter filter :
@@ -5848,7 +5867,7 @@ void MainWindow::createCurrentFrameHd()
         recordEdit(std::move(command));
         updateUndoRedoActions();
         statusBar()->showMessage(
-            QStringLiteral("Created HD frame from SD (%1)")
+            tr("Created HD frame from SD (%1)")
                 .arg(QString::fromStdString(document::upscaleFilterName(parts.filter))),
             2500);
     } catch (const std::exception& ex) {
@@ -5876,16 +5895,16 @@ void MainWindow::createCurrentFrameHdFromOriginal(std::size_t frameIndex)
         updateUndoRedoActions();
         QStringList created;
         if (gaps.frame) {
-            created << QStringLiteral("the %1 frame from the original in its plain colors")
+            created << tr("the %1 frame from the original in its plain colors")
                            .arg(nativePlaneText(*m_document));
         }
         if (gaps.background) {
-            created << QStringLiteral("a black %1 image for background %2")
+            created << tr("a black %1 image for background %2")
                            .arg(nativePlaneText(*m_document))
                            .arg(static_cast<int>(m_document->backgroundId(frameIndex)));
         }
         statusBar()->showMessage(
-            QStringLiteral("Created %1").arg(created.join(QStringLiteral(" and "))), 4000);
+            tr("Created %1").arg(created.join(tr(" and "))), 4000);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
         updateUndoRedoActions();
@@ -5902,8 +5921,8 @@ void MainWindow::removeCurrentFrameHd()
     }
     if (isHdOnlyProject()) {
         statusBar()->showMessage(
-            QStringLiteral("The %1 frame is the only frame data this project renders; it "
-                           "cannot be removed")
+            tr("The %1 frame is the only frame data this project renders; it "
+               "cannot be removed")
                 .arg(nativePlaneText(*m_document)),
             4000);
         return;
@@ -5912,7 +5931,7 @@ void MainWindow::removeCurrentFrameHd()
     try {
         recordEdit(edit::removeFrameHd(*m_document, *frameIndex));
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Removed HD frame"), 2500);
+        statusBar()->showMessage(tr("Removed HD frame"), 2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -5946,7 +5965,7 @@ void MainWindow::updateDynamicShadowControls()
 
 void MainWindow::dynamicSetChanged(int setIndex)
 {
-    statusBar()->showMessage(QStringLiteral("Selected dynamic set %1").arg(setIndex), 1500);
+    statusBar()->showMessage(tr("Selected dynamic set %1").arg(setIndex), 1500);
     updateDynamicColorControls();
 }
 
@@ -5963,7 +5982,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
                                                             activeDynamicSet(),
                                                             originalColorIndex);
         const std::optional<uint16_t> picked =
-            ColorPickerDialog::getColor(oldRgb565, this, QStringLiteral("Dynamic Color"));
+            ColorPickerDialog::getColor(oldRgb565, this, tr("Dynamic Color"));
         if (!picked) {
             return;
         }
@@ -5979,7 +5998,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
                                                                    oldRgb565,
                                                                    newRgb565));
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Updated dynamic color 0x%1")
+        statusBar()->showMessage(tr("Updated dynamic color 0x%1")
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
                                  2500);
     } catch (const std::exception& ex) {
@@ -6026,7 +6045,7 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
             return;
         }
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Updated dynamic shadow direction"), 2500);
+        statusBar()->showMessage(tr("Updated dynamic shadow direction"), 2500);
     } catch (const std::exception& ex) {
         updateDynamicShadowControls();
         updateUndoRedoActions();
@@ -6045,7 +6064,7 @@ void MainWindow::editDynamicShadowColor()
         const uint16_t oldRgb565 =
             m_document->dynamicShadowColor(*frameIndex, dynamicPlane(), activeDynamicSet());
         const std::optional<uint16_t> picked =
-            ColorPickerDialog::getColor(oldRgb565, this, QStringLiteral("Dynamic Shadow Color"));
+            ColorPickerDialog::getColor(oldRgb565, this, tr("Dynamic Shadow Color"));
         if (!picked) {
             return;
         }
@@ -6082,7 +6101,7 @@ void MainWindow::editDynamicShadowColor()
             return;
         }
         updateUndoRedoActions();
-        statusBar()->showMessage(QStringLiteral("Updated dynamic shadow color 0x%1")
+        statusBar()->showMessage(tr("Updated dynamic shadow color 0x%1")
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
                                  2500);
     } catch (const std::exception& ex) {
@@ -6127,7 +6146,7 @@ void MainWindow::setCurrentColorRotationLength(std::size_t slotIndex, int length
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
-            QStringLiteral("Set rotation length %1 on %2 frame(s)")
+            tr("Set rotation length %1 on %2 frame(s)")
                 .arg(storedLength)
                 .arg(static_cast<int>(frameIndices.size())),
             2000);
@@ -6163,7 +6182,7 @@ void MainWindow::setCurrentColorRotationDelayMs(std::size_t slotIndex, int delay
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
-            QStringLiteral("Set rotation delay %1 ms on %2 frame(s)")
+            tr("Set rotation delay %1 ms on %2 frame(s)")
                 .arg(storedDelayMs)
                 .arg(static_cast<int>(frameIndices.size())),
             2000);
@@ -6191,7 +6210,7 @@ void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_
     const uint16_t oldColor =
         m_document->colorRotationColor(*frameIndex, m_activeResolution, slotIndex, colorIndex);
     const std::optional<uint16_t> picked =
-        ColorPickerDialog::getColor(oldColor, this, QStringLiteral("Color Rotation Color"));
+        ColorPickerDialog::getColor(oldColor, this, tr("Color Rotation Color"));
     if (!picked) {
         return;
     }
@@ -6224,7 +6243,7 @@ void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
-            QStringLiteral("Updated rotation color on %1 frame(s)")
+            tr("Updated rotation color on %1 frame(s)")
                 .arg(static_cast<int>(frameIndices.size())),
             2000);
     } catch (const std::exception& ex) {
@@ -6254,7 +6273,7 @@ void MainWindow::clearCurrentColorRotationSlot(std::size_t slotIndex)
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
-            QStringLiteral("Cleared rotation slot %1 on %2 frame(s)")
+            tr("Cleared rotation slot %1 on %2 frame(s)")
                 .arg(static_cast<int>(slotIndex))
                 .arg(static_cast<int>(frameIndices.size())),
             2000);
@@ -6321,7 +6340,7 @@ void MainWindow::pickCurrentPaletteColor(std::size_t colorIndex)
     const uint16_t color = m_document->paletteColor(*paletteIndex, colorIndex);
     setActiveDrawColor(color);
     statusBar()->showMessage(
-        QStringLiteral("Picked palette %1 color %2: 0x%3")
+        tr("Picked palette %1 color %2: 0x%3")
             .arg(static_cast<int>(*paletteIndex))
             .arg(static_cast<int>(colorIndex) + 1)
             .arg(color, 4, 16, QLatin1Char('0')),
@@ -6341,7 +6360,7 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
 
     const uint16_t oldColor = m_document->paletteColor(*paletteIndex, colorIndex);
     const std::optional<uint16_t> picked =
-        ColorPickerDialog::getColor(oldColor, this, QStringLiteral("Palette Color"));
+        ColorPickerDialog::getColor(oldColor, this, tr("Palette Color"));
     if (!picked) {
         return;
     }
@@ -6364,7 +6383,7 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
-            QStringLiteral("Updated palette %1 color %2")
+            tr("Updated palette %1 color %2")
                 .arg(static_cast<int>(*paletteIndex))
                 .arg(static_cast<int>(colorIndex) + 1),
             2000);
@@ -6389,7 +6408,7 @@ void MainWindow::applyCurrentPaletteGradient()
     const int first = std::min(startIndex, endIndex);
     const int last = std::max(startIndex, endIndex);
     if (first == last) {
-        statusBar()->showMessage(QStringLiteral("Gradient needs at least two colors"), 2500);
+        statusBar()->showMessage(tr("Gradient needs at least two colors"), 2500);
         return;
     }
 
@@ -6406,7 +6425,7 @@ void MainWindow::applyCurrentPaletteGradient()
             updateProjectHeaderStatus();
         }
         statusBar()->showMessage(
-            QStringLiteral("Applied palette gradient %1-%2")
+            tr("Applied palette gradient %1-%2")
                 .arg(first + 1)
                 .arg(last + 1),
             2500);
@@ -6714,9 +6733,9 @@ void MainWindow::createSelectionActions(QMenu* editMenu)
         bool accepted = false;
         const int percent = QInputDialog::getInt(
             this,
-            QStringLiteral("Brightness"),
-            QStringLiteral("Brightness of the selected pixels, in percent of their color "
-                           "(below 100 darker, above brighter):"),
+            tr("Brightness"),
+            tr("Brightness of the selected pixels, in percent of their color "
+               "(below 100 darker, above brighter):"),
             m_brightnessPercent, 0, 2000, 5, &accepted);
         if (accepted) {
             m_brightnessPercent = percent;
@@ -6743,7 +6762,7 @@ void MainWindow::createSelectionActions(QMenu* editMenu)
     actions.onSelectNone = [this]() {
         if (canUseFrameCanvasHelpers()) {
             m_canvasEdit.clearSelection(canvasEditContext());
-            statusBar()->showMessage(QStringLiteral("Selection cleared"), 1500);
+            statusBar()->showMessage(tr("Selection cleared"), 1500);
         }
     };
     actions.onInvertSelection = [this]() {
@@ -6798,18 +6817,18 @@ void MainWindow::updateEditMenuActions()
 bool MainWindow::canUseFrameCanvasHelpers()
 {
     if (!m_document || !currentFrameIndex()) {
-        statusBar()->showMessage(QStringLiteral("No frame"), 2000);
+        statusBar()->showMessage(tr("No frame"), 2000);
         return false;
     }
     if (isSpriteCanvasActive()) {
         statusBar()->showMessage(
-            QStringLiteral("On the sprite canvas only Copy and Paste work: the selection tools "
-                           "work on the frame canvas"),
+            tr("On the sprite canvas only Copy and Paste work: the selection tools "
+               "work on the frame canvas"),
             3000);
         return false;
     }
     if (m_runtimeView.isEnabled()) {
-        statusBar()->showMessage(QStringLiteral("Nothing can be edited in the Runtime view"),
+        statusBar()->showMessage(tr("Nothing can be edited in the Runtime view"),
                                  3000);
         return false;
     }
@@ -6862,7 +6881,7 @@ void MainWindow::copySpriteToClipboard()
     try {
         edit::CopyBuffer buffer =
             edit::copySprite(*m_document, *spriteIndex, spriteCanvasPlane(*spriteIndex));
-        const QString text = QStringLiteral("Copied sprite %1 (%2x%3)")
+        const QString text = tr("Copied sprite %1 (%2x%3)")
                                  .arg(static_cast<int>(*spriteIndex))
                                  .arg(buffer.box.width)
                                  .arg(buffer.box.height);
@@ -6870,7 +6889,7 @@ void MainWindow::copySpriteToClipboard()
         updateEditMenuActions();
         statusBar()->showMessage(text, 2500);
     } catch (const std::exception& ex) {
-        statusBar()->showMessage(QStringLiteral("Not copied: %1").arg(QString::fromUtf8(ex.what())),
+        statusBar()->showMessage(tr("Not copied: %1").arg(QString::fromUtf8(ex.what())),
                                  4000);
     }
 }
@@ -6883,7 +6902,7 @@ void MainWindow::pasteClipboardIntoSprite()
         return;
     }
     if (!buffer) {
-        statusBar()->showMessage(QStringLiteral("Nothing has been copied"), 2500);
+        statusBar()->showMessage(tr("Nothing has been copied"), 2500);
         return;
     }
     try {
@@ -6891,11 +6910,11 @@ void MainWindow::pasteClipboardIntoSprite()
             *m_document, *spriteIndex, *buffer, spriteCanvasPlane(*spriteIndex), false, false));
         setSpriteDependentViewsDirty();
         updateSpriteControls();
-        statusBar()->showMessage(QStringLiteral("Pasted into sprite %1")
+        statusBar()->showMessage(tr("Pasted into sprite %1")
                                      .arg(static_cast<int>(*spriteIndex)),
                                  2500);
     } catch (const std::exception& ex) {
-        statusBar()->showMessage(QStringLiteral("Not pasted: %1").arg(QString::fromUtf8(ex.what())),
+        statusBar()->showMessage(tr("Not pasted: %1").arg(QString::fromUtf8(ex.what())),
                                  4000);
     }
 }
@@ -6952,17 +6971,17 @@ void MainWindow::showAutoCopyDialog()
             plan = m_editHelpers.planAutoCopy(
                 context, *selection, selectedOnly ? selectedOthers : std::vector<std::size_t>{});
             QString text =
-                QStringLiteral("%1 pixels selected. %2 frame(s) show the same there, %3 of them "
-                               "would change.")
+                tr("%1 pixels selected. %2 frame(s) show the same there, %3 of them "
+                   "would change.")
                     .arg(static_cast<qulonglong>(selection->count()))
                     .arg(static_cast<qulonglong>(plan->scan.matches.size()))
                     .arg(static_cast<qulonglong>(plan->changingFrames.size()));
             if (plan->scan.withoutPlane > 0) {
-                text += QStringLiteral(" %1 more without a picture on this plane are left alone.")
+                text += tr(" %1 more without a picture on this plane are left alone.")
                             .arg(static_cast<qulonglong>(plan->scan.withoutPlane));
             }
             if (plan->scan.hashCollisions > 0) {
-                text += QStringLiteral(" %1 frame(s) had the same hash but other pixels.")
+                text += tr(" %1 frame(s) had the same hash but other pixels.")
                             .arg(static_cast<qulonglong>(plan->scan.hashCollisions));
             }
             return text;
@@ -6972,7 +6991,7 @@ void MainWindow::showAutoCopyDialog()
         return;
     }
     if (plan->changingFrames.empty()) {
-        statusBar()->showMessage(QStringLiteral("Auto copy: nothing to change"), 2500);
+        statusBar()->showMessage(tr("Auto copy: nothing to change"), 2500);
         return;
     }
     m_editHelpers.applyAutoCopy(context, *selection, *plan);
@@ -6992,8 +7011,8 @@ void MainWindow::runScrollingAutoFill()
     ScrollFillPlan plan = m_editHelpers.planScrollFill(context);
     if (plan.lastFrame < plan.firstFrame + 2) {
         statusBar()->showMessage(
-            QStringLiteral("Select the frames of the scrolling, the current one among them: the "
-                           "frames between the first and the last are filled"),
+            tr("Select the frames of the scrolling, the current one among them: the "
+               "frames between the first and the last are filled"),
             5000);
         return;
     }
@@ -7005,13 +7024,13 @@ void MainWindow::runScrollingAutoFill()
     }
     QMessageBox question(this);
     question.setIcon(QMessageBox::Question);
-    question.setWindowTitle(QStringLiteral("Scrolling Auto Fill"));
-    question.setText(QStringLiteral("Fill the %1 frame(s) between frame %2 and frame %3?")
+    question.setWindowTitle(tr("Scrolling Auto Fill"));
+    question.setText(tr("Fill the %1 frame(s) between frame %2 and frame %3?")
                          .arg(static_cast<qulonglong>(plan.frames.size()))
                          .arg(static_cast<qulonglong>(plan.firstFrame))
                          .arg(static_cast<qulonglong>(plan.lastFrame)));
     question.setInformativeText(
-        QStringLiteral("%1 scroll from the first frame, %2 from the last; %3 would change.")
+        tr("%1 scroll from the first frame, %2 from the last; %3 would change.")
             .arg(static_cast<qulonglong>(fromFirst))
             .arg(static_cast<qulonglong>(fromLast))
             .arg(static_cast<qulonglong>(plan.changingCount())));
@@ -7035,10 +7054,10 @@ void MainWindow::armCanvasClick(PendingCanvasClick click)
     }
     m_pasteMode.cancel();
     statusBar()->showMessage(click == PendingCanvasClick::SelectByColor
-                                 ? QStringLiteral("Click a pixel to select every pixel of its "
-                                                  "color (Esc cancels)")
-                                 : QStringLiteral("Click a pixel to recolor every pixel of its "
-                                                  "color (Esc cancels)"),
+                                 ? tr("Click a pixel to select every pixel of its "
+                                      "color (Esc cancels)")
+                                 : tr("Click a pixel to recolor every pixel of its "
+                                      "color (Esc cancels)"),
                              5000);
     if (m_preview) {
         m_preview->setFocus(Qt::OtherFocusReason);
@@ -7127,7 +7146,7 @@ void MainWindow::setActiveDrawColor(uint16_t rgb565)
     }
     if (m_activeColorButton) {
         m_activeColorButton->setToolTip(
-            QStringLiteral("Active draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+            tr("Active draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
         m_activeColorButton->setStyleSheet(colorButtonStyle(rgb565, true));
     }
 }
@@ -7140,11 +7159,11 @@ void MainWindow::setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565
     m_favoriteColors[favoriteIndex] = rgb565;
     QToolButton* button = m_colorButtons[favoriteIndex];
     button->setProperty("rgb565", static_cast<int>(rgb565));
-    button->setToolTip(QStringLiteral("Draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+    button->setToolTip(tr("Draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
     button->setStyleSheet(favoriteColorButtonStyle(rgb565));
     setActiveDrawColor(rgb565);
     statusBar()->showMessage(
-        QStringLiteral("Updated favorite color %1 to 0x%2")
+        tr("Updated favorite color %1 to 0x%2")
             .arg(static_cast<int>(favoriteIndex + 1))
             .arg(rgb565, 4, 16, QLatin1Char('0')),
         2000);
@@ -7156,7 +7175,7 @@ void MainWindow::editFavoriteColor(std::size_t favoriteIndex)
         return;
     }
     const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
-        m_favoriteColors[favoriteIndex], this, QStringLiteral("Favorite Color"));
+        m_favoriteColors[favoriteIndex], this, tr("Favorite Color"));
     if (picked) {
         setFavoriteDrawColor(favoriteIndex, *picked);
     }
@@ -7183,7 +7202,7 @@ void MainWindow::editEditColor(std::size_t slot)
     const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
         m_document->editColor(slot),
         this,
-        QStringLiteral("Edit Color %1").arg(static_cast<int>(slot)));
+        tr("Edit Color %1").arg(static_cast<int>(slot)));
     if (picked) {
         setEditColor(slot, *picked);
     }
@@ -7195,7 +7214,7 @@ void MainWindow::setEditColor(std::size_t slot, uint16_t rgb565)
         return;
     }
     commitEditorColors(edit::withEditColor(m_document->colorSetTables(), slot, rgb565),
-                       QStringLiteral("Edit color %1 is 0x%2")
+                       tr("Edit color %1 is 0x%2")
                            .arg(static_cast<int>(slot))
                            .arg(rgb565, 4, 16, QLatin1Char('0')));
 }
@@ -7214,9 +7233,9 @@ void MainWindow::setDrawColorMode(edit::DrawColorMode mode)
         }
     }
     statusBar()->showMessage(mode == edit::DrawColorMode::ColorSetReplace
-                                 ? QStringLiteral("Drawing replaces each original shade by its "
-                                                  "edit color")
-                                 : QStringLiteral("Drawing with a single color"),
+                                 ? tr("Drawing replaces each original shade by its "
+                                      "edit color")
+                                 : tr("Drawing with a single color"),
                              2000);
 }
 
@@ -7248,7 +7267,7 @@ void MainWindow::storeColorSet(std::size_t setIndex)
     commitEditorColors(edit::withStoredColorSet(m_document->colorSetTables(),
                                                 setIndex,
                                                 m_document->colorCount()),
-                       QStringLiteral("Stored the edit colors in color set %1")
+                       tr("Stored the edit colors in color set %1")
                            .arg(static_cast<int>(setIndex)));
 }
 
@@ -7260,7 +7279,7 @@ void MainWindow::loadColorSet(std::size_t setIndex)
     commitEditorColors(edit::withLoadedColorSet(m_document->colorSetTables(),
                                                 setIndex,
                                                 m_document->colorCount()),
-                       QStringLiteral("Loaded color set %1 into the edit colors")
+                       tr("Loaded color set %1 into the edit colors")
                            .arg(static_cast<int>(setIndex)));
 }
 
@@ -7271,7 +7290,7 @@ void MainWindow::deactivateColorSet(std::size_t setIndex)
     }
     commitEditorColors(
         edit::withColorSetActive(m_document->colorSetTables(), setIndex, false),
-        QStringLiteral("Deactivated color set %1").arg(static_cast<int>(setIndex)));
+        tr("Deactivated color set %1").arg(static_cast<int>(setIndex)));
 }
 
 void MainWindow::renameColorSet(std::size_t setIndex, const QString& name)
@@ -7281,7 +7300,7 @@ void MainWindow::renameColorSet(std::size_t setIndex, const QString& name)
     }
     commitEditorColors(
         edit::withColorSetName(m_document->colorSetTables(), setIndex, name.toStdString()),
-        QStringLiteral("Renamed color set %1").arg(static_cast<int>(setIndex)));
+        tr("Renamed color set %1").arg(static_cast<int>(setIndex)));
 }
 
 void MainWindow::copyEditColorsToDynamicSet()
@@ -7300,7 +7319,7 @@ void MainWindow::copyEditColorsToDynamicSet()
         }
         updateUndoRedoActions();
         statusBar()->showMessage(
-            QStringLiteral("Copied the edit colors to dynamic set %1 of %2 frame(s)")
+            tr("Copied the edit colors to dynamic set %1 of %2 frame(s)")
                 .arg(static_cast<int>(activeDynamicSet()))
                 .arg(static_cast<int>(changedFrames)),
             2500);
@@ -7320,7 +7339,7 @@ void MainWindow::copyDynamicSetToEditColors()
     try {
         commitEditorColors(edit::withEditColorsFromDynamicSet(
                                *m_document, *frameIndex, dynamicPlane(), activeDynamicSet()),
-                           QStringLiteral("Copied dynamic set %1 to the edit colors")
+                           tr("Copied dynamic set %1 to the edit colors")
                                .arg(static_cast<int>(activeDynamicSet())));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -7336,12 +7355,12 @@ void MainWindow::pickEditColorSlot(uint16_t rgb565)
         m_document->editorMetadata().editColors, m_document->colorCount(), rgb565);
     if (!slot) {
         statusBar()->showMessage(
-            QStringLiteral("No edit color is 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')), 2500);
+            tr("No edit color is 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')), 2500);
         return;
     }
     selectEditColorSlot(*slot);
     statusBar()->showMessage(
-        QStringLiteral("Selected edit color %1 (0x%2)")
+        tr("Selected edit color %1 (0x%2)")
             .arg(static_cast<int>(*slot))
             .arg(rgb565, 4, 16, QLatin1Char('0')),
         2500);
@@ -7376,7 +7395,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         if (keyEvent->key() == Qt::Key_Escape &&
             m_pendingCanvasClick != PendingCanvasClick::None) {
             armCanvasClick(PendingCanvasClick::None);
-            statusBar()->showMessage(QStringLiteral("Cancelled"), 1500);
+            statusBar()->showMessage(tr("Cancelled"), 1500);
             return true;
         }
         if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
@@ -7501,7 +7520,7 @@ bool MainWindow::confirmDeletion(const QString& title,
     confirm.setText(question);
     confirm.setInformativeText(consequences);
     QPushButton* deleteButton =
-        confirm.addButton(QStringLiteral("Delete"), QMessageBox::DestructiveRole);
+        confirm.addButton(tr("Delete"), QMessageBox::DestructiveRole);
     confirm.setDefaultButton(confirm.addButton(QMessageBox::Cancel));
     confirm.exec();
     return confirm.clickedButton() == deleteButton;
@@ -7516,14 +7535,14 @@ void MainWindow::deleteSelectedFramesShorterThan()
 {
     const std::vector<std::size_t> selected = selectedFrameIndices();
     if (!m_document || selected.empty()) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        statusBar()->showMessage(tr("No frame selected"), 2500);
         return;
     }
     bool accepted = false;
     const int durationMs = QInputDialog::getInt(
         this,
-        QStringLiteral("Delete Short Frames"),
-        QStringLiteral("Delete the selected frames that are shorter than (ms):"),
+        tr("Delete Short Frames"),
+        tr("Delete the selected frames that are shorter than (ms):"),
         static_cast<int>(legacy::kSkipFrameDurationMs),
         1,
         600000,
@@ -7536,14 +7555,14 @@ void MainWindow::deleteSelectedFramesShorterThan()
         edit::framesShorterThan(*m_document, selected, static_cast<uint32_t>(durationMs));
     if (shortFrames.empty()) {
         statusBar()->showMessage(
-            QStringLiteral("None of the %1 selected frame(s) is shorter than %2 ms")
+            tr("None of the %1 selected frame(s) is shorter than %2 ms")
                 .arg(static_cast<int>(selected.size()))
                 .arg(durationMs),
             4000);
         return;
     }
     deleteFrames(shortFrames,
-                 QStringLiteral("%1 of the %2 selected frame(s) are shorter than %3 ms.")
+                 tr("%1 of the %2 selected frame(s) are shorter than %3 ms.")
                      .arg(static_cast<int>(shortFrames.size()))
                      .arg(static_cast<int>(selected.size()))
                      .arg(durationMs));
@@ -7552,15 +7571,15 @@ void MainWindow::deleteSelectedFramesShorterThan()
 void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, const QString& note)
 {
     if (!m_document || frameIndices.empty()) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        statusBar()->showMessage(tr("No frame selected"), 2500);
         return;
     }
     const int count = static_cast<int>(frameIndices.size());
     const int total = static_cast<int>(m_document->frameCount());
     if (count >= total) {
         statusBar()->showMessage(
-            QStringLiteral("Not deleted: all %1 frame(s) would go, and a project keeps at "
-                           "least one frame")
+            tr("Not deleted: all %1 frame(s) would go, and a project keeps at "
+               "least one frame")
                 .arg(total),
             5000);
         return;
@@ -7569,21 +7588,21 @@ void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, cons
     if (!note.isEmpty()) {
         consequences << note;
     }
-    consequences << QStringLiteral("Frames: %1. %2 frame(s) remain. Sections and the source "
-                                   "frames of sprites follow. The deletion can be undone.")
+    consequences << tr("Frames: %1. %2 frame(s) remain. Sections and the source "
+                       "frames of sprites follow. The deletion can be undone.")
                         .arg(frameRangesText(frameIndices))
                         .arg(total - count);
-    if (!confirmDeletion(QStringLiteral("Delete Frames"),
-                         count == 1 ? QStringLiteral("Delete frame %1?")
+    if (!confirmDeletion(tr("Delete Frames"),
+                         count == 1 ? tr("Delete frame %1?")
                                           .arg(static_cast<qulonglong>(frameIndices.front()))
-                                    : QStringLiteral("Delete %1 frames?").arg(count),
+                                    : tr("Delete %1 frames?").arg(count),
                          consequences.join(QChar(' ')))) {
         return;
     }
     try {
         recordStructureEdit(edit::deleteFrames(*m_document, frameIndices));
         showStructureEditStatus(
-            QStringLiteral("Deleted %1 frame(s), %2 remain").arg(count).arg(total - count),
+            tr("Deleted %1 frame(s), %2 remain").arg(count).arg(total - count),
             4000);
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -7602,7 +7621,7 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
     }
     if (m_document->spriteCount() >= document::kMaxSprites) {
         statusBar()->showMessage(
-            QStringLiteral("Not added: a project holds at most %1 sprites")
+            tr("Not added: a project holds at most %1 sprites")
                 .arg(static_cast<int>(document::kMaxSprites)),
             4000);
         return std::nullopt;
@@ -7610,8 +7629,8 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
     bool accepted = false;
     const QString name = QInputDialog::getText(
                              this,
-                             QStringLiteral("New Sprite"),
-                             QStringLiteral("Name of the new sprite (up to 31 characters):"),
+                             tr("New Sprite"),
+                             tr("Name of the new sprite (up to 31 characters):"),
                              QLineEdit::Normal,
                              QString(),
                              &accepted)
@@ -7622,7 +7641,7 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
     const std::string problem = edit::spriteNameProblem(*m_document, name.toStdString());
     if (!problem.empty()) {
         statusBar()->showMessage(
-            QStringLiteral("Not added: %1").arg(QString::fromStdString(problem)), 4000);
+            tr("Not added: %1").arg(QString::fromStdString(problem)), 4000);
         return std::nullopt;
     }
     try {
@@ -7630,7 +7649,7 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
         recordStructureEdit(
             edit::addSprite(*m_document, name.toStdString(), currentFrameIndex().value_or(0)));
         showStructureEditStatus(
-            QStringLiteral("Added sprite %1 \"%2\", %3 sprite(s) now")
+            tr("Added sprite %1 \"%2\", %3 sprite(s) now")
                 .arg(static_cast<int>(m_document->spriteCount() - 1))
                 .arg(name)
                 .arg(static_cast<int>(m_document->spriteCount())),
@@ -7646,31 +7665,31 @@ void MainWindow::deleteSelectedSprite()
 {
     const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
     if (!m_document || !spriteIndex) {
-        statusBar()->showMessage(QStringLiteral("No sprite selected"), 2500);
+        statusBar()->showMessage(tr("No sprite selected"), 2500);
         return;
     }
     const int useCount = static_cast<int>(m_document->spriteUseCount(*spriteIndex));
     const QString name = QString::fromStdString(m_document->sprite(*spriteIndex).name);
     if (!confirmDeletion(
-            QStringLiteral("Delete Sprite"),
-            name.isEmpty() ? QStringLiteral("Delete sprite %1?").arg(static_cast<int>(*spriteIndex))
-                           : QStringLiteral("Delete sprite %1 \"%2\"?")
+            tr("Delete Sprite"),
+            name.isEmpty() ? tr("Delete sprite %1?").arg(static_cast<int>(*spriteIndex))
+                           : tr("Delete sprite %1 \"%2\"?")
                                  .arg(static_cast<int>(*spriteIndex))
                                  .arg(name),
-            QStringLiteral("%1 Sprites behind it get a number one lower. The deletion can be "
-                           "undone.")
-                .arg(useCount > 0 ? QStringLiteral("It is removed from the sprite slots of %1 "
-                                                   "frame(s).")
+            tr("%1 Sprites behind it get a number one lower. The deletion can be "
+               "undone.")
+                .arg(useCount > 0 ? tr("It is removed from the sprite slots of %1 "
+                                       "frame(s).")
                                         .arg(useCount)
-                                  : QStringLiteral("No frame uses it.")))) {
+                                  : tr("No frame uses it.")))) {
         return;
     }
     try {
         recordStructureEdit(edit::deleteSprite(*m_document, *spriteIndex));
         showStructureEditStatus(
-            QStringLiteral("Deleted sprite %1%2; %3 sprite(s) remain")
+            tr("Deleted sprite %1%2; %3 sprite(s) remain")
                 .arg(static_cast<int>(*spriteIndex))
-                .arg(useCount > 0 ? QStringLiteral(", removed from %1 frame(s)").arg(useCount)
+                .arg(useCount > 0 ? tr(", removed from %1 frame(s)").arg(useCount)
                                   : QString())
                 .arg(static_cast<int>(m_document->spriteCount())),
             4000);
@@ -7683,19 +7702,19 @@ void MainWindow::addBackgroundFromCurrentFrame()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
-        statusBar()->showMessage(QStringLiteral("Select a frame first"), 2500);
+        statusBar()->showMessage(tr("Select a frame first"), 2500);
         return;
     }
     if (m_document->backgroundCount() >= document::kMaxBackgrounds) {
         statusBar()->showMessage(
-            QStringLiteral("Not added: a project holds at most %1 backgrounds")
+            tr("Not added: a project holds at most %1 backgrounds")
                 .arg(static_cast<int>(document::kMaxBackgrounds)),
             4000);
         return;
     }
     if (isHdOnlyProject() && !m_document->hasHdFrame(*frameIndex)) {
         statusBar()->showMessage(
-            QStringLiteral("Not added: frame %1 has no %2 frame to make a background of")
+            tr("Not added: frame %1 has no %2 frame to make a background of")
                 .arg(static_cast<int>(*frameIndex))
                 .arg(nativePlaneText(*m_document)),
             5000);
@@ -7704,7 +7723,7 @@ void MainWindow::addBackgroundFromCurrentFrame()
     try {
         recordStructureEdit(edit::addBackgroundFromFrame(*m_document, *frameIndex));
         showStructureEditStatus(
-            QStringLiteral("Added background %1 from frame %2, %3 background(s) now")
+            tr("Added background %1 from frame %2, %3 background(s) now")
                 .arg(static_cast<int>(m_document->backgroundCount() - 1))
                 .arg(static_cast<int>(*frameIndex))
                 .arg(static_cast<int>(m_document->backgroundCount())),
@@ -7718,27 +7737,27 @@ void MainWindow::deleteSelectedBackground()
 {
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!m_document || !backgroundIndex) {
-        statusBar()->showMessage(QStringLiteral("No background selected"), 2500);
+        statusBar()->showMessage(tr("No background selected"), 2500);
         return;
     }
     const int useCount = static_cast<int>(m_document->backgroundUseCount(*backgroundIndex));
     if (!confirmDeletion(
-            QStringLiteral("Delete Background"),
-            QStringLiteral("Delete background %1?").arg(static_cast<int>(*backgroundIndex)),
-            QStringLiteral("%1 Backgrounds behind it get a number one lower. The deletion can "
-                           "be undone.")
-                .arg(useCount > 0 ? QStringLiteral("%1 frame(s) use it and will have no "
-                                                   "background.")
+            tr("Delete Background"),
+            tr("Delete background %1?").arg(static_cast<int>(*backgroundIndex)),
+            tr("%1 Backgrounds behind it get a number one lower. The deletion can "
+               "be undone.")
+                .arg(useCount > 0 ? tr("%1 frame(s) use it and will have no "
+                                       "background.")
                                         .arg(useCount)
-                                  : QStringLiteral("No frame uses it.")))) {
+                                  : tr("No frame uses it.")))) {
         return;
     }
     try {
         recordStructureEdit(edit::deleteBackground(*m_document, *backgroundIndex));
         showStructureEditStatus(
-            QStringLiteral("Deleted background %1%2; %3 background(s) remain")
+            tr("Deleted background %1%2; %3 background(s) remain")
                 .arg(static_cast<int>(*backgroundIndex))
-                .arg(useCount > 0 ? QStringLiteral(", %1 frame(s) have no background now")
+                .arg(useCount > 0 ? tr(", %1 frame(s) have no background now")
                                         .arg(useCount)
                                   : QString())
                 .arg(static_cast<int>(m_document->backgroundCount())),
@@ -7755,7 +7774,7 @@ void MainWindow::addComparisonMask()
     }
     if (m_document->comparisonMaskCount() >= document::kMaxComparisonMasks) {
         statusBar()->showMessage(
-            QStringLiteral("Not added: a project holds at most %1 comparison masks")
+            tr("Not added: a project holds at most %1 comparison masks")
                 .arg(static_cast<int>(document::kMaxComparisonMasks)),
             4000);
         return;
@@ -7763,7 +7782,7 @@ void MainWindow::addComparisonMask()
     try {
         recordStructureEdit(edit::addComparisonMask(*m_document));
         showStructureEditStatus(
-            QStringLiteral("Added comparison mask %1, %2 mask(s) now; no frame uses it yet")
+            tr("Added comparison mask %1, %2 mask(s) now; no frame uses it yet")
                 .arg(static_cast<int>(m_document->comparisonMaskCount() - 1))
                 .arg(static_cast<int>(m_document->comparisonMaskCount())),
             4000);
@@ -7776,7 +7795,7 @@ void MainWindow::deleteSelectedComparisonMask()
 {
     if (!m_document || !m_selectedMaskIndex ||
         *m_selectedMaskIndex >= m_document->comparisonMaskCount()) {
-        statusBar()->showMessage(QStringLiteral("No comparison mask selected"), 2500);
+        statusBar()->showMessage(tr("No comparison mask selected"), 2500);
         return;
     }
     const std::size_t maskIndex = *m_selectedMaskIndex;
@@ -7789,26 +7808,26 @@ void MainWindow::deleteSelectedComparisonMask()
     // A mask in use decides how its frames are identified, so that case is spelled out.
     const QString consequences =
         users.empty()
-            ? QStringLiteral("No frame uses it. Masks behind it get a number one lower. The "
-                             "deletion can be undone.")
-            : QStringLiteral("%1 frame(s) use it (%2). They will be compared without a mask, "
-                             "which changes how the runtime identifies them. Masks behind it "
-                             "get a number one lower. The deletion can be undone.")
+            ? tr("No frame uses it. Masks behind it get a number one lower. The "
+                 "deletion can be undone.")
+            : tr("%1 frame(s) use it (%2). They will be compared without a mask, "
+                 "which changes how the runtime identifies them. Masks behind it "
+                 "get a number one lower. The deletion can be undone.")
                   .arg(static_cast<int>(users.size()))
                   .arg(frameRangesText(users));
     if (!confirmDeletion(
-            QStringLiteral("Delete Comparison Mask"),
-            QStringLiteral("Delete comparison mask %1?").arg(static_cast<int>(maskIndex)),
+            tr("Delete Comparison Mask"),
+            tr("Delete comparison mask %1?").arg(static_cast<int>(maskIndex)),
             consequences)) {
         return;
     }
     try {
         recordStructureEdit(edit::deleteComparisonMask(*m_document, maskIndex));
         showStructureEditStatus(
-            QStringLiteral("Deleted comparison mask %1%2; %3 mask(s) remain")
+            tr("Deleted comparison mask %1%2; %3 mask(s) remain")
                 .arg(static_cast<int>(maskIndex))
                 .arg(users.empty() ? QString()
-                                   : QStringLiteral(", %1 frame(s) have no mask now")
+                                   : tr(", %1 frame(s) have no mask now")
                                          .arg(static_cast<int>(users.size())))
                 .arg(static_cast<int>(m_document->comparisonMaskCount())),
             4000);
@@ -7840,7 +7859,7 @@ void MainWindow::moveSelectedFramesUp()
         firstRow = std::min(firstRow, m_frameList->row(item));
     }
     if (firstRow <= 0 || firstRow >= m_frameList->count()) {
-        statusBar()->showMessage(QStringLiteral("Not moved: the frames are the first ones"), 2500);
+        statusBar()->showMessage(tr("Not moved: the frames are the first ones"), 2500);
         return;
     }
     moveSelectedFramesBeforeRow(firstRow - 1);
@@ -7857,7 +7876,7 @@ void MainWindow::moveSelectedFramesDown()
         lastRow = std::max(lastRow, m_frameList->row(item));
     }
     if (lastRow < 0 || lastRow + 1 >= m_frameList->count()) {
-        statusBar()->showMessage(QStringLiteral("Not moved: the frames are the last ones"), 2500);
+        statusBar()->showMessage(tr("Not moved: the frames are the last ones"), 2500);
         return;
     }
     // Behind it, not into a section that starts after it.
@@ -7869,16 +7888,16 @@ void MainWindow::moveSelectedFramesTo()
 {
     const std::vector<std::size_t> frames = selectedFrameIndices();
     if (!m_document || frames.empty()) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        statusBar()->showMessage(tr("No frame selected"), 2500);
         return;
     }
     const int count = static_cast<int>(m_document->frameCount());
     bool accepted = false;
     const int beforeFrame = QInputDialog::getInt(
         this,
-        QStringLiteral("Move Frames"),
-        QStringLiteral("Move the %1 selected frame(s) before frame (%2 = behind the last "
-                       "frame):")
+        tr("Move Frames"),
+        tr("Move the %1 selected frame(s) before frame (%2 = behind the last "
+           "frame):")
             .arg(static_cast<int>(frames.size()))
             .arg(count),
         static_cast<int>(frames.front()),
@@ -7896,14 +7915,14 @@ void MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
                             bool joinSection)
 {
     if (!m_document || frameIndices.empty()) {
-        statusBar()->showMessage(QStringLiteral("No frame selected"), 2500);
+        statusBar()->showMessage(tr("No frame selected"), 2500);
         return;
     }
     try {
         std::unique_ptr<edit::FrameMoveCommand> command =
             edit::moveFrames(*m_document, frameIndices, beforeFrame, joinSection);
         if (!command) {
-            statusBar()->showMessage(QStringLiteral("The frames are there already"), 2500);
+            statusBar()->showMessage(tr("The frames are there already"), 2500);
             return;
         }
         const edit::FrameMoveCommand& applied = *command;
@@ -7913,7 +7932,7 @@ void MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
         updateUndoRedoActions();
         const std::vector<std::size_t> moved = applied.movedFrames();
         showStructureEditStatus(
-            QStringLiteral("Moved %1 frame(s); they are frames %2 now")
+            tr("Moved %1 frame(s); they are frames %2 now")
                 .arg(static_cast<int>(moved.size()))
                 .arg(frameRangesText(moved)),
             4000);
@@ -7985,8 +8004,8 @@ void MainWindow::showStructureEditStatus(const QString& message, int timeoutMs)
     }
     // The deleted records of old steps no longer fit the undo memory; say so with the result.
     statusBar()->showMessage(
-        QStringLiteral("%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or "
-                       "delete steps can no longer be undone)")
+        tr("%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or "
+           "delete steps can no longer be undone)")
             .arg(message)
             .arg(static_cast<qulonglong>(m_undoHistories.structureMemoryLimit() / (1024 * 1024)))
             .arg(static_cast<qulonglong>(m_droppedStructureSteps)),
@@ -8518,7 +8537,7 @@ void MainWindow::undo()
         // stack), and the document is unchanged.
         updateUndoRedoActions();
         statusBar()->showMessage(
-            QStringLiteral("Undo failed, the step stays in the history: %1")
+            tr("Undo failed, the step stays in the history: %1")
                 .arg(QString::fromUtf8(ex.what())),
             6000);
         return;
@@ -8530,16 +8549,16 @@ void MainWindow::undo()
     updateUndoRedoActions();
     if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
         statusBar()->showMessage(
-            QStringLiteral("Undo: %1").arg(structureCommandText(*structure)), 2500);
+            tr("Undo: %1").arg(structureCommandText(*structure)), 2500);
         return;
     }
     if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(command)) {
         statusBar()->showMessage(
-            QStringLiteral("Undo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
+            tr("Undo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
             2500);
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Undo") + editKindStatusSuffix(*command, showsHdAndSd()),
+    statusBar()->showMessage(tr("Undo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
                              1500);
 }
 
@@ -8556,7 +8575,7 @@ void MainWindow::redo()
         // stack), and the document is unchanged.
         updateUndoRedoActions();
         statusBar()->showMessage(
-            QStringLiteral("Redo failed, the step stays in the history: %1")
+            tr("Redo failed, the step stays in the history: %1")
                 .arg(QString::fromUtf8(ex.what())),
             6000);
         return;
@@ -8568,16 +8587,16 @@ void MainWindow::redo()
     updateUndoRedoActions();
     if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
         statusBar()->showMessage(
-            QStringLiteral("Redo: %1").arg(structureCommandText(*structure)), 2500);
+            tr("Redo: %1").arg(structureCommandText(*structure)), 2500);
         return;
     }
     if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(command)) {
         statusBar()->showMessage(
-            QStringLiteral("Redo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
+            tr("Redo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
             2500);
         return;
     }
-    statusBar()->showMessage(QStringLiteral("Redo") + editKindStatusSuffix(*command, showsHdAndSd()),
+    statusBar()->showMessage(tr("Redo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
                              1500);
 }
 
@@ -8599,7 +8618,7 @@ void MainWindow::updateProjectHeaderStatus()
         m_preview->update();
     }
     if (!m_document) {
-        setStatusText(QStringLiteral("No project loaded"));
+        setStatusText(tr("No project loaded"));
         return;
     }
     int hdCount = 0;
@@ -8612,17 +8631,17 @@ void MainWindow::updateProjectHeaderStatus()
             ++notRenderedCount;
         }
     }
-    setStatusText(QStringLiteral("%1: %2 frames%3, %4 backgrounds, %5 sprites%6%7")
+    setStatusText(tr("%1: %2 frames%3, %4 backgrounds, %5 sprites%6%7")
                       .arg(QString::fromStdString(m_document->romName()))
                       .arg(static_cast<int>(m_document->frameCount()))
-                      .arg(showsHdAndSd() ? QStringLiteral(", %1 HD").arg(hdCount) : QString())
+                      .arg(showsHdAndSd() ? tr(", %1 HD").arg(hdCount) : QString())
                       .arg(static_cast<int>(m_document->backgroundCount()))
                       .arg(static_cast<int>(m_document->spriteCount()))
                       .arg(notRenderedCount > 0
-                               ? QStringLiteral(", %1 not rendered at runtime")
+                               ? tr(", %1 not rendered at runtime")
                                      .arg(notRenderedCount)
                                : QString())
-                      .arg(m_document->isDirty() ? QStringLiteral(" (modified)") : QString()));
+                      .arg(m_document->isDirty() ? tr(" (modified)") : QString()));
 }
 
 void MainWindow::updateFrameThumbnail(std::size_t frameIndex)

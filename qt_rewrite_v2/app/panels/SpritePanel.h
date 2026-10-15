@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 
+#include <QCoreApplication>
 #include <QString>
 #include <QWidget>
 
@@ -52,6 +53,8 @@ struct SpriteDetectionAreaInput {
 // Inspector page for the selected sprite and the sprite slots of a frame. It only displays and
 // reports what the user asked for; the owner applies the edits and calls refresh().
 class SpritePanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(SpritePanel)
+
 public:
     explicit SpritePanel(QWidget* parent = nullptr);
 

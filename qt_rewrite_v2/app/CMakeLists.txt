@@ -84,6 +84,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/SpritePanel.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
+    Translations.cpp
+    Translations.h
     UnsavedChanges.cpp
     UnsavedChanges.h
 )
@@ -131,6 +133,48 @@ target_link_libraries(${COLORIZING_QT_V2_APP_NAME}
 )
 
 colorizing_qt_v2_enable_warnings(${COLORIZING_QT_V2_APP_NAME})
+
+# The translations of the user interface (Translations.h), built in under :/i18n. Qt Linguist
+# edits translations/colorizingdmd_<language>.ts; the target update_translations runs lupdate
+# over all sources of the user interface to add new and changed texts to them.
+if(COLORIZINGDMD_QT_V2_PACKAGE)
+    # A package has the translations.
+    find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
+else()
+    find_package(Qt6 QUIET COMPONENTS LinguistTools)
+endif()
+if(Qt6LinguistTools_FOUND)
+    file(GLOB colorizing_qt_v2_ui_sources CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dialogs/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/dialogs/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/panels/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/panels/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vpx/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/vpx/*.h")
+    qt_add_translations(${COLORIZING_QT_V2_APP_NAME}
+        TS_FILES
+            "${PROJECT_SOURCE_DIR}/translations/colorizingdmd_de.ts"
+            "${PROJECT_SOURCE_DIR}/translations/colorizingdmd_fr.ts"
+        SOURCES ${colorizing_qt_v2_ui_sources}
+        INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}"
+        RESOURCE_PREFIX "/i18n"
+        LUPDATE_OPTIONS -locations none)
+    # Qt's own translations (standard buttons, file dialogs) of the same languages, built in
+    # as well when this Qt has them, so that no package has to ship them.
+    set(colorizing_qt_v2_qt_translations "")
+    foreach(language de fr)
+        set(file "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${language}.qm")
+        if(EXISTS "${file}")
+            list(APPEND colorizing_qt_v2_qt_translations "${file}")
+        endif()
+    endforeach()
+    if(colorizing_qt_v2_qt_translations)
+        qt_add_resources(${COLORIZING_QT_V2_APP_NAME} "qt_translations"
+            PREFIX "/i18n"
+            BASE "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}"
+            FILES ${colorizing_qt_v2_qt_translations})
+    endif()
+else()
+    message(WARNING "Qt6 LinguistTools not found: the editor is built in English only")
+endif()
 
 target_compile_definitions(${COLORIZING_QT_V2_APP_NAME}
     PRIVATE

@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QMainWindow>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -68,6 +69,8 @@ class QTimer;
 namespace colorizing::app {
 
 class MainWindow final : public QMainWindow {
+    Q_DECLARE_TR_FUNCTIONS(MainWindow)
+
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     // At start: offers the newest autosave of a project that was never saved, if there is one.

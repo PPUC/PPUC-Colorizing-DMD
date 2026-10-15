@@ -36,59 +36,59 @@ QString frameNumber(std::size_t frameIndex)
 SameFramesPanel::SameFramesPanel(QWidget* parent)
     : QWidget(parent)
 {
-    m_sameCountLabel = new QLabel(QStringLiteral("Same frames: -"), this);
-    m_sameCountLabel->setToolTip(QStringLiteral(
+    m_sameCountLabel = new QLabel(tr("Same frames: -"), this);
+    m_sameCountLabel->setToolTip(tr(
         "Frames the runtime cannot tell from the current one under its mask and shape mode"));
     m_sameFramesComboBox = new QComboBox(this);
-    m_sameFramesComboBox->setToolTip(QStringLiteral("Go to a frame that is the same"));
+    m_sameFramesComboBox->setToolTip(tr("Go to a frame that is the same"));
     m_sameFramesComboBox->setEnabled(false);
     m_sameFramesComboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_sameFramesComboBox->setMinimumContentsLength(6);
 
     m_deleteSameAsCurrentButton =
-        makeButton(this, QStringLiteral("Delete Same As Current..."),
-                   QStringLiteral("Delete the frames that are the same as the current frame"));
+        makeButton(this, tr("Delete Same As Current..."),
+                   tr("Delete the frames that are the same as the current frame"));
     m_deleteSameAsSelectedButton =
-        makeButton(this, QStringLiteral("Delete Same As Selected..."),
-                   QStringLiteral("Delete the frames that are the same as a selected frame"));
+        makeButton(this, tr("Delete Same As Selected..."),
+                   tr("Delete the frames that are the same as a selected frame"));
     m_deleteAllDuplicatesButton =
-        makeButton(this, QStringLiteral("Delete All Duplicates..."),
-                   QStringLiteral("Delete every frame that is the same as an earlier frame"));
-    m_keepSelectedCheckBox = new QCheckBox(QStringLiteral("Keep selected frames"), this);
+        makeButton(this, tr("Delete All Duplicates..."),
+                   tr("Delete every frame that is the same as an earlier frame"));
+    m_keepSelectedCheckBox = new QCheckBox(tr("Keep selected frames"), this);
     m_keepSelectedCheckBox->setToolTip(
-        QStringLiteral("Deleting same frames never deletes a selected frame"));
+        tr("Deleting same frames never deletes a selected frame"));
 
     m_updateCountsButton =
-        makeButton(this, QStringLiteral("Update Same List"),
-                   QStringLiteral("Count the same frames of the current frame for every mask, "
-                                  "with and without shape mode"));
+        makeButton(this, tr("Update Same List"),
+                   tr("Count the same frames of the current frame for every mask, "
+                      "with and without shape mode"));
     m_maskCountsList = new QListWidget(this);
     m_maskCountsList->setToolTip(
-        QStringLiteral("Same frames of the current frame per mask: full comparison / shape mode"));
+        tr("Same frames of the current frame per mask: full comparison / shape mode"));
     m_maskCountsList->setFixedHeight(kListHeight);
     m_maskCountsList->setSelectionMode(QAbstractItemView::NoSelection);
     m_maskCountsList->setFocusPolicy(Qt::NoFocus);
 
     m_spotCommonButton =
-        makeButton(this, QStringLiteral("Spot Common"),
-                   QStringLiteral("Mark the pixels that differ among the selected frames on "
-                                  "the original frame"));
+        makeButton(this, tr("Spot Common"),
+                   tr("Mark the pixels that differ among the selected frames on "
+                      "the original frame"));
     m_spotCommonButton->setCheckable(true);
     m_commonToMaskButton =
-        makeButton(this, QStringLiteral("Common To Mask"),
-                   QStringLiteral("Make the comparison mask of the current frame cover exactly "
-                                  "the pixels that differ among the selected frames"));
+        makeButton(this, tr("Common To Mask"),
+                   tr("Make the comparison mask of the current frame cover exactly "
+                      "the pixels that differ among the selected frames"));
 
     m_usingMaskComboBox = new QComboBox(this);
-    m_usingMaskComboBox->setToolTip(QStringLiteral("List the frames that use this mask"));
+    m_usingMaskComboBox->setToolTip(tr("List the frames that use this mask"));
     m_usingMaskComboBox->setEnabled(false);
     m_usingMaskList = new QListWidget(this);
-    m_usingMaskList->setToolTip(QStringLiteral("Frames using the mask above; click to go there"));
+    m_usingMaskList->setToolTip(tr("Frames using the mask above; click to go there"));
     m_usingMaskList->setFixedHeight(kListHeight);
     m_usingMaskList->setUniformItemSizes(true);
     m_selectUsingMaskButton =
-        makeButton(this, QStringLiteral("Select Them"),
-                   QStringLiteral("Select the frames that use the mask above"));
+        makeButton(this, tr("Select Them"),
+                   tr("Select the frames that use the mask above"));
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 6);
@@ -108,7 +108,7 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
     commonLayout->addStretch(1);
     layout->addLayout(commonLayout);
     auto* usingLayout = new QHBoxLayout();
-    usingLayout->addWidget(new QLabel(QStringLiteral("Frames using"), this));
+    usingLayout->addWidget(new QLabel(tr("Frames using"), this));
     usingLayout->addWidget(m_usingMaskComboBox, 1);
     layout->addLayout(usingLayout);
     layout->addWidget(m_usingMaskList);
@@ -160,15 +160,15 @@ void SameFramesPanel::refresh(const SameFramesPanelState& state)
     QSignalBlocker blocker(m_sameFramesComboBox);
     m_sameFramesComboBox->clear();
     if (!state.hasFrame) {
-        m_sameCountLabel->setText(QStringLiteral("Same frames: -"));
+        m_sameCountLabel->setText(tr("Same frames: -"));
     } else {
         const std::size_t listed = std::min(state.sameFrames.size(), edit::kMaxListedSameFrames);
         // As the Win32 editor says it once its list is full.
         m_sameCountLabel->setText(
             state.sameFrames.size() >= edit::kMaxListedSameFrames
-                ? QStringLiteral("Same frames: >=%1")
+                ? tr("Same frames: >=%1")
                       .arg(static_cast<qulonglong>(edit::kMaxListedSameFrames))
-                : QStringLiteral("Same frames: %1")
+                : tr("Same frames: %1")
                       .arg(static_cast<qulonglong>(state.sameFrames.size())));
         for (std::size_t position = 0; position < listed; ++position) {
             m_sameFramesComboBox->addItem(frameNumber(state.sameFrames[position]),
@@ -195,9 +195,9 @@ void SameFramesPanel::setMaskCounts(const std::vector<edit::SameFrameCounts>* co
     }
     for (const edit::SameFrameCounts& line : *counts) {
         const QString mask = line.maskId == document::kNoComparisonMaskId
-                                 ? QStringLiteral("No mask")
-                                 : QStringLiteral("Mask %1").arg(static_cast<int>(line.maskId));
-        m_maskCountsList->addItem(QStringLiteral("%1: %2 / shape %3")
+                                 ? tr("No mask")
+                                 : tr("Mask %1").arg(static_cast<int>(line.maskId));
+        m_maskCountsList->addItem(tr("%1: %2 / shape %3")
                                       .arg(mask)
                                       .arg(static_cast<qulonglong>(line.fullComparison))
                                       .arg(static_cast<qulonglong>(line.shapeMode)));
@@ -211,9 +211,9 @@ void SameFramesPanel::setMaskChoices(std::size_t framesWithoutMask,
     QSignalBlocker blocker(m_usingMaskComboBox);
     m_usingMaskComboBox->clear();
     m_usingMaskComboBox->addItem(
-        QStringLiteral("no mask (%1)").arg(static_cast<qulonglong>(framesWithoutMask)), -1);
+        tr("no mask (%1)").arg(static_cast<qulonglong>(framesWithoutMask)), -1);
     for (std::size_t mask = 0; mask < useCounts.size(); ++mask) {
-        m_usingMaskComboBox->addItem(QStringLiteral("mask %1 (%2)")
+        m_usingMaskComboBox->addItem(tr("mask %1 (%2)")
                                          .arg(static_cast<qulonglong>(mask))
                                          .arg(static_cast<qulonglong>(useCounts[mask])),
                                      static_cast<int>(mask));

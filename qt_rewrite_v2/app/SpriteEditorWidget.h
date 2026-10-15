@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QPoint>
 #include <QWidget>
 
@@ -30,6 +31,8 @@ enum class SpriteDrawingTool {
 };
 
 class SpriteEditorWidget final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(SpriteEditorWidget)
+
 public:
     explicit SpriteEditorWidget(QWidget* parent = nullptr);
 

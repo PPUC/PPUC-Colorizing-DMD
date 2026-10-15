@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "edit/SameFrames.h"
@@ -32,6 +33,8 @@ struct SameFramesPanelState {
 // selected frames, and the frames that use a mask. It only displays and reports what the
 // user asked for; the owner works everything out and calls the refresh functions.
 class SameFramesPanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(SameFramesPanel)
+
 public:
     explicit SameFramesPanel(QWidget* parent = nullptr);
 

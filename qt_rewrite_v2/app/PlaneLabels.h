@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QString>
 
 #include "document/ProjectDocument.h"
@@ -30,6 +31,7 @@ namespace colorizing::app {
 [[nodiscard]] QString extraDataSuffix(const document::ProjectDocument& document,
                                       bool hasExtraData);
 
-inline const QString kNoPictureText = QStringLiteral("no picture");
+// "no picture", translated.
+[[nodiscard]] QString noPictureText();
 
 }  // namespace colorizing::app

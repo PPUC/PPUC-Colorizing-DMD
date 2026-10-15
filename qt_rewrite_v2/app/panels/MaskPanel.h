@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -18,6 +19,8 @@ namespace colorizing::app {
 // Inspector page for the comparison mask of a frame. It only displays and reports what the
 // user asked for; the owner applies the edits and calls the refresh functions.
 class MaskPanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(MaskPanel)
+
 public:
     explicit MaskPanel(QWidget* parent = nullptr);
 

@@ -15,11 +15,11 @@ RecordListPage::RecordListPage(QListWidget* list,
     , m_list(list)
 {
     m_newButton = new QToolButton(this);
-    m_newButton->setText(QStringLiteral("New"));
+    m_newButton->setText(tr("New"));
     m_newButton->setToolTip(newToolTip);
     m_newButton->setEnabled(false);
     m_deleteButton = new QToolButton(this);
-    m_deleteButton->setText(QStringLiteral("Delete"));
+    m_deleteButton->setText(tr("Delete"));
     m_deleteButton->setToolTip(deleteToolTip);
     m_deleteButton->setEnabled(false);
 

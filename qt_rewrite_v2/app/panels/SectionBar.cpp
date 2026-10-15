@@ -16,22 +16,22 @@ SectionBar::SectionBar(QWidget* parent)
 {
     m_sectionComboBox = new QComboBox(this);
     m_sectionComboBox->setToolTip(
-        QStringLiteral("Section of the current frame; choose one to go to its first frame"));
+        tr("Section of the current frame; choose one to go to its first frame"));
     m_sectionComboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_sectionComboBox->setMinimumContentsLength(8);
     m_nameButton = new QToolButton(this);
-    m_nameButton->setText(QStringLiteral("Name"));
-    m_nameButton->setToolTip(QStringLiteral(
+    m_nameButton->setText(tr("Name"));
+    m_nameButton->setToolTip(tr(
         "Start a section at the current frame, or rename the section that starts there"));
     m_deleteButton = new QToolButton(this);
-    m_deleteButton->setText(QStringLiteral("Delete"));
-    m_deleteButton->setToolTip(QStringLiteral("Delete the section of the current frame"));
+    m_deleteButton->setText(tr("Delete"));
+    m_deleteButton->setToolTip(tr("Delete the section of the current frame"));
     m_orderButton = new QToolButton(this);
-    m_orderButton->setText(QStringLiteral("Order"));
-    m_orderButton->setToolTip(QStringLiteral("Change the order of the section list"));
+    m_orderButton->setText(tr("Order"));
+    m_orderButton->setToolTip(tr("Change the order of the section list"));
     m_triggerComboBox = new QComboBox(this);
     m_triggerComboBox->setToolTip(
-        QStringLiteral("Frames with a trigger ID, by ID; choose one to go to the frame"));
+        tr("Frames with a trigger ID, by ID; choose one to go to the frame"));
     m_triggerComboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_triggerComboBox->setMinimumContentsLength(8);
 
@@ -92,9 +92,9 @@ void SectionBar::setContent(bool hasProject,
     {
         const QSignalBlocker blocker(m_sectionComboBox);
         m_sectionComboBox->clear();
-        m_sectionComboBox->addItem(QStringLiteral("- None -"));
+        m_sectionComboBox->addItem(tr("- None -"));
         for (std::size_t i = 0; i < sections.size(); ++i) {
-            m_sectionComboBox->addItem(QStringLiteral("%1 (frame %2)")
+            m_sectionComboBox->addItem(tr("%1 (frame %2)")
                                            .arg(sections[i].name)
                                            .arg(static_cast<qulonglong>(sections[i].firstFrame)),
                                        QVariant::fromValue<qulonglong>(i));
@@ -106,12 +106,12 @@ void SectionBar::setContent(bool hasProject,
     const QSignalBlocker blocker(m_triggerComboBox);
     m_triggerComboBox->clear();
     m_triggerComboBox->addItem(triggers.empty()
-                                   ? QStringLiteral("No triggers")
-                                   : QStringLiteral("%1 trigger(s)")
+                                   ? tr("No triggers")
+                                   : tr("%1 trigger(s)")
                                          .arg(static_cast<int>(triggers.size())));
     m_triggerFrames.clear();
     for (const TriggerBarEntry& trigger : triggers) {
-        m_triggerComboBox->addItem(QStringLiteral("Fr: %1 / TID: %2")
+        m_triggerComboBox->addItem(tr("Fr: %1 / TID: %2")
                                        .arg(static_cast<qulonglong>(trigger.frameIndex))
                                        .arg(trigger.triggerId),
                                    QVariant::fromValue<qulonglong>(trigger.frameIndex));
@@ -130,7 +130,7 @@ void SectionBar::setCurrent(std::optional<std::size_t> currentSection,
             currentSection ? static_cast<int>(*currentSection) + 1 : 0);
     }
     m_nameButton->setEnabled(m_hasProject && currentFrame.has_value());
-    m_nameButton->setText(startsHere ? QStringLiteral("Rename") : QStringLiteral("Name"));
+    m_nameButton->setText(startsHere ? tr("Rename") : tr("Name"));
     m_deleteButton->setEnabled(m_hasProject && currentSection.has_value());
     int row = 0;
     if (currentFrame) {
@@ -148,12 +148,12 @@ void SectionBar::setCurrent(std::optional<std::size_t> currentSection,
 SectionOrderDialog::SectionOrderDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("Order Sections"));
+    setWindowTitle(tr("Order Sections"));
     m_list = new QListWidget(this);
-    m_upButton = new QPushButton(QStringLiteral("Up"), this);
-    m_downButton = new QPushButton(QStringLiteral("Down"), this);
-    m_sortButton = new QPushButton(QStringLiteral("A-Z"), this);
-    m_sortButton->setToolTip(QStringLiteral("Sort the list by name"));
+    m_upButton = new QPushButton(tr("Up"), this);
+    m_downButton = new QPushButton(tr("Down"), this);
+    m_sortButton = new QPushButton(tr("A-Z"), this);
+    m_sortButton->setToolTip(tr("Sort the list by name"));
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
 
     auto* side = new QVBoxLayout();

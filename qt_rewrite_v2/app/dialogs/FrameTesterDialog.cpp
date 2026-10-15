@@ -52,19 +52,19 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
       m_document(document),
       m_selectedFrames(std::move(selectedFrames))
 {
-    setWindowTitle(QStringLiteral("Frame Tester"));
+    setWindowTitle(tr("Frame Tester"));
     m_sourceLabel = new QLabel(this);
-    auto* loadButton = new QPushButton(QStringLiteral("Load Dump..."), this);
-    loadButton->setToolTip(QStringLiteral("Test every frame of a frame dump (TXT)"));
-    m_selectedButton = new QPushButton(QStringLiteral("Selected Frames"), this);
-    m_selectedButton->setToolTip(QStringLiteral("Test the frames selected in the frame list"));
+    auto* loadButton = new QPushButton(tr("Load Dump..."), this);
+    loadButton->setToolTip(tr("Test every frame of a frame dump (TXT)"));
+    m_selectedButton = new QPushButton(tr("Selected Frames"), this);
+    m_selectedButton->setToolTip(tr("Test the frames selected in the frame list"));
 
     m_rows32Label = new QLabel(this);
-    m_rows32Label->setToolTip(QStringLiteral("libserum's 32-row plane"));
+    m_rows32Label->setToolTip(tr("libserum's 32-row plane"));
     m_rows64Label = new QLabel(this);
-    m_rows64Label->setToolTip(QStringLiteral("libserum's 64-row plane"));
+    m_rows64Label->setToolTip(tr("libserum's 64-row plane"));
     m_originalLabel = new QLabel(this);
-    m_originalLabel->setToolTip(QStringLiteral("The ROM frame fed to libserum"));
+    m_originalLabel->setToolTip(tr("The ROM frame fed to libserum"));
     for (QLabel* label : {m_rows32Label, m_rows64Label, m_originalLabel}) {
         label->setAlignment(Qt::AlignCenter);
         label->setMinimumSize(512, 128);
@@ -74,36 +74,35 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     m_infoLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     m_slider = new QSlider(Qt::Horizontal, this);
-    m_slider->setToolTip(QStringLiteral("Position among the tested frames"));
+    m_slider->setToolTip(tr("Position among the tested frames"));
     m_positionSpinBox = new QSpinBox(this);
-    m_positionSpinBox->setToolTip(QStringLiteral("Position among the tested frames"));
-    m_backButton = new QPushButton(QStringLiteral("◀ Play"), this);
-    m_backButton->setToolTip(QStringLiteral("Play backwards"));
-    m_playButton = new QPushButton(QStringLiteral("Play ▶"), this);
+    m_positionSpinBox->setToolTip(tr("Position among the tested frames"));
+    m_backButton = new QPushButton(tr("◀ Play"), this);
+    m_backButton->setToolTip(tr("Play backwards"));
+    m_playButton = new QPushButton(tr("Play ▶"), this);
     m_speedComboBox = new QComboBox(this);
-    m_speedComboBox->setToolTip(QStringLiteral("Play speed"));
+    m_speedComboBox->setToolTip(tr("Play speed"));
     for (const char* text : {"1/4x", "1/2x", "1x", "2x", "4x", "8x", "16x", "32x"}) {
         m_speedComboBox->addItem(QString::fromLatin1(text));
     }
     m_speedComboBox->setCurrentIndex(2);
-    m_loopCheckBox = new QCheckBox(QStringLiteral("Loop"), this);
-    m_nextUnidentifiedButton = new QPushButton(QStringLiteral("Next Unidentified"), this);
-    m_nextUnidentifiedButton->setToolTip(
-        QStringLiteral("Go to the next frame libserum does not identify"));
+    m_loopCheckBox = new QCheckBox(tr("Loop"), this);
+    m_nextUnidentifiedButton = new QPushButton(tr("Next Unidentified"), this);
+    m_nextUnidentifiedButton->setToolTip(tr("Go to the next frame libserum does not identify"));
     m_findSpinBox = new QSpinBox(this);
-    m_findSpinBox->setToolTip(QStringLiteral("Project frame to find among the tested frames"));
+    m_findSpinBox->setToolTip(tr("Project frame to find among the tested frames"));
     m_findSpinBox->setRange(
         0, static_cast<int>(std::max<std::size_t>(1, document.frameCount()) - 1));
-    m_underMaskCheckBox = new QCheckBox(QStringLiteral("Under its mask"), this);
+    m_underMaskCheckBox = new QCheckBox(tr("Under its mask"), this);
     m_underMaskCheckBox->setToolTip(
-        QStringLiteral("Leave out the pixels the frame's comparison mask covers"));
-    m_findButton = new QPushButton(QStringLiteral("Find Frame"), this);
-    m_addButton = new QPushButton(QStringLiteral("Add To Project"), this);
-    m_addButton->setToolTip(QStringLiteral("Add the dump frame behind the project's frames"));
-    m_showButton = new QPushButton(QStringLiteral("Show In Editor"), this);
-    m_showButton->setToolTip(QStringLiteral(
-        "Close the tester and show the frame libserum identified, or the tested project frame"));
-    auto* closeButton = new QPushButton(QStringLiteral("Close"), this);
+        tr("Leave out the pixels the frame's comparison mask covers"));
+    m_findButton = new QPushButton(tr("Find Frame"), this);
+    m_addButton = new QPushButton(tr("Add To Project"), this);
+    m_addButton->setToolTip(tr("Add the dump frame behind the project's frames"));
+    m_showButton = new QPushButton(tr("Show In Editor"), this);
+    m_showButton->setToolTip(
+        tr("Close the tester and show the frame libserum identified, or the tested project frame"));
+    auto* closeButton = new QPushButton(tr("Close"), this);
 
     auto* sourceRow = new QHBoxLayout();
     sourceRow->addWidget(m_sourceLabel, 1);
@@ -125,7 +124,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     playRow->addWidget(m_nextUnidentifiedButton);
     playRow->addStretch(1);
     auto* findRow = new QHBoxLayout();
-    findRow->addWidget(new QLabel(QStringLiteral("Project frame"), this));
+    findRow->addWidget(new QLabel(tr("Project frame"), this));
     findRow->addWidget(m_findSpinBox);
     findRow->addWidget(m_underMaskCheckBox);
     findRow->addWidget(m_findButton);
@@ -147,8 +146,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     connect(&m_rotationTimer, &QTimer::timeout, this, [this]() { rotateStep(); });
     connect(loadButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(
-            this, QStringLiteral("Load Frame Dump"), QString(),
-            QStringLiteral("Frame dumps (*.txt);;All files (*)"));
+            this, tr("Load Frame Dump"), QString(), tr("Frame dumps (*.txt);;All files (*)"));
         if (!path.isEmpty()) {
             loadDumpFile(path);
         }
@@ -241,8 +239,7 @@ bool FrameTesterDialog::loadProject()
     } catch (const std::exception& ex) {
         error = ex.what();
     }
-    m_error = QStringLiteral("libserum could not load the project: %1")
-                  .arg(QString::fromStdString(error));
+    m_error = tr("libserum could not load the project: %1").arg(QString::fromStdString(error));
     m_infoLabel->setText(m_error);
     return false;
 }
@@ -255,7 +252,7 @@ bool FrameTesterDialog::loadDumpFile(const QString& path)
     progress.total = static_cast<uint64_t>(std::max<qint64>(0, QFileInfo(path).size()));
     progress.setStage(legacy::LegacyIoStage::Reading);
     const std::optional<std::string> failure =
-        runProjectTask(this, QStringLiteral("Loading Frame Dump"), progress, [&]() {
+        runProjectTask(this, tr("Loading Frame Dump"), progress, [&]() {
             std::ifstream stream(platform::pathFromUtf8(path.toStdString()), std::ios::binary);
             if (!stream) {
                 dump.error = "the file cannot be opened";
@@ -278,11 +275,11 @@ bool FrameTesterDialog::loadDumpFile(const QString& path)
         return false;
     }
     m_dumpMode = true;
-    QString source = QStringLiteral("Dump %1: %2 frame(s)")
+    QString source = tr("Dump %1: %2 frame(s)")
                          .arg(QFileInfo(path).fileName())
                          .arg(static_cast<qulonglong>(dump.frames.size()));
     if (dump.truncatedFrameLine) {
-        source += QStringLiteral(" (the unfinished frame of line %1 is left out)")
+        source += tr(" (the unfinished frame of line %1 is left out)")
                       .arg(static_cast<qulonglong>(*dump.truncatedFrameLine));
     }
     setFrames(std::move(dump.frames), source);
@@ -294,8 +291,7 @@ void FrameTesterDialog::useSelectedFrames()
     setPlaying(0);
     m_dumpMode = false;
     setFrames(runtime::testerFramesOfProject(m_document, m_selectedFrames),
-              QStringLiteral("Selected frames: %1").arg(static_cast<qulonglong>(
-                  m_selectedFrames.size())));
+              tr("Selected frames: %1").arg(static_cast<qulonglong>(m_selectedFrames.size())));
 }
 
 void FrameTesterDialog::setFrames(std::vector<runtime::TesterFrame> frames, const QString& source)
@@ -393,7 +389,7 @@ QString FrameTesterDialog::infoText() const
         return m_error;
     }
     if (m_frames.empty()) {
-        return QStringLiteral("No frames to test");
+        return tr("No frames to test");
     }
     const runtime::TesterFrame& frame = m_frames[m_position];
     QStringList parts;
@@ -401,30 +397,29 @@ QString FrameTesterDialog::infoText() const
                  .arg(static_cast<qulonglong>(m_position))
                  .arg(static_cast<qulonglong>(m_frames.size()));
     if (frame.projectFrame) {
-        parts << QStringLiteral("project frame %1")
-                     .arg(static_cast<qulonglong>(*frame.projectFrame));
+        parts << tr("project frame %1").arg(static_cast<qulonglong>(*frame.projectFrame));
     } else {
-        parts << QStringLiteral("dump time 0x%1").arg(frame.timecode, 8, 16, QLatin1Char('0'));
+        parts << tr("dump time 0x%1").arg(frame.timecode, 8, 16, QLatin1Char('0'));
     }
     parts << QStringLiteral("%1 ms").arg(frame.durationMs);
     if (!m_result.ok()) {
         parts << QString::fromStdString(m_result.error);
     } else if (m_result.unchanged) {
-        parts << QStringLiteral("libserum keeps the picture on display");
+        parts << tr("libserum keeps the picture on display");
     } else if (!m_result.identified) {
-        parts << QStringLiteral("not identified");
+        parts << tr("not identified");
     } else {
-        QString identified = m_result.frameIndex
-                                 ? QStringLiteral("identified as frame %1")
-                                       .arg(static_cast<qulonglong>(*m_result.frameIndex))
-                                 : QStringLiteral("identified");
+        QString identified =
+            m_result.frameIndex
+                ? tr("identified as frame %1").arg(static_cast<qulonglong>(*m_result.frameIndex))
+                : tr("identified");
         if (m_result.skipped) {
-            identified += QStringLiteral(" (inactive: the display keeps its picture)");
+            identified += tr(" (inactive: the display keeps its picture)");
         }
         parts << identified;
     }
     if (m_result.triggerId != document::kNoTriggerId) {
-        parts << QStringLiteral("trigger %1").arg(m_result.triggerId);
+        parts << tr("trigger %1").arg(m_result.triggerId);
     }
     return parts.join(QStringLiteral("  ·  "));
 }
@@ -459,7 +454,7 @@ bool FrameTesterDialog::nextUnidentified()
     if (start < m_frames.size()) {
         feed(start);
     }
-    m_infoLabel->setText(infoText() + QStringLiteral("  ·  every later frame is identified"));
+    m_infoLabel->setText(infoText() + tr("  ·  every later frame is identified"));
     return false;
 }
 
@@ -480,9 +475,8 @@ bool FrameTesterDialog::findProjectFrame(std::size_t frameIndex, bool underMask)
     }
     if (!found) {
         m_infoLabel->setText(
-            m_dumpMode ? QStringLiteral("Frame %1 is not in the dump")
-                             .arg(static_cast<qulonglong>(frameIndex))
-                       : QStringLiteral("Frame %1 is not among the selected frames")
+            m_dumpMode ? tr("Frame %1 is not in the dump").arg(static_cast<qulonglong>(frameIndex))
+                       : tr("Frame %1 is not among the selected frames")
                              .arg(static_cast<qulonglong>(frameIndex)));
         return false;
     }
@@ -540,10 +534,8 @@ void FrameTesterDialog::playStep()
 void FrameTesterDialog::updateControls()
 {
     const bool hasFrames = !m_frames.empty() && m_error.isEmpty();
-    m_playButton->setText(m_playDirection == 1 ? QStringLiteral("Pause")
-                                               : QStringLiteral("Play ▶"));
-    m_backButton->setText(m_playDirection == -1 ? QStringLiteral("Pause")
-                                                : QStringLiteral("◀ Play"));
+    m_playButton->setText(m_playDirection == 1 ? tr("Pause") : tr("Play ▶"));
+    m_backButton->setText(m_playDirection == -1 ? tr("Pause") : tr("◀ Play"));
     for (QWidget* widget : std::initializer_list<QWidget*>{m_slider, m_positionSpinBox,
                                                          m_playButton, m_backButton,
                                                          m_nextUnidentifiedButton, m_findButton,

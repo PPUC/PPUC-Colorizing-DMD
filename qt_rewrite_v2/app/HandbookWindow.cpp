@@ -6,13 +6,14 @@
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QLocale>
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QTextBrowser>
 #include <QTextDocument>
 #include <QTextEdit>
 #include <QVBoxLayout>
+
+#include "Translations.h"
 
 namespace colorizing::app {
 
@@ -53,15 +54,14 @@ std::vector<HandbookWindow::Chapter> HandbookWindow::loadChapters(const QString&
 HandbookWindow::HandbookWindow(QWidget* parent)
     : QWidget(parent, Qt::Window)
 {
-    setWindowTitle(QStringLiteral("ColorizingDMD Handbook"));
+    setWindowTitle(tr("ColorizingDMD Handbook"));
     resize(1000, 720);
-    m_chapters = loadChapters(QLocale().name().left(2));
+    m_chapters = loadChapters(currentLanguage());
 
     m_searchEdit = new QLineEdit(this);
-    m_searchEdit->setPlaceholderText(QStringLiteral("Search the handbook"));
+    m_searchEdit->setPlaceholderText(tr("Search the handbook"));
     m_searchEdit->setClearButtonEnabled(true);
-    m_searchEdit->setToolTip(
-        QStringLiteral("Lists the chapters with the text; Enter goes to its next place"));
+    m_searchEdit->setToolTip(tr("Lists the chapters with the text; Enter goes to its next place"));
     m_chapterList = new QListWidget(this);
     m_browser = new QTextBrowser(this);
     m_browser->setOpenExternalLinks(true);

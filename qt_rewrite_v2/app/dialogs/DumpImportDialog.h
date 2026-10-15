@@ -5,6 +5,7 @@
 #include <optional>
 #include <thread>
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QString>
 
@@ -37,6 +38,8 @@ namespace colorizing::app {
 // progress and notices the end. With a project the worker reads the document, which is why
 // the dialog is modal and the document must not be changed while it exists.
 class DumpImportDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(DumpImportDialog)
+
 public:
     enum class Mode {
         NewProject,

@@ -25,9 +25,20 @@ namespace {
 constexpr std::array<uint8_t, 8> kShadowDirectionBits{
     0x01, 0x02, 0x04, 0x80, 0x08, 0x40, 0x20, 0x10,
 };
-constexpr std::array<const char*, 8> kShadowDirectionLabels{
-    "TL", "T", "TR", "L", "R", "BL", "B", "BR",
+struct ShadowDirectionLabel {
+    const char* text;
+    const char* comment;
 };
+constexpr std::array<ShadowDirectionLabel, 8> kShadowDirectionLabels{{
+    QT_TRANSLATE_NOOP3("DynamicPanel", "TL", "shadow direction top left"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "T", "shadow direction top"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "TR", "shadow direction top right"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "L", "shadow direction left"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "R", "shadow direction right"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "BL", "shadow direction bottom left"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "B", "shadow direction bottom"),
+    QT_TRANSLATE_NOOP3("DynamicPanel", "BR", "shadow direction bottom right"),
+}};
 constexpr std::array<int, 8> kShadowDirectionRows{0, 0, 0, 1, 1, 2, 2, 2};
 constexpr std::array<int, 8> kShadowDirectionColumns{0, 1, 2, 0, 2, 0, 1, 2};
 
@@ -46,7 +57,7 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     : QWidget(parent)
 {
     m_dynamicSetSpinBox = new QSpinBox(this);
-    m_dynamicSetSpinBox->setToolTip(QStringLiteral("Dynamic mask set to paint"));
+    m_dynamicSetSpinBox->setToolTip(tr("Dynamic mask set to paint"));
     m_dynamicSetSpinBox->setRange(0, static_cast<int>(document::kMaxDynamicSetsPerFrame - 1));
     m_dynamicSetSpinBox->setValue(0);
     m_dynamicSetSpinBox->setEnabled(false);
@@ -59,12 +70,12 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     pageLayout->addWidget(m_noteLabel);
     m_setList = new QListWidget(this);
     m_setList->setToolTip(
-        QStringLiteral("The dynamic sets of the frame: a click selects the set to paint and edit"));
+        tr("The dynamic sets of the frame: a click selects the set to paint and edit"));
     m_setList->setIconSize(QSize(128, 32));
     m_setList->setMaximumHeight(190);
     pageLayout->addWidget(m_setList);
     auto* form = new QFormLayout();
-    form->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
+    form->addRow(tr("Dyn Set"), m_dynamicSetSpinBox);
     pageLayout->addLayout(form);
     auto* colorsGrid = new QGridLayout();
     colorsGrid->setHorizontalSpacing(4);
@@ -72,7 +83,7 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     for (int colorIndex = 0; colorIndex < 16; ++colorIndex) {
         auto* button = new QToolButton(this);
         button->setText(QString::number(colorIndex));
-        button->setToolTip(QStringLiteral("Dynamic color for original color %1").arg(colorIndex));
+        button->setToolTip(tr("Dynamic color for original color %1").arg(colorIndex));
         button->setFixedSize(32, 24);
         button->setEnabled(false);
         button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -85,7 +96,7 @@ DynamicPanel::DynamicPanel(QWidget* parent)
         });
     }
     pageLayout->addLayout(colorsGrid);
-    auto* shadowTitleLabel = new QLabel(QStringLiteral("Shadow"), this);
+    auto* shadowTitleLabel = new QLabel(tr("Shadow"), this);
     shadowTitleLabel->setStyleSheet(QStringLiteral("font-weight: 600;"));
     pageLayout->addWidget(shadowTitleLabel);
     auto* shadowGrid = new QGridLayout();
@@ -94,9 +105,10 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     for (std::size_t directionIndex = 0; directionIndex < kShadowDirectionBits.size();
          ++directionIndex) {
         auto* button = new QToolButton(this);
-        button->setText(QString::fromLatin1(kShadowDirectionLabels[directionIndex]));
-        button->setToolTip(QStringLiteral("Toggle dynamic shadow direction %1")
-                               .arg(QString::fromLatin1(kShadowDirectionLabels[directionIndex])));
+        const ShadowDirectionLabel& label = kShadowDirectionLabels[directionIndex];
+        const QString labelText = tr(label.text, label.comment);
+        button->setText(labelText);
+        button->setToolTip(tr("Toggle dynamic shadow direction %1").arg(labelText));
         button->setCheckable(true);
         button->setFixedSize(32, 24);
         button->setEnabled(false);
@@ -113,13 +125,13 @@ DynamicPanel::DynamicPanel(QWidget* parent)
             }
         });
     }
-    auto* shadowCenterLabel = new QLabel(QStringLiteral("S"), this);
+    auto* shadowCenterLabel = new QLabel(tr("S"), this);
     shadowCenterLabel->setAlignment(Qt::AlignCenter);
     shadowGrid->addWidget(shadowCenterLabel, 1, 1);
     pageLayout->addLayout(shadowGrid);
     m_shadowColorButton = new QToolButton(this);
-    m_shadowColorButton->setText(QStringLiteral("Shadow Color"));
-    m_shadowColorButton->setToolTip(QStringLiteral("Dynamic shadow color for active set"));
+    m_shadowColorButton->setText(tr("Shadow Color"));
+    m_shadowColorButton->setToolTip(tr("Dynamic shadow color for active set"));
     m_shadowColorButton->setEnabled(false);
     pageLayout->addWidget(m_shadowColorButton);
     pageLayout->addStretch(1);
@@ -203,10 +215,10 @@ void DynamicPanel::refreshSets(const document::ProjectDocument* document,
         auto* item = new QListWidgetItem(
             QIcon(QPixmap::fromImage(image.scaled(m_setList->iconSize(), Qt::KeepAspectRatio,
                                                   Qt::FastTransformation))),
-            QStringLiteral("%1\n%2 px").arg(set).arg(static_cast<qulonglong>(counts[set])));
+            tr("%1\n%2 px").arg(set).arg(static_cast<qulonglong>(counts[set])));
         item->setSizeHint(QSize(0, m_setList->iconSize().height() + 8));
         item->setData(Qt::UserRole, static_cast<int>(set));
-        item->setToolTip(QStringLiteral("Dynamic set %1: %2 pixels")
+        item->setToolTip(tr("Dynamic set %1: %2 pixels")
                              .arg(set)
                              .arg(static_cast<qulonglong>(counts[set])));
         m_setList->addItem(item);
@@ -214,11 +226,11 @@ void DynamicPanel::refreshSets(const document::ProjectDocument* document,
     const auto unused = std::find(counts.begin(), counts.end(), std::size_t{0});
     if (unused != counts.end()) {
         const int set = static_cast<int>(unused - counts.begin());
-        auto* item = new QListWidgetItem(QStringLiteral("New set (%1)").arg(set));
+        auto* item = new QListWidgetItem(tr("New set (%1)").arg(set));
         item->setSizeHint(QSize(0, 24));
         item->setData(Qt::UserRole, set);
-        item->setToolTip(QStringLiteral("Select set %1, which the frame does not use yet, to "
-                                        "paint a new zone")
+        item->setToolTip(tr("Select set %1, which the frame does not use yet, to "
+                            "paint a new zone")
                              .arg(set));
         m_setList->addItem(item);
     }
@@ -260,7 +272,7 @@ void DynamicPanel::refreshColors(const document::ProjectDocument* document,
         const bool enabled = dynamicData && dynamicData->has_value() && colorIndex < colorCount;
         button->setEnabled(enabled);
         if (!enabled) {
-            button->setToolTip(QStringLiteral("Dynamic color is not available"));
+            button->setToolTip(tr("Dynamic color is not available"));
             button->setStyleSheet(colorButtonStyle(0, false));
             continue;
         }
@@ -268,7 +280,7 @@ void DynamicPanel::refreshColors(const document::ProjectDocument* document,
         const uint16_t rgb565 =
             document->dynamicColor(*frameIndex, resolution, dynamicSet(), colorIndex);
         button->setProperty("rgb565", static_cast<int>(rgb565));
-        button->setToolTip(QStringLiteral("Set %1 original %2: 0x%3")
+        button->setToolTip(tr("Set %1 original %2: 0x%3")
                                .arg(dynamicSet())
                                .arg(static_cast<int>(colorIndex))
                                .arg(rgb565, 4, 16, QLatin1Char('0')));
@@ -305,10 +317,10 @@ void DynamicPanel::refreshShadow(const document::ProjectDocument* document,
     m_shadowColorButton->setProperty("rgb565", static_cast<int>(color));
     m_shadowColorButton->setStyleSheet(colorButtonStyle(color, enabled));
     m_shadowColorButton->setToolTip(
-        enabled ? QStringLiteral("Set %1 shadow color: 0x%2")
+        enabled ? tr("Set %1 shadow color: 0x%2")
                       .arg(dynamicSet())
                       .arg(color, 4, 16, QLatin1Char('0'))
-                : QStringLiteral("Dynamic shadow color is not available"));
+                : tr("Dynamic shadow color is not available"));
 }
 
 void DynamicPanel::setDynamicSetEnabled(bool enabled)

@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QString>
 
@@ -30,6 +31,8 @@ class ValueBarWidget;
 // RGB565 color survives being shown and re-entered in any field (H, S and V have one decimal
 // for that, see edit::roundedHsv()).
 class ColorPickerDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(ColorPickerDialog)
+
 public:
     static constexpr std::size_t kRecentColorCount = 8;
 

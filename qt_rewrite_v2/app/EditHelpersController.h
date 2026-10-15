@@ -6,6 +6,7 @@
 #include <optional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QString>
 
 #include "CanvasEditController.h"
@@ -41,6 +42,8 @@ struct ScrollFillPlan {
 // history, or in Dynamic mode its dynamic mask history, so that it is undone where it was made)
 // and hands them to its owner.
 class EditHelpersController {
+    Q_DECLARE_TR_FUNCTIONS(EditHelpersController)
+
 public:
     explicit EditHelpersController(EditHelpersOutputs outputs = {});
 

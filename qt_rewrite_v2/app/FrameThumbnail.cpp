@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <QCoreApplication>
 #include <QPainter>
 #include <QPixmap>
 
@@ -69,16 +70,19 @@ QIcon makeFrameThumbnail(const document::ProjectDocument& document,
 
     if (document.frameHdGaps(frameIndex).any()) {
         // The runtime shows nothing for this frame, see ProjectDocument::frameHdGaps().
-        const int badgeWidth = painter.fontMetrics().horizontalAdvance(kNoPictureText) + 10;
+        const QString text = noPictureText();
+        const int badgeWidth = painter.fontMetrics().horizontalAdvance(text) + 10;
         QRect badge(iconSize.width() - 4 - badgeWidth, 4, badgeWidth, 14);
         painter.fillRect(badge, QColor(190, 45, 45));
         painter.setPen(Qt::white);
-        painter.drawText(badge, Qt::AlignCenter, kNoPictureText);
+        painter.drawText(badge, Qt::AlignCenter, text);
     } else if (hasHdAsExtraResolution(&document) && document.hasHdFrame(frameIndex)) {
         QRect badge(iconSize.width() - 28, 4, 24, 14);
         painter.fillRect(badge, QColor(35, 95, 160));
         painter.setPen(Qt::white);
-        painter.drawText(badge, Qt::AlignCenter, QStringLiteral("HD"));
+        painter.drawText(badge,
+                         Qt::AlignCenter,
+                         QCoreApplication::translate("FrameThumbnail", "HD"));
     }
 
     return QIcon(pixmap);

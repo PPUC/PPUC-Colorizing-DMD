@@ -5,6 +5,7 @@
 #include <optional>
 #include <utility>
 
+#include <QCoreApplication>
 #include <QString>
 #include <QWidget>
 
@@ -27,6 +28,8 @@ using PaletteGradientShape = edit::PaletteGradientShape;
 // Inspector page for the palettes and the palette gradient settings. It only displays and
 // reports what the user asked for; the owner applies the edits and calls refresh().
 class PalettePanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(PalettePanel)
+
 public:
     explicit PalettePanel(QWidget* parent = nullptr);
 

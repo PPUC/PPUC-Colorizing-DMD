@@ -625,7 +625,7 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
                 if (set != 255) {
                     const auto count =
                         std::count(mask->pixels.begin(), mask->pixels.end(), set);
-                    text = QStringLiteral("Dynamic set %1: %2 pixels")
+                    text = tr("Dynamic set %1: %2 pixels")
                                .arg(set)
                                .arg(static_cast<qlonglong>(count));
                 }
@@ -714,7 +714,7 @@ bool FramePreviewWidget::isHdFrameMissing() const
 void FramePreviewWidget::paintEmpty(QPainter& painter)
 {
     painter.setPen(palette().color(QPalette::PlaceholderText));
-    painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("No frame selected"));
+    painter.drawText(rect(), Qt::AlignCenter, tr("No frame selected"));
 }
 
 void FramePreviewWidget::paintFrame(QPainter& painter)
@@ -763,8 +763,8 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
         painter.setPen(QColor(255, 120, 120));
         painter.drawText(*colorizedPicture,
                          Qt::AlignCenter | Qt::TextWordWrap,
-                         QStringLiteral("No %1 frame: the runtime shows nothing for this "
-                                        "frame.\nUse Create %1 Frame.")
+                         tr("No %1 frame: the runtime shows nothing for this "
+                            "frame.\nUse Create %1 Frame.")
                              .arg(nativePlaneText(*m_document)));
     }
 }
@@ -781,12 +781,11 @@ void FramePreviewWidget::paintRuntimeViewTexts(QPainter& painter, const QRectF& 
     painter.setPen(QColor(120, 200, 255));
     painter.drawText(QRectF(0, std::max(0.0, pictureRect.top() - 18.0), width(), 16.0),
                      Qt::AlignHCenter | Qt::AlignVCenter,
-                     QStringLiteral("Runtime view: libserum output, %1 rows%2. Editing is off.%3")
+                     (m_runtimeView->isPlaying()
+                          ? tr("Runtime view: libserum output, %1 rows, playing. Editing is off.%2")
+                          : tr("Runtime view: libserum output, %1 rows. Editing is off.%2"))
                          .arg(rows)
-                         .arg(m_runtimeView->isPlaying() ? QStringLiteral(", playing")
-                                                         : QString())
-                         .arg(hint.isEmpty() ? QString()
-                                             : QStringLiteral(" Note: %1.").arg(hint)));
+                         .arg(hint.isEmpty() ? QString() : tr(" Note: %1.").arg(hint)));
     const QString message =
         QString::fromStdString(m_runtimeView->message(*m_document, m_frameIndex));
     if (!message.isEmpty()) {

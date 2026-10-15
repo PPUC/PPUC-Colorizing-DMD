@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QString>
 #include <QWidget>
 
@@ -21,6 +22,8 @@ namespace colorizing::app {
 // each with its colors, name and active flag. It shows and reports; the owner changes the
 // document and calls refresh().
 class ColorSetPanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(ColorSetPanel)
+
 public:
     explicit ColorSetPanel(QWidget* parent = nullptr);
 

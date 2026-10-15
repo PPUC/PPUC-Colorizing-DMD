@@ -13,40 +13,40 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     : QWidget(parent)
 {
     m_assignButton = new QToolButton(this);
-    m_assignButton->setText(QStringLiteral("Assign BG"));
-    m_assignButton->setToolTip(QStringLiteral("Assign selected background to selected frames"));
+    m_assignButton->setText(tr("Assign BG"));
+    m_assignButton->setToolTip(tr("Assign selected background to selected frames"));
     m_assignButton->setEnabled(false);
     m_removeButton = new QToolButton(this);
-    m_removeButton->setText(QStringLiteral("Remove BG"));
-    m_removeButton->setToolTip(QStringLiteral("Remove the background from the selected frames"));
+    m_removeButton->setText(tr("Remove BG"));
+    m_removeButton->setToolTip(tr("Remove the background from the selected frames"));
     m_removeButton->setEnabled(false);
     m_editButton = new QToolButton(this);
-    m_editButton->setText(QStringLiteral("Edit BG"));
-    m_editButton->setToolTip(QStringLiteral("Switch drawing target to the selected background"));
+    m_editButton->setText(tr("Edit BG"));
+    m_editButton->setToolTip(tr("Switch drawing target to the selected background"));
     m_editButton->setEnabled(false);
     m_copyFrameToBackgroundButton = new QToolButton(this);
-    m_copyFrameToBackgroundButton->setText(QStringLiteral("Frame -> BG"));
+    m_copyFrameToBackgroundButton->setText(tr("Frame -> BG"));
     m_copyFrameToBackgroundButton->setToolTip(
-        QStringLiteral("Copy the current frame image into the selected background"));
+        tr("Copy the current frame image into the selected background"));
     m_copyFrameToBackgroundButton->setEnabled(false);
     m_copyBackgroundToFramesButton = new QToolButton(this);
-    m_copyBackgroundToFramesButton->setText(QStringLiteral("BG -> Frame"));
+    m_copyBackgroundToFramesButton->setText(tr("BG -> Frame"));
     m_copyBackgroundToFramesButton->setToolTip(
-        QStringLiteral("Copy the selected background image into selected frames"));
+        tr("Copy the selected background image into selected frames"));
     m_copyBackgroundToFramesButton->setEnabled(false);
     m_importImageButton = new QToolButton(this);
-    m_importImageButton->setText(QStringLiteral("Import Image"));
+    m_importImageButton->setText(tr("Import Image"));
     m_importImageButton->setToolTip(
-        QStringLiteral("Import an image into the selected background"));
+        tr("Import an image into the selected background"));
     m_importImageButton->setEnabled(false);
     m_exportButton = new QToolButton(this);
-    m_exportButton->setText(QStringLiteral("Export BG"));
-    m_exportButton->setToolTip(QStringLiteral("Export the selected background as PNG"));
+    m_exportButton->setText(tr("Export BG"));
+    m_exportButton->setToolTip(tr("Export the selected background as PNG"));
     m_exportButton->setEnabled(false);
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
-    m_selectedBackgroundLabel = new QLabel(QStringLiteral("Selected: None"), this);
+    m_selectedBackgroundLabel = new QLabel(tr("Selected: None"), this);
     m_selectedBackgroundLabel->setWordWrap(true);
     pageLayout->addWidget(m_selectedBackgroundLabel);
     auto* buttonLayout = new QHBoxLayout();
@@ -115,13 +115,13 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
     m_editButton->setEnabled(hasBackground);
 
     if (!hasBackground) {
-        m_selectedBackgroundLabel->setText(QStringLiteral("Selected: None"));
+        m_selectedBackgroundLabel->setText(tr("Selected: None"));
         return;
     }
 
     const std::size_t backgroundIndex = *state.selectedBackgroundIndex;
     const document::BackgroundRecord& background = document->background(backgroundIndex);
-    m_selectedBackgroundLabel->setText(QStringLiteral("Selected: %1%2")
+    m_selectedBackgroundLabel->setText(tr("Selected: %1%2")
                                            .arg(static_cast<int>(backgroundIndex))
                                            .arg(extraDataSuffix(
                                                *document,

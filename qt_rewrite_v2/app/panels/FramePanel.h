@@ -5,6 +5,7 @@
 #include <functional>
 #include <optional>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -35,6 +36,8 @@ struct FramePanelState {
 // It only displays and reports what the user asked for; the owner applies the edits and calls
 // refresh().
 class FramePanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(FramePanel)
+
 public:
     explicit FramePanel(QWidget* parent = nullptr);
 

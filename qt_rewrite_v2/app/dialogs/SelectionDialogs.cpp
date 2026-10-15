@@ -17,26 +17,28 @@ AutoSelectDialog::AutoSelectDialog(QWidget* parent)
     : QDialog(parent)
 {
     setObjectName(QStringLiteral("autoSelectDialog"));
-    setWindowTitle(QStringLiteral("Auto Select"));
+    setWindowTitle(tr("Auto Select"));
     auto* layout = new QVBoxLayout(this);
     auto* form = new QFormLayout();
     m_offset = new QSpinBox(this);
     m_offset->setRange(0, 256);
-    m_offset->setToolTip(QStringLiteral("First row or column of the first stripe"));
+    m_offset->setToolTip(tr("First row or column of the first stripe"));
     m_selected = new QSpinBox(this);
     m_selected->setRange(1, 256);
-    m_selected->setToolTip(QStringLiteral("Rows or columns selected in each stripe"));
+    m_selected->setToolTip(tr("Rows or columns selected in each stripe"));
     m_skipped = new QSpinBox(this);
     m_skipped->setRange(1, 256);
-    m_skipped->setToolTip(QStringLiteral("Rows or columns left out between two stripes"));
-    m_columns = new QCheckBox(QStringLiteral("Columns instead of rows"), this);
-    form->addRow(QStringLiteral("Offset"), m_offset);
-    form->addRow(QStringLiteral("Selected"), m_selected);
-    form->addRow(QStringLiteral("Skipped"), m_skipped);
+    m_skipped->setToolTip(tr("Rows or columns left out between two stripes"));
+    m_columns = new QCheckBox(tr("Columns instead of rows"), this);
+    form->addRow(tr("Offset"), m_offset);
+    //: Number of rows or columns selected in each stripe
+    form->addRow(tr("Selected"), m_selected);
+    //: Number of rows or columns left out between two stripes
+    form->addRow(tr("Skipped"), m_skipped);
     form->addRow(m_columns);
     layout->addLayout(form);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("Select"));
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Select"));
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);
@@ -66,16 +68,15 @@ AutoCopyDialog::AutoCopyDialog(bool hasSelectedFrames,
       m_describe(std::move(describe))
 {
     setObjectName(QStringLiteral("autoCopyDialog"));
-    setWindowTitle(QStringLiteral("Auto Copy"));
+    setWindowTitle(tr("Auto Copy"));
     auto* layout = new QVBoxLayout(this);
-    auto* intro = new QLabel(QStringLiteral("Copy the current frame's colorization inside the "
-                                            "selection to every frame whose original frame "
-                                            "shows the same there."),
+    auto* intro = new QLabel(tr("Copy the current frame's colorization inside the selection to "
+                                "every frame whose original frame shows the same there."),
                              this);
     intro->setWordWrap(true);
     layout->addWidget(intro);
-    m_allFrames = new QRadioButton(QStringLiteral("All frames"), this);
-    m_selectedFrames = new QRadioButton(QStringLiteral("Selected frames only"), this);
+    m_allFrames = new QRadioButton(tr("All frames"), this);
+    m_selectedFrames = new QRadioButton(tr("Selected frames only"), this);
     m_selectedFrames->setEnabled(hasSelectedFrames);
     m_allFrames->setChecked(true);
     layout->addWidget(m_allFrames);
@@ -85,7 +86,7 @@ AutoCopyDialog::AutoCopyDialog(bool hasSelectedFrames,
     m_summary->setWordWrap(true);
     layout->addWidget(m_summary);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("Apply"));
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Apply"));
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

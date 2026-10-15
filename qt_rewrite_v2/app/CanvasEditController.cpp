@@ -20,33 +20,54 @@ constexpr int kStatusMs = 2500;
 constexpr int kLongStatusMs = 3000;
 constexpr int kErrorStatusMs = 4000;
 
-QString strokeStatusText(DrawingTool tool)
+// The shape a drawing tool paints, for the status texts; empty for the other tools.
+QString strokeShapeName(DrawingTool tool)
 {
     switch (tool) {
         case DrawingTool::Line:
-            return QStringLiteral("Painted line");
-        case DrawingTool::Selection:
-            return QStringLiteral("Selected canvas area");
+            //: Status text: "Painted line", "Painted comparison mask line", ...
+            return QCoreApplication::translate("CanvasEditController", "line");
         case DrawingTool::Rectangle:
-            return QStringLiteral("Painted rectangle");
+            return QCoreApplication::translate("CanvasEditController", "rectangle");
         case DrawingTool::FilledRectangle:
-            return QStringLiteral("Painted filled rectangle");
+            return QCoreApplication::translate("CanvasEditController", "filled rectangle");
         case DrawingTool::Circle:
-            return QStringLiteral("Painted circle");
+            return QCoreApplication::translate("CanvasEditController", "circle");
         case DrawingTool::FilledCircle:
-            return QStringLiteral("Painted filled circle");
+            return QCoreApplication::translate("CanvasEditController", "filled circle");
         case DrawingTool::Ellipse:
-            return QStringLiteral("Painted ellipse");
+            return QCoreApplication::translate("CanvasEditController", "ellipse");
         case DrawingTool::FilledEllipse:
-            return QStringLiteral("Painted filled ellipse");
+            return QCoreApplication::translate("CanvasEditController", "filled ellipse");
+        case DrawingTool::Selection:
         case DrawingTool::PaletteGradient:
-            return QStringLiteral("Filled palette gradient");
         case DrawingTool::Point:
         case DrawingTool::ColorPicker:
         case DrawingTool::FloodFill:
             break;
     }
     return QString();
+}
+
+// The template ("Painted comparison mask %1") with the tool's shape; empty for a tool without.
+QString shapeStatusText(DrawingTool tool, const QString& textTemplate)
+{
+    const QString shape = strokeShapeName(tool);
+    return shape.isEmpty() ? QString() : textTemplate.arg(shape);
+}
+
+QString strokeStatusText(DrawingTool tool)
+{
+    switch (tool) {
+        case DrawingTool::Selection:
+            return QCoreApplication::translate("CanvasEditController", "Selected canvas area");
+        case DrawingTool::PaletteGradient:
+            return QCoreApplication::translate("CanvasEditController", "Filled palette gradient");
+        default:
+            break;
+    }
+    return shapeStatusText(
+        tool, QCoreApplication::translate("CanvasEditController", "Painted %1"));
 }
 
 render::ProjectGeometry projectGeometry(const CanvasEditContext& context)
@@ -65,7 +86,9 @@ QString onFramesText(const QString& statusText, std::size_t frameCount)
     if (frameCount <= 1) {
         return statusText;
     }
-    return QStringLiteral("%1 on %2 frame(s)").arg(statusText).arg(static_cast<int>(frameCount));
+    return QCoreApplication::translate("CanvasEditController", "%1 on %2 frame(s)")
+        .arg(statusText)
+        .arg(static_cast<int>(frameCount));
 }
 
 QColor translucentDrawColor(const CanvasEditContext& context, int alpha)
@@ -121,8 +144,8 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
                                       hit.resolution,
                                       {point},
                                       erase ? uint8_t{0} : uint8_t{1},
-                                      erase ? QStringLiteral("Erased background mask pixel")
-                                            : QStringLiteral("Painted background mask pixel"));
+                                      erase ? tr("Erased background mask pixel")
+                                            : tr("Painted background mask pixel"));
             }
             return;
         case CanvasEditLayer::DynamicMask:
@@ -136,8 +159,8 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
                                       hit.resolution,
                                       {point},
                                       erase ? uint8_t{255} : context.dynamicSet,
-                                      erase ? QStringLiteral("Erased dynamic mask pixel")
-                                            : QStringLiteral("Painted dynamic mask pixel"));
+                                      erase ? tr("Erased dynamic mask pixel")
+                                            : tr("Painted dynamic mask pixel"));
             }
             return;
         case CanvasEditLayer::BackgroundImage:
@@ -149,7 +172,7 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
                 commitBackgroundImagePixels(context,
                                             hit.resolution,
                                             {point},
-                                            QStringLiteral("Painted background pixel at %1,%2")
+                                            tr("Painted background pixel at %1,%2")
                                                 .arg(hit.x)
                                                 .arg(hit.y));
             }
@@ -165,7 +188,7 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
         commitFramePixels(context,
                           hit.resolution,
                           {point},
-                          QStringLiteral("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
+                          tr("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
     }
 }
 
@@ -282,7 +305,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         return;
     }
 
-    QString statusText = strokeStatusText(tool);
+    const QString statusText = strokeStatusText(tool);
     if (tool != DrawingTool::Selection && isSelectionDirectionModeActive()) {
         setSelectionDirection(start, end);
         return;
@@ -303,8 +326,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         paintCaptureSelection(context, strokePixels(context, start, end), erase);
         return;
     }
-    const QString painted = QStringLiteral("Painted");
-    const QString rgbOnly = QStringLiteral("Palette gradients edit RGB pixels only");
+    const QString rgbOnly = tr("Palette gradients edit RGB pixels only");
     switch (context.layer) {
         case CanvasEditLayer::ComparisonMask:
             if (start.region != render::CanvasRegion::OriginalFrame) {
@@ -318,9 +340,9 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                 context,
                 strokePixels(context, start, end),
                 erase ? uint8_t{0} : uint8_t{1},
-                statusText.replace(painted,
-                                   erase ? QStringLiteral("Erased comparison mask")
-                                         : QStringLiteral("Painted comparison mask")));
+                shapeStatusText(tool,
+                                erase ? tr("Erased comparison mask %1")
+                                      : tr("Painted comparison mask %1")));
             return;
         case CanvasEditLayer::DynamicMask:
             if (!onColorized && !isOnOriginal(projectGeometry(context), start)) {
@@ -336,9 +358,9 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                 start.resolution,
                 strokePixels(context, start, end),
                 erase ? uint8_t{255} : context.dynamicSet,
-                statusText.replace(painted,
-                                   erase ? QStringLiteral("Erased dynamic mask")
-                                         : QStringLiteral("Painted dynamic mask")));
+                shapeStatusText(tool,
+                                erase ? tr("Erased dynamic mask %1")
+                                      : tr("Painted dynamic mask %1")));
             return;
         case CanvasEditLayer::BackgroundMask:
             if (!onColorized) {
@@ -354,9 +376,9 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                 start.resolution,
                 strokePixels(context, start, end),
                 erase ? uint8_t{0} : uint8_t{1},
-                statusText.replace(painted,
-                                   erase ? QStringLiteral("Erased background mask")
-                                         : QStringLiteral("Painted background mask")));
+                shapeStatusText(tool,
+                                erase ? tr("Erased background mask %1")
+                                      : tr("Painted background mask %1")));
             return;
         case CanvasEditLayer::BackgroundImage:
         case CanvasEditLayer::FramePixels:
@@ -373,7 +395,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                 context,
                 start.resolution,
                 strokePixels(context, start, end),
-                statusText.replace(painted, QStringLiteral("Painted background")));
+                shapeStatusText(tool, tr("Painted background %1")));
         } else {
             commitFramePixels(context,
                               start.resolution,
@@ -399,7 +421,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         if (!sameTarget || pending.shapeStart.region != start.region ||
             pending.shapeStart.resolution != start.resolution) {
             cancelFreeGradient();
-            showStatus(QStringLiteral("Free gradient selection cancelled"), kStatusMs);
+            showStatus(tr("Free gradient selection cancelled"), kStatusMs);
             return;
         }
         shapeStart = pending.shapeStart;
@@ -440,14 +462,14 @@ void CanvasEditController::pickDynamicSet(const CanvasEditContext& context,
                                                                       hit.x,
                                                                       hit.y);
         if (dynamicSet == 255 || dynamicSet >= document::kMaxDynamicSetsPerFrame) {
-            showStatus(QStringLiteral("No dynamic set at %1,%2").arg(hit.x).arg(hit.y),
+            showStatus(tr("No dynamic set at %1,%2").arg(hit.x).arg(hit.y),
                        kStatusMs);
             return;
         }
         if (m_outputs.pickDynamicSet) {
             m_outputs.pickDynamicSet(dynamicSet);
         }
-        showStatus(QStringLiteral("Picked dynamic set %1 at %2,%3")
+        showStatus(tr("Picked dynamic set %1 at %2,%3")
                        .arg(static_cast<int>(dynamicSet))
                        .arg(hit.x)
                        .arg(hit.y),
@@ -471,7 +493,7 @@ void CanvasEditController::pickFrameColor(const CanvasEditContext& context,
                                                                 hit.y);
         pickedColor(color,
                     selectEditColorSlot,
-                    QStringLiteral("Picked color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
+                    tr("Picked color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -520,7 +542,7 @@ void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
                                                   frame.size,
                                                   render::Point{hit.x, hit.y},
                                                   targetColor),
-                          QStringLiteral("Flood filled area"));
+                          tr("Flood filled area"));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -541,7 +563,7 @@ void CanvasEditController::pickBackgroundImageColor(const CanvasEditContext& con
         pickedColor(
             color,
             selectEditColorSlot,
-            QStringLiteral("Picked background color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
+            tr("Picked background color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -569,7 +591,7 @@ void CanvasEditController::floodFillBackgroundImage(const CanvasEditContext& con
                                                             frame.size,
                                                             render::Point{hit.x, hit.y},
                                                             targetColor),
-                                    QStringLiteral("Flood filled background"));
+                                    tr("Flood filled background"));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -592,8 +614,8 @@ void CanvasEditController::paintComparisonMaskPixel(const CanvasEditContext& con
     commitComparisonMaskPixels(context,
                                {render::Point{hit.x, hit.y}},
                                erase ? uint8_t{0} : uint8_t{1},
-                               erase ? QStringLiteral("Erased comparison mask pixel")
-                                     : QStringLiteral("Painted comparison mask pixel"));
+                               erase ? tr("Erased comparison mask pixel")
+                                     : tr("Painted comparison mask pixel"));
 }
 
 void CanvasEditController::floodFillComparisonMask(const CanvasEditContext& context,
@@ -609,7 +631,7 @@ void CanvasEditController::floodFillComparisonMask(const CanvasEditContext& cont
         }
     }
     if (!maskIndex) {
-        showStatus(QStringLiteral("No comparison mask assigned"), kStatusMs);
+        showStatus(tr("No comparison mask assigned"), kStatusMs);
         return;
     }
 
@@ -626,8 +648,8 @@ void CanvasEditController::floodFillComparisonMask(const CanvasEditContext& cont
                                                            render::Point{hit.x, hit.y},
                                                            targetValue),
                                    newValue,
-                                   erase ? QStringLiteral("Flood erased comparison mask")
-                                         : QStringLiteral("Flood filled comparison mask"));
+                                   erase ? tr("Flood erased comparison mask")
+                                         : tr("Flood filled comparison mask"));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -664,8 +686,8 @@ void CanvasEditController::floodFillDynamicMask(const CanvasEditContext& context
                                                       render::Point{hit.x, hit.y},
                                                       targetValue),
                               newValue,
-                              erase ? QStringLiteral("Flood erased dynamic mask")
-                                    : QStringLiteral("Flood filled dynamic mask"));
+                              erase ? tr("Flood erased dynamic mask")
+                                    : tr("Flood filled dynamic mask"));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -691,7 +713,7 @@ void CanvasEditController::floodFillBackgroundMask(const CanvasEditContext& cont
         const std::optional<document::FrameBackgroundData>& backgroundData =
             document.backgroundData(frameIndex);
         if (!backgroundData || backgroundData->backgroundId >= document.backgroundCount()) {
-            showStatus(QStringLiteral("No background assigned"), kStatusMs);
+            showStatus(tr("No background assigned"), kStatusMs);
             return;
         }
         const document::IndexedFrame& mask = hit.resolution == render::Resolution::Hd
@@ -705,8 +727,8 @@ void CanvasEditController::floodFillBackgroundMask(const CanvasEditContext& cont
                                                       render::Point{hit.x, hit.y},
                                                       targetValue),
                               newValue,
-                              erase ? QStringLiteral("Flood erased background mask")
-                                    : QStringLiteral("Flood filled background mask"));
+                              erase ? tr("Flood erased background mask")
+                                    : tr("Flood filled background mask"));
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -751,7 +773,7 @@ void CanvasEditController::beginFreeGradient(const CanvasEditContext& context,
     m_pendingFreeGradient =
         PendingFreeGradient{start, end, context.paintTarget, context.selectedBackground};
     showPendingFreeGradient(context);
-    showStatus(QStringLiteral("Draw gradient direction line"), kStatusMs);
+    showStatus(tr("Draw gradient direction line"), kStatusMs);
 }
 
 void CanvasEditController::previewFreeGradientDirection(const CanvasEditContext& context,
@@ -823,7 +845,7 @@ void CanvasEditController::setSelectionFromStroke(const CanvasEditContext& conte
     };
     showSelection();
     selectionChanged();
-    showStatus(QStringLiteral("Selected canvas area"), kShortStatusMs);
+    showStatus(tr("Selected canvas area"), kShortStatusMs);
 }
 
 void CanvasEditController::toggleSelectionDirectionMode()
@@ -838,7 +860,7 @@ void CanvasEditController::toggleSelectionDirectionMode()
     selectionDirectionModeChanged();
     if (m_selectionDirectionMode) {
         cancelFreeGradient();
-        showStatus(QStringLiteral("Draw selection gradient direction line"), kStatusMs);
+        showStatus(tr("Draw selection gradient direction line"), kStatusMs);
     } else {
         showSelection();
     }
@@ -891,7 +913,7 @@ void CanvasEditController::setSelectionDirection(const render::CanvasHit& start,
     m_selectionDirectionMode = false;
     selectionDirectionModeChanged();
     showSelection();
-    showStatus(QStringLiteral("Set selection gradient direction"), kShortStatusMs);
+    showStatus(tr("Set selection gradient direction"), kShortStatusMs);
 }
 
 void CanvasEditController::previewSelectionDirection(const render::CanvasHit& start,
@@ -912,22 +934,22 @@ void CanvasEditController::previewSelectionDirection(const render::CanvasHit& st
 void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditContext& context)
 {
     if (!context.document || !m_selection || m_selection->pixels.isEmpty()) {
-        showStatus(QStringLiteral("No canvas selection"), kStatusMs);
+        showStatus(tr("No canvas selection"), kStatusMs);
         return;
     }
     if (context.gradientDirection == PaletteGradientDirection::Free &&
         (!m_selection->gradientStart || !m_selection->gradientEnd)) {
-        showStatus(QStringLiteral("Set a selection direction line first"), kLongStatusMs);
+        showStatus(tr("Set a selection direction line first"), kLongStatusMs);
         return;
     }
     if (!context.selectedPalette) {
-        showStatus(QStringLiteral("No palette selected"), kStatusMs);
+        showStatus(tr("No palette selected"), kStatusMs);
         return;
     }
     if (m_selection->target == PaintTarget::Background &&
         m_selection->backgroundIndex != context.selectedBackground) {
         clearSelection(context);
-        showStatus(QStringLiteral("Canvas selection cleared"), kStatusMs);
+        showStatus(tr("Canvas selection cleared"), kStatusMs);
         return;
     }
 
@@ -981,7 +1003,7 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
             }
         }
         commitsFinished();
-        showStatus(QStringLiteral("Filled selection gradient"), kStatusMs);
+        showStatus(tr("Filled selection gradient"), kStatusMs);
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -1050,7 +1072,7 @@ void CanvasEditController::setSelection(const CanvasEditContext& context,
     showSelection();
     selectionChanged();
     if (!status.isEmpty()) {
-        showStatus(QStringLiteral("%1 (%2 pixels selected)")
+        showStatus(tr("%1 (%2 pixels selected)")
                        .arg(status)
                        .arg(static_cast<qulonglong>(m_selection->pixels.count())),
                    kShortStatusMs);
@@ -1097,7 +1119,7 @@ void CanvasEditController::editSelectionAtPoint(const CanvasEditContext& context
     }
     const document::Rgb565Frame* picture = selectionPicture(context, hit.resolution);
     if (!picture) {
-        showStatus(QStringLiteral("Nothing to select on this plane"), kStatusMs);
+        showStatus(tr("Nothing to select on this plane"), kStatusMs);
         return;
     }
     const render::Point point{hit.x, hit.y};
@@ -1122,8 +1144,8 @@ void CanvasEditController::editSelectionAtPoint(const CanvasEditContext& context
     }
     setSelection(context,
                  std::move(selection),
-                 remove ? QStringLiteral("Removed from the selection")
-                        : QStringLiteral("Added to the selection"));
+                 remove ? tr("Removed from the selection")
+                        : tr("Added to the selection"));
 }
 
 void CanvasEditController::previewSelectionStroke(const CanvasEditContext& context,
@@ -1159,7 +1181,7 @@ void CanvasEditController::editSelectionWithStroke(const CanvasEditContext& cont
     }
     const document::Rgb565Frame* picture = selectionPicture(context, start.resolution);
     if (!picture) {
-        showStatus(QStringLiteral("Nothing to select on this plane"), kStatusMs);
+        showStatus(tr("Nothing to select on this plane"), kStatusMs);
         return;
     }
     std::vector<render::Point> pixels = strokePixels(context, start, end);
@@ -1172,42 +1194,42 @@ void CanvasEditController::editSelectionWithStroke(const CanvasEditContext& cont
     }
     setSelection(context,
                  std::move(selection),
-                 remove ? QStringLiteral("Removed from the selection")
-                        : QStringLiteral("Added to the selection"));
+                 remove ? tr("Removed from the selection")
+                        : tr("Added to the selection"));
 }
 
 void CanvasEditController::selectAll(const CanvasEditContext& context)
 {
     if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
-        showStatus(QStringLiteral("Nothing to select"), kStatusMs);
+        showStatus(tr("Nothing to select"), kStatusMs);
         return;
     }
     Selection selection = selectionFor(context, context.activePlane);
     selection.pixels.selectAll();
-    setSelection(context, std::move(selection), QStringLiteral("Selected all"));
+    setSelection(context, std::move(selection), tr("Selected all"));
 }
 
 void CanvasEditController::invertSelection(const CanvasEditContext& context)
 {
     if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
-        showStatus(QStringLiteral("Nothing to select"), kStatusMs);
+        showStatus(tr("Nothing to select"), kStatusMs);
         return;
     }
     Selection selection = selectionFor(context, context.activePlane);
     selection.pixels.invert();
-    setSelection(context, std::move(selection), QStringLiteral("Inverted the selection"));
+    setSelection(context, std::move(selection), tr("Inverted the selection"));
 }
 
 void CanvasEditController::growSelection(const CanvasEditContext& context,
                                          edit::SelectionDirection direction)
 {
     if (!m_selection || m_selection->pixels.isEmpty()) {
-        showStatus(QStringLiteral("No canvas selection"), kStatusMs);
+        showStatus(tr("No canvas selection"), kStatusMs);
         return;
     }
     Selection selection = *m_selection;
     selection.pixels = edit::grownSelection(selection.pixels, direction);
-    setSelection(context, std::move(selection), QStringLiteral("Grew the selection"));
+    setSelection(context, std::move(selection), tr("Grew the selection"));
 }
 
 void CanvasEditController::mirrorSelection(const CanvasEditContext& context,
@@ -1215,15 +1237,15 @@ void CanvasEditController::mirrorSelection(const CanvasEditContext& context,
                                            bool vertically)
 {
     if (!m_selection || m_selection->pixels.isEmpty()) {
-        showStatus(QStringLiteral("No canvas selection"), kStatusMs);
+        showStatus(tr("No canvas selection"), kStatusMs);
         return;
     }
     Selection selection = *m_selection;
     selection.pixels.mirror(horizontally, vertically);
     setSelection(context,
                  std::move(selection),
-                 horizontally ? QStringLiteral("Mirrored the selection horizontally")
-                              : QStringLiteral("Mirrored the selection vertically"));
+                 horizontally ? tr("Mirrored the selection horizontally")
+                              : tr("Mirrored the selection vertically"));
 }
 
 void CanvasEditController::selectByColor(const CanvasEditContext& context,
@@ -1235,7 +1257,7 @@ void CanvasEditController::selectByColor(const CanvasEditContext& context,
     }
     const document::Rgb565Frame* stored = selectionPicture(context, hit.resolution);
     if (!stored) {
-        showStatus(QStringLiteral("Nothing to select on this plane"), kStatusMs);
+        showStatus(tr("Nothing to select on this plane"), kStatusMs);
         return;
     }
     try {
@@ -1253,8 +1275,8 @@ void CanvasEditController::selectByColor(const CanvasEditContext& context,
         selection.pixels.paint(edit::pixelsOfColor(shown, color), remove);
         setSelection(context,
                      std::move(selection),
-                     QStringLiteral("%1 the pixels of color 0x%2")
-                         .arg(remove ? QStringLiteral("Unselected") : QStringLiteral("Selected"))
+                     (remove ? tr("Unselected the pixels of color 0x%1")
+                             : tr("Selected the pixels of color 0x%1"))
                          .arg(color, 4, 16, QLatin1Char('0')));
     } catch (const std::exception& ex) {
         showError(ex);
@@ -1265,7 +1287,7 @@ void CanvasEditController::selectBackgroundMask(const CanvasEditContext& context
 {
     if (!canEditSelection(context) || context.layer != CanvasEditLayer::FramePixels ||
         !context.currentFrame || !selectionPicture(context, context.activePlane)) {
-        showStatus(QStringLiteral("The selection from the background mask needs a frame"),
+        showStatus(tr("The selection from the background mask needs a frame"),
                    kStatusMs);
         return;
     }
@@ -1273,7 +1295,7 @@ void CanvasEditController::selectBackgroundMask(const CanvasEditContext& context
     const std::optional<document::FrameBackgroundData>& backgroundData =
         document.backgroundData(*context.currentFrame);
     if (!backgroundData || backgroundData->backgroundId >= document.backgroundCount()) {
-        showStatus(QStringLiteral("The frame has no background"), kStatusMs);
+        showStatus(tr("The frame has no background"), kStatusMs);
         return;
     }
     const document::IndexedFrame& mask = context.activePlane == render::Resolution::Hd
@@ -1286,14 +1308,14 @@ void CanvasEditController::selectBackgroundMask(const CanvasEditContext& context
         showError(ex);
         return;
     }
-    setSelection(context, std::move(selection), QStringLiteral("Selected the background mask"));
+    setSelection(context, std::move(selection), tr("Selected the background mask"));
 }
 
 void CanvasEditController::selectStripes(const CanvasEditContext& context,
                                          const edit::StripePattern& pattern)
 {
     if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
-        showStatus(QStringLiteral("Nothing to select"), kStatusMs);
+        showStatus(tr("Nothing to select"), kStatusMs);
         return;
     }
     Selection selection = selectionFor(context, context.activePlane);
@@ -1305,8 +1327,8 @@ void CanvasEditController::selectStripes(const CanvasEditContext& context,
     }
     setSelection(context,
                  std::move(selection),
-                 pattern.columns ? QStringLiteral("Selected columns")
-                                 : QStringLiteral("Selected rows"));
+                 pattern.columns ? tr("Selected columns")
+                                 : tr("Selected rows"));
 }
 
 std::optional<std::size_t> CanvasEditController::captureSelectionFrame() const
@@ -1417,7 +1439,7 @@ void CanvasEditController::commitFrameGradient(const CanvasEditContext& context,
     const std::vector<render::Point> pixels = strokePixels(context, start, end);
     if (!context.document || context.selectedFrames.empty() || pixels.empty() ||
         !context.selectedPalette) {
-        showStatus(QStringLiteral("No palette gradient source selected"), kStatusMs);
+        showStatus(tr("No palette gradient source selected"), kStatusMs);
         return;
     }
     commitFramePixelColors(context,
@@ -1503,7 +1525,7 @@ void CanvasEditController::commitComparisonMaskPixels(const CanvasEditContext& c
         }
     }
     if (maskIndices.empty()) {
-        showStatus(QStringLiteral("No comparison mask assigned"), kStatusMs);
+        showStatus(tr("No comparison mask assigned"), kStatusMs);
         return;
     }
 
@@ -1526,7 +1548,7 @@ void CanvasEditController::commitComparisonMaskPixels(const CanvasEditContext& c
         return;
     }
 
-    showStatus(maskIndices.size() > 1 ? QStringLiteral("%1 on %2 mask(s)")
+    showStatus(maskIndices.size() > 1 ? tr("%1 on %2 mask(s)")
                                             .arg(statusText)
                                             .arg(static_cast<int>(maskIndices.size()))
                                       : statusText,
@@ -1541,8 +1563,8 @@ bool CanvasEditController::isDynamicPlane(const CanvasEditContext& context,
     }
     const render::Size size =
         context.document->geometry().planeSize(context.document->dynamicPlane());
-    showStatus(QStringLiteral("Dynamic zones are defined on the %1x%2 plane and cannot be "
-                              "picked or painted on this one")
+    showStatus(tr("Dynamic zones are defined on the %1x%2 plane and cannot be "
+                  "picked or painted on this one")
                    .arg(size.width)
                    .arg(size.height),
                kStatusMs);
@@ -1588,7 +1610,7 @@ void CanvasEditController::commitFrameMaskPixels(const CanvasEditContext& contex
         }
         if (!changed) {
             if (isBackgroundMask && !hasAssignedBackground) {
-                showStatus(QStringLiteral("No selected frame has an assigned background"),
+                showStatus(tr("No selected frame has an assigned background"),
                            kStatusMs);
             }
             return;
@@ -1612,7 +1634,7 @@ void CanvasEditController::commitBackgroundImagePixels(const CanvasEditContext& 
     }
     const uint16_t drawColor = context.drawColor;
     if (!context.selectedBackground) {
-        showStatus(QStringLiteral("No background selected"), kStatusMs);
+        showStatus(tr("No background selected"), kStatusMs);
         return;
     }
     // A background has no original frame; color set replace takes the shades of the frame it
@@ -1653,7 +1675,7 @@ void CanvasEditController::commitBackgroundImageGradient(const CanvasEditContext
     }
     const std::vector<render::Point> pixels = strokePixels(context, start, end);
     if (!context.selectedBackground || !context.selectedPalette || pixels.empty()) {
-        showStatus(QStringLiteral("No background or palette selected"), kStatusMs);
+        showStatus(tr("No background or palette selected"), kStatusMs);
         return;
     }
     commitBackgroundImageColors(context,

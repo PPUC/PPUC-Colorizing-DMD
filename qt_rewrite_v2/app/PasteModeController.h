@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 
+#include <QCoreApplication>
 #include <QImage>
 #include <QString>
 
@@ -36,6 +37,8 @@ struct PasteModeOutputs {
 // A stamp with Shift pastes only where the originals match, with Alt the dynamic mask alone;
 // otherwise the mode the paste was started with applies.
 class PasteModeController {
+    Q_DECLARE_TR_FUNCTIONS(PasteModeController)
+
 public:
     explicit PasteModeController(PasteModeOutputs outputs = {});
 

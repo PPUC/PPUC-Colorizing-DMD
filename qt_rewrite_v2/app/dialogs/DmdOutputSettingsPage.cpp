@@ -16,29 +16,28 @@ namespace colorizing::app {
 DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, QWidget* parent)
     : QWidget(parent)
 {
-    m_localButton = new QRadioButton(QStringLiteral("Displays connected to this computer"), this);
-    m_serverButton = new QRadioButton(QStringLiteral("Use DMDServer"), this);
-    m_serverButton->setToolTip(QStringLiteral(
-        "libdmdutil's server process, on this or another computer, drives the displays"));
+    m_localButton = new QRadioButton(tr("Displays connected to this computer"), this);
+    m_serverButton = new QRadioButton(tr("Use DMDServer"), this);
+    m_serverButton->setToolTip(
+        tr("libdmdutil's server process, on this or another computer, drives the displays"));
 
     auto* local = new QGroupBox(this);
     m_localGroup = local;
     m_zedmdCheckBox = new QCheckBox(QStringLiteral("ZeDMD"), local);
     m_zedmdDeviceEdit = new QLineEdit(local);
-    m_zedmdDeviceEdit->setPlaceholderText(QStringLiteral("Any serial port"));
+    m_zedmdDeviceEdit->setPlaceholderText(tr("Any serial port"));
     m_zedmdDeviceEdit->setToolTip(
-        QStringLiteral("The serial port of the ZeDMD, e.g. COM3 or /dev/ttyUSB0; empty: look on "
-                       "all"));
-    m_zedmdWiFiCheckBox = new QCheckBox(QStringLiteral("ZeDMD over Wi-Fi"), local);
+        tr("The serial port of the ZeDMD, e.g. COM3 or /dev/ttyUSB0; empty: look on all"));
+    m_zedmdWiFiCheckBox = new QCheckBox(tr("ZeDMD over Wi-Fi"), local);
     m_zedmdWiFiAddressEdit = new QLineEdit(local);
     m_zedmdWiFiAddressEdit->setPlaceholderText(QStringLiteral("zedmd-wifi.local"));
     m_zedmdBrightnessSpinBox = new QSpinBox(local);
     m_zedmdBrightnessSpinBox->setRange(-1, 15);
-    m_zedmdBrightnessSpinBox->setSpecialValueText(QStringLiteral("Display's own"));
-    m_zedmdBrightnessSpinBox->setToolTip(QStringLiteral("ZeDMD brightness, 0 to 15"));
+    m_zedmdBrightnessSpinBox->setSpecialValueText(tr("Display's own"));
+    m_zedmdBrightnessSpinBox->setToolTip(tr("ZeDMD brightness, 0 to 15"));
     m_pixelcadeCheckBox = new QCheckBox(QStringLiteral("Pixelcade"), local);
     m_pixelcadeDeviceEdit = new QLineEdit(local);
-    m_pixelcadeDeviceEdit->setPlaceholderText(QStringLiteral("Any serial port"));
+    m_pixelcadeDeviceEdit->setPlaceholderText(tr("Any serial port"));
     m_pin2dmdCheckBox = new QCheckBox(QStringLiteral("PIN2DMD"), local);
     // A grid, not a form: a form right-aligns its first column on macOS, and a row without a
     // field there starts at the left edge instead.
@@ -47,7 +46,7 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     localGrid->addWidget(m_zedmdDeviceEdit, 0, 1);
     localGrid->addWidget(m_zedmdWiFiCheckBox, 1, 0);
     localGrid->addWidget(m_zedmdWiFiAddressEdit, 1, 1);
-    localGrid->addWidget(new QLabel(QStringLiteral("ZeDMD brightness"), local), 2, 0);
+    localGrid->addWidget(new QLabel(tr("ZeDMD brightness"), local), 2, 0);
     localGrid->addWidget(m_zedmdBrightnessSpinBox, 2, 1);
     localGrid->addWidget(m_pixelcadeCheckBox, 3, 0);
     localGrid->addWidget(m_pixelcadeDeviceEdit, 3, 1);
@@ -60,26 +59,26 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     m_serverPortSpinBox = new QSpinBox(server);
     m_serverPortSpinBox->setRange(1, 65535);
     auto* serverForm = new QFormLayout(server);
-    serverForm->addRow(QStringLiteral("Address"), m_serverAddressEdit);
-    serverForm->addRow(QStringLiteral("Port"), m_serverPortSpinBox);
+    serverForm->addRow(tr("Address"), m_serverAddressEdit);
+    serverForm->addRow(tr("Port"), m_serverPortSpinBox);
 
     m_pictureComboBox = new QComboBox(this);
-    m_pictureComboBox->addItem(QStringLiteral("The plane the canvas shows"),
+    m_pictureComboBox->addItem(tr("The plane the canvas shows"),
                                static_cast<int>(DmdOutputSettings::Picture::Canvas));
-    m_pictureComboBox->addItem(QStringLiteral("Native plane (128x32)"),
+    m_pictureComboBox->addItem(tr("Native plane (128x32)"),
                                static_cast<int>(DmdOutputSettings::Picture::Native));
-    m_pictureComboBox->addItem(QStringLiteral("Extra plane (256x64)"),
+    m_pictureComboBox->addItem(tr("Extra plane (256x64)"),
                                static_cast<int>(DmdOutputSettings::Picture::Extra));
     m_pictureComboBox->setToolTip(
-        QStringLiteral("For projects with both planes; a project with one plane sends that one. "
-                       "A frame without extra data sends its native plane."));
+        tr("For projects with both planes; a project with one plane sends that one. "
+           "A frame without extra data sends its native plane."));
     auto* pictureForm = new QFormLayout;
-    pictureForm->addRow(QStringLiteral("Picture"), m_pictureComboBox);
+    pictureForm->addRow(tr("Picture"), m_pictureComboBox);
 
     auto* note = new QLabel(
-        QStringLiteral("The display shows libserum's picture in the Runtime view and in the "
-                       "Frame Tester, otherwise the frame as the editor composes it. libdmdutil "
-                       "scales it to the display."),
+        tr("The display shows libserum's picture in the Runtime view and in the "
+           "Frame Tester, otherwise the frame as the editor composes it. libdmdutil "
+           "scales it to the display."),
         this);
     note->setWordWrap(true);
 

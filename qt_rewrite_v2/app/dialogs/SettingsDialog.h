@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QDialog>
 
 #include "Appearance.h"
@@ -13,10 +14,12 @@ namespace colorizing::app {
 
 class DmdOutputSettingsPage;
 
-// The editor's settings, one page per topic: Appearance (the theme, how the canvas draws DMD
-// pixels) and DMD Output. It only shows and collects them; the caller stores and applies what
+// The editor's settings, one page per topic: Appearance (the theme, the language, how the canvas
+// draws DMD pixels) and DMD Output. It only shows and collects them; the caller stores and applies what
 // it returns.
 class SettingsDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(SettingsDialog)
+
 public:
     enum class Page {
         Appearance,
@@ -32,12 +35,16 @@ public:
     void showPage(Page page);
 
     [[nodiscard]] Theme theme() const;
+    // As Translations.h has it: empty to follow the system.
+    void setLanguage(const QString& language);
+    [[nodiscard]] QString language() const;
     [[nodiscard]] DmdRenderOptions canvasOptions() const;
     [[nodiscard]] DmdOutputSettings dmdOutputSettings() const;
 
 private:
     QTabWidget* m_tabs = nullptr;
     QComboBox* m_themeComboBox = nullptr;
+    QComboBox* m_languageComboBox = nullptr;
     QComboBox* m_pixelShapeComboBox = nullptr;
     QSpinBox* m_pixelSizeSpinBox = nullptr;
     DmdOutputSettingsPage* m_dmdOutputPage = nullptr;

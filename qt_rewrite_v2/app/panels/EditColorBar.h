@@ -6,6 +6,7 @@
 #include <optional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -21,6 +22,8 @@ class EditColorSwatch;
 // IDC_1COLMODE, IDC_4COLMODE, IDC_COLTODYNA, IDC_DYNATOCOL of the Win32 editor). It shows and
 // reports; the owner changes the document and calls refresh().
 class EditColorBar final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(EditColorBar)
+
 public:
     explicit EditColorBar(QWidget* parent = nullptr);
 

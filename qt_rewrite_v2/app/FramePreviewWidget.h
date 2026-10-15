@@ -8,6 +8,7 @@
 
 #include <QPoint>
 #include <QColor>
+#include <QCoreApplication>
 #include <QWidget>
 
 class QScrollBar;
@@ -28,6 +29,8 @@ struct CanvasPasteOverlay {
 };
 
 class FramePreviewWidget final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(FramePreviewWidget)
+
 public:
     explicit FramePreviewWidget(QWidget* parent = nullptr);
 

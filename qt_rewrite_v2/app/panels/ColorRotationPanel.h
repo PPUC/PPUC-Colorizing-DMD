@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -19,6 +20,8 @@ class ColorGridWidget;
 // Inspector page for the color rotation slots of a frame. It only displays and reports what the
 // user asked for; the owner applies the edits and calls refresh().
 class ColorRotationPanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(ColorRotationPanel)
+
 public:
     explicit ColorRotationPanel(QWidget* parent = nullptr);
 

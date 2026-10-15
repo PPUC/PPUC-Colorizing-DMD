@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QWidget>
 
@@ -29,6 +30,8 @@ struct TriggerBarEntry {
 // Above the frame list: the sections (jump to one, name, delete, order) and the trigger list
 // (jump to a frame with a trigger), as the Win32 editor's section and trigger boxes.
 class SectionBar final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(SectionBar)
+
 public:
     explicit SectionBar(QWidget* parent = nullptr);
 
@@ -59,6 +62,8 @@ private:
 
 // The section organizer: the list in its order, Up, Down and A-Z, each applied at once.
 class SectionOrderDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(SectionOrderDialog)
+
 public:
     explicit SectionOrderDialog(QWidget* parent = nullptr);
 

@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QString>
 #include <QWidget>
 
@@ -26,6 +27,8 @@ struct RecordListPageState {
 // New and Delete above it. The list and what it shows belong to the owner; the page only
 // reports what the user asked for, and the owner calls refresh().
 class RecordListPage final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(RecordListPage)
+
 public:
     RecordListPage(QListWidget* list,
                    const QString& newToolTip,

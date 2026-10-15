@@ -53,82 +53,82 @@ PalettePanel::PalettePanel(QWidget* parent)
     : QWidget(parent)
 {
     m_paletteComboBox = new QComboBox(this);
-    m_paletteComboBox->setToolTip(QStringLiteral("Selected palette"));
+    m_paletteComboBox->setToolTip(tr("Selected palette"));
     m_paletteComboBox->setIconSize(QSize(96, 18));
     m_paletteComboBox->setEnabled(false);
     m_nameLineEdit = new QLineEdit(this);
-    m_nameLineEdit->setToolTip(QStringLiteral("Selected palette name"));
+    m_nameLineEdit->setToolTip(tr("Selected palette name"));
     m_nameLineEdit->setMaxLength(63);
     m_nameLineEdit->setEnabled(false);
     m_gradientStartSpinBox = new QSpinBox(this);
     m_gradientStartSpinBox->setToolTip(
-        QStringLiteral("First palette color index for gradient fill"));
+        tr("First palette color index for gradient fill"));
     m_gradientStartSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
     m_gradientStartSpinBox->setEnabled(false);
     m_gradientEndSpinBox = new QSpinBox(this);
     m_gradientEndSpinBox->setToolTip(
-        QStringLiteral("Last palette color index for gradient fill"));
+        tr("Last palette color index for gradient fill"));
     m_gradientEndSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
     m_gradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
     m_gradientEndSpinBox->setEnabled(false);
     m_gradientShapeComboBox = new QComboBox(this);
-    m_gradientShapeComboBox->setToolTip(QStringLiteral("Shape used by the Grad drawing tool"));
-    m_gradientShapeComboBox->addItem(QStringLiteral("Rectangle"),
+    m_gradientShapeComboBox->setToolTip(tr("Shape used by the Grad drawing tool"));
+    m_gradientShapeComboBox->addItem(tr("Rectangle"),
                                      static_cast<int>(PaletteGradientShape::Rectangle));
-    m_gradientShapeComboBox->addItem(QStringLiteral("Circle"),
+    m_gradientShapeComboBox->addItem(tr("Circle"),
                                      static_cast<int>(PaletteGradientShape::Circle));
-    m_gradientShapeComboBox->addItem(QStringLiteral("Ellipse"),
+    m_gradientShapeComboBox->addItem(tr("Ellipse"),
                                      static_cast<int>(PaletteGradientShape::Ellipse));
     m_gradientShapeComboBox->setEnabled(false);
     m_gradientPatternComboBox = new QComboBox(this);
     m_gradientPatternComboBox->setToolTip(
-        QStringLiteral("Color distribution used by the Grad drawing tool"));
-    m_gradientPatternComboBox->addItem(QStringLiteral("Linear"),
+        tr("Color distribution used by the Grad drawing tool"));
+    m_gradientPatternComboBox->addItem(tr("Linear"),
                                        static_cast<int>(PaletteGradientPattern::Linear));
-    m_gradientPatternComboBox->addItem(QStringLiteral("Circle"),
+    m_gradientPatternComboBox->addItem(tr("Circle"),
                                        static_cast<int>(PaletteGradientPattern::Circle));
-    m_gradientPatternComboBox->addItem(QStringLiteral("Ellipse"),
+    m_gradientPatternComboBox->addItem(tr("Ellipse"),
                                        static_cast<int>(PaletteGradientPattern::Ellipse));
     m_gradientPatternComboBox->setEnabled(false);
     m_gradientDirectionComboBox = new QComboBox(this);
     m_gradientDirectionComboBox->setToolTip(
-        QStringLiteral("Direction used by the Grad drawing tool"));
-    m_gradientDirectionComboBox->addItem(QStringLiteral("Free"),
+        tr("Direction used by the Grad drawing tool"));
+    m_gradientDirectionComboBox->addItem(tr("Free"),
                                          static_cast<int>(PaletteGradientDirection::Free));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("Left -> Right"),
+        tr("Left -> Right"),
         static_cast<int>(PaletteGradientDirection::LeftToRight));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("Right -> Left"),
+        tr("Right -> Left"),
         static_cast<int>(PaletteGradientDirection::RightToLeft));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("Top -> Bottom"),
+        tr("Top -> Bottom"),
         static_cast<int>(PaletteGradientDirection::TopToBottom));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("Bottom -> Top"),
+        tr("Bottom -> Top"),
         static_cast<int>(PaletteGradientDirection::BottomToTop));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("TL -> BR"),
+        tr("TL -> BR"),
         static_cast<int>(PaletteGradientDirection::TopLeftToBottomRight));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("BR -> TL"),
+        tr("BR -> TL"),
         static_cast<int>(PaletteGradientDirection::BottomRightToTopLeft));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("TR -> BL"),
+        tr("TR -> BL"),
         static_cast<int>(PaletteGradientDirection::TopRightToBottomLeft));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("BL -> TR"),
+        tr("BL -> TR"),
         static_cast<int>(PaletteGradientDirection::BottomLeftToTopRight));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("Center -> Edge"),
+        tr("Center -> Edge"),
         static_cast<int>(PaletteGradientDirection::CenterToEdge));
     m_gradientDirectionComboBox->addItem(
-        QStringLiteral("Edge -> Center"),
+        tr("Edge -> Center"),
         static_cast<int>(PaletteGradientDirection::EdgeToCenter));
     m_gradientDirectionComboBox->setEnabled(false);
     m_grid = new ColorGridWidget(document::kPaletteColorCount, 8, this);
     m_grid->setDisplayIndexOffset(1);
-    m_grid->setToolTip(QStringLiteral("Colors in the selected palette"));
+    m_grid->setToolTip(tr("Colors in the selected palette"));
     m_grid->setColorClickedHandler([this](std::size_t colorIndex) {
         if (onColorClicked) {
             onColorClicked(colorIndex);
@@ -140,39 +140,39 @@ PalettePanel::PalettePanel(QWidget* parent)
         }
     });
     m_applyGradientButton = new QToolButton(this);
-    m_applyGradientButton->setText(QStringLiteral("Apply Gradient"));
+    m_applyGradientButton->setText(tr("Apply Gradient"));
     m_applyGradientButton->setToolTip(
-        QStringLiteral("Fill the selected palette range between the endpoint colors"));
+        tr("Fill the selected palette range between the endpoint colors"));
     m_applyGradientButton->setEnabled(false);
     m_fillSelectionButton = new QToolButton(this);
-    m_fillSelectionButton->setText(QStringLiteral("Grad Sel"));
+    m_fillSelectionButton->setText(tr("Grad Sel"));
     m_fillSelectionButton->setToolTip(
-        QStringLiteral("Fill the current canvas selection with the palette gradient"));
+        tr("Fill the current canvas selection with the palette gradient"));
     m_fillSelectionButton->setEnabled(false);
     m_selectionDirectionButton = new QToolButton(this);
-    m_selectionDirectionButton->setText(QStringLiteral("Set Dir"));
+    m_selectionDirectionButton->setText(tr("Set Dir"));
     m_selectionDirectionButton->setToolTip(
-        QStringLiteral("Draw the free gradient direction line for the current selection"));
+        tr("Draw the free gradient direction line for the current selection"));
     m_selectionDirectionButton->setCheckable(true);
     m_selectionDirectionButton->setEnabled(false);
     m_clearSelectionButton = new QToolButton(this);
-    m_clearSelectionButton->setText(QStringLiteral("Clear Sel"));
-    m_clearSelectionButton->setToolTip(QStringLiteral("Clear the current canvas selection"));
+    m_clearSelectionButton->setText(tr("Clear Sel"));
+    m_clearSelectionButton->setToolTip(tr("Clear the current canvas selection"));
     m_clearSelectionButton->setEnabled(false);
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
-    m_selectedPaletteLabel = new QLabel(QStringLiteral("Selected: None"), this);
+    m_selectedPaletteLabel = new QLabel(tr("Selected: None"), this);
     m_selectedPaletteLabel->setWordWrap(true);
     pageLayout->addWidget(m_selectedPaletteLabel);
     auto* form = new QFormLayout();
-    form->addRow(QStringLiteral("Palette"), m_paletteComboBox);
-    form->addRow(QStringLiteral("Name"), m_nameLineEdit);
-    form->addRow(QStringLiteral("From"), m_gradientStartSpinBox);
-    form->addRow(QStringLiteral("To"), m_gradientEndSpinBox);
-    form->addRow(QStringLiteral("Shape"), m_gradientShapeComboBox);
-    form->addRow(QStringLiteral("Pattern"), m_gradientPatternComboBox);
-    form->addRow(QStringLiteral("Direction"), m_gradientDirectionComboBox);
+    form->addRow(tr("Palette"), m_paletteComboBox);
+    form->addRow(tr("Name"), m_nameLineEdit);
+    form->addRow(tr("From"), m_gradientStartSpinBox);
+    form->addRow(tr("To"), m_gradientEndSpinBox);
+    form->addRow(tr("Shape"), m_gradientShapeComboBox);
+    form->addRow(tr("Pattern"), m_gradientPatternComboBox);
+    form->addRow(tr("Direction"), m_gradientDirectionComboBox);
     pageLayout->addLayout(form);
     pageLayout->addWidget(m_grid);
     pageLayout->addWidget(m_applyGradientButton);
@@ -284,7 +284,7 @@ void PalettePanel::refresh(const document::ProjectDocument* document,
     QSignalBlocker startBlocker(m_gradientStartSpinBox);
     QSignalBlocker endBlocker(m_gradientEndSpinBox);
     if (!document || !paletteIndex) {
-        m_selectedPaletteLabel->setText(QStringLiteral("Selected: None"));
+        m_selectedPaletteLabel->setText(tr("Selected: None"));
         m_paletteComboBox->setEnabled(false);
         m_nameLineEdit->clear();
         m_nameLineEdit->setEnabled(false);
@@ -305,8 +305,8 @@ void PalettePanel::refresh(const document::ProjectDocument* document,
     const document::PaletteRecord& palette = document->palette(*paletteIndex);
     m_selectedPaletteLabel->setText(
         palette.name.empty()
-            ? QStringLiteral("Selected: %1").arg(static_cast<int>(*paletteIndex))
-            : QStringLiteral("Selected: %1 - %2")
+            ? tr("Selected: %1").arg(static_cast<int>(*paletteIndex))
+            : tr("Selected: %1 - %2")
                   .arg(static_cast<int>(*paletteIndex))
                   .arg(QString::fromStdString(palette.name)));
     m_paletteComboBox->setEnabled(true);

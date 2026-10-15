@@ -6,6 +6,7 @@
 #include <optional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -22,6 +23,8 @@ namespace colorizing::app {
 // The selected set is the page's own state. The page only displays and reports what the user
 // asked for; the owner applies the edits and calls the refresh functions.
 class DynamicPanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(DynamicPanel)
+
 public:
     explicit DynamicPanel(QWidget* parent = nullptr);
 

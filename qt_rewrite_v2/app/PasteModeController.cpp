@@ -23,11 +23,12 @@ QString modeText(edit::PasteMode mode)
 {
     switch (mode) {
         case edit::PasteMode::All:
-            return QStringLiteral("Paste");
+            return QCoreApplication::translate("PasteModeController", "Paste");
         case edit::PasteMode::WhereOriginalsMatch:
-            return QStringLiteral("Paste where the originals match");
+            return QCoreApplication::translate("PasteModeController",
+                                               "Paste where the originals match");
         case edit::PasteMode::DynamicMaskOnly:
-            return QStringLiteral("Paste the dynamic mask");
+            return QCoreApplication::translate("PasteModeController", "Paste the dynamic mask");
     }
     return QString();
 }
@@ -47,16 +48,16 @@ bool PasteModeController::copy(const CanvasEditContext& context,
     }
     if (context.layer != CanvasEditLayer::FramePixels &&
         context.layer != CanvasEditLayer::DynamicMask) {
-        showStatus(QStringLiteral("Copy works on the frame's pixels"), kStatusMs);
+        showStatus(tr("Copy works on the frame's pixels"), kStatusMs);
         return false;
     }
     if (!selection) {
-        showStatus(QStringLiteral("Nothing is selected to copy"), kStatusMs);
+        showStatus(tr("Nothing is selected to copy"), kStatusMs);
         return false;
     }
     if (selection->plane() != context.activePlane) {
         // Win32 Copy_Content: the selection was made on the other plane.
-        showStatus(QStringLiteral("The selection is on the other plane"), kStatusMs);
+        showStatus(tr("The selection is on the other plane"), kStatusMs);
         return false;
     }
     try {
@@ -68,11 +69,11 @@ bool PasteModeController::copy(const CanvasEditContext& context,
     if (m_outputs.exportImage) {
         m_outputs.exportImage(copyBufferImage(*m_clipboard));
     }
-    showStatus(QStringLiteral("Copied %1 pixels of frame %2%3")
+    showStatus((m_clipboard->hasDynamicData()
+                    ? tr("Copied %1 pixels of frame %2 with the dynamic mask")
+                    : tr("Copied %1 pixels of frame %2"))
                    .arg(static_cast<qulonglong>(m_clipboard->selectedCount()))
-                   .arg(static_cast<qulonglong>(*context.currentFrame))
-                   .arg(m_clipboard->hasDynamicData() ? QStringLiteral(" with the dynamic mask")
-                                                      : QString()),
+                   .arg(static_cast<qulonglong>(*context.currentFrame)),
                kStatusMs);
     return true;
 }
@@ -97,14 +98,14 @@ QString PasteModeController::refusal(const CanvasEditContext& context,
                                      edit::PasteMode mode) const
 {
     if (!context.document || !context.currentFrame) {
-        return QStringLiteral("No frame to paste on");
+        return tr("No frame to paste on");
     }
     if (!m_clipboard) {
-        return QStringLiteral("Nothing has been copied");
+        return tr("Nothing has been copied");
     }
     if (context.layer != CanvasEditLayer::FramePixels &&
         context.layer != CanvasEditLayer::DynamicMask) {
-        return QStringLiteral("Paste works on the frame's pixels");
+        return tr("Paste works on the frame's pixels");
     }
     if (const std::optional<std::string> reason =
             edit::pasteRefusal(*context.document, *m_clipboard, context.activePlane, mode)) {
@@ -128,7 +129,7 @@ bool PasteModeController::begin(const CanvasEditContext& context, edit::PasteMod
     m_placement = edit::PastePlacement{m_clipboard->box.x, m_clipboard->box.y, false, false};
     setActive(true);
     updateOverlay();
-    showStatus(QStringLiteral("%1: click or Enter stamps, arrows move, K/L mirror, Esc cancels")
+    showStatus(tr("%1: click or Enter stamps, arrows move, K/L mirror, Esc cancels")
                    .arg(modeText(mode)),
                kLongStatusMs);
     return true;
@@ -250,10 +251,10 @@ bool PasteModeController::stamp(const CanvasEditContext& context,
         m_outputs.commitsFinished();
     }
     showStatus(changedFrames > 0
-                   ? QStringLiteral("%1 on %2 frame(s)")
+                   ? tr("%1 on %2 frame(s)")
                          .arg(modeText(mode))
                          .arg(static_cast<qulonglong>(changedFrames))
-                   : QStringLiteral("%1: nothing changed").arg(modeText(mode)),
+                   : tr("%1: nothing changed").arg(modeText(mode)),
                kStatusMs);
     return changedFrames > 0;
 }
@@ -292,7 +293,7 @@ bool PasteModeController::handleKey(const CanvasEditContext& context,
             return true;
         case Qt::Key_Escape:
             cancel();
-            showStatus(QStringLiteral("Paste cancelled"), kStatusMs);
+            showStatus(tr("Paste cancelled"), kStatusMs);
             return true;
         default:
             break;

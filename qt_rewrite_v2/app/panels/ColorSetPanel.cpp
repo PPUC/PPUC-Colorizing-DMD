@@ -51,24 +51,24 @@ ColorSetPanel::ColorSetPanel(QWidget* parent)
     : QWidget(parent)
 {
     m_list = new QListWidget(this);
-    m_list->setToolTip(QStringLiteral("Color sets; double click loads one into the edit colors"));
+    m_list->setToolTip(tr("Color sets; double click loads one into the edit colors"));
     m_list->setVerticalScrollMode(QAbstractItemView::ScrollPerItem);
     m_list->setIconSize(QSize(128, kSwatchHeight));
     m_list->setUniformItemSizes(true);
     m_nameEdit = new QLineEdit(this);
-    m_nameEdit->setToolTip(QStringLiteral("Name of the selected color set"));
+    m_nameEdit->setToolTip(tr("Name of the selected color set"));
     m_nameEdit->setMaxLength(static_cast<int>(document::kColorSetNameBytes) - 1);
     m_nameEdit->setEnabled(false);
     m_storeButton = makeButton(
         this,
-        QStringLiteral("Store"),
-        QStringLiteral("Store the edit colors in the selected color set and activate it"));
+        tr("Store"),
+        tr("Store the edit colors in the selected color set and activate it"));
     m_loadButton = makeButton(this,
-                              QStringLiteral("Load"),
-                              QStringLiteral("Load the selected color set into the edit colors"));
+                              tr("Load"),
+                              tr("Load the selected color set into the edit colors"));
     m_deactivateButton = makeButton(this,
-                                    QStringLiteral("Deactivate"),
-                                    QStringLiteral("Deactivate the selected color set"));
+                                    tr("Deactivate"),
+                                    tr("Deactivate the selected color set"));
     m_hintLabel = new QLabel(this);
     m_hintLabel->setWordWrap(true);
 
@@ -154,7 +154,7 @@ void ColorSetPanel::refresh(const document::ProjectDocument* document, bool proj
                     item->setIcon(colorSetIcon(edit::colorSetColors(tables, set),
                                                document->colorCount()));
                 } else {
-                    item->setText(QStringLiteral("%1  (inactive)")
+                    item->setText(tr("%1  (inactive)")
                                       .arg(static_cast<int>(set), 2, 10, QLatin1Char('0')));
                     item->setForeground(QColor(0x88, 0x88, 0x88));
                 }
@@ -173,7 +173,7 @@ void ColorSetPanel::refresh(const document::ProjectDocument* document, bool proj
             }
         }
     }
-    m_hintLabel->setText(document ? QStringLiteral("Store and Load use the first %1 colors.")
+    m_hintLabel->setText(document ? tr("Store and Load use the first %1 colors.")
                                         .arg(static_cast<int>(document->colorCount()))
                                   : QString());
     m_refreshing = false;

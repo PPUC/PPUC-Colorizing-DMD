@@ -45,7 +45,8 @@ public:
         : QWidget(parent)
     {
         setFixedSize(kWidth, kHeight);
-        setToolTip(QStringLiteral("Hue (left to right) and saturation (top to bottom)"));
+        setToolTip(QCoreApplication::translate(
+            "ColorPickerDialog", "Hue (left to right) and saturation (top to bottom)"));
         m_image = QImage(kWidth, kHeight, QImage::Format_RGB32);
         for (int y = 0; y < kHeight; ++y) {
             for (int x = 0; x < kWidth; ++x) {
@@ -112,7 +113,7 @@ public:
         : QWidget(parent)
     {
         setFixedSize(24, kHeight);
-        setToolTip(QStringLiteral("Value (brightness)"));
+        setToolTip(QCoreApplication::translate("ColorPickerDialog", "Value (brightness)"));
     }
 
     void setHsv(edit::Hsv hsv)
@@ -209,15 +210,15 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
     const edit::Rgb888 initial = edit::rgb565ToRgb888(initialRgb565);
     auto* oldSwatch = new QLabel(this);
     oldSwatch->setFixedSize(48, 24);
-    oldSwatch->setToolTip(QStringLiteral("Color before"));
+    oldSwatch->setToolTip(tr("Color before"));
     oldSwatch->setStyleSheet(swatchStyle(initial));
     m_newSwatch = new QLabel(this);
     m_newSwatch->setFixedSize(48, 24);
-    m_newSwatch->setToolTip(QStringLiteral("Picked color"));
+    m_newSwatch->setToolTip(tr("Picked color"));
 
     m_hexEdit = new QLineEdit(this);
     m_hexEdit->setObjectName(QStringLiteral("colorPickerHex"));
-    m_hexEdit->setToolTip(QStringLiteral("RGB888 as six hex digits"));
+    m_hexEdit->setToolTip(tr("RGB888 as six hex digits"));
     m_hexEdit->setValidator(new QRegularExpressionValidator(
         QRegularExpression(QStringLiteral("#?[0-9A-Fa-f]{0,6}")), m_hexEdit));
     m_hexEdit->setMaxLength(7);
@@ -230,28 +231,22 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
         m_updating = false;
     });
 
-    m_red8 =
-        makeSpinBox(this, QStringLiteral("colorPickerRed8"), QStringLiteral("Red, 0-255"), 255);
-    m_green8 = makeSpinBox(
-        this, QStringLiteral("colorPickerGreen8"), QStringLiteral("Green, 0-255"), 255);
-    m_blue8 =
-        makeSpinBox(this, QStringLiteral("colorPickerBlue8"), QStringLiteral("Blue, 0-255"), 255);
+    m_red8 = makeSpinBox(this, QStringLiteral("colorPickerRed8"), tr("Red, 0-255"), 255);
+    m_green8 = makeSpinBox(this, QStringLiteral("colorPickerGreen8"), tr("Green, 0-255"), 255);
+    m_blue8 = makeSpinBox(this, QStringLiteral("colorPickerBlue8"), tr("Blue, 0-255"), 255);
     m_rgb565Edit = makeSpinBox(this,
                                QStringLiteral("colorPickerRgb565"),
-                               QStringLiteral("RGB565 as a decimal number, 0-65535"),
+                               tr("RGB565 as a decimal number, 0-65535"),
                                65535);
-    m_red5 = makeSpinBox(this, QStringLiteral("colorPickerRed5"), QStringLiteral("Red, 0-31"), 31);
-    m_green6 =
-        makeSpinBox(this, QStringLiteral("colorPickerGreen6"), QStringLiteral("Green, 0-63"), 63);
-    m_blue5 =
-        makeSpinBox(this, QStringLiteral("colorPickerBlue5"), QStringLiteral("Blue, 0-31"), 31);
-    m_hue = makeDoubleSpinBox(
-        this, QStringLiteral("colorPickerHue"), QStringLiteral("Hue in degrees"), 359.9);
+    m_red5 = makeSpinBox(this, QStringLiteral("colorPickerRed5"), tr("Red, 0-31"), 31);
+    m_green6 = makeSpinBox(this, QStringLiteral("colorPickerGreen6"), tr("Green, 0-63"), 63);
+    m_blue5 = makeSpinBox(this, QStringLiteral("colorPickerBlue5"), tr("Blue, 0-31"), 31);
+    m_hue = makeDoubleSpinBox(this, QStringLiteral("colorPickerHue"), tr("Hue in degrees"), 359.9);
     m_hue->setWrapping(true);
     m_saturation = makeDoubleSpinBox(
-        this, QStringLiteral("colorPickerSaturation"), QStringLiteral("Saturation in %"), 100.0);
-    m_value = makeDoubleSpinBox(
-        this, QStringLiteral("colorPickerValue"), QStringLiteral("Value in %"), 100.0);
+        this, QStringLiteral("colorPickerSaturation"), tr("Saturation in %"), 100.0);
+    m_value =
+        makeDoubleSpinBox(this, QStringLiteral("colorPickerValue"), tr("Value in %"), 100.0);
 
     const auto rgbChanged = [this]() {
         if (!m_updating) {
@@ -301,9 +296,9 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
     pickers->addWidget(m_valueBar);
 
     auto* swatches = new QHBoxLayout();
-    swatches->addWidget(new QLabel(QStringLiteral("Before"), this));
+    swatches->addWidget(new QLabel(tr("Before"), this));
     swatches->addWidget(oldSwatch);
-    swatches->addWidget(new QLabel(QStringLiteral("Now"), this));
+    swatches->addWidget(new QLabel(tr("Now"), this));
     swatches->addWidget(m_newSwatch);
     swatches->addStretch(1);
 
@@ -320,13 +315,13 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
     fields->addWidget(m_red5, 3, 1);
     fields->addWidget(m_green6, 3, 2);
     fields->addWidget(m_blue5, 3, 3);
-    fields->addWidget(new QLabel(QStringLiteral("H S V"), this), 4, 0);
+    fields->addWidget(new QLabel(tr("H S V"), this), 4, 0);
     fields->addWidget(m_hue, 4, 1);
     fields->addWidget(m_saturation, 4, 2);
     fields->addWidget(m_value, 4, 3);
 
     auto* recentRow = new QHBoxLayout();
-    recentRow->addWidget(new QLabel(QStringLiteral("Recent"), this));
+    recentRow->addWidget(new QLabel(tr("Recent"), this));
     const std::vector<uint16_t> recent = recentColors();
     for (std::size_t index = 0; index < kRecentColorCount; ++index) {
         auto* button = new QToolButton(this);
@@ -335,8 +330,7 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
         if (index < recent.size()) {
             const uint16_t color = recent[index];
             button->setStyleSheet(swatchStyle(edit::rgb565ToRgb888(color)));
-            button->setToolTip(
-                QStringLiteral("Recent color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
+            button->setToolTip(tr("Recent color 0x%1").arg(color, 4, 16, QLatin1Char('0')));
             connect(button, &QToolButton::clicked, this, [this, color]() {
                 setFromRgb(edit::rgb565ToRgb888(color));
             });

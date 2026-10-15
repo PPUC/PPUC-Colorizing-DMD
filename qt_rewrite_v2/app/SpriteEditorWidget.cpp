@@ -450,7 +450,7 @@ std::optional<render::Point> SpriteEditorWidget::hitOriginal(QPoint position) co
 void SpriteEditorWidget::paintEmpty(QPainter& painter)
 {
     painter.setPen(palette().color(QPalette::PlaceholderText));
-    painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("No sprite selected"));
+    painter.drawText(rect(), Qt::AlignCenter, tr("No sprite selected"));
 }
 
 void SpriteEditorWidget::setDynamicPaintMode(bool enabled)

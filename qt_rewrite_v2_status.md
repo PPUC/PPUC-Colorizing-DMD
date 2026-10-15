@@ -1094,6 +1094,24 @@ format). What it does, and the state here:
   original, colorized, 64-color palette): not done; where the files come from is unknown.
 - Its strip of original and colorized frames with number, duration and section labels.
 
+## Translations (2026-10-15)
+
+Owner: German and French (the owner reads both), drafted here; Qt Linguist workflow.
+
+- UI: texts in `tr()` (`Q_DECLARE_TR_FUNCTIONS(Class)`, no moc in the project) or
+  `QCoreApplication::translate("Class", ...)` outside classes. `qt_add_translations` on the app
+  target (`app/CMakeLists.txt`), `.ts` in `qt_rewrite_v2/translations/`, `.qm` and Qt's
+  `qtbase_de/fr.qm` built in under `:/i18n`. Target `update_translations` runs lupdate
+  (`-locations none`, so line moves don't churn the .ts). LinguistTools is optional for dev
+  builds, required for packages; CI installs it on all platforms.
+- `app/Translations.{h,cpp}`: language setting `appearance/language` (empty = system),
+  `installTranslations()` in main.cpp before the first window, `currentLanguage()` also picks
+  the handbook language. Settings -> Appearance -> Language, effective at the next start.
+- Tests load no translator: tr() returns the English source, which tests and ui_dump compare.
+- `translations/README.md`: workflow and the glossary (de/fr terms) — keep it in sync.
+- Not done: core (Qt-free) error texts reach the UI in English; handbook translations
+  (`handbook/de`, `handbook/fr`) and a check for chapters older than their English source.
+
 ## VPX plugins (2026-10-14)
 
 The editor hosts VPX plugins on libvpxhost's bus (github.com/PPUC/libvpxhost, shared with ppuc;

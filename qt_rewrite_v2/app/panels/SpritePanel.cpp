@@ -26,7 +26,8 @@ namespace {
 QString spriteDisplayName(const document::ProjectDocument& document, std::size_t spriteIndex)
 {
     const document::SpriteRecord& sprite = document.sprite(spriteIndex);
-    const QString base = QStringLiteral("Sprite %1").arg(static_cast<int>(spriteIndex));
+    const QString base =
+        QCoreApplication::translate("SpritePanel", "Sprite %1").arg(static_cast<int>(spriteIndex));
     if (sprite.name.empty()) {
         return base;
     }
@@ -46,119 +47,119 @@ SpritePanel::SpritePanel(QWidget* parent)
     : QWidget(parent)
 {
     m_nameLineEdit = new QLineEdit(this);
-    m_nameLineEdit->setToolTip(QStringLiteral("Selected sprite name"));
+    m_nameLineEdit->setToolTip(tr("Selected sprite name"));
     m_nameLineEdit->setMaxLength(31);
     m_nameLineEdit->setEnabled(false);
     m_slotComboBox = new QComboBox(this);
-    m_slotComboBox->setToolTip(QStringLiteral("Current frame sprite slot"));
+    m_slotComboBox->setToolTip(tr("Current frame sprite slot"));
     m_slotComboBox->setEnabled(false);
     m_assignButton = new QToolButton(this);
-    m_assignButton->setText(QStringLiteral("Assign"));
-    m_assignButton->setToolTip(QStringLiteral("Assign selected sprite to selected slot"));
+    m_assignButton->setText(tr("Assign"));
+    m_assignButton->setToolTip(tr("Assign selected sprite to selected slot"));
     m_assignButton->setEnabled(false);
     m_captureButton = new QToolButton(this);
-    m_captureButton->setText(QStringLiteral("Capture"));
+    m_captureButton->setText(tr("Capture"));
     m_captureButton->setToolTip(
-        QStringLiteral("Copy original/colorized pixels from current frame bounds into selected "
-                       "sprite"));
+        tr("Copy original/colorized pixels from current frame bounds into selected "
+           "sprite"));
     m_captureButton->setEnabled(false);
     m_removeButton = new QToolButton(this);
-    m_removeButton->setText(QStringLiteral("Remove"));
+    m_removeButton->setText(tr("Remove"));
     m_removeButton->setToolTip(
-        QStringLiteral("Remove the selected slot's sprite from the selected frames; the slots "
-                       "behind it move up"));
+        tr("Remove the selected slot's sprite from the selected frames; the slots "
+           "behind it move up"));
     m_removeButton->setEnabled(false);
     m_captureSelectionButton = new QToolButton(this);
-    m_captureSelectionButton->setText(QStringLiteral("Select Capture"));
+    m_captureSelectionButton->setText(tr("Select Capture"));
     m_captureSelectionButton->setToolTip(
-        QStringLiteral("Draw a shaped sprite capture selection on the original frame"));
+        tr("Draw a shaped sprite capture selection on the original frame"));
     m_captureSelectionButton->setCheckable(true);
     m_captureSelectionButton->setEnabled(false);
     m_clearCaptureSelectionButton = new QToolButton(this);
-    m_clearCaptureSelectionButton->setText(QStringLiteral("Clear Sel"));
+    m_clearCaptureSelectionButton->setText(tr("Clear Sel"));
     m_clearCaptureSelectionButton->setToolTip(
-        QStringLiteral("Clear the current sprite capture selection"));
+        tr("Clear the current sprite capture selection"));
     m_clearCaptureSelectionButton->setEnabled(false);
     m_boundsOverlayButton = new QToolButton(this);
-    m_boundsOverlayButton->setText(QStringLiteral("Show Bounds"));
+    m_boundsOverlayButton->setText(tr("Show Bounds"));
     m_boundsOverlayButton->setToolTip(
-        QStringLiteral("Show selected sprite slot bounds on original frame"));
+        tr("Show selected sprite slot bounds on original frame"));
     m_boundsOverlayButton->setCheckable(true);
     m_boundsOverlayButton->setChecked(false);
     m_boundsOverlayButton->setEnabled(false);
     m_detectionAreasButton = new QToolButton(this);
-    m_detectionAreasButton->setText(QStringLiteral("Show Det Areas"));
+    m_detectionAreasButton->setText(tr("Show Det Areas"));
     m_detectionAreasButton->setToolTip(
-        QStringLiteral("Show sprite detection areas on original sprite preview"));
+        tr("Show sprite detection areas on original sprite preview"));
     m_detectionAreasButton->setCheckable(true);
     m_detectionAreasButton->setChecked(false);
     m_detectionAreasButton->setEnabled(false);
     m_spriteCanvasButton = new QToolButton(this);
-    m_spriteCanvasButton->setText(QStringLiteral("Edit Sprite"));
-    m_spriteCanvasButton->setToolTip(QStringLiteral("Show selected sprite in the main canvas"));
+    m_spriteCanvasButton->setText(tr("Edit Sprite"));
+    m_spriteCanvasButton->setToolTip(tr("Show selected sprite in the main canvas"));
     m_spriteCanvasButton->setCheckable(true);
     m_spriteCanvasButton->setEnabled(false);
     m_applySpriteEditsButton = new QToolButton(this);
-    m_applySpriteEditsButton->setText(QStringLiteral("Apply Sprite"));
+    m_applySpriteEditsButton->setText(tr("Apply Sprite"));
     m_applySpriteEditsButton->setToolTip(
-        QStringLiteral("Refresh frame previews from edited sprite data"));
+        tr("Refresh frame previews from edited sprite data"));
     m_applySpriteEditsButton->setEnabled(false);
     m_sourceFrameButton = new QToolButton(this);
-    m_sourceFrameButton->setText(QStringLiteral("Source Frame"));
-    m_sourceFrameButton->setToolTip(QStringLiteral("Go to the frame the sprite was taken from"));
+    m_sourceFrameButton->setText(tr("Source Frame"));
+    m_sourceFrameButton->setToolTip(tr("Go to the frame the sprite was taken from"));
     m_sourceFrameButton->setEnabled(false);
     m_minXSpinBox = new QSpinBox(this);
     m_minXSpinBox->setRange(0, 127);
-    m_minXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum X"));
+    m_minXSpinBox->setToolTip(tr("Sprite slot bounding box minimum X"));
     m_minXSpinBox->setEnabled(false);
     m_minYSpinBox = new QSpinBox(this);
     m_minYSpinBox->setRange(0, 31);
-    m_minYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box minimum Y"));
+    m_minYSpinBox->setToolTip(tr("Sprite slot bounding box minimum Y"));
     m_minYSpinBox->setEnabled(false);
     m_maxXSpinBox = new QSpinBox(this);
     m_maxXSpinBox->setRange(0, 127);
-    m_maxXSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum X"));
+    m_maxXSpinBox->setToolTip(tr("Sprite slot bounding box maximum X"));
     m_maxXSpinBox->setEnabled(false);
     m_maxYSpinBox = new QSpinBox(this);
     m_maxYSpinBox->setRange(0, 31);
-    m_maxYSpinBox->setToolTip(QStringLiteral("Sprite slot bounding box maximum Y"));
+    m_maxYSpinBox->setToolTip(tr("Sprite slot bounding box maximum Y"));
     m_maxYSpinBox->setEnabled(false);
     m_detectionAreaComboBox = new QComboBox(this);
-    m_detectionAreaComboBox->setToolTip(QStringLiteral("Sprite detection area"));
+    m_detectionAreaComboBox->setToolTip(tr("Sprite detection area"));
     for (std::size_t areaIndex = 0; areaIndex < document::kMaxSpriteDetectAreas; ++areaIndex) {
-        m_detectionAreaComboBox->addItem(QStringLiteral("Area %1")
+        m_detectionAreaComboBox->addItem(tr("Area %1")
                                              .arg(static_cast<int>(areaIndex)),
                                          static_cast<int>(areaIndex));
     }
     m_detectionAreaComboBox->setEnabled(false);
     m_clearDetectionAreaButton = new QToolButton(this);
-    m_clearDetectionAreaButton->setText(QStringLiteral("Clear Area"));
+    m_clearDetectionAreaButton->setText(tr("Clear Area"));
     m_clearDetectionAreaButton->setToolTip(
-        QStringLiteral("Disable selected sprite detection area"));
+        tr("Disable selected sprite detection area"));
     m_clearDetectionAreaButton->setEnabled(false);
     m_detectionAreaXSpinBox = new QSpinBox(this);
     m_detectionAreaXSpinBox->setRange(0, static_cast<int>(document::kMaxSpriteWidth - 1));
-    m_detectionAreaXSpinBox->setToolTip(QStringLiteral("Sprite detection area X"));
+    m_detectionAreaXSpinBox->setToolTip(tr("Sprite detection area X"));
     m_detectionAreaXSpinBox->setEnabled(false);
     m_detectionAreaYSpinBox = new QSpinBox(this);
     m_detectionAreaYSpinBox->setRange(0, static_cast<int>(document::kMaxSpriteHeight - 1));
-    m_detectionAreaYSpinBox->setToolTip(QStringLiteral("Sprite detection area Y"));
+    m_detectionAreaYSpinBox->setToolTip(tr("Sprite detection area Y"));
     m_detectionAreaYSpinBox->setEnabled(false);
     m_detectionAreaWidthSpinBox = new QSpinBox(this);
     m_detectionAreaWidthSpinBox->setRange(1, static_cast<int>(document::kMaxSpriteWidth));
-    m_detectionAreaWidthSpinBox->setToolTip(QStringLiteral("Sprite detection area width"));
+    m_detectionAreaWidthSpinBox->setToolTip(tr("Sprite detection area width"));
     m_detectionAreaWidthSpinBox->setEnabled(false);
     m_detectionAreaHeightSpinBox = new QSpinBox(this);
     m_detectionAreaHeightSpinBox->setRange(1, static_cast<int>(document::kMaxSpriteHeight));
-    m_detectionAreaHeightSpinBox->setToolTip(QStringLiteral("Sprite detection area height"));
+    m_detectionAreaHeightSpinBox->setToolTip(tr("Sprite detection area height"));
     m_detectionAreaHeightSpinBox->setEnabled(false);
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
-    m_frameSpritesLabel = new QLabel(QStringLiteral("No frame sprites"), this);
+    m_frameSpritesLabel = new QLabel(tr("No frame sprites"), this);
     m_frameSpritesLabel->setWordWrap(true);
     m_frameSpritesLabel->setMinimumHeight(28);
-    m_selectedSpriteLabel = new QLabel(QStringLiteral("Selected: None"), this);
+    m_selectedSpriteLabel = new QLabel(tr("Selected: None"), this);
     m_selectedSpriteLabel->setWordWrap(true);
     pageLayout->addWidget(m_selectedSpriteLabel);
     pageLayout->addWidget(m_nameLineEdit);
@@ -184,13 +185,13 @@ SpritePanel::SpritePanel(QWidget* parent)
     auto* boundsGrid = new QGridLayout();
     boundsGrid->setHorizontalSpacing(4);
     boundsGrid->setVerticalSpacing(4);
-    boundsGrid->addWidget(new QLabel(QStringLiteral("Min X"), this), 0, 0);
+    boundsGrid->addWidget(new QLabel(tr("Min X"), this), 0, 0);
     boundsGrid->addWidget(m_minXSpinBox, 0, 1);
-    boundsGrid->addWidget(new QLabel(QStringLiteral("Min Y"), this), 0, 2);
+    boundsGrid->addWidget(new QLabel(tr("Min Y"), this), 0, 2);
     boundsGrid->addWidget(m_minYSpinBox, 0, 3);
-    boundsGrid->addWidget(new QLabel(QStringLiteral("Max X"), this), 1, 0);
+    boundsGrid->addWidget(new QLabel(tr("Max X"), this), 1, 0);
     boundsGrid->addWidget(m_maxXSpinBox, 1, 1);
-    boundsGrid->addWidget(new QLabel(QStringLiteral("Max Y"), this), 1, 2);
+    boundsGrid->addWidget(new QLabel(tr("Max Y"), this), 1, 2);
     boundsGrid->addWidget(m_maxYSpinBox, 1, 3);
     pageLayout->addLayout(boundsGrid);
     auto* detectionAreaLayout = new QHBoxLayout();
@@ -200,41 +201,41 @@ SpritePanel::SpritePanel(QWidget* parent)
     auto* detectionAreaGrid = new QGridLayout();
     detectionAreaGrid->setHorizontalSpacing(4);
     detectionAreaGrid->setVerticalSpacing(4);
-    detectionAreaGrid->addWidget(new QLabel(QStringLiteral("X"), this), 0, 0);
+    detectionAreaGrid->addWidget(new QLabel(tr("X"), this), 0, 0);
     detectionAreaGrid->addWidget(m_detectionAreaXSpinBox, 0, 1);
-    detectionAreaGrid->addWidget(new QLabel(QStringLiteral("Y"), this), 0, 2);
+    detectionAreaGrid->addWidget(new QLabel(tr("Y"), this), 0, 2);
     detectionAreaGrid->addWidget(m_detectionAreaYSpinBox, 0, 3);
-    detectionAreaGrid->addWidget(new QLabel(QStringLiteral("W"), this), 1, 0);
+    detectionAreaGrid->addWidget(new QLabel(tr("W"), this), 1, 0);
     detectionAreaGrid->addWidget(m_detectionAreaWidthSpinBox, 1, 1);
-    detectionAreaGrid->addWidget(new QLabel(QStringLiteral("H"), this), 1, 2);
+    detectionAreaGrid->addWidget(new QLabel(tr("H"), this), 1, 2);
     detectionAreaGrid->addWidget(m_detectionAreaHeightSpinBox, 1, 3);
     pageLayout->addLayout(detectionAreaGrid);
     pageLayout->addWidget(m_frameSpritesLabel);
 
     // Shape mode and dynamic content of the selected sprite.
-    m_shapeModeCheckBox = new QCheckBox(QStringLiteral("Shape mode"), this);
-    m_shapeModeCheckBox->setToolTip(QStringLiteral(
+    m_shapeModeCheckBox = new QCheckBox(tr("Shape mode"), this);
+    m_shapeModeCheckBox->setToolTip(tr(
         "Find the sprite by its shape (lit or not) instead of its shades"));
     m_dynamicPaintButton = new QToolButton(this);
-    m_dynamicPaintButton->setText(QStringLiteral("Paint Dynamic"));
+    m_dynamicPaintButton->setText(tr("Paint Dynamic"));
     m_dynamicPaintButton->setCheckable(true);
-    m_dynamicPaintButton->setToolTip(QStringLiteral(
+    m_dynamicPaintButton->setToolTip(tr(
         "On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: "
         "out of it); dynamic pixels are tinted"));
     m_dynamicSetSpinBox = new QSpinBox(this);
     m_dynamicSetSpinBox->setRange(1, static_cast<int>(document::kMaxDynamicSetsPerSprite));
-    m_dynamicSetSpinBox->setPrefix(QStringLiteral("Set "));
-    m_dynamicSetSpinBox->setToolTip(QStringLiteral("Sprite dynamic set"));
+    m_dynamicSetSpinBox->setPrefix(tr("Set "));
+    m_dynamicSetSpinBox->setToolTip(tr("Sprite dynamic set"));
     m_dynamicColorGrid = new ColorGridWidget(16, 8, this);
-    m_dynamicColorGrid->setToolTip(QStringLiteral(
+    m_dynamicColorGrid->setToolTip(tr(
         "The set's color for each original shade: a dynamic sprite pixel shows the color of the "
         "frame's shade under it. Click to change"));
     m_editColorsToSetButton = new QToolButton(this);
-    m_editColorsToSetButton->setText(QStringLiteral("Edit Colors > Set"));
-    m_editColorsToSetButton->setToolTip(QStringLiteral("Copy the edit colors into the set"));
+    m_editColorsToSetButton->setText(tr("Edit Colors > Set"));
+    m_editColorsToSetButton->setToolTip(tr("Copy the edit colors into the set"));
     m_setToEditColorsButton = new QToolButton(this);
-    m_setToEditColorsButton->setText(QStringLiteral("Set > Edit Colors"));
-    m_setToEditColorsButton->setToolTip(QStringLiteral("Copy the set's colors to the edit colors"));
+    m_setToEditColorsButton->setText(tr("Set > Edit Colors"));
+    m_setToEditColorsButton->setToolTip(tr("Copy the set's colors to the edit colors"));
     auto* dynamicRow = new QHBoxLayout();
     dynamicRow->addWidget(m_shapeModeCheckBox);
     dynamicRow->addStretch(1);
@@ -446,20 +447,20 @@ void SpritePanel::refresh(const SpritePanelState& state)
                         ? QString()
                         : static_cast<std::size_t>(reference.spriteId) >=
                                 document->spriteCount()
-                            ? QStringLiteral("Sprite %1")
+                            ? tr("Sprite %1")
                                   .arg(static_cast<int>(reference.spriteId))
                         : spriteDisplayName(*document, reference.spriteId);
                 m_slotComboBox->addItem(
                     reference.spriteId == 255
-                        ? QStringLiteral("Slot %1: Empty").arg(static_cast<int>(slot))
-                        : QStringLiteral("Slot %1: %2")
+                        ? tr("Slot %1: Empty").arg(static_cast<int>(slot))
+                        : tr("Slot %1: %2")
                               .arg(static_cast<int>(slot))
                               .arg(assignedSprite),
                     static_cast<int>(slot));
             }
         }
         if (m_slotComboBox->count() == 0) {
-            m_slotComboBox->addItem(QStringLiteral("No slots"), -1);
+            m_slotComboBox->addItem(tr("No slots"), -1);
             m_slotComboBox->setCurrentIndex(0);
         } else if (previousSlotData.isValid()) {
             const int previousIndex = m_slotComboBox->findData(previousSlotData);
@@ -471,7 +472,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
     m_slotComboBox->setEnabled(document && frameIndex.has_value());
 
     if (!document || !frameIndex) {
-        m_frameSpritesLabel->setText(QStringLiteral("No frame sprites"));
+        m_frameSpritesLabel->setText(tr("No frame sprites"));
     } else {
         const std::vector<document::FrameSpriteReference>& references =
             document->frameSpriteReferences(*frameIndex);
@@ -483,7 +484,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
             }
             const QString assignedSprite =
                 reference.spriteId >= document->spriteCount()
-                    ? QStringLiteral("sprite %1").arg(static_cast<int>(reference.spriteId))
+                    ? tr("sprite %1").arg(static_cast<int>(reference.spriteId))
                     : spriteDisplayName(*document, reference.spriteId);
             const bool hdMissing = document->rendersHdPlaneOnly() &&
                                    reference.spriteId < document->spriteCount() &&
@@ -495,13 +496,13 @@ void SpritePanel::refresh(const SpritePanelState& state)
                                    .arg(reference.minY)
                                    .arg(reference.maxX)
                                    .arg(reference.maxY)
-                                   .arg(hdMissing ? QStringLiteral(" %1: frame not rendered")
-                                                        .arg(kNoPictureText)
+                                   .arg(hdMissing ? tr(" %1: frame not rendered")
+                                                        .arg(noPictureText())
                                                   : QString());
         }
         m_frameSpritesLabel->setText(
             assignedSprites.isEmpty()
-                ? QStringLiteral("Current frame uses no sprites")
+                ? tr("Current frame uses no sprites")
                 : assignedSprites.join(QStringLiteral("\n")));
     }
 
@@ -563,9 +564,9 @@ void SpritePanel::refresh(const SpritePanelState& state)
             : std::nullopt;
     m_sourceFrameButton->setEnabled(sourceFrame.has_value());
     m_sourceFrameButton->setToolTip(
-        sourceFrame ? QStringLiteral("Go to frame %1, the frame the sprite was taken from")
+        sourceFrame ? tr("Go to frame %1, the frame the sprite was taken from")
                           .arg(static_cast<qulonglong>(*sourceFrame))
-                    : QStringLiteral("Go to the frame the sprite was taken from"));
+                    : tr("Go to the frame the sprite was taken from"));
     if (!hasSprite) {
         m_detectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);
@@ -581,7 +582,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
         m_detectionAreaYSpinBox->setEnabled(false);
         m_detectionAreaWidthSpinBox->setEnabled(false);
         m_detectionAreaHeightSpinBox->setEnabled(false);
-        m_selectedSpriteLabel->setText(QStringLiteral("Selected: None"));
+        m_selectedSpriteLabel->setText(tr("Selected: None"));
         return;
     }
 
@@ -593,7 +594,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
                                     .arg(static_cast<int>(spriteIndex))
                                     .arg(QString::fromStdString(sprite.name));
     m_selectedSpriteLabel->setText(
-        QStringLiteral("Selected: %1%2")
+        tr("Selected: %1%2")
             .arg(label)
             .arg(extraDataSuffix(*document, sprite.hasHd)));
     {

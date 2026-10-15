@@ -197,6 +197,8 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-ccache
             mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-qt6-translations
             mingw-w64-ucrt-x86_64-ntldd
             zip
             make
@@ -210,7 +212,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            qt6-base-dev qt6-base-dev-tools libgl-dev ninja-build ccache \
+            qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-l10n-tools \
+            qt6-translations-l10n libgl-dev ninja-build ccache \
             libudev-dev autoconf automake libtool pkg-config
           if [ "${{ matrix.arch }}" = aarch64 ]; then
             sudo apt-get install -y --no-install-recommends libgpiod-dev
@@ -224,8 +227,9 @@ jobs:
           host: mac
           target: desktop
           arch: clang_64
-          # Qt Base only (QtWidgets and macdeployqt); the editor needs no other module.
-          archives: qtbase
+          # Qt Base (QtWidgets and macdeployqt), Qt Linguist's lupdate/lrelease for the
+          # translations, and Qt's own translations to build in.
+          archives: qtbase qttools qttranslations
           cache: true
 
       - name: Install tools (macOS)

@@ -84,7 +84,8 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override
     {
         QMenu menu(this);
-        QAction* editAction = menu.addAction(QStringLiteral("Edit Color..."));
+        QAction* editAction = menu.addAction(
+            QCoreApplication::translate("EditColorBar", "Edit Color..."));
         if (menu.exec(event->globalPos()) == editAction && onEditRequested) {
             onEditRequested(m_slot);
         }
@@ -126,14 +127,14 @@ EditColorBar::EditColorBar(QWidget* parent)
     layout->setSpacing(2);
 
     m_singleColorButton = makeButton(this,
-                                     QStringLiteral("1 Color"),
-                                     QStringLiteral("Draw with a single color"),
+                                     tr("1 Color"),
+                                     tr("Draw with a single color"),
                                      true);
     m_colorSetReplaceButton =
         makeButton(this,
-                   QStringLiteral("Set Replace"),
-                   QStringLiteral("Draw replacing each original shade by its edit color "
-                                  "(color set replace)"),
+                   tr("Set Replace"),
+                   tr("Draw replacing each original shade by its edit color "
+                      "(color set replace)"),
                    true);
     auto* modeGroup = new QButtonGroup(this);
     modeGroup->setExclusive(true);
@@ -153,7 +154,7 @@ EditColorBar::EditColorBar(QWidget* parent)
     layout->addWidget(m_singleColorButton);
     layout->addWidget(m_colorSetReplaceButton);
     layout->addSpacing(8);
-    layout->addWidget(new QLabel(QStringLiteral("Edit colors"), this));
+    layout->addWidget(new QLabel(tr("Edit colors"), this));
 
     for (std::size_t slot = 0; slot < document::kEditColorCount; ++slot) {
         auto* swatch = new EditColorSwatch(slot, this);
@@ -182,15 +183,15 @@ EditColorBar::EditColorBar(QWidget* parent)
     layout->addSpacing(8);
     m_toDynamicButton =
         makeButton(this,
-                   QStringLiteral("Edit > Dyn"),
-                   QStringLiteral("Copy the edit colors into the current dynamic set of the "
-                                  "selected frames"),
+                   tr("Edit > Dyn"),
+                   tr("Copy the edit colors into the current dynamic set of the "
+                      "selected frames"),
                    false);
     m_fromDynamicButton =
         makeButton(this,
-                   QStringLiteral("Dyn > Edit"),
-                   QStringLiteral("Copy the colors of the current frame's current dynamic set "
-                                  "to the edit colors"),
+                   tr("Dyn > Edit"),
+                   tr("Copy the colors of the current frame's current dynamic set "
+                      "to the edit colors"),
                    false);
     connect(m_toDynamicButton, &QToolButton::clicked, this, [this]() {
         if (onEditColorsToDynamicRequested) {
@@ -261,14 +262,14 @@ void EditColorBar::setSlotKeyNames(std::vector<QString> keyNames)
 void EditColorBar::updateToolTips()
 {
     for (std::size_t slot = 0; slot < m_swatches.size(); ++slot) {
-        QString tip = QStringLiteral("Edit color %1").arg(static_cast<int>(slot));
+        QString tip = tr("Edit color %1").arg(static_cast<int>(slot));
         if (slot < m_colorCount && slot < m_colors.size()) {
-            tip += QStringLiteral(": 0x%1, replaces shade %2")
+            tip += tr(": 0x%1, replaces shade %2")
                        .arg(m_colors[slot], 4, 16, QLatin1Char('0'))
                        .arg(static_cast<int>(slot));
         }
         if (slot < m_keyNames.size() && !m_keyNames[slot].isEmpty()) {
-            tip += QStringLiteral(" (key %1)").arg(m_keyNames[slot]);
+            tip += tr(" (key %1)").arg(m_keyNames[slot]);
         }
         m_swatches[slot]->setToolTip(tip);
     }

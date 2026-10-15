@@ -46,16 +46,16 @@ ProjectTaskDialog::ProjectTaskDialog(const QString& title,
     setMinimumWidth(380);
 
     m_label = new QLabel(this);
-    m_label->setToolTip(QStringLiteral("What the editor is doing with the project files"));
+    m_label->setToolTip(tr("What the editor is doing with the project files"));
     m_bar = new QProgressBar(this);
     m_bar->setRange(0, kProgressSteps);
     m_bar->setTextVisible(false);
-    m_bar->setToolTip(QStringLiteral("How much of the project files is done"));
-    m_cancelButton = new QPushButton(QStringLiteral("Cancel"), this);
+    m_bar->setToolTip(tr("How much of the project files is done"));
+    m_cancelButton = new QPushButton(tr("Cancel"), this);
     m_cancelButton->setAutoDefault(false);
     m_cancelButton->setToolTip(
-        QStringLiteral("Stop: an open keeps the project that is open now, a save leaves the "
-                       "files on disk as they were"));
+        tr("Stop: an open keeps the project that is open now, a save leaves the "
+           "files on disk as they were"));
     connect(m_cancelButton, &QPushButton::clicked, this, [this]() { requestCancel(); });
 
     auto* buttons = new QHBoxLayout;
@@ -105,40 +105,39 @@ void ProjectTaskDialog::updateProgress()
     QString text;
     switch (stage) {
     case legacy::LegacyIoStage::Starting:
-        text = QStringLiteral("Starting…");
+        text = tr("Starting…");
         break;
     case legacy::LegacyIoStage::Reading:
-        text = QStringLiteral("Reading the project: %1 of %2 MB")
-                   .arg(megabytes(done), megabytes(total));
+        text = tr("Reading the project: %1 of %2 MB").arg(megabytes(done), megabytes(total));
         break;
     case legacy::LegacyIoStage::Decompressing:
-        text = QStringLiteral("Unpacking the .cRZ archive…");
+        text = tr("Unpacking the .cRZ archive…");
         break;
     case legacy::LegacyIoStage::Writing:
-        text = QStringLiteral("Writing the .cROM and .cRPX: %1 of %2 MB")
+        text = tr("Writing the .cROM and .cRPX: %1 of %2 MB")
                    .arg(megabytes(done), megabytes(total));
         break;
     case legacy::LegacyIoStage::Compressing:
-        text = QStringLiteral("Packing the .cRZ archive (this step cannot be interrupted)…");
+        text = tr("Packing the .cRZ archive (this step cannot be interrupted)…");
         break;
     case legacy::LegacyIoStage::Replacing:
-        text = QStringLiteral("Replacing the project files…");
+        text = tr("Replacing the project files…");
         break;
     case legacy::LegacyIoStage::ExportingFrames:
-        text = QStringLiteral("Writing frame %1 of %2…")
+        text = tr("Writing frame %1 of %2…")
                    .arg(static_cast<qulonglong>(std::min(done + 1, total)))
                    .arg(static_cast<qulonglong>(total));
         break;
     case legacy::LegacyIoStage::Generating:
-        text = QStringLiteral("libserum generates the .cROMc (this step cannot be interrupted)…");
+        text = tr("libserum generates the .cROMc (this step cannot be interrupted)…");
         break;
     }
     if (cancelling) {
         text = stage == legacy::LegacyIoStage::Decompressing ||
                        stage == legacy::LegacyIoStage::Compressing ||
                        stage == legacy::LegacyIoStage::Generating
-                   ? QStringLiteral("Cancelling when this step ends…")
-                   : QStringLiteral("Cancelling…");
+                   ? tr("Cancelling when this step ends…")
+                   : tr("Cancelling…");
     }
     m_label->setText(text);
     if (measured) {

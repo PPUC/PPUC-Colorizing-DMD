@@ -2,6 +2,7 @@
 
 #include <functional>
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QString>
 
@@ -17,6 +18,8 @@ namespace colorizing::app {
 // Edit -> Auto Select... (the Win32 auto selection fields under IDC_DOAUTOSEL): stripes of rows
 // or columns.
 class AutoSelectDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(AutoSelectDialog)
+
 public:
     explicit AutoSelectDialog(QWidget* parent = nullptr);
 
@@ -32,6 +35,8 @@ private:
 
 // Edit -> Auto Copy...: where to look, and what was found there before anything changes.
 class AutoCopyDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(AutoCopyDialog)
+
 public:
     // describe gives the text for "selected frames only" or all frames; it runs the scan.
     AutoCopyDialog(bool hasSelectedFrames,

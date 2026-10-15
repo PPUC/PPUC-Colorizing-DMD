@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <QColor>
+#include <QCoreApplication>
 #include <QString>
 
 #include "document/ProjectDocument.h"
@@ -101,6 +102,8 @@ struct CanvasEditOutputs {
 // selection, a pending free palette gradient and the sprite capture selection. It never edits
 // the document or a widget itself; see CanvasEditOutputs.
 class CanvasEditController {
+    Q_DECLARE_TR_FUNCTIONS(CanvasEditController)
+
 public:
     explicit CanvasEditController(CanvasEditOutputs outputs = {});
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "DmdOutput.h"
@@ -15,6 +16,8 @@ namespace colorizing::app {
 // The DMD Output page of the Settings dialog: which displays libdmdutil drives and which
 // plane they get (see DmdOutputSettings).
 class DmdOutputSettingsPage final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(DmdOutputSettingsPage)
+
 public:
     explicit DmdOutputSettingsPage(const DmdOutputSettings& settings, QWidget* parent = nullptr);
 

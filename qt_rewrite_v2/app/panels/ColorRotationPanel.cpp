@@ -19,43 +19,43 @@ ColorRotationPanel::ColorRotationPanel(QWidget* parent)
     : QWidget(parent)
 {
     m_slotComboBox = new QComboBox(this);
-    m_slotComboBox->setToolTip(QStringLiteral("Color rotation slot for the active SD/HD mode"));
+    m_slotComboBox->setToolTip(tr("Color rotation slot for the active SD/HD mode"));
     for (std::size_t slotIndex = 0; slotIndex < document::kMaxColorRotations; ++slotIndex) {
-        m_slotComboBox->addItem(QStringLiteral("Slot %1").arg(static_cast<int>(slotIndex)),
+        m_slotComboBox->addItem(tr("Slot %1").arg(static_cast<int>(slotIndex)),
                                 static_cast<int>(slotIndex));
     }
     m_slotComboBox->setEnabled(false);
     m_lengthSpinBox = new QSpinBox(this);
-    m_lengthSpinBox->setToolTip(QStringLiteral("Number of colors in this rotation"));
+    m_lengthSpinBox->setToolTip(tr("Number of colors in this rotation"));
     m_lengthSpinBox->setRange(0, static_cast<int>(document::kMaxColorRotationColors));
     m_lengthSpinBox->setEnabled(false);
     // A typed value is one edit (and one undo step) when it is confirmed, not one per digit.
     m_lengthSpinBox->setKeyboardTracking(false);
     m_delaySpinBox = new QSpinBox(this);
-    m_delaySpinBox->setToolTip(QStringLiteral("Delay between rotation steps"));
+    m_delaySpinBox->setToolTip(tr("Delay between rotation steps"));
     m_delaySpinBox->setRange(0, 2048);
     m_delaySpinBox->setSingleStep(10);
-    m_delaySpinBox->setSuffix(QStringLiteral(" ms"));
+    m_delaySpinBox->setSuffix(tr(" ms"));
     m_delaySpinBox->setKeyboardTracking(false);
     m_delaySpinBox->setEnabled(false);
     m_grid = new ColorGridWidget(document::kMaxColorRotationColors, 8, this);
-    m_grid->setToolTip(QStringLiteral("Colors in the selected rotation"));
+    m_grid->setToolTip(tr("Colors in the selected rotation"));
     m_grid->setColorClickedHandler([this](std::size_t colorIndex) {
         if (onColorClicked) {
             onColorClicked(selectedSlotIndex(), colorIndex);
         }
     });
     m_clearSlotButton = new QToolButton(this);
-    m_clearSlotButton->setText(QStringLiteral("Clear Slot"));
-    m_clearSlotButton->setToolTip(QStringLiteral("Clear the selected color rotation slot"));
+    m_clearSlotButton->setText(tr("Clear Slot"));
+    m_clearSlotButton->setToolTip(tr("Clear the selected color rotation slot"));
     m_clearSlotButton->setEnabled(false);
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
     auto* form = new QFormLayout();
-    form->addRow(QStringLiteral("Slot"), m_slotComboBox);
-    form->addRow(QStringLiteral("Length"), m_lengthSpinBox);
-    form->addRow(QStringLiteral("Delay"), m_delaySpinBox);
+    form->addRow(tr("Slot"), m_slotComboBox);
+    form->addRow(tr("Length"), m_lengthSpinBox);
+    form->addRow(tr("Delay"), m_delaySpinBox);
     pageLayout->addLayout(form);
     pageLayout->addWidget(m_grid);
     pageLayout->addWidget(m_clearSlotButton);
@@ -98,8 +98,8 @@ void ColorRotationPanel::refresh(const document::ProjectDocument* document,
 {
     const bool hasFrame = document && frameIndex.has_value();
     m_slotComboBox->setToolTip(hasHdAsExtraResolution(document)
-                                   ? QStringLiteral("Color rotation slot for the active SD/HD mode")
-                                   : QStringLiteral("Color rotation slot"));
+                                   ? tr("Color rotation slot for the active SD/HD mode")
+                                   : tr("Color rotation slot"));
     QSignalBlocker slotBlocker(m_slotComboBox);
     QSignalBlocker lengthBlocker(m_lengthSpinBox);
     QSignalBlocker delayBlocker(m_delaySpinBox);

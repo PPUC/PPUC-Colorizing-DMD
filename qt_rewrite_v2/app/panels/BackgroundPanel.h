@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
@@ -26,6 +27,8 @@ struct BackgroundPanelState {
 // Inspector page for the selected background. It only displays and reports what the user
 // asked for; the owner applies the edits and calls refresh().
 class BackgroundPanel final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(BackgroundPanel)
+
 public:
     explicit BackgroundPanel(QWidget* parent = nullptr);
 

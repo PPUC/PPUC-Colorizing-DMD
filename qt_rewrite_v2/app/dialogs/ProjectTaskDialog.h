@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QString>
 
@@ -20,6 +21,8 @@ namespace colorizing::app {
 // Shown by runProjectTask(); it closes itself when the work has ended. Closing it any other
 // way (Esc, the window's close button) asks to cancel, as Cancel does, and waits for the end.
 class ProjectTaskDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(ProjectTaskDialog)
+
 public:
     ProjectTaskDialog(const QString& title,
                       legacy::LegacyIoProgress& progress,

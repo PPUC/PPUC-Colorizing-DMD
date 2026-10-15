@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QString>
 #include <QWidget>
 
@@ -15,6 +16,8 @@ namespace colorizing::app {
 // under :/handbook), searchable. The chapters of the user interface language are shown when
 // there are any, the English ones otherwise.
 class HandbookWindow final : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(HandbookWindow)
+
 public:
     explicit HandbookWindow(QWidget* parent = nullptr);
 

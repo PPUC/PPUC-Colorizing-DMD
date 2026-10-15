@@ -5,6 +5,7 @@
 #include <functional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QWidget>
 
 class QToolButton;
@@ -12,6 +13,8 @@ class QToolButton;
 namespace colorizing::app {
 
 class ColorGridWidget : public QWidget {
+    Q_DECLARE_TR_FUNCTIONS(ColorGridWidget)
+
 public:
     explicit ColorGridWidget(std::size_t colorCount,
                              int columns,

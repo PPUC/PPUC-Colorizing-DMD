@@ -115,7 +115,7 @@ ColorGridWidget::ColorGridWidget(std::size_t colorCount, int columns, QWidget* p
         button->setText(QString::number(static_cast<int>(index)));
         button->setFixedSize(24, 20);
         button->setEnabled(false);
-        button->setToolTip(QStringLiteral("Color %1").arg(static_cast<int>(index)));
+        button->setToolTip(tr("Color %1").arg(static_cast<int>(index)));
         const int row = static_cast<int>(index) / safeColumns;
         const int column = static_cast<int>(index) % safeColumns;
         layout->addWidget(button, row, column);
@@ -157,10 +157,10 @@ void ColorGridWidget::setColors(const std::vector<uint16_t>& colors, std::size_t
         button->setStyleSheet(colorButtonStyle(color, active));
         const int displayIndex = static_cast<int>(index) + m_displayIndexOffset;
         button->setToolTip(active
-                               ? QStringLiteral("Color %1: 0x%2")
+                               ? tr("Color %1: 0x%2")
                                      .arg(displayIndex)
                                      .arg(color, 4, 16, QLatin1Char('0'))
-                               : QStringLiteral("Color %1 is outside the active rotation length")
+                               : tr("Color %1 is outside the active rotation length")
                                      .arg(displayIndex));
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QString>
 #include <QTimer>
@@ -31,6 +32,8 @@ namespace colorizing::app {
 // Modal: libserum holds one colorization per process, and the project must not change while
 // it is loaded (adding a dump frame reloads it).
 class FrameTesterDialog final : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(FrameTesterDialog)
+
 public:
     FrameTesterDialog(const document::ProjectDocument& document,
                       std::vector<std::size_t> selectedFrames,

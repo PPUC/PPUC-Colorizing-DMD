@@ -35,7 +35,8 @@ const edit::PlaneSelection* areaOn(const edit::PlaneSelection* selection, render
 
 QString framesText(std::size_t count)
 {
-    return QStringLiteral("%1 frame(s)").arg(static_cast<qulonglong>(count));
+    return QCoreApplication::translate("EditHelpersController", "%1 frame(s)")
+        .arg(static_cast<qulonglong>(count));
 }
 
 }  // namespace
@@ -58,20 +59,20 @@ QString EditHelpersController::autoCopyRefusal(const CanvasEditContext& context,
                                                const edit::PlaneSelection* selection)
 {
     if (!context.document || !context.currentFrame) {
-        return QStringLiteral("No frame");
+        return tr("No frame");
     }
     if (!editsFramePixels(context)) {
-        return QStringLiteral("Auto copy works on the frame's pixels");
+        return tr("Auto copy works on the frame's pixels");
     }
     if (!selection) {
-        return QStringLiteral("Select the part of the frame to look for first");
+        return tr("Select the part of the frame to look for first");
     }
     if (selection->plane() != context.activePlane) {
-        return QStringLiteral("The selection is on the other plane");
+        return tr("The selection is on the other plane");
     }
     if (selection->plane() == render::Resolution::Hd &&
         !context.document->hasHdFrame(*context.currentFrame)) {
-        return QStringLiteral("The frame has no picture on this plane");
+        return tr("The frame has no picture on this plane");
     }
     return QString();
 }
@@ -110,16 +111,16 @@ void EditHelpersController::applyAutoCopy(const CanvasEditContext& context,
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Auto copy: %1 updated").arg(framesText(changed)), kStatusMs);
+    showStatus(tr("Auto copy: %1 updated").arg(framesText(changed)), kStatusMs);
 }
 
 QString EditHelpersController::scrollFillRefusal(const CanvasEditContext& context)
 {
     if (!context.document || !context.currentFrame) {
-        return QStringLiteral("No frame");
+        return tr("No frame");
     }
     if (!editsFramePixels(context)) {
-        return QStringLiteral("The scrolling fill works on the frame's pixels");
+        return tr("The scrolling fill works on the frame's pixels");
     }
     return QString();
 }
@@ -142,7 +143,7 @@ void EditHelpersController::applyScrollFill(const CanvasEditContext& context, Sc
         changes.emplace_back(frame.frameIndex, std::move(frame.changes));
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Scrolling fill: %1 updated").arg(framesText(changed)), kStatusMs);
+    showStatus(tr("Scrolling fill: %1 updated").arg(framesText(changed)), kStatusMs);
 }
 
 void EditHelpersController::recolor(const CanvasEditContext& context,
@@ -156,8 +157,8 @@ void EditHelpersController::recolor(const CanvasEditContext& context,
     try {
         if (edit::isDynamicPixel(document, *context.currentFrame, hit.resolution,
                                  render::Point{hit.x, hit.y})) {
-            showStatus(QStringLiteral("The pixel is dynamically colored; recolor works on static "
-                                      "content only"),
+            showStatus(tr("The pixel is dynamically colored; recolor works on static "
+                          "content only"),
                        kLongStatusMs);
             return;
         }
@@ -178,7 +179,7 @@ void EditHelpersController::recolor(const CanvasEditContext& context,
                                                           color, source));
         }
         const std::size_t changed = commitAll(context, std::move(changes));
-        showStatus(QStringLiteral("Recolored the pixels of color 0x%1 on %2")
+        showStatus(tr("Recolored the pixels of color 0x%1 on %2")
                        .arg(color, 4, 16, QLatin1Char('0'))
                        .arg(framesText(changed)),
                    kStatusMs);
@@ -191,7 +192,7 @@ void EditHelpersController::blackOriginalToBlack(const CanvasEditContext& contex
                                                  const edit::PlaneSelection* selection)
 {
     if (!context.document || !context.currentFrame || !editsFramePixels(context)) {
-        showStatus(QStringLiteral("Black original to black works on the frame's pixels"),
+        showStatus(tr("Black original to black works on the frame's pixels"),
                    kStatusMs);
         return;
     }
@@ -210,8 +211,8 @@ void EditHelpersController::blackOriginalToBlack(const CanvasEditContext& contex
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Black original to black%1: %2 changed")
-                   .arg(area ? QStringLiteral(" in the selection") : QString())
+    showStatus((area ? tr("Black original to black in the selection: %1 changed")
+                     : tr("Black original to black: %1 changed"))
                    .arg(framesText(changed)),
                kStatusMs);
 }
@@ -219,13 +220,13 @@ void EditHelpersController::blackOriginalToBlack(const CanvasEditContext& contex
 bool EditHelpersController::requireDynamicPlane(const CanvasEditContext& context) const
 {
     if (!context.document || !context.currentFrame || !editsFramePixels(context)) {
-        showStatus(QStringLiteral("The dynamic helpers work on the frame's pixels"), kStatusMs);
+        showStatus(tr("The dynamic helpers work on the frame's pixels"), kStatusMs);
         return false;
     }
     const render::Resolution plane = context.document->dynamicPlane();
     if (context.activePlane != plane) {
         const render::Size size = context.document->geometry().planeSize(plane);
-        showStatus(QStringLiteral("Dynamic zones are defined on the %1x%2 plane only")
+        showStatus(tr("Dynamic zones are defined on the %1x%2 plane only")
                        .arg(size.width)
                        .arg(size.height),
                    kLongStatusMs);
@@ -253,8 +254,8 @@ void EditHelpersController::removeDynamicContent(const CanvasEditContext& contex
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Removed the dynamic zones%1: %2 changed")
-                   .arg(area ? QStringLiteral(" in the selection") : QString())
+    showStatus((area ? tr("Removed the dynamic zones in the selection: %1 changed")
+                     : tr("Removed the dynamic zones: %1 changed"))
                    .arg(framesText(changed)),
                kStatusMs);
 }
@@ -277,8 +278,8 @@ void EditHelpersController::dynamicToStatic(const CanvasEditContext& context,
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Made the dynamic content static%1: %2 changed")
-                   .arg(area ? QStringLiteral(" in the selection") : QString())
+    showStatus((area ? tr("Made the dynamic content static in the selection: %1 changed")
+                     : tr("Made the dynamic content static: %1 changed"))
                    .arg(framesText(changed)),
                kStatusMs);
 }
@@ -289,7 +290,7 @@ void EditHelpersController::brightness(const CanvasEditContext& context,
 {
     const edit::PlaneSelection* area = areaOn(selection, context.activePlane);
     if (!context.document || !area) {
-        showStatus(QStringLiteral("Brightness works on the selected pixels: select them first"),
+        showStatus(tr("Brightness works on the selected pixels: select them first"),
                    kLongStatusMs);
         return;
     }
@@ -308,7 +309,7 @@ void EditHelpersController::brightness(const CanvasEditContext& context,
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Brightness %1%: %2 changed")
+    showStatus(tr("Brightness %1%: %2 changed")
                    .arg(qRound(coefficient * 100))
                    .arg(framesText(changed)),
                kStatusMs);
@@ -320,7 +321,7 @@ void EditHelpersController::shadowSelection(const CanvasEditContext& context,
 {
     const edit::PlaneSelection* area = areaOn(selection, context.activePlane);
     if (!context.document || !area) {
-        showStatus(QStringLiteral("A shadow goes around the selection: select first"),
+        showStatus(tr("A shadow goes around the selection: select first"),
                    kLongStatusMs);
         return;
     }
@@ -340,7 +341,7 @@ void EditHelpersController::shadowSelection(const CanvasEditContext& context,
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Drew a shadow next to the selection: %1 changed")
+    showStatus(tr("Drew a shadow next to the selection: %1 changed")
                    .arg(framesText(changed)),
                kStatusMs);
 }
@@ -366,9 +367,9 @@ void EditHelpersController::assignDynamicSet(const CanvasEditContext& context,
         return;
     }
     const std::size_t changed = commitAll(context, std::move(changes));
-    showStatus(QStringLiteral("Dynamic set %1 assigned%2: %3 changed")
+    showStatus((area ? tr("Dynamic set %1 assigned to the selection: %2 changed")
+                     : tr("Dynamic set %1 assigned: %2 changed"))
                    .arg(static_cast<int>(context.dynamicSet))
-                   .arg(area ? QStringLiteral(" to the selection") : QString())
                    .arg(framesText(changed)),
                kStatusMs);
 }

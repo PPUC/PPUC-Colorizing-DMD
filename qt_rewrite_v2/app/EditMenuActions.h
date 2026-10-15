@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QKeySequence>
 #include <QObject>
 #include <QString>
@@ -37,6 +38,8 @@ namespace colorizing::app {
 // Standard keys go to text fields and lists first: with a line edit, a spin box or a list in
 // focus, Copy, Paste and Select All do what they do there (see forwardStandardKey()).
 class EditMenuActions final : public QObject {
+    Q_DECLARE_TR_FUNCTIONS(EditMenuActions)
+
 public:
     EditMenuActions(QMenu* menu, QObject* parent);
 

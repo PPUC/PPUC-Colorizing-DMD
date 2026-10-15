@@ -15,6 +15,7 @@
 #include <QTemporaryDir>
 
 #include "Appearance.h"
+#include "Translations.h"
 #include "dialogs/SettingsDialog.h"
 
 namespace {
@@ -90,6 +91,13 @@ void runSettingsWidgetTests()
                dialog.dmdOutputSettings().picture == app::DmdOutputSettings::Picture::Extra &&
                dialog.dmdOutputSettings().serverPort == 6791,
            "the dialog shows what it was given");
+    expect(dialog.language().isEmpty(), "the language follows the system until chosen");
+    dialog.setLanguage(QStringLiteral("de"));
+    expect(dialog.language() == QStringLiteral("de"), "a language can be chosen");
+    app::saveLanguage(QStringLiteral("fr"));
+    expect(app::loadLanguage() == QStringLiteral("fr"), "the language is kept");
+    app::saveLanguage(QString());
+    expect(app::loadLanguage().isEmpty(), "and back to the system's");
     dialog.showPage(app::SettingsDialog::Page::DmdOutput);
     const auto* tabs = dialog.findChild<QTabWidget*>();
     expect(tabs && tabs->currentIndex() == 1 &&
