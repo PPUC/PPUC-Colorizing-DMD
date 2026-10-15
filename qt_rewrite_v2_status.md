@@ -1134,6 +1134,15 @@ table as a plugin does. The AI assistant plugin that uses it lives in its own re
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 
+## GIF export with originals (2026-10-15)
+
+Author feedback: CDMD's Shift+click on the GIF export added the originals (master
+`SaveAnimatedGif`/`CreateGIF`: original on top in `originalcolors`, 15 px separation, same
+MUL_SIZE_GIF scale; CDMD also stacks the extra plane under SD when available, which ours does
+not: ours exports the canvas's plane). `GifExportOptions::includeOriginal` (original above,
+`kGifOriginalGap`, narrower centred, shades of `originalIndexToColor`); `File -> Export Animated
+GIF With Originals...` and Shift held on `Export Animated GIF...`.
+
 ## Undo anywhere (2026-10-15)
 
 Owner reported: after a paste, Undo reached only the paste. Cause: the per-frame histories (by

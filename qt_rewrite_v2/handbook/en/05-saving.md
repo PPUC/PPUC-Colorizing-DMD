@@ -130,8 +130,13 @@ that loops, as CDMD's GIF export:
 - The pictures are the ones the editor composes on the plane the canvas shows (SD or HD; the
   native plane of a 256x64 or 192x64 project), with the background when the canvas's background
   layer is on. Every frame must have that plane.
+- `File -> Export Animated GIF With Originals...`, or holding `Shift` while choosing `Export
+  Animated GIF...` (the Win32 editor's Shift+click), puts each original frame above its
+  colorized picture, in the shades the editor shows originals in, 15 picture pixels apart and
+  with the same dot size; the narrower of the two is centred.
 - A frame pixel becomes a square dot with a black gap, about 640 picture pixels across (5 per
-  pixel of a 128-wide plane, 3 of 192, 2 of 256, which has no gap).
+  pixel of a 128-wide plane, 3 of 192, 2 of 256, which has no gap; with the originals, the wider
+  of the original and the plane counts).
 - Colour rotations step as in the editor's preview: a picture at every step within the frame's
   duration; they start again with every frame.
 - Each picture shows for its frame's duration or until the next rotation step. GIF counts time

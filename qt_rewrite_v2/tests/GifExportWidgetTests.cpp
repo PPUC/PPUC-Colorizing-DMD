@@ -89,6 +89,32 @@ void runGifExportWidgetTests()
     expect(images[0].pixel(5 + 4, 1) == qRgb(0, 0, 0), "and a black gap");
     expect(images[1] != images[2], "the rotation step changes the picture");
 
+    // With the originals: the original frame above, 15 pixels apart, in the editor's shades.
+    app::GifExportOptions withOriginals = options;
+    withOriginals.includeOriginal = true;
+    std::ostringstream originalStream;
+    expect(app::writeAnimatedGif(document, {0}, withOriginals, originalStream).ok,
+           "written with the originals");
+    const std::string originalBytes = originalStream.str();
+    QByteArray originalData(originalBytes.data(), static_cast<qsizetype>(originalBytes.size()));
+    QBuffer originalBuffer(&originalData);
+    originalBuffer.open(QIODevice::ReadOnly);
+    QImageReader originalReader(&originalBuffer, "gif");
+    const QImage both = originalReader.read().convertToFormat(QImage::Format_RGB32);
+    const render::Size originalSize = document.originalFrameSize();
+    const int top = originalSize.height * 5 + app::kGifOriginalGap;
+    expect(both.width() == std::max(128, originalSize.width) * 5 &&
+               both.height() == top + 32 * 5,
+           "the original takes its rows and the gap above the colorized picture");
+    const QColor shade = app::originalIndexToColor(
+        document.originalFrame(0).pixels[1], document.colorCount());
+    const QColor drawn = QColor::fromRgb(both.pixel(5 + 1, 1));
+    expect(std::abs(drawn.red() - shade.red()) < 9 && std::abs(drawn.green() - shade.green()) < 5 &&
+               std::abs(drawn.blue() - shade.blue()) < 9,
+           "the original's dot has the shade the editor shows");
+    expect(both.pixel(5 + 1, top + 1) == qRgb(r, g, b), "the colorized dot sits below it");
+    expect(both.pixel(5 + 1, top - 2) == qRgb(0, 0, 0), "with black between them");
+
     document::ProjectSnapshot withoutHd =
         runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary);
     const document::ProjectDocument noHd =

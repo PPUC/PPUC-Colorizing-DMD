@@ -37,6 +37,46 @@ std::vector<uint16_t> scaledPicture(const document::Rgb565Frame& frame, int scal
     return pixels;
 }
 
+uint16_t toRgb565(const QColor& color)
+{
+    return static_cast<uint16_t>(((color.red() >> 3) << 11) | ((color.green() >> 2) << 5) |
+                                 (color.blue() >> 3));
+}
+
+// The original frame in the editor's shades, as an RGB565 picture.
+document::Rgb565Frame originalPicture(const document::ProjectDocument& document,
+                                      std::size_t frameIndex)
+{
+    const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    document::Rgb565Frame picture;
+    picture.size = original.size;
+    std::vector<uint16_t> pixels(original.pixels.size());
+    for (std::size_t index = 0; index < pixels.size(); ++index) {
+        pixels[index] =
+            toRgb565(originalIndexToColor(original.pixels[index], document.colorCount()));
+    }
+    picture.pixels = document::CompactArray<uint16_t>(std::move(pixels));
+    return picture;
+}
+
+// Copies a picture of the given width into the canvas at x, y.
+void place(std::vector<uint16_t>& canvas,
+           int canvasWidth,
+           const std::vector<uint16_t>& picture,
+           int pictureWidth,
+           int x,
+           int y)
+{
+    if (pictureWidth <= 0) {
+        return;
+    }
+    const int rows = static_cast<int>(picture.size()) / pictureWidth;
+    for (int row = 0; row < rows; ++row) {
+        std::copy_n(picture.data() + static_cast<std::size_t>(row) * pictureWidth, pictureWidth,
+                    canvas.data() + static_cast<std::size_t>(y + row) * canvasWidth + x);
+    }
+}
+
 }  // namespace
 
 std::vector<uint32_t> colorRotationSteps(const document::ProjectDocument& document,
@@ -87,7 +127,17 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
     }
     try {
         const int scale = std::max(1, options.pixelScale);
-        exporting::GifWriter writer(stream, planeSize.width * scale, planeSize.height * scale);
+        // With the original: it on top, the colorized picture below, the narrower centred.
+        const render::Size originalSize =
+            options.includeOriginal ? document.originalFrameSize() : render::Size{0, 0};
+        const int width = std::max(planeSize.width, originalSize.width) * scale;
+        const int originalTop = 0;
+        const int colorizedTop =
+            options.includeOriginal ? originalSize.height * scale + kGifOriginalGap : 0;
+        const int height = colorizedTop + planeSize.height * scale;
+        const int colorizedLeft = (width - planeSize.width * scale) / 2;
+        const int originalLeft = (width - originalSize.width * scale) / 2;
+        exporting::GifWriter writer(stream, width, height);
         // The picture waiting to be written: it shows until the next one starts.
         std::optional<std::vector<uint16_t>> pending;
         uint64_t writtenCs = 0;
@@ -122,6 +172,11 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
                 document, frameIndex, options.plane, options.includeBackground, &notRotating);
             const std::vector<uint32_t> steps =
                 colorRotationSteps(document, frameIndex, options.plane, duration);
+            std::vector<uint16_t> canvas(static_cast<std::size_t>(width) * height, 0);
+            if (options.includeOriginal) {
+                place(canvas, width, scaledPicture(originalPicture(document, frameIndex), scale),
+                      originalSize.width * scale, originalLeft, originalTop);
+            }
             for (uint32_t step : steps) {
                 flush(timeMs + step, false);
                 document::Rgb565Frame picture = composed;
@@ -131,7 +186,9 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
                                     static_cast<int>(step),
                                     picture,
                                     &notRotating);
-                pending = scaledPicture(picture, scale);
+                place(canvas, width, scaledPicture(picture, scale), planeSize.width * scale,
+                      colorizedLeft, colorizedTop);
+                pending = canvas;
             }
             timeMs += duration;
             if (progress) {

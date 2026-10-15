@@ -2421,6 +2421,14 @@ Use Create %1 Frame.</source>
         <translation>Hilfslinie verschoben</translation>
     </message>
     <message>
+        <source>Export Animated GIF With &amp;Originals...</source>
+        <translation>Animiertes GIF mit O&amp;riginalen exportieren...</translation>
+    </message>
+    <message>
+        <source>Write the selected frames as an animated GIF, each original frame above its colorized picture</source>
+        <translation>Die ausgewählten Frames als animiertes GIF schreiben, jeden Original-Frame über seinem kolorierten Bild</translation>
+    </message>
+    <message>
         <source>Import Mo&amp;vie Clip Into Selected Frames...</source>
         <translation>&amp;Filmclip in ausgewählte Frames importieren...</translation>
     </message>

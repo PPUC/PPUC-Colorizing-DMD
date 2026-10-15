@@ -2421,6 +2421,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Ligne d&apos;aide déplacée</translation>
     </message>
     <message>
+        <source>Export Animated GIF With &amp;Originals...</source>
+        <translation>Exporter un GIF animé avec les o&amp;riginaux...</translation>
+    </message>
+    <message>
+        <source>Write the selected frames as an animated GIF, each original frame above its colorized picture</source>
+        <translation>Écrire les frames sélectionnées en GIF animé, chaque frame originale au-dessus de son image colorisée</translation>
+    </message>
+    <message>
         <source>Import Mo&amp;vie Clip Into Selected Frames...</source>
         <translation>Importer un clip &amp;vidéo dans les frames sélectionnées...</translation>
     </message>

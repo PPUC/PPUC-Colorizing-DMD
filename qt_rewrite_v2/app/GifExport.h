@@ -19,7 +19,13 @@ struct GifExportOptions {
     int pixelScale = 5;
     // With the frame's background, as the canvas's background layer shows it.
     bool includeBackground = true;
+    // The original frame above the colorized picture, in the shades the editor shows it in,
+    // kGifOriginalGap picture pixels apart, at the same pixel scale (the Win32 editor's
+    // Shift+click on its GIF button). The narrower of the two is centred.
+    bool includeOriginal = false;
 };
+
+inline constexpr int kGifOriginalGap = 15;
 
 struct GifExportResult {
     bool ok = false;

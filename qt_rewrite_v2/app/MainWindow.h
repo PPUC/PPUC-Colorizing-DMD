@@ -135,7 +135,8 @@ private:
     // See FrameTesterDialog.
     void openFrameTester();
     // The selected frames as an animated GIF, see GifExport.h.
-    void exportAnimatedGif();
+    // withOriginals: each original frame above its colorized picture.
+    void exportAnimatedGif(bool withOriginals = false);
     // View -> Output To DMD, see DmdOutput.h.
     void setDmdOutputEnabled(bool enabled);
     // File -> Settings (the application menu on macOS), opened at the page.

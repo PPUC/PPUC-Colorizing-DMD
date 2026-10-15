@@ -622,7 +622,17 @@ void MainWindow::createActions()
     QAction* exportGifAction = fileMenu->addAction(tr("Export Animated &GIF..."));
     exportGifAction->setToolTip(tr(
         "Write the selected frames, with their colour rotations, as an animated GIF"));
-    connect(exportGifAction, &QAction::triggered, this, [this]() { exportAnimatedGif(); });
+    // Shift held when it is chosen adds the originals, as the Win32 editor's Shift+click did.
+    connect(exportGifAction, &QAction::triggered, this, [this]() {
+        exportAnimatedGif(QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier));
+    });
+    QAction* exportGifOriginalsAction =
+        fileMenu->addAction(tr("Export Animated GIF With &Originals..."));
+    exportGifOriginalsAction->setToolTip(
+        tr("Write the selected frames as an animated GIF, each original frame above its "
+           "colorized picture"));
+    connect(exportGifOriginalsAction, &QAction::triggered, this,
+            [this]() { exportAnimatedGif(true); });
 
     QAction* exportFrameAction = fileMenu->addAction(tr("Export Current &Frame PNG..."));
     exportFrameAction->setToolTip(tr("Export the current frame as libserum renders it"));
@@ -2503,7 +2513,7 @@ void MainWindow::sendDmdPicture()
     m_dmdOutput.show(composeResolvedFrame(*m_document, *frameIndex, plane, background));
 }
 
-void MainWindow::exportAnimatedGif()
+void MainWindow::exportAnimatedGif(bool withOriginals)
 {
     if (!m_document) {
         statusBar()->showMessage(tr("No project loaded"), 2500);
@@ -2520,9 +2530,12 @@ void MainWindow::exportAnimatedGif()
                     : m_document->editsOriginalPlaneOnly() ? render::Resolution::Sd
                                                            : m_activeResolution;
     options.includeBackground = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
+    options.includeOriginal = withOriginals;
     const render::Size planeSize = m_document->geometry().planeSize(options.plane);
+    const int widest = std::max(planeSize.width,
+                                withOriginals ? m_document->originalFrameSize().width : 0);
     // About 640 picture pixels across: 5 per pixel of a 128-wide plane, 3 of 192, 2 of 256.
-    options.pixelScale = std::max(2, 640 / std::max(1, planeSize.width));
+    options.pixelScale = std::max(2, 640 / std::max(1, widest));
 
     const QDir untitledDirectory(m_dumpDirectory.isEmpty() ? QDir::homePath()
                                                            : m_dumpDirectory);
