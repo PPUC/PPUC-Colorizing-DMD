@@ -35,11 +35,11 @@ At the left end of the frame strip:
 
 Sections are editor data of the `.cRP`; the runtime does not use them.
 
-Thumbnails are drawn when their rows come into view, not when the project is opened: a row that
-was never scrolled to shows an empty dark box of the thumbnail's size, which is replaced by the
-picture as soon as the row is in view (rows just above and below the visible part are prepared as
-well). Rows have the same height with and without a picture, so scrolling, selecting, filtering
-and keyboard navigation do not depend on it. A thumbnail that was drawn is kept and redrawn when
+Thumbnails are drawn when their frames come into view in the strip, not when the project is
+opened: a frame that was never scrolled to shows an empty dark box of the thumbnail's size,
+which is replaced by the picture as soon as the frame is in view (two frames left and right of
+the visible part are prepared as well). Frames take the same room with and without a picture,
+so scrolling, selecting, filtering and keyboard navigation do not depend on it. A thumbnail that was drawn is kept and redrawn when
 its frame changes; nothing has to be done to refresh it. Opening a large project therefore no
 longer waits for one thumbnail per frame.
 

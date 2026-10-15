@@ -38,6 +38,13 @@ LazyListIcons::LazyListIcons(QListWidget* list, QIcon placeholder, Builder build
     connect(m_list->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this]() {
         scheduleRowsInView();
     });
+    // The frame strip scrolls across.
+    connect(m_list->horizontalScrollBar(), &QScrollBar::valueChanged, this, [this]() {
+        scheduleRowsInView();
+    });
+    connect(m_list->horizontalScrollBar(), &QScrollBar::rangeChanged, this, [this]() {
+        scheduleRowsInView();
+    });
     m_list->installEventFilter(this);
     m_list->viewport()->installEventFilter(this);
 }
@@ -102,9 +109,13 @@ std::optional<std::pair<int, int>> LazyListIcons::rowsInView() const
         return std::nullopt;
     }
     const QAbstractItemModel* model = m_list->model();
-    const int viewHeight = m_list->viewport()->height();
-    // Rows follow each other from top to bottom: the first row that ends inside or below the
-    // view, and the first one that starts below it.
+    // Rows follow each other from top to bottom, or from left to right in a strip (the frame
+    // strip): the first row that ends inside the view or past it, and the first one that
+    // starts past it. Measured across in a strip; down, every row of a strip would be in view.
+    const bool across = m_list->flow() == QListView::LeftToRight && !m_list->isWrapping();
+    const int viewSize = across ? m_list->viewport()->width() : m_list->viewport()->height();
+    const auto start = [across](const QRect& rect) { return across ? rect.left() : rect.top(); };
+    const auto end = [across](const QRect& rect) { return across ? rect.right() : rect.bottom(); };
     const auto firstRowWhere = [&](const std::function<bool(const QRect&)>& matches) {
         int low = 0;
         int high = count;
@@ -118,10 +129,10 @@ std::optional<std::pair<int, int>> LazyListIcons::rowsInView() const
         }
         return low;
     };
-    const int first = firstRowWhere([](const QRect& rect) { return rect.bottom() >= 0; });
-    const int end = firstRowWhere([&](const QRect& rect) { return rect.top() >= viewHeight; });
+    const int first = firstRowWhere([&](const QRect& rect) { return end(rect) >= 0; });
+    const int past = firstRowWhere([&](const QRect& rect) { return start(rect) >= viewSize; });
     return std::make_pair(std::max(first - kMarginRows, 0),
-                          std::min(end - 1 + kMarginRows, count - 1));
+                          std::min(past - 1 + kMarginRows, count - 1));
 }
 
 }  // namespace colorizing::app

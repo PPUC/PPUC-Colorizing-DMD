@@ -13,7 +13,8 @@ class QTimer;
 
 namespace colorizing::app {
 
-// Builds the icons of a list's rows when they come into view instead of all at once. A row
+// Builds the icons of a list's rows when they come into view instead of all at once (in a list
+// from top to bottom, or in a strip from left to right without wrapping). A row
 // shows the placeholder until then. A built icon is kept until invalidate() is called for its
 // item or the item is removed; nothing is evicted, so at most one icon per row exists, as if
 // all had been built up front.

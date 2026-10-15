@@ -434,6 +434,29 @@ struct LazyList {
     }
 };
 
+// The frame strip: frames from left to right in one line.
+void testLazyStripIcons()
+{
+    LazyList lazy(1000);
+    lazy.list.setViewMode(QListView::IconMode);
+    lazy.list.setFlow(QListView::LeftToRight);
+    lazy.list.setWrapping(false);
+    lazy.list.setMovement(QListView::Static);
+    lazy.list.setGridSize(QSize(100, 40));
+    lazy.list.resize(400, 80);
+    lazy.list.show();
+    QApplication::processEvents();
+    const int inView = lazy.list.viewport()->width() / 100 + 1;
+    expect(lazy.builds > 0 && lazy.builds <= inView + 3 && lazy.icons.isBuilt(lazy.list.item(0)) &&
+               !lazy.icons.isBuilt(lazy.list.item(20)),
+           "a strip builds the frames in view across, not every frame of the line");
+    lazy.list.scrollToItem(lazy.list.item(600), QAbstractItemView::PositionAtTop);
+    QApplication::processEvents();
+    expect(lazy.icons.isBuilt(lazy.list.item(600)) && !lazy.icons.isBuilt(lazy.list.item(500)) &&
+               lazy.builds <= 2 * (inView + 5),
+           "scrolling a strip across builds the frames that come into view");
+}
+
 void testLazyListIcons()
 {
     LazyList lazy(1000);
@@ -519,4 +542,5 @@ void runPlaneLabelsWidgetTests()
     testListLabelsOfPanels();
     testThumbnailBadges();
     testLazyListIcons();
+    testLazyStripIcons();
 }
