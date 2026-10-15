@@ -5,6 +5,7 @@
 #include <exception>
 
 #include <QDropEvent>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
@@ -227,6 +228,12 @@ void FramePreviewWidget::wheelEvent(QWheelEvent* event)
 
 bool FramePreviewWidget::event(QEvent* event)
 {
+    // Escape ends a helper line drag before it reaches a shortcut of the window.
+    if (event->type() == QEvent::ShortcutOverride && m_helperLineDrag &&
+        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+        event->accept();
+        return true;
+    }
     if (event->type() == QEvent::NativeGesture) {
         const auto* gesture = static_cast<QNativeGestureEvent*>(event);
         if (gesture->gestureType() == Qt::ZoomNativeGesture) {
@@ -577,6 +584,22 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
         QWidget::mousePressEvent(event);
         return;
     }
+    if (event->button() == Qt::LeftButton && m_helperLineMoveHandler) {
+        if (const std::optional<std::size_t> line = helperLineHandleAt(event->position())) {
+            for (const RegionView& view : regionViews()) {
+                if (view.viewport.contains(event->position())) {
+                    const uint32_t position = m_document->helperLines()[*line].position;
+                    m_helperLineDrag = HelperLineDrag{*line, view.region.region, position, position};
+                    break;
+                }
+            }
+            setFocus(Qt::MouseFocusReason);
+            m_strokeStart.reset();
+            updateHelperLineCursor(event->position());
+            event->accept();
+            return;
+        }
+    }
     if (event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
         m_pressModifiers = event->modifiers();
@@ -614,6 +637,28 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
     if (showsRuntimeView()) {
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
+    }
+    if (m_helperLineDrag && (event->buttons() & Qt::LeftButton) && m_document &&
+        m_helperLineDrag->line < m_document->helperLines().size()) {
+        const document::HelperLine& line = m_document->helperLines()[m_helperLineDrag->line];
+        for (const RegionView& view : regionViews()) {
+            if (view.region.region == m_helperLineDrag->region) {
+                const uint32_t position = helperLinePositionAt(view, line, event->position());
+                if (position != m_helperLineDrag->position) {
+                    m_helperLineDrag->position = position;
+                    update();
+                }
+                break;
+            }
+        }
+        if (m_helperLineMoveHandler) {
+            m_helperLineMoveHandler(m_helperLineDrag->line, m_helperLineDrag->position, false);
+        }
+        event->accept();
+        return;
+    }
+    if (event->buttons() == Qt::NoButton) {
+        updateHelperLineCursor(event->position());
     }
     if (m_positionHandler) {
         m_positionHandler(hitTestAt(event->pos()),
@@ -678,6 +723,17 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
     if (showsRuntimeView()) {
         m_strokeStart.reset();
     }
+    if (event->button() == Qt::LeftButton && m_helperLineDrag) {
+        const HelperLineDrag drag = *m_helperLineDrag;
+        m_helperLineDrag.reset();
+        update();
+        updateHelperLineCursor(event->position());
+        if (m_helperLineMoveHandler) {
+            m_helperLineMoveHandler(drag.line, drag.position, true);
+        }
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton && m_strokeStart) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         const std::optional<render::CanvasHit> start = m_strokeStart;
@@ -704,6 +760,22 @@ void FramePreviewWidget::leaveEvent(QEvent* event)
         m_positionHandler(std::nullopt, std::nullopt);
     }
     QWidget::leaveEvent(event);
+}
+
+void FramePreviewWidget::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Escape && m_helperLineDrag) {
+        const HelperLineDrag drag = *m_helperLineDrag;
+        m_helperLineDrag.reset();
+        update();
+        unsetCursor();
+        if (m_helperLineMoveHandler) {
+            m_helperLineMoveHandler(drag.line, drag.startPosition, true);
+        }
+        event->accept();
+        return;
+    }
+    QWidget::keyPressEvent(event);
 }
 
 bool FramePreviewWidget::showsRuntimeView() const
@@ -754,7 +826,7 @@ QFont FramePreviewWidget::helperLineFont() const
 QMarginsF FramePreviewWidget::helperLineMargins() const
 {
     QMarginsF margins;
-    if (!m_document) {
+    if (!m_document || !m_helperLinesShown) {
         return margins;
     }
     const QFontMetrics metrics(helperLineFont());
@@ -779,62 +851,174 @@ QMarginsF FramePreviewWidget::helperLineMargins() const
     return margins;
 }
 
-void FramePreviewWidget::paintHelperLines(QPainter& painter, const RegionView& view) const
+FramePreviewWidget::HelperLineShape FramePreviewWidget::helperLineShape(
+    const RegionView& view, const document::HelperLine& line, uint32_t position) const
 {
-    if (!m_document) {
+    const render::Size plane = m_document->geometry().planeSize(line.plane);
+    const int extent = std::max(1, line.vertical ? plane.width : plane.height);
+    const QRectF picture(view.origin, view.contentSize);
+    // On the border before the pixel, at the same place of every region whatever its plane.
+    // It reaches a little past the frame, where there is room.
+    constexpr double overhang = kHelperLineOverhang;
+    const double fraction = static_cast<double>(position) / extent;
+    const QRectF area = view.viewport;
+    HelperLineShape shape;
+    shape.segment =
+        line.vertical
+            ? QLineF(picture.left() + fraction * picture.width(),
+                     std::max(area.top(), picture.top() - overhang),
+                     picture.left() + fraction * picture.width(),
+                     std::min(area.bottom(), picture.bottom() + overhang))
+            : QLineF(std::max(area.left(), picture.left() - overhang),
+                     picture.top() + fraction * picture.height(),
+                     std::min(area.right(), picture.right() + overhang),
+                     picture.top() + fraction * picture.height());
+    // A line scrolled out of the visible part has no name shown either.
+    const bool lineShown = line.vertical ? shape.segment.x1() >= area.left() &&
+                                               shape.segment.x1() <= area.right()
+                                         : shape.segment.y1() >= area.top() &&
+                                               shape.segment.y1() <= area.bottom();
+    if (line.name.empty() || !lineShown) {
+        return shape;
+    }
+    // The name outside the frame, so that every pixel stays visible: left of a horizontal
+    // line's start, above a vertical line's. When the zoomed frame leaves no room there, it
+    // slides in and stays at the edge of the visible part.
+    const QFontMetrics metrics(helperLineFont());
+    QRectF label(QPointF(),
+                 QSizeF(metrics.horizontalAdvance(QString::fromStdString(line.name)) + 6,
+                        metrics.height()));
+    if (line.vertical) {
+        label.moveCenter(QPointF(shape.segment.x1(), 0.0));
+        label.moveBottom(shape.segment.y1() - 2.0);
+    } else {
+        label.moveCenter(QPointF(0.0, shape.segment.y1()));
+        label.moveRight(shape.segment.x1() - 2.0);
+    }
+    label.moveLeft(std::clamp(label.left(), area.left() + 2.0,
+                              std::max(area.left() + 2.0, area.right() - label.width() - 2.0)));
+    label.moveTop(std::clamp(label.top(), area.top() + 2.0,
+                             std::max(area.top() + 2.0, area.bottom() - label.height() - 2.0)));
+    shape.label = label;
+    return shape;
+}
+
+uint32_t FramePreviewWidget::helperLinePositionAt(const RegionView& view,
+                                                  const document::HelperLine& line,
+                                                  QPointF point) const
+{
+    const render::Size plane = m_document->geometry().planeSize(line.plane);
+    const int extent = line.vertical ? plane.width : plane.height;
+    const double length = line.vertical ? view.contentSize.width() : view.contentSize.height();
+    if (extent <= 0 || length <= 0.0) {
+        return line.position;
+    }
+    const double offset = line.vertical ? point.x() - view.origin.x() : point.y() - view.origin.y();
+    // The nearest pixel border.
+    return static_cast<uint32_t>(
+        std::clamp(std::lround(offset / length * extent), 0L, static_cast<long>(extent)));
+}
+
+std::optional<std::size_t> FramePreviewWidget::helperLineHandleAt(QPointF position) const
+{
+    if (!m_document || !m_hasFrame || !m_helperLinesShown || showsRuntimeView()) {
+        return std::nullopt;
+    }
+    constexpr double reach = 4.0;
+    const std::vector<document::HelperLine>& lines = m_document->helperLines();
+    for (const RegionView& view : regionViews()) {
+        if (!view.viewport.contains(position)) {
+            continue;
+        }
+        const QRectF picture(view.origin, view.contentSize);
+        // The last drawn is on top.
+        for (std::size_t index = lines.size(); index-- > 0;) {
+            const document::HelperLine& line = lines[index];
+            if (!line.visible) {
+                continue;
+            }
+            const HelperLineShape shape = helperLineShape(view, line, line.position);
+            if (shape.label.contains(position)) {
+                return index;
+            }
+            // Its part outside the frame; over the frame a click paints.
+            const QRectF band = QRectF(shape.segment.p1(), shape.segment.p2())
+                                    .normalized()
+                                    .adjusted(-reach, -reach, reach, reach);
+            if (band.contains(position) && !picture.contains(position)) {
+                return index;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+void FramePreviewWidget::updateHelperLineCursor(QPointF point)
+{
+    std::optional<std::size_t> line;
+    if (m_helperLineDrag) {
+        line = m_helperLineDrag->line;
+    } else if (m_helperLineMoveHandler) {
+        line = helperLineHandleAt(point);
+    }
+    if (line && *line < m_document->helperLines().size()) {
+        setCursor(m_document->helperLines()[*line].vertical ? Qt::SplitHCursor
+                                                            : Qt::SplitVCursor);
+    } else {
+        unsetCursor();
+    }
+}
+
+void FramePreviewWidget::setHelperLinesShown(bool shown)
+{
+    if (m_helperLinesShown == shown) {
         return;
     }
-    const QRectF picture(view.origin, view.contentSize);
+    m_helperLinesShown = shown;
+    m_helperLineDrag.reset();
+    unsetCursor();
+    // The frame takes the room of the names, or leaves it to them.
+    viewChanged();
+    update();
+}
+
+bool FramePreviewWidget::helperLinesShown() const
+{
+    return m_helperLinesShown;
+}
+
+void FramePreviewWidget::setHelperLineMoveHandler(HelperLineMoveHandler handler)
+{
+    m_helperLineMoveHandler = std::move(handler);
+}
+
+void FramePreviewWidget::paintHelperLines(QPainter& painter, const RegionView& view) const
+{
+    if (!m_document || !m_helperLinesShown) {
+        return;
+    }
     painter.save();
     painter.setClipRect(view.viewport);
-    const QFont font = helperLineFont();
-    painter.setFont(font);
-    const QFontMetrics metrics(font);
-    for (const document::HelperLine& line : m_document->helperLines()) {
+    painter.setFont(helperLineFont());
+    const std::vector<document::HelperLine>& lines = m_document->helperLines();
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        const document::HelperLine& line = lines[index];
         const render::Size plane = m_document->geometry().planeSize(line.plane);
         const int extent = line.vertical ? plane.width : plane.height;
         if (!line.visible || extent <= 0) {
             continue;
         }
-        // On the border before the pixel, at the same place of every region whatever its plane.
-        // It reaches a little past the frame, where there is room.
-        constexpr double overhang = kHelperLineOverhang;
-        const double fraction = static_cast<double>(line.position) / extent;
-        const QRectF area = view.viewport;
-        const QLineF segment =
-            line.vertical
-                ? QLineF(picture.left() + fraction * picture.width(),
-                         std::max(area.top(), picture.top() - overhang),
-                         picture.left() + fraction * picture.width(),
-                         std::min(area.bottom(), picture.bottom() + overhang))
-                : QLineF(std::max(area.left(), picture.left() - overhang),
-                         picture.top() + fraction * picture.height(),
-                         std::min(area.right(), picture.right() + overhang),
-                         picture.top() + fraction * picture.height());
-        painter.setPen(QPen(helperLineColor(), 1.5, Qt::DashLine));
-        painter.drawLine(segment);
-        if (line.name.empty()) {
+        const bool dragged = m_helperLineDrag && m_helperLineDrag->line == index;
+        const HelperLineShape shape =
+            helperLineShape(view, line, dragged ? m_helperLineDrag->position : line.position);
+        painter.setPen(QPen(helperLineColor(), dragged ? 2.5 : 1.5, Qt::DashLine));
+        painter.drawLine(shape.segment);
+        if (shape.label.isEmpty()) {
             continue;
         }
-        // The name outside the frame, so that every pixel stays visible: left of a horizontal
-        // line's start, above a vertical line's. When the zoomed frame leaves no room there,
-        // it slides in and stays at the edge of the visible part.
-        const QString name = QString::fromStdString(line.name);
-        QRectF label(QPointF(), QSizeF(metrics.horizontalAdvance(name) + 6, metrics.height()));
-        if (line.vertical) {
-            label.moveCenter(QPointF(segment.x1(), 0.0));
-            label.moveBottom(segment.y1() - 2.0);
-        } else {
-            label.moveCenter(QPointF(0.0, segment.y1()));
-            label.moveRight(segment.x1() - 2.0);
-        }
-        label.moveLeft(std::clamp(label.left(), area.left() + 2.0,
-                                  std::max(area.left() + 2.0, area.right() - label.width() - 2.0)));
-        label.moveTop(std::clamp(label.top(), area.top() + 2.0,
-                                 std::max(area.top() + 2.0, area.bottom() - label.height() - 2.0)));
-        painter.fillRect(label, QColor(0, 0, 0, 170));
+        painter.fillRect(shape.label, QColor(0, 0, 0, 170));
         painter.setPen(helperLineColor());
-        painter.drawText(label, Qt::AlignCenter, name);
+        painter.drawText(shape.label, Qt::AlignCenter, QString::fromStdString(line.name));
     }
     painter.restore();
 }

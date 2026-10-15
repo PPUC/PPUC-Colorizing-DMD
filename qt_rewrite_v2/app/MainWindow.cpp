@@ -515,6 +515,26 @@ MainWindow::MainWindow(QWidget* parent)
         tr("The pixel under the mouse on the canvas: on the original or the colorized frame, "
            "in that frame's pixels; while dragging also the size of the dragged area"));
     statusBar()->addPermanentWidget(m_positionLabel);
+    m_preview->setHelperLineMoveHandler([this](std::size_t index, uint32_t position, bool finished) {
+        if (!m_document || index >= m_document->helperLines().size()) {
+            return;
+        }
+        const document::HelperLine& line = m_document->helperLines()[index];
+        if (!finished) {
+            statusBar()->showMessage(
+                tr("Helper line %1: %2 %3").arg(QString::fromStdString(line.name))
+                    .arg(line.vertical ? tr("column") : tr("row"))
+                    .arg(position));
+            return;
+        }
+        if (position == line.position) {
+            statusBar()->clearMessage();
+            return;
+        }
+        std::vector<document::HelperLine> lines = m_document->helperLines();
+        lines[index].position = position;
+        changeHelperLines(std::move(lines), tr("Moved the helper line"));
+    });
     m_preview->setPositionHandler(
         [this](std::optional<render::CanvasHit> hit, std::optional<render::CanvasHit> dragStart) {
             showCanvasPosition(hit, dragStart);
@@ -760,6 +780,24 @@ void MainWindow::createActions()
         }
     });
     viewMenu->addSeparator();
+
+    m_helperLinesShownAction = viewMenu->addAction(tr("Show &Helper Lines"));
+    m_helperLinesShownAction->setCheckable(true);
+    m_helperLinesShownAction->setChecked(
+        QSettings().value(QStringLiteral("view/helperLinesShown"), true).toBool());
+    m_helperLinesShownAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H));
+    m_helperLinesShownAction->setToolTip(
+        tr("Show the checked helper lines on the canvas, or hide them all"));
+    connect(m_helperLinesShownAction, &QAction::toggled, this, [this](bool shown) {
+        QSettings().setValue(QStringLiteral("view/helperLinesShown"), shown);
+        if (m_preview) {
+            m_preview->setHelperLinesShown(shown);
+        }
+        if (m_helperLinesPanel) {
+            m_helperLinesPanel->setLinesShown(shown);
+        }
+    });
+    applyHelperLinesShown();
 
     m_runtimeViewAction = viewMenu->addAction(tr("&Runtime View"));
     // What the toolbar button of the action shows.
@@ -1517,6 +1555,12 @@ void MainWindow::createCentralView()
     inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"), tr("Color Sets"));
     m_helperLinesPanel = new HelperLinesPanel(central);
     m_helperLinesPanel->onAddRequested = [this](bool vertical) { addHelperLine(vertical); };
+    m_helperLinesPanel->onLinesShownChanged = [this](bool shown) {
+        if (m_helperLinesShownAction) {
+            m_helperLinesShownAction->setChecked(shown);
+        }
+    };
+    applyHelperLinesShown();
     m_helperLinesPanel->onEditRequested = [this](std::size_t line) { editHelperLine(line); };
     m_helperLinesPanel->onDeleteRequested = [this](std::size_t line) {
         if (!m_document || line >= m_document->helperLines().size()) {
@@ -3550,6 +3594,21 @@ void MainWindow::showFramesForPlugin(std::size_t current, const std::vector<std:
     }
     m_frameList->scrollToItem(currentItem);
     selectFrame(m_frameList->currentRow());
+}
+
+void MainWindow::applyHelperLinesShown()
+{
+    // The menu and the canvas are made at different times; whichever comes last applies it.
+    if (!m_helperLinesShownAction) {
+        return;
+    }
+    const bool shown = m_helperLinesShownAction->isChecked();
+    if (m_preview) {
+        m_preview->setHelperLinesShown(shown);
+    }
+    if (m_helperLinesPanel) {
+        m_helperLinesPanel->setLinesShown(shown);
+    }
 }
 
 void MainWindow::refreshHelperLines()

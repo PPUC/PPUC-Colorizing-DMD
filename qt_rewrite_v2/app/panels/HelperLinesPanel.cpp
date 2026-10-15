@@ -3,6 +3,7 @@
 #include <QGridLayout>
 #include <QListWidget>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 #include "PlaneLabels.h"
@@ -16,6 +17,11 @@ HelperLinesPanel::HelperLinesPanel(QWidget* parent)
     m_list = new QListWidget(this);
     m_list->setToolTip(tr("Checked lines are shown on the canvas, on every frame; double-click "
                           "to edit one"));
+    m_showButton = new QPushButton(tr("Show Lines"), this);
+    m_showButton->setCheckable(true);
+    m_showButton->setChecked(true);
+    m_showButton->setToolTip(tr("Show the checked lines on the canvas, or hide them all; their "
+                                "check boxes stay as they are"));
     m_addHorizontalButton = new QPushButton(tr("Horizontal"), this);
     m_addHorizontalButton->setToolTip(
         tr("Add a horizontal line, at the row the mouse last pointed at on the canvas"));
@@ -33,9 +39,15 @@ HelperLinesPanel::HelperLinesPanel(QWidget* parent)
     buttons->addWidget(m_deleteButton, 1, 1);
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(m_showButton);
     layout->addLayout(buttons);
     layout->addWidget(m_list, 1);
 
+    connect(m_showButton, &QPushButton::toggled, this, [this](bool shown) {
+        if (onLinesShownChanged) {
+            onLinesShownChanged(shown);
+        }
+    });
     connect(m_addHorizontalButton, &QPushButton::clicked, this, [this]() {
         if (onAddRequested) {
             onAddRequested(false);
@@ -93,6 +105,12 @@ void HelperLinesPanel::setLines(const std::vector<document::HelperLine>& lines,
     m_list->setCurrentRow(std::min(row, m_list->count() - 1));
     m_filling = false;
     updateButtons();
+}
+
+void HelperLinesPanel::setLinesShown(bool shown)
+{
+    const QSignalBlocker blocker(m_showButton);
+    m_showButton->setChecked(shown);
 }
 
 std::optional<std::size_t> HelperLinesPanel::selectedLine() const

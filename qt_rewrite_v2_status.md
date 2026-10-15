@@ -1132,6 +1132,16 @@ paintHelperLines` at the same fraction of every region, dashed `helperLineColor(
 section `Helper Lines` (`panels/HelperLinesPanel`, `dialogs/HelperLineDialog`); a new line
 starts at the last pixel the mouse pointed at. Handbook chapter 36.
 
+Later the same day (owner): lines are dragged on the canvas by their name or their part outside
+the frame (`helperLineHandleAt`; over the frame a click still paints), snapped to pixel
+borders, reported through `setHelperLineMoveHandler` (status text while dragging, one undoable
+`changeHelperLines` on release, `Esc` puts the line back; a ShortcutOverride keeps Esc from the
+window's shortcuts). `View -> Show Helper Lines` (`Ctrl/Cmd+Shift+H`, setting
+`view/helperLinesShown`) and the section's `Show Lines` button hide all lines together without
+touching each line's `visible`; a view setting, not undoable. Fixed: a vertical line's name
+stayed in view when the zoomed view was scrolled away from the line (names now slide only along
+their line and go with it). `helperLineShape` is shared by painting and the hit test.
+
 ## Translations (2026-10-15)
 
 Owner: German and French (the owner reads both), drafted here; Qt Linguist workflow.

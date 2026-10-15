@@ -1805,6 +1805,14 @@ Use Create %1 Frame.</source>
         <translation type="unfinished">Angehakte Linien werden auf der Zeichenfläche gezeigt, auf jedem Frame; Doppelklick zum Bearbeiten</translation>
     </message>
     <message>
+        <source>Show Lines</source>
+        <translation type="unfinished">Linien zeigen</translation>
+    </message>
+    <message>
+        <source>Show the checked lines on the canvas, or hide them all; their check boxes stay as they are</source>
+        <translation type="unfinished">Die angehakten Linien auf der Zeichenfläche zeigen oder alle ausblenden; ihre Häkchen bleiben, wie sie sind</translation>
+    </message>
+    <message>
         <source>Horizontal</source>
         <translation type="unfinished">Horizontal</translation>
     </message>
@@ -2161,6 +2169,14 @@ Use Create %1 Frame.</source>
         <translation type="unfinished">&amp;Ganzen Frame zeigen</translation>
     </message>
     <message>
+        <source>Show &amp;Helper Lines</source>
+        <translation type="unfinished">&amp;Hilfslinien zeigen</translation>
+    </message>
+    <message>
+        <source>Show the checked helper lines on the canvas, or hide them all</source>
+        <translation type="unfinished">Die angehakten Hilfslinien auf der Zeichenfläche zeigen oder alle ausblenden</translation>
+    </message>
+    <message>
         <source>&amp;Runtime View</source>
         <translation type="unfinished">&amp;Runtime-Ansicht</translation>
     </message>
@@ -2371,6 +2387,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>The pixel under the mouse on the canvas: on the original or the colorized frame, in that frame&apos;s pixels; while dragging also the size of the dragged area</source>
         <translation type="unfinished">Das Pixel unter der Maus auf der Zeichenfläche: im Original- oder kolorierten Frame, in dessen Pixeln; beim Ziehen auch die Größe des gezogenen Bereichs</translation>
+    </message>
+    <message>
+        <source>Helper line %1: %2 %3</source>
+        <translation type="unfinished">Hilfslinie %1: %2 %3</translation>
+    </message>
+    <message>
+        <source>column</source>
+        <translation type="unfinished">Spalte</translation>
+    </message>
+    <message>
+        <source>row</source>
+        <translation type="unfinished">Zeile</translation>
+    </message>
+    <message>
+        <source>Moved the helper line</source>
+        <translation type="unfinished">Hilfslinie verschoben</translation>
     </message>
     <message>
         <source>Import Mo&amp;vie Clip Into Selected Frames...</source>

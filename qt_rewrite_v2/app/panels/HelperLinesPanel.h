@@ -32,16 +32,20 @@ public:
     void setLines(const std::vector<document::HelperLine>& lines,
                   const document::ProjectDocument* document);
     [[nodiscard]] std::optional<std::size_t> selectedLine() const;
+    // The Show Lines button: all checked lines shown on the canvas, or none.
+    void setLinesShown(bool shown);
 
     std::function<void(bool vertical)> onAddRequested;
     std::function<void(std::size_t line)> onEditRequested;
     std::function<void(std::size_t line)> onDeleteRequested;
     std::function<void(std::size_t line, bool visible)> onVisibilityChanged;
+    std::function<void(bool shown)> onLinesShownChanged;
 
 private:
     void updateButtons();
 
     QListWidget* m_list = nullptr;
+    QPushButton* m_showButton = nullptr;
     QPushButton* m_addHorizontalButton = nullptr;
     QPushButton* m_addVerticalButton = nullptr;
     QPushButton* m_editButton = nullptr;

@@ -7,6 +7,9 @@ seen by libserum or a machine.
 
 The `Helper Lines` section of the right sidebar lists them:
 
+- `Show Lines` shows the checked lines on the canvas or hides them all at once, without changing
+  their check boxes; the same as `View -> Show Helper Lines` (`Ctrl/Cmd+Shift+H`). The editor
+  keeps the setting for the next time.
 - `Horizontal` and `Vertical` add a line. It starts at the row or column the mouse last pointed
   at on the canvas (the middle of the frame before that), so pointing at a place and then
   adding a line puts it there; the window that opens takes its name, its direction and its
@@ -21,9 +24,15 @@ drawn dashed in light green at the same place on the original frame and on both 
 to each, and reaches a little past the frame. Its name is written outside the frame, so that
 every pixel stays visible: left of a horizontal line, above a vertical one. While lines are
 shown, the frame leaves room for their names beside it (it is drawn a little smaller); zoomed in,
-where the frame fills the canvas, a name slides in and stays readable at the edge of the visible
-part. The pixel under the mouse in the status bar (see "Canvas") gives the
-numbers to use.
+where the frame fills the canvas, a name slides in along its line and stays readable at the edge
+of the visible part; a line scrolled out of the visible part takes its name with it. The pixel
+under the mouse in the status bar (see "Canvas") gives the numbers to use.
 
-Adding, changing, showing, hiding and deleting lines can be undone, in a history of their own,
-and mark the project as changed.
+A line can be dragged to another place on the canvas: grab it by its name or by its part outside
+the frame (the mouse pointer turns into a double arrow there); over the frame a click paints as
+usual. It follows the mouse from pixel border to pixel border, the status bar showing its row or
+column, and is moved when the mouse button is released. `Esc` during the drag puts it back.
+
+Adding, moving, changing, showing, hiding and deleting lines can be undone, in a history of
+their own, and mark the project as changed. Showing or hiding all of them at once is a view
+setting, not a change of the project.

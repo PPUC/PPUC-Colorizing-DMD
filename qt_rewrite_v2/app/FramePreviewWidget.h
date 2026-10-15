@@ -95,6 +95,20 @@ public:
     // told to take it (drop true). source: the widget the drag started in. Returns whether it
     // is taken.
     void setDropHandler(std::function<bool(QObject* source, bool drop)> handler);
+    // All helper lines on or off together (View -> Show Helper Lines); each line's own
+    // visibility is kept. Off, none is drawn, takes room or can be dragged.
+    void setHelperLinesShown(bool shown);
+    [[nodiscard]] bool helperLinesShown() const;
+    // A helper line dragged by its part outside the frame or by its name: called while it is
+    // dragged (finished false, for a status text) and once when it is dropped (finished true),
+    // with the line's index in the document and its new position in its plane's pixels. The
+    // line is drawn at the dragged position meanwhile; the document is not changed. Escape
+    // cancels the drag (position the old one, finished true).
+    using HelperLineMoveHandler =
+        std::function<void(std::size_t line, uint32_t position, bool finished)>;
+    void setHelperLineMoveHandler(HelperLineMoveHandler handler);
+    // The helper line whose handle is at the widget point, if any.
+    [[nodiscard]] std::optional<std::size_t> helperLineHandleAt(QPointF position) const;
     // The keyboard modifiers of the last left press, for the handlers of its click and stroke.
     [[nodiscard]] Qt::KeyboardModifiers pressModifiers() const;
 
@@ -145,6 +159,7 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dragMoveEvent(QDragMoveEvent* event) override;
@@ -183,6 +198,20 @@ private:
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
     // The document's visible helper lines over the region, in widget coordinates.
     void paintHelperLines(QPainter& painter, const RegionView& view) const;
+    // Where a helper line at the position is drawn over the region: its line and the box of
+    // its name (empty without a name).
+    struct HelperLineShape {
+        QLineF segment;
+        QRectF label;
+    };
+    [[nodiscard]] HelperLineShape helperLineShape(const RegionView& view,
+                                                  const document::HelperLine& line,
+                                                  uint32_t position) const;
+    // The position of the line in its plane's pixels for the widget point, over the region.
+    [[nodiscard]] uint32_t helperLinePositionAt(const RegionView& view,
+                                                const document::HelperLine& line,
+                                                QPointF point) const;
+    void updateHelperLineCursor(QPointF point);
     void paintPasteOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
 
     const document::ProjectDocument* m_document = nullptr;
@@ -221,6 +250,17 @@ private:
     std::function<void(render::CanvasHit)> m_hoverHandler;
     std::function<void(std::optional<render::CanvasHit>)> m_pointerHandler;
     PositionHandler m_positionHandler;
+    HelperLineMoveHandler m_helperLineMoveHandler;
+    bool m_helperLinesShown = true;
+    // The helper line being dragged: its index, the region it was grabbed in, its position now
+    // and before.
+    struct HelperLineDrag {
+        std::size_t line = 0;
+        render::CanvasRegion region = render::CanvasRegion::ColorizedFrame;
+        uint32_t position = 0;
+        uint32_t startPosition = 0;
+    };
+    std::optional<HelperLineDrag> m_helperLineDrag;
     std::function<bool(QObject* source, bool drop)> m_dropHandler;
     Qt::KeyboardModifiers m_pressModifiers;
     double m_zoom = 1.0;

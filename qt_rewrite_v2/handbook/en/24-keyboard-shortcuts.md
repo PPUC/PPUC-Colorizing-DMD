@@ -26,6 +26,8 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+Shift+O` | Black original to black | `Ctrl+O` |
 | `Ctrl/Cmd+E`, `Alt+D` | Remove dynamic zones | same |
 | `Alt+A` | Assign the dynamic set | same |
+| `Ctrl/Cmd+Shift+H` | Show or hide all helper lines | - |
+| `Esc` while dragging a helper line | Put the line back | - |
 
 With a text field, a spin box or a list in focus, `Ctrl/Cmd+C`, `Ctrl/Cmd+V` and `Ctrl/Cmd+A` do what they do
 there (`Ctrl/Cmd+A` in the frame list selects every frame). A single letter cannot be a menu

@@ -8,7 +8,9 @@
 
 #include <QApplication>
 #include <QImage>
+#include <QKeyEvent>
 #include <QListWidget>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
 
@@ -139,6 +141,85 @@ void testCanvas()
         expect(view.origin.x() - view.viewport.left() >= margins.left() - 1.0,
                "every frame keeps that room free, so the name covers no pixel");
     }
+
+    // Show Helper Lines off hides them all, keeping each one's own visibility.
+    widget.setHelperLinesShown(false);
+    expect(!showsHelperLine(widget) && widget.helperLineMargins().isNull() &&
+               document.helperLines()[0].visible,
+           "all lines hidden together, the frame takes their room");
+    widget.setHelperLinesShown(true);
+    expect(showsHelperLine(widget), "and shown again");
+
+    // Zoomed in, a vertical line scrolled out of the shown part takes its name with it.
+    document::HelperLine column = horizontal("Left edge", 1);
+    column.vertical = true;
+    document.setHelperLines({column});
+    widget.setZoom(8.0);
+    widget.setViewOffset(QPointF(0.0, 0.0));
+    expect(showsHelperLine(widget), "zoomed in, the line in the shown part is drawn");
+    widget.setViewOffset(QPointF(1.0, 0.0));
+    expect(!showsHelperLine(widget), "scrolled away from it, neither the line nor its name is");
+}
+
+void sendMouse(QWidget& widget, QEvent::Type type, QPointF point, Qt::MouseButtons buttons)
+{
+    QMouseEvent event(type, point, widget.mapToGlobal(point), Qt::LeftButton, buttons,
+                      Qt::NoModifier);
+    QApplication::sendEvent(&widget, &event);
+}
+
+// A line is dragged by its part outside the frame or by its name; the canvas only reports
+// where it goes.
+void testDrag()
+{
+    document::ProjectDocument document = document::ProjectDocument::createEmpty({"lines", 1});
+    app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(render::Resolution::Sd);
+    widget.setFrameIndex(0);
+    document.setHelperLines({horizontal("Score", 16)});
+    struct Move {
+        std::size_t line;
+        uint32_t position;
+        bool finished;
+    };
+    std::vector<Move> moves;
+    widget.setHelperLineMoveHandler([&](std::size_t line, uint32_t position, bool finished) {
+        moves.push_back({line, position, finished});
+    });
+    const auto views = widget.regionViews();
+    expect(!views.empty(), "the canvas shows the frame");
+    const auto& view = views.front();
+    const double rowHeight = view.contentSize.height() / 32.0;
+    const QPointF outside(view.origin.x() - 4.0, view.origin.y() + 16 * rowHeight);
+    const QPointF inside(view.origin.x() + 20.0, view.origin.y() + 16 * rowHeight);
+    expect(widget.helperLineHandleAt(outside) == std::optional<std::size_t>(0),
+           "the line's part left of the frame is its handle");
+    expect(!widget.helperLineHandleAt(inside), "over the frame a click paints");
+
+    sendMouse(widget, QEvent::MouseButtonPress, outside, Qt::LeftButton);
+    sendMouse(widget, QEvent::MouseMove, QPointF(outside.x(), view.origin.y() + 8.3 * rowHeight),
+              Qt::LeftButton);
+    expect(!moves.empty() && moves.back().line == 0 && moves.back().position == 8 &&
+               !moves.back().finished,
+           "dragging reports the nearest row border");
+    expect(document.helperLines()[0].position == 16, "the document is not changed meanwhile");
+    sendMouse(widget, QEvent::MouseButtonRelease,
+              QPointF(outside.x(), view.origin.y() + 8.3 * rowHeight), Qt::NoButton);
+    expect(moves.back().position == 8 && moves.back().finished, "the drop reports the row");
+
+    moves.clear();
+    sendMouse(widget, QEvent::MouseButtonPress, outside, Qt::LeftButton);
+    sendMouse(widget, QEvent::MouseMove, QPointF(outside.x(), view.origin.y() + 30 * rowHeight),
+              Qt::LeftButton);
+    QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &escape);
+    expect(!moves.empty() && moves.back().position == 16 && moves.back().finished,
+           "Escape puts the line back");
+    const std::size_t reported = moves.size();
+    sendMouse(widget, QEvent::MouseButtonRelease, outside, Qt::NoButton);
+    expect(moves.size() == reported, "and the release after it reports nothing");
 }
 
 }  // namespace
@@ -148,4 +229,5 @@ void runHelperLinesWidgetTests()
     testCommand();
     testPanel();
     testCanvas();
+    testDrag();
 }

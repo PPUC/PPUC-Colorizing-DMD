@@ -502,6 +502,7 @@ private:
     PluginLogWindow* m_pluginLogWindow = nullptr;
     PupTesterWindow* m_pupTesterWindow = nullptr;
     QAction* m_runtimeViewAction = nullptr;
+    QAction* m_helperLinesShownAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;
     QMenu* m_recentProjectsMenu = nullptr;
@@ -643,6 +644,8 @@ private:
     // The Helper Lines section (HelperLine.h): changed through edit::setHelperLines.
     HelperLinesPanel* m_helperLinesPanel = nullptr;
     void refreshHelperLines();
+    // View -> Show Helper Lines onto the canvas and the Helper Lines section.
+    void applyHelperLinesShown();
     void addHelperLine(bool vertical);
     void editHelperLine(std::size_t line);
     void changeHelperLines(std::vector<document::HelperLine> lines, const QString& status);
