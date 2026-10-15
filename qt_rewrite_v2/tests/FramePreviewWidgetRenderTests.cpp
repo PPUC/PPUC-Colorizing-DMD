@@ -736,6 +736,45 @@ void testFramePreviewStrokeCallback()
     expect(!strokeErase, "colorized finished stroke should not erase");
 }
 
+void testPositionHandler()
+{
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    widget.setFrameIndex(0);
+    std::optional<colorizing::render::CanvasHit> reported;
+    int reports = 0;
+    widget.setPositionHandler([&](std::optional<colorizing::render::CanvasHit> hit,
+                                  std::optional<colorizing::render::CanvasHit>) {
+        reported = hit;
+        ++reports;
+    });
+    expect(widget.hasMouseTracking(), "the canvas follows the mouse to show its position");
+    // A point on the colorized frame, wherever the layout puts it.
+    QPoint point(-1, -1);
+    for (int y = 0; y < widget.height() && point.x() < 0; y += 4) {
+        for (int x = 0; x < widget.width() && point.x() < 0; x += 4) {
+            const auto hit = widget.hitTestAt(QPoint(x, y));
+            if (hit && hit->region == colorizing::render::CanvasRegion::ColorizedFrame) {
+                point = QPoint(x, y);
+            }
+        }
+    }
+    QMouseEvent move(QEvent::MouseMove, QPointF(point), QPointF(point), QPointF(point),
+                     Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &move);
+    const auto expected = widget.hitTestAt(point);
+    expect(reports == 1 && reported && expected && reported->x == expected->x &&
+               reported->y == expected->y &&
+               reported->region == colorizing::render::CanvasRegion::ColorizedFrame,
+           "a move reports the pixel under the mouse");
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(&widget, &leave);
+    expect(reports == 2 && !reported, "leaving the canvas reports none");
+}
+
 void testDotPixelsHaveNoOutline()
 {
     // A painter on a widget in a dark theme starts with a light pen; a dark dot must stay dark.
@@ -3384,6 +3423,7 @@ int main(int argc, char* argv[])
     testSpriteCompositionRendersInSdAndHd();
     testBackgroundImageEditModeRendersInSdAndHd();
     testDotPixelsHaveNoOutline();
+    testPositionHandler();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorHdKeepsSdFootprint();

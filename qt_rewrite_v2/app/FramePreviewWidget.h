@@ -84,6 +84,12 @@ public:
     // without a hit when the mouse leaves them or the canvas; for the preview of what a click
     // would paint.
     void setPointerHandler(std::function<void(std::optional<render::CanvasHit>)> handler);
+    // Called on every mouse move over the canvas, with or without a button, with the pixel
+    // under the mouse (none off the frames or when the mouse leaves) and, during a drag, the
+    // pixel it started at: to show where the mouse is.
+    using PositionHandler = std::function<void(std::optional<render::CanvasHit> hit,
+                                               std::optional<render::CanvasHit> dragStart)>;
+    void setPositionHandler(PositionHandler handler);
     // Drops from other widgets of the window (a mask or background dragged from its list):
     // asked whether it takes what is dragged while it is over the canvas (drop false), then
     // told to take it (drop true). source: the widget the drag started in. Returns whether it
@@ -204,6 +210,7 @@ private:
     std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> m_pressInterceptor;
     std::function<void(render::CanvasHit)> m_hoverHandler;
     std::function<void(std::optional<render::CanvasHit>)> m_pointerHandler;
+    PositionHandler m_positionHandler;
     std::function<bool(QObject* source, bool drop)> m_dropHandler;
     Qt::KeyboardModifiers m_pressModifiers;
     double m_zoom = 1.0;

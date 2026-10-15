@@ -2267,6 +2267,10 @@ Utiliser Créer la frame %1.</translation>
         <translation type="unfinished">Placer les frames sélectionnées avant la frame qui les précède (%1 dans la bande de frames)</translation>
     </message>
     <message>
+        <source>The pixel under the mouse on the canvas: on the original or the colorized frame, in that frame&apos;s pixels; while dragging also the size of the dragged area</source>
+        <translation type="unfinished">Le pixel sous la souris sur le canevas : sur la frame d&apos;origine ou colorisée, en pixels de cette frame ; pendant un glisser, aussi la taille de la zone</translation>
+    </message>
+    <message>
         <source>Import Mo&amp;vie Clip Into Selected Frames...</source>
         <translation type="unfinished">Importer un clip &amp;vidéo dans les frames sélectionnées...</translation>
     </message>
@@ -2918,6 +2922,18 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Sorted the sections by name</source>
         <translation type="unfinished">Sections triées par nom</translation>
+    </message>
+    <message>
+        <source>Original</source>
+        <translation type="unfinished">Original</translation>
+    </message>
+    <message>
+        <source>%1: %2, %3</source>
+        <translation type="unfinished">%1 : %2, %3</translation>
+    </message>
+    <message>
+        <source> | from %1, %2: %3x%4</source>
+        <translation type="unfinished"> | depuis %1, %2 : %3x%4</translation>
     </message>
     <message>
         <source>Frame %1 is hidden by the frame filter</source>

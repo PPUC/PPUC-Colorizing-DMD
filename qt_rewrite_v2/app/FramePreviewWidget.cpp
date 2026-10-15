@@ -357,7 +357,7 @@ void FramePreviewWidget::setSelectedDynamicSet(std::optional<uint8_t> setIndex)
 void FramePreviewWidget::updateMouseTracking()
 {
     setMouseTracking(static_cast<bool>(m_hoverHandler) || static_cast<bool>(m_pointerHandler) ||
-                     m_showDynamicMaskOverlay);
+                     static_cast<bool>(m_positionHandler) || m_showDynamicMaskOverlay);
 }
 
 void FramePreviewWidget::setBackgroundMaskOverlayEnabled(bool enabled)
@@ -609,6 +609,10 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
     }
+    if (m_positionHandler) {
+        m_positionHandler(hitTestAt(event->pos()),
+                          event->buttons() & Qt::LeftButton ? m_strokeStart : std::nullopt);
+    }
     if (event->buttons() == Qt::NoButton && m_showDynamicMaskOverlay && !showsRuntimeView()) {
         // Names the set of the zone under the mouse.
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
@@ -689,6 +693,9 @@ void FramePreviewWidget::leaveEvent(QEvent* event)
 {
     if (m_pointerHandler) {
         m_pointerHandler(std::nullopt);
+    }
+    if (m_positionHandler) {
+        m_positionHandler(std::nullopt, std::nullopt);
     }
     QWidget::leaveEvent(event);
 }
@@ -1253,6 +1260,13 @@ void FramePreviewWidget::setHoverHandler(std::function<void(render::CanvasHit)> 
 {
     m_hoverHandler = std::move(handler);
     updateMouseTracking();
+}
+
+void FramePreviewWidget::setPositionHandler(PositionHandler handler)
+{
+    m_positionHandler = std::move(handler);
+    // Always: the position is shown however the canvas is used.
+    setMouseTracking(true);
 }
 
 void FramePreviewWidget::setPointerHandler(

@@ -503,6 +503,16 @@ MainWindow::MainWindow(QWidget* parent)
         statusBar()->showMessage(text, 5000);
     };
     m_plugins = std::make_unique<EditorPlugins>(std::move(pluginWindow));
+    // Where the mouse is on the canvas, to measure and to find a place again on another frame.
+    m_positionLabel = new QLabel(this);
+    m_positionLabel->setToolTip(
+        tr("The pixel under the mouse on the canvas: on the original or the colorized frame, "
+           "in that frame's pixels; while dragging also the size of the dragged area"));
+    statusBar()->addPermanentWidget(m_positionLabel);
+    m_preview->setPositionHandler(
+        [this](std::optional<render::CanvasHit> hit, std::optional<render::CanvasHit> dragStart) {
+            showCanvasPosition(hit, dragStart);
+        });
     if (const QStringList errors = m_plugins->loadEnabled(); !errors.isEmpty()) {
         statusBar()->showMessage(errors.join(QStringLiteral("; ")), 8000);
     }
@@ -3500,6 +3510,32 @@ void MainWindow::showFramesForPlugin(std::size_t current, const std::vector<std:
     }
     m_frameList->scrollToItem(currentItem);
     selectFrame(m_frameList->currentRow());
+}
+
+void MainWindow::showCanvasPosition(std::optional<render::CanvasHit> hit,
+                                    std::optional<render::CanvasHit> dragStart)
+{
+    if (!m_positionLabel) {
+        return;
+    }
+    if (!hit || !m_document) {
+        m_positionLabel->clear();
+        return;
+    }
+    const QString where =
+        hit->region == render::CanvasRegion::OriginalFrame
+            ? tr("Original")
+            : planeLabel(*m_document, hit->resolution);
+    QString text = tr("%1: %2, %3").arg(where).arg(hit->x).arg(hit->y);
+    if (dragStart && dragStart->region == hit->region &&
+        dragStart->resolution == hit->resolution) {
+        text += tr(" | from %1, %2: %3x%4")
+                    .arg(dragStart->x)
+                    .arg(dragStart->y)
+                    .arg(std::abs(hit->x - dragStart->x) + 1)
+                    .arg(std::abs(hit->y - dragStart->y) + 1);
+    }
+    m_positionLabel->setText(text);
 }
 
 void MainWindow::goToFrame(std::size_t frameIndex)

@@ -56,6 +56,13 @@ that is the SD plane, and the toggle is disabled in HD mode. See "Dynamic Masks"
 Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
 
+The right end of the status bar shows the pixel under the mouse on the canvas: `Original: 34, 12`
+on the original frame, `SD: 34, 12` or `HD: 68, 24` on the colorized frame (in a project with
+one plane, that plane's size instead of SD or HD), always in the pixels of the frame the mouse
+is on, counted from 0 at the top left. While dragging (a shape, a selection) it adds where the
+drag started and the size of the dragged area, `| from 30, 10: 5x3`. So a place can be measured,
+and found again on another frame.
+
 The left sidebar is the visual component browser (the frames run along the bottom of the window,
 see "Frame List"). `Used by the current frame` above its lists shows only the comparison mask,
 the background and the sprites the current frame uses, and follows the current frame once it has

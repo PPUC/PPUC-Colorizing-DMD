@@ -633,6 +633,10 @@ private:
     // The editor's plugins (Settings -> Plugins) and their menu. Last: they answer plugins
     // from the members above, and go first when the window does.
     QMenu* m_pluginsMenu = nullptr;
+    // The status bar's pixel under the mouse on the canvas (and the dragged area).
+    QLabel* m_positionLabel = nullptr;
+    void showCanvasPosition(std::optional<render::CanvasHit> hit,
+                            std::optional<render::CanvasHit> dragStart);
     std::unique_ptr<EditorPlugins> m_plugins;
     // Makes the frame current and selects the frames, for a plugin.
     void showFramesForPlugin(std::size_t current, const std::vector<std::size_t>& selected);
