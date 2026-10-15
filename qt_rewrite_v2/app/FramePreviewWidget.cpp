@@ -51,21 +51,30 @@ void FramePreviewWidget::setZoom(double zoom, std::optional<QPoint> anchor)
     if (zoom == m_zoom) {
         return;
     }
-    // The fraction of the regions under the anchor (or the middle of the shown part) stays.
-    QPointF fraction(0.5, 0.5);
-    if (anchor && m_document && m_hasFrame && m_frameIndex < m_document->frameCount()) {
-        const render::CanvasLayout layout = currentLayout();
-        for (const render::CanvasRegionLayout& region : layout.regions()) {
-            const RegionView view = regionView(layout, region);
-            if (view.screen.contains(*anchor)) {
-                fraction = QPointF((anchor->x() - view.screen.left()) / view.screen.width(),
-                                   (anchor->y() - view.screen.top()) / view.screen.height());
+    const std::optional<RegionView> before = firstRegionView();
+    if (!before) {
+        m_zoom = zoom;
+        viewChanged();
+        return;
+    }
+    // The point of the frame under the anchor (or the middle of the half) stays there.
+    QPointF point = before->viewport.center();
+    if (anchor) {
+        for (const RegionView& view : regionViews()) {
+            if (view.viewport.contains(*anchor)) {
+                point = *anchor;
+                const QPointF shift = point - view.viewport.topLeft();
+                point = before->viewport.topLeft() + shift;
             }
         }
     }
-    const QPointF point = m_viewOffset + fraction / m_zoom;
+    const QPointF fraction((point.x() - before->origin.x()) / before->contentSize.width(),
+                           (point.y() - before->origin.y()) / before->contentSize.height());
+    const double factor = zoom / m_zoom;
     m_zoom = zoom;
-    m_viewOffset = point - fraction / m_zoom;
+    const QSizeF content = before->contentSize * factor;
+    m_viewOffset = QPointF(fraction.x() - (point.x() - before->viewport.left()) / content.width(),
+                           fraction.y() - (point.y() - before->viewport.top()) / content.height());
     viewChanged();
 }
 
@@ -97,11 +106,21 @@ void FramePreviewWidget::setViewOffset(QPointF offset)
     viewChanged();
 }
 
+QSizeF FramePreviewWidget::shownFraction() const
+{
+    const std::optional<RegionView> view = firstRegionView();
+    if (!view) {
+        return QSizeF(1.0, 1.0);
+    }
+    return QSizeF(std::min(1.0, view->viewport.width() / view->contentSize.width()),
+                  std::min(1.0, view->viewport.height() / view->contentSize.height()));
+}
+
 void FramePreviewWidget::viewChanged()
 {
-    const double maximum = 1.0 - 1.0 / m_zoom;
-    m_viewOffset = QPointF(std::clamp(m_viewOffset.x(), 0.0, maximum),
-                           std::clamp(m_viewOffset.y(), 0.0, maximum));
+    const QSizeF shown = shownFraction();
+    m_viewOffset = QPointF(std::clamp(m_viewOffset.x(), 0.0, 1.0 - shown.width()),
+                           std::clamp(m_viewOffset.y(), 0.0, 1.0 - shown.height()));
     updateScrollBars();
     update();
     if (onViewChanged) {
@@ -111,17 +130,19 @@ void FramePreviewWidget::viewChanged()
 
 void FramePreviewWidget::updateScrollBars()
 {
-    const bool zoomed = m_zoom > 1.0;
+    // In steps of 1/10000 of the frame; a page is the part that is shown.
+    const QSizeF shown = shownFraction();
     m_updatingScrollBars = true;
-    const double total = 10000.0 * m_zoom;
-    for (QScrollBar* bar : {m_horizontalScrollBar, m_verticalScrollBar}) {
-        bar->setVisible(zoomed);
-        bar->setRange(0, static_cast<int>(std::lround(total - 10000.0)));
-        bar->setPageStep(10000);
-        bar->setSingleStep(10000 / 8);
-    }
-    m_horizontalScrollBar->setValue(static_cast<int>(std::lround(m_viewOffset.x() * total)));
-    m_verticalScrollBar->setValue(static_cast<int>(std::lround(m_viewOffset.y() * total)));
+    const auto set = [](QScrollBar* bar, double fraction, double offset) {
+        const int page = static_cast<int>(std::lround(fraction * 10000.0));
+        bar->setVisible(fraction < 1.0);
+        bar->setRange(0, 10000 - page);
+        bar->setPageStep(page);
+        bar->setSingleStep(std::max(1, page / 8));
+        bar->setValue(static_cast<int>(std::lround(offset * 10000.0)));
+    };
+    set(m_horizontalScrollBar, shown.width(), m_viewOffset.x());
+    set(m_verticalScrollBar, shown.height(), m_viewOffset.y());
     m_updatingScrollBars = false;
 }
 
@@ -131,6 +152,7 @@ void FramePreviewWidget::resizeEvent(QResizeEvent* event)
     const int thickness = m_horizontalScrollBar->sizeHint().height();
     m_horizontalScrollBar->setGeometry(0, height() - thickness, width() - thickness, thickness);
     m_verticalScrollBar->setGeometry(width() - thickness, 0, thickness, height() - thickness);
+    viewChanged();
 }
 
 void FramePreviewWidget::wheelEvent(QWheelEvent* event)
@@ -144,19 +166,24 @@ void FramePreviewWidget::wheelEvent(QWheelEvent* event)
         event->accept();
         return;
     }
-    if (m_zoom <= 1.0) {
+    const std::optional<RegionView> view = firstRegionView();
+    const QSizeF shown = shownFraction();
+    if (!view || (shown.width() >= 1.0 && shown.height() >= 1.0)) {
         QWidget::wheelEvent(event);
         return;
     }
-    // A trackpad gives pixels, a wheel notches (8 per degree); a notch moves a tenth of the
-    // shown part. Shift turns a plain wheel sideways.
-    QPointF delta = !event->pixelDelta().isNull()
-                        ? QPointF(event->pixelDelta()) / std::max(1, std::min(width(), height()))
-                        : QPointF(event->angleDelta()) / 1200.0;
+    // A trackpad gives pixels; a wheel notches (120 each), a notch moving a tenth of the half.
+    // Shift turns a plain wheel sideways.
+    QPointF pixels = !event->pixelDelta().isNull()
+                         ? QPointF(event->pixelDelta())
+                         : QPointF(event->angleDelta().x() / 120.0 * view->viewport.width() / 10.0,
+                                   event->angleDelta().y() / 120.0 * view->viewport.height() /
+                                       10.0);
     if (event->modifiers().testFlag(Qt::ShiftModifier) && event->pixelDelta().isNull()) {
-        delta = QPointF(delta.y(), delta.x());
+        pixels = QPointF(pixels.y(), pixels.x());
     }
-    m_viewOffset -= delta / m_zoom;
+    m_viewOffset -= QPointF(pixels.x() / view->contentSize.width(),
+                            pixels.y() / view->contentSize.height());
     viewChanged();
     event->accept();
 }
@@ -173,19 +200,58 @@ bool FramePreviewWidget::event(QEvent* event)
     return QWidget::event(event);
 }
 
-FramePreviewWidget::RegionView FramePreviewWidget::regionView(
-    const render::CanvasLayout& layout,
-    const render::CanvasRegionLayout& region) const
+std::vector<FramePreviewWidget::RegionView> FramePreviewWidget::regionViews() const
 {
-    const double scale = currentDisplayScale(layout);
-    const QPointF origin = currentDisplayOrigin(layout);
-    const render::Rect& rect = region.displayRect;
-    RegionView view;
-    view.screen = QRectF(origin.x() + rect.x * scale, origin.y() + rect.y * scale,
-                         rect.width * scale, rect.height * scale);
-    view.shown = QRectF(m_viewOffset.x() * rect.width, m_viewOffset.y() * rect.height,
-                        rect.width / m_zoom, rect.height / m_zoom);
-    return view;
+    std::vector<RegionView> views;
+    if (!m_document || !m_hasFrame || m_frameIndex >= m_document->frameCount()) {
+        return views;
+    }
+    const render::CanvasLayout layout = currentLayout();
+    const std::vector<render::CanvasRegionLayout>& regions = layout.regions();
+    if (regions.empty()) {
+        return views;
+    }
+    // The canvas split into one half per region, one above the other, leaving room for the
+    // Runtime view's line at the top and the scroll bars at the right and the bottom.
+    const int thickness = m_horizontalScrollBar->sizeHint().height();
+    const QRectF inner = QRectF(rect()).adjusted(8, 22, -(8 + thickness), -(8 + thickness));
+    constexpr double gap = 8.0;
+    const double count = static_cast<double>(regions.size());
+    const double height = std::max(1.0, (inner.height() - gap * (count - 1.0)) / count);
+    for (std::size_t index = 0; index < regions.size(); ++index) {
+        const render::CanvasRegionLayout& region = regions[index];
+        RegionView view;
+        view.region = region;
+        view.viewport = QRectF(inner.left(), inner.top() + static_cast<double>(index) * (height + gap),
+                               std::max(1.0, inner.width()), height);
+        // The whole frame fits its half at zoom 1, in whole screen pixels per display unit where
+        // there is room for one.
+        const double fit = std::min(view.viewport.width() / region.displayRect.width,
+                                    view.viewport.height() / region.displayRect.height);
+        view.cell = (fit >= 1.0 ? std::floor(fit) : fit) * m_zoom;
+        view.contentSize = QSizeF(region.displayRect.width * view.cell,
+                                  region.displayRect.height * view.cell);
+        // Centred while it fits, otherwise moved by the shown part.
+        const auto start = [](double viewportStart, double viewportSize, double contentSize,
+                              double offset) {
+            return contentSize <= viewportSize
+                       ? viewportStart + (viewportSize - contentSize) / 2.0
+                       : viewportStart - offset * contentSize;
+        };
+        view.origin = QPointF(
+            std::round(start(view.viewport.left(), view.viewport.width(),
+                             view.contentSize.width(), m_viewOffset.x())),
+            std::round(start(view.viewport.top(), view.viewport.height(),
+                             view.contentSize.height(), m_viewOffset.y())));
+        views.push_back(view);
+    }
+    return views;
+}
+
+std::optional<FramePreviewWidget::RegionView> FramePreviewWidget::firstRegionView() const
+{
+    const std::vector<RegionView> views = regionViews();
+    return views.empty() ? std::nullopt : std::optional<RegionView>(views.front());
 }
 
 void FramePreviewWidget::setDocument(const document::ProjectDocument* document)
@@ -408,29 +474,21 @@ std::optional<render::CanvasHit> FramePreviewWidget::hitTestAt(QPoint position) 
         return std::nullopt;
     }
 
+    // The half under the point, then the pixel of its frame there.
     const render::CanvasLayout layout = currentLayout();
-    const double scale = currentDisplayScale(layout);
-    if (scale <= 0.0) {
-        return std::nullopt;
-    }
-
-    // The region under the point, by its place on screen, then the point within the part of it
-    // that is shown.
     std::optional<render::CanvasHit> hit;
-    for (const render::CanvasRegionLayout& region : layout.regions()) {
-        const RegionView view = regionView(layout, region);
-        // Half open: the right and bottom edges belong to what is beside the region.
-        if (position.x() < view.screen.left() || position.x() >= view.screen.right() ||
-            position.y() < view.screen.top() || position.y() >= view.screen.bottom()) {
+    for (const RegionView& view : regionViews()) {
+        if (!view.viewport.contains(position)) {
             continue;
         }
-        const double cell = scale * m_zoom;
-        const double x = region.displayRect.x + view.shown.left() +
-                         (position.x() - view.screen.left()) / cell;
-        const double y = region.displayRect.y + view.shown.top() +
-                         (position.y() - view.screen.top()) / cell;
-        hit = layout.hitTest(render::Point{static_cast<int>(std::floor(x)),
-                                           static_cast<int>(std::floor(y))});
+        const render::Rect& rect = view.region.displayRect;
+        const double x = (position.x() - view.origin.x()) / view.cell;
+        const double y = (position.y() - view.origin.y()) / view.cell;
+        // Half open: the right and bottom edges belong to what is beside the frame.
+        if (x >= 0.0 && y >= 0.0 && x < rect.width && y < rect.height) {
+            hit = layout.hitTest(render::Point{rect.x + static_cast<int>(std::floor(x)),
+                                               rect.y + static_cast<int>(std::floor(y))});
+        }
         break;
     }
     if (hit && hit->region == render::CanvasRegion::ColorizedFrame && isHdFrameMissing() &&
@@ -566,33 +624,10 @@ render::CanvasLayout FramePreviewWidget::currentLayout() const
     });
 }
 
-double FramePreviewWidget::currentDisplayScale(const render::CanvasLayout& layout) const
-{
-    const QSize available = size();
-    const render::Size displaySize = layout.displaySize();
-    if (displaySize.width <= 0 || displaySize.height <= 0) {
-        return 1.0;
-    }
-    const double fittedScale = std::min(
-        static_cast<double>(std::max(1, available.width() - 24)) /
-            static_cast<double>(displaySize.width),
-        static_cast<double>(std::max(1, available.height() - 36)) /
-            static_cast<double>(displaySize.height));
-    return std::max(1.0, std::floor(fittedScale));
-}
-
 bool FramePreviewWidget::isHdFrameMissing() const
 {
     return m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
            m_document->rendersHdPlaneOnly() && !m_document->hasHdFrame(m_frameIndex);
-}
-
-QPointF FramePreviewWidget::currentDisplayOrigin(const render::CanvasLayout& layout) const
-{
-    const double scale = currentDisplayScale(layout);
-    const render::Size displaySize = layout.displaySize();
-    return QPointF(std::floor((width() - displaySize.width * scale) / 2.0),
-                   std::floor((height() - displaySize.height * scale) / 2.0));
 }
 
 void FramePreviewWidget::paintEmpty(QPainter& painter)
@@ -604,25 +639,19 @@ void FramePreviewWidget::paintEmpty(QPainter& painter)
 void FramePreviewWidget::paintFrame(QPainter& painter)
 {
     const render::CanvasLayout layout = currentLayout();
-    const double scale = currentDisplayScale(layout);
-    const QPointF origin = currentDisplayOrigin(layout);
-
-    painter.save();
-    painter.setRenderHint(QPainter::Antialiasing,
-                          m_renderOptions.pixelShape == DmdPixelShape::Dot);
-    painter.translate(origin);
-    painter.scale(scale, scale);
-
     const bool runtimeView = showsRuntimeView();
-    for (const render::CanvasRegionLayout& region : layout.regions()) {
-        // The region stays in its place; within it, the shown part magnified.
-        const RegionView view = regionView(layout, region);
+    std::optional<QRectF> colorizedPicture;
+    for (const RegionView& view : regionViews()) {
+        // The frame in its half, at the zoom, the part outside the half cut off.
+        const render::CanvasRegionLayout& region = view.region;
         const render::Rect& rect = region.displayRect;
         painter.save();
-        painter.setClipRect(QRectF(rect.x, rect.y, rect.width, rect.height));
-        painter.translate(rect.x, rect.y);
-        painter.scale(m_zoom, m_zoom);
-        painter.translate(-view.shown.left() - rect.x, -view.shown.top() - rect.y);
+        painter.setRenderHint(QPainter::Antialiasing,
+                              m_renderOptions.pixelShape == DmdPixelShape::Dot);
+        painter.setClipRect(view.viewport);
+        painter.translate(view.origin);
+        painter.scale(view.cell, view.cell);
+        painter.translate(-rect.x, -rect.y);
         paintRegion(painter, region);
         if (!runtimeView) {
             paintComparisonMaskOverlay(painter, region);
@@ -635,23 +664,20 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
             paintPasteOverlay(painter, region);
         }
         painter.restore();
+        if (region.region == render::CanvasRegion::ColorizedFrame) {
+            colorizedPicture = QRectF(view.origin, view.contentSize).intersected(view.viewport);
+        }
     }
-
-    painter.restore();
 
     if (runtimeView) {
-        paintRuntimeViewTexts(painter, layout);
+        if (colorizedPicture) {
+            paintRuntimeViewTexts(painter, *colorizedPicture);
+        }
         return;
     }
-    const std::optional<render::CanvasRegionLayout> colorized =
-        layout.region(render::CanvasRegion::ColorizedFrame);
-    if (colorized && isHdFrameMissing() && !m_showBackgroundImageEditMode) {
-        const render::Rect& rect = colorized->displayRect;
+    if (colorizedPicture && isHdFrameMissing() && !m_showBackgroundImageEditMode) {
         painter.setPen(QColor(255, 120, 120));
-        painter.drawText(QRectF(origin.x() + rect.x * scale,
-                                origin.y() + rect.y * scale,
-                                rect.width * scale,
-                                rect.height * scale),
+        painter.drawText(*colorizedPicture,
                          Qt::AlignCenter | Qt::TextWordWrap,
                          QStringLiteral("No %1 frame: the runtime shows nothing for this "
                                         "frame.\nUse Create %1 Frame.")
@@ -661,20 +687,8 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
 
 // Above the picture, never over it: what is shown and that it cannot be edited; and in place
 // of the picture, why libserum has none.
-void FramePreviewWidget::paintRuntimeViewTexts(QPainter& painter,
-                                              const render::CanvasLayout& layout)
+void FramePreviewWidget::paintRuntimeViewTexts(QPainter& painter, const QRectF& pictureRect)
 {
-    const std::optional<render::CanvasRegionLayout> colorized =
-        layout.region(render::CanvasRegion::ColorizedFrame);
-    if (!colorized) {
-        return;
-    }
-    const double scale = currentDisplayScale(layout);
-    const QPointF origin = currentDisplayOrigin(layout);
-    const QRectF pictureRect(origin.x() + colorized->displayRect.x * scale,
-                             origin.y() + colorized->displayRect.y * scale,
-                             colorized->displayRect.width * scale,
-                             colorized->displayRect.height * scale);
     const int rows =
         m_runtimeView->rowsFor(m_document->geometry()) == runtime::PlaneRequest::Rows64 ? 64 : 32;
     // Which frame a machine identifies the ROM frame as, where that is another one.

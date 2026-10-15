@@ -325,8 +325,8 @@ libserum's output for the frame, the one a machine shows, not the editor's own r
   of the 128x32 picture;
 - the one plane of a project with 256x64 or 192x64 original frames.
 
-The proposed file name ends in `_sd` or `_hd`, or in `_256x64` or `_192x64`. `DMD Shape` and
-`DMD Size` apply. The assigned background is always part of the picture: `Show BG` is a setting
+The proposed file name ends in `_sd` or `_hd`, or in `_256x64` or `_192x64`. `Pixel Shape` and
+`Pixel Size` of the Settings apply. The assigned background is always part of the picture: `Show BG` is a setting
 of the editing canvas and has no effect on the export.
 
 If libserum has no picture for the frame, nothing is written and no file dialog comes up. The
@@ -1094,9 +1094,10 @@ The canvas does not draw text labels or white frame outlines over the image data
 
 ### Zoom
 
-The canvas zooms from the whole frame (`100%`) up to `3200%`. The colorized and the original
-picture keep their places; each shows the same part of its frame, magnified, so the author
-always sees the same pixels in both. Drawing, selecting, mask and pipette clicks hit the pixel
+The canvas is split into two halves, one above the other: the colorized frame in the upper,
+the original in the lower. At `100%` each frame fills its half (in whole screen pixels per DMD
+pixel). Zooming in, up to `3200%`, the frames grow beyond their halves, and both halves show the
+same part, so the author always sees the same pixels in both. Drawing, selecting, mask and pipette clicks hit the pixel
 shown under the mouse at any zoom.
 
 - `View -> Zoom In` (`Ctrl++` or `Ctrl+=`) and `Zoom Out` (`Ctrl+-`) zoom by a quarter around
@@ -1104,7 +1105,8 @@ shown under the mouse at any zoom.
   toolbar has `-`, the zoom (a click shows the whole frame) and `+`.
 - `Ctrl` (`Cmd` on macOS) with the mouse wheel, and a trackpad pinch, zoom around the mouse:
   the pixel under it stays there.
-- While zoomed, scroll bars at the bottom and the right of the canvas move the shown part;
+- When the frame is larger than its half, scroll bars at the bottom and the right of the canvas
+  move the shown part;
   so do the mouse wheel (with `Shift` sideways) and two fingers on a trackpad.
 - The zoom and the shown part stay when the frame, the plane or the view changes; opening or
   creating a project starts at the whole frame.
@@ -1168,7 +1170,7 @@ The `Frame` topic exposes:
   by default.
 - `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
 
-How DMD pixels are drawn (`DMD Shape`, `DMD Size`) is in the Settings, see "Settings".
+How DMD pixels are drawn (`Pixel Shape`, `Pixel Size`) is in the Settings, see "Settings".
 
 The `Background` topic exposes:
 
@@ -1399,9 +1401,9 @@ them as they were. They are the editor's, not a project's: kept for the next sta
   (Windows 10's classic style, some Linux desktops, Qt before 6.8), the editor uses Qt's Fusion
   style in the chosen colors; `Follow the system` brings the platform's style back.
   Under `Canvas`:
-  - `DMD Shape` draws square pixels or round dot pixels, on the canvas, in the sprite editor
+  - `Pixel Shape` draws square pixels or round dot pixels, on the canvas, in the sprite editor
     and in PNG exports;
-  - `DMD Size` sets the pixel fill size in 10% steps (`80%` until set otherwise). Values below
+  - `Pixel Size` sets the pixel fill size in 10% steps (`80%` until set otherwise). Values below
     `100%` leave black spacing between pixels, which makes the DMD grid visible.
   They are view and export settings only: no project data and no file changes with them.
 - `DMD Output`: the settings of the DMD output, see "DMD Output".

@@ -17,7 +17,7 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     : QWidget(parent)
 {
     m_localButton = new QRadioButton(QStringLiteral("Displays connected to this computer"), this);
-    m_serverButton = new QRadioButton(QStringLiteral("A dmdserver"), this);
+    m_serverButton = new QRadioButton(QStringLiteral("Use DMDServer"), this);
     m_serverButton->setToolTip(QStringLiteral(
         "libdmdutil's server process, on this or another computer, drives the displays"));
 

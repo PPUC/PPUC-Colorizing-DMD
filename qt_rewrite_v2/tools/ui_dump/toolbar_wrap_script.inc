@@ -38,9 +38,9 @@
                        : std::string("none");
         };
         std::cout << "toolbar: zoom " << w.m_zoomButton->text().toStdString() << " | hits";
-        const render::CanvasLayout layout = w.m_preview->currentLayout();
-        for (const render::CanvasRegionLayout& region : layout.regions()) {
-            std::cout << ' ' << hitAt(w.m_preview->regionView(layout, region).screen.center().toPoint());
+        // The middle of each half.
+        for (const auto& view : w.m_preview->regionViews()) {
+            std::cout << ' ' << hitAt(view.viewport.center().toPoint());
         }
         std::cout << '\n';
         const QByteArray grab = qgetenv("UI_DUMP_GRAB");

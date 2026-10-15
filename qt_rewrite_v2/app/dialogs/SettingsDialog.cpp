@@ -62,8 +62,8 @@ SettingsDialog::SettingsDialog(Theme theme,
                 }
             });
     auto* canvasForm = new QFormLayout(canvasGroup);
-    canvasForm->addRow(QStringLiteral("DMD Shape"), m_pixelShapeComboBox);
-    canvasForm->addRow(QStringLiteral("DMD Size"), m_pixelSizeSpinBox);
+    canvasForm->addRow(QStringLiteral("Pixel Shape"), m_pixelShapeComboBox);
+    canvasForm->addRow(QStringLiteral("Pixel Size"), m_pixelSizeSpinBox);
 
     auto* appearanceLayout = new QVBoxLayout(appearance);
     appearanceLayout->addLayout(themeForm);

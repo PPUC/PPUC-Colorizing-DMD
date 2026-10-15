@@ -79,11 +79,12 @@ public:
     [[nodiscard]] QSize sizeHint() const override;
     [[nodiscard]] std::optional<render::CanvasHit> hitTestAt(QPoint position) const;
 
-    // Zoom: 1 shows the whole frame; above it each region (colorized, original) shows the same
-    // part of its picture, magnified, in the place it has at 1. The view moves with the scroll
-    // bars, the mouse wheel (with Shift sideways) and a trackpad; Ctrl (Cmd on macOS) with the
-    // wheel, and a pinch, zoom around the mouse. The frame, the plane and the project change,
-    // the zoom stays; a new project starts at 1.
+    // The canvas is split into halves one above the other, the colorized frame in the upper,
+    // the original in the lower. Zoom 1 fits the whole frame into its half; above it the
+    // frames grow beyond their halves, which show the same part of both. The shown part moves
+    // with the scroll bars, the mouse wheel (with Shift sideways) and a trackpad; Ctrl (Cmd on
+    // macOS) with the wheel, and a pinch, zoom around the mouse. The frame, the plane and the
+    // view change, the zoom stays; a new project starts at 1.
     static constexpr double kMaxZoom = 32.0;
     [[nodiscard]] double zoom() const;
     // anchor: the widget point that stays on the same pixel; none keeps the middle.
@@ -91,7 +92,8 @@ public:
     void zoomIn();
     void zoomOut();
     void resetZoom();
-    // The left and top of the shown part, as fractions of the regions (0 to 1 - 1 / zoom).
+    // The left and top of the shown part, as fractions of the frame (0 up to 1 minus the shown
+    // fraction).
     [[nodiscard]] QPointF viewOffset() const;
     void setViewOffset(QPointF offset);
     // After the zoom or the shown part changed.
@@ -109,19 +111,23 @@ protected:
 private:
     [[nodiscard]] render::CanvasLayout currentLayout() const;
     [[nodiscard]] bool showsRuntimeView() const;
-    void paintRuntimeViewTexts(QPainter& painter, const render::CanvasLayout& layout);
+    // pictureRect: where the colorized picture is on screen.
+    void paintRuntimeViewTexts(QPainter& painter, const QRectF& pictureRect);
     // The frame of an HD-only project has no HD data: nothing to show or to paint on.
     [[nodiscard]] bool isHdFrameMissing() const;
-    [[nodiscard]] double currentDisplayScale(const render::CanvasLayout& layout) const;
-    [[nodiscard]] QPointF currentDisplayOrigin(const render::CanvasLayout& layout) const;
-    // Where a region is on screen (its place at zoom 1), and the part of it shown there.
+    // A region's half of the canvas and where its frame is drawn: the top left of the frame on
+    // screen (outside the half when zoomed) and the screen pixels per display unit.
     struct RegionView {
-        QRectF screen;
-        // In the region's display units, from its top left.
-        QRectF shown;
+        render::CanvasRegionLayout region;
+        QRectF viewport;
+        QPointF origin;
+        double cell = 1.0;
+        QSizeF contentSize;
     };
-    [[nodiscard]] RegionView regionView(const render::CanvasLayout& layout,
-                                        const render::CanvasRegionLayout& region) const;
+    [[nodiscard]] std::vector<RegionView> regionViews() const;
+    [[nodiscard]] std::optional<RegionView> firstRegionView() const;
+    // The fraction of the frame its half shows, across and down (1 when it fits).
+    [[nodiscard]] QSizeF shownFraction() const;
     // Keeps the offset in range for the zoom and updates the scroll bars.
     void viewChanged();
     void updateScrollBars();
