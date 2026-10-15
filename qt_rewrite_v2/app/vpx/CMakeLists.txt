@@ -7,11 +7,13 @@ add_library(colorizing_qt_v2_vpx STATIC
     EditorApi.cpp
     EditorApi.h
     EditorApiHost.h
+    PupHost.cpp
+    PupHost.h
     VpxHost.cpp
     VpxHost.h
 )
 target_include_directories(colorizing_qt_v2_vpx PUBLIC "${PROJECT_SOURCE_DIR}/app")
-target_link_libraries(colorizing_qt_v2_vpx PUBLIC Qt6::Core PRIVATE colorizing_qt_v2_core)
+target_link_libraries(colorizing_qt_v2_vpx PUBLIC Qt6::Core Qt6::Gui PRIVATE colorizing_qt_v2_core)
 colorizing_qt_v2_enable_warnings(colorizing_qt_v2_vpx)
 
 set(vpx_libvpxhost_dir "")

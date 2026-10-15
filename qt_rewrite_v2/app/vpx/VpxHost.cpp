@@ -168,6 +168,11 @@ bool Host::open(std::string* error)
     return true;
 }
 
+vpxhost::PluginBus* Host::bus()
+{
+    return m_impl->bus.get();
+}
+
 bool Host::hasPlugin(const std::string& id)
 {
     if (!open(nullptr)) {
@@ -377,6 +382,11 @@ bool Host::open(std::string* error)
         *error = "this build has no VPX plugin hosting";
     }
     return false;
+}
+
+vpxhost::PluginBus* Host::bus()
+{
+    return nullptr;
 }
 
 bool Host::hasPlugin(const std::string&)

@@ -3383,6 +3383,7 @@ void runDmdOutputWidgetTests();
 void runEditorPluginsWidgetTests();
 void runVideoClipWidgetTests();
 void runHelperLinesWidgetTests();
+void runPupHostWidgetTests();
 void runSettingsWidgetTests();
 void runHandbookWidgetTests();
 void runBigOriginalWidgetTests();
@@ -3444,6 +3445,7 @@ int main(int argc, char* argv[])
     runEditorPluginsWidgetTests();
     runVideoClipWidgetTests();
     runHelperLinesWidgetTests();
+    runPupHostWidgetTests();
     runSettingsWidgetTests();
     runHandbookWidgetTests();
     runFrameTesterWidgetTests();

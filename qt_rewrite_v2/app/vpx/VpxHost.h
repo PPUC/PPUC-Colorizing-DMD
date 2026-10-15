@@ -7,6 +7,10 @@
 #include <utility>
 #include <vector>
 
+namespace vpxhost {
+class PluginBus;
+}
+
 namespace colorizing::vpx {
 
 // The VPX plugins the editor hosts (libvpxhost's plugin bus): DMDUtil for DMD output, later
@@ -83,10 +87,13 @@ public:
 private:
     Host();
     bool open(std::string* error);
+    // The open bus; nullptr before open() succeeded or without plugin hosting.
+    [[nodiscard]] vpxhost::PluginBus* bus();
 
     struct Impl;
     std::unique_ptr<Impl> m_impl;
     friend class DisplaySource;
+    friend class PupHost;
 };
 
 // A picture the editor shows, offered on the bus as a display (an RGB565 DMD), for plugins
