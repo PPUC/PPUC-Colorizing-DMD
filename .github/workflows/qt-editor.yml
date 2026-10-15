@@ -173,8 +173,19 @@ jobs:
             /third-party/include/unordered_dense.h
             /third-party/include/stl.h
             /third-party/include/ThreadPool.h
-            /third-party/include/pinmame/
             /third-party/include/simple-uri-parser/
+
+      # PinMAME's plugin header (only its constants: the PUP plugin's B2S event stream maps
+      # PinMAME's state groups to triggers). vpinball does not keep it; its external.sh copies
+      # it from PinMAME at the commit vpinball's platforms/config.sh pins, and so does this.
+      - name: Fetch PinMAME's plugin header
+        shell: bash
+        run: |
+          pinmame_sha=$(sed -n 's/^PINMAME_SHA=//p' vpinball/platforms/config.sh)
+          test -n "${pinmame_sha}"
+          mkdir -p vpinball/third-party/include/pinmame
+          curl -fsSL "https://raw.githubusercontent.com/vpinball/pinmame/${pinmame_sha}/src/libpinmame/PinMAMEPlugin.h" \
+            -o vpinball/third-party/include/pinmame/PinMAMEPlugin.h
 
       - name: Name the package
         run: |
