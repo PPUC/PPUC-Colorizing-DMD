@@ -119,10 +119,16 @@
     w.m_undoAction->trigger();
     D("frame move: Remove BG undone");
 
-    // The frames that use the selected background (a tree with that filter).
+    // The frames that use the selected background (a tree with that filter): the asset of the
+    // Backgrounds tab.
     const int usesBackground = w.m_frameFilterComboBox->findText(
-        QStringLiteral("Using the selected background"));
+        QStringLiteral("Using the selected asset"));
     if (usesBackground >= 0) {
+        for (int i = 0; i < w.m_leftBrowserTabs->count(); ++i) {
+            if (w.m_leftBrowserTabs->tabText(i) == QStringLiteral("Backgrounds")) {
+                w.m_leftBrowserTabs->setCurrentIndex(i);
+            }
+        }
         w.m_frameFilterComboBox->setCurrentIndex(usesBackground);
         D("frame move: frames using the selected background");
         std::cout << "frame move: listed";

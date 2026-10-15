@@ -24,4 +24,30 @@
     }
     w.resize(1000, 700);
     QCoreApplication::processEvents();
+
+    // Zoomed 4 times at the middle of the colorized picture: both pictures show its middle,
+    // and a point on screen hits the pixel shown there.
+    if (w.m_document && w.currentFrameIndex()) {
+        w.m_preview->setZoom(4.0);
+        QCoreApplication::processEvents();
+        dump("toolbar: canvas zoomed 400%", w);
+        const auto hitAt = [&](QPoint point) {
+            const std::optional<render::CanvasHit> hit = w.m_preview->hitTestAt(point);
+            return hit ? std::to_string(static_cast<int>(hit->region)) + ":" +
+                             std::to_string(hit->x) + "," + std::to_string(hit->y)
+                       : std::string("none");
+        };
+        std::cout << "toolbar: zoom " << w.m_zoomButton->text().toStdString() << " | hits";
+        const render::CanvasLayout layout = w.m_preview->currentLayout();
+        for (const render::CanvasRegionLayout& region : layout.regions()) {
+            std::cout << ' ' << hitAt(w.m_preview->regionView(layout, region).screen.center().toPoint());
+        }
+        std::cout << '\n';
+        const QByteArray grab = qgetenv("UI_DUMP_GRAB");
+        if (!grab.isEmpty()) {
+            w.grab().save(QString::fromLocal8Bit(grab) + QStringLiteral("/zoom.png"));
+        }
+        w.m_preview->resetZoom();
+        QCoreApplication::processEvents();
+    }
 }

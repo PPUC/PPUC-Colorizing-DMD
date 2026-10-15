@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include <QApplication>
@@ -490,6 +491,109 @@ void testFramePreviewHitTesting()
            "preview hit test should preserve HD resolution");
     expect(hit->x >= 0 && hit->x < 256 && hit->y >= 0 && hit->y < 64,
            "preview hit test coordinates should be inside HD frame");
+}
+
+// The canvas zoomed: both pictures show the same part, and what is drawn at a point is the
+// pixel a click there hits, also after scrolling and when zooming at the mouse.
+void testFramePreviewZoom()
+{
+    using colorizing::render::CanvasHit;
+    using colorizing::render::CanvasRegion;
+    colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::createEmpty({"zoom", 1, true});
+    document.setColorizedPixel(0, colorizing::render::Resolution::Sd, 64, 16, 0xf800);
+    document.setColorizedPixel(0, colorizing::render::Resolution::Sd, 120, 4, 0x07e0);
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    widget.setFrameIndex(0);
+
+    // Every few screen pixels: what is hit there, per region.
+    const auto shownPixels = [&widget](CanvasRegion region) {
+        std::set<std::pair<int, int>> pixels;
+        for (int y = 0; y < widget.height(); y += 2) {
+            for (int x = 0; x < widget.width(); x += 2) {
+                const std::optional<CanvasHit> hit = widget.hitTestAt(QPoint(x, y));
+                if (hit && hit->region == region) {
+                    pixels.insert({hit->x, hit->y});
+                }
+            }
+        }
+        return pixels;
+    };
+    const auto render = [&widget]() {
+        QImage image(widget.size(), QImage::Format_ARGB32);
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        widget.render(&painter);
+        return image;
+    };
+    // The color drawn where a click hits the pixel.
+    const auto colorAtPixel = [&](int pixelX, int pixelY) -> std::optional<QColor> {
+        const QImage image = render();
+        for (int y = 0; y < widget.height(); ++y) {
+            for (int x = 0; x < widget.width(); ++x) {
+                const std::optional<CanvasHit> hit = widget.hitTestAt(QPoint(x, y));
+                if (hit && hit->region == CanvasRegion::ColorizedFrame && hit->x == pixelX &&
+                    hit->y == pixelY) {
+                    // The middle of the pixel, a few points further.
+                    const QPoint middle(x + 3, y + 3);
+                    const std::optional<CanvasHit> there = widget.hitTestAt(middle);
+                    if (there && there->x == pixelX && there->y == pixelY) {
+                        return image.pixelColor(middle);
+                    }
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    const std::set<std::pair<int, int>> whole = shownPixels(CanvasRegion::ColorizedFrame);
+    expect(whole.size() == 128 * 32, "at zoom 1 the whole frame is shown");
+
+    widget.setZoom(4.0);
+    expect(widget.zoom() == 4.0 && widget.viewOffset() == QPointF(0.375, 0.375),
+           "zoom 4 shows the middle quarter");
+    const std::set<std::pair<int, int>> colorized = shownPixels(CanvasRegion::ColorizedFrame);
+    const std::set<std::pair<int, int>> original = shownPixels(CanvasRegion::OriginalFrame);
+    expect(colorized.size() == 32 * 8 && colorized.count({48, 12}) == 1 &&
+               colorized.count({79, 19}) == 1 && colorized.count({47, 12}) == 0,
+           "the colorized picture shows pixels 48-79 x 12-19");
+    expect(original == colorized, "and the original picture the same part");
+    const std::optional<QColor> red = colorAtPixel(64, 16);
+    expect(red && red->red() > 200 && red->green() < 60,
+           "the pixel drawn where a click hits it is that pixel");
+
+    // Scrolled to the top right: pixel 120,4 shows, green.
+    widget.setViewOffset(QPointF(1.0, 0.0));
+    expect(widget.viewOffset() == QPointF(0.75, 0.0), "the offset stays in range");
+    const std::optional<QColor> green = colorAtPixel(120, 4);
+    expect(green && green->green() > 200 && green->red() < 60, "and is drawn there after scrolling");
+    expect(shownPixels(CanvasRegion::OriginalFrame) == shownPixels(CanvasRegion::ColorizedFrame),
+           "both pictures scroll together");
+
+    // Zooming at a point keeps the pixel under it.
+    QPoint point;
+    for (int y = 0; y < widget.height() && point.isNull(); y += 4) {
+        for (int x = 0; x < widget.width() && point.isNull(); x += 4) {
+            const std::optional<CanvasHit> hit = widget.hitTestAt(QPoint(x, y));
+            if (hit && hit->region == CanvasRegion::ColorizedFrame && hit->x == 110) {
+                point = QPoint(x + 2, y + 2);
+            }
+        }
+    }
+    const std::optional<CanvasHit> before = widget.hitTestAt(point);
+    widget.setZoom(8.0, point);
+    const std::optional<CanvasHit> after = widget.hitTestAt(point);
+    expect(before && after && before->x == after->x && before->y == after->y,
+           "zooming at a point keeps the pixel under it");
+
+    widget.setZoom(100.0);
+    expect(widget.zoom() == colorizing::app::FramePreviewWidget::kMaxZoom, "zoom is at most 32");
+    widget.resetZoom();
+    expect(widget.zoom() == 1.0 && shownPixels(CanvasRegion::ColorizedFrame) == whole,
+           "back to the whole frame");
 }
 
 void testFramePreviewClickCallback()
@@ -3056,6 +3160,7 @@ int main(int argc, char* argv[])
     testFrameThumbnailRendersPixels();
     testFrameThumbnailComposesBackgroundBeforeDynamic();
     testFramePreviewHitTesting();
+    testFramePreviewZoom();
     testFramePreviewClickCallback();
     testFramePreviewStrokeCallback();
     testHdPreviewPixelsRender();

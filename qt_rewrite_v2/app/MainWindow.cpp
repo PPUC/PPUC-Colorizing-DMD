@@ -596,6 +596,29 @@ void MainWindow::createActions()
     connect(dmdSettingsAction, &QAction::triggered, this,
             [this]() { editSettings(SettingsDialog::Page::DmdOutput); });
     viewMenu->addSeparator();
+    // The canvas zoom; the colorized and the original picture show the same part.
+    QAction* zoomInAction = viewMenu->addAction(QStringLiteral("Zoom &In"));
+    zoomInAction->setShortcuts({QKeySequence::ZoomIn, QKeySequence(Qt::CTRL | Qt::Key_Equal)});
+    connect(zoomInAction, &QAction::triggered, this, [this]() {
+        if (m_preview) {
+            m_preview->zoomIn();
+        }
+    });
+    QAction* zoomOutAction = viewMenu->addAction(QStringLiteral("Zoom &Out"));
+    zoomOutAction->setShortcut(QKeySequence::ZoomOut);
+    connect(zoomOutAction, &QAction::triggered, this, [this]() {
+        if (m_preview) {
+            m_preview->zoomOut();
+        }
+    });
+    QAction* zoomFitAction = viewMenu->addAction(QStringLiteral("Show &Whole Frame"));
+    zoomFitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
+    connect(zoomFitAction, &QAction::triggered, this, [this]() {
+        if (m_preview) {
+            m_preview->resetZoom();
+        }
+    });
+    viewMenu->addSeparator();
 
     m_runtimeViewAction = viewMenu->addAction(QStringLiteral("&Runtime View"));
     // What the toolbar button of the action shows.
@@ -657,12 +680,13 @@ void MainWindow::createCentralView()
     m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
                                        kInactiveFrameToolTip,
                                        Qt::ToolTipRole);
-    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected mask"),
-                                   static_cast<int>(FrameFilter::UsesSelectedMask));
-    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected background"),
-                                   static_cast<int>(FrameFilter::UsesSelectedBackground));
-    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected sprite"),
-                                   static_cast<int>(FrameFilter::UsesSelectedSprite));
+    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected asset"),
+                                   static_cast<int>(FrameFilter::UsesSelectedAsset));
+    m_frameFilterComboBox->setItemData(
+        m_frameFilterComboBox->count() - 1,
+        QStringLiteral("The frames that use the mask, background or sprite selected in the tab "
+                       "that is open on the left; follows the selection and the tab"),
+        Qt::ToolTipRole);
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new FrameListWidget(central);
     m_frameList->onMoveRequested = [this](int row) { moveSelectedFramesBeforeRow(row); };
@@ -1175,6 +1199,31 @@ void MainWindow::createCentralView()
     auto* dmdOutputButton = new QToolButton(central);
     dmdOutputButton->setDefaultAction(m_dmdOutputAction);
     toolbarLayout->addWidget(dmdOutputButton);
+    startToolbarGroup();
+    // The canvas zoom: out, the zoom (a click shows the whole frame), in.
+    auto* zoomOutButton = new QToolButton(central);
+    zoomOutButton->setText(QStringLiteral("-"));
+    zoomOutButton->setToolTip(QStringLiteral("Zoom out (Ctrl+-)"));
+    connect(zoomOutButton, &QToolButton::clicked, this, [this]() { m_preview->zoomOut(); });
+    m_zoomButton = new QToolButton(central);
+    m_zoomButton->setText(QStringLiteral("100%"));
+    m_zoomButton->setToolTip(QStringLiteral(
+        "Canvas zoom; a click shows the whole frame (Ctrl+0). Ctrl with the mouse wheel or a "
+        "pinch zooms at the mouse."));
+    connect(m_zoomButton, &QToolButton::clicked, this, [this]() { m_preview->resetZoom(); });
+    auto* zoomInButton = new QToolButton(central);
+    zoomInButton->setText(QStringLiteral("+"));
+    zoomInButton->setToolTip(QStringLiteral("Zoom in (Ctrl++)"));
+    connect(zoomInButton, &QToolButton::clicked, this, [this]() { m_preview->zoomIn(); });
+    toolbarLayout->addWidget(zoomOutButton);
+    toolbarLayout->addWidget(m_zoomButton);
+    toolbarLayout->addWidget(zoomInButton);
+    m_preview->onViewChanged = [this]() {
+        if (m_zoomButton) {
+            m_zoomButton->setText(
+                QStringLiteral("%1%").arg(std::lround(m_preview->zoom() * 100.0)));
+        }
+    };
     // The rest of the last row, whatever its text: a long one (the identification hint) is
     // cut instead of widening the window; a row of its own when too little is left.
     m_frameStatusLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -1245,6 +1294,8 @@ void MainWindow::createCentralView()
     m_leftBrowserTabs->addTab(m_maskPage, QStringLiteral("Masks"));
     m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"));
     m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"));
+    connect(m_leftBrowserTabs, &QTabWidget::currentChanged, this,
+            [this]() { refreshSelectedAssetFilter(); });
     auto* inspector = new QWidget(central);
     auto* inspectorLayout = new QVBoxLayout(inspector);
     auto* inspectorTitle = new QLabel(QStringLiteral("Inspector"), inspector);
@@ -1338,7 +1389,7 @@ void MainWindow::createCentralView()
             m_selectedMaskIndex = static_cast<std::size_t>(maskIndex);
         }
         updateMaskControls();
-        refreshFrameFilterOfSelection(FrameFilter::UsesSelectedMask);
+        refreshSelectedAssetFilter();
     });
     connect(m_backgroundList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
         if (!item || !m_backgroundComboBox) {
@@ -1349,7 +1400,7 @@ void MainWindow::createCentralView()
         if (comboIndex >= 0) {
             m_backgroundComboBox->setCurrentIndex(comboIndex);
         }
-        refreshFrameFilterOfSelection(FrameFilter::UsesSelectedBackground);
+        refreshSelectedAssetFilter();
     });
     connect(m_spriteList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
         if (!item || !m_document) {
@@ -1364,7 +1415,7 @@ void MainWindow::createCentralView()
         m_selectedSpriteIndex = spriteIndex;
         updateSpriteControls();
         updateUndoRedoActions();
-        refreshFrameFilterOfSelection(FrameFilter::UsesSelectedSprite);
+        refreshSelectedAssetFilter();
     });
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -3173,6 +3224,8 @@ void MainWindow::refreshProjectSummary()
     }
     m_preview->clearSelectionOverlayPixels();
     m_preview->setDocument(m_document ? &*m_document : nullptr);
+    // Another project starts with the whole frame shown.
+    m_preview->resetZoom();
     m_preview->setBackgroundLayerEnabled(m_framePanel &&
                                          m_framePanel->isBackgroundLayerChecked());
     m_preview->setSelectedSpriteBoundsOverlayEnabled(
@@ -3692,17 +3745,21 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
                                return reference.spriteId != 255;
                            });
     }
-    if (filter == FrameFilter::UsesSelectedMask) {
+    if (filter != FrameFilter::UsesSelectedAsset) {
+        return true;
+    }
+    QWidget* assetTab = m_leftBrowserTabs ? m_leftBrowserTabs->currentWidget() : nullptr;
+    if (assetTab && assetTab == m_maskPage) {
         return m_selectedMaskIndex && *m_selectedMaskIndex < m_document->comparisonMaskCount() &&
                m_document->comparisonMaskId(frameIndex) == *m_selectedMaskIndex;
     }
-    if (filter == FrameFilter::UsesSelectedBackground) {
+    if (assetTab && assetTab == m_backgroundPage) {
         const std::optional<std::size_t> background = selectedBackgroundIndex();
         const std::optional<document::FrameBackgroundData>& backgroundData =
             m_document->backgroundData(frameIndex);
         return background && backgroundData && backgroundData->backgroundId == *background;
     }
-    if (filter == FrameFilter::UsesSelectedSprite) {
+    if (assetTab && assetTab == m_spritePage) {
         if (m_selectedSpriteIndex < 0 ||
             static_cast<std::size_t>(m_selectedSpriteIndex) >= m_document->spriteCount()) {
             return false;
@@ -3717,10 +3774,11 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     return true;
 }
 
-void MainWindow::refreshFrameFilterOfSelection(FrameFilter filter)
+void MainWindow::refreshSelectedAssetFilter()
 {
-    if (m_frameFilterComboBox &&
-        static_cast<FrameFilter>(m_frameFilterComboBox->currentData().toInt()) == filter) {
+    if (m_frameFilterComboBox && static_cast<FrameFilter>(m_frameFilterComboBox->currentData()
+                                                              .toInt()) ==
+                                     FrameFilter::UsesSelectedAsset) {
         refreshFrameListItems();
     }
 }

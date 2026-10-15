@@ -10,6 +10,8 @@
 #include <QColor>
 #include <QWidget>
 
+class QScrollBar;
+
 #include "document/ProjectDocument.h"
 #include "FrameImageUtils.h"
 #include "render/CanvasLayout.h"
@@ -77,11 +79,32 @@ public:
     [[nodiscard]] QSize sizeHint() const override;
     [[nodiscard]] std::optional<render::CanvasHit> hitTestAt(QPoint position) const;
 
+    // Zoom: 1 shows the whole frame; above it each region (colorized, original) shows the same
+    // part of its picture, magnified, in the place it has at 1. The view moves with the scroll
+    // bars, the mouse wheel (with Shift sideways) and a trackpad; Ctrl (Cmd on macOS) with the
+    // wheel, and a pinch, zoom around the mouse. The frame, the plane and the project change,
+    // the zoom stays; a new project starts at 1.
+    static constexpr double kMaxZoom = 32.0;
+    [[nodiscard]] double zoom() const;
+    // anchor: the widget point that stays on the same pixel; none keeps the middle.
+    void setZoom(double zoom, std::optional<QPoint> anchor = std::nullopt);
+    void zoomIn();
+    void zoomOut();
+    void resetZoom();
+    // The left and top of the shown part, as fractions of the regions (0 to 1 - 1 / zoom).
+    [[nodiscard]] QPointF viewOffset() const;
+    void setViewOffset(QPointF offset);
+    // After the zoom or the shown part changed.
+    std::function<void()> onViewChanged;
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    bool event(QEvent* event) override;
 
 private:
     [[nodiscard]] render::CanvasLayout currentLayout() const;
@@ -91,6 +114,17 @@ private:
     [[nodiscard]] bool isHdFrameMissing() const;
     [[nodiscard]] double currentDisplayScale(const render::CanvasLayout& layout) const;
     [[nodiscard]] QPointF currentDisplayOrigin(const render::CanvasLayout& layout) const;
+    // Where a region is on screen (its place at zoom 1), and the part of it shown there.
+    struct RegionView {
+        QRectF screen;
+        // In the region's display units, from its top left.
+        QRectF shown;
+    };
+    [[nodiscard]] RegionView regionView(const render::CanvasLayout& layout,
+                                        const render::CanvasRegionLayout& region) const;
+    // Keeps the offset in range for the zoom and updates the scroll bars.
+    void viewChanged();
+    void updateScrollBars();
     void paintEmpty(QPainter& painter);
     void paintFrame(QPainter& painter);
     void paintRegion(QPainter& painter, const render::CanvasRegionLayout& region);
@@ -137,6 +171,11 @@ private:
     std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> m_pressInterceptor;
     std::function<void(render::CanvasHit)> m_hoverHandler;
     Qt::KeyboardModifiers m_pressModifiers;
+    double m_zoom = 1.0;
+    QPointF m_viewOffset;
+    QScrollBar* m_horizontalScrollBar = nullptr;
+    QScrollBar* m_verticalScrollBar = nullptr;
+    bool m_updatingScrollBars = false;
 };
 
 }  // namespace colorizing::app

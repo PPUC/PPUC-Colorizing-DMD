@@ -572,10 +572,11 @@ zone or a background, or a duration of 15 ms or more removes it.
 
 The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
-with sprite assignments, the frames marked `inactive` (`Inactive`), or the frames that use what
-is selected on the left: `Using the selected mask` (its comparison mask), `Using the selected
-background` (assigned), `Using the selected sprite` (in one of their sprite slots). Those three
-follow the selection: choosing another mask, background or sprite shows its frames.
+with sprite assignments, the frames marked `inactive` (`Inactive`), or `Using the selected
+asset`: the frames that use what is selected in the tab open on the left, the comparison mask
+(`Masks`), the assigned background (`Backgrounds`) or the sprite in one of their sprite slots
+(`Sprites`). It follows both: choosing another asset, or opening another of the three tabs,
+shows its frames.
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 
@@ -1090,6 +1091,23 @@ The central canvas shows:
   pixels of that half size, so they are three quarters as wide.
 
 The canvas does not draw text labels or white frame outlines over the image data.
+
+### Zoom
+
+The canvas zooms from the whole frame (`100%`) up to `3200%`. The colorized and the original
+picture keep their places; each shows the same part of its frame, magnified, so the author
+always sees the same pixels in both. Drawing, selecting, mask and pipette clicks hit the pixel
+shown under the mouse at any zoom.
+
+- `View -> Zoom In` (`Ctrl++` or `Ctrl+=`) and `Zoom Out` (`Ctrl+-`) zoom by a quarter around
+  the middle of the shown part; `View -> Show Whole Frame` (`Ctrl+0`) goes back to `100%`. The
+  toolbar has `-`, the zoom (a click shows the whole frame) and `+`.
+- `Ctrl` (`Cmd` on macOS) with the mouse wheel, and a trackpad pinch, zoom around the mouse:
+  the pixel under it stays there.
+- While zoomed, scroll bars at the bottom and the right of the canvas move the shown part;
+  so do the mouse wheel (with `Shift` sideways) and two fingers on a trackpad.
+- The zoom and the shown part stay when the frame, the plane or the view changes; opening or
+  creating a project starts at the whole frame.
 
 Drawing previews are transient overlays. They do not modify project data until mouse release or click commit.
 

@@ -93,16 +93,15 @@ private:
         // Frames a save flags inactive and the runtime skips, see
         // legacy::isFrameSkippedAtRuntime().
         Inactive,
-        // Frames that use the mask, background or sprite selected on the left.
-        UsesSelectedMask,
-        UsesSelectedBackground,
-        UsesSelectedSprite,
+        // Frames that use the asset selected on the left: the mask, background or sprite of
+        // the tab that is open there.
+        UsesSelectedAsset,
     };
 
     void createActions();
-    // After the selected mask, background or sprite changed: the frame strip follows when it
-    // shows the frames that use it.
-    void refreshFrameFilterOfSelection(FrameFilter filter);
+    // After the selected mask, background or sprite, or the tab on the left, changed: the frame
+    // strip follows when it shows the frames that use the selected asset.
+    void refreshSelectedAssetFilter();
     void createCentralView();
     void openProject();
     // File -> New Project From Dump and Add Frames From Dump, see DumpImportDialog.
@@ -470,6 +469,8 @@ private:
     QAction* m_moveFramesUpAction = nullptr;
     QAction* m_moveFramesDownAction = nullptr;
     QAction* m_moveFramesToAction = nullptr;
+    // The canvas zoom in the toolbar; a click shows the whole frame.
+    QToolButton* m_zoomButton = nullptr;
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;

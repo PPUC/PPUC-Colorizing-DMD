@@ -5,8 +5,11 @@
 #include <exception>
 
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QScrollBar>
+#include <QWheelEvent>
 
 #include "FrameImageUtils.h"
 #include "PlaneLabels.h"
@@ -19,6 +22,170 @@ FramePreviewWidget::FramePreviewWidget(QWidget* parent)
 {
     setMinimumSize(320, 220);
     setFocusPolicy(Qt::StrongFocus);
+    m_horizontalScrollBar = new QScrollBar(Qt::Horizontal, this);
+    m_verticalScrollBar = new QScrollBar(Qt::Vertical, this);
+    for (QScrollBar* bar : {m_horizontalScrollBar, m_verticalScrollBar}) {
+        bar->hide();
+        bar->setFocusPolicy(Qt::NoFocus);
+        connect(bar, &QScrollBar::valueChanged, this, [this]() {
+            if (m_updatingScrollBars || m_zoom <= 1.0) {
+                return;
+            }
+            // The scroll bars count the zoomed picture in steps of 1/10000 of a region.
+            const double total = 10000.0 * m_zoom;
+            m_viewOffset = QPointF(m_horizontalScrollBar->value() / total,
+                                   m_verticalScrollBar->value() / total);
+            viewChanged();
+        });
+    }
+}
+
+double FramePreviewWidget::zoom() const
+{
+    return m_zoom;
+}
+
+void FramePreviewWidget::setZoom(double zoom, std::optional<QPoint> anchor)
+{
+    zoom = std::clamp(zoom, 1.0, kMaxZoom);
+    if (zoom == m_zoom) {
+        return;
+    }
+    // The fraction of the regions under the anchor (or the middle of the shown part) stays.
+    QPointF fraction(0.5, 0.5);
+    if (anchor && m_document && m_hasFrame && m_frameIndex < m_document->frameCount()) {
+        const render::CanvasLayout layout = currentLayout();
+        for (const render::CanvasRegionLayout& region : layout.regions()) {
+            const RegionView view = regionView(layout, region);
+            if (view.screen.contains(*anchor)) {
+                fraction = QPointF((anchor->x() - view.screen.left()) / view.screen.width(),
+                                   (anchor->y() - view.screen.top()) / view.screen.height());
+            }
+        }
+    }
+    const QPointF point = m_viewOffset + fraction / m_zoom;
+    m_zoom = zoom;
+    m_viewOffset = point - fraction / m_zoom;
+    viewChanged();
+}
+
+void FramePreviewWidget::zoomIn()
+{
+    setZoom(m_zoom * 1.25);
+}
+
+void FramePreviewWidget::zoomOut()
+{
+    setZoom(m_zoom / 1.25);
+}
+
+void FramePreviewWidget::resetZoom()
+{
+    m_zoom = 1.0;
+    m_viewOffset = QPointF();
+    viewChanged();
+}
+
+QPointF FramePreviewWidget::viewOffset() const
+{
+    return m_viewOffset;
+}
+
+void FramePreviewWidget::setViewOffset(QPointF offset)
+{
+    m_viewOffset = offset;
+    viewChanged();
+}
+
+void FramePreviewWidget::viewChanged()
+{
+    const double maximum = 1.0 - 1.0 / m_zoom;
+    m_viewOffset = QPointF(std::clamp(m_viewOffset.x(), 0.0, maximum),
+                           std::clamp(m_viewOffset.y(), 0.0, maximum));
+    updateScrollBars();
+    update();
+    if (onViewChanged) {
+        onViewChanged();
+    }
+}
+
+void FramePreviewWidget::updateScrollBars()
+{
+    const bool zoomed = m_zoom > 1.0;
+    m_updatingScrollBars = true;
+    const double total = 10000.0 * m_zoom;
+    for (QScrollBar* bar : {m_horizontalScrollBar, m_verticalScrollBar}) {
+        bar->setVisible(zoomed);
+        bar->setRange(0, static_cast<int>(std::lround(total - 10000.0)));
+        bar->setPageStep(10000);
+        bar->setSingleStep(10000 / 8);
+    }
+    m_horizontalScrollBar->setValue(static_cast<int>(std::lround(m_viewOffset.x() * total)));
+    m_verticalScrollBar->setValue(static_cast<int>(std::lround(m_viewOffset.y() * total)));
+    m_updatingScrollBars = false;
+}
+
+void FramePreviewWidget::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    const int thickness = m_horizontalScrollBar->sizeHint().height();
+    m_horizontalScrollBar->setGeometry(0, height() - thickness, width() - thickness, thickness);
+    m_verticalScrollBar->setGeometry(width() - thickness, 0, thickness, height() - thickness);
+}
+
+void FramePreviewWidget::wheelEvent(QWheelEvent* event)
+{
+    if (event->modifiers().testFlag(Qt::ControlModifier)) {
+        // 120 is one notch of a wheel: 1.25 times.
+        const double notches = event->angleDelta().y() / 120.0;
+        if (notches != 0.0) {
+            setZoom(m_zoom * std::pow(1.25, notches), event->position().toPoint());
+        }
+        event->accept();
+        return;
+    }
+    if (m_zoom <= 1.0) {
+        QWidget::wheelEvent(event);
+        return;
+    }
+    // A trackpad gives pixels, a wheel notches (8 per degree); a notch moves a tenth of the
+    // shown part. Shift turns a plain wheel sideways.
+    QPointF delta = !event->pixelDelta().isNull()
+                        ? QPointF(event->pixelDelta()) / std::max(1, std::min(width(), height()))
+                        : QPointF(event->angleDelta()) / 1200.0;
+    if (event->modifiers().testFlag(Qt::ShiftModifier) && event->pixelDelta().isNull()) {
+        delta = QPointF(delta.y(), delta.x());
+    }
+    m_viewOffset -= delta / m_zoom;
+    viewChanged();
+    event->accept();
+}
+
+bool FramePreviewWidget::event(QEvent* event)
+{
+    if (event->type() == QEvent::NativeGesture) {
+        const auto* gesture = static_cast<QNativeGestureEvent*>(event);
+        if (gesture->gestureType() == Qt::ZoomNativeGesture) {
+            setZoom(m_zoom * (1.0 + gesture->value()), gesture->position().toPoint());
+            return true;
+        }
+    }
+    return QWidget::event(event);
+}
+
+FramePreviewWidget::RegionView FramePreviewWidget::regionView(
+    const render::CanvasLayout& layout,
+    const render::CanvasRegionLayout& region) const
+{
+    const double scale = currentDisplayScale(layout);
+    const QPointF origin = currentDisplayOrigin(layout);
+    const render::Rect& rect = region.displayRect;
+    RegionView view;
+    view.screen = QRectF(origin.x() + rect.x * scale, origin.y() + rect.y * scale,
+                         rect.width * scale, rect.height * scale);
+    view.shown = QRectF(m_viewOffset.x() * rect.width, m_viewOffset.y() * rect.height,
+                        rect.width / m_zoom, rect.height / m_zoom);
+    return view;
 }
 
 void FramePreviewWidget::setDocument(const document::ProjectDocument* document)
@@ -247,10 +414,25 @@ std::optional<render::CanvasHit> FramePreviewWidget::hitTestAt(QPoint position) 
         return std::nullopt;
     }
 
-    const QPointF origin = currentDisplayOrigin(layout);
-    const int layoutX = static_cast<int>(std::floor((position.x() - origin.x()) / scale));
-    const int layoutY = static_cast<int>(std::floor((position.y() - origin.y()) / scale));
-    const std::optional<render::CanvasHit> hit = layout.hitTest(render::Point{layoutX, layoutY});
+    // The region under the point, by its place on screen, then the point within the part of it
+    // that is shown.
+    std::optional<render::CanvasHit> hit;
+    for (const render::CanvasRegionLayout& region : layout.regions()) {
+        const RegionView view = regionView(layout, region);
+        // Half open: the right and bottom edges belong to what is beside the region.
+        if (position.x() < view.screen.left() || position.x() >= view.screen.right() ||
+            position.y() < view.screen.top() || position.y() >= view.screen.bottom()) {
+            continue;
+        }
+        const double cell = scale * m_zoom;
+        const double x = region.displayRect.x + view.shown.left() +
+                         (position.x() - view.screen.left()) / cell;
+        const double y = region.displayRect.y + view.shown.top() +
+                         (position.y() - view.screen.top()) / cell;
+        hit = layout.hitTest(render::Point{static_cast<int>(std::floor(x)),
+                                           static_cast<int>(std::floor(y))});
+        break;
+    }
     if (hit && hit->region == render::CanvasRegion::ColorizedFrame && isHdFrameMissing() &&
         !m_showBackgroundImageEditMode) {
         return std::nullopt;
@@ -433,18 +615,26 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
 
     const bool runtimeView = showsRuntimeView();
     for (const render::CanvasRegionLayout& region : layout.regions()) {
+        // The region stays in its place; within it, the shown part magnified.
+        const RegionView view = regionView(layout, region);
+        const render::Rect& rect = region.displayRect;
+        painter.save();
+        painter.setClipRect(QRectF(rect.x, rect.y, rect.width, rect.height));
+        painter.translate(rect.x, rect.y);
+        painter.scale(m_zoom, m_zoom);
+        painter.translate(-view.shown.left() - rect.x, -view.shown.top() - rect.y);
         paintRegion(painter, region);
-        if (runtimeView) {
-            continue;
+        if (!runtimeView) {
+            paintComparisonMaskOverlay(painter, region);
+            paintDifferenceOverlay(painter, region);
+            paintDynamicMaskOverlay(painter, region);
+            paintBackgroundMaskOverlay(painter, region);
+            paintSelectedSpriteBounds(painter, region);
+            paintSelectionOverlay(painter, region);
+            paintPreview(painter, region);
+            paintPasteOverlay(painter, region);
         }
-        paintComparisonMaskOverlay(painter, region);
-        paintDifferenceOverlay(painter, region);
-        paintDynamicMaskOverlay(painter, region);
-        paintBackgroundMaskOverlay(painter, region);
-        paintSelectedSpriteBounds(painter, region);
-        paintSelectionOverlay(painter, region);
-        paintPreview(painter, region);
-        paintPasteOverlay(painter, region);
+        painter.restore();
     }
 
     painter.restore();
