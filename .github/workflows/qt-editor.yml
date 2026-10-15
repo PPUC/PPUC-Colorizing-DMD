@@ -173,6 +173,8 @@ jobs:
             /third-party/include/unordered_dense.h
             /third-party/include/stl.h
             /third-party/include/ThreadPool.h
+            /third-party/include/pinmame/
+            /third-party/include/simple-uri-parser/
 
       - name: Name the package
         run: |
