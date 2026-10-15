@@ -172,6 +172,7 @@ jobs:
             /third-party/include/plog/
             /third-party/include/unordered_dense.h
             /third-party/include/stl.h
+            /third-party/include/ThreadPool.h
 
       - name: Name the package
         run: |
