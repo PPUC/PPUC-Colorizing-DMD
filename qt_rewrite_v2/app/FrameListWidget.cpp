@@ -1,6 +1,7 @@
 #include "FrameListWidget.h"
 
 #include <QDropEvent>
+#include <QPainter>
 
 namespace colorizing::app {
 
@@ -9,7 +10,8 @@ FrameListWidget::FrameListWidget(QWidget* parent)
 {
     setDragDropMode(QAbstractItemView::InternalMove);
     setDefaultDropAction(Qt::MoveAction);
-    setDropIndicatorShown(true);
+    // The list draws its own line where the frames go (paintEvent()).
+    setDropIndicatorShown(false);
 }
 
 int FrameListWidget::dropRow(const QPoint& position) const
@@ -25,8 +27,77 @@ int FrameListWidget::dropRow(const QPoint& position) const
     return behind ? index.row() + 1 : index.row();
 }
 
+int FrameListWidget::shownDropRow() const
+{
+    return m_dropRow;
+}
+
+bool FrameListWidget::takeDrag(QDragMoveEvent* event)
+{
+    if (event->source() != this) {
+        return false;
+    }
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+    const int row = dropRow(event->position().toPoint());
+    if (row != m_dropRow) {
+        m_dropRow = row;
+        viewport()->update();
+    }
+    return true;
+}
+
+void FrameListWidget::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (!takeDrag(event)) {
+        QListWidget::dragEnterEvent(event);
+    }
+}
+
+void FrameListWidget::dragMoveEvent(QDragMoveEvent* event)
+{
+    if (event->source() == this) {
+        // The item view's own handling scrolls the strip near its ends; its verdict is then
+        // replaced.
+        QAbstractItemView::dragMoveEvent(event);
+    }
+    if (!takeDrag(event)) {
+        QListWidget::dragMoveEvent(event);
+    }
+}
+
+void FrameListWidget::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    m_dropRow = -1;
+    viewport()->update();
+    QListWidget::dragLeaveEvent(event);
+}
+
+void FrameListWidget::paintEvent(QPaintEvent* event)
+{
+    QListWidget::paintEvent(event);
+    if (m_dropRow < 0 || count() == 0) {
+        return;
+    }
+    // Before the row's frame, or behind the last one.
+    const bool behindLast = m_dropRow >= count();
+    const QRect rect = visualRect(model()->index(behindLast ? count() - 1 : m_dropRow, 0));
+    const bool across = flow() == QListView::LeftToRight;
+    QPainter painter(viewport());
+    painter.setPen(QPen(palette().highlight(), 3));
+    if (across) {
+        const int x = behindLast ? rect.right() + 1 : rect.left() - 1;
+        painter.drawLine(x, rect.top(), x, rect.bottom());
+    } else {
+        const int y = behindLast ? rect.bottom() + 1 : rect.top() - 1;
+        painter.drawLine(rect.left(), y, rect.right(), y);
+    }
+}
+
 void FrameListWidget::dropEvent(QDropEvent* event)
 {
+    m_dropRow = -1;
+    viewport()->update();
     // The rows stay as they are; the list is built again from the moved frames.
     const int row = dropRow(event->position().toPoint());
     event->setDropAction(Qt::IgnoreAction);

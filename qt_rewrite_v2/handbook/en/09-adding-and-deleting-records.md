@@ -41,7 +41,8 @@ another tool. They go as one block, in their order, and are renumbered with the 
 everything a frame has goes with it. One undo step.
 
 - Drag the selected frames in the frame strip and drop them: on the left half of a frame they
-  go before it, on the right half behind it, behind the last frame behind the last one.
+  go before it, on the right half behind it, behind the last frame behind the last one. A
+  vertical line between the frames shows where they go; near the ends of the strip it scrolls.
   (Pressing on a selected frame and moving the mouse starts the drag; select ranges with
   Shift+click.)
 - `Edit -> Move Frames Earlier` (`Alt+Left` or `Alt+Up` in the frame strip) puts them before the
