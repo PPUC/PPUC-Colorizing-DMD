@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds libdmdutil (DMD output: ZeDMD, Pixelcade, PIN2DMD, dmdserver) and stages what the
 # editor links and ships into one prefix:
-#   <prefix>/include/DMDUtil/   the headers
+#   <prefix>/include/DMDUtil/   the headers (and pupdmd.h, libpupdmd's, for the PUP plugin)
 #   <prefix>/lib/               libdmdutil and every shared library it loads
 #
 # Usage: build-libdmdutil.sh [--stage-only] <libdmdutil checkout> <platform> <arch> <prefix>
@@ -68,11 +68,17 @@ stage_libs() {
         *) echo "Unknown platform ${platform}" >&2; exit 2 ;;
     esac
     cp -a "${source_dir}/third-party/runtime-libs/${platform}/${a}/." "${target}/"
+    # The import libraries of the Windows DLLs, for what links them (the PUP plugin: libpupdmd).
+    if [ "${platform}" = "win-mingw" ] && [ -d "${source_dir}/third-party/build-libs/${platform}/${a}" ]; then
+        cp -a "${source_dir}/third-party/build-libs/${platform}/${a}/." "${target}/"
+    fi
 }
 
 rm -rf "${prefix}/include/DMDUtil" "${prefix}/lib"
 mkdir -p "${prefix}/include" "${prefix}/lib"
 cp -a "${source_dir}/include/DMDUtil" "${prefix}/include/"
+# libpupdmd's header: VPX's PUP plugin, built with the editor, links the libpupdmd staged here.
+cp -a "${source_dir}/third-party/include/pupdmd.h" "${prefix}/include/"
 
 if [ "${stage_only}" -eq 0 ]; then
     build "${arch}"

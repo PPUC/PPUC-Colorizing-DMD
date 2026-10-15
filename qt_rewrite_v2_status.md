@@ -1188,6 +1188,21 @@ instability is no obstacle (the owner works with the plugin developers).
   macOS, Linux and `windows-mingw` (not for plain `windows` without MSVC); ppuc does not build
   it on Windows. Hosting it also needs a renderer for PUP's screens and a game/controller on
   the bus (see ppuc's `src/MediaPluginHost.cpp`).
+- Built here (2026-10-15): `packaging/build-media-libs.sh <vpinball> <platform> <arch>
+  <prefix>` builds SDL3, SDL3_image, SDL3_ttf and ffmpeg at vpinball's pins into a prefix
+  (ffmpeg: no avdevice/avfilter, `--disable-autodetect --enable-zlib` so nothing from the build
+  machine leaks in; Windows `--build-suffix=64` as PUP's LibAv.h loads it; work tree
+  `<prefix>-work`, skipped when `media-libs.txt` matches the pins). `build-libdmdutil.sh`
+  also stages `pupdmd.h` (and on Windows the import libraries). With
+  `-DCOLORIZINGDMD_MEDIA_PREFIX`, `app/vpx/CMakeLists.txt` compiles `plugins/pup/*.cpp` from the
+  vpinball checkout (not vpinball's own CMake, which skips non-MSVC Windows) into
+  `<build>/vpx-plugins/pup` with plugin.cfg, the media libraries and libpupdmd (copied keeping
+  symbolic links, `CopyLibraries.cmake`). Listed as built in under Settings -> Plugins ("PuP
+  tester"). Verified on macOS: `--check-plugins` loads it. CI builds and caches the prefix
+  (key: vpinball SHA + script hash).
+- `app/VideoClip.{h,cpp}`: the movie clip import's reader; loads avutil, swscale, avcodec,
+  avformat at run time with QLibrary from `<plugin folder>/pup` (names: `libavX.N.dylib`,
+  `libavX.so.N`, `avX64-N.dll`), so the editor starts without them.
 
 ## Windows, Linux and CI (set up 2026-10-14, not yet run on GitHub)
 

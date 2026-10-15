@@ -165,6 +165,9 @@ jobs:
           sparse-checkout: |
             /plugins/plugins/
             /plugins/dmdutil/
+            /plugins/pup/
+            /platforms/config.sh
+            /third-party/include/RSJparser/
             /third-party/include/mINI/
             /third-party/include/plog/
             /third-party/include/unordered_dense.h
@@ -199,6 +202,8 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-base
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-qt6-translations
+            mingw-w64-ucrt-x86_64-nasm
+            git
             zip
             make
             diffutils
@@ -213,7 +218,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-l10n-tools \
             qt6-translations-l10n libgl-dev ninja-build ccache \
-            libudev-dev autoconf automake libtool pkg-config
+            libudev-dev autoconf automake libtool pkg-config nasm
           if [ "${{ matrix.arch }}" = aarch64 ]; then
             sudo apt-get install -y --no-install-recommends libgpiod-dev
           fi
@@ -261,6 +266,32 @@ jobs:
           ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh libdmdutil \
             ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} dmdutil
 
+      #
+      # The media libraries of the PUP plugin and the movie clip import (SDL3, SDL3_image,
+      # SDL3_ttf, ffmpeg at vpinball's pins), built once per vpinball revision and platform
+      #
+      - name: Restore the media libraries
+        id: media-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: media
+          key: media-libs-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.VPINBALL_SHA }}-${{ hashFiles('ColorizingDMD/qt_rewrite_v2/packaging/build-media-libs.sh') }}
+
+      - name: Build the media libraries (Windows)
+        if: matrix.platform == 'windows' && steps.media-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          ColorizingDMD/qt_rewrite_v2/packaging/build-media-libs.sh vpinball \
+            ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} media
+
+      - name: Build the media libraries
+        if: matrix.platform != 'windows' && steps.media-cache.outputs.cache-hit != 'true'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ env.MACOS_DEPLOYMENT_TARGET }}
+        run: |
+          ColorizingDMD/qt_rewrite_v2/packaging/build-media-libs.sh vpinball \
+            ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} media
+
       - name: Restore the compiler cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -286,7 +317,8 @@ jobs:
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
             -DCOLORIZINGDMD_LIBVPXHOST_DIR="${GITHUB_WORKSPACE}/libvpxhost" \
             -DCOLORIZINGDMD_VPINBALL_DIR="${GITHUB_WORKSPACE}/vpinball" \
-            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
+            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil" \
+            -DCOLORIZINGDMD_MEDIA_PREFIX="${GITHUB_WORKSPACE}/media"
 
       - name: Configure (Linux)
         if: matrix.platform == 'linux'
@@ -300,7 +332,8 @@ jobs:
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
             -DCOLORIZINGDMD_LIBVPXHOST_DIR="${GITHUB_WORKSPACE}/libvpxhost" \
             -DCOLORIZINGDMD_VPINBALL_DIR="${GITHUB_WORKSPACE}/vpinball" \
-            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
+            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil" \
+            -DCOLORIZINGDMD_MEDIA_PREFIX="${GITHUB_WORKSPACE}/media"
 
       - name: Configure (macOS)
         if: matrix.platform == 'macos'
@@ -317,7 +350,8 @@ jobs:
             -DCOLORIZINGDMD_QT_V2_PACKAGE=ON \
             -DCOLORIZINGDMD_LIBVPXHOST_DIR="${GITHUB_WORKSPACE}/libvpxhost" \
             -DCOLORIZINGDMD_VPINBALL_DIR="${GITHUB_WORKSPACE}/vpinball" \
-            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil"
+            -DCOLORIZINGDMD_DMDUTIL_PREFIX="${GITHUB_WORKSPACE}/dmdutil" \
+            -DCOLORIZINGDMD_MEDIA_PREFIX="${GITHUB_WORKSPACE}/media"
 
       - name: Build (Windows)
         if: matrix.platform == 'windows'

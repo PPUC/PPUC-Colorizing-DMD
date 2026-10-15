@@ -15,8 +15,10 @@ namespace colorizing::app {
 namespace {
 
 const QString kEnabledKey = QStringLiteral("plugins/enabled");
-// Loaded by the DMD output, not chosen here.
+// Loaded by the editor itself when it needs them, not chosen here: DMDUtil by the DMD output,
+// PUP by the PuP tester.
 const QString kDmdUtilId = QStringLiteral("DMDUtil");
+const QString kPupId = QStringLiteral("PUP");
 
 QString settingKey(const std::string& pluginId, const std::string& key)
 {
@@ -53,12 +55,17 @@ std::vector<EditorPlugins::Plugin> EditorPlugins::available()
     }
     for (const vpx::Host::PluginDescription& plugin : vpx::Host::instance().plugins()) {
         const QString id = QString::fromStdString(plugin.id);
-        Plugin entry{id, QString::fromStdString(plugin.name),
-                     QString::fromStdString(plugin.description),
-                     QString::fromStdString(plugin.version)};
+        Plugin entry;
+        entry.id = id;
+        entry.name = QString::fromStdString(plugin.name);
+        entry.description = QString::fromStdString(plugin.description);
+        entry.version = QString::fromStdString(plugin.version);
         if (id == kDmdUtilId) {
             entry.builtIn = true;
             entry.builtInUse = tr("DMD output");
+        } else if (id == kPupId) {
+            entry.builtIn = true;
+            entry.builtInUse = tr("PuP tester");
         }
         plugins.push_back(std::move(entry));
     }
@@ -105,7 +112,7 @@ QStringList EditorPlugins::loaded() const
 
 bool EditorPlugins::load(const QString& id, QStringList& errors)
 {
-    if (id == kDmdUtilId) {
+    if (id == kDmdUtilId || id == kPupId) {
         return false;
     }
     std::string error;

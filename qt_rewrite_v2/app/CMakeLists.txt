@@ -92,6 +92,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     SpriteEditorWidget.h
     Translations.cpp
     Translations.h
+    VideoClip.cpp
+    VideoClip.h
     UnsavedChanges.cpp
     UnsavedChanges.h
 )
@@ -113,6 +115,14 @@ target_link_libraries(colorizing_qt_v2_widgets
 )
 
 add_subdirectory(vpx)
+
+# Movie clip import: ffmpeg's headers from the media libraries (packaging/build-media-libs.sh);
+# the libraries themselves are loaded at run time from the PUP plugin's folder (VideoClip).
+if(COLORIZINGDMD_MEDIA_PREFIX)
+    target_include_directories(colorizing_qt_v2_widgets SYSTEM PRIVATE
+        "${COLORIZINGDMD_MEDIA_PREFIX}/include")
+    target_compile_definitions(colorizing_qt_v2_widgets PRIVATE COLORIZINGDMD_HAS_VIDEO_IMPORT)
+endif()
 
 colorizing_qt_v2_enable_warnings(colorizing_qt_v2_widgets)
 

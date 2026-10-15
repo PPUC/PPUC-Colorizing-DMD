@@ -1382,6 +1382,10 @@
         <translation type="unfinished">sortie DMD</translation>
     </message>
     <message>
+        <source>PuP tester</source>
+        <translation type="unfinished">testeur PuP</translation>
+    </message>
+    <message>
         <source>Plugin %1: %2</source>
         <translation type="unfinished">Plugin %1 : %2</translation>
     </message>
@@ -4753,6 +4757,33 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Selected: %1%2</source>
         <translation type="unfinished">Sélection : %1%2</translation>
+    </message>
+</context>
+<context>
+    <name>VideoClip</name>
+    <message>
+        <source>ffmpeg&apos;s %1 does not load from %2: %3</source>
+        <translation type="unfinished">%1 de ffmpeg ne se charge pas depuis %2 : %3</translation>
+    </message>
+    <message>
+        <source>ffmpeg has no %1</source>
+        <translation type="unfinished">ffmpeg n&apos;a pas de %1</translation>
+    </message>
+    <message>
+        <source>%1 is no movie ffmpeg can read</source>
+        <translation type="unfinished">%1 n&apos;est pas un film que ffmpeg sait lire</translation>
+    </message>
+    <message>
+        <source>%1 has no video ffmpeg can decode</source>
+        <translation type="unfinished">%1 n&apos;a pas de vidéo que ffmpeg sait décoder</translation>
+    </message>
+    <message>
+        <source>The video of %1 does not decode</source>
+        <translation type="unfinished">La vidéo de %1 ne se décode pas</translation>
+    </message>
+    <message>
+        <source>This build has no media libraries (ffmpeg).</source>
+        <translation type="unfinished">Cette version n&apos;a pas de bibliothèques multimédia (ffmpeg).</translation>
     </message>
 </context>
 </TS>
