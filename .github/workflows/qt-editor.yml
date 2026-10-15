@@ -219,6 +219,13 @@ jobs:
             qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-l10n-tools \
             qt6-translations-l10n libgl-dev ninja-build ccache \
             libudev-dev autoconf automake libtool pkg-config nasm
+          # SDL3 of the PUP plugin: it needs X11 or Wayland to configure, and audio backends
+          # (vpinball's own Linux list; SDL loads them at run time).
+          sudo apt-get install -y --no-install-recommends \
+            libdrm-dev libgbm-dev libegl-dev libgl1-mesa-dev libwayland-dev \
+            libwayland-egl-backend-dev libx11-dev libxext-dev libxcursor-dev libxi-dev \
+            libxss-dev libxtst-dev libxkbcommon-dev libxrandr-dev libasound2-dev \
+            libpipewire-0.3-dev libpulse-dev
           if [ "${{ matrix.arch }}" = aarch64 ]; then
             sudo apt-get install -y --no-install-recommends libgpiod-dev
           fi
