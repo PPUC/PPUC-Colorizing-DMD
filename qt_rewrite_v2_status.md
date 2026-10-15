@@ -1109,6 +1109,11 @@ Owner: German and French (the owner reads both), drafted here; Qt Linguist workf
   the handbook language. Settings -> Appearance -> Language, effective at the next start.
 - Tests load no translator: tr() returns the English source, which tests and ui_dump compare.
 - `translations/README.md`: workflow and the glossary (de/fr terms) — keep it in sync.
+- Drafts for de and fr (all texts, marked unfinished until the owner reviews them in Linguist;
+  lrelease includes unfinished ones). Merged from per-language JSON by a scratch script.
+- Keys: the handbook writes `Ctrl/Cmd` for Qt's Ctrl (Cmd on macOS), plain `Ctrl` only for
+  Win32 CDMD. UI texts that name keys use `KeyNames.h` (native shortcut text, Cmd/Option on
+  macOS, translatable "Ctrl" -> "Strg").
 - Not done: core (Qt-free) error texts reach the UI in English; handbook translations
   (`handbook/de`, `handbook/fr`) and a check for chapters older than their English source.
 
