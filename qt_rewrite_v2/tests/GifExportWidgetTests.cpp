@@ -87,6 +87,9 @@ void runGifExportWidgetTests()
     exporting::rgb565ToRgb888(frame0.pixels[1], r, g, b);
     expect(images[0].pixel(5 + 1, 1) == qRgb(r, g, b), "a dot has the frame's color");
     expect(images[0].pixel(5 + 4, 1) == qRgb(0, 0, 0), "and a black gap");
+    expect(images[0].pixel(5, 0) == qRgb(0, 0, 0) && images[0].pixel(5 + 3, 3) == qRgb(0, 0, 0) &&
+               images[0].pixel(5 + 1, 0) == qRgb(r, g, b),
+           "the dot's corners are left out, as the Win32 editor rounds them");
     expect(images[1] != images[2], "the rotation step changes the picture");
 
     // With the originals: the original frame above, 15 pixels apart, in the editor's shades.

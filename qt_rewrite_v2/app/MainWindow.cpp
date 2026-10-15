@@ -2554,15 +2554,8 @@ void MainWindow::exportAnimatedGif(bool withOriginals, bool bothPlanes)
     options.includeBackground = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
     options.includeOriginal = withOriginals;
     options.bothPlanes = bothPlanes;
-    // Both planes: the widest is the 256x64 one.
-    const render::Size planeSize = m_document->geometry().planeSize(
-        bothPlanes && !isHdOnlyProject() && !m_document->editsOriginalPlaneOnly()
-            ? render::Resolution::Hd
-            : options.plane);
-    const int widest = std::max(planeSize.width,
-                                withOriginals ? m_document->originalFrameSize().width : 0);
-    // About 640 picture pixels across: 5 per pixel of a 128-wide plane, 3 of 192, 2 of 256.
-    options.pixelScale = std::max(2, 640 / std::max(1, widest));
+    // The Win32 editor's style: 5 picture pixels per frame pixel on every plane.
+    options.pixelScale = kGifPixelScale;
 
     const QDir untitledDirectory(m_dumpDirectory.isEmpty() ? QDir::homePath()
                                                            : m_dumpDirectory);

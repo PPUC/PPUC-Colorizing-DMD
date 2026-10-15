@@ -11,12 +11,15 @@
 
 namespace colorizing::app {
 
+inline constexpr int kGifPixelScale = 5;
+
 struct GifExportOptions {
     // The plane the frames are taken from; every frame must have it.
     render::Resolution plane = render::Resolution::Sd;
     // Picture pixels per frame pixel; from 3 on, one row and column of each is a black gap,
-    // as between the dots of a DMD.
-    int pixelScale = 5;
+    // as between the dots of a DMD, and the dot's corners are left out. The Win32 editor's
+    // GIF has kGifPixelScale for every plane: 4x4 dots without their corners, 1 apart.
+    int pixelScale = kGifPixelScale;
     // With the frame's background, as the canvas's background layer shows it.
     bool includeBackground = true;
     // The original frame above the colorized picture, in the shades the editor shows it in,

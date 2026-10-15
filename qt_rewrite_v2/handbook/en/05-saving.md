@@ -141,8 +141,9 @@ The two `Both Planes` entries are there in a project with a 128x32 and a 256x64 
 The parts lie 15 picture pixels apart with the same dot size, the narrower ones centred:
 
 - The colorized pictures have the background when the canvas's background layer is on.
-- A frame pixel becomes a square dot with a black gap, about 640 picture pixels across (5 per
-  pixel of a 128-wide plane, 3 of 192, 2 of 256, which has no gap); the widest part counts.
+- As in the Win32 editor, every frame pixel becomes a dot of 4x4 picture pixels without its
+  corners, with a black gap of one: 5 picture pixels per frame pixel on every plane, so a
+  128x32 picture is 640x160 and a 256x64 one 1280x320.
 - Colour rotations step as in the editor's preview: a picture at every step within the frame's
   duration; they start again with every frame.
 - Each picture shows for its frame's duration or until the next rotation step. GIF counts time

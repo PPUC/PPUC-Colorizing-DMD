@@ -31,6 +31,12 @@ std::vector<uint16_t> scaledPicture(const document::Rgb565Frame& frame, int scal
                                 static_cast<std::size_t>(y * scale + dy) * width +
                                 static_cast<std::size_t>(x * scale);
                 std::fill(row, row + dot, color);
+                // A dot of 3 pixels or more leaves its corners out, rounding it a little, as
+                // the Win32 editor draws them.
+                if (dot >= 3 && (dy == 0 || dy == dot - 1)) {
+                    row[0] = 0;
+                    row[dot - 1] = 0;
+                }
             }
         }
     }

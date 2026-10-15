@@ -1145,7 +1145,8 @@ planes too, `GifExportOptions::bothPlanes` (128x32 above 256x64 in an Ordinary p
 without HD leaves its part black, no HD part when no exported frame has HD; rotation steps of
 both planes merged), and `File -> Export Animated GIF` became a submenu: Colorized Frames (Shift
 adds originals), With Originals, Both Planes, Originals And Both Planes (the last two only with
-two planes).
+two planes). CDMD style (owner): fixed `kGifPixelScale` 5 on every plane (CDMD's MUL_SIZE_GIF),
+dots of 4x4 without corners (`DrawImagePix`), 1 px gap; no longer ~640 px wide.
 
 ## Undo anywhere (2026-10-15)
 
