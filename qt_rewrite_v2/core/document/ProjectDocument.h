@@ -8,6 +8,7 @@
 
 #include "document/CompactArray.h"
 #include "document/EditorMetadata.h"
+#include "document/HelperLine.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
 
@@ -330,6 +331,9 @@ public:
     // What keeps the runtime from showing the frame; nothing for other projects.
     [[nodiscard]] FrameHdGaps frameHdGaps(std::size_t frameIndex) const;
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
+    // The editor's helper lines (HelperLine.h), in their order.
+    [[nodiscard]] const std::vector<HelperLine>& helperLines() const;
+    void setHelperLines(std::vector<HelperLine> lines);
     [[nodiscard]] ColorSetTables colorSetTables() const;
     // Replaces the edit colors and color sets. Throws std::invalid_argument, without changing
     // anything, for tables of the wrong sizes. Tables equal to the current ones change
@@ -720,6 +724,7 @@ private:
     std::vector<PaletteRecord> m_palettes;
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     EditorMetadata m_editorMetadata = makeDefaultEditorMetadata();
+    std::vector<HelperLine> m_helperLines;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
     render::ProjectGeometry m_geometry;

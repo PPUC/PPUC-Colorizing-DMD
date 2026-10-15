@@ -39,3 +39,4 @@ whenever a user-visible feature changes.
 - [Missing Editing Features](33-missing-editing-features.md)
 - [Preview Rendering](34-preview-rendering.md)
 - [Plugins](35-plugins.md)
+- [Helper Lines](36-helper-lines.md)

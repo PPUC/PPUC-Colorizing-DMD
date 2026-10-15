@@ -13,6 +13,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/FrameContentCommand.cpp
     edit/FrameMove.cpp
     edit/FramePixelSelection.cpp
+    edit/HelperLines.cpp
     edit/PlaneSelection.cpp
     edit/RecolorHelpers.cpp
     edit/SameFrames.cpp

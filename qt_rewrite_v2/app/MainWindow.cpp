@@ -78,6 +78,7 @@
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "dialogs/HelperLineDialog.h"
 #include "dialogs/MovieImportDialog.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
@@ -85,6 +86,7 @@
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
 #include "document/Upscale.h"
+#include "edit/HelperLines.h"
 #include "edit/Sections.h"
 #include "edit/SpriteClipboard.h"
 #include "edit/StateCommands.h"
@@ -99,6 +101,7 @@
 #include "panels/PalettePanel.h"
 #include "panels/RecordListPage.h"
 #include "panels/SameFramesPanel.h"
+#include "panels/HelperLinesPanel.h"
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
@@ -404,6 +407,8 @@ QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd
             return QCoreApplication::translate("MainWindow", " edit colors and color sets change");
         case edit::EditKind::Sections:
             return QCoreApplication::translate("MainWindow", " section change");
+        case edit::EditKind::HelperLines:
+            return QCoreApplication::translate("MainWindow", " helper line change");
     }
     return QString();
 }
@@ -1496,6 +1501,27 @@ void MainWindow::createCentralView()
         }
     };
     inspectorTabs->addTab(m_colorSetPanel, QStringLiteral("Sets"), tr("Color Sets"));
+    m_helperLinesPanel = new HelperLinesPanel(central);
+    m_helperLinesPanel->onAddRequested = [this](bool vertical) { addHelperLine(vertical); };
+    m_helperLinesPanel->onEditRequested = [this](std::size_t line) { editHelperLine(line); };
+    m_helperLinesPanel->onDeleteRequested = [this](std::size_t line) {
+        if (!m_document || line >= m_document->helperLines().size()) {
+            return;
+        }
+        std::vector<document::HelperLine> lines = m_document->helperLines();
+        lines.erase(lines.begin() + static_cast<std::ptrdiff_t>(line));
+        changeHelperLines(std::move(lines), tr("Deleted the helper line"));
+    };
+    m_helperLinesPanel->onVisibilityChanged = [this](std::size_t line, bool visible) {
+        if (!m_document || line >= m_document->helperLines().size()) {
+            return;
+        }
+        std::vector<document::HelperLine> lines = m_document->helperLines();
+        lines[line].visible = visible;
+        changeHelperLines(std::move(lines),
+                          visible ? tr("Showing the helper line") : tr("Hid the helper line"));
+    };
+    inspectorTabs->addTab(m_helperLinesPanel, QStringLiteral("HelperLines"), tr("Helper Lines"));
 
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
@@ -3512,6 +3538,78 @@ void MainWindow::showFramesForPlugin(std::size_t current, const std::vector<std:
     selectFrame(m_frameList->currentRow());
 }
 
+void MainWindow::refreshHelperLines()
+{
+    if (m_helperLinesPanel) {
+        m_helperLinesPanel->setLines(m_document ? m_document->helperLines()
+                                                : std::vector<document::HelperLine>{},
+                                     m_document ? &*m_document : nullptr);
+    }
+    if (m_preview) {
+        m_preview->update();
+    }
+}
+
+void MainWindow::changeHelperLines(std::vector<document::HelperLine> lines, const QString& status)
+{
+    if (!m_document) {
+        return;
+    }
+    std::unique_ptr<edit::EditCommand> command = edit::setHelperLines(*m_document, std::move(lines));
+    if (!command) {
+        return;
+    }
+    recordEdit(std::move(command));
+    refreshHelperLines();
+    statusBar()->showMessage(status, 3000);
+}
+
+void MainWindow::addHelperLine(bool vertical)
+{
+    if (!m_document) {
+        return;
+    }
+    document::HelperLine line;
+    line.vertical = vertical;
+    line.plane = m_activeResolution;
+    const render::Size plane = m_document->geometry().planeSize(line.plane);
+    // Where the mouse last pointed on the canvas, in this plane's pixels; else the middle.
+    line.position = static_cast<uint32_t>((vertical ? plane.width : plane.height) / 2);
+    if (m_lastCanvasHit) {
+        const render::Size from = m_document->geometry().planeSize(m_lastCanvasHit->resolution);
+        const int value = vertical ? m_lastCanvasHit->x : m_lastCanvasHit->y;
+        const int fromExtent = vertical ? from.width : from.height;
+        const int toExtent = vertical ? plane.width : plane.height;
+        if (fromExtent > 0) {
+            line.position = static_cast<uint32_t>(value * toExtent / fromExtent);
+        }
+    }
+    line.name = tr("Line %1").arg(m_document->helperLines().size() + 1).toStdString();
+    HelperLineDialog dialog(line, plane, planeLabel(*m_document, line.plane), this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<document::HelperLine> lines = m_document->helperLines();
+    lines.push_back(dialog.line());
+    changeHelperLines(std::move(lines), tr("Added the helper line"));
+}
+
+void MainWindow::editHelperLine(std::size_t index)
+{
+    if (!m_document || index >= m_document->helperLines().size()) {
+        return;
+    }
+    const document::HelperLine& line = m_document->helperLines()[index];
+    HelperLineDialog dialog(line, m_document->geometry().planeSize(line.plane),
+                            planeLabel(*m_document, line.plane), this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<document::HelperLine> lines = m_document->helperLines();
+    lines[index] = dialog.line();
+    changeHelperLines(std::move(lines), tr("Changed the helper line"));
+}
+
 void MainWindow::showCanvasPosition(std::optional<render::CanvasHit> hit,
                                     std::optional<render::CanvasHit> dragStart)
 {
@@ -3522,6 +3620,7 @@ void MainWindow::showCanvasPosition(std::optional<render::CanvasHit> hit,
         m_positionLabel->clear();
         return;
     }
+    m_lastCanvasHit = hit;
     const QString where =
         hit->region == render::CanvasRegion::OriginalFrame
             ? tr("Original")
@@ -3669,6 +3768,7 @@ void MainWindow::refreshProjectSummary()
         }
         updateSpriteControls();
         updateRuntimeViewControls();
+        refreshHelperLines();
         return;
     }
 
@@ -3683,6 +3783,7 @@ void MainWindow::refreshProjectSummary()
     updatePlaybackControls();
     updateProjectHeaderStatus();
     updateRuntimeViewControls();
+    refreshHelperLines();
 }
 
 void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
@@ -8701,6 +8802,9 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             updateSectionControls();
             updateProjectHeaderStatus();
             break;
+        case edit::EditKind::HelperLines:
+            refreshHelperLines();
+            break;
         case edit::EditKind::SpriteAttributes:
             if (m_activeResolution == render::Resolution::Hd &&
                 !m_document->hasHdSprite(target.index) && !isHdOnlyProject()) {
@@ -8737,7 +8841,8 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     }
     const render::Resolution sd = render::Resolution::Sd;
     // Adding and deleting records belongs to every context.
-    std::vector<edit::HistoryKey> keys{edit::structureHistoryKey(), edit::sectionsHistoryKey()};
+    std::vector<edit::HistoryKey> keys{edit::structureHistoryKey(), edit::sectionsHistoryKey(),
+                                       edit::helperLinesHistoryKey()};
     if (isSpriteCanvasActive()) {
         const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
         if (spriteIndex) {

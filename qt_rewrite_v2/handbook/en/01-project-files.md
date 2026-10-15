@@ -70,7 +70,8 @@ the editor file has to grow for new features, which the Win32 editor would not u
 - The Win32 editor opens a `.cROM` with the `.cRP` of the same name, and reads that file without
   any check. This editor never writes a `.cRP`: its `.cRPX` holds what a `.cRP` holds, behind a
   header the Win32 editor does not know (`CDMDcRPX`, a format version, the size of that part),
-  and room for more data after it.
+  and room for more data after it, in tagged parts: so far the helper lines (see "Helper
+  Lines"). A part this editor does not know (one of a later version) is skipped.
 - When a save writes a project that has a `.cRP` beside it (a project of the Win32 editor saved
   here for the first time), that `.cRP` is renamed to `<name>.cRP.bak`, so that the Win32 editor
   cannot open the new `.cROM` with the old editor file. The status bar says so. Opening a

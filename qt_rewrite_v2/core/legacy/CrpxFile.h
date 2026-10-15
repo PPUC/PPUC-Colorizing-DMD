@@ -23,8 +23,11 @@ class LegacyByteSource;
 //   uint32   header size in bytes, from the start of the file (24 for version 1)
 //   uint64   size of the cRP part
 //   the cRP part: what writeLegacyCrp() writes, as in a .cRP of the Win32 editor
-//   chunks up to the end of the file: char[4] tag, uint32 0, uint64 size, the data. Version 1
-//   writes none; a reader skips those it does not know.
+//   chunks up to the end of the file: char[4] tag, uint32 0, uint64 size, the data; a reader
+//   skips those it does not know. Written so far:
+//     "HLIN" the helper lines (document/HelperLine.h), when there are any: uint32 count, then
+//            per line uint8 vertical, uint8 plane (0 SD, 1 HD), uint8 visible, uint8 0,
+//            uint32 position, uint32 name length, the name in UTF-8.
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 
@@ -49,7 +52,17 @@ enum class CrpxProbe {
     Invalid,
 };
 
-// Looks at the start of an editor file, which may be either kind.
-[[nodiscard]] CrpxProbe probeCrpx(LegacyByteSource& source, std::string& errorMessage);
+// Looks at the start of an editor file, which may be either kind. For a .cRPX, chunksStart
+// (when given) is where its chunks start, after the cRP part.
+[[nodiscard]] CrpxProbe probeCrpx(LegacyByteSource& source,
+                                  std::string& errorMessage,
+                                  uint64_t* chunksStart = nullptr);
+
+// Reads the chunks of a .cRPX from chunksStart to its end into the snapshot (the helper
+// lines). Returns false with errorMessage for a damaged chunk; unknown chunks are skipped.
+[[nodiscard]] bool readCrpxChunks(LegacyByteSource& source,
+                                  uint64_t chunksStart,
+                                  document::ProjectSnapshot& snapshot,
+                                  std::string& errorMessage);
 
 }  // namespace colorizing::legacy

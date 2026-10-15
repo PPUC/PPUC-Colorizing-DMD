@@ -29,6 +29,12 @@ void applyTheme(Theme theme);
     return QColor(255, 0, 255, alpha);
 }
 
+// Helper lines on the canvas: a light green no overlay uses.
+[[nodiscard]] inline QColor helperLineColor()
+{
+    return QColor(140, 255, 90);
+}
+
 // How the canvas, the sprite editor and PNG exports draw DMD pixels: squares or dots, at 50 to
 // 100 % of their cell in steps of ten (squares at 80 % until set otherwise).
 [[nodiscard]] DmdRenderOptions loadDmdRenderOptions();

@@ -173,6 +173,8 @@ private:
     void paintSelectedSpriteBounds(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectionOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
+    // The document's visible helper lines over the region, in widget coordinates.
+    void paintHelperLines(QPainter& painter, const RegionView& view) const;
     void paintPasteOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
 
     const document::ProjectDocument* m_document = nullptr;

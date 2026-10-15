@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "document/HelperLine.h"
 #include "document/ProjectDocument.h"
 #include "render/ProjectGeometry.h"
 
@@ -48,6 +49,8 @@ struct ProjectSnapshot {
     // discardExtraPlane().
     render::ProjectGeometry geometry;
     EditorMetadata editorMetadata = makeDefaultEditorMetadata();
+    // The editor's helper lines (.cRPX only).
+    std::vector<HelperLine> helperLines;
 };
 
 [[nodiscard]] Size originalFrameSize(const ProjectSnapshot& snapshot);

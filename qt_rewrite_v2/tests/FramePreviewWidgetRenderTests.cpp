@@ -3382,6 +3382,7 @@ void runAutosaveWidgetTests();
 void runDmdOutputWidgetTests();
 void runEditorPluginsWidgetTests();
 void runVideoClipWidgetTests();
+void runHelperLinesWidgetTests();
 void runSettingsWidgetTests();
 void runHandbookWidgetTests();
 void runBigOriginalWidgetTests();
@@ -3442,6 +3443,7 @@ int main(int argc, char* argv[])
     runDmdOutputWidgetTests();
     runEditorPluginsWidgetTests();
     runVideoClipWidgetTests();
+    runHelperLinesWidgetTests();
     runSettingsWidgetTests();
     runHandbookWidgetTests();
     runFrameTesterWidgetTests();

@@ -33,6 +33,9 @@ enum class EditKind {
     EditorColors,
     // The sections of the cRP. One history for the project (index 0), see Sections.h.
     Sections,
+    // The editor's helper lines (.cRPX). One history for the project (index 0), see
+    // HelperLines.h.
+    HelperLines,
 };
 
 // The records other data refers to by index.

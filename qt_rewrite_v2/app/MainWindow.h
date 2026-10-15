@@ -44,6 +44,7 @@ class HandbookWindow;
 class PluginLogWindow;
 class FramePanel;
 class SectionBar;
+class HelperLinesPanel;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -635,6 +636,14 @@ private:
     QMenu* m_pluginsMenu = nullptr;
     // The status bar's pixel under the mouse on the canvas (and the dragged area).
     QLabel* m_positionLabel = nullptr;
+    // The last pixel the mouse pointed at on the canvas, where a new helper line goes.
+    std::optional<render::CanvasHit> m_lastCanvasHit;
+    // The Helper Lines section (HelperLine.h): changed through edit::setHelperLines.
+    HelperLinesPanel* m_helperLinesPanel = nullptr;
+    void refreshHelperLines();
+    void addHelperLine(bool vertical);
+    void editHelperLine(std::size_t line);
+    void changeHelperLines(std::vector<document::HelperLine> lines, const QString& status);
     void showCanvasPosition(std::optional<render::CanvasHit> hit,
                             std::optional<render::CanvasHit> dragStart);
     std::unique_ptr<EditorPlugins> m_plugins;

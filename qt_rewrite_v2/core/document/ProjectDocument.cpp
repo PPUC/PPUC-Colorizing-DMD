@@ -596,6 +596,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_palettes = std::move(snapshot.palettes);
     document.m_unsupportedPayloads = std::move(snapshot.unsupportedPayloads);
     document.m_editorMetadata = std::move(snapshot.editorMetadata);
+    document.m_helperLines = std::move(snapshot.helperLines);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
     document.m_geometry = snapshot.geometry;
@@ -796,6 +797,20 @@ uint64_t ProjectDocument::revision() const
 uint64_t ProjectDocument::identificationRevision() const
 {
     return m_identificationRevision;
+}
+
+const std::vector<HelperLine>& ProjectDocument::helperLines() const
+{
+    return m_helperLines;
+}
+
+void ProjectDocument::setHelperLines(std::vector<HelperLine> lines)
+{
+    if (lines == m_helperLines) {
+        return;
+    }
+    m_helperLines = std::move(lines);
+    markChanged();
 }
 
 void ProjectDocument::markChanged()
@@ -3264,6 +3279,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.cromRevision = m_cromRevision;
     snapshot.geometry = m_geometry;
     snapshot.editorMetadata = m_editorMetadata;
+    snapshot.helperLines = m_helperLines;
     if (m_geometry.discardsExtraPlane()) {
         discardExtraPlane(snapshot);
     }

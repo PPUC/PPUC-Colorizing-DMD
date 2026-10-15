@@ -101,7 +101,9 @@ LegacyLoadResult LegacyProjectFileReader::load(const LegacyProjectPaths& paths,
         return makeLoadFailure("could not open .cRP file: " + paths.crpPath);
     }
     std::string crpxError;
-    if (probeCrpx(crpSource, crpxError) == CrpxProbe::Invalid) {
+    uint64_t chunksStart = 0;
+    const CrpxProbe probe = probeCrpx(crpSource, crpxError, &chunksStart);
+    if (probe == CrpxProbe::Invalid) {
         return makeLoadFailure(crpxError + ": " + paths.crpPath);
     }
     LegacyCrpOriginalParseResult crpOriginals =
@@ -120,6 +122,17 @@ LegacyLoadResult LegacyProjectFileReader::load(const LegacyProjectPaths& paths,
         buildProjectSnapshot(std::move(cromFrames.frameData), std::move(crpOriginals.originalData));
     if (!snapshot.ok) {
         return makeLoadFailure(snapshot.errorMessage);
+    }
+    // What a .cRPX holds after its cRP part (the helper lines), from the file again: the
+    // source above ends with the cRP part.
+    if (probe == CrpxProbe::Crpx) {
+        LegacyByteSource chunkSource(paths.crpPath);
+        if (!chunkSource.isOpen() ||
+            !readCrpxChunks(chunkSource, chunksStart, snapshot.snapshot, crpxError)) {
+            return makeLoadFailure((crpxError.empty() ? std::string("could not read the .cRPX")
+                                                      : crpxError) +
+                                   ": " + paths.crpPath);
+        }
     }
     if (isCancelled(progress)) {
         return makeLoadCancelled();

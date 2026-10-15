@@ -1119,6 +1119,19 @@ table as a plugin does. The AI assistant plugin that uses it lives in its own re
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 
+## Canvas position and helper lines (2026-10-15)
+
+Owner's requests. The status bar's permanent label shows the pixel under the mouse
+(`FramePreviewWidget::setPositionHandler`, every move incl. drags, with the drag's start and
+size). Helper lines: `document/HelperLine.h` (name, horizontal/vertical, position on the border
+before a pixel of a plane, visible), in `ProjectSnapshot`/`ProjectDocument::helperLines()`,
+undoable via `edit::HelperLinesCommand` (`EditKind::HelperLines`, own history, in the undo keys
+of every context), saved as the `.cRPX` chunk `HLIN` (first chunk ever written; the reader now
+reads chunks after the cRP part, `readCrpxChunks`). Drawn by `FramePreviewWidget::
+paintHelperLines` at the same fraction of every region, dashed `helperLineColor()`. Inspector
+section `Helper Lines` (`panels/HelperLinesPanel`, `dialogs/HelperLineDialog`); a new line
+starts at the last pixel the mouse pointed at. Handbook chapter 36.
+
 ## Translations (2026-10-15)
 
 Owner: German and French (the owner reads both), drafted here; Qt Linguist workflow.

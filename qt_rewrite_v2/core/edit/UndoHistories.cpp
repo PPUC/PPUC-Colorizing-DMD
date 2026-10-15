@@ -43,6 +43,11 @@ HistoryKey sectionsHistoryKey()
     return HistoryKey{EditKind::Sections, 0, render::Resolution::Sd};
 }
 
+HistoryKey helperLinesHistoryKey()
+{
+    return HistoryKey{EditKind::HelperLines, 0, render::Resolution::Sd};
+}
+
 std::size_t UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditCommand> command)
 {
     if (!command) {

@@ -1760,6 +1760,96 @@ Utiliser Créer la frame %1.</translation>
     </message>
 </context>
 <context>
+    <name>HelperLineDialog</name>
+    <message>
+        <source>Helper Line</source>
+        <translation type="unfinished">Ligne d&apos;aide</translation>
+    </message>
+    <message>
+        <source>e.g. Score baseline</source>
+        <translation type="unfinished">p. ex. ligne de base du score</translation>
+    </message>
+    <message>
+        <source>Horizontal</source>
+        <translation type="unfinished">Horizontale</translation>
+    </message>
+    <message>
+        <source>Vertical</source>
+        <translation type="unfinished">Verticale</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished">Nom</translation>
+    </message>
+    <message>
+        <source>Direction</source>
+        <translation type="unfinished">Direction</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished">Position</translation>
+    </message>
+    <message>
+        <source>In pixels of the %1 plane (%2 columns): the line is on the left edge of that column, %2 is the right edge of the frame.</source>
+        <translation type="unfinished">En pixels du plan %1 (%2 colonnes) : la ligne est sur le bord gauche de cette colonne, %2 est le bord droit de la frame.</translation>
+    </message>
+    <message>
+        <source>In pixels of the %1 plane (%2 rows): the line is on the top edge of that row, %2 is the bottom edge of the frame.</source>
+        <translation type="unfinished">En pixels du plan %1 (%2 lignes) : la ligne est sur le bord supérieur de cette ligne, %2 est le bord inférieur de la frame.</translation>
+    </message>
+</context>
+<context>
+    <name>HelperLinesPanel</name>
+    <message>
+        <source>Checked lines are shown on the canvas, on every frame; double-click to edit one</source>
+        <translation type="unfinished">Les lignes cochées sont affichées sur le canevas, sur chaque frame ; double-clic pour en modifier une</translation>
+    </message>
+    <message>
+        <source>Horizontal</source>
+        <translation type="unfinished">Horizontale</translation>
+    </message>
+    <message>
+        <source>Add a horizontal line, at the row the mouse last pointed at on the canvas</source>
+        <translation type="unfinished">Ajouter une ligne horizontale, à la ligne de pixels que la souris a pointée en dernier sur le canevas</translation>
+    </message>
+    <message>
+        <source>Vertical</source>
+        <translation type="unfinished">Verticale</translation>
+    </message>
+    <message>
+        <source>Add a vertical line, at the column the mouse last pointed at on the canvas</source>
+        <translation type="unfinished">Ajouter une ligne verticale, à la colonne que la souris a pointée en dernier sur le canevas</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation type="unfinished">Modifier</translation>
+    </message>
+    <message>
+        <source>Rename or move the selected line</source>
+        <translation type="unfinished">Renommer ou déplacer la ligne sélectionnée</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Supprimer</translation>
+    </message>
+    <message>
+        <source>Delete the selected line</source>
+        <translation type="unfinished">Supprimer la ligne sélectionnée</translation>
+    </message>
+    <message>
+        <source>vertical at %1 (%2)</source>
+        <translation type="unfinished">verticale à %1 (%2)</translation>
+    </message>
+    <message>
+        <source>horizontal at %1 (%2)</source>
+        <translation type="unfinished">horizontale à %1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation type="unfinished">%1 — %2</translation>
+    </message>
+</context>
+<context>
     <name>KeyNames</name>
     <message>
         <source>Ctrl</source>
@@ -2267,6 +2357,10 @@ Utiliser Créer la frame %1.</translation>
         <translation type="unfinished">Placer les frames sélectionnées avant la frame qui les précède (%1 dans la bande de frames)</translation>
     </message>
     <message>
+        <source> helper line change</source>
+        <translation type="unfinished"> : modification de ligne d&apos;aide</translation>
+    </message>
+    <message>
         <source>The pixel under the mouse on the canvas: on the original or the colorized frame, in that frame&apos;s pixels; while dragging also the size of the dragged area</source>
         <translation type="unfinished">Le pixel sous la souris sur le canevas : sur la frame d&apos;origine ou colorisée, en pixels de cette frame ; pendant un glisser, aussi la taille de la zone</translation>
     </message>
@@ -2358,6 +2452,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Color Sets</source>
         <translation type="unfinished">Jeux de couleurs</translation>
+    </message>
+    <message>
+        <source>Deleted the helper line</source>
+        <translation type="unfinished">Ligne d&apos;aide supprimée</translation>
+    </message>
+    <message>
+        <source>Showing the helper line</source>
+        <translation type="unfinished">Ligne d&apos;aide affichée</translation>
+    </message>
+    <message>
+        <source>Hid the helper line</source>
+        <translation type="unfinished">Ligne d&apos;aide masquée</translation>
+    </message>
+    <message>
+        <source>Helper Lines</source>
+        <translation type="unfinished">Lignes d&apos;aide</translation>
     </message>
     <message>
         <source>Used by the current frame</source>
@@ -2922,6 +3032,18 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Sorted the sections by name</source>
         <translation type="unfinished">Sections triées par nom</translation>
+    </message>
+    <message>
+        <source>Line %1</source>
+        <translation type="unfinished">Ligne %1</translation>
+    </message>
+    <message>
+        <source>Added the helper line</source>
+        <translation type="unfinished">Ligne d&apos;aide ajoutée</translation>
+    </message>
+    <message>
+        <source>Changed the helper line</source>
+        <translation type="unfinished">Ligne d&apos;aide modifiée</translation>
     </message>
     <message>
         <source>Original</source>

@@ -738,6 +738,48 @@ void FramePreviewWidget::paintEmpty(QPainter& painter)
     painter.drawText(rect(), Qt::AlignCenter, tr("No frame selected"));
 }
 
+void FramePreviewWidget::paintHelperLines(QPainter& painter, const RegionView& view) const
+{
+    if (!m_document) {
+        return;
+    }
+    const QRectF picture(view.origin, view.contentSize);
+    painter.save();
+    painter.setClipRect(view.viewport);
+    QFont font = painter.font();
+    font.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.85));
+    painter.setFont(font);
+    const QFontMetrics metrics(font);
+    for (const document::HelperLine& line : m_document->helperLines()) {
+        const render::Size plane = m_document->geometry().planeSize(line.plane);
+        const int extent = line.vertical ? plane.width : plane.height;
+        if (!line.visible || extent <= 0) {
+            continue;
+        }
+        // On the border before the pixel, at the same place of every region whatever its plane.
+        const double fraction = static_cast<double>(line.position) / extent;
+        const QLineF segment =
+            line.vertical
+                ? QLineF(picture.left() + fraction * picture.width(), picture.top(),
+                         picture.left() + fraction * picture.width(), picture.bottom())
+                : QLineF(picture.left(), picture.top() + fraction * picture.height(),
+                         picture.right(), picture.top() + fraction * picture.height());
+        painter.setPen(QPen(helperLineColor(), 1.5, Qt::DashLine));
+        painter.drawLine(segment);
+        if (line.name.empty()) {
+            continue;
+        }
+        const QString name = QString::fromStdString(line.name);
+        QRectF label(QPointF(), QSizeF(metrics.horizontalAdvance(name) + 6, metrics.height()));
+        label.moveTopLeft(line.vertical ? QPointF(segment.x1() + 2, picture.top() + 2)
+                                        : QPointF(picture.left() + 2, segment.y1() - label.height() - 1));
+        painter.fillRect(label, QColor(0, 0, 0, 170));
+        painter.setPen(helperLineColor());
+        painter.drawText(label, Qt::AlignCenter, name);
+    }
+    painter.restore();
+}
+
 void FramePreviewWidget::paintFrame(QPainter& painter)
 {
     const render::CanvasLayout layout = currentLayout();
@@ -773,6 +815,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
         if (!runtimeView) {
             paintDynamicSetLabels(painter, view);
         }
+        paintHelperLines(painter, view);
         if (region.region == render::CanvasRegion::ColorizedFrame) {
             colorizedPicture = QRectF(view.origin, view.contentSize).intersected(view.viewport);
         }

@@ -970,6 +970,29 @@ void testFileWriterSavesCrpx()
     writeBytes(crpxPath, extended);
     expect(reader.load(paths).ok, "a .cRPX with a chunk it does not know loads");
 
+    // The helper lines are a chunk of their own, read back as they were saved.
+    colorizing::document::ProjectSnapshot withLines = source.snapshot;
+    withLines.helperLines = {
+        {"Score line", false, 24, colorizing::render::Resolution::Sd, true},
+        {"Ball column", true, 200, colorizing::render::Resolution::Hd, false},
+    };
+    expect(writer.save(paths, withLines).ok, "a .cRPX with helper lines is saved");
+    const std::vector<uint8_t> withChunk = readBytes(crpxPath);
+    expect(std::string(withChunk.begin() + static_cast<std::ptrdiff_t>(crpx.size()),
+                       withChunk.begin() + static_cast<std::ptrdiff_t>(crpx.size()) + 4) ==
+               "HLIN",
+           "the helper lines follow the cRP part as the chunk HLIN");
+    const LegacyLoadResult linesBack = reader.load(paths);
+    expect(linesBack.ok && linesBack.snapshot.helperLines == withLines.helperLines,
+           "and come back as they were");
+    std::vector<uint8_t> cutLines = withChunk;
+    cutLines.resize(cutLines.size() - 3);
+    writeBytes(crpxPath, cutLines);
+    expect(!reader.load(paths).ok, "a .cRPX whose helper lines are cut off is refused");
+    writeBytes(crpxPath, crpx);
+    expect(reader.load(paths).ok && reader.load(paths).snapshot.helperLines.empty(),
+           "a .cRPX without them has none");
+
     std::vector<uint8_t> newer = crpx;
     newer[8] = 2;
     writeBytes(crpxPath, newer);
