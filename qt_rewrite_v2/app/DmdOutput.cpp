@@ -89,11 +89,24 @@ struct DmdOutput::Impl {
     // Written by the plugin's and libdmdutil's threads as they log.
     mutable std::mutex messageMutex;
     QString message;
+    std::vector<QString> found;
 
     void setMessage(const QString& text)
     {
         const std::lock_guard<std::mutex> lock(messageMutex);
         message = text;
+    }
+
+    // libdmdutil's line for a display it found: "ZeDMD <version> found: ...", "Pixelcade
+    // found: ...".
+    void noteFound(const std::string& line)
+    {
+        const bool zedmd = line.rfind("ZeDMD ", 0) == 0 && line.find(" found: ") != std::string::npos;
+        const bool pixelcade = line.rfind("Pixelcade found: ", 0) == 0;
+        if (zedmd || pixelcade) {
+            const std::lock_guard<std::mutex> lock(messageMutex);
+            found.push_back(QString::fromStdString(line));
+        }
     }
     std::vector<uint16_t> lastPixels;
     int lastWidth = 0;
@@ -151,8 +164,15 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
         if (source == kPluginId || (source.empty() && level >= vpx::Host::kLogError)) {
             m_impl->setMessage(QString::fromStdString(message));
         }
+        if (source == kPluginId) {
+            m_impl->noteFound(message);
+        }
     });
     impl.setMessage({});
+    {
+        const std::lock_guard<std::mutex> lock(impl.messageMutex);
+        impl.found.clear();
+    }
     std::string error;
     if (!host.load(kPluginId, values, &error)) {
         impl.setMessage(QString::fromStdString(error));
@@ -246,6 +266,12 @@ void DmdOutput::show(const document::Rgb565Frame& picture)
     impl.lastHeight = picture.size.height;
     impl.display.setPicture(impl.lastWidth, impl.lastHeight, impl.lastPixels.data());
     ++impl.sent;
+}
+
+std::vector<QString> DmdOutput::foundDisplays() const
+{
+    const std::lock_guard<std::mutex> lock(m_impl->messageMutex);
+    return m_impl->found;
 }
 
 std::size_t DmdOutput::picturesSent() const

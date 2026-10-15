@@ -1102,6 +1102,18 @@ lines of the bus and every plugin (thread-safe; plugins log from their threads),
 `Help -> Plugin Log` (`PluginLogWindow`, polls twice a second, level filter, Copy All, Clear).
 DMD Output settings got `ZeDMD debug output` (the DMDUtil plugin's `ZeDMDDebug`).
 
+ZeDMD "not detected" (2026-10-15, owner's ZeDMD 6.1.2 on an RP2350 Pico reporting Espressif's
+VID/PID 0x303A/0x1001 on purpose, for old installations): libzedmd finds it, and so does the
+editor's path. But VPX's DMDUtil plugin creates its DMD (and calls FindDisplays) only when a
+display source is selected, i.e. at the first picture, and the editor sent none without a
+frame: now a black 128x32 picture is sent then. The 4 s status showed libdmdutil's last line
+("Unable to find Pixelcade" when a ZeDMD had been found); it now names the displays found
+(`DmdOutput::foundDisplays`, matching "ZeDMD <v> found:" and "Pixelcade found:"; PIN2DMD logs
+nothing). `--check-dmd-output` runs the output headless for 8 s and prints the found displays
+and the plugin log. Seen with this device: an occasional ack timeout ("Full frame forced,
+error 0", "ZeDMD StreamBytes failed") about 10 frames in, with or without the Pixelcade search;
+libzedmd recovers.
+
 libdmdutil logs a display it finds, not one it looks for in vain; `vpx::Host::log()` adds the
 editor's own lines (source `Editor`): what DMD output looks for on start, nothing reported
 after 4 s, stop.
@@ -1157,8 +1169,8 @@ Owner: German and French (the owner reads both), drafted here; Qt Linguist workf
   the handbook language. Settings -> Appearance -> Language, effective at the next start.
 - Tests load no translator: tr() returns the English source, which tests and ui_dump compare.
 - `translations/README.md`: workflow and the glossary (de/fr terms) — keep it in sync.
-- Drafts for de and fr (all texts, marked unfinished until the owner reviews them in Linguist;
-  lrelease includes unfinished ones). Merged from per-language JSON by a scratch script.
+- Drafts for de and fr, accepted by the owner as they are (2026-10-15): all marked finished,
+  corrected later where needed; new texts are drafted and marked finished likewise. Merged from per-language JSON by a scratch script.
 - Keys: the handbook writes `Ctrl/Cmd` for Qt's Ctrl (Cmd on macOS), plain `Ctrl` only for
   Win32 CDMD. UI texts that name keys use `KeyNames.h` (native shortcut text, Cmd/Option on
   macOS, translatable "Ctrl" -> "Strg").

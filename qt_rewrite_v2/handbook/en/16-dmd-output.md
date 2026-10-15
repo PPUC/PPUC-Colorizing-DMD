@@ -33,10 +33,12 @@ switching it off unloads it and lets them go.
     displays itself.
   The settings are kept and become the DMDUtil plugin's settings; changing them restarts a
   running output (the plugin reads them when it loads).
-- After switching it on, libdmdutil looks for displays in the background; after a few seconds
-  the status bar shows the last thing the plugin or libdmdutil reported, such as a display it
-  found or why one failed. When the plugin does not load, the output switches off again and the
-  status bar says why.
+- After switching it on, libdmdutil looks for displays in the background. The plugin does so
+  when it gets its first picture; without a project or a frame to show, the editor sends a
+  black one, so the displays are found (and stay black) all the same. After a few seconds the
+  status bar names the displays libdmdutil found (a ZeDMD with its firmware, port and size, a
+  Pixelcade), or says that it found none; a PIN2DMD is not reported when found. When the plugin
+  does not load, the output switches off again and the status bar says why.
 - `Help -> Plugin Log` shows everything the plugins and the plugin host logged since the editor
   started (the last 5000 lines), with time, level and source. libdmdutil reports a display it
   finds or fails to open, but not one it looks for in vain; so the editor adds its own lines
@@ -45,6 +47,11 @@ switching it off unloads it and lets them go.
   when it stops. `Show` limits it to information, warnings or errors; `Copy All` copies the
   lines shown, for a report; `Clear` starts over. When a display stays dark, switch on `ZeDMD
   debug output` (for a ZeDMD), switch the output off and on, and look there.
+- Without the editor's window, from a terminal: `ColorizingDMD --check-dmd-output` starts the
+  output with the saved settings, sends a moving test picture for 8 seconds, and prints the
+  displays found and the whole plugin log. Close the editor first, so that it does not hold the
+  display's port. On macOS the program is `ColorizingDMD.app/Contents/MacOS/ColorizingDMD`; on
+  Windows the text only appears in a file: `ColorizingDMD.exe --check-dmd-output > dmd.txt`.
 - The plugins lie in a folder of their own, one folder per plugin as VPX ships them: `plugins`
   beside the program (Windows, Linux) or `ColorizingDMD.app/Contents/PlugIns/vpx` (macOS). The
   environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Without the

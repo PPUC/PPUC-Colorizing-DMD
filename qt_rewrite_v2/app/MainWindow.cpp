@@ -2340,19 +2340,25 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
         if (!m_dmdOutput.isRunning()) {
             return;
         }
-        const QString message = m_dmdOutput.lastMessage();
-        if (message.isEmpty()) {
+        // The last line libdmdutil logged may be about a display it did not find while another
+        // one was found; the displays found are named instead.
+        const std::vector<QString> found = m_dmdOutput.foundDisplays();
+        if (found.empty()) {
             vpx::Host::log(vpx::Host::kLogInfo,
                            "DMD output: no display reported after 4 seconds. For a ZeDMD, "
                            "switch on \"ZeDMD debug output\" in the DMD Output settings and "
                            "restart the output to see its search.");
         }
+        QStringList names;
+        for (const QString& line : found) {
+            names << line;
+        }
         statusBar()->showMessage(
-            message.isEmpty()
-                ? tr("DMD output on; if no display shows the picture, see Help -> Plugin "
-                     "Log")
-                : tr("DMD output: %1").arg(message),
-            6000);
+            found.empty()
+                ? tr("DMD output on, but no display found (a PIN2DMD is not reported); see "
+                     "Help -> Plugin Log")
+                : tr("DMD output: %1").arg(names.join(QStringLiteral("; "))),
+            8000);
     });
 }
 
@@ -2432,6 +2438,13 @@ void MainWindow::sendDmdPicture()
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
+        // The plugin looks for the displays when it gets its first picture: without a frame
+        // to show, the displays are found and kept black.
+        document::Rgb565Frame black;
+        black.size = {128, 32};
+        black.pixels = document::CompactArray<uint16_t>(128 * 32, 0);
+        m_dmdOutput.show(black);
+        m_dmdPictureKey.reset();
         return;
     }
     render::Resolution plane = isHdOnlyProject()                       ? render::Resolution::Hd

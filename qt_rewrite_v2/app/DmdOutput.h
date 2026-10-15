@@ -72,6 +72,9 @@ public:
     // The last thing the DMDUtil plugin or libdmdutil logged (which displays it found, why one
     // failed), or why the output did not start.
     [[nodiscard]] QString lastMessage() const;
+    // What libdmdutil logged for each display it found since the start ("ZeDMD 6.1.2 found:
+    // ..."), oldest first. A PIN2DMD is not logged when found, so it is never listed.
+    [[nodiscard]] std::vector<QString> foundDisplays() const;
 
     // Offers the picture to the plugin unless it is the one offered last.
     void show(const document::Rgb565Frame& picture);
