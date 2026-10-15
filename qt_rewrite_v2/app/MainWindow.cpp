@@ -69,6 +69,7 @@
 #include "KeyNames.h"
 #include "MovieImport.h"
 #include "PluginLogWindow.h"
+#include "PupTesterWindow.h"
 #include "VideoClip.h"
 #include "vpx/VpxHost.h"
 #include "ListSelection.h"
@@ -705,6 +706,19 @@ void MainWindow::createActions()
     frameTesterAction->setToolTip(tr(
         "Feed the selected frames or a frame dump to libserum with the whole project loaded"));
     connect(frameTesterAction, &QAction::triggered, this, [this]() { openFrameTester(); });
+    QAction* pupTesterAction = viewMenu->addAction(tr("&PuP Tester..."));
+    pupTesterAction->setToolTip(
+        tr("Play the project's PuP pack with the PUP plugin: the shown frames' triggers go to "
+           "it as on a machine"));
+    connect(pupTesterAction, &QAction::triggered, this, [this]() {
+        if (!m_pupTesterWindow) {
+            m_pupTesterWindow = new PupTesterWindow(this);
+            m_pupTesterWindow->setProject(m_document ? &*m_document : nullptr);
+        }
+        m_pupTesterWindow->show();
+        m_pupTesterWindow->raise();
+        m_pupTesterWindow->activateWindow();
+    });
     viewMenu->addSeparator();
 
     m_dmdOutputAction = viewMenu->addAction(tr("Output To &DMD"));
@@ -3769,6 +3783,10 @@ void MainWindow::refreshProjectSummary()
         updateSpriteControls();
         updateRuntimeViewControls();
         refreshHelperLines();
+        if (m_pupTesterWindow) {
+            m_pupTesterWindow->stop();
+            m_pupTesterWindow->setProject(nullptr);
+        }
         return;
     }
 
@@ -3784,6 +3802,10 @@ void MainWindow::refreshProjectSummary()
     updateProjectHeaderStatus();
     updateRuntimeViewControls();
     refreshHelperLines();
+    if (m_pupTesterWindow) {
+        m_pupTesterWindow->stop();
+        m_pupTesterWindow->setProject(&*m_document);
+    }
 }
 
 void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
@@ -4455,6 +4477,12 @@ void MainWindow::selectFrame(int)
         m_canvasEdit.clearCaptureSelection();
     }
     m_preview->setFrameIndex(*frameIndex);
+    if (m_pupTesterWindow) {
+        const uint32_t trigger = m_document->triggerId(*frameIndex);
+        m_pupTesterWindow->frameShown(trigger == document::kNoTriggerId
+                                          ? std::nullopt
+                                          : std::optional<uint32_t>(trigger));
+    }
     updateFrameStatusText();
     updateFrameMetadataControls();
     updateColorRotationControls();

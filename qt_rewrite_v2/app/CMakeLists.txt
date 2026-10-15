@@ -96,6 +96,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     MovieImport.h
     PluginLogWindow.cpp
     PluginLogWindow.h
+    PupTesterWindow.cpp
+    PupTesterWindow.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
     Translations.cpp

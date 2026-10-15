@@ -42,6 +42,7 @@ class EditMenuActions;
 class FrameListWidget;
 class HandbookWindow;
 class PluginLogWindow;
+class PupTesterWindow;
 class FramePanel;
 class SectionBar;
 class HelperLinesPanel;
@@ -499,6 +500,7 @@ private:
     // Help -> Handbook, created when first asked for.
     HandbookWindow* m_handbookWindow = nullptr;
     PluginLogWindow* m_pluginLogWindow = nullptr;
+    PupTesterWindow* m_pupTesterWindow = nullptr;
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;

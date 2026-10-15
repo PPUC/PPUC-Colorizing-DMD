@@ -1073,8 +1073,8 @@ owner together.
   Dyn>Stat and "to source frame" are done.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
-- PuP tester (next on the plugin route: VPX's PUP plugin on the editor's plugin bus). DMD
-  output exists through VPX's DMDUtil plugin (see "VPX plugins"), the frame tester too.
+- PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification
+  (it sends the shown frame's trigger). See "VPX plugins".
 
 ## SortingCDump (2026-10-15)
 
@@ -1222,6 +1222,18 @@ instability is no obstacle (the owner works with the plugin developers).
   into a background, CDMD's "copy into the selection" (we fill the whole plane), crop zone
   presets (the cRP's image positions). Tests: `tests/VideoClipWidgetTests.cpp` (a GIF from
   GifWriter read back; the dialog on it).
+- PuP tester (2026-10-15): `app/vpx/PupHost.{h,cpp}` hosts the PUP plugin as a machine would:
+  a controller `pinmame::<game>` on the bus (CtrlItemProvider), triggers sent as DMD-event
+  source messages `D<id>` (the "Serum" namespace DMD-event API PUP listens to), VPXPluginAPI
+  stubs (textures, table info, game time) and the ancillary renderer message: PUP's Topper,
+  Backglass and ScoreView (DMD) windows draw through a VPXRenderContext2D into a QImage.
+  `start(pupFolder, game)`, `trigger`, `process` (on the GUI thread), `render(Screen, QImage&)`.
+  `app/PupTesterWindow.{h,cpp}` (View -> PuP Tester...): PUP folder (setting `pup/folder`), game
+  (project's PuP pack name, else ROM name), Start/Stop, the three screens at 30 fps, "Follow the
+  editor" (MainWindow::selectFrame passes each shown frame's trigger), manual trigger, list of
+  sent triggers. Stopped on project change. Handbook chapter 37. Tests:
+  `tests/PupHostWidgetTests.cpp` (a one-trigger pack, D5 turns the backglass red; the window on
+  it). Not yet: audio (no audio output hosted), triggers from the Runtime view.
 - `app/VideoClip.{h,cpp}`: the movie clip import's reader; loads avutil, swscale, avcodec,
   avformat at run time with QLibrary from `<plugin folder>/pup` (names: `libavX.N.dylib`,
   `libavX.so.N`, `avX64-N.dll`), so the editor starts without them.

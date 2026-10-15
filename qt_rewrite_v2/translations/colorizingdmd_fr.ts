@@ -2125,6 +2125,14 @@ Utiliser Créer la frame %1.</translation>
         <translation type="unfinished">Transmettre les frames sélectionnées ou un dump de frames à libserum avec tout le projet chargé</translation>
     </message>
     <message>
+        <source>&amp;PuP Tester...</source>
+        <translation type="unfinished">Testeur &amp;PuP...</translation>
+    </message>
+    <message>
+        <source>Play the project&apos;s PuP pack with the PUP plugin: the shown frames&apos; triggers go to it as on a machine</source>
+        <translation type="unfinished">Lire le pack PuP du projet avec le plugin PUP : les déclencheurs des frames affichées lui sont envoyés comme sur une machine</translation>
+    </message>
+    <message>
         <source>Output To &amp;DMD</source>
         <translation type="unfinished">Sortie vers le &amp;DMD</translation>
     </message>
@@ -4445,6 +4453,109 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Cancelling…</source>
         <translation type="unfinished">Annulation…</translation>
+    </message>
+</context>
+<context>
+    <name>PupTesterWindow</name>
+    <message>
+        <source>PuP Tester</source>
+        <translation type="unfinished">Testeur PuP</translation>
+    </message>
+    <message>
+        <source>The PinUP System folder, which holds pupvideos</source>
+        <translation type="unfinished">Le dossier PinUP System, qui contient pupvideos</translation>
+    </message>
+    <message>
+        <source>PUP looks for the pack in &lt;this folder&gt;/pupvideos/&lt;game&gt;</source>
+        <translation type="unfinished">PUP cherche le pack dans &lt;ce dossier&gt;/pupvideos/&lt;jeu&gt;</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation type="unfinished">Parcourir...</translation>
+    </message>
+    <message>
+        <source>The pack&apos;s folder name in pupvideos: the project&apos;s PuP pack name, or its ROM name</source>
+        <translation type="unfinished">Le nom du dossier du pack dans pupvideos : le nom du pack PuP du projet, ou le nom de sa ROM</translation>
+    </message>
+    <message>
+        <source>PUP folder</source>
+        <translation type="unfinished">Dossier PUP</translation>
+    </message>
+    <message>
+        <source>Game</source>
+        <translation type="unfinished">Jeu</translation>
+    </message>
+    <message>
+        <source>PUP&apos;s topper screen</source>
+        <translation type="unfinished">L&apos;écran topper de PUP</translation>
+    </message>
+    <message>
+        <source>PUP&apos;s backglass screen</source>
+        <translation type="unfinished">L&apos;écran backglass de PUP</translation>
+    </message>
+    <message>
+        <source>PUP&apos;s DMD screen</source>
+        <translation type="unfinished">L&apos;écran DMD de PUP</translation>
+    </message>
+    <message>
+        <source>Follow the editor</source>
+        <translation type="unfinished">Suivre l&apos;éditeur</translation>
+    </message>
+    <message>
+        <source>Send the trigger ID of each frame the editor shows, as a machine does when it identifies the frame (playback too)</source>
+        <translation type="unfinished">Envoyer l&apos;ID de déclencheur de chaque frame affichée par l&apos;éditeur, comme le fait une machine quand elle identifie la frame (lecture comprise)</translation>
+    </message>
+    <message>
+        <source>Send Trigger</source>
+        <translation type="unfinished">Envoyer le déclencheur</translation>
+    </message>
+    <message>
+        <source>The triggers sent to PUP, the last one first</source>
+        <translation type="unfinished">Les déclencheurs envoyés à PUP, le dernier en premier</translation>
+    </message>
+    <message>
+        <source>Trigger</source>
+        <translation type="unfinished">Déclencheur</translation>
+    </message>
+    <message>
+        <source>PUP Folder</source>
+        <translation type="unfinished">Dossier PUP</translation>
+    </message>
+    <message>
+        <source>PUP does not start: %1</source>
+        <translation type="unfinished">PUP ne démarre pas : %1</translation>
+    </message>
+    <message>
+        <source>%1  D%2</source>
+        <translation type="unfinished">%1  D%2</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Arrêter</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation type="unfinished">Démarrer</translation>
+    </message>
+    <message>
+        <source>This build has no PUP plugin.</source>
+        <translation type="unfinished">Cette version n&apos;a pas de plugin PUP.</translation>
+    </message>
+    <message>
+        <source>Open a project, or name the game.</source>
+        <translation type="unfinished">Ouvrez un projet ou indiquez le jeu.</translation>
+    </message>
+    <message>
+        <source>Playing the pack %1. PUP&apos;s messages are in Help -&gt; Plugin Log.</source>
+        <translation type="unfinished">Lecture du pack %1. Les messages de PUP sont dans Aide -&gt; Journal des plugins.</translation>
+    </message>
+    <message>
+        <source>The pack %1 is there.</source>
+        <translation type="unfinished">Le pack %1 est présent.</translation>
+    </message>
+    <message>
+        <source>No pack %1 in %2: PUP shows nothing.</source>
+        <translation type="unfinished">Pas de pack %1 dans %2 : PUP n&apos;affiche rien.</translation>
     </message>
 </context>
 <context>

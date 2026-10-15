@@ -40,3 +40,4 @@ whenever a user-visible feature changes.
 - [Preview Rendering](34-preview-rendering.md)
 - [Plugins](35-plugins.md)
 - [Helper Lines](36-helper-lines.md)
+- [PuP Tester](37-pup-tester.md)

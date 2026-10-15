@@ -12,8 +12,11 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QLineEdit>
+#include <QListWidget>
 #include <QTemporaryDir>
 
+#include "PupTesterWindow.h"
 #include "vpx/PupHost.h"
 
 namespace {
@@ -88,4 +91,30 @@ void runPupHostWidgetTests()
     expect(backglassTurns(host, Qt::red), "trigger 5 shows the pack's red picture on the backglass");
     host.stop();
     expect(!host.isRunning(), "stopped");
+
+    // The PuP Tester window on the same pack.
+    app::PupTesterWindow window;
+    QLineEdit* folderEdit = nullptr;
+    QLineEdit* gameEdit = nullptr;
+    for (QLineEdit* edit : window.findChildren<QLineEdit*>()) {
+        if (edit->toolTip().startsWith(QStringLiteral("PUP looks"))) {
+            folderEdit = edit;
+        } else if (edit->toolTip().startsWith(QStringLiteral("The pack's folder"))) {
+            gameEdit = edit;
+        }
+    }
+    expect(folderEdit && gameEdit, "the window asks for the PUP folder and the game");
+    folderEdit->setText(folder.path());
+    gameEdit->setText(QStringLiteral("testgame"));
+    expect(window.packFound() && window.start() && window.isRunning(),
+           "the window finds the pack and starts PUP");
+    auto* sent = window.findChild<QListWidget*>();
+    window.frameShown(std::nullopt);
+    expect(sent && sent->count() == 0, "a frame without a trigger sends nothing");
+    window.frameShown(5u);
+    expect(sent->count() == 1 && sent->item(0)->text().endsWith(QStringLiteral("D5")),
+           "a shown frame's trigger goes to PUP");
+    window.stop();
+    expect(!window.isRunning(), "and the window stops it");
+    folderEdit->setText(QString());
 }
