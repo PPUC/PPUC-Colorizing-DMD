@@ -1922,6 +1922,13 @@ view, `Ctrl+3` / `Ctrl+6` its planes, `Delete` / `Backspace` delete frames in th
 and the edit color keys on the canvas (see "Keys for the edit colors"). No two actions share a
 key (`tools/ui_dump` prints every shortcut of the window and the shared ones).
 
+### macOS menu entries
+
+On macOS the `Edit` menu ends with `Writing Tools`, `AutoFill`, `Start Dictation...` and
+`Emoji & Symbols`. They are not the editor's: macOS adds them to the `Edit` menu of every
+application. They work on text being typed (a section or palette name, for example) and do
+nothing on the canvas.
+
 ## Undo And Redo
 
 Every edited object has its own undo/redo history. Undo and Redo act on the histories that belong
