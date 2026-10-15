@@ -127,6 +127,18 @@ void testCanvas()
     line.visible = false;
     document.setHelperLines({line});
     expect(!showsHelperLine(widget), "a hidden one is not");
+
+    // A named line's name lies outside the frame: the frame leaves room for it at zoom 1.
+    line.visible = true;
+    line.name = "Score baseline";
+    document.setHelperLines({line});
+    const QMarginsF margins = widget.helperLineMargins();
+    expect(margins.left() > app::FramePreviewWidget::kHelperLineOverhang,
+           "a horizontal line's name takes room left of the frame");
+    for (const auto& view : widget.regionViews()) {
+        expect(view.origin.x() - view.viewport.left() >= margins.left() - 1.0,
+               "every frame keeps that room free, so the name covers no pixel");
+    }
 }
 
 }  // namespace

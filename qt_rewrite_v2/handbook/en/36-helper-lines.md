@@ -17,8 +17,12 @@ The `Helper Lines` section of the right sidebar lists them:
 A line is given in the pixels of the plane that was active when it was added (SD or HD; in a
 project with one plane, that plane) and lies on the border before that pixel: a horizontal line
 at 8 is the top edge of row 8, one at 32 on a 32-row frame the bottom edge of the frame. It is
-drawn dashed in light green with its name, at the same place on the original frame and on both
-planes, scaled to each. The pixel under the mouse in the status bar (see "Canvas") gives the
+drawn dashed in light green at the same place on the original frame and on both planes, scaled
+to each, and reaches a little past the frame. Its name is written outside the frame, so that
+every pixel stays visible: left of a horizontal line, above a vertical one. While lines are
+shown, the frame leaves room for their names beside it (it is drawn a little smaller); zoomed in,
+where the frame fills the canvas, a name slides in and stays readable at the edge of the visible
+part. The pixel under the mouse in the status bar (see "Canvas") gives the
 numbers to use.
 
 Adding, changing, showing, hiding and deleting lines can be undone, in a history of their own,

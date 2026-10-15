@@ -121,6 +121,24 @@ public:
     // After the zoom or the shown part changed.
     std::function<void()> onViewChanged;
 
+    // A region's half of the canvas and where its frame is drawn: the top left of the frame on
+    // screen (outside the half when zoomed) and the screen pixels per display unit.
+    struct RegionView {
+        render::CanvasRegionLayout region;
+        QRectF viewport;
+        QPointF origin;
+        double cell = 1.0;
+        QSizeF contentSize;
+    };
+    [[nodiscard]] std::vector<RegionView> regionViews() const;
+    // How far a helper line reaches past the frame, in screen pixels.
+    static constexpr double kHelperLineOverhang = 12.0;
+    [[nodiscard]] QFont helperLineFont() const;
+    // The room beside the frame the visible helper lines take: their overhang and their names
+    // (left of the frame for horizontal lines, above it for vertical ones). The frame fits
+    // its half without it at zoom 1.
+    [[nodiscard]] QMarginsF helperLineMargins() const;
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
@@ -141,16 +159,6 @@ private:
     void paintRuntimeViewTexts(QPainter& painter, const QRectF& pictureRect);
     // The frame of an HD-only project has no HD data: nothing to show or to paint on.
     [[nodiscard]] bool isHdFrameMissing() const;
-    // A region's half of the canvas and where its frame is drawn: the top left of the frame on
-    // screen (outside the half when zoomed) and the screen pixels per display unit.
-    struct RegionView {
-        render::CanvasRegionLayout region;
-        QRectF viewport;
-        QPointF origin;
-        double cell = 1.0;
-        QSizeF contentSize;
-    };
-    [[nodiscard]] std::vector<RegionView> regionViews() const;
     [[nodiscard]] std::optional<RegionView> firstRegionView() const;
     // The fraction of the frame its half shows, across and down (1 when it fits).
     [[nodiscard]] QSizeF shownFraction() const;

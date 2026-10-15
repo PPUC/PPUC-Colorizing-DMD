@@ -262,9 +262,10 @@ std::vector<FramePreviewWidget::RegionView> FramePreviewWidget::regionViews() co
         view.viewport = QRectF(inner.left(), inner.top() + static_cast<double>(index) * (height + gap),
                                std::max(1.0, inner.width()), height);
         // The whole frame fits its half at zoom 1, in whole screen pixels per display unit where
-        // there is room for one.
-        const double fit = std::min(view.viewport.width() / region.displayRect.width,
-                                    view.viewport.height() / region.displayRect.height);
+        // there is room for one, beside the room the helper lines' names take.
+        const QRectF fitArea = view.viewport.marginsRemoved(helperLineMargins());
+        const double fit = std::max(0.01, std::min(fitArea.width() / region.displayRect.width,
+                                                   fitArea.height() / region.displayRect.height));
         view.cell = (fit >= 1.0 ? std::floor(fit) : fit) * m_zoom;
         view.contentSize = QSizeF(region.displayRect.width * view.cell,
                                   region.displayRect.height * view.cell);
@@ -275,11 +276,16 @@ std::vector<FramePreviewWidget::RegionView> FramePreviewWidget::regionViews() co
                        ? viewportStart + (viewportSize - contentSize) / 2.0
                        : viewportStart - offset * contentSize;
         };
+        // Centred in the room beside the names while it fits there.
+        const bool fitsAcross = view.contentSize.width() <= fitArea.width();
+        const bool fitsDown = view.contentSize.height() <= fitArea.height();
         view.origin = QPointF(
-            std::round(start(view.viewport.left(), view.viewport.width(),
-                             view.contentSize.width(), m_viewOffset.x())),
-            std::round(start(view.viewport.top(), view.viewport.height(),
-                             view.contentSize.height(), m_viewOffset.y())));
+            std::round(fitsAcross ? fitArea.left() + (fitArea.width() - view.contentSize.width()) / 2.0
+                                  : start(view.viewport.left(), view.viewport.width(),
+                                          view.contentSize.width(), m_viewOffset.x())),
+            std::round(fitsDown ? fitArea.top() + (fitArea.height() - view.contentSize.height()) / 2.0
+                                : start(view.viewport.top(), view.viewport.height(),
+                                        view.contentSize.height(), m_viewOffset.y())));
         views.push_back(view);
     }
     return views;
@@ -738,6 +744,41 @@ void FramePreviewWidget::paintEmpty(QPainter& painter)
     painter.drawText(rect(), Qt::AlignCenter, tr("No frame selected"));
 }
 
+QFont FramePreviewWidget::helperLineFont() const
+{
+    QFont labelFont = font();
+    labelFont.setPointSizeF(std::max(7.0, labelFont.pointSizeF() * 0.85));
+    return labelFont;
+}
+
+QMarginsF FramePreviewWidget::helperLineMargins() const
+{
+    QMarginsF margins;
+    if (!m_document) {
+        return margins;
+    }
+    const QFontMetrics metrics(helperLineFont());
+    for (const document::HelperLine& line : m_document->helperLines()) {
+        if (!line.visible) {
+            continue;
+        }
+        const double label =
+            line.name.empty()
+                ? 0.0
+                : (line.vertical ? metrics.height()
+                                 : metrics.horizontalAdvance(QString::fromStdString(line.name)) + 6) +
+                      2.0;
+        if (line.vertical) {
+            margins.setTop(std::max(margins.top(), kHelperLineOverhang + label));
+            margins.setBottom(std::max(margins.bottom(), kHelperLineOverhang));
+        } else {
+            margins.setLeft(std::max(margins.left(), kHelperLineOverhang + label));
+            margins.setRight(std::max(margins.right(), kHelperLineOverhang));
+        }
+    }
+    return margins;
+}
+
 void FramePreviewWidget::paintHelperLines(QPainter& painter, const RegionView& view) const
 {
     if (!m_document) {
@@ -746,8 +787,7 @@ void FramePreviewWidget::paintHelperLines(QPainter& painter, const RegionView& v
     const QRectF picture(view.origin, view.contentSize);
     painter.save();
     painter.setClipRect(view.viewport);
-    QFont font = painter.font();
-    font.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.85));
+    const QFont font = helperLineFont();
     painter.setFont(font);
     const QFontMetrics metrics(font);
     for (const document::HelperLine& line : m_document->helperLines()) {
@@ -757,22 +797,41 @@ void FramePreviewWidget::paintHelperLines(QPainter& painter, const RegionView& v
             continue;
         }
         // On the border before the pixel, at the same place of every region whatever its plane.
+        // It reaches a little past the frame, where there is room.
+        constexpr double overhang = kHelperLineOverhang;
         const double fraction = static_cast<double>(line.position) / extent;
+        const QRectF area = view.viewport;
         const QLineF segment =
             line.vertical
-                ? QLineF(picture.left() + fraction * picture.width(), picture.top(),
-                         picture.left() + fraction * picture.width(), picture.bottom())
-                : QLineF(picture.left(), picture.top() + fraction * picture.height(),
-                         picture.right(), picture.top() + fraction * picture.height());
+                ? QLineF(picture.left() + fraction * picture.width(),
+                         std::max(area.top(), picture.top() - overhang),
+                         picture.left() + fraction * picture.width(),
+                         std::min(area.bottom(), picture.bottom() + overhang))
+                : QLineF(std::max(area.left(), picture.left() - overhang),
+                         picture.top() + fraction * picture.height(),
+                         std::min(area.right(), picture.right() + overhang),
+                         picture.top() + fraction * picture.height());
         painter.setPen(QPen(helperLineColor(), 1.5, Qt::DashLine));
         painter.drawLine(segment);
         if (line.name.empty()) {
             continue;
         }
+        // The name outside the frame, so that every pixel stays visible: left of a horizontal
+        // line's start, above a vertical line's. When the zoomed frame leaves no room there,
+        // it slides in and stays at the edge of the visible part.
         const QString name = QString::fromStdString(line.name);
         QRectF label(QPointF(), QSizeF(metrics.horizontalAdvance(name) + 6, metrics.height()));
-        label.moveTopLeft(line.vertical ? QPointF(segment.x1() + 2, picture.top() + 2)
-                                        : QPointF(picture.left() + 2, segment.y1() - label.height() - 1));
+        if (line.vertical) {
+            label.moveCenter(QPointF(segment.x1(), 0.0));
+            label.moveBottom(segment.y1() - 2.0);
+        } else {
+            label.moveCenter(QPointF(0.0, segment.y1()));
+            label.moveRight(segment.x1() - 2.0);
+        }
+        label.moveLeft(std::clamp(label.left(), area.left() + 2.0,
+                                  std::max(area.left() + 2.0, area.right() - label.width() - 2.0)));
+        label.moveTop(std::clamp(label.top(), area.top() + 2.0,
+                                 std::max(area.top() + 2.0, area.bottom() - label.height() - 2.0)));
         painter.fillRect(label, QColor(0, 0, 0, 170));
         painter.setPen(helperLineColor());
         painter.drawText(label, Qt::AlignCenter, name);
