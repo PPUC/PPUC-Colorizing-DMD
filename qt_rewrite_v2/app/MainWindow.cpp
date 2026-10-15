@@ -36,6 +36,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPixmap>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalBlocker>
@@ -66,7 +67,9 @@
 #include "LazyListIcons.h"
 #include "EditorPlugins.h"
 #include "KeyNames.h"
+#include "MovieImport.h"
 #include "PluginLogWindow.h"
+#include "VideoClip.h"
 #include "vpx/VpxHost.h"
 #include "ListSelection.h"
 #include "PlaneLabels.h"
@@ -75,6 +78,7 @@
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "dialogs/MovieImportDialog.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "dialogs/SelectionDialogs.h"
@@ -594,6 +598,14 @@ void MainWindow::createActions()
         fileMenu->addAction(tr("Import Image Into Selected &Frames..."));
     connect(importFrameImageAction, &QAction::triggered, this, [this]() {
         importImageIntoSelectedFrames();
+    });
+    QAction* importMovieAction =
+        fileMenu->addAction(tr("Import Mo&vie Clip Into Selected Frames..."));
+    importMovieAction->setToolTip(
+        tr("A picture of a movie clip for each selected frame, from a part of the clip's "
+           "picture"));
+    connect(importMovieAction, &QAction::triggered, this, [this]() {
+        importMovieIntoSelectedFrames();
     });
 
     m_addFramesFromDumpAction = fileMenu->addAction(tr("A&dd Frames From Dump..."));
@@ -2698,32 +2710,9 @@ void MainWindow::importImageIntoSelectedFrames()
                 continue;
             }
 
-            std::vector<edit::PixelChange> changes;
-            const document::Rgb565Frame& target =
-                m_document->colorizedFrame(frameIndex, targetResolution);
-            for (int y = 0; y < imported.size.height; ++y) {
-                for (int x = 0; x < imported.size.width; ++x) {
-                    const std::size_t pixelIndex =
-                        static_cast<std::size_t>(y) *
-                            static_cast<std::size_t>(imported.size.width) +
-                        static_cast<std::size_t>(x);
-                    const uint16_t oldColor = target.pixels[pixelIndex];
-                    const uint16_t newColor = imported.pixels[pixelIndex];
-                    if (oldColor == newColor) {
-                        continue;
-                    }
-                    changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
-                }
+            if (commitImportedFramePixels(frameIndex, targetResolution, imported)) {
+                ++updatedFrames;
             }
-
-            if (changes.empty()) {
-                continue;
-            }
-            commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::FramePixels,
-                                                                frameIndex,
-                                                                targetResolution,
-                                                                std::move(changes)));
-            ++updatedFrames;
         }
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -2756,6 +2745,127 @@ void MainWindow::importImageIntoSelectedFrames()
                                  .arg(skippedFrames)
                                  .arg(nativePlaneText(*m_document))),
         3000);
+}
+
+bool MainWindow::commitImportedFramePixels(std::size_t frameIndex,
+                                           render::Resolution resolution,
+                                           const document::Rgb565Frame& imported)
+{
+    std::vector<edit::PixelChange> changes;
+    const document::Rgb565Frame& target = m_document->colorizedFrame(frameIndex, resolution);
+    for (int y = 0; y < imported.size.height; ++y) {
+        for (int x = 0; x < imported.size.width; ++x) {
+            const std::size_t pixelIndex =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(imported.size.width) +
+                static_cast<std::size_t>(x);
+            const uint16_t oldColor = target.pixels[pixelIndex];
+            const uint16_t newColor = imported.pixels[pixelIndex];
+            if (oldColor != newColor) {
+                changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
+            }
+        }
+    }
+    if (changes.empty()) {
+        return false;
+    }
+    commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::FramePixels, frameIndex,
+                                                        resolution, std::move(changes)));
+    return true;
+}
+
+void MainWindow::importMovieIntoSelectedFrames()
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (!m_document || frameIndices.empty()) {
+        statusBar()->showMessage(tr("Select at least one frame first"), 2500);
+        return;
+    }
+    QString why;
+    if (!VideoClip::isAvailable(&why)) {
+        QMessageBox::warning(this, tr("Import Movie Clip"),
+                             tr("Movie clips cannot be read: %1").arg(why));
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        tr("Import Movie Clip Into Selected Frames"),
+        m_currentCromPath.isEmpty() ? QDir::homePath()
+                                    : QFileInfo(m_currentCromPath).absolutePath(),
+        tr("Movies (*.mp4 *.m4v *.mov *.mkv *.avi *.webm *.mpg *.mpeg *.wmv *.flv *.gif);;"
+           "All files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    VideoClip clip;
+    QString error;
+    if (!clip.open(path, &error)) {
+        QMessageBox::critical(this, tr("Import Failed"), error);
+        return;
+    }
+
+    const render::Resolution resolution = m_activeResolution;
+    const render::Size size = m_document->geometry().planeSize(resolution);
+    std::vector<uint32_t> durations;
+    for (std::size_t frameIndex : frameIndices) {
+        durations.push_back(m_document->frameDurationMs(frameIndex));
+    }
+    MovieImportDialog dialog(clip, QFileInfo(path).fileName(), size, durations, this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const std::vector<double> times = dialog.frameTimes();
+    const QRect crop = dialog.crop();
+
+    int updatedFrames = 0;
+    int skippedFrames = 0;
+    int pastEnd = 0;
+    QProgressDialog progress(tr("Importing the movie clip..."), tr("Cancel"), 0,
+                             static_cast<int>(frameIndices.size()), this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(500);
+    try {
+        for (std::size_t index = 0; index < frameIndices.size(); ++index) {
+            progress.setValue(static_cast<int>(index));
+            if (progress.wasCanceled()) {
+                break;
+            }
+            const std::size_t frameIndex = frameIndices[index];
+            if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
+                ++skippedFrames;
+                continue;
+            }
+            const QImage picture = clip.frameAt(times[index]);
+            if (picture.isNull()) {
+                // Past the clip's end: the frames from here keep their pictures.
+                pastEnd = static_cast<int>(frameIndices.size() - index);
+                break;
+            }
+            if (commitImportedFramePixels(
+                    frameIndex, resolution,
+                    rgb565FrameFromImage(croppedMoviePicture(picture, crop), size))) {
+                ++updatedFrames;
+            }
+        }
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+    progress.setValue(static_cast<int>(frameIndices.size()));
+
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    QStringList notes;
+    if (skippedFrames > 0) {
+        notes << tr("%1 skipped without HD").arg(skippedFrames);
+    }
+    if (pastEnd > 0) {
+        notes << tr("%1 after the clip's end left as they are").arg(pastEnd);
+    }
+    statusBar()->showMessage(
+        tr("Imported the movie clip into %1 frame(s)%2")
+            .arg(updatedFrames)
+            .arg(notes.isEmpty() ? QString()
+                                 : QStringLiteral(" (%1)").arg(notes.join(QStringLiteral("; ")))),
+        5000);
 }
 
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)

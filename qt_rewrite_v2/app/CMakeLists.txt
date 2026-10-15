@@ -16,6 +16,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/DmdOutputSettingsPage.cpp
     dialogs/DmdOutputSettingsPage.h
     dialogs/DumpImportDialog.cpp
+    dialogs/MovieImportDialog.cpp
+    dialogs/MovieImportDialog.h
     dialogs/DumpImportDialog.h
     dialogs/FrameTesterDialog.cpp
     dialogs/FrameTesterDialog.h
@@ -86,6 +88,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     EditorPlugins.h
     KeyNames.cpp
     KeyNames.h
+    MovieImport.cpp
+    MovieImport.h
     PluginLogWindow.cpp
     PluginLogWindow.h
     SpriteEditorWidget.cpp

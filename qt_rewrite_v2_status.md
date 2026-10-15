@@ -1071,7 +1071,8 @@ owner together.
 - Black and white of the whole project (CDMD `IDC_BAW`, not undoable there; its rotation loop
   also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
   Dyn>Stat and "to source frame" are done.
-- Images window: video import, crop zones, scroll copy.
+- Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
+  import itself is done, see "VPX plugins").
 - PuP tester (next on the plugin route: VPX's PUP plugin on the editor's plugin bus). DMD
   output exists through VPX's DMDUtil plugin (see "VPX plugins"), the frame tester too.
 
@@ -1200,6 +1201,14 @@ instability is no obstacle (the owner works with the plugin developers).
   symbolic links, `CopyLibraries.cmake`). Listed as built in under Settings -> Plugins ("PuP
   tester"). Verified on macOS: `--check-plugins` loads it. CI builds and caches the prefix
   (key: vpinball SHA + script hash).
+- Movie clip import (2026-10-15): `File -> Import Movie Clip Into Selected Frames...`,
+  `dialogs/MovieImportDialog` (start position, crop zone drawn on the picture, kept to the
+  plane's proportions by default, the clip following the frames' durations as CDMD's or a fixed
+  5-3000 ms interval), `MovieImport.{h,cpp}` (times, crop), `MainWindow::importMovieIntoSelectedFrames`
+  sharing `commitImportedFramePixels` with the image import (one undo step per frame). Not yet:
+  into a background, CDMD's "copy into the selection" (we fill the whole plane), crop zone
+  presets (the cRP's image positions). Tests: `tests/VideoClipWidgetTests.cpp` (a GIF from
+  GifWriter read back; the dialog on it).
 - `app/VideoClip.{h,cpp}`: the movie clip import's reader; loads avutil, swscale, avcodec,
   avformat at run time with QLibrary from `<plugin folder>/pup` (names: `libavX.N.dylib`,
   `libavX.so.N`, `avX64-N.dll`), so the editor starts without them.

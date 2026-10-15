@@ -11,6 +11,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
+#include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 }
 
@@ -72,7 +73,9 @@ const LibAv& libAv()
         LibAv av;
         const QString folder =
             QDir(QString::fromStdString(vpx::Host::pluginDirectory())).filePath(QStringLiteral("pup"));
-        // In the order they need each other; kept loaded for the rest of the run.
+        // In the order they need each other: each finds the ones it links among those loaded
+        // already (their search paths are the PUP plugin's, not the editor's). Kept loaded for
+        // the rest of the run.
         const auto load = [&](const char* name, int major) -> QLibrary* {
             auto* library = new QLibrary(libraryFile(folder, name, major));
             if (!library->load() && av.error.isEmpty()) {
@@ -82,6 +85,7 @@ const LibAv& libAv()
             return library;
         };
         QLibrary* avutil = load("avutil", LIBAVUTIL_VERSION_MAJOR);
+        load("swresample", LIBSWRESAMPLE_VERSION_MAJOR);
         QLibrary* swscale = load("swscale", LIBSWSCALE_VERSION_MAJOR);
         QLibrary* avcodec = load("avcodec", LIBAVCODEC_VERSION_MAJOR);
         QLibrary* avformat = load("avformat", LIBAVFORMAT_VERSION_MAJOR);

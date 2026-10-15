@@ -1959,6 +1959,14 @@ Use Create %1 Frame.</source>
         <translation type="unfinished">B&amp;ild in ausgewählte Frames importieren...</translation>
     </message>
     <message>
+        <source>Import &amp;Movie Clip Into Selected Frames...</source>
+        <translation type="obsolete">&amp;Filmclip in ausgewählte Frames importieren...</translation>
+    </message>
+    <message>
+        <source>A picture of a movie clip for each selected frame, from a part of the clip&apos;s picture</source>
+        <translation type="unfinished">Für jeden ausgewählten Frame ein Bild eines Filmclips, aus einem Teil des Clipbilds</translation>
+    </message>
+    <message>
         <source>A&amp;dd Frames From Dump...</source>
         <translation type="unfinished">Frames aus &amp;Dump hinzufügen...</translation>
     </message>
@@ -2257,6 +2265,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Move the selected frames before the frame shown before them (%1 in the frame strip)</source>
         <translation type="unfinished">Ausgewählte Frames vor den Frame verschieben, der vor ihnen angezeigt wird (%1 in der Frame-Leiste)</translation>
+    </message>
+    <message>
+        <source>Import Mo&amp;vie Clip Into Selected Frames...</source>
+        <translation type="unfinished">&amp;Filmclip in ausgewählte Frames importieren...</translation>
     </message>
     <message>
         <source>Move the selected frames behind the frame shown after them (%1 in the frame strip)</source>
@@ -2678,6 +2690,42 @@ Use Create %1 Frame.</source>
     <message>
         <source> (%1 skipped without %2 frame)</source>
         <translation type="unfinished"> (%1 ohne %2-Frame übersprungen)</translation>
+    </message>
+    <message>
+        <source>Import Movie Clip</source>
+        <translation type="unfinished">Filmclip importieren</translation>
+    </message>
+    <message>
+        <source>Movie clips cannot be read: %1</source>
+        <translation type="unfinished">Filmclips können nicht gelesen werden: %1</translation>
+    </message>
+    <message>
+        <source>Import Movie Clip Into Selected Frames</source>
+        <translation type="unfinished">Filmclip in ausgewählte Frames importieren</translation>
+    </message>
+    <message>
+        <source>Movies (*.mp4 *.m4v *.mov *.mkv *.avi *.webm *.mpg *.mpeg *.wmv *.flv *.gif);;All files (*)</source>
+        <translation type="unfinished">Filme (*.mp4 *.m4v *.mov *.mkv *.avi *.webm *.mpg *.mpeg *.wmv *.flv *.gif);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Importing the movie clip...</source>
+        <translation type="unfinished">Filmclip wird importiert...</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished">Abbrechen</translation>
+    </message>
+    <message>
+        <source>%1 skipped without HD</source>
+        <translation type="unfinished">%1 ohne HD übersprungen</translation>
+    </message>
+    <message>
+        <source>%1 after the clip&apos;s end left as they are</source>
+        <translation type="unfinished">%1 nach dem Clipende unverändert</translation>
+    </message>
+    <message>
+        <source>Imported the movie clip into %1 frame(s)%2</source>
+        <translation type="unfinished">Filmclip in %1 Frame(s) importiert%2</translation>
     </message>
     <message>
         <source>The project has an autosave from %1 that is newer than its files.</source>
@@ -3821,6 +3869,89 @@ Use Create %1 Frame.</source>
     <message>
         <source>Selected: %1 (assigned)</source>
         <translation type="unfinished">Ausgewählt: %1 (zugewiesen)</translation>
+    </message>
+</context>
+<context>
+    <name>MovieImportDialog</name>
+    <message>
+        <source>Import Movie Clip: %1</source>
+        <translation type="unfinished">Filmclip importieren: %1</translation>
+    </message>
+    <message>
+        <source>Drag over the picture to choose the part that goes into the frames</source>
+        <translation type="unfinished">Über das Bild ziehen, um den Teil zu wählen, der in die Frames kommt</translation>
+    </message>
+    <message>
+        <source>Where in the clip the first selected frame starts</source>
+        <translation type="unfinished">Wo im Clip der erste ausgewählte Frame beginnt</translation>
+    </message>
+    <message>
+        <source>◀</source>
+        <translation type="unfinished">◀</translation>
+    </message>
+    <message>
+        <source>One picture back</source>
+        <translation type="unfinished">Ein Bild zurück</translation>
+    </message>
+    <message>
+        <source>▶</source>
+        <translation type="unfinished">▶</translation>
+    </message>
+    <message>
+        <source>One picture on</source>
+        <translation type="unfinished">Ein Bild weiter</translation>
+    </message>
+    <message>
+        <source>Whole Picture</source>
+        <translation type="unfinished">Ganzes Bild</translation>
+    </message>
+    <message>
+        <source>Keep the DMD&apos;s proportions</source>
+        <translation type="unfinished">DMD-Proportionen beibehalten</translation>
+    </message>
+    <message>
+        <source>The crop zone has the frame&apos;s width to height (%1x%2), so nothing is stretched</source>
+        <translation type="unfinished">Der Ausschnitt hat das Seitenverhältnis des Frames (%1x%2), damit nichts gestreckt wird</translation>
+    </message>
+    <message>
+        <source>The first selected frame gets</source>
+        <translation type="unfinished">Der erste ausgewählte Frame erhält</translation>
+    </message>
+    <message>
+        <source>The next frames get</source>
+        <translation type="unfinished">Die folgenden Frames erhalten</translation>
+    </message>
+    <message>
+        <source>The clip as the frames play (their durations)</source>
+        <translation type="unfinished">Den Clip, wie die Frames abspielen (ihre Dauern)</translation>
+    </message>
+    <message>
+        <source>A picture every</source>
+        <translation type="unfinished">Ein Bild alle</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation type="unfinished"> ms</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished">Importieren</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation type="unfinished">%1 von %2</translation>
+    </message>
+    <message>
+        <source>Crop zone: %1, %2, %3x%4 pixels of %5x%6</source>
+        <translation type="unfinished">Ausschnitt: %1, %2, %3x%4 Pixel von %5x%6</translation>
+    </message>
+    <message>
+        <source>%1 frame(s) get the clip from %2 to %3; it ends at %4, the frames after that are left as they are.</source>
+        <translation type="unfinished">%1 Frame(s) erhalten den Clip von %2 bis %3; er endet bei %4, die Frames danach bleiben unverändert.</translation>
+    </message>
+    <message>
+        <source>%1 frame(s) get the clip from %2 to %3.</source>
+        <translation type="unfinished">%1 Frame(s) erhalten den Clip von %2 bis %3.</translation>
     </message>
 </context>
 <context>

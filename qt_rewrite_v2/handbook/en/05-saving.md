@@ -45,6 +45,25 @@ Use `File -> Import Image Into Selected Frames...` or the Frame topic's `Import 
 replace selected frame pixels from a PNG/BMP/JPEG. The image is scaled to the active SD/HD DMD size.
 In HD mode, selected frames without HD data are skipped. The import is undoable per frame.
 
+`File -> Import Movie Clip Into Selected Frames...` gives each selected frame a picture of a
+movie clip (MP4, MOV, MKV, AVI, WebM, MPEG, WMV, FLV or an animated GIF; read with ffmpeg, which
+comes with the PUP plugin, so a package without it says it cannot read clips). A window shows
+the clip:
+
+- the slider, `◀` and `▶` (one picture of the clip back or on) choose where the first selected
+  frame starts;
+- dragging over the picture draws the crop zone, the part of the picture that goes into the
+  frames; `Keep the DMD's proportions` (on by default) makes it as wide to high as the frame, so
+  nothing is stretched; `Whole Picture` takes all of it again;
+- the first selected frame's result is shown at DMD resolution;
+- the next selected frames get the clip as the frames play (each frame's duration further on,
+  as the Win32 editor does) or a picture every 5 to 3000 ms.
+
+`Import` fills the selected frames in their order, on the active SD/HD plane, as `Import Image`
+does: undoable per frame, frames without HD data skipped in HD mode. Frames whose time is past
+the clip's end are left as they are; the status bar says how many. A long import shows its
+progress and can be cancelled; the frames done so far keep their pictures.
+
 Save behavior:
 
 - Saving runs in the background. A save that is done within a moment (about 0.3 s) shows

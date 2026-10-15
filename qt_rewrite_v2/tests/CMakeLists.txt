@@ -81,6 +81,7 @@ if(TARGET colorizing_qt_v2_widgets)
         ProjectTaskWidgetTests.cpp
         RuntimeViewWidgetTests.cpp
         SelectionWidgetTests.cpp
+        VideoClipWidgetTests.cpp
     )
 
     target_link_libraries(colorizing_qt_v2_widget_tests

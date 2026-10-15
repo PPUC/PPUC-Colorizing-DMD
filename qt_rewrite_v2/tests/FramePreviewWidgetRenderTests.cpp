@@ -3342,6 +3342,7 @@ void runAppHelpersWidgetTests();
 void runAutosaveWidgetTests();
 void runDmdOutputWidgetTests();
 void runEditorPluginsWidgetTests();
+void runVideoClipWidgetTests();
 void runSettingsWidgetTests();
 void runHandbookWidgetTests();
 void runBigOriginalWidgetTests();
@@ -3400,6 +3401,7 @@ int main(int argc, char* argv[])
     runAutosaveWidgetTests();
     runDmdOutputWidgetTests();
     runEditorPluginsWidgetTests();
+    runVideoClipWidgetTests();
     runSettingsWidgetTests();
     runHandbookWidgetTests();
     runFrameTesterWidgetTests();

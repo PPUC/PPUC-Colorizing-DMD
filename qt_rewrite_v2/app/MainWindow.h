@@ -151,6 +151,14 @@ private:
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();
+    // File -> Import Movie Clip Into Selected Frames: a picture of a clip per selected frame,
+    // through MovieImportDialog.
+    void importMovieIntoSelectedFrames();
+    // Replaces the frame's picture on the plane by the imported one as one undoable edit;
+    // false when nothing changes.
+    bool commitImportedFramePixels(std::size_t frameIndex,
+                                   render::Resolution resolution,
+                                   const document::Rgb565Frame& imported);
     // Offers the project's autosave when it is newer than the project files (see Autosave.h).
     void loadProject(const QString& cromPath, const QString& crpPath);
     // Reads the project from readFrom (an autosave) instead; it is then the project at
