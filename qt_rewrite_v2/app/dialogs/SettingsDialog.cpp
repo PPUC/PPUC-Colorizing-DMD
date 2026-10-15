@@ -158,18 +158,30 @@ void SettingsDialog::setPlugins(const std::vector<PluginChoice>& plugins,
     m_pluginList->clear();
     for (const PluginChoice& plugin : plugins) {
         const QString name = plugin.name.isEmpty() ? plugin.id : plugin.name;
-        auto* item = new QListWidgetItem(
-            plugin.version.isEmpty() ? name : tr("%1 (version %2)").arg(name, plugin.version),
-            m_pluginList);
+        QString text =
+            plugin.version.isEmpty() ? name : tr("%1 (version %2)").arg(name, plugin.version);
+        if (plugin.builtIn) {
+            text = tr("%1 — built in, for the %2").arg(text, plugin.builtInUse);
+        }
+        auto* item = new QListWidgetItem(text, m_pluginList);
         item->setData(Qt::UserRole, plugin.id);
+        item->setData(Qt::UserRole + 1, plugin.builtIn);
         item->setToolTip(plugin.description);
-        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-        item->setCheckState(enabled.contains(plugin.id) ? Qt::Checked : Qt::Unchecked);
+        if (plugin.builtIn) {
+            // Shown checked; without ItemIsUserCheckable the check box cannot be changed.
+            item->setFlags(item->flags() & ~Qt::ItemIsUserCheckable);
+            item->setCheckState(Qt::Checked);
+        } else {
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(enabled.contains(plugin.id) ? Qt::Checked : Qt::Unchecked);
+        }
     }
+    const bool anyChoice = std::any_of(plugins.begin(), plugins.end(),
+                                       [](const PluginChoice& plugin) { return !plugin.builtIn; });
     m_pluginNote->setText(
-        plugins.empty()
-            ? tr("No editor plugins in the plugin folder. A plugin is a folder with its "
-                 "plugin.cfg in the editor's plugin folder.")
+        !anyChoice
+            ? tr("No plugins to choose in the plugin folder, only those built in. A plugin is a "
+                 "folder with its plugin.cfg in the editor's plugin folder.")
             : tr("Plugins checked here are loaded now and at every start of the editor; "
                  "their entries appear in the Plugins menu."));
 }
@@ -179,7 +191,7 @@ QStringList SettingsDialog::enabledPlugins() const
     QStringList enabled;
     for (int row = 0; row < m_pluginList->count(); ++row) {
         const QListWidgetItem* item = m_pluginList->item(row);
-        if (item->checkState() == Qt::Checked) {
+        if (item->checkState() == Qt::Checked && !item->data(Qt::UserRole + 1).toBool()) {
             enabled << item->data(Qt::UserRole).toString();
         }
     }

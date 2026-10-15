@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QPalette>
+#include <QListWidget>
 #include <QSettings>
 #include <QStyle>
 #include <QSpinBox>
@@ -98,6 +99,27 @@ void runSettingsWidgetTests()
     expect(app::loadLanguage() == QStringLiteral("fr"), "the language is kept");
     app::saveLanguage(QString());
     expect(app::loadLanguage().isEmpty(), "and back to the system's");
+    // Plugins: a built-in one is listed checked and cannot be unchecked; the others are chosen.
+    app::SettingsDialog::PluginChoice dmdUtil{QStringLiteral("DMDUtil"), QStringLiteral("DMDUtil"),
+                                              QString(), QStringLiteral("1.0"), true,
+                                              QStringLiteral("DMD output")};
+    app::SettingsDialog::PluginChoice other{QStringLiteral("Other"), QStringLiteral("Other"),
+                                            QString(), QString(), false, QString()};
+    dialog.setPlugins({dmdUtil, other}, {});
+    QListWidget* pluginList = nullptr;
+    for (QListWidget* list : dialog.findChildren<QListWidget*>()) {
+        pluginList = list;
+    }
+    expect(pluginList && pluginList->count() == 2 &&
+               pluginList->item(0)->checkState() == Qt::Checked &&
+               !(pluginList->item(0)->flags() & Qt::ItemIsUserCheckable) &&
+               pluginList->item(0)->text().contains(QStringLiteral("built in")) &&
+               (pluginList->item(1)->flags() & Qt::ItemIsUserCheckable),
+           "a built-in plugin is listed checked, not to be unchecked");
+    expect(dialog.enabledPlugins().isEmpty(), "and is not one of the chosen plugins");
+    pluginList->item(1)->setCheckState(Qt::Checked);
+    expect(dialog.enabledPlugins() == QStringList{QStringLiteral("Other")},
+           "the others are chosen with their check box");
     dialog.showPage(app::SettingsDialog::Page::DmdOutput);
     const auto* tabs = dialog.findChild<QTabWidget*>();
     expect(tabs && tabs->currentIndex() == 1 &&

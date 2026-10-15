@@ -53,6 +53,10 @@ public:
         QString name;
         QString description;
         QString version;
+        // Listed checked, and cannot be unchecked: the editor loads it itself (builtInUse:
+        // for what).
+        bool builtIn = false;
+        QString builtInUse;
     };
     void setPlugins(const std::vector<PluginChoice>& plugins, const QStringList& enabled);
     [[nodiscard]] QStringList enabledPlugins() const;

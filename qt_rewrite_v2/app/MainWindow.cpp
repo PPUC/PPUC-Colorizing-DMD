@@ -2258,7 +2258,8 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     {
         std::vector<SettingsDialog::PluginChoice> plugins;
         for (const EditorPlugins::Plugin& plugin : EditorPlugins::available()) {
-            plugins.push_back({plugin.id, plugin.name, plugin.description, plugin.version});
+            plugins.push_back({plugin.id, plugin.name, plugin.description, plugin.version,
+                               plugin.builtIn, plugin.builtInUse});
         }
         dialog.setPlugins(plugins, EditorPlugins::enabledInSettings());
     }

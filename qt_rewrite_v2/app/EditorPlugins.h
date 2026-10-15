@@ -53,8 +53,12 @@ public:
         QString name;
         QString description;
         QString version;
+        // Loaded by the editor itself when it needs it (DMDUtil for the DMD output): listed,
+        // not chosen. builtInUse says what uses it.
+        bool builtIn = false;
+        QString builtInUse;
     };
-    // The plugins in the plugin folder that can be chosen (not DMDUtil).
+    // The plugins in the plugin folder: the built-in ones and those that can be chosen.
     [[nodiscard]] static std::vector<Plugin> available();
     // The plugins chosen to load at start, kept in the settings.
     [[nodiscard]] static QStringList enabledInSettings();

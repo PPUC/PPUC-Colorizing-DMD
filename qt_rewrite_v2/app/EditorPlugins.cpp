@@ -53,12 +53,14 @@ std::vector<EditorPlugins::Plugin> EditorPlugins::available()
     }
     for (const vpx::Host::PluginDescription& plugin : vpx::Host::instance().plugins()) {
         const QString id = QString::fromStdString(plugin.id);
+        Plugin entry{id, QString::fromStdString(plugin.name),
+                     QString::fromStdString(plugin.description),
+                     QString::fromStdString(plugin.version)};
         if (id == kDmdUtilId) {
-            continue;
+            entry.builtIn = true;
+            entry.builtInUse = tr("DMD output");
         }
-        plugins.push_back(Plugin{id, QString::fromStdString(plugin.name),
-                                 QString::fromStdString(plugin.description),
-                                 QString::fromStdString(plugin.version)});
+        plugins.push_back(std::move(entry));
     }
     return plugins;
 }

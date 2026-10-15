@@ -6,8 +6,10 @@ loads itself, a plugin can work with the editor: read the open project, show fra
 entries to a `Plugins` menu.
 
 - `Settings -> Plugins` lists the plugins found in the plugin folder, with their version; the
-  tooltip has their description. A checked plugin loads at once and at every start of the
-  editor; unchecking unloads it. A plugin that does not load is named with the reason.
+  tooltip has their description. Built-in plugins, which the editor loads itself when it needs
+  them (DMDUtil, for the DMD output), are listed checked and marked `built in`; they cannot be
+  unchecked. Any other checked plugin loads at once and at every start of the editor;
+  unchecking unloads it. A plugin that does not load is named with the reason.
 - The `Plugins` menu appears while a plugin has entries in it.
 - What a plugin logs is in `Help -> Plugin Log`.
 - Plugins that are not part of the editor's packages come from their authors; load only those

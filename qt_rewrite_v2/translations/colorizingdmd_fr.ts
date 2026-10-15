@@ -1378,6 +1378,10 @@
 <context>
     <name>EditorPlugins</name>
     <message>
+        <source>DMD output</source>
+        <translation type="unfinished">sortie DMD</translation>
+    </message>
+    <message>
         <source>Plugin %1: %2</source>
         <translation type="unfinished">Plugin %1 : %2</translation>
     </message>
@@ -4469,8 +4473,16 @@ Utiliser Créer la frame %1.</translation>
         <translation type="unfinished">%1 (version %2)</translation>
     </message>
     <message>
+        <source>%1 — built in, for the %2</source>
+        <translation type="unfinished">%1 — intégré, pour la %2</translation>
+    </message>
+    <message>
+        <source>No plugins to choose in the plugin folder, only those built in. A plugin is a folder with its plugin.cfg in the editor&apos;s plugin folder.</source>
+        <translation type="unfinished">Aucun plugin à choisir dans le dossier des plugins, seulement ceux intégrés. Un plugin est un dossier avec son plugin.cfg dans le dossier des plugins de l&apos;éditeur.</translation>
+    </message>
+    <message>
         <source>No editor plugins in the plugin folder. A plugin is a folder with its plugin.cfg in the editor&apos;s plugin folder.</source>
-        <translation type="unfinished">Aucun plugin d&apos;éditeur dans le dossier des plugins. Un plugin est un dossier avec son plugin.cfg dans le dossier des plugins de l&apos;éditeur.</translation>
+        <translation type="obsolete">Aucun plugin d&apos;éditeur dans le dossier des plugins. Un plugin est un dossier avec son plugin.cfg dans le dossier des plugins de l&apos;éditeur.</translation>
     </message>
     <message>
         <source>Plugins checked here are loaded now and at every start of the editor; their entries appear in the Plugins menu.</source>
