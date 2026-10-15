@@ -6,4 +6,4 @@ Use these files as design and feature reference only. They are not active instru
 
 The historical `readme.md` file was renamed to `legacy_readme.md` to avoid a case-insensitive filesystem conflict with this folder note.
 
-The current implementation handbook remains [../../../Handbook.md](../../../Handbook.md).
+The current implementation handbook remains [../../handbook/en/](../../handbook/en/README.md).

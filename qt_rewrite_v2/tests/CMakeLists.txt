@@ -67,6 +67,7 @@ if(TARGET colorizing_qt_v2_widgets)
         CanvasEditControllerTests.cpp
         DmdOutputWidgetTests.cpp
         SettingsWidgetTests.cpp
+        HandbookWidgetTests.cpp
         ColorWidgetTests.cpp
         DumpImportWidgetTests.cpp
         EditorMatchesRuntimeTests.cpp

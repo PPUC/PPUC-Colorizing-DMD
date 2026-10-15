@@ -38,6 +38,7 @@ class DynamicPanel;
 class EditColorBar;
 class EditMenuActions;
 class FrameListWidget;
+class HandbookWindow;
 class FramePanel;
 class SectionBar;
 class FramePreviewWidget;
@@ -474,6 +475,8 @@ private:
     QAction* m_moveFramesToAction = nullptr;
     // The canvas zoom in the toolbar; a click shows the whole frame.
     QToolButton* m_zoomButton = nullptr;
+    // Help -> Handbook, created when first asked for.
+    HandbookWindow* m_handbookWindow = nullptr;
     QAction* m_runtimeViewAction = nullptr;
     QAction* m_runtimeRows32Action = nullptr;
     QAction* m_runtimeRows64Action = nullptr;

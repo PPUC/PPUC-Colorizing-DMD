@@ -41,6 +41,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramePreviewWidget.h
     FrameThumbnail.cpp
     GifExport.cpp
+    HandbookWindow.cpp
+    HandbookWindow.h
     GifExport.h
     FrameThumbnail.h
     LazyListIcons.cpp
@@ -85,6 +87,15 @@ add_library(colorizing_qt_v2_widgets STATIC
     UnsavedChanges.cpp
     UnsavedChanges.h
 )
+
+# The handbook, every language's chapters, built in under :/handbook/<language>/ for
+# Help -> Handbook (HandbookWindow).
+file(GLOB colorizing_qt_v2_handbook_files
+    CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/handbook/*/[0-9]*.md")
+qt_add_resources(colorizing_qt_v2_widgets "handbook"
+    PREFIX "/handbook"
+    BASE "${PROJECT_SOURCE_DIR}/handbook"
+    FILES ${colorizing_qt_v2_handbook_files})
 
 target_link_libraries(colorizing_qt_v2_widgets
     PUBLIC

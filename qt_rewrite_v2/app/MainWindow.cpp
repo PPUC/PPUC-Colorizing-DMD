@@ -59,6 +59,7 @@
 #include "FlowLayout.h"
 #include "FrameListWidget.h"
 #include "GifExport.h"
+#include "HandbookWindow.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
 #include "ListSelection.h"
@@ -448,6 +449,18 @@ void MainWindow::createActions()
     QMenu* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
     QMenu* editMenu = menuBar()->addMenu(QStringLiteral("&Edit"));
     QMenu* viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
+    // Help: the handbook, in a window of its own that stays open beside the editor.
+    QMenu* helpMenu = menuBar()->addMenu(QStringLiteral("&Help"));
+    QAction* handbookAction = helpMenu->addAction(QStringLiteral("&Handbook"));
+    handbookAction->setShortcut(QKeySequence::HelpContents);
+    connect(handbookAction, &QAction::triggered, this, [this]() {
+        if (!m_handbookWindow) {
+            m_handbookWindow = new HandbookWindow(this);
+        }
+        m_handbookWindow->show();
+        m_handbookWindow->raise();
+        m_handbookWindow->activateWindow();
+    });
 
     QAction* newFromDumpAction =
         fileMenu->addAction(QStringLiteral("&New Project From Dump..."));

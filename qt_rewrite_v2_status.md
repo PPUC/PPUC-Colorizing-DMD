@@ -1,7 +1,7 @@
 # ColorizingDMD Qt Rewrite v2 — Working Status
 
 Snapshot of where the rewrite stands, written 2026-10-13 so work can resume after a break.
-`qt_rewrite_v2_plan.md` is the original plan; `Handbook.md` is the user-facing behaviour reference
+`qt_rewrite_v2_plan.md` is the original plan; `qt_rewrite_v2/handbook/en/` (one file per chapter, shown in the app under Help -> Handbook) is the user-facing behaviour reference
 and is kept current with every change. This file records decisions, state and open work that
 neither of those holds.
 

@@ -1,0 +1,119 @@
+# Canvas
+
+The central canvas shows:
+
+- The active colorized frame region.
+- The original/reference frame region below it. It always shows every pixel of the original
+  frame and has the same on-screen size as the SD frame: 128x32 pixels, or 256x64 pixels of
+  half the size in a project with 256x64 original frames, where the colorized region above it is
+  always the 256x64 plane. In a project with 192x64 original frames both regions are 192x64
+  pixels of that half size, so they are three quarters as wide.
+
+The canvas does not draw text labels or white frame outlines over the image data.
+
+## Drag And Drop Onto The Canvas
+
+A comparison mask dragged from the `Comparison Masks` list, or a background from the `Backgrounds` list, and
+dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign BG` do.
+While it is over the canvas the status bar says what the drop will do. It is undoable like those
+buttons: one step per frame in each frame's settings history, so Undo takes it back from the
+frame shown (see "Undo And Redo"). Frames without background data are skipped for a background.
+Nothing else can be dropped onto the canvas.
+
+## Zoom
+
+The canvas is split into two halves, one above the other: the colorized frame in the upper,
+the original in the lower. At `100%` each frame fills its half (in whole screen pixels per DMD
+pixel). Zooming in, up to `3200%`, the frames grow beyond their halves, and both halves show the
+same part, so the author always sees the same pixels in both. Drawing, selecting, mask and pipette clicks hit the pixel
+shown under the mouse at any zoom.
+
+- `View -> Zoom In` (`Ctrl++` or `Ctrl+=`) and `Zoom Out` (`Ctrl+-`) zoom by a quarter around
+  the middle of the shown part; `View -> Show Whole Frame` (`Ctrl+0`) goes back to `100%`. The
+  toolbar has `-`, the zoom (a click shows the whole frame) and `+`.
+- `Ctrl` (`Cmd` on macOS) with the mouse wheel, and a trackpad pinch, zoom around the mouse:
+  the pixel under it stays there.
+- When the frame is larger than its half, scroll bars at the bottom and the right of the canvas
+  move the shown part;
+  so do the mouse wheel (with `Shift` sideways) and two fingers on a trackpad.
+- The zoom and the shown part stay when the frame, the plane or the view changes; opening or
+  creating a project starts at the whole frame.
+
+Drawing previews are transient overlays. They do not modify project data until mouse release or click commit.
+
+The original/reference region shows the ROM frame's shades on an amber ramp from dark to
+bright: 4 steps in a project with 4 original colors, 16 in one with 16 (shades 0, 5, 10 and 15 of
+16 have the colors of shades 0 to 3 of 4); the frame thumbnails and the sprite editor's original
+use the same colors.
+
+Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
+When `Mask` is active, clicks on the original/reference region add pixels to the assigned comparison mask.
+
+Use the `Dynamic` toolbar toggle to show and edit dynamic-mask pixels over the colorized frame.
+Dynamic zones belong to the plane that has the size of the original frame; in an ordinary project
+that is the SD plane, and the toggle is disabled in HD mode. See "Dynamic Masks".
+
+Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
+The background-mask overlay and edits follow the active SD/HD mode.
+
+The left sidebar is the visual component browser:
+
+- `Frames` shows frame thumbnails and the frame filter.
+- `Masks` shows comparison-mask thumbnails; selecting one selects that mask in the Inspector `Mask`
+  topic for assignment. Selecting does not change any frame, and the selection stays when another
+  frame becomes current.
+- `Backgrounds` shows background thumbnails; selecting one selects the same background in the Inspector for assignment or editing.
+- `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector.
+
+Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
+
+- `Frame` contains frame/background assignment, trigger IDs, DMD render settings, and the HD frame
+  actions (`Create 256x64 Frame` alone in a project with 256x64 original frames, none in one with
+  192x64 original frames).
+- `Mask` contains comparison-mask assignment, comparison mode, and a shortcut into mask editing.
+- `Background` contains the selected background ID, assignment, and edit shortcut.
+- `Dynamic` contains the dynamic set selector and dynamic color swatches. In HD mode of an
+  ordinary project it shows the SD plane's colors and shadows, with a note saying so.
+- `Rotation` contains color rotation slots for the current frame and active SD/HD mode.
+- `Palette` contains the selected cRP palette name and all 64 palette colors.
+- `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, and sprite editing.
+
+The `Frame` section exposes:
+
+- `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
+  It is enabled whenever the project has a background to edit, that is, whenever a background is
+  selected.
+- `BG ID` assigns the shared background for all selected frames. Selected frames without background
+  data are skipped.
+- `Trigger ID` edits the per-frame legacy trigger ID for all selected frames. `None` means the frame
+  triggers nothing and is stored as `0xFFFFFFFF`, the value the cROM uses for it; `0` is an ordinary
+  trigger ID. New frames start with `None`.
+- `Duration` edits the per-frame `.cRP` duration for all selected frames.
+- `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` on all selected frames and
+  disables manual trigger-ID entry while checked. Unchecking it sets `Trigger ID` to `None` on the
+  selected frames that carry the monochrome trigger; selected frames with an ordinary trigger ID
+  keep it. To get an earlier trigger ID back, use Undo.
+- `BG ID`, `Trigger ID`, `Duration`, and `Switch mono` edits can be undone, see "Undo And Redo".
+- `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
+  by default.
+- `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
+
+How DMD pixels are drawn (`Pixel Shape`, `Pixel Size`) is in the Settings, see "Settings".
+
+The `Background` topic exposes:
+
+- Backgrounds are selected visually from the left sidebar.
+- The tab shows the selected background ID.
+- `Assign BG` assigns the selected background to all selected frames. Dragging a background
+  from the `Backgrounds` list onto the canvas does the same; see "Drag And Drop Onto The Canvas".
+- `Remove BG` takes the background off all selected frames (they then have none; the background
+  itself stays). It is enabled while one of the selected frames has a background, and undoable.
+  The Inspector's `BG ID` set to `None` does the same.
+- `Edit BG` switches ordinary drawing tools to the selected background image. If the sprite editor
+  is open, it is closed first (`Edit Sprite` is switched off).
+- `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
+- `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
+- `Import Image` replaces the selected background image from a PNG/BMP/JPEG, scaled to the active SD/HD DMD size.
+  In HD mode, a background without HD data gets its HD image from the import; undoing the import
+  removes that HD image again.
+- `Export BG` writes the selected background image as a PNG using the current DMD dot/square render settings.

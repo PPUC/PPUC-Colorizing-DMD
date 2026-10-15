@@ -3230,6 +3230,7 @@ void runAppHelpersWidgetTests();
 void runAutosaveWidgetTests();
 void runDmdOutputWidgetTests();
 void runSettingsWidgetTests();
+void runHandbookWidgetTests();
 void runBigOriginalWidgetTests();
 void runCanvasEditControllerTests();
 void runColorWidgetTests();
@@ -3285,6 +3286,7 @@ int main(int argc, char* argv[])
     runAutosaveWidgetTests();
     runDmdOutputWidgetTests();
     runSettingsWidgetTests();
+    runHandbookWidgetTests();
     runFrameTesterWidgetTests();
     runGifWriterWidgetTests();
     runGifExportWidgetTests();
