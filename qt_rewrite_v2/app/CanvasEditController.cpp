@@ -109,6 +109,26 @@ std::vector<render::Point> withLine(std::vector<render::Point> pixels,
     return pixels;
 }
 
+// The area a flood fill of a mask (dynamic zones, background mask) covers: the pixels
+// connected to the clicked one that have its color in the frame's colorized picture, or its
+// shade when clicked on the original frame. Not the mask's own values, which are mostly all
+// alike.
+std::vector<render::Point> frameFloodArea(const document::ProjectDocument& document,
+                                          std::size_t frameIndex,
+                                          const render::CanvasHit& hit)
+{
+    if (hit.region == render::CanvasRegion::OriginalFrame) {
+        const document::IndexedFrame& original = document.originalFrame(frameIndex);
+        return edit::floodFillMatching(
+            original.pixels, original.size, render::Point{hit.x, hit.y},
+            original.pixels[static_cast<std::size_t>(hit.y) * original.size.width + hit.x]);
+    }
+    const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, hit.resolution);
+    return edit::floodFillMatching(frame.pixels, frame.size, render::Point{hit.x, hit.y},
+                                   document.colorizedPixel(frameIndex, hit.resolution, hit.x,
+                                                           hit.y));
+}
+
 }  // namespace
 
 CanvasEditController::CanvasEditController(CanvasEditOutputs outputs)
@@ -699,23 +719,11 @@ void CanvasEditController::floodFillDynamicMask(const CanvasEditContext& context
         return;
     }
     try {
-        const uint8_t targetValue =
-            document.dynamicMaskPixel(frameIndex, hit.resolution, hit.x, hit.y);
         const uint8_t newValue = erase ? uint8_t{255} : context.dynamicSet;
-        if (targetValue == newValue) {
-            return;
-        }
-
-        const document::IndexedFrame& mask = hit.resolution == render::Resolution::Hd
-                                                 ? document.dynamicData(frameIndex)->maskHd
-                                                 : document.dynamicData(frameIndex)->maskSd;
         commitFrameMaskPixels(context,
                               edit::EditKind::DynamicMask,
                               hit.resolution,
-                              edit::floodFillMatching(mask.pixels,
-                                                      mask.size,
-                                                      render::Point{hit.x, hit.y},
-                                                      targetValue),
+                              frameFloodArea(document, frameIndex, hit),
                               newValue,
                               erase ? tr("Flood erased dynamic mask")
                                     : tr("Flood filled dynamic mask"));
@@ -741,25 +749,10 @@ void CanvasEditController::floodFillBackgroundMask(const CanvasEditContext& cont
             showStatus(tr("No background assigned"), kStatusMs);
             return;
         }
-        // The area comes from the frame, not from the mask (mostly all 0 or all 1): the
-        // pixels connected to the clicked one with its color in the frame's colorized
-        // picture, or with its shade on the original frame.
-        std::vector<render::Point> area;
-        if (hit.region == render::CanvasRegion::OriginalFrame) {
-            const document::IndexedFrame& original = document.originalFrame(frameIndex);
-            area = edit::floodFillMatching(
-                original.pixels, original.size, render::Point{hit.x, hit.y},
-                original.pixels[static_cast<std::size_t>(hit.y) * original.size.width + hit.x]);
-        } else {
-            const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, hit.resolution);
-            area = edit::floodFillMatching(
-                frame.pixels, frame.size, render::Point{hit.x, hit.y},
-                document.colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y));
-        }
         commitFrameMaskPixels(context,
                               edit::EditKind::BackgroundMask,
                               hit.resolution,
-                              area,
+                              frameFloodArea(document, frameIndex, hit),
                               newValue,
                               erase ? tr("Flood erased background mask")
                                     : tr("Flood filled background mask"));

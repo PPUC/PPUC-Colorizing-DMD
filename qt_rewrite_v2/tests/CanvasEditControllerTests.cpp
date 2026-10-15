@@ -710,7 +710,14 @@ void testDynamicMaskLayer()
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                owner.status == "Painted dynamic mask rectangle",
            "dynamic stroke");
-    // The ring now encloses the pixel painted first.
+    // The flood fill takes its area from the frame, not from the mask: a rectangle of
+    // another color on the frame gets the set, whatever the mask holds there.
+    owner.next();
+    CanvasEditContext frameContext = context;
+    frameContext.layer = CanvasEditLayer::FramePixels;
+    frameContext.tool = DrawingTool::FilledRectangle;
+    frameContext.drawColor = 0x1234;
+    controller.strokeFinished(frameContext, colorized(5, 6), colorized(8, 9), false);
     owner.next();
     context.tool = DrawingTool::FloodFill;
     context.dynamicSet = 5;
@@ -718,15 +725,27 @@ void testDynamicMaskLayer()
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                owner.status == "Flood filled dynamic mask" &&
                document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 5 &&
-               document.dynamicMaskPixel(2, Resolution::Sd, 6, 7) == 5 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 8, 9) == 5 &&
                document.dynamicMaskPixel(2, Resolution::Sd, 9, 9) == 255,
-           "dynamic flood fill");
+           "dynamic flood fills the frame's area of the clicked color");
     owner.next();
     controller.colorizedPixelClicked(context, colorized(6, 7), true);
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                owner.status == "Flood erased dynamic mask" &&
-               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 255,
-           "dynamic flood erase");
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 255 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 8, 9) == 255,
+           "dynamic flood erase clears that area");
+    owner.next();
+    controller.originalPixelClicked(context, original(9, 9), false);
+    expect(owner.committed(EditKind::DynamicMask, {2}) &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 9, 9) == 5 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 0, 0) == 5,
+           "on the original, the area of the clicked shade (here all of it)");
+    owner.next();
+    controller.originalPixelClicked(context, original(9, 9), true);
+    expect(owner.committed(EditKind::DynamicMask, {2}) &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 0, 0) == 255,
+           "and erased there");
 
     owner.next();
     context.tool = DrawingTool::Point;

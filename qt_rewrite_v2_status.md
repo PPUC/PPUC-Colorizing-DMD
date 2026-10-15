@@ -1155,7 +1155,9 @@ Assist.
 - BG mask flood: it filled by the mask's own values (masks are mostly uniform: nothing or
   everything). Owner's choice: the area comes from the frame — same color in the colorized
   picture, same shade when clicked on the original; the background mask is now also painted,
-  drawn and filled on the original frame (as dynamic zones). `floodFillBackgroundMask`.
+  drawn and filled on the original frame (as dynamic zones). `floodFillBackgroundMask`. Same
+  report for the dynamic mask, same fix: both use `frameFloodArea` (anonymous namespace of
+  CanvasEditController.cpp).
 - Strip not updated: BackgroundMask edits did not invalidate thumbnails (Remove BG and deleting
   a background did); `refreshAfterEdit` now updates them.
 - Way back from background editing: `Edit BG` is a toggle like `Edit Sprite`

@@ -70,7 +70,12 @@ Nothing is changed before `Create Project` is pressed.
   dump's own order. A real fade made of very short steps can look the same: compare the frame
   count with the option on and off (`Read Dump Again`), and lower the limit if needed. On a
   WPC dump of 12264 frames it left out 5887, and 4201 frames went into the project instead of
-  8469.
+  8469. This can only be done here, while the dump is read: it needs the frames in the order
+  the machine showed them. A project keeps each picture once (repetitions are left out, see
+  below), so the frames beside one in the frame list are not the ones shown just before and
+  after it. A project made without the option keeps its ghost frames: create it from the dump
+  again. Adding a dump to a project (`Add Frames From Dump`) with the option on keeps new ghost
+  frames out, not the ones the project has already.
 - `Leave out frames shown for less than N ms` (5 to 3000). A frame is shown until the next
   frame of the dump arrives. A frame whose time cannot be told is taken as 30 ms and is never
   left out by this: the last frame, a frame followed by an earlier time, and a frame followed
