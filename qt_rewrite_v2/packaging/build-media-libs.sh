@@ -77,7 +77,11 @@ fetch() {
     if [ ! -d "${work}/${directory}" ]; then
         curl -fsSL "https://github.com/${repository}/archive/${sha}.tar.gz" \
             -o "${work}/${directory}.tar.gz"
-        tar xzf "${work}/${directory}.tar.gz" -C "${work}"
+        # Without the Xcode projects, as vpinball unpacks them: their framework symbolic links
+        # cannot be made on Windows, and no build here uses them. A folder left by an earlier
+        # failed unpack goes first.
+        rm -rf "${work}/$(basename "${repository}")-${sha}"
+        tar xzf "${work}/${directory}.tar.gz" -C "${work}" --exclude='*/Xcode/*'
         mv "${work}/$(basename "${repository}")-${sha}" "${work}/${directory}"
         rm "${work}/${directory}.tar.gz"
     fi
