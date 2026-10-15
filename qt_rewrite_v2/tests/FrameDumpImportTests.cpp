@@ -371,11 +371,79 @@ DumpImportResult importText(const std::string& text,
 void expectCountsAddUp(const DumpImportResult& result, const std::string& what)
 {
     const importing::DumpImportCounts& counts = result.counts;
-    expectEqual(counts.tooShort + counts.tooManyColors + counts.duplicates +
+    expectEqual(counts.transitional + counts.tooShort + counts.tooManyColors + counts.duplicates +
                     counts.identicalInProject + counts.identifiedByMaskOrShape +
                     counts.framesKept,
                 counts.framesRead, what + ": every frame is counted once");
     expectEqual(result.frames.size(), counts.framesKept, what + ": kept frames");
+}
+
+// A frame of two pictures: left half one shade, right half another.
+TextFrame twoShades(uint32_t timecode, uint8_t left, uint8_t right)
+{
+    TextFrame frame;
+    frame.timecode = timecode;
+    frame.pixels.resize(128 * 32);
+    for (std::size_t index = 0; index < frame.pixels.size(); ++index) {
+        frame.pixels[index] = index % 128 < 64 ? left : right;
+    }
+    return frame;
+}
+
+void testTransitionalFrames()
+{
+    using importing::isTransitionalFrame;
+    const auto pixels = [](const TextFrame& frame) {
+        return document::IndexedFrame{Size{128, 32},
+                                      document::CompactArray<uint8_t>(frame.pixels)};
+    };
+    // Old picture: left lit (3), right dark (0); new: the other way round. The WPC ghost has
+    // the same in-between shade wherever the same change happens: 3 -> 0 shows 1, 0 -> 3 2.
+    const TextFrame oldPicture = twoShades(0, 3, 0);
+    const TextFrame ghost = twoShades(16, 1, 2);
+    const TextFrame newPicture = twoShades(32, 0, 3);
+    expect(isTransitionalFrame(pixels(oldPicture), pixels(ghost), pixels(newPicture)),
+           "a mix of both pictures is a transitional frame");
+    // Not when one changing pixel has another shade than the rest of its kind.
+    TextFrame uneven = ghost;
+    uneven.pixels[5] = 2;
+    expect(!isTransitionalFrame(pixels(oldPicture), pixels(uneven), pixels(newPicture)),
+           "every pixel with the same change has the same shade");
+    // Nor when a pixel that stays the same in both neighbours changes in between.
+    TextFrame steady = twoShades(0, 3, 1);
+    TextFrame flicker = twoShades(16, 1, 1);
+    TextFrame steadyNew = twoShades(32, 0, 1);
+    expect(isTransitionalFrame(pixels(steady), pixels(flicker), pixels(steadyNew)),
+           "only the changing half: a transitional frame");
+    flicker.pixels[100] = 2;
+    expect(!isTransitionalFrame(pixels(steady), pixels(flicker), pixels(steadyNew)),
+           "a pixel that both neighbours have alike keeps it");
+    // Nor a frame that only shows the old or the new shade: no shade in between.
+    expect(!isTransitionalFrame(pixels(oldPicture), pixels(twoShades(16, 3, 3)),
+                                pixels(newPicture)),
+           "a frame without an in-between shade is not a mix");
+
+    // In a dump: the ghosts of 16 ms go, a frame that shows longer stays (the limit).
+    std::vector<TextFrame> dump{oldPicture, ghost, newPicture,
+                                twoShades(48, 2, 1),  // ghost back, but shown 40 ms
+                                twoShades(88, 3, 0)};
+    DumpImportOptions options;
+    options.dropTransitionalFrames = true;
+    DumpImportResult result = importText(dumpText(dump), options);
+    expectCountsAddUp(result, "transitional frames");
+    expectEqual(result.counts.transitional, std::size_t{1}, "the 16 ms ghost is left out");
+    expect(result.frames[1].original.pixels == pixels(newPicture).pixels,
+           "and the frame after it follows the one before");
+    options.transitionalLimitMs = 50;
+    result = importText(dumpText(dump), options);
+    expectEqual(result.counts.transitional, std::size_t{2},
+                "a longer limit takes the 40 ms ghost too");
+    options.dropTransitionalFrames = false;
+    result = importText(dumpText(dump), options);
+    expectEqual(result.counts.transitional, std::size_t{0}, "off, nothing is left out");
+    expect(importing::clampedOptions(DumpImportOptions{.transitionalLimitMs = 1000})
+                   .transitionalLimitMs == importing::kMaxTransitionalLimitMs,
+           "the limit is clamped");
 }
 
 void testDurations()
@@ -1205,6 +1273,7 @@ void runFrameDumpImportTests()
     testReaderErrors();
     testDurations();
     testFilters();
+    testTransitionalFrames();
     testDuplicatesInDump();
     testAgainstProject();
     testCancelAndFiles();

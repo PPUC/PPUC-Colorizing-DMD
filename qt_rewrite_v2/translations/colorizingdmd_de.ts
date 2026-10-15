@@ -734,6 +734,10 @@
         <translation>%1 gelesen, %2 Duplikate, %3 zu kurz, %4 mit zu vielen Farben</translation>
     </message>
     <message>
+        <source>, %1 transitional</source>
+        <translation>, %1 Übergangsframes</translation>
+    </message>
+    <message>
         <source>, %1 already in the project (%2 identical, %3 identified through a mask or shape mode), %4 to add</source>
         <translation>, %1 schon im Projekt (%2 identisch, %3 über eine Maske oder den Formmodus erkannt), %4 hinzuzufügen</translation>
     </message>
@@ -768,6 +772,18 @@
     <message>
         <source>ROM name of the new project, as the runtime looks the colorization up</source>
         <translation>ROM-Name des neuen Projekts, unter dem die Runtime die Kolorierung sucht</translation>
+    </message>
+    <message>
+        <source>Leave out transitional frames (WPC) shown for at most</source>
+        <translation>Übergangsframes (WPC) weglassen, gezeigt höchstens</translation>
+    </message>
+    <message>
+        <source>A WPC display shows a mix of the old and the new picture for a moment while it changes: every pixel that changes between the frames before and after has the same in-between shade. Such ghost frames are left out</source>
+        <translation>Ein WPC-Display zeigt beim Wechsel kurz eine Mischung aus altem und neuem Bild: Jedes Pixel, das sich zwischen dem Frame davor und danach ändert, hat dieselbe Zwischenstufe. Solche Geisterframes werden weggelassen</translation>
+    </message>
+    <message>
+        <source>Longest duration of a transitional frame that is left out</source>
+        <translation>Längste Dauer eines Übergangsframes, der weggelassen wird</translation>
     </message>
     <message>
         <source>Leave out frames shown for less than</source>

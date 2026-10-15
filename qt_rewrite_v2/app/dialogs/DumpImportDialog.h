@@ -92,6 +92,8 @@ private:
     QLabel* m_romNameProblemLabel = nullptr;
     QCheckBox* m_shortFramesCheckBox = nullptr;
     QSpinBox* m_shortFramesSpinBox = nullptr;
+    QCheckBox* m_transitionalCheckBox = nullptr;
+    QSpinBox* m_transitionalSpinBox = nullptr;
     QCheckBox* m_colorsCheckBox = nullptr;
     QSpinBox* m_colorsSpinBox = nullptr;
     QCheckBox* m_masksCheckBox = nullptr;

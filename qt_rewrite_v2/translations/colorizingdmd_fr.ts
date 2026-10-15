@@ -734,6 +734,10 @@
         <translation>%1 lues, %2 doublons, %3 trop courtes, %4 avec trop de couleurs</translation>
     </message>
     <message>
+        <source>, %1 transitional</source>
+        <translation>, %1 frames de transition</translation>
+    </message>
+    <message>
         <source>, %1 already in the project (%2 identical, %3 identified through a mask or shape mode), %4 to add</source>
         <translation>, %1 déjà dans le projet (%2 identiques, %3 identifiées par un masque ou le mode forme), %4 à ajouter</translation>
     </message>
@@ -768,6 +772,18 @@
     <message>
         <source>ROM name of the new project, as the runtime looks the colorization up</source>
         <translation>Nom de ROM du nouveau projet, sous lequel le runtime cherche la colorisation</translation>
+    </message>
+    <message>
+        <source>Leave out transitional frames (WPC) shown for at most</source>
+        <translation>Ignorer les frames de transition (WPC) affichées au plus</translation>
+    </message>
+    <message>
+        <source>A WPC display shows a mix of the old and the new picture for a moment while it changes: every pixel that changes between the frames before and after has the same in-between shade. Such ghost frames are left out</source>
+        <translation>Un écran WPC affiche un instant un mélange de l&apos;ancienne et de la nouvelle image pendant qu&apos;il change : chaque pixel qui change entre la frame précédente et la suivante a la même nuance intermédiaire. Ces frames fantômes sont ignorées</translation>
+    </message>
+    <message>
+        <source>Longest duration of a transitional frame that is left out</source>
+        <translation>Durée maximale d&apos;une frame de transition ignorée</translation>
     </message>
     <message>
         <source>Leave out frames shown for less than</source>

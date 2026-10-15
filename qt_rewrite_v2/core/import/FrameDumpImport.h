@@ -22,6 +22,8 @@ constexpr uint32_t kMaxFrameDurationMs = 4000;
 
 constexpr uint32_t kMinShortFrameLimitMs = 5;
 constexpr uint32_t kMaxShortFrameLimitMs = 3000;
+constexpr uint32_t kMinTransitionalLimitMs = 5;
+constexpr uint32_t kMaxTransitionalLimitMs = 100;
 constexpr uint32_t kMinColorLimit = 1;
 constexpr uint32_t kMaxColorLimit = 16;
 
@@ -40,16 +42,22 @@ struct DumpImportOptions {
     // that is if a frame of the project has the same hash under that frame's own mask and
     // shape mode.
     bool useMasksAndShapeModes = false;
+    // Drop transitional frames (isTransitionalFrame()) shown for at most
+    // transitionalLimitMs: on WPC machines the ghost of two pictures while the display
+    // changes from one to the next. Not a filter of the Win32 editor.
+    bool dropTransitionalFrames = false;
+    uint32_t transitionalLimitMs = 20;
 };
 
 // The limits brought into their ranges.
 [[nodiscard]] DumpImportOptions clampedOptions(DumpImportOptions options);
 
 // What became of the frames of a dump. Every frame read is counted once:
-// framesRead == tooShort + tooManyColors + duplicates + identicalInProject +
+// framesRead == transitional + tooShort + tooManyColors + duplicates + identicalInProject +
 //               identifiedByMaskOrShape + framesKept.
 struct DumpImportCounts {
     std::size_t framesRead = 0;
+    std::size_t transitional = 0;
     std::size_t tooShort = 0;
     std::size_t tooManyColors = 0;
     // The same original as an earlier frame of the dump that was kept.
@@ -124,11 +132,23 @@ private:
     std::vector<Rule> m_rules;
 };
 
+// Whether frame is a transitional frame between previous and next, the frames of the dump
+// before and after it: a mix of the two, as a WPC display shows while it changes from one
+// picture to the next (it builds its shades from several sub-frames, some of which still
+// come from the old picture). A pixel that is the same in both neighbours is that in the
+// frame too; every pixel that goes from shade a to shade c has one and the same shade in
+// the frame, whatever its place, and for at least one such (a, c) that shade lies strictly
+// between a and c. The frame differs from both neighbours, which differ from each other.
+[[nodiscard]] bool isTransitionalFrame(const document::IndexedFrame& previous,
+                                       const document::IndexedFrame& frame,
+                                       const document::IndexedFrame& next);
+
 // Called now and then with the number of bytes read; returning false cancels the import.
 using DumpProgress = std::function<bool(uint64_t bytesRead)>;
 
 // Reads a dump and applies, in this order and as the Win32 editor does: the duration of
-// each frame, the filter for short frames, the filter for colors, the removal of frames
+// each frame, the filter for transitional frames (this editor's own, compared with the
+// frames read before and after it, whatever became of those), the filter for short frames, the filter for colors, the removal of frames
 // that repeat an earlier kept frame of the dump, and, when a project is given, the removal
 // of frames the project has already. Keeps only the frames that pass.
 //

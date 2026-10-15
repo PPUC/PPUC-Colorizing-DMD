@@ -59,6 +59,18 @@ Nothing is changed before `Create Project` is pressed.
   looks the colorization up by and the name `Save` proposes for the files. It has 1 to 63
   characters, unaccented, and none of `/ \ : * ? " < > |`; while it is not usable the line
   below it says why and `Create Project` is disabled.
+- `Leave out transitional frames (WPC) shown for at most N ms` (5 to 100, 20 by default; off
+  by default). While a WPC display changes from one picture to the next, it shows a mix of both
+  for a moment: it builds its shades from several sub-frames, and some of them still come from
+  the old picture. A dump records these ghost frames; in a smooth animation often every second
+  frame is one. A frame is taken for one when, compared with the frames read before and after
+  it, every pixel that is the same in both has that shade, every pixel that changes from one
+  shade to another has one and the same shade wherever that change happens, and for at least
+  one such change that shade lies between the old and the new one. It is checked first, on the
+  dump's own order. A real fade made of very short steps can look the same: compare the frame
+  count with the option on and off (`Read Dump Again`), and lower the limit if needed. On a
+  WPC dump of 12264 frames it left out 5887, and 4201 frames went into the project instead of
+  8469.
 - `Leave out frames shown for less than N ms` (5 to 3000). A frame is shown until the next
   frame of the dump arrives. A frame whose time cannot be told is taken as 30 ms and is never
   left out by this: the last frame, a frame followed by an earlier time, and a frame followed

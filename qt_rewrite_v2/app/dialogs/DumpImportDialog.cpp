@@ -64,6 +64,10 @@ QString dumpCountsText(const importing::DumpImportResult& result, bool addsFrame
                        "%1 read, %2 duplicates, %3 too short, %4 with too many colors")
                        .arg(number(counts.framesRead), number(counts.duplicates),
                             number(counts.tooShort), number(counts.tooManyColors));
+    if (counts.transitional > 0) {
+        text += QCoreApplication::translate("DumpImportDialog", ", %1 transitional")
+                    .arg(number(counts.transitional));
+    }
     if (addsFrames) {
         text += QCoreApplication::translate("DumpImportDialog",
                                             ", %1 already in the project (%2 identical, %3 "
@@ -108,6 +112,18 @@ DumpImportDialog::DumpImportDialog(Mode mode,
     m_romNameProblemLabel = new QLabel(this);
     m_romNameProblemLabel->setWordWrap(true);
 
+    m_transitionalCheckBox =
+        new QCheckBox(tr("Leave out transitional frames (WPC) shown for at most"), this);
+    m_transitionalCheckBox->setToolTip(
+        tr("A WPC display shows a mix of the old and the new picture for a moment while it "
+           "changes: every pixel that changes between the frames before and after has the "
+           "same in-between shade. Such ghost frames are left out"));
+    m_transitionalSpinBox = new QSpinBox(this);
+    m_transitionalSpinBox->setRange(static_cast<int>(importing::kMinTransitionalLimitMs),
+                                    static_cast<int>(importing::kMaxTransitionalLimitMs));
+    m_transitionalSpinBox->setSuffix(QStringLiteral(" ms"));
+    m_transitionalSpinBox->setToolTip(
+        tr("Longest duration of a transitional frame that is left out"));
     m_shortFramesCheckBox = new QCheckBox(tr("Leave out frames shown for less than"), this);
     m_shortFramesCheckBox->setToolTip(
         tr("A frame is shown until the next one of the dump arrives. The last frame and a frame "
@@ -165,6 +181,11 @@ DumpImportDialog::DumpImportDialog(Mode mode,
         form->addRow(QString(), m_romNameProblemLabel);
     }
     layout->addLayout(form);
+    auto* transitionalLayout = new QHBoxLayout();
+    transitionalLayout->addWidget(m_transitionalCheckBox);
+    transitionalLayout->addWidget(m_transitionalSpinBox);
+    transitionalLayout->addStretch(1);
+    layout->addLayout(transitionalLayout);
     auto* shortLayout = new QHBoxLayout();
     shortLayout->addWidget(m_shortFramesCheckBox);
     shortLayout->addWidget(m_shortFramesSpinBox);
@@ -202,10 +223,11 @@ DumpImportDialog::DumpImportDialog(Mode mode,
     connect(m_analyzeButton, &QPushButton::clicked, this, [this]() { startAnalysis(); });
     connect(m_stopButton, &QPushButton::clicked, this, [this]() { stopAnalysis(); });
     connect(m_romNameEdit, &QLineEdit::textChanged, this, [this]() { updateControls(); });
-    for (QCheckBox* checkBox : {m_shortFramesCheckBox, m_colorsCheckBox, m_masksCheckBox}) {
+    for (QCheckBox* checkBox :
+         {m_transitionalCheckBox, m_shortFramesCheckBox, m_colorsCheckBox, m_masksCheckBox}) {
         connect(checkBox, &QCheckBox::toggled, this, [this]() { markStale(); });
     }
-    for (QSpinBox* spinBox : {m_shortFramesSpinBox, m_colorsSpinBox}) {
+    for (QSpinBox* spinBox : {m_transitionalSpinBox, m_shortFramesSpinBox, m_colorsSpinBox}) {
         connect(spinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
                 [this]() { markStale(); });
     }
@@ -256,6 +278,8 @@ QString DumpImportDialog::romName() const
 void DumpImportDialog::setOptions(const importing::DumpImportOptions& requested)
 {
     const importing::DumpImportOptions shown = importing::clampedOptions(requested);
+    m_transitionalCheckBox->setChecked(shown.dropTransitionalFrames);
+    m_transitionalSpinBox->setValue(static_cast<int>(shown.transitionalLimitMs));
     m_shortFramesCheckBox->setChecked(shown.dropShortFrames);
     m_shortFramesSpinBox->setValue(static_cast<int>(shown.shortFrameLimitMs));
     m_colorsCheckBox->setChecked(shown.dropColorfulFrames);
@@ -267,6 +291,8 @@ void DumpImportDialog::setOptions(const importing::DumpImportOptions& requested)
 importing::DumpImportOptions DumpImportDialog::options() const
 {
     importing::DumpImportOptions current;
+    current.dropTransitionalFrames = m_transitionalCheckBox->isChecked();
+    current.transitionalLimitMs = static_cast<uint32_t>(m_transitionalSpinBox->value());
     current.dropShortFrames = m_shortFramesCheckBox->isChecked();
     current.shortFrameLimitMs = static_cast<uint32_t>(m_shortFramesSpinBox->value());
     current.dropColorfulFrames = m_colorsCheckBox->isChecked();
@@ -415,11 +441,13 @@ void DumpImportDialog::updateControls()
     const bool addsFrames = m_mode == Mode::AddFrames;
     m_analyzeButton->setEnabled(!running && !dumpPath().isEmpty());
     m_stopButton->setEnabled(running);
-    for (QWidget* option : {static_cast<QWidget*>(m_shortFramesCheckBox),
+    for (QWidget* option : {static_cast<QWidget*>(m_transitionalCheckBox),
+                            static_cast<QWidget*>(m_shortFramesCheckBox),
                             static_cast<QWidget*>(m_colorsCheckBox),
                             static_cast<QWidget*>(m_masksCheckBox)}) {
         option->setEnabled(!running);
     }
+    m_transitionalSpinBox->setEnabled(!running && m_transitionalCheckBox->isChecked());
     m_shortFramesSpinBox->setEnabled(!running && m_shortFramesCheckBox->isChecked());
     m_colorsSpinBox->setEnabled(!running && m_colorsCheckBox->isChecked());
     if (!addsFrames) {

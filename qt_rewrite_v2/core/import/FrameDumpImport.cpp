@@ -1,6 +1,7 @@
 #include "import/FrameDumpImport.h"
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <stdexcept>
 #include <utility>
@@ -45,7 +46,44 @@ DumpImportOptions clampedOptions(DumpImportOptions options)
     options.shortFrameLimitMs =
         std::clamp(options.shortFrameLimitMs, kMinShortFrameLimitMs, kMaxShortFrameLimitMs);
     options.colorLimit = std::clamp(options.colorLimit, kMinColorLimit, kMaxColorLimit);
+    options.transitionalLimitMs = std::clamp(options.transitionalLimitMs, kMinTransitionalLimitMs,
+                                             kMaxTransitionalLimitMs);
     return options;
+}
+
+bool isTransitionalFrame(const document::IndexedFrame& previous,
+                         const document::IndexedFrame& frame,
+                         const document::IndexedFrame& next)
+{
+    if (previous.size != frame.size || next.size != frame.size ||
+        frame.pixels == previous.pixels || frame.pixels == next.pixels ||
+        previous.pixels == next.pixels) {
+        return false;
+    }
+    // The shade a pixel going from a to c has in the frame, per (a, c); -1: none seen yet.
+    std::array<int16_t, 16 * 16> mix;
+    mix.fill(-1);
+    bool between = false;
+    const std::size_t count = frame.pixels.size();
+    for (std::size_t index = 0; index < count; ++index) {
+        const uint8_t a = previous.pixels[index] & 0x0f;
+        const uint8_t b = frame.pixels[index] & 0x0f;
+        const uint8_t c = next.pixels[index] & 0x0f;
+        if (a == c) {
+            if (b != a) {
+                return false;
+            }
+            continue;
+        }
+        int16_t& seen = mix[a * 16 + c];
+        if (seen < 0) {
+            seen = b;
+            between = between || (b > std::min(a, c) && b < std::max(a, c));
+        } else if (seen != b) {
+            return false;
+        }
+    }
+    return between;
 }
 
 ProjectFrameMatcher::ProjectFrameMatcher(const document::ProjectDocument& document,
@@ -115,13 +153,23 @@ DumpImportResult importFrameDump(std::istream& stream,
     std::unordered_map<uint32_t, std::size_t> seen;
     uint16_t usedShades = 0;
 
-    const auto take = [&](DumpFrame& frame, std::optional<uint32_t> nextTimecode) {
+    // previous, next: the frames read before and after it, if any.
+    const auto take = [&](DumpFrame& frame, const document::IndexedFrame* previous,
+                          const DumpFrame* next) {
+        const std::optional<uint32_t> nextTimecode =
+            next ? std::optional<uint32_t>(next->timecode) : std::nullopt;
         uint32_t durationMs = kDefaultFrameDurationMs;
         bool measured = false;
         if (nextTimecode && *nextTimecode >= frame.timecode &&
             *nextTimecode - frame.timecode <= kMaxFrameDurationMs) {
             durationMs = *nextTimecode - frame.timecode;
             measured = true;
+        }
+        if (options.dropTransitionalFrames && measured &&
+            durationMs <= options.transitionalLimitMs && previous && next &&
+            isTransitionalFrame(*previous, frame.pixels, next->pixels)) {
+            ++result.counts.transitional;
+            return;
         }
         if (options.dropShortFrames && measured && durationMs < options.shortFrameLimitMs) {
             ++result.counts.tooShort;
@@ -164,6 +212,10 @@ DumpImportResult importFrameDump(std::istream& stream,
     DumpFrame pending;
     DumpFrame current;
     bool hasPending = false;
+    // The frame read before pending (take() moves pending's pixels away): for the filter of
+    // transitional frames.
+    document::IndexedFrame before;
+    bool hasBefore = false;
     for (;;) {
         const FrameDumpReader::Status status = reader.next(current);
         if (status == FrameDumpReader::Status::Error) {
@@ -194,7 +246,15 @@ DumpImportResult importFrameDump(std::istream& stream,
         ++result.counts.framesRead;
         usedShades = static_cast<uint16_t>(usedShades | current.usedShades);
         if (hasPending) {
-            take(pending, current.timecode);
+            document::IndexedFrame pendingPixels;
+            if (options.dropTransitionalFrames) {
+                pendingPixels = pending.pixels;
+            }
+            take(pending, hasBefore ? &before : nullptr, &current);
+            if (options.dropTransitionalFrames) {
+                before = std::move(pendingPixels);
+                hasBefore = true;
+            }
         }
         std::swap(pending, current);
         hasPending = true;
@@ -213,7 +273,7 @@ DumpImportResult importFrameDump(std::istream& stream,
                           : "The file holds no frame.",
                       result.truncatedFrameLine.value_or(0));
     }
-    take(pending, std::nullopt);
+    take(pending, hasBefore ? &before : nullptr, nullptr);
 
     result.colorCount = (usedShades & 0xfff0u) != 0 ? 16 : 4;
     if (project && result.colorCount > project->colorCount()) {

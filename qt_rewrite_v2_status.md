@@ -1134,6 +1134,22 @@ table as a plugin does. The AI assistant plugin that uses it lives in its own re
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 
+## Transitional (ghost) frames of WPC dumps (2026-10-15)
+
+Author question (AI Assist): WPC dumps hold ghost frames, a mix of the old and new picture
+while the display changes (shades from sub-frames). Owner: "do it" — first as an editor
+feature, no AI needed. `importing::isTransitionalFrame(previous, frame, next)`: pixels equal
+in both neighbours unchanged; per (old, new) shade pair one shade wherever it occurs; at least
+one pair strictly between; frame differs from both, neighbours differ. Dump import option
+`dropTransitionalFrames` / `transitionalLimitMs` (default off / 20 ms, 5..100), checked first on
+the raw dump order (neighbours = frames read, whatever became of them), count `transitional`.
+Dialog checkbox + spin box. On the author's `dh_lx2` (12264 frames): 5887 left out, 4201 kept
+instead of 8469. Caveat: a real fade of very short steps matches too (hence off by default and
+the limit). Ghost values can also lie outside [old, new] in multi-pair ghosts, e.g. (1,2)->3;
+a stricter sub-frame model could separate fades if needed. Next proposed: propagate a key
+frame's colors through an animation (shade-adjusted, with motion), then expose both to AI
+Assist.
+
 ## Background author reports (2026-10-15)
 
 - BG mask flood: it filled by the mask's own values (masks are mostly uniform: nothing or
