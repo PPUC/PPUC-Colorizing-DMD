@@ -1234,6 +1234,15 @@ instability is no obstacle (the owner works with the plugin developers).
   sent triggers. Stopped on project change. Handbook chapter 37. Tests:
   `tests/PupHostWidgetTests.cpp` (a one-trigger pack, D5 turns the backglass red; the window on
   it). Not yet: audio (no audio output hosted), triggers from the Runtime view.
+- PuP pack name in UTF-8 (2026-10-15, owner: "We break backward compatibility anyway"): the
+  Win32 field is `wchar_t[256]`, 2 bytes on Windows, 4 on macOS/Linux (the first Qt attempt
+  wrote 4-byte characters). `EditorMetadata::pupPackName` is now a UTF-8 `std::string`; the
+  .cRP reader converts the UTF-16LE field (`pupPackNameFromLegacyBytes`), a plain .cRP gets it
+  back as UTF-16 (`legacyPupPackNameBytes`, cut to 255 units), so Win32 projects still
+  round-trip identical (checked hook_501, smb3; none of the fixtures names a pack). The .cRPX
+  writes its cRP part with an empty field (`writeCrpxCrpPart`) and the pack as chunk `PUPP`
+  (uint32 has pack, uint32 length, UTF-8); a .cRPX of earlier builds with the name in the field
+  still loads. No UI to edit the name yet (the PuP Tester's game field is not saved).
 - `app/VideoClip.{h,cpp}`: the movie clip import's reader; loads avutil, swscale, avcodec,
   avformat at run time with QLibrary from `<plugin folder>/pup` (names: `libavX.N.dylib`,
   `libavX.so.N`, `avX64-N.dll`), so the editor starts without them.

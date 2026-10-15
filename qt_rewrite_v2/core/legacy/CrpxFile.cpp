@@ -31,12 +31,29 @@ void appendLittleEndian(std::string& out, uint64_t value, std::size_t bytes)
 }
 
 constexpr std::array<char, 4> kHelperLinesTag = {'H', 'L', 'I', 'N'};
+constexpr std::array<char, 4> kPupPackTag = {'P', 'U', 'P', 'P'};
 constexpr std::size_t kChunkHeaderBytes = 16;
+
+void appendChunk(std::string& chunks, const std::array<char, 4>& tag, const std::string& data)
+{
+    chunks.append(tag.data(), tag.size());
+    appendLittleEndian(chunks, 0, 4);
+    appendLittleEndian(chunks, data.size(), 8);
+    chunks += data;
+}
 
 // The chunks after the cRP part, each with its header.
 std::string chunkBytes(const document::ProjectSnapshot& snapshot)
 {
     std::string chunks;
+    const document::EditorMetadata& metadata = snapshot.editorMetadata;
+    if (metadata.hasPupPack != 0 || !metadata.pupPackName.empty()) {
+        std::string data;
+        appendLittleEndian(data, metadata.hasPupPack, 4);
+        appendLittleEndian(data, metadata.pupPackName.size(), 4);
+        data += metadata.pupPackName;
+        appendChunk(chunks, kPupPackTag, data);
+    }
     if (!snapshot.helperLines.empty()) {
         std::string data;
         appendLittleEndian(data, snapshot.helperLines.size(), 4);
@@ -49,10 +66,7 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             appendLittleEndian(data, line.name.size(), 4);
             data += line.name;
         }
-        chunks.append(kHelperLinesTag.data(), kHelperLinesTag.size());
-        appendLittleEndian(chunks, 0, 4);
-        appendLittleEndian(chunks, data.size(), 8);
-        chunks += data;
+        appendChunk(chunks, kHelperLinesTag, data);
     }
     return chunks;
 }
@@ -98,6 +112,30 @@ bool parseHelperLines(LegacyByteSource& source,
     return source.skip(static_cast<std::size_t>(left)) || damaged();
 }
 
+bool parsePupPack(LegacyByteSource& source,
+                  uint64_t size,
+                  document::EditorMetadata& metadata,
+                  std::string& errorMessage)
+{
+    uint32_t hasPack = 0;
+    uint32_t nameBytes = 0;
+    if (size < 8 || !source.readU32(hasPack) || !source.readU32(nameBytes) ||
+        size - 8 < nameBytes) {
+        errorMessage = "the PuP pack of the .cRPX is damaged";
+        return false;
+    }
+    std::string name(nameBytes, '\0');
+    if ((nameBytes > 0 &&
+         !source.readBytes(reinterpret_cast<uint8_t*>(name.data()), nameBytes)) ||
+        !source.skip(static_cast<std::size_t>(size - 8 - nameBytes))) {
+        errorMessage = "the PuP pack of the .cRPX is damaged";
+        return false;
+    }
+    metadata.hasPupPack = hasPack;
+    metadata.pupPackName = std::move(name);
+    return true;
+}
+
 }  // namespace
 
 bool hasCrpxExtension(const std::string& path)
@@ -130,7 +168,7 @@ bool writeCrpx(std::ostream& stream,
         progress->done.fetch_add(header.size());
     }
     const std::streampos crpStart = stream.tellp();
-    if (!writeLegacyCrp(stream, snapshot, errorMessage, sections, progress)) {
+    if (!writeCrpxCrpPart(stream, snapshot, errorMessage, sections, progress)) {
         return false;
     }
     // The header announces the cRP part's size before it is written; a reader relies on it.
@@ -183,6 +221,10 @@ bool readCrpxChunks(LegacyByteSource& source,
         }
         if (std::memcmp(tag, kHelperLinesTag.data(), 4) == 0) {
             if (!parseHelperLines(source, size, snapshot.helperLines, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kPupPackTag.data(), 4) == 0) {
+            if (!parsePupPack(source, size, snapshot.editorMetadata, errorMessage)) {
                 return false;
             }
         } else if (!source.skip(static_cast<std::size_t>(size))) {

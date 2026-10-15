@@ -636,7 +636,8 @@ bool writeCrpContent(std::ostream& stream,
                      const document::ProjectSnapshot& snapshot,
                      std::string& errorMessage,
                      LegacySectionOffsets* sections,
-                     LegacyIoProgress* progress)
+                     LegacyIoProgress* progress,
+                     bool withPupPack)
 {
     if (!document::isValidProjectSnapshot(snapshot, &errorMessage)) {
         return false;
@@ -717,8 +718,9 @@ bool writeCrpContent(std::ostream& stream,
     writer.section("elapsed time");
     writer.u32(metadata.timeElapsedMs);
     writer.section("PuP pack");
-    writer.u32(metadata.hasPupPack);
-    writer.bytes(metadata.pupPackName);
+    writer.u32(withPupPack ? metadata.hasPupPack : 0);
+    writer.bytes(document::legacyPupPackNameBytes(withPupPack ? metadata.pupPackName
+                                                              : std::string()));
     writer.section("end");
 
     if (!writer.finish()) {
@@ -751,7 +753,21 @@ bool writeLegacyCrp(std::ostream& stream,
                     LegacyIoProgress* progress)
 {
     try {
-        return writeCrpContent(stream, snapshot, errorMessage, sections, progress);
+        return writeCrpContent(stream, snapshot, errorMessage, sections, progress, true);
+    } catch (const WriteCancelled&) {
+        errorMessage = kLegacyIoCancelledMessage;
+        return false;
+    }
+}
+
+bool writeCrpxCrpPart(std::ostream& stream,
+                      const document::ProjectSnapshot& snapshot,
+                      std::string& errorMessage,
+                      LegacySectionOffsets* sections,
+                      LegacyIoProgress* progress)
+{
+    try {
+        return writeCrpContent(stream, snapshot, errorMessage, sections, progress, false);
     } catch (const WriteCancelled&) {
         errorMessage = kLegacyIoCancelledMessage;
         return false;
@@ -803,7 +819,7 @@ uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot)
            2 * document::kPaletteCount * document::kPaletteColorCount +
            2 * metadata.editColors.size() + 4 + metadata.imagePositionNames.size() +
            4 * metadata.imagePositions.size() + metadata.paletteNames.size() + 4 +
-           metadata.importedPalettes.size() + 4 + 4 + metadata.pupPackName.size();
+           metadata.importedPalettes.size() + 4 + 4 + document::kPupPackNameBytes;
 }
 
 }  // namespace colorizing::legacy

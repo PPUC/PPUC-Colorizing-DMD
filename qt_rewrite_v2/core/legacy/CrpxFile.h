@@ -22,9 +22,13 @@ class LegacyByteSource;
 //   uint32   format version (kCrpxVersion; a reader refuses a newer one)
 //   uint32   header size in bytes, from the start of the file (24 for version 1)
 //   uint64   size of the cRP part
-//   the cRP part: what writeLegacyCrp() writes, as in a .cRP of the Win32 editor
+//   the cRP part: what writeLegacyCrp() writes, as in a .cRP of the Win32 editor, with an
+//   empty PuP pack field (the pack is the chunk PUPP; a cRP part with a pack in its field, as
+//   earlier versions wrote it, is read, and a PUPP chunk replaces it)
 //   chunks up to the end of the file: char[4] tag, uint32 0, uint64 size, the data; a reader
 //   skips those it does not know. Written so far:
+//     "PUPP" the PuP pack, when the project has one or names one: uint32 has pack (the Win32
+//            editor's flag), uint32 name length, the name in UTF-8.
 //     "HLIN" the helper lines (document/HelperLine.h), when there are any: uint32 count, then
 //            per line uint8 vertical, uint8 plane (0 SD, 1 HD), uint8 visible, uint8 0,
 //            uint32 position, uint32 name length, the name in UTF-8.

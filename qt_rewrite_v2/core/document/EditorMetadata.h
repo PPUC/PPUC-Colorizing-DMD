@@ -22,6 +22,7 @@ constexpr std::size_t kImagePositionNameBytes = 64;
 constexpr std::size_t kImagePositionValueCount = 16;
 constexpr std::size_t kPaletteNameBytes = 64;
 constexpr std::size_t kImportedPaletteBytes = 64 * 3;
+// The Win32 editor's PuP pack name field: 256 UTF-16 code units (its wchar_t).
 constexpr std::size_t kPupPackNameBytes = 256 * 2;
 
 // Editor-only project state stored in the .cRP next to the original frames. The fixed-size name
@@ -53,13 +54,18 @@ struct EditorMetadata {
     std::vector<uint8_t> importedPalettes;
     uint32_t timeElapsedMs = 0;
     uint32_t hasPupPack = 0;
-    // UTF-16LE, as written by the Windows editor.
-    std::vector<uint8_t> pupPackName;
+    // UTF-8. A .cRP holds it in UTF-16 (legacyPupPackNameBytes()), a .cRPX in UTF-8.
+    std::string pupPackName;
 };
 
 [[nodiscard]] EditorMetadata makeDefaultEditorMetadata();
 [[nodiscard]] bool isValidEditorMetadata(const EditorMetadata& metadata,
                                          std::string* errorMessage = nullptr);
+
+// The PuP pack name of the Win32 editor's field (UTF-16LE up to the first NUL) in UTF-8, and
+// back: the field's kPupPackNameBytes, the name cut to 255 code units, then zeros.
+[[nodiscard]] std::string pupPackNameFromLegacyBytes(const uint8_t* bytes, std::size_t size);
+[[nodiscard]] std::vector<uint8_t> legacyPupPackNameBytes(const std::string& name);
 
 // Reads a NUL-terminated name out of a table of fixed-size entries.
 [[nodiscard]] std::string fixedName(const std::vector<uint8_t>& table,

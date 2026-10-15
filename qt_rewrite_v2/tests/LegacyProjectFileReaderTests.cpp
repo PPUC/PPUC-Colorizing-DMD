@@ -1,5 +1,6 @@
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
+#include "document/EditorMetadata.h"
 
 #include <algorithm>
 #include <chrono>
@@ -993,6 +994,47 @@ void testFileWriterSavesCrpx()
     expect(reader.load(paths).ok && reader.load(paths).snapshot.helperLines.empty(),
            "a .cRPX without them has none");
 
+    // The PuP pack name: UTF-8 in a chunk of its own, the cRP part's UTF-16 field left empty;
+    // in a .cRP UTF-16 in that field, as the Win32 editor writes it.
+    colorizing::document::ProjectSnapshot withPack = source.snapshot;
+    withPack.editorMetadata.hasPupPack = 1;
+    withPack.editorMetadata.pupPackName = "B\xc3\xa4renj\xc3\xa4ger \xf0\x9f\x8e\xaf";
+    expect(writer.save(paths, withPack).ok, "a .cRPX with a PuP pack is saved");
+    const std::vector<uint8_t> withPackBytes = readBytes(crpxPath);
+    expect(withPackBytes.size() > crpx.size() &&
+               std::equal(crpx.begin(), crpx.end(), withPackBytes.begin()) &&
+               std::string(withPackBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()),
+                           withPackBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()) +
+                               4) == "PUPP",
+           "the pack is the chunk PUPP after an unchanged cRP part");
+    const LegacyLoadResult packBack = reader.load(paths);
+    expect(packBack.ok && packBack.snapshot.editorMetadata.hasPupPack == 1 &&
+               packBack.snapshot.editorMetadata.pupPackName ==
+                   withPack.editorMetadata.pupPackName,
+           "and comes back as it was");
+    const std::filesystem::path packCromPath = uniqueTempPath(".cROM");
+    const LegacyProjectPaths crpPaths{utf8FromPath(packCromPath), utf8FromPath(crpPath)};
+    expect(writer.save(crpPaths, withPack).ok, "a .cRP with a PuP pack is saved");
+    const std::vector<uint8_t> crpWithPack = readBytes(crpPath);
+    const std::vector<uint8_t> expectedField = {'B', 0, 0xe4, 0, 'r', 0, 'e', 0, 'n', 0,
+                                                'j', 0, 0xe4, 0, 'g', 0, 'e', 0, 'r', 0,
+                                                ' ', 0, 0x3c, 0xd8, 0xaf, 0xdf, 0, 0};
+    expect(crpWithPack.size() == crp.size() &&
+               std::equal(expectedField.begin(), expectedField.end(),
+                          crpWithPack.end() - static_cast<std::ptrdiff_t>(
+                                                  colorizing::document::kPupPackNameBytes)),
+           "a .cRP holds it in UTF-16 in the Win32 editor's field");
+    const LegacyLoadResult crpPackBack = reader.load(crpPaths);
+    expect(crpPackBack.ok && crpPackBack.snapshot.editorMetadata.pupPackName ==
+                                 withPack.editorMetadata.pupPackName,
+           "and reads it back");
+    const std::string longName(300, 'x');
+    const std::vector<uint8_t> cut = colorizing::document::legacyPupPackNameBytes(longName);
+    expect(colorizing::document::pupPackNameFromLegacyBytes(cut.data(), cut.size()) ==
+               std::string(255, 'x'),
+           "a name too long for the field is cut to 255 characters");
+    writeBytes(crpxPath, crpx);
+
     std::vector<uint8_t> newer = crpx;
     newer[8] = 2;
     writeBytes(crpxPath, newer);
@@ -1005,7 +1047,7 @@ void testFileWriterSavesCrpx()
     writeBytes(crpxPath, damaged);
     expect(!reader.load(paths).ok, "a .cRPX whose cRP part is cut off is refused");
 
-    for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath}) {
+    for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath, packCromPath}) {
         std::filesystem::remove(path);
     }
 }

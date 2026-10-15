@@ -171,7 +171,7 @@ ProjectSnapshot makeSnapshot()
     metadata.importedPalettes.assign(colorizing::document::kImportedPaletteBytes, 9);
     metadata.timeElapsedMs = 123456;
     metadata.hasPupPack = 1;
-    metadata.pupPackName[0] = 'p';
+    metadata.pupPackName = "pack";
     return snapshot;
 }
 
@@ -278,7 +278,7 @@ void testSerializedProjectRoundTrips()
     expect(metadata.importedPalettes.size() == colorizing::document::kImportedPaletteBytes,
            "imported palettes");
     expect(metadata.timeElapsedMs == 123456, "elapsed time");
-    expect(metadata.hasPupPack == 1 && metadata.pupPackName[0] == 'p', "PuP pack");
+    expect(metadata.hasPupPack == 1 && metadata.pupPackName == "pack", "PuP pack");
 }
 
 void testDerivedFieldsAreRecomputed()

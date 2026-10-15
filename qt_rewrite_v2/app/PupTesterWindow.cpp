@@ -30,24 +30,14 @@ namespace {
 
 const QString kFolderKey = QStringLiteral("pup/folder");
 
-// The PuP pack name the project names (the cRP's, UTF-16 as the Win32 editor writes it), when
-// it names one.
+// The PuP pack name the project names, when it names one.
 QString projectPackName(const document::ProjectDocument& document)
 {
     const document::EditorMetadata& metadata = document.editorMetadata();
-    if (!metadata.hasPupPack || metadata.pupPackName.size() < 2) {
+    if (!metadata.hasPupPack) {
         return {};
     }
-    QString name;
-    for (std::size_t index = 0; index + 1 < metadata.pupPackName.size(); index += 2) {
-        const char16_t unit = static_cast<char16_t>(metadata.pupPackName[index] |
-                                                    (metadata.pupPackName[index + 1] << 8));
-        if (unit == 0) {
-            break;
-        }
-        name += QChar(unit);
-    }
-    return name.trimmed();
+    return QString::fromStdString(metadata.pupPackName).trimmed();
 }
 
 }  // namespace

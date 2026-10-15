@@ -250,10 +250,12 @@ LegacyCrpOriginalParseResult parseLegacyCrpOriginalFrames(LegacyByteSource& sour
         if (remaining() >= sizeof(uint32_t) && !cursor.readU32(metadata.timeElapsedMs)) {
             return fail("unexpected end of cRP while reading elapsed time");
         }
-        if (remaining() >= sizeof(uint32_t) + metadata.pupPackName.size() &&
-            (!cursor.readU32(metadata.hasPupPack) ||
-             !cursor.readBytes(metadata.pupPackName.data(), metadata.pupPackName.size()))) {
-            return fail("unexpected end of cRP while reading PuP pack name");
+        if (remaining() >= sizeof(uint32_t) + document::kPupPackNameBytes) {
+            uint8_t name[document::kPupPackNameBytes] = {};
+            if (!cursor.readU32(metadata.hasPupPack) || !cursor.readBytes(name, sizeof(name))) {
+                return fail("unexpected end of cRP while reading PuP pack name");
+            }
+            metadata.pupPackName = document::pupPackNameFromLegacyBytes(name, sizeof(name));
         }
     }
 
