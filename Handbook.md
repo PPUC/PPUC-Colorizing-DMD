@@ -741,7 +741,8 @@ and gives backgrounds with a higher number a number one lower in every frame.
 ### Comparison masks
 
 `New` adds an empty mask (nothing masked) behind the last one and selects it. No frame uses it:
-`Assign Mask` assigns it. The mask has the name its slot has in the `.cRP`.
+`Assign Mask` assigns it, as does dragging the mask from the `Masks` list onto the canvas (see
+"Drag And Drop Onto The Canvas"). The mask has the name its slot has in the `.cRP`.
 
 `Delete` deletes the selected mask. If frames use it, the question says how many and which, and
 that they will be compared without a mask, which changes how the runtime identifies them; they
@@ -1092,6 +1093,15 @@ The central canvas shows:
 
 The canvas does not draw text labels or white frame outlines over the image data.
 
+### Drag And Drop Onto The Canvas
+
+A comparison mask dragged from the `Masks` list, or a background from the `Backgrounds` list, and
+dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign BG` do.
+While it is over the canvas the status bar says what the drop will do. It is undoable like those
+buttons: one step per frame in each frame's settings history, so Undo takes it back from the
+frame shown (see "Undo And Redo"). Frames without background data are skipped for a background.
+Nothing else can be dropped onto the canvas.
+
 ### Zoom
 
 The canvas is split into two halves, one above the other: the colorized frame in the upper,
@@ -1176,7 +1186,8 @@ The `Background` topic exposes:
 
 - Backgrounds are selected visually from the left sidebar.
 - The tab shows the selected background ID.
-- `Assign BG` assigns the selected background to all selected frames.
+- `Assign BG` assigns the selected background to all selected frames. Dragging a background
+  from the `Backgrounds` list onto the canvas does the same; see "Drag And Drop Onto The Canvas".
 - `Remove BG` takes the background off all selected frames (they then have none; the background
   itself stays). It is enabled while one of the selected frames has a background, and undoable.
   The Inspector's `BG ID` set to `None` does the same.

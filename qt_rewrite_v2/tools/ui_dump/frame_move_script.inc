@@ -138,4 +138,42 @@
         std::cout << '\n';
         w.m_frameFilterComboBox->setCurrentIndex(0);
     }
+
+    // A mask and a background dragged onto the canvas (a tree with drops on the canvas).
+    if (w.m_preview->m_dropHandler) {
+        const auto rowOf = [](QListWidget* list, int index) {
+            for (int row = 0; row < list->count(); ++row) {
+                if (list->item(row)->data(Qt::UserRole).toInt() == index) {
+                    return row;
+                }
+            }
+            return -1;
+        };
+        const auto assignments = [&](const char* title) {
+            D(title);
+            std::cout << "frame move: masks";
+            for (std::size_t frame = 0; frame < w.m_document->frameCount(); ++frame) {
+                const int mask = w.m_document->comparisonMaskId(frame);
+                std::cout << ' ' << (mask == 255 ? std::string("-") : std::to_string(mask));
+            }
+            std::cout << '\n';
+        };
+        w.recordStructureEdit(edit::addComparisonMask(*w.m_document));
+        selectRows({4, 5});
+        w.m_maskList->setCurrentRow(rowOf(w.m_maskList, 0));
+        std::cout << "frame move: canvas takes the mask "
+                  << w.m_preview->m_dropHandler(w.m_maskList, false) << '\n';
+        w.m_preview->m_dropHandler(w.m_maskList, true);
+        assignments("frame move: mask dropped onto the canvas");
+        w.m_undoAction->trigger();
+        assignments("frame move: mask drop undone");
+        selectRows({6});
+        w.m_backgroundList->setCurrentRow(rowOf(w.m_backgroundList, 0));
+        w.m_preview->m_dropHandler(w.m_backgroundList, true);
+        D("frame move: background dropped onto the canvas");
+        w.m_undoAction->trigger();
+        D("frame move: background drop undone");
+        std::cout << "frame move: canvas takes a frame "
+                  << w.m_preview->m_dropHandler(w.m_frameList, false) << '\n';
+    }
 }

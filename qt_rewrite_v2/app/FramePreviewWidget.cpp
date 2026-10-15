@@ -4,6 +4,7 @@
 #include <cmath>
 #include <exception>
 
+#include <QDropEvent>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
@@ -38,6 +39,37 @@ FramePreviewWidget::FramePreviewWidget(QWidget* parent)
             viewChanged();
         });
     }
+}
+
+void FramePreviewWidget::setDropHandler(std::function<bool(QObject* source, bool drop)> handler)
+{
+    m_dropHandler = std::move(handler);
+    setAcceptDrops(m_dropHandler != nullptr);
+}
+
+void FramePreviewWidget::dragEnterEvent(QDragEnterEvent* event)
+{
+    dragMoveEvent(event);
+}
+
+void FramePreviewWidget::dragMoveEvent(QDragMoveEvent* event)
+{
+    if (m_dropHandler && m_dropHandler(event->source(), false)) {
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        return;
+    }
+    event->ignore();
+}
+
+void FramePreviewWidget::dropEvent(QDropEvent* event)
+{
+    if (m_dropHandler && m_dropHandler(event->source(), true)) {
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        return;
+    }
+    event->ignore();
 }
 
 double FramePreviewWidget::zoom() const

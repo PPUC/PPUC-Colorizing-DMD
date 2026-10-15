@@ -73,6 +73,11 @@ public:
     // Called on mouse moves without a button over the colorized frame; while one is set the
     // widget tracks the mouse.
     void setHoverHandler(std::function<void(render::CanvasHit)> handler);
+    // Drops from other widgets of the window (a mask or background dragged from its list):
+    // asked whether it takes what is dragged while it is over the canvas (drop false), then
+    // told to take it (drop true). source: the widget the drag started in. Returns whether it
+    // is taken.
+    void setDropHandler(std::function<bool(QObject* source, bool drop)> handler);
     // The keyboard modifiers of the last left press, for the handlers of its click and stroke.
     [[nodiscard]] Qt::KeyboardModifiers pressModifiers() const;
 
@@ -105,6 +110,9 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     bool event(QEvent* event) override;
 
@@ -176,6 +184,7 @@ private:
     std::optional<CanvasPasteOverlay> m_pasteOverlay;
     std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> m_pressInterceptor;
     std::function<void(render::CanvasHit)> m_hoverHandler;
+    std::function<bool(QObject* source, bool drop)> m_dropHandler;
     Qt::KeyboardModifiers m_pressModifiers;
     double m_zoom = 1.0;
     QPointF m_viewOffset;

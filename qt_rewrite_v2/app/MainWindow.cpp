@@ -755,7 +755,14 @@ void MainWindow::createCentralView()
     m_maskList->setResizeMode(QListView::Adjust);
     m_maskList->setUniformItemSizes(false);
     m_maskList->setMinimumWidth(230);
+    // Masks and backgrounds can be dragged onto the canvas, see the canvas's drop handler.
+    m_maskList->setDragEnabled(true);
+    m_maskList->setDragDropMode(QAbstractItemView::DragOnly);
+    m_maskList->setDefaultDropAction(Qt::CopyAction);
     m_backgroundList = new QListWidget(central);
+    m_backgroundList->setDragEnabled(true);
+    m_backgroundList->setDragDropMode(QAbstractItemView::DragOnly);
+    m_backgroundList->setDefaultDropAction(Qt::CopyAction);
     m_backgroundList->setIconSize(QSize(160, 42));
     m_backgroundList->setResizeMode(QListView::Adjust);
     m_backgroundList->setUniformItemSizes(false);
@@ -1527,6 +1534,45 @@ void MainWindow::createCentralView()
             });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         colorizedCanvasClicked(hit, erase);
+    });
+    // A mask or background dropped onto the canvas is assigned to the selected frames, as its
+    // Assign button does (one undo step).
+    m_preview->setDropHandler([this](QObject* source, bool drop) {
+        if (!m_document || selectedFrameIndices().empty() || !source ||
+            (source != m_maskList && source != m_backgroundList)) {
+            return false;
+        }
+        auto* list = static_cast<QListWidget*>(source);
+        const QListWidgetItem* item = list->currentItem();
+        const int index = item ? item->data(Qt::UserRole).toInt() : -1;
+        const bool mask = source == m_maskList;
+        if (index < 0 ||
+            static_cast<std::size_t>(index) >=
+                (mask ? m_document->comparisonMaskCount() : m_document->backgroundCount())) {
+            return false;
+        }
+        const int frames = static_cast<int>(selectedFrameIndices().size());
+        if (!drop) {
+            statusBar()->showMessage(
+                QStringLiteral("Drop to assign %1 %2 to the %3 selected frame(s)")
+                    .arg(mask ? QStringLiteral("comparison mask") : QStringLiteral("background"))
+                    .arg(index)
+                    .arg(frames),
+                2000);
+            return true;
+        }
+        if (mask) {
+            m_selectedMaskIndex = static_cast<std::size_t>(index);
+            assignSelectedMaskToFrames();
+        } else {
+            const int comboIndex = m_backgroundComboBox->findData(index);
+            if (comboIndex < 0) {
+                return false;
+            }
+            m_backgroundComboBox->setCurrentIndex(comboIndex);
+            assignSelectedBackgroundToFrames();
+        }
+        return true;
     });
     m_preview->setPressInterceptor([this](render::CanvasHit hit, Qt::KeyboardModifiers modifiers) {
         return interceptCanvasPress(hit, modifiers);
