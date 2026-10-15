@@ -11,18 +11,25 @@
 #include "document/ProjectDocument.h"
 
 class QLabel;
+class QListWidget;
 class QSpinBox;
 class QToolButton;
 
 namespace colorizing::app {
 
-// Inspector page for the dynamic sets of a frame: the set to paint, its colors and its shadow.
+// Inspector page for the dynamic sets of a frame: the sets the frame uses (each with a picture of
+// its zones), the set to paint, its colors and its shadow.
 // The selected set is the page's own state. The page only displays and reports what the user
 // asked for; the owner applies the edits and calls the refresh functions.
 class DynamicPanel final : public QWidget {
 public:
     explicit DynamicPanel(QWidget* parent = nullptr);
 
+    // The list of the frame's sets; rebuilt only when the project, the frame or the plane
+    // changed, otherwise only its selection follows the selected set.
+    void refreshSets(const document::ProjectDocument* document,
+                     std::optional<std::size_t> frameIndex,
+                     render::Resolution resolution);
     // Colors of the selected set.
     void refreshColors(const document::ProjectDocument* document,
                        std::optional<std::size_t> frameIndex,
@@ -46,7 +53,15 @@ public:
     std::function<void()> onShadowColorClicked;
 
 private:
+    void selectListedSet();
+
     QLabel* m_noteLabel = nullptr;
+    QListWidget* m_setList = nullptr;
+    // What the list was built for.
+    const document::ProjectDocument* m_listDocument = nullptr;
+    uint64_t m_listRevision = 0;
+    std::optional<std::size_t> m_listFrame;
+    render::Resolution m_listResolution = render::Resolution::Sd;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_shadowDirectionButtons;

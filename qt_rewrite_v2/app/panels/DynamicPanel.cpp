@@ -1,11 +1,15 @@
 #include "panels/DynamicPanel.h"
 
+#include <algorithm>
 #include <array>
 #include <exception>
 
 #include <QFormLayout>
 #include <QGridLayout>
+#include <QImage>
 #include <QLabel>
+#include <QListWidget>
+#include <QPixmap>
 #include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSpinBox>
@@ -53,6 +57,12 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     m_noteLabel->setWordWrap(true);
     m_noteLabel->setVisible(false);
     pageLayout->addWidget(m_noteLabel);
+    m_setList = new QListWidget(this);
+    m_setList->setToolTip(
+        QStringLiteral("The dynamic sets of the frame: a click selects the set to paint and edit"));
+    m_setList->setIconSize(QSize(128, 32));
+    m_setList->setMaximumHeight(190);
+    pageLayout->addWidget(m_setList);
     auto* form = new QFormLayout();
     form->addRow(QStringLiteral("Dyn Set"), m_dynamicSetSpinBox);
     pageLayout->addLayout(form);
@@ -122,11 +132,109 @@ DynamicPanel::DynamicPanel(QWidget* parent)
                     onDynamicSetChanged(setIndex);
                 }
             });
+    connect(m_setList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+        const int setIndex = item->data(Qt::UserRole).toInt();
+        if (setIndex < 0 || setIndex == m_dynamicSetSpinBox->value()) {
+            return;
+        }
+        m_dynamicSetSpinBox->setValue(setIndex);
+    });
     connect(m_shadowColorButton, &QToolButton::clicked, this, [this]() {
         if (onShadowColorClicked) {
             onShadowColorClicked();
         }
     });
+}
+
+void DynamicPanel::refreshSets(const document::ProjectDocument* document,
+                               std::optional<std::size_t> frameIndex,
+                               render::Resolution resolution)
+{
+    const uint64_t revision = document ? document->revision() : 0;
+    if (document == m_listDocument && revision == m_listRevision && frameIndex == m_listFrame &&
+        resolution == m_listResolution) {
+        selectListedSet();
+        return;
+    }
+    m_listDocument = document;
+    m_listRevision = revision;
+    m_listFrame = frameIndex;
+    m_listResolution = resolution;
+    QSignalBlocker blocker(m_setList);
+    m_setList->clear();
+    const std::optional<document::FrameDynamicData>* dynamicData =
+        document && frameIndex ? &document->dynamicData(*frameIndex) : nullptr;
+    if (!dynamicData || !dynamicData->has_value()) {
+        return;
+    }
+    const document::IndexedFrame& mask = resolution == render::Resolution::Hd
+                                             ? (*dynamicData)->maskHd
+                                             : (*dynamicData)->maskSd;
+    const document::IndexedFrame& original = document->originalFrame(*frameIndex);
+    const bool shadesFit = original.size == mask.size;
+    std::vector<std::size_t> counts(document::kMaxDynamicSetsPerFrame, 0);
+    for (const uint8_t set : mask.pixels) {
+        if (set < counts.size()) {
+            ++counts[set];
+        }
+    }
+    // A picture of the frame per set: its zones in the set's colors, the rest dimmed.
+    for (std::size_t set = 0; set < counts.size(); ++set) {
+        if (counts[set] == 0) {
+            continue;
+        }
+        QImage image(mask.size.width, mask.size.height, QImage::Format_RGB32);
+        for (int y = 0; y < mask.size.height; ++y) {
+            for (int x = 0; x < mask.size.width; ++x) {
+                const std::size_t index = static_cast<std::size_t>(y) *
+                                              static_cast<std::size_t>(mask.size.width) +
+                                          static_cast<std::size_t>(x);
+                const uint8_t shade = shadesFit ? original.pixels[index] : uint8_t{0};
+                QColor color;
+                if (mask.pixels[index] == set) {
+                    color = rgb565ToColor(
+                        document->dynamicColor(*frameIndex, resolution, set, shade));
+                } else {
+                    color = originalIndexToColor(shade, document->colorCount()).darker(400);
+                }
+                image.setPixel(x, y, color.rgb());
+            }
+        }
+        auto* item = new QListWidgetItem(
+            QIcon(QPixmap::fromImage(image.scaled(m_setList->iconSize(), Qt::KeepAspectRatio,
+                                                  Qt::FastTransformation))),
+            QStringLiteral("%1\n%2 px").arg(set).arg(static_cast<qulonglong>(counts[set])));
+        item->setSizeHint(QSize(0, m_setList->iconSize().height() + 8));
+        item->setData(Qt::UserRole, static_cast<int>(set));
+        item->setToolTip(QStringLiteral("Dynamic set %1: %2 pixels")
+                             .arg(set)
+                             .arg(static_cast<qulonglong>(counts[set])));
+        m_setList->addItem(item);
+    }
+    const auto unused = std::find(counts.begin(), counts.end(), std::size_t{0});
+    if (unused != counts.end()) {
+        const int set = static_cast<int>(unused - counts.begin());
+        auto* item = new QListWidgetItem(QStringLiteral("New set (%1)").arg(set));
+        item->setSizeHint(QSize(0, 24));
+        item->setData(Qt::UserRole, set);
+        item->setToolTip(QStringLiteral("Select set %1, which the frame does not use yet, to "
+                                        "paint a new zone")
+                             .arg(set));
+        m_setList->addItem(item);
+    }
+    selectListedSet();
+}
+
+void DynamicPanel::selectListedSet()
+{
+    QSignalBlocker blocker(m_setList);
+    m_setList->clearSelection();
+    for (int row = 0; row < m_setList->count(); ++row) {
+        if (m_setList->item(row)->data(Qt::UserRole).toInt() == m_dynamicSetSpinBox->value()) {
+            m_setList->setCurrentRow(row);
+            return;
+        }
+    }
 }
 
 void DynamicPanel::refreshColors(const document::ProjectDocument* document,
@@ -218,6 +326,7 @@ void DynamicPanel::setDynamicSet(int setIndex)
 {
     QSignalBlocker blocker(m_dynamicSetSpinBox);
     m_dynamicSetSpinBox->setValue(setIndex);
+    selectListedSet();
 }
 
 uint8_t DynamicPanel::dynamicSet() const

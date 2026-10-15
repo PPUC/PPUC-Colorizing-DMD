@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QScrollBar>
+#include <QToolTip>
 #include <QWheelEvent>
 
 #include "FrameImageUtils.h"
@@ -336,7 +337,22 @@ void FramePreviewWidget::setDynamicMaskOverlayEnabled(bool enabled)
         return;
     }
     m_showDynamicMaskOverlay = enabled;
+    updateMouseTracking();
     update();
+}
+
+void FramePreviewWidget::setSelectedDynamicSet(std::optional<uint8_t> setIndex)
+{
+    if (m_selectedDynamicSet == setIndex) {
+        return;
+    }
+    m_selectedDynamicSet = setIndex;
+    update();
+}
+
+void FramePreviewWidget::updateMouseTracking()
+{
+    setMouseTracking(static_cast<bool>(m_hoverHandler) || m_showDynamicMaskOverlay);
 }
 
 void FramePreviewWidget::setBackgroundMaskOverlayEnabled(bool enabled)
@@ -588,6 +604,36 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
     }
+    if (event->buttons() == Qt::NoButton && m_showDynamicMaskOverlay && !showsRuntimeView()) {
+        // Names the set of the zone under the mouse.
+        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        QString text;
+        if (hit && hit->resolution == m_document->dynamicPlane()) {
+            for (const render::CanvasRegionLayout& region : currentLayout().regions()) {
+                const document::IndexedFrame* mask =
+                    region.region == hit->region ? dynamicMaskFor(region) : nullptr;
+                if (!mask) {
+                    continue;
+                }
+                const uint8_t set =
+                    mask->pixels[static_cast<std::size_t>(hit->y) *
+                                     static_cast<std::size_t>(mask->size.width) +
+                                 static_cast<std::size_t>(hit->x)];
+                if (set != 255) {
+                    const auto count =
+                        std::count(mask->pixels.begin(), mask->pixels.end(), set);
+                    text = QStringLiteral("Dynamic set %1: %2 pixels")
+                               .arg(set)
+                               .arg(static_cast<qlonglong>(count));
+                }
+            }
+        }
+        if (text.isEmpty()) {
+            QToolTip::hideText();
+        } else {
+            QToolTip::showText(event->globalPosition().toPoint(), text, this);
+        }
+    }
     if (event->buttons() == Qt::NoButton && m_hoverHandler && !showsRuntimeView()) {
         const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
         if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
@@ -696,6 +742,9 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
             paintPasteOverlay(painter, region);
         }
         painter.restore();
+        if (!runtimeView) {
+            paintDynamicSetLabels(painter, view);
+        }
         if (region.region == render::CanvasRegion::ColorizedFrame) {
             colorizedPicture = QRectF(view.origin, view.contentSize).intersected(view.viewport);
         }
@@ -894,27 +943,38 @@ void FramePreviewWidget::paintDifferenceOverlay(QPainter& painter,
     painter.restore();
 }
 
+const document::IndexedFrame* FramePreviewWidget::dynamicMaskFor(
+    const render::CanvasRegionLayout& region) const
+{
+    // The zones are those of one plane, the original's; they are drawn over the original and
+    // over the colorized picture of that plane, not over the other plane.
+    if (!m_showDynamicMaskOverlay || region.resolution != m_document->dynamicPlane() ||
+        (region.region != render::CanvasRegion::ColorizedFrame &&
+         region.region != render::CanvasRegion::OriginalFrame)) {
+        return nullptr;
+    }
+    const std::optional<document::FrameDynamicData>& dynamicData =
+        m_document->dynamicData(m_frameIndex);
+    if (!dynamicData) {
+        return nullptr;
+    }
+    const document::IndexedFrame& mask =
+        region.resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
+    return mask.size == region.logicalSize ? &mask : nullptr;
+}
+
 void FramePreviewWidget::paintDynamicMaskOverlay(
     QPainter& painter,
     const render::CanvasRegionLayout& region)
 {
-    // The zones are those of one plane; they are not drawn over the other one.
-    if (!m_showDynamicMaskOverlay ||
-        region.region != render::CanvasRegion::ColorizedFrame ||
-        region.resolution != m_document->dynamicPlane()) {
+    const document::IndexedFrame* found = dynamicMaskFor(region);
+    if (!found) {
         return;
     }
-
-    const std::optional<document::FrameDynamicData>& dynamicData =
-        m_document->dynamicData(m_frameIndex);
-    if (!dynamicData) {
-        return;
-    }
-
     // The pixels show the colors of their zone's set, as the runtime renders them; the zones
-    // are outlined, also where two zones of different sets meet.
-    const document::IndexedFrame& mask =
-        region.resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
+    // are outlined, also where two zones of different sets meet, the selected set last and
+    // brightest, over a dark edge so it shows on any picture.
+    const document::IndexedFrame& mask = *found;
     const int scale = region.displayScale;
     const int width = mask.size.width;
     const int height = mask.size.height;
@@ -925,31 +985,107 @@ void FramePreviewWidget::paintDynamicMaskOverlay(
         return mask.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
                            static_cast<std::size_t>(x)];
     };
-    QPen pen(QColor(0, 200, 255), 2);
-    pen.setCosmetic(true);
+    const auto outline = [&](bool selected, const QPen& pen) {
+        painter.setPen(pen);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int set = setAt(x, y);
+                if (set == 255 ||
+                    (m_selectedDynamicSet && (set == *m_selectedDynamicSet) != selected) ||
+                    (!m_selectedDynamicSet && selected)) {
+                    continue;
+                }
+                const int left = region.displayRect.x + x * scale;
+                const int top = region.displayRect.y + y * scale;
+                if (setAt(x - 1, y) != set) {
+                    painter.drawLine(QPointF(left, top), QPointF(left, top + scale));
+                }
+                if (setAt(x + 1, y) != set) {
+                    painter.drawLine(QPointF(left + scale, top), QPointF(left + scale, top + scale));
+                }
+                if (setAt(x, y - 1) != set) {
+                    painter.drawLine(QPointF(left, top), QPointF(left + scale, top));
+                }
+                if (setAt(x, y + 1) != set) {
+                    painter.drawLine(QPointF(left, top + scale),
+                                     QPointF(left + scale, top + scale));
+                }
+            }
+        }
+    };
+    const auto cosmetic = [](QColor color, double width) {
+        QPen pen(color, width);
+        pen.setCosmetic(true);
+        return pen;
+    };
     painter.save();
-    painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
+    outline(false, cosmetic(QColor(0, 200, 255, m_selectedDynamicSet ? 150 : 255),
+                            m_selectedDynamicSet ? 1.0 : 2.0));
+    if (m_selectedDynamicSet) {
+        outline(true, cosmetic(QColor(0, 0, 0, 200), 4.0));
+        outline(true, cosmetic(QColor(255, 230, 0), 2.0));
+    }
+    painter.restore();
+}
+
+void FramePreviewWidget::paintDynamicSetLabels(QPainter& painter, const RegionView& view)
+{
+    const document::IndexedFrame* found = dynamicMaskFor(view.region);
+    if (!found) {
+        return;
+    }
+    // Only where a pixel is large enough for a number.
+    const double pixel = view.cell * view.region.displayScale;
+    if (pixel < 5.0) {
+        return;
+    }
+    const document::IndexedFrame& mask = *found;
+    const int width = mask.size.width;
+    const int height = mask.size.height;
+    const auto index = [width](int x, int y) {
+        return static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
+               static_cast<std::size_t>(x);
+    };
+    // One label per area: the pixels of a set that touch each other, labelled at their first
+    // pixel from the top left.
+    std::vector<bool> seen(mask.pixels.size(), false);
+    QFont font = painter.font();
+    font.setPixelSize(static_cast<int>(std::clamp(pixel * 0.9, 9.0, 14.0)));
+    font.setBold(true);
+    painter.save();
+    painter.setClipRect(view.viewport);
+    painter.setFont(font);
+    const QFontMetrics metrics(font);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            const int set = setAt(x, y);
-            if (set == 255) {
+            const uint8_t set = mask.pixels[index(x, y)];
+            if (set == 255 || seen[index(x, y)]) {
                 continue;
             }
-            const int left = region.displayRect.x + x * scale;
-            const int top = region.displayRect.y + y * scale;
-            if (setAt(x - 1, y) != set) {
-                painter.drawLine(QPointF(left, top), QPointF(left, top + scale));
+            std::vector<std::pair<int, int>> pending{{x, y}};
+            seen[index(x, y)] = true;
+            while (!pending.empty()) {
+                const auto [px, py] = pending.back();
+                pending.pop_back();
+                for (const auto& [dx, dy] : {std::pair{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    const int nx = px + dx;
+                    const int ny = py + dy;
+                    if (nx >= 0 && ny >= 0 && nx < width && ny < height &&
+                        !seen[index(nx, ny)] && mask.pixels[index(nx, ny)] == set) {
+                        seen[index(nx, ny)] = true;
+                        pending.push_back({nx, ny});
+                    }
+                }
             }
-            if (setAt(x + 1, y) != set) {
-                painter.drawLine(QPointF(left + scale, top), QPointF(left + scale, top + scale));
-            }
-            if (setAt(x, y - 1) != set) {
-                painter.drawLine(QPointF(left, top), QPointF(left + scale, top));
-            }
-            if (setAt(x, y + 1) != set) {
-                painter.drawLine(QPointF(left, top + scale), QPointF(left + scale, top + scale));
-            }
+            const QString text = QString::number(set);
+            const QPointF corner(view.origin.x() + x * pixel, view.origin.y() + y * pixel);
+            const QRectF box(corner + QPointF(2, 2),
+                             QSizeF(metrics.horizontalAdvance(text) + 6, metrics.height() + 2));
+            const bool selected = m_selectedDynamicSet && *m_selectedDynamicSet == set;
+            painter.fillRect(box, QColor(0, 0, 0, 190));
+            painter.setPen(selected ? QColor(255, 230, 0) : QColor(0, 200, 255));
+            painter.drawText(box, Qt::AlignCenter, text);
         }
     }
     painter.restore();
@@ -1077,7 +1213,7 @@ void FramePreviewWidget::setPressInterceptor(
 void FramePreviewWidget::setHoverHandler(std::function<void(render::CanvasHit)> handler)
 {
     m_hoverHandler = std::move(handler);
-    setMouseTracking(static_cast<bool>(m_hoverHandler));
+    updateMouseTracking();
 }
 
 Qt::KeyboardModifiers FramePreviewWidget::pressModifiers() const

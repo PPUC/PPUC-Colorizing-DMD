@@ -5862,9 +5862,15 @@ void MainWindow::removeCurrentFrameHd()
 void MainWindow::updateDynamicColorControls()
 {
     if (m_dynamicPanel) {
+        m_dynamicPanel->refreshSets(m_document ? &*m_document : nullptr, currentFrameIndex(),
+                                    dynamicPlane());
         m_dynamicPanel->refreshColors(m_document ? &*m_document : nullptr,
                                       currentFrameIndex(),
                                       dynamicPlane());
+    }
+    if (m_preview) {
+        m_preview->setSelectedDynamicSet(m_document ? std::optional<uint8_t>(activeDynamicSet())
+                                                    : std::nullopt);
     }
     updateDynamicShadowControls();
 }
@@ -8127,11 +8133,13 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             updateProjectHeaderStatus();
             break;
         case edit::EditKind::DynamicMask:
-            // The thumbnail shows the zones, and the list's "Dyn" follows them.
+            // The thumbnail shows the zones, and the list's "Dyn" follows them; so does the
+            // list of the frame's sets.
             for (std::size_t frameIndex : target.frameIndices) {
                 updateFrameListItem(frameIndex);
                 updateInactiveFrameMarker(frameIndex);
             }
+            updateDynamicColorControls();
             [[fallthrough]];
         case edit::EditKind::ComparisonMask:
         case edit::EditKind::BackgroundMask:

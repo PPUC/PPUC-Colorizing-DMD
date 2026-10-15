@@ -43,7 +43,11 @@ public:
     // every pixel of the frame that is not 0 is marked. The frame has the size of the ROM
     // frame; nothing switches the overlay off.
     void setDifferenceOverlay(std::optional<document::IndexedFrame> differingPixels);
+    // With the Dynamic overlay the dynamic zones are outlined on both pictures, the selected
+    // set brighter than the others, and every area carries its set number when the zoom leaves
+    // room for it; the mouse over a zone names its set.
     void setDynamicMaskOverlayEnabled(bool enabled);
+    void setSelectedDynamicSet(std::optional<uint8_t> setIndex);
     void setBackgroundMaskOverlayEnabled(bool enabled);
     void setBackgroundLayerEnabled(bool enabled);
     void setBackgroundImageEditModeEnabled(bool enabled);
@@ -145,6 +149,12 @@ private:
     void paintComparisonMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintDifferenceOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintDynamicMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
+    // The dynamic mask the region shows zones of, or none.
+    [[nodiscard]] const document::IndexedFrame* dynamicMaskFor(
+        const render::CanvasRegionLayout& region) const;
+    // The set numbers on the areas of the zones, in screen coordinates.
+    void paintDynamicSetLabels(QPainter& painter, const RegionView& view);
+    void updateMouseTracking();
     void paintBackgroundMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectedSpriteBounds(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectionOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
@@ -158,6 +168,7 @@ private:
     bool m_showComparisonMaskOverlay = false;
     std::optional<document::IndexedFrame> m_differenceOverlay;
     bool m_showDynamicMaskOverlay = false;
+    std::optional<uint8_t> m_selectedDynamicSet;
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
     bool m_showBackgroundImageEditMode = false;

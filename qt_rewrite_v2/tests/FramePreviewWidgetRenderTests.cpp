@@ -890,9 +890,44 @@ void testDynamicMaskOverlayRendersInSdAndHd()
     QPainter hdPainter(&hdImage);
     widget.render(&hdPainter);
     hdPainter.end();
-    expect(!hasVisibleCyanPixel(hdImage),
+    // Only the colorized picture: the original below shows the SD zones.
+    const auto only = [&widget](const QImage& image, colorizing::render::CanvasRegion region) {
+        QImage part(image.size(), QImage::Format_ARGB32);
+        part.fill(Qt::transparent);
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const std::optional<colorizing::render::CanvasHit> hit =
+                    widget.hitTestAt(QPoint(x, y));
+                if (hit && hit->region == region) {
+                    part.setPixel(x, y, image.pixel(x, y));
+                }
+            }
+        }
+        return part;
+    };
+    expect(!hasVisibleCyanPixel(only(hdImage, colorizing::render::CanvasRegion::ColorizedFrame)),
            "no dynamic mask overlay over the HD frame of an ordinary project: the zones are "
            "those of the SD plane, and the stored HD mask is not shown");
+    expect(hasVisibleCyanPixel(only(hdImage, colorizing::render::CanvasRegion::OriginalFrame)),
+           "the original below shows the SD zones");
+
+    // The selected set is outlined in yellow, the others stay cyan.
+    widget.setActiveResolution(colorizing::render::Resolution::Sd);
+    widget.setSelectedDynamicSet(0);
+    QImage selectedImage(widget.size(), QImage::Format_ARGB32);
+    selectedImage.fill(Qt::transparent);
+    QPainter selectedPainter(&selectedImage);
+    widget.render(&selectedPainter);
+    selectedPainter.end();
+    expect(hasVisibleYellowPixel(selectedImage), "the selected set is outlined in yellow");
+    widget.setSelectedDynamicSet(5);
+    QImage otherImage(widget.size(), QImage::Format_ARGB32);
+    otherImage.fill(Qt::transparent);
+    QPainter otherPainter(&otherImage);
+    widget.render(&otherPainter);
+    otherPainter.end();
+    expect(!hasVisibleYellowPixel(otherImage) && hasVisibleCyanPixel(otherImage),
+           "a set the frame does not use leaves the others cyan");
 }
 
 void testDynamicReplacementRendersInSdAndHd()
@@ -2702,6 +2737,54 @@ void testDynamicPanel()
            "dynamic panel should leave the document untouched");
 }
 
+// The list of a frame's dynamic sets: one row per set it uses, a row for a new one, and a
+// click selects the set.
+void testDynamicSetList()
+{
+    colorizing::document::ProjectSnapshot snapshot;
+    snapshot.colorCount = 16;
+    snapshot.romName = "dynamic_sets";
+    colorizing::document::FrameDynamicData dynamicData{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 255),
+        colorizing::document::makeIndexedFrame(colorizing::render::kHdFrameSize, 255),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(colorizing::document::kMaxDynamicSetsPerFrame * 16, 0),
+    };
+    dynamicData.maskSd.pixels[0] = 2;
+    dynamicData.maskSd.pixels[1] = 0;
+    dynamicData.maskSd.pixels[2] = 0;
+    dynamicData.maskSd.pixels[3] = 0;
+    snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
+        colorizing::document::makeIndexedFrame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
+        colorizing::document::makeRgb565Frame(colorizing::render::kHdFrameSize, 0),
+        0,
+        255,
+        dynamicData,
+    });
+    const colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::fromSnapshot(snapshot);
+
+    colorizing::app::DynamicPanel panel;
+    std::optional<int> changedSet;
+    panel.onDynamicSetChanged = [&](int setIndex) { changedSet = setIndex; };
+    panel.refreshSets(&document, 0, colorizing::render::Resolution::Sd);
+    auto* list = panel.findChild<QListWidget*>();
+    expect(list && list->count() == 3 && list->item(0)->text() == QStringLiteral("0\n3 px") &&
+               list->item(1)->text() == QStringLiteral("2\n1 px") &&
+               list->item(2)->text() == QStringLiteral("New set (1)") &&
+               !list->item(0)->icon().isNull(),
+           "the list has the frame's sets with pictures and a row for a new one");
+    expect(list->currentRow() == 0, "the selected set's row is the current one");
+    list->itemClicked(list->item(1));
+    expect(changedSet == 2 && panel.dynamicSet() == 2, "a click selects the set");
+    panel.setDynamicSet(1);
+    panel.refreshSets(&document, 0, colorizing::render::Resolution::Sd);
+    expect(list->currentRow() == 2, "the new set's row follows the selection");
+    panel.refreshSets(&document, std::nullopt, colorizing::render::Resolution::Sd);
+    expect(list->count() == 0, "no frame, no sets");
+}
+
 void testBackgroundPanel()
 {
     using colorizing::app::BackgroundPanelState;
@@ -3194,6 +3277,7 @@ int main(int argc, char* argv[])
     testSpritePanel();
     testMaskPanel();
     testDynamicPanel();
+    testDynamicSetList();
     testBackgroundPanel();
     testFramePanel();
     testRecordListPage();

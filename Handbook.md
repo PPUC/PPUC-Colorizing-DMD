@@ -2173,10 +2173,19 @@ does that for every mask and can take seconds in a large project with many masks
 
 ## Dynamic Masks
 
-The `Dynamic` toolbar toggle outlines the current frame's dynamic zones in cyan, also where two
-zones of different sets meet. The pixels stay visible in the colors the runtime gives them: each
-one in its set's color for its original shade (the canvas always shows them so), without
-switching to the Runtime view.
+The `Dynamic` toolbar toggle outlines the current frame's dynamic zones, on the colorized and
+on the original picture, also where two zones of different sets meet. The selected set (the one
+`Dyn Set` paints and edits) is outlined in bright yellow over a dark edge, the others thinner in
+cyan. Each area of a set (its pixels that touch each other) carries the set's number at its top
+left once a DMD pixel is at least 5 screen pixels wide (zoom in for that); the mouse over a zone
+names its set and its number of pixels. The pixels stay visible in the colors the runtime gives
+them: each one in its set's color for its original shade (the canvas always shows them so),
+without switching to the Runtime view.
+
+The `Dyn` page lists the sets the frame uses: per set a picture of the frame with that set's
+zones in their colors and the rest dimmed, its number and its number of pixels. A click selects
+the set, as `Dyn Set` does; the list follows a set chosen there or picked on the canvas. The
+last row, `New set (n)`, selects the lowest set the frame does not use yet, to paint a new zone.
 Every dynamic mask edit, Undo and Redo also redraws the frame's thumbnail and its `Dyn` flag in
 the frame list.
 
