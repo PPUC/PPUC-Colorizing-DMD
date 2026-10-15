@@ -199,7 +199,6 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-base
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-qt6-translations
-            mingw-w64-ucrt-x86_64-ntldd
             zip
             make
             diffutils

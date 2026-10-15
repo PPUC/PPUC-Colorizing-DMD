@@ -1162,7 +1162,7 @@ is pushed.
 
 | Job | Runner | Toolchain and Qt | Package |
 |---|---|---|---|
-| Windows x86_64 | `windows-2025` | MSYS2 UCRT64: GCC 16.2, Qt 6.11.2 (`qt6-base`) | zip: exe, `windeployqt6`, every DLL from `/ucrt64/bin` it needs (found with `ntldd -R`) |
+| Windows x86_64 | `windows-2025` | MSYS2 UCRT64: GCC 16.2, Qt 6.11.2 (`qt6-base`) | zip: exe, `windeployqt6`, every DLL from `/ucrt64/bin` it needs (import tables read with `objdump -p`; `ntldd -R` hung on Qt DLLs) |
 | Linux x86_64 | `ubuntu-24.04` | GCC 13.3, Ubuntu's Qt 6.4.2 | AppImage (linuxdeploy + plugin-qt), needs glibc 2.39 |
 | Linux aarch64 | `ubuntu-24.04-arm` | as above | AppImage |
 | macOS arm64 (Apple silicon only; Intel dropped 2026-10-14) | `macos-15` (arm64) | Apple clang, official Qt 6.11.3 (install-qt-action, Qt Base only), macOS 13.3 or later | zip of an ad-hoc signed `ColorizingDMD.app` (macdeployqt) |
@@ -1175,7 +1175,7 @@ is pushed.
   `ctest` with `QT_QPA_PLATFORM=offscreen`.
 - Each packaging script checks its result and starts the packaged app once (offscreen; the
   offscreen platform plugin is added to a throwaway copy on Windows and macOS, and shipped in
-  the AppImage). The Windows script also checks with `ntldd` that, with MSYS2 off PATH, the
+  the AppImage). The Windows script also checks with `objdump -p` that, with MSYS2 off PATH, the
   exe needs nothing outside the folder and Windows.
 - Packages are uploaded per job as `ColorizingDMD-<platform>-<arch>-<short commit>.<zip|AppImage>`.
   A tag `qt-v<version>` (it must match `project(... VERSION ...)` in `qt_rewrite_v2/CMakeLists.txt`,
@@ -1202,7 +1202,7 @@ Verified locally (2026-10-14):
   and under Rosetta for x86_64, `package-macos.sh` makes a signed bundle that starts.
 
 Not verified: anything on Windows (no MinGW toolchain here): the MinGW build, the tests there,
-`package-windows.sh` (`windeployqt6`, `ntldd`, the DLL collection) and the non-ASCII path
+`package-windows.sh` (`windeployqt6`, `objdump`, the DLL collection) and the non-ASCII path
 tests on a Windows file system. The workflow itself (only linted with actionlint and
 shellcheck). Linux x86_64 (only aarch64 was built locally).
 
@@ -1333,7 +1333,7 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ```
 
 Windows: MSYS2, UCRT64 shell
-(`pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,qt6-base,ntldd} zip`), then the same three
+(`pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,qt6-base,qt6-tools,qt6-translations} zip`), then the same three
 commands as on Linux. The UCRT64 shell has Qt's DLLs on PATH, so the tests and the app run
 from the build directory.
 

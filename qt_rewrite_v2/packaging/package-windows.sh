@@ -7,7 +7,8 @@
 # Usage, in an MSYS2 UCRT64 shell: package-windows.sh <build dir> <output .zip>
 #
 # The build must be configured with -DCOLORIZINGDMD_QT_V2_PACKAGE=ON. Needs the MSYS2 packages
-# qt6-base (windeployqt6), ntldd and zip of the UCRT64 environment. The VPX plugins the build
+# qt6-base (windeployqt6), binutils (objdump, which comes with gcc) and zip of the UCRT64
+# environment. The VPX plugins the build
 # made (<build dir>/vpx-plugins: DMDUtil with libdmdutil and the DLLs it loads) go into
 # plugins\ beside the exe, where the app looks for them.
 
@@ -55,50 +56,44 @@ if [ -d "${vpx_plugins}" ]; then
     cp -R "${vpx_plugins}/." "${package}/plugins/"
 fi
 
-# ntldd of one file, with the file's own folder searched first (a VPX plugin's DLLs lie beside
-# it), and limited in time: ntldd can hang on a DLL whose imports it cannot resolve, which
-# would stop the package without a word. Extra arguments go to ntldd.
-ntldd_of() {
-    local file=$1 dir status
-    shift
-    dir=$(dirname "${file}")
-    status=0
-    PATH="${dir}:${PATH}" timeout 120 ntldd "$@" "${file}" 2>/dev/null || status=$?
-    if [ "${status}" -eq 124 ]; then
-        echo "ntldd did not finish for ${file#"${package}"/}" >&2
-    fi
-    return 0
+# The DLL names a file imports, from its import table (objdump of MinGW's binutils reads the
+# file only: unlike ntldd -R, which loads and walks every dependency, it cannot hang).
+imports_of() {
+    objdump -p "$1" | awk '/DLL Name:/ {print $3}'
 }
 
-# Prints, for every exe and DLL in the folder, the DLLs it loads that resolve into the MSYS2
-# prefix. ntldd reads the import tables; it starts nothing.
-prefix_dependencies() {
-    local prefix_lower
-    prefix_lower=$(echo "${prefix_bin}/" | tr '[:upper:]' '[:lower:]')
-    # One file at a time, past failures: xargs would stop at the first one (status 255).
-    find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0 |
-        while IFS= read -r -d '' file; do
-            ntldd_of "${file}" -R </dev/null
-        done |
-        awk '$2 == "=>" && $3 != "not" {print $3}' |
-        while IFS= read -r path; do
-            unix=$(cygpath -u "${path}")
-            case "$(echo "${unix}" | tr '[:upper:]' '[:lower:]')" in
-                "${prefix_lower}"*) echo "${unix}" ;;
-            esac
-        done | sort -u
+# The DLLs of the MSYS2 prefix, by lower-case name: Windows looks names up case-insensitively.
+declare -A prefix_dlls
+for dll in "${prefix_bin}"/*.dll; do
+    name=$(basename "${dll}")
+    prefix_dlls["${name,,}"]=${dll}
+done
+
+# Whether the file's folder or the exe's folder has the DLL (a VPX plugin's DLLs lie beside it,
+# the GCC runtime beside the exe).
+in_package() {
+    local name=$1 own_dir=$2
+    [ -n "$(find "${package}" -maxdepth 1 -iname "${name}" -print -quit)" ] ||
+        [ -n "$(find "${own_dir}" -maxdepth 1 -iname "${name}" -print -quit)" ]
 }
 
-# A DLL copied in can need further ones, so repeat until nothing new turns up.
-while :; do
-    added=0
-    while IFS= read -r dll; do
-        if [ ! -e "${package}/$(basename "${dll}")" ]; then
-            cp "${dll}" "${package}/"
-            added=1
-        fi
-    done < <(prefix_dependencies)
-    [ "${added}" -eq 1 ] || break
+# Every DLL of the prefix that a shipped file imports, and those in turn, is copied beside the
+# exe: a queue of the files to read, each read once.
+queue=()
+while IFS= read -r -d '' file; do
+    queue+=("${file}")
+done < <(find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0)
+while [ "${#queue[@]}" -gt 0 ]; do
+    file=${queue[0]}
+    queue=("${queue[@]:1}")
+    while IFS= read -r name; do
+        [ -n "${name}" ] || continue
+        in_package "${name}" "$(dirname "${file}")" && continue
+        source_dll=${prefix_dlls["${name,,}"]:-}
+        [ -n "${source_dll}" ] || continue
+        cp "${source_dll}" "${package}/"
+        queue+=("${package}/$(basename "${source_dll}")")
+    done < <(imports_of "${file}")
 done
 
 # Every DLL a shipped file imports must be in the folder or a Windows system DLL. Only the
@@ -111,9 +106,7 @@ is_available() {
     local name=$1 own_dir=$2 dir
     # API set names (api-ms-*, ext-ms-*) are resolved by the loader, not found as files.
     case "${name,,}" in api-ms-* | ext-ms-*) return 0 ;; esac
-    [ -n "$(find "${package}" -maxdepth 1 -iname "${name}" -print -quit)" ] && return 0
-    # A plugin's DLLs lie in its own folder.
-    [ -n "$(find "${own_dir}" -maxdepth 1 -iname "${name}" -print -quit)" ] && return 0
+    in_package "${name}" "${own_dir}" && return 0
     for dir in "${system_dirs[@]}"; do
         [ -n "$(find "${dir}" -maxdepth 1 -iname "${name}" -print -quit 2>/dev/null)" ] && return 0
     done
@@ -124,7 +117,7 @@ while IFS= read -r -d '' file; do
     while IFS= read -r name; do
         [ -n "${name}" ] || continue
         is_available "${name}" "$(dirname "${file}")" || missing+="${name} (needed by ${file#"${package}"/})"$'\n'
-    done < <(ntldd_of "${file}" </dev/null | awk '{print $1}')
+    done < <(imports_of "${file}")
 done < <(find "${package}" -type f \( -iname '*.exe' -o -iname '*.dll' \) -print0)
 missing=$(printf '%s' "${missing}" | sort -u)
 if [ -n "${missing}" ]; then
