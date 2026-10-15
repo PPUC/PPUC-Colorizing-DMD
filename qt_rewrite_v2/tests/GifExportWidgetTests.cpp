@@ -115,6 +115,55 @@ void runGifExportWidgetTests()
     expect(both.pixel(5 + 1, top + 1) == qRgb(r, g, b), "the colorized dot sits below it");
     expect(both.pixel(5 + 1, top - 2) == qRgb(0, 0, 0), "with black between them");
 
+    // Both planes: the 128x32 picture above the 256x64 one; a frame without the latter leaves
+    // its part black, and without any frame that has it there is none.
+    const auto firstPicture = [](const std::string& gif) {
+        QByteArray data(gif.data(), static_cast<qsizetype>(gif.size()));
+        QBuffer buffer(&data);
+        buffer.open(QIODevice::ReadOnly);
+        QImageReader reader(&buffer, "gif");
+        std::vector<QImage> pictures;
+        while (reader.canRead()) {
+            const QImage image = reader.read();
+            if (image.isNull()) {
+                break;
+            }
+            pictures.push_back(image.convertToFormat(QImage::Format_RGB32));
+        }
+        return pictures;
+    };
+    app::GifExportOptions planes;
+    planes.pixelScale = 2;
+    planes.bothPlanes = true;
+    std::ostringstream sdOnly;
+    expect(app::writeAnimatedGif(document, {0}, planes, sdOnly).ok,
+           "both planes written without any 256x64 picture");
+    const std::vector<QImage> sdPictures = firstPicture(sdOnly.str());
+    expect(!sdPictures.empty() && sdPictures[0].height() == 32 * 2,
+           "without a 256x64 picture there is only the 128x32 one");
+    document::ProjectSnapshot withHd =
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary);
+    withHd.frames[0].durationMs = 100;
+    withHd.frames[1].durationMs = 100;
+    document::Rgb565Frame hdPicture;
+    hdPicture.size = {256, 64};
+    hdPicture.pixels = document::CompactArray<uint16_t>(256 * 64, 0xf800);
+    withHd.frames[0].colorizedHd = hdPicture;
+    const document::ProjectDocument hdDocument =
+        document::ProjectDocument::fromSnapshot(std::move(withHd));
+    std::ostringstream twoPlanes;
+    expect(app::writeAnimatedGif(hdDocument, {0, 1}, planes, twoPlanes).ok,
+           "both planes written");
+    const std::vector<QImage> twoPictures = firstPicture(twoPlanes.str());
+    const int hdTop = 32 * 2 + app::kGifOriginalGap;
+    expect(twoPictures.size() == 2 && twoPictures[0].width() == 256 * 2 &&
+               twoPictures[0].height() == hdTop + 64 * 2,
+           "the 256x64 picture below the 128x32 one, the width of the wider");
+    expect(twoPictures[0].pixel(0, hdTop) == qRgb(255, 0, 0),
+           "the frame's 256x64 picture in its part");
+    expect(twoPictures[1].pixel(0, hdTop) == qRgb(0, 0, 0),
+           "a frame without one leaves the part black");
+
     document::ProjectSnapshot withoutHd =
         runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary);
     const document::ProjectDocument noHd =

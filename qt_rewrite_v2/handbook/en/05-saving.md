@@ -124,19 +124,25 @@ editor (currently 3.17.3) or by this serializer are.
 
 ## Exporting an animated GIF
 
-`File -> Export Animated GIF...` writes the selected frames, in frame order, as an animated GIF
-that loops, as CDMD's GIF export:
+`File -> Export Animated GIF` writes the selected frames, in frame order, as an animated GIF
+that loops, as CDMD's GIF export. Its entries say what each picture holds:
 
-- The pictures are the ones the editor composes on the plane the canvas shows (SD or HD; the
-  native plane of a 256x64 or 192x64 project), with the background when the canvas's background
-  layer is on. Every frame must have that plane.
-- `File -> Export Animated GIF With Originals...`, or holding `Shift` while choosing `Export
-  Animated GIF...` (the Win32 editor's Shift+click), puts each original frame above its
-  colorized picture, in the shades the editor shows originals in, 15 picture pixels apart and
-  with the same dot size; the narrower of the two is centred.
+- `Colorized Frames...`: the picture the editor composes on the plane the canvas shows (SD or
+  HD; the native plane of a 256x64 or 192x64 project). Every frame must have that plane.
+  Holding `Shift` while choosing it adds the originals, as the Win32 editor's Shift+click did.
+- `With Originals...`: each original frame above its colorized picture, in the shades the editor
+  shows originals in.
+- `Both Planes...`: the 128x32 picture above the 256x64 one, as the Win32 editor's GIF of a
+  project with both. A frame without a 256x64 picture leaves its part black; when none of the
+  frames has one, there is only the 128x32 picture.
+- `Originals And Both Planes...`: the original, the 128x32 and the 256x64 picture.
+
+The two `Both Planes` entries are there in a project with a 128x32 and a 256x64 plane only.
+The parts lie 15 picture pixels apart with the same dot size, the narrower ones centred:
+
+- The colorized pictures have the background when the canvas's background layer is on.
 - A frame pixel becomes a square dot with a black gap, about 640 picture pixels across (5 per
-  pixel of a 128-wide plane, 3 of 192, 2 of 256, which has no gap; with the originals, the wider
-  of the original and the plane counts).
+  pixel of a 128-wide plane, 3 of 192, 2 of 256, which has no gap); the widest part counts.
 - Colour rotations step as in the editor's preview: a picture at every step within the frame's
   duration; they start again with every frame.
 - Each picture shows for its frame's duration or until the next rotation step. GIF counts time

@@ -23,6 +23,10 @@ struct GifExportOptions {
     // kGifOriginalGap picture pixels apart, at the same pixel scale (the Win32 editor's
     // Shift+click on its GIF button). The narrower of the two is centred.
     bool includeOriginal = false;
+    // In a project with a 128x32 and a 256x64 plane: both, the 128x32 picture above the 256x64
+    // one (plane is not used), as the Win32 editor's GIF has them. A frame without a 256x64
+    // picture leaves its part black; when no frame has one, it is left out.
+    bool bothPlanes = false;
 };
 
 inline constexpr int kGifOriginalGap = 15;

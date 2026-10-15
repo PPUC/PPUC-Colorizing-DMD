@@ -619,20 +619,42 @@ void MainWindow::createActions()
         exportCromc();
     });
 
-    QAction* exportGifAction = fileMenu->addAction(tr("Export Animated &GIF..."));
+    // The GIF export, one entry per layout. Shift held on the first adds the originals, as the
+    // Win32 editor's Shift+click on its GIF button did.
+    QMenu* gifMenu = fileMenu->addMenu(tr("Export Animated &GIF"));
+    gifMenu->setToolTipsVisible(true);
+    QAction* exportGifAction = gifMenu->addAction(tr("&Colorized Frames..."));
     exportGifAction->setToolTip(tr(
-        "Write the selected frames, with their colour rotations, as an animated GIF"));
-    // Shift held when it is chosen adds the originals, as the Win32 editor's Shift+click did.
+        "Write the selected frames, with their colour rotations, as an animated GIF, on the "
+        "plane the canvas shows"));
     connect(exportGifAction, &QAction::triggered, this, [this]() {
-        exportAnimatedGif(QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier));
+        exportAnimatedGif(QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier),
+                          false);
     });
-    QAction* exportGifOriginalsAction =
-        fileMenu->addAction(tr("Export Animated GIF With &Originals..."));
+    QAction* exportGifOriginalsAction = gifMenu->addAction(tr("With &Originals..."));
     exportGifOriginalsAction->setToolTip(
-        tr("Write the selected frames as an animated GIF, each original frame above its "
-           "colorized picture"));
+        tr("Each original frame above its colorized picture"));
     connect(exportGifOriginalsAction, &QAction::triggered, this,
-            [this]() { exportAnimatedGif(true); });
+            [this]() { exportAnimatedGif(true, false); });
+    m_exportGifBothPlanesAction = gifMenu->addAction(tr("&Both Planes..."));
+    m_exportGifBothPlanesAction->setToolTip(
+        tr("The 128x32 picture above the 256x64 one, as the Win32 editor's GIF"));
+    connect(m_exportGifBothPlanesAction, &QAction::triggered, this,
+            [this]() { exportAnimatedGif(false, true); });
+    m_exportGifAllAction = gifMenu->addAction(tr("Originals And Both &Planes..."));
+    m_exportGifAllAction->setToolTip(
+        tr("The original frame, the 128x32 picture and the 256x64 picture, one above the "
+           "other"));
+    connect(m_exportGifAllAction, &QAction::triggered, this,
+            [this]() { exportAnimatedGif(true, true); });
+    // Both planes only in a project that has them.
+    connect(gifMenu, &QMenu::aboutToShow, this, [this]() {
+        const bool twoPlanes = m_document &&
+                               m_document->geometry().layout() == render::PlaneLayout::Ordinary &&
+                               !m_document->editsOriginalPlaneOnly();
+        m_exportGifBothPlanesAction->setEnabled(twoPlanes);
+        m_exportGifAllAction->setEnabled(twoPlanes);
+    });
 
     QAction* exportFrameAction = fileMenu->addAction(tr("Export Current &Frame PNG..."));
     exportFrameAction->setToolTip(tr("Export the current frame as libserum renders it"));
@@ -2513,7 +2535,7 @@ void MainWindow::sendDmdPicture()
     m_dmdOutput.show(composeResolvedFrame(*m_document, *frameIndex, plane, background));
 }
 
-void MainWindow::exportAnimatedGif(bool withOriginals)
+void MainWindow::exportAnimatedGif(bool withOriginals, bool bothPlanes)
 {
     if (!m_document) {
         statusBar()->showMessage(tr("No project loaded"), 2500);
@@ -2531,7 +2553,12 @@ void MainWindow::exportAnimatedGif(bool withOriginals)
                                                            : m_activeResolution;
     options.includeBackground = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
     options.includeOriginal = withOriginals;
-    const render::Size planeSize = m_document->geometry().planeSize(options.plane);
+    options.bothPlanes = bothPlanes;
+    // Both planes: the widest is the 256x64 one.
+    const render::Size planeSize = m_document->geometry().planeSize(
+        bothPlanes && !isHdOnlyProject() && !m_document->editsOriginalPlaneOnly()
+            ? render::Resolution::Hd
+            : options.plane);
     const int widest = std::max(planeSize.width,
                                 withOriginals ? m_document->originalFrameSize().width : 0);
     // About 640 picture pixels across: 5 per pixel of a 128-wide plane, 3 of 192, 2 of 256.

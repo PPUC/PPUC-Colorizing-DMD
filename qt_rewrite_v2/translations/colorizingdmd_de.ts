@@ -2038,11 +2038,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Export Animated &amp;GIF...</source>
-        <translation>Animiertes &amp;GIF exportieren...</translation>
+        <translation type="vanished">Animiertes &amp;GIF exportieren...</translation>
     </message>
     <message>
         <source>Write the selected frames, with their colour rotations, as an animated GIF</source>
-        <translation>Die ausgewählten Frames mit ihren Farbrotationen als animiertes GIF schreiben</translation>
+        <translation type="vanished">Die ausgewählten Frames mit ihren Farbrotationen als animiertes GIF schreiben</translation>
     </message>
     <message>
         <source>Export Current &amp;Frame PNG...</source>
@@ -2422,11 +2422,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Export Animated GIF With &amp;Originals...</source>
-        <translation>Animiertes GIF mit O&amp;riginalen exportieren...</translation>
+        <translation type="vanished">Animiertes GIF mit O&amp;riginalen exportieren...</translation>
     </message>
     <message>
         <source>Write the selected frames as an animated GIF, each original frame above its colorized picture</source>
-        <translation>Die ausgewählten Frames als animiertes GIF schreiben, jeden Original-Frame über seinem kolorierten Bild</translation>
+        <translation type="vanished">Die ausgewählten Frames als animiertes GIF schreiben, jeden Original-Frame über seinem kolorierten Bild</translation>
     </message>
     <message>
         <source>Import Mo&amp;vie Clip Into Selected Frames...</source>
@@ -2708,6 +2708,42 @@ Use Create %1 Frame.</source>
     <message>
         <source>DMD output on; if no display shows the picture, see Help -&gt; Plugin Log</source>
         <translation type="obsolete">DMD-Ausgabe an; zeigt kein Display das Bild, siehe Hilfe -&gt; Plugin-Protokoll</translation>
+    </message>
+    <message>
+        <source>Export Animated &amp;GIF</source>
+        <translation>Animiertes &amp;GIF exportieren</translation>
+    </message>
+    <message>
+        <source>&amp;Colorized Frames...</source>
+        <translation>&amp;Kolorierte Frames...</translation>
+    </message>
+    <message>
+        <source>Write the selected frames, with their colour rotations, as an animated GIF, on the plane the canvas shows</source>
+        <translation>Die ausgewählten Frames mit ihren Farbrotationen als animiertes GIF schreiben, auf der Ebene, die die Zeichenfläche zeigt</translation>
+    </message>
+    <message>
+        <source>With &amp;Originals...</source>
+        <translation>Mit &amp;Originalen...</translation>
+    </message>
+    <message>
+        <source>Each original frame above its colorized picture</source>
+        <translation>Jeder Original-Frame über seinem kolorierten Bild</translation>
+    </message>
+    <message>
+        <source>&amp;Both Planes...</source>
+        <translation>&amp;Beide Ebenen...</translation>
+    </message>
+    <message>
+        <source>The 128x32 picture above the 256x64 one, as the Win32 editor&apos;s GIF</source>
+        <translation>Das 128x32-Bild über dem 256x64-Bild, wie im GIF des Win32-Editors</translation>
+    </message>
+    <message>
+        <source>Originals And Both &amp;Planes...</source>
+        <translation>Originale und beide &amp;Ebenen...</translation>
+    </message>
+    <message>
+        <source>The original frame, the 128x32 picture and the 256x64 picture, one above the other</source>
+        <translation>Der Original-Frame, das 128x32-Bild und das 256x64-Bild übereinander</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>

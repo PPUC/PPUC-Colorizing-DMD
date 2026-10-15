@@ -135,8 +135,9 @@ private:
     // See FrameTesterDialog.
     void openFrameTester();
     // The selected frames as an animated GIF, see GifExport.h.
-    // withOriginals: each original frame above its colorized picture.
-    void exportAnimatedGif(bool withOriginals = false);
+    // withOriginals: each original frame above its colorized picture; bothPlanes: the 128x32
+    // and the 256x64 picture (GifExportOptions).
+    void exportAnimatedGif(bool withOriginals = false, bool bothPlanes = false);
     // View -> Output To DMD, see DmdOutput.h.
     void setDmdOutputEnabled(bool enabled);
     // File -> Settings (the application menu on macOS), opened at the page.
@@ -492,6 +493,8 @@ private:
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
     QAction* m_undoAnywhereAction = nullptr;
+    QAction* m_exportGifBothPlanesAction = nullptr;
+    QAction* m_exportGifAllAction = nullptr;
     QAction* m_redoAnywhereAction = nullptr;
     QAction* m_saveAction = nullptr;
     QAction* m_addFramesFromDumpAction = nullptr;

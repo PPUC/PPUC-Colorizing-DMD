@@ -1140,8 +1140,12 @@ Author feedback: CDMD's Shift+click on the GIF export added the originals (maste
 `SaveAnimatedGif`/`CreateGIF`: original on top in `originalcolors`, 15 px separation, same
 MUL_SIZE_GIF scale; CDMD also stacks the extra plane under SD when available, which ours does
 not: ours exports the canvas's plane). `GifExportOptions::includeOriginal` (original above,
-`kGifOriginalGap`, narrower centred, shades of `originalIndexToColor`); `File -> Export Animated
-GIF With Originals...` and Shift held on `Export Animated GIF...`.
+`kGifOriginalGap`, narrower centred, shades of `originalIndexToColor`). Then (owner): both
+planes too, `GifExportOptions::bothPlanes` (128x32 above 256x64 in an Ordinary project; a frame
+without HD leaves its part black, no HD part when no exported frame has HD; rotation steps of
+both planes merged), and `File -> Export Animated GIF` became a submenu: Colorized Frames (Shift
+adds originals), With Originals, Both Planes, Originals And Both Planes (the last two only with
+two planes).
 
 ## Undo anywhere (2026-10-15)
 

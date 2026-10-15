@@ -109,13 +109,28 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
         result.error = "no frames to export";
         return result;
     }
-    const render::Size planeSize = document.geometry().planeSize(options.plane);
+    // The planes drawn, top to bottom: the given one, or with bothPlanes the 128x32 plane and,
+    // when one of the frames has it, the 256x64 one.
+    std::vector<render::Resolution> planes{options.plane};
+    const bool twoPlaneProject =
+        document.geometry().layout() == render::PlaneLayout::Ordinary &&
+        !document.editsOriginalPlaneOnly();
+    if (options.bothPlanes && twoPlaneProject) {
+        planes = {render::Resolution::Sd};
+        for (std::size_t frameIndex : frameIndices) {
+            if (frameIndex < document.frameCount() && document.hasHdFrame(frameIndex)) {
+                planes.push_back(render::Resolution::Hd);
+                break;
+            }
+        }
+    }
     for (std::size_t frameIndex : frameIndices) {
         if (frameIndex >= document.frameCount()) {
             result.error = "frame " + std::to_string(frameIndex) + " does not exist";
             return result;
         }
-        if (options.plane == render::Resolution::Hd && !document.hasHdFrame(frameIndex)) {
+        if (planes.size() == 1 && planes.front() == render::Resolution::Hd &&
+            !document.hasHdFrame(frameIndex)) {
             result.error = "frame " + std::to_string(frameIndex) + " has no picture on this plane";
             return result;
         }
@@ -127,16 +142,33 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
     }
     try {
         const int scale = std::max(1, options.pixelScale);
-        // With the original: it on top, the colorized picture below, the narrower centred.
+        // The parts one above the other, kGifOriginalGap apart, the narrower centred: the
+        // original (with includeOriginal), then each plane.
+        struct Part {
+            render::Size size;
+            int left = 0;
+            int top = 0;
+        };
         const render::Size originalSize =
             options.includeOriginal ? document.originalFrameSize() : render::Size{0, 0};
-        const int width = std::max(planeSize.width, originalSize.width) * scale;
-        const int originalTop = 0;
-        const int colorizedTop =
-            options.includeOriginal ? originalSize.height * scale + kGifOriginalGap : 0;
-        const int height = colorizedTop + planeSize.height * scale;
-        const int colorizedLeft = (width - planeSize.width * scale) / 2;
-        const int originalLeft = (width - originalSize.width * scale) / 2;
+        int width = originalSize.width * scale;
+        for (render::Resolution plane : planes) {
+            width = std::max(width, document.geometry().planeSize(plane).width * scale);
+        }
+        int height = 0;
+        const auto addPart = [&](render::Size size) {
+            if (height > 0) {
+                height += kGifOriginalGap;
+            }
+            Part part{size, (width - size.width * scale) / 2, height};
+            height += size.height * scale;
+            return part;
+        };
+        const Part originalPart = options.includeOriginal ? addPart(originalSize) : Part{};
+        std::vector<Part> planeParts;
+        for (render::Resolution plane : planes) {
+            planeParts.push_back(addPart(document.geometry().planeSize(plane)));
+        }
         exporting::GifWriter writer(stream, width, height);
         // The picture waiting to be written: it shows until the next one starts.
         std::optional<std::vector<uint16_t>> pending;
@@ -167,27 +199,48 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
             }
             const std::size_t frameIndex = frameIndices[n];
             const uint32_t duration = document.frameDurationMs(frameIndex);
-            std::vector<uint8_t> notRotating;
-            const document::Rgb565Frame composed = composeResolvedFrame(
-                document, frameIndex, options.plane, options.includeBackground, &notRotating);
-            const std::vector<uint32_t> steps =
-                colorRotationSteps(document, frameIndex, options.plane, duration);
+            // Each plane the frame has, composed once; its rotations step at the steps of all.
+            struct Composed {
+                std::size_t part = 0;
+                render::Resolution plane = render::Resolution::Sd;
+                document::Rgb565Frame picture;
+                std::vector<uint8_t> notRotating;
+            };
+            std::vector<Composed> composed;
+            std::set<uint32_t> stepSet;
+            for (std::size_t part = 0; part < planes.size(); ++part) {
+                const render::Resolution plane = planes[part];
+                if (plane == render::Resolution::Hd && !document.hasHdFrame(frameIndex) &&
+                    planes.size() > 1) {
+                    // No 256x64 picture: its part stays black.
+                    continue;
+                }
+                Composed entry;
+                entry.part = part;
+                entry.plane = plane;
+                entry.picture = composeResolvedFrame(document, frameIndex, plane,
+                                                     options.includeBackground,
+                                                     &entry.notRotating);
+                for (uint32_t step : colorRotationSteps(document, frameIndex, plane, duration)) {
+                    stepSet.insert(step);
+                }
+                composed.push_back(std::move(entry));
+            }
             std::vector<uint16_t> canvas(static_cast<std::size_t>(width) * height, 0);
             if (options.includeOriginal) {
                 place(canvas, width, scaledPicture(originalPicture(document, frameIndex), scale),
-                      originalSize.width * scale, originalLeft, originalTop);
+                      originalSize.width * scale, originalPart.left, originalPart.top);
             }
-            for (uint32_t step : steps) {
+            for (uint32_t step : stepSet) {
                 flush(timeMs + step, false);
-                document::Rgb565Frame picture = composed;
-                applyColorRotations(document,
-                                    frameIndex,
-                                    options.plane,
-                                    static_cast<int>(step),
-                                    picture,
-                                    &notRotating);
-                place(canvas, width, scaledPicture(picture, scale), planeSize.width * scale,
-                      colorizedLeft, colorizedTop);
+                for (const Composed& entry : composed) {
+                    document::Rgb565Frame picture = entry.picture;
+                    applyColorRotations(document, frameIndex, entry.plane,
+                                        static_cast<int>(step), picture, &entry.notRotating);
+                    const Part& part = planeParts[entry.part];
+                    place(canvas, width, scaledPicture(picture, scale),
+                          part.size.width * scale, part.left, part.top);
+                }
                 pending = canvas;
             }
             timeMs += duration;
