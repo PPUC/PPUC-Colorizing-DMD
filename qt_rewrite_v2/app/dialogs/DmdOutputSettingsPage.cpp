@@ -3,6 +3,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -39,12 +40,19 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     m_pixelcadeDeviceEdit = new QLineEdit(local);
     m_pixelcadeDeviceEdit->setPlaceholderText(QStringLiteral("Any serial port"));
     m_pin2dmdCheckBox = new QCheckBox(QStringLiteral("PIN2DMD"), local);
-    auto* localForm = new QFormLayout(local);
-    localForm->addRow(m_zedmdCheckBox, m_zedmdDeviceEdit);
-    localForm->addRow(m_zedmdWiFiCheckBox, m_zedmdWiFiAddressEdit);
-    localForm->addRow(QStringLiteral("ZeDMD brightness"), m_zedmdBrightnessSpinBox);
-    localForm->addRow(m_pixelcadeCheckBox, m_pixelcadeDeviceEdit);
-    localForm->addRow(m_pin2dmdCheckBox);
+    // A grid, not a form: a form right-aligns its first column on macOS, and a row without a
+    // field there starts at the left edge instead.
+    auto* localGrid = new QGridLayout(local);
+    localGrid->addWidget(m_zedmdCheckBox, 0, 0);
+    localGrid->addWidget(m_zedmdDeviceEdit, 0, 1);
+    localGrid->addWidget(m_zedmdWiFiCheckBox, 1, 0);
+    localGrid->addWidget(m_zedmdWiFiAddressEdit, 1, 1);
+    localGrid->addWidget(new QLabel(QStringLiteral("ZeDMD brightness"), local), 2, 0);
+    localGrid->addWidget(m_zedmdBrightnessSpinBox, 2, 1);
+    localGrid->addWidget(m_pixelcadeCheckBox, 3, 0);
+    localGrid->addWidget(m_pixelcadeDeviceEdit, 3, 1);
+    localGrid->addWidget(m_pin2dmdCheckBox, 4, 0);
+    localGrid->setColumnStretch(1, 1);
 
     auto* server = new QGroupBox(this);
     m_serverGroup = server;

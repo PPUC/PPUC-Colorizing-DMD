@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FrameImageUtils.h"
+
 namespace colorizing::app {
 
 // Light or dark, or as the operating system has it (the default).
@@ -17,5 +19,10 @@ void saveTheme(Theme theme);
 // only), and Qt before 6.8, use the Fusion style with a light or dark palette instead; back to
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
+
+// How the canvas, the sprite editor and PNG exports draw DMD pixels: squares or dots, at 50 to
+// 100 % of their cell in steps of ten.
+[[nodiscard]] DmdRenderOptions loadDmdRenderOptions();
+void saveDmdRenderOptions(const DmdRenderOptions& options);
 
 }  // namespace colorizing::app

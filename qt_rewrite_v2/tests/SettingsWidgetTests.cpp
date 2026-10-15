@@ -10,6 +10,7 @@
 #include <QPalette>
 #include <QSettings>
 #include <QStyle>
+#include <QSpinBox>
 #include <QTabWidget>
 #include <QTemporaryDir>
 
@@ -60,7 +61,28 @@ void runSettingsWidgetTests()
     app::DmdOutputSettings dmd;
     dmd.picture = app::DmdOutputSettings::Picture::Extra;
     dmd.serverPort = 6791;
-    app::SettingsDialog dialog(app::Theme::Light, dmd, false);
+    app::DmdRenderOptions canvas;
+    canvas.pixelShape = app::DmdPixelShape::Dot;
+    canvas.pixelCoverage = 0.7;
+    app::saveDmdRenderOptions(canvas);
+    const app::DmdRenderOptions loadedCanvas = app::loadDmdRenderOptions();
+    expect(loadedCanvas.pixelShape == app::DmdPixelShape::Dot &&
+               loadedCanvas.pixelCoverage == 0.7,
+           "the DMD pixel shape and size are kept");
+    app::SettingsDialog dialog(app::Theme::Light, canvas, dmd, false);
+    expect(dialog.canvasOptions().pixelShape == app::DmdPixelShape::Dot &&
+               dialog.canvasOptions().pixelCoverage == 0.7,
+           "the dialog shows the DMD pixels it was given");
+    QSpinBox* sizeSpinBox = nullptr;
+    for (QSpinBox* spinBox : dialog.findChildren<QSpinBox*>()) {
+        if (spinBox->toolTip() == QStringLiteral("DMD pixel size, relative to its cell")) {
+            sizeSpinBox = spinBox;
+        }
+    }
+    expect(sizeSpinBox != nullptr, "the DMD pixel size is on the Appearance page");
+    sizeSpinBox->setValue(83);
+    expect(sizeSpinBox->value() == 80 && dialog.canvasOptions().pixelCoverage == 0.8,
+           "the DMD pixel size snaps to steps of ten");
     expect(dialog.theme() == app::Theme::Light &&
                dialog.dmdOutputSettings().picture == app::DmdOutputSettings::Picture::Extra &&
                dialog.dmdOutputSettings().serverPort == 6791,

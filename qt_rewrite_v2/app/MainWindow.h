@@ -446,6 +446,8 @@ private:
     void stepRuntimeRotations();
     [[nodiscard]] int playbackIntervalForCurrentFrame() const;
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
+    // How DMD pixels are drawn (Settings -> Appearance), kept for the next start.
+    DmdRenderOptions m_dmdRenderOptions = loadDmdRenderOptions();
     void updateDmdRenderOptions();
     void updateSpriteControls();
     [[nodiscard]] bool isSpriteCaptureSelectionModeActive() const;

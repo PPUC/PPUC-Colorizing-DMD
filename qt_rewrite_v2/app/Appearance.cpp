@@ -7,13 +7,16 @@
 #include <QStyleFactory>
 #include <QStyleHints>
 
-#include <optional>
+#include <algorithm>
+#include <cmath>
 
 namespace colorizing::app {
 
 namespace {
 
 const QString kThemeKey = QStringLiteral("appearance/theme");
+const QString kPixelShapeKey = QStringLiteral("appearance/dmdPixelShape");
+const QString kPixelSizeKey = QStringLiteral("appearance/dmdPixelSize");
 
 // What the application looked like before a theme was applied, to go back to.
 struct Original {
@@ -105,6 +108,27 @@ void saveTheme(Theme theme)
     QSettings().setValue(kThemeKey, theme == Theme::Light  ? QStringLiteral("light")
                                     : theme == Theme::Dark ? QStringLiteral("dark")
                                                            : QStringLiteral("system"));
+}
+
+DmdRenderOptions loadDmdRenderOptions()
+{
+    const QSettings settings;
+    DmdRenderOptions options;
+    options.pixelShape = settings.value(kPixelShapeKey).toString() == QStringLiteral("dots")
+                             ? DmdPixelShape::Dot
+                             : DmdPixelShape::Square;
+    const int percent = std::clamp(settings.value(kPixelSizeKey, 100).toInt(), 50, 100);
+    options.pixelCoverage = static_cast<double>((percent + 5) / 10 * 10) / 100.0;
+    return options;
+}
+
+void saveDmdRenderOptions(const DmdRenderOptions& options)
+{
+    QSettings settings;
+    settings.setValue(kPixelShapeKey, options.pixelShape == DmdPixelShape::Dot
+                                          ? QStringLiteral("dots")
+                                          : QStringLiteral("squares"));
+    settings.setValue(kPixelSizeKey, static_cast<int>(std::lround(options.pixelCoverage * 100)));
 }
 
 void applyTheme(Theme theme)

@@ -2703,7 +2703,6 @@ void testBackgroundPanel()
 
 void testFramePanel()
 {
-    using colorizing::app::DmdPixelShape;
     using colorizing::app::FramePanelState;
     using colorizing::app::PaintTarget;
     const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
@@ -2721,7 +2720,6 @@ void testFramePanel()
     colorizing::app::FramePanel panel;
     int callbacks = 0;
     int paintTargetChanges = 0;
-    int dmdChanges = 0;
     int importRequests = 0;
     int createHdRequests = 0;
     int removeHdRequests = 0;
@@ -2750,10 +2748,6 @@ void testFramePanel()
         ++callbacks;
         monochromeToggled = checked;
     };
-    panel.onDmdRenderOptionsChanged = [&]() {
-        ++callbacks;
-        ++dmdChanges;
-    };
     panel.onBackgroundLayerToggled = [&](bool checked) {
         ++callbacks;
         backgroundLayerToggled = checked;
@@ -2777,9 +2771,6 @@ void testFramePanel()
     auto* durationSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame cRP duration");
     auto* monochromeCheckBox = childByToolTip<QCheckBox>(
         panel, "Use legacy switch-to-monochrome trigger ID 65432");
-    auto* dmdShapeComboBox =
-        childByToolTip<QComboBox>(panel, "DMD pixel shape for canvas and PNG export");
-    auto* dmdSizeSpinBox = childByToolTip<QSpinBox>(panel, "Relative DMD pixel size");
     auto* backgroundLayerButton =
         childByToolTip<QToolButton>(panel, "Show assigned background layer");
     auto* importButton =
@@ -2818,17 +2809,10 @@ void testFramePanel()
                removeHdButton->text() == QStringLiteral("Remove HD") &&
                !removeHdButton->isEnabled(),
            "frame panel should start with disabled image and HD buttons");
-    expect(dmdShapeComboBox->count() == 2 && dmdShapeComboBox->isEnabled() &&
-               dmdSizeSpinBox->minimum() == 50 && dmdSizeSpinBox->maximum() == 100 &&
-               dmdSizeSpinBox->suffix() == QStringLiteral("%") && dmdSizeSpinBox->isEnabled() &&
-               panel.dmdRenderOptions().pixelShape == DmdPixelShape::Square &&
-               panel.dmdRenderOptions().pixelCoverage == 1.0,
-           "frame panel should start with full square DMD pixels");
     expect(tabVisitsInOrder(panel,
                             {targetComboBox, backgroundIdSpinBox, triggerIdSpinBox,
-                             durationSpinBox, monochromeCheckBox, dmdShapeComboBox,
-                             dmdSizeSpinBox, backgroundLayerButton, importButton, createHdButton,
-                             removeHdButton}),
+                             durationSpinBox, monochromeCheckBox, backgroundLayerButton,
+                             importButton, createHdButton, removeHdButton}),
            "frame panel should tab through its controls as laid out");
 
     panel.refresh(stateFor(document, 0));
@@ -2975,23 +2959,11 @@ void testFramePanel()
                callbacks == 11,
            "each frame panel action should notify exactly once");
 
-    dmdShapeComboBox->setCurrentIndex(1);
-    expect(dmdChanges == 1 && panel.dmdRenderOptions().pixelShape == DmdPixelShape::Dot,
-           "selecting a DMD pixel shape should notify once");
-    dmdSizeSpinBox->setValue(73);
-    expect(dmdChanges == 2 && dmdSizeSpinBox->value() == 70 &&
-               panel.dmdRenderOptions().pixelCoverage == 0.7,
-           "the DMD pixel size should snap to steps of ten and notify once");
-    dmdSizeSpinBox->setValue(50);
-    expect(dmdChanges == 3 && panel.dmdRenderOptions().pixelCoverage == 0.5,
-           "editing the DMD pixel size should notify once");
     panel.refresh(stateFor(document, 1));
-    expect(panel.dmdRenderOptions().pixelShape == DmdPixelShape::Dot &&
-               panel.dmdRenderOptions().pixelCoverage == 0.5 &&
-               !panel.isBackgroundLayerChecked() &&
+    expect(!panel.isBackgroundLayerChecked() &&
                panel.paintTarget() == PaintTarget::Background,
            "frame panel should keep its own state across refreshes");
-    expect(callbacks == 14, "refreshing the frame panel should not notify");
+    expect(callbacks == 11, "refreshing the frame panel should not notify");
     expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
                document.backgroundId(0) == 0 && !document.isDirty(),
            "frame panel should leave the document untouched");

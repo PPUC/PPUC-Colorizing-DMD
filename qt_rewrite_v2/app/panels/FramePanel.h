@@ -61,7 +61,6 @@ public:
     [[nodiscard]] int triggerId() const;
     [[nodiscard]] bool isSwitchToMonochromeChecked() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
-    [[nodiscard]] DmdRenderOptions dmdRenderOptions() const;
 
     std::function<void()> onPaintTargetChanged;
     // -1 clears the assignment.
@@ -70,8 +69,6 @@ public:
     std::function<void(int triggerId)> onTriggerIdEdited;
     std::function<void(int durationMs)> onDurationEdited;
     std::function<void(bool checked)> onSwitchToMonochromeToggled;
-    // Read the new values with dmdRenderOptions().
-    std::function<void()> onDmdRenderOptionsChanged;
     std::function<void(bool checked)> onBackgroundLayerToggled;
     std::function<void()> onImportImageRequested;
     std::function<void()> onCreateHdRequested;
@@ -91,8 +88,6 @@ private:
     QToolButton* m_createHdButton = nullptr;
     QToolButton* m_removeHdButton = nullptr;
     QComboBox* m_paintTargetComboBox = nullptr;
-    QComboBox* m_dmdPixelShapeComboBox = nullptr;
-    QSpinBox* m_dmdPixelSizeSpinBox = nullptr;
 };
 
 }  // namespace colorizing::app

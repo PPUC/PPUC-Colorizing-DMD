@@ -1136,13 +1136,11 @@ The `Frame` topic exposes:
   selected frames that carry the monochrome trigger; selected frames with an ordinary trigger ID
   keep it. To get an earlier trigger ID back, use Undo.
 - `BG ID`, `Trigger ID`, `Duration`, and `Switch mono` edits can be undone, see "Undo And Redo".
-- `DMD Shape` selects square pixels or round dot pixels for the main canvas and PNG export.
-- `DMD Size` sets the relative pixel fill size in 10% steps. Values below `100%` leave black spacing between pixels, which makes the DMD grid visible.
 - `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
   by default.
 - `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
 
-`DMD Shape` and `DMD Size` are view/export settings only. They do not change project data or the cROM/cRP file format.
+How DMD pixels are drawn (`DMD Shape`, `DMD Size`) is in the Settings, see "Settings".
 
 The `Background` topic exposes:
 
@@ -1372,6 +1370,12 @@ them as they were. They are the editor's, not a project's: kept for the next sta
   system uses. A forced theme applies at once. Where the platform cannot switch its own style
   (Windows 10's classic style, some Linux desktops, Qt before 6.8), the editor uses Qt's Fusion
   style in the chosen colors; `Follow the system` brings the platform's style back.
+  Under `Canvas`:
+  - `DMD Shape` draws square pixels or round dot pixels, on the canvas, in the sprite editor
+    and in PNG exports;
+  - `DMD Size` sets the pixel fill size in 10% steps. Values below `100%` leave black spacing
+    between pixels, which makes the DMD grid visible.
+  They are view and export settings only: no project data and no file changes with them.
 - `DMD Output`: the settings of the DMD output, see "DMD Output".
 
 ## Colors

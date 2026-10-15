@@ -47,19 +47,6 @@ FramePanel::FramePanel(QWidget* parent)
     m_switchToMonochromeCheckBox->setToolTip(
         QStringLiteral("Use legacy switch-to-monochrome trigger ID 65432"));
     m_switchToMonochromeCheckBox->setEnabled(false);
-    m_dmdPixelShapeComboBox = new QComboBox(this);
-    m_dmdPixelShapeComboBox->setToolTip(
-        QStringLiteral("DMD pixel shape for canvas and PNG export"));
-    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Squares"),
-                                     static_cast<int>(DmdPixelShape::Square));
-    m_dmdPixelShapeComboBox->addItem(QStringLiteral("Dots"),
-                                     static_cast<int>(DmdPixelShape::Dot));
-    m_dmdPixelSizeSpinBox = new QSpinBox(this);
-    m_dmdPixelSizeSpinBox->setToolTip(QStringLiteral("Relative DMD pixel size"));
-    m_dmdPixelSizeSpinBox->setRange(50, 100);
-    m_dmdPixelSizeSpinBox->setSingleStep(10);
-    m_dmdPixelSizeSpinBox->setSuffix(QStringLiteral("%"));
-    m_dmdPixelSizeSpinBox->setValue(100);
     m_backgroundLayerButton = new QToolButton(this);
     m_backgroundLayerButton->setText(QStringLiteral("Show BG"));
     m_backgroundLayerButton->setToolTip(QStringLiteral("Show assigned background layer"));
@@ -87,8 +74,6 @@ FramePanel::FramePanel(QWidget* parent)
     form->addRow(QStringLiteral("Trigger ID"), m_triggerIdSpinBox);
     form->addRow(QStringLiteral("Duration"), m_durationSpinBox);
     form->addRow(QString(), m_switchToMonochromeCheckBox);
-    form->addRow(QStringLiteral("DMD Shape"), m_dmdPixelShapeComboBox);
-    form->addRow(QStringLiteral("DMD Size"), m_dmdPixelSizeSpinBox);
     pageLayout->addLayout(form);
     pageLayout->addWidget(m_backgroundLayerButton);
     pageLayout->addWidget(m_importImageButton);
@@ -124,28 +109,6 @@ FramePanel::FramePanel(QWidget* parent)
             [this](int) {
                 if (onPaintTargetChanged) {
                     onPaintTargetChanged();
-                }
-            });
-    connect(m_dmdPixelShapeComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                if (onDmdRenderOptionsChanged) {
-                    onDmdRenderOptionsChanged();
-                }
-            });
-    connect(m_dmdPixelSizeSpinBox,
-            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this,
-            [this](int value) {
-                // The size snaps to steps of ten.
-                const int roundedValue = std::clamp(((value + 5) / 10) * 10, 50, 100);
-                if (roundedValue != value) {
-                    QSignalBlocker blocker(m_dmdPixelSizeSpinBox);
-                    m_dmdPixelSizeSpinBox->setValue(roundedValue);
-                }
-                if (onDmdRenderOptionsChanged) {
-                    onDmdRenderOptionsChanged();
                 }
             });
     connect(m_backgroundIdSpinBox,
@@ -342,15 +305,6 @@ bool FramePanel::isSwitchToMonochromeChecked() const
 bool FramePanel::isBackgroundLayerChecked() const
 {
     return m_backgroundLayerButton->isChecked();
-}
-
-DmdRenderOptions FramePanel::dmdRenderOptions() const
-{
-    DmdRenderOptions options;
-    options.pixelShape =
-        static_cast<DmdPixelShape>(m_dmdPixelShapeComboBox->currentData().toInt());
-    options.pixelCoverage = static_cast<double>(m_dmdPixelSizeSpinBox->value()) / 100.0;
-    return options;
 }
 
 }  // namespace colorizing::app

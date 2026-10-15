@@ -850,9 +850,6 @@ void MainWindow::createCentralView()
     m_framePanel->onSwitchToMonochromeToggled = [this](bool checked) {
         setCurrentFrameSwitchToMonochrome(checked);
     };
-    m_framePanel->onDmdRenderOptionsChanged = [this]() {
-        updateDmdRenderOptions();
-    };
     m_framePanel->onBackgroundLayerToggled = [this](bool checked) {
         if (m_preview) {
             m_preview->setBackgroundLayerEnabled(checked);
@@ -1940,7 +1937,8 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
 
 void MainWindow::editSettings(SettingsDialog::Page page)
 {
-    SettingsDialog dialog(loadTheme(), loadDmdOutputSettings(), DmdOutput::isAvailable(), this);
+    SettingsDialog dialog(loadTheme(), m_dmdRenderOptions, loadDmdOutputSettings(),
+                          DmdOutput::isAvailable(), this);
     dialog.showPage(page);
     if (dialog.exec() != QDialog::Accepted) {
         return;
@@ -1949,6 +1947,9 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         saveTheme(dialog.theme());
         applyTheme(dialog.theme());
     }
+    m_dmdRenderOptions = dialog.canvasOptions();
+    saveDmdRenderOptions(m_dmdRenderOptions);
+    updateDmdRenderOptions();
     saveDmdOutputSettings(dialog.dmdOutputSettings());
     if (m_dmdOutput.isRunning()) {
         setDmdOutputEnabled(true);
@@ -8447,7 +8448,7 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
 
 DmdRenderOptions MainWindow::currentDmdRenderOptions() const
 {
-    return m_framePanel ? m_framePanel->dmdRenderOptions() : DmdRenderOptions{};
+    return m_dmdRenderOptions;
 }
 
 void MainWindow::updateDmdRenderOptions()
