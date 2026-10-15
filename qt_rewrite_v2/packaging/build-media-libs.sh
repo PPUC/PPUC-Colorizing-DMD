@@ -100,9 +100,16 @@ if [ "$(cat "${prefix}/media-libs.txt" 2>/dev/null || true)" = "${expected}" ]; 
 fi
 
 # SDL3, then SDL_image and SDL_ttf against it, as vpinball builds them.
+sdl_args=()
+if [ "${platform}" = win-mingw ]; then
+    # MSYS2 may have OpenGL ES headers without EGL's: SDL then takes its EGL path and fails
+    # on <EGL/egl.h>. SDL draws with OpenGL or Direct3D on Windows; the PUP plugin hosted by
+    # the editor does not use SDL's OpenGL ES.
+    sdl_args+=(-DSDL_OPENGLES=OFF)
+fi
 fetch libsdl-org/SDL "${sdl_sha}" SDL
 cmake -S "${work}/SDL" -B "${work}/SDL/build" "${cmake_args[@]}" \
-    -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST_LIBRARY=OFF
+    -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST_LIBRARY=OFF ${sdl_args[@]+"${sdl_args[@]}"}
 cmake --build "${work}/SDL/build" -j "${jobs}"
 cmake --install "${work}/SDL/build"
 
