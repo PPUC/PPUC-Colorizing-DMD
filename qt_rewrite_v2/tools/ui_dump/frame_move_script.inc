@@ -165,6 +165,21 @@
                   << w.m_preview->m_dropHandler(w.m_maskList, false) << '\n';
         w.m_preview->m_dropHandler(w.m_maskList, true);
         assignments("frame move: mask dropped onto the canvas");
+        // The left sidebar's filter: only the mask of the current frame (4) stays listed. (The
+        // frame stays: what Undo reverts here depends on it.)
+        const auto listed = [](const char* title, QListWidget* list) {
+            std::cout << "frame move: " << title << " listed";
+            for (int row = 0; row < list->count(); ++row) {
+                if (!list->item(row)->isHidden()) {
+                    std::cout << ' ' << list->item(row)->data(Qt::UserRole).toInt();
+                }
+            }
+            std::cout << '\n';
+        };
+        w.m_currentFrameAssetsCheckBox->setChecked(true);
+        listed("masks of frame 4", w.m_maskList);
+        w.m_currentFrameAssetsCheckBox->setChecked(false);
+        listed("masks, unfiltered", w.m_maskList);
         w.m_undoAction->trigger();
         assignments("frame move: mask drop undone");
         selectRows({6});
@@ -173,6 +188,13 @@
         D("frame move: background dropped onto the canvas");
         w.m_undoAction->trigger();
         D("frame move: background drop undone");
+        // A double click on a background opens it for editing.
+        Q_EMIT w.m_backgroundList->itemDoubleClicked(
+            w.m_backgroundList->item(rowOf(w.m_backgroundList, 0)));
+        std::cout << "frame move: background double-clicked, edited "
+                  << (w.activePaintTarget() == app::PaintTarget::Background) << '\n';
+        w.setPaintTarget(app::PaintTarget::Frame);
+        w.updatePaintTargetMode();
         std::cout << "frame move: canvas takes a frame "
                   << w.m_preview->m_dropHandler(w.m_frameList, false) << '\n';
     }

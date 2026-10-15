@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <functional>
+#include <set>
 
 #include <QAbstractItemView>
 #include <QAction>
@@ -1412,7 +1413,25 @@ void MainWindow::createCentralView()
     // The two sidebars can be made wider or narrower; their widths are kept.
     auto* contentSplitter = new QSplitter(Qt::Horizontal, central);
     contentSplitter->setChildrenCollapsible(false);
-    contentSplitter->addWidget(m_leftBrowserTabs);
+    // The left sidebar: the filter of its lists above them.
+    auto* assets = new QWidget(central);
+    auto* assetsLayout = new QVBoxLayout(assets);
+    assetsLayout->setContentsMargins(0, 0, 0, 0);
+    assetsLayout->setSpacing(2);
+    m_currentFrameAssetsCheckBox = new QCheckBox(tr("Used by the current frame"), assets);
+    m_currentFrameAssetsCheckBox->setToolTip(
+        tr("List only the comparison mask, the background and the sprites of the current "
+           "frame"));
+    m_currentFrameAssetsCheckBox->setChecked(
+        QSettings().value(QStringLiteral("layout/assetsOfCurrentFrame"), false).toBool());
+    connect(m_currentFrameAssetsCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        QSettings().setValue(QStringLiteral("layout/assetsOfCurrentFrame"), checked);
+        applyAssetFilter();
+    });
+    assetsLayout->addWidget(m_currentFrameAssetsCheckBox);
+    assetsLayout->addWidget(m_leftBrowserTabs, 1);
+    assets->setMinimumWidth(m_leftBrowserTabs->minimumWidth());
+    contentSplitter->addWidget(assets);
     contentSplitter->addWidget(m_canvasStack);
     contentSplitter->addWidget(inspector);
     contentSplitter->setStretchFactor(0, 0);
@@ -1466,6 +1485,20 @@ void MainWindow::createCentralView()
             m_backgroundComboBox->setCurrentIndex(comboIndex);
         }
         refreshSelectedAssetFilter();
+    });
+    // A double click opens the background or the sprite on the canvas for editing (its first
+    // click has selected it), as the Inspector's Edit and Sprite Canvas do.
+    connect(m_backgroundList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) {
+        editAssignedBackground();
+    });
+    connect(m_spriteList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) {
+        if (!m_spritePanel || m_spritePanel->isSpriteCanvasChecked()) {
+            return;
+        }
+        m_spritePanel->setSpriteCanvasChecked(true);
+        if (m_spritePanel->onSpriteCanvasToggled) {
+            m_spritePanel->onSpriteCanvasToggled(true);
+        }
     });
     connect(m_spriteList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
         if (!item || !m_document) {
@@ -3732,6 +3765,38 @@ void MainWindow::refreshComponentBrowsers()
     updatePaletteBrowserSelection();
     updateMaskControls();
     updatePaletteControls();
+    applyAssetFilter();
+}
+
+void MainWindow::applyAssetFilter()
+{
+    const bool filtered = m_currentFrameAssetsCheckBox &&
+                          m_currentFrameAssetsCheckBox->isChecked();
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    const bool hasFrame = m_document && frame && *frame < m_document->frameCount();
+    std::set<int> masks;
+    std::set<int> backgrounds;
+    std::set<int> sprites;
+    if (filtered && hasFrame) {
+        masks.insert(m_document->comparisonMaskId(*frame));
+        backgrounds.insert(m_document->backgroundId(*frame));
+        for (const document::FrameSpriteReference& reference :
+             m_document->frameSpriteReferences(*frame)) {
+            sprites.insert(reference.spriteId);
+        }
+    }
+    const auto apply = [filtered](QListWidget* list, const std::set<int>& used) {
+        if (!list) {
+            return;
+        }
+        for (int row = 0; row < list->count(); ++row) {
+            QListWidgetItem* item = list->item(row);
+            item->setHidden(filtered && !used.count(item->data(Qt::UserRole).toInt()));
+        }
+    };
+    apply(m_maskList, masks);
+    apply(m_backgroundList, backgrounds);
+    apply(m_spriteList, sprites);
 }
 
 void MainWindow::scheduleMaskIconUpdate(std::size_t maskIndex)
@@ -4379,6 +4444,7 @@ void MainWindow::updateResolutionMode()
 
 void MainWindow::updateFrameMetadataControls()
 {
+    applyAssetFilter();
     updateSectionControls();
     if (!m_maskPanel || !m_framePanel) {
         return;

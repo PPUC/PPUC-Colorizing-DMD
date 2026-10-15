@@ -435,6 +435,9 @@ private:
     void updateFrameListItems(const std::vector<std::size_t>& frameIndices);
     void updateFrameListItemText(std::size_t frameIndex);
     void refreshComponentBrowsers();
+    // Hides the masks, backgrounds and sprites the current frame does not use while the left
+    // sidebar's "Used by the current frame" is on (rows stay: a list's row is its record).
+    void applyAssetFilter();
     // The mask browser icon of the mask follows its pixels; several edits before the event
     // loop runs again redraw it once.
     void scheduleMaskIconUpdate(std::size_t maskIndex);
@@ -506,6 +509,7 @@ private:
     QToolButton* m_runtimeViewButton = nullptr;
     QToolButton* m_loopPlaybackButton = nullptr;
     QCheckBox* m_useProjectTimingCheckBox = nullptr;
+    QCheckBox* m_currentFrameAssetsCheckBox = nullptr;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;

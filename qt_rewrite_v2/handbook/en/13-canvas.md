@@ -56,14 +56,19 @@ that is the SD plane, and the toggle is disabled in HD mode. See "Dynamic Masks"
 Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
 
-The left sidebar is the visual component browser:
+The left sidebar is the visual component browser (the frames run along the bottom of the window,
+see "Frame List"). `Used by the current frame` above its lists shows only the comparison mask,
+the background and the sprites the current frame uses, and follows the current frame; off, every
+record is listed. The choice is kept for the next start.
 
-- `Frames` shows frame thumbnails and the frame filter.
 - `Masks` shows comparison-mask thumbnails; selecting one selects that mask in the Inspector `Mask`
   topic for assignment. Selecting does not change any frame, and the selection stays when another
   frame becomes current.
-- `Backgrounds` shows background thumbnails; selecting one selects the same background in the Inspector for assignment or editing.
-- `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector.
+- `Backgrounds` shows background thumbnails; selecting one selects the same background in the
+  Inspector for assignment or editing. A double click opens it on the canvas for editing, as the
+  Inspector's `Edit BG` does.
+- `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector. A
+  double click opens it on the sprite canvas for editing, as the Inspector's `Edit Sprite` does.
 
 Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
 
