@@ -80,6 +80,17 @@
         for (int r : rows) w.m_frameList->item(r)->setSelected(true);
     };
     const auto showLeft = [&](const char* name) {
+        // A tree with the frame strip shows the frames below, not in a tab.
+        if (QLatin1String(name) == QLatin1String("Frames") &&
+            w.m_frameList->parentWidget() != w.m_leftBrowserTabs->currentWidget()) {
+            bool tabbed = false;
+            for (int i = 0; i < w.m_leftBrowserTabs->count(); ++i) {
+                tabbed = tabbed || w.m_leftBrowserTabs->tabText(i) == QLatin1String("Frames");
+            }
+            if (!tabbed) {
+                return;
+            }
+        }
         for (int i = 0; i < w.m_leftBrowserTabs->count(); ++i) {
             if (w.m_leftBrowserTabs->tabText(i) == QLatin1String(name)) {
                 w.m_leftBrowserTabs->setCurrentIndex(i);

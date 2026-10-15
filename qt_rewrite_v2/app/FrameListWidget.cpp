@@ -18,9 +18,11 @@ int FrameListWidget::dropRow(const QPoint& position) const
     if (!index.isValid()) {
         return count();
     }
-    // The lower half of a row is behind it.
+    // The second half of a frame, the right one in a strip, is behind it.
     const QRect rect = visualRect(index);
-    return position.y() >= rect.center().y() ? index.row() + 1 : index.row();
+    const bool behind = flow() == QListView::LeftToRight ? position.x() >= rect.center().x()
+                                                          : position.y() >= rect.center().y();
+    return behind ? index.row() + 1 : index.row();
 }
 
 void FrameListWidget::dropEvent(QDropEvent* event)

@@ -500,11 +500,18 @@ and must be validated against libserum playback behavior.
 
 ## Frame List
 
-The left frame list shows one thumbnail per loaded frame plus compact metadata.
+The frames run along the bottom of the window, as in the Win32 editor: one row, left to right,
+scrolled sideways. Each frame shows its thumbnail (colorized above, original below) and under it
+its number (with the name of a section it starts) and a line of compact metadata: duration,
+`HD`, `Dyn`, `BG n`, sprites, `inactive` and the like. The section box, the trigger box and the
+frame filter are at the left end of the strip; the comparison masks, backgrounds and sprites are
+in the tabs on the left of the window.
+
+In the rest of this handbook "the frame list" is this strip.
 
 ### Sections and triggers
 
-Above the frame list:
+At the left end of the frame strip:
 
 - The section box shows the section of the current frame: the one with the latest first frame
   at or before it (`- None -` before the first section). Choosing a section goes to its first
@@ -563,9 +570,12 @@ for it, so a machine keeps the picture it shows. An inactive frame with a backgr
 by libserum and is not marked. The marker follows edits: painting the frame, giving it a dynamic
 zone or a background, or a duration of 15 ms or more removes it.
 
-The filter above the frame list can show all frames, only frames with HD data (`HD frames`),
+The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
-with sprite assignments, or the frames marked `inactive` (`Inactive`).
+with sprite assignments, the frames marked `inactive` (`Inactive`), or the frames that use what
+is selected on the left: `Using the selected mask` (its comparison mask), `Using the selected
+background` (assigned), `Using the selected sprite` (in one of their sprite slots). Those three
+follow the selection: choosing another mask, background or sprite shows its frames.
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 
@@ -636,14 +646,14 @@ The selected frames can be put elsewhere in the project, so a project can be sor
 another tool. They go as one block, in their order, and are renumbered with the frames between;
 everything a frame has goes with it. One undo step.
 
-- Drag the selected frames in the frame list and drop them: in the upper half of a row they go
-  before that row's frame, in the lower half behind it, below the last row behind the last
-  frame. (Pressing on a selected frame and moving the mouse starts the drag; select ranges with
+- Drag the selected frames in the frame strip and drop them: on the left half of a frame they
+  go before it, on the right half behind it, behind the last frame behind the last one.
+  (Pressing on a selected frame and moving the mouse starts the drag; select ranges with
   Shift+click.)
-- `Edit -> Move Frames Up` (`Alt+Up` in the frame list) puts them before the frame shown above
-  the first selected one; `Move Frames Down` (`Alt+Down`) behind the frame shown below the last
-  selected one. With a frame filter that is the neighbour in the list, not necessarily in the
-  project.
+- `Edit -> Move Frames Earlier` (`Alt+Left` or `Alt+Up` in the frame strip) puts them before the
+  frame shown before the first selected one; `Move Frames Later` (`Alt+Right` or `Alt+Down`)
+  behind the frame shown after the last selected one. With a frame filter that is the neighbour
+  in the strip, not necessarily in the project.
 - `Edit -> Move Frames To...` asks for the frame number to put them before; the frame count puts
   them behind the last frame.
 - Afterwards the moved frames are selected where they are now; the status bar gives their new
@@ -655,7 +665,7 @@ Sections follow their frames:
 - a section whose first frame moves without the rest starts at its first frame that stays;
 - frames dropped (or moved with `Move Frames To...`) right before the first frame of a section
   join that section, which then starts at the first moved frame, unless the frames bring a
-  section of their own; `Move Frames Down` past the last frame of a section keeps them in it;
+  section of their own; `Move Frames Later` past the last frame of a section keeps them in it;
 - otherwise moved frames belong to the section of the frame before them.
 
 The source frames of sprites follow their frames. A project with imported palettes (old

@@ -207,8 +207,12 @@
     auto* inCreateHd = toolButtonByText("Create HD");
     auto* inRemoveHd = toolButtonByText("Remove HD");
     auto* inTarget = byTip<QComboBox>(w, "Drawing target");
-    auto* inDmdShape = byTip<QComboBox>(w, "DMD pixel shape for canvas and PNG export");
-    auto* inDmdSize = byTip<QSpinBox>(w, "Relative DMD pixel size");
+    // DMD Shape and DMD Size are in the Settings (Appearance); set as OK there sets them.
+    const auto setDmdPixels = [&w](app::DmdPixelShape shape, int percent) {
+        w.m_dmdRenderOptions.pixelShape = shape;
+        w.m_dmdRenderOptions.pixelCoverage = percent / 100.0;
+        w.updateDmdRenderOptions();
+    };
 
     QTabWidget* tabs = nullptr;
     for (QTabWidget* candidate : w.findChildren<QTabWidget*>()) {
@@ -225,6 +229,17 @@
         std::exit(5);
     };
     const auto showLeft = [&](const char* name) {
+        // A tree with the frame strip shows the frames below, not in a tab.
+        if (QLatin1String(name) == QLatin1String("Frames") &&
+            w.m_frameList->parentWidget() != w.m_leftBrowserTabs->currentWidget()) {
+            bool tabbed = false;
+            for (int i = 0; i < w.m_leftBrowserTabs->count(); ++i) {
+                tabbed = tabbed || w.m_leftBrowserTabs->tabText(i) == QLatin1String("Frames");
+            }
+            if (!tabbed) {
+                return;
+            }
+        }
         for (int i = 0; i < w.m_leftBrowserTabs->count(); ++i) {
             if (w.m_leftBrowserTabs->tabText(i) == QLatin1String(name)) {
                 w.m_leftBrowserTabs->setCurrentIndex(i);
@@ -502,11 +517,11 @@
     D("duration multi frame");
     row(0);
 
-    inDmdShape->setCurrentIndex(1);
+    setDmdPixels(app::DmdPixelShape::Dot, 100);
     D("dmd dots");
-    inDmdSize->setValue(73);
+    setDmdPixels(app::DmdPixelShape::Dot, 70);
     D("dmd size 73 rounds");
-    inDmdSize->setValue(50);
+    setDmdPixels(app::DmdPixelShape::Dot, 50);
     D("dmd size 50");
     inShowBg->click();
     D("show bg off");
@@ -518,8 +533,7 @@
         D("frame exported");
         QFile::remove(out);
         inShowBg->click();
-        inDmdSize->setValue(100);
-        inDmdShape->setCurrentIndex(0);
+        setDmdPixels(app::DmdPixelShape::Square, 100);
         answerFileDialog(out);
         w.exportCurrentFramePng();
         printImageFile("exported frame squares 100 with bg", out);
@@ -1025,7 +1039,7 @@
     inTarget->setCurrentIndex(1);
     inShowBg->click();
     inDynSet->setValue(7);
-    inDmdShape->setCurrentIndex(1);
+    setDmdPixels(app::DmdPixelShape::Dot, 100);
     w.m_comparisonMaskOverlayButton->click();
     w.m_backgroundMaskOverlayButton->click();
     w.m_frameFilterComboBox->setCurrentIndex(3);
@@ -1090,7 +1104,7 @@
     inTarget->setCurrentIndex(0);
     inShowBg->click();
     inDynSet->setValue(0);
-    inDmdShape->setCurrentIndex(0);
+    setDmdPixels(app::DmdPixelShape::Square, 100);
     w.m_comparisonMaskOverlayButton->click();
     w.m_backgroundMaskOverlayButton->click();
     D("plain project toggles reset");

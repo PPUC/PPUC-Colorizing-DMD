@@ -39,6 +39,7 @@
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QScrollBar>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QStringList>
@@ -101,6 +102,8 @@ constexpr int kMaxRecentProjects = 8;
 constexpr char kRecentProjectsSettingsKey[] = "recentProjects";
 constexpr int kExportDmdPixelScale = 8;
 constexpr QSize kFrameThumbnailSize{160, 84};
+// A frame of the strip: the thumbnail, two lines of text below it, and room around.
+constexpr QSize kFrameStripCellSize{176, 128};
 constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 constexpr char kWindowTitle[] = "ColorizingDMD Qt Rewrite v2";
 
@@ -550,16 +553,16 @@ void MainWindow::createActions()
     connect(m_deleteShortFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFramesShorterThan();
     });
-    m_moveFramesUpAction = editMenu->addAction(QStringLiteral("Move Frames &Up"));
+    m_moveFramesUpAction = editMenu->addAction(QStringLiteral("Move Frames &Earlier"));
     m_moveFramesUpAction->setToolTip(
-        QStringLiteral("Move the selected frames before the frame above them (Alt+Up in the "
-                       "frame list)"));
+        QStringLiteral("Move the selected frames before the frame shown before them (Alt+Left "
+                       "in the frame strip)"));
     m_moveFramesUpAction->setEnabled(false);
     connect(m_moveFramesUpAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
-    m_moveFramesDownAction = editMenu->addAction(QStringLiteral("Move Frames Do&wn"));
+    m_moveFramesDownAction = editMenu->addAction(QStringLiteral("Move Frames &Later"));
     m_moveFramesDownAction->setToolTip(
-        QStringLiteral("Move the selected frames behind the frame below them (Alt+Down in the "
-                       "frame list)"));
+        QStringLiteral("Move the selected frames behind the frame shown after them (Alt+Right "
+                       "in the frame strip)"));
     m_moveFramesDownAction->setEnabled(false);
     connect(m_moveFramesDownAction, &QAction::triggered, this,
             [this]() { moveSelectedFramesDown(); });
@@ -654,14 +657,37 @@ void MainWindow::createCentralView()
     m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
                                        kInactiveFrameToolTip,
                                        Qt::ToolTipRole);
+    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected mask"),
+                                   static_cast<int>(FrameFilter::UsesSelectedMask));
+    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected background"),
+                                   static_cast<int>(FrameFilter::UsesSelectedBackground));
+    m_frameFilterComboBox->addItem(QStringLiteral("Using the selected sprite"),
+                                   static_cast<int>(FrameFilter::UsesSelectedSprite));
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new FrameListWidget(central);
     m_frameList->onMoveRequested = [this](int row) { moveSelectedFramesBeforeRow(row); };
     m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_frameList->setIconSize(kFrameThumbnailSize);
+    // One row of frames, left to right, each with its text below the thumbnail.
+    m_frameList->setViewMode(QListView::IconMode);
+    m_frameList->setFlow(QListView::LeftToRight);
+    m_frameList->setWrapping(false);
+    m_frameList->setMovement(QListView::Static);
     m_frameList->setResizeMode(QListView::Adjust);
     m_frameList->setUniformItemSizes(false);
-    m_frameList->setMinimumWidth(230);
+    m_frameList->setWordWrap(true);
+    m_frameList->setGridSize(kFrameStripCellSize);
+    m_frameList->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+    m_frameList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // One row of frames high.
+    m_frameList->setMinimumHeight(kFrameStripCellSize.height() +
+                                  m_frameList->horizontalScrollBar()->sizeHint().height() +
+                                  2 * m_frameList->frameWidth() + 4);
+    m_frameList->setMaximumHeight(m_frameList->minimumHeight());
+    // After the view mode and movement, which turn dragging off: the frames are dragged to
+    // another place (FrameListWidget).
+    m_frameList->setDragEnabled(true);
+    m_frameList->setDragDropMode(QAbstractItemView::InternalMove);
     // The keys belong to the frame list alone, so that they keep their meaning everywhere
     // else. An action of the menu bar cannot have them: a native menu bar takes a key of
     // its entries whatever has the focus.
@@ -676,13 +702,15 @@ void MainWindow::createCentralView()
     m_frameList->setContextMenuPolicy(Qt::ActionsContextMenu);
     m_frameList->addAction(m_deleteFramesListAction);
     m_frameList->addAction(m_deleteShortFramesAction);
-    // Alt+Up and Alt+Down in the list only, as Delete above.
+    // Alt+Left and Alt+Right (also Alt+Up and Alt+Down) in the strip only, as Delete above.
     auto* moveUpListAction = new QAction(m_moveFramesUpAction->text(), m_frameList);
-    moveUpListAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Up));
+    moveUpListAction->setShortcuts(
+        {QKeySequence(Qt::ALT | Qt::Key_Left), QKeySequence(Qt::ALT | Qt::Key_Up)});
     moveUpListAction->setShortcutContext(Qt::WidgetShortcut);
     connect(moveUpListAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
     auto* moveDownListAction = new QAction(m_moveFramesDownAction->text(), m_frameList);
-    moveDownListAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Down));
+    moveDownListAction->setShortcuts(
+        {QKeySequence(Qt::ALT | Qt::Key_Right), QKeySequence(Qt::ALT | Qt::Key_Down)});
     moveDownListAction->setShortcutContext(Qt::WidgetShortcut);
     connect(moveDownListAction, &QAction::triggered, this,
             [this]() { moveSelectedFramesDown(); });
@@ -1171,10 +1199,16 @@ void MainWindow::createCentralView()
     m_leftBrowserTabs = new QTabWidget(central);
     m_leftBrowserTabs->setDocumentMode(true);
     m_leftBrowserTabs->setMinimumWidth(250);
-    auto* frameListPanel = new QWidget(m_leftBrowserTabs);
-    auto* frameListLayout = new QVBoxLayout(frameListPanel);
+    // The frames run along the bottom of the window, as in the Win32 editor: on the left of
+    // the strip the sections and the frame filter, then the frames from left to right.
+    auto* frameStrip = new QWidget(central);
+    auto* frameStripLayout = new QHBoxLayout(frameStrip);
+    frameStripLayout->setContentsMargins(0, 0, 0, 0);
+    auto* frameStripControls = new QWidget(frameStrip);
+    frameStripControls->setFixedWidth(250);
+    auto* frameListLayout = new QVBoxLayout(frameStripControls);
     frameListLayout->setContentsMargins(0, 0, 0, 0);
-    m_sectionBar = new SectionBar(frameListPanel);
+    m_sectionBar = new SectionBar(frameStripControls);
     m_sectionBar->onSectionChosen = [this](std::size_t section) {
         if (m_document) {
             goToFrame(edit::sections(*m_document).at(section).firstFrame);
@@ -1186,8 +1220,9 @@ void MainWindow::createCentralView()
     m_sectionBar->onOrderRequested = [this]() { orderSections(); };
     frameListLayout->addWidget(m_sectionBar);
     frameListLayout->addWidget(m_frameFilterComboBox);
-    frameListLayout->addWidget(m_frameList, 1);
-    m_leftBrowserTabs->addTab(frameListPanel, QStringLiteral("Frames"));
+    frameListLayout->addStretch(1);
+    frameStripLayout->addWidget(frameStripControls);
+    frameStripLayout->addWidget(m_frameList, 1);
     m_maskPage = new RecordListPage(m_maskList,
                                     QStringLiteral("Add an empty comparison mask"),
                                     QStringLiteral("Delete the selected comparison mask"),
@@ -1286,6 +1321,7 @@ void MainWindow::createCentralView()
     contentLayout->addWidget(m_canvasStack, 1);
     contentLayout->addWidget(inspector, 0);
     layout->addLayout(contentLayout, 1);
+    layout->addWidget(frameStrip, 0);
 
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
         selectFrame(row);
@@ -1302,6 +1338,7 @@ void MainWindow::createCentralView()
             m_selectedMaskIndex = static_cast<std::size_t>(maskIndex);
         }
         updateMaskControls();
+        refreshFrameFilterOfSelection(FrameFilter::UsesSelectedMask);
     });
     connect(m_backgroundList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
         if (!item || !m_backgroundComboBox) {
@@ -1312,6 +1349,7 @@ void MainWindow::createCentralView()
         if (comboIndex >= 0) {
             m_backgroundComboBox->setCurrentIndex(comboIndex);
         }
+        refreshFrameFilterOfSelection(FrameFilter::UsesSelectedBackground);
     });
     connect(m_spriteList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
         if (!item || !m_document) {
@@ -1326,6 +1364,7 @@ void MainWindow::createCentralView()
         m_selectedSpriteIndex = spriteIndex;
         updateSpriteControls();
         updateUndoRedoActions();
+        refreshFrameFilterOfSelection(FrameFilter::UsesSelectedSprite);
     });
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -3196,7 +3235,7 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
                                          frameListItemText(frameIndex));
         item->setData(Qt::UserRole, static_cast<qulonglong>(frameIndex));
         item->setToolTip(frameListItemToolTip(frameIndex));
-        item->setSizeHint(QSize(210, 96));
+        item->setSizeHint(kFrameStripCellSize);
         m_frameList->addItem(item);
         if (selectedFrameIndex && *selectedFrameIndex == frameIndex) {
             selectedRow = m_frameList->count() - 1;
@@ -3430,7 +3469,8 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
         first += QStringLiteral(" [%1]").arg(
             QString::fromStdString(edit::sectionName(*m_document, *section)));
     }
-    return QStringLiteral("%1\n%2").arg(first, details.join(QStringLiteral("\n")));
+    // Below the thumbnail in the strip: the number, then the details as one line that wraps.
+    return QStringLiteral("%1\n%2").arg(first, details.join(QStringLiteral(" · ")));
 }
 
 void MainWindow::refreshComponentBrowsers()
@@ -3652,7 +3692,37 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
                                return reference.spriteId != 255;
                            });
     }
+    if (filter == FrameFilter::UsesSelectedMask) {
+        return m_selectedMaskIndex && *m_selectedMaskIndex < m_document->comparisonMaskCount() &&
+               m_document->comparisonMaskId(frameIndex) == *m_selectedMaskIndex;
+    }
+    if (filter == FrameFilter::UsesSelectedBackground) {
+        const std::optional<std::size_t> background = selectedBackgroundIndex();
+        const std::optional<document::FrameBackgroundData>& backgroundData =
+            m_document->backgroundData(frameIndex);
+        return background && backgroundData && backgroundData->backgroundId == *background;
+    }
+    if (filter == FrameFilter::UsesSelectedSprite) {
+        if (m_selectedSpriteIndex < 0 ||
+            static_cast<std::size_t>(m_selectedSpriteIndex) >= m_document->spriteCount()) {
+            return false;
+        }
+        const std::vector<document::FrameSpriteReference>& references =
+            m_document->frameSpriteReferences(frameIndex);
+        return std::any_of(references.begin(), references.end(),
+                           [this](const document::FrameSpriteReference& reference) {
+                               return reference.spriteId == m_selectedSpriteIndex;
+                           });
+    }
     return true;
+}
+
+void MainWindow::refreshFrameFilterOfSelection(FrameFilter filter)
+{
+    if (m_frameFilterComboBox &&
+        static_cast<FrameFilter>(m_frameFilterComboBox->currentData().toInt()) == filter) {
+        refreshFrameListItems();
+    }
 }
 
 std::optional<std::size_t> MainWindow::currentFrameIndex() const
@@ -7600,7 +7670,7 @@ void MainWindow::moveSelectedFramesUp()
         firstRow = std::min(firstRow, m_frameList->row(item));
     }
     if (firstRow <= 0 || firstRow >= m_frameList->count()) {
-        statusBar()->showMessage(QStringLiteral("Not moved: the frames are at the top"), 2500);
+        statusBar()->showMessage(QStringLiteral("Not moved: the frames are the first ones"), 2500);
         return;
     }
     moveSelectedFramesBeforeRow(firstRow - 1);
@@ -7617,7 +7687,7 @@ void MainWindow::moveSelectedFramesDown()
         lastRow = std::max(lastRow, m_frameList->row(item));
     }
     if (lastRow < 0 || lastRow + 1 >= m_frameList->count()) {
-        statusBar()->showMessage(QStringLiteral("Not moved: the frames are at the bottom"), 2500);
+        statusBar()->showMessage(QStringLiteral("Not moved: the frames are the last ones"), 2500);
         return;
     }
     // Behind it, not into a section that starts after it.

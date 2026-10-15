@@ -93,9 +93,16 @@ private:
         // Frames a save flags inactive and the runtime skips, see
         // legacy::isFrameSkippedAtRuntime().
         Inactive,
+        // Frames that use the mask, background or sprite selected on the left.
+        UsesSelectedMask,
+        UsesSelectedBackground,
+        UsesSelectedSprite,
     };
 
     void createActions();
+    // After the selected mask, background or sprite changed: the frame strip follows when it
+    // shows the frames that use it.
+    void refreshFrameFilterOfSelection(FrameFilter filter);
     void createCentralView();
     void openProject();
     // File -> New Project From Dump and Add Frames From Dump, see DumpImportDialog.

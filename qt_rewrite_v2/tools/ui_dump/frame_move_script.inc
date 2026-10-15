@@ -118,4 +118,18 @@
     D("frame move: Remove BG on one");
     w.m_undoAction->trigger();
     D("frame move: Remove BG undone");
+
+    // The frames that use the selected background (a tree with that filter).
+    const int usesBackground = w.m_frameFilterComboBox->findText(
+        QStringLiteral("Using the selected background"));
+    if (usesBackground >= 0) {
+        w.m_frameFilterComboBox->setCurrentIndex(usesBackground);
+        D("frame move: frames using the selected background");
+        std::cout << "frame move: listed";
+        for (int row = 0; row < w.m_frameList->count(); ++row) {
+            std::cout << ' ' << w.m_frameList->item(row)->data(Qt::UserRole).toULongLong();
+        }
+        std::cout << '\n';
+        w.m_frameFilterComboBox->setCurrentIndex(0);
+    }
 }
