@@ -2766,6 +2766,14 @@ Use Create %1 Frame.</source>
         <translation>Der Original-Frame, das 128x32-Bild und das 256x64-Bild übereinander</translation>
     </message>
     <message>
+        <source>New &amp;Frame From Original Colors</source>
+        <translation>Neuer Frame aus &amp;Originalfarben</translation>
+    </message>
+    <message>
+        <source>Add a frame whose original is the current frame&apos;s picture, painted in the plain original colors only (&quot;To Source Frame&quot; in the Win32 editor)</source>
+        <translation>Einen Frame hinzufügen, dessen Original das Bild des aktuellen Frames ist, nur in den schlichten Originalfarben gemalt (&quot;To Source Frame&quot; im Win32-Editor)</translation>
+    </message>
+    <message>
         <source>Editing the frame</source>
         <translation>Frame wird bearbeitet</translation>
     </message>
@@ -4028,6 +4036,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>
         <translation>%1 (Rückgängig behält höchstens %2 MB gelöschter Datensätze: Die %3 ältesten Hinzufügen- oder Löschschritte können nicht mehr rückgängig gemacht werden)</translation>
+    </message>
+    <message>
+        <source>New Frame From Original Colors</source>
+        <translation>Neuer Frame aus Originalfarben</translation>
+    </message>
+    <message>
+        <source>Frame %1 cannot become an original frame: %2.
+
+Paint its picture in the plain original colors only (the %3 colors of an uncolorized frame), on the plane of the original frames.</source>
+        <translation>Frame %1 kann kein Original-Frame werden: %2.
+
+Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines unkolorierten Frames), auf der Ebene der Original-Frames.</translation>
+    </message>
+    <message>
+        <source>Added frame %1 with the picture of frame %2 as its original</source>
+        <translation>Frame %1 mit dem Bild von Frame %2 als Original hinzugefügt</translation>
     </message>
     <message>
         <source>Undo failed, the step stays in the history: %1</source>

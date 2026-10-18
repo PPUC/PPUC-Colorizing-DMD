@@ -88,6 +88,7 @@
 #include "edit/ColorSetEdits.h"
 #include "document/Upscale.h"
 #include "edit/HelperLines.h"
+#include "edit/SourceFrame.h"
 #include "edit/Sections.h"
 #include "edit/SpriteClipboard.h"
 #include "edit/StateCommands.h"
@@ -741,6 +742,14 @@ void MainWindow::createActions()
     connect(m_deleteFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFrames();
     });
+    // The Win32 editor's "To Source Frame": a fake frame no dump has, painted in the original
+    // colors, added behind the last frame.
+    m_sourceFrameAction = editMenu->addAction(tr("New &Frame From Original Colors"));
+    m_sourceFrameAction->setToolTip(
+        tr("Add a frame whose original is the current frame's picture, painted in the plain "
+           "original colors only (\"To Source Frame\" in the Win32 editor)"));
+    m_sourceFrameAction->setEnabled(false);
+    connect(m_sourceFrameAction, &QAction::triggered, this, [this]() { addSourceFrame(); });
     m_deleteShortFramesAction =
         editMenu->addAction(tr("Delete Frames &Shorter Than..."));
     m_deleteShortFramesAction->setToolTip(
@@ -8807,6 +8816,40 @@ void MainWindow::selectFrameNear(std::size_t frameIndex)
     m_frameList->scrollToItem(m_frameList->item(row), QAbstractItemView::PositionAtCenter);
 }
 
+void MainWindow::addSourceFrame()
+{
+    const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    if (!m_document || !frameIndex) {
+        return;
+    }
+    std::string problem;
+    std::optional<document::IndexedFrame> original =
+        edit::sourceFrameFromColors(*m_document, *frameIndex, &problem);
+    if (!original) {
+        QMessageBox::information(
+            this, tr("New Frame From Original Colors"),
+            tr("Frame %1 cannot become an original frame: %2.\n\nPaint its picture in the "
+               "plain original colors only (the %3 colors of an uncolorized frame), on the "
+               "plane of the original frames.")
+                .arg(static_cast<qulonglong>(*frameIndex))
+                .arg(QString::fromStdString(problem))
+                .arg(m_document->colorCount()));
+        return;
+    }
+    try {
+        std::vector<document::FrameRecord> frames;
+        frames.push_back(m_document->makeUncolorizedFrame(std::move(*original),
+                                                          edit::kSourceFrameDurationMs));
+        recordStructureEdit(edit::addFrames(*m_document, std::move(frames)));
+        showStructureEditStatus(tr("Added frame %1 with the picture of frame %2 as its original")
+                                    .arg(static_cast<qulonglong>(m_document->frameCount() - 1))
+                                    .arg(static_cast<qulonglong>(*frameIndex)),
+                                4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::updateStructureControls()
 {
     const bool hasDocument = m_document.has_value();
@@ -8814,6 +8857,9 @@ void MainWindow::updateStructureControls()
         hasDocument && m_document->frameCount() > 1 && !selectedFrameIndices().empty();
     if (m_deleteFramesAction) {
         m_deleteFramesAction->setEnabled(canDeleteFrames);
+    }
+    if (m_sourceFrameAction) {
+        m_sourceFrameAction->setEnabled(hasDocument && currentFrameIndex().has_value());
     }
     if (m_deleteFramesListAction) {
         m_deleteFramesListAction->setEnabled(canDeleteFrames);

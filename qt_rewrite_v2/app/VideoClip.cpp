@@ -383,7 +383,7 @@ bool VideoClip::isAvailable(QString* why)
 
 bool VideoClip::open(const QString&, QString* error)
 {
-    isAvailable(error);
+    (void)isAvailable(error);
     return false;
 }
 

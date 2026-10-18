@@ -19,6 +19,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/SameFrames.cpp
     edit/SpriteClipboard.cpp
     edit/ScrollFill.cpp
+    edit/SourceFrame.cpp
     edit/Sections.cpp
     edit/StateCommands.cpp
     edit/StructureCommand.cpp

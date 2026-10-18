@@ -2766,6 +2766,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>La frame originale, l&apos;image 128x32 et l&apos;image 256x64, l&apos;une au-dessus de l&apos;autre</translation>
     </message>
     <message>
+        <source>New &amp;Frame From Original Colors</source>
+        <translation>Nouvelle frame depuis les couleurs &amp;originales</translation>
+    </message>
+    <message>
+        <source>Add a frame whose original is the current frame&apos;s picture, painted in the plain original colors only (&quot;To Source Frame&quot; in the Win32 editor)</source>
+        <translation>Ajouter une frame dont l&apos;originale est l&apos;image de la frame courante, peinte uniquement dans les couleurs originales simples (&quot;To Source Frame&quot; dans l&apos;éditeur Win32)</translation>
+    </message>
+    <message>
         <source>Editing the frame</source>
         <translation>Modification de la frame</translation>
     </message>
@@ -4028,6 +4036,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>
         <translation>%1 (l&apos;annulation garde au plus %2 Mo d&apos;enregistrements supprimés : les %3 plus anciennes étapes d&apos;ajout ou de suppression ne peuvent plus être annulées)</translation>
+    </message>
+    <message>
+        <source>New Frame From Original Colors</source>
+        <translation>Nouvelle frame depuis les couleurs originales</translation>
+    </message>
+    <message>
+        <source>Frame %1 cannot become an original frame: %2.
+
+Paint its picture in the plain original colors only (the %3 colors of an uncolorized frame), on the plane of the original frames.</source>
+        <translation>La frame %1 ne peut pas devenir une frame originale : %2.
+
+Peignez son image uniquement dans les couleurs originales simples (les %3 couleurs d&apos;une frame non colorisée), sur le plan des frames originales.</translation>
+    </message>
+    <message>
+        <source>Added frame %1 with the picture of frame %2 as its original</source>
+        <translation>Frame %1 ajoutée avec l&apos;image de la frame %2 comme originale</translation>
     </message>
     <message>
         <source>Undo failed, the step stays in the history: %1</source>

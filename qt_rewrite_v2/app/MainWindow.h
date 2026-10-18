@@ -377,6 +377,8 @@ private:
     // Adding and deleting records, see edit::StructureCommand. The delete functions ask
     // before they delete.
     void deleteSelectedFrames();
+    // Edit -> New Frame From Original Colors (Win32 "To Source Frame").
+    void addSourceFrame();
     // Asks for the duration and deletes the selected frames that are shorter.
     void deleteSelectedFramesShorterThan();
     // note: what chose the frames, for the question; empty for the selection itself.
@@ -499,6 +501,7 @@ private:
     QAction* m_saveAction = nullptr;
     QAction* m_addFramesFromDumpAction = nullptr;
     QAction* m_deleteFramesAction = nullptr;
+    QAction* m_sourceFrameAction = nullptr;
     // The same in the frame list's menu, with the Delete and Backspace keys.
     QAction* m_deleteFramesListAction = nullptr;
     QAction* m_deleteShortFramesAction = nullptr;

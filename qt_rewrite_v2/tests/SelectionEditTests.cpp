@@ -4,6 +4,8 @@
 #include "edit/PlaneSelection.h"
 #include "edit/RecolorHelpers.h"
 #include "edit/ScrollFill.h"
+#include "edit/SourceFrame.h"
+#include "edit/StructureCommand.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -826,6 +828,45 @@ void testScrollFillSelectedPart()
     }
 }
 
+// Edit -> New Frame From Original Colors (Win32 "To Source Frame").
+void testSourceFrame()
+{
+    const Size rom{128, 32};
+    const ProjectGeometry geometry(PlaneLayout::Ordinary);
+    ProjectSnapshot snapshot;
+    snapshot.romName = "source";
+    snapshot.colorCount = 4;
+    snapshot.geometry = geometry;
+    snapshot.frames.push_back(
+        document::makeUncolorizedFrameSnapshot(geometry, 4, patterned(rom, 2), 30));
+    snapshot.palettes.assign(document::kPaletteCount,
+                             document::PaletteRecord{std::vector<uint16_t>(64, 0), ""});
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    std::string problem;
+    std::optional<document::IndexedFrame> original =
+        edit::sourceFrameFromColors(document, 0, &problem);
+    expect(original && original->pixels == patterned(rom, 2).pixels,
+           "an uncolorized frame gives back its own original");
+    // Painting with the original colors makes another picture: a fake frame.
+    const std::vector<uint16_t> colors = document::plainOriginalColors(4);
+    document.setColorizedPixel(0, Resolution::Sd, 7, 3, colors[3]);
+    original = edit::sourceFrameFromColors(document, 0, &problem);
+    expect(original && original->pixels[at(rom, 7, 3)] == 3, "a pixel painted in shade 3");
+    document.setColorizedPixel(0, Resolution::Sd, 9, 4, 0x1234);
+    expect(!edit::sourceFrameFromColors(document, 0, &problem) &&
+               problem.find("9,4") != std::string::npos,
+           "another color is refused, naming the pixel");
+    document.setColorizedPixel(0, Resolution::Sd, 9, 4, colors[0]);
+    original = edit::sourceFrameFromColors(document, 0, &problem);
+    std::vector<document::FrameRecord> frames;
+    frames.push_back(document.makeUncolorizedFrame(*original, edit::kSourceFrameDurationMs));
+    std::unique_ptr<edit::StructureCommand> added = edit::addFrames(document, std::move(frames));
+    expect(added && document.frameCount() == 2 &&
+               document.originalFrame(1).pixels[at(rom, 7, 3)] == 3 &&
+               document.frameDurationMs(1) == 100,
+           "it is added behind the last frame, 100 ms, as in the Win32 editor");
+}
+
 void testRecolorHelpers()
 {
     for (PlaneLayout layout :
@@ -1001,6 +1042,7 @@ void runSelectionEditTests()
     testAutoCopy();
     testScrollFill();
     testScrollFillSelectedPart();
+    testSourceFrame();
     testRecolorHelpers();
     testMoreHelpers();
 }

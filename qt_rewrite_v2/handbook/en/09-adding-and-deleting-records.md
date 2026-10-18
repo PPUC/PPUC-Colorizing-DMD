@@ -11,6 +11,7 @@ Where:
 | Delete the selected frames | `Edit -> Delete Frames...`; the frame list's context menu; `Delete` or `Backspace` in the frame list |
 | Delete the selected frames that are shorter than N ms | `Edit -> Delete Frames Shorter Than...`; the frame list's context menu |
 | Add the frames of a dump | `File -> Add Frames From Dump...`, see "Adding Frames From A Dump" |
+| Add a frame painted in the original colors ("fake frame") | `Edit -> New Frame From Original Colors`, see below |
 | Delete frames that are the same as others | the `Comparison Mask` section of the Inspector, see "Same Frames And Common Pixels" |
 | New comparison mask, delete the selected one | `New` and `Delete` above the list on the `Comparison Masks` section of the left browser |
 | New background from the current frame, delete the selected one | `New` and `Delete` on the `Backgrounds` section |
@@ -33,6 +34,18 @@ was the last). Restored frames are all selected. The frame filter stays as it is
 that would be selected is filtered out, the next listed frame is. Playback stops, a canvas
 selection and a pending free gradient are dropped, and after a change of the frames the sprite
 capture selection as well.
+
+## A frame painted in the original colors
+
+`Edit -> New Frame From Original Colors` (the Win32 editor's `To Source Frame`) adds a frame no
+dump has: a "fake frame", for instance for a sprite, a detection area, a dynamic sequence or a
+background. Paint the current frame's picture in the plain original colors only (the 4 or 16
+colors an uncolorized frame shows, which a new project also has as its edit colors), on the
+plane of the original frames (SD in a project with an extra 256x64 plane). The command reads
+that picture back as an original frame, each pixel the shade of its color, and adds it behind
+the last frame, uncolorized and shown for 100 ms, as the Win32 editor does. The current frame
+keeps its picture; undo removes the new frame again. If a pixel has another color, nothing is
+added and a message names the first such pixel.
 
 ## Moving frames
 

@@ -1069,8 +1069,11 @@ owner together.
   palette color, edit color into a palette color), the composed-color pipette and the pipette
   writing into the selected edit color.
 - Black and white of the whole project (CDMD `IDC_BAW`, not undoable there; its rotation loop
-  also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness,
-  Dyn>Stat and "to source frame" are done.
+  also greys the length and delay values of slots 1 to 3). Shadow, grow selection, brightness
+  and Dyn>Stat are done. "To source frame" (IDC_CFTOOF) was listed as done here by mistake;
+  it came with issue #11 (2026-10-18): `Edit -> New Frame From Original Colors`,
+  `edit::sourceFrameFromColors` (plain original colors -> shades, first shade of a color),
+  appended via `addFrames`, 100 ms.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification
