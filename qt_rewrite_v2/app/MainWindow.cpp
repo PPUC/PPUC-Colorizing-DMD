@@ -2244,6 +2244,8 @@ bool MainWindow::saveProjectAs()
         }
         rememberRecentProject(m_currentCromPath, m_currentCrpPath);
         updateWindowTitle();
+        // Another folder may have another pup.csv.
+        updateRuntimeSceneFile();
         statusBar()->showMessage(untitled ? tr("Project saved as %1")
                                                 .arg(targetCromInfo.fileName())
                                           : tr("Project saved as copy"),
@@ -2328,6 +2330,7 @@ void MainWindow::newProjectFromDump()
         m_currentCrpPath.clear();
         m_undoHistories.clear();
         startProjectClock();
+        updateRuntimeSceneFile();
         m_pasteMode.clearClipboard();
         updateUndoRedoActions();
         if (m_saveAction) {
@@ -3172,6 +3175,7 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
         }
         m_undoHistories.clear();
         startProjectClock();
+        updateRuntimeSceneFile();
         m_pasteMode.clearClipboard();
         updateUndoRedoActions();
         if (m_saveAction) {
@@ -8831,6 +8835,21 @@ void MainWindow::selectFrameNear(std::size_t frameIndex)
     selectSingleRow(*m_frameList, row);
     // A rebuilt list starts at the top; the frame is shown, also when its row was current.
     m_frameList->scrollToItem(m_frameList->item(row), QAbstractItemView::PositionAtCenter);
+}
+
+void MainWindow::updateRuntimeSceneFile()
+{
+    // The <rom>.pup.csv beside the project, as the .cROMc export takes it: the Runtime view and
+    // the frame tester then play its scenes (background scenes too) as a machine does.
+    std::string sceneFile;
+    if (m_document && !isUntitledProject()) {
+        const QString directory = QFileInfo(m_currentCromPath).absolutePath();
+        if (const std::optional<std::filesystem::path> csv = runtime::findCaseInsensitive(
+                platform::pathFromUtf8(directory.toStdString()), m_document->romName() + ".pup.csv")) {
+            sceneFile = runtime::libserumPath(*csv).value_or(std::string());
+        }
+    }
+    runtime::RuntimePreview::instance().setSceneFile(sceneFile);
 }
 
 void MainWindow::startProjectClock()

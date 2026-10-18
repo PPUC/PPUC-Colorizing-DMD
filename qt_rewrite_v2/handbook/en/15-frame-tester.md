@@ -34,5 +34,8 @@ in the editor, saved or not.
   holds the project's `.cROM` in memory while it is open (400 MB for `smb3`); loading it takes
   about a second.
 
+Scenes of the project's `<rom>.pup.csv`, background scenes too, play as on a machine (see
+"Runtime View").
+
 Not there: output to a real DMD (ZeDMD, see `View -> Output To DMD`). PuP packs play in their own
 window, see "PuP Tester".

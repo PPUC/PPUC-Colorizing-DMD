@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -8,6 +9,15 @@
 #include "legacy/LegacyProjectIo.h"
 
 namespace colorizing::runtime {
+
+// The file of the folder with that name in any case, as libserum looks for its sidecars
+// ("<rom>.pup.csv", "scaling.txt"); nothing without one.
+[[nodiscard]] std::optional<std::filesystem::path> findCaseInsensitive(
+    const std::filesystem::path& directory,
+    const std::string& name);
+// A path as libserum's char paths take it: on Windows in the ANSI code page, by its short name
+// for other characters; nothing if it cannot be given. The file or folder must exist.
+[[nodiscard]] std::optional<std::string> libserumPath(const std::filesystem::path& path);
 
 struct CromcExportResult {
     bool ok = false;

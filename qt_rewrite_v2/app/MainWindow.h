@@ -381,6 +381,8 @@ private:
     void deleteSelectedFrames();
     // The project's time from its stored total on (a project was opened or created).
     void startProjectClock();
+    // Hands the project's <rom>.pup.csv, if it has one, to the Runtime view and frame tester.
+    void updateRuntimeSceneFile();
     // The stored total and the time since the project was opened, in ms.
     [[nodiscard]] uint32_t projectTimeMs() const;
     void updateTimeLabel();

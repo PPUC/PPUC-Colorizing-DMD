@@ -228,6 +228,8 @@ RuntimeSubset buildRuntimeSubset(const document::ProjectDocument& document,
 
 struct RuntimePreview::Impl {
     Serum_Frame_Struc* serum = nullptr;
+    // See setSceneFile().
+    std::string sceneFile;
     std::size_t frameCount = 0;
     // Loaded frame ID -> document frame; empty for a cROM opened as it is.
     std::vector<std::size_t> frameMap;
@@ -283,8 +285,9 @@ bool RuntimePreview::Impl::load(const std::vector<uint8_t>& crom,
 
     std::vector<std::string> log;
     Serum_SetLogCallback(logLine, &log);
-    serum = Serum_LoadFromMemory(crom.data(), crom.size(),
-                                 requestFlags(effectivePlaneRequest(geometry, request)));
+    serum = Serum_LoadFromMemoryWithScenes(
+        crom.data(), crom.size(), sceneFile.empty() ? nullptr : sceneFile.c_str(),
+        requestFlags(effectivePlaneRequest(geometry, request)));
     const char* lastError = Serum_GetLastErrorMessage();
     std::string message = lastError ? lastError : "";
     Serum_SetLogCallback(nullptr, nullptr);
@@ -684,6 +687,16 @@ RuntimeFrame RuntimePreview::rotate()
     frame.triggerId = document::kNoTriggerId;
     frame.cost = RuntimeCost{};
     return frame;
+}
+
+void RuntimePreview::setSceneFile(const std::string& path)
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_impl->sceneFile == path) {
+        return;
+    }
+    m_impl->unload();
+    m_impl->sceneFile = path;
 }
 
 void RuntimePreview::close()

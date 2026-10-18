@@ -104,10 +104,15 @@ Limits of that:
   earlier frame that was differs between a window and a machine that has played the whole
   project. The 32-row plane was identical in every played frame.
 
+Scenes: the `<rom>.pup.csv` beside the project (its name in any case, as libserum looks for it)
+is read with the cROM, as on a machine, so the scenes it defines play here and in the frame
+tester, background scenes too. It is read again when the project is opened or saved under
+another name; a project not saved yet has none.
+
 What the view does not show:
 
-- Scenes from a `.pup.csv` and the settings of a `scaling.txt`: only the cROM is loaded, so the
-  64-row plane uses libserum's default upscaling (Scale2x) and shadow offset.
+- The settings of a `scaling.txt`: only the cROM is loaded, so the 64-row plane uses libserum's
+  default upscaling (Scale2x) and shadow offset.
 - Triggers, and what a trigger does on a machine. A frame with `Switch mono` is shown colorized.
 
 What the editing canvas shows, by comparison: it is the editor's own rendering of the layers

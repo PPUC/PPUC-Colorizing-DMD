@@ -195,6 +195,11 @@ public:
     // (nextRotationMs after the previous result) and libserum which colours move.
     [[nodiscard]] RuntimeFrame rotate();
     void close();
+    // The project's <rom>.pup.csv as libserum takes the path (libserumPath()), or empty for
+    // none. Every load reads its scenes, as libserum reads a pup.csv beside a cROM on a
+    // machine (Serum_LoadFromMemoryWithScenes), so background scenes show. A change closes
+    // what is loaded; the next open loads with it.
+    void setSceneFile(const std::string& path);
 
 private:
     RuntimePreview();

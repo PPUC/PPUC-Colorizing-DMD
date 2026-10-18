@@ -35,59 +35,6 @@ std::string lower(std::string text)
     return text;
 }
 
-std::optional<fs::path> findCaseInsensitive(const fs::path& directory, const std::string& name)
-{
-    std::error_code error;
-    if (directory.empty() || !fs::is_directory(directory, error)) {
-        return std::nullopt;
-    }
-    const std::string wanted = lower(name);
-    for (const fs::directory_entry& entry : fs::directory_iterator(directory, error)) {
-        if (entry.is_regular_file(error) &&
-            lower(platform::utf8FromPath(entry.path().filename())) == wanted) {
-            return entry.path();
-        }
-    }
-    return std::nullopt;
-}
-
-// The folder as libserum's char paths take it, or nothing if it cannot take it. On Windows
-// those paths are in the ANSI code page: a folder with other characters (a user name in the
-// temp path) is given by its short name, and without one (volumes can have short names off)
-// it cannot be used. The folder must exist.
-std::optional<std::string> libserumPath(const fs::path& directory)
-{
-#ifdef _WIN32
-    std::wstring wide = directory.wstring();
-    const DWORD length = GetShortPathNameW(wide.c_str(), nullptr, 0);
-    if (length > 0) {
-        std::wstring shortPath(length, L'\0');
-        const DWORD written = GetShortPathNameW(wide.c_str(), shortPath.data(), length);
-        if (written > 0 && written < length) {
-            shortPath.resize(written);
-            wide = shortPath;
-        }
-    }
-    // With UTF-8 as the system code page every name can be given, and Windows refuses the
-    // "lossy" check for it.
-    const bool utf8 = GetACP() == CP_UTF8;
-    const DWORD flags = utf8 ? 0 : WC_NO_BEST_FIT_CHARS;
-    BOOL lossy = FALSE;
-    const int bytes = WideCharToMultiByte(CP_ACP, flags, wide.c_str(),
-                                          static_cast<int>(wide.size()), nullptr, 0, nullptr,
-                                          utf8 ? nullptr : &lossy);
-    if (bytes <= 0 || lossy) {
-        return std::nullopt;
-    }
-    std::string narrow(static_cast<std::size_t>(bytes), '\0');
-    WideCharToMultiByte(CP_ACP, flags, wide.c_str(), static_cast<int>(wide.size()),
-                        narrow.data(), bytes, nullptr, nullptr);
-    return narrow;
-#else
-    return platform::utf8FromPath(directory);
-#endif
-}
-
 // Where libserum can work: the folder asked for, or on Windows, when libserum cannot open that
 // one, a folder of the same name in %ProgramData%\ColorizingDMD (ASCII, and users may create
 // folders there). Created empty; the error says why none could be used.
@@ -125,6 +72,61 @@ void logLine(const char* format, va_list args, const void* userData)
 }
 
 }  // namespace
+
+std::optional<std::filesystem::path> findCaseInsensitive(const std::filesystem::path& directory,
+                                                         const std::string& name)
+{
+    std::error_code error;
+    if (directory.empty() || !fs::is_directory(directory, error)) {
+        return std::nullopt;
+    }
+    const std::string wanted = lower(name);
+    for (const fs::directory_entry& entry : fs::directory_iterator(directory, error)) {
+        if (entry.is_regular_file(error) &&
+            lower(platform::utf8FromPath(entry.path().filename())) == wanted) {
+            return entry.path();
+        }
+    }
+    return std::nullopt;
+}
+
+// The path as libserum's char paths take it, or nothing if it cannot take it. On Windows
+// those paths are in the ANSI code page: a folder with other characters (a user name in the
+// temp path) is given by its short name, and without one (volumes can have short names off)
+// it cannot be used. The file or folder must exist.
+std::optional<std::string> libserumPath(const std::filesystem::path& directory)
+{
+#ifdef _WIN32
+    std::wstring wide = directory.wstring();
+    const DWORD length = GetShortPathNameW(wide.c_str(), nullptr, 0);
+    if (length > 0) {
+        std::wstring shortPath(length, L'\0');
+        const DWORD written = GetShortPathNameW(wide.c_str(), shortPath.data(), length);
+        if (written > 0 && written < length) {
+            shortPath.resize(written);
+            wide = shortPath;
+        }
+    }
+    // With UTF-8 as the system code page every name can be given, and Windows refuses the
+    // "lossy" check for it.
+    const bool utf8 = GetACP() == CP_UTF8;
+    const DWORD flags = utf8 ? 0 : WC_NO_BEST_FIT_CHARS;
+    BOOL lossy = FALSE;
+    const int bytes = WideCharToMultiByte(CP_ACP, flags, wide.c_str(),
+                                          static_cast<int>(wide.size()), nullptr, 0, nullptr,
+                                          utf8 ? nullptr : &lossy);
+    if (bytes <= 0 || lossy) {
+        return std::nullopt;
+    }
+    std::string narrow(static_cast<std::size_t>(bytes), '\0');
+    WideCharToMultiByte(CP_ACP, flags, wide.c_str(), static_cast<int>(wide.size()),
+                        narrow.data(), bytes, nullptr, nullptr);
+    return narrow;
+#else
+    return platform::utf8FromPath(directory);
+#endif
+}
+
 
 CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
                               const fs::path& workDirectory,

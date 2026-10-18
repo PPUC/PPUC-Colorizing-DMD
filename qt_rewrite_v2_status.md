@@ -1092,6 +1092,16 @@ owner together.
   moves the current frame (`FrameListWidget::selectionCommand` -> NoUpdate); selecting works
   in the Dynamic and BG modes (`canEditSelection`: all layers but ComparisonMask); the Shape box
   (also the Sel tool's) is enabled without a selected palette.
+- Frame tester / Runtime view without scenes (owner report 2026-10-18): `Serum_LoadFromMemory`
+  reads no pup.csv, and scenes must be parsed before `FinishColorizationLoad` builds the
+  scene lookups (`BuildFrameLookupVectors`), so parsing afterwards was no option. libserum
+  351885a (local, to be pushed; CI pin moved to it) adds `Serum_LoadFromMemoryWithScenes(crom,
+  size, csvPath, flags)` in Serum_Load's order (parse, setDepth, Finish with
+  sceneDataUpdatedFromCsv), with a unit test (memory+csv == folder load with pup.csv) and
+  AGENTS.md. Editor: `RuntimePreview::setSceneFile` (under the lock, unloads on change),
+  `MainWindow::updateRuntimeSceneFile()` at open/create/Save As with the project folder's
+  `<rom>.pup.csv` (`runtime::findCaseInsensitive`, `libserumPath`, now public in
+  CromcExport.h). Checked on hook_501: scene 50001 absent before, present (16 frames, 40 ms).
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification
