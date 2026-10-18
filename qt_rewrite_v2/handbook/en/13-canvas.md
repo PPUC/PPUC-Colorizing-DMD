@@ -63,6 +63,12 @@ is on, counted from 0 at the top left. While dragging (a shape, a selection) it 
 drag started and the size of the dragged area, `| from 30, 10: 5x3`. So a place can be measured,
 and found again on another frame.
 
+Beside it, `Time: Project 113:19:06 / Session 00:00:19` counts the time spent on the project and
+in this session, as the Win32 editor does: the time the project is open, whether or not anything
+is done meanwhile. The project time is saved with the project (in the `.cRPX`, also by the
+autosave) and goes on from there the next time it is opened; a project made from a dump starts
+at 0. Counting does not mark the project as changed.
+
 The left sidebar is the visual component browser (the frames run along the bottom of the window,
 see "Frame List"). `Used by the current frame` above its lists shows only the comparison mask,
 the background and the sprites the current frame uses, and follows the current frame once it has

@@ -377,6 +377,11 @@ private:
     // Adding and deleting records, see edit::StructureCommand. The delete functions ask
     // before they delete.
     void deleteSelectedFrames();
+    // The project's time from its stored total on (a project was opened or created).
+    void startProjectClock();
+    // The stored total and the time since the project was opened, in ms.
+    [[nodiscard]] uint32_t projectTimeMs() const;
+    void updateTimeLabel();
     // Edit -> New Frame From Original Colors (Win32 "To Source Frame").
     void addSourceFrame();
     // Asks for the duration and deletes the selected frames that are shorter.
@@ -652,6 +657,12 @@ private:
     QMenu* m_pluginsMenu = nullptr;
     // The status bar's pixel under the mouse on the canvas (and the dragged area).
     QLabel* m_positionLabel = nullptr;
+    // The time spent on the project (the cRP's TimeElapsed, as the Win32 editor counts it:
+    // the time a project is open) and in this session, shown in the status bar.
+    QLabel* m_timeLabel = nullptr;
+    QTimer m_clockTimer;
+    QElapsedTimer m_sessionClock;
+    uint32_t m_projectTimeAtOpenMs = 0;
     // The last pixel the mouse pointed at on the canvas, where a new helper line goes.
     std::optional<render::CanvasHit> m_lastCanvasHit;
     // The Helper Lines section (HelperLine.h): changed through edit::setHelperLines.

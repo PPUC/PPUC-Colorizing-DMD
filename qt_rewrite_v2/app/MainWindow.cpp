@@ -516,6 +516,13 @@ MainWindow::MainWindow(QWidget* parent)
         tr("The pixel under the mouse on the canvas: on the original or the colorized frame, "
            "in that frame's pixels; while dragging also the size of the dragged area"));
     statusBar()->addPermanentWidget(m_positionLabel);
+    m_timeLabel = new QLabel(this);
+    m_timeLabel->setToolTip(
+        tr("Time spent on the project (saved with it, counted while it is open, as in the "
+           "Win32 editor) and in this session"));
+    statusBar()->addPermanentWidget(m_timeLabel);
+    m_clockTimer.setInterval(1000);
+    connect(&m_clockTimer, &QTimer::timeout, this, &MainWindow::updateTimeLabel);
     m_preview->setHelperLineMoveHandler([this](std::size_t index, uint32_t position, bool finished) {
         if (!m_document || index >= m_document->helperLines().size()) {
             return;
@@ -2144,7 +2151,10 @@ bool MainWindow::saveProject()
     };
     legacy::LegacySaveResult result;
     {
-        const document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        // The time spent on it goes into the file, not into the project: counting does not
+        // change the project.
+        snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
             runProjectTask(this, tr("Saving Project"), progress, [&]() {
@@ -2314,6 +2324,7 @@ void MainWindow::newProjectFromDump()
         m_currentCromPath.clear();
         m_currentCrpPath.clear();
         m_undoHistories.clear();
+        startProjectClock();
         m_pasteMode.clearClipboard();
         updateUndoRedoActions();
         if (m_saveAction) {
@@ -3157,6 +3168,7 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
             m_document->markUnsaved();
         }
         m_undoHistories.clear();
+        startProjectClock();
         m_pasteMode.clearClipboard();
         updateUndoRedoActions();
         if (m_saveAction) {
@@ -3195,6 +3207,7 @@ std::optional<Autosaver::Job> MainWindow::autosaveJob()
     }
     job.revision = m_document->revision();
     job.snapshot = m_document->toSnapshot();
+    job.snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
     return job;
 }
 
@@ -8814,6 +8827,46 @@ void MainWindow::selectFrameNear(std::size_t frameIndex)
     selectSingleRow(*m_frameList, row);
     // A rebuilt list starts at the top; the frame is shown, also when its row was current.
     m_frameList->scrollToItem(m_frameList->item(row), QAbstractItemView::PositionAtCenter);
+}
+
+void MainWindow::startProjectClock()
+{
+    m_projectTimeAtOpenMs = m_document ? m_document->editorMetadata().timeElapsedMs : 0;
+    m_sessionClock.restart();
+    m_clockTimer.start();
+    updateTimeLabel();
+}
+
+uint32_t MainWindow::projectTimeMs() const
+{
+    if (!m_sessionClock.isValid()) {
+        return m_projectTimeAtOpenMs;
+    }
+    // The cRP stores it in 32 bits (Win32 DWORD).
+    const uint64_t total = uint64_t{m_projectTimeAtOpenMs} +
+                           static_cast<uint64_t>(m_sessionClock.elapsed());
+    return static_cast<uint32_t>(std::min<uint64_t>(total, 0xffffffffu));
+}
+
+void MainWindow::updateTimeLabel()
+{
+    if (!m_timeLabel) {
+        return;
+    }
+    if (!m_document) {
+        m_timeLabel->clear();
+        return;
+    }
+    const auto clock = [](uint64_t ms) {
+        const uint64_t seconds = ms / 1000;
+        return QStringLiteral("%1:%2:%3")
+            .arg(seconds / 3600, 2, 10, QLatin1Char('0'))
+            .arg((seconds / 60) % 60, 2, 10, QLatin1Char('0'))
+            .arg(seconds % 60, 2, 10, QLatin1Char('0'));
+    };
+    m_timeLabel->setText(tr("Time: Project %1 / Session %2")
+                             .arg(clock(projectTimeMs()),
+                                  clock(static_cast<uint64_t>(m_sessionClock.elapsed()))));
 }
 
 void MainWindow::addSourceFrame()

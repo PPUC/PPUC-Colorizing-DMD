@@ -1993,6 +1993,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>, %1 ignorée(s)</translation>
     </message>
     <message>
+        <source>Time spent on the project (saved with it, counted while it is open, as in the Win32 editor) and in this session</source>
+        <translation>Temps passé sur le projet (enregistré avec lui, compté tant qu&apos;il est ouvert, comme dans l&apos;éditeur Win32) et dans cette session</translation>
+    </message>
+    <message>
         <source>No project loaded</source>
         <translation>Aucun projet chargé</translation>
     </message>
@@ -4036,6 +4040,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>
         <translation>%1 (l&apos;annulation garde au plus %2 Mo d&apos;enregistrements supprimés : les %3 plus anciennes étapes d&apos;ajout ou de suppression ne peuvent plus être annulées)</translation>
+    </message>
+    <message>
+        <source>Time: Project %1 / Session %2</source>
+        <translation>Temps : projet %1 / session %2</translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>

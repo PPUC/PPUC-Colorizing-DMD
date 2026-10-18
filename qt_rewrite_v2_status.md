@@ -1074,6 +1074,11 @@ owner together.
   it came with issue #11 (2026-10-18): `Edit -> New Frame From Original Colors`,
   `edit::sourceFrameFromColors` (plain original colors -> shades, first shade of a color),
   appended via `addFrames`, 100 ms.
+- Project time clock (issue #9, 2026-10-18): status bar `Time: Project / Session` as in Win32
+  (wall-clock while the project is open, Win32 InitFileTimer/InitSessionTimer);
+  `startProjectClock()` at open/create, `projectTimeMs()` (stored `timeElapsedMs` + session,
+  capped to 32 bits) written into the saved and autosaved snapshot only, so counting never
+  dirties the document.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

@@ -108,7 +108,8 @@ Save behavior:
   under it is still written as 0, and is black on a machine wherever no SD dynamic zone covers
   it. The Runtime view shows that; the editing canvas shows the painted color.
 - Editor metadata the app does not expose yet (color sets, mask names, sprite source
-  frames, image crop presets, imported palettes, project time, PuP pack) is carried through.
+  frames, image crop presets, imported palettes, PuP pack) is carried through. The project time
+  is written as counted so far (see "Canvas").
   The PuP pack name is kept in UTF-8 in the `.cRPX`, so any name survives on every system; read
   from a Win32 editor's `.cRP`, where it is UTF-16, it is converted.
   Deleting frames, sprites and comparison masks keeps the parts of it that are numbered by

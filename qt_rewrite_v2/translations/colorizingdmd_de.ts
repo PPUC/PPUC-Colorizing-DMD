@@ -1993,6 +1993,10 @@ Use Create %1 Frame.</source>
         <translation>, %1 übersprungen</translation>
     </message>
     <message>
+        <source>Time spent on the project (saved with it, counted while it is open, as in the Win32 editor) and in this session</source>
+        <translation>Zeit, die in das Projekt geflossen ist (wird mit ihm gespeichert und gezählt, solange es geöffnet ist, wie im Win32-Editor), und in dieser Sitzung</translation>
+    </message>
+    <message>
         <source>No project loaded</source>
         <translation>Kein Projekt geladen</translation>
     </message>
@@ -4036,6 +4040,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>
         <translation>%1 (Rückgängig behält höchstens %2 MB gelöschter Datensätze: Die %3 ältesten Hinzufügen- oder Löschschritte können nicht mehr rückgängig gemacht werden)</translation>
+    </message>
+    <message>
+        <source>Time: Project %1 / Session %2</source>
+        <translation>Zeit: Projekt %1 / Sitzung %2</translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>
