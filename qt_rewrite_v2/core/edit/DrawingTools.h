@@ -125,6 +125,12 @@ using PixelColorSource = std::function<uint16_t(render::Point)>;
     const document::ProjectDocument& document,
     std::size_t frameIndex,
     render::Resolution plane);
+// The same with the plain original colors (plainOriginalColors()) instead of the edit colors:
+// the color an uncolorized frame shows there. Painting with it gives pixels back their
+// original look (drawing on the frame with Shift).
+[[nodiscard]] PixelColorSource originalColorSource(const document::ProjectDocument& document,
+                                                   std::size_t frameIndex,
+                                                   render::Resolution plane);
 
 // One change per distinct point, in first-occurrence order, with the old value read from the
 // document; points that already have the new value are skipped. Points outside the layer throw

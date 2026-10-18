@@ -351,6 +351,28 @@ PixelColorSource colorSetReplaceColorSource(const document::ProjectDocument& doc
     };
 }
 
+PixelColorSource originalColorSource(const document::ProjectDocument& document,
+                                     std::size_t frameIndex,
+                                     render::Resolution plane)
+{
+    const document::IndexedFrame& original = document.originalFrame(frameIndex);
+    const render::ProjectGeometry geometry = document.geometry();
+    static_cast<void>(geometry.planeScale(plane));
+    return [&original, geometry, plane,
+            colors = document::plainOriginalColors(document.colorCount())](render::Point point) {
+        const render::Point rom = geometry.toRomFrame(plane, point);
+        if (point.x < 0 || point.y < 0 || rom.x >= original.size.width ||
+            rom.y >= original.size.height) {
+            throw std::out_of_range("pixel outside the frame");
+        }
+        const uint8_t shade =
+            original.pixels[static_cast<std::size_t>(rom.y) *
+                                static_cast<std::size_t>(original.size.width) +
+                            static_cast<std::size_t>(rom.x)];
+        return colors[std::min<std::size_t>(shade, colors.size() - 1)];
+    };
+}
+
 std::vector<PixelChange> makePixelChanges(const document::ProjectDocument& document,
                                           const EditLayer& layer,
                                           const std::vector<render::Point>& points,

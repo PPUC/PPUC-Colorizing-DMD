@@ -204,12 +204,14 @@ void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& contex
     if (tool == DrawingTool::ColorPicker) {
         pickFrameColor(context, hit, erase);
     } else if (tool == DrawingTool::FloodFill) {
-        floodFillFrame(context, hit);
+        floodFillFrame(context, hit, erase);
     } else if (tool == DrawingTool::Point) {
         commitFramePixels(context,
                           hit.resolution,
                           {point},
-                          tr("Painted pixel at %1,%2").arg(hit.x).arg(hit.y));
+                          erase ? tr("Restored the original color at %1,%2").arg(hit.x).arg(hit.y)
+                                : tr("Painted pixel at %1,%2").arg(hit.x).arg(hit.y),
+                          erase);
     }
 }
 
@@ -339,10 +341,13 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         previewFreeGradientDirection(context, start, end);
         return;
     }
+    // With Shift the frame's pixels get their original color back: shown in amber.
     showPreview(render::CanvasRegion::ColorizedFrame,
                 start.resolution,
                 strokePixels(context, start, end),
-                translucentDrawColor(context, 150));
+                erase && context.layer == CanvasEditLayer::FramePixels
+                    ? QColor(255, 190, 40, 150)
+                    : translucentDrawColor(context, 150));
 }
 
 void CanvasEditController::strokeFinished(const CanvasEditContext& context,
@@ -451,7 +456,9 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
             commitFramePixels(context,
                               start.resolution,
                               strokePixels(context, start, end),
-                              statusText);
+                              erase ? shapeStatusText(tool, tr("Restored the original colors of %1"))
+                                    : statusText,
+                              erase);
         }
         return;
     }
@@ -568,7 +575,8 @@ void CanvasEditController::pickedColor(uint16_t color,
 }
 
 void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
-                                          const render::CanvasHit& hit)
+                                          const render::CanvasHit& hit,
+                                          bool restore)
 {
     if (!context.document || !context.currentFrame) {
         return;
@@ -579,7 +587,7 @@ void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
             context.document->colorizedFrame(frameIndex, hit.resolution);
         const uint16_t targetColor =
             context.document->colorizedPixel(frameIndex, hit.resolution, hit.x, hit.y);
-        if (targetColor == context.drawColor &&
+        if (!restore && targetColor == context.drawColor &&
             context.drawColorMode == edit::DrawColorMode::SingleColor) {
             return;
         }
@@ -593,7 +601,9 @@ void CanvasEditController::floodFillFrame(const CanvasEditContext& context,
                                                   frame.size,
                                                   render::Point{hit.x, hit.y},
                                                   targetColor),
-                          tr("Flood filled area"));
+                          restore ? tr("Restored the original colors of the area")
+                                  : tr("Flood filled area"),
+                          restore);
     } catch (const std::exception& ex) {
         showError(ex);
     }
@@ -1444,8 +1454,21 @@ edit::PixelColorSource CanvasEditController::gradientColorSource(
 void CanvasEditController::commitFramePixels(const CanvasEditContext& context,
                                              render::Resolution resolution,
                                              const std::vector<render::Point>& pixels,
-                                             const QString& statusText)
+                                             const QString& statusText,
+                                             bool restore)
 {
+    if (restore && context.document) {
+        const document::ProjectDocument& document = *context.document;
+        commitFramePixelColors(
+            context,
+            resolution,
+            pixels,
+            [&document, resolution](std::size_t frameIndex) {
+                return edit::originalColorSource(document, frameIndex, resolution);
+            },
+            statusText);
+        return;
+    }
     if (context.drawColorMode == edit::DrawColorMode::ColorSetReplace && context.document) {
         const document::ProjectDocument& document = *context.document;
         commitFramePixelColors(

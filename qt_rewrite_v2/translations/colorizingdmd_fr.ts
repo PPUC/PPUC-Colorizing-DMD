@@ -204,6 +204,10 @@
         <translation>Pixel d&apos;arrière-plan peint en %1,%2</translation>
     </message>
     <message>
+        <source>Restored the original color at %1,%2</source>
+        <translation>Couleur originale restaurée en %1,%2</translation>
+    </message>
+    <message>
         <source>Painted pixel at %1,%2</source>
         <translation>Pixel peint en %1,%2</translation>
     </message>
@@ -240,6 +244,10 @@
         <translation>Tracé sur l&apos;arrière-plan : %1</translation>
     </message>
     <message>
+        <source>Restored the original colors of %1</source>
+        <translation>Couleurs originales de %1 restaurées</translation>
+    </message>
+    <message>
         <source>Free gradient selection cancelled</source>
         <translation>Sélection de dégradé libre annulée</translation>
     </message>
@@ -254,6 +262,10 @@
     <message>
         <source>Picked color 0x%1</source>
         <translation>Couleur prise : 0x%1</translation>
+    </message>
+    <message>
+        <source>Restored the original colors of the area</source>
+        <translation>Couleurs originales de la zone restaurées</translation>
     </message>
     <message>
         <source>Flood filled area</source>

@@ -1079,6 +1079,10 @@ owner together.
   `startProjectClock()` at open/create, `projectTimeMs()` (stored `timeElapsedMs` + session,
   capped to 32 bits) written into the saved and autosaved snapshot only, so counting never
   dirties the document.
+- Shift while drawing on the frame restores the plain original color of each pixel's shade
+  (author report 2026-10-18): `edit::originalColorSource` (like `colorSetReplaceColorSource`
+  with `plainOriginalColors`), `commitFramePixels(..., restore)`, point/shapes/flood; amber
+  preview. Before, Shift was ignored on frame pixels.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

@@ -223,7 +223,8 @@ private:
     void pickFrameColor(const CanvasEditContext& context,
                         const render::CanvasHit& hit,
                         bool selectEditColorSlot);
-    void floodFillFrame(const CanvasEditContext& context, const render::CanvasHit& hit);
+    void floodFillFrame(const CanvasEditContext& context, const render::CanvasHit& hit,
+                        bool restore = false);
     void pickBackgroundImageColor(const CanvasEditContext& context,
                                   const render::CanvasHit& hit,
                                   bool selectEditColorSlot);
@@ -272,10 +273,12 @@ private:
         const render::CanvasHit& gradientStart,
         const render::CanvasHit& gradientEnd);
 
+    // restore: the pixels get the plain original color of their shade instead (Shift).
     void commitFramePixels(const CanvasEditContext& context,
                            render::Resolution resolution,
                            const std::vector<render::Point>& pixels,
-                           const QString& statusText);
+                           const QString& statusText,
+                           bool restore = false);
     void commitFrameGradient(const CanvasEditContext& context,
                              render::Resolution resolution,
                              const render::CanvasHit& start,

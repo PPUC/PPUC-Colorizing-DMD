@@ -204,6 +204,10 @@
         <translation>Hintergrund-Pixel bei %1,%2 gezeichnet</translation>
     </message>
     <message>
+        <source>Restored the original color at %1,%2</source>
+        <translation>Originalfarbe bei %1,%2 wiederhergestellt</translation>
+    </message>
+    <message>
         <source>Painted pixel at %1,%2</source>
         <translation>Pixel bei %1,%2 gezeichnet</translation>
     </message>
@@ -240,6 +244,10 @@
         <translation>Hintergrund gezeichnet: %1</translation>
     </message>
     <message>
+        <source>Restored the original colors of %1</source>
+        <translation>Originalfarben von %1 wiederhergestellt</translation>
+    </message>
+    <message>
         <source>Free gradient selection cancelled</source>
         <translation>Freie Verlaufsauswahl abgebrochen</translation>
     </message>
@@ -254,6 +262,10 @@
     <message>
         <source>Picked color 0x%1</source>
         <translation>Farbe 0x%1 aufgenommen</translation>
+    </message>
+    <message>
+        <source>Restored the original colors of the area</source>
+        <translation>Originalfarben der Fläche wiederhergestellt</translation>
     </message>
     <message>
         <source>Flood filled area</source>

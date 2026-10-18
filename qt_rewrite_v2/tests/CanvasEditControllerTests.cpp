@@ -289,11 +289,11 @@ void testFramePixelPointPickAndFlood()
 
     // Frame 2 still needs the pixel, frames 0 and 1 are skipped; the text counts the selection.
     document.setColorizedPixel(2, Resolution::Sd, 3, 4, 0);
-    controller.colorizedPixelClicked(context, colorized(3, 4), true);
+    controller.colorizedPixelClicked(context, colorized(3, 4), false);
     expect(owner.committed(EditKind::FramePixels, {2}), "unchanged frames get no command");
     expect(owner.status == "Painted pixel at 3,4 on 3 frame(s)", "status counts selected frames");
     expect(document.colorizedPixel(2, Resolution::Sd, 3, 4) == kDrawColor,
-           "erase does not change what RGB painting does");
+           "the missing pixel is painted");
 
     owner.next();
     controller.colorizedPixelClicked(context, colorized(9, 9, Resolution::Hd), false);
@@ -354,6 +354,42 @@ void testFramePixelPointPickAndFlood()
         controller.colorizedPixelClicked(context, colorized(1, 1), false);
     }
     expect(owner.silent() && owner.pickedColors.empty(), "nothing happens without a document");
+}
+
+// Shift on the frame gives pixels back their original look: the plain original color of
+// their shade, as an uncolorized frame shows it.
+void testFramePixelRestore()
+{
+    ProjectDocument document = makeDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Point, {0});
+    const uint16_t originalColor = document::plainOriginalColors(16)[0];
+    controller.colorizedPixelClicked(context, colorized(3, 4), false);
+    expect(document.colorizedPixel(0, Resolution::Sd, 3, 4) == kDrawColor, "painted");
+    owner.next();
+    controller.colorizedPixelClicked(context, colorized(3, 4), true);
+    expect(owner.committed(EditKind::FramePixels, {0}) &&
+               owner.status == "Restored the original color at 3,4" &&
+               document.colorizedPixel(0, Resolution::Sd, 3, 4) == originalColor,
+           "Shift-click restores the original color");
+    owner.next();
+    context.tool = DrawingTool::FilledRectangle;
+    controller.strokeFinished(context, colorized(1, 1), colorized(4, 2), false);
+    owner.next();
+    controller.strokeFinished(context, colorized(1, 1), colorized(2, 2), true);
+    expect(owner.committed(EditKind::FramePixels, {0}) &&
+               document.colorizedPixel(0, Resolution::Sd, 1, 1) == originalColor &&
+               document.colorizedPixel(0, Resolution::Sd, 4, 2) == kDrawColor,
+           "a shape drawn with Shift restores what it covers");
+    owner.next();
+    context.tool = DrawingTool::FloodFill;
+    controller.colorizedPixelClicked(context, colorized(4, 2), true);
+    expect(owner.committed(EditKind::FramePixels, {0}) &&
+               owner.status == "Restored the original colors of the area" &&
+               document.colorizedPixel(0, Resolution::Sd, 4, 2) == originalColor,
+           "and so does the flood fill");
 }
 
 void testFramePixelStrokesAndPreview()
@@ -1682,6 +1718,7 @@ void testOutputsAreOptional()
 void runCanvasEditControllerTests()
 {
     testFramePixelPointPickAndFlood();
+    testFramePixelRestore();
     testFramePixelStrokesAndPreview();
     testPointerPreview();
     testBackgroundImageLayer();
