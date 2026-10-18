@@ -4292,7 +4292,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Shape used by the Grad drawing tool</source>
-        <translation>Form, die das Verlauf-Werkzeug verwendet</translation>
+        <translation type="vanished">Form, die das Verlauf-Werkzeug verwendet</translation>
+    </message>
+    <message>
+        <source>Shape of the Grad and Sel tools</source>
+        <translation>Form der Werkzeuge Grad und Sel</translation>
     </message>
     <message>
         <source>Rectangle</source>

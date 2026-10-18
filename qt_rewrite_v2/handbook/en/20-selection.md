@@ -5,12 +5,18 @@ shown as the translucent cyan overlay of `Sel` and is what `Grad Sel`, `Copy`, `
 `Black Original To Black` and the dynamic helpers work on. It is editor state, not project data:
 it is not saved, it is not part of Undo (the Win32 editor records its changes in its one undo
 buffer; here a selection step would sit between the edits of the frame's histories and make
-Undo skip over invisible steps, and every selection command is one click to repeat), and it is
-dropped when the frame, the SD/HD mode, the paint target or the selected background changes, as
-the `Sel` selection always was. The Win32 editor keeps its selection across frames.
+Undo skip over invisible steps, and every selection command is one click to repeat). As in the
+Win32 editor it stays when another frame is shown, so it can be checked on each frame of a
+selection of frames before copying or pasting (a click on a frame of that selection keeps it, see
+"Frame List"). It is dropped when the SD/HD mode, the paint target or the selected background
+changes.
 
 Making and changing a selection on the frame canvas (frame pixels or, with `Target` `Background`,
-the selected background image; not in the `Mask`, `Dynamic` or `BG` modes):
+the selected background image). It works the same in the `Dynamic` and `BG` modes, on the
+frame's picture: there `Ctrl/Cmd`+click selects instead of painting the zone or the mask, and
+`Select All` and the `Sel` tool work as without them. Only the `Mask` mode, whose masks are
+painted on the original frame, has no selection. The `Shape` of the `Sel` tool is chosen in the
+`Palette` section, also when no palette is selected:
 
 - `Sel` tool: drag a rectangle, circle or ellipse (the `Shape` of the `Palette` section); it replaces
   the selection.

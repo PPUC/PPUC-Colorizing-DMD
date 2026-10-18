@@ -1087,6 +1087,11 @@ owner together.
   showed 16, enabled by the stored table's 16 per set); swatches accept colors dragged from the
   palette (`application/x-colorizing-rgb565`, `DynamicPanel::onColorDropped`,
   `editDynamicColor(index, color)`).
+- Selection as in Win32 (author reports 2026-10-18): the canvas selection stays across frames
+  (no clear in `selectFrame`); a plain click inside a multi-frame selection keeps it and only
+  moves the current frame (`FrameListWidget::selectionCommand` -> NoUpdate); selecting works
+  in the Dynamic and BG modes (`canEditSelection`: all layers but ComparisonMask); the Shape box
+  (also the Sel tool's) is enabled without a selected palette.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

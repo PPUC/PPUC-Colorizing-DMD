@@ -1053,9 +1053,10 @@ const edit::PlaneSelection* CanvasEditController::selection() const
 
 bool CanvasEditController::canEditSelection(const CanvasEditContext& context)
 {
+    // Everywhere but on comparison masks, which are painted on the original: in the Dynamic
+    // and BG modes the selection is made on the frame's picture, as without them.
     return context.document && !context.spriteCaptureSelection &&
-           (context.layer == CanvasEditLayer::FramePixels ||
-            context.layer == CanvasEditLayer::BackgroundImage);
+           context.layer != CanvasEditLayer::ComparisonMask;
 }
 
 CanvasEditController::Selection CanvasEditController::selectionFor(
@@ -1322,7 +1323,7 @@ void CanvasEditController::selectByColor(const CanvasEditContext& context,
 
 void CanvasEditController::selectBackgroundMask(const CanvasEditContext& context)
 {
-    if (!canEditSelection(context) || context.layer != CanvasEditLayer::FramePixels ||
+    if (!canEditSelection(context) || context.layer == CanvasEditLayer::BackgroundImage ||
         !context.currentFrame || !selectionPicture(context, context.activePlane)) {
         showStatus(tr("The selection from the background mask needs a frame"),
                    kStatusMs);

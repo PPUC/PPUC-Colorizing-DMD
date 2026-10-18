@@ -13,6 +13,10 @@ namespace colorizing::app {
 // The list takes its own drags itself: in the icon mode of the frame strip, QListView accepts a
 // drop only onto an item that takes drops, and frames do not. A vertical line between the
 // frames shows where they go.
+//
+// As in the Win32 editor, a plain click on a frame of a selection of several frames keeps the
+// selection and only makes that frame the current one (so a canvas selection can be checked
+// on each before copying); a plain click on another frame selects that one alone.
 class FrameListWidget final : public QListWidget {
 public:
     explicit FrameListWidget(QWidget* parent = nullptr);
@@ -27,6 +31,8 @@ public:
     [[nodiscard]] int shownDropRow() const;
 
 protected:
+    [[nodiscard]] QItemSelectionModel::SelectionFlags selectionCommand(
+        const QModelIndex& index, const QEvent* event = nullptr) const override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dragMoveEvent(QDragMoveEvent* event) override;
     void dragLeaveEvent(QDragLeaveEvent* event) override;

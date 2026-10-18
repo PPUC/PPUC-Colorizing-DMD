@@ -1,6 +1,7 @@
 #include "FrameListWidget.h"
 
 #include <QDropEvent>
+#include <QMouseEvent>
 #include <QPainter>
 
 namespace colorizing::app {
@@ -45,6 +46,24 @@ bool FrameListWidget::takeDrag(QDragMoveEvent* event)
         viewport()->update();
     }
     return true;
+}
+
+QItemSelectionModel::SelectionFlags FrameListWidget::selectionCommand(const QModelIndex& index,
+                                                                     const QEvent* event) const
+{
+    if (event && index.isValid() &&
+        (event->type() == QEvent::MouseButtonPress ||
+         event->type() == QEvent::MouseButtonRelease)) {
+        const auto* mouse = static_cast<const QMouseEvent*>(event);
+        const Qt::KeyboardModifiers selecting =
+            Qt::ShiftModifier | Qt::ControlModifier | Qt::MetaModifier;
+        if (mouse->button() == Qt::LeftButton && !(mouse->modifiers() & selecting) &&
+            selectionModel()->isSelected(index) &&
+            selectionModel()->selectedIndexes().size() > 1) {
+            return QItemSelectionModel::NoUpdate;
+        }
+    }
+    return QListWidget::selectionCommand(index, event);
 }
 
 void FrameListWidget::dragEnterEvent(QDragEnterEvent* event)

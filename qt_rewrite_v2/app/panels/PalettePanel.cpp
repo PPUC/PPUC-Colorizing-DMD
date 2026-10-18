@@ -72,7 +72,7 @@ PalettePanel::PalettePanel(QWidget* parent)
     m_gradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
     m_gradientEndSpinBox->setEnabled(false);
     m_gradientShapeComboBox = new QComboBox(this);
-    m_gradientShapeComboBox->setToolTip(tr("Shape used by the Grad drawing tool"));
+    m_gradientShapeComboBox->setToolTip(tr("Shape of the Grad and Sel tools"));
     m_gradientShapeComboBox->addItem(tr("Rectangle"),
                                      static_cast<int>(PaletteGradientShape::Rectangle));
     m_gradientShapeComboBox->addItem(tr("Circle"),
@@ -290,7 +290,8 @@ void PalettePanel::refresh(const document::ProjectDocument* document,
         m_nameLineEdit->setEnabled(false);
         m_gradientStartSpinBox->setEnabled(false);
         m_gradientEndSpinBox->setEnabled(false);
-        m_gradientShapeComboBox->setEnabled(false);
+        // The Sel tool draws with the shape too, palette or not.
+        m_gradientShapeComboBox->setEnabled(document != nullptr);
         m_gradientPatternComboBox->setEnabled(false);
         m_gradientDirectionComboBox->setEnabled(false);
         m_applyGradientButton->setEnabled(false);

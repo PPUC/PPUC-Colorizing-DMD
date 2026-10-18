@@ -10,6 +10,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QListWidget>
 #include <QPixmap>
 #include <QRegularExpression>
@@ -18,6 +19,7 @@
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
+#include "FrameListWidget.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
 #include "panels/BackgroundPanel.h"
@@ -535,6 +537,42 @@ void testLazyListIcons()
 
 }  // namespace
 
+// A plain click on a frame of a multi-frame selection keeps the selection and only makes the
+// frame current (Win32); a plain click on another frame selects it alone.
+void testFrameListClicks()
+{
+    colorizing::app::FrameListWidget list;
+    list.setSelectionMode(QAbstractItemView::ExtendedSelection);
+    list.resize(200, 300);
+    for (int row = 0; row < 6; ++row) {
+        list.addItem(QStringLiteral("frame %1").arg(row));
+    }
+    list.show();
+    QApplication::processEvents();
+    const auto click = [&list](int row) {
+        const QPoint at = list.visualItemRect(list.item(row)).center();
+        QMouseEvent press(QEvent::MouseButtonPress, at, list.viewport()->mapToGlobal(at),
+                          Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(list.viewport(), &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, at, list.viewport()->mapToGlobal(at),
+                            Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(list.viewport(), &release);
+    };
+    for (int row = 1; row <= 3; ++row) {
+        list.item(row)->setSelected(true);
+    }
+    list.setCurrentRow(1, QItemSelectionModel::NoUpdate);
+    click(2);
+    expect(list.currentRow() == 2 && list.selectedItems().size() == 3,
+           "a click inside a multi-frame selection keeps it and moves the current frame");
+    click(5);
+    expect(list.currentRow() == 5 && list.selectedItems().size() == 1 &&
+               list.item(5)->isSelected(),
+           "a click outside it selects that frame alone");
+    click(5);
+    expect(list.selectedItems().size() == 1, "a click on the only selected frame keeps it");
+}
+
 void runPlaneLabelsWidgetTests()
 {
     testLabels();
@@ -543,4 +581,5 @@ void runPlaneLabelsWidgetTests()
     testThumbnailBadges();
     testLazyListIcons();
     testLazyStripIcons();
+    testFrameListClicks();
 }

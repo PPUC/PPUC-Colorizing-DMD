@@ -4622,7 +4622,8 @@ std::vector<std::size_t> MainWindow::selectedFrameIndices() const
 void MainWindow::selectFrame(int)
 {
     m_canvasEdit.cancelFreeGradient();
-    m_canvasEdit.clearSelection(canvasEditContext());
+    // The canvas selection stays on another frame, as in the Win32 editor: it can be checked
+    // on each frame of a selection before copying.
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());

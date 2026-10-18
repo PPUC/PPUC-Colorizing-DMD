@@ -89,7 +89,11 @@ In a project with 256x64 original frames the filter has the entry `Not rendered`
 frames the runtime shows nothing for are marked in the list; see "Projects With 256x64 Original
 Frames".
 
-The frame list supports native multi-selection. Frame drawing, comparison-mask drawing,
+The frame list supports native multi-selection (`Ctrl/Cmd`+click adds or removes a frame,
+`Shift`+click a range). As in the Win32 editor, a plain click on a frame of a selection of
+several frames keeps the selection and only makes that frame the current one, so the canvas
+can show each of them in turn (the canvas selection stays, see "Selection"); a plain click on a
+frame outside the selection selects that frame alone. Frame drawing, comparison-mask drawing,
 dynamic-mask drawing, background-mask drawing, and all frame settings (comparison mask ID, shape
 mode, background ID, trigger ID, switch-to-monochrome, duration) apply to all selected frames where
 the operation is valid. Comparison-mask edits are grouped by assigned mask ID, so a shared mask is

@@ -234,9 +234,19 @@ void testSelectionEditing()
            "Grad Sel fills the edited selection over its bounds");
     (void)palette;
 
-    // In a mask mode the selection is not edited.
+    // The Dynamic and BG modes select on the frame's picture as without them (Ctrl+click,
+    // Ctrl+A, the Sel tool); comparison masks, painted on the original, have no selection.
     context.layer = CanvasEditLayer::DynamicMask;
-    expect(!CanvasEditController::canEditSelection(context), "no selection editing in mask modes");
+    expect(CanvasEditController::canEditSelection(context), "selecting in the Dynamic mode");
+    context.activePlane = Resolution::Sd;
+    controller.selectAll(context);
+    expect(controller.selection() && controller.selection()->plane() == Resolution::Sd &&
+               controller.selection()->count() == 128u * 32u,
+           "Select All in the Dynamic mode");
+    context.layer = CanvasEditLayer::BackgroundMask;
+    expect(CanvasEditController::canEditSelection(context), "and in the BG mode");
+    context.layer = CanvasEditLayer::ComparisonMask;
+    expect(!CanvasEditController::canEditSelection(context), "not on a comparison mask");
 }
 
 struct PasteOwner {

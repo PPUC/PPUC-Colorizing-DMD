@@ -4292,7 +4292,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Shape used by the Grad drawing tool</source>
-        <translation>Forme utilisée par l&apos;outil de dessin Dégr.</translation>
+        <translation type="vanished">Forme utilisée par l&apos;outil de dessin Dégr.</translation>
+    </message>
+    <message>
+        <source>Shape of the Grad and Sel tools</source>
+        <translation>Forme des outils Grad et Sel</translation>
     </message>
     <message>
         <source>Rectangle</source>
