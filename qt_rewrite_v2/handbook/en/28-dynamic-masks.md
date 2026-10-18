@@ -74,7 +74,11 @@ Rules:
 
 - The `Dyn Set` field in the Inspector's `Dynamic` topic selects the dynamic set written by drawing tools.
 - The Inspector shows editable dynamic color swatches for the active frame and the selected dynamic set.
+- There is a swatch per original color of the project: 4 in a project with 4 original colors,
+  16 in one with 16 (a set has a color for each shade).
 - Click a dynamic color swatch to choose a replacement RGB565 color for that original color index.
+- Or drag a color from the `Palette` section onto a swatch, as onto an edit color: the swatch
+  takes it, an undoable change of the frame like a picked color.
 - The dynamic mask is rendered over the colorized frame of its plane.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.

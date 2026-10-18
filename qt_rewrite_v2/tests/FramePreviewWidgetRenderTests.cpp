@@ -13,7 +13,9 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMimeData>
 #include <QMouseEvent>
+#include <QDropEvent>
 #include <QPainter>
 #include <QScrollBar>
 #include <QPointingDevice>
@@ -2517,13 +2519,13 @@ void testSpritePanel()
 // Frame 0 has HD, mask 1, dynamic data and background 0; frame 1 has a shape mode, unassigned
 // background data and the switch-to-monochrome trigger; frame 2 carries values the editor
 // cannot represent; frame 3 has neither dynamic nor background data.
-colorizing::document::ProjectDocument makeInspectorPanelDocument()
+colorizing::document::ProjectDocument makeInspectorPanelDocument(uint32_t colorCount = 16)
 {
     using colorizing::document::kMaxDynamicSetsPerFrame;
     using colorizing::render::kHdFrameSize;
     using colorizing::render::kSdFrameSize;
     colorizing::document::ProjectSnapshot snapshot;
-    snapshot.colorCount = 16;
+    snapshot.colorCount = colorCount;
     snapshot.romName = "inspector_panels";
     for (int maskIndex = 0; maskIndex < 3; ++maskIndex) {
         snapshot.comparisonMasks.push_back(
@@ -2555,11 +2557,11 @@ colorizing::document::ProjectDocument makeInspectorPanelDocument()
     colorizing::document::FrameDynamicData dynamicData{
         colorizing::document::makeIndexedFrame(kSdFrameSize, 255),
         colorizing::document::makeIndexedFrame(kHdFrameSize, 255),
-        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
-        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * 16, 0),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * colorCount, 0),
+        std::vector<uint16_t>(kMaxDynamicSetsPerFrame * colorCount, 0),
     };
     dynamicData.colorsSd[1] = 0xf800;
-    dynamicData.colorsSd[2 * 16] = 0x07e0;
+    dynamicData.colorsSd[2 * colorCount] = 0x07e0;
     dynamicData.colorsHd[1] = 0x001f;
     snapshot.frames[2].dynamicData = dynamicData;
     dynamicData.shadowDirectionsSd.assign(kMaxDynamicSetsPerFrame, 0);
@@ -2902,6 +2904,34 @@ void testDynamicPanel()
                document.dynamicShadowDirection(0, Resolution::Sd, 0) == 0x81 &&
                !document.isDirty(),
            "dynamic panel should leave the document untouched");
+
+    // A color dragged from the palette and dropped on a dynamic color is reported.
+    std::optional<std::pair<std::size_t, uint16_t>> dropped;
+    panel.onColorDropped = [&](std::size_t originalColorIndex, uint16_t rgb565) {
+        dropped = std::make_pair(originalColorIndex, rgb565);
+    };
+    QMimeData mime;
+    mime.setData("application/x-colorizing-rgb565", QByteArray::number(0x07e0));
+    QDropEvent drop(QPointF(5, 5), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    // Straight to the button: QApplication would route a drop only during a real drag.
+    static_cast<QObject*>(colorButtons[2])->event(&drop);
+    expect(dropped == std::make_pair(std::size_t{2}, uint16_t{0x07e0}),
+           "a palette color dropped on a dynamic color is reported with its index");
+
+    // A set has a color per original color: 4 in a project with 4.
+    const colorizing::document::ProjectDocument fourColors = makeInspectorPanelDocument(4);
+    panel.refreshColors(&fourColors, 0, Resolution::Sd);
+    int shown = 0;
+    for (QToolButton* button : colorButtons) {
+        shown += button->isVisibleTo(&panel) ? 1 : 0;
+    }
+    expect(shown == 4, "a 4-color project shows 4 dynamic colors");
+    panel.refreshColors(&document, 0, Resolution::Sd);
+    shown = 0;
+    for (QToolButton* button : colorButtons) {
+        shown += button->isVisibleTo(&panel) ? 1 : 0;
+    }
+    expect(shown == 16, "a 16-color project 16");
 }
 
 // The list of a frame's dynamic sets: one row per set it uses, a row for a new one, and a

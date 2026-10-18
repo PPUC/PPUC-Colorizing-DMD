@@ -286,7 +286,9 @@ private:
     void updateDynamicColorControls();
     void updateDynamicShadowControls();
     void dynamicSetChanged(int setIndex);
-    void editDynamicColor(std::size_t originalColorIndex);
+    // color: the new color (dropped from the palette); none asks for it.
+    void editDynamicColor(std::size_t originalColorIndex,
+                          std::optional<uint16_t> color = std::nullopt);
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
     void editDynamicShadowColor();
     void updateColorRotationControls();

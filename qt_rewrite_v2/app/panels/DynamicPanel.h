@@ -51,6 +51,8 @@ public:
 
     std::function<void(int setIndex)> onDynamicSetChanged;
     std::function<void(std::size_t originalColorIndex)> onColorClicked;
+    // A color dragged from the palette was dropped on a dynamic color.
+    std::function<void(std::size_t originalColorIndex, uint16_t rgb565)> onColorDropped;
     // bit is the direction's bit in the shadow direction mask.
     std::function<void(uint8_t bit, bool enabled)> onShadowDirectionToggled;
     std::function<void()> onShadowColorClicked;

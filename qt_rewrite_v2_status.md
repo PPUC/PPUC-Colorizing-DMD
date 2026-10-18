@@ -1083,6 +1083,10 @@ owner together.
   (author report 2026-10-18): `edit::originalColorSource` (like `colorSetReplaceColorSource`
   with `plainOriginalColors`), `commitFramePixels(..., restore)`, point/shapes/flood; amber
   preview. Before, Shift was ignored on frame pixels.
+- Dynamic Sets section (author reports 2026-10-18): one swatch per original color (it always
+  showed 16, enabled by the stored table's 16 per set); swatches accept colors dragged from the
+  palette (`application/x-colorizing-rgb565`, `DynamicPanel::onColorDropped`,
+  `editDynamicColor(index, color)`).
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

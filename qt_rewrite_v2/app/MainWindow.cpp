@@ -1601,6 +1601,9 @@ void MainWindow::createCentralView()
     m_dynamicPanel->onColorClicked = [this](std::size_t originalColorIndex) {
         editDynamicColor(originalColorIndex);
     };
+    m_dynamicPanel->onColorDropped = [this](std::size_t originalColorIndex, uint16_t rgb565) {
+        editDynamicColor(originalColorIndex, rgb565);
+    };
     m_dynamicPanel->onShadowDirectionToggled = [this](uint8_t bit, bool enabled) {
         setDynamicShadowDirectionBit(bit, enabled);
     };
@@ -6643,7 +6646,7 @@ void MainWindow::dynamicSetChanged(int setIndex)
     updateDynamicColorControls();
 }
 
-void MainWindow::editDynamicColor(std::size_t originalColorIndex)
+void MainWindow::editDynamicColor(std::size_t originalColorIndex, std::optional<uint16_t> color)
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     if (!m_document || !frameIndex) {
@@ -6656,7 +6659,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex)
                                                             activeDynamicSet(),
                                                             originalColorIndex);
         const std::optional<uint16_t> picked =
-            ColorPickerDialog::getColor(oldRgb565, this, tr("Dynamic Color"));
+            color ? color : ColorPickerDialog::getColor(oldRgb565, this, tr("Dynamic Color"));
         if (!picked) {
             return;
         }

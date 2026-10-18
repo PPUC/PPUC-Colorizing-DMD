@@ -4,7 +4,10 @@
 #include <array>
 #include <exception>
 
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFormLayout>
+#include <QMimeData>
 #include <QGridLayout>
 #include <QImage>
 #include <QLabel>
@@ -21,6 +24,44 @@
 namespace colorizing::app {
 
 namespace {
+
+// What the palette and the color grids drag (ColorGridWidget).
+constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
+
+// A dynamic color: clicked, it is edited; a color dragged from the palette is dropped on it.
+class DynamicColorButton final : public QToolButton {
+public:
+    explicit DynamicColorButton(QWidget* parent)
+        : QToolButton(parent)
+    {
+        setAcceptDrops(true);
+    }
+
+    std::function<void(uint16_t rgb565)> onDropped;
+
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override
+    {
+        if (isEnabled() && event->mimeData()->hasFormat(kRgb565MimeType)) {
+            event->acceptProposedAction();
+            return;
+        }
+        QToolButton::dragEnterEvent(event);
+    }
+
+    void dropEvent(QDropEvent* event) override
+    {
+        bool ok = false;
+        const int value =
+            QString::fromLatin1(event->mimeData()->data(kRgb565MimeType)).toInt(&ok);
+        if (ok && value >= 0 && value <= 0xffff && onDropped) {
+            onDropped(static_cast<uint16_t>(value));
+            event->acceptProposedAction();
+            return;
+        }
+        QToolButton::dropEvent(event);
+    }
+};
 
 constexpr std::array<uint8_t, 8> kShadowDirectionBits{
     0x01, 0x02, 0x04, 0x80, 0x08, 0x40, 0x20, 0x10,
@@ -81,7 +122,12 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     colorsGrid->setHorizontalSpacing(4);
     colorsGrid->setVerticalSpacing(4);
     for (int colorIndex = 0; colorIndex < 16; ++colorIndex) {
-        auto* button = new QToolButton(this);
+        auto* button = new DynamicColorButton(this);
+        button->onDropped = [this, colorIndex](uint16_t rgb565) {
+            if (onColorDropped) {
+                onColorDropped(static_cast<std::size_t>(colorIndex), rgb565);
+            }
+        };
         button->setText(QString::number(colorIndex));
         button->setToolTip(tr("Dynamic color for original color %1").arg(colorIndex));
         button->setFixedSize(32, 24);
@@ -267,8 +313,14 @@ void DynamicPanel::refreshColors(const document::ProjectDocument* document,
         colorCount = colors.size() / document::kMaxDynamicSetsPerFrame;
     }
 
+    // As many as the project has original colors (4 or 16): a set has a color per shade.
+    const std::size_t shownCount = document ? std::min<std::size_t>(document->colorCount(),
+                                                                     m_colorButtons.size())
+                                            : 4;
+    colorCount = std::min(colorCount, shownCount);
     for (std::size_t colorIndex = 0; colorIndex < m_colorButtons.size(); ++colorIndex) {
         QToolButton* button = m_colorButtons[colorIndex];
+        button->setVisible(colorIndex < shownCount);
         const bool enabled = dynamicData && dynamicData->has_value() && colorIndex < colorCount;
         button->setEnabled(enabled);
         if (!enabled) {
