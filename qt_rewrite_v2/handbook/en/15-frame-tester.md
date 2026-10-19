@@ -34,8 +34,12 @@ in the editor, saved or not.
   holds the project's `.cROM` in memory while it is open (400 MB for `smb3`); loading it takes
   about a second.
 
-Scenes of the project's `<rom>.pup.csv`, background scenes too, play as on a machine (see
-"Runtime View").
+Scenes of the project's `<rom>.pup.csv` play as on a machine (see "Runtime View"): a scene in
+front of the picture as well as a background scene. libserum renders their pictures in its
+rotation step, which the tester calls when libserum asks for it, as it does for the color
+rotations of the frame shown; both go on while the tester stays on a frame. They keep
+libserum's own timing: at a play speed other than 1x the dump's frames come faster or slower,
+a scene and a rotation do not.
 
 Not there: output to a real DMD (ZeDMD, see `View -> Output To DMD`). PuP packs play in their own
 window, see "PuP Tester".
