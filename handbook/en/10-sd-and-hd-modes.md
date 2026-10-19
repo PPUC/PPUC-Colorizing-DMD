@@ -34,8 +34,11 @@ Rules:
 - The rest of this section is about ordinary projects.
 - If a frame has no HD data, the canvas falls back to SD display/editing.
 - Canvas hit testing maps mouse coordinates explicitly to SD or HD pixel coordinates.
-- The Inspector `Create HD` button creates HD data for the current frame by scaling the SD colorized frame to 2x.
-- When creating HD, a dialog asks whether to also upscale the frame background mask and the assigned background image.
+- The Inspector `Create HD` button creates HD data for every selected frame that has none (the
+  current frame when no other is selected), by scaling its SD colorized frame to 2x, as the
+  Win32 editor's extra resolution switch acts on all selected frames.
+- When creating HD, a dialog asks whether to also upscale the frames' background masks and their
+  assigned background images. A background that several of the frames use is upscaled once.
 - The dialog's `Filter`, as CDMD's filter box, says how the SD picture and the background image
   become twice as large (the masks are always doubled): `Nearest` doubles every pixel (as
   before), `Scale2x` keeps the colors and smooths diagonal edges (the way libserum upscales
@@ -50,9 +53,10 @@ Rules:
   what the Win32 editor gives a frame without HD.
 - In HD mode the `Dynamic` toolbar button is disabled, and the `Dynamic Sets` section shows and edits the
   dynamic colors and shadows of the SD plane. See "Dynamic Masks".
-- The Inspector `Remove HD` button removes HD data from the current frame and switches the canvas back to SD when needed.
-- `Create HD` and `Remove HD` can be undone. Undo puts back exactly what was there before: the
+- The Inspector `Remove HD` button removes HD data from every selected frame that has it and
+  switches the canvas back to SD when needed.
+- `Create HD` and `Remove HD` can be undone, frame by frame (each frame's step is in the history
+  of that frame). Undo puts back exactly what was there before: the
   frame's HD pixels (or their absence) and, for `Create HD`, every related item the dialog upscaled,
   including the previous HD image of the assigned background. See "Undo And Redo".
 
-TODO: offer selectable scaling algorithms for HD creation instead of always using nearest-neighbor 2x scaling.

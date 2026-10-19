@@ -6547,37 +6547,76 @@ void MainWindow::removeCurrentSpriteHd()
     }
 }
 
+void MainWindow::recordFrameEdits(std::vector<std::unique_ptr<edit::EditCommand>> commands)
+{
+    // Each in the history of its frame; the views are refreshed once for all of them.
+    std::vector<std::size_t> frames;
+    const edit::EditCommand* last = nullptr;
+    for (std::unique_ptr<edit::EditCommand>& command : commands) {
+        if (!command) {
+            continue;
+        }
+        const edit::EditTarget target = command->target();
+        frames.insert(frames.end(), target.frameIndices.begin(), target.frameIndices.end());
+        last = command.get();
+        m_undoHistories.push(edit::historyKey(target), std::move(command));
+    }
+    if (!last) {
+        return;
+    }
+    refreshAfterEdit(*last);
+    std::sort(frames.begin(), frames.end());
+    frames.erase(std::unique(frames.begin(), frames.end()), frames.end());
+    updateFrameListItems(frames);
+    updateUndoRedoActions();
+}
+
 void MainWindow::createCurrentFrameHd()
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex) {
+    if (!m_document || !currentFrameIndex()) {
         return;
     }
     if (isHdOnlyProject()) {
-        createCurrentFrameHdFromOriginal(*frameIndex);
+        createSelectedFramesHdFromOriginal();
         return;
     }
     if (isOriginalPlaneOnlyProject()) {
         return;
     }
-    if (m_document->hasHdFrame(*frameIndex)) {
+    // Every selected frame without HD, as the Win32 editor's extra resolution switch does.
+    std::vector<std::size_t> targets;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        if (!m_document->hasHdFrame(frameIndex)) {
+            targets.push_back(frameIndex);
+        }
+    }
+    if (targets.empty()) {
         updateFrameMetadataControls();
         return;
     }
 
-    const std::optional<document::FrameBackgroundData>& backgroundData =
-        m_document->backgroundData(*frameIndex);
-    const bool hasBackgroundData = backgroundData.has_value();
-    const bool hasAssignedBackground =
-        backgroundData && backgroundData->backgroundId < m_document->backgroundCount();
+    bool hasBackgroundData = false;
+    bool hasAssignedBackground = false;
+    for (std::size_t frameIndex : targets) {
+        const std::optional<document::FrameBackgroundData>& backgroundData =
+            m_document->backgroundData(frameIndex);
+        hasBackgroundData = hasBackgroundData || backgroundData.has_value();
+        hasAssignedBackground =
+            hasAssignedBackground ||
+            (backgroundData && backgroundData->backgroundId < m_document->backgroundCount());
+    }
 
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Create HD Frame"));
     auto* dialogLayout = new QVBoxLayout(&dialog);
     // No dynamic data among them: the runtime renders the dynamic zones of the SD plane into
     // the HD picture and does not read an HD dynamic mask.
-    auto* description = new QLabel(tr("Create HD frame from SD. Upscale related data?"),
-                                   &dialog);
+    auto* description = new QLabel(
+        targets.size() == 1
+            ? tr("Create HD frame from SD. Upscale related data?")
+            : tr("Create HD frames from SD for %n selected frame(s). Upscale related data?", "",
+                 static_cast<int>(targets.size())),
+        &dialog);
     description->setWordWrap(true);
     dialogLayout->addWidget(description);
     auto* backgroundMaskCheckBox = new QCheckBox(tr("Background mask"), &dialog);
@@ -6616,69 +6655,77 @@ void MainWindow::createCurrentFrameHd()
         return;
     }
 
+    m_createHdFilter = static_cast<document::UpscaleFilter>(filterComboBox->currentData().toInt());
+    std::vector<std::unique_ptr<edit::EditCommand>> commands;
     try {
-        document::FrameHdParts parts;
-        parts.backgroundMask = backgroundMaskCheckBox->isChecked();
-        parts.backgroundImage = backgroundImageCheckBox->isChecked();
-        m_createHdFilter =
-            static_cast<document::UpscaleFilter>(filterComboBox->currentData().toInt());
-        parts.filter = m_createHdFilter;
-        std::unique_ptr<edit::EditCommand> command =
-            edit::createFrameHd(*m_document, *frameIndex, parts);
-        m_activeResolution = render::Resolution::Hd;
-        recordEdit(std::move(command));
-        updateUndoRedoActions();
-        statusBar()->showMessage(
-            tr("Created HD frame from SD (%1)")
-                .arg(QString::fromStdString(document::upscaleFilterName(parts.filter))),
-            2500);
+        // A background several of the frames use is upscaled once, by the first of them.
+        std::set<uint16_t> upscaledBackgrounds;
+        for (std::size_t frameIndex : targets) {
+            const std::optional<document::FrameBackgroundData>& backgroundData =
+                m_document->backgroundData(frameIndex);
+            document::FrameHdParts parts;
+            parts.filter = m_createHdFilter;
+            parts.backgroundMask = backgroundMaskCheckBox->isChecked() && backgroundData;
+            parts.backgroundImage =
+                backgroundImageCheckBox->isChecked() && backgroundData &&
+                backgroundData->backgroundId < m_document->backgroundCount() &&
+                upscaledBackgrounds.insert(backgroundData->backgroundId).second;
+            commands.push_back(edit::createFrameHd(*m_document, frameIndex, parts));
+        }
     } catch (const std::exception& ex) {
+        recordFrameEdits(std::move(commands));
         updateFrameMetadataControls();
-        updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
     }
+    m_activeResolution = render::Resolution::Hd;
+    recordFrameEdits(std::move(commands));
+    statusBar()->showMessage(
+        tr("Created %n HD frame(s) from SD (%1)", "", static_cast<int>(targets.size()))
+            .arg(QString::fromStdString(document::upscaleFilterName(m_createHdFilter))),
+        2500);
 }
 
-void MainWindow::createCurrentFrameHdFromOriginal(std::size_t frameIndex)
+void MainWindow::createSelectedFramesHdFromOriginal()
 {
-    const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
-    if (!gaps.frame && !gaps.background) {
+    std::vector<std::unique_ptr<edit::EditCommand>> commands;
+    int frames = 0;
+    int backgrounds = 0;
+    try {
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
+            if (!gaps.frame && !gaps.background) {
+                continue;
+            }
+            // Nothing is upscaled from the unused SD data; the HD masks, dynamic colors and
+            // rotations of the frame stay as they are stored.
+            document::FrameHdParts parts;
+            parts.backgroundImage = gaps.background;
+            commands.push_back(edit::createFrameHd(*m_document, frameIndex, parts));
+            frames += gaps.frame ? 1 : 0;
+            backgrounds += gaps.background ? 1 : 0;
+        }
+    } catch (const std::exception& ex) {
+        recordFrameEdits(std::move(commands));
+        updateFrameMetadataControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+    if (commands.empty()) {
         updateFrameMetadataControls();
         return;
     }
-    try {
-        // Nothing is upscaled from the unused SD data; the HD masks, dynamic colors and
-        // rotations of the frame stay as they are stored.
-        document::FrameHdParts parts;
-        parts.backgroundImage = gaps.background;
-        std::unique_ptr<edit::EditCommand> command =
-            edit::createFrameHd(*m_document, frameIndex, parts);
-        recordEdit(std::move(command));
-        updateUndoRedoActions();
-        QStringList created;
-        if (gaps.frame) {
-            created << tr("the %1 frame from the original in its plain colors")
-                           .arg(nativePlaneText(*m_document));
-        }
-        if (gaps.background) {
-            created << tr("a black %1 image for background %2")
-                           .arg(nativePlaneText(*m_document))
-                           .arg(static_cast<int>(m_document->backgroundId(frameIndex)));
-        }
-        statusBar()->showMessage(
-            tr("Created %1").arg(created.join(tr(" and "))), 4000);
-    } catch (const std::exception& ex) {
-        updateFrameMetadataControls();
-        updateUndoRedoActions();
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
+    recordFrameEdits(std::move(commands));
+    statusBar()->showMessage(tr("Created %1 frame(s) from the originals in their plain colors "
+                                "and %2 black background image(s)")
+                                 .arg(frames)
+                                 .arg(backgrounds),
+                             4000);
 }
 
 void MainWindow::removeCurrentFrameHd()
 {
-    const std::optional<std::size_t> frameIndex = currentFrameIndex();
-    if (!m_document || !frameIndex || !m_document->hasHdFrame(*frameIndex)) {
-        updateFrameMetadataControls();
+    if (!m_document || !currentFrameIndex()) {
         return;
     }
     if (isHdOnlyProject()) {
@@ -6689,15 +6736,26 @@ void MainWindow::removeCurrentFrameHd()
             4000);
         return;
     }
-
+    std::vector<std::unique_ptr<edit::EditCommand>> commands;
     try {
-        recordEdit(edit::removeFrameHd(*m_document, *frameIndex));
-        updateUndoRedoActions();
-        statusBar()->showMessage(tr("Removed HD frame"), 2500);
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            if (m_document->hasHdFrame(frameIndex)) {
+                commands.push_back(edit::removeFrameHd(*m_document, frameIndex));
+            }
+        }
     } catch (const std::exception& ex) {
+        recordFrameEdits(std::move(commands));
         updateFrameMetadataControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
     }
+    const int removed = static_cast<int>(commands.size());
+    if (removed == 0) {
+        updateFrameMetadataControls();
+        return;
+    }
+    recordFrameEdits(std::move(commands));
+    statusBar()->showMessage(tr("Removed %n HD frame(s)", "", removed), 2500);
 }
 
 void MainWindow::updateDynamicColorControls()

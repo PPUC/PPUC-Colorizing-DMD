@@ -3488,6 +3488,24 @@ Utiliser Créer la frame %1.</translation>
         <source>Assigned background %1 on %2</source>
         <translation>Arrière-plan %1 attribué sur %2</translation>
     </message>
+    <message numerus="yes">
+        <source>Created %n HD frame(s) from SD (%1)</source>
+        <translation>
+            <numerusform>%n frame HD créée depuis le SD (%1)</numerusform>
+            <numerusform>%n frames HD créées depuis le SD (%1)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Created %1 frame(s) from the originals in their plain colors and %2 black background image(s)</source>
+        <translation>%1 frame(s) créée(s) depuis les originaux dans leurs couleurs simples et %2 image(s) d&apos;arrière-plan noire(s)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Removed %n HD frame(s)</source>
+        <translation>
+            <numerusform>%n frame HD supprimée</numerusform>
+            <numerusform>%n frames HD supprimées</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Cleared trigger ID on %1</source>
         <translation type="vanished">ID de déclencheur retiré sur %1</translation>
@@ -3732,6 +3750,13 @@ Utiliser Créer la frame %1.</translation>
         <source>Create HD frame from SD. Upscale related data?</source>
         <translation>Créer la frame HD à partir de la SD. Agrandir aussi les données liées ?</translation>
     </message>
+    <message numerus="yes">
+        <source>Create HD frames from SD for %n selected frame(s). Upscale related data?</source>
+        <translation>
+            <numerusform>Créer les frames HD depuis le SD pour %n frame sélectionnée. Agrandir aussi les données associées ?</numerusform>
+            <numerusform>Créer les frames HD depuis le SD pour %n frames sélectionnées. Agrandir aussi les données associées ?</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Background mask</source>
         <translation>Masque d&apos;arrière-plan</translation>
@@ -3758,19 +3783,19 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Created HD frame from SD (%1)</source>
-        <translation>Frame HD créée à partir de la SD (%1)</translation>
+        <translation type="vanished">Frame HD créée à partir de la SD (%1)</translation>
     </message>
     <message>
         <source>the %1 frame from the original in its plain colors</source>
-        <translation>la frame %1 à partir de l&apos;original dans ses couleurs simples</translation>
+        <translation type="vanished">la frame %1 à partir de l&apos;original dans ses couleurs simples</translation>
     </message>
     <message>
         <source>a black %1 image for background %2</source>
-        <translation>une image %1 noire pour l&apos;arrière-plan %2</translation>
+        <translation type="vanished">une image %1 noire pour l&apos;arrière-plan %2</translation>
     </message>
     <message>
         <source>Created %1</source>
-        <translation>Créé : %1</translation>
+        <translation type="vanished">Créé : %1</translation>
     </message>
     <message>
         <source>The %1 frame is the only frame data this project renders; it cannot be removed</source>
@@ -3778,7 +3803,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Removed HD frame</source>
-        <translation>Frame HD retirée</translation>
+        <translation type="vanished">Frame HD retirée</translation>
     </message>
     <message>
         <source>Selected dynamic set %1</source>

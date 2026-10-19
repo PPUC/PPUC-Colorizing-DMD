@@ -293,7 +293,7 @@ private:
     void removeCurrentSpriteHd();
     void createCurrentFrameHd();
     // HD-only project: creates what the frame lacks, without a dialog; nothing is upscaled.
-    void createCurrentFrameHdFromOriginal(std::size_t frameIndex);
+    void createSelectedFramesHdFromOriginal();
     void removeCurrentFrameHd();
     void updateDynamicColorControls();
     void updateDynamicShadowControls();
@@ -385,6 +385,8 @@ private:
     void commitEdit(std::unique_ptr<edit::EditCommand> command);
     // For a command that has been applied already.
     void recordEdit(std::unique_ptr<edit::EditCommand> command);
+    // Applied commands of several frames, each into the history of its frame, with one refresh.
+    void recordFrameEdits(std::vector<std::unique_ptr<edit::EditCommand>> commands);
     // Records a command the caller has already shown the effects of.
     void pushEdit(std::unique_ptr<edit::EditCommand> command);
     void refreshAfterEdit(const edit::EditCommand& command);

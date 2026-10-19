@@ -3488,6 +3488,24 @@ Use Create %1 Frame.</source>
         <source>Assigned background %1 on %2</source>
         <translation>Hintergrund %1 zugewiesen auf %2</translation>
     </message>
+    <message numerus="yes">
+        <source>Created %n HD frame(s) from SD (%1)</source>
+        <translation>
+            <numerusform>%n HD-Frame aus SD erstellt (%1)</numerusform>
+            <numerusform>%n HD-Frames aus SD erstellt (%1)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Created %1 frame(s) from the originals in their plain colors and %2 black background image(s)</source>
+        <translation>%1 Frame(s) aus den Originalen in ihren einfachen Farben und %2 schwarze Hintergrundbild(er) erstellt</translation>
+    </message>
+    <message numerus="yes">
+        <source>Removed %n HD frame(s)</source>
+        <translation>
+            <numerusform>%n HD-Frame entfernt</numerusform>
+            <numerusform>%n HD-Frames entfernt</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Cleared trigger ID on %1</source>
         <translation type="vanished">Trigger-ID entfernt auf %1</translation>
@@ -3732,6 +3750,13 @@ Use Create %1 Frame.</source>
         <source>Create HD frame from SD. Upscale related data?</source>
         <translation>HD-Frame aus SD erstellen. Zugehörige Daten hochskalieren?</translation>
     </message>
+    <message numerus="yes">
+        <source>Create HD frames from SD for %n selected frame(s). Upscale related data?</source>
+        <translation>
+            <numerusform>HD-Frames aus SD für %n gewählten Frame erstellen. Zugehörige Daten hochskalieren?</numerusform>
+            <numerusform>HD-Frames aus SD für %n gewählte Frames erstellen. Zugehörige Daten hochskalieren?</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Background mask</source>
         <translation>Hintergrundmaske</translation>
@@ -3758,19 +3783,19 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Created HD frame from SD (%1)</source>
-        <translation>HD-Frame aus SD erstellt (%1)</translation>
+        <translation type="vanished">HD-Frame aus SD erstellt (%1)</translation>
     </message>
     <message>
         <source>the %1 frame from the original in its plain colors</source>
-        <translation>der %1-Frame aus dem Original in seinen Grundfarben</translation>
+        <translation type="vanished">der %1-Frame aus dem Original in seinen Grundfarben</translation>
     </message>
     <message>
         <source>a black %1 image for background %2</source>
-        <translation>ein schwarzes %1-Bild für Hintergrund %2</translation>
+        <translation type="vanished">ein schwarzes %1-Bild für Hintergrund %2</translation>
     </message>
     <message>
         <source>Created %1</source>
-        <translation>Erstellt: %1</translation>
+        <translation type="vanished">Erstellt: %1</translation>
     </message>
     <message>
         <source>The %1 frame is the only frame data this project renders; it cannot be removed</source>
@@ -3778,7 +3803,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Removed HD frame</source>
-        <translation>HD-Frame entfernt</translation>
+        <translation type="vanished">HD-Frame entfernt</translation>
     </message>
     <message>
         <source>Selected dynamic set %1</source>
