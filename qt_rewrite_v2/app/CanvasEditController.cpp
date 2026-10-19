@@ -463,8 +463,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         return;
     }
 
-    render::CanvasHit shapeStart = start;
-    render::CanvasHit shapeEnd = end;
+    auto [shapeStart, shapeEnd] = shapeCorners(context, start, end);
     const bool isFree = context.gradientDirection == PaletteGradientDirection::Free;
     if (isFree) {
         if (!isFreeGradientPending()) {
@@ -807,8 +806,9 @@ void CanvasEditController::beginFreeGradient(const CanvasEditContext& context,
                                              const render::CanvasHit& start,
                                              const render::CanvasHit& end)
 {
+    const auto [shapeStart, shapeEnd] = shapeCorners(context, start, end);
     m_pendingFreeGradient =
-        PendingFreeGradient{start, end, context.paintTarget, context.selectedBackground};
+        PendingFreeGradient{shapeStart, shapeEnd, context.paintTarget, context.selectedBackground};
     showPendingFreeGradient(context);
     showStatus(tr("Draw gradient direction line"), kStatusMs);
 }
@@ -823,7 +823,8 @@ void CanvasEditController::previewFreeGradientDirection(const CanvasEditContext&
     const PendingFreeGradient& pending = *m_pendingFreeGradient;
     showPreview(pending.shapeStart.region,
                 pending.shapeStart.resolution,
-                withLine(strokePixels(context, pending.shapeStart, pending.shapeEnd), start, end),
+                withLine(strokePixels(context, pending.shapeStart, pending.shapeEnd, false), start,
+                         end),
                 translucentDrawColor(context, 145));
 }
 
@@ -835,7 +836,7 @@ void CanvasEditController::showPendingFreeGradient(const CanvasEditContext& cont
     const PendingFreeGradient& pending = *m_pendingFreeGradient;
     showPreview(pending.shapeStart.region,
                 pending.shapeStart.resolution,
-                strokePixels(context, pending.shapeStart, pending.shapeEnd),
+                strokePixels(context, pending.shapeStart, pending.shapeEnd, false),
                 translucentDrawColor(context, 120));
 }
 
@@ -1407,15 +1408,38 @@ void CanvasEditController::resetCaptureSelection()
     m_captureSelection.clear();
 }
 
+std::pair<render::CanvasHit, render::CanvasHit> CanvasEditController::shapeCorners(
+    const CanvasEditContext& context,
+    const render::CanvasHit& start,
+    const render::CanvasHit& end)
+{
+    if (!context.fromCentre || !edit::isBoundedShape(context.tool, context.gradientShape)) {
+        return {start, end};
+    }
+    const auto [first, second] = edit::centredShapeCorners(
+        render::Point{start.x, start.y}, render::Point{end.x, end.y},
+        edit::isCircleShape(context.tool, context.gradientShape));
+    render::CanvasHit from = start;
+    render::CanvasHit to = end;
+    from.x = first.x;
+    from.y = first.y;
+    to.x = second.x;
+    to.y = second.y;
+    return {from, to};
+}
+
 std::vector<render::Point> CanvasEditController::strokePixels(const CanvasEditContext& context,
                                                               const render::CanvasHit& start,
-                                                              const render::CanvasHit& end)
+                                                              const render::CanvasHit& end,
+                                                              bool asDragged)
 {
+    const auto [from, to] =
+        asDragged ? shapeCorners(context, start, end) : std::pair{start, end};
     // The end may lie outside the frame (a shape larger than it); its pixels outside are
     // dropped.
     std::vector<render::Point> pixels = edit::makeStrokePixels(
-        context.tool, context.gradientShape, render::Point{start.x, start.y},
-        render::Point{end.x, end.y});
+        context.tool, context.gradientShape, render::Point{from.x, from.y},
+        render::Point{to.x, to.y});
     if (context.document) {
         const render::Size plane = context.document->geometry().planeSize(start.resolution);
         pixels.erase(std::remove_if(pixels.begin(), pixels.end(),

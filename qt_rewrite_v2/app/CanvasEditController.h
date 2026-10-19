@@ -51,6 +51,9 @@ struct CanvasEditContext {
     std::optional<std::size_t> selectedBackground;
     std::optional<std::size_t> selectedPalette;
     edit::DrawingTool tool = edit::DrawingTool::Point;
+    // Shapes (rectangles, circles, ellipses, also of gradients and selections) are drawn from
+    // the centre where the drag started (Alt held), not from corner to corner.
+    bool fromCentre = false;
     uint16_t drawColor = 0xffff;
     // Points, shapes and flood fills of frame and background pixels; the edit colors come
     // from the document. Gradients ignore it.
@@ -262,9 +265,18 @@ private:
     void setSelectionDirection(const render::CanvasHit& start, const render::CanvasHit& end);
     void previewSelectionDirection(const render::CanvasHit& start, const render::CanvasHit& end);
 
+    // The corners of the shape of a drag: start and end, or with context.fromCentre those of
+    // the shape drawn from start as its centre (edit::centredShapeCorners()).
+    [[nodiscard]] static std::pair<render::CanvasHit, render::CanvasHit> shapeCorners(
+        const CanvasEditContext& context,
+        const render::CanvasHit& start,
+        const render::CanvasHit& end);
+    // asDragged: start and end are those of the drag (see shapeCorners()); otherwise the
+    // shape's corners already.
     [[nodiscard]] static std::vector<render::Point> strokePixels(const CanvasEditContext& context,
                                                                  const render::CanvasHit& start,
-                                                                 const render::CanvasHit& end);
+                                                                 const render::CanvasHit& end,
+                                                                 bool asDragged = true);
     [[nodiscard]] static edit::PixelColorSource gradientColorSource(
         const CanvasEditContext& context,
         std::size_t paletteIndex,

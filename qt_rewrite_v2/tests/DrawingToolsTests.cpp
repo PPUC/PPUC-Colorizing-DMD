@@ -416,6 +416,30 @@ void testCircleGeometry()
     expect(samePoints(edit::makeFilledCirclePixels({10, 10}, {4, 1}),
                       edit::makeFilledEllipsePixels({10, 10}, {4, 4})),
            "filled circle is the filled ellipse of the constrained square");
+
+    // From the centre (Alt): the press point stays the middle of the shape.
+    const auto ellipse = edit::centredShapeCorners({10, 10}, {14, 7}, false);
+    expect(ellipse.first.x == 6 && ellipse.first.y == 7 && ellipse.second.x == 14 &&
+               ellipse.second.y == 13,
+           "a shape from its centre reaches as far on every side");
+    const auto circle = edit::centredShapeCorners({10, 10}, {4, 13}, true);
+    expect(circle.first.x == 7 && circle.first.y == 7 && circle.second.x == 13 &&
+               circle.second.y == 13,
+           "a circle from its centre takes the shorter extent, in every direction");
+    const std::vector<Point> centred =
+        edit::makeCirclePixels(circle.first, circle.second);
+    const auto has = [&centred](int x, int y) {
+        return std::any_of(centred.begin(), centred.end(),
+                           [x, y](const Point& point) { return point.x == x && point.y == y; });
+    };
+    expect(has(10, 7) && has(10, 13) && has(7, 10) && has(13, 10),
+           "and is drawn around the press point");
+    expect(edit::isBoundedShape(edit::DrawingTool::Rectangle, edit::PaletteGradientShape::Rectangle) &&
+               edit::isBoundedShape(edit::DrawingTool::Selection, edit::PaletteGradientShape::Ellipse) &&
+               !edit::isBoundedShape(edit::DrawingTool::Line, edit::PaletteGradientShape::Rectangle) &&
+               edit::isCircleShape(edit::DrawingTool::PaletteGradient, edit::PaletteGradientShape::Circle) &&
+               !edit::isCircleShape(edit::DrawingTool::Ellipse, edit::PaletteGradientShape::Circle),
+           "rectangles, circles and ellipses are drawn from the centre, circles as squares");
 }
 
 void testFloodFillRegionAndBorders()

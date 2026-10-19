@@ -160,6 +160,44 @@ std::vector<render::Point> makeFilledCirclePixels(render::Point start, render::P
     return makeFilledEllipsePixels(start, squareConstrainedEnd(start, end));
 }
 
+bool isBoundedShape(DrawingTool tool, PaletteGradientShape)
+{
+    switch (tool) {
+        case DrawingTool::Rectangle:
+        case DrawingTool::FilledRectangle:
+        case DrawingTool::Circle:
+        case DrawingTool::FilledCircle:
+        case DrawingTool::Ellipse:
+        case DrawingTool::FilledEllipse:
+        case DrawingTool::PaletteGradient:
+        case DrawingTool::Selection:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isCircleShape(DrawingTool tool, PaletteGradientShape gradientShape)
+{
+    if (tool == DrawingTool::Circle || tool == DrawingTool::FilledCircle) {
+        return true;
+    }
+    return (tool == DrawingTool::PaletteGradient || tool == DrawingTool::Selection) &&
+           gradientShape == PaletteGradientShape::Circle;
+}
+
+std::pair<render::Point, render::Point> centredShapeCorners(render::Point centre,
+                                                            render::Point end,
+                                                            bool square)
+{
+    int dx = std::abs(end.x - centre.x);
+    int dy = std::abs(end.y - centre.y);
+    if (square) {
+        dx = dy = std::min(dx, dy);
+    }
+    return {render::Point{centre.x - dx, centre.y - dy}, render::Point{centre.x + dx, centre.y + dy}};
+}
+
 std::vector<render::Point> makeStrokePixels(DrawingTool tool,
                                             PaletteGradientShape gradientShape,
                                             render::Point start,

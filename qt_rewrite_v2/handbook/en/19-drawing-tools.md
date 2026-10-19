@@ -17,6 +17,12 @@ on the frame is painted. A filled circle or ellipse larger than the frame, or a 
 gives a curve or a gradient that runs past the frame's edges. The end may lie up to a few frame
 sizes away.
 
+Rectangles, circles and ellipses (filled or not, and the shapes of `Grad` and `Sel`) are drawn
+from corner to corner, as in Photoshop. With `Alt` (`Option` on a Mac) held while dragging, the
+pixel where the drag started is the shape's centre and the shape reaches as far on every side,
+as the Win32 editor drew circles; it can be pressed and released during the drag. The sprite
+canvas does the same.
+
 When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
 
 Hold `Shift` while clicking, drawing a shape or flood filling on the frame to give its pixels

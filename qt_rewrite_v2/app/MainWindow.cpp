@@ -7319,6 +7319,8 @@ CanvasEditContext MainWindow::canvasEditContext() const
     context.selectedBackground = selectedBackgroundIndex();
     context.selectedPalette = selectedPaletteIndex();
     context.tool = m_drawingTool;
+    // Alt (Option on a Mac) while dragging a shape draws it from its centre, as in Photoshop.
+    context.fromCentre = QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier);
     context.drawColor = m_activeDrawColor;
     context.drawColorMode = m_drawColorMode;
     context.dynamicSet = activeDynamicSet();

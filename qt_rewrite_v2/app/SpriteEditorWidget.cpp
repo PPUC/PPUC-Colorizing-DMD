@@ -1,5 +1,8 @@
 #include "SpriteEditorWidget.h"
 
+#include <QGuiApplication>
+#include <tuple>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -725,6 +728,16 @@ bool SpriteEditorWidget::isColorizedPixelEditable(const document::SpriteRecord& 
 std::vector<render::Point> SpriteEditorWidget::pixelsForColorizedStroke(render::Point start,
                                                                         render::Point end) const
 {
+    // Alt (Option on a Mac): shapes from their centre, as on the frame canvas.
+    const bool circle = m_drawingTool == SpriteDrawingTool::Circle ||
+                        m_drawingTool == SpriteDrawingTool::FilledCircle;
+    const bool shape = circle || m_drawingTool == SpriteDrawingTool::Rectangle ||
+                       m_drawingTool == SpriteDrawingTool::FilledRectangle ||
+                       m_drawingTool == SpriteDrawingTool::Ellipse ||
+                       m_drawingTool == SpriteDrawingTool::FilledEllipse;
+    if (shape && QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
+        std::tie(start, end) = edit::centredShapeCorners(start, end, circle);
+    }
     if (m_drawingTool == SpriteDrawingTool::Line) {
         return edit::makeLinePixels(start, end);
     }
