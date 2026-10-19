@@ -32,6 +32,13 @@ class LegacyByteSource;
 //     "HLIN" the helper lines (document/HelperLine.h), when there are any: uint32 count, then
 //            per line uint8 vertical, uint8 plane (0 SD, 1 HD), uint8 visible, uint8 0,
 //            uint32 position, uint32 name length, the name in UTF-8.
+//     "SCEN" the colorization settings (document/Scene.h), when the project has them, also
+//            without scenes: uint8 scaling algorithm, uint8 shadow offset, uint16 0,
+//            uint32 scene count, per scene uint16 scene ID, uint16 frame count, uint16 frame
+//            duration in ms, uint8 interruptable, immediate start, repeat, frame groups,
+//            random, auto start seconds, options, three bytes 0; then uint32 count of scene
+//            frames, per frame uint32 frame index, uint16 scene ID, uint8 group, uint8 0,
+//            uint16 frame index in the scene, uint16 0.
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 

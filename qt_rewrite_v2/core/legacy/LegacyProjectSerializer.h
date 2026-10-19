@@ -77,6 +77,16 @@ struct LegacyIoProgress;
                                     LegacySectionOffsets* sections = nullptr,
                                     LegacyIoProgress* progress = nullptr);
 
+// The settings block a cROM ends with (libserum's ReadCromSettings()): "SCX1", the payload
+// size, then the contents (scenes, scaling), the scenes as a "<rom>.pup.csv" line has them
+// and the scaling settings. libserum then takes the scenes and scaling settings from the cROM
+// and ignores a "<rom>.pup.csv" and "scaling.txt" beside it; a libserum without it stops
+// reading before it. Only a project with a ROM frame of 128x32 has scenes there (libserum
+// plays scenes in no other). Empty for a snapshot without colorizationSettings, as one of the
+// Win32 editor: its cROM stays as that editor writes it.
+inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
+[[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
+
 // How many bytes writeLegacyCrom() and writeLegacyCrp() write for a valid snapshot, without
 // writing them (for a progress display).
 [[nodiscard]] uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot);

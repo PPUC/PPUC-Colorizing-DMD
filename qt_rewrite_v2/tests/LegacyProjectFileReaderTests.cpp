@@ -1,5 +1,6 @@
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
+#include "legacy/LegacyProjectSerializer.h"
 #include "document/EditorMetadata.h"
 
 #include <algorithm>
@@ -1034,6 +1035,66 @@ void testFileWriterSavesCrpx()
                std::string(255, 'x'),
            "a name too long for the field is cut to 255 characters");
     writeBytes(crpxPath, crpx);
+
+    // The colorization settings: the chunk SCEN with the frames' scene links, and the
+    // settings block at the end of the cROM. A project without settings has neither.
+    const std::vector<uint8_t> plainCrom = readBytes(cromPath);
+    colorizing::document::ProjectSnapshot withScenes = source.snapshot;
+    colorizing::document::ColorizationSettings settings;
+    colorizing::document::SceneDefinition opening;
+    opening.sceneId = 1001;
+    opening.frameCount = 2;
+    opening.durationMs = 40;
+    opening.frameGroups = 3;
+    opening.repeat = 1;
+    opening.autoStartSeconds = 9;
+    opening.options = colorizing::document::kSceneAsBackground;
+    colorizing::document::SceneDefinition replay;
+    replay.sceneId = 7;
+    replay.interruptable = true;
+    replay.immediateStart = true;
+    replay.random = true;
+    settings.scenes = {opening, replay};
+    settings.scalingAlgorithm = colorizing::document::kScalingLineDoubling;
+    settings.shadowOffset = colorizing::document::kShadowOffsetProportional;
+    withScenes.colorizationSettings = settings;
+    withScenes.frames[1].scene = colorizing::document::SceneFrameRef{1001, 3, 1};
+    expect(writer.save(paths, withScenes).ok, "a .cRPX with scenes is saved");
+    const std::vector<uint8_t> withScenesBytes = readBytes(crpxPath);
+    expect(std::string(withScenesBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()),
+                       withScenesBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()) + 4) ==
+               "SCEN",
+           "the scenes follow the cRP part as the chunk SCEN");
+    const LegacyLoadResult scenesBack = reader.load(paths);
+    expect(scenesBack.ok && scenesBack.snapshot.colorizationSettings == settings &&
+               scenesBack.snapshot.frames[1].scene == withScenes.frames[1].scene &&
+               !scenesBack.snapshot.frames[0].scene,
+           "and come back as they were, with the frame's scene link");
+    const std::vector<uint8_t> cromWithBlock = readBytes(cromPath);
+    const std::vector<uint8_t> block = colorizing::legacy::cromSettingsBlock(withScenes);
+    expect(cromWithBlock.size() == plainCrom.size() + block.size() &&
+               std::equal(plainCrom.begin(), plainCrom.end(), cromWithBlock.begin()) &&
+               std::equal(block.begin(), block.end(),
+                          cromWithBlock.end() - static_cast<std::ptrdiff_t>(block.size())) &&
+               std::string(block.begin(), block.begin() + 4) == "SCX1",
+           "the cROM is the same with the settings block at its end");
+    // magic, size, contents, count, two scenes of 13 bytes, scaling.
+    expect(block.size() == 4 + 4 + 4 + 4 + 2 * 13 + 2 && block[8] == 3,
+           "the block holds both scenes and the scaling settings");
+    std::vector<uint8_t> cutScenes = withScenesBytes;
+    cutScenes.resize(cutScenes.size() - 3);
+    writeBytes(crpxPath, cutScenes);
+    expect(!reader.load(paths).ok, "a .cRPX whose scenes are cut off is refused");
+    colorizing::document::ProjectSnapshot noScenes = source.snapshot;
+    noScenes.colorizationSettings = colorizing::document::ColorizationSettings{};
+    expect(writer.save(paths, noScenes).ok, "settings without scenes are saved");
+    const LegacyLoadResult noScenesBack = reader.load(paths);
+    expect(noScenesBack.ok && noScenesBack.snapshot.colorizationSettings &&
+               noScenesBack.snapshot.colorizationSettings->scenes.empty(),
+           "and stay settings, so that a pup.csv is not read again");
+    expect(writer.save(paths, source.snapshot).ok && readBytes(cromPath) == plainCrom &&
+               !reader.load(paths).snapshot.colorizationSettings,
+           "a project without settings writes the cROM as before");
 
     std::vector<uint8_t> newer = crpx;
     newer[8] = 2;

@@ -623,6 +623,8 @@ bool writeCromContent(std::ostream& stream,
     for (const auto& sprite : snapshot.sprites) {
         writer.u8(sprite.shapeMode);
     }
+    writer.section("settings block");
+    writer.bytes(cromSettingsBlock(snapshot));
     writer.section("end");
 
     if (!writer.finish()) {
@@ -802,7 +804,48 @@ uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot)
                                2 * spritePixels + 1;
     const uint64_t perBackground = 1 + 2 * sd + 2 * hd;
     return header + frames * perFrame + masks * rom + sprites * perSprite +
-           backgrounds * perBackground;
+           backgrounds * perBackground + cromSettingsBlock(snapshot).size();
+}
+
+std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot)
+{
+    std::vector<uint8_t> block;
+    if (!snapshot.colorizationSettings) {
+        return block;
+    }
+    const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
+    const auto put = [&block](uint64_t value, std::size_t bytes) {
+        for (std::size_t i = 0; i < bytes; ++i) {
+            block.push_back(static_cast<uint8_t>((value >> (8 * i)) & 0xff));
+        }
+    };
+    const document::Size rom = document::originalFrameSize(snapshot);
+    const bool withScenes = rom.width == 128 && rom.height == 32;
+    put(kCromSettingsMagic, 4);
+    put(0, 4);  // the payload size, set below
+    put(withScenes ? 3 : 2, 4);
+    if (withScenes) {
+        put(settings.scenes.size(), 4);
+        for (const document::SceneDefinition& scene : settings.scenes) {
+            put(scene.sceneId, 2);
+            put(scene.frameCount, 2);
+            put(scene.durationMs, 2);
+            put(scene.interruptable ? 1 : 0, 1);
+            put(scene.immediateStart ? 1 : 0, 1);
+            put(scene.repeat, 1);
+            put(scene.frameGroups == 0 ? 1 : scene.frameGroups, 1);
+            put(scene.random ? 1 : 0, 1);
+            put(scene.autoStartSeconds, 1);
+            put(scene.options, 1);
+        }
+    }
+    put(settings.scalingAlgorithm, 1);
+    put(settings.shadowOffset, 1);
+    const uint64_t payload = block.size() - 8;
+    for (std::size_t i = 0; i < 4; ++i) {
+        block[4 + i] = static_cast<uint8_t>((payload >> (8 * i)) & 0xff);
+    }
+    return block;
 }
 
 uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot)

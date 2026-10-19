@@ -1,0 +1,56 @@
+#pragma once
+
+#include <cstddef>
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "document/ProjectDocument.h"
+#include "document/Scene.h"
+#include "render/ProjectGeometry.h"
+
+namespace colorizing::runtime {
+
+// Whether libserum plays scenes in a project of this layout: only one with a ROM frame of
+// 128x32.
+[[nodiscard]] bool supportsScenes(const render::ProjectGeometry& geometry);
+
+// The ROM frame libserum's scene generator makes for a frame of the scene, as libdmdutil's
+// scene tool dumps it and libserum identifies it: "PUP SCENE ID", "FRAME GROUP" and
+// "FRAME NUMBER" with the numbers, 128x32, in the shades of colorCount colors (4 or 16).
+// Throws std::out_of_range for a group or frame the scene does not have.
+[[nodiscard]] document::IndexedFrame sceneMarkerFrame(const document::SceneDefinition& scene,
+                                                      const document::SceneFrameRef& frame,
+                                                      uint32_t colorCount);
+
+// The scenes of a "<rom>.pup.csv", read as libserum's SceneGenerator::parseCSV() reads them:
+// lines that are empty, start with '#' or have fewer than three numbers are skipped. Nothing
+// if the file cannot be read.
+[[nodiscard]] std::optional<std::vector<document::SceneDefinition>> readSceneCsv(
+    const std::filesystem::path& path);
+// The settings of a "scaling.txt", read as libserum reads them, over defaults.
+[[nodiscard]] std::optional<document::ColorizationSettings> readScalingFile(
+    const std::filesystem::path& path,
+    document::ColorizationSettings defaults = {});
+
+// Links each frame whose original is the marker of a frame of one of the scenes to it
+// (ProjectDocument::sceneFrame()), and unlinks the others. Returns the number linked.
+std::size_t linkSceneFrames(document::ProjectDocument& document);
+
+struct SidecarImport {
+    // The files that were read, by name.
+    std::vector<std::string> files;
+    std::size_t scenes = 0;
+    std::size_t linkedFrames = 0;
+};
+
+// Gives a project without colorization settings (one of the Win32 editor) the settings
+// libserum would use for it from the files beside its cROM in `directory`: the scenes of
+// "<rom>.pup.csv" (frames linked as linkSceneFrames() does) and "scaling.txt", names in any
+// case, defaults for what is missing. The files themselves are left as they are. Does
+// nothing to a project that has settings.
+SidecarImport importColorizationSidecars(document::ProjectDocument& document,
+                                         const std::filesystem::path& directory);
+
+}  // namespace colorizing::runtime

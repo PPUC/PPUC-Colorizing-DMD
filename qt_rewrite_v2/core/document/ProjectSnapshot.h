@@ -27,6 +27,8 @@ struct ProjectFrameSnapshot {
     CompactArray<uint16_t> colorRotationsSd;
     CompactArray<uint16_t> colorRotationsHd;
     std::optional<Rgb565Frame> inactiveHd;
+    // .cRPX only.
+    std::optional<SceneFrameRef> scene;
 };
 
 struct ProjectSnapshot {
@@ -51,6 +53,9 @@ struct ProjectSnapshot {
     EditorMetadata editorMetadata = makeDefaultEditorMetadata();
     // The editor's helper lines (.cRPX only).
     std::vector<HelperLine> helperLines;
+    // The cROM's settings block (.cRPX, and the cROM written from it); nothing for a project
+    // of the Win32 editor.
+    std::optional<ColorizationSettings> colorizationSettings;
 };
 
 [[nodiscard]] Size originalFrameSize(const ProjectSnapshot& snapshot);

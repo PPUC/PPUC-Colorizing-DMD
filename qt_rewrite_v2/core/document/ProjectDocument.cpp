@@ -569,6 +569,7 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         normalizedColorRotations(std::move(frameSnapshot.colorRotationsSd)),
         normalizedColorRotations(std::move(frameSnapshot.colorRotationsHd)),
         std::move(frameSnapshot.inactiveHd),
+        frameSnapshot.scene,
     };
 }
 
@@ -597,6 +598,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_unsupportedPayloads = std::move(snapshot.unsupportedPayloads);
     document.m_editorMetadata = std::move(snapshot.editorMetadata);
     document.m_helperLines = std::move(snapshot.helperLines);
+    document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
     document.m_geometry = snapshot.geometry;
@@ -811,6 +813,55 @@ void ProjectDocument::setHelperLines(std::vector<HelperLine> lines)
     }
     m_helperLines = std::move(lines);
     markChanged();
+}
+
+const std::optional<ColorizationSettings>& ProjectDocument::colorizationSettings() const
+{
+    return m_colorizationSettings;
+}
+
+void ProjectDocument::setColorizationSettings(std::optional<ColorizationSettings> settings)
+{
+    if (settings == m_colorizationSettings) {
+        return;
+    }
+    // Which frames are scene frames is part of identification.
+    const bool scenesChanged =
+        (settings ? settings->scenes : std::vector<SceneDefinition>{}) !=
+        (m_colorizationSettings ? m_colorizationSettings->scenes
+                                : std::vector<SceneDefinition>{});
+    m_colorizationSettings = std::move(settings);
+    markChanged();
+    if (scenesChanged) {
+        m_identificationRevision = m_revision;
+    }
+}
+
+const std::optional<SceneFrameRef>& ProjectDocument::sceneFrame(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).scene;
+}
+
+void ProjectDocument::setSceneFrame(std::size_t frameIndex, std::optional<SceneFrameRef> scene)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.scene == scene) {
+        return;
+    }
+    frame.scene = scene;
+    markChanged();
+}
+
+void ProjectDocument::setOriginalFrame(std::size_t frameIndex, IndexedFrame original)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (original.size.width != frame.originalSd.size.width ||
+        original.size.height != frame.originalSd.size.height || !original.isValid()) {
+        throw std::invalid_argument("the original has not the size of the ROM frame");
+    }
+    frame.originalSd = std::move(original);
+    markChanged();
+    m_identificationRevision = m_revision;
 }
 
 void ProjectDocument::markChanged()
@@ -3192,6 +3243,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.colorRotationsSd,
         frame.colorRotationsHd,
         frame.inactiveHd,
+        frame.scene,
     };
 }
 
@@ -3221,6 +3273,7 @@ ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>
     snapshot.colorCount = m_colorCount;
     snapshot.cromRevision = m_cromRevision;
     snapshot.geometry = m_geometry;
+    snapshot.colorizationSettings = m_colorizationSettings;
     snapshot.frames.reserve(frameIndices.size());
     for (std::size_t frameIndex : frameIndices) {
         if (frameIndex >= m_frames.size()) {
@@ -3280,6 +3333,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.geometry = m_geometry;
     snapshot.editorMetadata = m_editorMetadata;
     snapshot.helperLines = m_helperLines;
+    snapshot.colorizationSettings = m_colorizationSettings;
     if (m_geometry.discardsExtraPlane()) {
         discardExtraPlane(snapshot);
     }

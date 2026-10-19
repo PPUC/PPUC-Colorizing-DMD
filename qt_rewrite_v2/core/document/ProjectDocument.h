@@ -9,6 +9,7 @@
 #include "document/CompactArray.h"
 #include "document/EditorMetadata.h"
 #include "document/HelperLine.h"
+#include "document/Scene.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
 
@@ -126,6 +127,8 @@ struct FrameRecord {
     CompactArray<uint16_t> colorRotationsHd;
     // See BackgroundRecord::inactiveHd.
     std::optional<Rgb565Frame> inactiveHd;
+    // The scene frame this frame is (.cRPX only).
+    std::optional<SceneFrameRef> scene;
 };
 
 // Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
@@ -334,6 +337,16 @@ public:
     // The editor's helper lines (HelperLine.h), in their order.
     [[nodiscard]] const std::vector<HelperLine>& helperLines() const;
     void setHelperLines(std::vector<HelperLine> lines);
+    // The scenes and scaling settings the cROM carries (Scene.h); nothing for a project whose
+    // editor file has none, as one of the Win32 editor (see importColorizationSidecars()).
+    [[nodiscard]] const std::optional<ColorizationSettings>& colorizationSettings() const;
+    void setColorizationSettings(std::optional<ColorizationSettings> settings);
+    // The scene frame the frame is, if it is one.
+    [[nodiscard]] const std::optional<SceneFrameRef>& sceneFrame(std::size_t frameIndex) const;
+    void setSceneFrame(std::size_t frameIndex, std::optional<SceneFrameRef> scene);
+    // Replaces the frame's original (the ROM frame it is identified by), e.g. with a scene
+    // marker. Throws std::invalid_argument for one that has not the ROM frame's size.
+    void setOriginalFrame(std::size_t frameIndex, IndexedFrame original);
     [[nodiscard]] ColorSetTables colorSetTables() const;
     // Replaces the edit colors and color sets. Throws std::invalid_argument, without changing
     // anything, for tables of the wrong sizes. Tables equal to the current ones change
@@ -725,6 +738,7 @@ private:
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     EditorMetadata m_editorMetadata = makeDefaultEditorMetadata();
     std::vector<HelperLine> m_helperLines;
+    std::optional<ColorizationSettings> m_colorizationSettings;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
     render::ProjectGeometry m_geometry;

@@ -32,6 +32,9 @@ void appendLittleEndian(std::string& out, uint64_t value, std::size_t bytes)
 
 constexpr std::array<char, 4> kHelperLinesTag = {'H', 'L', 'I', 'N'};
 constexpr std::array<char, 4> kPupPackTag = {'P', 'U', 'P', 'P'};
+constexpr std::array<char, 4> kScenesTag = {'S', 'C', 'E', 'N'};
+constexpr std::size_t kSceneBytes = 16;
+constexpr std::size_t kSceneFrameBytes = 12;
 constexpr std::size_t kChunkHeaderBytes = 16;
 
 void appendChunk(std::string& chunks, const std::array<char, 4>& tag, const std::string& data)
@@ -68,7 +71,123 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
         }
         appendChunk(chunks, kHelperLinesTag, data);
     }
+    if (snapshot.colorizationSettings) {
+        const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
+        std::string data;
+        data.push_back(static_cast<char>(settings.scalingAlgorithm));
+        data.push_back(static_cast<char>(settings.shadowOffset));
+        appendLittleEndian(data, 0, 2);
+        appendLittleEndian(data, settings.scenes.size(), 4);
+        for (const document::SceneDefinition& scene : settings.scenes) {
+            appendLittleEndian(data, scene.sceneId, 2);
+            appendLittleEndian(data, scene.frameCount, 2);
+            appendLittleEndian(data, scene.durationMs, 2);
+            data.push_back(scene.interruptable ? 1 : 0);
+            data.push_back(scene.immediateStart ? 1 : 0);
+            data.push_back(static_cast<char>(scene.repeat));
+            data.push_back(static_cast<char>(scene.frameGroups));
+            data.push_back(scene.random ? 1 : 0);
+            data.push_back(static_cast<char>(scene.autoStartSeconds));
+            data.push_back(static_cast<char>(scene.options));
+            appendLittleEndian(data, 0, 3);
+        }
+        std::size_t sceneFrames = 0;
+        for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+            sceneFrames += frame.scene ? 1 : 0;
+        }
+        appendLittleEndian(data, sceneFrames, 4);
+        for (std::size_t index = 0; index < snapshot.frames.size(); ++index) {
+            const std::optional<document::SceneFrameRef>& scene = snapshot.frames[index].scene;
+            if (!scene) {
+                continue;
+            }
+            appendLittleEndian(data, index, 4);
+            appendLittleEndian(data, scene->sceneId, 2);
+            data.push_back(static_cast<char>(scene->group));
+            data.push_back(0);
+            appendLittleEndian(data, scene->frameIndex, 2);
+            appendLittleEndian(data, 0, 2);
+        }
+        appendChunk(chunks, kScenesTag, data);
+    }
     return chunks;
+}
+
+uint16_t littleEndian16(const uint8_t* bytes)
+{
+    return static_cast<uint16_t>(bytes[0] | (bytes[1] << 8));
+}
+
+uint32_t littleEndian32(const uint8_t* bytes)
+{
+    return static_cast<uint32_t>(bytes[0]) | (static_cast<uint32_t>(bytes[1]) << 8) |
+           (static_cast<uint32_t>(bytes[2]) << 16) | (static_cast<uint32_t>(bytes[3]) << 24);
+}
+
+bool parseScenes(LegacyByteSource& source,
+                 uint64_t size,
+                 document::ProjectSnapshot& snapshot,
+                 std::string& errorMessage)
+{
+    const auto damaged = [&]() {
+        errorMessage = "the scenes of the .cRPX are damaged";
+        return false;
+    };
+    uint8_t head[8] = {};
+    if (size < 8 || !source.readBytes(head, 8)) {
+        return damaged();
+    }
+    uint64_t left = size - 8;
+    document::ColorizationSettings settings;
+    settings.scalingAlgorithm = head[0];
+    settings.shadowOffset = head[1];
+    const uint32_t sceneCount = littleEndian32(head + 4);
+    if (left < static_cast<uint64_t>(sceneCount) * kSceneBytes) {
+        return damaged();
+    }
+    for (uint32_t index = 0; index < sceneCount; ++index) {
+        uint8_t bytes[kSceneBytes] = {};
+        if (!source.readBytes(bytes, kSceneBytes)) {
+            return damaged();
+        }
+        document::SceneDefinition scene;
+        scene.sceneId = littleEndian16(bytes);
+        scene.frameCount = littleEndian16(bytes + 2);
+        scene.durationMs = littleEndian16(bytes + 4);
+        scene.interruptable = bytes[6] != 0;
+        scene.immediateStart = bytes[7] != 0;
+        scene.repeat = bytes[8];
+        scene.frameGroups = bytes[9];
+        scene.random = bytes[10] != 0;
+        scene.autoStartSeconds = bytes[11];
+        scene.options = bytes[12];
+        settings.scenes.push_back(scene);
+    }
+    left -= static_cast<uint64_t>(sceneCount) * kSceneBytes;
+    uint32_t frameCount = 0;
+    if (left < 4 || !source.readU32(frameCount)) {
+        return damaged();
+    }
+    left -= 4;
+    if (left < static_cast<uint64_t>(frameCount) * kSceneFrameBytes) {
+        return damaged();
+    }
+    for (uint32_t index = 0; index < frameCount; ++index) {
+        uint8_t bytes[kSceneFrameBytes] = {};
+        if (!source.readBytes(bytes, kSceneFrameBytes)) {
+            return damaged();
+        }
+        const uint32_t frame = littleEndian32(bytes);
+        if (frame >= snapshot.frames.size()) {
+            return damaged();
+        }
+        snapshot.frames[frame].scene =
+            document::SceneFrameRef{littleEndian16(bytes + 4), bytes[6], littleEndian16(bytes + 8)};
+    }
+    left -= static_cast<uint64_t>(frameCount) * kSceneFrameBytes;
+    snapshot.colorizationSettings = std::move(settings);
+    // Room a later version uses for more is skipped.
+    return source.skip(static_cast<std::size_t>(left)) || damaged();
 }
 
 bool parseHelperLines(LegacyByteSource& source,
@@ -221,6 +340,10 @@ bool readCrpxChunks(LegacyByteSource& source,
         }
         if (std::memcmp(tag, kHelperLinesTag.data(), 4) == 0) {
             if (!parseHelperLines(source, size, snapshot.helperLines, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kScenesTag.data(), 4) == 0) {
+            if (!parseScenes(source, size, snapshot, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kPupPackTag.data(), 4) == 0) {
