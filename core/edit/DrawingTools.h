@@ -125,6 +125,14 @@ using PixelColorSource = std::function<uint16_t(render::Point)>;
     const document::ProjectDocument& document,
     std::size_t frameIndex,
     render::Resolution plane);
+// Color set replace on a sprite: each point takes the edit color of the shade of the sprite's
+// original under it (on the HD plane of an ordinary project the shade at half the
+// coordinates). A point over a transparent part of the original keeps its color. The plane is
+// the one painting a sprite on `resolution` edits: SD for a sprite without HD.
+[[nodiscard]] PixelColorSource spriteColorSetReplaceColorSource(
+    const document::ProjectDocument& document,
+    std::size_t spriteIndex,
+    render::Resolution resolution);
 // The same with the plain original colors (plainOriginalColors()) instead of the edit colors:
 // the color an uncolorized frame shows there. Painting with it gives pixels back their
 // original look (drawing on the frame with Shift).
@@ -160,6 +168,14 @@ using PixelColorSource = std::function<uint16_t(render::Point)>;
     render::Resolution resolution,
     const std::vector<render::Point>& points,
     uint16_t color,
+    bool erase);
+// The same with a color for each point (e.g. spriteColorSetReplaceColorSource()).
+[[nodiscard]] std::vector<PixelChange> makeSpritePaintChanges(
+    const document::ProjectDocument& document,
+    std::size_t spriteIndex,
+    render::Resolution resolution,
+    const std::vector<render::Point>& points,
+    const PixelColorSource& colorForPoint,
     bool erase);
 
 }  // namespace colorizing::edit

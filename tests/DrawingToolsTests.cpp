@@ -1074,6 +1074,31 @@ void testSpritePaintChanges()
     expectThrows<std::out_of_range>(
         [&] { (void)edit::makeSpritePaintChanges(document, 3, Resolution::Sd, points, 1, false); },
         "sprite paint with bad sprite index");
+
+    // Color set replace (issue #10): each pixel takes the edit color of the original's shade;
+    // on HD the shade at half the coordinates.
+    const auto& original = document.sprite(0).originalSd;
+    const auto shadeAt = [&original](int x, int y) {
+        return original.pixels[static_cast<std::size_t>(y) * colorizing::document::kMaxSpriteWidth +
+                               static_cast<std::size_t>(x)];
+    };
+    const std::vector<uint16_t>& editColors = document.editorMetadata().editColors;
+    const edit::PixelColorSource replace =
+        edit::spriteColorSetReplaceColorSource(document, 0, Resolution::Sd);
+    expect(shadeAt(2, 1) != 255 && replace(Point{2, 1}) == editColors[shadeAt(2, 1)],
+           "set replace takes the edit color of the sprite original's shade");
+    const std::vector<PixelChange> replaced =
+        edit::makeSpritePaintChanges(document, 0, Resolution::Sd, {{2, 1}, {0, 0}}, replace, false);
+    expect(!replaced.empty() && replaced[0].x == 2 &&
+               replaced[0].newColor == editColors[shadeAt(2, 1)],
+           "and paints it, inside the shape only");
+    const edit::PixelColorSource replaceHd =
+        edit::spriteColorSetReplaceColorSource(document, 0, Resolution::Hd);
+    expect(replaceHd(Point{4, 2}) == editColors[shadeAt(2, 1)],
+           "on HD the shade at half the coordinates");
+    const std::vector<PixelChange> erasedReplace =
+        edit::makeSpritePaintChanges(document, 0, Resolution::Sd, {{2, 1}}, replace, true);
+    expect(sameChanges(erasedReplace, {{2, 1, 0x1111, 0}}), "Shift still erases");
 }
 
 void testStrokePixelsPerTool()

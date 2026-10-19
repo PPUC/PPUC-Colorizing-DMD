@@ -41,6 +41,9 @@ public:
     void setActiveResolution(render::Resolution resolution);
     void setDrawingTool(SpriteDrawingTool tool);
     void setActiveDrawColor(uint16_t rgb565);
+    // Color set replace: the stroke preview shows each pixel in the edit color of its shade
+    // (edit::spriteColorSetReplaceColorSource()), as the owner paints it.
+    void setColorSetReplace(bool enabled);
     void setDmdRenderOptions(DmdRenderOptions options);
     void setDetectionAreasVisible(bool visible);
     // Strokes paint the sprite's dynamic zones (every covered pixel can be painted, black ones
@@ -121,6 +124,7 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     SpriteDrawingTool m_drawingTool = SpriteDrawingTool::Point;
     uint16_t m_activeDrawColor = 0xffff;
+    bool m_colorSetReplace = false;
     bool m_dynamicPaint = false;
     DmdRenderOptions m_renderOptions;
     bool m_showDetectionAreas = true;

@@ -14,6 +14,7 @@
 #include <QWheelEvent>
 
 #include "edit/DrawingGeometry.h"
+#include "edit/DrawingTools.h"
 
 namespace colorizing::app {
 
@@ -96,6 +97,15 @@ void SpriteEditorWidget::setDrawingTool(SpriteDrawingTool tool)
     m_drawingTool = tool;
     m_colorizedStrokeStart.reset();
     m_colorizedStrokeEnd.reset();
+    update();
+}
+
+void SpriteEditorWidget::setColorSetReplace(bool enabled)
+{
+    if (m_colorSetReplace == enabled) {
+        return;
+    }
+    m_colorSetReplace = enabled;
     update();
 }
 
@@ -680,6 +690,11 @@ void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const Re
     if (!m_paintErase) {
         previewColor.setAlpha(150);
     }
+    // In dynamic paint mode the stroke paints dynamic zones, not colors.
+    const edit::PixelColorSource replaced =
+        m_colorSetReplace && !m_paintErase && !m_dynamicPaint
+            ? edit::spriteColorSetReplaceColorSource(*m_document, *m_spriteIndex, resolution)
+            : edit::PixelColorSource();
 
     painter.save();
     for (const render::Point point : pixelsForColorizedStroke(*m_colorizedStrokeStart,
@@ -689,11 +704,16 @@ void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const Re
         }
         const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
         const double cellSize = useHd ? 1.0 / hdScale() : 1.0;
+        QColor color = previewColor;
+        if (replaced) {
+            color = rgb565ToColor(replaced(point));
+            color.setAlpha(150);
+        }
         paintDmdPixel(painter,
                       region.rect.x + point.x * cellSize,
                       region.rect.y + point.y * cellSize,
                       cellSize,
-                      previewColor,
+                      color,
                       m_renderOptions);
     }
     painter.restore();

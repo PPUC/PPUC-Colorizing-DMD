@@ -351,6 +351,31 @@ PixelColorSource colorSetReplaceColorSource(const document::ProjectDocument& doc
     };
 }
 
+PixelColorSource spriteColorSetReplaceColorSource(const document::ProjectDocument& document,
+                                                  std::size_t spriteIndex,
+                                                  render::Resolution resolution)
+{
+    const document::SpriteRecord& sprite = document.sprite(spriteIndex);
+    // The plane spriteShapeMask() paints: SD for a sprite without HD.
+    const render::Resolution plane =
+        resolution == render::Resolution::Hd && sprite.hasHd ? render::Resolution::Hd
+                                                              : render::Resolution::Sd;
+    const render::ProjectGeometry geometry = document.geometry();
+    static_cast<void>(geometry.planeScale(plane));
+    return [&document, &original = sprite.originalSd, spriteIndex, resolution, geometry, plane,
+            editColors = document.editorMetadata().editColors](render::Point point) {
+        const render::Point rom = geometry.toRomFrame(plane, point);
+        if (rom.x >= 0 && rom.y >= 0 && rom.x < static_cast<int>(document::kMaxSpriteWidth) &&
+            rom.y < static_cast<int>(document::kMaxSpriteHeight)) {
+            const uint8_t shade = original.pixels[spritePixelIndex(rom.x, rom.y)];
+            if (shade != 255) {
+                return editColors[std::min<std::size_t>(shade, editColors.size() - 1)];
+            }
+        }
+        return document.spriteColorizedPixel(spriteIndex, resolution, point.x, point.y);
+    };
+}
+
 PixelColorSource originalColorSource(const document::ProjectDocument& document,
                                      std::size_t frameIndex,
                                      render::Resolution plane)
@@ -429,6 +454,17 @@ std::vector<PixelChange> makeSpritePaintChanges(const document::ProjectDocument&
                                                 uint16_t color,
                                                 bool erase)
 {
+    return makeSpritePaintChanges(document, spriteIndex, resolution, points,
+                                  [color](render::Point) { return color; }, erase);
+}
+
+std::vector<PixelChange> makeSpritePaintChanges(const document::ProjectDocument& document,
+                                                std::size_t spriteIndex,
+                                                render::Resolution resolution,
+                                                const std::vector<render::Point>& points,
+                                                const PixelColorSource& colorForPoint,
+                                                bool erase)
+{
     const document::IndexedFrame& mask = spriteShapeMask(document.sprite(spriteIndex), resolution);
     std::vector<PixelChange> changes;
     std::set<std::pair<int, int>> seen;
@@ -449,6 +485,7 @@ std::vector<PixelChange> makeSpritePaintChanges(const document::ProjectDocument&
         if (!erase && currentColor == 0) {
             continue;
         }
+        const uint16_t color = erase ? uint16_t{0} : colorForPoint(point);
         if (currentColor == color) {
             continue;
         }

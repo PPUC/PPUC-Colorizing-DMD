@@ -1048,6 +1048,7 @@ void MainWindow::createCentralView()
     m_preview = new FramePreviewWidget(central);
     m_preview->setRuntimeView(&m_runtimeView);
     m_spriteEditor = new SpriteEditorWidget(central);
+    m_spriteEditor->setColorSetReplace(m_drawColorMode == edit::DrawColorMode::ColorSetReplace);
     m_canvasStack = new QStackedWidget(central);
     m_canvasStack->addWidget(m_preview);
     m_canvasStack->addWidget(m_spriteEditor);
@@ -6410,15 +6411,21 @@ void MainWindow::paintSpriteColorizedPixels(std::size_t spriteIndex,
         return;
     }
 
-    const uint16_t color = erase ? uint16_t{0} : m_activeDrawColor;
     try {
+        // Color set replace: each pixel takes the edit color of the sprite original's shade.
+        const edit::PixelColorSource colorForPoint =
+            m_drawColorMode == edit::DrawColorMode::ColorSetReplace
+                ? edit::spriteColorSetReplaceColorSource(*m_document, spriteIndex, resolution)
+                : edit::PixelColorSource([color = m_activeDrawColor](render::Point) {
+                      return color;
+                  });
         const edit::EditLayer layer{edit::EditKind::SpriteImage, spriteIndex, resolution};
         if (!commitPixelChanges(layer,
                                 edit::makeSpritePaintChanges(*m_document,
                                                              spriteIndex,
                                                              resolution,
                                                              pixels,
-                                                             color,
+                                                             colorForPoint,
                                                              erase))) {
             return;
         }
@@ -6459,7 +6466,8 @@ void MainWindow::floodFillSpriteColorized(std::size_t spriteIndex,
     }
 
     try {
-        if (m_document->spriteColorizedPixel(spriteIndex, resolution, x, y) == m_activeDrawColor) {
+        if (m_drawColorMode != edit::DrawColorMode::ColorSetReplace &&
+            m_document->spriteColorizedPixel(spriteIndex, resolution, x, y) == m_activeDrawColor) {
             return;
         }
         paintSpriteColorizedPixels(spriteIndex,
@@ -8061,6 +8069,9 @@ void MainWindow::setEditColor(std::size_t slot, uint16_t rgb565)
 void MainWindow::setDrawColorMode(edit::DrawColorMode mode)
 {
     m_drawColorMode = mode;
+    if (m_spriteEditor) {
+        m_spriteEditor->setColorSetReplace(mode == edit::DrawColorMode::ColorSetReplace);
+    }
     if (m_editColorBar) {
         m_editColorBar->setDrawColorMode(mode);
     }
