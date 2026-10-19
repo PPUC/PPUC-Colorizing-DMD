@@ -2649,6 +2649,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Lignes d&apos;aide</translation>
     </message>
     <message>
+        <source>Scenes</source>
+        <translation>Scènes</translation>
+    </message>
+    <message>
+        <source>Project Settings</source>
+        <translation>Réglages du projet</translation>
+    </message>
+    <message>
         <source>Used by the current frame</source>
         <translation>Utilisés par la frame courante</translation>
     </message>
@@ -2874,7 +2882,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Scenes and Scaling</source>
-        <translation>Scènes et mise à l&apos;échelle</translation>
+        <translation type="vanished">Scènes et mise à l&apos;échelle</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
@@ -4790,6 +4798,41 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
 </context>
 <context>
+    <name>ProjectSettingsPanel</name>
+    <message>
+        <source>Scale2x</source>
+        <translation>Scale2x</translation>
+    </message>
+    <message>
+        <source>Line doubling</source>
+        <translation>Doublement des lignes</translation>
+    </message>
+    <message>
+        <source>How libserum makes the 256x64 picture of a frame that has none</source>
+        <translation>Comment libserum crée l&apos;image 256x64 d&apos;une frame qui n&apos;en a pas</translation>
+    </message>
+    <message>
+        <source>1 pixel (native)</source>
+        <translation>1 pixel (natif)</translation>
+    </message>
+    <message>
+        <source>2 pixels (proportional)</source>
+        <translation>2 pixels (proportionnel)</translation>
+    </message>
+    <message>
+        <source>How far a dynamic shadow falls on the 256x64 plane</source>
+        <translation>Distance de l&apos;ombre dynamique sur le plan 256x64</translation>
+    </message>
+    <message>
+        <source>Upscaling</source>
+        <translation>Agrandissement</translation>
+    </message>
+    <message>
+        <source>Shadow offset</source>
+        <translation>Décalage de l&apos;ombre</translation>
+    </message>
+</context>
+<context>
     <name>ProjectTaskDialog</name>
     <message>
         <source>What the editor is doing with the project files</source>
@@ -5311,35 +5354,35 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Scale2x</source>
-        <translation>Scale2x</translation>
+        <translation type="vanished">Scale2x</translation>
     </message>
     <message>
         <source>Line doubling</source>
-        <translation>Doublement des lignes</translation>
+        <translation type="vanished">Doublement des lignes</translation>
     </message>
     <message>
         <source>How libserum makes the 256x64 picture of a frame that has none</source>
-        <translation>Comment libserum crée l&apos;image 256x64 d&apos;une frame qui n&apos;en a pas</translation>
+        <translation type="vanished">Comment libserum crée l&apos;image 256x64 d&apos;une frame qui n&apos;en a pas</translation>
     </message>
     <message>
         <source>1 pixel (native)</source>
-        <translation>1 pixel (natif)</translation>
+        <translation type="vanished">1 pixel (natif)</translation>
     </message>
     <message>
         <source>2 pixels (proportional)</source>
-        <translation>2 pixels (proportionnel)</translation>
+        <translation type="vanished">2 pixels (proportionnel)</translation>
     </message>
     <message>
         <source>How far a dynamic shadow falls on the 256x64 plane</source>
-        <translation>Distance de l&apos;ombre dynamique sur le plan 256x64</translation>
+        <translation type="vanished">Distance de l&apos;ombre dynamique sur le plan 256x64</translation>
     </message>
     <message>
         <source>Upscaling</source>
-        <translation>Agrandissement</translation>
+        <translation type="vanished">Agrandissement</translation>
     </message>
     <message>
         <source>Shadow offset</source>
-        <translation>Décalage de l&apos;ombre</translation>
+        <translation type="vanished">Décalage de l&apos;ombre</translation>
     </message>
     <message>
         <source>%1 — %2 × %3 frames, %4 ms</source>

@@ -48,6 +48,7 @@ class FramePanel;
 class SectionBar;
 class HelperLinesPanel;
 class ScenesPanel;
+class ProjectSettingsPanel;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -693,6 +694,8 @@ private:
     void changeHelperLines(std::vector<document::HelperLine> lines, const QString& status);
     // The Scenes section (Scene.h): changed through the edit::SceneEdits functions.
     ScenesPanel* m_scenesPanel = nullptr;
+    // The Project Settings section (the scaling settings of ColorizationSettings).
+    ProjectSettingsPanel* m_projectSettingsPanel = nullptr;
     void refreshScenes();
     void addScene();
     void editScene(uint16_t sceneId);

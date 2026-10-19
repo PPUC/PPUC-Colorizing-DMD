@@ -1,7 +1,5 @@
 #include "panels/ScenesPanel.h"
 
-#include <QComboBox>
-#include <QFormLayout>
 #include <QGridLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -37,27 +35,11 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     buttons->addWidget(m_deleteButton, 1, 0);
     buttons->addWidget(m_showFramesButton, 1, 1);
 
-    m_scalingComboBox = new QComboBox(this);
-    m_scalingComboBox->addItem(tr("Scale2x"), document::kScalingScale2x);
-    m_scalingComboBox->addItem(tr("Line doubling"), document::kScalingLineDoubling);
-    m_scalingComboBox->setToolTip(
-        tr("How libserum makes the 256x64 picture of a frame that has none"));
-    m_shadowComboBox = new QComboBox(this);
-    m_shadowComboBox->addItem(tr("1 pixel (native)"), document::kShadowOffsetNative);
-    m_shadowComboBox->addItem(tr("2 pixels (proportional)"),
-                              document::kShadowOffsetProportional);
-    m_shadowComboBox->setToolTip(
-        tr("How far a dynamic shadow falls on the 256x64 plane"));
-    auto* scaling = new QFormLayout;
-    scaling->addRow(tr("Upscaling"), m_scalingComboBox);
-    scaling->addRow(tr("Shadow offset"), m_shadowComboBox);
-
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addLayout(buttons);
     layout->addWidget(m_list, 1);
     layout->addWidget(m_note);
-    layout->addLayout(scaling);
 
     connect(m_addButton, &QPushButton::clicked, this, [this]() {
         if (onAddRequested) {
@@ -81,18 +63,6 @@ ScenesPanel::ScenesPanel(QWidget* parent)
             onShowFramesRequested(*scene);
         }
     });
-    const auto scalingChanged = [this](int) {
-        if (!m_filling && onScalingChanged) {
-            onScalingChanged(static_cast<uint8_t>(m_scalingComboBox->currentData().toInt()),
-                             static_cast<uint8_t>(m_shadowComboBox->currentData().toInt()));
-        }
-    };
-    connect(m_scalingComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
-            scalingChanged);
-    connect(m_shadowComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
-            scalingChanged);
     connect(m_list, &QListWidget::currentRowChanged, this, [this](int) { updateButtons(); });
     updateButtons();
 }
@@ -135,10 +105,6 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
         }
     }
     m_list->setCurrentRow(selectedRow);
-    m_scalingComboBox->setCurrentIndex(
-        std::max(0, m_scalingComboBox->findData(settings.scalingAlgorithm)));
-    m_shadowComboBox->setCurrentIndex(
-        std::max(0, m_shadowComboBox->findData(settings.shadowOffset)));
     m_note->setText(m_hasProject && !m_supportsScenes
                         ? tr("libserum plays scenes in projects with 128x32 ROM frames only.")
                         : QString());
@@ -163,8 +129,6 @@ void ScenesPanel::updateButtons()
     m_editButton->setEnabled(selected);
     m_deleteButton->setEnabled(selected);
     m_showFramesButton->setEnabled(selected);
-    m_scalingComboBox->setEnabled(m_hasProject);
-    m_shadowComboBox->setEnabled(m_hasProject);
 }
 
 }  // namespace colorizing::app

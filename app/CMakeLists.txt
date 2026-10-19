@@ -68,6 +68,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     RuntimeView.h
     panels/HelperLinesPanel.cpp
     panels/HelperLinesPanel.h
+    panels/ProjectSettingsPanel.cpp
+    panels/ProjectSettingsPanel.h
     panels/ScenesPanel.cpp
     panels/ScenesPanel.h
     panels/BackgroundPanel.cpp

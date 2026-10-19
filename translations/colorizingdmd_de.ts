@@ -2649,6 +2649,14 @@ Use Create %1 Frame.</source>
         <translation>Hilfslinien</translation>
     </message>
     <message>
+        <source>Scenes</source>
+        <translation>Szenen</translation>
+    </message>
+    <message>
+        <source>Project Settings</source>
+        <translation>Projekteinstellungen</translation>
+    </message>
+    <message>
         <source>Used by the current frame</source>
         <translation>Vom aktuellen Frame verwendet</translation>
     </message>
@@ -2874,7 +2882,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Scenes and Scaling</source>
-        <translation>Szenen und Skalierung</translation>
+        <translation type="vanished">Szenen und Skalierung</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
@@ -4790,6 +4798,41 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>ProjectSettingsPanel</name>
+    <message>
+        <source>Scale2x</source>
+        <translation>Scale2x</translation>
+    </message>
+    <message>
+        <source>Line doubling</source>
+        <translation>Zeilenverdopplung</translation>
+    </message>
+    <message>
+        <source>How libserum makes the 256x64 picture of a frame that has none</source>
+        <translation>Wie libserum das 256x64-Bild eines Frames ohne eigenes erzeugt</translation>
+    </message>
+    <message>
+        <source>1 pixel (native)</source>
+        <translation>1 Pixel (nativ)</translation>
+    </message>
+    <message>
+        <source>2 pixels (proportional)</source>
+        <translation>2 Pixel (proportional)</translation>
+    </message>
+    <message>
+        <source>How far a dynamic shadow falls on the 256x64 plane</source>
+        <translation>Wie weit ein dynamischer Schatten auf der 256x64-Ebene fällt</translation>
+    </message>
+    <message>
+        <source>Upscaling</source>
+        <translation>Hochskalierung</translation>
+    </message>
+    <message>
+        <source>Shadow offset</source>
+        <translation>Schattenversatz</translation>
+    </message>
+</context>
+<context>
     <name>ProjectTaskDialog</name>
     <message>
         <source>What the editor is doing with the project files</source>
@@ -5311,35 +5354,35 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Scale2x</source>
-        <translation>Scale2x</translation>
+        <translation type="vanished">Scale2x</translation>
     </message>
     <message>
         <source>Line doubling</source>
-        <translation>Zeilenverdopplung</translation>
+        <translation type="vanished">Zeilenverdopplung</translation>
     </message>
     <message>
         <source>How libserum makes the 256x64 picture of a frame that has none</source>
-        <translation>Wie libserum das 256x64-Bild eines Frames ohne eigenes erzeugt</translation>
+        <translation type="vanished">Wie libserum das 256x64-Bild eines Frames ohne eigenes erzeugt</translation>
     </message>
     <message>
         <source>1 pixel (native)</source>
-        <translation>1 Pixel (nativ)</translation>
+        <translation type="vanished">1 Pixel (nativ)</translation>
     </message>
     <message>
         <source>2 pixels (proportional)</source>
-        <translation>2 Pixel (proportional)</translation>
+        <translation type="vanished">2 Pixel (proportional)</translation>
     </message>
     <message>
         <source>How far a dynamic shadow falls on the 256x64 plane</source>
-        <translation>Wie weit ein dynamischer Schatten auf der 256x64-Ebene fällt</translation>
+        <translation type="vanished">Wie weit ein dynamischer Schatten auf der 256x64-Ebene fällt</translation>
     </message>
     <message>
         <source>Upscaling</source>
-        <translation>Hochskalierung</translation>
+        <translation type="vanished">Hochskalierung</translation>
     </message>
     <message>
         <source>Shadow offset</source>
-        <translation>Schattenversatz</translation>
+        <translation type="vanished">Schattenversatz</translation>
     </message>
     <message>
         <source>%1 — %2 × %3 frames, %4 ms</source>

@@ -107,6 +107,7 @@
 #include "panels/RecordListPage.h"
 #include "panels/SameFramesPanel.h"
 #include "panels/HelperLinesPanel.h"
+#include "panels/ProjectSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
@@ -1685,7 +1686,9 @@ void MainWindow::createCentralView()
     m_scenesPanel->onEditRequested = [this](uint16_t sceneId) { editScene(sceneId); };
     m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
     m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
-    m_scenesPanel->onScalingChanged = [this](uint8_t algorithm, uint8_t shadowOffset) {
+    inspectorTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
+    m_projectSettingsPanel = new ProjectSettingsPanel(central);
+    m_projectSettingsPanel->onScalingChanged = [this](uint8_t algorithm, uint8_t shadowOffset) {
         if (!m_document) {
             return;
         }
@@ -1695,7 +1698,8 @@ void MainWindow::createCentralView()
         settings.shadowOffset = shadowOffset;
         recordSceneEdit(edit::setColorizationSettings(*m_document, std::move(settings)));
     };
-    inspectorTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes and Scaling"));
+    inspectorTabs->addTab(m_projectSettingsPanel, QStringLiteral("ProjectSettings"),
+                          tr("Project Settings"));
 
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
@@ -9009,6 +9013,9 @@ void MainWindow::refreshScenes()
 {
     if (m_scenesPanel) {
         m_scenesPanel->setProject(m_document ? &*m_document : nullptr);
+    }
+    if (m_projectSettingsPanel) {
+        m_projectSettingsPanel->setProject(m_document ? &*m_document : nullptr);
     }
 }
 

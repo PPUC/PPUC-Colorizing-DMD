@@ -18,6 +18,7 @@
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
 #include "edit/StructureCommand.h"
+#include "panels/ProjectSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 
 namespace {
@@ -58,11 +59,7 @@ void testPanel()
 
     app::ScenesPanel panel;
     std::vector<int> edits;
-    std::vector<std::pair<int, int>> scaling;
     panel.onEditRequested = [&](uint16_t id) { edits.push_back(id); };
-    panel.onScalingChanged = [&](uint8_t algorithm, uint8_t offset) {
-        scaling.emplace_back(algorithm, offset);
-    };
     panel.setProject(&document);
     auto* list = panel.findChild<QListWidget*>();
     expect(list && list->count() == 1 && list->item(0)->text().contains(QStringLiteral("51001")) &&
@@ -70,7 +67,6 @@ void testPanel()
                list->item(0)->text().contains(QStringLiteral("background")) &&
                list->item(0)->text().contains(QStringLiteral("1 missing")),
            "the section lists the scene with its groups, kind and missing frames");
-    expect(scaling.empty(), "filling the section reports nothing");
     QPushButton* add = button(panel, QStringLiteral("Add"));
     QPushButton* edit = button(panel, QStringLiteral("Edit"));
     expect(add && add->isEnabled() && edit && !edit->isEnabled(),
@@ -79,13 +75,6 @@ void testPanel()
     expect(edit->isEnabled() && panel.selectedScene() == 51001, "a selected scene can be edited");
     edit->click();
     expect(edits == std::vector<int>{51001}, "Edit asks for it");
-    auto* algorithm = panel.findChildren<QComboBox*>().value(0);
-    expect(algorithm && algorithm->currentData().toInt() == document::kScalingScale2x,
-           "the project's upscaling is shown");
-    algorithm->setCurrentIndex(algorithm->findData(document::kScalingLineDoubling));
-    expect(scaling.size() == 1 && scaling[0].first == document::kScalingLineDoubling &&
-               scaling[0].second == document::kShadowOffsetNative,
-           "choosing another reports both scaling settings");
 
     document::ProjectDocument native = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::NativeOriginal, 2));
@@ -93,6 +82,33 @@ void testPanel()
     expect(list->count() == 0 && !add->isEnabled(), "a 256x64 project offers no scenes");
     (void)added;
     (void)deleted;
+}
+
+void testProjectSettings()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    document::ColorizationSettings settings;
+    settings.shadowOffset = document::kShadowOffsetProportional;
+    document.setColorizationSettings(settings);
+    app::ProjectSettingsPanel panel;
+    std::vector<std::pair<int, int>> scaling;
+    panel.onScalingChanged = [&](uint8_t algorithm, uint8_t offset) {
+        scaling.emplace_back(algorithm, offset);
+    };
+    panel.setProject(&document);
+    const QList<QComboBox*> boxes = panel.findChildren<QComboBox*>();
+    expect(boxes.size() == 2 && boxes[0]->currentData().toInt() == document::kScalingScale2x &&
+               boxes[1]->currentData().toInt() == document::kShadowOffsetProportional &&
+               boxes[0]->isEnabled(),
+           "the project's scaling settings are shown");
+    expect(scaling.empty(), "filling the section reports nothing");
+    boxes[0]->setCurrentIndex(boxes[0]->findData(document::kScalingLineDoubling));
+    expect(scaling.size() == 1 && scaling[0].first == document::kScalingLineDoubling &&
+               scaling[0].second == document::kShadowOffsetProportional,
+           "choosing another reports both scaling settings");
+    panel.setProject(nullptr);
+    expect(!boxes[0]->isEnabled() && !boxes[1]->isEnabled(), "without a project they are off");
 }
 
 void testDialog()
@@ -149,5 +165,6 @@ void testDialog()
 void runScenesWidgetTests()
 {
     testPanel();
+    testProjectSettings();
     testDialog();
 }
