@@ -16,6 +16,7 @@
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
+#include <QTemporaryDir>
 #include <QToolButton>
 
 #include "document/ProjectDocument.h"
@@ -585,9 +586,13 @@ void testFrameListClicks()
 // them; the shares are kept with the open sections.
 void testSectionStackResize()
 {
+    // Settings of their own: without an organization name QSettings stores nothing on
+    // Windows.
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("SectionStackTests"));
     const QString key = QStringLiteral("testSectionStackResize");
-    QSettings().remove(QStringLiteral("layout/") + key);
-    QSettings().remove(QStringLiteral("layout/") + key + QStringLiteral("Sizes"));
     {
         colorizing::app::SectionStack stack;
         for (const char* name : {"A", "B", "C"}) {
@@ -618,8 +623,8 @@ void testSectionStackResize()
         stack.resetSectionSizes();
         expect(stack.sectionWeight(0) == stack.sectionWeight(2), "and can be made equal again");
     }
-    QSettings().remove(QStringLiteral("layout/") + key);
-    QSettings().remove(QStringLiteral("layout/") + key + QStringLiteral("Sizes"));
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
 
 void runPlaneLabelsWidgetTests()
