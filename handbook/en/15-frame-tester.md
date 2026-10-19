@@ -17,7 +17,9 @@ in the editor, saved or not.
   rotations run.
 - The slider and the position box go to a frame; `Play` and the backwards `Play` step through
   the frames with their durations at the chosen speed (1/4x to 32x); `Loop` starts again at the
-  other end.
+  other end. `◀ Frame` and `Frame ▶` go one frame back or forward, also while playing: the
+  playback goes on from that frame. At the first or last frame they go round with `Loop` and
+  stay there without it.
 - libserum carries its state from one fed frame to the next, also when the position jumps: the
   answer for a frame can depend on what was fed before it, as on a machine.
 - `Next Unidentified` feeds the frames after the current one until libserum does not identify

@@ -131,7 +131,24 @@ void testDialog()
             QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
         }
         expect(dialog.position() == 1, "playing steps to the next frame");
+        // A frame back while playing: playback goes on from there.
+        dialog.stepBy(-1);
+        expect(dialog.position() == 0 && dialog.lastResult().frameIndex == 0u,
+               "a frame back while playing");
+        bool pausing = false;
+        for (QPushButton* button : dialog.findChildren<QPushButton*>()) {
+            pausing = pausing || button->text() == QStringLiteral("Pause");
+        }
+        expect(pausing, "and it plays on");
         dialog.setPlaying(0);
+        dialog.stepBy(1);
+        dialog.stepBy(1);
+        expect(dialog.position() == 2, "frame by frame forward");
+        dialog.stepBy(1);
+        expect(dialog.position() == 2, "the last frame without Loop is the end");
+        dialog.stepBy(-1);
+        expect(dialog.position() == 1 && !dialog.lastResult().identified,
+               "a frame back, fed to libserum again");
 
         for (QPushButton* button : dialog.findChildren<QPushButton*>()) {
             if (button->text() == QStringLiteral("Add To Project")) {

@@ -1696,6 +1696,22 @@ Use Create %1 Frame.</source>
         <translation>Abspielen ▶</translation>
     </message>
     <message>
+        <source>◀ Frame</source>
+        <translation>◀ Frame</translation>
+    </message>
+    <message>
+        <source>One frame back, also while playing</source>
+        <translation>Einen Frame zurück, auch während der Wiedergabe</translation>
+    </message>
+    <message>
+        <source>Frame ▶</source>
+        <translation>Frame ▶</translation>
+    </message>
+    <message>
+        <source>One frame forward, also while playing</source>
+        <translation>Einen Frame vor, auch während der Wiedergabe</translation>
+    </message>
+    <message>
         <source>Play speed</source>
         <translation>Abspielgeschwindigkeit</translation>
     </message>

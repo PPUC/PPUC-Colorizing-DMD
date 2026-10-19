@@ -1696,6 +1696,22 @@ Utiliser Créer la frame %1.</translation>
         <translation>Lire ▶</translation>
     </message>
     <message>
+        <source>◀ Frame</source>
+        <translation>◀ Frame</translation>
+    </message>
+    <message>
+        <source>One frame back, also while playing</source>
+        <translation>Une frame en arrière, aussi pendant la lecture</translation>
+    </message>
+    <message>
+        <source>Frame ▶</source>
+        <translation>Frame ▶</translation>
+    </message>
+    <message>
+        <source>One frame forward, also while playing</source>
+        <translation>Une frame en avant, aussi pendant la lecture</translation>
+    </message>
+    <message>
         <source>Play speed</source>
         <translation>Vitesse de lecture</translation>
     </message>

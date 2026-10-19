@@ -81,6 +81,10 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     m_backButton = new QPushButton(tr("◀ Play"), this);
     m_backButton->setToolTip(tr("Play backwards"));
     m_playButton = new QPushButton(tr("Play ▶"), this);
+    m_stepBackButton = new QPushButton(tr("◀ Frame"), this);
+    m_stepBackButton->setToolTip(tr("One frame back, also while playing"));
+    m_stepForwardButton = new QPushButton(tr("Frame ▶"), this);
+    m_stepForwardButton->setToolTip(tr("One frame forward, also while playing"));
     m_speedComboBox = new QComboBox(this);
     m_speedComboBox->setToolTip(tr("Play speed"));
     for (const char* text : {"1/4x", "1/2x", "1x", "2x", "4x", "8x", "16x", "32x"}) {
@@ -117,8 +121,10 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     positionRow->addWidget(m_slider, 1);
     positionRow->addWidget(m_positionSpinBox);
     auto* playRow = new QHBoxLayout();
+    playRow->addWidget(m_stepBackButton);
     playRow->addWidget(m_backButton);
     playRow->addWidget(m_playButton);
+    playRow->addWidget(m_stepForwardButton);
     playRow->addWidget(m_speedComboBox);
     playRow->addWidget(m_loopCheckBox);
     playRow->addSpacing(12);
@@ -173,6 +179,8 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     connect(m_backButton, &QPushButton::clicked, this, [this]() {
         setPlaying(m_playDirection == -1 ? 0 : -1);
     });
+    connect(m_stepBackButton, &QPushButton::clicked, this, [this]() { stepBy(-1); });
+    connect(m_stepForwardButton, &QPushButton::clicked, this, [this]() { stepBy(1); });
     connect(m_nextUnidentifiedButton, &QPushButton::clicked, this, [this]() {
         nextUnidentified();
     });
@@ -516,6 +524,27 @@ void FrameTesterDialog::setPlaying(int direction)
     updateControls();
 }
 
+void FrameTesterDialog::stepBy(int delta)
+{
+    if (m_frames.empty() || !m_error.isEmpty()) {
+        return;
+    }
+    const auto count = static_cast<long long>(m_frames.size());
+    long long next = static_cast<long long>(m_position) + delta;
+    if (next < 0 || next >= count) {
+        if (!m_loopCheckBox->isChecked()) {
+            return;
+        }
+        next = (next % count + count) % count;
+    }
+    feed(static_cast<std::size_t>(next));
+    if (m_playDirection != 0) {
+        // Playback goes on from here, with this frame's duration.
+        m_playTimer.start(std::max(
+            1, static_cast<int>(m_frames[static_cast<std::size_t>(next)].durationMs / speed())));
+    }
+}
+
 void FrameTesterDialog::playStep()
 {
     if (m_playDirection == 0 || m_frames.empty()) {
@@ -553,6 +582,7 @@ void FrameTesterDialog::updateControls()
     m_backButton->setText(m_playDirection == -1 ? tr("Pause") : tr("◀ Play"));
     for (QWidget* widget : std::initializer_list<QWidget*>{m_slider, m_positionSpinBox,
                                                          m_playButton, m_backButton,
+                                                         m_stepBackButton, m_stepForwardButton,
                                                          m_nextUnidentifiedButton, m_findButton,
                                                          m_showButton}) {
         widget->setEnabled(hasFrames);

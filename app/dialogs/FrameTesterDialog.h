@@ -58,6 +58,9 @@ public:
     // when underMask), going round. Returns whether it was found.
     bool findProjectFrame(std::size_t frameIndex, bool underMask);
     void setPlaying(int direction);
+    // One frame back (-1) or forward (+1), also while playing, which goes on from there;
+    // round the ends with Loop.
+    void stepBy(int delta);
 
     [[nodiscard]] bool isDumpMode() const;
     [[nodiscard]] std::size_t frameCount() const;
@@ -101,6 +104,8 @@ private:
     QSlider* m_slider = nullptr;
     QSpinBox* m_positionSpinBox = nullptr;
     QPushButton* m_backButton = nullptr;
+    QPushButton* m_stepBackButton = nullptr;
+    QPushButton* m_stepForwardButton = nullptr;
     QPushButton* m_playButton = nullptr;
     QComboBox* m_speedComboBox = nullptr;
     QCheckBox* m_loopCheckBox = nullptr;
