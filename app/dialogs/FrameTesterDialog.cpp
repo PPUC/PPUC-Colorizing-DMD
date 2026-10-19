@@ -395,6 +395,11 @@ void FrameTesterDialog::rotateStep()
         m_result.rows64 = rotated.rows64;
     }
     m_result.shownFrameIndex = rotated.shownFrameIndex;
+    if (!rotated.unchanged) {
+        // A step drew a new picture, also after libserum kept the one on display for the fed
+        // frame: a running background scene puts that frame on top at its next step.
+        m_result.unchanged = false;
+    }
     showResult();
     if (rotated.nextRotationMs > 0) {
         m_rotationTimer.start(static_cast<int>(rotated.nextRotationMs));

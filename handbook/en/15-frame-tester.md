@@ -45,7 +45,9 @@ rotations of the frame shown; both go on while the tester stays on a frame. The 
 schedules that step as a machine's host (libdmdutil) does: a frame that libserum does not
 identify, or reports as the one on display, leaves a running scene or rotation going on its
 own time; a newly identified frame sets the time anew, and a step that is due runs before the
-next frame is fed. They keep
+next frame is fed. A frame with the trigger of the background scene that runs is reported as
+the one on display: libserum keeps the scene going and puts that frame on top of it at the
+scene's next step, where the tester shows it. They keep
 libserum's own timing: at a play speed other than 1x the dump's frames come faster or slower,
 a scene and a rotation do not.
 

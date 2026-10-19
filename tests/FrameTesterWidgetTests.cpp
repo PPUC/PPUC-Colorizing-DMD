@@ -213,6 +213,43 @@ void testScenes()
     expect(playScenes->isChecked(), "switched on again from the dialog");
 }
 
+// A background scene that two frames trigger: libserum keeps the picture for the second
+// frame and puts it on top of the scene at the next step, which the tester shows.
+void testBackgroundScene()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+    document::SceneDefinition definition;
+    definition.sceneId = 50020;
+    definition.frameCount = 100;
+    definition.frameGroups = 1;
+    definition.durationMs = 30;
+    definition.interruptable = true;
+    definition.options = document::kSceneAsBackground;
+    expect(static_cast<bool>(edit::addScene(document, definition)), "the scene is added");
+    document.setTriggerId(0, 50020);
+    document.setTriggerId(1, 50020);
+
+    app::FrameTesterDialog dialog(document, {0, 1});
+    expect(dialog.errorText().isEmpty(), "libserum loads the project with the background scene");
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < 200) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    expect(dialog.sceneText().startsWith(QStringLiteral("background scene 50020 plays")),
+           "the background scene plays: " + dialog.infoText().toStdString());
+    dialog.showPosition(1);
+    expect(dialog.lastResult().unchanged,
+           "libserum keeps the picture for a frame of the same trigger: " + dialog.infoText().toStdString());
+    timer.restart();
+    while (dialog.lastResult().unchanged && timer.elapsed() < 2000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    expect(!dialog.lastResult().unchanged && dialog.position() == 1,
+           "the next step of the scene shows a new picture: " + dialog.infoText().toStdString());
+}
+
 }  // namespace
 
 void runFrameTesterWidgetTests()
@@ -220,4 +257,5 @@ void runFrameTesterWidgetTests()
     testCore();
     testDialog();
     testScenes();
+    testBackgroundScene();
 }
