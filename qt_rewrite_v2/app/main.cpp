@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QSettings>
 #include <QElapsedTimer>
 #include <QStringList>
 #include <QThread>
@@ -79,13 +80,30 @@ int checkDmdOutput()
     return started ? 0 : 1;
 }
 
+// Builds before 2026-10-19 kept their settings under the organization "ColorizingDMD": the
+// first start under ppuc.org takes them over, so the layout, recent projects and DMD output
+// stay as they were.
+void takeOverEarlierSettings()
+{
+    QSettings settings;
+    if (!settings.allKeys().isEmpty()) {
+        return;
+    }
+    const QSettings earlier(QStringLiteral("ColorizingDMD"), QStringLiteral("ColorizingDMDQtV2"));
+    for (const QString& key : earlier.allKeys()) {
+        settings.setValue(key, earlier.value(key));
+    }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
-    QApplication::setOrganizationName(QStringLiteral("ColorizingDMD"));
+    QApplication::setOrganizationName(QStringLiteral("ppuc.org"));
+    QApplication::setOrganizationDomain(QStringLiteral("ppuc.org"));
     QApplication::setApplicationName(QStringLiteral("ColorizingDMDQtV2"));
+    takeOverEarlierSettings();
     if (QApplication::arguments().contains(QStringLiteral("--check-plugins"))) {
         return checkPlugins();
     }
