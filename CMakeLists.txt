@@ -11,8 +11,8 @@ option(COLORIZINGDMD_QT_V2_BUILD_TESTS "Build the editor's tests" ON)
 option(COLORIZINGDMD_QT_V2_BUILD_APP "Build the editor" ON)
 option(COLORIZINGDMD_QT_V2_BUILD_UI_DUMP "Build the UI regression dump tool (tools/ui_dump)" OFF)
 # For the release packages (packaging/, .github/workflows/qt-editor.yml): the app is called
-# PPUC-Colorizing-DMD, is an app bundle on macOS and has no console window on Windows. Off for
-# development, so the executable stays app/ColorizingDMDQtV2.
+# an app bundle on macOS and has no console window on Windows. Off for development: the
+# executable is app/PPUC-Colorizing-DMD then.
 option(COLORIZINGDMD_QT_V2_PACKAGE "Build the app the way the release packages ship it" OFF)
 
 # Only for the project's own targets, so the flags do not reach third-party code.
