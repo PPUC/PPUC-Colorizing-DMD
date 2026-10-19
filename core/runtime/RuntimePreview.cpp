@@ -373,7 +373,8 @@ struct RuntimePreview::Impl {
                             std::string* errorMessage);
     [[nodiscard]] bool loadProject(const document::ProjectDocument& document,
                                    PlaneRequest request,
-                                   std::string* errorMessage);
+                                   std::string* errorMessage,
+                                   bool withScenes);
     [[nodiscard]] bool load(RuntimeSubset subset, PlaneRequest request, std::string* errorMessage);
     void unload();
     void readPlanes(RuntimeFrame& frame) const;
@@ -395,11 +396,19 @@ bool RuntimePreview::Impl::load(const std::vector<uint8_t>& crom,
 
 bool RuntimePreview::Impl::loadProject(const document::ProjectDocument& document,
                                        PlaneRequest request,
-                                       std::string* errorMessage)
+                                       std::string* errorMessage,
+                                       bool withScenes)
 {
     // The cROM is written on a thread of its own into a bounded pipe that libserum reads:
     // it is never in memory as a whole.
     document::ProjectSnapshot snapshot = document.toSnapshot();
+    if (!withScenes) {
+        // A settings block without scenes, so that no scene file beside it counts either.
+        if (!snapshot.colorizationSettings) {
+            snapshot.colorizationSettings = document::ColorizationSettings{};
+        }
+        snapshot.colorizationSettings->scenes.clear();
+    }
     const uint64_t size = legacy::legacyCromByteCount(snapshot);
     CromPipe pipe;
     std::string writeError;
@@ -419,9 +428,9 @@ bool RuntimePreview::Impl::loadProject(const document::ProjectDocument& document
     });
     std::string loadError;
     const bool loaded = load(
-        [&pipe, size](const char* scenes, uint8_t flags) {
-            return Serum_LoadFromCallback(readCromPipe, &pipe, static_cast<size_t>(size), scenes,
-                                          flags);
+        [&pipe, size, withScenes](const char* scenes, uint8_t flags) {
+            return Serum_LoadFromCallback(readCromPipe, &pipe, static_cast<size_t>(size),
+                                          withScenes ? scenes : nullptr, flags);
         },
         document.geometry(), document.frameCount(), request, &loadError);
     pipe.closeReading();
@@ -674,6 +683,7 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     }
     frame.triggerId = serum->triggerID;
     frame.nextRotationMs = result & 0xffff;
+    frame.shownFrameIndex = reported;
     readPlanes(frame);
     shown = frame;
     return frame;
@@ -797,10 +807,11 @@ bool RuntimePreview::openCrom(const std::vector<uint8_t>& crom,
 
 bool RuntimePreview::openProject(const document::ProjectDocument& document,
                                  PlaneRequest request,
-                                 std::string* errorMessage)
+                                 std::string* errorMessage,
+                                 bool withScenes)
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
-    return m_impl->loadProject(document, request, errorMessage);
+    return m_impl->loadProject(document, request, errorMessage, withScenes);
 }
 
 bool RuntimePreview::isOpen() const
@@ -849,6 +860,15 @@ RuntimeFrame RuntimePreview::rotate()
     const bool rotated = (result & (FLAG_RETURNED_V2_ROTATED32 | FLAG_RETURNED_V2_ROTATED64)) != 0;
     if (rotated) {
         m_impl->readPlanes(shown);
+        // A scene step reports the frame of the scene it drew.
+        const std::size_t id = m_impl->serum->frameID;
+        if (id < m_impl->frameCount) {
+            const std::size_t documentFrame =
+                m_impl->frameMap.empty() ? id : m_impl->frameMap[id];
+            if (documentFrame != kNoDocumentFrame) {
+                shown.shownFrameIndex = documentFrame;
+            }
+        }
     }
     shown.nextRotationMs = result & 0xffff;
     RuntimeFrame frame = shown;

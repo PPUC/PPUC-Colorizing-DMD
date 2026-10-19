@@ -13,8 +13,9 @@ in the editor, saved or not.
   original frames has the 64-row one only) and below them the ROM frame that was fed. The line
   under the pictures gives the position, the project frame or the dump time, the duration, and
   libserum's answer: `identified as frame N`, `(inactive: the display keeps its picture)`, `not
-  identified`, `libserum keeps the picture on display`, and a trigger it reported. Color
-  rotations run.
+  identified`, `libserum keeps the picture on display`, and a trigger it reported. While
+  libserum shows a frame of a scene, the line names the scene instead, as `scene 50082 plays
+  (frame 1)` or `background scene 50082 plays (group 2, frame 3)`. Color rotations run.
 - The slider and the position box go to a frame; `Play` and the backwards `Play` step through
   the frames with their durations at the chosen speed (1/4x to 32x); `Loop` starts again at the
   other end. `◀ Frame` and `Frame ▶` go one frame back or forward, also while playing: the
@@ -47,6 +48,10 @@ own time; a newly identified frame sets the time anew, and a step that is due ru
 next frame is fed. They keep
 libserum's own timing: at a play speed other than 1x the dump's frames come faster or slower,
 a scene and a rotation do not.
+
+`Play scenes` (on by default) switches the scenes off: libserum loads the project again without
+them, neither the project's nor those of a `pup.csv` beside it, and the frames of the game are
+tested on their own; a frame that triggers a scene then shows its own picture.
 
 Not there: output to a real DMD (ZeDMD, see `View -> Output To DMD`). PuP packs play in their own
 window, see "PuP Tester".

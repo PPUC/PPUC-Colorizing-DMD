@@ -92,6 +92,11 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     }
     m_speedComboBox->setCurrentIndex(2);
     m_loopCheckBox = new QCheckBox(tr("Loop"), this);
+    m_playScenesCheckBox = new QCheckBox(tr("Play scenes"), this);
+    m_playScenesCheckBox->setChecked(true);
+    m_playScenesCheckBox->setToolTip(
+        tr("libserum plays the project's scenes; off, the frames of the game are tested on "
+           "their own"));
     m_nextUnidentifiedButton = new QPushButton(tr("Next Unidentified"), this);
     m_nextUnidentifiedButton->setToolTip(tr("Go to the next frame libserum does not identify"));
     m_findSpinBox = new QSpinBox(this);
@@ -127,6 +132,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     playRow->addWidget(m_stepForwardButton);
     playRow->addWidget(m_speedComboBox);
     playRow->addWidget(m_loopCheckBox);
+    playRow->addWidget(m_playScenesCheckBox);
     playRow->addSpacing(12);
     playRow->addWidget(m_nextUnidentifiedButton);
     playRow->addStretch(1);
@@ -178,6 +184,9 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     });
     connect(m_backButton, &QPushButton::clicked, this, [this]() {
         setPlaying(m_playDirection == -1 ? 0 : -1);
+    });
+    connect(m_playScenesCheckBox, &QCheckBox::toggled, this, [this](bool play) {
+        setPlayScenes(play);
     });
     connect(m_stepBackButton, &QPushButton::clicked, this, [this]() { stepBy(-1); });
     connect(m_stepForwardButton, &QPushButton::clicked, this, [this]() { stepBy(1); });
@@ -237,7 +246,8 @@ bool FrameTesterDialog::loadProject()
     m_result = {};
     std::string error;
     try {
-        if (preview.openProject(m_document, runtime::PlaneRequest::Both, &error)) {
+        if (preview.openProject(m_document, runtime::PlaneRequest::Both, &error,
+                                m_playScenesCheckBox->isChecked())) {
             m_error.clear();
             return true;
         }
@@ -384,6 +394,7 @@ void FrameTesterDialog::rotateStep()
     if (rotated.rows64) {
         m_result.rows64 = rotated.rows64;
     }
+    m_result.shownFrameIndex = rotated.shownFrameIndex;
     showResult();
     if (rotated.nextRotationMs > 0) {
         m_rotationTimer.start(static_cast<int>(rotated.nextRotationMs));
@@ -425,10 +436,17 @@ QString FrameTesterDialog::infoText() const
         parts << tr("dump time 0x%1").arg(frame.timecode, 8, 16, QLatin1Char('0'));
     }
     parts << QStringLiteral("%1 ms").arg(frame.durationMs);
+    const QString scene = sceneText();
     if (!m_result.ok()) {
         parts << QString::fromStdString(m_result.error);
     } else if (m_result.unchanged) {
         parts << tr("libserum keeps the picture on display");
+        if (!scene.isEmpty()) {
+            parts << scene;
+        }
+    } else if (!scene.isEmpty()) {
+        // libserum shows a frame of a scene, not one of the game.
+        parts << scene;
     } else if (!m_result.identified) {
         parts << tr("not identified");
     } else {
@@ -524,6 +542,43 @@ void FrameTesterDialog::setPlaying(int direction)
     updateControls();
 }
 
+void FrameTesterDialog::setPlayScenes(bool play)
+{
+    if (m_playScenesCheckBox->isChecked() != play) {
+        // Comes back here through the check box.
+        m_playScenesCheckBox->setChecked(play);
+        return;
+    }
+    setPlaying(0);
+    m_rotationTimer.stop();
+    if (loadProject() && !m_frames.empty()) {
+        feed(m_position);
+    }
+    updateControls();
+}
+
+QString FrameTesterDialog::sceneText() const
+{
+    const std::optional<std::size_t> shown =
+        m_result.shownFrameIndex ? m_result.shownFrameIndex : m_result.frameIndex;
+    if (!m_result.ok() || !shown || *shown >= m_document.frameCount()) {
+        return QString();
+    }
+    const std::optional<document::SceneFrameRef>& frame = m_document.sceneFrame(*shown);
+    if (!frame) {
+        return QString();
+    }
+    const document::SceneDefinition* scene =
+        m_document.colorizationSettings() ? m_document.colorizationSettings()->scene(frame->sceneId)
+                                          : nullptr;
+    const bool background = scene && (scene->options & document::kSceneAsBackground);
+    const QString where = scene && scene->frameGroups > 1
+                              ? tr("group %1, frame %2").arg(frame->group).arg(frame->frameIndex + 1)
+                              : tr("frame %1").arg(frame->frameIndex + 1);
+    return background ? tr("background scene %1 plays (%2)").arg(frame->sceneId).arg(where)
+                      : tr("scene %1 plays (%2)").arg(frame->sceneId).arg(where);
+}
+
 void FrameTesterDialog::stepBy(int delta)
 {
     if (m_frames.empty() || !m_error.isEmpty()) {
@@ -583,6 +638,7 @@ void FrameTesterDialog::updateControls()
     for (QWidget* widget : std::initializer_list<QWidget*>{m_slider, m_positionSpinBox,
                                                          m_playButton, m_backButton,
                                                          m_stepBackButton, m_stepForwardButton,
+                                                         m_playScenesCheckBox,
                                                          m_nextUnidentifiedButton, m_findButton,
                                                          m_showButton}) {
         widget->setEnabled(hasFrames);

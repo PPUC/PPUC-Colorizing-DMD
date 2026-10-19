@@ -1720,6 +1720,14 @@ Use Create %1 Frame.</source>
         <translation>Schleife</translation>
     </message>
     <message>
+        <source>Play scenes</source>
+        <translation>Szenen abspielen</translation>
+    </message>
+    <message>
+        <source>libserum plays the project&apos;s scenes; off, the frames of the game are tested on their own</source>
+        <translation>libserum spielt die Szenen des Projekts ab; aus, werden die Frames des Spiels für sich getestet</translation>
+    </message>
+    <message>
         <source>Next Unidentified</source>
         <translation>Nächster nicht erkannter</translation>
     </message>
@@ -1846,6 +1854,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>Frame %1 is not among the selected frames</source>
         <translation>Frame %1 ist nicht unter den ausgewählten Frames</translation>
+    </message>
+    <message>
+        <source>group %1, frame %2</source>
+        <translation>Gruppe %1, Frame %2</translation>
+    </message>
+    <message>
+        <source>frame %1</source>
+        <translation>Frame %1</translation>
+    </message>
+    <message>
+        <source>background scene %1 plays (%2)</source>
+        <translation>Hintergrundszene %1 läuft (%2)</translation>
+    </message>
+    <message>
+        <source>scene %1 plays (%2)</source>
+        <translation>Szene %1 läuft (%2)</translation>
     </message>
     <message>
         <source>Pause</source>

@@ -1548,7 +1548,10 @@ Reviewed for Windows/MinGW and left unchanged:
 3. (done) Sections and the trigger list (`edit/Sections.h`, `panels/SectionBar.h`).
 4. Image and video import with crop zones (the Images window).
 5. (done) The frame tester: the whole project through `RuntimePreview::openCrom()`, frames fed
-   with `colorize()`.
+   with `colorize()`. The info line names the scene libserum shows
+   (`RuntimeFrame::shownFrameIndex`, also reported by `rotate()` from the frame ID libserum sets
+   when it draws a scene frame). `Play scenes` off loads the project through
+   `openProject(..., withScenes = false)`: a settings block without scenes and no pup.csv.
 6. (done) Autosave and recovery, see `app/Autosave.h` and the handbook.
    (done) cROMc export through libserum (`runtime/CromcExport.h`): byte-identical to
    libserum's own generation on five real projects.

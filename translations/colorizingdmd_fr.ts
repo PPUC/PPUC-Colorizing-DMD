@@ -1720,6 +1720,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Boucle</translation>
     </message>
     <message>
+        <source>Play scenes</source>
+        <translation>Jouer les scènes</translation>
+    </message>
+    <message>
+        <source>libserum plays the project&apos;s scenes; off, the frames of the game are tested on their own</source>
+        <translation>libserum joue les scènes du projet ; désactivé, les frames du jeu sont testées seules</translation>
+    </message>
+    <message>
         <source>Next Unidentified</source>
         <translation>Suivante non identifiée</translation>
     </message>
@@ -1846,6 +1854,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Frame %1 is not among the selected frames</source>
         <translation>La frame %1 n&apos;est pas parmi les frames sélectionnées</translation>
+    </message>
+    <message>
+        <source>group %1, frame %2</source>
+        <translation>groupe %1, frame %2</translation>
+    </message>
+    <message>
+        <source>frame %1</source>
+        <translation>frame %1</translation>
+    </message>
+    <message>
+        <source>background scene %1 plays (%2)</source>
+        <translation>la scène d&apos;arrière-plan %1 est jouée (%2)</translation>
+    </message>
+    <message>
+        <source>scene %1 plays (%2)</source>
+        <translation>la scène %1 est jouée (%2)</translation>
     </message>
     <message>
         <source>Pause</source>

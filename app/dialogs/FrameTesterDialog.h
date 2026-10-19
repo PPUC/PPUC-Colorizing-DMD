@@ -58,6 +58,11 @@ public:
     // when underMask), going round. Returns whether it was found.
     bool findProjectFrame(std::size_t frameIndex, bool underMask);
     void setPlaying(int direction);
+    // Whether libserum plays the project's scenes (on by default); the project is loaded again.
+    void setPlayScenes(bool play);
+    // The scene the frame libserum shows belongs to, as the info line names it; empty for a
+    // frame of the game.
+    [[nodiscard]] QString sceneText() const;
     // One frame back (-1) or forward (+1), also while playing, which goes on from there;
     // round the ends with Loop.
     void stepBy(int delta);
@@ -105,6 +110,7 @@ private:
     QSpinBox* m_positionSpinBox = nullptr;
     QPushButton* m_backButton = nullptr;
     QPushButton* m_stepBackButton = nullptr;
+    QCheckBox* m_playScenesCheckBox = nullptr;
     QPushButton* m_stepForwardButton = nullptr;
     QPushButton* m_playButton = nullptr;
     QComboBox* m_speedComboBox = nullptr;

@@ -88,6 +88,9 @@ struct RuntimeFrame {
     uint32_t triggerId = document::kNoTriggerId;
     // Milliseconds until libserum wants rotate() called; 0 when nothing rotates.
     uint32_t nextRotationMs = 0;
+    // The frame whose picture libserum shows, as a document frame index: the one it reported
+    // last, also by a rotation step, which reports the frame of a scene it draws.
+    std::optional<std::size_t> shownFrameIndex;
     RuntimeCost cost;
 
     [[nodiscard]] bool ok() const { return error.empty(); }
@@ -184,10 +187,12 @@ public:
                                 PlaneRequest request,
                                 std::string* errorMessage = nullptr);
     // The whole project, as openCrom() of its cROM; the cROM is written straight into
-    // libserum's load (Serum_LoadFromCallback()) and never held as a whole.
+    // libserum's load (Serum_LoadFromCallback()) and never held as a whole. Without
+    // withScenes libserum plays no scene: neither the project's nor those of the scene file.
     [[nodiscard]] bool openProject(const document::ProjectDocument& document,
                                    PlaneRequest request,
-                                   std::string* errorMessage = nullptr);
+                                   std::string* errorMessage = nullptr,
+                                   bool withScenes = true);
     [[nodiscard]] bool isOpen() const;
     // Whether the loaded window plays the document frame.
     [[nodiscard]] bool sequenceHasFrame(std::size_t frameIndex) const;

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -19,6 +20,7 @@
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "document/ProjectDocument.h"
+#include "edit/SceneEdits.h"
 #include "runtime/FrameTester.h"
 
 namespace {
@@ -162,10 +164,60 @@ void testDialog()
     app::setProjectTaskDialogDelayMs(300);
 }
 
+// Frame 0 triggers a scene of two frames: the info line names the scene libserum shows, and
+// without Play scenes it shows the game's frame.
+void testScenes()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+    document::SceneDefinition definition;
+    definition.sceneId = 50010;
+    definition.frameCount = 2;
+    definition.frameGroups = 1;
+    definition.durationMs = 30;
+    expect(static_cast<bool>(edit::addScene(document, definition)) && document.frameCount() == 5,
+           "the scene's frames are added");
+    document.setTriggerId(0, 50010);
+
+    app::FrameTesterDialog dialog(document, {0});
+    expect(dialog.errorText().isEmpty(), "libserum loads the project with the scene: " +
+                                             dialog.errorText().toStdString());
+    QElapsedTimer timer;
+    timer.start();
+    while (dialog.sceneText().isEmpty() && timer.elapsed() < 2000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    expect(dialog.sceneText().startsWith(QStringLiteral("scene 50010 plays (frame ")) &&
+               dialog.infoText().contains(dialog.sceneText()) &&
+               !dialog.infoText().contains(QStringLiteral("identified as")),
+           "the trigger plays the scene, which is named: " + dialog.infoText().toStdString());
+
+    QCheckBox* playScenes = nullptr;
+    for (QCheckBox* box : dialog.findChildren<QCheckBox*>()) {
+        if (box->text() == QStringLiteral("Play scenes")) {
+            playScenes = box;
+        }
+    }
+    expect(playScenes && playScenes->isChecked(), "Play scenes is on by default");
+    playScenes->setChecked(false);
+    expect(dialog.errorText().isEmpty() && dialog.position() == 0 &&
+               dialog.lastResult().frameIndex == 0u,
+           "without scenes the project is loaded again and the frame fed anew");
+    timer.restart();
+    while (timer.elapsed() < 300) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    expect(dialog.sceneText().isEmpty() && dialog.lastResult().frameIndex == 0u,
+           "and the trigger plays no scene: " + dialog.infoText().toStdString());
+    dialog.setPlayScenes(true);
+    expect(playScenes->isChecked(), "switched on again from the dialog");
+}
+
 }  // namespace
 
 void runFrameTesterWidgetTests()
 {
     testCore();
     testDialog();
+    testScenes();
 }
