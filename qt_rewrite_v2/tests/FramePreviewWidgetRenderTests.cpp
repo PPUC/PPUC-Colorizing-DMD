@@ -15,6 +15,7 @@
 #include <QListWidget>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QDropEvent>
 #include <QPainter>
 #include <QScrollBar>
@@ -1339,6 +1340,55 @@ void testFramePreviewDoesNotShowHdReferenceBelowOriginal()
     widget.setActiveResolution(colorizing::render::Resolution::Hd);
     expect(!widget.hitTestAt(QPoint(90, 395)),
            "HD preview should not expose a duplicate HD region below original");
+}
+
+// The sprite editor zooms (issue #14): around a point the sprite pixel there stays, the view
+// menu's entries and Ctrl+wheel zoom, and the zoom goes back to the fitted size.
+void testSpriteEditorZoom()
+{
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    std::optional<std::pair<int, int>> painted;
+    widget.setColorizedPixelEditedHandler(
+        [&](std::size_t, colorizing::render::Resolution, int x, int y, bool) {
+            painted = std::make_pair(x, y);
+        });
+    const auto pixelAt = [&](QPointF at) {
+        painted.reset();
+        QMouseEvent press(QEvent::MouseButtonPress, at, at, at, Qt::LeftButton, Qt::LeftButton,
+                          Qt::NoModifier);
+        QApplication::sendEvent(&widget, &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, at, at, at, Qt::LeftButton,
+                            Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&widget, &release);
+        return painted;
+    };
+    // In the middle of the colorized sprite, the upper half: away from its edges, which the
+    // zoom keeps in view.
+    const QPointF at(320, 150);
+    const QPointF right(360, 150);
+    const auto before = pixelAt(at);
+    const auto beforeRight = pixelAt(right);
+    expect(before && beforeRight && widget.zoom() == 1.0, "the fitted sprite");
+    widget.setZoom(3.0, at.toPoint());
+    const auto after = pixelAt(at);
+    const auto afterRight = pixelAt(right);
+    expect(after && afterRight && after == before,
+           "zoomed around a point, the sprite pixel there stays");
+    expect(afterRight->first - after->first < beforeRight->first - before->first,
+           "40 widget pixels to the right are fewer sprite pixels now");
+    widget.resetZoom();
+    expect(widget.zoom() == 1.0 && pixelAt(right) == beforeRight, "back to the fitted size");
+    QWheelEvent wheel(at, widget.mapToGlobal(at), QPoint(), QPoint(0, 120), Qt::NoButton,
+                      Qt::ControlModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(&widget, &wheel);
+    expect(widget.zoom() > 1.0, "Ctrl+wheel zooms in");
+    widget.zoomOut();
+    widget.zoomOut();
+    expect(widget.zoom() == 1.0, "and zooming out stops at the fitted size");
 }
 
 void testSpriteEditorRendersAndEditsDetectionArea()
@@ -3494,6 +3544,7 @@ int main(int argc, char* argv[])
     testDotPixelsHaveNoOutline();
     testPositionHandler();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
+    testSpriteEditorZoom();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();

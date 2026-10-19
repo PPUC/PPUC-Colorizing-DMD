@@ -25,6 +25,11 @@ The Inspector has a sprite browser and assignment controls:
   area is created by dragging it in the sprite editor (see below).
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
 - `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
+- The sprite editor zooms as the canvas does: `View -> Zoom In` / `Zoom Out` (`Ctrl/Cmd++`,
+  `Ctrl/Cmd+-`) around the middle, `Ctrl/Cmd` with the mouse wheel and a pinch on a trackpad
+  around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) goes
+  back to that size. Zoomed in, the mouse wheel (with `Shift` sideways) and a trackpad move the
+  shown part. While the sprite editor is shown, these entries zoom it, not the frame canvas.
 - While `Edit Sprite` is active, `Create HD Sprite` creates HD sprite mask/color data by scaling the SD sprite data to 2x, and `Remove HD Sprite` clears the sprite HD-present flag. Both can be undone while the sprite editor is active; Undo restores the sprite's previous HD mask and HD colors.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
 - Hold `Shift` while dragging on the colorized sprite to erase existing non-black sprite pixels back to black.

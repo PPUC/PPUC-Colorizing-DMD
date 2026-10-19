@@ -63,8 +63,21 @@ public:
 
     [[nodiscard]] QSize sizeHint() const override;
 
+    // Zoom over the size that fits the widget (1): Ctrl/Cmd with the mouse wheel and a pinch
+    // zoom around the mouse, the View menu's zoom entries around the middle. Zoomed in, the
+    // mouse wheel (with Shift sideways) and a trackpad move the shown part.
+    static constexpr double kMaxZoom = 8.0;
+    [[nodiscard]] double zoom() const;
+    // anchor: the widget point that stays on the same sprite pixel; none keeps the middle.
+    void setZoom(double zoom, std::optional<QPoint> anchor = std::nullopt);
+    void zoomIn();
+    void zoomOut();
+    void resetZoom();
+
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    bool event(QEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
@@ -75,6 +88,8 @@ private:
         render::Rect rect;
     };
 
+    // Widget pixels per sprite pixel that fit the widget, and with the zoom.
+    [[nodiscard]] int fittedScale() const;
     [[nodiscard]] int displayScale() const;
     [[nodiscard]] QPointF displayOrigin() const;
     [[nodiscard]] RegionLayout colorizedRegion() const;
@@ -122,6 +137,10 @@ private:
     std::optional<render::Point> m_dragEnd;
     std::optional<render::Point> m_colorizedStrokeStart;
     std::optional<render::Point> m_colorizedStrokeEnd;
+    double m_zoom = 1.0;
+    // How far the picture is moved from its top left corner when it is larger than the widget,
+    // in widget pixels.
+    QPointF m_scroll;
 };
 
 }  // namespace colorizing::app

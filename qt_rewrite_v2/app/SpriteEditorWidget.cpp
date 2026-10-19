@@ -5,8 +5,10 @@
 #include <cmath>
 
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QWheelEvent>
 
 #include "edit/DrawingGeometry.h"
 
@@ -335,23 +337,105 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
     QWidget::mouseReleaseEvent(event);
 }
 
-int SpriteEditorWidget::displayScale() const
+int SpriteEditorWidget::fittedScale() const
 {
     const int logicalWidth = kSpriteSize.width;
     const int logicalHeight = kSpriteSize.height * 2 + kGap;
-    const double fittedScale = std::min(
+    const double fitted = std::min(
         static_cast<double>(std::max(1, width() - 24)) / static_cast<double>(logicalWidth),
         static_cast<double>(std::max(1, height() - 36)) / static_cast<double>(logicalHeight));
-    return std::max(1, static_cast<int>(std::floor(fittedScale)));
+    return std::max(1, static_cast<int>(std::floor(fitted)));
+}
+
+int SpriteEditorWidget::displayScale() const
+{
+    return std::max(1, static_cast<int>(std::lround(fittedScale() * m_zoom)));
 }
 
 QPointF SpriteEditorWidget::displayOrigin() const
 {
     const int scale = displayScale();
-    const int logicalWidth = kSpriteSize.width;
-    const int logicalHeight = kSpriteSize.height * 2 + kGap;
-    return QPointF(std::floor((width() - logicalWidth * scale) / 2.0),
-                   std::floor((height() - logicalHeight * scale) / 2.0));
+    const double contentWidth = kSpriteSize.width * scale;
+    const double contentHeight = (kSpriteSize.height * 2 + kGap) * scale;
+    // Centred while it fits; otherwise moved by the scroll, which keeps it covering the widget.
+    const auto along = [](double extent, double content, double scrolled) {
+        if (content <= extent) {
+            return std::floor((extent - content) / 2.0);
+        }
+        return -std::clamp(scrolled, 0.0, content - extent);
+    };
+    return QPointF(along(width(), contentWidth, m_scroll.x()),
+                   along(height(), contentHeight, m_scroll.y()));
+}
+
+double SpriteEditorWidget::zoom() const
+{
+    return m_zoom;
+}
+
+void SpriteEditorWidget::setZoom(double zoom, std::optional<QPoint> anchor)
+{
+    zoom = std::clamp(zoom, 1.0, kMaxZoom);
+    const QPointF at = anchor ? QPointF(*anchor) : QPointF(width() / 2.0, height() / 2.0);
+    // The sprite point under the anchor stays there.
+    const QPointF origin = displayOrigin();
+    const double oldScale = displayScale();
+    const QPointF logical = (at - origin) / oldScale;
+    m_zoom = zoom;
+    const double newScale = displayScale();
+    m_scroll = logical * newScale - at;
+    m_scroll = -displayOrigin();
+    update();
+}
+
+void SpriteEditorWidget::zoomIn()
+{
+    setZoom(m_zoom * 1.25);
+}
+
+void SpriteEditorWidget::zoomOut()
+{
+    setZoom(m_zoom / 1.25);
+}
+
+void SpriteEditorWidget::resetZoom()
+{
+    m_scroll = QPointF();
+    setZoom(1.0);
+}
+
+void SpriteEditorWidget::wheelEvent(QWheelEvent* event)
+{
+    if (event->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)) {
+        const int steps = event->angleDelta().y() / 120;
+        if (steps != 0) {
+            setZoom(m_zoom * std::pow(1.25, steps), event->position().toPoint());
+        }
+        event->accept();
+        return;
+    }
+    // Pixels from a trackpad, notches from a wheel; Shift turns the wheel sideways.
+    QPointF delta = !event->pixelDelta().isNull() ? QPointF(event->pixelDelta())
+                                                  : QPointF(event->angleDelta()) / 120.0 * 40.0;
+    if (event->modifiers() & Qt::ShiftModifier && delta.x() == 0.0) {
+        delta = QPointF(delta.y(), 0.0);
+    }
+    m_scroll -= delta;
+    m_scroll = -displayOrigin();
+    update();
+    event->accept();
+}
+
+bool SpriteEditorWidget::event(QEvent* event)
+{
+    if (event->type() == QEvent::NativeGesture) {
+        const auto* gesture = static_cast<QNativeGestureEvent*>(event);
+        if (gesture->gestureType() == Qt::ZoomNativeGesture) {
+            setZoom(m_zoom * (1.0 + gesture->value()), gesture->position().toPoint());
+            return true;
+        }
+    }
+    return QWidget::event(event);
 }
 
 SpriteEditorWidget::RegionLayout SpriteEditorWidget::colorizedRegion() const

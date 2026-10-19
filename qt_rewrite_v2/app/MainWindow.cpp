@@ -823,25 +823,32 @@ void MainWindow::createActions()
     connect(dmdSettingsAction, &QAction::triggered, this,
             [this]() { editSettings(SettingsDialog::Page::DmdOutput); });
     viewMenu->addSeparator();
-    // The canvas zoom; the colorized and the original picture show the same part.
+    // The canvas zoom; the colorized and the original picture show the same part. While a
+    // sprite is shown in the canvas's place, its zoom.
     QAction* zoomInAction = viewMenu->addAction(tr("Zoom &In"));
     zoomInAction->setShortcuts({QKeySequence::ZoomIn, QKeySequence(Qt::CTRL | Qt::Key_Equal)});
     connect(zoomInAction, &QAction::triggered, this, [this]() {
-        if (m_preview) {
+        if (isSpriteCanvasActive() && m_spriteEditor) {
+            m_spriteEditor->zoomIn();
+        } else if (m_preview) {
             m_preview->zoomIn();
         }
     });
     QAction* zoomOutAction = viewMenu->addAction(tr("Zoom &Out"));
     zoomOutAction->setShortcut(QKeySequence::ZoomOut);
     connect(zoomOutAction, &QAction::triggered, this, [this]() {
-        if (m_preview) {
+        if (isSpriteCanvasActive() && m_spriteEditor) {
+            m_spriteEditor->zoomOut();
+        } else if (m_preview) {
             m_preview->zoomOut();
         }
     });
     QAction* zoomFitAction = viewMenu->addAction(tr("Show &Whole Frame"));
     zoomFitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
     connect(zoomFitAction, &QAction::triggered, this, [this]() {
-        if (m_preview) {
+        if (isSpriteCanvasActive() && m_spriteEditor) {
+            m_spriteEditor->resetZoom();
+        } else if (m_preview) {
             m_preview->resetZoom();
         }
     });

@@ -1111,6 +1111,10 @@ owner together.
   restart of a just-finished startImmediately/background scene by the next matching frame,
   500 ms trigger repeat timeout; AGENTS.md "Scene playback and options"). Asked the author for
   the exact steps.
+- Sprite editor zoom (issue #14, 2026-10-19): `SpriteEditorWidget` zoom (1..8 x fitted,
+  `displayScale()` = fitted * zoom, `displayOrigin()` centred or scrolled), Ctrl/Cmd+wheel and
+  pinch around the mouse, wheel/trackpad pans; the View menu's zoom entries go to it while the
+  sprite canvas is active (they always zoomed the frame canvas).
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification
