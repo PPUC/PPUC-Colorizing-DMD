@@ -85,11 +85,14 @@ int checkDmdOutput()
 // stay as they were.
 void takeOverEarlierSettings()
 {
+    // Only the application's own keys: macOS adds the system's preferences as fallbacks.
     QSettings settings;
+    settings.setFallbacksEnabled(false);
     if (!settings.allKeys().isEmpty()) {
         return;
     }
-    const QSettings earlier(QStringLiteral("ColorizingDMD"), QStringLiteral("ColorizingDMDQtV2"));
+    QSettings earlier(QStringLiteral("ColorizingDMD"), QStringLiteral("ColorizingDMDQtV2"));
+    earlier.setFallbacksEnabled(false);
     for (const QString& key : earlier.allKeys()) {
         settings.setValue(key, earlier.value(key));
     }
