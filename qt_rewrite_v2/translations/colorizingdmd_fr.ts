@@ -4951,6 +4951,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
 </context>
 <context>
+    <name>SectionStack</name>
+    <message>
+        <source>Drag to resize the sections; double-click to share the height equally</source>
+        <translation>Faire glisser pour redimensionner les sections ; double-cliquer pour répartir la hauteur également</translation>
+    </message>
+</context>
+<context>
     <name>SettingsDialog</name>
     <message>
         <source>Settings</source>

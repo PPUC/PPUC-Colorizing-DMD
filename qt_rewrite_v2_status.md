@@ -1126,6 +1126,11 @@ owner together.
   the viewport. 90db0a7 had fixed the drop handling but not this. Now
   `FrameListWidget::useStripLayout()` sets up the strip and ends with
   `viewport()->setAcceptDrops(true)`; tested on the widget.
+- Resizable side bar sections (issue #13): `SectionStack` keeps a weight per section (layout
+  stretch, 100 at first; on a drag all open sections take their pixel heights as weights), a
+  `SectionResizeHandle` below each open section with an open one further down moves the border
+  (`resizeBelow`, min 40 px), double click `resetSectionSizes`; weights in QSettings
+  `layout/<stateKey>Sizes`.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

@@ -15,6 +15,7 @@
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QSettings>
 #include <QToolButton>
 
 #include "document/ProjectDocument.h"
@@ -27,6 +28,7 @@
 #include "panels/FramePanel.h"
 #include "panels/SpritePanel.h"
 #include "PlaneLabels.h"
+#include "SectionStack.h"
 
 using colorizing::document::ProjectDocument;
 using colorizing::render::PlaneLayout;
@@ -579,6 +581,47 @@ void testFrameListClicks()
     expect(list.selectedItems().size() == 1, "a click on the only selected frame keeps it");
 }
 
+// Issue #13: the open sections of a side bar are resized by dragging the border between two of
+// them; the shares are kept with the open sections.
+void testSectionStackResize()
+{
+    const QString key = QStringLiteral("testSectionStackResize");
+    QSettings().remove(QStringLiteral("layout/") + key);
+    QSettings().remove(QStringLiteral("layout/") + key + QStringLiteral("Sizes"));
+    {
+        colorizing::app::SectionStack stack;
+        for (const char* name : {"A", "B", "C"}) {
+            stack.addTab(new QLabel(QString::fromLatin1(name)), QString::fromLatin1(name));
+        }
+        stack.restoreOpenSections(key, {QStringLiteral("A"), QStringLiteral("C")});
+        expect(stack.sectionWeight(0) == stack.sectionWeight(2), "open sections start equal");
+        expect(stack.resizeBelow(0, 30), "A has an open section below it, C (B is closed)");
+        expect(stack.sectionWeight(0) == 130 && stack.sectionWeight(2) == 70 &&
+                   stack.sectionWeight(1) == 100,
+               "the border moves between A and C, the closed B keeps its share");
+        expect(!stack.resizeBelow(2, 10), "the last open section has no border below it");
+        stack.resizeBelow(0, 1000);
+        expect(stack.sectionWeight(2) == 40, "a section keeps a smallest height");
+        stack.resizeBelow(0, -1000);
+        expect(stack.sectionWeight(0) == 40, "also above");
+        stack.resizeBelow(0, 50);
+    }
+    {
+        colorizing::app::SectionStack stack;
+        for (const char* name : {"A", "B", "C"}) {
+            stack.addTab(new QLabel(QString::fromLatin1(name)), QString::fromLatin1(name));
+        }
+        stack.restoreOpenSections(key, {});
+        expect(stack.isSectionOpen(0) && stack.isSectionOpen(2) && stack.sectionWeight(0) == 90 &&
+                   stack.sectionWeight(2) == 110,
+               "the shares come back with the open sections");
+        stack.resetSectionSizes();
+        expect(stack.sectionWeight(0) == stack.sectionWeight(2), "and can be made equal again");
+    }
+    QSettings().remove(QStringLiteral("layout/") + key);
+    QSettings().remove(QStringLiteral("layout/") + key + QStringLiteral("Sizes"));
+}
+
 void runPlaneLabelsWidgetTests()
 {
     testLabels();
@@ -588,4 +631,5 @@ void runPlaneLabelsWidgetTests()
     testLazyListIcons();
     testLazyStripIcons();
     testFrameListClicks();
+    testSectionStackResize();
 }

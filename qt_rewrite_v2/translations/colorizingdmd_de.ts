@@ -4951,6 +4951,13 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>SectionStack</name>
+    <message>
+        <source>Drag to resize the sections; double-click to share the height equally</source>
+        <translation>Ziehen, um die Bereiche in der Höhe zu ändern; Doppelklick verteilt die Höhe gleichmäßig</translation>
+    </message>
+</context>
+<context>
     <name>SettingsDialog</name>
     <message>
         <source>Settings</source>
