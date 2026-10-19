@@ -25,7 +25,7 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     auto* layout = new QFormLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addRow(tr("Upscaling"), m_scalingComboBox);
-    layout->addRow(tr("Shadow offset"), m_shadowComboBox);
+    layout->addRow(tr("Upscaled shadow offset"), m_shadowComboBox);
 
     const auto changed = [this](int) {
         if (!m_filling && onScalingChanged) {

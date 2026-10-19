@@ -4828,8 +4828,12 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Agrandissement</translation>
     </message>
     <message>
+        <source>Upscaled shadow offset</source>
+        <translation>Décalage des ombres agrandies</translation>
+    </message>
+    <message>
         <source>Shadow offset</source>
-        <translation>Décalage de l&apos;ombre</translation>
+        <translation type="vanished">Décalage de l&apos;ombre</translation>
     </message>
 </context>
 <context>

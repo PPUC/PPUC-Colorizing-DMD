@@ -4828,8 +4828,12 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Hochskalierung</translation>
     </message>
     <message>
+        <source>Upscaled shadow offset</source>
+        <translation>Versatz hochskalierter Schatten</translation>
+    </message>
+    <message>
         <source>Shadow offset</source>
-        <translation>Schattenversatz</translation>
+        <translation type="vanished">Schattenversatz</translation>
     </message>
 </context>
 <context>

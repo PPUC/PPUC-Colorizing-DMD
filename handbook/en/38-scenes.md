@@ -73,7 +73,7 @@ for each scene.
 
 The `Project Settings` section of the right sidebar holds the settings of the whole
 colorization. `Upscaling` is how libserum makes the 256x64 picture of a frame that has none: `Scale2x`
-(libserum's default) or `Line doubling`. `Shadow offset` is how far a dynamic shadow falls on
+(libserum's default) or `Line doubling`. `Upscaled shadow offset` is how far a dynamic shadow falls on
 the 256x64 plane: 1 pixel (native, the default) or 2 pixels (proportional, as thick as on the
 128x32 plane). These are what a `scaling.txt` used to set. Changing them is one undo step.
 
