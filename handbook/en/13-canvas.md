@@ -64,8 +64,10 @@ drag started and the size of the dragged area, `| from 30, 10: 5x3`. So a place 
 and found again on another frame.
 
 Beside it, `Time: Project 113:19:06 / Session 00:00:19` counts the time spent on the project and
-in this session, as the Win32 editor does: the time the project is open, whether or not anything
-is done meanwhile. The project time is saved with the project (in the `.cRPX`, also by the
+in this session: the time you work on it. Both clocks stop when there was no input (mouse, keys,
+wheel) in the editor's windows for a minute, and show `(paused)`; the next input starts them
+again. A running playback counts as work. (The Win32 editor counted the whole time a project
+was open.) The project time is saved with the project (in the `.cRPX`, also by the
 autosave) and goes on from there the next time it is opened; a project made from a dump starts
 at 0. Counting does not mark the project as changed.
 

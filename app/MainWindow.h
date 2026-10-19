@@ -13,6 +13,7 @@
 #include <QString>
 #include <QStringList>
 
+#include "ActivityClock.h"
 #include "Autosave.h"
 #include "DmdOutput.h"
 #include "EditorPlugins.h"
@@ -676,12 +677,16 @@ private:
     QMenu* m_pluginsMenu = nullptr;
     // The status bar's pixel under the mouse on the canvas (and the dragged area).
     QLabel* m_positionLabel = nullptr;
-    // The time spent on the project (the cRP's TimeElapsed, as the Win32 editor counts it:
-    // the time a project is open) and in this session, shown in the status bar.
+    // The time spent on the project (the cRP's TimeElapsed) and in this session, shown in the
+    // status bar. Both count working time: they stop after a minute without input
+    // (ActivityClock); m_sessionClock is only its time base.
     QLabel* m_timeLabel = nullptr;
     QTimer m_clockTimer;
     QElapsedTimer m_sessionClock;
+    ActivityClock m_activityClock;
     uint32_t m_projectTimeAtOpenMs = 0;
+    // Input to any of the editor's windows: the clocks go on.
+    void noteActivity();
     // The last pixel the mouse pointed at on the canvas, where a new helper line goes.
     std::optional<render::CanvasHit> m_lastCanvasHit;
     // The Helper Lines section (HelperLine.h): changed through edit::setHelperLines.

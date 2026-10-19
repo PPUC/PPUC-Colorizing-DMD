@@ -1,6 +1,7 @@
 set(COLORIZING_QT_V2_APP_NAME ColorizingDMDQtV2)
 
 add_library(colorizing_qt_v2_widgets STATIC
+    ActivityClock.h
     Appearance.cpp
     Appearance.h
     Autosave.cpp

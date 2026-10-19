@@ -2081,7 +2081,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Time spent on the project (saved with it, counted while it is open, as in the Win32 editor) and in this session</source>
-        <translation>Zeit, die in das Projekt geflossen ist (wird mit ihm gespeichert und gezählt, solange es geöffnet ist, wie im Win32-Editor), und in dieser Sitzung</translation>
+        <translation type="vanished">Zeit, die in das Projekt geflossen ist (wird mit ihm gespeichert und gezählt, solange es geöffnet ist, wie im Win32-Editor), und in dieser Sitzung</translation>
     </message>
     <message>
         <source>No project loaded</source>
@@ -2518,6 +2518,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>The pixel under the mouse on the canvas: on the original or the colorized frame, in that frame&apos;s pixels; while dragging also the size of the dragged area</source>
         <translation>Das Pixel unter der Maus auf der Zeichenfläche: im Original- oder kolorierten Frame, in dessen Pixeln; beim Ziehen auch die Größe des gezogenen Bereichs</translation>
+    </message>
+    <message>
+        <source>Time spent on the project (saved with it) and in this session, counted while you work on it: the clocks stop after a minute without input</source>
+        <translation>Zeit am Projekt (mit ihm gespeichert) und in dieser Sitzung, gezählt, solange daran gearbeitet wird: die Uhren halten nach einer Minute ohne Eingabe an</translation>
     </message>
     <message>
         <source>Helper line %1: %2 %3</source>
@@ -4281,6 +4285,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Time: Project %1 / Session %2</source>
         <translation>Zeit: Projekt %1 / Sitzung %2</translation>
+    </message>
+    <message>
+        <source>%1 (paused)</source>
+        <translation>%1 (angehalten)</translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>

@@ -2081,7 +2081,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Time spent on the project (saved with it, counted while it is open, as in the Win32 editor) and in this session</source>
-        <translation>Temps passé sur le projet (enregistré avec lui, compté tant qu&apos;il est ouvert, comme dans l&apos;éditeur Win32) et dans cette session</translation>
+        <translation type="vanished">Temps passé sur le projet (enregistré avec lui, compté tant qu&apos;il est ouvert, comme dans l&apos;éditeur Win32) et dans cette session</translation>
     </message>
     <message>
         <source>No project loaded</source>
@@ -2518,6 +2518,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>The pixel under the mouse on the canvas: on the original or the colorized frame, in that frame&apos;s pixels; while dragging also the size of the dragged area</source>
         <translation>Le pixel sous la souris sur le canevas : sur la frame d&apos;origine ou colorisée, en pixels de cette frame ; pendant un glisser, aussi la taille de la zone</translation>
+    </message>
+    <message>
+        <source>Time spent on the project (saved with it) and in this session, counted while you work on it: the clocks stop after a minute without input</source>
+        <translation>Temps passé sur le projet (enregistré avec lui) et dans cette session, compté tant que vous y travaillez : les horloges s&apos;arrêtent après une minute sans saisie</translation>
     </message>
     <message>
         <source>Helper line %1: %2 %3</source>
@@ -4281,6 +4285,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Time: Project %1 / Session %2</source>
         <translation>Temps : projet %1 / session %2</translation>
+    </message>
+    <message>
+        <source>%1 (paused)</source>
+        <translation>%1 (en pause)</translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>

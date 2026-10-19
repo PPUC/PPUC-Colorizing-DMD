@@ -542,11 +542,13 @@ MainWindow::MainWindow(QWidget* parent)
     statusBar()->addPermanentWidget(m_positionLabel);
     m_timeLabel = new QLabel(this);
     m_timeLabel->setToolTip(
-        tr("Time spent on the project (saved with it, counted while it is open, as in the "
-           "Win32 editor) and in this session"));
+        tr("Time spent on the project (saved with it) and in this session, counted while you "
+           "work on it: the clocks stop after a minute without input"));
     statusBar()->addPermanentWidget(m_timeLabel);
     m_clockTimer.setInterval(1000);
     connect(&m_clockTimer, &QTimer::timeout, this, &MainWindow::updateTimeLabel);
+    // Every window's input counts as activity for the clocks (eventFilter()).
+    QApplication::instance()->installEventFilter(this);
     m_preview->setHelperLineMoveHandler([this](std::size_t index, uint32_t position, bool finished) {
         if (!m_document || index >= m_document->helperLines().size()) {
             return;
@@ -5029,6 +5031,8 @@ void MainWindow::stepRuntimeRotations()
 
 void MainWindow::advancePlaybackFrame()
 {
+    // Watching the playback is working on the project.
+    noteActivity();
     if (!m_document || !m_frameList || m_frameList->count() == 0) {
         setPlaybackRunning(false);
         return;
@@ -8231,6 +8235,17 @@ void MainWindow::updateEditColorControls(bool projectChanged)
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseMove:
+        case QEvent::KeyPress:
+        case QEvent::Wheel:
+        case QEvent::TouchBegin:
+            noteActivity();
+            break;
+        default:
+            break;
+    }
     if (watched == m_preview && event->type() == QEvent::KeyRelease) {
         const auto* keyEvent = static_cast<QKeyEvent*>(event);
         if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
@@ -9222,8 +9237,21 @@ void MainWindow::startProjectClock()
 {
     m_projectTimeAtOpenMs = m_document ? m_document->editorMetadata().timeElapsedMs : 0;
     m_sessionClock.restart();
+    m_activityClock.start(0);
     m_clockTimer.start();
     updateTimeLabel();
+}
+
+void MainWindow::noteActivity()
+{
+    if (!m_sessionClock.isValid()) {
+        return;
+    }
+    const bool wasPaused = m_activityClock.isPaused(m_sessionClock.elapsed());
+    m_activityClock.activity(m_sessionClock.elapsed());
+    if (wasPaused) {
+        updateTimeLabel();
+    }
 }
 
 uint32_t MainWindow::projectTimeMs() const
@@ -9232,8 +9260,9 @@ uint32_t MainWindow::projectTimeMs() const
         return m_projectTimeAtOpenMs;
     }
     // The cRP stores it in 32 bits (Win32 DWORD).
-    const uint64_t total = uint64_t{m_projectTimeAtOpenMs} +
-                           static_cast<uint64_t>(m_sessionClock.elapsed());
+    const uint64_t total =
+        uint64_t{m_projectTimeAtOpenMs} +
+        static_cast<uint64_t>(m_activityClock.elapsedMs(m_sessionClock.elapsed()));
     return static_cast<uint32_t>(std::min<uint64_t>(total, 0xffffffffu));
 }
 
@@ -9253,9 +9282,12 @@ void MainWindow::updateTimeLabel()
             .arg((seconds / 60) % 60, 2, 10, QLatin1Char('0'))
             .arg(seconds % 60, 2, 10, QLatin1Char('0'));
     };
-    m_timeLabel->setText(tr("Time: Project %1 / Session %2")
-                             .arg(clock(projectTimeMs()),
-                                  clock(static_cast<uint64_t>(m_sessionClock.elapsed()))));
+    const int64_t now = m_sessionClock.isValid() ? m_sessionClock.elapsed() : 0;
+    const QString text =
+        tr("Time: Project %1 / Session %2")
+            .arg(clock(projectTimeMs()),
+                 clock(static_cast<uint64_t>(m_activityClock.elapsedMs(now))));
+    m_timeLabel->setText(m_activityClock.isPaused(now) ? tr("%1 (paused)").arg(text) : text);
 }
 
 void MainWindow::addSourceFrame()

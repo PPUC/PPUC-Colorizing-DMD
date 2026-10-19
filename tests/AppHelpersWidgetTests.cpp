@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QListWidget>
 
+#include "ActivityClock.h"
 #include "AppInfo.h"
 #include "FrameImageUtils.h"
 #include "dialogs/AboutDialog.h"
@@ -134,6 +135,24 @@ void testOriginalShadeColors()
 
 }  // namespace
 
+// The project clock counts working time: up to a minute after each input.
+void testActivityClock()
+{
+    colorizing::app::ActivityClock clock;
+    expect(clock.elapsedMs(5000) == 0, "a clock not started counts nothing");
+    clock.start(0);
+    expect(clock.elapsedMs(30000) == 30000 && !clock.isPaused(30000),
+           "it counts while there was input less than a minute ago");
+    expect(clock.elapsedMs(600000) == 60000 && clock.isPaused(600000),
+           "a pause stops it a minute after the last input");
+    clock.activity(600000);
+    expect(clock.elapsedMs(610000) == 70000 && !clock.isPaused(610000),
+           "input starts it again, without the pause");
+    clock.activity(620000);
+    clock.activity(640000);
+    expect(clock.elapsedMs(640000) == 100000, "inputs in a row count the time between them");
+}
+
 // Help -> About names the version testers report against.
 void testAboutDialog()
 {
@@ -150,6 +169,7 @@ void testAboutDialog()
 void runAppHelpersWidgetTests()
 {
     testAboutDialog();
+    testActivityClock();
     testSelectSingleRow();
     testMayCloseProject();
     testOriginalShadeColors();
