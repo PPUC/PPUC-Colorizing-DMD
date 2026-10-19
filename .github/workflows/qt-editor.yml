@@ -1,30 +1,20 @@
-# Builds, tests and packages the Qt editor in qt_rewrite_v2/ for Windows (MinGW), Linux and
-# macOS. The legacy Win32 editor in the repository root is not built here; the path filters keep
-# this workflow out of changes that only touch it.
+# Builds, tests and packages the editor for Windows (MinGW), Linux and macOS. (The Win32 editor
+# it replaces is at the tag v3.17.3.)
 #
 # Every run uploads one package per platform. A tag v<version> (matching the project VERSION
-# in qt_rewrite_v2/CMakeLists.txt) additionally collects them into a draft GitHub release, which
+# in CMakeLists.txt) additionally collects them into a draft GitHub release, which
 # is published by hand.
 name: Qt editor
 
 on:
   push:
-    # Any branch, so feature branches of the editor are checked too; the path filter decides.
+    # Any branch, so feature branches of the editor are checked too.
     # (Listing tags alone would stop branch pushes from running at all.)
     branches:
       - '**'
     tags:
       - 'v*'
-    # Not evaluated for tag pushes: a tag always runs.
-    paths:
-      - 'qt_rewrite_v2/**'
-      - 'cRom256.png'
-      - '.github/workflows/qt-editor.yml'
   pull_request:
-    paths:
-      - 'qt_rewrite_v2/**'
-      - 'cRom256.png'
-      - '.github/workflows/qt-editor.yml'
   workflow_dispatch:
 
 concurrency:
@@ -120,7 +110,7 @@ jobs:
           path: ColorizingDMD
           persist-credentials: false
 
-      # Beside the editor checkout, where qt_rewrite_v2/CMakeLists.txt looks for it by default
+      # Beside the editor checkout, where CMakeLists.txt looks for it by default
       # (COLORIZINGDMD_LIBSERUM_DIR = ../../libserum).
       - name: Check out libserum ${{ env.LIBSERUM_SHA }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -270,13 +260,13 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: dmdutil
-          key: libdmdutil-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.LIBDMDUTIL_SHA }}-${{ hashFiles('ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh') }}
+          key: libdmdutil-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.LIBDMDUTIL_SHA }}-${{ hashFiles('ColorizingDMD/packaging/build-libdmdutil.sh') }}
 
       - name: Build libdmdutil (Windows)
         if: matrix.platform == 'windows' && steps.dmdutil-cache.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
-          ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh libdmdutil \
+          ColorizingDMD/packaging/build-libdmdutil.sh libdmdutil \
             ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} dmdutil
 
       - name: Build libdmdutil
@@ -284,7 +274,7 @@ jobs:
         env:
           MACOSX_DEPLOYMENT_TARGET: ${{ env.MACOS_DEPLOYMENT_TARGET }}
         run: |
-          ColorizingDMD/qt_rewrite_v2/packaging/build-libdmdutil.sh libdmdutil \
+          ColorizingDMD/packaging/build-libdmdutil.sh libdmdutil \
             ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} dmdutil
 
       #
@@ -296,13 +286,13 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: media
-          key: media-libs-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.VPINBALL_SHA }}-${{ hashFiles('ColorizingDMD/qt_rewrite_v2/packaging/build-media-libs.sh') }}
+          key: media-libs-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.VPINBALL_SHA }}-${{ hashFiles('ColorizingDMD/packaging/build-media-libs.sh') }}
 
       - name: Build the media libraries (Windows)
         if: matrix.platform == 'windows' && steps.media-cache.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
-          ColorizingDMD/qt_rewrite_v2/packaging/build-media-libs.sh vpinball \
+          ColorizingDMD/packaging/build-media-libs.sh vpinball \
             ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} media
 
       - name: Build the media libraries
@@ -310,7 +300,7 @@ jobs:
         env:
           MACOSX_DEPLOYMENT_TARGET: ${{ env.MACOS_DEPLOYMENT_TARGET }}
         run: |
-          ColorizingDMD/qt_rewrite_v2/packaging/build-media-libs.sh vpinball \
+          ColorizingDMD/packaging/build-media-libs.sh vpinball \
             ${{ matrix.dmdutil_platform }} ${{ matrix.dmdutil_arch }} media
 
       - name: Restore the compiler cache
@@ -329,7 +319,7 @@ jobs:
         if: matrix.platform == 'windows'
         shell: msys2 {0}
         run: |
-          cmake -S ColorizingDMD/qt_rewrite_v2 -B build -G Ninja \
+          cmake -S ColorizingDMD -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -344,7 +334,7 @@ jobs:
       - name: Configure (Linux)
         if: matrix.platform == 'linux'
         run: |
-          cmake -S ColorizingDMD/qt_rewrite_v2 -B build -G Ninja \
+          cmake -S ColorizingDMD -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -359,7 +349,7 @@ jobs:
       - name: Configure (macOS)
         if: matrix.platform == 'macos'
         run: |
-          cmake -S ColorizingDMD/qt_rewrite_v2 -B build -G Ninja \
+          cmake -S ColorizingDMD -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -413,7 +403,7 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          ColorizingDMD/qt_rewrite_v2/packaging/package-windows.sh build "dist/${PACKAGE}"
+          ColorizingDMD/packaging/package-windows.sh build "dist/${PACKAGE}"
 
       - name: Package (Linux)
         if: matrix.platform == 'linux'
@@ -438,7 +428,7 @@ jobs:
           echo "${PLUGIN_QT_SHA256}  ${PLUGIN_QT}" | sha256sum --check
           chmod +x "${LINUXDEPLOY}" "${PLUGIN_QT}"
           LINUXDEPLOY="${LINUXDEPLOY}" QMAKE=/usr/bin/qmake6 \
-            ColorizingDMD/qt_rewrite_v2/packaging/package-linux.sh build "dist/${PACKAGE}"
+            ColorizingDMD/packaging/package-linux.sh build "dist/${PACKAGE}"
 
       - name: Package (macOS)
         if: matrix.platform == 'macos'
@@ -446,7 +436,7 @@ jobs:
           mkdir -p dist
           # install-qt-action exports QT_ROOT_DIR.
           MACDEPLOYQT="${QT_ROOT_DIR}/bin/macdeployqt" \
-            ColorizingDMD/qt_rewrite_v2/packaging/package-macos.sh build "dist/${PACKAGE}"
+            ColorizingDMD/packaging/package-macos.sh build "dist/${PACKAGE}"
 
       # Uploaded as the file itself, not zipped again.
       - name: Upload the package
@@ -468,13 +458,13 @@ jobs:
       - name: Check out the project version
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: qt_rewrite_v2/CMakeLists.txt
+          sparse-checkout: CMakeLists.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
       - name: Check the tag against the project version
         run: |
-          VERSION=$(sed -nE 's/^project\(PPUCColorizingDMD VERSION ([0-9.]+).*/\1/p' qt_rewrite_v2/CMakeLists.txt)
+          VERSION=$(sed -nE 's/^project\(PPUCColorizingDMD VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
           if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
             echo "::error::Tag ${GITHUB_REF_NAME} does not match the project version ${VERSION} (expected v${VERSION})."
             exit 1

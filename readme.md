@@ -1,29 +1,58 @@
-# ColorizingDMD
+# PPUC Colorizing DMD
 
-ColorizingDMD is a software to colorize VPinMAME DMD using the Serum colorization format.
+PPUC Colorizing DMD is the editor for Serum colorizations of pinball DMD frames: it turns frame
+dumps into colorized frames, with backgrounds, sprites, dynamic zones, color rotations and PUP
+scenes, and writes the `.cROM`/`.cRZ` and `.cROMc` files that
+[libserum](https://github.com/PPUC/libserum) plays on a machine, in VPX or in PPUC.
 
-# Downloads
+It runs on Windows, macOS (Apple silicon) and Linux. It opens the projects of the Win32
+ColorizingDMD editor (CDMD 3.17.3); a project saved here is kept in a `.cRPX` beside its `.cROM`
+and cannot be opened by the Win32 editor again.
 
-Click on the "releases" link on the right hand side of this page. Or [Click Here](https://github.com/zesinger/ColorizingDMD/releases)
+## Downloads
 
-# ColorizingDMD Serum Editor
+The packages of every build are on the
+[Actions](https://github.com/PPUC/ColorizingDMD/actions) page; releases are under
+[Releases](https://github.com/PPUC/ColorizingDMD/releases). Version 4.0.0 will be the first
+release; until then the versions are 3.99.x (`Help -> About` shows yours).
 
-To install the editor, just download the zip from the "ColorizingDMD editor" directory and save it anywhere on your disk (DO NOT unzip ColorizingDMD and SortingCDump in the same directory!).
+## Handbook
 
-If you are using Windows 10 or more recent, right click on the file and choose "Properties". If in the Properties window, there is a box "Unblock" in the bottom right, check it and click "OK".
-Then uncompress the ZIP file.
+The handbook is built into the editor (`Help -> Handbook`, `F1`). Its chapters are in
+[handbook/en](handbook/en/README.md).
 
-There is a comprehensive tutorial here https://www.pincabpassion.net/t15414-comprehensive-tuto-about-colorizingdmd
+## Building
 
-You should also check the videos made by Dtatane here https://www.youtube.com/watch?v=PJWOm6L_Lhc&list=PL_BgMMKhwOKJ9EieULq_tjClotEdiR6MO
+CMake 3.20, a C++17 compiler, Qt 6 (Widgets) and a checkout of
+[libserum](https://github.com/PPUC/libserum) beside this repository (`../libserum`, or set
+`COLORIZINGDMD_LIBSERUM_DIR`):
 
-# DLL/EXE to use Serum ingame
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build
+```
 
-Depending on whether you are using the 64bit or the 32bit version of VPinMame (if you don't know, chances are that you are using the 32bit version), download respectively the 2 files (DmdDevice.dll and DmdExt.exe) in "DMD-extensions x64" or "DMD-extensions x86" from the [DMD Extensions](https://github.com/freezy/dmd-extensions) download. Then copy them to your "VPinMame" directory.
-If you are using Windows 10 or more recent, right click on each file and choose "Properties". If in the Properties window, there is a box "Unblock" in the bottom right, check it and click "OK".
+The release packages are made by `packaging/package-<windows|linux|macos>.sh`; see
+`.github/workflows/qt-editor.yml` for the whole setup, including the DMD output and video
+plugins.
 
-# License
+## The Win32 editor
 
-ColorizingDMD is free software: you can redistribute it and/or modify it under the terms of the
-GNU General Public License as published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version. See [LICENSE](LICENSE).
+The Win32 editor this one replaces ([ColorizingDMD](https://github.com/zesinger/ColorizingDMD) by zesinger, CDMD, last version 3.17.3) is kept at
+the tag [`v3.17.3`](https://github.com/PPUC/ColorizingDMD/tree/v3.17.3):
+
+```sh
+git checkout v3.17.3            # its sources, to build with Visual Studio
+git show v3.17.3:ColorizingDMD.cpp
+```
+
+Its tutorials still explain the concepts: a
+[comprehensive tutorial](https://www.pincabpassion.net/t15414-comprehensive-tuto-about-colorizingdmd)
+and the [videos by Dtatane](https://www.youtube.com/watch?v=PJWOm6L_Lhc&list=PL_BgMMKhwOKJ9EieULq_tjClotEdiR6MO).
+
+## License
+
+PPUC Colorizing DMD is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation, either version
+3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
