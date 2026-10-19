@@ -1102,6 +1102,15 @@ owner together.
   `MainWindow::updateRuntimeSceneFile()` at open/create/Save As with the project folder's
   `<rom>.pup.csv` (`runtime::findCaseInsensitive`, `libserumPath`, now public in
   CromcExport.h). Checked on hook_501: scene 50001 absent before, present (16 frames, 40 ms).
+- Author: "Retriggering scenes does not seem to work" (2026-10-19). Found a tester divergence
+  from a machine: `FrameTesterDialog::feed` stopped the rotation timer on every frame and
+  restarted it only from the new result, so an unknown frame (no time) stopped a running scene
+  and "same frame" restarted its time. Now as libdmdutil (DMD.cpp ~1660): a due step runs
+  before Serum_Colorize, only a newly rendered frame reschedules, no/same frame keep the
+  schedule. libserum's own retrigger rules stay (same-trigger background continuation, no
+  restart of a just-finished startImmediately/background scene by the next matching frame,
+  500 ms trigger repeat timeout; AGENTS.md "Scene playback and options"). Asked the author for
+  the exact steps.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

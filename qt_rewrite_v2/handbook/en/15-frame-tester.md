@@ -37,7 +37,11 @@ in the editor, saved or not.
 Scenes of the project's `<rom>.pup.csv` play as on a machine (see "Runtime View"): a scene in
 front of the picture as well as a background scene. libserum renders their pictures in its
 rotation step, which the tester calls when libserum asks for it, as it does for the color
-rotations of the frame shown; both go on while the tester stays on a frame. They keep
+rotations of the frame shown; both go on while the tester stays on a frame. The tester
+schedules that step as a machine's host (libdmdutil) does: a frame that libserum does not
+identify, or reports as the one on display, leaves a running scene or rotation going on its
+own time; a newly identified frame sets the time anew, and a step that is due runs before the
+next frame is fed. They keep
 libserum's own timing: at a play speed other than 1x the dump's frames come faster or slower,
 a scene and a rotation do not.
 

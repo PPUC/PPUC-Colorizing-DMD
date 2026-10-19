@@ -335,17 +335,34 @@ void FrameTesterDialog::feed(std::size_t position)
         m_slider->setValue(static_cast<int>(position));
         m_positionSpinBox->setValue(static_cast<int>(position));
     }
-    m_rotationTimer.stop();
     RuntimePreview& preview = RuntimePreview::instance();
     if (!m_error.isEmpty() || !preview.isOpen()) {
+        m_rotationTimer.stop();
         m_result = {};
         m_result.error = "libserum has not loaded the project";
-    } else {
-        m_result = preview.colorize(m_frames[position].original);
+        showResult();
+        return;
     }
-    if (m_result.ok() && m_result.nextRotationMs > 0) {
-        m_rotationTimer.start(static_cast<int>(m_result.nextRotationMs));
+    // The rotation step drives color rotations and scenes; it is scheduled as a machine's host
+    // (libdmdutil) does. A step that is due runs before the frame: libserum would otherwise
+    // restart its time when the frame is the one on display.
+    if (m_rotationTimer.isActive() && m_rotationTimer.remainingTime() <= 0) {
+        m_rotationTimer.stop();
+        rotateStep();
     }
+    m_result = preview.colorize(m_frames[position].original);
+    const bool newPicture =
+        m_result.ok() && !m_result.unchanged && (m_result.rows32 || m_result.rows64);
+    if (newPicture) {
+        m_rotationTimer.stop();
+        if (m_result.nextRotationMs > 0) {
+            m_rotationTimer.start(static_cast<int>(m_result.nextRotationMs));
+        }
+    } else if (!m_result.ok()) {
+        m_rotationTimer.stop();
+    }
+    // "Same frame" and an unknown frame keep the running schedule: a scene or a rotation goes
+    // on with its own time, as on a machine.
     showResult();
 }
 
