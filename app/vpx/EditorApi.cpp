@@ -404,14 +404,16 @@ int change(uint32_t endpointId, Change&& makeChange)
 }
 
 int MSGPIAPI resetFramePixels(uint32_t endpointId, uint32_t frame, const uint8_t* keep,
-                              uint32_t count)
+                              uint32_t count, uint32_t fill)
 {
-    if (!keep) {
+    if (!keep || (fill != CDMDPI_NONE && fill > 0xffff)) {
         return 0;
     }
     std::vector<uint8_t> mask(keep, keep + count);
+    const std::optional<uint16_t> color =
+        fill == CDMDPI_NONE ? std::nullopt : std::optional<uint16_t>(static_cast<uint16_t>(fill));
     return change(endpointId, [&](document::ProjectDocument& document) {
-        return edit::resetPixelsToOriginal(document, frame, mask);
+        return edit::resetPixels(document, frame, mask, color);
     });
 }
 

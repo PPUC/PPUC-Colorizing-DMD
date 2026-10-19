@@ -25,7 +25,7 @@ For plugin authors: the editor API is the C header `plugin-api/ColorizingDMDPlug
 editor's sources, on top of the VPX plugin SDK's `MsgPlugin.h`. Version 1 reads the project
 (summary, frames, comparison masks, dynamic zones, sections), the current and the selected
 frames, shows frames, adds menu entries, shows messages and status lines, and keeps settings.
-Version 2 adds edit batches: between `BeginEdit` and `EndEdit` a plugin resets frames to the
-original's plain colors except where it keeps them, sets dynamic zones and backgrounds, deletes
+Version 2 adds edit batches: between `BeginEdit` and `EndEdit` a plugin fills frames with a
+color or the original's plain colors except where it keeps them, sets dynamic zones and backgrounds, deletes
 backgrounds and clears color rotations; the changes apply at once and are recorded as one step.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

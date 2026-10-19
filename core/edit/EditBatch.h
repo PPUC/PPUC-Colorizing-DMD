@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -67,13 +68,13 @@ private:
 // that does not exist and std::invalid_argument for data of the wrong size, and leave the
 // document as it was then.
 
-// The frame's colorized pixels on every plane it has get the look of the original in its plain
-// colors (as a frame fresh from a dump), except where keep (ROM frame size, row-major) is not
-// 0. An HD pixel follows the ROM pixel under it.
-[[nodiscard]] std::unique_ptr<EditCommand> resetPixelsToOriginal(
-    document::ProjectDocument& document,
-    std::size_t frameIndex,
-    const std::vector<uint8_t>& keep);
+// The frame's colorized pixels on every plane it has get the fill color, or without one the look
+// of the original in its plain colors (as a frame fresh from a dump), except where keep (ROM
+// frame size, row-major) is not 0. An HD pixel follows the ROM pixel under it.
+[[nodiscard]] std::unique_ptr<EditCommand> resetPixels(document::ProjectDocument& document,
+                                                       std::size_t frameIndex,
+                                                       const std::vector<uint8_t>& keep,
+                                                       std::optional<uint16_t> fill);
 // The frame's dynamic zones on the document's dynamicPlane(): the set of each pixel (0 to 31),
 // 255 for none.
 [[nodiscard]] std::unique_ptr<EditCommand> setDynamicZones(document::ProjectDocument& document,

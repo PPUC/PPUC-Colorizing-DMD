@@ -135,20 +135,24 @@ void runEditorPluginsWidgetTests()
     // Editing: a batch of changes, one undo step.
     const uint32_t plugin = 7;
     std::vector<uint8_t> keep(128 * 32, 0);
-    expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 0,
+    expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32, CDMDPI_NONE) == 0,
            "no change without a batch");
     expect(api->BeginEdit(plugin, "Strip") == 1 && api->BeginEdit(plugin, "Again") == 0,
            "one batch at a time");
-    expect(api->ResetFramePixels(plugin + 1, 1, keep.data(), 128 * 32) == 0,
+    expect(api->ResetFramePixels(plugin + 1, 1, keep.data(), 128 * 32, CDMDPI_NONE) == 0,
            "only for the plugin that began it");
-    expect(api->ResetFramePixels(plugin, 1, keep.data(), 5) == 0,
+    expect(api->ResetFramePixels(plugin, 1, keep.data(), 5, CDMDPI_NONE) == 0,
            "a keep mask of the wrong size is refused");
     std::vector<uint16_t> plain(16, 1);
     expect(api->GetPlainColors(plain.data(), 16) == 16, "the plain colors of 16 shades");
-    expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 1 &&
+    expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32, CDMDPI_NONE) == 1 &&
                document.colorizedPixel(1, render::Resolution::Sd, 5, 2) ==
                    plain[document.originalFrame(1).pixels[2 * 128 + 5]],
            "the frame gets the original's plain look at once");
+    expect(api->ResetFramePixels(plugin, 2, keep.data(), 128 * 32, 0x10000) == 0 &&
+               api->ResetFramePixels(plugin, 2, keep.data(), 128 * 32, 0) == 1 &&
+               document.colorizedPixel(2, render::Resolution::Sd, 9, 9) == 0,
+           "a fill color, RGB565");
     std::vector<uint8_t> zones(128 * 32, 255);
     zones[0] = 40;
     expect(api->SetDynamicZones(plugin, 1, zones.data(), 128 * 32) == 0,
@@ -163,13 +167,13 @@ void runEditorPluginsWidgetTests()
            "and undone as one");
 
     expect(api->BeginEdit(plugin, "Cancelled") == 1 &&
-               api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 1 &&
+               api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32, CDMDPI_NONE) == 1 &&
                api->EndEdit(plugin, 0) == 1 &&
                document.colorizedPixel(1, render::Resolution::Sd, 5, 2) == 0xf800 &&
                recorded.size() == 1,
            "a batch ended without applying takes its changes back");
     expect(api->BeginEdit(plugin, "Left open") == 1 &&
-               api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 1,
+               api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32, CDMDPI_NONE) == 1,
            "a batch left open");
     plugins.tick();
     expect(recorded.size() == 2 && recorded.back() == "Left open" &&

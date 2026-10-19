@@ -152,12 +152,12 @@ typedef struct ColorizingDMDEditorAPI
    // exist, data of the wrong size or with values out of range); a refused change changes
    // nothing.
    //
-   // The frame's colorized pixels on every plane it has get the look of a frame fresh from a
-   // dump (each original shade in its plain color, see GetPlainColors), except where keep is
-   // not 0. keep: the original's size (count = width * height), row-major; an HD pixel follows
-   // the original pixel under it.
+   // The frame's colorized pixels on every plane it has get the fill color (RGB565), or with
+   // fill CDMDPI_NONE the look of a frame fresh from a dump (each original shade in its plain
+   // color, see GetPlainColors), except where keep is not 0. keep: the original's size
+   // (count = width * height), row-major; an HD pixel follows the original pixel under it.
    int(MSGPIAPI* ResetFramePixels)(uint32_t endpointId, uint32_t frame, const uint8_t* keep,
-                                   uint32_t count);
+                                   uint32_t count, uint32_t fill);
    // The frame's dynamic zones on the dynamic plane, as GetDynamicMask gives them: the set of
    // each pixel (0 .. CDMDPI_DYNAMIC_SETS - 1), 255 for none.
    int(MSGPIAPI* SetDynamicZones)(uint32_t endpointId, uint32_t frame, const uint8_t* sets,

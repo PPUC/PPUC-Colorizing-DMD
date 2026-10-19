@@ -201,9 +201,10 @@ void EditBatch::cancel(ProjectDocument& document)
     }
 }
 
-std::unique_ptr<EditCommand> resetPixelsToOriginal(ProjectDocument& document,
-                                                   std::size_t frameIndex,
-                                                   const std::vector<uint8_t>& keep)
+std::unique_ptr<EditCommand> resetPixels(ProjectDocument& document,
+                                         std::size_t frameIndex,
+                                         const std::vector<uint8_t>& keep,
+                                         std::optional<uint16_t> fill)
 {
     checkFrame(document, frameIndex);
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
@@ -229,7 +230,8 @@ std::unique_ptr<EditCommand> resetPixelsToOriginal(ProjectDocument& document,
                 }
                 const uint8_t shade = original.pixels[romIndex];
                 builder.setPixel(render::Point{x, y},
-                                 shade < colors.size() ? colors[shade] : uint16_t{0});
+                                 fill ? *fill
+                                      : (shade < colors.size() ? colors[shade] : uint16_t{0}));
             }
         }
         FrameContentChanges changes = builder.changes();

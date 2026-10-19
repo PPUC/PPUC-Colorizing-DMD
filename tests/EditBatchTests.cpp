@@ -76,7 +76,7 @@ void testSteps()
     for (int x = 0; x < original.size.width; ++x) {
         keep[static_cast<std::size_t>(x)] = 1;
     }
-    batch.add(edit::resetPixelsToOriginal(document, 1, keep));
+    batch.add(edit::resetPixels(document, 1, keep, std::nullopt));
     const document::Rgb565Frame& sd = document.colorizedFrame(1, Resolution::Sd);
     const document::Rgb565Frame& hd = document.colorizedFrame(1, Resolution::Hd);
     const int width = original.size.width;
@@ -91,7 +91,13 @@ void testSteps()
     expect(hd.pixels[static_cast<std::size_t>(2 * (2 * width) * 3 + 14)] ==
                plain[original.pixels[static_cast<std::size_t>(3 * width + 7)]],
            "an HD pixel follows the ROM pixel under it");
-    expect(!edit::resetPixelsToOriginal(document, 1, keep), "twice changes nothing");
+    expect(!edit::resetPixels(document, 1, keep, std::nullopt), "twice changes nothing");
+    batch.add(edit::resetPixels(document, 6, keep, uint16_t{0}));
+    expect(document.colorizedFrame(6, Resolution::Sd).pixels[static_cast<std::size_t>(3 * width + 7)] == 0 &&
+               document.colorizedFrame(6, Resolution::Hd).pixels[static_cast<std::size_t>(2 * (2 * width) * 3 + 14)] == 0 &&
+               document.colorizedFrame(6, Resolution::Sd).pixels[5] ==
+                   before.colorizedFrame(6, Resolution::Sd).pixels[5],
+           "a fill color instead of the plain look");
 
     const render::Size dynamicSize = document.geometry().planeSize(document.dynamicPlane());
     batch.add(edit::setDynamicZones(
@@ -111,16 +117,16 @@ void testSteps()
 
     bool thrown = false;
     try {
-        (void)edit::resetPixelsToOriginal(document, 1, std::vector<uint8_t>(3, 0));
+        (void)edit::resetPixels(document, 1, std::vector<uint8_t>(3, 0), std::nullopt);
     } catch (const std::invalid_argument&) {
         thrown = true;
     }
     expect(thrown, "a keep mask of the wrong size is refused");
 
     std::unique_ptr<edit::EditBatchCommand> command = batch.finish();
-    expect(command && command->name() == "Strip" && command->stepCount() == 5 &&
+    expect(command && command->name() == "Strip" && command->stepCount() == 6 &&
                command->changesStructure(),
-           "the batch is one command of five steps");
+           "the batch is one command of six steps");
     histories.push(edit::structureHistoryKey(), std::move(command));
     expect(!histories.canUndo(edit::HistoryKey{edit::EditKind::FramePixels, 1, Resolution::Sd}),
            "the earlier history of an edited frame is dropped");

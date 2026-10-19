@@ -1238,8 +1238,8 @@ Shutdown), `EditorBackend` implemented by `app/EditorPlugins.{h,cpp}` (loads the
 under Settings -> Plugins, pumps the bus every 20 ms while one is loaded, polls revision and
 selection for the events, Plugins menu, settings under `plugins/<id>/`). v1 reads only.
 v2 (2026-10-19, for the retheming template of the AI assistant): edit batches, `BeginEdit` ..
-`EndEdit`, with ResetFramePixels (plain original colors except a keep mask, HD follows the ROM
-pixel), SetDynamicZones, SetFrameBackground, DeleteBackground, ClearColorRotations, and
+`EndEdit`, with ResetFramePixels (a fill color, or the plain original colors, except a keep
+mask; HD follows the ROM pixel), SetDynamicZones, SetFrameBackground, DeleteBackground, ClearColorRotations, and
 GetPlainColors. Core: `edit/EditBatch.{h,cpp}`, `EditBatchCommand` in the structure history
 (like SceneEditCommand; drops the other histories of the data its steps edit), refreshed by
 `MainWindow::refreshAfterEditBatch()`. A batch still open after the plugins' messages ran is
