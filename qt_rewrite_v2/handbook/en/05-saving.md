@@ -174,7 +174,7 @@ project. libserum makes it, exactly as it does on a machine when it finds the `.
 - The Runtime view is switched off for the export and on again afterwards; playback stops.
 - On Windows libserum opens files by paths in the system code page. If the temporary folder has
   other characters (a user name in another script) and Windows keeps no short name for it, the
-  export works in `%ProgramData%\ColorizingDMD` instead and removes its files afterwards.
+  export works in `%ProgramData%\PPUC-Colorizing-DMD` instead and removes its files afterwards.
 - On a desktop, libserum loads a `<rom>.cROMc` it finds in the colorization folder instead of
   the `<rom>.cROM` beside it, without comparing their dates. An outdated `.cROMc` there hides
   later changes of the project: export again or remove it.
@@ -189,9 +189,9 @@ Every 10 minutes, as in CDMD, a project with changes that were not autosaved yet
 `<name>(auto).cROM` and `<name>(auto).cRPX` beside its files (`afm_113b(auto).cROM` for
 `afm_113b.cROM`; for a project opened from its `.cRZ`, beside the `.cRZ`). A new project that
 was never saved is autosaved under its ROM name in the editor's own folder (on Windows
-`%LOCALAPPDATA%\ColorizingDMD\ColorizingDMDQtV2\autosave`, on macOS
-`~/Library/Application Support/ColorizingDMD/ColorizingDMDQtV2/autosave`, on Linux
-`~/.local/share/ColorizingDMD/ColorizingDMDQtV2/autosave`).
+`%LOCALAPPDATA%\ppuc.org\PPUC Colorizing DMD\autosave`, on macOS
+`~/Library/Application Support/ppuc.org/PPUC Colorizing DMD/autosave`, on Linux
+`~/.local/share/ppuc.org/PPUC Colorizing DMD/autosave`).
 
 - The files are written in the background while you go on working; they show the project as it
   was when the autosave started. The status bar says `Autosaved to <file> at <time>`, or why

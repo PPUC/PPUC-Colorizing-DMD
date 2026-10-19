@@ -54,6 +54,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "AppInfo.h"
 #include "Appearance.h"
 #include "EditColorKeys.h"
 #include "EditMenuActions.h"
@@ -76,6 +77,7 @@
 #include "PlaneLabels.h"
 #include "SpriteEditorWidget.h"
 #include "Translations.h"
+#include "dialogs/AboutDialog.h"
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
@@ -126,7 +128,6 @@ constexpr QSize kFrameThumbnailSize{160, 84};
 // A frame of the strip: the thumbnail, two lines of text below it, and room around.
 constexpr QSize kFrameStripCellSize{176, 128};
 constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
-constexpr char kWindowTitle[] = "ColorizingDMD Qt Rewrite v2";
 
 QString favoriteColorButtonStyle(uint16_t rgb565)
 {
@@ -508,7 +509,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_pasteMode(pasteModeOutputs())
     , m_editHelpers(editHelpersOutputs())
 {
-    setWindowTitle(QString::fromLatin1(kWindowTitle));
+    setWindowTitle(kApplicationName);
     resize(1000, 700);
     m_frameRestTimer.setSingleShot(true);
     m_frameRestTimer.setInterval(250);
@@ -602,6 +603,13 @@ void MainWindow::createActions()
         m_handbookWindow->show();
         m_handbookWindow->raise();
         m_handbookWindow->activateWindow();
+    });
+    // On macOS it goes to the application menu.
+    QAction* aboutAction = helpMenu->addAction(tr("&About %1").arg(kApplicationName));
+    aboutAction->setMenuRole(QAction::AboutRole);
+    connect(aboutAction, &QAction::triggered, this, [this]() {
+        AboutDialog dialog(this);
+        dialog.exec();
     });
     // What the VPX plugins (DMD output) log, to find out why a display stays dark.
     QAction* pluginLogAction = helpMenu->addAction(tr("&Plugin Log"));
@@ -2151,7 +2159,7 @@ bool MainWindow::isUntitledProject() const
 
 void MainWindow::updateWindowTitle()
 {
-    const QString application = QString::fromLatin1(kWindowTitle);
+    const QString& application = kApplicationName;
     if (!m_document) {
         setWindowTitle(application);
     } else if (isUntitledProject()) {

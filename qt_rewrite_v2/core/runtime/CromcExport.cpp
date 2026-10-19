@@ -36,14 +36,14 @@ std::string lower(std::string text)
 }
 
 // Where libserum can work: the folder asked for, or on Windows, when libserum cannot open that
-// one, a folder of the same name in %ProgramData%\ColorizingDMD (ASCII, and users may create
+// one, a folder of the same name in %ProgramData%\PPUC-Colorizing-DMD (ASCII, and users may create
 // folders there). Created empty; the error says why none could be used.
 std::optional<fs::path> makeWorkDirectory(const fs::path& requested, std::string& error)
 {
     std::vector<fs::path> candidates{requested};
 #ifdef _WIN32
     if (const wchar_t* programData = _wgetenv(L"ProgramData")) {
-        candidates.push_back(fs::path(programData) / L"ColorizingDMD" / requested.filename());
+        candidates.push_back(fs::path(programData) / L"PPUC-Colorizing-DMD" / requested.filename());
     }
 #endif
     for (const fs::path& candidate : candidates) {
@@ -72,6 +72,11 @@ void logLine(const char* format, va_list args, const void* userData)
 }
 
 }  // namespace
+
+std::string libserumVersion()
+{
+    return Serum_GetVersion();
+}
 
 std::optional<std::filesystem::path> findCaseInsensitive(const std::filesystem::path& directory,
                                                          const std::string& name)

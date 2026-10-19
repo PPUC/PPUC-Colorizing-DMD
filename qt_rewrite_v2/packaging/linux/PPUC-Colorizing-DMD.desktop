@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=ColorizingDMD
+Name=PPUC Colorizing DMD
 Comment=Editor for Serum colorizations of pinball DMD frames
-Exec=ColorizingDMD
+Exec=PPUC-Colorizing-DMD
 Icon=colorizingdmd
 Categories=Graphics;
 Terminal=false

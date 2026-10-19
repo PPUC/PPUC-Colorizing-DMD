@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <string>
 
+#include "AppInfo.h"
 #include "Appearance.h"
 #include "DmdOutput.h"
 #include "MainWindow.h"
@@ -81,9 +82,9 @@ int checkDmdOutput()
     return started ? 0 : 1;
 }
 
-// Builds before 2026-10-19 kept their settings under the organization "ColorizingDMD": the
-// first start under ppuc.org takes them over, so the layout, recent projects and DMD output
-// stay as they were.
+// Earlier builds kept their settings as "ColorizingDMDQtV2", under the organization ppuc.org
+// and before that "ColorizingDMD": the first start takes over the latest of them, so the
+// layout, recent projects and DMD output stay as they were.
 void takeOverEarlierSettings()
 {
     // Only the application's own keys: macOS adds the system's preferences as fallbacks.
@@ -92,10 +93,18 @@ void takeOverEarlierSettings()
     if (!settings.allKeys().isEmpty()) {
         return;
     }
-    QSettings earlier(QStringLiteral("ColorizingDMD"), QStringLiteral("ColorizingDMDQtV2"));
-    earlier.setFallbacksEnabled(false);
-    for (const QString& key : earlier.allKeys()) {
-        settings.setValue(key, earlier.value(key));
+    for (const QString& organization :
+         {QStringLiteral("ppuc.org"), QStringLiteral("ColorizingDMD")}) {
+        QSettings earlier(organization, QStringLiteral("ColorizingDMDQtV2"));
+        earlier.setFallbacksEnabled(false);
+        const QStringList keys = earlier.allKeys();
+        if (keys.isEmpty()) {
+            continue;
+        }
+        for (const QString& key : keys) {
+            settings.setValue(key, earlier.value(key));
+        }
+        return;
     }
 }
 
@@ -106,7 +115,9 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     QApplication::setOrganizationName(QStringLiteral("ppuc.org"));
     QApplication::setOrganizationDomain(QStringLiteral("ppuc.org"));
-    QApplication::setApplicationName(QStringLiteral("ColorizingDMDQtV2"));
+    QApplication::setApplicationName(colorizing::app::kApplicationName);
+    QApplication::setApplicationDisplayName(colorizing::app::kApplicationName);
+    QApplication::setApplicationVersion(colorizing::app::kApplicationVersion);
     takeOverEarlierSettings();
     QIcon icon;
     for (const int size : {64, 256, 512}) {

@@ -16,6 +16,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/DmdOutputSettingsPage.cpp
     dialogs/DmdOutputSettingsPage.h
     dialogs/DumpImportDialog.cpp
+    dialogs/AboutDialog.cpp
+    dialogs/AboutDialog.h
     dialogs/HelperLineDialog.cpp
     dialogs/HelperLineDialog.h
     dialogs/SceneDialog.cpp
@@ -148,6 +150,7 @@ target_include_directories(colorizing_qt_v2_widgets
 target_compile_definitions(colorizing_qt_v2_widgets
     PUBLIC
         QT_NO_KEYWORDS
+        COLORIZINGDMD_VERSION="${PROJECT_VERSION}"
 )
 
 add_executable(${COLORIZING_QT_V2_APP_NAME}
@@ -226,17 +229,17 @@ target_compile_definitions(${COLORIZING_QT_V2_APP_NAME}
 )
 
 if(COLORIZINGDMD_QT_V2_PACKAGE)
-    # The target keeps its name; only the file (and bundle) is called ColorizingDMD.
+    # The target keeps its name; only the file (and bundle) is called PPUC-Colorizing-DMD.
     # WIN32_EXECUTABLE: no console window; Qt6::Core links its WinMain entry point for it.
     set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
-        OUTPUT_NAME ColorizingDMD
+        OUTPUT_NAME PPUC-Colorizing-DMD
         WIN32_EXECUTABLE ON
     )
     if(APPLE)
         set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
             MACOSX_BUNDLE ON
             MACOSX_BUNDLE_INFO_PLIST "${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME ColorizingDMD
+            MACOSX_BUNDLE_BUNDLE_NAME "PPUC Colorizing DMD"
             MACOSX_BUNDLE_GUI_IDENTIFIER org.ppuc.colorizingdmd
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"

@@ -1,6 +1,6 @@
-# ColorizingDMD Handbook
+# PPUC Colorizing DMD Handbook
 
-The handbook of the ColorizingDMD editor, one file per chapter, in the order below. The
+The handbook of the PPUC Colorizing DMD editor, one file per chapter, in the order below. The
 editor shows it under `Help -> Handbook` (`F1`), searchable. Update it in the same change
 whenever a user-visible feature changes.
 

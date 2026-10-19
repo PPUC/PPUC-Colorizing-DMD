@@ -49,12 +49,12 @@ it), so otherwise the last frame would stay on it.
   when it stops. `Show` limits it to information, warnings or errors; `Copy All` copies the
   lines shown, for a report; `Clear` starts over. When a display stays dark, switch on `ZeDMD
   debug output` (for a ZeDMD), switch the output off and on, and look there.
-- Without the editor's window, from a terminal: `ColorizingDMD --check-dmd-output` starts the
+- Without the editor's window, from a terminal: `PPUC-Colorizing-DMD --check-dmd-output` starts the
   output with the saved settings, sends a moving test picture for 8 seconds, and prints the
   displays found and the whole plugin log. Close the editor first, so that it does not hold the
-  display's port. On macOS the program is `ColorizingDMD.app/Contents/MacOS/ColorizingDMD`; on
-  Windows the text only appears in a file: `ColorizingDMD.exe --check-dmd-output > dmd.txt`.
+  display's port. On macOS the program is `PPUC-Colorizing-DMD.app/Contents/MacOS/PPUC-Colorizing-DMD`; on
+  Windows the text only appears in a file: `PPUC-Colorizing-DMD.exe --check-dmd-output > dmd.txt`.
 - The plugins lie in a folder of their own, one folder per plugin as VPX ships them: `plugins`
-  beside the program (Windows, Linux) or `ColorizingDMD.app/Contents/PlugIns/vpx` (macOS). The
+  beside the program (Windows, Linux) or `PPUC-Colorizing-DMD.app/Contents/PlugIns/vpx` (macOS). The
   environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Without the
   DMDUtil plugin there the two menu entries are disabled. The release packages ship it.

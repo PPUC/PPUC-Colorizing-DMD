@@ -7,9 +7,12 @@
 #include <vector>
 
 #include <QApplication>
+#include <QLabel>
 #include <QListWidget>
 
+#include "AppInfo.h"
 #include "FrameImageUtils.h"
+#include "dialogs/AboutDialog.h"
 #include "ListSelection.h"
 #include "UnsavedChanges.h"
 
@@ -131,8 +134,22 @@ void testOriginalShadeColors()
 
 }  // namespace
 
+// Help -> About names the version testers report against.
+void testAboutDialog()
+{
+    const QString version = colorizing::app::kApplicationVersion;
+    const QStringList parts = version.split(QLatin1Char('.'));
+    expect(parts.size() == 3 && parts[0].toInt() >= 3, "the version has three parts");
+    colorizing::app::AboutDialog dialog;
+    auto* label = dialog.findChild<QLabel*>(QStringLiteral("aboutVersion"));
+    expect(label && label->text() == QStringLiteral("Version ") + version &&
+               dialog.windowTitle() == QStringLiteral("About PPUC Colorizing DMD"),
+           "the About dialog shows the name and the version");
+}
+
 void runAppHelpersWidgetTests()
 {
+    testAboutDialog();
     testSelectSingleRow();
     testMayCloseProject();
     testOriginalShadeColors();

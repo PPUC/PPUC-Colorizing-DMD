@@ -2,6 +2,21 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="de">
 <context>
+    <name>AboutDialog</name>
+    <message>
+        <source>About %1</source>
+        <translation>Über %1</translation>
+    </message>
+    <message>
+        <source>An editor for Serum colorizations of pinball DMD frames.&lt;br&gt;&lt;br&gt;libserum %1, Qt %2&lt;br&gt;&lt;br&gt;Licensed under the GNU General Public License, version 3 or later.&lt;br&gt;&lt;a href=&quot;%3&quot;&gt;%3&lt;/a&gt;&lt;br&gt;&lt;a href=&quot;%4&quot;&gt;%4&lt;/a&gt;</source>
+        <translation>Ein Editor für Serum-Kolorierungen von Flipper-DMD-Frames.&lt;br&gt;&lt;br&gt;libserum %1, Qt %2&lt;br&gt;&lt;br&gt;Lizenziert unter der GNU General Public License, Version 3 oder später.&lt;br&gt;&lt;a href=&quot;%3&quot;&gt;%3&lt;/a&gt;&lt;br&gt;&lt;a href=&quot;%4&quot;&gt;%4&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Version %1</translation>
+    </message>
+</context>
+<context>
     <name>AutoCopyDialog</name>
     <message>
         <source>Auto Copy</source>
@@ -2095,6 +2110,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>&amp;Handbook</source>
         <translation>&amp;Handbuch</translation>
+    </message>
+    <message>
+        <source>&amp;About %1</source>
+        <translation>Ü&amp;ber %1</translation>
     </message>
     <message>
         <source>&amp;Plugin Log</source>

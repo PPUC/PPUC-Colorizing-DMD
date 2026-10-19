@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packs ColorizingDMD into an AppImage with linuxdeploy and linuxdeploy-plugin-qt, and
+# Packs PPUC Colorizing DMD into an AppImage with linuxdeploy and linuxdeploy-plugin-qt, and
 # smoke-tests it.
 #
 # Usage: package-linux.sh <build dir> <output .AppImage>
@@ -19,7 +19,7 @@ fi
 here=$(cd "$(dirname "$0")" && pwd -P)
 build_dir=$(cd "$1" && pwd -P)
 output=$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")
-executable="${build_dir}/app/ColorizingDMD"
+executable="${build_dir}/app/PPUC-Colorizing-DMD"
 : "${LINUXDEPLOY:?set LINUXDEPLOY to linuxdeploy-<arch>.AppImage}"
 
 if [ ! -x "${executable}" ]; then
@@ -69,7 +69,7 @@ fi
     OUTPUT="${output}" "${LINUXDEPLOY}" \
         --appdir "${stage}/AppDir" \
         --executable "${executable}" \
-        --desktop-file "${here}/linux/ColorizingDMD.desktop" \
+        --desktop-file "${here}/linux/PPUC-Colorizing-DMD.desktop" \
         --icon-file "${stage}/colorizingdmd.png" \
         --plugin qt \
         --output appimage

@@ -10,6 +10,9 @@
 
 namespace colorizing::runtime {
 
+// The version of the libserum the editor is built with, e.g. "2.8.2".
+[[nodiscard]] std::string libserumVersion();
+
 // The file of the folder with that name in any case, as libserum looks for its sidecars
 // ("<rom>.pup.csv", "scaling.txt"); nothing without one.
 [[nodiscard]] std::optional<std::filesystem::path> findCaseInsensitive(
@@ -37,7 +40,7 @@ struct CromcExportResult {
 // target is replaced only when everything worked. workDirectory is created and removed again.
 // On Windows libserum opens files by ANSI paths: when it cannot open files in workDirectory
 // (characters outside the code page, no short name), a folder of the same name in
-// %ProgramData%\ColorizingDMD is used instead.
+// %ProgramData%\PPUC-Colorizing-DMD is used instead.
 // libserum holds one colorization per process: this loads and releases one, so whatever
 // RuntimePreview had loaded is gone (close it first; it loads again when asked). progress
 // covers writing the cROM; libserum's part cannot be cancelled.

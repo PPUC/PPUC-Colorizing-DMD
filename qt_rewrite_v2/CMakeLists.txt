@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(ColorizingDMDQtRewriteV2 VERSION 0.1.0 LANGUAGES CXX)
+# The editor's version: raised before every push (3.99.x until the release 4.0.0).
+project(PPUCColorizingDMD VERSION 3.99.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,7 +11,7 @@ option(COLORIZINGDMD_QT_V2_BUILD_TESTS "Build qt_rewrite_v2 tests" ON)
 option(COLORIZINGDMD_QT_V2_BUILD_APP "Build qt_rewrite_v2 Qt app" ON)
 option(COLORIZINGDMD_QT_V2_BUILD_UI_DUMP "Build the UI regression dump tool (tools/ui_dump)" OFF)
 # For the release packages (packaging/, .github/workflows/qt-editor.yml): the app is called
-# ColorizingDMD, is an app bundle on macOS and has no console window on Windows. Off for
+# PPUC-Colorizing-DMD, is an app bundle on macOS and has no console window on Windows. Off for
 # development, so the executable stays app/ColorizingDMDQtV2.
 option(COLORIZINGDMD_QT_V2_PACKAGE "Build the app the way the release packages ship it" OFF)
 

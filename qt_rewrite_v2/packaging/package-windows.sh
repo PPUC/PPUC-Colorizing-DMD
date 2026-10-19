@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packs ColorizingDMD.exe into a zip with everything it loads: Qt's DLLs and plugins through
+# Packs PPUC-Colorizing-DMD.exe into a zip with everything it loads: Qt's DLLs and plugins through
 # windeployqt, then every other DLL of the MSYS2 prefix that the exe, Qt or a plugin needs (the
 # GCC runtime, ICU, zstd, freetype, harfbuzz, ...). Checks that nothing outside the folder and
 # Windows itself is left to load, and that the app starts.
@@ -26,7 +26,7 @@ fi
 here=$(cd "$(dirname "$0")" && pwd -P)
 build_dir=$1
 output=$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")
-exe="${build_dir}/app/ColorizingDMD.exe"
+exe="${build_dir}/app/PPUC-Colorizing-DMD.exe"
 prefix_bin="${MINGW_PREFIX}/bin"
 
 if [ ! -f "${exe}" ]; then
@@ -40,13 +40,13 @@ unset QT_PLUGIN_PATH QT_QPA_PLATFORM_PLUGIN_PATH QML2_IMPORT_PATH
 
 stage=$(mktemp -d)
 trap 'rm -rf "${stage}"' EXIT
-package="${stage}/ColorizingDMD"
+package="${stage}/PPUC-Colorizing-DMD"
 mkdir -p "${package}"
 cp "${exe}" "${package}/"
 cp "${here}/../../LICENSE" "${package}/LICENSE.txt"
 
 windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw \
-    "${package}/ColorizingDMD.exe"
+    "${package}/PPUC-Colorizing-DMD.exe"
 
 # The VPX plugins, each in its folder with the DLLs it loads; the plugin loader adds that
 # folder to the DLL search path. The GCC runtime they need is found beside the exe.
@@ -134,7 +134,7 @@ cp -R "${package}" "${check}"
 plugins=$(qtpaths6 --query QT_INSTALL_PLUGINS)
 cp "$(cygpath -u "${plugins}")/platforms/qoffscreen.dll" "${check}/platforms/"
 set +e
-(cd "${check}" && PATH="${system_path}" QT_QPA_PLATFORM=offscreen "${timeout_bin}" 10 ./ColorizingDMD.exe)
+(cd "${check}" && PATH="${system_path}" QT_QPA_PLATFORM=offscreen "${timeout_bin}" 10 ./PPUC-Colorizing-DMD.exe)
 status=$?
 set -e
 if [ "${status}" -ne 124 ]; then
@@ -144,9 +144,9 @@ fi
 # Every VPX plugin of the package loads, with the DLLs shipped beside it.
 if [ -d "${vpx_plugins}" ]; then
     (cd "${check}" && PATH="${system_path}" QT_QPA_PLATFORM=offscreen \
-        "${timeout_bin}" 60 ./ColorizingDMD.exe --check-plugins)
+        "${timeout_bin}" 60 ./PPUC-Colorizing-DMD.exe --check-plugins)
 fi
 
 rm -f "${output}"
-(cd "${stage}" && zip -qr "${output}" ColorizingDMD)
+(cd "${stage}" && zip -qr "${output}" PPUC-Colorizing-DMD)
 echo "Wrote ${output}"

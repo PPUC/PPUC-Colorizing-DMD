@@ -1,8 +1,12 @@
 # Settings
 
-`File -> Settings...` (on macOS `ColorizingDMD -> Settings...`; `Ctrl/Cmd+,`)
+`File -> Settings...` (on macOS `PPUC Colorizing DMD -> Settings...`; `Ctrl/Cmd+,`)
 holds the editor's settings, one page per topic. `OK` stores and applies them, `Cancel` leaves
 them as they were. They are the editor's, not a project's: kept for the next start.
+
+`Help -> About PPUC Colorizing DMD` (on macOS in the application menu) shows the editor's
+version, with the versions of libserum and Qt it was built with. Name the version when you
+report a problem.
 
 - `Appearance`: `Theme` is `Follow the system` (the default: light or dark as the operating
   system has it, also when that changes while the editor runs), `Light` or `Dark`, whatever the
