@@ -27,6 +27,7 @@ add_executable(colorizing_qt_v2_tests
     ProjectGeometryTests.cpp
     RuntimePreviewTests.cpp
     SameFramesTests.cpp
+    SceneEditTests.cpp
     SceneTests.cpp
     SectionsTests.cpp
     FrameMoveTests.cpp

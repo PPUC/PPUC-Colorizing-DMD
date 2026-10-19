@@ -17,6 +17,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/PlaneSelection.cpp
     edit/RecolorHelpers.cpp
     edit/SameFrames.cpp
+    edit/SceneEdits.cpp
     edit/SpriteClipboard.cpp
     edit/ScrollFill.cpp
     edit/SourceFrame.cpp
