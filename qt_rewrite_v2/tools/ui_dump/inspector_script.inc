@@ -192,9 +192,9 @@
         if (!button) { std::cerr << "missing dynamic color button\n"; return 5; }
     }
     auto* inBgId = byTip<QSpinBox>(w, "Assigned background ID");
-    auto* inTrigger = byTip<QSpinBox>(w, "Per-frame trigger ID");
+    auto* inTrigger = byTip<QSpinBox>(w, "PUP trigger the frame fires, 0 to 49999");
     auto* inDuration = byTip<QSpinBox>(w, "Per-frame cRP duration");
-    auto* inMono = byTip<QCheckBox>(w, "Use legacy switch-to-monochrome trigger ID 65432");
+    auto* inMono = byTip<QCheckBox>(w, "From this frame on, libserum shows the frames in monochrome (trigger ID 65432)");
     auto* inBgCombo = byTip<QComboBox>(w, "Loaded background");
     auto* inAssignBg = byTip<QToolButton>(w, "Assign selected background to selected frames");
     auto* inEditBg = byTip<QToolButton>(w, "Switch drawing target to the selected background");
@@ -1055,9 +1055,9 @@
         w.setCurrentFrameComparisonMaskId(1);
         w.setCurrentFrameShapeComparisonMode(1);
         w.setCurrentFrameBackgroundId(0);
-        w.setCurrentFrameTriggerId(3);
+        w.setSelectedFramesTrigger(document::TriggerKind::Pup, 3);
         w.setCurrentFrameDurationMs(30);
-        w.setCurrentFrameSwitchToMonochrome(true);
+        w.setSelectedFramesTrigger(document::TriggerKind::Monochrome, document::kMonochromeTriggerId);
         w.assignSelectedBackgroundToFrames();
         w.copyCurrentFrameToSelectedBackground();
         w.copySelectedBackgroundToFrames();

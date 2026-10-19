@@ -17,10 +17,10 @@ constexpr uint8_t kSceneOnlyDynamicContent = 8;
 constexpr uint8_t kSceneResumeIfRetriggered = 16;
 constexpr uint8_t kSceneReplaceDynamicBlack = 32;
 constexpr uint8_t kSceneKnownOptions = 63;
-// The IDs a scene made in the editor gets: the PUP trigger range kept for scenes. Scenes of an
-// imported pup.csv keep theirs.
+// The IDs a scene made in the editor gets: the trigger range kept for scenes (see
+// Triggers.h). Scenes of an imported pup.csv keep theirs.
 constexpr uint16_t kFirstSceneId = 50000;
-constexpr uint16_t kLastSceneId = 59999;
+constexpr uint16_t kLastSceneId = 61999;
 
 // A scene of the colorization: libserum plays its frames when the PUP trigger sceneId fires.
 // It is what one line of a "<rom>.pup.csv" says, with that file's columns:

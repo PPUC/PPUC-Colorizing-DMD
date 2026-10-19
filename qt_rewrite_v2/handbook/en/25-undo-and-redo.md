@@ -7,7 +7,7 @@ Histories:
 
 - Colorized frame pixels: per frame and per SD/HD resolution.
 - Frame settings: per frame, for both resolutions together. This history holds the comparison mask
-  ID, shape mode, background ID, trigger ID (including `Switch mono`), and duration edits of the
+  ID, shape mode, background ID, trigger (PUP trigger, scene, monochrome fallbacks), and duration edits of the
   frame, and its `Create HD` and `Remove HD`.
 - Comparison masks: per mask. Frames that share a mask share its history.
 - Dynamic masks, dynamic colors, and dynamic shadows: three separate histories per frame. They

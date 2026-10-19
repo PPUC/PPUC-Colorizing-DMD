@@ -1134,6 +1134,20 @@ owner together.
   sidecars for a project with settings. Linking checked against libserum's own frameIsScene:
   hook_501 94, potc_600as 1247, smb3 1987, GoT-V79 22624 (frame by frame). Handbook
   38-scenes.md (+ 02, 05, 08, 14, 15). Not yet checked by hand in the running app.
+- Owner 2026-10-19: new scene IDs 50000..61999 (`kFirstSceneId`/`kLastSceneId`, Add suggests
+  the lowest free one, imported scenes keep theirs), new scenes 33 ms a frame. The Frame
+  section's trigger is four inputs by range (`document/Triggers.h`, `TriggerKind`): PUP trigger
+  0..49999, Scene (only the project's scenes; an ID without its scene shows "(no such scene)"),
+  monochrome fallback 65432, palette-based monochrome fallback 65431; one per frame, the other
+  kinds disabled while the frame has one; other values kept and named. MainWindow
+  `setSelectedFramesTrigger(kind, id)` skips frames with a trigger of another kind; clearing
+  touches frames of that kind only. "BG ID" is "Background ID".
+- QSettings organization is `ppuc.org` (name and domain); the first start takes over the
+  settings stored under the earlier organization `ColorizingDMD` (`takeOverEarlierSettings()`
+  in main.cpp). An untitled autosave of an earlier build sits in the old app-data folder and is
+  not offered.
+- Windows CI: `testSectionStackResize` used `QSettings()` without an organization name, which
+  stores nothing on Windows; it now uses a temporary INI store like the other settings tests.
 - Author: "Retriggering scenes does not seem to work" (2026-10-19). Found a tester divergence
   from a machine: `FrameTesterDialog::feed` stopped the rotation timer on every frame and
   restarted it only from the new result, so an unknown frame (no time) stopped a running scene

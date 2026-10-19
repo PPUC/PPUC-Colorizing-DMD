@@ -1446,7 +1446,7 @@
     </message>
     <message>
         <source>Per-frame trigger ID</source>
-        <translation>Trigger-ID des Frames</translation>
+        <translation type="vanished">Trigger-ID des Frames</translation>
     </message>
     <message>
         <source>Per-frame cRP duration</source>
@@ -1458,11 +1458,35 @@
     </message>
     <message>
         <source>Switch mono</source>
-        <translation>Mono-Umschaltung</translation>
+        <translation type="vanished">Mono-Umschaltung</translation>
     </message>
     <message>
         <source>Use legacy switch-to-monochrome trigger ID 65432</source>
-        <translation>Alte Trigger-ID 65432 zum Umschalten auf Monochrom verwenden</translation>
+        <translation type="vanished">Alte Trigger-ID 65432 zum Umschalten auf Monochrom verwenden</translation>
+    </message>
+    <message>
+        <source>PUP trigger the frame fires, 0 to %1</source>
+        <translation>PUP-Trigger, den der Frame auslöst, 0 bis %1</translation>
+    </message>
+    <message>
+        <source>Scene of the project the frame starts</source>
+        <translation>Szene des Projekts, die der Frame startet</translation>
+    </message>
+    <message>
+        <source>Monochrome fallback</source>
+        <translation>Monochrom-Ausweichmodus</translation>
+    </message>
+    <message>
+        <source>From this frame on, libserum shows the frames in monochrome (trigger ID %1)</source>
+        <translation>Ab diesem Frame zeigt libserum die Frames monochrom (Trigger-ID %1)</translation>
+    </message>
+    <message>
+        <source>Palette-based monochrome fallback</source>
+        <translation>Paletten-basierter Monochrom-Ausweichmodus</translation>
+    </message>
+    <message>
+        <source>From this frame on, libserum shows the frames in the colors of this frame&apos;s palette (trigger ID %1)</source>
+        <translation>Ab diesem Frame zeigt libserum die Frames in den Farben der Palette dieses Frames (Trigger-ID %1)</translation>
     </message>
     <message>
         <source>Show BG</source>
@@ -1501,12 +1525,32 @@
         <translation>Ziel</translation>
     </message>
     <message>
+        <source>Background ID</source>
+        <translation>Hintergrund-ID</translation>
+    </message>
+    <message>
+        <source>PUP trigger ID</source>
+        <translation>PUP-Trigger-ID</translation>
+    </message>
+    <message>
+        <source>Scene</source>
+        <translation>Szene</translation>
+    </message>
+    <message>
+        <source>%1 (no such scene)</source>
+        <translation>%1 (keine solche Szene)</translation>
+    </message>
+    <message>
+        <source>Trigger ID %1 is kept until another trigger is chosen</source>
+        <translation>Trigger-ID %1 bleibt, bis ein anderer Trigger gewählt wird</translation>
+    </message>
+    <message>
         <source>BG ID</source>
-        <translation>HG-ID</translation>
+        <translation type="vanished">HG-ID</translation>
     </message>
     <message>
         <source>Trigger ID</source>
-        <translation>Trigger-ID</translation>
+        <translation type="vanished">Trigger-ID</translation>
     </message>
     <message>
         <source>Duration</source>
@@ -1514,7 +1558,7 @@
     </message>
     <message>
         <source>Unsupported legacy trigger ID %1 is preserved until edited</source>
-        <translation>Nicht unterstützte alte Trigger-ID %1 bleibt erhalten, bis sie bearbeitet wird</translation>
+        <translation type="vanished">Nicht unterstützte alte Trigger-ID %1 bleibt erhalten, bis sie bearbeitet wird</translation>
     </message>
     <message>
         <source>Unsupported cRP duration %1 ms is preserved until edited</source>
@@ -3427,11 +3471,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Cleared trigger ID on %1</source>
-        <translation>Trigger-ID entfernt auf %1</translation>
+        <translation type="vanished">Trigger-ID entfernt auf %1</translation>
     </message>
     <message>
         <source>Set trigger ID %1 on %2</source>
-        <translation>Trigger-ID %1 gesetzt auf %2</translation>
+        <translation type="vanished">Trigger-ID %1 gesetzt auf %2</translation>
     </message>
     <message>
         <source>Set duration %1 ms on %2</source>
@@ -3439,11 +3483,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Enabled switch-to-monochrome trigger on %1</source>
-        <translation>Trigger zum Umschalten auf Monochrom aktiviert auf %1</translation>
+        <translation type="vanished">Trigger zum Umschalten auf Monochrom aktiviert auf %1</translation>
     </message>
     <message>
         <source>Disabled switch-to-monochrome trigger on %1</source>
-        <translation>Trigger zum Umschalten auf Monochrom deaktiviert auf %1</translation>
+        <translation type="vanished">Trigger zum Umschalten auf Monochrom deaktiviert auf %1</translation>
     </message>
     <message>
         <source>No background selected</source>
@@ -3460,6 +3504,38 @@ Use Create %1 Frame.</source>
     <message>
         <source>Editing background %1</source>
         <translation type="vanished">Hintergrund %1 wird bearbeitet</translation>
+    </message>
+    <message>
+        <source>Cleared the PUP trigger on %1</source>
+        <translation>PUP-Trigger entfernt bei %1</translation>
+    </message>
+    <message>
+        <source>Set PUP trigger %1 on %2</source>
+        <translation>PUP-Trigger %1 gesetzt bei %2</translation>
+    </message>
+    <message>
+        <source>Cleared the scene on %1</source>
+        <translation>Szene entfernt bei %1</translation>
+    </message>
+    <message>
+        <source>Set scene %1 on %2</source>
+        <translation>Szene %1 gesetzt bei %2</translation>
+    </message>
+    <message>
+        <source>Disabled the monochrome fallback on %1</source>
+        <translation>Monochrom-Ausweichmodus ausgeschaltet bei %1</translation>
+    </message>
+    <message>
+        <source>Enabled the monochrome fallback on %1</source>
+        <translation>Monochrom-Ausweichmodus eingeschaltet bei %1</translation>
+    </message>
+    <message>
+        <source>Disabled the palette-based monochrome fallback on %1</source>
+        <translation>Paletten-basierten Monochrom-Ausweichmodus ausgeschaltet bei %1</translation>
+    </message>
+    <message>
+        <source>Enabled the palette-based monochrome fallback on %1</source>
+        <translation>Paletten-basierten Monochrom-Ausweichmodus eingeschaltet bei %1</translation>
     </message>
     <message>
         <source>Editing background %1; Edit BG again goes back to the frame</source>

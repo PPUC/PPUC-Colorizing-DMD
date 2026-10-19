@@ -257,16 +257,21 @@ private:
     void setCurrentFrameComparisonMaskId(int maskId);
     void setCurrentFrameShapeComparisonMode(int mode);
     void setCurrentFrameBackgroundId(int backgroundId);
-    void setCurrentFrameTriggerId(int triggerId);
+    // Sets the trigger of that kind on the selected frames, skipping frames that have one of
+    // another kind; kNoTriggerId clears it on the frames that have one of that kind.
+    void setSelectedFramesTrigger(document::TriggerKind kind, uint32_t triggerId);
     void setCurrentFrameDurationMs(int durationMs);
-    void setCurrentFrameSwitchToMonochrome(bool enabled);
     struct FrameEditCount {
         int changed = 0;
         int skipped = 0;
     };
     // Sets the attribute on every selected frame, one undoable command per frame. Frames that
     // already have the value are left alone; frames the attribute cannot apply to are skipped.
-    FrameEditCount editSelectedFramesAttribute(edit::FrameAttribute attribute, uint32_t value);
+    // skip: frames the edit leaves alone, counted as skipped.
+    FrameEditCount editSelectedFramesAttribute(
+        edit::FrameAttribute attribute,
+        uint32_t value,
+        const std::function<bool(std::size_t frameIndex)>& skip = {});
     void updateFrameStatusText();
     void leaveSpriteCanvas();
     void assignSelectedMaskToFrames();

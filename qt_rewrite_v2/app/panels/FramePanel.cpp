@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QToolButton>
@@ -31,22 +32,37 @@ FramePanel::FramePanel(QWidget* parent)
     m_backgroundIdSpinBox->setMaximum(-1);
     m_backgroundIdSpinBox->setSpecialValueText(tr("None"));
     m_backgroundIdSpinBox->setEnabled(false);
-    m_triggerIdSpinBox = new QSpinBox(this);
-    m_triggerIdSpinBox->setToolTip(tr("Per-frame trigger ID"));
-    m_triggerIdSpinBox->setRange(-1, kMaxManualTriggerId);
-    m_triggerIdSpinBox->setSpecialValueText(tr("None"));
-    m_triggerIdSpinBox->setValue(-1);
-    m_triggerIdSpinBox->setEnabled(false);
+    m_pupTriggerSpinBox = new QSpinBox(this);
+    m_pupTriggerSpinBox->setToolTip(
+        tr("PUP trigger the frame fires, 0 to %1").arg(document::kLastPupTriggerId));
+    m_pupTriggerSpinBox->setRange(-1, static_cast<int>(document::kLastPupTriggerId));
+    m_pupTriggerSpinBox->setSpecialValueText(tr("None"));
+    m_pupTriggerSpinBox->setValue(-1);
+    m_pupTriggerSpinBox->setEnabled(false);
+    m_sceneComboBox = new QComboBox(this);
+    m_sceneComboBox->setToolTip(tr("Scene of the project the frame starts"));
+    m_sceneComboBox->addItem(tr("None"), -1);
+    m_sceneComboBox->setEnabled(false);
+    m_monochromeCheckBox = new QCheckBox(tr("Monochrome fallback"), this);
+    m_monochromeCheckBox->setToolTip(
+        tr("From this frame on, libserum shows the frames in monochrome (trigger ID %1)")
+            .arg(document::kMonochromeTriggerId));
+    m_monochromeCheckBox->setEnabled(false);
+    m_paletteMonochromeCheckBox = new QCheckBox(tr("Palette-based monochrome fallback"), this);
+    m_paletteMonochromeCheckBox->setToolTip(
+        tr("From this frame on, libserum shows the frames in the colors of this frame's "
+           "palette (trigger ID %1)")
+            .arg(document::kPaletteMonochromeTriggerId));
+    m_paletteMonochromeCheckBox->setEnabled(false);
+    m_otherTriggerLabel = new QLabel(this);
+    m_otherTriggerLabel->setWordWrap(true);
+    m_otherTriggerLabel->setVisible(false);
     m_durationSpinBox = new QSpinBox(this);
     m_durationSpinBox->setToolTip(tr("Per-frame cRP duration"));
     m_durationSpinBox->setRange(0, kMaxFrameDurationMs);
     m_durationSpinBox->setSingleStep(10);
     m_durationSpinBox->setSuffix(tr(" ms"));
     m_durationSpinBox->setEnabled(false);
-    m_switchToMonochromeCheckBox = new QCheckBox(tr("Switch mono"), this);
-    m_switchToMonochromeCheckBox->setToolTip(
-        tr("Use legacy switch-to-monochrome trigger ID 65432"));
-    m_switchToMonochromeCheckBox->setEnabled(false);
     m_backgroundLayerButton = new QToolButton(this);
     m_backgroundLayerButton->setText(tr("Show BG"));
     m_backgroundLayerButton->setToolTip(tr("Show assigned background layer"));
@@ -70,10 +86,13 @@ FramePanel::FramePanel(QWidget* parent)
     pageLayout->setContentsMargins(6, 6, 6, 6);
     auto* form = new QFormLayout();
     form->addRow(tr("Target"), m_paintTargetComboBox);
-    form->addRow(tr("BG ID"), m_backgroundIdSpinBox);
-    form->addRow(tr("Trigger ID"), m_triggerIdSpinBox);
+    form->addRow(tr("Background ID"), m_backgroundIdSpinBox);
+    form->addRow(tr("PUP trigger ID"), m_pupTriggerSpinBox);
+    form->addRow(tr("Scene"), m_sceneComboBox);
+    form->addRow(QString(), m_monochromeCheckBox);
+    form->addRow(QString(), m_paletteMonochromeCheckBox);
+    form->addRow(QString(), m_otherTriggerLabel);
     form->addRow(tr("Duration"), m_durationSpinBox);
-    form->addRow(QString(), m_switchToMonochromeCheckBox);
     pageLayout->addLayout(form);
     pageLayout->addWidget(m_backgroundLayerButton);
     pageLayout->addWidget(m_importImageButton);
@@ -119,14 +138,34 @@ FramePanel::FramePanel(QWidget* parent)
                     onBackgroundIdEdited(backgroundId);
                 }
             });
-    connect(m_triggerIdSpinBox,
+    const auto report = [this](document::TriggerKind kind, uint32_t triggerId) {
+        if (onTriggerEdited) {
+            onTriggerEdited(kind, triggerId);
+        }
+    };
+    connect(m_pupTriggerSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
-            [this](int triggerId) {
-                if (onTriggerIdEdited) {
-                    onTriggerIdEdited(triggerId);
-                }
+            [report](int triggerId) {
+                report(document::TriggerKind::Pup,
+                       triggerId < 0 ? document::kNoTriggerId : static_cast<uint32_t>(triggerId));
             });
+    connect(m_sceneComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this, report](int) {
+                const int sceneId = m_sceneComboBox->currentData().toInt();
+                report(document::TriggerKind::Scene,
+                       sceneId < 0 ? document::kNoTriggerId : static_cast<uint32_t>(sceneId));
+            });
+    connect(m_monochromeCheckBox, &QCheckBox::toggled, this, [report](bool checked) {
+        report(document::TriggerKind::Monochrome,
+               checked ? document::kMonochromeTriggerId : document::kNoTriggerId);
+    });
+    connect(m_paletteMonochromeCheckBox, &QCheckBox::toggled, this, [report](bool checked) {
+        report(document::TriggerKind::PaletteMonochrome,
+               checked ? document::kPaletteMonochromeTriggerId : document::kNoTriggerId);
+    });
     connect(m_durationSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -135,33 +174,59 @@ FramePanel::FramePanel(QWidget* parent)
                     onDurationEdited(durationMs);
                 }
             });
-    connect(m_switchToMonochromeCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        if (onSwitchToMonochromeToggled) {
-            onSwitchToMonochromeToggled(checked);
+}
+
+void FramePanel::fillScenes(const document::ProjectDocument* document, uint32_t triggerId)
+{
+    m_sceneComboBox->clear();
+    m_sceneComboBox->addItem(tr("None"), -1);
+    bool listed = false;
+    if (document && document->colorizationSettings()) {
+        for (const document::SceneDefinition& scene : document->colorizationSettings()->scenes) {
+            m_sceneComboBox->addItem(QString::number(scene.sceneId),
+                                     static_cast<int>(scene.sceneId));
+            listed = listed || scene.sceneId == triggerId;
         }
-    });
+    }
+    if (document::triggerKind(triggerId) == document::TriggerKind::Scene && !listed) {
+        // Shown as it is; it cannot be chosen for another frame.
+        m_sceneComboBox->addItem(tr("%1 (no such scene)").arg(triggerId),
+                                 static_cast<int>(triggerId));
+    }
+    const int current = m_sceneComboBox->findData(
+        document::triggerKind(triggerId) == document::TriggerKind::Scene
+            ? static_cast<int>(triggerId)
+            : -1);
+    m_sceneComboBox->setCurrentIndex(std::max(0, current));
 }
 
 void FramePanel::refresh(const FramePanelState& state)
 {
     const document::ProjectDocument* document = state.document;
     QSignalBlocker backgroundBlocker(m_backgroundIdSpinBox);
-    QSignalBlocker triggerBlocker(m_triggerIdSpinBox);
+    QSignalBlocker pupBlocker(m_pupTriggerSpinBox);
+    QSignalBlocker sceneBlocker(m_sceneComboBox);
+    QSignalBlocker monoBlocker(m_monochromeCheckBox);
+    QSignalBlocker paletteMonoBlocker(m_paletteMonochromeCheckBox);
     QSignalBlocker durationBlocker(m_durationSpinBox);
-    QSignalBlocker monoBlocker(m_switchToMonochromeCheckBox);
 
     if (!document || !state.frameIndex) {
         m_backgroundIdSpinBox->setRange(-1, -1);
         m_backgroundIdSpinBox->setValue(-1);
         m_backgroundIdSpinBox->setEnabled(false);
-        m_triggerIdSpinBox->setValue(-1);
-        m_triggerIdSpinBox->setEnabled(false);
-        m_triggerIdSpinBox->setToolTip(tr("Per-frame trigger ID"));
+        m_triggerId = document::kNoTriggerId;
+        m_pupTriggerSpinBox->setValue(-1);
+        m_pupTriggerSpinBox->setEnabled(false);
+        fillScenes(nullptr, document::kNoTriggerId);
+        m_sceneComboBox->setEnabled(false);
+        m_monochromeCheckBox->setChecked(false);
+        m_monochromeCheckBox->setEnabled(false);
+        m_paletteMonochromeCheckBox->setChecked(false);
+        m_paletteMonochromeCheckBox->setEnabled(false);
+        m_otherTriggerLabel->setVisible(false);
         m_durationSpinBox->setValue(0);
         m_durationSpinBox->setEnabled(false);
         m_durationSpinBox->setToolTip(tr("Per-frame cRP duration"));
-        m_switchToMonochromeCheckBox->setChecked(false);
-        m_switchToMonochromeCheckBox->setEnabled(false);
         m_backgroundLayerButton->setEnabled(false);
         m_importImageButton->setEnabled(false);
         showFrameHdActions(false, false);
@@ -181,21 +246,28 @@ void FramePanel::refresh(const FramePanelState& state)
     }
     m_backgroundIdSpinBox->setValue(backgroundValue);
     m_backgroundIdSpinBox->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    // One trigger per frame: while the frame has one, only the input of its kind is open (an
+    // ID of no kind leaves all of them open, any of them replaces it).
     const uint32_t triggerId = document->triggerId(frameIndex);
-    const bool switchToMonochrome = triggerId == kSwitchToMonochromeTriggerId;
-    m_switchToMonochromeCheckBox->setChecked(switchToMonochrome);
-    m_switchToMonochromeCheckBox->setEnabled(true);
-    const bool manualTriggerId = triggerId <= static_cast<uint32_t>(kMaxManualTriggerId);
-    const bool unsupportedTriggerId =
-        !manualTriggerId && !switchToMonochrome && triggerId != document::kNoTriggerId;
-    m_triggerIdSpinBox->setEnabled(!switchToMonochrome);
-    m_triggerIdSpinBox->setValue(manualTriggerId ? static_cast<int>(triggerId)
-                                                 : unsupportedTriggerId ? 0 : -1);
-    m_triggerIdSpinBox->setToolTip(
-        unsupportedTriggerId
-            ? tr("Unsupported legacy trigger ID %1 is preserved until edited")
-                  .arg(triggerId)
-            : tr("Per-frame trigger ID"));
+    m_triggerId = triggerId;
+    const document::TriggerKind kind = document::triggerKind(triggerId);
+    const auto open = [kind](document::TriggerKind input) {
+        return kind == input || kind == document::TriggerKind::None ||
+               kind == document::TriggerKind::Other;
+    };
+    m_pupTriggerSpinBox->setValue(kind == document::TriggerKind::Pup ? static_cast<int>(triggerId)
+                                                                     : -1);
+    m_pupTriggerSpinBox->setEnabled(open(document::TriggerKind::Pup));
+    fillScenes(document, triggerId);
+    m_sceneComboBox->setEnabled(open(document::TriggerKind::Scene) &&
+                                m_sceneComboBox->count() > 1);
+    m_monochromeCheckBox->setChecked(kind == document::TriggerKind::Monochrome);
+    m_monochromeCheckBox->setEnabled(open(document::TriggerKind::Monochrome));
+    m_paletteMonochromeCheckBox->setChecked(kind == document::TriggerKind::PaletteMonochrome);
+    m_paletteMonochromeCheckBox->setEnabled(open(document::TriggerKind::PaletteMonochrome));
+    m_otherTriggerLabel->setText(
+        tr("Trigger ID %1 is kept until another trigger is chosen").arg(triggerId));
+    m_otherTriggerLabel->setVisible(kind == document::TriggerKind::Other);
     const uint32_t durationMs = document->frameDurationMs(frameIndex);
     m_durationSpinBox->setEnabled(true);
     m_durationSpinBox->setValue(durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
@@ -292,14 +364,9 @@ PaintTarget FramePanel::paintTarget() const
     return static_cast<PaintTarget>(m_paintTargetComboBox->currentData().toInt());
 }
 
-int FramePanel::triggerId() const
+uint32_t FramePanel::triggerId() const
 {
-    return m_triggerIdSpinBox->value();
-}
-
-bool FramePanel::isSwitchToMonochromeChecked() const
-{
-    return m_switchToMonochromeCheckBox->isChecked();
+    return m_triggerId;
 }
 
 bool FramePanel::isBackgroundLayerChecked() const

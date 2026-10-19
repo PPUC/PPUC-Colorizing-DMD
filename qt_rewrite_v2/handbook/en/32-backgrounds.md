@@ -8,7 +8,7 @@ Currently implemented:
 - Per-frame background IDs are preserved.
 - Per-frame SD and HD background masks are preserved.
 - The project status line shows the loaded background count.
-- `BG ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
+- `Background ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
   The original pixel looked at is the one the plane pixel belongs to: (x, y) in SD, (x/2, y/2) in
   HD, and (x, y) on the single plane of a project with 256x64 or 192x64 original frames.

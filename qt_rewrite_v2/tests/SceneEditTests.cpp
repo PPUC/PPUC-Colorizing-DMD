@@ -191,9 +191,9 @@ void testSceneIds()
     expect(edit::nextFreeSceneId(document) == document::kFirstSceneId,
            "the first free ID is the first of the range");
     expect(!edit::sceneProblem(document, makeScene(49999, 1, 1)).empty() &&
-               !edit::sceneProblem(document, makeScene(60000, 1, 1)).empty() &&
-               edit::sceneProblem(document, makeScene(59999, 1, 1)).empty(),
-           "a new scene's ID is one of 50000 to 59999");
+               !edit::sceneProblem(document, makeScene(62000, 1, 1)).empty() &&
+               edit::sceneProblem(document, makeScene(61999, 1, 1)).empty(),
+           "a new scene's ID is one of 50000 to 61999");
     auto first = edit::addScene(document, makeScene(50000, 1, 1));
     auto third = edit::addScene(document, makeScene(50002, 1, 1));
     expect(edit::nextFreeSceneId(document) == 50001, "the next free ID fills a gap");

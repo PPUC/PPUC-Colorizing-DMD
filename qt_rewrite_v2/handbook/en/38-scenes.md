@@ -44,7 +44,7 @@ What one line of a `<rom>.pup.csv` says:
 
 | Field | Meaning |
 | --- | --- |
-| Scene ID (PUP trigger) | The trigger that starts the scene. Each scene has its own. A new scene, or a scene given another ID, takes one of 50000 to 59999, the range PUP keeps for scenes; `Add` suggests the lowest free one. A scene of an imported `pup.csv` keeps the ID it has. |
+| Scene ID (PUP trigger) | The trigger that starts the scene. Each scene has its own. A new scene, or a scene given another ID, takes one of 50000 to 61999, the trigger range kept for scenes; `Add` suggests the lowest free one. A scene of an imported `pup.csv` keeps the ID it has. |
 | Frames | Frames of each group. |
 | Groups | Sets of frames the scene can show; each time it plays it shows one group. |
 | Pick the group at random | Otherwise the groups play in turn. |

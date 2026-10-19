@@ -1446,7 +1446,7 @@
     </message>
     <message>
         <source>Per-frame trigger ID</source>
-        <translation>ID de déclencheur de la frame</translation>
+        <translation type="vanished">ID de déclencheur de la frame</translation>
     </message>
     <message>
         <source>Per-frame cRP duration</source>
@@ -1458,11 +1458,35 @@
     </message>
     <message>
         <source>Switch mono</source>
-        <translation>Passage mono</translation>
+        <translation type="vanished">Passage mono</translation>
     </message>
     <message>
         <source>Use legacy switch-to-monochrome trigger ID 65432</source>
-        <translation>Utiliser l&apos;ancien ID de déclencheur 65432 de passage en monochrome</translation>
+        <translation type="vanished">Utiliser l&apos;ancien ID de déclencheur 65432 de passage en monochrome</translation>
+    </message>
+    <message>
+        <source>PUP trigger the frame fires, 0 to %1</source>
+        <translation>Déclencheur PUP émis par la frame, de 0 à %1</translation>
+    </message>
+    <message>
+        <source>Scene of the project the frame starts</source>
+        <translation>Scène du projet que la frame lance</translation>
+    </message>
+    <message>
+        <source>Monochrome fallback</source>
+        <translation>Repli monochrome</translation>
+    </message>
+    <message>
+        <source>From this frame on, libserum shows the frames in monochrome (trigger ID %1)</source>
+        <translation>À partir de cette frame, libserum affiche les frames en monochrome (ID de déclencheur %1)</translation>
+    </message>
+    <message>
+        <source>Palette-based monochrome fallback</source>
+        <translation>Repli monochrome basé sur la palette</translation>
+    </message>
+    <message>
+        <source>From this frame on, libserum shows the frames in the colors of this frame&apos;s palette (trigger ID %1)</source>
+        <translation>À partir de cette frame, libserum affiche les frames dans les couleurs de la palette de cette frame (ID de déclencheur %1)</translation>
     </message>
     <message>
         <source>Show BG</source>
@@ -1501,12 +1525,32 @@
         <translation>Cible</translation>
     </message>
     <message>
+        <source>Background ID</source>
+        <translation>ID d&apos;arrière-plan</translation>
+    </message>
+    <message>
+        <source>PUP trigger ID</source>
+        <translation>ID de déclencheur PUP</translation>
+    </message>
+    <message>
+        <source>Scene</source>
+        <translation>Scène</translation>
+    </message>
+    <message>
+        <source>%1 (no such scene)</source>
+        <translation>%1 (scène inexistante)</translation>
+    </message>
+    <message>
+        <source>Trigger ID %1 is kept until another trigger is chosen</source>
+        <translation>L&apos;ID de déclencheur %1 est conservé jusqu&apos;au choix d&apos;un autre déclencheur</translation>
+    </message>
+    <message>
         <source>BG ID</source>
-        <translation>ID AP</translation>
+        <translation type="vanished">ID AP</translation>
     </message>
     <message>
         <source>Trigger ID</source>
-        <translation>ID décl.</translation>
+        <translation type="vanished">ID décl.</translation>
     </message>
     <message>
         <source>Duration</source>
@@ -1514,7 +1558,7 @@
     </message>
     <message>
         <source>Unsupported legacy trigger ID %1 is preserved until edited</source>
-        <translation>L&apos;ancien ID de déclencheur %1, non pris en charge, est conservé jusqu&apos;à sa modification</translation>
+        <translation type="vanished">L&apos;ancien ID de déclencheur %1, non pris en charge, est conservé jusqu&apos;à sa modification</translation>
     </message>
     <message>
         <source>Unsupported cRP duration %1 ms is preserved until edited</source>
@@ -3427,11 +3471,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Cleared trigger ID on %1</source>
-        <translation>ID de déclencheur retiré sur %1</translation>
+        <translation type="vanished">ID de déclencheur retiré sur %1</translation>
     </message>
     <message>
         <source>Set trigger ID %1 on %2</source>
-        <translation>ID de déclencheur %1 défini sur %2</translation>
+        <translation type="vanished">ID de déclencheur %1 défini sur %2</translation>
     </message>
     <message>
         <source>Set duration %1 ms on %2</source>
@@ -3439,11 +3483,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Enabled switch-to-monochrome trigger on %1</source>
-        <translation>Déclencheur de passage en monochrome activé sur %1</translation>
+        <translation type="vanished">Déclencheur de passage en monochrome activé sur %1</translation>
     </message>
     <message>
         <source>Disabled switch-to-monochrome trigger on %1</source>
-        <translation>Déclencheur de passage en monochrome désactivé sur %1</translation>
+        <translation type="vanished">Déclencheur de passage en monochrome désactivé sur %1</translation>
     </message>
     <message>
         <source>No background selected</source>
@@ -3460,6 +3504,38 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Editing background %1</source>
         <translation type="vanished">Édition de l&apos;arrière-plan %1</translation>
+    </message>
+    <message>
+        <source>Cleared the PUP trigger on %1</source>
+        <translation>Déclencheur PUP retiré sur %1</translation>
+    </message>
+    <message>
+        <source>Set PUP trigger %1 on %2</source>
+        <translation>Déclencheur PUP %1 défini sur %2</translation>
+    </message>
+    <message>
+        <source>Cleared the scene on %1</source>
+        <translation>Scène retirée sur %1</translation>
+    </message>
+    <message>
+        <source>Set scene %1 on %2</source>
+        <translation>Scène %1 définie sur %2</translation>
+    </message>
+    <message>
+        <source>Disabled the monochrome fallback on %1</source>
+        <translation>Repli monochrome désactivé sur %1</translation>
+    </message>
+    <message>
+        <source>Enabled the monochrome fallback on %1</source>
+        <translation>Repli monochrome activé sur %1</translation>
+    </message>
+    <message>
+        <source>Disabled the palette-based monochrome fallback on %1</source>
+        <translation>Repli monochrome basé sur la palette désactivé sur %1</translation>
+    </message>
+    <message>
+        <source>Enabled the palette-based monochrome fallback on %1</source>
+        <translation>Repli monochrome basé sur la palette activé sur %1</translation>
     </message>
     <message>
         <source>Editing background %1; Edit BG again goes back to the frame</source>

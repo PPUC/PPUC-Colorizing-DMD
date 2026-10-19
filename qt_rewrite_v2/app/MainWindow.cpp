@@ -1165,14 +1165,11 @@ void MainWindow::createCentralView()
     m_framePanel->onBackgroundIdEdited = [this](int backgroundId) {
         setCurrentFrameBackgroundId(backgroundId);
     };
-    m_framePanel->onTriggerIdEdited = [this](int triggerId) {
-        setCurrentFrameTriggerId(triggerId);
+    m_framePanel->onTriggerEdited = [this](document::TriggerKind kind, uint32_t triggerId) {
+        setSelectedFramesTrigger(kind, triggerId);
     };
     m_framePanel->onDurationEdited = [this](int durationMs) {
         setCurrentFrameDurationMs(durationMs);
-    };
-    m_framePanel->onSwitchToMonochromeToggled = [this](bool checked) {
-        setCurrentFrameSwitchToMonochrome(checked);
     };
     m_framePanel->onBackgroundLayerToggled = [this](bool checked) {
         if (m_preview) {
@@ -5242,7 +5239,8 @@ void MainWindow::updateBackgroundControls()
 
 MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
     edit::FrameAttribute attribute,
-    uint32_t value)
+    uint32_t value,
+    const std::function<bool(std::size_t frameIndex)>& skip)
 {
     FrameEditCount count;
     if (!m_document) {
@@ -5267,8 +5265,9 @@ MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
     };
     try {
         for (std::size_t frameIndex : selectedFrameIndices()) {
-            if (attribute == edit::FrameAttribute::BackgroundId &&
-                !m_document->backgroundData(frameIndex)) {
+            if ((attribute == edit::FrameAttribute::BackgroundId &&
+                 !m_document->backgroundData(frameIndex)) ||
+                (skip && skip(frameIndex))) {
                 ++count.skipped;
                 continue;
             }
@@ -5419,27 +5418,51 @@ void MainWindow::setCurrentFrameBackgroundId(int backgroundId)
     }
 }
 
-void MainWindow::setCurrentFrameTriggerId(int triggerId)
+void MainWindow::setSelectedFramesTrigger(document::TriggerKind kind, uint32_t triggerId)
 {
     if (!m_document || selectedFrameIndices().empty()) {
         return;
     }
-    if (m_framePanel && m_framePanel->isSwitchToMonochromeChecked()) {
-        return;
-    }
-
-    const uint32_t storedTriggerId =
-        triggerId < 0 ? document::kNoTriggerId
-                      : static_cast<uint32_t>(std::min(triggerId, kMaxManualTriggerId));
+    const bool clearing = triggerId == document::kNoTriggerId;
     try {
-        const FrameEditCount count =
-            editSelectedFramesAttribute(edit::FrameAttribute::TriggerId, storedTriggerId);
+        const FrameEditCount count = editSelectedFramesAttribute(
+            edit::FrameAttribute::TriggerId, triggerId, [this, kind, clearing](std::size_t frame) {
+                const document::TriggerKind has = document::triggerKind(m_document->triggerId(frame));
+                // Clearing touches the frames with a trigger of this kind; setting leaves the
+                // frames with a trigger of another kind alone (an ID of no kind is replaced).
+                return clearing ? has != kind
+                                : has != kind && has != document::TriggerKind::None &&
+                                      has != document::TriggerKind::Other;
+            });
         const QString countText = frameEditCountText(count.changed, count.skipped);
-        statusBar()->showMessage(
-            triggerId < 0
-                ? tr("Cleared trigger ID on %1").arg(countText)
-                : tr("Set trigger ID %1 on %2").arg(storedTriggerId).arg(countText),
-            2500);
+        QString message;
+        switch (kind) {
+            case document::TriggerKind::Pup:
+                message = clearing ? tr("Cleared the PUP trigger on %1").arg(countText)
+                                   : tr("Set PUP trigger %1 on %2").arg(triggerId).arg(countText);
+                break;
+            case document::TriggerKind::Scene:
+                message = clearing ? tr("Cleared the scene on %1").arg(countText)
+                                   : tr("Set scene %1 on %2").arg(triggerId).arg(countText);
+                break;
+            case document::TriggerKind::Monochrome:
+                message = clearing ? tr("Disabled the monochrome fallback on %1").arg(countText)
+                                   : tr("Enabled the monochrome fallback on %1").arg(countText);
+                break;
+            case document::TriggerKind::PaletteMonochrome:
+                message = clearing
+                              ? tr("Disabled the palette-based monochrome fallback on %1")
+                                    .arg(countText)
+                              : tr("Enabled the palette-based monochrome fallback on %1")
+                                    .arg(countText);
+                break;
+            default:
+                break;
+        }
+        if (count.changed == 0) {
+            updateFrameMetadataControls();
+        }
+        statusBar()->showMessage(message, 2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
         updateUndoRedoActions();
@@ -5462,46 +5485,6 @@ void MainWindow::setCurrentFrameDurationMs(int durationMs)
             tr("Set duration %1 ms on %2")
                 .arg(storedDurationMs)
                 .arg(frameEditCountText(count.changed, count.skipped)),
-            2500);
-    } catch (const std::exception& ex) {
-        updateFrameMetadataControls();
-        updateUndoRedoActions();
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
-}
-
-void MainWindow::setCurrentFrameSwitchToMonochrome(bool enabled)
-{
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty()) {
-        return;
-    }
-
-    try {
-        int changed = 0;
-        for (std::size_t frameIndex : frameIndices) {
-            const uint32_t oldTriggerId = m_document->triggerId(frameIndex);
-            // Switching off only concerns frames that carry the monochrome trigger; other
-            // selected frames keep their own trigger ID.
-            if (enabled ? oldTriggerId == kSwitchToMonochromeTriggerId
-                        : oldTriggerId != kSwitchToMonochromeTriggerId) {
-                continue;
-            }
-            commitEdit(std::make_unique<edit::FrameAttributeEditCommand>(
-                frameIndex,
-                edit::FrameAttribute::TriggerId,
-                oldTriggerId,
-                enabled ? kSwitchToMonochromeTriggerId : document::kNoTriggerId));
-            ++changed;
-        }
-        if (changed == 0) {
-            updateFrameMetadataControls();
-        }
-        updateUndoRedoActions();
-        statusBar()->showMessage(
-            (enabled ? tr("Enabled switch-to-monochrome trigger on %1")
-                     : tr("Disabled switch-to-monochrome trigger on %1"))
-                .arg(frameEditCountText(changed, 0)),
             2500);
     } catch (const std::exception& ex) {
         updateFrameMetadataControls();
@@ -9097,6 +9080,8 @@ void MainWindow::refreshAfterSceneEdit(const edit::SceneEditCommand& command)
     updateFrameFilterChoices();
     updateRuntimeViewControls();
     updateProjectHeaderStatus();
+    // The Frame section lists the scenes.
+    updateFrameMetadataControls();
     if (!command.changesFrames()) {
         return;
     }

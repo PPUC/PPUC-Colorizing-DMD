@@ -9,19 +9,18 @@
 #include <QWidget>
 
 #include "document/ProjectDocument.h"
+#include "document/Triggers.h"
 #include "FrameImageUtils.h"
 #include "PaintTarget.h"
 
 class QCheckBox;
 class QComboBox;
+class QLabel;
 class QSpinBox;
 class QToolButton;
 
 namespace colorizing::app {
 
-// Legacy trigger ID that switches the display to monochrome; manual trigger IDs stay below it.
-constexpr uint32_t kSwitchToMonochromeTriggerId = 65432;
-constexpr int kMaxManualTriggerId = static_cast<int>(kSwitchToMonochromeTriggerId - 1);
 constexpr int kMaxFrameDurationMs = 30000;
 
 // What the frame page displays. The drawing target, the background layer toggle and the DMD
@@ -59,19 +58,19 @@ public:
                              render::PlaneLayout layout = render::PlaneLayout::Ordinary);
 
     [[nodiscard]] PaintTarget paintTarget() const;
-    // The spin box value: -1 for no trigger and for the monochrome trigger, 0 while the frame
-    // carries a trigger ID the spin box cannot show.
-    [[nodiscard]] int triggerId() const;
-    [[nodiscard]] bool isSwitchToMonochromeChecked() const;
+    // The frame's trigger ID as the panel shows it, document::kNoTriggerId for none.
+    [[nodiscard]] uint32_t triggerId() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
 
     std::function<void()> onPaintTargetChanged;
     // -1 clears the assignment.
     std::function<void(int backgroundId)> onBackgroundIdEdited;
-    // -1 clears the trigger.
-    std::function<void(int triggerId)> onTriggerIdEdited;
+    // A frame has one trigger, set through the input of its kind: the PUP trigger, the scene,
+    // or one of the two monochrome fallbacks. While the frame has one, the inputs of the other
+    // kinds are disabled. triggerId is the new ID, or document::kNoTriggerId when the input of
+    // that kind was cleared.
+    std::function<void(document::TriggerKind kind, uint32_t triggerId)> onTriggerEdited;
     std::function<void(int durationMs)> onDurationEdited;
-    std::function<void(bool checked)> onSwitchToMonochromeToggled;
     std::function<void(bool checked)> onBackgroundLayerToggled;
     std::function<void()> onImportImageRequested;
     std::function<void()> onCreateHdRequested;
@@ -82,10 +81,16 @@ private:
     // Hides what the layout has no use for.
     void showHdActionsFor(render::PlaneLayout layout);
 
+    void fillScenes(const document::ProjectDocument* document, uint32_t triggerId);
+
     QSpinBox* m_backgroundIdSpinBox = nullptr;
-    QSpinBox* m_triggerIdSpinBox = nullptr;
+    QSpinBox* m_pupTriggerSpinBox = nullptr;
+    QComboBox* m_sceneComboBox = nullptr;
+    QCheckBox* m_monochromeCheckBox = nullptr;
+    QCheckBox* m_paletteMonochromeCheckBox = nullptr;
+    QLabel* m_otherTriggerLabel = nullptr;
     QSpinBox* m_durationSpinBox = nullptr;
-    QCheckBox* m_switchToMonochromeCheckBox = nullptr;
+    uint32_t m_triggerId = document::kNoTriggerId;
     QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_importImageButton = nullptr;
     QToolButton* m_createHdButton = nullptr;

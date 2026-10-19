@@ -97,7 +97,7 @@ several frames keeps the selection and only makes that frame the current one, so
 can show each of them in turn (the canvas selection stays, see "Selection"); a plain click on a
 frame outside the selection selects that frame alone. Frame drawing, comparison-mask drawing,
 dynamic-mask drawing, background-mask drawing, and all frame settings (comparison mask ID, shape
-mode, background ID, trigger ID, switch-to-monochrome, duration) apply to all selected frames where
+mode, background ID, trigger, duration) apply to all selected frames where
 the operation is valid. Comparison-mask edits are grouped by assigned mask ID, so a shared mask is
 edited once even if multiple selected frames use it. Undo/redo history is still stored per frame,
 per resolution, or per shared mask as appropriate.

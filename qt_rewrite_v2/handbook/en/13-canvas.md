@@ -102,17 +102,28 @@ The `Frame` section exposes:
 - `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
   It is enabled whenever the project has a background to edit, that is, whenever a background is
   selected.
-- `BG ID` assigns the shared background for all selected frames. Selected frames without background
-  data are skipped.
-- `Trigger ID` edits the per-frame legacy trigger ID for all selected frames. `None` means the frame
-  triggers nothing and is stored as `0xFFFFFFFF`, the value the cROM uses for it; `0` is an ordinary
-  trigger ID. New frames start with `None`.
+- `Background ID` assigns the shared background for all selected frames. Selected frames without
+  background data are skipped.
+- A frame has one trigger ID at most (stored as `0xFFFFFFFF` for none, the value the cROM uses).
+  Its range says what it does, and each kind has an input of its own:
+  - `PUP trigger ID`: a trigger for a PuP pack, 0 to 49999. `None` clears it; `0` is an ordinary
+    trigger ID.
+  - `Scene`: starts a scene of the project, 50000 to 61999 (see "Scenes and Scaling"). Only the
+    project's scenes can be chosen; a frame whose ID names no scene of the project shows it as
+    `(no such scene)`.
+  - `Monochrome fallback` (trigger ID `65432`): from this frame on, libserum shows the frames in
+    monochrome.
+  - `Palette-based monochrome fallback` (trigger ID `65431`): from this frame on, libserum shows
+    the frames in the colors of this frame's palette.
+
+  While the frame has a trigger of one kind, the inputs of the other kinds are disabled; clear it
+  first to choose another kind. An ID of no kind (from an old project) is named below the inputs
+  and kept until another trigger is chosen. An input acts on all selected frames: setting a
+  trigger leaves frames with a trigger of another kind alone (they are counted as skipped);
+  clearing one clears it on the frames that have one of that kind. New frames start without a
+  trigger.
 - `Duration` edits the per-frame `.cRP` duration for all selected frames.
-- `Switch mono` writes the legacy switch-to-monochrome trigger ID `65432` on all selected frames and
-  disables manual trigger-ID entry while checked. Unchecking it sets `Trigger ID` to `None` on the
-  selected frames that carry the monochrome trigger; selected frames with an ordinary trigger ID
-  keep it. To get an earlier trigger ID back, use Undo.
-- `BG ID`, `Trigger ID`, `Duration`, and `Switch mono` edits can be undone, see "Undo And Redo".
+- `Background ID`, trigger and `Duration` edits can be undone, see "Undo And Redo".
 - `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
   by default.
 - `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
@@ -127,7 +138,7 @@ The `Background` topic exposes:
   from the `Backgrounds` list onto the canvas does the same; see "Drag And Drop Onto The Canvas".
 - `Remove BG` takes the background off all selected frames (they then have none; the background
   itself stays). It is enabled while one of the selected frames has a background, and undoable.
-  The Inspector's `BG ID` set to `None` does the same.
+  The Inspector's `Background ID` set to `None` does the same.
 - `Edit BG` switches ordinary drawing tools to the selected background image. If the sprite editor
   is open, it is closed first (`Edit Sprite` is switched off). A background belongs to no frame:
   while one is edited, the original frame's half of the canvas stays black, without the frame's

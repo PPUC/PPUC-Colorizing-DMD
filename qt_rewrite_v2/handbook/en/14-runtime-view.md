@@ -111,7 +111,7 @@ for a project without scenes of its own.
 
 What the view does not show:
 
-- Triggers, and what a trigger does on a machine. A frame with `Switch mono` is shown colorized.
+- Triggers, and what a trigger does on a machine. A frame with a monochrome fallback is shown colorized.
 
 What the editing canvas shows, by comparison: it is the editor's own rendering of the layers
 being edited. On the plane that has the size of the original frame it follows libserum's rules

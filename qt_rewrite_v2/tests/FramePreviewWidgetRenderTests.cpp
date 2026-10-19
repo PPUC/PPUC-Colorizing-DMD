@@ -3188,9 +3188,8 @@ void testFramePanel()
     int createHdRequests = 0;
     int removeHdRequests = 0;
     std::optional<int> editedBackgroundId;
-    std::optional<int> editedTriggerId;
+    std::vector<std::pair<colorizing::document::TriggerKind, uint32_t>> triggerEdits;
     std::optional<int> editedDuration;
-    std::optional<bool> monochromeToggled;
     std::optional<bool> backgroundLayerToggled;
     panel.onPaintTargetChanged = [&]() {
         ++callbacks;
@@ -3200,17 +3199,13 @@ void testFramePanel()
         ++callbacks;
         editedBackgroundId = backgroundId;
     };
-    panel.onTriggerIdEdited = [&](int triggerId) {
+    panel.onTriggerEdited = [&](colorizing::document::TriggerKind kind, uint32_t triggerId) {
         ++callbacks;
-        editedTriggerId = triggerId;
+        triggerEdits.emplace_back(kind, triggerId);
     };
     panel.onDurationEdited = [&](int durationMs) {
         ++callbacks;
         editedDuration = durationMs;
-    };
-    panel.onSwitchToMonochromeToggled = [&](bool checked) {
-        ++callbacks;
-        monochromeToggled = checked;
     };
     panel.onBackgroundLayerToggled = [&](bool checked) {
         ++callbacks;
@@ -3231,10 +3226,18 @@ void testFramePanel()
 
     auto* targetComboBox = childByToolTip<QComboBox>(panel, "Drawing target");
     auto* backgroundIdSpinBox = childByToolTip<QSpinBox>(panel, "Assigned background ID");
-    auto* triggerIdSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame trigger ID");
+    auto* triggerIdSpinBox =
+        childByToolTip<QSpinBox>(panel, "PUP trigger the frame fires, 0 to 49999");
+    auto* sceneComboBox = childByToolTip<QComboBox>(panel, "Scene of the project the frame starts");
     auto* durationSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame cRP duration");
     auto* monochromeCheckBox = childByToolTip<QCheckBox>(
-        panel, "Use legacy switch-to-monochrome trigger ID 65432");
+        panel, "From this frame on, libserum shows the frames in monochrome (trigger ID 65432)");
+    auto* paletteMonochromeCheckBox = childByToolTip<QCheckBox>(
+        panel,
+        "From this frame on, libserum shows the frames in the colors of this frame's palette "
+        "(trigger ID 65431)");
+    using colorizing::document::TriggerKind;
+    using colorizing::document::kNoTriggerId;
     auto* backgroundLayerButton =
         childByToolTip<QToolButton>(panel, "Show assigned background layer");
     auto* importButton =
@@ -3251,18 +3254,19 @@ void testFramePanel()
                backgroundIdSpinBox->specialValueText() == QStringLiteral("None") &&
                !backgroundIdSpinBox->isEnabled(),
            "frame panel should start without background IDs");
-    expect(triggerIdSpinBox->minimum() == -1 &&
-               triggerIdSpinBox->maximum() == colorizing::app::kMaxManualTriggerId &&
+    expect(triggerIdSpinBox->minimum() == -1 && triggerIdSpinBox->maximum() == 49999 &&
                triggerIdSpinBox->specialValueText() == QStringLiteral("None") &&
-               !triggerIdSpinBox->isEnabled() && panel.triggerId() == -1,
-           "frame panel should start with a disabled trigger ID showing none");
+               !triggerIdSpinBox->isEnabled() && panel.triggerId() == kNoTriggerId &&
+               !sceneComboBox->isEnabled() && sceneComboBox->count() == 1,
+           "frame panel should start with disabled trigger inputs showing none");
     expect(durationSpinBox->maximum() == colorizing::app::kMaxFrameDurationMs &&
                durationSpinBox->singleStep() == 10 &&
                durationSpinBox->suffix() == QStringLiteral(" ms") && !durationSpinBox->isEnabled(),
            "frame panel should start with a disabled duration");
-    expect(monochromeCheckBox->text() == QStringLiteral("Switch mono") &&
-               !monochromeCheckBox->isEnabled() && !panel.isSwitchToMonochromeChecked(),
-           "frame panel should start with a disabled monochrome switch");
+    expect(monochromeCheckBox->text() == QStringLiteral("Monochrome fallback") &&
+               !monochromeCheckBox->isEnabled() && !monochromeCheckBox->isChecked() &&
+               !paletteMonochromeCheckBox->isEnabled(),
+           "frame panel should start with disabled monochrome fallbacks");
     expect(backgroundLayerButton->text() == QStringLiteral("Show BG") &&
                backgroundLayerButton->isCheckable() && panel.isBackgroundLayerChecked() &&
                !backgroundLayerButton->isEnabled(),
@@ -3275,18 +3279,19 @@ void testFramePanel()
            "frame panel should start with disabled image and HD buttons");
     expect(tabVisitsInOrder(panel,
                             {targetComboBox, backgroundIdSpinBox, triggerIdSpinBox,
-                             durationSpinBox, monochromeCheckBox, backgroundLayerButton,
-                             importButton, createHdButton, removeHdButton}),
+                             sceneComboBox, monochromeCheckBox, paletteMonochromeCheckBox,
+                             durationSpinBox, backgroundLayerButton, importButton,
+                             createHdButton, removeHdButton}),
            "frame panel should tab through its controls as laid out");
 
     panel.refresh(stateFor(document, 0));
     expect(!targetComboBox->isEnabled() && backgroundIdSpinBox->isEnabled() &&
                backgroundIdSpinBox->maximum() == 1 && backgroundIdSpinBox->value() == 0,
            "frame panel should show the assigned background and leave the target to the owner");
-    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 5 &&
-               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID") &&
-               monochromeCheckBox->isEnabled() && !panel.isSwitchToMonochromeChecked(),
-           "frame panel should show the trigger ID");
+    expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == 5 &&
+               panel.triggerId() == 5 && !monochromeCheckBox->isEnabled() &&
+               !paletteMonochromeCheckBox->isEnabled() && !sceneComboBox->isEnabled(),
+           "frame panel should show the PUP trigger and close the other kinds");
     expect(durationSpinBox->isEnabled() && durationSpinBox->value() == 100 &&
                durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration"),
            "frame panel should show the duration");
@@ -3298,10 +3303,10 @@ void testFramePanel()
     expect(backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->value() == -1 &&
                backgroundLayerButton->isEnabled(),
            "frame panel should show unassigned background data as none");
-    expect(panel.isSwitchToMonochromeChecked() && !triggerIdSpinBox->isEnabled() &&
-               panel.triggerId() == -1 &&
-               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
-           "frame panel should lock the trigger ID of a switch-to-monochrome frame");
+    expect(monochromeCheckBox->isChecked() && monochromeCheckBox->isEnabled() &&
+               !triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == -1 &&
+               !paletteMonochromeCheckBox->isEnabled() && panel.triggerId() == 65432,
+           "frame panel should show the monochrome fallback and close the other kinds");
     expect(durationSpinBox->value() == 0 &&
                durationSpinBox->toolTip() ==
                    QStringLiteral("Unsupported cRP duration 40000 ms is preserved until edited"),
@@ -3313,26 +3318,55 @@ void testFramePanel()
     panel.refresh(stateFor(document, 2));
     expect(backgroundIdSpinBox->value() == -1 && backgroundIdSpinBox->isEnabled(),
            "frame panel should show an out-of-range background ID as none");
-    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 0 &&
-               !panel.isSwitchToMonochromeChecked() &&
-               triggerIdSpinBox->toolTip() ==
-                   QStringLiteral("Unsupported legacy trigger ID 70000 is preserved until edited"),
-           "frame panel should explain an unsupported trigger ID");
+    bool namesOther = false;
+    for (QLabel* label : panel.findChildren<QLabel*>()) {
+        namesOther = namesOther || (label->isVisibleTo(&panel) &&
+                                    label->text() == QStringLiteral("Trigger ID 70000 is kept "
+                                                                    "until another trigger is "
+                                                                    "chosen"));
+    }
+    expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == -1 &&
+               monochromeCheckBox->isEnabled() && paletteMonochromeCheckBox->isEnabled() &&
+               panel.triggerId() == 70000 && namesOther,
+           "frame panel should name a trigger ID of no kind and leave every input open");
     panel.refresh(stateFor(document, 3));
     expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == 1 &&
-               !backgroundLayerButton->isEnabled() &&
-               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
+               !backgroundLayerButton->isEnabled(),
            "frame panel should disable the background ID for a frame without background data");
-    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == 0,
+    expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == 0 &&
+               panel.triggerId() == 0,
            "frame panel should show trigger ID 0 as a trigger");
     colorizing::document::ProjectDocument withoutTrigger = document;
     withoutTrigger.setTriggerId(3, colorizing::document::kNoTriggerId);
     panel.refresh(stateFor(withoutTrigger, 3));
-    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == -1 &&
+    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == kNoTriggerId &&
                triggerIdSpinBox->text() == QStringLiteral("None") &&
-               !panel.isSwitchToMonochromeChecked() &&
-               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
-           "frame panel should show the file's no-trigger value as none");
+               !monochromeCheckBox->isChecked() && monochromeCheckBox->isEnabled() &&
+               paletteMonochromeCheckBox->isEnabled() && !sceneComboBox->isEnabled(),
+           "frame panel should show the file's no-trigger value as none, scenes need scenes");
+    // Scenes: only the project's are offered; a scene ID without its scene is shown as it is.
+    colorizing::document::ProjectDocument withScenes = withoutTrigger;
+    colorizing::document::ColorizationSettings settings;
+    settings.scenes.resize(2);
+    settings.scenes[0].sceneId = 50001;
+    settings.scenes[1].sceneId = 61999;
+    withScenes.setColorizationSettings(settings);
+    panel.refresh(stateFor(withScenes, 3));
+    expect(sceneComboBox->isEnabled() && sceneComboBox->count() == 3 &&
+               sceneComboBox->itemText(1) == QStringLiteral("50001") &&
+               sceneComboBox->currentIndex() == 0,
+           "frame panel should offer the project's scenes");
+    withScenes.setTriggerId(3, 50088);
+    panel.refresh(stateFor(withScenes, 3));
+    expect(sceneComboBox->count() == 4 &&
+               sceneComboBox->currentText() == QStringLiteral("50088 (no such scene)") &&
+               !triggerIdSpinBox->isEnabled() && !monochromeCheckBox->isEnabled(),
+           "frame panel should show a scene ID without its scene and close the other kinds");
+    withScenes.setTriggerId(3, 65431);
+    panel.refresh(stateFor(withScenes, 3));
+    expect(paletteMonochromeCheckBox->isChecked() && !monochromeCheckBox->isEnabled() &&
+               !sceneComboBox->isEnabled() && sceneComboBox->count() == 3,
+           "frame panel should show the palette-based monochrome fallback");
     panel.refresh(stateFor(noBackgrounds, 0));
     expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == -1 &&
                !backgroundLayerButton->isEnabled(),
@@ -3362,8 +3396,8 @@ void testFramePanel()
                !durationSpinBox->isEnabled() && !monochromeCheckBox->isEnabled() &&
                !backgroundLayerButton->isEnabled() && !importButton->isEnabled() &&
                durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration") &&
-               panel.triggerId() == -1 &&
-               triggerIdSpinBox->toolTip() == QStringLiteral("Per-frame trigger ID"),
+               panel.triggerId() == kNoTriggerId && !paletteMonochromeCheckBox->isEnabled() &&
+               !sceneComboBox->isEnabled(),
            "frame panel should reset without a frame");
     panel.refresh(stateFor(document, 0));
     expect(createHdButton->text() == QStringLiteral("Create HD") &&
@@ -3402,15 +3436,21 @@ void testFramePanel()
     backgroundIdSpinBox->setValue(-1);
     expect(editedBackgroundId == -1, "clearing the background ID should report -1");
     triggerIdSpinBox->setValue(123);
-    expect(editedTriggerId == 123 && panel.triggerId() == 123,
-           "editing the trigger ID should report it");
+    expect(triggerEdits.size() == 1 && triggerEdits.back().first == TriggerKind::Pup &&
+               triggerEdits.back().second == 123,
+           "editing the PUP trigger should report it");
     triggerIdSpinBox->setValue(-1);
-    expect(editedTriggerId == -1, "clearing the trigger ID should report -1");
+    expect(triggerEdits.back().second == kNoTriggerId,
+           "clearing the PUP trigger should report no trigger");
     durationSpinBox->setValue(250);
     expect(editedDuration == 250, "editing the duration should report it");
+    // Frame 0 without its PUP trigger: every kind is open.
+    withoutTrigger.setTriggerId(0, kNoTriggerId);
+    panel.refresh(stateFor(withoutTrigger, 0));
     monochromeCheckBox->click();
-    expect(monochromeToggled == true && panel.isSwitchToMonochromeChecked(),
-           "checking the monochrome switch should report it");
+    expect(triggerEdits.back().first == TriggerKind::Monochrome &&
+               triggerEdits.back().second == 65432,
+           "checking the monochrome fallback should report it");
     backgroundLayerButton->click();
     expect(backgroundLayerToggled == false && !panel.isBackgroundLayerChecked(),
            "hiding the background layer should report it");
