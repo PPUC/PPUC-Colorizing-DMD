@@ -6,7 +6,7 @@ in the editor, saved or not.
 
 - The frames are the frames selected in the frame list when the tester opens
   (`Selected Frames`), or every frame of a frame dump (`Load Dump...`, a TXT dump as for
-  `New Project From Dump`, repeats included; a 128x16 dump is taken centred in 128x32 frames).
+  `New Project From Dump`, also as `.gz` or `.zip`, repeats included; a 128x16 dump is taken centred in 128x32 frames).
   A dump must have the project's frame size and no shade the project's frames cannot have.
   A frame of a dump lasts until the next one, as the dump import measures it.
 - The tester shows libserum's 32-row and 64-row planes (a project with 256x64 or 192x64

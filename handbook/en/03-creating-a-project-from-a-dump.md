@@ -15,6 +15,12 @@ A frame dump is a text file. Each frame is
 Blank lines may stand between frames. Lines end with LF or CRLF; blanks around a line and a
 byte order mark at the start of the file are ignored.
 
+The dump may be compressed: a gzip file (`.gz`) or a zip archive (`.zip`) is decompressed while
+it is read, nothing is unpacked to disk. Which it is is told by the file's content, not its
+name. Of a zip the first file whose name ends in `.txt` is read, or its first file if none
+does. This holds wherever a dump is loaded: here, for `Add Frames From Dump...` and in the frame
+tester.
+
 All frames of a dump have the size of its first frame. Four sizes are accepted:
 
 | Dump | Project |

@@ -26,6 +26,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/StructureCommand.cpp
     edit/UndoHistories.cpp
     export/GifWriter.cpp
+    import/DumpFile.cpp
     import/FrameDumpImport.cpp
     import/FrameDumpReader.cpp
     legacy/CrpxFile.cpp
@@ -54,7 +55,8 @@ target_include_directories(colorizing_qt_v2_core
 )
 
 # PRIVATE: only legacy/LegacyCrzArchive.cpp, runtime/CromcExport.cpp,
-# runtime/RuntimePreview.cpp and runtime/Scenes.cpp include libserum headers, and they must not reach the targets that
+# runtime/RuntimePreview.cpp and runtime/Scenes.cpp include libserum headers, and
+# import/DumpFile.cpp its miniz, and they must not reach the targets that
 # link the core.
 target_link_libraries(colorizing_qt_v2_core
     PRIVATE

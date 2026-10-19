@@ -159,7 +159,8 @@ using DumpProgress = std::function<bool(uint64_t bytesRead)>;
                                                const DumpImportOptions& options,
                                                const document::ProjectDocument* project,
                                                const DumpProgress& progress = {});
-// totalBytes, if given, is set to the size of the file before reading starts.
+// totalBytes, if given, is set to the size of the dump before reading starts (uncompressed:
+// the file may be a .gz or .zip, see DumpFile.h).
 [[nodiscard]] DumpImportResult importFrameDumpFile(const std::string& path,
                                                    const DumpImportOptions& options,
                                                    const document::ProjectDocument* project,

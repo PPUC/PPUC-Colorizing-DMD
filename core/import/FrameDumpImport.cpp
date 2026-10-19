@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "import/DumpFile.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
 
@@ -295,17 +296,15 @@ DumpImportResult importFrameDumpFile(const std::string& path,
                                      const DumpProgress& progress,
                                      uint64_t* totalBytes)
 {
-    std::ifstream stream(platform::pathFromUtf8(path), std::ios::binary);
-    if (!stream) {
-        return failed({}, "The file cannot be opened: " + path);
+    // A .gz or .zip dump is decompressed while it is read.
+    DumpFile file = openDumpFile(path);
+    if (!file.ok()) {
+        return failed({}, "The file cannot be read (" + file.error + "): " + path);
     }
     if (totalBytes) {
-        stream.seekg(0, std::ios::end);
-        const std::streamoff size = stream.tellg();
-        stream.seekg(0, std::ios::beg);
-        *totalBytes = size > 0 ? static_cast<uint64_t>(size) : 0;
+        *totalBytes = file.sizeBytes;
     }
-    return importFrameDump(stream, options, project, progress);
+    return importFrameDump(*file.stream, options, project, progress);
 }
 
 std::optional<render::ProjectGeometry> geometryForDump(render::Size storedSize)

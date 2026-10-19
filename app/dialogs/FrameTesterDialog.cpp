@@ -17,6 +17,7 @@
 #include <exception>
 #include <fstream>
 
+#include "import/DumpFile.h"
 #include "FrameImageUtils.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "legacy/LegacyProjectIo.h"
@@ -146,7 +147,8 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     connect(&m_rotationTimer, &QTimer::timeout, this, [this]() { rotateStep(); });
     connect(loadButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(
-            this, tr("Load Frame Dump"), QString(), tr("Frame dumps (*.txt);;All files (*)"));
+            this, tr("Load Frame Dump"), QString(),
+            tr("Frame dumps (*.txt *.gz *.zip);;All files (*)"));
         if (!path.isEmpty()) {
             loadDumpFile(path);
         }
@@ -244,16 +246,17 @@ bool FrameTesterDialog::loadDumpFile(const QString& path)
     setPlaying(0);
     runtime::TesterDump dump;
     legacy::LegacyIoProgress progress;
-    progress.total = static_cast<uint64_t>(std::max<qint64>(0, QFileInfo(path).size()));
+    // A .gz or .zip dump is decompressed while it is read (importing::openDumpFile()).
+    importing::DumpFile file = importing::openDumpFile(path.toStdString());
+    progress.total = file.sizeBytes;
     progress.setStage(legacy::LegacyIoStage::Reading);
     const std::optional<std::string> failure =
         runProjectTask(this, tr("Loading Frame Dump"), progress, [&]() {
-            std::ifstream stream(platform::pathFromUtf8(path.toStdString()), std::ios::binary);
-            if (!stream) {
-                dump.error = "the file cannot be opened";
+            if (!file.ok()) {
+                dump.error = file.error;
                 return;
             }
-            dump = runtime::readTesterDump(stream, m_document, [&progress](uint64_t bytes) {
+            dump = runtime::readTesterDump(*file.stream, m_document, [&progress](uint64_t bytes) {
                 progress.done = bytes;
                 return !progress.cancel.load();
             });

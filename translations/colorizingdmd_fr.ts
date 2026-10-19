@@ -885,8 +885,12 @@
         <translation>Choisir un dump de frames</translation>
     </message>
     <message>
+        <source>Frame dumps (*.txt *.gz *.zip);;All files (*)</source>
+        <translation>Dumps de frames (*.txt *.gz *.zip);;Tous les fichiers (*)</translation>
+    </message>
+    <message>
         <source>Frame dumps (*.txt);;All files (*)</source>
-        <translation>Dumps de frames (*.txt);;Tous les fichiers (*)</translation>
+        <translation type="vanished">Dumps de frames (*.txt);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>Reading the dump was stopped.</source>
@@ -1752,8 +1756,12 @@ Utiliser Créer la frame %1.</translation>
         <translation>Charger un dump de frames</translation>
     </message>
     <message>
+        <source>Frame dumps (*.txt *.gz *.zip);;All files (*)</source>
+        <translation>Dumps de frames (*.txt *.gz *.zip);;Tous les fichiers (*)</translation>
+    </message>
+    <message>
         <source>Frame dumps (*.txt);;All files (*)</source>
-        <translation>Dumps de frames (*.txt);;Tous les fichiers (*)</translation>
+        <translation type="vanished">Dumps de frames (*.txt);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>libserum could not load the project: %1</source>

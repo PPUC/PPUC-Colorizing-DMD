@@ -1,7 +1,10 @@
 // Frame dumps: the reader, the import filter and the removal of duplicates, a new project
 // from a dump and frames added to a project.
 
+#include <chrono>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -14,11 +17,14 @@
 #include "edit/EditCommand.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
+#include "import/DumpFile.h"
 #include "import/FrameDumpImport.h"
 #include "import/FrameDumpReader.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "runtime/FrameIdentification.h"
 #include "runtime/RuntimePreview.h"
+
+#include <miniz/miniz.h>
 
 using colorizing::document::IndexedFrame;
 using colorizing::document::ProjectDocument;
@@ -1265,6 +1271,105 @@ void testAddFramesKeepsTables()
 
 }  // namespace
 
+// The bytes of a gzip file (RFC 1952) of the text.
+std::string gzipOf(const std::string& text)
+{
+    mz_stream stream{};
+    expect(mz_deflateInit2(&stream, MZ_BEST_COMPRESSION, MZ_DEFLATED, -MZ_DEFAULT_WINDOW_BITS, 9,
+                           MZ_DEFAULT_STRATEGY) == MZ_OK,
+           "deflate starts");
+    std::string deflated(mz_deflateBound(&stream, static_cast<mz_ulong>(text.size())), '\0');
+    stream.next_in = reinterpret_cast<const unsigned char*>(text.data());
+    stream.avail_in = static_cast<unsigned int>(text.size());
+    stream.next_out = reinterpret_cast<unsigned char*>(deflated.data());
+    stream.avail_out = static_cast<unsigned int>(deflated.size());
+    expect(mz_deflate(&stream, MZ_FINISH) == MZ_STREAM_END, "deflate ends");
+    deflated.resize(stream.total_out);
+    mz_deflateEnd(&stream);
+    // Header with a file name (FNAME), as gzip writes it.
+    std::string bytes("\x1f\x8b\x08\x08\0\0\0\0\0\x03", 10);
+    bytes += "dump.txt";
+    bytes.push_back('\0');
+    bytes += deflated;
+    const auto appendU32 = [&bytes](uint32_t value) {
+        for (int shift = 0; shift < 32; shift += 8) {
+            bytes.push_back(static_cast<char>((value >> shift) & 0xff));
+        }
+    };
+    appendU32(static_cast<uint32_t>(
+        mz_crc32(MZ_CRC32_INIT, reinterpret_cast<const unsigned char*>(text.data()), text.size())));
+    appendU32(static_cast<uint32_t>(text.size()));
+    return bytes;
+}
+
+// A dump compressed as .gz or in a .zip reads as the same dump.
+void testCompressedDumps()
+{
+    std::vector<TextFrame> frames;
+    for (int index = 0; index < 120; ++index) {
+        frames.push_back(textFrame(static_cast<uint32_t>(index * 20), index));
+    }
+    const std::string text = dumpText(frames);
+    const DumpImportResult plain = importText(text);
+    expect(plain.ok, "the plain dump imports");
+
+    const std::filesystem::path directory =
+        std::filesystem::temp_directory_path() /
+        ("colorizing_qt_v2_dumps_" +
+         std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(directory);
+    const auto write = [](const std::filesystem::path& path, const std::string& bytes) {
+        std::ofstream(path, std::ios::binary).write(bytes.data(),
+                                                    static_cast<std::streamsize>(bytes.size()));
+    };
+    // A gzip file with another name, and a zip whose dump is not its first entry.
+    write(directory / "dump.dat", gzipOf(text));
+    const std::string zipPath = (directory / "dump.zip").string();
+    mz_zip_archive zip{};
+    expect(mz_zip_writer_init_file(&zip, zipPath.c_str(), 0) &&
+               mz_zip_writer_add_mem(&zip, "readme.md", "notes", 5, MZ_DEFAULT_COMPRESSION) &&
+               mz_zip_writer_add_mem(&zip, "afm_113b.txt", text.data(), text.size(),
+                                     MZ_DEFAULT_COMPRESSION) &&
+               mz_zip_writer_finalize_archive(&zip) && mz_zip_writer_end(&zip),
+           "the zip is written");
+
+    for (const char* name : {"dump.dat", "dump.zip"}) {
+        const std::string path = (directory / name).string();
+        const importing::DumpFile file = importing::openDumpFile(path);
+        expect(file.ok() && file.sizeBytes == text.size(),
+               std::string(name) + " opens with the size of the dump");
+        uint64_t total = 0;
+        uint64_t lastBytes = 0;
+        const DumpImportResult result = importing::importFrameDumpFile(
+            path, {}, nullptr,
+            [&lastBytes](uint64_t bytes) {
+                lastBytes = bytes;
+                return true;
+            },
+            &total);
+        expect(result.ok && result.frames.size() == plain.frames.size() &&
+                   result.counts.framesRead == plain.counts.framesRead && total == text.size() &&
+                   lastBytes == text.size(),
+               std::string(name) + " imports as the plain dump, with its progress");
+    }
+    expect(importing::openDumpFile((directory / "dump.zip").string()).entryName ==
+               "afm_113b.txt",
+           "of a zip the .txt entry is read");
+
+    const std::string zipPathNoText = (directory / "other.zip").string();
+    mz_zip_archive empty{};
+    expect(mz_zip_writer_init_file(&empty, zipPathNoText.c_str(), 0) &&
+               mz_zip_writer_finalize_archive(&empty) && mz_zip_writer_end(&empty),
+           "an empty zip is written");
+    const importing::DumpFile none = importing::openDumpFile(zipPathNoText);
+    expect(!none.ok() && none.error.find("no dump") != std::string::npos,
+           "a zip without a file holds no dump");
+    write(directory / "cut.gz", std::string("\x1f\x8b\x08", 3));
+    expect(!importing::openDumpFile((directory / "cut.gz").string()).ok(),
+           "a gzip file cut in its header is refused");
+    std::filesystem::remove_all(directory);
+}
+
 void runFrameDumpImportTests()
 {
     testReaderSizes();
@@ -1277,6 +1382,7 @@ void runFrameDumpImportTests()
     testDuplicatesInDump();
     testAgainstProject();
     testCancelAndFiles();
+    testCompressedDumps();
     testNames();
     testNewProject(Size{128, 32}, 4);
     testNewProject(Size{128, 32}, 16);

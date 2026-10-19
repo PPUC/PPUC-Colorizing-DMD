@@ -307,7 +307,7 @@ void DumpImportDialog::chooseFile()
         this,
         tr("Choose Frame Dump"),
         QFileInfo(dumpPath()).absolutePath(),
-        tr("Frame dumps (*.txt);;All files (*)"));
+        tr("Frame dumps (*.txt *.gz *.zip);;All files (*)"));
     if (!path.isEmpty()) {
         setDumpPath(path);
     }
