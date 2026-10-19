@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packs PPUC-Colorizing-DMD.app into a zip: Qt frameworks and plugins deployed with macdeployqt,
+# Packs "PPUC Colorizing DMD.app" into a zip: Qt frameworks and plugins deployed with macdeployqt,
 # ad-hoc signed (no Developer ID, not notarised), checked for libraries loaded from outside the
 # bundle, and started once.
 #
@@ -20,11 +20,12 @@ fi
 here=$(cd "$(dirname "$0")" && pwd -P)
 build_dir=$1
 output=$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")
-app="${build_dir}/app/PPUC-Colorizing-DMD.app"
+name="PPUC Colorizing DMD"
+app="${build_dir}/app/${name}.app"
 macdeployqt=${MACDEPLOYQT:-macdeployqt}
 
 if [ ! -d "${app}" ]; then
-    echo "No ${app}: configure the build with -DCOLORIZINGDMD_QT_V2_PACKAGE=ON." >&2
+    echo "No ${app}: build the editor first (-DCOLORIZINGDMD_QT_V2_PACKAGE=ON)." >&2
     exit 1
 fi
 
@@ -35,7 +36,7 @@ unset QT_PLUGIN_PATH QT_QPA_PLATFORM_PLUGIN_PATH QML2_IMPORT_PATH
 stage=$(mktemp -d)
 trap 'rm -rf "${stage}"' EXIT
 cp -R "${app}" "${stage}/"
-bundle="${stage}/PPUC-Colorizing-DMD.app"
+bundle="${stage}/${name}.app"
 mkdir -p "${bundle}/Contents/Resources"
 cp "${here}/../LICENSE" "${bundle}/Contents/Resources/LICENSE"
 
@@ -67,14 +68,14 @@ fi
 # without a display on the offscreen platform plugin, which is put into a copy of the bundle
 # only for this check (the package has the Cocoa one).
 qtpaths="$(dirname "$(command -v "${macdeployqt}")")/qtpaths"
-check="${stage}/check/PPUC-Colorizing-DMD.app"
+check="${stage}/check/${name}.app"
 mkdir -p "$(dirname "${check}")"
 cp -R "${bundle}" "${check}"
 cp "$("${qtpaths}" --query QT_INSTALL_PLUGINS)/platforms/libqoffscreen.dylib" \
     "${check}/Contents/PlugIns/platforms/"
 codesign --force --deep --sign - "${check}"
 set +e
-QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/PPUC-Colorizing-DMD" &
+QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/${name}" &
 pid=$!
 sleep 5
 kill -0 "${pid}" 2>/dev/null
@@ -88,7 +89,7 @@ if [ "${running}" -ne 0 ]; then
 fi
 # Every VPX plugin of the package loads, with the libraries shipped beside it.
 if [ -d "${vpx_plugins}" ]; then
-    QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/PPUC-Colorizing-DMD" --check-plugins
+    QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/${name}" --check-plugins
 fi
 
 rm -f "${output}"

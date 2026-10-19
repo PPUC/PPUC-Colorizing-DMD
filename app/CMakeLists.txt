@@ -228,26 +228,25 @@ target_compile_definitions(${COLORIZING_QT_V2_APP_NAME}
         QT_NO_KEYWORDS
 )
 
-# The target keeps its name; the file (and the bundle) is called PPUC-Colorizing-DMD.
+# The target keeps its name; the file is called PPUC-Colorizing-DMD. On macOS the editor is an
+# app bundle in every build, "PPUC Colorizing DMD.app": the Dock, its tooltip and the menu bar
+# name it after the bundle (a program outside one gets the name of its folder).
 set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES OUTPUT_NAME PPUC-Colorizing-DMD)
-
-# The bundle's Info.plist, also linked into the executable of a development build on macOS:
-# the Dock and the menu bar name a program outside a bundle after its CFBundleName there.
-set(MACOSX_BUNDLE_EXECUTABLE_NAME PPUC-Colorizing-DMD)
-set(MACOSX_BUNDLE_BUNDLE_NAME "PPUC Colorizing DMD")
-set(MACOSX_BUNDLE_GUI_IDENTIFIER org.ppuc.colorizingdmd)
-set(MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}")
-set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
-set(MACOSX_BUNDLE_ICON_FILE ColorizingDMD.icns)
-
-if(APPLE AND NOT COLORIZINGDMD_QT_V2_PACKAGE)
-    set(colorizing_qt_v2_plist "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
-    configure_file("${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in"
-                   "${colorizing_qt_v2_plist}")
-    target_link_options(${COLORIZING_QT_V2_APP_NAME} PRIVATE
-        "LINKER:-sectcreate,__TEXT,__info_plist,${colorizing_qt_v2_plist}")
-    set_property(TARGET ${COLORIZING_QT_V2_APP_NAME} APPEND PROPERTY
-        LINK_DEPENDS "${colorizing_qt_v2_plist}")
+if(APPLE)
+    set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
+        OUTPUT_NAME "PPUC Colorizing DMD"
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_INFO_PLIST "${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in"
+        MACOSX_BUNDLE_BUNDLE_NAME "PPUC Colorizing DMD"
+        MACOSX_BUNDLE_GUI_IDENTIFIER org.ppuc.colorizingdmd
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_ICON_FILE ColorizingDMD.icns
+    )
+    set(colorizing_qt_v2_icns "${PROJECT_SOURCE_DIR}/packaging/macos/ColorizingDMD.icns")
+    set_source_files_properties("${colorizing_qt_v2_icns}"
+        PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(${COLORIZING_QT_V2_APP_NAME} PRIVATE "${colorizing_qt_v2_icns}")
 endif()
 
 if(COLORIZINGDMD_QT_V2_PACKAGE)
@@ -255,19 +254,4 @@ if(COLORIZINGDMD_QT_V2_PACKAGE)
     set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
         WIN32_EXECUTABLE ON
     )
-    if(APPLE)
-        set_target_properties(${COLORIZING_QT_V2_APP_NAME} PROPERTIES
-            MACOSX_BUNDLE ON
-            MACOSX_BUNDLE_INFO_PLIST "${PROJECT_SOURCE_DIR}/packaging/macos/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME "${MACOSX_BUNDLE_BUNDLE_NAME}"
-            MACOSX_BUNDLE_GUI_IDENTIFIER "${MACOSX_BUNDLE_GUI_IDENTIFIER}"
-            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-            MACOSX_BUNDLE_ICON_FILE "${MACOSX_BUNDLE_ICON_FILE}"
-        )
-        set(colorizing_qt_v2_icns "${PROJECT_SOURCE_DIR}/packaging/macos/ColorizingDMD.icns")
-        set_source_files_properties("${colorizing_qt_v2_icns}"
-            PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-        target_sources(${COLORIZING_QT_V2_APP_NAME} PRIVATE "${colorizing_qt_v2_icns}")
-    endif()
 endif()

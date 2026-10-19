@@ -52,9 +52,9 @@ it), so otherwise the last frame would stay on it.
 - Without the editor's window, from a terminal: `PPUC-Colorizing-DMD --check-dmd-output` starts the
   output with the saved settings, sends a moving test picture for 8 seconds, and prints the
   displays found and the whole plugin log. Close the editor first, so that it does not hold the
-  display's port. On macOS the program is `PPUC-Colorizing-DMD.app/Contents/MacOS/PPUC-Colorizing-DMD`; on
+  display's port. On macOS the program is `PPUC Colorizing DMD.app/Contents/MacOS/PPUC Colorizing DMD` (in quotes in a terminal); on
   Windows the text only appears in a file: `PPUC-Colorizing-DMD.exe --check-dmd-output > dmd.txt`.
 - The plugins lie in a folder of their own, one folder per plugin as VPX ships them: `plugins`
-  beside the program (Windows, Linux) or `PPUC-Colorizing-DMD.app/Contents/PlugIns/vpx` (macOS). The
+  beside the program (Windows, Linux) or `PPUC Colorizing DMD.app/Contents/PlugIns/vpx` (macOS). The
   environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Without the
   DMDUtil plugin there the two menu entries are disabled. The release packages ship it.
