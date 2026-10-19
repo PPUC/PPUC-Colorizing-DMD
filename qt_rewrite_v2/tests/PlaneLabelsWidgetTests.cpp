@@ -543,7 +543,13 @@ void testFrameListClicks()
 {
     colorizing::app::FrameListWidget list;
     list.setSelectionMode(QAbstractItemView::ExtendedSelection);
-    list.resize(200, 300);
+    list.useStripLayout(QSize(176, 130));
+    // Drag events go to the viewport: it has to take drops, which the icon mode's Static
+    // movement turns off (issue #15: every dragged frame went back).
+    expect(list.dragEnabled() && list.viewport()->acceptDrops() &&
+               list.viewMode() == QListView::IconMode,
+           "the frame strip takes drags and drops in its viewport");
+    list.resize(900, 160);
     for (int row = 0; row < 6; ++row) {
         list.addItem(QStringLiteral("frame %1").arg(row));
     }

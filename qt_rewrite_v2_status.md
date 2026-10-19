@@ -1119,6 +1119,13 @@ owner together.
   destructor at exit) sets a black picture of the last size, waits until the plugin read it
   (`DisplaySource::reads()`, up to 300 ms, pumping the bus) plus 100 ms for libdmdutil's device
   thread, then unloads. Not checked on hardware (no ZeDMD attached at the time).
+- Frame strip drag and drop (issue #15): the dragged frame went back. Cause found with logging
+  in the running editor (macOS sends qInfo to os_log, use QT_FORCE_STDERR_LOGGING=1): no drag
+  event reached the list. `QListView::setMovement(Static)` turns the viewport's acceptDrops
+  off, and setDragDropMode(InternalMove) only turns the list's own back on; drag events go to
+  the viewport. 90db0a7 had fixed the drop handling but not this. Now
+  `FrameListWidget::useStripLayout()` sets up the strip and ends with
+  `viewport()->setAcceptDrops(true)`; tested on the widget.
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

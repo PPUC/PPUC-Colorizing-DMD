@@ -15,6 +15,26 @@ FrameListWidget::FrameListWidget(QWidget* parent)
     setDropIndicatorShown(false);
 }
 
+void FrameListWidget::useStripLayout(QSize gridSize)
+{
+    setViewMode(QListView::IconMode);
+    setFlow(QListView::LeftToRight);
+    setWrapping(false);
+    setMovement(QListView::Static);
+    setResizeMode(QListView::Adjust);
+    setUniformItemSizes(false);
+    setWordWrap(true);
+    setGridSize(gridSize);
+    setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // After the view mode and the movement, which turn them off. Drag events go to the
+    // viewport, and setDragDropMode() only turns drops on for the list itself: without the
+    // viewport's, every drop was refused and the dragged frame went back (issue #15).
+    setDragEnabled(true);
+    setDragDropMode(QAbstractItemView::InternalMove);
+    viewport()->setAcceptDrops(true);
+}
+
 int FrameListWidget::dropRow(const QPoint& position) const
 {
     const QModelIndex index = indexAt(position);

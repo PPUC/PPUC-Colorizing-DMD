@@ -946,26 +946,14 @@ void MainWindow::createCentralView()
     m_frameList->onMoveRequested = [this](int row) { moveSelectedFramesBeforeRow(row); };
     m_frameList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_frameList->setIconSize(kFrameThumbnailSize);
-    // One row of frames, left to right, each with its text below the thumbnail.
-    m_frameList->setViewMode(QListView::IconMode);
-    m_frameList->setFlow(QListView::LeftToRight);
-    m_frameList->setWrapping(false);
-    m_frameList->setMovement(QListView::Static);
-    m_frameList->setResizeMode(QListView::Adjust);
-    m_frameList->setUniformItemSizes(false);
-    m_frameList->setWordWrap(true);
-    m_frameList->setGridSize(kFrameStripCellSize);
-    m_frameList->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
-    m_frameList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // One row of frames, left to right, each with its text below the thumbnail; frames are
+    // dragged to another place.
+    m_frameList->useStripLayout(kFrameStripCellSize);
     // One row of frames high.
     m_frameList->setMinimumHeight(kFrameStripCellSize.height() +
                                   m_frameList->horizontalScrollBar()->sizeHint().height() +
                                   2 * m_frameList->frameWidth() + 4);
     m_frameList->setMaximumHeight(m_frameList->minimumHeight());
-    // After the view mode and movement, which turn dragging off: the frames are dragged to
-    // another place (FrameListWidget).
-    m_frameList->setDragEnabled(true);
-    m_frameList->setDragDropMode(QAbstractItemView::InternalMove);
     // The keys belong to the frame list alone, so that they keep their meaning everywhere
     // else. An action of the menu bar cannot have them: a native menu bar takes a key of
     // its entries whatever has the focus.

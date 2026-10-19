@@ -24,6 +24,11 @@ public:
     // The row the dragged frames go before; count() for behind the last row.
     std::function<void(int beforeRow)> onMoveRequested;
 
+    // The frame strip: one row of icons of gridSize cells, left to right, frames dragged to
+    // another place. QListView turns dragging and the viewport's drops off for the Static
+    // movement its icon mode needs here; they are turned on again last.
+    void useStripLayout(QSize gridSize);
+
     // The row a drop at the position puts the frames before, as dropEvent() works it out.
     [[nodiscard]] int dropRow(const QPoint& position) const;
 
