@@ -1,5 +1,7 @@
 #include "SectionStack.h"
 
+#include "Appearance.h"
+
 #include <QCoreApplication>
 #include <QMouseEvent>
 #include <QPainter>
@@ -88,6 +90,8 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
     header->setText(title.isEmpty() ? key : title);
     header->setCheckable(true);
     header->setChecked(false);
+    // Open is shown by the arrow, not by a highlighted button.
+    header->setProperty(kPlainCheckedProperty, true);
     header->setArrowType(Qt::RightArrow);
     header->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);

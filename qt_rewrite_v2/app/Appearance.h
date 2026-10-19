@@ -22,6 +22,11 @@ void saveTheme(Theme theme);
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
 
+// The style draws a checked button in the highlight color, so that it stands out from the
+// others in every theme. A button with this property set to true is drawn as the style draws
+// it, e.g. the header of an open section.
+inline constexpr const char* kPlainCheckedProperty = "plainChecked";
+
 // Comparison masks wherever the editor shows them (the mask list, the canvas, the preview of
 // what a stroke paints into one): magenta, as CDMD shows them.
 [[nodiscard]] inline QColor comparisonMaskColor(int alpha = 255)

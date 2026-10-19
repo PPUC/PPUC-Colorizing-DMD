@@ -1,11 +1,15 @@
 #include "Appearance.h"
 
 #include <QApplication>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPalette>
+#include <QProxyStyle>
 #include <QSettings>
 #include <QStyle>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QStyleOption>
 
 #include <algorithm>
 #include <cmath>
@@ -26,6 +30,112 @@ struct Original {
 
 // Whether useFusion() set a palette of its own, which then has to go again.
 bool g_paletteSet = false;
+// The name of the style under CheckedButtonStyle.
+QString g_styleName;
+
+// The application's style with checked buttons (the drawing tool, Show BG, a section that is
+// open...) in the highlight color with highlighted text: in the native and the Fusion styles,
+// light or dark, a checked button is otherwise hard to tell from one that is not.
+class CheckedButtonStyle final : public QProxyStyle {
+public:
+    explicit CheckedButtonStyle(QStyle* base) : QProxyStyle(base) {}
+
+    void drawComplexControl(ComplexControl control,
+                            const QStyleOptionComplex* option,
+                            QPainter* painter,
+                            const QWidget* widget) const override
+    {
+        const auto* tool = qstyleoption_cast<const QStyleOptionToolButton*>(option);
+        if (control != CC_ToolButton || !tool || !(tool->state & State_On) ||
+            (tool->features & (QStyleOptionToolButton::MenuButtonPopup |
+                               QStyleOptionToolButton::HasMenu)) ||
+            (widget && widget->property(kPlainCheckedProperty).toBool())) {
+            QProxyStyle::drawComplexControl(control, option, painter, widget);
+            return;
+        }
+        paintPanel(*option, painter);
+        QStyleOptionToolButton label = *tool;
+        label.state &= ~(State_On | State_Sunken | State_MouseOver);
+        label.palette.setColor(QPalette::ButtonText, textOn(fillColor(*option)));
+        label.rect = subControlRect(CC_ToolButton, tool, SC_ToolButton, widget);
+        QProxyStyle::drawControl(CE_ToolButtonLabel, &label, painter, widget);
+        if (tool->state & State_HasFocus) {
+            QStyleOptionFocusRect focus;
+            focus.QStyleOption::operator=(*option);
+            focus.rect = option->rect.adjusted(3, 3, -3, -3);
+            QProxyStyle::drawPrimitive(PE_FrameFocusRect, &focus, painter, widget);
+        }
+    }
+
+    void drawControl(ControlElement element,
+                     const QStyleOption* option,
+                     QPainter* painter,
+                     const QWidget* widget) const override
+    {
+        const auto* button = qstyleoption_cast<const QStyleOptionButton*>(option);
+        if (widget && widget->property(kPlainCheckedProperty).toBool()) {
+            button = nullptr;
+        }
+        if (button && (button->state & State_On) && element == CE_PushButtonBevel) {
+            paintPanel(*option, painter);
+            return;
+        }
+        if (button && (button->state & State_On) && element == CE_PushButtonLabel) {
+            QStyleOptionButton label = *button;
+            label.palette.setColor(QPalette::ButtonText, textOn(fillColor(*option)));
+            QProxyStyle::drawControl(element, &label, painter, widget);
+            return;
+        }
+        QProxyStyle::drawControl(element, option, painter, widget);
+    }
+
+private:
+    // The system's accent color where Qt knows it (the selection color can be faint, e.g. on
+    // macOS), otherwise the highlight.
+    static QColor fillColor(const QStyleOption& option)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+        return option.palette.color(QPalette::Active, QPalette::Accent);
+#else
+        return option.palette.color(QPalette::Active, QPalette::Highlight);
+#endif
+    }
+
+    static QColor textOn(const QColor& fill)
+    {
+        const double luminance =
+            0.2126 * fill.redF() + 0.7152 * fill.greenF() + 0.0722 * fill.blueF();
+        return luminance > 0.6 ? QColor(Qt::black) : QColor(Qt::white);
+    }
+
+    static void paintPanel(const QStyleOption& option, QPainter* painter)
+    {
+        const bool enabled = option.state & State_Enabled;
+        QColor fill = fillColor(option);
+        if (!enabled) {
+            fill.setAlpha(110);
+        } else if (option.state & State_MouseOver) {
+            fill = fill.lighter(112);
+        }
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        QPainterPath path;
+        path.addRoundedRect(QRectF(option.rect).adjusted(1.5, 1.5, -1.5, -1.5), 4, 4);
+        painter->fillPath(path, fill);
+        painter->setPen(QPen(fill.lighter(140), 1));
+        painter->drawPath(path);
+        painter->restore();
+    }
+};
+
+// Sets the style of that name, under CheckedButtonStyle.
+void setStyleNamed(const QString& name)
+{
+    if (QStyle* base = QStyleFactory::create(name)) {
+        QApplication::setStyle(new CheckedButtonStyle(base));
+        g_styleName = name;
+    }
+}
 
 const Original& original()
 {
@@ -70,16 +180,18 @@ QPalette darkPalette()
 
 void useFusion(Theme theme)
 {
-    QStyle* fusion = QStyleFactory::create(QStringLiteral("Fusion"));
-    QApplication::setStyle(fusion);
-    QApplication::setPalette(theme == Theme::Dark ? darkPalette() : fusion->standardPalette());
+    if (g_styleName.compare(QStringLiteral("Fusion"), Qt::CaseInsensitive) != 0) {
+        setStyleNamed(QStringLiteral("Fusion"));
+    }
+    QApplication::setPalette(theme == Theme::Dark ? darkPalette()
+                                                  : QApplication::style()->standardPalette());
     g_paletteSet = true;
 }
 
 void useOriginal()
 {
-    if (QApplication::style()->name() != original().styleName) {
-        QApplication::setStyle(QStyleFactory::create(original().styleName));
+    if (g_styleName.compare(original().styleName, Qt::CaseInsensitive) != 0) {
+        setStyleNamed(original().styleName);
     }
     // Only a palette set here goes: setting one at all would stop the application following
     // the system's changes.
@@ -150,8 +262,8 @@ void applyTheme(Theme theme)
         const QString styleName = theme != Theme::System && drawsLightOnly
                                       ? QStringLiteral("Fusion")
                                       : original().styleName;
-        if (QApplication::style()->name().compare(styleName, Qt::CaseInsensitive) != 0) {
-            QApplication::setStyle(QStyleFactory::create(styleName));
+        if (g_styleName.compare(styleName, Qt::CaseInsensitive) != 0) {
+            setStyleNamed(styleName);
         }
         if (g_paletteSet) {
             QApplication::setPalette(original().palette);
