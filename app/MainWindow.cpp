@@ -107,6 +107,7 @@
 #include "panels/RecordListPage.h"
 #include "panels/SameFramesPanel.h"
 #include "panels/HelperLinesPanel.h"
+#include "panels/InspectorForm.h"
 #include "panels/ProjectSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 #include "panels/SectionBar.h"
@@ -1700,6 +1701,14 @@ void MainWindow::createCentralView()
     };
     inspectorTabs->addTab(m_projectSettingsPanel, QStringLiteral("ProjectSettings"),
                           tr("Project Settings"));
+    // The action buttons of every section alike (InspectorForm.h).
+    for (QWidget* page : std::initializer_list<QWidget*>{
+             m_framePanel, m_maskPanel, m_backgroundPanel, m_spritePanel, m_dynamicPanel,
+             m_palettePanel, m_colorRotationPanel, m_colorSetPanel, m_sameFramesPanel}) {
+        if (page) {
+            fillButtonRows(page->layout());
+        }
+    }
 
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});

@@ -15,6 +15,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "panels/InspectorForm.h"
 #include "ColorGridWidget.h"
 #include "FrameImageUtils.h"
 
@@ -165,7 +166,7 @@ PalettePanel::PalettePanel(QWidget* parent)
     m_selectedPaletteLabel = new QLabel(tr("Selected: None"), this);
     m_selectedPaletteLabel->setWordWrap(true);
     pageLayout->addWidget(m_selectedPaletteLabel);
-    auto* form = new QFormLayout();
+    auto* form = makeInspectorForm();
     form->addRow(tr("Palette"), m_paletteComboBox);
     form->addRow(tr("Name"), m_nameLineEdit);
     form->addRow(tr("From"), m_gradientStartSpinBox);

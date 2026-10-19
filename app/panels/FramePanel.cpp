@@ -12,6 +12,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "panels/InspectorForm.h"
 #include "PlaneLabels.h"
 
 namespace colorizing::app {
@@ -84,14 +85,15 @@ FramePanel::FramePanel(QWidget* parent)
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
-    auto* form = new QFormLayout();
+    auto* form = makeInspectorForm();
     form->addRow(tr("Target"), m_paintTargetComboBox);
     form->addRow(tr("Background ID"), m_backgroundIdSpinBox);
     form->addRow(tr("PUP trigger ID"), m_pupTriggerSpinBox);
     form->addRow(tr("Scene"), m_sceneComboBox);
-    form->addRow(QString(), m_monochromeCheckBox);
-    form->addRow(QString(), m_paletteMonochromeCheckBox);
-    form->addRow(QString(), m_otherTriggerLabel);
+    // Across the form: a check box has its text beside it, not a label.
+    form->addRow(m_monochromeCheckBox);
+    form->addRow(m_paletteMonochromeCheckBox);
+    form->addRow(m_otherTriggerLabel);
     form->addRow(tr("Duration"), m_durationSpinBox);
     pageLayout->addLayout(form);
     pageLayout->addWidget(m_backgroundLayerButton);

@@ -19,6 +19,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "panels/InspectorForm.h"
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
@@ -115,7 +116,7 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     m_setList->setIconSize(QSize(128, 32));
     m_setList->setMaximumHeight(190);
     pageLayout->addWidget(m_setList);
-    auto* form = new QFormLayout();
+    auto* form = makeInspectorForm();
     form->addRow(tr("Dyn Set"), m_dynamicSetSpinBox);
     pageLayout->addLayout(form);
     auto* colorsGrid = new QGridLayout();

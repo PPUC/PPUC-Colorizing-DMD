@@ -9,6 +9,8 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "panels/InspectorForm.h"
+
 namespace colorizing::app {
 
 namespace {
@@ -55,7 +57,7 @@ MaskPanel::MaskPanel(QWidget* parent)
     m_selectedMaskLabel = new QLabel(tr("Selected: None"), this);
     m_selectedMaskLabel->setWordWrap(true);
     pageLayout->addWidget(m_selectedMaskLabel);
-    auto* form = new QFormLayout();
+    auto* form = makeInspectorForm();
     form->addRow(tr("Mask ID"), m_maskIdSpinBox);
     form->addRow(tr("Shape"), m_shapeModeComboBox);
     pageLayout->addLayout(form);

@@ -10,6 +10,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "panels/InspectorForm.h"
 #include "ColorGridWidget.h"
 #include "PlaneLabels.h"
 
@@ -52,7 +53,7 @@ ColorRotationPanel::ColorRotationPanel(QWidget* parent)
 
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
-    auto* form = new QFormLayout();
+    auto* form = makeInspectorForm();
     form->addRow(tr("Slot"), m_slotComboBox);
     form->addRow(tr("Length"), m_lengthSpinBox);
     form->addRow(tr("Delay"), m_delaySpinBox);
