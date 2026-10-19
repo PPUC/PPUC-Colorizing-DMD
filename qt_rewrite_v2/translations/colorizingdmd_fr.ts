@@ -1966,7 +1966,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>change the scaling settings</source>
-        <translation>modifier les réglages de mise à l'échelle</translation>
+        <translation>modifier les réglages de mise à l&apos;échelle</translation>
     </message>
     <message>
         <source>add scene %1</source>
@@ -2811,7 +2811,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Scenes and Scaling</source>
-        <translation>Scènes et mise à l'échelle</translation>
+        <translation>Scènes et mise à l&apos;échelle</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
@@ -4105,6 +4105,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Ajouter une scène</translation>
     </message>
     <message>
+        <source>Every scene ID from %1 to %2 is taken.</source>
+        <translation>Tous les ID de scène de %1 à %2 sont pris.</translation>
+    </message>
+    <message>
         <source>Edit Scene %1</source>
         <translation>Modifier la scène %1</translation>
     </message>
@@ -4969,7 +4973,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The PUP trigger that starts the scene</source>
-        <translation>Le déclencheur PUP qui lance la scène</translation>
+        <translation type="vanished">Le déclencheur PUP qui lance la scène</translation>
+    </message>
+    <message>
+        <source>The PUP trigger that starts the scene, from %1 to %2</source>
+        <translation>Le déclencheur PUP qui lance la scène, de %1 à %2</translation>
     </message>
     <message>
         <source>Frames of each group</source>
@@ -4993,7 +5001,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>How long each frame shows</source>
-        <translation>Durée d'affichage de chaque frame</translation>
+        <translation>Durée d&apos;affichage de chaque frame</translation>
     </message>
     <message>
         <source>Once</source>
@@ -5037,11 +5045,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The frame before the scene</source>
-        <translation>La frame d'avant la scène</translation>
+        <translation>La frame d&apos;avant la scène</translation>
     </message>
     <message>
         <source>What shows when the scene has played</source>
-        <translation>Ce qui s'affiche une fois la scène jouée</translation>
+        <translation>Ce qui s&apos;affiche une fois la scène jouée</translation>
     </message>
     <message>
         <source> s</source>
@@ -5057,7 +5065,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The scene shows behind the frames of the game, where their background mask lets it through</source>
-        <translation>La scène apparaît derrière les frames du jeu, là où leur masque d'arrière-plan la laisse passer</translation>
+        <translation>La scène apparaît derrière les frames du jeu, là où leur masque d&apos;arrière-plan la laisse passer</translation>
     </message>
     <message>
         <source>Keep only dynamic content in front</source>
@@ -5065,7 +5073,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Of the frames of the game, only dynamic zones, sprites and shadows show over the scene</source>
-        <translation>Des frames du jeu, seuls les zones dynamiques, les sprites et les ombres s'affichent par-dessus la scène</translation>
+        <translation>Des frames du jeu, seuls les zones dynamiques, les sprites et les ombres s&apos;affichent par-dessus la scène</translation>
     </message>
     <message>
         <source>Black dynamic pixels show the scene</source>
@@ -5073,7 +5081,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Dynamic-zone pixels that are black let the background scene through and cast no shadow</source>
-        <translation>Les pixels noirs des zones dynamiques laissent passer la scène d'arrière-plan et ne projettent pas d'ombre</translation>
+        <translation>Les pixels noirs des zones dynamiques laissent passer la scène d&apos;arrière-plan et ne projettent pas d&apos;ombre</translation>
     </message>
     <message>
         <source>Resume when triggered again</source>
@@ -5081,7 +5089,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>A trigger soon after the scene stopped continues it where it was instead of starting it over</source>
-        <translation>Un déclenchement peu après l'arrêt de la scène la reprend là où elle en était au lieu de la recommencer</translation>
+        <translation>Un déclenchement peu après l&apos;arrêt de la scène la reprend là où elle en était au lieu de la recommencer</translation>
     </message>
     <message>
         <source>Scene ID (PUP trigger)</source>
@@ -5121,7 +5129,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Start by itself after</source>
-        <translation>Démarrer d'elle-même après</translation>
+        <translation>Démarrer d&apos;elle-même après</translation>
     </message>
     <message>
         <source>How long the last frame stays when the scene has played</source>
@@ -5129,11 +5137,15 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Start the scene when no new frame came for this long</source>
-        <translation>Lancer la scène quand aucune nouvelle frame n'est arrivée pendant ce temps</translation>
+        <translation>Lancer la scène quand aucune nouvelle frame n&apos;est arrivée pendant ce temps</translation>
+    </message>
+    <message>
+        <source>Frames in the project: %1</source>
+        <translation>Frames dans le projet : %1</translation>
     </message>
     <message numerus="yes">
         <source>%n frame(s) in the project</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>%n frame dans le projet</numerusform>
             <numerusform>%n frames dans le projet</numerusform>
         </translation>
@@ -5187,7 +5199,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>How libserum makes the 256x64 picture of a frame that has none</source>
-        <translation>Comment libserum crée l'image 256x64 d'une frame qui n'en a pas</translation>
+        <translation>Comment libserum crée l&apos;image 256x64 d&apos;une frame qui n&apos;en a pas</translation>
     </message>
     <message>
         <source>1 pixel (native)</source>
@@ -5199,7 +5211,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>How far a dynamic shadow falls on the 256x64 plane</source>
-        <translation>Distance de l'ombre dynamique sur le plan 256x64</translation>
+        <translation>Distance de l&apos;ombre dynamique sur le plan 256x64</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -5207,7 +5219,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Shadow offset</source>
-        <translation>Décalage de l'ombre</translation>
+        <translation>Décalage de l&apos;ombre</translation>
     </message>
     <message>
         <source>%1 — %2 × %3 frames, %4 ms</source>

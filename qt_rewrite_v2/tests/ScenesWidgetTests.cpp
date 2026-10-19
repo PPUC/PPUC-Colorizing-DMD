@@ -47,7 +47,7 @@ void testPanel()
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
     document::SceneDefinition scene;
-    scene.sceneId = 1001;
+    scene.sceneId = 51001;
     scene.frameCount = 3;
     scene.frameGroups = 2;
     scene.durationMs = 40;
@@ -65,7 +65,7 @@ void testPanel()
     };
     panel.setProject(&document);
     auto* list = panel.findChild<QListWidget*>();
-    expect(list && list->count() == 1 && list->item(0)->text().contains(QStringLiteral("1001")) &&
+    expect(list && list->count() == 1 && list->item(0)->text().contains(QStringLiteral("51001")) &&
                list->item(0)->text().contains(QStringLiteral("2 × 3")) &&
                list->item(0)->text().contains(QStringLiteral("background")) &&
                list->item(0)->text().contains(QStringLiteral("1 missing")),
@@ -76,9 +76,9 @@ void testPanel()
     expect(add && add->isEnabled() && edit && !edit->isEnabled(),
            "Add works in a 128x32 project, Edit needs a selected scene");
     list->setCurrentRow(0);
-    expect(edit->isEnabled() && panel.selectedScene() == 1001, "a selected scene can be edited");
+    expect(edit->isEnabled() && panel.selectedScene() == 51001, "a selected scene can be edited");
     edit->click();
-    expect(edits == std::vector<int>{1001}, "Edit asks for it");
+    expect(edits == std::vector<int>{51001}, "Edit asks for it");
     auto* algorithm = panel.findChildren<QComboBox*>().value(0);
     expect(algorithm && algorithm->currentData().toInt() == document::kScalingScale2x,
            "the project's upscaling is shown");
@@ -130,7 +130,7 @@ void testDialog()
     groups->setValue(3);
     bool sawTotal = false;
     for (QLabel* label : dialog.findChildren<QLabel*>()) {
-        sawTotal = sawTotal || label->text().contains(QStringLiteral("12 frame"));
+        sawTotal = sawTotal || label->text() == QStringLiteral("Frames in the project: 12");
     }
     expect(sawTotal, "the dialog says how many frames the project gets");
     const document::SceneDefinition changed = dialog.scene();

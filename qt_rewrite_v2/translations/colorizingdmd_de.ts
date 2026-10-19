@@ -4105,6 +4105,10 @@ Use Create %1 Frame.</source>
         <translation>Szene hinzufügen</translation>
     </message>
     <message>
+        <source>Every scene ID from %1 to %2 is taken.</source>
+        <translation>Jede Szenen-ID von %1 bis %2 ist vergeben.</translation>
+    </message>
+    <message>
         <source>Edit Scene %1</source>
         <translation>Szene %1 bearbeiten</translation>
     </message>
@@ -4969,7 +4973,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>The PUP trigger that starts the scene</source>
-        <translation>Der PUP-Trigger, der die Szene startet</translation>
+        <translation type="vanished">Der PUP-Trigger, der die Szene startet</translation>
+    </message>
+    <message>
+        <source>The PUP trigger that starts the scene, from %1 to %2</source>
+        <translation>Der PUP-Trigger, der die Szene startet, von %1 bis %2</translation>
     </message>
     <message>
         <source>Frames of each group</source>
@@ -5131,9 +5139,13 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <source>Start the scene when no new frame came for this long</source>
         <translation>Die Szene starten, wenn so lange kein neuer Frame kam</translation>
     </message>
+    <message>
+        <source>Frames in the project: %1</source>
+        <translation>Frames im Projekt: %1</translation>
+    </message>
     <message numerus="yes">
         <source>%n frame(s) in the project</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>%n Frame im Projekt</numerusform>
             <numerusform>%n Frames im Projekt</numerusform>
         </translation>

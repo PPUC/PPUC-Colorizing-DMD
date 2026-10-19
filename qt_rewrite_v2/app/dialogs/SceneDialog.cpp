@@ -32,9 +32,15 @@ SceneDialog::SceneDialog(const document::SceneDefinition& scene,
     setWindowTitle(tr("Scene"));
 
     m_idSpinBox = new QSpinBox(this);
-    m_idSpinBox->setRange(0, 65535);
+    // A scene of an imported pup.csv may have an ID outside the range for new IDs; it keeps it.
+    const bool inRange =
+        scene.sceneId >= document::kFirstSceneId && scene.sceneId <= document::kLastSceneId;
+    m_idSpinBox->setRange(inRange ? document::kFirstSceneId : 0,
+                          inRange ? document::kLastSceneId : 65535);
     m_idSpinBox->setValue(scene.sceneId);
-    m_idSpinBox->setToolTip(tr("The PUP trigger that starts the scene"));
+    m_idSpinBox->setToolTip(tr("The PUP trigger that starts the scene, from %1 to %2")
+                                .arg(document::kFirstSceneId)
+                                .arg(document::kLastSceneId));
     m_framesSpinBox = new QSpinBox(this);
     m_framesSpinBox->setRange(1, 65535);
     m_framesSpinBox->setValue(std::max<int>(1, scene.frameCount));
@@ -182,7 +188,8 @@ void SceneDialog::updateState()
         endHold ? tr("How long the last frame stays when the scene has played")
                 : tr("Start the scene when no new frame came for this long"));
     const document::SceneDefinition current = scene();
-    m_summaryLabel->setText(tr("%n frame(s) in the project", "", static_cast<int>(current.totalFrames())));
+    m_summaryLabel->setText(
+        tr("Frames in the project: %1").arg(static_cast<qulonglong>(current.totalFrames())));
     const std::string problem = m_problem ? m_problem(current) : std::string();
     m_problemLabel->setText(QString::fromStdString(problem));
     m_problemLabel->setVisible(!problem.empty());

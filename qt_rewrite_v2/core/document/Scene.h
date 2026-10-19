@@ -17,6 +17,10 @@ constexpr uint8_t kSceneOnlyDynamicContent = 8;
 constexpr uint8_t kSceneResumeIfRetriggered = 16;
 constexpr uint8_t kSceneReplaceDynamicBlack = 32;
 constexpr uint8_t kSceneKnownOptions = 63;
+// The IDs a scene made in the editor gets: the PUP trigger range kept for scenes. Scenes of an
+// imported pup.csv keep theirs.
+constexpr uint16_t kFirstSceneId = 50000;
+constexpr uint16_t kLastSceneId = 59999;
 
 // A scene of the colorization: libserum plays its frames when the PUP trigger sceneId fires.
 // It is what one line of a "<rom>.pup.csv" says, with that file's columns:
@@ -26,8 +30,8 @@ struct SceneDefinition {
     uint16_t sceneId = 0;
     // Frames per group.
     uint16_t frameCount = 1;
-    // How long each frame shows.
-    uint16_t durationMs = 100;
+    // How long each frame shows (33 ms: about 30 frames a second).
+    uint16_t durationMs = 33;
     bool interruptable = false;
     bool immediateStart = false;
     // 0 plays once, 1 loops, 2 and more play that many times.

@@ -300,11 +300,26 @@ std::string sceneProblem(const document::ProjectDocument& document,
         return "a scene needs at least one group";
     }
     const auto& settings = document.colorizationSettings();
-    if (settings && (!replacing || *replacing != scene.sceneId) &&
-        settings->scene(scene.sceneId)) {
+    const bool newId = !replacing || *replacing != scene.sceneId;
+    if (newId && (scene.sceneId < document::kFirstSceneId || scene.sceneId > document::kLastSceneId)) {
+        return "a scene ID is one of " + std::to_string(document::kFirstSceneId) + " to " +
+               std::to_string(document::kLastSceneId);
+    }
+    if (newId && settings && settings->scene(scene.sceneId)) {
         return "the project has a scene " + std::to_string(scene.sceneId) + " already";
     }
     return {};
+}
+
+std::optional<uint16_t> nextFreeSceneId(const document::ProjectDocument& document)
+{
+    const auto& settings = document.colorizationSettings();
+    for (uint32_t id = document::kFirstSceneId; id <= document::kLastSceneId; ++id) {
+        if (!settings || !settings->scene(static_cast<uint16_t>(id))) {
+            return static_cast<uint16_t>(id);
+        }
+    }
+    return std::nullopt;
 }
 
 std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document, uint16_t sceneId)

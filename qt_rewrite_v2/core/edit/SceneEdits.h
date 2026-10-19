@@ -52,7 +52,9 @@ private:
 
 // Why the scene cannot be the project's scene `replacing` (the ID of the scene it replaces,
 // nothing for a new one); empty if it can. A scene needs an ID no other scene of the project
-// has, at least one frame and one group, and a project with a 128x32 ROM frame.
+// has, at least one frame and one group, and a project with a 128x32 ROM frame. A new ID
+// (a new scene, or another ID for a scene) is one of kFirstSceneId to kLastSceneId; a scene
+// keeps the ID it has, also one outside them.
 [[nodiscard]] std::string sceneProblem(const document::ProjectDocument& document,
                                        const document::SceneDefinition& scene,
                                        std::optional<uint16_t> replacing = std::nullopt);
@@ -82,6 +84,10 @@ private:
 [[nodiscard]] std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& document,
                                                             uint16_t sceneId,
                                                             bool deleteFrames);
+
+// The lowest ID from kFirstSceneId to kLastSceneId no scene of the project has; nothing when
+// all are taken.
+[[nodiscard]] std::optional<uint16_t> nextFreeSceneId(const document::ProjectDocument& document);
 
 // The frames of the scene, ascending.
 [[nodiscard]] std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document,

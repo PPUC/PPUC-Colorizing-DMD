@@ -8966,13 +8966,16 @@ void MainWindow::addScene()
     if (!m_document) {
         return;
     }
-    document::SceneDefinition scene;
-    // A free ID, from the PUP range scenes usually use.
-    scene.sceneId = 1000;
-    while (m_document->colorizationSettings() &&
-           m_document->colorizationSettings()->scene(scene.sceneId) && scene.sceneId < 65535) {
-        ++scene.sceneId;
+    const std::optional<uint16_t> freeId = edit::nextFreeSceneId(*m_document);
+    if (!freeId) {
+        QMessageBox::information(this, tr("Add Scene"),
+                                 tr("Every scene ID from %1 to %2 is taken.")
+                                     .arg(document::kFirstSceneId)
+                                     .arg(document::kLastSceneId));
+        return;
     }
+    document::SceneDefinition scene;
+    scene.sceneId = *freeId;
     SceneDialog dialog(
         scene,
         [this](const document::SceneDefinition& candidate) {
