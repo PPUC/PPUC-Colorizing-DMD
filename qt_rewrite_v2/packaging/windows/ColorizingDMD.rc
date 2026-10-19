@@ -1,0 +1,2 @@
+// The icon Windows shows for ColorizingDMD.exe (Explorer, the taskbar before Qt sets its own).
+IDI_ICON1 ICON "ColorizingDMD.ico"

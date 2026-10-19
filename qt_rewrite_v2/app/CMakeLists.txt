@@ -162,6 +162,20 @@ target_link_libraries(${COLORIZING_QT_V2_APP_NAME}
         Qt6::Widgets
 )
 
+# The application icon: in the window (:/icons, main.cpp), in the .exe on Windows, in the
+# bundle on macOS. Made from packaging/icon/colorizingdmd-1024.png.
+qt_add_resources(${COLORIZING_QT_V2_APP_NAME} "app_icons"
+    PREFIX "/"
+    FILES
+        icons/colorizingdmd-64.png
+        icons/colorizingdmd-256.png
+        icons/colorizingdmd-512.png
+)
+if(WIN32)
+    target_sources(${COLORIZING_QT_V2_APP_NAME}
+        PRIVATE "${PROJECT_SOURCE_DIR}/packaging/windows/ColorizingDMD.rc")
+endif()
+
 colorizing_qt_v2_enable_warnings(${COLORIZING_QT_V2_APP_NAME})
 
 # The translations of the user interface (Translations.h), built in under :/i18n. Qt Linguist
@@ -226,6 +240,11 @@ if(COLORIZINGDMD_QT_V2_PACKAGE)
             MACOSX_BUNDLE_GUI_IDENTIFIER org.ppuc.colorizingdmd
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_ICON_FILE ColorizingDMD.icns
         )
+        set(colorizing_qt_v2_icns "${PROJECT_SOURCE_DIR}/packaging/macos/ColorizingDMD.icns")
+        set_source_files_properties("${colorizing_qt_v2_icns}"
+            PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+        target_sources(${COLORIZING_QT_V2_APP_NAME} PRIVATE "${colorizing_qt_v2_icns}")
     endif()
 endif()

@@ -1539,8 +1539,10 @@ Reviewed for Windows/MinGW and left unchanged:
    menu or `xattr -d com.apple.quarantine`). Check the edit color keys there with real
    keyboards (Windows scan codes, XKB key codes, an AZERTY layout), and the Ctrl shortcuts and
    Ctrl+click selection on Windows and Linux. Later: Developer ID signing and notarisation for
-   macOS, an application icon for the Windows exe and the macOS bundle, Wayland plugins in the
-   AppImage.
+   macOS, Wayland plugins in the AppImage. (done 2026-10-19: the application icon, contributed
+   by an author: `packaging/icon/colorizingdmd-1024.png` is the master; `app/icons` (window
+   icon, AppImage), `packaging/macos/ColorizingDMD.icns` (bundle, CFBundleIconFile) and
+   `packaging/windows/ColorizingDMD.ico` with `ColorizingDMD.rc` (exe) are made from it.)
 2. (done) Sprite dynamic content and shape mode on the Sprites page and the sprite canvas.
 3. (done) Sections and the trigger list (`edit/Sections.h`, `panels/SectionBar.h`).
 4. Image and video import with crop zones (the Images window).

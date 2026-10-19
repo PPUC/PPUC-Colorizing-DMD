@@ -46,7 +46,7 @@ unset QT_PLUGIN_PATH QT_QPA_PLATFORM_PLUGIN_PATH QML2_IMPORT_PATH
 stage=$(mktemp -d)
 trap 'rm -rf "${stage}"' EXIT
 # linuxdeploy names the icon after the file; the desktop file asks for "colorizingdmd".
-cp "${here}/../../cRom256.png" "${stage}/colorizingdmd.png"
+cp "${here}/../app/icons/colorizingdmd-256.png" "${stage}/colorizingdmd.png"
 mkdir -p "${stage}/AppDir/usr/share/doc/colorizingdmd"
 cp "${here}/../../LICENSE" "${stage}/AppDir/usr/share/doc/colorizingdmd/LICENSE"
 

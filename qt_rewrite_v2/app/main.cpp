@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QIcon>
 #include <QSettings>
 #include <QElapsedTimer>
 #include <QStringList>
@@ -107,6 +108,11 @@ int main(int argc, char* argv[])
     QApplication::setOrganizationDomain(QStringLiteral("ppuc.org"));
     QApplication::setApplicationName(QStringLiteral("ColorizingDMDQtV2"));
     takeOverEarlierSettings();
+    QIcon icon;
+    for (const int size : {64, 256, 512}) {
+        icon.addFile(QStringLiteral(":/icons/colorizingdmd-%1.png").arg(size), QSize(size, size));
+    }
+    QApplication::setWindowIcon(icon);
     if (QApplication::arguments().contains(QStringLiteral("--check-plugins"))) {
         return checkPlugins();
     }
