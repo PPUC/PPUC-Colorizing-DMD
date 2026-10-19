@@ -1102,6 +1102,15 @@ owner together.
   `MainWindow::updateRuntimeSceneFile()` at open/create/Save As with the project folder's
   `<rom>.pup.csv` (`runtime::findCaseInsensitive`, `libserumPath`, now public in
   CromcExport.h). Checked on hook_501: scene 50001 absent before, present (16 frames, 40 ms).
+- Frame tester load time on GoT-V79 (owner report 2026-10-19: minutes per open, 33977 frames,
+  22624 scene frames): 397 s, of it 366 s in `BuildFrameLookupVectors`, which identifies every
+  scene marker frame for `sceneFrameIdByTriplet`; `Identify_Frame`'s scene search hashed the
+  input once per scene frame. libserum 7d71541 (v2.8.2, local, to be pushed; CI pin moved to
+  it) hashes once per (mask, shape) pair, as the normal search does: lookup build 3.6 s, whole
+  load 35 s (31 s of it reading the cROM). Scene tables (triplets + frameIsScene) compared
+  byte-identical before/after on GoT-V79, hook_501, potc_600as, smb3; unit test
+  `n256/scene_search_by_mask_and_shape`. An update mode for the remaining 31 s (keep the
+  colorization loaded, replace changed frames) is not started.
 - Author: "Retriggering scenes does not seem to work" (2026-10-19). Found a tester divergence
   from a machine: `FrameTesterDialog::feed` stopped the rotation timer on every frame and
   restarted it only from the new result, so an unknown frame (no time) stopped a running scene
