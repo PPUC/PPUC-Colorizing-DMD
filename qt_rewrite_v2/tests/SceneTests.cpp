@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "RuntimeFixtures.h"
+#include "legacy/LegacyProjectSerializer.h"
 #include "runtime/FrameTester.h"
 #include "runtime/RuntimePreview.h"
 #if defined(_MSC_VER)
@@ -216,6 +217,8 @@ void testImportAndCrom()
     // Another scene in the csv beside it changes nothing.
     writeText(directory / (document.romName() + ".PUP.CSV"), "60,2,40\n");
     const std::vector<uint8_t> crom = runtime::projectCrom(document);
+    expect(legacy::legacyCromByteCount(document.toSnapshot()) == crom.size(),
+           "the cROM with its settings block has the size counted for it");
     g_log.clear();
     Serum_SetLogCallback(logLine, nullptr);
     const std::string csv = (directory / (document.romName() + ".PUP.CSV")).string();

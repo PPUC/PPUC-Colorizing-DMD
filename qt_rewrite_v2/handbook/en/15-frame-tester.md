@@ -30,9 +30,10 @@ in the editor, saved or not.
   again.
 - `Show In Editor` closes the tester and goes to the frame libserum identified (or to the
   tested project frame).
-- The Runtime view is switched off while the tester is open and on again afterwards. The tester
-  holds the project's `.cROM` in memory while it is open (400 MB for `smb3`); loading it takes
-  about a second.
+- The Runtime view is switched off while the tester is open and on again afterwards. libserum
+  holds the whole project while the tester is open. The `.cROM` is written straight into
+  libserum's load and never kept in memory as a whole; loading takes about a second for
+  `smb3` and some seconds for the largest projects (7 s for a project of 34000 frames).
 
 The project's scenes play as on a machine (see "Scenes and Scaling"): a scene in
 front of the picture as well as a background scene. libserum renders their pictures in its

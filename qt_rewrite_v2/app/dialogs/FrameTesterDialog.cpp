@@ -227,12 +227,7 @@ bool FrameTesterDialog::loadProject()
     m_result = {};
     std::string error;
     try {
-        const std::vector<uint8_t> crom = runtime::projectCrom(m_document);
-        if (preview.openCrom(crom,
-                             m_document.geometry(),
-                             m_document.frameCount(),
-                             runtime::PlaneRequest::Both,
-                             &error)) {
+        if (preview.openProject(m_document, runtime::PlaneRequest::Both, &error)) {
             m_error.clear();
             return true;
         }

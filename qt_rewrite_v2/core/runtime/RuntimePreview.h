@@ -183,6 +183,11 @@ public:
                                 std::size_t frameCount,
                                 PlaneRequest request,
                                 std::string* errorMessage = nullptr);
+    // The whole project, as openCrom() of its cROM; the cROM is written straight into
+    // libserum's load (Serum_LoadFromCallback()) and never held as a whole.
+    [[nodiscard]] bool openProject(const document::ProjectDocument& document,
+                                   PlaneRequest request,
+                                   std::string* errorMessage = nullptr);
     [[nodiscard]] bool isOpen() const;
     // Whether the loaded window plays the document frame.
     [[nodiscard]] bool sequenceHasFrame(std::size_t frameIndex) const;

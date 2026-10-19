@@ -1540,6 +1540,55 @@ Reviewed for Windows/MinGW and left unchanged:
    shrinking `MainWindow`.
 8. Later, by decision of the owner: a new project format. Memory and save speed: see what
    remains under "Memory, load and save (2026-10-14)".
+9. Deferred until the authors confirm the editor has every feature of 3.17.3 (owner decision
+   2026-10-19): a libserum instance that stays loaded and follows the edits, see "Persistent
+   runtime instance (deferred)".
+
+## Persistent runtime instance (deferred)
+
+Asked 2026-10-19: work on a cROMc directly instead of the cROM, so libserum's loaded
+colorization serves the frame tester at once and needs less memory. Discussed with the owner;
+the cROMc does not become the project format:
+- The cROMc is not a lossless store of the project: libserum normalizes on load (shape-mode
+  sprite detection words and originals, sentinel values moved into sidecar flags), keeps planes
+  by load flags, and never had editor-only data (inactive HD pixels kept for byte-identical
+  Win32 round trips). Every runtime change would have to stay reversible.
+- It is a read format: LZ4-packed, deduplicated payloads; a pixel edit unpacks into mutable
+  storage, a save rewrites the whole archive. Undo, autosave from a snapshot on a thread and
+  subset loads for the Runtime view still need the editor model; libserum holds one colorization
+  per process in globals.
+- Concentrate versions follow runtime needs (unreleased versions need not stay compatible), a
+  project file must.
+- It holds hashes, not originals: the .cRPX stays anyway.
+
+The plan instead (implement only after the authors' confirmation): the document stays the
+source of truth; one libserum instance stays loaded for the session (the frame tester, the
+Runtime view) and is patched from the edits:
+- frame content (colours, dynamic zones and colours, background masks, sprite slots, rotations,
+  triggers): that frame's vectors and their sidecars (frameHasDynamic, colour rotation lookup,
+  sprite candidate tables);
+- identification (original, comparison mask, shape mode): also the frame's hash and its normal
+  bucket / signature entries;
+- scenes: rebuild the scene lookups (3.6 s on GoT-V79);
+- adding, deleting, moving frames (IDs shift everywhere): a full reload on a thread before the
+  tester is needed; incremental renumbering only if that proves too slow;
+- what changed comes from the undo commands' targets and the document revision; whatever cannot
+  be patched falls back to a reload;
+- test: after any series of patches, libserum's state equals a fresh full load of the same
+  project, on every fixture.
+The patch API lives in libserum (editor-facing, separate from runtime performance work).
+
+Done now for the load itself (2026-10-19): libserum `2607550` `Serum_LoadFromCallback(read,
+user, size, csvPath, flags)` (a `CallbackCRomReader` pulls through a 1 MB buffer, never past
+`size`) and LZ4 fast packing for memory/callback loads (`SparseVectorFastPacking()`, a scope in
+`LoadFromReader()`; `Serum_Load()` and the real machine keep their HC levels). On GoT-V79 the
+raw read went from 31.0 s to 2.4 s (93% of it was LZ4 HC at level 12); what libserum keeps
+after the load is about 0.9 GB instead of 1.2 GB. Editor: `RuntimePreview::openProject()`
+writes the cROM on a thread into a 4 MB pipe that libserum reads (`CromPipe`), so the 2.8 GB
+cROM is never held; the frame tester uses it. GoT-V79 frame tester load: 6.7 s (397 s in the
+morning, 34.5 s after the scene search fix), peak RSS of the whole process 1.96 GB instead of
+3.0 GB. `legacyCromByteCount()` is what the pipe announces; tests check it equals the bytes
+written, with and without the settings block.
 
 ## libserum work done in this effort
 

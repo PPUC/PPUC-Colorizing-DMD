@@ -437,6 +437,8 @@ void testSubsetRendersLikeTheWholeProject(PlaneLayout layout)
     expect(colorizing::legacy::writeLegacyCrom(stream, whole, error), "the project is written");
     const std::string bytes = stream.str();
     const std::vector<uint8_t> crom(bytes.begin(), bytes.end());
+    expect(colorizing::legacy::legacyCromByteCount(whole) == crom.size(),
+           "the cROM has the size counted for it, which the pipe announces to libserum");
 
     RuntimePreview& preview = RuntimePreview::instance();
     std::vector<std::size_t> all;
@@ -450,6 +452,14 @@ void testSubsetRendersLikeTheWholeProject(PlaneLayout layout)
                "the whole project loads: " + error);
         for (std::size_t f : all) {
             fromWhole.push_back(preview.colorize(document.originalFrame(f)));
+        }
+        preview.close();
+        // The project written straight into the load, never held: the same colorization.
+        expect(preview.openProject(document, request, &error),
+               "the project loads through the pipe: " + error);
+        for (std::size_t f : all) {
+            expectSameOutput(preview.colorize(document.originalFrame(f)), fromWhole[f],
+                             "frame " + std::to_string(f) + ", piped against whole project");
         }
         preview.close();
 
