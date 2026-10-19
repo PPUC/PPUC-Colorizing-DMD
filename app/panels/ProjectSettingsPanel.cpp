@@ -22,8 +22,16 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     m_shadowComboBox->addItem(tr("2 pixels (proportional)"),
                               document::kShadowOffsetProportional);
     m_shadowComboBox->setToolTip(tr("How far a dynamic shadow falls on the 256x64 plane"));
+    // In a narrow sidebar a box goes below its label instead of being cut off; the boxes take
+    // the width there is.
+    for (QComboBox* box : {m_scalingComboBox, m_shadowComboBox}) {
+        box->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        box->setMinimumContentsLength(8);
+    }
     auto* layout = new QFormLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
+    layout->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     layout->addRow(tr("Upscaling"), m_scalingComboBox);
     layout->addRow(tr("Upscaled shadow offset"), m_shadowComboBox);
 
