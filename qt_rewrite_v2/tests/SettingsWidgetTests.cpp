@@ -9,6 +9,7 @@
 #include <QCoreApplication>
 #include <QPalette>
 #include <QListWidget>
+#include <QProxyStyle>
 #include <QSettings>
 #include <QStyle>
 #include <QSpinBox>
@@ -57,7 +58,9 @@ void runSettingsWidgetTests()
     app::applyTheme(app::Theme::Light);
     expect(windowLightness() > 150, "light is light");
     app::applyTheme(app::Theme::System);
-    expect(QApplication::style()->name() == styleName && windowLightness() == lightness,
+    // The application's style is wrapped in the one that marks checked buttons.
+    const auto* proxy = qobject_cast<QProxyStyle*>(QApplication::style());
+    expect(proxy && proxy->baseStyle()->name() == styleName && windowLightness() == lightness,
            "back to the system's, the style and palette are as before");
 
     app::DmdOutputSettings dmd;
