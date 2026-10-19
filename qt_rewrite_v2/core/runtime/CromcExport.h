@@ -30,7 +30,9 @@ struct CromcExportResult {
 // Writes the project's .cROMc to target as libserum makes it on a machine: the project is
 // written as <rom>.cROM into <workDirectory>/<rom>/ (an altcolor folder of its own) with the
 // <rom>.pup.csv and scaling.txt of sidecarDirectory, if it has them (names in any case), and
-// libserum loads it with cROMc generation on. sidecarDirectory may be empty for none.
+// libserum loads it with cROMc generation on. sidecarDirectory may be empty for none. A
+// project with colorization settings (document/Scene.h) carries its scenes and scaling
+// settings in the cROM, and its sidecars are not taken.
 //
 // target is replaced only when everything worked. workDirectory is created and removed again.
 // On Windows libserum opens files by ANSI paths: when it cannot open files in workDirectory

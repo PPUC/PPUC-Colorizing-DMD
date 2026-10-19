@@ -162,10 +162,11 @@ The parts lie 15 picture pixels apart with the same dot size, the narrower ones 
 project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone:
 
 - The project is taken as it is in the editor, saved or not. It is written as `<rom>.cROM`
-  into a temporary folder together with the `<rom>.pup.csv` and `scaling.txt` of the
-  project's folder, if they are there (in any case of the letters), and libserum loads it with
-  `.cROMc` generation on. PUP scenes and the scaling settings are therefore in the `.cROMc`,
-  as they would be on the machine. The status bar names the files that went in.
+  into a temporary folder, and libserum loads it with `.cROMc` generation on. The cROM carries
+  the project's scenes and scaling settings (see "Scenes and Scaling"), so they are in the
+  `.cROMc`. Only for a project that has none (one of the Win32 editor not yet opened with
+  scenes) the `<rom>.pup.csv` and `scaling.txt` of the project's folder go in with it, if they
+  are there (in any case of the letters), as on a machine; the status bar then names them.
 - Writing the `.cROM` shows its progress and can be cancelled; libserum's part cannot be
   interrupted and takes from about a second to half a minute for large HD projects.
 - An existing file is replaced only once the new one is complete. A target name other than

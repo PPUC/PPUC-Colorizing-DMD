@@ -34,7 +34,7 @@ in the editor, saved or not.
   holds the project's `.cROM` in memory while it is open (400 MB for `smb3`); loading it takes
   about a second.
 
-Scenes of the project's `<rom>.pup.csv` play as on a machine (see "Runtime View"): a scene in
+The project's scenes play as on a machine (see "Scenes and Scaling"): a scene in
 front of the picture as well as a background scene. libserum renders their pictures in its
 rotation step, which the tester calls when libserum asks for it, as it does for the color
 rotations of the frame shown; both go on while the tester stays on a frame. The tester

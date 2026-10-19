@@ -70,6 +70,7 @@ if(TARGET colorizing_qt_v2_widgets)
         DmdOutputWidgetTests.cpp
         EditorPluginsWidgetTests.cpp
         HelperLinesWidgetTests.cpp
+        ScenesWidgetTests.cpp
         PupHostWidgetTests.cpp
         SettingsWidgetTests.cpp
         HandbookWidgetTests.cpp

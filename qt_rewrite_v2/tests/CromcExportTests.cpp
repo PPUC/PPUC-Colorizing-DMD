@@ -80,6 +80,44 @@ void testExportLoadsInLibserum()
     fs::remove_all(base);
 }
 
+// A project with colorization settings brings them in its cROM: no sidecar is taken, and the
+// cROMc keeps them against a scaling.txt beside it.
+void testSettingsTakeNoSidecars()
+{
+    runtime::RuntimePreview::instance().close();
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
+    document::ColorizationSettings settings;
+    settings.scalingAlgorithm = document::kScalingLineDoubling;
+    snapshot.colorizationSettings = settings;
+    const fs::path base = uniqueDirectory("settings");
+    const fs::path sidecars = base / "project";
+    fs::create_directories(sidecars);
+    std::ofstream(sidecars / (snapshot.romName + ".pup.csv")) << "9,2,40\n";
+    std::ofstream(sidecars / "scaling.txt") << "scale2x\n";
+    const fs::path target = base / "out.cROMc";
+    const runtime::CromcExportResult result =
+        runtime::exportCromc(snapshot, base / "work", sidecars, target);
+    expect(result.ok && result.sidecars.empty(), "the export takes no sidecar");
+
+    const fs::path altcolor =
+        fs::temp_directory_path() /
+        ("colorizing_qt_v2_cromc_settings_" +
+         std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
+    fs::create_directories(altcolor / snapshot.romName);
+    fs::copy_file(target, altcolor / snapshot.romName / (snapshot.romName + ".cROMc"));
+    std::ofstream(altcolor / snapshot.romName / "scaling.txt") << "scale2x\n";
+    Serum_SetGenerateCRomC(false);
+    expect(Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(), 0) !=
+                   nullptr &&
+               Serum_GetScalingAlgorithm() == document::kScalingLineDoubling,
+           "the cROMc keeps the project's scaling, whatever scaling.txt says");
+    Serum_Dispose();
+    Serum_SetGenerateCRomC(true);
+    fs::remove_all(altcolor);
+    fs::remove_all(base);
+}
+
 void testFailureLeavesTarget()
 {
     runtime::RuntimePreview::instance().close();
@@ -107,5 +145,6 @@ void testFailureLeavesTarget()
 void runCromcExportTests()
 {
     testExportLoadsInLibserum();
+    testSettingsTakeNoSidecars();
     testFailureLeavesTarget();
 }

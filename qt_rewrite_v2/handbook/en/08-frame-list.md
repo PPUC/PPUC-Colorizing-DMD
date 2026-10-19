@@ -73,7 +73,9 @@ zone or a background, or a duration of 15 ms or more removes it.
 The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
 with sprite assignments, frames with a color rotation (`With rotation`: a rotation slot of a
-length above 0 on a plane the frame has), the frames marked `inactive` (`Inactive`), or `Using the selected
+length above 0 on a plane the frame has), the frames marked `inactive` (`Inactive`), in a
+project with scenes the frames of all scenes (`Scene frames`), the others (`Without scene
+frames`) or the frames of one scene (`Scene <ID>`; see "Scenes and Scaling"), or `Using the selected
 asset`: the frames that use what is selected in the asset list used last on the left (opened,
 or clicked in): the comparison mask (`Masks`), the assigned background (`Backgrounds`) or the
 sprite in one of their sprite slots (`Sprites`); before any was used, the first open one. It

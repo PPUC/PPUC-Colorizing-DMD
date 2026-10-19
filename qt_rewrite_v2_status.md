@@ -1111,6 +1111,29 @@ owner together.
   byte-identical before/after on GoT-V79, hook_501, potc_600as, smb3; unit test
   `n256/scene_search_by_mask_and_shape`. An update mode for the remaining 31 s (keep the
   colorization loaded, replace changed frames) is not started.
+- Scenes and scaling in the project (owner decision 2026-10-19: pup.csv and scaling.txt only
+  existed because the Win32 editor knew no scenes; drop the per-load csv parse). libserum
+  (all in v2.8.2, local, to be pushed): d93655b `setSceneData()` derives auto-start and
+  end-hold (a cROMc loaded without a csv, i.e. every real machine, lost both); 2b430dd optional
+  cROM settings block after the last v2 block (`SCX1`, payload size, contents mask, scenes as
+  csv fields 13 bytes each, scaling algorithm + shadow offset; `ReadCromSettings`/
+  `ApplyCromSettings`), `scenesFromColorization`/`scalingFromColorization` stored from
+  concentrate version 9; with them the csv / scaling.txt beside is ignored (raw, cROMc,
+  memory load); unit test `crom/settings_block`. Editor: `document/Scene.h`
+  (`SceneDefinition`, `SceneFrameRef`, `ColorizationSettings`), `FrameRecord::scene`,
+  `ProjectDocument::colorizationSettings/sceneFrame/setOriginalFrame`, .cRPX chunk `SCEN`
+  (also without scenes, so a csv is not imported again), `cromSettingsBlock()` appended by
+  `writeLegacyCrom` only for a snapshot with settings (Win32 round trips stay identical);
+  `runtime/Scenes` (markers via libserum's SceneGenerator: the group is taken at frame 0, so
+  frame 0 of the group is generated first; csv/scaling.txt readers as libserum's;
+  `linkSceneFrames`, `importColorizationSidecars` on open of a project without settings,
+  marked clean when no file was there); `edit/SceneEdits` (`SceneEditCommand` in the
+  structure history: add / change / remove scene with frames, scaling); `ScenesPanel`
+  ("Scenes and Scaling"), `SceneDialog`, strip filters `Scene frames` / `Without scene
+  frames` / `Scene <ID>`, strip text `Scene <ID> (<g>.<f>)`; `.cROMc` export takes no
+  sidecars for a project with settings. Linking checked against libserum's own frameIsScene:
+  hook_501 94, potc_600as 1247, smb3 1987, GoT-V79 22624 (frame by frame). Handbook
+  38-scenes.md (+ 02, 05, 08, 14, 15). Not yet checked by hand in the running app.
 - Author: "Retriggering scenes does not seem to work" (2026-10-19). Found a tester divergence
   from a machine: `FrameTesterDialog::feed` stopped the rotation timer on every frame and
   restarted it only from the new result, so an unknown frame (no time) stopped a running scene

@@ -19,7 +19,17 @@ namespace colorizing::edit {
 // frames, which it may contain.
 class SceneEditCommand final : public EditCommand {
 public:
-    SceneEditCommand(std::vector<std::unique_ptr<EditCommand>> steps, std::string description);
+    enum class Kind {
+        Scaling,
+        AddScene,
+        ChangeScene,
+        RemoveScene,
+    };
+
+    // sceneId: the scene added, changed (its new ID) or removed.
+    SceneEditCommand(std::vector<std::unique_ptr<EditCommand>> steps,
+                     Kind kind,
+                     uint16_t sceneId = 0);
 
     void apply(document::ProjectDocument& document) const override;
     void revert(document::ProjectDocument& document) const override;
@@ -29,14 +39,15 @@ public:
     [[nodiscard]] std::vector<RenumberedRecords> renumberedRecords() const override;
     [[nodiscard]] std::size_t heldBytes() const override;
 
-    // What it does, in English, e.g. "add scene 1001" (the UI translates its own text).
-    [[nodiscard]] const std::string& description() const;
+    [[nodiscard]] Kind kind() const;
+    [[nodiscard]] uint16_t sceneId() const;
     // Whether frames are added, deleted or moved.
     [[nodiscard]] bool changesFrames() const;
 
 private:
     std::vector<std::unique_ptr<EditCommand>> m_steps;
-    std::string m_description;
+    Kind m_kind;
+    uint16_t m_sceneId;
 };
 
 // Why the scene cannot be the project's scene `replacing` (the ID of the scene it replaces,

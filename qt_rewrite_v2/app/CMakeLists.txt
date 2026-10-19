@@ -18,6 +18,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/DumpImportDialog.cpp
     dialogs/HelperLineDialog.cpp
     dialogs/HelperLineDialog.h
+    dialogs/SceneDialog.cpp
+    dialogs/SceneDialog.h
     dialogs/MovieImportDialog.cpp
     dialogs/MovieImportDialog.h
     dialogs/DumpImportDialog.h
@@ -64,6 +66,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     RuntimeView.h
     panels/HelperLinesPanel.cpp
     panels/HelperLinesPanel.h
+    panels/ScenesPanel.cpp
+    panels/ScenesPanel.h
     panels/BackgroundPanel.cpp
     panels/BackgroundPanel.h
     panels/ColorRotationPanel.cpp

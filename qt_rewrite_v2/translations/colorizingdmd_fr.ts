@@ -1965,6 +1965,22 @@ Utiliser Créer la frame %1.</translation>
         <translation> : modification des sections</translation>
     </message>
     <message>
+        <source>change the scaling settings</source>
+        <translation>modifier les réglages de mise à l'échelle</translation>
+    </message>
+    <message>
+        <source>add scene %1</source>
+        <translation>ajouter la scène %1</translation>
+    </message>
+    <message>
+        <source>change scene %1</source>
+        <translation>modifier la scène %1</translation>
+    </message>
+    <message>
+        <source>delete scene %1</source>
+        <translation>supprimer la scène %1</translation>
+    </message>
+    <message>
         <source>add %1 frame(s)</source>
         <translation>ajout de %1 frame(s)</translation>
     </message>
@@ -2794,6 +2810,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Modification de la frame</translation>
     </message>
     <message>
+        <source>Scenes and Scaling</source>
+        <translation>Scènes et mise à l'échelle</translation>
+    </message>
+    <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
         <translation>Sortie DMD active, mais aucun écran trouvé (un PIN2DMD n&apos;est pas signalé) ; voir Aide -&gt; Journal des plugins</translation>
     </message>
@@ -3262,6 +3282,18 @@ Utiliser Créer la frame %1.</translation>
         <translation>Pas de rendu</translation>
     </message>
     <message>
+        <source>Scene frames</source>
+        <translation>Frames de scène</translation>
+    </message>
+    <message>
+        <source>Without scene frames</source>
+        <translation>Sans frames de scène</translation>
+    </message>
+    <message>
+        <source>Scene %1</source>
+        <translation>Scène %1</translation>
+    </message>
+    <message>
         <source>Dyn</source>
         <translation>Dyn</translation>
     </message>
@@ -3276,6 +3308,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>inactive</source>
         <translation>inactive</translation>
+    </message>
+    <message>
+        <source>Scene %1 (%2.%3)</source>
+        <translation>Scène %1 (%2.%3)</translation>
+    </message>
+    <message>
+        <source>Scene %1 (%2)</source>
+        <translation>Scène %1 (%2)</translation>
     </message>
     <message>
         <source>BG: %1</source>
@@ -4052,6 +4092,59 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>
         <translation>%1 (l&apos;annulation garde au plus %2 Mo d&apos;enregistrements supprimés : les %3 plus anciennes étapes d&apos;ajout ou de suppression ne peuvent plus être annulées)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 taken into the project (%n scene(s), %2 scene frames); saved with it, they are no longer needed</source>
+        <translation>
+            <numerusform>%1 repris dans le projet (%n scène, %2 frames de scène) ; enregistrés avec lui, ils ne sont plus nécessaires</numerusform>
+            <numerusform>%1 repris dans le projet (%n scènes, %2 frames de scène) ; enregistrés avec lui, ils ne sont plus nécessaires</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add Scene</source>
+        <translation>Ajouter une scène</translation>
+    </message>
+    <message>
+        <source>Edit Scene %1</source>
+        <translation>Modifier la scène %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>The scene has fewer frames now. Delete %n of its frames?</source>
+        <translation>
+            <numerusform>La scène a maintenant moins de frames. Supprimer %n de ses frames ?</numerusform>
+            <numerusform>La scène a maintenant moins de frames. Supprimer %n de ses frames ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Their colorization is deleted with them; Undo brings them back.</source>
+        <translation>Leur colorisation est supprimée avec elles ; Annuler les rétablit.</translation>
+    </message>
+    <message>
+        <source>Edit Scene</source>
+        <translation>Modifier la scène</translation>
+    </message>
+    <message>
+        <source>Delete Scene %1</source>
+        <translation>Supprimer la scène %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete its %n frame(s) too?</source>
+        <translation>
+            <numerusform>Supprimer aussi sa frame (%n) ?</numerusform>
+            <numerusform>Supprimer aussi ses %n frames ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Delete Scene and Frames</source>
+        <translation>Supprimer la scène et les frames</translation>
+    </message>
+    <message>
+        <source>Keep the Frames</source>
+        <translation>Garder les frames</translation>
+    </message>
+    <message>
+        <source>Delete Scene</source>
+        <translation>Supprimer la scène</translation>
     </message>
     <message>
         <source>Time: Project %1 / Session %2</source>
@@ -4866,6 +4959,275 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>mask %1 (%2)</source>
         <translation>masque %1 (%2)</translation>
+    </message>
+</context>
+<context>
+    <name>SceneDialog</name>
+    <message>
+        <source>Scene</source>
+        <translation>Scène</translation>
+    </message>
+    <message>
+        <source>The PUP trigger that starts the scene</source>
+        <translation>Le déclencheur PUP qui lance la scène</translation>
+    </message>
+    <message>
+        <source>Frames of each group</source>
+        <translation>Frames de chaque groupe</translation>
+    </message>
+    <message>
+        <source>Sets of frames the scene can show; each time it plays, it shows one of them</source>
+        <translation>Jeux de frames que la scène peut montrer ; à chaque lecture, elle en montre un</translation>
+    </message>
+    <message>
+        <source>Pick the group at random</source>
+        <translation>Choisir le groupe au hasard</translation>
+    </message>
+    <message>
+        <source>Otherwise the groups play in turn</source>
+        <translation>Sinon les groupes passent à tour de rôle</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>How long each frame shows</source>
+        <translation>Durée d'affichage de chaque frame</translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation>Une fois</translation>
+    </message>
+    <message>
+        <source>In a loop</source>
+        <translation>En boucle</translation>
+    </message>
+    <message>
+        <source>Several times</source>
+        <translation>Plusieurs fois</translation>
+    </message>
+    <message>
+        <source> times</source>
+        <translation> fois</translation>
+    </message>
+    <message>
+        <source>Can be interrupted</source>
+        <translation>Interruptible</translation>
+    </message>
+    <message>
+        <source>A frame of the game identified while the scene plays ends it</source>
+        <translation>Une frame du jeu identifiée pendant la scène y met fin</translation>
+    </message>
+    <message>
+        <source>Start immediately</source>
+        <translation>Démarrer immédiatement</translation>
+    </message>
+    <message>
+        <source>Show the first frame when the trigger fires, without waiting for the next frame of the game</source>
+        <translation>Afficher la première frame dès que le déclencheur se produit, sans attendre la frame suivante du jeu</translation>
+    </message>
+    <message>
+        <source>Keep its last frame</source>
+        <translation>Garder sa dernière frame</translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation>Noir</translation>
+    </message>
+    <message>
+        <source>The frame before the scene</source>
+        <translation>La frame d'avant la scène</translation>
+    </message>
+    <message>
+        <source>What shows when the scene has played</source>
+        <translation>Ce qui s'affiche une fois la scène jouée</translation>
+    </message>
+    <message>
+        <source> s</source>
+        <translation> s</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>Désactivé</translation>
+    </message>
+    <message>
+        <source>Play as a background</source>
+        <translation>Jouer en arrière-plan</translation>
+    </message>
+    <message>
+        <source>The scene shows behind the frames of the game, where their background mask lets it through</source>
+        <translation>La scène apparaît derrière les frames du jeu, là où leur masque d'arrière-plan la laisse passer</translation>
+    </message>
+    <message>
+        <source>Keep only dynamic content in front</source>
+        <translation>Ne garder que le contenu dynamique devant</translation>
+    </message>
+    <message>
+        <source>Of the frames of the game, only dynamic zones, sprites and shadows show over the scene</source>
+        <translation>Des frames du jeu, seuls les zones dynamiques, les sprites et les ombres s'affichent par-dessus la scène</translation>
+    </message>
+    <message>
+        <source>Black dynamic pixels show the scene</source>
+        <translation>Les pixels dynamiques noirs montrent la scène</translation>
+    </message>
+    <message>
+        <source>Dynamic-zone pixels that are black let the background scene through and cast no shadow</source>
+        <translation>Les pixels noirs des zones dynamiques laissent passer la scène d'arrière-plan et ne projettent pas d'ombre</translation>
+    </message>
+    <message>
+        <source>Resume when triggered again</source>
+        <translation>Reprendre au déclenchement suivant</translation>
+    </message>
+    <message>
+        <source>A trigger soon after the scene stopped continues it where it was instead of starting it over</source>
+        <translation>Un déclenchement peu après l'arrêt de la scène la reprend là où elle en était au lieu de la recommencer</translation>
+    </message>
+    <message>
+        <source>Scene ID (PUP trigger)</source>
+        <translation>ID de scène (déclencheur PUP)</translation>
+    </message>
+    <message>
+        <source>Frames</source>
+        <translation>Frames</translation>
+    </message>
+    <message>
+        <source>Groups</source>
+        <translation>Groupes</translation>
+    </message>
+    <message>
+        <source>Frame duration</source>
+        <translation>Durée des frames</translation>
+    </message>
+    <message>
+        <source>Plays</source>
+        <translation>Lecture</translation>
+    </message>
+    <message>
+        <source>When it has played</source>
+        <translation>Une fois jouée</translation>
+    </message>
+    <message>
+        <source>Playback</source>
+        <translation>Lecture</translation>
+    </message>
+    <message>
+        <source>Options</source>
+        <translation>Options</translation>
+    </message>
+    <message>
+        <source>Hold the last frame for</source>
+        <translation>Garder la dernière frame pendant</translation>
+    </message>
+    <message>
+        <source>Start by itself after</source>
+        <translation>Démarrer d'elle-même après</translation>
+    </message>
+    <message>
+        <source>How long the last frame stays when the scene has played</source>
+        <translation>Durée pendant laquelle la dernière frame reste une fois la scène jouée</translation>
+    </message>
+    <message>
+        <source>Start the scene when no new frame came for this long</source>
+        <translation>Lancer la scène quand aucune nouvelle frame n'est arrivée pendant ce temps</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) in the project</source>
+        <translation>
+            <numerusform>%n frame dans le projet</numerusform>
+            <numerusform>%n frames dans le projet</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>ScenesPanel</name>
+    <message>
+        <source>The scenes libserum plays when their PUP trigger fires; double-click to edit one</source>
+        <translation>Les scènes que libserum joue quand leur déclencheur PUP se produit ; double-cliquer pour en modifier une</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Ajouter</translation>
+    </message>
+    <message>
+        <source>Add a scene with a frame for each of its frames, behind the last frame</source>
+        <translation>Ajouter une scène avec une frame pour chacune de ses frames, après la dernière frame</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Modifier</translation>
+    </message>
+    <message>
+        <source>Change the selected scene; its frames follow</source>
+        <translation>Modifier la scène sélectionnée ; ses frames suivent</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>Delete the selected scene</source>
+        <translation>Supprimer la scène sélectionnée</translation>
+    </message>
+    <message>
+        <source>Show Frames</source>
+        <translation>Afficher les frames</translation>
+    </message>
+    <message>
+        <source>List the frames of the selected scene in the strip</source>
+        <translation>Afficher les frames de la scène sélectionnée dans la liste des frames</translation>
+    </message>
+    <message>
+        <source>Scale2x</source>
+        <translation>Scale2x</translation>
+    </message>
+    <message>
+        <source>Line doubling</source>
+        <translation>Doublement des lignes</translation>
+    </message>
+    <message>
+        <source>How libserum makes the 256x64 picture of a frame that has none</source>
+        <translation>Comment libserum crée l'image 256x64 d'une frame qui n'en a pas</translation>
+    </message>
+    <message>
+        <source>1 pixel (native)</source>
+        <translation>1 pixel (natif)</translation>
+    </message>
+    <message>
+        <source>2 pixels (proportional)</source>
+        <translation>2 pixels (proportionnel)</translation>
+    </message>
+    <message>
+        <source>How far a dynamic shadow falls on the 256x64 plane</source>
+        <translation>Distance de l'ombre dynamique sur le plan 256x64</translation>
+    </message>
+    <message>
+        <source>Upscaling</source>
+        <translation>Agrandissement</translation>
+    </message>
+    <message>
+        <source>Shadow offset</source>
+        <translation>Décalage de l'ombre</translation>
+    </message>
+    <message>
+        <source>%1 — %2 × %3 frames, %4 ms</source>
+        <translation>%1 — %2 × %3 frames, %4 ms</translation>
+    </message>
+    <message>
+        <source>%1 — %2 frames, %3 ms</source>
+        <translation>%1 — %2 frames, %3 ms</translation>
+    </message>
+    <message>
+        <source>, background</source>
+        <translation>, arrière-plan</translation>
+    </message>
+    <message>
+        <source> (%1 missing)</source>
+        <translation> (%1 manquantes)</translation>
+    </message>
+    <message>
+        <source>libserum plays scenes in projects with 128x32 ROM frames only.</source>
+        <translation>libserum ne joue les scènes que dans les projets à frames ROM 128x32.</translation>
     </message>
 </context>
 <context>

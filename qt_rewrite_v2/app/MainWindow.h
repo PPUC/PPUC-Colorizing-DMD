@@ -24,6 +24,7 @@
 #include "edit/DrawingTools.h"
 #include "edit/FrameMove.h"
 #include "edit/SameFrames.h"
+#include "edit/SceneEdits.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
@@ -46,6 +47,7 @@ class PupTesterWindow;
 class FramePanel;
 class SectionBar;
 class HelperLinesPanel;
+class ScenesPanel;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -107,7 +109,12 @@ private:
         // Frames that use the asset selected on the left: the mask, background or sprite of
         // the tab that is open there.
         UsesSelectedAsset,
+        // Frames of the project's scenes, and the others.
+        SceneFrames,
+        WithoutSceneFrames,
     };
+    // The data of the filter entry for the frames of one scene: this plus its ID.
+    static constexpr int kSceneFilterData = 0x10000;
 
     void createActions();
     // After the selected mask, background or sprite, or the tab on the left, changed: the frame
@@ -677,6 +684,19 @@ private:
     void addHelperLine(bool vertical);
     void editHelperLine(std::size_t line);
     void changeHelperLines(std::vector<document::HelperLine> lines, const QString& status);
+    // The Scenes section (Scene.h): changed through the edit::SceneEdits functions.
+    ScenesPanel* m_scenesPanel = nullptr;
+    void refreshScenes();
+    void addScene();
+    void editScene(uint16_t sceneId);
+    void deleteScene(uint16_t sceneId);
+    void showSceneFrames(uint16_t sceneId);
+    void recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command);
+    void refreshAfterSceneEdit(const edit::SceneEditCommand& command);
+    // A project of the Win32 editor takes the scenes and scaling settings of the files beside
+    // its cROM (runtime::importColorizationSidecars()). Returns what to tell about it, empty
+    // when there was nothing to take.
+    QString importColorizationSidecars();
     void showCanvasPosition(std::optional<render::CanvasHit> hit,
                             std::optional<render::CanvasHit> dragStart);
     std::unique_ptr<EditorPlugins> m_plugins;

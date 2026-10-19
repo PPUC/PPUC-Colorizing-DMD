@@ -182,7 +182,12 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
             return result;
         }
     }
-    for (const std::string& name : {rom + ".pup.csv", std::string("scaling.txt")}) {
+    // A project with colorization settings has them in the cROM, and libserum ignores the files.
+    const std::vector<std::string> sidecarNames =
+        snapshot.colorizationSettings
+            ? std::vector<std::string>{}
+            : std::vector<std::string>{rom + ".pup.csv", std::string("scaling.txt")};
+    for (const std::string& name : sidecarNames) {
         if (const std::optional<fs::path> sidecar = findCaseInsensitive(sidecarDirectory, name)) {
             if (!fs::copy_file(*sidecar, folder / sidecar->filename(), error)) {
                 result.error = "cannot copy " + platform::utf8FromPath(*sidecar) + ": " +

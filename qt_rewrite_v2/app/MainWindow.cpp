@@ -80,6 +80,7 @@
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/HelperLineDialog.h"
+#include "dialogs/SceneDialog.h"
 #include "dialogs/MovieImportDialog.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
@@ -104,12 +105,14 @@
 #include "panels/RecordListPage.h"
 #include "panels/SameFramesPanel.h"
 #include "panels/HelperLinesPanel.h"
+#include "panels/ScenesPanel.h"
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectFileWriter.h"
 #include "platform/Utf8Path.h"
 #include "runtime/CromcExport.h"
+#include "runtime/Scenes.h"
 #include "legacy/LegacyProjectSerializer.h"
 
 namespace colorizing::app {
@@ -411,6 +414,24 @@ QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd
             return QCoreApplication::translate("MainWindow", " section change");
         case edit::EditKind::HelperLines:
             return QCoreApplication::translate("MainWindow", " helper line change");
+    }
+    return QString();
+}
+
+// "add scene 1001": what a scene edit does when it is applied.
+QString sceneEditText(const edit::SceneEditCommand& command)
+{
+    switch (command.kind()) {
+        case edit::SceneEditCommand::Kind::Scaling:
+            return QCoreApplication::translate("MainWindow", "change the scaling settings");
+        case edit::SceneEditCommand::Kind::AddScene:
+            return QCoreApplication::translate("MainWindow", "add scene %1").arg(command.sceneId());
+        case edit::SceneEditCommand::Kind::ChangeScene:
+            return QCoreApplication::translate("MainWindow", "change scene %1")
+                .arg(command.sceneId());
+        case edit::SceneEditCommand::Kind::RemoveScene:
+            return QCoreApplication::translate("MainWindow", "delete scene %1")
+                .arg(command.sceneId());
     }
     return QString();
 }
@@ -1654,6 +1675,22 @@ void MainWindow::createCentralView()
                           visible ? tr("Showing the helper line") : tr("Hid the helper line"));
     };
     inspectorTabs->addTab(m_helperLinesPanel, QStringLiteral("HelperLines"), tr("Helper Lines"));
+    m_scenesPanel = new ScenesPanel(central);
+    m_scenesPanel->onAddRequested = [this]() { addScene(); };
+    m_scenesPanel->onEditRequested = [this](uint16_t sceneId) { editScene(sceneId); };
+    m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
+    m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
+    m_scenesPanel->onScalingChanged = [this](uint8_t algorithm, uint8_t shadowOffset) {
+        if (!m_document) {
+            return;
+        }
+        document::ColorizationSettings settings =
+            m_document->colorizationSettings().value_or(document::ColorizationSettings{});
+        settings.scalingAlgorithm = algorithm;
+        settings.shadowOffset = shadowOffset;
+        recordSceneEdit(edit::setColorizationSettings(*m_document, std::move(settings)));
+    };
+    inspectorTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes and Scaling"));
 
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
@@ -2320,6 +2357,8 @@ void MainWindow::newProjectFromDump()
         setPlaybackRunning(false);
         m_document = document::ProjectDocument::fromSnapshot(
             importing::makeProjectSnapshot(dialog.romName().toStdString(), std::move(dump)));
+        // A new project keeps its scenes and scaling settings itself.
+        m_document->setColorizationSettings(document::ColorizationSettings{});
         m_document->markUnsaved();
         m_currentCromPath.clear();
         m_currentCrpPath.clear();
@@ -3153,6 +3192,7 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
 
     // A project of the Win32 editor (a .cRP) is saved with a .cRPX beside its .cROM.
     const bool win32Project = !crpPath.isEmpty() && !isCrpxPath(crpPath);
+    QString sidecarNote;
     try {
         m_document = std::move(*result.document);
         result.document.reset();
@@ -3164,6 +3204,7 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
         if (!cromPath.isEmpty() && !crpPath.isEmpty()) {
             rememberRecentProject(cromPath, crpPath);
         }
+        sidecarNote = importColorizationSidecars();
         if (recovered) {
             // What the autosave holds is not in the project files.
             m_document->markUnsaved();
@@ -3186,10 +3227,14 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
 
     refreshProjectSummary();
     if (win32Project) {
-        statusBar()->showMessage(
-            tr("A project of the Win32 editor: once saved here, the Win32 editor "
-               "cannot open it any more"),
-            8000);
+        const QString note = tr("A project of the Win32 editor: once saved here, the Win32 "
+                                "editor cannot open it any more");
+        statusBar()->showMessage(sidecarNote.isEmpty() ? note
+                                                       : QStringLiteral("%1. %2").arg(sidecarNote,
+                                                                                      note),
+                                 12000);
+    } else if (!sidecarNote.isEmpty()) {
+        statusBar()->showMessage(sidecarNote, 8000);
     }
 }
 
@@ -3942,6 +3987,7 @@ void MainWindow::refreshProjectSummary()
         updateSpriteControls();
         updateRuntimeViewControls();
         refreshHelperLines();
+        refreshScenes();
         if (m_pupTesterWindow) {
             m_pupTesterWindow->stop();
             m_pupTesterWindow->setProject(nullptr);
@@ -3961,6 +4007,7 @@ void MainWindow::refreshProjectSummary()
     updateProjectHeaderStatus();
     updateRuntimeViewControls();
     refreshHelperLines();
+    refreshScenes();
     if (m_pupTesterWindow) {
         m_pupTesterWindow->stop();
         m_pupTesterWindow->setProject(&*m_document);
@@ -4166,6 +4213,32 @@ void MainWindow::updateFrameFilterChoices()
           tr("Not rendered"),
           m_frameFilterComboBox->count(),
           isHdOnlyProject());
+
+    // The scenes, at the end: all scene frames, the others, and each scene's.
+    const std::vector<document::SceneDefinition> scenes =
+        m_document && m_document->colorizationSettings()
+            ? m_document->colorizationSettings()->scenes
+            : std::vector<document::SceneDefinition>{};
+    const int current = m_frameFilterComboBox->currentData().toInt();
+    for (int index = m_frameFilterComboBox->count() - 1; index >= 0; --index) {
+        const int data = m_frameFilterComboBox->itemData(index).toInt();
+        if (data >= kSceneFilterData || data == static_cast<int>(FrameFilter::SceneFrames) ||
+            data == static_cast<int>(FrameFilter::WithoutSceneFrames)) {
+            m_frameFilterComboBox->removeItem(index);
+        }
+    }
+    if (!scenes.empty()) {
+        m_frameFilterComboBox->addItem(tr("Scene frames"),
+                                       static_cast<int>(FrameFilter::SceneFrames));
+        m_frameFilterComboBox->addItem(tr("Without scene frames"),
+                                       static_cast<int>(FrameFilter::WithoutSceneFrames));
+        for (const document::SceneDefinition& scene : scenes) {
+            m_frameFilterComboBox->addItem(tr("Scene %1").arg(scene.sceneId),
+                                           kSceneFilterData + scene.sceneId);
+        }
+    }
+    const int restored = m_frameFilterComboBox->findData(current);
+    m_frameFilterComboBox->setCurrentIndex(restored >= 0 ? restored : 0);
 }
 
 QString MainWindow::frameListItemText(std::size_t frameIndex) const
@@ -4201,6 +4274,18 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     }
     if (legacy::isFrameSkippedAtRuntime(*m_document, frameIndex)) {
         details << tr("inactive");
+    }
+    if (const std::optional<document::SceneFrameRef>& scene = m_document->sceneFrame(frameIndex)) {
+        const document::SceneDefinition* definition =
+            m_document->colorizationSettings()
+                ? m_document->colorizationSettings()->scene(scene->sceneId)
+                : nullptr;
+        details << (definition && definition->frameGroups > 1
+                        ? tr("Scene %1 (%2.%3)")
+                              .arg(scene->sceneId)
+                              .arg(scene->group)
+                              .arg(scene->frameIndex + 1)
+                        : tr("Scene %1 (%2)").arg(scene->sceneId).arg(scene->frameIndex + 1));
     }
     const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
     if (gaps.frame) {
@@ -4484,10 +4569,19 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     if (!m_document || frameIndex >= m_document->frameCount()) {
         return false;
     }
-    const FrameFilter filter =
-        m_frameFilterComboBox
-            ? static_cast<FrameFilter>(m_frameFilterComboBox->currentData().toInt())
-            : FrameFilter::All;
+    const int filterData = m_frameFilterComboBox ? m_frameFilterComboBox->currentData().toInt()
+                                                 : static_cast<int>(FrameFilter::All);
+    const std::optional<document::SceneFrameRef>& scene = m_document->sceneFrame(frameIndex);
+    if (filterData >= kSceneFilterData) {
+        return scene && scene->sceneId == filterData - kSceneFilterData;
+    }
+    const FrameFilter filter = static_cast<FrameFilter>(filterData);
+    if (filter == FrameFilter::SceneFrames) {
+        return scene.has_value();
+    }
+    if (filter == FrameFilter::WithoutSceneFrames) {
+        return !scene;
+    }
     if (filter == FrameFilter::Hd) {
         return m_document->hasHdFrame(frameIndex);
     }
@@ -8832,6 +8926,200 @@ void MainWindow::selectFrameNear(std::size_t frameIndex)
     m_frameList->scrollToItem(m_frameList->item(row), QAbstractItemView::PositionAtCenter);
 }
 
+QString MainWindow::importColorizationSidecars()
+{
+    if (!m_document || m_document->colorizationSettings()) {
+        return QString();
+    }
+    const bool wasDirty = m_document->isDirty();
+    const runtime::SidecarImport imported = runtime::importColorizationSidecars(
+        *m_document,
+        platform::pathFromUtf8(QFileInfo(m_currentCromPath).absolutePath().toStdString()));
+    if (imported.files.empty()) {
+        // Default settings only: nothing to save for them yet.
+        if (!wasDirty) {
+            m_document->markClean();
+        }
+        return QString();
+    }
+    QStringList files;
+    for (const std::string& file : imported.files) {
+        files << QString::fromStdString(file);
+    }
+    return tr("%1 taken into the project (%n scene(s), %2 scene frames); saved with it, they "
+              "are no longer needed",
+              "",
+              static_cast<int>(imported.scenes))
+        .arg(files.join(tr(" and ")))
+        .arg(static_cast<qulonglong>(imported.linkedFrames));
+}
+
+void MainWindow::refreshScenes()
+{
+    if (m_scenesPanel) {
+        m_scenesPanel->setProject(m_document ? &*m_document : nullptr);
+    }
+}
+
+void MainWindow::addScene()
+{
+    if (!m_document) {
+        return;
+    }
+    document::SceneDefinition scene;
+    // A free ID, from the PUP range scenes usually use.
+    scene.sceneId = 1000;
+    while (m_document->colorizationSettings() &&
+           m_document->colorizationSettings()->scene(scene.sceneId) && scene.sceneId < 65535) {
+        ++scene.sceneId;
+    }
+    SceneDialog dialog(
+        scene,
+        [this](const document::SceneDefinition& candidate) {
+            return edit::sceneProblem(*m_document, candidate);
+        },
+        this);
+    dialog.setWindowTitle(tr("Add Scene"));
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    try {
+        recordSceneEdit(edit::addScene(*m_document, dialog.scene()));
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(this, tr("Add Scene"), QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::editScene(uint16_t sceneId)
+{
+    if (!m_document || !m_document->colorizationSettings() ||
+        !m_document->colorizationSettings()->scene(sceneId)) {
+        return;
+    }
+    SceneDialog dialog(
+        *m_document->colorizationSettings()->scene(sceneId),
+        [this, sceneId](const document::SceneDefinition& candidate) {
+            return edit::sceneProblem(*m_document, candidate, sceneId);
+        },
+        this);
+    dialog.setWindowTitle(tr("Edit Scene %1").arg(sceneId));
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const document::SceneDefinition scene = dialog.scene();
+    std::size_t lost = 0;
+    for (std::size_t frame : edit::sceneFrames(*m_document, sceneId)) {
+        const document::SceneFrameRef& ref = *m_document->sceneFrame(frame);
+        if (ref.group > scene.frameGroups || ref.frameIndex >= scene.frameCount) {
+            ++lost;
+        }
+    }
+    if (lost > 0 &&
+        !confirmDeletion(tr("Edit Scene %1").arg(sceneId),
+                         tr("The scene has fewer frames now. Delete %n of its frames?", "",
+                            static_cast<int>(lost)),
+                         tr("Their colorization is deleted with them; Undo brings them "
+                            "back."))) {
+        return;
+    }
+    try {
+        recordSceneEdit(edit::changeScene(*m_document, sceneId, scene));
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(this, tr("Edit Scene"), QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::deleteScene(uint16_t sceneId)
+{
+    if (!m_document) {
+        return;
+    }
+    const std::size_t frames = edit::sceneFrames(*m_document, sceneId).size();
+    bool withFrames = false;
+    if (frames > 0) {
+        QMessageBox box(QMessageBox::Question, tr("Delete Scene %1").arg(sceneId),
+                        tr("Delete its %n frame(s) too?", "", static_cast<int>(frames)),
+                        QMessageBox::NoButton, this);
+        QPushButton* deleteFrames = box.addButton(tr("Delete Scene and Frames"),
+                                                  QMessageBox::DestructiveRole);
+        QPushButton* keepFrames = box.addButton(tr("Keep the Frames"), QMessageBox::AcceptRole);
+        box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(keepFrames);
+        box.exec();
+        if (box.clickedButton() != deleteFrames && box.clickedButton() != keepFrames) {
+            return;
+        }
+        withFrames = box.clickedButton() == deleteFrames;
+    }
+    try {
+        recordSceneEdit(edit::removeScene(*m_document, sceneId, withFrames));
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(this, tr("Delete Scene"), QString::fromUtf8(ex.what()));
+    }
+}
+
+void MainWindow::showSceneFrames(uint16_t sceneId)
+{
+    if (!m_frameFilterComboBox) {
+        return;
+    }
+    const int index = m_frameFilterComboBox->findData(kSceneFilterData + sceneId);
+    if (index >= 0) {
+        m_frameFilterComboBox->setCurrentIndex(index);
+    }
+}
+
+void MainWindow::recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command)
+{
+    if (!m_document || !command) {
+        return;
+    }
+    const edit::SceneEditCommand& applied = *command;
+    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    refreshAfterSceneEdit(applied);
+    updateUndoRedoActions();
+    QString text = sceneEditText(applied);
+    if (!text.isEmpty()) {
+        text[0] = text[0].toUpper();
+    }
+    showStructureEditStatus(text, 3000);
+}
+
+void MainWindow::refreshAfterSceneEdit(const edit::SceneEditCommand& command)
+{
+    if (!m_document) {
+        return;
+    }
+    refreshScenes();
+    updateFrameFilterChoices();
+    updateRuntimeViewControls();
+    updateProjectHeaderStatus();
+    if (!command.changesFrames()) {
+        return;
+    }
+    setPlaybackRunning(false);
+    m_pasteMode.cancel();
+    m_canvasEdit.cancelFreeGradient();
+    m_canvasEdit.clearSelection(canvasEditContext());
+    m_canvasEdit.clearCaptureSelection();
+    m_spriteDependentViewsDirty = false;
+    const std::size_t current = currentFrameIndex().value_or(0);
+    refreshFrameList(std::nullopt);
+    selectFrameNear(std::min(current, m_document->frameCount() - 1));
+    refreshComponentBrowsers();
+    updateSectionControls();
+    updateFrameMetadataControls();
+    updateColorRotationControls();
+    updateSpriteControls();
+    updatePaintTargetMode();
+    if (m_preview) {
+        m_preview->update();
+    }
+    updateFrameStatusText();
+    updatePlaybackControls();
+    updateStructureControls();
+}
+
 void MainWindow::updateRuntimeSceneFile()
 {
     // The <rom>.pup.csv beside the project, as the .cROMc export takes it: the Runtime view and
@@ -9085,6 +9373,9 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
                 refreshAfterStructureEdit(*structure);
             } else if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(&command)) {
                 refreshAfterFrameMove(*move);
+            } else if (const auto* scene =
+                           dynamic_cast<const edit::SceneEditCommand*>(&command)) {
+                refreshAfterSceneEdit(*scene);
             }
             break;
         case edit::EditKind::Sections:
@@ -9351,6 +9642,10 @@ void MainWindow::undo(bool anywhere)
             2500);
         return;
     }
+    if (const auto* scene = dynamic_cast<const edit::SceneEditCommand*>(command)) {
+        statusBar()->showMessage(tr("Undo: %1").arg(sceneEditText(*scene)), 2500);
+        return;
+    }
     statusBar()->showMessage(tr("Undo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
                              1500);
 }
@@ -9397,6 +9692,10 @@ void MainWindow::redo(bool anywhere)
         statusBar()->showMessage(
             tr("Redo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
             2500);
+        return;
+    }
+    if (const auto* scene = dynamic_cast<const edit::SceneEditCommand*>(command)) {
+        statusBar()->showMessage(tr("Redo: %1").arg(sceneEditText(*scene)), 2500);
         return;
     }
     statusBar()->showMessage(tr("Redo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),

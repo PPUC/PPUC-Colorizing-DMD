@@ -142,12 +142,12 @@ public:
         }
     }
 
-    std::unique_ptr<SceneEditCommand> finish(std::string description)
+    std::unique_ptr<SceneEditCommand> finish(SceneEditCommand::Kind kind, uint16_t sceneId = 0)
     {
         if (m_steps.empty()) {
             return nullptr;
         }
-        return std::make_unique<SceneEditCommand>(std::move(m_steps), std::move(description));
+        return std::make_unique<SceneEditCommand>(std::move(m_steps), kind, sceneId);
     }
 
 private:
@@ -187,9 +187,11 @@ std::vector<document::FrameRecord> newSceneFrames(
 }  // namespace
 
 SceneEditCommand::SceneEditCommand(std::vector<std::unique_ptr<EditCommand>> steps,
-                                   std::string description)
+                                   Kind kind,
+                                   uint16_t sceneId)
     : m_steps(std::move(steps)),
-      m_description(std::move(description))
+      m_kind(kind),
+      m_sceneId(sceneId)
 {
     if (m_steps.empty()) {
         throw std::invalid_argument("a scene edit needs a step");
@@ -265,9 +267,14 @@ std::size_t SceneEditCommand::heldBytes() const
     return bytes;
 }
 
-const std::string& SceneEditCommand::description() const
+SceneEditCommand::Kind SceneEditCommand::kind() const
 {
-    return m_description;
+    return m_kind;
+}
+
+uint16_t SceneEditCommand::sceneId() const
+{
+    return m_sceneId;
 }
 
 bool SceneEditCommand::changesFrames() const
@@ -318,7 +325,7 @@ std::unique_ptr<SceneEditCommand> setColorizationSettings(
 {
     Steps steps(document);
     steps.add(settingsStep(document, std::move(settings)));
-    return steps.finish("change the scaling settings");
+    return steps.finish(SceneEditCommand::Kind::Scaling);
 }
 
 std::unique_ptr<SceneEditCommand> addScene(document::ProjectDocument& document,
@@ -339,7 +346,7 @@ std::unique_ptr<SceneEditCommand> addScene(document::ProjectDocument& document,
     document::ColorizationSettings settings = settingsOf(document);
     settings.scenes.push_back(scene);
     steps.add(settingsStep(document, std::move(settings)));
-    return steps.finish("add scene " + std::to_string(scene.sceneId));
+    return steps.finish(SceneEditCommand::Kind::AddScene, scene.sceneId);
 }
 
 std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& document,
@@ -414,7 +421,7 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
         }
     }
     steps.add(settingsStep(document, std::move(settings)));
-    return steps.finish("change scene " + std::to_string(scene.sceneId));
+    return steps.finish(SceneEditCommand::Kind::ChangeScene, scene.sceneId);
 }
 
 std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& document,
@@ -445,7 +452,7 @@ std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& documen
                                          }),
                           settings.scenes.end());
     steps.add(settingsStep(document, std::move(settings)));
-    return steps.finish("remove scene " + std::to_string(sceneId));
+    return steps.finish(SceneEditCommand::Kind::RemoveScene, sceneId);
 }
 
 }  // namespace colorizing::edit
