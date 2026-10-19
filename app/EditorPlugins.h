@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -36,6 +37,9 @@ public:
         // The Plugins menu, shown while it has entries.
         QMenu* menu = nullptr;
         std::function<const document::ProjectDocument*()> document;
+        std::function<document::ProjectDocument*()> editableDocument;
+        // Records an applied command as one undoable step (a plugin's edit batch).
+        std::function<void(std::unique_ptr<edit::EditCommand>)> recordEdit;
         std::function<std::optional<std::size_t>()> currentFrame;
         std::function<std::vector<std::size_t>()> selectedFrames;
         std::function<void(std::size_t current, const std::vector<std::size_t>& selected)>
@@ -72,6 +76,8 @@ public:
 
     // vpx::EditorBackend
     [[nodiscard]] const document::ProjectDocument* document() const override;
+    [[nodiscard]] document::ProjectDocument* editableDocument() override;
+    void recordEdit(std::unique_ptr<edit::EditCommand> command) override;
     [[nodiscard]] std::optional<std::size_t> currentFrame() const override;
     [[nodiscard]] std::vector<std::size_t> selectedFrames() const override;
     void showFrames(std::size_t current, const std::vector<std::size_t>& selected) override;

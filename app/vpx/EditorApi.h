@@ -2,12 +2,17 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace colorizing::document {
 class ProjectDocument;
+}
+
+namespace colorizing::edit {
+class EditCommand;
 }
 
 namespace colorizing::vpx {
@@ -21,6 +26,11 @@ public:
 
     // The open project; nullptr without one.
     [[nodiscard]] virtual const document::ProjectDocument* document() const = 0;
+    // The same, for the editing part of the API, which changes it only through edit commands
+    // and hands each finished batch to recordEdit().
+    [[nodiscard]] virtual document::ProjectDocument* editableDocument() = 0;
+    // Records an applied command as one undoable step and refreshes the views.
+    virtual void recordEdit(std::unique_ptr<edit::EditCommand> command) = 0;
     [[nodiscard]] virtual std::optional<std::size_t> currentFrame() const = 0;
     // Ascending; the current frame when no other is selected.
     [[nodiscard]] virtual std::vector<std::size_t> selectedFrames() const = 0;
@@ -46,6 +56,10 @@ public:
 
 // The backend the API answers with from now on; nullptr: no project, no menu. Not owned.
 void setEditorBackend(EditorBackend* backend);
+
+// Records an edit batch a plugin left open (see BeginEdit); called after the plugin bus ran
+// the plugins' messages.
+void finishOpenEditBatch();
 
 // Broadcast to the plugins (CDMDPI_EVT_ON_PROJECT_CHANGED, CDMDPI_EVT_ON_SELECTION_CHANGED);
 // nothing while the plugin bus is not open.

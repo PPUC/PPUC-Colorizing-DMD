@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "document/ProjectDocument.h"
+#include "edit/EditCommand.h"
 #include "vpx/VpxHost.h"
 
 namespace colorizing::app {
@@ -140,6 +141,7 @@ void EditorPlugins::unload(const QString& id)
 void EditorPlugins::tick()
 {
     vpx::Host::instance().process();
+    vpx::finishOpenEditBatch();
     const document::ProjectDocument* current = document();
     const uint64_t revision = current ? current->revision() : 0;
     if (current != m_toldDocument || revision != m_toldRevision) {
@@ -159,6 +161,18 @@ void EditorPlugins::tick()
 const document::ProjectDocument* EditorPlugins::document() const
 {
     return m_window.document ? m_window.document() : nullptr;
+}
+
+document::ProjectDocument* EditorPlugins::editableDocument()
+{
+    return m_window.editableDocument ? m_window.editableDocument() : nullptr;
+}
+
+void EditorPlugins::recordEdit(std::unique_ptr<edit::EditCommand> command)
+{
+    if (m_window.recordEdit && command) {
+        m_window.recordEdit(std::move(command));
+    }
 }
 
 std::optional<std::size_t> EditorPlugins::currentFrame() const

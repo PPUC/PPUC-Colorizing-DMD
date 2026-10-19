@@ -9,7 +9,9 @@
 
 #include "ColorizingDMDPlugin.h"
 #include "document/ProjectDocument.h"
+#include "edit/EditBatch.h"
 #include "edit/Sections.h"
+#include "edit/StructureCommand.h"
 #include "vpx/EditorApiHost.h"
 
 namespace colorizing::vpx {
@@ -25,6 +27,14 @@ uint32_t g_hostEndpoint = 0;
 unsigned int g_getApiId = 0;
 unsigned int g_projectChangedId = 0;
 unsigned int g_selectionChangedId = 0;
+
+// The edit batch a plugin has open (BeginEdit .. EndEdit).
+struct OpenBatch {
+    uint32_t endpointId = 0;
+    document::ProjectDocument* document = nullptr;
+    edit::EditBatch batch;
+};
+std::optional<OpenBatch> g_batch;
 
 const ProjectDocument* openDocument()
 {
@@ -337,8 +347,124 @@ void MSGPIAPI setSetting(uint32_t endpointId, const char* key, const char* value
     }
 }
 
+void finishBatch(bool apply)
+{
+    if (!g_batch) {
+        return;
+    }
+    OpenBatch open = std::move(*g_batch);
+    g_batch.reset();
+    if (!g_backend || g_backend->editableDocument() != open.document) {
+        // The project it was made on is gone.
+        return;
+    }
+    if (!apply) {
+        open.batch.cancel(*open.document);
+        return;
+    }
+    if (std::unique_ptr<edit::EditBatchCommand> command = open.batch.finish()) {
+        g_backend->recordEdit(std::move(command));
+    }
+}
+
+int MSGPIAPI beginEdit(uint32_t endpointId, const char* name)
+{
+    document::ProjectDocument* document = g_backend ? g_backend->editableDocument() : nullptr;
+    if (!document || g_batch) {
+        return 0;
+    }
+    g_batch = OpenBatch{endpointId, document, edit::EditBatch(name && *name ? name : "Plugin edit")};
+    return 1;
+}
+
+int MSGPIAPI endEdit(uint32_t endpointId, int apply)
+{
+    if (!g_batch || g_batch->endpointId != endpointId) {
+        return 0;
+    }
+    finishBatch(apply != 0);
+    return 1;
+}
+
+// Runs one change of the plugin's open batch: 0 when it has none or the change is refused.
+template <typename Change>
+int change(uint32_t endpointId, Change&& makeChange)
+{
+    if (!g_batch || g_batch->endpointId != endpointId || !g_backend ||
+        g_backend->editableDocument() != g_batch->document) {
+        return 0;
+    }
+    try {
+        g_batch->batch.add(makeChange(*g_batch->document));
+        return 1;
+    } catch (const std::exception&) {
+        // The change left the document as it was.
+        return 0;
+    }
+}
+
+int MSGPIAPI resetFramePixels(uint32_t endpointId, uint32_t frame, const uint8_t* keep,
+                              uint32_t count)
+{
+    if (!keep) {
+        return 0;
+    }
+    std::vector<uint8_t> mask(keep, keep + count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::resetPixelsToOriginal(document, frame, mask);
+    });
+}
+
+int MSGPIAPI setDynamicZones(uint32_t endpointId, uint32_t frame, const uint8_t* sets,
+                             uint32_t count)
+{
+    if (!sets) {
+        return 0;
+    }
+    std::vector<uint8_t> zones(sets, sets + count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::setDynamicZones(document, frame, zones);
+    });
+}
+
+int MSGPIAPI setFrameBackground(uint32_t endpointId, uint32_t frame, uint32_t background)
+{
+    if (background != CDMDPI_NONE && background >= document::kNoBackgroundId) {
+        return 0;
+    }
+    const uint16_t id = background == CDMDPI_NONE ? document::kNoBackgroundId
+                                                  : static_cast<uint16_t>(background);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::setFrameBackground(document, frame, id);
+    });
+}
+
+int MSGPIAPI deleteBackground(uint32_t endpointId, uint32_t background)
+{
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return std::unique_ptr<edit::EditCommand>(edit::deleteBackground(document, background));
+    });
+}
+
+int MSGPIAPI clearColorRotations(uint32_t endpointId, uint32_t frame)
+{
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::clearColorRotations(document, frame);
+    });
+}
+
+uint32_t MSGPIAPI getPlainColors(uint16_t* colors, uint32_t capacity)
+{
+    const ProjectDocument* document = openDocument();
+    if (!document) {
+        return 0;
+    }
+    const std::vector<uint16_t> plain = document::plainOriginalColors(document->colorCount());
+    return copyAll(plain, plain.size(), colors, capacity);
+}
+
 const ColorizingDMDEditorAPI kApi{
-    1,
+    2,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -356,6 +482,14 @@ const ColorizingDMDEditorAPI kApi{
     &showStatus,
     &getSetting,
     &setSetting,
+    &beginEdit,
+    &endEdit,
+    &resetFramePixels,
+    &setDynamicZones,
+    &setFrameBackground,
+    &deleteBackground,
+    &clearColorRotations,
+    &getPlainColors,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)
@@ -377,6 +511,7 @@ void broadcast(unsigned int msgId)
 void setEditorBackend(EditorBackend* backend)
 {
     g_backend = backend;
+    g_batch.reset();
 }
 
 void notifyProjectChanged()
@@ -392,6 +527,11 @@ void notifySelectionChanged()
 const void* editorApiTable()
 {
     return &kApi;
+}
+
+void finishOpenEditBatch()
+{
+    finishBatch(true);
 }
 
 void installEditorApi(const MsgPluginAPI* api, uint32_t hostEndpoint)
@@ -424,6 +564,7 @@ void uninstallEditorApi()
 namespace colorizing::vpx {
 
 void setEditorBackend(EditorBackend*) {}
+void finishOpenEditBatch() {}
 void notifyProjectChanged() {}
 void notifySelectionChanged() {}
 const void* editorApiTable()

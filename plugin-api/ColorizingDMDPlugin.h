@@ -1,6 +1,6 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 1.
+// ColorizingDMD editor API for plugins, version 2 (version 1 without the editing part).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -83,7 +83,7 @@ typedef void(MSGPIAPI* cdmdpi_action_callback)(void* userData);
 
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 1
+   int version; // 2
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -134,4 +134,41 @@ typedef struct ColorizingDMDEditorAPI
    uint32_t(MSGPIAPI* GetSetting)(uint32_t endpointId, const char* key, char* value,
                                   uint32_t capacity);
    void(MSGPIAPI* SetSetting)(uint32_t endpointId, const char* key, const char* value);
+
+   // ---- Editing (version 2) --------------------------------------------------------------
+   // Changes go into an edit batch. Between BeginEdit and EndEdit every change applies at once
+   // (later reads see it); EndEdit records them as one step, which the author takes back with
+   // one Undo, under the name given (shown as "Undo: <name>"). One batch at a time, for the
+   // plugin that began it. A batch ends in the main-thread call that began it: the editor
+   // records a batch still open the next time it runs the plugin bus.
+   //
+   // Returns 0 without a project or while a batch is open.
+   int(MSGPIAPI* BeginEdit)(uint32_t endpointId, const char* name);
+   // apply 1: records the batch (nothing when no change changed anything); 0: takes its changes
+   // back. Returns 0 when the plugin has no batch open.
+   int(MSGPIAPI* EndEdit)(uint32_t endpointId, int apply);
+   // The changes. Each returns 1 when it was made (also when it changed nothing) and 0 when the
+   // plugin has no batch open or the change is refused (a frame or record that does not
+   // exist, data of the wrong size or with values out of range); a refused change changes
+   // nothing.
+   //
+   // The frame's colorized pixels on every plane it has get the look of a frame fresh from a
+   // dump (each original shade in its plain color, see GetPlainColors), except where keep is
+   // not 0. keep: the original's size (count = width * height), row-major; an HD pixel follows
+   // the original pixel under it.
+   int(MSGPIAPI* ResetFramePixels)(uint32_t endpointId, uint32_t frame, const uint8_t* keep,
+                                   uint32_t count);
+   // The frame's dynamic zones on the dynamic plane, as GetDynamicMask gives them: the set of
+   // each pixel (0 .. CDMDPI_DYNAMIC_SETS - 1), 255 for none.
+   int(MSGPIAPI* SetDynamicZones)(uint32_t endpointId, uint32_t frame, const uint8_t* sets,
+                                  uint32_t count);
+   // The frame's background; CDMDPI_NONE for none.
+   int(MSGPIAPI* SetFrameBackground)(uint32_t endpointId, uint32_t frame, uint32_t background);
+   // Deletes a background; the frames that have it lose it, and the later backgrounds move
+   // down by one (delete from the last to the first to delete several).
+   int(MSGPIAPI* DeleteBackground)(uint32_t endpointId, uint32_t background);
+   // Removes the frame's color rotations.
+   int(MSGPIAPI* ClearColorRotations)(uint32_t endpointId, uint32_t frame);
+   // The plain color (RGB565) of each original shade, colors[shade], colorCount of them.
+   uint32_t(MSGPIAPI* GetPlainColors)(uint16_t* colors, uint32_t capacity);
 } ColorizingDMDEditorAPI;

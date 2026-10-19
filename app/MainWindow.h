@@ -708,6 +708,10 @@ private:
     void showSceneFrames(uint16_t sceneId);
     void recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command);
     void refreshAfterSceneEdit(const edit::SceneEditCommand& command);
+    // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.
+    void recordPluginEdit(std::unique_ptr<edit::EditCommand> command);
+    // After an edit batch ran either way: it may have changed any frame and record.
+    void refreshAfterEditBatch();
     // A project of the Win32 editor takes the scenes and scaling settings of the files beside
     // its cROM (runtime::importColorizationSidecars()). Returns what to tell about it, empty
     // when there was nothing to take.

@@ -1236,8 +1236,15 @@ table, message `ColorizingDMD.GetEditorAPI:1`, events OnProjectChanged/OnSelecti
 Host side `app/vpx/EditorApi.{h,cpp}` (installed when the bus opens, released before
 Shutdown), `EditorBackend` implemented by `app/EditorPlugins.{h,cpp}` (loads the plugins chosen
 under Settings -> Plugins, pumps the bus every 20 ms while one is loaded, polls revision and
-selection for the events, Plugins menu, settings under `plugins/<id>/`). v1 reads only;
-undoable edits come in a later version. Tests: `tests/EditorPluginsWidgetTests.cpp` call the
+selection for the events, Plugins menu, settings under `plugins/<id>/`). v1 reads only.
+v2 (2026-10-19, for the retheming template of the AI assistant): edit batches, `BeginEdit` ..
+`EndEdit`, with ResetFramePixels (plain original colors except a keep mask, HD follows the ROM
+pixel), SetDynamicZones, SetFrameBackground, DeleteBackground, ClearColorRotations, and
+GetPlainColors. Core: `edit/EditBatch.{h,cpp}`, `EditBatchCommand` in the structure history
+(like SceneEditCommand; drops the other histories of the data its steps edit), refreshed by
+`MainWindow::refreshAfterEditBatch()`. A batch still open after the plugins' messages ran is
+recorded by `EditorPlugins::tick()`. Tests: `tests/EditBatchTests.cpp` and the API part of
+`EditorPluginsWidgetTests.cpp`. Tests: `tests/EditorPluginsWidgetTests.cpp` call the
 table as a plugin does. The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.

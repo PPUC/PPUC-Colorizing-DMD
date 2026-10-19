@@ -13,6 +13,8 @@
 
 #include "EditorPlugins.h"
 #include "document/ProjectDocument.h"
+#include "edit/EditBatch.h"
+#include "edit/UndoHistories.h"
 #include "vpx/EditorApi.h"
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
@@ -41,11 +43,19 @@ void runEditorPluginsWidgetTests()
     std::optional<std::size_t> current = 1;
     std::vector<std::size_t> selected{1};
     std::vector<std::size_t> shown;
+    edit::UndoHistories histories;
+    std::vector<std::string> recorded;
     QMenu menu;
 
     app::EditorPlugins::Window window;
     window.menu = &menu;
     window.document = [&document]() { return &document; };
+    window.editableDocument = [&document]() { return &document; };
+    window.recordEdit = [&](std::unique_ptr<edit::EditCommand> command) {
+        const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
+        recorded.push_back(batch ? batch->name() : std::string());
+        histories.push(edit::structureHistoryKey(), std::move(command));
+    };
     window.currentFrame = [&current]() { return current; };
     window.selectedFrames = [&selected]() { return selected; };
     window.showFrames = [&](std::size_t frame, const std::vector<std::size_t>& frames) {
@@ -68,7 +78,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 1, "the API table is version 1");
+    expect(api && api->version == 2, "the API table is version 2");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&
@@ -121,6 +131,51 @@ void runEditorPluginsWidgetTests()
     const uint32_t missing[] = {7};
     expect(api->ShowFrames(0, missing, 1) == 0 && current == 2,
            "but not frames that do not exist");
+
+    // Editing: a batch of changes, one undo step.
+    const uint32_t plugin = 7;
+    std::vector<uint8_t> keep(128 * 32, 0);
+    expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 0,
+           "no change without a batch");
+    expect(api->BeginEdit(plugin, "Strip") == 1 && api->BeginEdit(plugin, "Again") == 0,
+           "one batch at a time");
+    expect(api->ResetFramePixels(plugin + 1, 1, keep.data(), 128 * 32) == 0,
+           "only for the plugin that began it");
+    expect(api->ResetFramePixels(plugin, 1, keep.data(), 5) == 0,
+           "a keep mask of the wrong size is refused");
+    std::vector<uint16_t> plain(16, 1);
+    expect(api->GetPlainColors(plain.data(), 16) == 16, "the plain colors of 16 shades");
+    expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 1 &&
+               document.colorizedPixel(1, render::Resolution::Sd, 5, 2) ==
+                   plain[document.originalFrame(1).pixels[2 * 128 + 5]],
+           "the frame gets the original's plain look at once");
+    std::vector<uint8_t> zones(128 * 32, 255);
+    zones[0] = 40;
+    expect(api->SetDynamicZones(plugin, 1, zones.data(), 128 * 32) == 0,
+           "a dynamic set out of range is refused");
+    expect(api->ClearColorRotations(plugin, 1) == 1 && api->DeleteBackground(plugin, 0) == 0,
+           "a change that changes nothing is made; a background that does not exist is refused");
+    expect(api->EndEdit(plugin + 1, 1) == 0 && api->EndEdit(plugin, 1) == 1 &&
+               recorded == std::vector<std::string>{"Strip"},
+           "the batch is recorded as one step under its name");
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.colorizedPixel(1, render::Resolution::Sd, 5, 2) == 0xf800,
+           "and undone as one");
+
+    expect(api->BeginEdit(plugin, "Cancelled") == 1 &&
+               api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 1 &&
+               api->EndEdit(plugin, 0) == 1 &&
+               document.colorizedPixel(1, render::Resolution::Sd, 5, 2) == 0xf800 &&
+               recorded.size() == 1,
+           "a batch ended without applying takes its changes back");
+    expect(api->BeginEdit(plugin, "Left open") == 1 &&
+               api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32) == 1,
+           "a batch left open");
+    plugins.tick();
+    expect(recorded.size() == 2 && recorded.back() == "Left open" &&
+               api->BeginEdit(plugin, "Next") == 1 && api->EndEdit(plugin, 1) == 1 &&
+               recorded.size() == 2,
+           "is recorded by the next bus tick; an empty batch records nothing");
 #endif
 
     // A plugin's settings, in an INI file of a test organization.

@@ -9,6 +9,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/CopyPaste.cpp
     edit/DrawingGeometry.cpp
     edit/DrawingTools.cpp
+    edit/EditBatch.cpp
     edit/EditCommand.cpp
     edit/FrameContentCommand.cpp
     edit/FrameMove.cpp

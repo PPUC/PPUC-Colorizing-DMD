@@ -87,6 +87,7 @@
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "dialogs/SelectionDialogs.h"
+#include "edit/EditBatch.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/ColorSetEdits.h"
 #include "document/Upscale.h"
@@ -523,6 +524,12 @@ MainWindow::MainWindow(QWidget* parent)
     pluginWindow.menu = m_pluginsMenu;
     pluginWindow.document = [this]() -> const document::ProjectDocument* {
         return m_document ? &*m_document : nullptr;
+    };
+    pluginWindow.editableDocument = [this]() -> document::ProjectDocument* {
+        return m_document ? &*m_document : nullptr;
+    };
+    pluginWindow.recordEdit = [this](std::unique_ptr<edit::EditCommand> command) {
+        recordPluginEdit(std::move(command));
     };
     pluginWindow.currentFrame = [this]() { return currentFrameIndex(); };
     pluginWindow.selectedFrames = [this]() { return selectedFrameIndices(); };
@@ -9218,6 +9225,50 @@ void MainWindow::refreshAfterSceneEdit(const edit::SceneEditCommand& command)
     updateStructureControls();
 }
 
+void MainWindow::recordPluginEdit(std::unique_ptr<edit::EditCommand> command)
+{
+    if (!m_document || !command) {
+        return;
+    }
+    const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
+    const QString name = batch ? QString::fromStdString(batch->name()) : QString();
+    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    refreshAfterEditBatch();
+    updateUndoRedoActions();
+    showStructureEditStatus(name, 3000);
+}
+
+void MainWindow::refreshAfterEditBatch()
+{
+    if (!m_document) {
+        return;
+    }
+    setPlaybackRunning(false);
+    m_pasteMode.cancel();
+    m_canvasEdit.cancelFreeGradient();
+    m_canvasEdit.clearSelection(canvasEditContext());
+    m_canvasEdit.clearCaptureSelection();
+    m_spriteDependentViewsDirty = false;
+    const std::size_t current = currentFrameIndex().value_or(0);
+    refreshFrameList(std::nullopt);
+    selectFrameNear(std::min(current, m_document->frameCount() - 1));
+    refreshComponentBrowsers();
+    updateSectionControls();
+    updateFrameMetadataControls();
+    updateBackgroundControls();
+    updateDynamicColorControls();
+    updateColorRotationControls();
+    updateSpriteControls();
+    updatePaintTargetMode();
+    if (m_preview) {
+        m_preview->update();
+    }
+    updateFrameStatusText();
+    updatePlaybackControls();
+    updateStructureControls();
+    updateProjectHeaderStatus();
+}
+
 void MainWindow::updateRuntimeSceneFile()
 {
     // The <rom>.pup.csv beside the project, as the .cROMc export takes it: the Runtime view and
@@ -9491,6 +9542,8 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             } else if (const auto* scene =
                            dynamic_cast<const edit::SceneEditCommand*>(&command)) {
                 refreshAfterSceneEdit(*scene);
+            } else if (dynamic_cast<const edit::EditBatchCommand*>(&command)) {
+                refreshAfterEditBatch();
             }
             break;
         case edit::EditKind::Sections:
@@ -9761,6 +9814,10 @@ void MainWindow::undo(bool anywhere)
         statusBar()->showMessage(tr("Undo: %1").arg(sceneEditText(*scene)), 2500);
         return;
     }
+    if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command)) {
+        statusBar()->showMessage(tr("Undo: %1").arg(QString::fromStdString(batch->name())), 2500);
+        return;
+    }
     statusBar()->showMessage(tr("Undo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
                              1500);
 }
@@ -9811,6 +9868,10 @@ void MainWindow::redo(bool anywhere)
     }
     if (const auto* scene = dynamic_cast<const edit::SceneEditCommand*>(command)) {
         statusBar()->showMessage(tr("Redo: %1").arg(sceneEditText(*scene)), 2500);
+        return;
+    }
+    if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command)) {
+        statusBar()->showMessage(tr("Redo: %1").arg(QString::fromStdString(batch->name())), 2500);
         return;
     }
     statusBar()->showMessage(tr("Redo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
