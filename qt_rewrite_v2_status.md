@@ -1115,6 +1115,10 @@ owner together.
   `displayScale()` = fitted * zoom, `displayOrigin()` centred or scrolled), Ctrl/Cmd+wheel and
   pinch around the mouse, wheel/trackpad pans; the View menu's zoom entries go to it while the
   sprite canvas is active (they always zoomed the frame canvas).
+- Last frame stays on ZeDMD after closing (issue #8): `DmdOutput::stop()` (switch-off and the
+  destructor at exit) sets a black picture of the last size, waits until the plugin read it
+  (`DisplaySource::reads()`, up to 300 ms, pumping the bus) plus 100 ms for libdmdutil's device
+  thread, then unloads. Not checked on hardware (no ZeDMD attached at the time).
 - Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
   import itself is done, see "VPX plugins").
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification

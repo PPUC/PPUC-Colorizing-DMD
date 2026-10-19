@@ -1,6 +1,8 @@
 #include "DmdOutput.h"
 
+#include <QElapsedTimer>
 #include <QSettings>
+#include <QThread>
 
 #include <algorithm>
 #include <mutex>
@@ -226,6 +228,21 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
 void DmdOutput::stop()
 {
     Impl& impl = *m_impl;
+    if (impl.running && impl.lastWidth > 0 && impl.lastHeight > 0) {
+        // The displays keep the last picture they got (a ZeDMD goes idle over it): they get a
+        // black one before the plugin goes. It is sent once the plugin has fetched it (its
+        // thread does so at 60 Hz) and libdmdutil's display thread has passed it on.
+        impl.lastPixels.assign(static_cast<std::size_t>(impl.lastWidth) * impl.lastHeight, 0);
+        const unsigned int readsBefore = impl.display.reads();
+        impl.display.setPicture(impl.lastWidth, impl.lastHeight, impl.lastPixels.data());
+        QElapsedTimer waited;
+        waited.start();
+        while (impl.display.reads() < readsBefore + 2 && waited.elapsed() < 300) {
+            vpx::Host::instance().process();
+            QThread::msleep(5);
+        }
+        QThread::msleep(100);
+    }
     impl.display.clear();
     if (impl.running) {
         vpx::Host::instance().unload(kPluginId);

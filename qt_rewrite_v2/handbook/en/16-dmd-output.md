@@ -4,7 +4,9 @@
 picture on a real DMD as a live preview (colors on a DMD differ from those on a monitor). The
 editor hosts VPX plugins, as VPX and PPUC do, and the picture goes through VPX's DMDUtil plugin to
 libdmdutil. Switching it on loads the plugin, which makes libdmdutil look for attached displays;
-switching it off unloads it and lets them go.
+switching it off unloads it and lets them go. Before that, and when the editor is closed, the
+displays get a black picture: a display keeps the last picture it got (a ZeDMD goes idle over
+it), so otherwise the last frame would stay on it.
 
 - What is shown: the frame as the editor composes it on the plane the canvas shows (with the
   background when the canvas's background layer is on; a stroke appears when it is finished,
