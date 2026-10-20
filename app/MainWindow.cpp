@@ -532,7 +532,10 @@ MainWindow::MainWindow(QWidget* parent)
     m_packTimer.start();
     m_frameRestTimer.setSingleShot(true);
     m_frameRestTimer.setInterval(250);
-    connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() { updateFrameRestViews(); });
+    connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() {
+        updateFrameRestViews();
+        noteCanvasPlace(true);
+    });
     createActions();
     createCentralView();
     EditorPlugins::Window pluginWindow;
@@ -1247,7 +1250,7 @@ void MainWindow::createCentralView()
     };
     m_backgroundPanel->onEditRequested = [this](bool editing) {
         if (editing) {
-            editAssignedBackground();
+            editAssignedBackground(true);
             return;
         }
         // Back to the frame, as Edit Sprite does when it is clicked again.
@@ -1414,6 +1417,26 @@ void MainWindow::createCentralView()
     m_spritePanel->onClearDetectionAreaRequested = [this]() {
         clearCurrentSpriteDetectionArea();
     };
+    // Back and forward through what the canvas showed, as in a web browser.
+    m_historyBackButton = new QToolButton(central);
+    m_historyBackButton->setText(QStringLiteral("<"));
+    m_historyBackButton->setToolTip(
+        tr("Back to what the canvas showed before: a frame, a background or a sprite (%1)")
+            .arg(QKeySequence(QKeySequence::Back).toString(QKeySequence::NativeText)));
+    m_historyBackButton->setShortcut(QKeySequence::Back);
+    m_historyForwardButton = new QToolButton(central);
+    m_historyForwardButton->setText(QStringLiteral(">"));
+    m_historyForwardButton->setToolTip(
+        tr("Forward again (%1)")
+            .arg(QKeySequence(QKeySequence::Forward).toString(QKeySequence::NativeText)));
+    m_historyForwardButton->setShortcut(QKeySequence::Forward);
+    connect(m_historyBackButton, &QToolButton::clicked, this, [this]() { goBackOrForward(true); });
+    connect(m_historyForwardButton, &QToolButton::clicked, this,
+            [this]() { goBackOrForward(false); });
+    toolbarLayout->addWidget(m_historyBackButton);
+    toolbarLayout->addWidget(m_historyForwardButton);
+    updateHistoryButtons();
+    startToolbarGroup();
     toolbarLayout->addWidget(m_sdButton);
     toolbarLayout->addWidget(m_hdButton);
     toolbarLayout->addWidget(m_comparisonMaskOverlayButton);
@@ -2018,6 +2041,8 @@ void MainWindow::createCentralView()
                 m_canvasEdit.clearSelection(canvasEditContext());
                 updateBackgroundControls();
                 updateUndoRedoActions();
+                // Another background while one is edited: another canvas content.
+                noteCanvasPlace();
             });
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         colorizedCanvasClicked(hit, erase);
@@ -2484,6 +2509,8 @@ void MainWindow::newProjectFromDump()
         m_currentCromPath.clear();
         m_currentCrpPath.clear();
         m_undoHistories.clear();
+        m_canvasHistory.clear();
+        updateHistoryButtons();
         startProjectClock();
         updateRuntimeSceneFile();
         m_pasteMode.clearClipboard();
@@ -3433,6 +3460,8 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
             m_document->markUnsaved();
         }
         m_undoHistories.clear();
+        m_canvasHistory.clear();
+        updateHistoryButtons();
         startProjectClock();
         updateRuntimeSceneFile();
         m_pasteMode.clearClipboard();
@@ -5746,10 +5775,19 @@ void MainWindow::editFrameInsteadOfBackground()
     statusBar()->showMessage(tr("Editing the frame"), 1500);
 }
 
-void MainWindow::editAssignedBackground()
+void MainWindow::editAssignedBackground(bool fromFrame)
 {
     if (!m_framePanel) {
         return;
+    }
+    if (fromFrame && activePaintTarget() == PaintTarget::Frame && !spriteCanvasShown()) {
+        // From the frame: its own background, not the one selected for something earlier.
+        if (const std::optional<std::size_t> assigned = currentBackgroundIndex()) {
+            const int comboIndex = m_backgroundComboBox->findData(static_cast<int>(*assigned));
+            if (comboIndex >= 0) {
+                m_backgroundComboBox->setCurrentIndex(comboIndex);
+            }
+        }
     }
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!backgroundIndex) {
@@ -7546,6 +7584,10 @@ void MainWindow::updateSpriteControls()
     if (!m_spritePanel) {
         return;
     }
+    // Another sprite in the sprite editor: another canvas content.
+    if (spriteCanvasShown()) {
+        noteCanvasPlace();
+    }
 
     const int spriteCount = m_document ? static_cast<int>(m_document->spriteCount()) : 0;
     if (spriteCount == 0) {
@@ -7631,6 +7673,113 @@ void MainWindow::updateInspectorSections()
         }
         m_inspectorSections->setSectionHidden(index, !shown);
     }
+    noteCanvasPlace();
+}
+
+CanvasPlace MainWindow::currentCanvasPlace() const
+{
+    CanvasPlace place;
+    place.frame = currentFrameIndex().value_or(0);
+    place.index = place.frame;
+    if (spriteCanvasShown()) {
+        if (const std::optional<std::size_t> sprite = currentSpriteIndex()) {
+            place.kind = CanvasPlace::Kind::Sprite;
+            place.index = *sprite;
+        }
+    } else if (isBackgroundImageTargetActive()) {
+        place.kind = CanvasPlace::Kind::Background;
+        place.index = *selectedBackgroundIndex();
+    }
+    return place;
+}
+
+void MainWindow::noteCanvasPlace(bool frameRested)
+{
+    // Playback steps through frames by itself: not a place the author went to.
+    if (!m_document || m_showingCanvasPlace || !currentFrameIndex() ||
+        (m_playbackTimer && m_playbackTimer->isActive())) {
+        return;
+    }
+    m_canvasHistory.note(currentCanvasPlace(), frameRested);
+    updateHistoryButtons();
+}
+
+void MainWindow::updateHistoryButtons()
+{
+    if (m_historyBackButton) {
+        m_historyBackButton->setEnabled(m_canvasHistory.canGoBack());
+    }
+    if (m_historyForwardButton) {
+        m_historyForwardButton->setEnabled(m_canvasHistory.canGoForward());
+    }
+}
+
+void MainWindow::goBackOrForward(bool back)
+{
+    if (!m_document) {
+        return;
+    }
+    // Where the canvas is now counts, also a frame that has not rested yet.
+    noteCanvasPlace(true);
+    const document::ProjectDocument& document = *m_document;
+    const auto exists = [&document](const CanvasPlace& place) {
+        switch (place.kind) {
+            case CanvasPlace::Kind::Frame:
+                return place.index < document.frameCount();
+            case CanvasPlace::Kind::Background:
+                return place.index < document.backgroundCount();
+            case CanvasPlace::Kind::Sprite:
+                return place.index < document.spriteCount();
+        }
+        return false;
+    };
+    const std::optional<CanvasPlace> place =
+        back ? m_canvasHistory.back(exists) : m_canvasHistory.forward(exists);
+    if (place) {
+        showCanvasPlace(*place);
+    }
+    updateHistoryButtons();
+}
+
+void MainWindow::showCanvasPlace(const CanvasPlace& place)
+{
+    m_showingCanvasPlace = true;
+    if (m_playbackTimer && m_playbackTimer->isActive()) {
+        setPlaybackRunning(false);
+    }
+    if (place.frame < m_document->frameCount()) {
+        goToFrame(place.kind == CanvasPlace::Kind::Frame ? place.index : place.frame);
+    }
+    switch (place.kind) {
+        case CanvasPlace::Kind::Frame:
+            leaveSpriteCanvas();
+            if (activePaintTarget() == PaintTarget::Background) {
+                editFrameInsteadOfBackground();
+            }
+            break;
+        case CanvasPlace::Kind::Background: {
+            const int comboIndex = m_backgroundComboBox->findData(static_cast<int>(place.index));
+            if (comboIndex >= 0) {
+                m_backgroundComboBox->setCurrentIndex(comboIndex);
+            }
+            editAssignedBackground();
+            break;
+        }
+        case CanvasPlace::Kind::Sprite:
+            if (activePaintTarget() == PaintTarget::Background) {
+                editFrameInsteadOfBackground();
+            }
+            m_selectedSpriteIndex = static_cast<int>(place.index);
+            updateSpriteControls();
+            if (m_spritePanel && !m_spritePanel->isSpriteCanvasChecked()) {
+                m_spritePanel->setSpriteCanvasChecked(true);
+                if (m_spritePanel->onSpriteCanvasToggled) {
+                    m_spritePanel->onSpriteCanvasToggled(true);
+                }
+            }
+            break;
+    }
+    m_showingCanvasPlace = false;
 }
 
 void MainWindow::updatePaintTargetMode()

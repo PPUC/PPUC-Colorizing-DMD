@@ -2759,6 +2759,14 @@ Use Create %1 Frame.</source>
         <translation>Sprite-Set %1 in die Bearbeitungsfarben kopiert</translation>
     </message>
     <message>
+        <source>Back to what the canvas showed before: a frame, a background or a sprite (%1)</source>
+        <translation>Zurück zu dem, was die Zeichenfläche vorher zeigte: ein Frame, ein Hintergrund oder ein Sprite (%1)</translation>
+    </message>
+    <message>
+        <source>Forward again (%1)</source>
+        <translation>Wieder vorwärts (%1)</translation>
+    </message>
+    <message>
         <source>Point</source>
         <translation>Punkt</translation>
     </message>

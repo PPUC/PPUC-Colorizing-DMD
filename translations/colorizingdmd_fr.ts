@@ -148,7 +148,7 @@
     </message>
     <message>
         <source>End editing the background and show the frame again</source>
-        <translation>Terminer l'édition du fond et afficher à nouveau la frame</translation>
+        <translation>Terminer l&apos;édition du fond et afficher à nouveau la frame</translation>
     </message>
     <message>
         <source>Selected: None</source>
@@ -2757,6 +2757,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Copied sprite set %1 to the edit colors</source>
         <translation>Jeu du sprite %1 copié dans les couleurs d&apos;édition</translation>
+    </message>
+    <message>
+        <source>Back to what the canvas showed before: a frame, a background or a sprite (%1)</source>
+        <translation>Revenir à ce que le canevas montrait avant : une frame, un fond ou un sprite (%1)</translation>
+    </message>
+    <message>
+        <source>Forward again (%1)</source>
+        <translation>De nouveau en avant (%1)</translation>
     </message>
     <message>
         <source>Point</source>
@@ -6224,7 +6232,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Leave the sprite editor and show the frame again</source>
-        <translation>Quitter l'éditeur de sprite et afficher à nouveau la frame</translation>
+        <translation>Quitter l&apos;éditeur de sprite et afficher à nouveau la frame</translation>
     </message>
     <message>
         <source>No frame sprites</source>

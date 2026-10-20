@@ -1885,3 +1885,17 @@ capture, Show Bounds, bounds, Source Frame, Edit Sprite. Record page — Import/
 name, Show Det Areas, detection areas, shape mode, dynamic sets, HD, Apply Sprite. Each record
 page has `Back to Frame` (background: `onEditRequested(false)`; sprite: unchecks Edit Sprite).
 SpritePanel sets the tab order per page explicitly (moving widgets into pages scrambled it).
+
+## Edit BG takes the frame's background; canvas history (2026-10-20, owner report)
+
+Bug: Edit BG edited the background selected in the combo (the one used last), not the current
+frame's. `editAssignedBackground(fromFrame)`: the Edit BG button (frame canvas) selects
+`currentBackgroundIndex()` first when the frame has one; the left list's double click and the
+history keep the explicit selection. Toolbar `<` / `>` (`QKeySequence::Back/Forward`):
+`CanvasHistory` (app/CanvasHistory.h, max 100 places) of `CanvasPlace` {Frame, Background,
+Sprite; index; frame}. Frames are noted when the frame rest timer fires, or at once after a
+background/sprite place; a background/sprite place is one entry whatever the frame (its frame
+updated). Noted from the rest timer, `updateInspectorSections` (canvas and paint target
+changes), the background combo, `updateSpriteControls` in the sprite editor; not during
+playback or while `showCanvasPlace` runs. back/forward drop places whose record is gone.
+Cleared on project open/restore. Test: `testCanvasHistory`.

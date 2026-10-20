@@ -17,6 +17,8 @@ Currently implemented:
   `BG -> Frame`, `Edit BG`) and `Background` while the background is edited (the selected
   background, `Import Image`, `Export BG`, `Create HD`, `Remove HD`, and `Back to Frame`, which
   ends editing as `Edit BG` clicked again does). Entering background editing opens it.
+- `Edit BG` edits the current frame's own background; a frame without one, the background
+  selected in the section. A double click on a background in the left sidebar edits that one.
 - `Edit BG` in the Inspector's `Frame Background` section (or a double click on a background in the
   left sidebar) displays the selected background image on the canvas and edits that shared
   background image with the ordinary drawing tools; the button stays down meanwhile. Click

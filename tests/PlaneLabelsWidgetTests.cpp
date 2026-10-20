@@ -23,6 +23,7 @@
 #include "document/ProjectSnapshot.h"
 #include "FrameListWidget.h"
 #include "FrameThumbnail.h"
+#include "CanvasHistory.h"
 #include "LazyListIcons.h"
 #include "panels/BackgroundPanel.h"
 #include "panels/ColorRotationPanel.h"
@@ -632,8 +633,62 @@ void testSectionStackResize()
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
 
+void testCanvasHistory()
+{
+    using Kind = app::CanvasPlace::Kind;
+    const auto frame = [](std::size_t index) { return app::CanvasPlace{Kind::Frame, index, index}; };
+    const auto all = [](const app::CanvasPlace&) { return true; };
+    app::CanvasHistory history;
+    history.note(frame(3), false);
+    history.note(frame(4), false);
+    history.note(frame(5), false);
+    expect(history.size() == 1 && !history.canGoBack(),
+           "stepping through frames notes only where it rests");
+    history.note(frame(9), true);
+    history.note(app::CanvasPlace{Kind::Background, 2, 9}, false);
+    history.note(app::CanvasPlace{Kind::Background, 2, 10}, false);
+    expect(history.size() == 3 && history.current()->frame == 10,
+           "a background is one place whatever the frame; its frame follows");
+    history.note(frame(10), false);
+    expect(history.size() == 4, "back on the frame canvas, the frame counts at once");
+    history.note(app::CanvasPlace{Kind::Sprite, 1, 10}, false);
+
+    std::optional<app::CanvasPlace> place = history.back(all);
+    expect(place && place->kind == Kind::Frame && place->index == 10, "back: the frame");
+    place = history.back(all);
+    expect(place && place->kind == Kind::Background && place->index == 2 && place->frame == 10,
+           "back: the background, with the frame to come back to");
+    place = history.forward(all);
+    expect(place && place->kind == Kind::Frame && history.canGoForward(), "forward again");
+    history.note(frame(10), true);
+    expect(history.canGoForward(), "showing a place notes nothing new");
+    history.note(frame(20), true);
+    expect(!history.canGoForward() && history.size() == 5,
+           "a new place drops the places ahead");
+
+    // Places that no longer exist are skipped and dropped.
+    const auto withoutBackgrounds = [](const app::CanvasPlace& candidate) {
+        return candidate.kind != Kind::Background;
+    };
+    history.back(all);
+    place = history.back(withoutBackgrounds);
+    expect(place && place->kind == Kind::Frame && place->index == 9 && history.size() == 4,
+           "back skips a deleted background");
+    place = history.forward(all);
+    expect(place && place->kind == Kind::Frame && place->index == 10, "and forward again");
+
+    app::CanvasHistory full;
+    for (std::size_t index = 0; index < app::CanvasHistory::kMaxPlaces + 20; ++index) {
+        full.note(frame(index), true);
+    }
+    expect(full.size() == app::CanvasHistory::kMaxPlaces, "the history keeps the last places");
+    full.clear();
+    expect(full.size() == 0 && !full.canGoBack(), "a project opened starts a new history");
+}
+
 void runPlaneLabelsWidgetTests()
 {
+    testCanvasHistory();
     testLabels();
     testFramePanelActions();
     testListLabelsOfPanels();

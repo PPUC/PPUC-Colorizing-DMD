@@ -20,6 +20,17 @@ buttons: one step per frame in each frame's settings history, so Undo takes it b
 frame shown (see "Undo And Redo"). Frames without background data are skipped for a background.
 Nothing else can be dropped onto the canvas.
 
+## Back and forward
+
+The toolbar's `<` and `>` go back and forward through what the canvas showed, as in a web
+browser: frames, backgrounds being edited and sprites in the sprite editor (`Cmd+[` and `Cmd+]`
+on macOS, `Alt+Left` and `Alt+Right` elsewhere). A frame counts once it has stayed a quarter of
+a second, so stepping through frames notes only where it stopped; playback notes nothing. A
+background or a sprite counts once, whichever frame is current meanwhile; going back to it
+shows it with the frame that was current. Going somewhere new drops the places ahead, as a
+browser does. Deleted frames, backgrounds and sprites are skipped. Opening a project starts a
+new history.
+
 ## Zoom
 
 The canvas is split into two halves, one above the other: the colorized frame in the upper,

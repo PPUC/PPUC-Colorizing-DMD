@@ -30,6 +30,7 @@
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
+#include "CanvasHistory.h"
 #include "SectionStack.h"
 #include "UnsavedChanges.h"
 #include "panels/FramePanel.h"
@@ -281,7 +282,9 @@ private:
     void assignSelectedMaskToFrames();
     void editAssignedMask();
     void assignSelectedBackgroundToFrames();
-    void editAssignedBackground();
+    // Edit BG and a double click on a background: the background on the canvas. fromFrame (Edit
+    // BG): the current frame's own background when it has one, else the selected one.
+    void editAssignedBackground(bool fromFrame = false);
     // Ends editing a background: the current frame is edited again.
     void editFrameInsteadOfBackground();
     void copyCurrentFrameToSelectedBackground();
@@ -292,6 +295,12 @@ private:
     // Shows only the right sidebar's sections that serve the canvas shown: the frame, a
     // background being edited, or the sprite editor.
     void updateInspectorSections();
+    // The toolbar's < and >: what the canvas showed before (frames, backgrounds, sprites).
+    [[nodiscard]] CanvasPlace currentCanvasPlace() const;
+    void noteCanvasPlace(bool frameRested = false);
+    void goBackOrForward(bool back);
+    void showCanvasPlace(const CanvasPlace& place);
+    void updateHistoryButtons();
     // The Filter row of the Create HD windows, set to the filter used last.
     QComboBox* addUpscaleFilterRow(QDialog& dialog, QVBoxLayout& layout) const;
     // Asks for the filter; false when cancelled. The choice becomes m_createHdFilter.
@@ -572,6 +581,11 @@ private:
     SectionStack* m_leftBrowserTabs = nullptr;
     // The right sidebar's sections.
     SectionStack* m_inspectorSections = nullptr;
+    CanvasHistory m_canvasHistory;
+    // While the history shows a place: nothing is noted.
+    bool m_showingCanvasPlace = false;
+    QToolButton* m_historyBackButton = nullptr;
+    QToolButton* m_historyForwardButton = nullptr;
     FrameListWidget* m_frameList = nullptr;
     LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;

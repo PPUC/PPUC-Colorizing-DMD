@@ -9,6 +9,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     DmdOutput.cpp
     DmdOutput.h
     CanvasEditController.cpp
+    CanvasHistory.cpp
+    CanvasHistory.h
     CanvasEditController.h
     ColorGridWidget.cpp
     ColorGridWidget.h
