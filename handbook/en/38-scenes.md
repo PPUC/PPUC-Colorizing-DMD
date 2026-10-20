@@ -14,7 +14,7 @@ files beside it. The `.cRPX` keeps the scenes and which frame is which frame of 
 
 ## The Scenes section
 
-The `Scenes` section of the right sidebar lists the project's scenes: the scene ID,
+The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: the scene ID,
 the groups and frames, the frame duration, `background` for a background scene and how many of
 its frames are missing in the project.
 
@@ -31,7 +31,10 @@ its frames are missing in the project.
     pressing `OK` without changes therefore brings back missing frames.
 - `Delete` removes the selected scene. The question offers to delete its frames too or to keep
   them as ordinary frames.
-- `Show Frames` sets the frame filter to the selected scene.
+- `Show Frames` sets the frame filter to `Using the selected asset` with the selected scene:
+  the strip lists its frames, and selecting another scene lists that one's.
+- `Used by the current frame` above the left sidebar's lists shows only the scene of the
+  current frame (none for a frame of no scene).
 
 Every change is one step of `Undo` and `Redo`, in order with adding, deleting and moving frames.
 
@@ -66,8 +69,8 @@ another scene has), and `OK` waits until it can.
 
 A frame of a scene says so below its thumbnail: `Scene 1001 (3)` for its third frame, with
 groups `Scene 1001 (2.3)` for the third frame of group 2. The frame filter has, for a project
-with scenes, `Scene frames`, `Without scene frames` (the frames of the game alone) and an entry
-for each scene.
+with scenes, `Scene frames` and `Without scene frames` (the frames of the game alone). The frames
+of one scene are `Using the selected asset` with the scene selected in the `Scenes` section.
 
 ## Scaling
 

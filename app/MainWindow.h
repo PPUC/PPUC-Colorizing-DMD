@@ -118,8 +118,6 @@ private:
         SceneFrames,
         WithoutSceneFrames,
     };
-    // The data of the filter entry for the frames of one scene: this plus its ID.
-    static constexpr int kSceneFilterData = 0x10000;
 
     void createActions();
     // After the selected mask, background or sprite, or the tab on the left, changed: the frame

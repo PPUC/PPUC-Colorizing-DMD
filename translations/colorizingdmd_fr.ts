@@ -2704,7 +2704,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>The frames that use the mask, background or sprite selected in the tab that is open on the left; follows the selection and the tab</source>
-        <translation>Les frames qui utilisent le masque, l&apos;arrière-plan ou le sprite sélectionné dans l&apos;onglet ouvert à gauche ; suit la sélection et l&apos;onglet</translation>
+        <translation type="vanished">Les frames qui utilisent le masque, l&apos;arrière-plan ou le sprite sélectionné dans l&apos;onglet ouvert à gauche ; suit la sélection et l&apos;onglet</translation>
     </message>
     <message>
         <source>Mask</source>
@@ -2897,6 +2897,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Move the selected frames behind the frame shown after them (%1 in the frame strip)</source>
         <translation>Placer les frames sélectionnées après la frame qui les suit (%1 dans la bande de frames)</translation>
+    </message>
+    <message>
+        <source>The frames that use the mask, background or sprite selected in the section used last on the left, or the frames of the selected scene; follows the selection and the section</source>
+        <translation>Les frames qui utilisent le masque, le fond ou le sprite sélectionné dans la section utilisée en dernier à gauche, ou les frames de la scène sélectionnée ; suit la sélection et la section</translation>
     </message>
     <message>
         <source>Zoom out (%1)</source>
@@ -3779,7 +3783,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Scene %1</source>
-        <translation>Scène %1</translation>
+        <translation type="vanished">Scène %1</translation>
     </message>
     <message>
         <source>Dyn</source>

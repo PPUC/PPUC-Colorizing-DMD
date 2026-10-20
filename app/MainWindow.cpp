@@ -1013,8 +1013,9 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::UsesSelectedAsset));
     m_frameFilterComboBox->setItemData(
         m_frameFilterComboBox->count() - 1,
-        tr("The frames that use the mask, background or sprite selected in the tab "
-           "that is open on the left; follows the selection and the tab"),
+        tr("The frames that use the mask, background or sprite selected in the section "
+           "used last on the left, or the frames of the selected scene; follows the selection "
+           "and the section"),
         Qt::ToolTipRole);
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new FrameListWidget(central);
@@ -1675,6 +1676,16 @@ void MainWindow::createCentralView()
                               tr("Comparison Masks"));
     m_leftBrowserTabs->addTab(m_backgroundPage, QStringLiteral("Backgrounds"), tr("Backgrounds"));
     m_leftBrowserTabs->addTab(m_spritePage, QStringLiteral("Sprites"), tr("Sprites"));
+    // The scenes, as records of the project beside the others; a selected scene is the asset
+    // of "Using the selected asset".
+    m_scenesPanel = new ScenesPanel(m_leftBrowserTabs);
+    m_scenesPanel->onAddRequested = [this]() { addScene(); };
+    m_scenesPanel->onEditRequested = [this](uint16_t sceneId) { editScene(sceneId); };
+    m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
+    m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
+    m_scenesPanel->onPressed = [this]() { m_leftBrowserTabs->markCurrent(m_scenesPanel); };
+    m_scenesPanel->onSelectionChanged = [this]() { refreshSelectedAssetFilter(); };
+    m_leftBrowserTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
     // The asset of "Using the selected asset" is that of the list used last: opened, or
     // clicked in.
@@ -1783,12 +1794,6 @@ void MainWindow::createCentralView()
                           visible ? tr("Showing the helper line") : tr("Hid the helper line"));
     };
     inspectorTabs->addTab(m_helperLinesPanel, QStringLiteral("HelperLines"), tr("Helper Lines"));
-    m_scenesPanel = new ScenesPanel(central);
-    m_scenesPanel->onAddRequested = [this]() { addScene(); };
-    m_scenesPanel->onEditRequested = [this](uint16_t sceneId) { editScene(sceneId); };
-    m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
-    m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
-    inspectorTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
     // The action buttons of every section alike (InspectorForm.h).
     for (QWidget* page : std::initializer_list<QWidget*>{
              m_framePanel, m_maskPanel, m_backgroundPanel->framePage(),
@@ -4466,7 +4471,8 @@ void MainWindow::updateFrameFilterChoices()
           m_frameFilterComboBox->count(),
           isHdOnlyProject());
 
-    // The scenes, at the end: all scene frames, the others, and each scene's.
+    // The scenes, at the end: all scene frames and the others. A scene's own frames: "Using the
+    // selected asset" with the scene selected in the left sidebar.
     const std::vector<document::SceneDefinition> scenes =
         m_document && m_document->colorizationSettings()
             ? m_document->colorizationSettings()->scenes
@@ -4474,7 +4480,7 @@ void MainWindow::updateFrameFilterChoices()
     const int current = m_frameFilterComboBox->currentData().toInt();
     for (int index = m_frameFilterComboBox->count() - 1; index >= 0; --index) {
         const int data = m_frameFilterComboBox->itemData(index).toInt();
-        if (data >= kSceneFilterData || data == static_cast<int>(FrameFilter::SceneFrames) ||
+        if (data == static_cast<int>(FrameFilter::SceneFrames) ||
             data == static_cast<int>(FrameFilter::WithoutSceneFrames)) {
             m_frameFilterComboBox->removeItem(index);
         }
@@ -4484,10 +4490,6 @@ void MainWindow::updateFrameFilterChoices()
                                        static_cast<int>(FrameFilter::SceneFrames));
         m_frameFilterComboBox->addItem(tr("Without scene frames"),
                                        static_cast<int>(FrameFilter::WithoutSceneFrames));
-        for (const document::SceneDefinition& scene : scenes) {
-            m_frameFilterComboBox->addItem(tr("Scene %1").arg(scene.sceneId),
-                                           kSceneFilterData + scene.sceneId);
-        }
     }
     const int restored = m_frameFilterComboBox->findData(current);
     m_frameFilterComboBox->setCurrentIndex(restored >= 0 ? restored : 0);
@@ -4723,6 +4725,13 @@ void MainWindow::applyAssetFilter()
     apply(m_maskList, masks);
     apply(m_backgroundList, backgrounds);
     apply(m_spriteList, sprites);
+    if (m_scenesPanel) {
+        const std::optional<document::SceneFrameRef>& scene =
+            hasFrame ? m_document->sceneFrame(*frame) : std::nullopt;
+        m_scenesPanel->showOnlyScene(filtered && hasFrame,
+                                     scene ? std::optional<uint16_t>(scene->sceneId)
+                                           : std::nullopt);
+    }
 }
 
 void MainWindow::scheduleMaskIconUpdate(std::size_t maskIndex)
@@ -4831,9 +4840,6 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     const int filterData = m_frameFilterComboBox ? m_frameFilterComboBox->currentData().toInt()
                                                  : static_cast<int>(FrameFilter::All);
     const std::optional<document::SceneFrameRef>& scene = m_document->sceneFrame(frameIndex);
-    if (filterData >= kSceneFilterData) {
-        return scene && scene->sceneId == filterData - kSceneFilterData;
-    }
     const FrameFilter filter = static_cast<FrameFilter>(filterData);
     if (filter == FrameFilter::SceneFrames) {
         return scene.has_value();
@@ -4891,6 +4897,10 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         if (m_leftBrowserTabs->isSectionOpen(index)) {
             assetTab = m_leftBrowserTabs->widget(index);
         }
+    }
+    if (assetTab && assetTab == m_scenesPanel) {
+        const std::optional<uint16_t> sceneId = m_scenesPanel->selectedScene();
+        return sceneId && scene && scene->sceneId == *sceneId;
     }
     if (assetTab && assetTab == m_maskPage) {
         return m_selectedMaskIndex && *m_selectedMaskIndex < m_document->comparisonMaskCount() &&
@@ -9561,6 +9571,8 @@ void MainWindow::refreshScenes()
 {
     if (m_scenesPanel) {
         m_scenesPanel->setProject(m_document ? &*m_document : nullptr);
+        applyAssetFilter();
+        refreshSelectedAssetFilter();
     }
 }
 
@@ -9685,8 +9697,19 @@ void MainWindow::showSceneFrames(uint16_t sceneId)
     if (!m_frameFilterComboBox) {
         return;
     }
-    const int index = m_frameFilterComboBox->findData(kSceneFilterData + sceneId);
-    if (index >= 0) {
+    // The scene selected in the left sidebar, as the asset of "Using the selected asset".
+    if (m_scenesPanel->selectedScene() != sceneId) {
+        return;
+    }
+    m_leftBrowserTabs->markCurrent(m_scenesPanel);
+    const int index =
+        m_frameFilterComboBox->findData(static_cast<int>(FrameFilter::UsesSelectedAsset));
+    if (index < 0) {
+        return;
+    }
+    if (m_frameFilterComboBox->currentIndex() == index) {
+        refreshSelectedAssetFilter();
+    } else {
         m_frameFilterComboBox->setCurrentIndex(index);
     }
 }

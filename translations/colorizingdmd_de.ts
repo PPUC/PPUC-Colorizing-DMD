@@ -2704,7 +2704,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>The frames that use the mask, background or sprite selected in the tab that is open on the left; follows the selection and the tab</source>
-        <translation>Die Frames, die die Maske, den Hintergrund oder den Sprite verwenden, der im links geöffneten Tab ausgewählt ist; folgt der Auswahl und dem Tab</translation>
+        <translation type="vanished">Die Frames, die die Maske, den Hintergrund oder den Sprite verwenden, der im links geöffneten Tab ausgewählt ist; folgt der Auswahl und dem Tab</translation>
     </message>
     <message>
         <source>Mask</source>
@@ -2897,6 +2897,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Move the selected frames behind the frame shown after them (%1 in the frame strip)</source>
         <translation>Ausgewählte Frames hinter den Frame verschieben, der nach ihnen angezeigt wird (%1 in der Frame-Leiste)</translation>
+    </message>
+    <message>
+        <source>The frames that use the mask, background or sprite selected in the section used last on the left, or the frames of the selected scene; follows the selection and the section</source>
+        <translation>Die Frames, die die Maske, den Hintergrund oder das Sprite verwenden, das im zuletzt benutzten Bereich links ausgewählt ist, oder die Frames der ausgewählten Szene; folgt der Auswahl und dem Bereich</translation>
     </message>
     <message>
         <source>Zoom out (%1)</source>
@@ -3779,7 +3783,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Scene %1</source>
-        <translation>Szene %1</translation>
+        <translation type="vanished">Szene %1</translation>
     </message>
     <message>
         <source>Dyn</source>

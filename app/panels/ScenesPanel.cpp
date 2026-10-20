@@ -63,7 +63,17 @@ ScenesPanel::ScenesPanel(QWidget* parent)
             onShowFramesRequested(*scene);
         }
     });
-    connect(m_list, &QListWidget::currentRowChanged, this, [this](int) { updateButtons(); });
+    connect(m_list, &QListWidget::currentRowChanged, this, [this](int) {
+        updateButtons();
+        if (!m_filling && onSelectionChanged) {
+            onSelectionChanged();
+        }
+    });
+    connect(m_list, &QListWidget::itemPressed, this, [this]() {
+        if (onPressed) {
+            onPressed();
+        }
+    });
     updateButtons();
 }
 
@@ -120,6 +130,15 @@ std::optional<uint16_t> ScenesPanel::selectedScene() const
         return std::nullopt;
     }
     return static_cast<uint16_t>(item->data(Qt::UserRole).toInt());
+}
+
+void ScenesPanel::showOnlyScene(bool filtered, std::optional<uint16_t> sceneId)
+{
+    for (int row = 0; row < m_list->count(); ++row) {
+        QListWidgetItem* item = m_list->item(row);
+        item->setHidden(filtered &&
+                        (!sceneId || item->data(Qt::UserRole).toInt() != static_cast<int>(*sceneId)));
+    }
 }
 
 void ScenesPanel::updateButtons()

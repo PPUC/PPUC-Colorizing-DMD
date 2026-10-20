@@ -60,8 +60,11 @@ void testPanel()
 
     app::ScenesPanel panel;
     std::vector<int> edits;
+    int selectionChanges = 0;
     panel.onEditRequested = [&](uint16_t id) { edits.push_back(id); };
+    panel.onSelectionChanged = [&]() { ++selectionChanges; };
     panel.setProject(&document);
+    expect(selectionChanges == 0, "filling the list reports no selection");
     auto* list = panel.findChild<QListWidget*>();
     expect(list && list->count() == 1 && list->item(0)->text().contains(QStringLiteral("51001")) &&
                list->item(0)->text().contains(QStringLiteral("2 × 3")) &&
@@ -76,6 +79,14 @@ void testPanel()
     expect(edit->isEnabled() && panel.selectedScene() == 51001, "a selected scene can be edited");
     edit->click();
     expect(edits == std::vector<int>{51001}, "Edit asks for it");
+    expect(selectionChanges == 1, "selecting a scene reports it (the frame filter follows)");
+    // "Used by the current frame": only the frame's scene.
+    panel.showOnlyScene(true, uint16_t{51001});
+    expect(!list->item(0)->isHidden(), "the current frame's scene stays listed");
+    panel.showOnlyScene(true, std::nullopt);
+    expect(list->item(0)->isHidden(), "a frame of no scene lists none");
+    panel.showOnlyScene(false, std::nullopt);
+    expect(!list->item(0)->isHidden(), "unfiltered, every scene is listed");
 
     document::ProjectDocument native = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::NativeOriginal, 2));

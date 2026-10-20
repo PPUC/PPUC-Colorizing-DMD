@@ -75,12 +75,12 @@ The filter of the frame strip can show all frames, only frames with HD data (`HD
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
 with sprite assignments, frames with a color rotation (`With rotation`: a rotation slot of a
 length above 0 on a plane the frame has), the frames marked `inactive` (`Inactive`), in a
-project with scenes the frames of all scenes (`Scene frames`), the others (`Without scene
-frames`) or the frames of one scene (`Scene <ID>`; see "Scenes and Scaling"), or `Using the selected
-asset`: the frames that use what is selected in the asset list used last on the left (opened,
-or clicked in): the comparison mask (`Masks`), the assigned background (`Backgrounds`) or the
-sprite in one of their sprite slots (`Sprites`); before any was used, the first open one. It
-follows both: choosing another asset, or using another of the three lists, shows its frames.
+project with scenes the frames of all scenes (`Scene frames`) or the others (`Without scene
+frames`; see "Scenes and Scaling"), or `Using the selected asset`: the frames that use what is
+selected in the section used last on the left (opened, or clicked in): the comparison mask
+(`Masks`), the assigned background (`Backgrounds`), the sprite in one of their sprite slots
+(`Sprites`), or the frames of the selected scene (`Scenes`); before any was used, the first open
+one. It follows both: choosing another one, or using another section, shows its frames.
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 

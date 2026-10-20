@@ -17,7 +17,7 @@ class ProjectDocument;
 
 namespace colorizing::app {
 
-// The Scenes section of the inspector: the project's scenes, with buttons to add, edit and
+// The Scenes section of the left sidebar: the project's scenes, with buttons to add, edit and
 // delete them and to list a scene's frames in the strip. It shows them and reports what was
 // asked; the owner changes the project (undoably) and calls setProject().
 class ScenesPanel final : public QWidget {
@@ -29,11 +29,17 @@ public:
     // nullptr without a project.
     void setProject(const document::ProjectDocument* document);
     [[nodiscard]] std::optional<uint16_t> selectedScene() const;
+    // "Used by the current frame": only the scene given (none: no scene) is listed; filtered
+    // false: every scene.
+    void showOnlyScene(bool filtered, std::optional<uint16_t> sceneId);
 
     std::function<void()> onAddRequested;
     std::function<void(uint16_t sceneId)> onEditRequested;
     std::function<void(uint16_t sceneId)> onDeleteRequested;
     std::function<void(uint16_t sceneId)> onShowFramesRequested;
+    // Another scene selected, or the list clicked (the section is the one in use).
+    std::function<void()> onSelectionChanged;
+    std::function<void()> onPressed;
 
 private:
     void updateButtons();

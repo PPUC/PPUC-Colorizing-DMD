@@ -1899,3 +1899,13 @@ updated). Noted from the rest timer, `updateInspectorSections` (canvas and paint
 changes), the background combo, `updateSpriteControls` in the sprite editor; not during
 playback or while `showCanvasPlace` runs. back/forward drop places whose record is gone.
 Cleared on project open/restore. Test: `testCanvasHistory`.
+
+## Scenes in the left sidebar (2026-10-20, owner request)
+
+`ScenesPanel` moved from the Inspector to `m_leftBrowserTabs` (key `Scenes`, after Sprites).
+The frame filter lost its per-scene entries (`kSceneFilterData` removed; GoT has hundreds of
+scenes); `Using the selected asset` covers a scene selected in the Scenes section
+(`frameMatchesFilter`), `Show Frames` selects that filter with the scene section marked
+current. `ScenesPanel::onSelectionChanged/onPressed` drive the filter and the "used last"
+section; `showOnlyScene` applies "Used by the current frame" (the frame's scene). Test: the
+new checks in `ScenesWidgetTests::testPanel`.
