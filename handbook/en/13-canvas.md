@@ -29,7 +29,10 @@ a second, so stepping through frames notes only where it stopped; playback notes
 background or a sprite counts once, whichever frame is current meanwhile; going back to it
 shows it with the frame that was current. A place includes the timeline, the frame filter
 (with the scene for a scene's frames): after a double click on a scene, `<` goes back to the
-frame and the timeline before, and changing the filter is a step of its own. Going somewhere
+frame and the timeline before, and changing the filter is a step of its own. While the strip
+lists a scene's frames, `Leave Scene` below the frame filter goes back to the last frame and
+timeline outside the scene in one step, however many of its frames were visited (all frames,
+when the history has none from before). Going somewhere
 new drops the places ahead, as a browser does. Deleted frames, backgrounds and sprites are skipped. Opening a project starts a
 new history.
 

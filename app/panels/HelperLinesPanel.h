@@ -11,7 +11,7 @@
 #include "document/HelperLine.h"
 
 class QListWidget;
-class QPushButton;
+class QToolButton;
 
 namespace colorizing::document {
 class ProjectDocument;
@@ -45,11 +45,11 @@ private:
     void updateButtons();
 
     QListWidget* m_list = nullptr;
-    QPushButton* m_showButton = nullptr;
-    QPushButton* m_addHorizontalButton = nullptr;
-    QPushButton* m_addVerticalButton = nullptr;
-    QPushButton* m_editButton = nullptr;
-    QPushButton* m_deleteButton = nullptr;
+    QToolButton* m_showButton = nullptr;
+    QToolButton* m_addHorizontalButton = nullptr;
+    QToolButton* m_addVerticalButton = nullptr;
+    QToolButton* m_editButton = nullptr;
+    QToolButton* m_deleteButton = nullptr;
     bool m_hasProject = false;
     bool m_filling = false;
 };

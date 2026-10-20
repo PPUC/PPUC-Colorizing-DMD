@@ -2,7 +2,7 @@
 
 #include <QGridLayout>
 #include <QListWidget>
-#include <QPushButton>
+#include <QToolButton>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
@@ -17,20 +17,25 @@ HelperLinesPanel::HelperLinesPanel(QWidget* parent)
     m_list = new QListWidget(this);
     m_list->setToolTip(tr("Checked lines are shown on the canvas, on every frame; double-click "
                           "to edit one"));
-    m_showButton = new QPushButton(tr("Show Lines"), this);
+    m_showButton = new QToolButton(this);
+    m_showButton->setText(tr("Show Lines"));
     m_showButton->setCheckable(true);
     m_showButton->setChecked(true);
     m_showButton->setToolTip(tr("Show the checked lines on the canvas, or hide them all; their "
                                 "check boxes stay as they are"));
-    m_addHorizontalButton = new QPushButton(tr("Horizontal"), this);
+    m_addHorizontalButton = new QToolButton(this);
+    m_addHorizontalButton->setText(tr("Horizontal"));
     m_addHorizontalButton->setToolTip(
         tr("Add a horizontal line, at the row the mouse last pointed at on the canvas"));
-    m_addVerticalButton = new QPushButton(tr("Vertical"), this);
+    m_addVerticalButton = new QToolButton(this);
+    m_addVerticalButton->setText(tr("Vertical"));
     m_addVerticalButton->setToolTip(
         tr("Add a vertical line, at the column the mouse last pointed at on the canvas"));
-    m_editButton = new QPushButton(tr("Edit"), this);
+    m_editButton = new QToolButton(this);
+    m_editButton->setText(tr("Edit"));
     m_editButton->setToolTip(tr("Rename or move the selected line"));
-    m_deleteButton = new QPushButton(tr("Delete"), this);
+    m_deleteButton = new QToolButton(this);
+    m_deleteButton->setText(tr("Delete"));
     m_deleteButton->setToolTip(tr("Delete the selected line"));
     auto* buttons = new QGridLayout;
     buttons->addWidget(m_addHorizontalButton, 0, 0);
@@ -43,22 +48,22 @@ HelperLinesPanel::HelperLinesPanel(QWidget* parent)
     layout->addLayout(buttons);
     layout->addWidget(m_list, 1);
 
-    connect(m_showButton, &QPushButton::toggled, this, [this](bool shown) {
+    connect(m_showButton, &QToolButton::toggled, this, [this](bool shown) {
         if (onLinesShownChanged) {
             onLinesShownChanged(shown);
         }
     });
-    connect(m_addHorizontalButton, &QPushButton::clicked, this, [this]() {
+    connect(m_addHorizontalButton, &QToolButton::clicked, this, [this]() {
         if (onAddRequested) {
             onAddRequested(false);
         }
     });
-    connect(m_addVerticalButton, &QPushButton::clicked, this, [this]() {
+    connect(m_addVerticalButton, &QToolButton::clicked, this, [this]() {
         if (onAddRequested) {
             onAddRequested(true);
         }
     });
-    connect(m_editButton, &QPushButton::clicked, this, [this]() {
+    connect(m_editButton, &QToolButton::clicked, this, [this]() {
         if (const auto line = selectedLine(); line && onEditRequested) {
             onEditRequested(*line);
         }
@@ -68,7 +73,7 @@ HelperLinesPanel::HelperLinesPanel(QWidget* parent)
             onEditRequested(*line);
         }
     });
-    connect(m_deleteButton, &QPushButton::clicked, this, [this]() {
+    connect(m_deleteButton, &QToolButton::clicked, this, [this]() {
         if (const auto line = selectedLine(); line && onDeleteRequested) {
             onDeleteRequested(*line);
         }

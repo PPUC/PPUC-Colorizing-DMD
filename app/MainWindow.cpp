@@ -1656,6 +1656,15 @@ void MainWindow::createCentralView()
     m_sectionBar->onOrderRequested = [this]() { orderSections(); };
     frameListLayout->addWidget(m_sectionBar);
     frameListLayout->addWidget(m_frameFilterComboBox);
+    // Out of a scene's timeline in one step, however many of its frames were visited.
+    m_leaveSceneButton = new QToolButton(central);
+    m_leaveSceneButton->setText(tr("Leave Scene"));
+    m_leaveSceneButton->setToolTip(
+        tr("Back to the frames and the frame shown before the scene's frames were listed"));
+    m_leaveSceneButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_leaveSceneButton->setVisible(false);
+    connect(m_leaveSceneButton, &QToolButton::clicked, this, [this]() { leaveSceneTimeline(); });
+    frameListLayout->addWidget(m_leaveSceneButton);
     frameListLayout->addStretch(1);
     frameStripLayout->addWidget(frameStripControls);
     frameStripLayout->addWidget(m_frameList, 1);
@@ -1813,7 +1822,8 @@ void MainWindow::createCentralView()
              m_framePanel, m_maskPanel, m_backgroundPanel->framePage(),
              m_backgroundPanel->recordPage(), m_spritePanel->framePage(),
              m_spritePanel->recordPage(), m_dynamicPanel,
-             m_palettePanel, m_colorRotationPanel, m_colorSetPanel, m_sameFramesPanel}) {
+             m_palettePanel, m_colorRotationPanel, m_colorSetPanel, m_sameFramesPanel,
+             m_helperLinesPanel}) {
         if (page) {
             fillButtonRows(page->layout());
         }
@@ -4945,6 +4955,8 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
 
 void MainWindow::refreshSelectedAssetFilter()
 {
+    // A scene's timeline or not: Leave Scene follows.
+    updateHistoryButtons();
     if (m_frameFilterComboBox && static_cast<FrameFilter>(m_frameFilterComboBox->currentData()
                                                               .toInt()) ==
                                      FrameFilter::UsesSelectedAsset) {
@@ -7745,8 +7757,36 @@ void MainWindow::noteCanvasPlace(bool frameRested)
     updateHistoryButtons();
 }
 
+void MainWindow::leaveSceneTimeline()
+{
+    if (!m_document) {
+        return;
+    }
+    noteCanvasPlace(true);
+    const document::ProjectDocument& document = *m_document;
+    const auto exists = [&document](const CanvasPlace& place) {
+        return place.kind != CanvasPlace::Kind::Frame || place.index < document.frameCount();
+    };
+    // A frame of the timeline before: not a scene's, and not a scene frame.
+    const auto outside = [&document](const CanvasPlace& place) {
+        return place.filterScene < 0 && place.kind == CanvasPlace::Kind::Frame &&
+               place.index < document.frameCount() && !document.sceneFrame(place.index);
+    };
+    if (const std::optional<CanvasPlace> place = m_canvasHistory.backTo(exists, outside)) {
+        showCanvasPlace(*place);
+    } else if (m_frameFilterComboBox) {
+        // Nothing before the scene: all frames, at the current one.
+        m_frameFilterComboBox->setCurrentIndex(
+            std::max(0, m_frameFilterComboBox->findData(static_cast<int>(FrameFilter::All))));
+    }
+    updateHistoryButtons();
+}
+
 void MainWindow::updateHistoryButtons()
 {
+    if (m_leaveSceneButton) {
+        m_leaveSceneButton->setVisible(m_document && currentCanvasPlace().filterScene >= 0);
+    }
     if (m_historyBackButton) {
         m_historyBackButton->setEnabled(m_canvasHistory.canGoBack());
     }

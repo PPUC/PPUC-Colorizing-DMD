@@ -12,7 +12,7 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QPushButton>
+#include <QToolButton>
 
 #include "Appearance.h"
 #include "FramePreviewWidget.h"
@@ -84,7 +84,7 @@ void testPanel()
     list->item(1)->setCheckState(Qt::Checked);
     expect(toggled.size() == 1 && toggled[0] == std::make_pair(std::size_t{1}, true),
            "a check box shows or hides its line");
-    for (QPushButton* button : panel.findChildren<QPushButton*>()) {
+    for (QToolButton* button : panel.findChildren<QToolButton*>()) {
         if (button->text() == QStringLiteral("Vertical")) {
             button->click();
         }

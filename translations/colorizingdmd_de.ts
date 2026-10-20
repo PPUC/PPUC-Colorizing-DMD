@@ -3256,6 +3256,14 @@ Use Create %1 Frame.</source>
         <translation>Einen Frame hinzufügen, dessen Original das Bild des aktuellen Frames ist, nur in den schlichten Originalfarben gemalt (&quot;To Source Frame&quot; im Win32-Editor)</translation>
     </message>
     <message>
+        <source>Leave Scene</source>
+        <translation>Szene verlassen</translation>
+    </message>
+    <message>
+        <source>Back to the frames and the frame shown before the scene&apos;s frames were listed</source>
+        <translation>Zurück zu den Frames und dem Frame, die vor dem Auflisten der Szenen-Frames gezeigt wurden</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Die Zwischenablage enthält kein Bild</translation>
     </message>

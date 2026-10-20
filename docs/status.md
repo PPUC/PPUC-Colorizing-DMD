@@ -1949,3 +1949,13 @@ current); a Frame place differs by timeline too. Filter combo changes note a pla
 `openScene` (double click) notes the place before, suppresses the intermediate ones, notes the
 scene's first frame; `showCanvasPlace` restores the filter (and the scene selection) before
 the frame. Tests: timeline block in `testCanvasHistory`, ScenesWidgetTests without Edit.
+
+## Leave Scene, Helper Lines buttons (2026-10-20, owner request)
+
+`Leave Scene` (QToolButton below the frame filter, shown while `currentCanvasPlace().filterScene
+>= 0`, updated from `updateHistoryButtons` and `refreshSelectedAssetFilter`):
+`CanvasHistory::backTo(exists, matches)` jumps to the latest earlier place outside any scene
+(Frame place, no filterScene, not a scene frame), places in between stay ahead for `>`;
+without one, the filter goes to All frames. HelperLinesPanel buttons are QToolButtons and get
+`fillButtonRows` like the other Inspector sections. Tests: Leave Scene block in
+`testCanvasHistory`, HelperLinesWidgetTests on QToolButton.

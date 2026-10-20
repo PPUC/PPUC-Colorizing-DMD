@@ -59,6 +59,17 @@ std::optional<CanvasPlace> CanvasHistory::forward(const Exists& exists)
     return std::nullopt;
 }
 
+std::optional<CanvasPlace> CanvasHistory::backTo(const Exists& exists, const Exists& matches)
+{
+    for (std::size_t candidate = m_position; candidate-- > 0;) {
+        if (matches(m_places[candidate]) && exists(m_places[candidate])) {
+            m_position = candidate;
+            return m_places[m_position];
+        }
+    }
+    return std::nullopt;
+}
+
 std::optional<CanvasPlace> CanvasHistory::current() const
 {
     if (m_places.empty()) {

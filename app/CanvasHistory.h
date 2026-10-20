@@ -49,6 +49,9 @@ public:
     using Exists = std::function<bool(const CanvasPlace&)>;
     std::optional<CanvasPlace> back(const Exists& exists);
     std::optional<CanvasPlace> forward(const Exists& exists);
+    // Back to the latest place before the current one that matches (e.g. a timeline that is
+    // not a scene's), past any number of others; they stay ahead for forward().
+    std::optional<CanvasPlace> backTo(const Exists& exists, const Exists& matches);
     [[nodiscard]] std::optional<CanvasPlace> current() const;
     [[nodiscard]] std::size_t size() const { return m_places.size(); }
 

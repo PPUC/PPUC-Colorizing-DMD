@@ -306,6 +306,8 @@ private:
     void goBackOrForward(bool back);
     void showCanvasPlace(const CanvasPlace& place);
     void updateHistoryButtons();
+    // Leave Scene: back to the latest place whose timeline is not a scene's.
+    void leaveSceneTimeline();
     // The Filter row of the Create HD windows, set to the filter used last.
     QComboBox* addUpscaleFilterRow(QDialog& dialog, QVBoxLayout& layout) const;
     // Asks for the filter; false when cancelled. The choice becomes m_createHdFilter.
@@ -591,6 +593,7 @@ private:
     bool m_showingCanvasPlace = false;
     QToolButton* m_historyBackButton = nullptr;
     QToolButton* m_historyForwardButton = nullptr;
+    QToolButton* m_leaveSceneButton = nullptr;
     FrameListWidget* m_frameList = nullptr;
     LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;

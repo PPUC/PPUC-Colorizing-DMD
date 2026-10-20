@@ -25,7 +25,8 @@ in the project, and below it the scene ID, the groups and frames, the frame dura
   so the strip lists its frames (selecting another scene then lists that one's), and shows its
   first frame on the frame canvas; the Inspector's `Scene` section then has its settings. The
   toolbar's `<` goes back to the frame and the timeline before (see "Canvas"), `>` into the
-  scene again.
+  scene again. `Leave Scene`, below the frame filter while a scene's frames are listed, goes
+  back to the frames before in one step, however many of the scene's frames were visited.
 - `Delete` removes the selected scene. The question offers to delete its frames too or to keep
   them as ordinary frames.
 - `Used by the current frame` above the left sidebar's lists shows only the scene of the

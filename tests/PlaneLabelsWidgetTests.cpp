@@ -700,6 +700,19 @@ void testCanvasHistory()
     place = timeline.forward(all);
     expect(place && place->filter == 8 && place->filterScene == 50100,
            "forward: the scene's timeline again");
+    // Leave Scene: past any number of a scene's frames to the timeline before.
+    for (std::size_t index = 121; index < 140; ++index) {
+        app::CanvasPlace sceneFrame = inScene;
+        sceneFrame.index = sceneFrame.frame = index;
+        timeline.note(sceneFrame, true);
+    }
+    const auto notScene = [](const app::CanvasPlace& candidate) {
+        return candidate.filterScene < 0;
+    };
+    place = timeline.backTo(all, notScene);
+    expect(place && place->index == 6 && place->filterScene < 0 && timeline.canGoForward(),
+           "Leave Scene goes back past the scene's frames in one step");
+    expect(!timeline.backTo(all, notScene), "and nothing before it matches any more");
     full.clear();
     expect(full.size() == 0 && !full.canGoBack(), "a project opened starts a new history");
 }

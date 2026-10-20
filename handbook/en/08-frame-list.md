@@ -80,7 +80,9 @@ frames`; see "Scenes and Scaling"), or `Using the selected asset`: the frames th
 selected in the section used last on the left (opened, or clicked in): the comparison mask
 (`Masks`), the assigned background (`Backgrounds`), the sprite in one of their sprite slots
 (`Sprites`), or the frames of the selected scene (`Scenes`); before any was used, the first open
-one. It follows both: choosing another one, or using another section, shows its frames.
+one. It follows both: choosing another one, or using another section, shows its frames. While a
+scene's frames are listed, `Leave Scene` below the filter goes back to the frames and the frame
+shown before (see "Scenes and Scaling").
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 

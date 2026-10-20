@@ -3256,6 +3256,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Ajouter une frame dont l&apos;originale est l&apos;image de la frame courante, peinte uniquement dans les couleurs originales simples (&quot;To Source Frame&quot; dans l&apos;éditeur Win32)</translation>
     </message>
     <message>
+        <source>Leave Scene</source>
+        <translation>Quitter la scène</translation>
+    </message>
+    <message>
+        <source>Back to the frames and the frame shown before the scene&apos;s frames were listed</source>
+        <translation>Revenir aux frames et à la frame affichées avant que les frames de la scène soient listées</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Le presse-papiers ne contient pas d&apos;image</translation>
     </message>
