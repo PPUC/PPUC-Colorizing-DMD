@@ -23,8 +23,7 @@ Currently implemented:
   left sidebar) displays the selected background image on the canvas and edits that shared
   background image with the ordinary drawing tools; the button stays down meanwhile. Click
   `Edit BG` again to go back to the frame, as `Edit Sprite` does for a sprite, or double-click
-  a frame in the frame strip to edit that frame. The `Target` field of the frame section
-  (`Frame` or `Background`) does the same.
+  a frame in the frame strip to edit that frame.
 - `Create HD` on the `Background` section gives the selected background its HD image: its SD
   image scaled to 2x with the filter chosen in the window it opens (the one used last, by any
   `Create HD`, is preselected; `Nearest` at first). While the background is edited, the canvas

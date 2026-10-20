@@ -11,8 +11,8 @@ selection of frames before copying or pasting (a click on a frame of that select
 "Frame List"). It is dropped when the SD/HD mode, the paint target or the selected background
 changes.
 
-Making and changing a selection on the frame canvas (frame pixels or, with `Target` `Background`,
-the selected background image). It works the same in the `Dynamic` and `BG` modes, on the
+Making and changing a selection on the frame canvas (frame pixels or, while a background is
+edited with `Edit BG`, the selected background image). It works the same in the `Dynamic` and `BG` modes, on the
 frame's picture: there `Ctrl/Cmd`+click selects instead of painting the zone or the mask, and
 `Select All` and the `Sel` tool work as without them. Only the `Mask` mode, whose masks are
 painted on the original frame, has no selection. The `Shape` of the `Sel` tool is chosen in the

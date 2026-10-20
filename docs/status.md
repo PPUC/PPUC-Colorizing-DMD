@@ -1979,3 +1979,11 @@ HD badge of their first frame (`drawHdBadge`, shared with sprite/background thum
 Test: `testDeleteSceneFrames`.
 Owner, later the same day: the separate `100%` toolbar button was redundant (a click on the
 zoom between `-` and `+` already resets it) and is gone again.
+
+## Target field removed (2026-10-20, owner request)
+
+The Frame section's `Target` (Frame/Background) duplicated Edit BG and is gone; the paint
+target lives in `MainWindow::m_paintTarget` (`setPaintTarget`/`activePaintTarget`), set by
+Edit BG, Back to Frame, the frame double click and the history. FramePanel lost
+`setPaintTarget`, `setPaintTargetEnabled`, `paintTarget`, `onPaintTargetChanged`. Handbook
+chapters 13, 18, 19, 20, 25, 32 now speak of Edit BG.

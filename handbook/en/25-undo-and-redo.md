@@ -40,8 +40,8 @@ them:
 5. Otherwise: the current frame's pixel history for the active resolution, the current frame's
    settings, the selected palette, the current frame's dynamic-color and dynamic-shadow histories
    (the same ones in SD and in HD mode), the image history of the selected background for the
-   active resolution and the edit color history. This is the same whether Inspector `Target` is `Frame` or `Background`, so a
-   `Frame -> BG` copy or a background image import can be undone without switching the target.
+   active resolution and the edit color history. This is the same whether the frame or a background is edited, so a
+   `Frame -> BG` copy or a background image import can be undone without `Edit BG`.
 
 Within a context, Undo reverts the edit that was made most recently among all of the context's
 histories, whichever history it is in. For example, after a frame pixel edit followed by a palette

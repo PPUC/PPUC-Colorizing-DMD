@@ -133,7 +133,7 @@ The Inspector shows only the sections that serve the canvas shown, to leave them
   a scene (see "Scenes and Scaling"), and it opens when it comes. For a frame of a scene,
   `Comparison Mask`, `Frame Sprites` and `Dynamic Sets` are hidden: libserum identifies such a
   frame by its marker, finds no sprites on it and takes no dynamic zones from its original.
-- While a background is edited (`Edit BG`, or `Target` set to `Background`): `Background`,
+- While a background is edited (`Edit BG`): `Background`,
   `Palette`, `Color Sets` and `Helper Lines`. `Back to Frame` there, or a double click on a
   frame in the frame strip, goes back to the frame.
 - In the sprite editor (`Edit Sprite`): `Sprite`, `Palette`, `Color Sets` and `Helper Lines`.
@@ -143,9 +143,6 @@ A hidden section stays open or closed as it was and comes back so when the frame
 
 The `Frame` section exposes:
 
-- `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.
-  It is enabled whenever the project has a background to edit, that is, whenever a background is
-  selected.
 - `Background ID` assigns the shared background for all selected frames. Selected frames without
   background data are skipped.
 - A frame has one trigger ID at most (stored as `0xFFFFFFFF` for none, the value the cROM uses).

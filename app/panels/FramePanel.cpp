@@ -20,13 +20,6 @@ namespace colorizing::app {
 FramePanel::FramePanel(QWidget* parent)
     : QWidget(parent)
 {
-    m_paintTargetComboBox = new QComboBox(this);
-    m_paintTargetComboBox->setToolTip(tr("Drawing target"));
-    m_paintTargetComboBox->addItem(tr("Frame"),
-                                   static_cast<int>(PaintTarget::Frame));
-    m_paintTargetComboBox->addItem(tr("Background"),
-                                   static_cast<int>(PaintTarget::Background));
-    m_paintTargetComboBox->setEnabled(false);
     m_backgroundIdSpinBox = new QSpinBox(this);
     m_backgroundIdSpinBox->setToolTip(tr("Assigned background ID"));
     m_backgroundIdSpinBox->setMinimum(-1);
@@ -86,7 +79,6 @@ FramePanel::FramePanel(QWidget* parent)
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
     auto* form = makeInspectorForm();
-    form->addRow(tr("Target"), m_paintTargetComboBox);
     form->addRow(tr("Background ID"), m_backgroundIdSpinBox);
     form->addRow(tr("PUP trigger ID"), m_pupTriggerSpinBox);
     form->addRow(tr("Scene"), m_sceneComboBox);
@@ -124,14 +116,6 @@ FramePanel::FramePanel(QWidget* parent)
             onRemoveHdRequested();
         }
     });
-    connect(m_paintTargetComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this,
-            [this](int) {
-                if (onPaintTargetChanged) {
-                    onPaintTargetChanged();
-                }
-            });
     connect(m_backgroundIdSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
@@ -323,28 +307,9 @@ void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
     showHdActionsFor(render::PlaneLayout::Ordinary);
 }
 
-void FramePanel::setPaintTarget(PaintTarget target)
-{
-    const int index = m_paintTargetComboBox->findData(static_cast<int>(target));
-    if (index >= 0) {
-        QSignalBlocker blocker(m_paintTargetComboBox);
-        m_paintTargetComboBox->setCurrentIndex(index);
-    }
-}
-
-void FramePanel::setPaintTargetEnabled(bool enabled)
-{
-    m_paintTargetComboBox->setEnabled(enabled);
-}
-
 void FramePanel::setImportImageEnabled(bool enabled)
 {
     m_importImageButton->setEnabled(enabled);
-}
-
-PaintTarget FramePanel::paintTarget() const
-{
-    return static_cast<PaintTarget>(m_paintTargetComboBox->currentData().toInt());
 }
 
 uint32_t FramePanel::triggerId() const

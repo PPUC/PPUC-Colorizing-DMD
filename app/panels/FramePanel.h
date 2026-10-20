@@ -11,7 +11,6 @@
 #include "document/ProjectDocument.h"
 #include "document/Triggers.h"
 #include "FrameImageUtils.h"
-#include "PaintTarget.h"
 
 class QCheckBox;
 class QComboBox;
@@ -23,15 +22,16 @@ namespace colorizing::app {
 
 constexpr int kMaxFrameDurationMs = 30000;
 
-// What the frame page displays. The drawing target, the background layer toggle and the DMD
-// pixel settings are the page's own state and are kept across refreshes.
+// What the frame page displays. The background layer toggle and the DMD pixel settings are the
+// page's own state and are kept across refreshes.
 struct FramePanelState {
     const document::ProjectDocument* document = nullptr;
     std::optional<std::size_t> frameIndex;
     bool hasSelectedFrames = false;
 };
 
-// Inspector page for the frame metadata, the drawing target and the DMD rendering settings.
+// Inspector page for the frame metadata and the DMD rendering settings. (Whether the frame or a
+// background is edited is the Frame Background section's Edit BG.)
 // It only displays and reports what the user asked for; the owner applies the edits and calls
 // refresh().
 class FramePanel final : public QWidget {
@@ -40,25 +40,19 @@ class FramePanel final : public QWidget {
 public:
     explicit FramePanel(QWidget* parent = nullptr);
 
-    // Also labels the Create/Remove HD buttons for the frame again. Whether the drawing target
-    // can be chosen is the owner's decision alone, see setPaintTargetEnabled().
+    // Also labels the Create/Remove HD buttons for the frame again.
     //
     // The two buttons follow the project's layout, see PlaneLabels.h: "Create HD" and
     // "Remove HD" in an ordinary project; "Create 256x64 Frame" alone, enabled while the frame
     // or its background lacks what the runtime needs, with PlaneLayout::NativeExtra; neither
     // with PlaneLayout::NativeOriginal. A button that does not apply is hidden.
     void refresh(const FramePanelState& state);
-    // Does not notify.
-    void setPaintTarget(PaintTarget target);
-    void setPaintTargetEnabled(bool enabled);
     void setImportImageEnabled(bool enabled);
 
-    [[nodiscard]] PaintTarget paintTarget() const;
     // The frame's trigger ID as the panel shows it, document::kNoTriggerId for none.
     [[nodiscard]] uint32_t triggerId() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
 
-    std::function<void()> onPaintTargetChanged;
     // -1 clears the assignment.
     std::function<void(int backgroundId)> onBackgroundIdEdited;
     // A frame has one trigger, set through the input of its kind: the PUP trigger, the scene,
@@ -91,7 +85,6 @@ private:
     QToolButton* m_importImageButton = nullptr;
     QToolButton* m_createHdButton = nullptr;
     QToolButton* m_removeHdButton = nullptr;
-    QComboBox* m_paintTargetComboBox = nullptr;
 };
 
 }  // namespace colorizing::app

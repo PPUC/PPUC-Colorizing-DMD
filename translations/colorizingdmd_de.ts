@@ -1477,15 +1477,15 @@
     <name>FramePanel</name>
     <message>
         <source>Drawing target</source>
-        <translation>Zeichenziel</translation>
+        <translation type="vanished">Zeichenziel</translation>
     </message>
     <message>
         <source>Frame</source>
-        <translation>Frame</translation>
+        <translation type="vanished">Frame</translation>
     </message>
     <message>
         <source>Background</source>
-        <translation>Hintergrund</translation>
+        <translation type="vanished">Hintergrund</translation>
     </message>
     <message>
         <source>Assigned background ID</source>
@@ -1573,7 +1573,7 @@
     </message>
     <message>
         <source>Target</source>
-        <translation>Ziel</translation>
+        <translation type="vanished">Ziel</translation>
     </message>
     <message>
         <source>Background ID</source>

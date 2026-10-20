@@ -44,7 +44,7 @@ edits color the frame (the Win32 editor's `IDC_1COLMODE` / `IDC_4COLMODE`):
     the clicked one that have its color (the Win32 fill does not depend on the mode either). Each
     selected frame then gets its own shades' edit colors in that area. Unlike `1 Color`, a fill
     on an area that already has the draw color still runs.
-  - With Inspector `Target` set to `Background`, the background takes the edit colors of the
+  - While a background is edited (`Edit BG`), the background takes the edit colors of the
     current frame's shades (a background has no original frame of its own).
   - The `Grad` tool and `Grad Sel` always paint palette gradients; the Win32 editor's third mode
     (gradient) is that tool here. The sprite canvas always paints with the draw color, as in the

@@ -1220,11 +1220,6 @@ void MainWindow::createCentralView()
         m_canvasEdit.clearSelection(canvasEditContext());
     };
     m_framePanel = new FramePanel(central);
-    m_framePanel->onPaintTargetChanged = [this]() {
-        paintTargetChanged();
-        // Edit BG shows whether the background is edited.
-        updateBackgroundControls();
-    };
     m_framePanel->onBackgroundIdEdited = [this](int backgroundId) {
         setCurrentFrameBackgroundId(backgroundId);
     };
@@ -7877,9 +7872,6 @@ void MainWindow::showCanvasPlace(const CanvasPlace& place)
 void MainWindow::updatePaintTargetMode()
 {
     const bool backgroundTargetActive = isBackgroundImageTargetActive();
-    if (m_framePanel) {
-        m_framePanel->setPaintTargetEnabled(selectedBackgroundIndex().has_value());
-    }
     if (m_preview) {
         m_preview->setSelectedBackgroundIndex(selectedBackgroundIndex());
         m_preview->setBackgroundImageEditModeEnabled(backgroundTargetActive);
@@ -7891,10 +7883,10 @@ void MainWindow::updatePaintTargetMode()
 
 void MainWindow::setPaintTarget(PaintTarget target)
 {
-    if (!m_framePanel || m_framePanel->paintTarget() == target) {
+    if (m_paintTarget == target) {
         return;
     }
-    m_framePanel->setPaintTarget(target);
+    m_paintTarget = target;
     paintTargetChanged();
 }
 
@@ -7907,10 +7899,7 @@ void MainWindow::paintTargetChanged()
 
 PaintTarget MainWindow::activePaintTarget() const
 {
-    if (!m_framePanel) {
-        return PaintTarget::Frame;
-    }
-    return m_framePanel->paintTarget();
+    return m_paintTarget;
 }
 
 uint8_t MainWindow::activeDynamicSet() const

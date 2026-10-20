@@ -23,14 +23,14 @@ pixel where the drag started is the shape's centre and the shape reaches as far 
 as the Win32 editor drew circles; it can be pressed and released during the drag. The sprite
 canvas does the same.
 
-When Inspector `Target` is `Frame`, ordinary drawing tools edit the active colorized frame.
+On the frame, ordinary drawing tools edit the active colorized frame.
 
 Hold `Shift` while clicking, drawing a shape or flood filling on the frame to give its pixels
 back their original look: each gets the plain original color of its own original shade, the
 color an uncolorized frame shows (the amber ramp). The preview shows such a stroke in amber. It
 works on every selected frame, each with its own original, and is undone like any drawing.
 
-When Inspector `Target` is `Background`, ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.
+While a background is edited (`Edit BG` in the `Frame Background` section), ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.
 
 ## Point
 

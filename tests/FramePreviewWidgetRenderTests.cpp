@@ -3359,7 +3359,6 @@ void testSpriteAndBackgroundHdButtons()
 void testFramePanel()
 {
     using colorizing::app::FramePanelState;
-    using colorizing::app::PaintTarget;
     const colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
     const colorizing::document::ProjectDocument noBackgrounds = makePreviewDocument();
     const auto stateFor = [](const colorizing::document::ProjectDocument& source,
@@ -3374,7 +3373,6 @@ void testFramePanel()
 
     colorizing::app::FramePanel panel;
     int callbacks = 0;
-    int paintTargetChanges = 0;
     int importRequests = 0;
     int createHdRequests = 0;
     int removeHdRequests = 0;
@@ -3382,10 +3380,6 @@ void testFramePanel()
     std::vector<std::pair<colorizing::document::TriggerKind, uint32_t>> triggerEdits;
     std::optional<int> editedDuration;
     std::optional<bool> backgroundLayerToggled;
-    panel.onPaintTargetChanged = [&]() {
-        ++callbacks;
-        ++paintTargetChanges;
-    };
     panel.onBackgroundIdEdited = [&](int backgroundId) {
         ++callbacks;
         editedBackgroundId = backgroundId;
@@ -3415,7 +3409,6 @@ void testFramePanel()
         ++removeHdRequests;
     };
 
-    auto* targetComboBox = childByToolTip<QComboBox>(panel, "Drawing target");
     auto* backgroundIdSpinBox = childByToolTip<QSpinBox>(panel, "Assigned background ID");
     auto* triggerIdSpinBox =
         childByToolTip<QSpinBox>(panel, "PUP trigger the frame fires, 0 to 49999");
@@ -3436,11 +3429,12 @@ void testFramePanel()
     auto* createHdButton = childByToolTip<QToolButton>(panel, "Create HD frame from SD frame");
     auto* removeHdButton = childByToolTip<QToolButton>(panel, "Remove HD frame data");
 
-    expect(targetComboBox->count() == 2 &&
-               targetComboBox->itemText(0) == QStringLiteral("Frame") &&
-               targetComboBox->itemText(1) == QStringLiteral("Background") &&
-               !targetComboBox->isEnabled() && panel.paintTarget() == PaintTarget::Frame,
-           "frame panel should start on the disabled frame target");
+    // Whether the frame or a background is edited is Edit BG's (Frame Background section).
+    bool hasTargetField = false;
+    for (QComboBox* comboBox : panel.findChildren<QComboBox*>()) {
+        hasTargetField = hasTargetField || comboBox->toolTip() == QStringLiteral("Drawing target");
+    }
+    expect(!hasTargetField, "frame panel should have no drawing target field");
     expect(backgroundIdSpinBox->minimum() == -1 && backgroundIdSpinBox->maximum() == -1 &&
                backgroundIdSpinBox->specialValueText() == QStringLiteral("None") &&
                !backgroundIdSpinBox->isEnabled(),
@@ -3469,16 +3463,16 @@ void testFramePanel()
                !removeHdButton->isEnabled(),
            "frame panel should start with disabled image and HD buttons");
     expect(tabVisitsInOrder(panel,
-                            {targetComboBox, backgroundIdSpinBox, triggerIdSpinBox,
+                            {backgroundIdSpinBox, triggerIdSpinBox,
                              sceneComboBox, monochromeCheckBox, paletteMonochromeCheckBox,
                              durationSpinBox, backgroundLayerButton, importButton,
                              createHdButton, removeHdButton}),
            "frame panel should tab through its controls as laid out");
 
     panel.refresh(stateFor(document, 0));
-    expect(!targetComboBox->isEnabled() && backgroundIdSpinBox->isEnabled() &&
-               backgroundIdSpinBox->maximum() == 1 && backgroundIdSpinBox->value() == 0,
-           "frame panel should show the assigned background and leave the target to the owner");
+    expect(backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == 1 &&
+               backgroundIdSpinBox->value() == 0,
+           "frame panel should show the assigned background");
     expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == 5 &&
                panel.triggerId() == 5 && !monochromeCheckBox->isEnabled() &&
                !paletteMonochromeCheckBox->isEnabled() && !sceneComboBox->isEnabled(),
@@ -3585,31 +3579,13 @@ void testFramePanel()
                removeHdButton->toolTip() == QStringLiteral("Remove HD frame data"),
            "frame panel should label the HD buttons for the frame again on refresh");
 
-    panel.setPaintTarget(PaintTarget::Background);
-    expect(panel.paintTarget() == PaintTarget::Background &&
-               targetComboBox->currentText() == QStringLiteral("Background"),
-           "frame panel should take a drawing target");
     panel.refresh(stateFor(noBackgrounds, 0));
     panel.refresh(stateFor(document, std::nullopt));
-    expect(panel.paintTarget() == PaintTarget::Background,
-           "frame panel should leave resetting the drawing target to the owner");
-    expect(!targetComboBox->isEnabled(),
-           "frame panel should not enable the drawing target on its own");
-    panel.setPaintTargetEnabled(true);
     panel.setImportImageEnabled(true);
-    expect(targetComboBox->isEnabled() && importButton->isEnabled(),
-           "frame panel should enable the target and the import on request");
-    panel.refresh(stateFor(noBackgrounds, 0));
-    panel.refresh(stateFor(document, std::nullopt));
-    expect(targetComboBox->isEnabled(),
-           "frame panel should not disable the drawing target on its own either");
-    panel.setPaintTarget(PaintTarget::Frame);
+    expect(importButton->isEnabled(), "frame panel should enable the import on request");
     expect(callbacks == 0, "refreshing and setting up the frame panel should not notify");
 
     panel.refresh(stateFor(document, 0));
-    targetComboBox->setCurrentIndex(1);
-    expect(paintTargetChanges == 1 && panel.paintTarget() == PaintTarget::Background,
-           "selecting a drawing target should notify once");
     backgroundIdSpinBox->setValue(1);
     expect(editedBackgroundId == 1, "editing the background ID should report it");
     backgroundIdSpinBox->setValue(-1);
@@ -3638,14 +3614,13 @@ void testFramePanel()
     createHdButton->click();
     removeHdButton->click();
     expect(importRequests == 1 && createHdRequests == 0 && removeHdRequests == 1 &&
-               callbacks == 10,
+               callbacks == 9,
            "each frame panel action should notify exactly once");
 
     panel.refresh(stateFor(document, 1));
-    expect(!panel.isBackgroundLayerChecked() &&
-               panel.paintTarget() == PaintTarget::Background,
+    expect(!panel.isBackgroundLayerChecked(),
            "frame panel should keep its own state across refreshes");
-    expect(callbacks == 10, "refreshing the frame panel should not notify");
+    expect(callbacks == 9, "refreshing the frame panel should not notify");
     expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
                document.backgroundId(0) == 0 && !document.isDirty(),
            "frame panel should leave the document untouched");

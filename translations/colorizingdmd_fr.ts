@@ -1477,15 +1477,15 @@
     <name>FramePanel</name>
     <message>
         <source>Drawing target</source>
-        <translation>Cible du dessin</translation>
+        <translation type="vanished">Cible du dessin</translation>
     </message>
     <message>
         <source>Frame</source>
-        <translation>Frame</translation>
+        <translation type="vanished">Frame</translation>
     </message>
     <message>
         <source>Background</source>
-        <translation>Arrière-plan</translation>
+        <translation type="vanished">Arrière-plan</translation>
     </message>
     <message>
         <source>Assigned background ID</source>
@@ -1573,7 +1573,7 @@
     </message>
     <message>
         <source>Target</source>
-        <translation>Cible</translation>
+        <translation type="vanished">Cible</translation>
     </message>
     <message>
         <source>Background ID</source>

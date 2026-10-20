@@ -31,6 +31,7 @@
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
 #include "CanvasHistory.h"
+#include "PaintTarget.h"
 #include "SectionStack.h"
 #include "UnsavedChanges.h"
 #include "panels/FramePanel.h"
@@ -588,6 +589,8 @@ private:
     SectionStack* m_leftBrowserTabs = nullptr;
     // The right sidebar's sections.
     SectionStack* m_inspectorSections = nullptr;
+    // What the drawing tools edit: the frame, or the selected background (Edit BG).
+    PaintTarget m_paintTarget = PaintTarget::Frame;
     CanvasHistory m_canvasHistory;
     // While the history shows a place: nothing is noted.
     bool m_showingCanvasPlace = false;
