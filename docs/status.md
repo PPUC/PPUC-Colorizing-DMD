@@ -2027,3 +2027,13 @@ recent colors, a click sets the color. `MainWindow::pickColor` passes the projec
 and the Palette section's selection; every picker of MainWindow goes through it. Test:
 `testColorPickerPalettes`. Handbook "Opening Projects" no longer says that saving a `.cRZ`
 project writes a `.cROM` (cRZ-only saving since 3.99.3).
+
+## Damaged last frame of a dump (2026-10-20, owner report)
+
+`SegXL_x16/SEGA_XL.txt` (192x64, 11496 frames) could not be imported: its last frame (line
+758671) has a 180-digit row, 31 rows of 256 digits and a 74-digit fragment (a recording that
+broke off). `FrameDumpReader::readFollowingFrame` now treats any damage in a frame (wrong
+width, too few rows, a non-digit) as truncation when no timecode line follows
+(`noFrameFollows`): the frame is dropped and reported by `truncatedFrameLine`. Damage with a
+frame after it stays an error. `x16_HOOK.txt` (128x32, cut inside a row) already read. Tests:
+damaged-last-frame block and the adjusted long-row / 256x64 cases in FrameDumpImportTests.

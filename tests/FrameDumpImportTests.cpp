@@ -328,9 +328,20 @@ void testReaderErrors()
     std::string shortRow = first + second + third;
     shortRow.erase(first.size() + timecodeBytes + 9 * rowBytes, 3);
     expectError(shortRow, 35 + 10, "the row has 125 digits", "a short row");
-    std::string longRow = first + second;
+    std::string longRow = first + second + third;
     longRow.insert(first.size() + timecodeBytes + 9 * rowBytes, "11");
     expectError(longRow, 35 + 10, "the row has 130 digits", "a long row");
+
+    // A damaged last frame with no frame after it (a recording that broke off writing rows of
+    // another width, as a SEGA_XL dump does): dropped as a truncated one.
+    for (const std::string& insert : {std::string("11"), std::string("zz")}) {
+        std::string damaged = first + second;
+        damaged.insert(first.size() + timecodeBytes + 9 * rowBytes, insert);
+        const ReadResult result = readAll(damaged);
+        expect(result.status == FrameDumpReader::Status::End && result.frames.size() == 1 &&
+                   result.truncatedFrameLine && *result.truncatedFrameLine == 35,
+               "a damaged last frame is dropped, the frames before it are read");
+    }
 
     // A frame with fewer or more rows than the first one: frames of mixed sizes.
     const std::string sixteen = frameText(textFrame(9, 4, Size{128, 16}), eol) + eol;
@@ -339,7 +350,8 @@ void testReaderErrors()
     expectError(sixteen + first, 18 + 18, "a row follows the 16 rows",
                 "a 128x32 frame in a 128x16 dump");
     const std::string wide = frameText(textFrame(9, 4, Size{256, 64}, 16), eol) + eol;
-    expectError(first + wide, 36, "the row has 256 digits", "a 256x64 frame in a 128x32 dump");
+    expectError(first + wide + third, 36, "the row has 256 digits",
+                "a 256x64 frame in a 128x32 dump");
     expectError(first + "0x00000009" + eol + "0x0000000A" + eol + second, 36,
                 "has 0 rows", "two timecodes in a row");
 

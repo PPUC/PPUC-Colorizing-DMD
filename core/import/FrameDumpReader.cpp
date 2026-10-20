@@ -232,6 +232,17 @@ bool FrameDumpReader::restIsBlank()
     return m_error.message.empty();
 }
 
+bool FrameDumpReader::noFrameFollows()
+{
+    std::string_view line;
+    while (readLine(line)) {
+        if (classify(line, nullptr) == LineKind::Timecode) {
+            return false;
+        }
+    }
+    return m_error.message.empty();
+}
+
 FrameDumpReader::Status FrameDumpReader::fail(std::size_t line, std::string message)
 {
     // The first error stands: what follows it is a consequence.
@@ -357,7 +368,7 @@ FrameDumpReader::Status FrameDumpReader::readFollowingFrame(DumpFrame& frame,
         const std::size_t rowLine = m_line;
         const LineKind kind = classify(line, nullptr);
         if (kind != LineKind::Other) {
-            if (kind == LineKind::Blank && restIsBlank()) {
+            if (kind == LineKind::Blank && noFrameFollows()) {
                 return endTruncated(frameLine);
             }
             return fail(rowLine, "the frame that starts at line " + std::to_string(frameLine) +
@@ -370,13 +381,16 @@ FrameDumpReader::Status FrameDumpReader::readFollowingFrame(DumpFrame& frame,
             decodeRow(digits, m_rows.data() + static_cast<std::size_t>(row) * width,
                       frame.usedShades);
         if (badColumn) {
+            const char bad = line[*badColumn];
+            if (noFrameFollows()) {
+                return endTruncated(frameLine);
+            }
             return fail(rowLine, "column " + std::to_string(*badColumn + 1) + ": " +
-                                     characterText(line[*badColumn]) +
-                                     " is not a hexadecimal digit");
+                                     characterText(bad) + " is not a hexadecimal digit");
         }
         if (line.size() != width) {
             const std::size_t length = line.size();
-            if (length < width && restIsBlank()) {
+            if (noFrameFollows()) {
                 return endTruncated(frameLine);
             }
             return fail(rowLine, "the row has " + std::to_string(length) + " digits, the frames "

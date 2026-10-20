@@ -43,9 +43,10 @@ Frames that the filter leaves out count for that too.
 The file is read strictly. Anything that is neither a time line, a row of the dump's width nor
 blank is an error, and so is a frame with more or fewer rows than the first one (frames of
 different sizes in one dump are not supported). The message names the line, and the column for a
-character that is no hexadecimal digit, and nothing is imported. The one exception is a dump that
-ends inside its last frame, which is what an interrupted recording leaves: that frame is left
-out and the dialog says so with its line. (The Win32 editor stops silently at the first
+character that is no hexadecimal digit, and nothing is imported. The one exception is the last
+frame of a dump that ends inside it, or that is damaged (rows of another width, too few rows, a
+character that is no digit) with no frame after it: that is what an interrupted recording
+leaves. That frame is left out and the dialog says so with its line. (The Win32 editor stops silently at the first
 character it cannot read and takes the frames before it.)
 
 Reading does not load the file into memory; a dump of 100 MB is read in well under a second and

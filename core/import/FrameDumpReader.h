@@ -45,9 +45,10 @@ struct DumpFrame {
 //
 // The reader is strict: every line has to be a timecode, a row of the frame's width or
 // blank, and every frame has to have the rows of the first one. Anything else is an error
-// that names the line. The one exception is a dump that ends inside its last frame, which
-// is what an interrupted recording leaves: that frame is dropped and reported by
-// truncatedFrameLine().
+// that names the line. The one exception is the last frame of a dump that ends inside it or
+// is damaged (a row of another width, too few rows, a character that is no digit) with no
+// frame after it, which is what an interrupted recording leaves: that frame is dropped and
+// reported by truncatedFrameLine().
 class FrameDumpReader {
 public:
     enum class Status {
@@ -93,6 +94,8 @@ private:
                                                               uint16_t& usedShades);
     // Whether nothing but blank lines follows; reads to the end of the stream.
     [[nodiscard]] bool restIsBlank();
+    // Whether no timecode line follows, i.e. no further frame; reads to the end of the stream.
+    [[nodiscard]] bool noFrameFollows();
     [[nodiscard]] Status fail(std::size_t line, std::string message);
     [[nodiscard]] Status endTruncated(std::size_t frameLine);
     [[nodiscard]] Status readFirstFrame(DumpFrame& frame, std::size_t frameLine);
