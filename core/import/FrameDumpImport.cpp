@@ -66,10 +66,13 @@ bool isTransitionalFrame(const document::IndexedFrame& previous,
     mix.fill(-1);
     bool between = false;
     const std::size_t count = frame.pixels.size();
+    const uint8_t* before = previous.pixels.data();
+    const uint8_t* pixels = frame.pixels.data();
+    const uint8_t* after = next.pixels.data();
     for (std::size_t index = 0; index < count; ++index) {
-        const uint8_t a = previous.pixels[index] & 0x0f;
-        const uint8_t b = frame.pixels[index] & 0x0f;
-        const uint8_t c = next.pixels[index] & 0x0f;
+        const uint8_t a = before[index] & 0x0f;
+        const uint8_t b = pixels[index] & 0x0f;
+        const uint8_t c = after[index] & 0x0f;
         if (a == c) {
             if (b != a) {
                 return false;

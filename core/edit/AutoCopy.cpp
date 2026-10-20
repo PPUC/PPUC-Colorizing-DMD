@@ -24,8 +24,11 @@ bool sameInsideMask(const document::IndexedFrame& left,
                     const document::IndexedFrame& right,
                     const std::vector<uint8_t>& romMask)
 {
+    // One pointer per block (a read through operator[] checks whether it is packed).
+    const uint8_t* leftPixels = left.pixels.data();
+    const uint8_t* rightPixels = right.pixels.data();
     for (std::size_t i = 0; i < romMask.size(); ++i) {
-        if (romMask[i] && left.pixels[i] != right.pixels[i]) {
+        if (romMask[i] && leftPixels[i] != rightPixels[i]) {
             return false;
         }
     }
@@ -49,9 +52,10 @@ uint32_t maskedOriginalHash(const document::IndexedFrame& original,
         throw std::invalid_argument("the mask does not have the original frame's size");
     }
     uint32_t crc = 0xFFFFFFFFu;
+    const uint8_t* pixels = original.pixels.data();
     for (std::size_t i = 0; i < original.pixels.size(); ++i) {
         if (romMask[i]) {
-            crc = (crc >> 8) ^ table[(original.pixels[i] ^ crc) & 0xFF];
+            crc = (crc >> 8) ^ table[(pixels[i] ^ crc) & 0xFF];
         }
     }
     return ~crc;

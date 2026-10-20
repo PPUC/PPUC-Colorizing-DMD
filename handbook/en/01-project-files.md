@@ -11,13 +11,13 @@ The Qt rewrite opens the projects of the Win32 editor (CDMD 3.17.3) and saves it
   editor").
 - `.cRZ` is a zip archive holding the `.cROM`, in one entry named `<ROM name>.cRom`. It is the
   form in which a colorization is usually handed around, together with the editor file. The
-  editor opens it directly and writes it on every save.
+  editor opens it directly and saves projects as it.
 - `.cROMc` is not edited directly.
 - A frame dump (`.txt`) is what a project starts from and what frames are added from: the
   frames a ROM showed, as text. It is only read, see "Creating A Project From A Dump".
 
-Saving writes complete `.cROM` and `.cRPX` files from the in-memory project, plus the `.cRZ`
-archive of that `.cROM`. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
+Saving writes complete `.cRZ` and `.cRPX` files from the in-memory project (see "Saving"); a
+`.cROM` is only read. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
 saved as revision 20, everything older as revision 19, so a save never moves a project to a
 revision an older libserum cannot read.
 

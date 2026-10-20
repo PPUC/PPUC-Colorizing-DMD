@@ -1737,3 +1737,38 @@ Measured (save, size; before: default level after writing the cROM): afm_113b 0.
 (1.25 s, 1.3 MB); trn_174h 2.3 s, 48 MB (6.4 s, 41 MB); GoT (2.8 GB cROM) 15.8 s, 387 MB (34 s,
 351 MB); all reopen.
 
+## Identical blocks shared, idle blocks packed (2026-10-20)
+
+Owner: "don't we waste a lot of memory?" (the cROMc stays out of the editor). Measured on GoT
+(V79, 2.8 GB cROM): 1086 MB of non-uniform blocks, 21 % exact duplicates (scene frames, repeated
+dump frames), the rest packs with LZ4 fast to about half. libserum's `SparseVector` itself does
+not fit (playback store: one packed blob per ID, mutable decode cache, not thread-safe, no copy
+on write); its ideas went into `CompactArray`:
+- `CompactArray::Block` holds the unpacked values or LZ4 bytes (`compact_storage::pack/unpack`
+  in `CompactArray.cpp`, lz4 from libserum's third-party), never both: unpacking lets go of the
+  packed bytes, so a save of packed blocks peaks at the unpacked size, never above it. The
+  unpacked pointer lives in the block (`std::atomic`, acquire), so arrays sharing a block see
+  its state; a read of a packed block unpacks under the block's mutex. Reading may therefore
+  allocate now. `shareStorage()`, `packStorage()`, `isPacked()`, `storage()`,
+  `storageUseCount()`, `storageBytes()`. Values that do not pack below 90 % stay unpacked
+  (`incompressible` until written).
+- `ProjectDocument::shareIdenticalBlocks()` (run by `fromSnapshot`) shares equal blocks per value
+  type (hash, then compare). `packBlocks(keepFrames, budget)` packs in slices, going on where it
+  stopped; a block is packed only when its use count equals the number of document arrays
+  holding it (counted at the pass start, recounted when the revision changes), so blocks a
+  snapshot, a copy or an undo step holds are never packed. `heldBlockBytes()` for measuring.
+- `MainWindow::packIdleBlocks()`: every 100 ms, after 2 s without input, no modal widget (a
+  project task like the GIF export reads the document itself on a worker), slices of 8 ms,
+  current and selected frames kept, a new pass 30 s after one ended.
+- Hot loops over whole blocks use one `data()` pointer instead of `operator[]` per element (the
+  writer, frame hashes, auto copy compare, ghost frame check): `operator[]` now loads the block's
+  pointer with acquire each time (139 M reads: 140 instead of 22 ms); the cROM writer was 40 %
+  slower before that change and is as fast as before after it.
+Results (blocks held, each buffer once): afm_113b 50 -> 38 (shared) -> 8 MB (packed); trn_174h
+319 -> 220 -> 72 MB; GoT 1086 -> 859 -> 480 MB, first pass 1.5 s in 172 slices, repack after a
+save 1.4 s. The cROM written from packed blocks is byte-identical; round trips of afm_113b,
+trn_174h, hook_501 and smb3 identical. Tests: `CompactStorageTests` (packing, reads on two
+threads, write after packing, incompressible and uniform blocks not packed, sharing, the
+document shares identical blocks, does not pack what a snapshot holds, keeps frames, saves the
+same bytes).
+

@@ -35,18 +35,30 @@ be interrupted; a `Cancel` pressed then takes effect when it ends (`Cancelling w
 ends...`). The project that was open stays in memory until the new one is complete, so for a
 moment both are held. If the open fails, the project that was open stays as well.
 
-Memory: the editor keeps a project in memory in a compact form. The parts of a frame that hold
-one value throughout, which in real projects are most of them (the dynamic mask of a frame
-without dynamic zones, the background masks of a frame without a background, the 64-row picture
-of a frame without HD, rotation tables, unused dynamic colors), take no memory until they are
-edited. What a project needs is roughly its originals and its colorized pictures:
+Memory: the editor keeps a project in memory in a compact form.
 
-| Project | `.cROM` | In memory after opening | Most while opening |
+- The parts of a frame that hold one value throughout, which in real projects are most of them
+  (the dynamic mask of a frame without dynamic zones, the background masks of a frame without a
+  background, the 64-row picture of a frame without HD, rotation tables, unused dynamic colors),
+  take no memory until they are edited.
+- Parts that are the same in several frames (frames of a scene, repeated frames of a dump) are
+  held once until one of them is edited.
+- While the editor is idle (2 seconds without input, no window or task open), it packs the
+  other parts with LZ4, as libserum packs a colorization for playback, a little at a time, and
+  unpacks a part again when it is shown or edited (a few microseconds). The current and the
+  selected frames stay unpacked. Packing changes nothing in the project; a save writes the same
+  files.
+
+The project's pictures (pixels, masks, colors) take:
+
+| Project | `.cROM` | Before packing | Packed |
 | --- | --- | --- | --- |
-| `afm_113b` (3047 frames, `.cRZ`) | 267 MB | 81 MB | 350 MB |
-| `trn_174h` (5211 frames, `.cRZ`) | 450 MB | 350 MB | 800 MB |
-| `frankst1` (11199 frames at 192x64, `.cRZ`) | 711 MB | 440 MB | 1.2 GB |
-| GoT (19042 frames, `.cROM`) | 1.67 GB | 0.88 GB | 0.92 GB |
+| `afm_113b` (3047 frames) | 255 MB | 38 MB | 8 MB |
+| `trn_174h` (5211 frames) | 429 MB | 220 MB | 72 MB |
+| GoT (33977 frames, many with HD) | 2.8 GB | 859 MB | 480 MB |
+
+A full packing pass of the largest of them takes about 1.5 s of idle time; a save unpacks what
+it reads, and the next idle moments pack it again.
 
 A `.cROM` is read straight into the project; a `.cRZ` is first unpacked by libserum into memory
 as a whole, which adds the size of its `.cROM` while it is being read. On a machine with 8 GB a

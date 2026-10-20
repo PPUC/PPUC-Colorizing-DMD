@@ -199,8 +199,12 @@ void writeColorizedUnderDynamicMask(Writer& writer,
         writer.u16s(frame.pixels);
         return;
     }
+    // One pointer per block: a read through operator[] checks every time whether the block
+    // is packed.
+    const uint8_t* mask = dynamicMask->pixels.data();
+    const uint16_t* pixels = frame.pixels.data();
     for (std::size_t i = 0; i < frame.pixels.size(); ++i) {
-        writer.u16(dynamicMask->pixels[i] < 255 ? uint16_t{0} : frame.pixels[i]);
+        writer.u16(mask[i] < 255 ? uint16_t{0} : pixels[i]);
     }
 }
 
@@ -228,12 +232,14 @@ uint32_t legacyFrameHash(const document::IndexedFrame& original,
 {
     static const std::array<uint32_t, 256> table = buildCrc32Table();
     uint32_t crc = 0xFFFFFFFF;
+    const uint8_t* pixels = original.pixels.data();
+    const uint8_t* mask = comparisonMask ? comparisonMask->pixels.data() : nullptr;
+    const std::size_t maskSize = comparisonMask ? comparisonMask->pixels.size() : 0;
     for (std::size_t i = 0; i < original.pixels.size(); ++i) {
-        if (comparisonMask && i < comparisonMask->pixels.size() &&
-            comparisonMask->pixels[i] != 0) {
+        if (i < maskSize && mask[i] != 0) {
             continue;
         }
-        uint8_t value = original.pixels[i];
+        uint8_t value = pixels[i];
         if (shapeMode && value > 1) {
             value = 1;
         }
@@ -259,13 +265,17 @@ bool isLegacyFrameActive(uint32_t durationMs,
     if (!nativeColorized) {
         return false;
     }
+    const uint8_t* shades = original.pixels.data();
+    const std::size_t shadeCount = original.pixels.size();
+    const uint16_t* colors = nativeColorized->pixels.data();
+    const uint8_t* dynamicMask = nativeDynamicMask ? nativeDynamicMask->pixels.data() : nullptr;
+    const std::size_t dynamicCount = nativeDynamicMask ? nativeDynamicMask->pixels.size() : 0;
     for (std::size_t index = 0; index < nativeColorized->pixels.size(); ++index) {
-        const uint8_t shade = index < original.pixels.size() ? original.pixels[index] : uint8_t{0};
+        const uint8_t shade = index < shadeCount ? shades[index] : uint8_t{0};
         const uint16_t plain = shade < originalColors.size() ? originalColors[shade] : uint16_t{0};
         // The saved frame has its dynamic pixels blanked; any dynamic pixel counts.
-        const bool dynamic = nativeDynamicMask && index < nativeDynamicMask->pixels.size() &&
-                             nativeDynamicMask->pixels[index] != 255;
-        if (dynamic || nativeColorized->pixels[index] != plain) {
+        const bool dynamic = index < dynamicCount && dynamicMask[index] != 255;
+        if (dynamic || colors[index] != plain) {
             return true;
         }
     }

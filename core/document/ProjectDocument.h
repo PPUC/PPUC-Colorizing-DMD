@@ -1,9 +1,11 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "document/CompactArray.h"
@@ -362,6 +364,26 @@ public:
     void markClean();
     // For a document that is in no file yet, e.g. a new project.
     void markUnsaved();
+
+    // ---- Storage (see CompactArray): nothing here changes the content or the revision.
+    // Makes blocks with the same values share one buffer; returns the bytes no longer held.
+    // fromSnapshot() does it.
+    std::size_t shareIdenticalBlocks();
+    struct PackProgress {
+        std::size_t bytesFreed = 0;
+        // A pass over the whole document has ended.
+        bool done = false;
+    };
+    // Packs blocks (LZ4) for about the budget, going on where the last call stopped, and leaves
+    // the blocks of keepFrames unpacked. A packed block is unpacked again when it is read. A
+    // block is packed only when every array that holds it is part of the document, so a
+    // snapshot, a copy or an undo step that holds it keeps it as it is. No other thread may
+    // read the document itself meanwhile (threads that read a snapshot may).
+    PackProgress packBlocks(const std::vector<std::size_t>& keepFrames,
+                            std::chrono::steady_clock::duration budget);
+    // The bytes of the document's blocks, each buffer once: unpacked values and packed bytes.
+    [[nodiscard]] std::size_t heldBlockBytes() const;
+
     // Goes up with every change and is not used by another document's content in this
     // process, so that data derived from a document can tell it is stale.
     [[nodiscard]] uint64_t revision() const;
@@ -728,6 +750,11 @@ private:
     void requireDynamicPlane(Resolution resolution) const;
     void requireFittingRecordTables(const RecordTables& tables) const;
     void markChanged();
+    // The records packBlocks() goes through: the frames, then the comparison masks, the
+    // backgrounds and the sprites; visit is called with each CompactArray of the record.
+    [[nodiscard]] std::size_t storageItemCount() const;
+    template <typename Visit>
+    void visitItemBlocks(std::size_t item, Visit&& visit);
 
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
@@ -749,6 +776,11 @@ private:
     // on demand; a dynamic mask edit updates its frame, adding or removing frames drops it.
     // Like the rest of the document, not for concurrent use from several threads.
     mutable std::vector<uint8_t> m_dynamicPixelStates;
+    // packBlocks(): where it goes on, the revision its counts are of, and how many arrays of the
+    // document hold each buffer.
+    std::size_t m_packCursor = 0;
+    uint64_t m_packRevision = 0;
+    std::unordered_map<const void*, long> m_packHolders;
 };
 
 // The colors of an uncolorized frame: a ramp over the original color indices, as the Win32

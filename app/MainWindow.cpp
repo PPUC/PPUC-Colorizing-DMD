@@ -528,6 +528,9 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(kApplicationName);
     resize(1000, 700);
+    m_packTimer.setInterval(100);
+    connect(&m_packTimer, &QTimer::timeout, this, [this]() { packIdleBlocks(); });
+    m_packTimer.start();
     m_frameRestTimer.setSingleShot(true);
     m_frameRestTimer.setInterval(250);
     connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() { updateFrameRestViews(); });
@@ -9335,7 +9338,33 @@ void MainWindow::startProjectClock()
     m_sessionClock.restart();
     m_activityClock.start(0);
     m_clockTimer.start();
+    m_lastInputMs = 0;
+    m_nextPackPassMs = 0;
     updateTimeLabel();
+}
+
+void MainWindow::packIdleBlocks()
+{
+    constexpr qint64 kIdleMs = 2000;
+    constexpr qint64 kPassIntervalMs = 30000;
+    // Not while a dialog or a project task (which may read the document on another thread)
+    // runs, nor while the author works or playback runs (which counts as activity).
+    if (!m_document || !m_sessionClock.isValid() || QApplication::activeModalWidget()) {
+        return;
+    }
+    const qint64 now = m_sessionClock.elapsed();
+    if (now - m_lastInputMs < kIdleMs || now < m_nextPackPassMs) {
+        return;
+    }
+    std::vector<std::size_t> keep = selectedFrameIndices();
+    if (const std::optional<std::size_t> current = currentFrameIndex()) {
+        keep.push_back(*current);
+    }
+    const document::ProjectDocument::PackProgress progress =
+        m_document->packBlocks(keep, std::chrono::milliseconds(8));
+    if (progress.done) {
+        m_nextPackPassMs = now + kPassIntervalMs;
+    }
 }
 
 void MainWindow::noteActivity()
@@ -9345,6 +9374,7 @@ void MainWindow::noteActivity()
     }
     const bool wasPaused = m_activityClock.isPaused(m_sessionClock.elapsed());
     m_activityClock.activity(m_sessionClock.elapsed());
+    m_lastInputMs = m_sessionClock.elapsed();
     if (wasPaused) {
         updateTimeLabel();
     }

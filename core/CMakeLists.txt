@@ -1,4 +1,5 @@
 add_library(colorizing_qt_v2_core STATIC
+    document/CompactArray.cpp
     document/EditorMetadata.cpp
     document/ProjectSnapshot.cpp
     document/Upscale.cpp
@@ -55,7 +56,7 @@ target_include_directories(colorizing_qt_v2_core
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# PRIVATE: only legacy/LegacyCrzArchive.cpp, runtime/CromcExport.cpp,
+# PRIVATE: only document/CompactArray.cpp (lz4), legacy/LegacyCrzArchive.cpp, runtime/CromcExport.cpp,
 # runtime/RuntimePreview.cpp and runtime/Scenes.cpp include libserum headers, and
 # import/DumpFile.cpp its miniz, and they must not reach the targets that
 # link the core.

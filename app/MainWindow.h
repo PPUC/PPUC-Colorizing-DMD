@@ -396,6 +396,8 @@ private:
     void deleteSelectedFrames();
     // The project's time from its stored total on (a project was opened or created).
     void startProjectClock();
+    // A slice of packing, when the editor has been idle for a while.
+    void packIdleBlocks();
     // Hands the project's <rom>.pup.csv, if it has one, to the Runtime view and frame tester.
     void updateRuntimeSceneFile();
     // The stored total and the time since the project was opened, in ms.
@@ -684,6 +686,11 @@ private:
     QTimer m_clockTimer;
     QElapsedTimer m_sessionClock;
     ActivityClock m_activityClock;
+    // Packing the project's blocks while the editor is idle (ProjectDocument::packBlocks):
+    // the time of the last input and when the next pass may start, on m_sessionClock.
+    QTimer m_packTimer;
+    qint64 m_lastInputMs = 0;
+    qint64 m_nextPackPassMs = 0;
     uint32_t m_projectTimeAtOpenMs = 0;
     // Input to any of the editor's windows: the clocks go on.
     void noteActivity();

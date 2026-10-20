@@ -1,6 +1,9 @@
 #include "document/ProjectDocument.h"
 
 #include <algorithm>
+#include <functional>
+#include <unordered_map>
+#include <string_view>
 #include <atomic>
 #include <map>
 #include <string>
@@ -621,7 +624,181 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_dirty = false;
     document.m_revision = nextRevision();
     document.m_identificationRevision = document.m_revision;
+    document.shareIdenticalBlocks();
     return document;
+}
+
+std::size_t ProjectDocument::storageItemCount() const
+{
+    return m_frames.size() + m_comparisonMasks.size() + m_backgrounds.size() + m_sprites.size();
+}
+
+template <typename Visit>
+void ProjectDocument::visitItemBlocks(std::size_t item, Visit&& visit)
+{
+    if (item < m_frames.size()) {
+        FrameRecord& frame = m_frames[item];
+        visit(frame.originalSd.pixels);
+        visit(frame.colorizedSd.pixels);
+        if (frame.colorizedHd) {
+            visit(frame.colorizedHd->pixels);
+        }
+        if (frame.inactiveHd) {
+            visit(frame.inactiveHd->pixels);
+        }
+        visit(frame.colorRotationsSd);
+        visit(frame.colorRotationsHd);
+        if (frame.dynamicData) {
+            FrameDynamicData& dynamic = *frame.dynamicData;
+            visit(dynamic.maskSd.pixels);
+            visit(dynamic.maskHd.pixels);
+            visit(dynamic.colorsSd);
+            visit(dynamic.colorsHd);
+            visit(dynamic.shadowDirectionsSd);
+            visit(dynamic.shadowColorsSd);
+            visit(dynamic.shadowDirectionsHd);
+            visit(dynamic.shadowColorsHd);
+        }
+        if (frame.backgroundData) {
+            visit(frame.backgroundData->maskSd.pixels);
+            visit(frame.backgroundData->maskHd.pixels);
+        }
+        return;
+    }
+    item -= m_frames.size();
+    if (item < m_comparisonMasks.size()) {
+        visit(m_comparisonMasks[item].pixels);
+        return;
+    }
+    item -= m_comparisonMasks.size();
+    if (item < m_backgrounds.size()) {
+        BackgroundRecord& background = m_backgrounds[item];
+        visit(background.colorizedSd.pixels);
+        if (background.colorizedHd) {
+            visit(background.colorizedHd->pixels);
+        }
+        if (background.inactiveHd) {
+            visit(background.inactiveHd->pixels);
+        }
+        return;
+    }
+    item -= m_backgrounds.size();
+    if (item < m_sprites.size()) {
+        SpriteRecord& sprite = m_sprites[item];
+        visit(sprite.originalSd.pixels);
+        visit(sprite.colorizedSd.pixels);
+        visit(sprite.maskHd.pixels);
+        visit(sprite.colorizedHd.pixels);
+        visit(sprite.dynamicMaskSd.pixels);
+        visit(sprite.dynamicMaskHd.pixels);
+        visit(sprite.dynamicColorsSd);
+        visit(sprite.dynamicColorsHd);
+    }
+}
+
+std::size_t ProjectDocument::shareIdenticalBlocks()
+{
+    // Per value type and content: the arrays met first. A hash finds the candidates, the values
+    // decide.
+    std::unordered_map<uint64_t, std::vector<CompactArray<uint8_t>*>> bytes8;
+    std::unordered_map<uint64_t, std::vector<CompactArray<uint16_t>*>> bytes16;
+    std::size_t saved = 0;
+    const auto share = [&saved](auto& array, auto& seen) {
+        if (array.empty() || array.isSharedUniform()) {
+            return;
+        }
+        const std::string_view content(reinterpret_cast<const char*>(array.data()),
+                                       array.size() * sizeof(*array.data()));
+        const uint64_t key = std::hash<std::string_view>{}(content) ^ (array.size() * 0x9e3779b97f4a7c15ull);
+        auto& candidates = seen[key];
+        for (auto* other : candidates) {
+            if (other->storage() == array.storage()) {
+                return;
+            }
+            if (*other == array) {
+                saved += array.storageUseCount() == 1 ? array.storageBytes() : 0;
+                array.shareStorage(*other);
+                return;
+            }
+        }
+        candidates.push_back(&array);
+    };
+    for (std::size_t item = 0; item < storageItemCount(); ++item) {
+        visitItemBlocks(item, [&](auto& array) {
+            using Value = std::decay_t<decltype(*array.data())>;
+            if constexpr (sizeof(Value) == 1) {
+                share(array, bytes8);
+            } else {
+                share(array, bytes16);
+            }
+        });
+    }
+    return saved;
+}
+
+ProjectDocument::PackProgress ProjectDocument::packBlocks(
+    const std::vector<std::size_t>& keepFrames,
+    std::chrono::steady_clock::duration budget)
+{
+    const auto start = std::chrono::steady_clock::now();
+    PackProgress progress;
+    if (m_packRevision != m_revision || m_packHolders.empty()) {
+        // A pass starts over: who holds which buffer now.
+        m_packHolders.clear();
+        for (std::size_t item = 0; item < storageItemCount(); ++item) {
+            visitItemBlocks(item, [this](auto& array) {
+                if (!array.empty() && !array.isSharedUniform()) {
+                    ++m_packHolders[array.storage()];
+                }
+            });
+        }
+        m_packCursor = 0;
+        m_packRevision = m_revision;
+    }
+    const std::size_t items = storageItemCount();
+    while (m_packCursor < items) {
+        const std::size_t item = m_packCursor++;
+        if (item < m_frames.size() &&
+            std::find(keepFrames.begin(), keepFrames.end(), item) != keepFrames.end()) {
+            continue;
+        }
+        visitItemBlocks(item, [this, &progress](auto& array) {
+            if (array.empty() || array.isSharedUniform() || array.isPacked()) {
+                return;
+            }
+            const auto holders = m_packHolders.find(array.storage());
+            // Held by anything outside the document (a snapshot, a copy, an undo step), or
+            // by an array of the document that is new since the pass began: left as it is.
+            if (holders == m_packHolders.end() || holders->second != array.storageUseCount()) {
+                return;
+            }
+            progress.bytesFreed += array.packStorage();
+        });
+        if (std::chrono::steady_clock::now() - start >= budget) {
+            return progress;
+        }
+    }
+    progress.done = true;
+    m_packHolders.clear();
+    return progress;
+}
+
+std::size_t ProjectDocument::heldBlockBytes() const
+{
+    std::unordered_map<const void*, std::size_t> buffers;
+    auto& self = const_cast<ProjectDocument&>(*this);
+    for (std::size_t item = 0; item < storageItemCount(); ++item) {
+        self.visitItemBlocks(item, [&buffers](const auto& array) {
+            if (!array.empty()) {
+                buffers.emplace(array.storage(), array.storageBytes());
+            }
+        });
+    }
+    std::size_t bytes = 0;
+    for (const auto& [buffer, size] : buffers) {
+        bytes += size;
+    }
+    return bytes;
 }
 
 const std::string& ProjectDocument::romName() const

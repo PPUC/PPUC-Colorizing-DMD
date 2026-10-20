@@ -3,6 +3,7 @@
 // cancellation of load and save, and the memory limit of the structure undo history.
 
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -623,8 +624,117 @@ void testStructureUndoMemoryLimit()
 
 }  // namespace
 
+// A block of values that LZ4 packs well: runs of a few values.
+std::vector<uint16_t> runs(std::size_t count, uint16_t seed)
+{
+    std::vector<uint16_t> values(count);
+    for (std::size_t index = 0; index < count; ++index) {
+        values[index] = static_cast<uint16_t>(seed + (index / 37) % 5);
+    }
+    return values;
+}
+
+void testPackedArrays()
+{
+    const std::vector<uint16_t> values = runs(4096, 100);
+    CompactArray<uint16_t> array(values);
+    const std::size_t unpackedBytes = array.ownedBytes();
+    expect(array.packStorage() >= 4096 * 2 && array.isPacked() && array.ownedBytes() < unpackedBytes / 4,
+           "a block packs to a fraction of its size");
+    expect(array.packStorage() == 0, "a packed block packs no further");
+    const CompactArray<uint16_t> copy(array);
+    expect(copy == values && !array.isPacked() && array.ownedBytes() == 0 && copy.sharesStorage(),
+           "reading a copy unpacks the buffer they share");
+    expect(array.packStorage() > 0 && array.isPacked(), "packed again");
+
+    // Read on two threads at once while packed: both get the values.
+    std::atomic<int> right{0};
+    std::thread first([&]() { right += copy == values ? 1 : 0; });
+    std::thread second([&]() { right += array[1000] == values[1000] ? 1 : 0; });
+    first.join();
+    second.join();
+    expect(right == 2, "a packed block is unpacked once for readers on several threads");
+
+    array.packStorage();
+    array[5] = 7;
+    expect(!array.isPacked() && array[5] == 7 && array[6] == values[6] && copy[5] == values[5],
+           "a write unpacks and goes to a buffer of its own");
+
+    // Values that do not pack well are left as they are.
+    std::vector<uint16_t> noise(4096);
+    uint32_t state = 12345;
+    for (uint16_t& value : noise) {
+        state = state * 1664525u + 1013904223u;
+        value = static_cast<uint16_t>(state >> 16);
+    }
+    CompactArray<uint16_t> random(noise);
+    expect(random.packStorage() == 0 && !random.isPacked() && random == noise,
+           "incompressible values stay unpacked");
+    CompactArray<uint8_t> uniform(1000, 3);
+    expect(uniform.packStorage() == 0 && !uniform.isPacked(), "a uniform buffer is never packed");
+
+    CompactArray<uint16_t> same(values);
+    CompactArray<uint16_t> other(runs(4096, 200));
+    other.shareStorage(same);
+    expect(other.storage() != same.storage(), "different values are not shared");
+    CompactArray<uint16_t> twin(values);
+    twin.shareStorage(same);
+    expect(twin.storage() == same.storage() && twin == values, "identical values share a buffer");
+    twin[0] = 9;
+    expect(twin.storage() != same.storage() && same[0] == values[0], "until one is written");
+}
+
+void testDocumentSharesAndPacksBlocks()
+{
+    ProjectSnapshot snapshot = runtime_fixtures::makeFullProject(PlaneLayout::Ordinary);
+    // Colors that pack well; frames 7 and 8 get the colors of frame 0, each in a buffer of
+    // its own.
+    for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+        const std::size_t count = snapshot.frames[frame].colorizedSd.pixels.size();
+        snapshot.frames[frame].colorizedSd.pixels =
+            runs(count, static_cast<uint16_t>(frame == 7 || frame == 8 ? 0 : 100 * frame));
+    }
+    ProjectDocument document = ProjectDocument::fromSnapshot(std::move(snapshot));
+    std::ostringstream before;
+    std::string error;
+    expect(legacy::writeLegacyCrom(before, document.toSnapshot(), error), "the cROM before");
+    {
+        const ProjectSnapshot shared = document.toSnapshot();
+        expect(shared.frames[7].colorizedSd.pixels.storage() ==
+                   shared.frames[0].colorizedSd.pixels.storage(),
+               "identical blocks share one buffer once the document is built");
+    }
+
+    // A snapshot holds every block: nothing is packed.
+    {
+        const ProjectSnapshot held = document.toSnapshot();
+        ProjectDocument::PackProgress progress;
+        do {
+            progress = document.packBlocks({}, std::chrono::seconds(10));
+        } while (!progress.done);
+        expect(progress.bytesFreed == 0 && !held.frames[0].originalSd.pixels.isPacked(),
+               "blocks a snapshot holds are not packed");
+    }
+    const uint64_t revision = document.revision();
+    const std::size_t heldBefore = document.heldBlockBytes();
+    ProjectDocument::PackProgress progress = document.packBlocks({2}, std::chrono::seconds(10));
+    expect(progress.done && progress.bytesFreed > 0 && document.heldBlockBytes() < heldBefore &&
+               document.revision() == revision && !document.isDirty(),
+           "packing frees memory and changes nothing of the project");
+    const ProjectSnapshot after = document.toSnapshot();
+    expect(after.frames[0].colorizedSd.pixels.isPacked() &&
+               after.frames[7].colorizedSd.pixels.isPacked() &&
+               !after.frames[2].colorizedSd.pixels.isPacked(),
+           "shared blocks too, the frames to keep stay unpacked");
+    std::ostringstream again;
+    expect(legacy::writeLegacyCrom(again, after, error) && again.str() == before.str(),
+           "the cROM of packed blocks is the same");
+}
+
 void runCompactStorageTests()
 {
+    testPackedArrays();
+    testDocumentSharesAndPacksBlocks();
     testUniformArraysShareOneBuffer();
     testFirstWriteMaterialises();
     testCopiesShareUntilWritten();
