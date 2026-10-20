@@ -15,8 +15,9 @@ Currently implemented:
 - `Edit BG` in the Inspector's background section (or a double click on a background in the
   left sidebar) displays the selected background image on the canvas and edits that shared
   background image with the ordinary drawing tools; the button stays down meanwhile. Click
-  `Edit BG` again to go back to the frame, as `Edit Sprite` does for a sprite. The `Target`
-  field of the frame section (`Frame` or `Background`) does the same.
+  `Edit BG` again to go back to the frame, as `Edit Sprite` does for a sprite, or double-click
+  a frame in the frame strip to edit that frame. The `Target` field of the frame section
+  (`Frame` or `Background`) does the same.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
 - In SD mode, `BG` edits the SD background mask.

@@ -1257,10 +1257,7 @@ void MainWindow::createCentralView()
             return;
         }
         // Back to the frame, as Edit Sprite does when it is clicked again.
-        setPaintTarget(PaintTarget::Frame);
-        updatePaintTargetMode();
-        updateBackgroundControls();
-        statusBar()->showMessage(tr("Editing the frame"), 1500);
+        editFrameInsteadOfBackground();
     };
     m_backgroundPanel->onCopyFrameToBackgroundRequested = [this]() {
         copyCurrentFrameToSelectedBackground();
@@ -1801,6 +1798,13 @@ void MainWindow::createCentralView()
 
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
         selectFrame(row);
+    });
+    // While a background is edited, a double click on a frame (its first click has made it the
+    // current frame) goes back to editing the frame.
+    connect(m_frameList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) {
+        if (activePaintTarget() == PaintTarget::Background) {
+            editFrameInsteadOfBackground();
+        }
     });
     connect(m_frameList, &QListWidget::itemSelectionChanged, this, [this]() {
         selectFrame(m_frameList ? m_frameList->currentRow() : -1);
@@ -5573,6 +5577,14 @@ void MainWindow::assignSelectedBackgroundToFrames()
         return;
     }
     setCurrentFrameBackgroundId(backgroundIndex);
+}
+
+void MainWindow::editFrameInsteadOfBackground()
+{
+    setPaintTarget(PaintTarget::Frame);
+    updatePaintTargetMode();
+    updateBackgroundControls();
+    statusBar()->showMessage(tr("Editing the frame"), 1500);
 }
 
 void MainWindow::editAssignedBackground()

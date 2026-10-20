@@ -1772,3 +1772,10 @@ threads, write after packing, incompressible and uniform blocks not packed, shar
 document shares identical blocks, does not pack what a snapshot holds, keeps frames, saves the
 same bytes).
 
+## Double click on a frame ends background editing (2026-10-20)
+
+Owner: while a background is edited, a double click on a frame in the strip goes back to
+editing that frame (its first click has made it current). `MainWindow::editFrameInsteadOfBackground()`
+(also behind `Edit BG` clicked again), connected to the frame list's `itemDoubleClicked` only
+while the paint target is `Background`. Not covered by ctest (MainWindow has no widget test).
+

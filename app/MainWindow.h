@@ -279,6 +279,8 @@ private:
     void editAssignedMask();
     void assignSelectedBackgroundToFrames();
     void editAssignedBackground();
+    // Ends editing a background: the current frame is edited again.
+    void editFrameInsteadOfBackground();
     void copyCurrentFrameToSelectedBackground();
     void copySelectedBackgroundToFrames();
     void importImageIntoSelectedBackground();
