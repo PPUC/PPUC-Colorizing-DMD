@@ -107,8 +107,9 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 The Inspector shows only the sections that serve the canvas shown, to leave them the room:
 
 - On the frame canvas, every section.
-- While a background is edited (`Edit BG`, or `Target` set to `Background`): `Frame`,
-  `Background`, `Palette`, `Color Sets` and `Helper Lines`.
+- While a background is edited (`Edit BG`, or `Target` set to `Background`): `Background`,
+  `Palette`, `Color Sets` and `Helper Lines`. `Edit BG` there, or a double click on a frame in
+  the frame strip, goes back to the frame.
 - In the sprite editor (`Edit Sprite`): `Sprite`, `Palette`, `Color Sets` and `Helper Lines`.
 
 A hidden section stays open or closed as it was and comes back so when the frame canvas returns.

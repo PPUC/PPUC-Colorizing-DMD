@@ -1868,6 +1868,7 @@ projects. Tests: `testBackgroundHdEditableOnFrameWithoutHd`, Bilinear case in
 its open state; the layout and the resize borders skip hidden ones (`isSectionShown`).
 `MainWindow::updateInspectorSections` (from `updatePaintTargetMode` and the canvas stack's
 `currentChanged`): sprite editor → Sprite, Palette, Sets, HelperLines; background editing →
-Frame (holds Target), BG, Palette, Sets, HelperLines; frame canvas → all. Owner: Palette, Color
+BG, Palette, Sets, HelperLines (Frame hidden too, owner: Edit BG and the frame double click
+leave background editing); frame canvas → all. Owner: Palette, Color
 Sets and Helper Lines always make sense; hiding preferred over disabling for the room. Test:
 the hidden-section block of `testSectionStackResize`.

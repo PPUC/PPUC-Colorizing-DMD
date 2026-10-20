@@ -7598,14 +7598,14 @@ void MainWindow::updateInspectorSections()
         return;
     }
     // Palettes, color sets and helper lines serve every canvas; the frame's own topics only the
-    // frame canvas. A background is edited from the Frame (Target) and Background sections.
+    // frame canvas. A background is edited from the Background section (Edit BG leaves it).
     static const QStringList everywhere{QStringLiteral("Palette"), QStringLiteral("Sets"),
                                         QStringLiteral("HelperLines")};
     QStringList shown;
     if (spriteCanvasShown()) {
         shown = everywhere + QStringList{QStringLiteral("Sprite")};
     } else if (isBackgroundImageTargetActive()) {
-        shown = everywhere + QStringList{QStringLiteral("Frame"), QStringLiteral("BG")};
+        shown = everywhere + QStringList{QStringLiteral("BG")};
     }
     for (int index = 0; index < m_inspectorSections->count(); ++index) {
         m_inspectorSections->setSectionHidden(
