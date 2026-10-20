@@ -23,7 +23,7 @@ The handbook is built into the editor (`Help -> Handbook`, `F1`). Its chapters a
 
 ## Building
 
-CMake 3.20, a C++17 compiler, Qt 6 (Widgets) and a checkout of
+CMake 3.20, a C++20 compiler, Qt 6 (Widgets) and a checkout of
 [libserum](https://github.com/PPUC/libserum) beside this repository (`../libserum`, or set
 `COLORIZINGDMD_LIBSERUM_DIR`):
 

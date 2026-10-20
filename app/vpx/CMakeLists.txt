@@ -1,7 +1,7 @@
 # The editor's side of VPX plugin hosting (VpxHost), and the plugins built with the editor.
 #
 # colorizing_qt_v2_vpx is the only target that sees the plugin SDK: its header has no SDK
-# types, so the rest of the editor stays C++17 while this target, like the SDK, is C++20.
+# types. Like the SDK it is C++20, as the whole editor is now.
 
 add_library(colorizing_qt_v2_vpx STATIC
     EditorApi.cpp

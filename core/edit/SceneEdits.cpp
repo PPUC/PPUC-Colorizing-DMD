@@ -468,11 +468,7 @@ std::unique_ptr<SceneEditCommand> deleteFramesOfScenes(document::ProjectDocument
     // Each scene's new numbering, checked before anything changes.
     document::ColorizationSettings settings = settingsOf(document);
     std::vector<SceneFramesCommand::Change> changes;
-    for (const auto& touchedScene : touched) {
-        // Plain names: a lambda below captures them (a structured binding it cannot in C++17).
-        const uint16_t sceneId = touchedScene.first;
-        const std::map<std::pair<uint8_t, uint16_t>, std::size_t>& framesByRef =
-            touchedScene.second;
+    for (const auto& [sceneId, framesByRef] : touched) {
         const document::SceneDefinition old = requireScene(document, sceneId);
         const uint8_t groups = groupsOf(old);
         const auto gone = [&](uint8_t group, uint16_t number) {

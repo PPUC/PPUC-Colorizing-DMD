@@ -2050,3 +2050,13 @@ under green 2 px, cosmetic); widget default off, the window follows the Frame Sp
 outline in `testSpriteCompositionRendersInSdAndHd`, the toggle in the sprite panel test.
 Frame Sprites list (owner, same day): the frame's sprite lines (up to 16) are in a QScrollArea
 of four lines' height instead of a growing label. Version 3.99.5.
+
+## C++20 (2026-10-20, owner decision)
+
+The editor builds as C++20 (`CMAKE_CXX_STANDARD 20`, also tools/ui_dump); libserum and the
+VPX target already were. Trigger: CI (Apple clang, warnings as errors) refused a structured
+binding captured by a lambda, a C++20 feature (920f9a3 worked around it; with C++20 the
+binding is back). Not C++23: GCC 13 (Ubuntu 24.04) and Apple's libc++ support it only in
+part. The full build with warnings as errors (Apple clang) and core with GCC 16
+(`-Wall -Wextra -Werror`) are clean. Scratch builds should keep
+`CMAKE_COMPILE_WARNING_AS_ERROR=ON` as CI does: without it the C++17 warning went unseen.
