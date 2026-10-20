@@ -131,7 +131,9 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 The Inspector shows only the sections that serve the canvas shown, to leave them the room:
 
 - On the frame canvas, every section but `Background` and `Sprite`; `Scene` only for a frame of
-  a scene (see "Scenes and Scaling").
+  a scene (see "Scenes and Scaling"), and it opens when it comes. For a frame of a scene,
+  `Comparison Mask`, `Frame Sprites` and `Dynamic Sets` are hidden: libserum identifies such a
+  frame by its marker, finds no sprites on it and takes no dynamic zones from its original.
 - While a background is edited (`Edit BG`, or `Target` set to `Background`): `Background`,
   `Palette`, `Color Sets` and `Helper Lines`. `Back to Frame` there, or a double click on a
   frame in the frame strip, goes back to the frame.

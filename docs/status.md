@@ -1959,3 +1959,7 @@ the frame. Tests: timeline block in `testCanvasHistory`, ScenesWidgetTests witho
 without one, the filter goes to All frames. HelperLinesPanel buttons are QToolButtons and get
 `fillButtonRows` like the other Inspector sections. Tests: Leave Scene block in
 `testCanvasHistory`, HelperLinesWidgetTests on QToolButton.
+Scene frames in the Inspector (owner, same day): the Scene section starts hidden and opens when
+it is shown; `updateInspectorSections` (now also from the frame rest timer and `openScene`)
+hides `Mask`, `Sprite` and `Dyn` for a scene frame on the frame canvas (identified by the
+marker; no sprites, no dynamic zones from the marker original).

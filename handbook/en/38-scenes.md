@@ -34,7 +34,9 @@ in the project, and below it the scene ID, the groups and frames, the frame dura
 
 The `Scene` section of the Inspector (the right sidebar) shows the settings of the scene the
 frame on the canvas belongs to, the same fields as the scene window. It is there only while a
-frame of a scene is on the frame canvas (not while a background or a sprite is edited), and
+frame of a scene is on the frame canvas (not while a background or a sprite is edited), opens
+when it comes (the Inspector hides the comparison mask, sprite and dynamic sections meanwhile),
+and
 follows the frame once it has stayed a quarter of a second. Changes wait for `Apply`; `Revert`
 shows the scene's settings again. Unapplied changes stay while frames of the same scene are
 shown and go when a frame of another scene comes. With `Apply` the scene's frames follow:

@@ -536,7 +536,8 @@ MainWindow::MainWindow(QWidget* parent)
     m_frameRestTimer.setInterval(250);
     connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() {
         updateFrameRestViews();
-        updateSceneSettingsSection(false);
+        // A scene frame or not: the Inspector's sections follow.
+        updateInspectorSections();
         noteCanvasPlace(true);
     });
     createActions();
@@ -1741,6 +1742,8 @@ void MainWindow::createCentralView()
         changeScene(sceneId, scene);
     };
     inspectorTabs->addTab(m_sceneSettingsPanel, QStringLiteral("SceneSettings"), tr("Scene"));
+    // Hidden until a scene frame comes (it opens then).
+    inspectorTabs->setSectionHidden(inspectorTabs->count() - 1, true);
     inspectorTabs->addTab(m_backgroundPanel->framePage(), QStringLiteral("BG"),
                           tr("Frame Background"));
     inspectorTabs->addTab(m_spritePanel->framePage(), QStringLiteral("Sprite"),
@@ -7696,19 +7699,28 @@ void MainWindow::updateInspectorSections()
     static const QStringList everywhere{QStringLiteral("Palette"), QStringLiteral("Sets"),
                                         QStringLiteral("HelperLines")};
     static const QStringList records{QStringLiteral("BGRecord"), QStringLiteral("SpriteRecord")};
+    // A scene frame is identified by its marker, not by the ROM frame: a comparison mask, sprites
+    // (found on the original) and dynamic zones (the original's shades) do nothing there.
+    static const QStringList notForSceneFrames{QStringLiteral("Mask"), QStringLiteral("Sprite"),
+                                               QStringLiteral("Dyn")};
     QString record;
     if (spriteCanvasShown()) {
         record = QStringLiteral("SpriteRecord");
     } else if (isBackgroundImageTargetActive()) {
         record = QStringLiteral("BGRecord");
     }
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    const bool sceneFrame = record.isEmpty() && m_document && frame &&
+                            m_document->sceneFrame(*frame).has_value();
     for (int index = 0; index < m_inspectorSections->count(); ++index) {
         const QString key = m_inspectorSections->tabText(index);
         if (key == QStringLiteral("SceneSettings")) {
             continue;  // updateSceneSettingsSection()
         }
-        const bool shown = record.isEmpty() ? !records.contains(key)
-                                            : key == record || everywhere.contains(key);
+        const bool shown = record.isEmpty()
+                               ? !records.contains(key) &&
+                                     !(sceneFrame && notForSceneFrames.contains(key))
+                               : key == record || everywhere.contains(key);
         if (key == record && m_inspectorSections->isSectionHidden(index)) {
             m_inspectorSections->setSectionOpen(index, true);
         }
@@ -9680,6 +9692,10 @@ void MainWindow::updateSceneSettingsSection(bool reload)
         }
     }
     const int index = m_inspectorSections->indexOf(m_sceneSettingsPanel);
+    // Opened when it comes, as the sections of a background or a sprite being edited.
+    if (scene && m_inspectorSections->isSectionHidden(index)) {
+        m_inspectorSections->setSectionOpen(index, true);
+    }
     m_inspectorSections->setSectionHidden(index, !scene);
     const std::optional<uint16_t> shownId =
         scene ? std::optional<uint16_t>(scene->sceneId) : std::nullopt;
@@ -9765,6 +9781,7 @@ void MainWindow::openScene(uint16_t sceneId)
     }
     goToFrame(frames.front());
     m_showingCanvasPlace = false;
+    updateInspectorSections();
     noteCanvasPlace(true);
 }
 
