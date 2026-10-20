@@ -30,7 +30,7 @@ back their original look: each gets the plain original color of its own original
 color an uncolorized frame shows (the amber ramp). The preview shows such a stroke in amber. It
 works on every selected frame, each with its own original, and is undone like any drawing.
 
-While a background is edited (`Edit BG` in the `Frame Background` section), ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.
+While a background is edited (`Edit Background` in the `Frame Background` section), ordinary drawing tools edit the selected shared background image. `Pick` samples from that background image, flood fill fills the background image, and the edits are recorded in the history of that background and resolution.
 
 ## Point
 

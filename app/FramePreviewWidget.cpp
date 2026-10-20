@@ -382,6 +382,15 @@ void FramePreviewWidget::setBackgroundMaskOverlayEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setSpritesLayerEnabled(bool enabled)
+{
+    if (m_showSpritesLayer == enabled) {
+        return;
+    }
+    m_showSpritesLayer = enabled;
+    update();
+}
+
 void FramePreviewWidget::setBackgroundLayerEnabled(bool enabled)
 {
     if (m_showBackgroundLayer == enabled) {
@@ -1250,7 +1259,8 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                                      m_frameIndex,
                                      region.resolution,
                                      m_showBackgroundLayer,
-                                     m_colorRotationPreviewElapsedMs ? &notRotating : nullptr);
+                                     m_colorRotationPreviewElapsedMs ? &notRotating : nullptr,
+                                     m_showSpritesLayer);
             if (m_colorRotationPreviewElapsedMs) {
                 applyColorRotations(*m_document,
                                     m_frameIndex,

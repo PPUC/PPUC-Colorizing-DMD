@@ -53,6 +53,8 @@ public:
     void setSelectedDynamicSet(std::optional<uint8_t> setIndex);
     void setBackgroundMaskOverlayEnabled(bool enabled);
     void setBackgroundLayerEnabled(bool enabled);
+    // The sprites libserum finds on the frame, drawn over it (on by default).
+    void setSpritesLayerEnabled(bool enabled);
     void setBackgroundImageEditModeEnabled(bool enabled);
     void setSelectedBackgroundIndex(std::optional<std::size_t> backgroundIndex);
     void setDmdRenderOptions(DmdRenderOptions options);
@@ -236,6 +238,7 @@ private:
     std::optional<uint8_t> m_selectedDynamicSet;
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
+    bool m_showSpritesLayer = true;
     bool m_showBackgroundImageEditMode = false;
     std::optional<std::size_t> m_selectedBackgroundIndex;
     std::optional<int> m_colorRotationPreviewElapsedMs;

@@ -1305,6 +1305,11 @@ void testSpriteCompositionRendersInSdAndHd()
                                               false);
     expect(sdComposed.pixels[5 * colorizing::render::kSdFrameSize.width + 10] == 0xf800,
            "SD composed frame should contain matched sprite pixel");
+    const colorizing::document::Rgb565Frame withoutSprites =
+        colorizing::app::composeResolvedFrame(document, 0, colorizing::render::Resolution::Sd,
+                                              false, nullptr, false);
+    expect(withoutSprites.pixels[5 * colorizing::render::kSdFrameSize.width + 10] != 0xf800,
+           "Show Sprites off: the frame without its sprites");
 
     const QImage sdImage = colorizing::app::renderResolvedFrameImage(
         document,
@@ -3202,12 +3207,12 @@ void testBackgroundPanel()
     expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
                selectedLabel->wordWrap() && enabledButtonCount(buttons) == 0,
            "background panel should start without a background");
-    expect(assignButton->text() == QStringLiteral("Assign BG") &&
-               editButton->text() == QStringLiteral("Edit BG") &&
-               frameToBackgroundButton->text() == QStringLiteral("Frame -> BG") &&
-               backgroundToFramesButton->text() == QStringLiteral("BG -> Frame") &&
+    expect(assignButton->text() == QStringLiteral("Assign Background") &&
+               editButton->text() == QStringLiteral("Edit Background") &&
+               frameToBackgroundButton->text() == QStringLiteral("Frame -> Background") &&
+               backgroundToFramesButton->text() == QStringLiteral("Background -> Frame") &&
                importButton->text() == QStringLiteral("Import Image") &&
-               exportButton->text() == QStringLiteral("Export BG"),
+               exportButton->text() == QStringLiteral("Export Background"),
            "background panel should keep its button texts");
     expect(panel.findChildren<QLabel*>().size() == 2,
            "background panel should hold no label besides the selected background, once on "
@@ -3462,7 +3467,26 @@ void testFramePanel()
                !monochromeCheckBox->isEnabled() && !monochromeCheckBox->isChecked() &&
                !paletteMonochromeCheckBox->isEnabled(),
            "frame panel should start with disabled monochrome fallbacks");
-    expect(backgroundLayerButton->text() == QStringLiteral("Show BG") &&
+    {
+        // Show Sprites beside Show Background, on at first, reported when toggled.
+        QToolButton* spritesButton = nullptr;
+        for (QToolButton* button : panel.findChildren<QToolButton*>()) {
+            if (button->text() == QStringLiteral("Show Sprites")) {
+                spritesButton = button;
+            }
+        }
+        std::optional<bool> spritesToggled;
+        panel.onSpritesLayerToggled = [&](bool checked) { spritesToggled = checked; };
+        expect(spritesButton && spritesButton->isCheckable() && spritesButton->isChecked() &&
+                   panel.isSpritesLayerChecked(),
+               "frame panel should offer Show Sprites, on at first");
+        spritesButton->setChecked(false);
+        expect(spritesToggled == false && !panel.isSpritesLayerChecked(),
+               "hiding the sprites should report it");
+        spritesButton->setChecked(true);
+        panel.onSpritesLayerToggled = nullptr;
+    }
+    expect(backgroundLayerButton->text() == QStringLiteral("Show Background") &&
                backgroundLayerButton->isCheckable() && panel.isBackgroundLayerChecked() &&
                !backgroundLayerButton->isEnabled(),
            "frame panel should start with the background layer shown but disabled");

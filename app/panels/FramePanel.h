@@ -52,6 +52,7 @@ public:
     // The frame's trigger ID as the panel shows it, document::kNoTriggerId for none.
     [[nodiscard]] uint32_t triggerId() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
+    [[nodiscard]] bool isSpritesLayerChecked() const;
 
     // -1 clears the assignment.
     std::function<void(int backgroundId)> onBackgroundIdEdited;
@@ -62,6 +63,7 @@ public:
     std::function<void(document::TriggerKind kind, uint32_t triggerId)> onTriggerEdited;
     std::function<void(int durationMs)> onDurationEdited;
     std::function<void(bool checked)> onBackgroundLayerToggled;
+    std::function<void(bool checked)> onSpritesLayerToggled;
     std::function<void()> onImportImageRequested;
     std::function<void()> onCreateHdRequested;
     std::function<void()> onRemoveHdRequested;
@@ -82,6 +84,7 @@ private:
     QSpinBox* m_durationSpinBox = nullptr;
     uint32_t m_triggerId = document::kNoTriggerId;
     QToolButton* m_backgroundLayerButton = nullptr;
+    QToolButton* m_spritesLayerButton = nullptr;
     QToolButton* m_importImageButton = nullptr;
     QToolButton* m_createHdButton = nullptr;
     QToolButton* m_removeHdButton = nullptr;

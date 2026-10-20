@@ -36,7 +36,7 @@ libserum's output for the frame, the one a machine shows, not the editor's own r
 - the one plane of a project with 256x64 or 192x64 original frames.
 
 The proposed file name ends in `_sd` or `_hd`, or in `_256x64` or `_192x64`. `Pixel Shape` and
-`Pixel Size` of the Settings apply. The assigned background is always part of the picture: `Show BG` is a setting
+`Pixel Size` of the Settings apply. The assigned background is always part of the picture: `Show Background` is a setting
 of the editing canvas and has no effect on the export.
 
 If libserum has no picture for the frame, nothing is written and no file dialog comes up. The
@@ -46,7 +46,7 @@ text). The editor's own rendering is never written in its place: a file would th
 machine shows. There is no separate export of the editor's rendering any more. It served no
 purpose the runtime export does not: the frames libserum renders nothing for are frames with
 nothing colorized to show (an inactive frame is one that is not colorized, a 256x64 frame without
-its data is black), and the image of a background is exported by `Export BG`.
+its data is black), and the image of a background is exported by `Export Background`.
 
 ## Importing images and movie clips
 

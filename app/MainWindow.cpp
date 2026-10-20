@@ -1139,7 +1139,7 @@ void MainWindow::createCentralView()
     m_dynamicMaskOverlayButton->setCheckable(true);
     m_dynamicMaskOverlayButton->setEnabled(false);
     m_backgroundMaskOverlayButton = new QToolButton(central);
-    m_backgroundMaskOverlayButton->setText(tr("BG"));
+    m_backgroundMaskOverlayButton->setText(tr("Background"));
     m_backgroundMaskOverlayButton->setToolTip(tr("Show and edit background mask"));
     m_backgroundMaskOverlayButton->setCheckable(true);
     m_backgroundMaskOverlayButton->setEnabled(false);
@@ -1233,6 +1233,13 @@ void MainWindow::createCentralView()
         if (m_preview) {
             m_preview->setBackgroundLayerEnabled(checked);
         }
+        sendDmdPicture();
+    };
+    m_framePanel->onSpritesLayerToggled = [this](bool checked) {
+        if (m_preview) {
+            m_preview->setSpritesLayerEnabled(checked);
+        }
+        sendDmdPicture();
     };
     m_framePanel->onImportImageRequested = [this]() {
         importImageIntoSelectedFrames();
@@ -2749,9 +2756,11 @@ void MainWindow::sendDmdPicture()
     }
     const bool runtime = m_runtimeView.isEnabled();
     const bool background = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
+    const bool sprites = !m_framePanel || m_framePanel->isSpritesLayerChecked();
     // The same picture as last time: nothing to compose (playback steps the frame, edits the
     // revision; the Runtime view's colour rotations change its picture without either).
-    const DmdPictureKey key{m_document->revision(), *frameIndex, plane, runtime, background};
+    const DmdPictureKey key{m_document->revision(), *frameIndex, plane, runtime, background,
+                            sprites};
     if (!runtime && m_dmdPictureKey && *m_dmdPictureKey == key) {
         return;
     }
@@ -2765,7 +2774,8 @@ void MainWindow::sendDmdPicture()
         }
         return;
     }
-    m_dmdOutput.show(composeResolvedFrame(*m_document, *frameIndex, plane, background));
+    m_dmdOutput.show(
+        composeResolvedFrame(*m_document, *frameIndex, plane, background, nullptr, sprites));
 }
 
 void MainWindow::exportAnimatedGif(bool withOriginals, bool bothPlanes)
@@ -2785,6 +2795,7 @@ void MainWindow::exportAnimatedGif(bool withOriginals, bool bothPlanes)
                     : m_document->editsOriginalPlaneOnly() ? render::Resolution::Sd
                                                            : m_activeResolution;
     options.includeBackground = !m_framePanel || m_framePanel->isBackgroundLayerChecked();
+    options.includeSprites = !m_framePanel || m_framePanel->isSpritesLayerChecked();
     options.includeOriginal = withOriginals;
     options.bothPlanes = bothPlanes;
     // The Win32 editor's style: 5 picture pixels per frame pixel on every plane.
@@ -4229,6 +4240,7 @@ void MainWindow::refreshProjectSummary()
     m_preview->resetZoom();
     m_preview->setBackgroundLayerEnabled(m_framePanel &&
                                          m_framePanel->isBackgroundLayerChecked());
+    m_preview->setSpritesLayerEnabled(!m_framePanel || m_framePanel->isSpritesLayerChecked());
     m_preview->setSelectedSpriteBoundsOverlayEnabled(
         m_spritePanel && m_spritePanel->isBoundsOverlayChecked());
     if (m_spriteEditor) {
@@ -4522,7 +4534,7 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     const std::optional<document::FrameBackgroundData>& backgroundData =
         m_document->backgroundData(frameIndex);
     if (backgroundData && backgroundData->backgroundId < m_document->backgroundCount()) {
-        details << tr("BG %1")
+        details << tr("Background %1")
                        .arg(static_cast<int>(backgroundData->backgroundId));
     }
     const std::vector<document::FrameSpriteReference>& spriteReferences =
@@ -4556,7 +4568,7 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
         details << noPictureText();
     }
     if (gaps.background) {
-        details << tr("BG: %1").arg(noPictureText());
+        details << tr("Background: %1").arg(noPictureText());
     }
     if (!gaps.sprites.empty()) {
         details << tr("Spr: %1").arg(noPictureText());
@@ -5837,7 +5849,7 @@ void MainWindow::editAssignedBackground(bool fromFrame)
     updatePaintTargetMode();
     updateBackgroundControls();
     statusBar()->showMessage(
-        tr("Editing background %1; Edit BG again goes back to the frame")
+        tr("Editing background %1; Edit Background again goes back to the frame")
             .arg(static_cast<int>(*backgroundIndex)),
         4000);
 }

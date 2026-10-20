@@ -14,7 +14,7 @@ The canvas does not draw text labels or white frame outlines over the image data
 ## Drag And Drop Onto The Canvas
 
 A comparison mask dragged from the `Comparison Masks` list, or a background from the `Backgrounds` list, and
-dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign BG` do.
+dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign Background` do.
 While it is over the canvas the status bar says what the drop will do. It is undoable like those
 buttons: one step per frame in each frame's settings history, so Undo takes it back from the
 frame shown (see "Undo And Redo"). Frames without background data are skipped for a background.
@@ -73,7 +73,7 @@ Use the `Dynamic` toolbar toggle to show and edit dynamic-mask pixels over the c
 Dynamic zones belong to the plane that has the size of the original frame; in an ordinary project
 that is the SD plane, and the toggle is disabled in HD mode. See "Dynamic Masks".
 
-Use the `BG` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
+Use the `Background` toolbar toggle to show and edit the current frame's background-mask pixels over the active colorized frame.
 The background-mask overlay and edits follow the active SD/HD mode.
 
 The right end of the status bar shows the pixel under the mouse on the canvas: `Original: 34, 12`
@@ -104,7 +104,7 @@ wrapped to the sidebar's width, so a narrow sidebar still shows all of it.
   frame becomes current.
 - `Backgrounds` shows background thumbnails; selecting one selects the same background in the
   Inspector for assignment or editing. A double click opens it on the canvas for editing, as the
-  Inspector's `Edit BG` does.
+  Inspector's `Edit Background` does.
 - `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector. A
   double click opens it on the sprite canvas for editing, as the Inspector's `Edit Sprite` does.
 - `Scenes` lists the project's scenes (see "Scenes and Scaling"); a selected scene is what
@@ -117,7 +117,7 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
   192x64 original frames).
 - `Mask` contains comparison-mask assignment, comparison mode, and a shortcut into mask editing.
 - `Frame Background` contains the selected background ID, its assignment to the frames, copying
-  between frame and background, and `Edit BG`; `Background`, shown while the background is
+  between frame and background, and `Edit Background`; `Background`, shown while the background is
   edited, its import, export and HD image (see "Backgrounds").
 - `Dynamic` contains the dynamic set selector and dynamic color swatches. In HD mode of an
   ordinary project it shows the SD plane's colors and shadows, with a note saying so.
@@ -133,7 +133,7 @@ The Inspector shows only the sections that serve the canvas shown, to leave them
   a scene (see "Scenes and Scaling"), and it opens when it comes. For a frame of a scene,
   `Comparison Mask`, `Frame Sprites` and `Dynamic Sets` are hidden: libserum identifies such a
   frame by its marker, finds no sprites on it and takes no dynamic zones from its original.
-- While a background is edited (`Edit BG`): `Background`,
+- While a background is edited (`Edit Background`): `Background`,
   `Palette`, `Color Sets` and `Helper Lines`. `Back to Frame` there, or a double click on a
   frame in the frame strip, goes back to the frame.
 - In the sprite editor (`Edit Sprite`): `Sprite`, `Palette`, `Color Sets` and `Helper Lines`.
@@ -165,8 +165,13 @@ The `Frame` section exposes:
   trigger.
 - `Duration` edits the per-frame `.cRP` duration for all selected frames.
 - `Background ID`, trigger and `Duration` edits can be undone, see "Undo And Redo".
-- `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
+- `Show Background` renders the assigned background layer into the colorized frame preview and is enabled
   by default.
+- `Show Sprites`, beside it, draws the sprites libserum finds on the frame over the colorized
+  frame, on by default; off, the frame shows without them, to see or paint what is under a
+  sprite. It is enabled when a sprite is in one of the frame's slots. Both also decide what the
+  DMD output and the animated GIF export show; the Runtime view always shows libserum's
+  picture.
 - `Import Image` puts a picture into the selection of the selected frames (see "Importing
   images and movie clips" in "Saving").
 
@@ -176,19 +181,19 @@ The `Background` topic exposes:
 
 - Backgrounds are selected visually from the left sidebar.
 - The tab shows the selected background ID.
-- `Assign BG` assigns the selected background to all selected frames. Dragging a background
+- `Assign Background` assigns the selected background to all selected frames. Dragging a background
   from the `Backgrounds` list onto the canvas does the same; see "Drag And Drop Onto The Canvas".
-- `Remove BG` takes the background off all selected frames (they then have none; the background
+- `Remove Background` takes the background off all selected frames (they then have none; the background
   itself stays). It is enabled while one of the selected frames has a background, and undoable.
   The Inspector's `Background ID` set to `None` does the same.
-- `Edit BG` switches ordinary drawing tools to the selected background image. If the sprite editor
+- `Edit Background` switches ordinary drawing tools to the selected background image. If the sprite editor
   is open, it is closed first (`Edit Sprite` is switched off). A background belongs to no frame:
   while one is edited, the original frame's half of the canvas stays black, without the frame's
   overlays.
-- `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
-- `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
+- `Frame -> Background` replaces the selected background image with the current frame image in the active SD/HD mode.
+- `Background -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
 - `Import Image` puts a picture into the selected background (see "Importing images and movie
   clips" in "Saving").
   In HD mode, a background without HD data gets its HD image from the import; undoing the import
   removes that HD image again.
-- `Export BG` writes the selected background image as a PNG using the current DMD dot/square render settings.
+- `Export Background` writes the selected background image as a PNG using the current DMD dot/square render settings.

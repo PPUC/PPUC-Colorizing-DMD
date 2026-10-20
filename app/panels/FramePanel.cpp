@@ -58,11 +58,18 @@ FramePanel::FramePanel(QWidget* parent)
     m_durationSpinBox->setSuffix(tr(" ms"));
     m_durationSpinBox->setEnabled(false);
     m_backgroundLayerButton = new QToolButton(this);
-    m_backgroundLayerButton->setText(tr("Show BG"));
+    m_backgroundLayerButton->setText(tr("Show Background"));
     m_backgroundLayerButton->setToolTip(tr("Show assigned background layer"));
     m_backgroundLayerButton->setCheckable(true);
     m_backgroundLayerButton->setChecked(true);
     m_backgroundLayerButton->setEnabled(false);
+    m_spritesLayerButton = new QToolButton(this);
+    m_spritesLayerButton->setText(tr("Show Sprites"));
+    m_spritesLayerButton->setToolTip(
+        tr("Show the sprites libserum finds on the frame, drawn over it"));
+    m_spritesLayerButton->setCheckable(true);
+    m_spritesLayerButton->setChecked(true);
+    m_spritesLayerButton->setEnabled(false);
     m_importImageButton = new QToolButton(this);
     m_importImageButton->setText(tr("Import Image"));
     m_importImageButton->setToolTip(tr("Import an image into selected frame pixels"));
@@ -88,7 +95,10 @@ FramePanel::FramePanel(QWidget* parent)
     form->addRow(m_otherTriggerLabel);
     form->addRow(tr("Duration"), m_durationSpinBox);
     pageLayout->addLayout(form);
-    pageLayout->addWidget(m_backgroundLayerButton);
+    auto* layerLayout = new QHBoxLayout();
+    layerLayout->addWidget(m_backgroundLayerButton);
+    layerLayout->addWidget(m_spritesLayerButton);
+    pageLayout->addLayout(layerLayout);
     pageLayout->addWidget(m_importImageButton);
     auto* hdButtonLayout = new QHBoxLayout();
     hdButtonLayout->addWidget(m_createHdButton);
@@ -99,6 +109,11 @@ FramePanel::FramePanel(QWidget* parent)
     connect(m_backgroundLayerButton, &QToolButton::toggled, this, [this](bool checked) {
         if (onBackgroundLayerToggled) {
             onBackgroundLayerToggled(checked);
+        }
+    });
+    connect(m_spritesLayerButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (onSpritesLayerToggled) {
+            onSpritesLayerToggled(checked);
         }
     });
     connect(m_importImageButton, &QToolButton::clicked, this, [this]() {
@@ -214,6 +229,7 @@ void FramePanel::refresh(const FramePanelState& state)
         m_durationSpinBox->setEnabled(false);
         m_durationSpinBox->setToolTip(tr("Per-frame cRP duration"));
         m_backgroundLayerButton->setEnabled(false);
+        m_spritesLayerButton->setEnabled(false);
         m_importImageButton->setEnabled(false);
         showFrameHdActions(false, false);
         return;
@@ -265,6 +281,14 @@ void FramePanel::refresh(const FramePanelState& state)
             : tr("Unsupported cRP duration %1 ms is preserved until edited")
                   .arg(durationMs));
     m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
+    // A sprite in one of the frame's slots.
+    const std::vector<document::FrameSpriteReference>& spriteSlots =
+        document->frameSpriteReferences(frameIndex);
+    m_spritesLayerButton->setEnabled(
+        std::any_of(spriteSlots.begin(), spriteSlots.end(),
+                    [document](const document::FrameSpriteReference& reference) {
+                        return reference.spriteId < document->spriteCount();
+                    }));
     m_importImageButton->setEnabled(state.hasSelectedFrames);
     const bool hasHdFrame = document->hasHdFrame(frameIndex);
     showFrameHdActions(!hasHdFrame, hasHdFrame);
@@ -315,6 +339,11 @@ void FramePanel::setImportImageEnabled(bool enabled)
 uint32_t FramePanel::triggerId() const
 {
     return m_triggerId;
+}
+
+bool FramePanel::isSpritesLayerChecked() const
+{
+    return m_spritesLayerButton->isChecked();
 }
 
 bool FramePanel::isBackgroundLayerChecked() const

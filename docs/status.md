@@ -1996,3 +1996,15 @@ hover path of `FramePreviewWidget::mouseMoveEvent` (no button) called
 pan mode the hover path now only keeps the hand (open, or closed while dragging) and returns.
 Test: the hover check in the zoom/pan test (needs mouse tracking, given by a position handler
 as in the window).
+
+## Show Sprites, "Background" written out (2026-10-20, owner request)
+
+`FramePanel` has `Show Sprites` beside `Show Background` (checkable, on; enabled when a frame
+slot holds a sprite; `isSpritesLayerChecked`, `onSpritesLayerToggled`).
+`composeResolvedFrame(..., notRotating, includeSprites = true)` skips `matchFrameSprites` when
+off; used by `FramePreviewWidget::setSpritesLayerEnabled`, the DMD output (`DmdPictureKey`
+has `sprites`; both toggles now resend the DMD picture) and `GifExportOptions::includeSprites`.
+Every "BG" label of the UI is "Background" now (toolbar mask toggle, Show/Assign/Remove/Edit/
+Export Background, Frame -> Background, Background -> Frame, frame list "Background n" /
+"Background: no picture", the Edit Background status text); the handbook follows. "Spr" and
+"Dyn" in the frame list captions are left.

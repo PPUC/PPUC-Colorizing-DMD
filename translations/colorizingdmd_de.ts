@@ -84,7 +84,7 @@
     <name>BackgroundPanel</name>
     <message>
         <source>Assign BG</source>
-        <translation>HG zuweisen</translation>
+        <translation type="vanished">HG zuweisen</translation>
     </message>
     <message>
         <source>Assign selected background to selected frames</source>
@@ -92,7 +92,7 @@
     </message>
     <message>
         <source>Remove BG</source>
-        <translation>HG entfernen</translation>
+        <translation type="vanished">HG entfernen</translation>
     </message>
     <message>
         <source>Remove the background from the selected frames</source>
@@ -100,7 +100,7 @@
     </message>
     <message>
         <source>Edit BG</source>
-        <translation>HG bearbeiten</translation>
+        <translation type="vanished">HG bearbeiten</translation>
     </message>
     <message>
         <source>Switch drawing target to the selected background</source>
@@ -112,7 +112,7 @@
     </message>
     <message>
         <source>Frame -&gt; BG</source>
-        <translation>Frame -&gt; HG</translation>
+        <translation type="vanished">Frame -&gt; HG</translation>
     </message>
     <message>
         <source>Copy the current frame image into the selected background</source>
@@ -120,7 +120,7 @@
     </message>
     <message>
         <source>BG -&gt; Frame</source>
-        <translation>HG -&gt; Frame</translation>
+        <translation type="vanished">HG -&gt; Frame</translation>
     </message>
     <message>
         <source>Copy the selected background image into selected frames</source>
@@ -136,7 +136,31 @@
     </message>
     <message>
         <source>Export BG</source>
-        <translation>HG exportieren</translation>
+        <translation type="vanished">HG exportieren</translation>
+    </message>
+    <message>
+        <source>Assign Background</source>
+        <translation>Hintergrund zuweisen</translation>
+    </message>
+    <message>
+        <source>Remove Background</source>
+        <translation>Hintergrund entfernen</translation>
+    </message>
+    <message>
+        <source>Edit Background</source>
+        <translation>Hintergrund bearbeiten</translation>
+    </message>
+    <message>
+        <source>Frame -&gt; Background</source>
+        <translation>Frame -&gt; Hintergrund</translation>
+    </message>
+    <message>
+        <source>Background -&gt; Frame</source>
+        <translation>Hintergrund -&gt; Frame</translation>
+    </message>
+    <message>
+        <source>Export Background</source>
+        <translation>Hintergrund exportieren</translation>
     </message>
     <message>
         <source>Export the selected background as PNG</source>
@@ -1541,11 +1565,23 @@
     </message>
     <message>
         <source>Show BG</source>
-        <translation>HG zeigen</translation>
+        <translation type="vanished">HG zeigen</translation>
+    </message>
+    <message>
+        <source>Show Background</source>
+        <translation>Hintergrund zeigen</translation>
     </message>
     <message>
         <source>Show assigned background layer</source>
         <translation>Zugewiesene Hintergrundebene zeigen</translation>
+    </message>
+    <message>
+        <source>Show Sprites</source>
+        <translation>Sprites zeigen</translation>
+    </message>
+    <message>
+        <source>Show the sprites libserum finds on the frame, drawn over it</source>
+        <translation>Die Sprites zeigen, die libserum auf dem Frame findet, darüber gezeichnet</translation>
     </message>
     <message>
         <source>Import Image</source>
@@ -2732,7 +2768,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>BG</source>
-        <translation>HG</translation>
+        <translation type="vanished">HG</translation>
     </message>
     <message>
         <source>Show and edit background mask</source>
@@ -2962,6 +2998,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Sprites</source>
         <translation>Sprites</translation>
+    </message>
+    <message>
+        <source>Background %1</source>
+        <translation>Hintergrund %1</translation>
+    </message>
+    <message>
+        <source>Background: %1</source>
+        <translation>Hintergrund: %1</translation>
     </message>
     <message>
         <source>Scene %1 has no frames in the project</source>
@@ -3815,7 +3859,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>BG %1</source>
-        <translation>HG %1</translation>
+        <translation type="vanished">HG %1</translation>
     </message>
     <message>
         <source>%1 sprites</source>
@@ -3835,7 +3879,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>BG: %1</source>
-        <translation>HG: %1</translation>
+        <translation type="vanished">HG: %1</translation>
     </message>
     <message>
         <source>Spr: %1</source>
@@ -3940,6 +3984,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Assigned background %1 on %2</source>
         <translation>Hintergrund %1 zugewiesen auf %2</translation>
+    </message>
+    <message>
+        <source>Editing background %1; Edit Background again goes back to the frame</source>
+        <translation>Hintergrund %1 wird bearbeitet; Hintergrund bearbeiten erneut führt zum Frame zurück</translation>
     </message>
     <message>
         <source>Create HD Sprite</source>
@@ -4061,7 +4109,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Editing background %1; Edit BG again goes back to the frame</source>
-        <translation>Hintergrund %1 wird bearbeitet; HG bearbeiten erneut führt zum Frame zurück</translation>
+        <translation type="vanished">Hintergrund %1 wird bearbeitet; HG bearbeiten erneut führt zum Frame zurück</translation>
     </message>
     <message>
         <source>Select a frame and background first</source>

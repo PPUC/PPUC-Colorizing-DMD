@@ -12,13 +12,14 @@ While the view is on:
 - A line above the picture says `Runtime view: libserum output, N rows. Editing is off.`
   (`N rows, playing` during playback), the frame status line reads
   `Frame N | Runtime view, N rows | editing off`, and the drawing tool buttons, `SD`, `HD`,
-  `Mask`, `Dynamic` and `BG` are disabled.
+  `Mask`, `Dynamic` and `Background` are disabled.
 - The canvas takes no clicks or strokes, and no overlay is drawn: no comparison mask, dynamic
   mask, background mask, sprite bounds, selection or tool preview. The original/reference region
   below the picture stays.
 - The Inspector keeps working. A change of the document shows in the picture at once: an edit
   made in the Inspector, undo and redo.
-- `Show BG` has no effect: libserum always renders the assigned background.
+- `Show Background` and `Show Sprites` have no effect: libserum always renders the assigned
+  background and the sprites it finds.
 - Opening the sprite canvas (`Edit Sprite`) switches the view off.
 
 Switching the view off returns to editing exactly as it was: the same mode, tool, overlays and

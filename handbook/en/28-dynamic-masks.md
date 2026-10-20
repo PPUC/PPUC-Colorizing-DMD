@@ -43,7 +43,7 @@ So in an ordinary project:
   and shadows, which are the ones both pictures use. In HD mode a note at the top of the page
   says so. An edit made there in HD mode shows in the HD picture at once and is undone from
   either mode.
-- The editing canvas and `Frame -> BG` in HD mode render the HD plane as libserum does:
+- The editing canvas and `Frame -> Background` in HD mode render the HD plane as libserum does:
   dynamic pixels have the SD set's color for the original's shade, every SD pixel doubled.
   libserum rounds the edges of that upscale (Scale2x); the Runtime view with
   `Runtime Plane: 64 Rows` shows the exact picture.

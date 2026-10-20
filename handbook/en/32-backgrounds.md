@@ -9,20 +9,20 @@ Currently implemented:
 - Per-frame SD and HD background masks are preserved.
 - The project status line shows the loaded background count.
 - `Background ID` assigns the shared background for all selected frames that have background data. `None` stores the legacy no-background assignment.
-- `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
+- `Show Background` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
   The original pixel looked at is the one the plane pixel belongs to: (x, y) in SD, (x/2, y/2) in
   HD, and (x, y) on the single plane of a project with 256x64 or 192x64 original frames.
 - The Inspector has two background sections, each shown on its own canvas: `Frame Background`
-  on the frame canvas (the selected background, `Assign BG`, `Remove BG`, `Frame -> BG`,
-  `BG -> Frame`, `Edit BG`) and `Background` while the background is edited (the selected
-  background, `Import Image`, `Export BG`, `Create HD`, `Remove HD`, and `Back to Frame`, which
-  ends editing as `Edit BG` clicked again does). Entering background editing opens it.
-- `Edit BG` edits the current frame's own background; a frame without one, the background
+  on the frame canvas (the selected background, `Assign Background`, `Remove Background`, `Frame -> Background`,
+  `Background -> Frame`, `Edit Background`) and `Background` while the background is edited (the selected
+  background, `Import Image`, `Export Background`, `Create HD`, `Remove HD`, and `Back to Frame`, which
+  ends editing as `Edit Background` clicked again does). Entering background editing opens it.
+- `Edit Background` edits the current frame's own background; a frame without one, the background
   selected in the section. A double click on a background in the left sidebar edits that one.
-- `Edit BG` in the Inspector's `Frame Background` section (or a double click on a background in the
+- `Edit Background` in the Inspector's `Frame Background` section (or a double click on a background in the
   left sidebar) displays the selected background image on the canvas and edits that shared
   background image with the ordinary drawing tools; the button stays down meanwhile. Click
-  `Edit BG` again to go back to the frame, as `Edit Sprite` does for a sprite, or double-click
+  `Edit Background` again to go back to the frame, as `Edit Sprite` does for a sprite, or double-click
   a frame in the frame strip to edit that frame.
 - `Create HD` on the `Background` section gives the selected background its HD image: its SD
   image scaled to 2x with the filter chosen in the window it opens (the one used last, by any
@@ -32,10 +32,10 @@ Currently implemented:
 - While a background is edited, `SD` and `HD` choose its SD or HD image, whether or not the
   frame shown has HD data; a background without an HD image is edited in SD. A background also gets its HD image with `Create HD` on frames that use it
   ("Assigned background image") and with `Import Image` on the 256x64 plane.
-- The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
-- `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
-- In SD mode, `BG` edits the SD background mask.
-- In HD mode, `BG` edits the HD background mask.
+- The `Background` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
+- `Background` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
+- In SD mode, `Background` edits the SD background mask.
+- In HD mode, `Background` edits the HD background mask.
 - Click the colorized frame to set that background-mask pixel to `1`. The original frame works
   the same way on its plane (as for dynamic zones).
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the active SD/HD background mask.

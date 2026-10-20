@@ -4,7 +4,7 @@ The frames run along the bottom of the window, as in the Win32 editor, under the
 and the canvas (the right sidebar takes the full height): one row, left to right, scrolled
 sideways. Each frame shows its thumbnail (colorized above, original below) and under it
 its number (with the name of a section it starts) and a line of compact metadata: duration,
-`HD`, `Dyn`, `BG n`, sprites, `inactive` and the like. The section box, the trigger box and the
+`HD`, `Dyn`, `Background n`, sprites, `inactive` and the like. The section box, the trigger box and the
 frame filter are at the left end of the strip; the comparison masks, backgrounds and sprites are
 in the sections on the left of the window (see "Sections").
 
@@ -45,7 +45,7 @@ its frame changes; nothing has to be done to refresh it. Opening a large project
 longer waits for one thumbnail per frame.
 
 Frame items show the project frame number, the loaded cRP duration, and compact flags such as
-`HD`, `Dyn`, assigned `BG`, and sprite assignment count when present.
+`HD`, `Dyn`, assigned `Background`, and sprite assignment count when present.
 `Dyn` means that the frame has a dynamic zone the runtime renders: at least one pixel of its
 dynamic mask on the plane libserum takes dynamic zones from (the 128x32 plane of an ordinary
 project, the 256x64 or 192x64 plane of the other layouts). Every frame of a loaded project carries

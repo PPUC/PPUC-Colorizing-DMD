@@ -674,7 +674,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                            std::size_t frameIndex,
                                            render::Resolution resolution,
                                            bool includeBackgroundLayer,
-                                           std::vector<uint8_t>* notRotating)
+                                           std::vector<uint8_t>* notRotating,
+                                           bool includeSprites)
 {
     if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
         document::Rgb565Frame empty =
@@ -708,7 +709,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
 
     applyDynamicShadows(document, frameIndex, resolution, frame, notRotating);
 
-    const std::vector<SpriteMatch> matches = matchFrameSprites(document, frameIndex);
+    const std::vector<SpriteMatch> matches =
+        includeSprites ? matchFrameSprites(document, frameIndex) : std::vector<SpriteMatch>{};
     for (const SpriteMatch& match : matches) {
         if (match.spriteIndex < document.spriteCount()) {
             // libserum loads the extra-plane dynamic data of sprite N only if frame N has

@@ -8,7 +8,7 @@ plane). What the window shows for each kind of project:
 | | Ordinary project | 256x64 original frames | 192x64 original frames |
 | --- | --- | --- | --- |
 | `SD` and `HD` toolbar buttons | shown | hidden | hidden |
-| Frame list item | `HD` line for frames with HD | no `HD` line; `no picture`, `BG: no picture`, `Spr: no picture` for what is missing | no `HD` line |
+| Frame list item | `HD` line for frames with HD | no `HD` line; `no picture`, `Background: no picture`, `Spr: no picture` for what is missing | no `HD` line |
 | Thumbnail badge | blue `HD` | red `no picture` on frames that are not rendered | none |
 | Frame filter | `HD frames` | `Not rendered` | neither |
 | Project status line | `..., <n> HD, ...` | no HD count; `, <n> not rendered at runtime` | no HD count |

@@ -22,8 +22,8 @@ Everything on the 192x64 plane, with coordinates 0..191 and 0..63:
   slots and their `Min X`/`Min Y`/`Max X`/`Max Y` bounds, which range over 0..191 and 0..63.
 
 The canvas, the thumbnails, the frame list, playback, PNG export, image import (the image is
-scaled to 192x64), `Frame -> BG`, `BG -> Frame`, background editing, the `Mask`, `Dynamic` and
-`BG` modes, `Select Capture`, `Capture` and `Show Bounds` all work on that plane. A sprite is
+scaled to 192x64), `Frame -> Background`, `Background -> Frame`, background editing, the `Mask`, `Dynamic` and
+`Background` modes, `Select Capture`, `Capture` and `Show Bounds` all work on that plane. A sprite is
 looked for on the 192x64 original and drawn one to one where it was found. The sprite editor shows
 the same 256x64 sprite cell as in every project.
 

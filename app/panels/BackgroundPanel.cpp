@@ -14,26 +14,26 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     : QWidget(parent)
 {
     m_assignButton = new QToolButton(this);
-    m_assignButton->setText(tr("Assign BG"));
+    m_assignButton->setText(tr("Assign Background"));
     m_assignButton->setToolTip(tr("Assign selected background to selected frames"));
     m_assignButton->setEnabled(false);
     m_removeButton = new QToolButton(this);
-    m_removeButton->setText(tr("Remove BG"));
+    m_removeButton->setText(tr("Remove Background"));
     m_removeButton->setToolTip(tr("Remove the background from the selected frames"));
     m_removeButton->setEnabled(false);
     m_editButton = new QToolButton(this);
-    m_editButton->setText(tr("Edit BG"));
+    m_editButton->setText(tr("Edit Background"));
     m_editButton->setToolTip(tr("Edit the selected background on the canvas; click again to "
                                 "go back to the frame"));
     m_editButton->setCheckable(true);
     m_editButton->setEnabled(false);
     m_copyFrameToBackgroundButton = new QToolButton(this);
-    m_copyFrameToBackgroundButton->setText(tr("Frame -> BG"));
+    m_copyFrameToBackgroundButton->setText(tr("Frame -> Background"));
     m_copyFrameToBackgroundButton->setToolTip(
         tr("Copy the current frame image into the selected background"));
     m_copyFrameToBackgroundButton->setEnabled(false);
     m_copyBackgroundToFramesButton = new QToolButton(this);
-    m_copyBackgroundToFramesButton->setText(tr("BG -> Frame"));
+    m_copyBackgroundToFramesButton->setText(tr("Background -> Frame"));
     m_copyBackgroundToFramesButton->setToolTip(
         tr("Copy the selected background image into selected frames"));
     m_copyBackgroundToFramesButton->setEnabled(false);
@@ -43,7 +43,7 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
         tr("Import an image into the selected background"));
     m_importImageButton->setEnabled(false);
     m_exportButton = new QToolButton(this);
-    m_exportButton->setText(tr("Export BG"));
+    m_exportButton->setText(tr("Export Background"));
     m_exportButton->setToolTip(tr("Export the selected background as PNG"));
     m_exportButton->setEnabled(false);
 

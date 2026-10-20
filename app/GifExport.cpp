@@ -226,7 +226,7 @@ GifExportResult writeAnimatedGif(const document::ProjectDocument& document,
                 entry.plane = plane;
                 entry.picture = composeResolvedFrame(document, frameIndex, plane,
                                                      options.includeBackground,
-                                                     &entry.notRotating);
+                                                     &entry.notRotating, options.includeSprites);
                 for (uint32_t step : colorRotationSteps(document, frameIndex, plane, duration)) {
                     stepSet.insert(step);
                 }

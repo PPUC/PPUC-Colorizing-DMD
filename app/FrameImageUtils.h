@@ -62,7 +62,9 @@ struct SpriteMatch {
     std::size_t frameIndex,
     render::Resolution resolution,
     bool includeBackgroundLayer,
-    std::vector<uint8_t>* notRotating = nullptr);
+    std::vector<uint8_t>* notRotating = nullptr,
+    // Without the sprites libserum finds on the frame ("Show Sprites" off).
+    bool includeSprites = true);
 // The frame's color rotations elapsedMs after they started, every slot stepping at its own
 // delay: a pixel whose color is in a rotation takes the color that many places further in it.
 // frame and notRotating are those of composeResolvedFrame(); without notRotating every pixel

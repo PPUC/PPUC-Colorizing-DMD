@@ -702,10 +702,12 @@ private:
         render::Resolution plane = render::Resolution::Sd;
         bool runtime = false;
         bool background = false;
+        bool sprites = true;
         bool operator==(const DmdPictureKey& other) const
         {
             return revision == other.revision && frame == other.frame && plane == other.plane &&
-                   runtime == other.runtime && background == other.background;
+                   runtime == other.runtime && background == other.background &&
+                   sprites == other.sprites;
         }
     };
     std::optional<DmdPictureKey> m_dmdPictureKey;

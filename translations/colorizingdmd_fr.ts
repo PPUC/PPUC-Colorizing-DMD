@@ -84,7 +84,7 @@
     <name>BackgroundPanel</name>
     <message>
         <source>Assign BG</source>
-        <translation>Attribuer AP</translation>
+        <translation type="vanished">Attribuer AP</translation>
     </message>
     <message>
         <source>Assign selected background to selected frames</source>
@@ -92,7 +92,7 @@
     </message>
     <message>
         <source>Remove BG</source>
-        <translation>Retirer AP</translation>
+        <translation type="vanished">Retirer AP</translation>
     </message>
     <message>
         <source>Remove the background from the selected frames</source>
@@ -100,7 +100,7 @@
     </message>
     <message>
         <source>Edit BG</source>
-        <translation>Éditer AP</translation>
+        <translation type="vanished">Éditer AP</translation>
     </message>
     <message>
         <source>Switch drawing target to the selected background</source>
@@ -112,7 +112,7 @@
     </message>
     <message>
         <source>Frame -&gt; BG</source>
-        <translation>Frame -&gt; AP</translation>
+        <translation type="vanished">Frame -&gt; AP</translation>
     </message>
     <message>
         <source>Copy the current frame image into the selected background</source>
@@ -120,7 +120,7 @@
     </message>
     <message>
         <source>BG -&gt; Frame</source>
-        <translation>AP -&gt; Frame</translation>
+        <translation type="vanished">AP -&gt; Frame</translation>
     </message>
     <message>
         <source>Copy the selected background image into selected frames</source>
@@ -136,7 +136,31 @@
     </message>
     <message>
         <source>Export BG</source>
-        <translation>Exporter AP</translation>
+        <translation type="vanished">Exporter AP</translation>
+    </message>
+    <message>
+        <source>Assign Background</source>
+        <translation>Attribuer le fond</translation>
+    </message>
+    <message>
+        <source>Remove Background</source>
+        <translation>Retirer le fond</translation>
+    </message>
+    <message>
+        <source>Edit Background</source>
+        <translation>Éditer le fond</translation>
+    </message>
+    <message>
+        <source>Frame -&gt; Background</source>
+        <translation>Frame -&gt; fond</translation>
+    </message>
+    <message>
+        <source>Background -&gt; Frame</source>
+        <translation>Fond -&gt; frame</translation>
+    </message>
+    <message>
+        <source>Export Background</source>
+        <translation>Exporter le fond</translation>
     </message>
     <message>
         <source>Export the selected background as PNG</source>
@@ -1541,11 +1565,23 @@
     </message>
     <message>
         <source>Show BG</source>
-        <translation>Voir AP</translation>
+        <translation type="vanished">Voir AP</translation>
+    </message>
+    <message>
+        <source>Show Background</source>
+        <translation>Voir le fond</translation>
     </message>
     <message>
         <source>Show assigned background layer</source>
         <translation>Afficher le calque de l&apos;arrière-plan attribué</translation>
+    </message>
+    <message>
+        <source>Show Sprites</source>
+        <translation>Voir les sprites</translation>
+    </message>
+    <message>
+        <source>Show the sprites libserum finds on the frame, drawn over it</source>
+        <translation>Afficher les sprites que libserum trouve sur la frame, dessinés par-dessus</translation>
     </message>
     <message>
         <source>Import Image</source>
@@ -2732,7 +2768,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>BG</source>
-        <translation>AP</translation>
+        <translation type="vanished">AP</translation>
     </message>
     <message>
         <source>Show and edit background mask</source>
@@ -2962,6 +2998,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Sprites</source>
         <translation>Sprites</translation>
+    </message>
+    <message>
+        <source>Background %1</source>
+        <translation>Fond %1</translation>
+    </message>
+    <message>
+        <source>Background: %1</source>
+        <translation>Fond : %1</translation>
     </message>
     <message>
         <source>Scene %1 has no frames in the project</source>
@@ -3815,7 +3859,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>BG %1</source>
-        <translation>AP %1</translation>
+        <translation type="vanished">AP %1</translation>
     </message>
     <message>
         <source>%1 sprites</source>
@@ -3835,7 +3879,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>BG: %1</source>
-        <translation>AP : %1</translation>
+        <translation type="vanished">AP : %1</translation>
     </message>
     <message>
         <source>Spr: %1</source>
@@ -3940,6 +3984,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Assigned background %1 on %2</source>
         <translation>Arrière-plan %1 attribué sur %2</translation>
+    </message>
+    <message>
+        <source>Editing background %1; Edit Background again goes back to the frame</source>
+        <translation>Modification du fond %1 ; Éditer le fond à nouveau revient à la frame</translation>
     </message>
     <message>
         <source>Create HD Sprite</source>
@@ -4061,7 +4109,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Editing background %1; Edit BG again goes back to the frame</source>
-        <translation>Modification du fond %1 ; Éditer AP à nouveau revient à la frame</translation>
+        <translation type="vanished">Modification du fond %1 ; Éditer AP à nouveau revient à la frame</translation>
     </message>
     <message>
         <source>Select a frame and background first</source>

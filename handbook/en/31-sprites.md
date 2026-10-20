@@ -138,8 +138,10 @@ The controls:
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
   The overlay also shows the bounds an empty slot holds.
 - `Edit Sprite` and `Select Capture` are switched off when a project is opened. `Edit Mask` and
-  `Edit BG` switch `Edit Sprite` off, since they return to the frame view.
+  `Edit Background` switch `Edit Sprite` off, since they return to the frame view.
 - Canvas, thumbnails, and PNG export compose detected frame sprites over the resolved frame preview.
+  `Show Sprites` in the Inspector's `Frame` section turns them off on the canvas, the DMD
+  output and the GIF export (not in the thumbnails), to see the frame under them.
   Sprites are looked for and drawn by libserum's rules:
   - the sprite list of a frame ends at its first empty slot, so a sprite in a slot behind an
     empty one is not looked for;

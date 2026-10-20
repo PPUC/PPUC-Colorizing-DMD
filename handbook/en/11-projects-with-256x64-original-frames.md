@@ -32,8 +32,8 @@ Everything the runtime uses, all of it on the 256x64 grid:
   sprite mask (what is drawn) and the HD sprite colors,
 - per frame: the sprite slots and their bounds.
 
-The canvas, the thumbnails, the frame list, playback, PNG export, image import, `Frame -> BG`,
-`BG -> Frame`, background editing, the `Dynamic` and `BG` mask modes and the rotation and dynamic
+The canvas, the thumbnails, the frame list, playback, PNG export, image import, `Frame -> Background`,
+`Background -> Frame`, background editing, the `Dynamic` and `Background` mask modes and the rotation and dynamic
 pages all work on that plane.
 
 ## What is ignored
@@ -58,8 +58,8 @@ and never reads them. The editor does the same:
 
 The `SD` and `HD` toolbar buttons are hidden: there is nothing to switch. Every place where an
 ordinary project falls back to SD when HD data is missing instead reports the missing 256x64
-data in the status bar and does nothing (PNG export of a frame or background, `Frame -> BG`,
-`BG -> Frame`, `Edit BG`, sprite `Capture`). The messages name the data by its size, for example
+data in the status bar and does nothing (PNG export of a frame or background, `Frame -> Background`,
+`Background -> Frame`, `Edit Background`, sprite `Capture`). The messages name the data by its size, for example
 `Frame 4 has no 256x64 frame: there is no picture to export`.
 
 ## The 256x64 data is required everywhere
@@ -75,7 +75,7 @@ Therefore:
   project's `Remove HD` and `Remove HD Sprite` are hidden.
 - A project in which that data is missing still opens. Each affected frame is flagged:
   - a red `no picture` badge on its thumbnail,
-  - `no picture`, `BG: no picture` and `Spr: no picture` lines in the frame list item, with the
+  - `no picture`, `Background: no picture` and `Spr: no picture` lines in the frame list item, with the
     full reason (which background, which sprites) as the item's tool tip, for example
     `Not rendered at runtime: background 1 has no 256x64 image; sprite 1 without 256x64 picture`,
   - `| not rendered` at the end of the frame status line, with the reason as its tool tip,
