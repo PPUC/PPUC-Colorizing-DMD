@@ -139,6 +139,10 @@ public:
     void setViewOffset(QPointF offset);
     // After the zoom or the shown part changed.
     std::function<void()> onViewChanged;
+    // While Space is held (the window decides): an open hand, and a drag with the left button
+    // moves the shown part instead of drawing, as in image editors.
+    void setPanMode(bool on);
+    [[nodiscard]] bool isPanMode() const { return m_panMode; }
 
     // A region's half of the canvas and where its frame is drawn: the top left of the frame on
     // screen (outside the half when zoomed) and the screen pixels per display unit.
@@ -273,6 +277,8 @@ private:
     Qt::KeyboardModifiers m_pressModifiers;
     double m_zoom = 1.0;
     QPointF m_viewOffset;
+    bool m_panMode = false;
+    std::optional<QPointF> m_panFrom;
     QScrollBar* m_horizontalScrollBar = nullptr;
     QScrollBar* m_verticalScrollBar = nullptr;
     bool m_updatingScrollBars = false;

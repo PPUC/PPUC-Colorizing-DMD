@@ -1779,3 +1779,14 @@ editing that frame (its first click has made it current). `MainWindow::editFrame
 (also behind `Edit BG` clicked again), connected to the frame list's `itemDoubleClicked` only
 while the paint target is `Background`. Not covered by ctest (MainWindow has no widget test).
 
+## Sprite zoom display, Space panning (2026-10-20, author report)
+
+The toolbar's `-`, zoom and `+` act on the canvas that is shown (`MainWindow::spriteCanvasShown()`
+by the canvas stack), and the zoom shows its zoom (`updateZoomButton()`, from
+`FramePreviewWidget::onViewChanged`, `SpriteEditorWidget::onZoomChanged` and the stack's
+`currentChanged`). Space held over the shown canvas (app-wide `eventFilter` ->
+`handleSpacePanning`, not while a text field has the focus or a modal or popup is up; repeats
+are swallowed, release, window deactivation and a canvas switch end it) sets `setPanMode` on
+`FramePreviewWidget` / `SpriteEditorWidget`: open hand, a left drag moves `m_viewOffset` /
+`m_scroll` instead of drawing (closed hand). Tests in `FramePreviewWidgetRenderTests`.
+

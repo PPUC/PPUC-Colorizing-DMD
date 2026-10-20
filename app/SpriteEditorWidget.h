@@ -76,6 +76,11 @@ public:
     void zoomIn();
     void zoomOut();
     void resetZoom();
+    // After every zoom change, e.g. for a zoom display.
+    std::function<void()> onZoomChanged;
+    // While Space is held: a drag with the left button moves the shown part (see
+    // FramePreviewWidget::setPanMode).
+    void setPanMode(bool on);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -142,6 +147,8 @@ private:
     std::optional<render::Point> m_colorizedStrokeStart;
     std::optional<render::Point> m_colorizedStrokeEnd;
     double m_zoom = 1.0;
+    bool m_panMode = false;
+    std::optional<QPointF> m_panFrom;
     // How far the picture is moved from its top left corner when it is larger than the widget,
     // in widget pixels.
     QPointF m_scroll;

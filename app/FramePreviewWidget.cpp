@@ -621,8 +621,28 @@ void FramePreviewWidget::paintEvent(QPaintEvent* event)
     paintFrame(painter);
 }
 
+void FramePreviewWidget::setPanMode(bool on)
+{
+    if (m_panMode == on) {
+        return;
+    }
+    m_panMode = on;
+    if (!on) {
+        m_panFrom.reset();
+        unsetCursor();
+        return;
+    }
+    setCursor(m_panFrom ? Qt::ClosedHandCursor : Qt::OpenHandCursor);
+}
+
 void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
 {
+    if (m_panMode && event->button() == Qt::LeftButton) {
+        m_panFrom = event->position();
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
     if (showsRuntimeView()) {
         QWidget::mousePressEvent(event);
         return;
@@ -677,6 +697,17 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
 
 void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
 {
+    if (m_panFrom) {
+        const QPointF moved = event->position() - *m_panFrom;
+        m_panFrom = event->position();
+        if (const std::optional<RegionView> view = firstRegionView()) {
+            m_viewOffset -= QPointF(moved.x() / view->contentSize.width(),
+                                    moved.y() / view->contentSize.height());
+            viewChanged();
+        }
+        event->accept();
+        return;
+    }
     if (showsRuntimeView()) {
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
@@ -763,6 +794,16 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
 
 void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (m_panFrom && event->button() == Qt::LeftButton) {
+        m_panFrom.reset();
+        if (m_panMode) {
+            setCursor(Qt::OpenHandCursor);
+        } else {
+            unsetCursor();
+        }
+        event->accept();
+        return;
+    }
     if (showsRuntimeView()) {
         m_strokeStart.reset();
     }

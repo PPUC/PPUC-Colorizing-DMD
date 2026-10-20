@@ -28,8 +28,9 @@ The Inspector has a sprite browser and assignment controls:
 - The sprite editor zooms as the canvas does: `View -> Zoom In` / `Zoom Out` (`Ctrl/Cmd++`,
   `Ctrl/Cmd+-`) around the middle, `Ctrl/Cmd` with the mouse wheel and a pinch on a trackpad
   around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) goes
-  back to that size. Zoomed in, the mouse wheel (with `Shift` sideways) and a trackpad move the
-  shown part. While the sprite editor is shown, these entries zoom it, not the frame canvas.
+  back to that size. Zoomed in, the mouse wheel (with `Shift` sideways), a trackpad, and a drag
+  while `Space` is held move the shown part. While the sprite editor is shown, these entries and
+  the toolbar's `-`, zoom and `+` zoom it, not the frame canvas, and the toolbar shows its zoom.
 - While `Edit Sprite` is active, `Create HD Sprite` creates HD sprite mask/color data by scaling the SD sprite data to 2x, and `Remove HD Sprite` clears the sprite HD-present flag. Both can be undone while the sprite editor is active; Undo restores the sprite's previous HD mask and HD colors.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
   With color set replace (the drawing mode of the edit colors, as on the frame canvas) each

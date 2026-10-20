@@ -398,6 +398,12 @@ private:
     void deleteSelectedFrames();
     // The project's time from its stored total on (a project was opened or created).
     void startProjectClock();
+    // The zoom display and buttons follow the canvas that is shown.
+    [[nodiscard]] bool spriteCanvasShown() const;
+    void updateZoomButton();
+    // Space over the canvas: panning with the mouse while it is held.
+    bool handleSpacePanning(QEvent* event);
+    void endSpacePanning();
     // A slice of packing, when the editor has been idle for a while.
     void packIdleBlocks();
     // Hands the project's <rom>.pup.csv, if it has one, to the Runtime view and frame tester.
@@ -690,6 +696,7 @@ private:
     ActivityClock m_activityClock;
     // Packing the project's blocks while the editor is idle (ProjectDocument::packBlocks):
     // the time of the last input and when the next pass may start, on m_sessionClock.
+    bool m_spacePanning = false;
     QTimer m_packTimer;
     qint64 m_lastInputMs = 0;
     qint64 m_nextPackPassMs = 0;

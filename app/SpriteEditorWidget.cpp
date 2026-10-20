@@ -217,6 +217,12 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
 
 void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 {
+    if (m_panMode && event->button() == Qt::LeftButton) {
+        m_panFrom = event->position();
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton &&
         (m_colorizedPixelEditedHandler || m_colorizedPixelsEditedHandler ||
          m_colorizedPixelPickedHandler || m_colorizedFloodFillHandler) &&
@@ -276,6 +282,14 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 
 void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
 {
+    if (m_panFrom) {
+        m_scroll -= event->position() - *m_panFrom;
+        m_panFrom = event->position();
+        m_scroll = -displayOrigin();
+        update();
+        event->accept();
+        return;
+    }
     if ((event->buttons() & Qt::LeftButton) && m_paintingColorized &&
         m_colorizedPixelEditedHandler && m_spriteIndex) {
         const std::optional<render::Point> hit = hitColorized(event->pos());
@@ -308,6 +322,16 @@ void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
 
 void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (m_panFrom && event->button() == Qt::LeftButton) {
+        m_panFrom.reset();
+        if (m_panMode) {
+            setCursor(Qt::OpenHandCursor);
+        } else {
+            unsetCursor();
+        }
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton && m_paintingColorized) {
         const std::optional<render::Point> hit = hitColorized(event->pos());
         if (m_colorizedStrokeStart && m_colorizedPixelsEditedHandler && m_spriteIndex &&
@@ -399,6 +423,23 @@ void SpriteEditorWidget::setZoom(double zoom, std::optional<QPoint> anchor)
     m_scroll = logical * newScale - at;
     m_scroll = -displayOrigin();
     update();
+    if (onZoomChanged) {
+        onZoomChanged();
+    }
+}
+
+void SpriteEditorWidget::setPanMode(bool on)
+{
+    if (m_panMode == on) {
+        return;
+    }
+    m_panMode = on;
+    if (!on) {
+        m_panFrom.reset();
+        unsetCursor();
+        return;
+    }
+    setCursor(m_panFrom ? Qt::ClosedHandCursor : Qt::OpenHandCursor);
 }
 
 void SpriteEditorWidget::zoomIn()

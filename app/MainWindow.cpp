@@ -20,6 +20,11 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QKeyEvent>
+#include <QTextEdit>
+#include <QPlainTextEdit>
+#include <QLineEdit>
+#include <QCursor>
+#include <QAbstractSpinBox>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -1525,28 +1530,49 @@ void MainWindow::createCentralView()
     zoomOutButton->setText(QStringLiteral("-"));
     zoomOutButton->setToolTip(
         tr("Zoom out (%1)").arg(nativeShortcut(QStringLiteral("Ctrl+-"))));
-    connect(zoomOutButton, &QToolButton::clicked, this, [this]() { m_preview->zoomOut(); });
+    connect(zoomOutButton, &QToolButton::clicked, this, [this]() {
+        if (spriteCanvasShown()) {
+            m_spriteEditor->zoomOut();
+        } else {
+            m_preview->zoomOut();
+        }
+    });
     m_zoomButton = new QToolButton(central);
     m_zoomButton->setText(QStringLiteral("100%"));
     //: %1: the shortcut, %2: Ctrl (Cmd on macOS)
     m_zoomButton->setToolTip(tr("Canvas zoom; a click shows the whole frame (%1). %2 with the "
                                 "mouse wheel or a pinch zooms at the mouse.")
                                  .arg(nativeShortcut(QStringLiteral("Ctrl+0")), ctrlKeyName()));
-    connect(m_zoomButton, &QToolButton::clicked, this, [this]() { m_preview->resetZoom(); });
+    connect(m_zoomButton, &QToolButton::clicked, this, [this]() {
+        if (spriteCanvasShown()) {
+            m_spriteEditor->resetZoom();
+        } else {
+            m_preview->resetZoom();
+        }
+    });
     auto* zoomInButton = new QToolButton(central);
     zoomInButton->setText(QStringLiteral("+"));
     zoomInButton->setToolTip(
         tr("Zoom in (%1)").arg(nativeShortcut(QStringLiteral("Ctrl++"))));
-    connect(zoomInButton, &QToolButton::clicked, this, [this]() { m_preview->zoomIn(); });
+    connect(zoomInButton, &QToolButton::clicked, this, [this]() {
+        if (spriteCanvasShown()) {
+            m_spriteEditor->zoomIn();
+        } else {
+            m_preview->zoomIn();
+        }
+    });
     toolbarLayout->addWidget(zoomOutButton);
     toolbarLayout->addWidget(m_zoomButton);
     toolbarLayout->addWidget(zoomInButton);
-    m_preview->onViewChanged = [this]() {
-        if (m_zoomButton) {
-            m_zoomButton->setText(
-                QStringLiteral("%1%").arg(std::lround(m_preview->zoom() * 100.0)));
-        }
-    };
+    // The zoom of the canvas that is shown: the frame canvas or the sprite canvas.
+    m_preview->onViewChanged = [this]() { updateZoomButton(); };
+    if (m_spriteEditor) {
+        m_spriteEditor->onZoomChanged = [this]() { updateZoomButton(); };
+    }
+    connect(m_canvasStack, &QStackedWidget::currentChanged, this, [this]() {
+        endSpacePanning();
+        updateZoomButton();
+    });
     // The rest of the last row, whatever its text: a long one (the identification hint) is
     // cut instead of widening the window; a row of its own when too little is left.
     m_frameStatusLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -8287,8 +8313,85 @@ void MainWindow::updateEditColorControls(bool projectChanged)
     }
 }
 
+bool MainWindow::spriteCanvasShown() const
+{
+    return m_spriteEditor && m_canvasStack && m_canvasStack->currentWidget() == m_spriteEditor;
+}
+
+void MainWindow::updateZoomButton()
+{
+    if (!m_zoomButton) {
+        return;
+    }
+    const double zoom = spriteCanvasShown() ? m_spriteEditor->zoom() : m_preview->zoom();
+    m_zoomButton->setText(QStringLiteral("%1%").arg(std::lround(zoom * 100.0)));
+}
+
+bool MainWindow::handleSpacePanning(QEvent* event)
+{
+    if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease) {
+        return false;
+    }
+    const auto* keyEvent = static_cast<QKeyEvent*>(event);
+    if (keyEvent->key() != Qt::Key_Space || keyEvent->modifiers() != Qt::NoModifier) {
+        return false;
+    }
+    if (event->type() == QEvent::KeyRelease) {
+        if (!m_spacePanning || keyEvent->isAutoRepeat()) {
+            return m_spacePanning;
+        }
+        endSpacePanning();
+        return true;
+    }
+    if (m_spacePanning) {
+        // The key repeats while held; nothing else gets it meanwhile.
+        return true;
+    }
+    // Not while typing into a field, nor when the mouse is not over the canvas.
+    QWidget* focus = QApplication::focusWidget();
+    if (qobject_cast<QLineEdit*>(focus) || qobject_cast<QAbstractSpinBox*>(focus) ||
+        qobject_cast<QTextEdit*>(focus) || qobject_cast<QPlainTextEdit*>(focus) ||
+        QApplication::activeModalWidget() || QApplication::activePopupWidget()) {
+        return false;
+    }
+    QWidget* canvas = spriteCanvasShown() ? static_cast<QWidget*>(m_spriteEditor)
+                                          : static_cast<QWidget*>(m_preview);
+    QWidget* under = QApplication::widgetAt(QCursor::pos());
+    if (!canvas || !under || (under != canvas && !canvas->isAncestorOf(under))) {
+        return false;
+    }
+    m_spacePanning = true;
+    if (canvas == m_spriteEditor) {
+        m_spriteEditor->setPanMode(true);
+    } else {
+        m_preview->setPanMode(true);
+    }
+    return true;
+}
+
+void MainWindow::endSpacePanning()
+{
+    if (!m_spacePanning) {
+        return;
+    }
+    m_spacePanning = false;
+    if (m_spriteEditor) {
+        m_spriteEditor->setPanMode(false);
+    }
+    if (m_preview) {
+        m_preview->setPanMode(false);
+    }
+}
+
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    // Space held over the canvas moves the shown part with the mouse, as in image editors.
+    if (watched->isWidgetType() && handleSpacePanning(event)) {
+        return true;
+    }
+    if (event->type() == QEvent::ApplicationDeactivate || event->type() == QEvent::WindowDeactivate) {
+        endSpacePanning();
+    }
     switch (event->type()) {
         case QEvent::MouseButtonPress:
         case QEvent::MouseMove:

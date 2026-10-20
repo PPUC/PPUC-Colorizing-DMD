@@ -632,6 +632,30 @@ void testFramePreviewZoom()
     expect(widget.viewOffset().y() == moved.y() && widget.viewOffset().x() < moved.x(),
            "and the horizontal one the vertical position");
 
+    // Space held (the window turns pan mode on): a drag moves the shown part with the mouse and
+    // paints nothing.
+    widget.setZoom(4.0);
+    widget.setViewOffset(QPointF(0.5, 0.5));
+    const QPointF panStart = widget.viewOffset();
+    widget.setPanMode(true);
+    expect(widget.cursor().shape() == Qt::OpenHandCursor, "an open hand while Space is held");
+    const QPointF from(widget.width() / 2.0, widget.height() / 4.0);
+    const QPointF to = from + QPointF(40.0, 0.0);
+    QMouseEvent panPress(QEvent::MouseButtonPress, from, from, widget.mapToGlobal(from),
+                         Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &panPress);
+    expect(widget.cursor().shape() == Qt::ClosedHandCursor, "a closed hand while dragging");
+    QMouseEvent panMove(QEvent::MouseMove, to, to, widget.mapToGlobal(to), Qt::NoButton,
+                        Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &panMove);
+    QMouseEvent panRelease(QEvent::MouseButtonRelease, to, to, widget.mapToGlobal(to),
+                           Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &panRelease);
+    expect(widget.viewOffset().x() < panStart.x() && widget.viewOffset().y() == panStart.y(),
+           "dragging to the right shows more of the left");
+    widget.setPanMode(false);
+    expect(widget.cursor().shape() == Qt::ArrowCursor, "the cursor back when Space is let go");
+
     widget.setZoom(100.0);
     expect(widget.zoom() == colorizing::app::FramePreviewWidget::kMaxZoom, "zoom is at most 32");
     widget.resetZoom();
@@ -1389,6 +1413,28 @@ void testSpriteEditorZoom()
     widget.zoomOut();
     widget.zoomOut();
     expect(widget.zoom() == 1.0, "and zooming out stops at the fitted size");
+
+    // The zoom reports its changes, for the zoom display; Space and a drag move the sprite.
+    int zoomChanges = 0;
+    widget.onZoomChanged = [&zoomChanges]() { ++zoomChanges; };
+    widget.setZoom(3.0, at.toPoint());
+    expect(zoomChanges == 1, "a zoom change is reported");
+    const auto zoomedAt = pixelAt(at);
+    widget.setPanMode(true);
+    const QPointF to = at + QPointF(-60.0, 0.0);
+    QMouseEvent panPress(QEvent::MouseButtonPress, at, at, widget.mapToGlobal(at), Qt::LeftButton,
+                         Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &panPress);
+    QMouseEvent panMove(QEvent::MouseMove, to, to, widget.mapToGlobal(to), Qt::NoButton,
+                        Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &panMove);
+    QMouseEvent panRelease(QEvent::MouseButtonRelease, to, to, widget.mapToGlobal(to),
+                           Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &panRelease);
+    widget.setPanMode(false);
+    const auto pannedAt = pixelAt(at);
+    expect(zoomedAt && pannedAt && pannedAt->first > zoomedAt->first,
+           "dragging to the left with Space shows more of the right");
 }
 
 void testSpriteEditorRendersAndEditsDetectionArea()

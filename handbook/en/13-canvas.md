@@ -36,6 +36,10 @@ shown under the mouse at any zoom.
 - When the frame is larger than its half, scroll bars at the bottom and the right of the canvas
   move the shown part;
   so do the mouse wheel (with `Shift` sideways) and two fingers on a trackpad.
+- Hold `Space` with the mouse over the canvas, as in image editors: the pointer becomes an open
+  hand, and dragging with the left button moves the shown part instead of drawing. Letting go
+  of `Space` returns to the drawing tool. `Space` does this only when no text field has the
+  keyboard focus.
 - The zoom and the shown part stay when the frame, the plane or the view changes; opening or
   creating a project starts at the whole frame.
 
