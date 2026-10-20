@@ -285,6 +285,9 @@ private:
     void copyCurrentFrameToSelectedBackground();
     void copySelectedBackgroundToFrames();
     void importImageIntoSelectedBackground();
+    // The Background section's Create HD and Remove HD, for the selected background.
+    void createSelectedBackgroundHd();
+    void removeSelectedBackgroundHd();
     void exportSelectedBackgroundPng();
     void assignSelectedSpriteToCurrentSlot();
     void captureSelectedSpriteFromCurrentFrame();

@@ -230,14 +230,6 @@ void testFramePanelActions()
                create->toolTip() == QStringLiteral("Create HD frame from SD frame") &&
                remove->toolTip() == QStringLiteral("Remove HD frame data"),
            "ordinary frame without HD: Create HD");
-    panel.showSpriteHdActions(true);
-    expect(shown(QStringLiteral("Create HD Sprite"), QStringLiteral("Remove HD Sprite")) &&
-               !create->isEnabled() && remove->isEnabled() &&
-               create->toolTip() == QStringLiteral("Create HD sprite from SD sprite") &&
-               remove->toolTip() == QStringLiteral("Remove HD sprite data"),
-           "ordinary sprite with HD");
-    panel.showSpriteHdActions(false);
-    expect(create->isEnabled() && !remove->isEnabled(), "ordinary sprite without HD");
 
     refresh(&nativeExtra, 0);
     expect(shown(QStringLiteral("Create 256x64 Frame"), QString()) && !create->isEnabled() &&
@@ -249,21 +241,10 @@ void testFramePanelActions()
                create->toolTip().contains(QStringLiteral("256x64 frame from the original")) &&
                !mentionsHdOrSd(panel),
            "256x64 project, frame without its picture: Create 256x64 Frame");
-    panel.showSpriteHdActions(false, PlaneLayout::NativeExtra);
-    expect(shown(QStringLiteral("Create 256x64 Sprite"), QString()) && create->isEnabled() &&
-               create->toolTip().contains(QStringLiteral("256x64 sprite")) &&
-               !mentionsHdOrSd(panel),
-           "256x64 project, sprite without its picture: Create 256x64 Sprite");
-    panel.showSpriteHdActions(true, PlaneLayout::NativeExtra);
-    expect(shown(QStringLiteral("Create 256x64 Sprite"), QString()) && !create->isEnabled(),
-           "256x64 project, complete sprite: nothing to create, nothing to remove");
 
     refresh(&nativeOriginal, 0);
     expect(shown(QString(), QString()) && !mentionsHdOrSd(panel),
            "192x64 project: no Create or Remove button for a frame");
-    panel.showSpriteHdActions(false, PlaneLayout::NativeOriginal);
-    expect(shown(QString(), QString()) && !mentionsHdOrSd(panel),
-           "192x64 project: no Create or Remove button for a sprite");
 
     refresh(&ordinary, 1);
     expect(shown(QStringLiteral("Create HD"), QStringLiteral("Remove HD")) &&
@@ -316,7 +297,8 @@ void testListLabelsOfPanels()
         spritePanel.refresh(spriteState);
         expect(hasLabel(spritePanel, QStringLiteral("Selected: 1") + expected.withoutData),
                name + "selected sprite without extra data");
-        expect(mentionsHdOrSd(spritePanel) == false, name + "the sprite page never says HD here");
+        expect(mentionsHdOrSd(spritePanel) == expected.mentions,
+               name + "the sprite page says HD only where the project has HD");
 
         app::BackgroundPanel backgroundPanel;
         app::BackgroundPanelState backgroundState;

@@ -342,25 +342,6 @@ void FramePanel::setImportImageEnabled(bool enabled)
     m_importImageButton->setEnabled(enabled);
 }
 
-void FramePanel::showSpriteHdActions(bool spriteHasHd, render::PlaneLayout layout)
-{
-    if (layout == render::PlaneLayout::NativeExtra) {
-        const QString size = planeSizeText(render::ProjectGeometry(layout).romFrameSize());
-        m_createHdButton->setText(tr("Create %1 Sprite").arg(size));
-        m_createHdButton->setToolTip(
-            tr("Create the %1 sprite from the sprite original in its plain colors")
-                .arg(size));
-    } else {
-        m_createHdButton->setText(tr("Create HD Sprite"));
-        m_createHdButton->setToolTip(tr("Create HD sprite from SD sprite"));
-    }
-    m_createHdButton->setEnabled(!spriteHasHd);
-    m_removeHdButton->setText(tr("Remove HD Sprite"));
-    m_removeHdButton->setToolTip(tr("Remove HD sprite data"));
-    m_removeHdButton->setEnabled(spriteHasHd);
-    showHdActionsFor(layout);
-}
-
 PaintTarget FramePanel::paintTarget() const
 {
     return static_cast<PaintTarget>(m_paintTargetComboBox->currentData().toInt());

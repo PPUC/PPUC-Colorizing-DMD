@@ -147,6 +147,30 @@
         <translation>Ausgewählt: keiner</translation>
     </message>
     <message>
+        <source>Create HD</source>
+        <translation>HD erstellen</translation>
+    </message>
+    <message>
+        <source>Create the HD image of the background from its SD image</source>
+        <translation>Das HD-Bild des Hintergrunds aus seinem SD-Bild erstellen</translation>
+    </message>
+    <message>
+        <source>Remove HD</source>
+        <translation>HD entfernen</translation>
+    </message>
+    <message>
+        <source>Remove the background&apos;s HD image</source>
+        <translation>Das HD-Bild des Hintergrunds entfernen</translation>
+    </message>
+    <message>
+        <source>Create %1 Background</source>
+        <translation>%1-Hintergrund erstellen</translation>
+    </message>
+    <message>
+        <source>Give the background a black %1 image</source>
+        <translation>Dem Hintergrund ein schwarzes %1-Bild geben</translation>
+    </message>
+    <message>
         <source>Selected: %1%2</source>
         <translation>Ausgewählt: %1%2</translation>
     </message>
@@ -1593,27 +1617,27 @@
     </message>
     <message>
         <source>Create %1 Sprite</source>
-        <translation>%1-Sprite erstellen</translation>
+        <translation type="vanished">%1-Sprite erstellen</translation>
     </message>
     <message>
         <source>Create the %1 sprite from the sprite original in its plain colors</source>
-        <translation>Den %1-Sprite aus dem Sprite-Original in seinen Grundfarben erstellen</translation>
+        <translation type="vanished">Den %1-Sprite aus dem Sprite-Original in seinen Grundfarben erstellen</translation>
     </message>
     <message>
         <source>Create HD Sprite</source>
-        <translation>HD-Sprite erstellen</translation>
+        <translation type="vanished">HD-Sprite erstellen</translation>
     </message>
     <message>
         <source>Create HD sprite from SD sprite</source>
-        <translation>HD-Sprite aus SD-Sprite erstellen</translation>
+        <translation type="vanished">HD-Sprite aus SD-Sprite erstellen</translation>
     </message>
     <message>
         <source>Remove HD Sprite</source>
-        <translation>HD-Sprite entfernen</translation>
+        <translation type="vanished">HD-Sprite entfernen</translation>
     </message>
     <message>
         <source>Remove HD sprite data</source>
-        <translation>HD-Sprite-Daten entfernen</translation>
+        <translation type="vanished">HD-Sprite-Daten entfernen</translation>
     </message>
 </context>
 <context>
@@ -3861,6 +3885,18 @@ Use Create %1 Frame.</source>
         <source>Assigned background %1 on %2</source>
         <translation>Hintergrund %1 zugewiesen auf %2</translation>
     </message>
+    <message>
+        <source>Gave background %1 a black %2 image</source>
+        <translation>Hintergrund %1 hat ein schwarzes %2-Bild erhalten</translation>
+    </message>
+    <message>
+        <source>Created the HD image of background %1 (%2)</source>
+        <translation>HD-Bild von Hintergrund %1 erstellt (%2)</translation>
+    </message>
+    <message>
+        <source>Removed the HD image of background %1</source>
+        <translation>HD-Bild von Hintergrund %1 entfernt</translation>
+    </message>
     <message numerus="yes">
         <source>Created %n HD frame(s) from SD (%1)</source>
         <translation>
@@ -6071,6 +6107,22 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Frame-Vorschauen aus den bearbeiteten Sprite-Daten aktualisieren</translation>
     </message>
     <message>
+        <source>Create HD Sprite</source>
+        <translation>HD-Sprite erstellen</translation>
+    </message>
+    <message>
+        <source>Create the HD sprite from the SD sprite</source>
+        <translation>Das HD-Sprite aus dem SD-Sprite erstellen</translation>
+    </message>
+    <message>
+        <source>Remove HD Sprite</source>
+        <translation>HD-Sprite entfernen</translation>
+    </message>
+    <message>
+        <source>Remove the sprite&apos;s HD data</source>
+        <translation>Die HD-Daten des Sprites entfernen</translation>
+    </message>
+    <message>
         <source>Source Frame</source>
         <translation>Quell-Frame</translation>
     </message>
@@ -6209,6 +6261,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Copy the set&apos;s colors to the edit colors</source>
         <translation>Farben des Sets in die Bearbeitungsfarben kopieren</translation>
+    </message>
+    <message>
+        <source>Create %1 Sprite</source>
+        <translation>%1-Sprite erstellen</translation>
+    </message>
+    <message>
+        <source>Create the %1 sprite from the sprite original in its plain colors</source>
+        <translation>Das %1-Sprite aus dem Sprite-Original in seinen schlichten Farben erstellen</translation>
     </message>
     <message>
         <source>Slot %1: Empty</source>

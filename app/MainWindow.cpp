@@ -1211,20 +1211,8 @@ void MainWindow::createCentralView()
     m_framePanel->onImportImageRequested = [this]() {
         importImageIntoSelectedFrames();
     };
-    m_framePanel->onCreateHdRequested = [this]() {
-        if (isSpriteCanvasActive()) {
-            createCurrentSpriteHd();
-        } else {
-            createCurrentFrameHd();
-        }
-    };
-    m_framePanel->onRemoveHdRequested = [this]() {
-        if (isSpriteCanvasActive()) {
-            removeCurrentSpriteHd();
-        } else {
-            removeCurrentFrameHd();
-        }
-    };
+    m_framePanel->onCreateHdRequested = [this]() { createCurrentFrameHd(); };
+    m_framePanel->onRemoveHdRequested = [this]() { removeCurrentFrameHd(); };
     m_backgroundComboBox = new QComboBox(central);
     m_backgroundComboBox->setToolTip(tr("Loaded background"));
     m_backgroundComboBox->setEnabled(false);
@@ -1254,6 +1242,8 @@ void MainWindow::createCentralView()
     m_backgroundPanel->onImportImageRequested = [this]() {
         importImageIntoSelectedBackground();
     };
+    m_backgroundPanel->onCreateHdRequested = [this]() { createSelectedBackgroundHd(); };
+    m_backgroundPanel->onRemoveHdRequested = [this]() { removeSelectedBackgroundHd(); };
     m_backgroundPanel->onExportRequested = [this]() {
         exportSelectedBackgroundPng();
     };
@@ -1381,6 +1371,8 @@ void MainWindow::createCentralView()
                            tr("Copied sprite set %1 to the edit colors")
                                .arg(static_cast<int>(set) + 1));
     };
+    m_spritePanel->onCreateHdRequested = [this]() { createCurrentSpriteHd(); };
+    m_spritePanel->onRemoveHdRequested = [this]() { removeCurrentSpriteHd(); };
     m_spritePanel->onSourceFrameRequested = [this]() {
         const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
         if (m_document && spriteIndex) {
@@ -5322,10 +5314,6 @@ void MainWindow::updateFrameMetadataControls()
     state.frameIndex = currentIndex;
     state.hasSelectedFrames = !selectedFrameIndices().empty();
     m_framePanel->refresh(state);
-    if (isSpriteCanvasActive()) {
-        m_framePanel->showSpriteHdActions(m_document->hasHdSprite(*currentSpriteIndex()),
-                                          m_document->geometry().layout());
-    }
 
     if (!hasFrame || m_document->backgroundCount() == 0) {
         setPaintTarget(PaintTarget::Frame);
@@ -6648,6 +6636,71 @@ void MainWindow::createCurrentSpriteHd()
     }
 }
 
+void MainWindow::createSelectedBackgroundHd()
+{
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || !backgroundIndex ||
+        m_document->background(*backgroundIndex).colorizedHd || isOriginalPlaneOnlyProject()) {
+        updateBackgroundControls();
+        return;
+    }
+    try {
+        const render::Size hdSize = m_document->geometry().planeSize(render::Resolution::Hd);
+        // From the SD image with the filter Create HD used last; a project with 256x64
+        // original frames has no SD image to take it from: black, as Create 256x64 Frame
+        // gives a background.
+        document::Rgb565Frame hd =
+            isHdOnlyProject()
+                ? document::makeRgb565Frame(hdSize, 0)
+                : document::upscale2x(
+                      m_document->backgroundFrame(*backgroundIndex, render::Resolution::Sd),
+                      m_createHdFilter);
+        commitEdit(std::make_unique<edit::BackgroundHdCreateCommand>(*backgroundIndex,
+                                                                     std::move(hd)));
+        refreshComponentBrowsers();
+        updateBackgroundControls();
+        updateUndoRedoActions();
+        statusBar()->showMessage(
+            isHdOnlyProject()
+                ? tr("Gave background %1 a black %2 image")
+                      .arg(*backgroundIndex)
+                      .arg(nativePlaneText(*m_document))
+                : tr("Created the HD image of background %1 (%2)")
+                      .arg(*backgroundIndex)
+                      .arg(QString::fromStdString(document::upscaleFilterName(m_createHdFilter))),
+            3000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::removeSelectedBackgroundHd()
+{
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || !backgroundIndex || !m_document->background(*backgroundIndex).colorizedHd ||
+        isHdOnlyProject()) {
+        updateBackgroundControls();
+        return;
+    }
+    try {
+        if (activePaintTarget() == PaintTarget::Background &&
+            m_activeResolution == render::Resolution::Hd) {
+            // The HD image being edited goes: back to SD.
+            m_activeResolution = render::Resolution::Sd;
+            updateResolutionMode();
+        }
+        commitEdit(std::make_unique<edit::BackgroundHdRemoveCommand>(
+            *backgroundIndex, *m_document->background(*backgroundIndex).colorizedHd));
+        refreshComponentBrowsers();
+        updateBackgroundControls();
+        updateUndoRedoActions();
+        statusBar()->showMessage(tr("Removed the HD image of background %1").arg(*backgroundIndex),
+                                 3000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::removeCurrentSpriteHd()
 {
     const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
@@ -7430,9 +7483,6 @@ void MainWindow::updateSpriteControls()
     }
 
     const document::SpriteRecord& sprite = m_document->sprite(*spriteIndex);
-    if (isSpriteCanvasActive()) {
-        m_framePanel->showSpriteHdActions(sprite.hasHd, m_document->geometry().layout());
-    }
     if (m_spriteEditor) {
         const std::size_t areaIndex = m_spritePanel->selectedDetectionAreaIndex();
         m_spriteEditor->setSpriteIndex(*spriteIndex);

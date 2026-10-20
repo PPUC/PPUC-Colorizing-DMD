@@ -91,6 +91,10 @@ public:
     std::function<void()> onApplySpriteEditsRequested;
     // Go to the frame the sprite was taken from (CDMD's "to source frame").
     std::function<void()> onSourceFrameRequested;
+    // "Create HD Sprite" and "Remove HD Sprite" for the selected sprite ("Create 256x64
+    // Sprite" alone in a project with 256x64 original frames, neither with 192x64 ones).
+    std::function<void()> onCreateHdRequested;
+    std::function<void()> onRemoveHdRequested;
     // Sprite shape mode and dynamic content (CDMD's sprite window: IDC_SHAPEM, the dynamic
     // sets and their colors).
     std::function<void(bool shapeMode)> onShapeModeToggled;
@@ -122,6 +126,8 @@ private:
     QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_applySpriteEditsButton = nullptr;
     QToolButton* m_sourceFrameButton = nullptr;
+    QToolButton* m_createHdButton = nullptr;
+    QToolButton* m_removeHdButton = nullptr;
     QCheckBox* m_shapeModeCheckBox = nullptr;
     QToolButton* m_dynamicPaintButton = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;

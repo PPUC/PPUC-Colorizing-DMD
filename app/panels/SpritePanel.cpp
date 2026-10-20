@@ -104,6 +104,24 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_applySpriteEditsButton->setToolTip(
         tr("Refresh frame previews from edited sprite data"));
     m_applySpriteEditsButton->setEnabled(false);
+    m_createHdButton = new QToolButton(this);
+    m_createHdButton->setText(tr("Create HD Sprite"));
+    m_createHdButton->setToolTip(tr("Create the HD sprite from the SD sprite"));
+    m_createHdButton->setEnabled(false);
+    m_removeHdButton = new QToolButton(this);
+    m_removeHdButton->setText(tr("Remove HD Sprite"));
+    m_removeHdButton->setToolTip(tr("Remove the sprite's HD data"));
+    m_removeHdButton->setEnabled(false);
+    connect(m_createHdButton, &QToolButton::clicked, this, [this]() {
+        if (onCreateHdRequested) {
+            onCreateHdRequested();
+        }
+    });
+    connect(m_removeHdButton, &QToolButton::clicked, this, [this]() {
+        if (onRemoveHdRequested) {
+            onRemoveHdRequested();
+        }
+    });
     m_sourceFrameButton = new QToolButton(this);
     m_sourceFrameButton->setText(tr("Source Frame"));
     m_sourceFrameButton->setToolTip(tr("Go to the frame the sprite was taken from"));
@@ -181,6 +199,8 @@ SpritePanel::SpritePanel(QWidget* parent)
     visualizationGrid->addWidget(m_spriteCanvasButton, 1, 0);
     visualizationGrid->addWidget(m_applySpriteEditsButton, 1, 1);
     visualizationGrid->addWidget(m_sourceFrameButton, 2, 0);
+    visualizationGrid->addWidget(m_createHdButton, 3, 0);
+    visualizationGrid->addWidget(m_removeHdButton, 3, 1);
     pageLayout->addLayout(visualizationGrid);
     auto* boundsGrid = new QGridLayout();
     boundsGrid->setHorizontalSpacing(4);
@@ -407,6 +427,23 @@ void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
     m_dynamicDocument = document;
     m_dynamicSprite = spriteIndex;
     const bool hasSprite = document && spriteIndex && *spriteIndex < document->spriteCount();
+    // HD of the sprite, as the project's layout has it (PlaneLabels.h).
+    {
+        const render::PlaneLayout layout =
+            document ? document->geometry().layout() : render::PlaneLayout::Ordinary;
+        const bool spriteHasHd = hasSprite && document->hasHdSprite(*spriteIndex);
+        if (layout == render::PlaneLayout::NativeExtra) {
+            const QString size = planeSizeText(render::ProjectGeometry(layout).romFrameSize());
+            m_createHdButton->setText(tr("Create %1 Sprite").arg(size));
+            m_createHdButton->setToolTip(
+                tr("Create the %1 sprite from the sprite original in its plain colors")
+                    .arg(size));
+        }
+        m_createHdButton->setVisible(layout != render::PlaneLayout::NativeOriginal);
+        m_removeHdButton->setVisible(layout == render::PlaneLayout::Ordinary);
+        m_createHdButton->setEnabled(hasSprite && !spriteHasHd);
+        m_removeHdButton->setEnabled(hasSprite && spriteHasHd);
+    }
     for (QWidget* widget : std::initializer_list<QWidget*>{
              m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox, m_dynamicColorGrid,
              m_editColorsToSetButton, m_setToEditColorsButton}) {

@@ -71,8 +71,8 @@ showed before. There is nothing it could fall back to.
 
 Therefore:
 
-- There is no `Remove` button, neither for a frame nor for a sprite: the ordinary project's
-  `Remove HD` and `Remove HD Sprite` are hidden.
+- There is no `Remove` button, neither for a frame, a sprite nor a background: the ordinary
+  project's `Remove HD` and `Remove HD Sprite` are hidden.
 - A project in which that data is missing still opens. Each affected frame is flagged:
   - a red `no picture` badge on its thumbnail,
   - `no picture`, `BG: no picture` and `Spr: no picture` lines in the frame list item, with the
@@ -99,9 +99,9 @@ Repairing:
   dynamic colors, background mask and rotations stay as they are stored.
 - `Create 256x64 Frame` is also enabled when only the assigned background lacks its 256x64
   image, and in both cases gives that background a black 256x64 image. An existing background
-  image is never replaced. `Import Image` on the `Background` section is the other way to give a background
-  its image.
-- `Create 256x64 Sprite` (in the same place while `Edit Sprite` is on) creates the 256x64 sprite
+  image is never replaced. `Create 256x64 Background` on the `Background` section gives the
+  selected background a black 256x64 image as well, and its `Import Image` gives it a picture.
+- `Create 256x64 Sprite` on the `Sprite` section creates the 256x64 sprite of the selected sprite
   from the sprite original: its mask gets the shape of the sprite original, its colors are the
   plain colors of its color indices.
 - All three can be undone.

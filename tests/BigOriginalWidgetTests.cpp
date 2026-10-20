@@ -671,13 +671,21 @@ void testMissingHdIsFlaggedAndNotRendered()
     refreshFramePanel(2);
     expect(create->isEnabled() && remove->isHidden(),
            "Create 256x64 Frame repairs a background without its picture");
-    framePanel.showSpriteHdActions(true, colorizing::render::PlaneLayout::NativeExtra);
-    expect(!create->isEnabled() && remove->isHidden(),
-           "a complete sprite has nothing to create or remove");
-    framePanel.showSpriteHdActions(false, colorizing::render::PlaneLayout::NativeExtra);
-    expect(create->isEnabled() && remove->isHidden() &&
-               create->text() == QStringLiteral("Create 256x64 Sprite"),
-           "Create 256x64 Sprite repairs a sprite");
+    // The sprite's in the Sprite section.
+    colorizing::app::SpritePanel spritePanel;
+    colorizing::app::SpritePanelState spriteState;
+    spriteState.document = &document;
+    spriteState.frameIndex = 0;
+    QToolButton* createSprite = buttonWithText(spritePanel, QStringLiteral("Create HD Sprite"));
+    QToolButton* removeSprite = buttonWithText(spritePanel, QStringLiteral("Remove HD Sprite"));
+    for (std::size_t sprite = 0; sprite < document.spriteCount(); ++sprite) {
+        spriteState.spriteIndex = sprite;
+        spritePanel.refresh(spriteState);
+        expect(createSprite->text() == QStringLiteral("Create 256x64 Sprite") &&
+                   !createSprite->isHidden() && removeSprite->isHidden() &&
+                   createSprite->isEnabled() == !document.hasHdSprite(sprite),
+               "Create 256x64 Sprite repairs a sprite without it; nothing to remove");
+    }
 
     expect(colorizing::app::renderSpriteColorizedPreviewImage(document.sprite(0),
                                                               Resolution::Hd,

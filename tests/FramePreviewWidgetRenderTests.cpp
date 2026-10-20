@@ -3211,6 +3211,75 @@ void testBackgroundPanel()
     expect(!document.isDirty(), "background panel should leave the document untouched");
 }
 
+// The HD of a sprite and of a background has its buttons in their own sections.
+void testSpriteAndBackgroundHdButtons()
+{
+    const colorizing::document::ProjectDocument sprites = makeSpritePanelDocument();
+    colorizing::app::SpritePanel spritePanel;
+    int spriteCreates = 0;
+    int spriteRemoves = 0;
+    spritePanel.onCreateHdRequested = [&]() { ++spriteCreates; };
+    spritePanel.onRemoveHdRequested = [&]() { ++spriteRemoves; };
+    QToolButton* createSprite = nullptr;
+    QToolButton* removeSprite = nullptr;
+    for (QToolButton* button : spritePanel.findChildren<QToolButton*>()) {
+        if (button->text() == QStringLiteral("Create HD Sprite")) {
+            createSprite = button;
+        } else if (button->text() == QStringLiteral("Remove HD Sprite")) {
+            removeSprite = button;
+        }
+    }
+    expect(createSprite && removeSprite, "the Sprite section has Create and Remove HD Sprite");
+    colorizing::app::SpritePanelState spriteState;
+    spriteState.document = &sprites;
+    spriteState.frameIndex = 0;
+    spriteState.spriteIndex = 0;
+    spritePanel.refresh(spriteState);
+    expect(!createSprite->isEnabled() && removeSprite->isEnabled(),
+           "a sprite with HD: only Remove HD Sprite");
+    removeSprite->click();
+    spriteState.spriteIndex = 1;
+    spritePanel.refresh(spriteState);
+    expect(createSprite->isEnabled() && !removeSprite->isEnabled(),
+           "a sprite without HD: only Create HD Sprite");
+    createSprite->click();
+    expect(spriteCreates == 1 && spriteRemoves == 1, "each reports once");
+
+    const colorizing::document::ProjectDocument backgrounds = makeInspectorPanelDocument();
+    colorizing::app::BackgroundPanel backgroundPanel;
+    int backgroundCreates = 0;
+    int backgroundRemoves = 0;
+    backgroundPanel.onCreateHdRequested = [&]() { ++backgroundCreates; };
+    backgroundPanel.onRemoveHdRequested = [&]() { ++backgroundRemoves; };
+    QToolButton* createBackground = nullptr;
+    QToolButton* removeBackground = nullptr;
+    for (QToolButton* button : backgroundPanel.findChildren<QToolButton*>()) {
+        if (button->text() == QStringLiteral("Create HD")) {
+            createBackground = button;
+        } else if (button->text() == QStringLiteral("Remove HD")) {
+            removeBackground = button;
+        }
+    }
+    expect(createBackground && removeBackground, "the Background section has Create and Remove HD");
+    colorizing::app::BackgroundPanelState backgroundState;
+    backgroundState.document = &backgrounds;
+    backgroundState.selectedBackgroundIndex = 0;
+    backgroundPanel.refresh(backgroundState);
+    expect(!createBackground->isEnabled() && removeBackground->isEnabled(),
+           "a background with HD: only Remove HD");
+    removeBackground->click();
+    backgroundState.selectedBackgroundIndex = 1;
+    backgroundPanel.refresh(backgroundState);
+    expect(createBackground->isEnabled() && !removeBackground->isEnabled(),
+           "a background without HD: only Create HD");
+    createBackground->click();
+    backgroundState.selectedBackgroundIndex.reset();
+    backgroundPanel.refresh(backgroundState);
+    expect(!createBackground->isEnabled() && !removeBackground->isEnabled() &&
+               backgroundCreates == 1 && backgroundRemoves == 1,
+           "none without a selected background; each reports once");
+}
+
 void testFramePanel()
 {
     using colorizing::app::FramePanelState;
@@ -3418,18 +3487,6 @@ void testFramePanel()
                !backgroundLayerButton->isEnabled(),
            "frame panel should disable the background controls without backgrounds");
 
-    panel.refresh(stateFor(document, 2));
-    panel.showSpriteHdActions(true);
-    expect(createHdButton->text() == QStringLiteral("Create HD Sprite") &&
-               createHdButton->toolTip() == QStringLiteral("Create HD sprite from SD sprite") &&
-               !createHdButton->isEnabled() &&
-               removeHdButton->text() == QStringLiteral("Remove HD Sprite") &&
-               removeHdButton->toolTip() == QStringLiteral("Remove HD sprite data") &&
-               removeHdButton->isEnabled(),
-           "frame panel should label the HD buttons for a sprite with HD");
-    panel.showSpriteHdActions(false);
-    expect(createHdButton->isEnabled() && !removeHdButton->isEnabled(),
-           "frame panel should offer Create HD Sprite for a sprite without HD");
     panel.refresh(stateFor(document, std::nullopt));
     expect(createHdButton->text() == QStringLiteral("Create HD") &&
                createHdButton->toolTip() == QStringLiteral("Create HD frame from SD frame") &&
@@ -3501,19 +3558,18 @@ void testFramePanel()
     expect(backgroundLayerToggled == false && !panel.isBackgroundLayerChecked(),
            "hiding the background layer should report it");
     importButton->click();
-    panel.showSpriteHdActions(false);
+    // Frame 0 has HD: Remove HD is offered, Create HD is not.
     createHdButton->click();
-    panel.showSpriteHdActions(true);
     removeHdButton->click();
-    expect(importRequests == 1 && createHdRequests == 1 && removeHdRequests == 1 &&
-               callbacks == 11,
+    expect(importRequests == 1 && createHdRequests == 0 && removeHdRequests == 1 &&
+               callbacks == 10,
            "each frame panel action should notify exactly once");
 
     panel.refresh(stateFor(document, 1));
     expect(!panel.isBackgroundLayerChecked() &&
                panel.paintTarget() == PaintTarget::Background,
            "frame panel should keep its own state across refreshes");
-    expect(callbacks == 11, "refreshing the frame panel should not notify");
+    expect(callbacks == 10, "refreshing the frame panel should not notify");
     expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
                document.backgroundId(0) == 0 && !document.isDirty(),
            "frame panel should leave the document untouched");
@@ -3639,6 +3695,7 @@ int main(int argc, char* argv[])
     testColorRotationPanel();
     testPalettePanel();
     testSpritePanel();
+    testSpriteAndBackgroundHdButtons();
     testMaskPanel();
     testDynamicPanel();
     testDynamicSetList();

@@ -14,7 +14,8 @@ plane). What the window shows for each kind of project:
 | Project status line | `..., <n> HD, ...` | no HD count; `, <n> not rendered at runtime` | no HD count |
 | Frame status line | `SD 128x32 \| HD 256x64` or `HD unavailable` | `256x64`, and `\| not rendered` | `192x64` |
 | Frame page buttons | `Create HD`, `Remove HD` | `Create 256x64 Frame` | none |
-| The same with `Edit Sprite` on | `Create HD Sprite`, `Remove HD Sprite` | `Create 256x64 Sprite` | none |
+| Sprite page buttons | `Create HD Sprite`, `Remove HD Sprite` | `Create 256x64 Sprite` | none |
+| Background page buttons | `Create HD`, `Remove HD` | `Create 256x64 Background` | none |
 | Sprite and background lists | `(HD)` | `(no picture)` on records without 256x64 data | no suffix |
 | Status texts, export file names | `SD`, `HD`, `_sd`, `_hd` | `256x64`, `_256x64` | `192x64`, `_192x64` |
 

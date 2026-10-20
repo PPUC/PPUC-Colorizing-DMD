@@ -1821,3 +1821,15 @@ openai_key.txt in My Documents; the owner did not know it existed). Tests: `Imag
 formula, zones, scroll interpolation, pixels with a mask, plane mapping, the window driven by
 mouse and wheel events), `VideoClipWidgetTests` (the window on a clip).
 
+## HD buttons in their sections (2026-10-20)
+
+Owner: the Create/Remove buttons belong to the section of what they act on. `FramePanel`'s
+Create/Remove HD act on frames only (`showSpriteHdActions` removed). `SpritePanel` has
+`Create HD Sprite` / `Remove HD Sprite` for the selected sprite (`Create 256x64 Sprite` alone
+with NativeExtra, none with NativeOriginal), set in `refreshDynamic`. `BackgroundPanel` has
+`Create HD` / `Remove HD` for the selected background (`Create 256x64 Background`, black, with
+NativeExtra): `MainWindow::createSelectedBackgroundHd` (`upscale2x` with the last Create HD
+filter, `BackgroundHdCreateCommand`) and `removeSelectedBackgroundHd` (new
+`edit::BackgroundHdRemoveCommand`, back to SD when the HD image was being edited). Tests:
+`testSpriteAndBackgroundHdButtons`, BigOriginal (256x64 sprite), NativeOriginal (hidden).
+

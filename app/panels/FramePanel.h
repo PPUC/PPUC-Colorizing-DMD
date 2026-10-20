@@ -52,10 +52,6 @@ public:
     void setPaintTarget(PaintTarget target);
     void setPaintTargetEnabled(bool enabled);
     void setImportImageEnabled(bool enabled);
-    // While a sprite is edited in the canvas, the Create/Remove HD buttons act on that sprite:
-    // "Create HD Sprite" and "Remove HD Sprite", "Create 256x64 Sprite" alone, or neither.
-    void showSpriteHdActions(bool spriteHasHd,
-                             render::PlaneLayout layout = render::PlaneLayout::Ordinary);
 
     [[nodiscard]] PaintTarget paintTarget() const;
     // The frame's trigger ID as the panel shows it, document::kNoTriggerId for none.

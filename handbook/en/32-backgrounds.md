@@ -18,6 +18,11 @@ Currently implemented:
   `Edit BG` again to go back to the frame, as `Edit Sprite` does for a sprite, or double-click
   a frame in the frame strip to edit that frame. The `Target` field of the frame section
   (`Frame` or `Background`) does the same.
+- `Create HD` on the `Background` section gives the selected background its HD image: its SD
+  image scaled to 2x with the filter `Create HD` on the `Frame` section used last (`Nearest` at
+  first). `Remove HD` takes the HD image away. Each is enabled when it applies, and both can be
+  undone. A background also gets its HD image with `Create HD` on frames that use it
+  ("Assigned background image") and with `Import Image` on the 256x64 plane.
 - The `BG` toolbar toggle shows the current frame's background mask as a semi-transparent yellow overlay on the colorized frame.
 - `BG` and `Dynamic` are mutually exclusive edit modes because both write on the colorized frame.
 - In SD mode, `BG` edits the SD background mask.

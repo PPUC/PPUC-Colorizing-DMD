@@ -492,11 +492,17 @@ void testPanelsAndThumbnail()
     framePanel.refresh(frameState);
     expect(create->isHidden() && remove->isHidden(),
            "there is no extra plane: Create HD and Remove HD are hidden");
-    framePanel.showSpriteHdActions(false, PlaneLayout::NativeOriginal);
-    expect(create->isHidden() && remove->isHidden(), "the sprite actions are hidden as well");
-    framePanel.showSpriteHdActions(false);
-    expect(!create->isHidden() && !remove->isHidden() && create->isEnabled(),
-           "an ordinary project can create an HD sprite");
+    {
+        colorizing::app::SpritePanel hdPanel;
+        colorizing::app::SpritePanelState hdState;
+        hdState.document = &document;
+        hdState.frameIndex = 0;
+        hdState.spriteIndex = std::size_t{0};
+        hdPanel.refresh(hdState);
+        expect(buttonWithText(hdPanel, QStringLiteral("Create HD Sprite"))->isHidden() &&
+                   buttonWithText(hdPanel, QStringLiteral("Remove HD Sprite"))->isHidden(),
+               "the sprite's HD actions are hidden as well");
+    }
 
     colorizing::app::SpritePanel spritePanel;
     colorizing::app::SpritePanelState spriteState;

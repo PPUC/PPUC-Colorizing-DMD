@@ -144,6 +144,22 @@ private:
     document::Rgb565Frame m_frame;
 };
 
+// Takes a background's HD image away; reverting puts it back.
+class BackgroundHdRemoveCommand final : public EditCommand {
+public:
+    // frame: the HD image the background has.
+    BackgroundHdRemoveCommand(std::size_t backgroundIndex, document::Rgb565Frame frame);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
+
+private:
+    std::size_t m_backgroundIndex;
+    document::Rgb565Frame m_frame;
+};
+
 struct MaskPixelChange {
     int x = 0;
     int y = 0;

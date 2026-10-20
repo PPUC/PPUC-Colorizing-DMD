@@ -65,6 +65,26 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     fileLayout->addWidget(m_importImageButton);
     fileLayout->addWidget(m_exportButton);
     pageLayout->addLayout(fileLayout);
+    m_createHdButton = new QToolButton(this);
+    m_createHdButton->setText(tr("Create HD"));
+    m_createHdButton->setToolTip(tr("Create the HD image of the background from its SD image"));
+    m_removeHdButton = new QToolButton(this);
+    m_removeHdButton->setText(tr("Remove HD"));
+    m_removeHdButton->setToolTip(tr("Remove the background's HD image"));
+    connect(m_createHdButton, &QToolButton::clicked, this, [this]() {
+        if (onCreateHdRequested) {
+            onCreateHdRequested();
+        }
+    });
+    connect(m_removeHdButton, &QToolButton::clicked, this, [this]() {
+        if (onRemoveHdRequested) {
+            onRemoveHdRequested();
+        }
+    });
+    auto* hdLayout = new QHBoxLayout();
+    hdLayout->addWidget(m_createHdButton);
+    hdLayout->addWidget(m_removeHdButton);
+    pageLayout->addLayout(hdLayout);
     pageLayout->addStretch(1);
 
     connect(m_assignButton, &QToolButton::clicked, this, [this]() {
@@ -116,6 +136,22 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
     m_importImageButton->setEnabled(hasBackground);
     m_exportButton->setEnabled(hasBackground);
     m_editButton->setEnabled(hasBackground || state.editing);
+    {
+        const render::PlaneLayout layout =
+            document ? document->geometry().layout() : render::PlaneLayout::Ordinary;
+        const bool backgroundHasHd =
+            hasBackground &&
+            document->background(*state.selectedBackgroundIndex).colorizedHd.has_value();
+        if (layout == render::PlaneLayout::NativeExtra) {
+            const QString size = planeSizeText(render::ProjectGeometry(layout).romFrameSize());
+            m_createHdButton->setText(tr("Create %1 Background").arg(size));
+            m_createHdButton->setToolTip(tr("Give the background a black %1 image").arg(size));
+        }
+        m_createHdButton->setVisible(layout != render::PlaneLayout::NativeOriginal);
+        m_removeHdButton->setVisible(layout == render::PlaneLayout::Ordinary);
+        m_createHdButton->setEnabled(hasBackground && !backgroundHasHd);
+        m_removeHdButton->setEnabled(hasBackground && backgroundHasHd);
+    }
     {
         const QSignalBlocker blocker(m_editButton);
         m_editButton->setChecked(state.editing);

@@ -104,6 +104,33 @@ std::vector<RecordReference> BackgroundHdCreateCommand::recordReferences() const
     return {{RecordKind::Background, m_backgroundIndex}};
 }
 
+BackgroundHdRemoveCommand::BackgroundHdRemoveCommand(std::size_t backgroundIndex,
+                                                     document::Rgb565Frame frame)
+    : m_backgroundIndex(backgroundIndex),
+      m_frame(std::move(frame))
+{
+}
+
+void BackgroundHdRemoveCommand::apply(document::ProjectDocument& document) const
+{
+    document.removeBackgroundHdFrame(m_backgroundIndex);
+}
+
+void BackgroundHdRemoveCommand::revert(document::ProjectDocument& document) const
+{
+    document.setBackgroundFrame(m_backgroundIndex, render::Resolution::Hd, m_frame);
+}
+
+EditTarget BackgroundHdRemoveCommand::target() const
+{
+    return EditTarget{EditKind::BackgroundImage, m_backgroundIndex, render::Resolution::Hd, {}};
+}
+
+std::vector<RecordReference> BackgroundHdRemoveCommand::recordReferences() const
+{
+    return {{RecordKind::Background, m_backgroundIndex}};
+}
+
 MaskEditCommand::MaskEditCommand(EditKind kind,
                                  std::size_t index,
                                  render::Resolution resolution,

@@ -46,6 +46,10 @@ public:
     std::function<void()> onCopyBackgroundToFramesRequested;
     std::function<void()> onImportImageRequested;
     std::function<void()> onExportRequested;
+    // "Create HD" and "Remove HD" for the selected background ("Create 256x64 Background"
+    // alone in a project with 256x64 original frames, neither with 192x64 ones).
+    std::function<void()> onCreateHdRequested;
+    std::function<void()> onRemoveHdRequested;
 
 private:
     QLabel* m_selectedBackgroundLabel = nullptr;
@@ -56,6 +60,8 @@ private:
     QToolButton* m_copyBackgroundToFramesButton = nullptr;
     QToolButton* m_importImageButton = nullptr;
     QToolButton* m_exportButton = nullptr;
+    QToolButton* m_createHdButton = nullptr;
+    QToolButton* m_removeHdButton = nullptr;
 };
 
 }  // namespace colorizing::app
