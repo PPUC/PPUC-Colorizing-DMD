@@ -1909,3 +1909,14 @@ scenes); `Using the selected asset` covers a scene selected in the Scenes sectio
 current. `ScenesPanel::onSelectionChanged/onPressed` drive the filter and the "used last"
 section; `showOnlyScene` applies "Used by the current frame" (the frame's scene). Test: the
 new checks in `ScenesWidgetTests::testPanel`.
+
+## Captions below the left sidebar's thumbnails, scene thumbnails (2026-10-20, owner request)
+
+`ThumbnailCaptionDelegate` (app/ThumbnailCaptions.h, `showCaptionsBelowThumbnails`) draws a
+row as the thumbnail, centered, with the caption below, wrapped to the viewport width (rows
+re-laid out on resize, `ResizeMode::Adjust`); used by the mask, background, sprite and scene
+lists; the fixed 210x54 item size hints are gone. The row height does not depend on the icon
+being built (LazyListIcons). `ScenesPanel` shows each scene's first frame
+(`renderResolvedFrameImage`, native plane, with background) built lazily by `LazyListIcons`;
+`refreshThumbnails()` from `refreshComponentBrowsers`. Tests: `testThumbnailCaptions`, the
+thumbnail check in `ScenesWidgetTests::testPanel`.

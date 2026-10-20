@@ -8,6 +8,7 @@
 #include <optional>
 
 class QLabel;
+class QListWidgetItem;
 class QListWidget;
 class QPushButton;
 
@@ -16,6 +17,8 @@ class ProjectDocument;
 }
 
 namespace colorizing::app {
+
+class LazyListIcons;
 
 // The Scenes section of the left sidebar: the project's scenes, with buttons to add, edit and
 // delete them and to list a scene's frames in the strip. It shows them and reports what was
@@ -32,6 +35,10 @@ public:
     // "Used by the current frame": only the scene given (none: no scene) is listed; filtered
     // false: every scene.
     void showOnlyScene(bool filtered, std::optional<uint16_t> sceneId);
+    // The thumbnails (each scene's first frame) no longer show the frames: rebuilt when in view.
+    void refreshThumbnails();
+    // For tests: builds the thumbnails of every row now.
+    void buildAllThumbnails();
 
     std::function<void()> onAddRequested;
     std::function<void(uint16_t sceneId)> onEditRequested;
@@ -45,6 +52,8 @@ private:
     void updateButtons();
 
     QListWidget* m_list = nullptr;
+    LazyListIcons* m_thumbnails = nullptr;
+    const document::ProjectDocument* m_document = nullptr;
     QLabel* m_note = nullptr;
     QPushButton* m_addButton = nullptr;
     QPushButton* m_editButton = nullptr;

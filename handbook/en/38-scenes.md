@@ -14,9 +14,9 @@ files beside it. The `.cRPX` keeps the scenes and which frame is which frame of 
 
 ## The Scenes section
 
-The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: the scene ID,
-the groups and frames, the frame duration, `background` for a background scene and how many of
-its frames are missing in the project.
+The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: a thumbnail of the scene's first frame
+in the project, and below it the scene ID, the groups and frames, the frame duration,
+`background` for a background scene and how many of its frames are missing in the project.
 
 - `Add` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,

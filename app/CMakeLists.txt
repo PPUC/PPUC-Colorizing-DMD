@@ -11,6 +11,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     CanvasEditController.cpp
     CanvasHistory.cpp
     CanvasHistory.h
+    ThumbnailCaptions.cpp
+    ThumbnailCaptions.h
     CanvasEditController.h
     ColorGridWidget.cpp
     ColorGridWidget.h

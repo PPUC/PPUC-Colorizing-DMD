@@ -3,14 +3,33 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QPixmap>
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include "FrameImageUtils.h"
+#include "LazyListIcons.h"
+#include "ThumbnailCaptions.h"
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
 #include "runtime/Scenes.h"
 
 namespace colorizing::app {
+
+namespace {
+
+constexpr QSize kThumbnailSize{160, 42};
+// The first frame of the scene, for its thumbnail; -1 for none.
+constexpr int kFirstFrameRole = Qt::UserRole + 1;
+
+QIcon blankThumbnail()
+{
+    QPixmap pixmap(kThumbnailSize.width(), kThumbnailSize.width() / 4);
+    pixmap.fill(Qt::black);
+    return QIcon(pixmap);
+}
+
+}  // namespace
 
 ScenesPanel::ScenesPanel(QWidget* parent)
     : QWidget(parent)
@@ -18,6 +37,20 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     m_list = new QListWidget(this);
     m_list->setToolTip(tr("The scenes libserum plays when their PUP trigger fires; double-click "
                           "to edit one"));
+    m_list->setIconSize(kThumbnailSize);
+    showCaptionsBelowThumbnails(m_list);
+    m_thumbnails = new LazyListIcons(m_list, blankThumbnail(), [this](const QListWidgetItem& item) {
+        const int frame = item.data(kFirstFrameRole).toInt();
+        if (!m_document || frame < 0 || static_cast<std::size_t>(frame) >= m_document->frameCount()) {
+            return blankThumbnail();
+        }
+        const QImage image = renderResolvedFrameImage(
+            *m_document, static_cast<std::size_t>(frame),
+            m_document->rendersHdPlaneOnly() ? render::Resolution::Hd : render::Resolution::Sd,
+            1, true);
+        return QIcon(QPixmap::fromImage(
+            image.scaled(kThumbnailSize, Qt::KeepAspectRatio, Qt::FastTransformation)));
+    });
     m_note = new QLabel(this);
     m_note->setWordWrap(true);
     m_addButton = new QPushButton(tr("Add"), this);
@@ -80,6 +113,7 @@ ScenesPanel::ScenesPanel(QWidget* parent)
 void ScenesPanel::setProject(const document::ProjectDocument* document)
 {
     m_hasProject = document != nullptr;
+    m_document = document;
     m_supportsScenes = document && runtime::supportsScenes(document->geometry());
     const std::optional<uint16_t> selected = selectedScene();
     m_filling = true;
@@ -89,9 +123,9 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
                  : document::ColorizationSettings{};
     int selectedRow = -1;
     for (const document::SceneDefinition& scene : settings.scenes) {
-        const int frames = document ? static_cast<int>(
-                                          edit::sceneFrames(*document, scene.sceneId).size())
-                                    : 0;
+        const std::vector<std::size_t> sceneFrames =
+            document ? edit::sceneFrames(*document, scene.sceneId) : std::vector<std::size_t>{};
+        const int frames = static_cast<int>(sceneFrames.size());
         QString text = scene.frameGroups > 1
                            ? tr("%1 — %2 × %3 frames, %4 ms")
                                  .arg(scene.sceneId)
@@ -108,13 +142,16 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
         if (frames < static_cast<int>(scene.totalFrames())) {
             text += tr(" (%1 missing)").arg(static_cast<int>(scene.totalFrames()) - frames);
         }
-        auto* item = new QListWidgetItem(text, m_list);
+        auto* item = new QListWidgetItem(m_thumbnails->placeholder(), text, m_list);
         item->setData(Qt::UserRole, static_cast<int>(scene.sceneId));
+        item->setData(kFirstFrameRole,
+                      sceneFrames.empty() ? -1 : static_cast<int>(sceneFrames.front()));
         if (selected && *selected == scene.sceneId) {
             selectedRow = m_list->count() - 1;
         }
     }
     m_list->setCurrentRow(selectedRow);
+    m_thumbnails->scheduleRowsInView();
     m_note->setText(m_hasProject && !m_supportsScenes
                         ? tr("libserum plays scenes in projects with 128x32 ROM frames only.")
                         : QString());
@@ -139,6 +176,20 @@ void ScenesPanel::showOnlyScene(bool filtered, std::optional<uint16_t> sceneId)
         item->setHidden(filtered &&
                         (!sceneId || item->data(Qt::UserRole).toInt() != static_cast<int>(*sceneId)));
     }
+}
+
+void ScenesPanel::refreshThumbnails()
+{
+    for (int row = 0; row < m_list->count(); ++row) {
+        if (m_thumbnails->isBuilt(m_list->item(row))) {
+            m_thumbnails->invalidate(m_list->item(row));
+        }
+    }
+}
+
+void ScenesPanel::buildAllThumbnails()
+{
+    m_thumbnails->ensureBuilt(0, m_list->count() - 1);
 }
 
 void ScenesPanel::updateButtons()

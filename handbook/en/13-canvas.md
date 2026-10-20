@@ -91,7 +91,9 @@ The left sidebar is the visual component browser (the frames run along the botto
 under it and the canvas, see "Frame List"; the right sidebar takes the full height). `Used by the current frame` above its lists shows only the comparison mask,
 the background, the sprites and the scene the current frame uses, and follows the current frame once it has
 stayed a quarter of a second, so that scrolling through the frames stays quick; off, every
-record is listed. The choice is kept for the next start.
+record is listed. The choice is kept for the next start. As in the frame strip, each row shows
+the thumbnail with its caption below it (the number and name, `(HD)`, or a scene's details),
+wrapped to the sidebar's width, so a narrow sidebar still shows all of it.
 
 - `Masks` shows comparison-mask thumbnails; selecting one selects that mask in the Inspector `Mask`
   topic for assignment. Selecting does not change any frame, and the selection stays when another

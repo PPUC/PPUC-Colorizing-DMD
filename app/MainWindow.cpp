@@ -72,6 +72,7 @@
 #include "HandbookWindow.h"
 #include "FrameThumbnail.h"
 #include "LazyListIcons.h"
+#include "ThumbnailCaptions.h"
 #include "EditorPlugins.h"
 #include "KeyNames.h"
 #include "MovieImport.h"
@@ -1090,6 +1091,10 @@ void MainWindow::createCentralView()
     m_spriteList->setResizeMode(QListView::Adjust);
     m_spriteList->setUniformItemSizes(false);
     m_spriteList->setMinimumWidth(230);
+    // The caption below each thumbnail, as in the frame strip.
+    for (QListWidget* list : {m_maskList, m_backgroundList, m_spriteList}) {
+        showCaptionsBelowThumbnails(list);
+    }
     m_preview = new FramePreviewWidget(central);
     m_preview->setRuntimeView(&m_runtimeView);
     m_spriteEditor = new SpriteEditorWidget(central);
@@ -4583,7 +4588,6 @@ void MainWindow::refreshComponentBrowsers()
                 auto* item = new QListWidgetItem(maskIcon(maskIndex),
                                                  QString::number(static_cast<int>(maskIndex)));
                 item->setData(Qt::UserRole, static_cast<int>(maskIndex));
-                item->setSizeHint(QSize(210, 54));
                 m_maskList->addItem(item);
             }
         }
@@ -4609,7 +4613,6 @@ void MainWindow::refreshComponentBrowsers()
                         .arg(extraDataSuffix(*m_document,
                                              background.colorizedHd.has_value())));
                 item->setData(Qt::UserRole, static_cast<int>(backgroundIndex));
-                item->setSizeHint(QSize(210, 54));
                 m_backgroundList->addItem(item);
             }
         }
@@ -4638,7 +4641,6 @@ void MainWindow::refreshComponentBrowsers()
                         .arg(spriteLabel)
                         .arg(extraDataSuffix(*m_document, sprite.hasHd)));
                 item->setData(Qt::UserRole, static_cast<int>(spriteIndex));
-                item->setSizeHint(QSize(210, 54));
                 m_spriteList->addItem(item);
             }
         }
@@ -4646,6 +4648,9 @@ void MainWindow::refreshComponentBrowsers()
 
     if (m_palettePanel) {
         m_palettePanel->setPalettes(m_document ? &*m_document : nullptr);
+    }
+    if (m_scenesPanel) {
+        m_scenesPanel->refreshThumbnails();
     }
 
     updateMaskBrowserSelection();

@@ -9,11 +9,13 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QApplication>
 #include <QListWidget>
 #include <QPushButton>
 #include <QSpinBox>
 
 #include "RuntimeFixtures.h"
+#include "ThumbnailCaptions.h"
 #include "dialogs/SceneDialog.h"
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
@@ -87,6 +89,10 @@ void testPanel()
     expect(list->item(0)->isHidden(), "a frame of no scene lists none");
     panel.showOnlyScene(false, std::nullopt);
     expect(!list->item(0)->isHidden(), "unfiltered, every scene is listed");
+    // The scene's thumbnail: its first frame.
+    panel.buildAllThumbnails();
+    expect(!list->item(0)->icon().isNull(),
+           "a scene has the thumbnail of its first frame");
 
     document::ProjectDocument native = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::NativeOriginal, 2));
@@ -94,6 +100,32 @@ void testPanel()
     expect(list->count() == 0 && !add->isEnabled(), "a 256x64 project offers no scenes");
     (void)added;
     (void)deleted;
+}
+
+// The left sidebar's rows: the caption below the thumbnail, wrapped to the list's width.
+void testThumbnailCaptions()
+{
+    QListWidget list;
+    list.setIconSize(QSize(160, 42));
+    app::showCaptionsBelowThumbnails(&list);
+    QPixmap pixmap(160, 40);
+    pixmap.fill(Qt::red);
+    auto* item = new QListWidgetItem(QIcon(pixmap),
+                                     QStringLiteral("50002 — 199 frames, 50 ms, background, "
+                                                    "with a long caption"),
+                                     &list);
+    auto* plain = new QListWidgetItem(QStringLiteral("no icon"), &list);
+    list.resize(400, 300);
+    list.show();
+    QApplication::processEvents();
+    const int wide = list.visualItemRect(item).height();
+    const int withoutIcon = list.visualItemRect(plain).height();
+    expect(wide > 42 && withoutIcon < 42,
+           "a row is the thumbnail and its caption below it; without an icon the caption");
+    list.resize(140, 300);
+    QApplication::processEvents();
+    expect(list.visualItemRect(item).height() > wide,
+           "a narrow list wraps the caption onto more lines instead of cutting it");
 }
 
 void testProjectSettings()
@@ -187,6 +219,7 @@ void testDialog()
 void runScenesWidgetTests()
 {
     testPanel();
+    testThumbnailCaptions();
     testProjectSettings();
     testDialog();
 }
