@@ -625,6 +625,7 @@ private:
     // Frame index -> row of m_frameList, -1 for a frame the filter hides; rebuilt with the list.
     std::vector<int> m_frameRows;
     std::vector<std::size_t> m_pendingMaskIcons;
+    // The project's .cRZ, which a save writes (also for a project opened from a .cROM).
     QString m_currentCromPath;
     QString m_currentCrpPath;
     std::optional<document::ProjectDocument> m_document;

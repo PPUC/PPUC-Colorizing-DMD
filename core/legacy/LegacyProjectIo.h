@@ -10,13 +10,15 @@
 namespace colorizing::legacy {
 
 struct LegacyProjectPaths {
-    // For loading this may name a .cRZ archive instead; the cROM is then read from it.
+    // For loading this may name a .cRZ archive instead; the cROM is then read from it. For
+    // saving: where a .cROM goes; empty writes none (the editor saves the .cRZ only).
     std::string cromPath;
     // The editor file. Loading reads a .cRPX (see CrpxFile.h) or a .cRP of the Win32 editor,
     // whatever the name. Saving writes a .cRPX unless the name ends in something else: a
     // Win32 .cRP is written only for comparisons with the Win32 editor's files.
     std::string crpPath;
-    // Only used for saving: where the .cRZ archive of the saved .cROM goes. Empty writes none.
+    // Only used for saving: where the .cRZ archive goes, the cROM compressed while it is
+    // written. Empty writes none.
     std::string crzPath = {};
 };
 
@@ -31,10 +33,9 @@ enum class LegacyIoStage : int {
     Reading,
     // libserum unpacks the .cRZ; no progress inside it.
     Decompressing,
-    // Writing the .cROM and the editor file; done/total count bytes.
+    // Writing the .cRZ (the cROM compressed while it is written) and the editor file;
+    // done/total count bytes.
     Writing,
-    // libserum packs the written .cROM into the .cRZ; no progress inside it.
-    Compressing,
     // Renaming the written files over the old ones.
     Replacing,
     // libserum loads the written .cROM and generates its .cROMc; no progress inside it.
@@ -46,7 +47,7 @@ enum class LegacyIoStage : int {
 // Shared between a load or save running on a worker thread and whoever shows its progress.
 // The worker writes stage, done and total; any thread may read them and set cancel. A
 // cancelled load returns no project; a cancelled save leaves the existing files as they were.
-// The libserum steps (Decompressing, Compressing) cannot be interrupted: a cancel asked
+// The libserum steps (Decompressing, Generating) cannot be interrupted: a cancel asked
 // during them takes effect when they return.
 struct LegacyIoProgress {
     std::atomic<int> stage{static_cast<int>(LegacyIoStage::Starting)};

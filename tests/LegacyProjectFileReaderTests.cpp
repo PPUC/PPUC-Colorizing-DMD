@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <sstream>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -698,9 +699,10 @@ void testFileWriterRequiresBothPaths()
     const LegacyProjectFileWriter writer;
     const LegacySaveResult saveResult =
         writer.save(LegacyProjectPaths{"/tmp/only.cROM", ""}, snapshot);
+    const LegacySaveResult noCrom = writer.save(LegacyProjectPaths{"", "/tmp/only.cRPX"}, snapshot);
 
-    expect(!saveResult.ok, "file writer should require both paths");
-    expect(saveResult.error.message == "both .cROM and .cRP paths are required",
+    expect(!saveResult.ok && !noCrom.ok, "file writer should require a cROM or cRZ and a cRP");
+    expect(saveResult.error.message == "a .cRZ or .cROM path and the .cRP path are required",
            "file writer missing path error");
 }
 
@@ -721,13 +723,16 @@ std::filesystem::path makeCrzFile(const std::string& suffix,
                                   const std::string& entryName,
                                   const std::vector<uint8_t>& cromBytes)
 {
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crzPath = uniqueTempPath(suffix);
-    writeBytes(cromPath, cromBytes);
     std::string error;
     const bool written = colorizing::legacy::writeCrzArchive(
-        utf8FromPath(crzPath), entryName, utf8FromPath(cromPath), error);
-    std::filesystem::remove(cromPath);
+        utf8FromPath(crzPath), entryName, cromBytes.size(),
+        [&cromBytes](std::ostream& stream) {
+            stream.write(reinterpret_cast<const char*>(cromBytes.data()),
+                         static_cast<std::streamsize>(cromBytes.size()));
+            return static_cast<bool>(stream);
+        },
+        colorizing::legacy::kCrzCompressionLevel, error);
     expect(written, "test archive should be written: " + error);
     return crzPath;
 }
@@ -859,6 +864,56 @@ void testFileWriterWritesCrzOfTheSavedCrom()
     expect(reloadResult.ok, "project should reload from the written cRZ");
     expect(reloadResult.snapshot.frames[0].colorizedSd.pixels[0] == 0x1357,
            "project reloaded from the written cRZ should carry the edit");
+}
+
+// The editor saves a project as its .cRZ and .cRPX only: the archive gets the cROM compressed
+// while it is written, no .cROM is written, not even a temporary one.
+void testFileWriterSavesCrzWithoutCrom()
+{
+    LegacyLoadResult loadResult = loadSyntheticProject();
+    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
+    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
+    const LegacySaveResult saved = LegacyProjectFileWriter().save(
+        LegacyProjectPaths{{}, utf8FromPath(crpxPath), utf8FromPath(crzPath)},
+        loadResult.snapshot);
+    expect(saved.ok, "the writer saves the .cRZ alone: " + saved.error.message);
+    std::ostringstream crom;
+    std::string error;
+    expect(colorizing::legacy::writeLegacyCrom(crom, loadResult.snapshot, error),
+           "the cROM bytes to compare with");
+    std::vector<uint8_t> archived;
+    expect(colorizing::legacy::readCrzArchive(utf8FromPath(crzPath), archived, error) &&
+               std::string(archived.begin(), archived.end()) == crom.str(),
+           "the archive holds the cROM: " + error);
+    const LegacyLoadResult reloaded =
+        LegacyProjectFileReader().load(LegacyProjectPaths{utf8FromPath(crzPath), utf8FromPath(crpxPath)});
+    expect(reloaded.ok, "and the project opens from it: " + reloaded.error.message);
+    std::filesystem::remove(crpxPath);
+    std::filesystem::remove(crzPath);
+
+    // zip64, which a cROM of 4 GiB needs, as libserum reads it.
+    const std::vector<uint8_t> bytes(3000, 7);
+    const std::filesystem::path zip64Path = uniqueTempPath(".cRZ");
+    const auto writeBytesInto = [&bytes](std::ostream& stream) {
+        stream.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+        return static_cast<bool>(stream);
+    };
+    expect(colorizing::legacy::writeCrzArchive(utf8FromPath(zip64Path), "rom.cRom", bytes.size(),
+                                               writeBytesInto, 1, error, true),
+           "a zip64 archive is written: " + error);
+    std::vector<uint8_t> unpacked;
+    std::string entryName;
+    expect(colorizing::legacy::readCrzArchive(utf8FromPath(zip64Path), unpacked, error) &&
+               unpacked == bytes &&
+               colorizing::legacy::readCrzEntryName(utf8FromPath(zip64Path), entryName, error) &&
+               entryName == "rom.cRom",
+           "and read: " + error);
+    expect(std::filesystem::file_size(zip64Path) < 300, "compressed");
+    expect(!colorizing::legacy::writeCrzArchive(utf8FromPath(zip64Path), "rom.cRom",
+                                                bytes.size() + 1, writeBytesInto, 1, error),
+           "a cROM of another size than announced fails the archive");
+    std::filesystem::remove(zip64Path);
 }
 
 void testFileWriterFailureLeavesNoTemporaryFiles()
@@ -1126,5 +1181,6 @@ void runLegacyProjectFileReaderTests()
     testFileReaderLoadsProjectFromCrz();
     testFileReaderReportsUnreadableCrz();
     testFileWriterWritesCrzOfTheSavedCrom();
+    testFileWriterSavesCrzWithoutCrom();
     testFileWriterFailureLeavesNoTemporaryFiles();
 }

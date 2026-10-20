@@ -2802,7 +2802,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Project saved; the Win32 editor&apos;s %1 was renamed to %1.bak</source>
-        <translation>Projet enregistré ; le %1 de l&apos;éditeur Win32 a été renommé en %1.bak</translation>
+        <translation type="vanished">Projet enregistré ; le %1 de l&apos;éditeur Win32 a été renommé en %1.bak</translation>
     </message>
     <message>
         <source>Save New Project As</source>
@@ -2810,11 +2810,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Save cROM As</source>
-        <translation>Enregistrer le cROM sous</translation>
+        <translation type="vanished">Enregistrer le cROM sous</translation>
     </message>
     <message>
         <source>Serum colorization (*.cROM);;All files (*)</source>
-        <translation>Colorisation Serum (*.cROM);;Tous les fichiers (*)</translation>
+        <translation type="vanished">Colorisation Serum (*.cROM);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>Project saved as %1</source>
@@ -2943,6 +2943,18 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Scenes and Scaling</source>
         <translation type="vanished">Scènes et mise à l&apos;échelle</translation>
+    </message>
+    <message>
+        <source>Project saved; renamed to .bak, as they are out of date: %1</source>
+        <translation>Projet enregistré ; renommés en .bak, car obsolètes : %1</translation>
+    </message>
+    <message>
+        <source>Save Project As</source>
+        <translation>Enregistrer le projet sous</translation>
+    </message>
+    <message>
+        <source>Serum colorization (*.cRZ);;All files (*)</source>
+        <translation>Colorisation Serum (*.cRZ);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
@@ -4865,7 +4877,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <name>ProjectSettingsDialog</name>
     <message>
         <source>Project Settings</source>
-        <translation type="unfinished">Réglages du projet</translation>
+        <translation>Paramètres du projet</translation>
     </message>
 </context>
 <context>
@@ -4938,12 +4950,16 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Décompression de l&apos;archive .cRZ…</translation>
     </message>
     <message>
+        <source>Writing the .cRZ and .cRPX: %1 of %2 MB</source>
+        <translation>Écriture du .cRZ et du .cRPX : %1 sur %2 Mo</translation>
+    </message>
+    <message>
         <source>Writing the .cROM and .cRPX: %1 of %2 MB</source>
-        <translation>Écriture du .cROM et du .cRPX : %1 sur %2 Mo</translation>
+        <translation type="vanished">Écriture du .cROM et du .cRPX : %1 sur %2 Mo</translation>
     </message>
     <message>
         <source>Packing the .cRZ archive (this step cannot be interrupted)…</source>
-        <translation>Compression de l&apos;archive .cRZ (cette étape ne peut pas être interrompue)…</translation>
+        <translation type="vanished">Compression de l&apos;archive .cRZ (cette étape ne peut pas être interrompue)…</translation>
     </message>
     <message>
         <source>Replacing the project files…</source>

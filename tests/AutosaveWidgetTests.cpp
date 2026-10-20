@@ -50,9 +50,9 @@ void testNames()
 {
     const AutosaveFiles files = app::autosaveFilesFor(QStringLiteral("/p/afm_113b.cROM"),
                                                       QStringLiteral("/p/afm_113b.cRPX"));
-    expect(files.cromPath == QStringLiteral("/p/afm_113b(auto).cROM") &&
+    expect(files.cromPath == QStringLiteral("/p/afm_113b(auto).cRZ") &&
                files.crpPath == QStringLiteral("/p/afm_113b(auto).cRPX"),
-           "the Win32 editor's names beside the project, with a .cRPX");
+           "the Win32 editor's names beside the project, as .cRZ and .cRPX");
     expect(app::autosaveFilesFor(QStringLiteral("/p/afm_113b.cROM"),
                                  QStringLiteral("/p/afm_113b.cRP"))
                    .crpPath == QStringLiteral("/p/afm_113b(auto).cRPX"),
@@ -61,7 +61,7 @@ void testNames()
                !app::isAutosavePath(QStringLiteral("/p/afm_113b.cROM")),
            "an autosave is recognised by its name");
     const AutosaveFiles untitled = app::untitledAutosaveFiles("smb3");
-    expect(QFileInfo(untitled.cromPath).fileName() == QStringLiteral("smb3(auto).cROM") &&
+    expect(QFileInfo(untitled.cromPath).fileName() == QStringLiteral("smb3(auto).cRZ") &&
                QFileInfo(untitled.cromPath).absolutePath() ==
                    QDir(app::untitledAutosaveDirectory()).absolutePath(),
            "a never saved project's autosave is in the application's folder");
@@ -145,6 +145,10 @@ void testWriter()
             finishedRevision = revision;
             lastResult = result;
         });
+    // The loose cROM an earlier version autosaved.
+    QDir().mkpath(directory.filePath(QStringLiteral("sub")));
+    const QString oldAutosave = directory.filePath(QStringLiteral("sub/rom(auto).cROM"));
+    touch(oldAutosave, QDateTime::currentDateTime());
     const uint64_t revision = document.revision();
     expect(autosaver.runNow(), "a run starts");
     expect(!autosaver.runNow(), "not a second one while it runs");
@@ -153,6 +157,9 @@ void testWriter()
     expect(waitFor([&]() { return finished == 1; }), "the run finishes");
     expect(lastResult.ok && finishedRevision == revision, "and reports the snapshot's revision");
     expect(!autosaver.isRunning(), "nothing runs afterwards");
+    expect(files.cromPath.endsWith(QStringLiteral("(auto).cRZ")) && QFileInfo::exists(files.cromPath) &&
+               !QFileInfo::exists(oldAutosave),
+           "the autosave is a .cRZ, and an old loose cROM of an autosave is gone");
 
     const legacy::LegacyDocumentLoadResult loaded = legacy::loadLegacyProjectDocument(
         {files.cromPath.toStdString(), files.crpPath.toStdString(), {}}, nullptr);

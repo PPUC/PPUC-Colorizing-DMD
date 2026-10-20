@@ -3,20 +3,27 @@
 Use `File -> Save` or the standard Save shortcut.
 
 A new project (see "Creating A Project From A Dump") has no files until it is saved for the
-first time. `Save` and `Save As...` then ask for the `.cROM` to write, proposing `<ROM
-name>.cROM` in the folder of the dump; the name the runtime looks for is the ROM name. If the
+first time. `Save` and `Save As...` then ask for the `.cRZ` to write, proposing `<ROM
+name>.cRZ` in the folder of the dump; the name the runtime looks for is the ROM name. If the
 question is cancelled nothing is written and the project stays unsaved. After the first save the
 window title shows the file name instead of `<ROM name> (not saved yet)`, the project is in
 `File -> Open Recent`, and `Save` writes to those files without asking.
 
-Every save writes three files with the same base name into the project folder: `<name>.cROM`,
-`<name>.cRPX` and `<name>.cRZ`. The archive holds exactly the bytes of the `.cROM` just written,
-deflate-compressed, in one entry named `<ROM name>.cRom` (the ROM name stored in the project,
-which need not be the file name), as the Win32 editor writes it. An archive that already exists
-under another spelling of the extension (`.crz`) is the one that is replaced.
+Every save writes two files with the same base name into the project folder: `<name>.cRZ` and
+`<name>.cRPX`. The archive holds the cROM, deflate-compressed, in one entry named
+`<ROM name>.cRom` (the ROM name stored in the project, which need not be the file name), as the
+Win32 editor writes it; libserum loads it as it is. No `.cROM` is written: the cROM is
+compressed while it is written, so it is never on disk (not even as a temporary file) or in
+memory as a whole. An archive that already exists under another spelling of the extension
+(`.crz`) is the one that is replaced.
 
-Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cROM`
-path and writes the `.cROM`, a `.cRPX` and a `.cRZ` with the same base name there.
+A project opened from a `.cROM` (a project of the Win32 editor) is saved as the `.cRZ` beside
+it. The `.cROM` then holds an earlier state and is renamed to `<name>.cROM.bak` (replacing an
+older one), as the Win32 editor's `.cRP` is, so that it is not opened by mistake; the status bar
+names what was renamed. Delete the `.bak` files when they are no longer needed.
+
+Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cRZ`
+path and writes the `.cRZ` and a `.cRPX` with the same base name there.
 
 Use `File -> Export Current Frame PNG...` to export the current frame as a PNG. The picture is
 libserum's output for the frame, the one a machine shows, not the editor's own rendering; see
@@ -67,28 +74,25 @@ progress and can be cancelled; the frames done so far keep their pictures.
 Save behavior:
 
 - Saving runs in the background. A save that is done within a moment (about 0.3 s) shows
-  nothing; a longer one brings up the `Saving Project` window: `Writing the .cROM and .cRPX: N of
-  M MB` with a bar, then `Packing the .cRZ archive (this step cannot be interrupted)...` with a
-  busy bar, then `Replacing the project files...`. While it is up the main window takes no
+  nothing; a longer one brings up the `Saving Project` window: `Writing the .cRZ and .cRPX: N of
+  M MB` with a bar, then `Replacing the project files...`. While it is up the main window takes no
   input at all: nothing can be edited, no menu or shortcut works, so the files hold exactly the
   project as it was when `Save` was chosen. The project is saved from its blocks as they are in
   memory, without a copy of them, so a save needs little memory beyond the project.
 - `Cancel` (or Escape, or closing the small window) stops the save: the temporary files are
   removed, the project files on disk stay exactly as they were, the project keeps its unsaved
   changes, and the status bar says `Save cancelled: the project files on disk are unchanged`.
-  The packing of the archive is libserum's and cannot be interrupted; a `Cancel` pressed then
-  takes effect when it ends (`Cancelling when this step ends...`), and nothing is replaced.
   Once the files are being replaced, `Cancel` is disabled.
-- All three files are written completely next to their targets first (as `<file>.saving`) and
+- Both files are written completely next to their targets first (as `<file>.saving`) and
   then swapped in, so a failed or interrupted save does not leave a truncated project behind. If
   any of them cannot be written, including the archive, the save fails as a whole, the temporary
   files are removed and the existing files stay as they were.
-- Writing the archive compresses the whole `.cROM` at libserum's default level and takes most
-  of the time of a save: for a 450 MB `.cROM` about 0.7 s for the `.cROM` and `.cRP` and 5.6 s
-  for the archive; for a 1.67 GB `.cROM` about 2 s and 31 s.
-- The `.cRZ` is a plain zip without zip64 as long as the `.cROM` is smaller than 4 GiB. It is not
+- The archive is compressed at a fast level: a little larger than at the default level, much
+  faster to write. `afm_113b` (a 255 MB cROM) saves in 0.8 s to 3 MB, `trn_174h` (429 MB) in
+  2.3 s to 48 MB, a project with a 2.8 GB cROM in 16 s to 387 MB.
+- The `.cRZ` is a plain zip without zip64 as long as the cROM is smaller than 4 GiB. It is not
   byte-identical to the Win32 editor's archive of the same project (other deflate settings, no
-  timestamp extra field); the `.cROM` inside is.
+  timestamp extra field); the cROM inside is.
 - A ROM name containing `/`, `\` or `:` cannot be used as an archive entry name; saving such a
   project fails with a message.
 - An unedited project saves back byte-identical to what the Win32 editor wrote. This is checked
@@ -186,8 +190,9 @@ project's files (checked on `afm_113b`, `hook_501`, `trn_174h`, `smb3` and the 1
 ## Autosave and recovery
 
 Every 10 minutes, as in CDMD, a project with changes that were not autosaved yet is written to
-`<name>(auto).cROM` and `<name>(auto).cRPX` beside its files (`afm_113b(auto).cROM` for
-`afm_113b.cROM`; for a project opened from its `.cRZ`, beside the `.cRZ`). A new project that
+`<name>(auto).cRZ` and `<name>(auto).cRPX` beside its files (`afm_113b(auto).cRZ` for
+`afm_113b.cRZ`), compressed as a save is. A `<name>(auto).cROM` that earlier versions autosaved
+is deleted after the next autosave. A new project that
 was never saved is autosaved under its ROM name in the editor's own folder (on Windows
 `%LOCALAPPDATA%\ppuc.org\PPUC Colorizing DMD\autosave`, on macOS
 `~/Library/Application Support/ppuc.org/PPUC Colorizing DMD/autosave`, on Linux
@@ -196,7 +201,7 @@ was never saved is autosaved under its ROM name in the editor's own folder (on W
 - The files are written in the background while you go on working; they show the project as it
   was when the autosave started. The status bar says `Autosaved to <file> at <time>`, or why
   it failed. Nothing is written while a dialog is open or the project is unchanged.
-- An autosave never replaces the project files and adds no `.cRZ`. An autosave stopped by
+- An autosave never replaces the project files. An autosave stopped by
   quitting leaves the earlier autosave files as they were.
 - Opening a project whose autosave files are both newer than its files asks first:
   `Open Autosave` opens the autosave as that project with unsaved changes (`Save` then writes it

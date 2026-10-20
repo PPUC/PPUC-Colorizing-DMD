@@ -383,6 +383,20 @@ QString retireWin32EditorFile(const QString& cromPath)
     return QFile::rename(crpPath, backupPath) ? crpPath : QString();
 }
 
+// After a save: renames a "<name>.cROM" beside the saved .cRZ to "<name>.cROM.bak". The project
+// is saved as its .cRZ only, so the .cROM holds an earlier state, which must not be opened by
+// mistake. Returns the renamed file, or nothing.
+QString retireLooseCrom(const QString& crzPath)
+{
+    const QString cromPath = siblingProjectFile(crzPath, QStringLiteral("cROM"));
+    if (!QFileInfo(cromPath).isFile()) {
+        return {};
+    }
+    const QString backupPath = cromPath + QStringLiteral(".bak");
+    QFile::remove(backupPath);
+    return QFile::rename(cromPath, backupPath) ? cromPath : QString();
+}
+
 QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd)
 {
     switch (command.target().kind) {
@@ -2218,10 +2232,11 @@ bool MainWindow::saveProject()
     // The files are written on a worker thread (runProjectTask) from a snapshot that shares
     // every block with the document (copy on write), so the save copies no pixels. Nothing
     // can change the document meanwhile: the UI handles no input until the save has ended.
+    // The .cRZ and the .cRPX; no .cROM.
     const legacy::LegacyProjectPaths paths{
-        m_currentCromPath.toStdString(),
+        {},
         m_currentCrpPath.toStdString(),
-        siblingProjectFile(m_currentCromPath, QStringLiteral("cRZ")).toStdString(),
+        m_currentCromPath.toStdString(),
     };
     legacy::LegacySaveResult result;
     {
@@ -2254,12 +2269,21 @@ bool MainWindow::saveProject()
 
     m_document->markClean();
     updateProjectHeaderStatus();
-    const QString retired = retireWin32EditorFile(m_currentCromPath);
+    QStringList retired;
+    for (const QString& file : {retireWin32EditorFile(m_currentCromPath),
+                                retireLooseCrom(m_currentCromPath)}) {
+        if (!file.isEmpty()) {
+            retired << QFileInfo(file).fileName();
+        }
+    }
+    if (!retired.isEmpty()) {
+        rememberRecentProject(m_currentCromPath, m_currentCrpPath);
+    }
     statusBar()->showMessage(
         retired.isEmpty()
             ? tr("Project saved")
-            : tr("Project saved; the Win32 editor's %1 was renamed to %1.bak")
-                  .arg(QFileInfo(retired).fileName()),
+            : tr("Project saved; renamed to .bak, as they are out of date: %1")
+                  .arg(retired.join(QStringLiteral(", "))),
         retired.isEmpty() ? 3000 : 8000);
     return true;
 }
@@ -2276,22 +2300,22 @@ bool MainWindow::saveProjectAs()
     if (untitled) {
         const QDir directory(m_dumpDirectory.isEmpty() ? QDir::homePath() : m_dumpDirectory);
         proposedPath = directory.absoluteFilePath(QString::fromStdString(m_document->romName()) +
-                                                  QStringLiteral(".cROM"));
+                                                  QStringLiteral(".cRZ"));
     } else {
         const QFileInfo currentCromInfo(m_currentCromPath);
         proposedPath = currentCromInfo.dir().absoluteFilePath(
-            currentCromInfo.completeBaseName() + QStringLiteral("_copy.cROM"));
+            currentCromInfo.completeBaseName() + QStringLiteral("_copy.cRZ"));
     }
     QString targetCromPath = QFileDialog::getSaveFileName(
         this,
-        untitled ? tr("Save New Project As") : tr("Save cROM As"),
+        untitled ? tr("Save New Project As") : tr("Save Project As"),
         proposedPath,
-        tr("Serum colorization (*.cROM);;All files (*)"));
+        tr("Serum colorization (*.cRZ);;All files (*)"));
     if (targetCromPath.isEmpty()) {
         return false;
     }
-    if (!targetCromPath.endsWith(QStringLiteral(".cROM"), Qt::CaseInsensitive)) {
-        targetCromPath += QStringLiteral(".cROM");
+    if (!isCrzPath(targetCromPath)) {
+        targetCromPath += QStringLiteral(".cRZ");
     }
 
     const QFileInfo targetCromInfo(targetCromPath);
@@ -3139,11 +3163,8 @@ void MainWindow::importMovieIntoSelectedFrames()
 
 void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
 {
-    // Saving a project opened from its archive writes the loose .cROM next to it.
-    const QString savedCromPath =
-        isCrzPath(cromPath) ? siblingProjectFile(cromPath, QStringLiteral("cROM")) : cromPath;
     if (!isAutosavePath(cromPath)) {
-        const AutosaveFiles autosave = autosaveFilesFor(savedCromPath, crpPath);
+        const AutosaveFiles autosave = autosaveFilesFor(cromPath, crpPath);
         std::optional<QDateTime> autosaved = newerAutosaveTime(cromPath, crpPath, autosave);
         // An autosave whose changes were discarded is not offered again.
         const QDateTime discarded =
@@ -3235,10 +3256,10 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
     try {
         m_document = std::move(*result.document);
         result.document.reset();
-        // Saving a project opened from its archive writes the loose .cROM next to it.
+        // The project is saved as its .cRZ, also when it was opened from a .cROM.
         m_currentCromPath = isCrzPath(cromPath)
-                                ? siblingProjectFile(cromPath, QStringLiteral("cROM"))
-                                : cromPath;
+                                ? cromPath
+                                : siblingProjectFile(cromPath, QStringLiteral("cRZ"));
         m_currentCrpPath = win32Project ? editorFileFor(m_currentCromPath) : crpPath;
         if (!cromPath.isEmpty() && !crpPath.isEmpty()) {
             rememberRecentProject(cromPath, crpPath);

@@ -19,10 +19,11 @@ class QThread;
 
 namespace colorizing::app {
 
-// Where a project's autosave goes. As in the Win32 editor, but with the editor file of this
-// editor: "<name>(auto).cROM" and "<name>(auto).cRPX" beside the project. A project that was never saved has its autosave in
+// Where a project's autosave goes. As in the Win32 editor, but with the files of this editor:
+// "<name>(auto).cRZ" and "<name>(auto).cRPX" beside the project. A project that was never saved has its autosave in
 // untitledAutosaveDirectory(), under its ROM name.
 struct AutosaveFiles {
+    // The .cRZ.
     QString cromPath;
     QString crpPath;
 };

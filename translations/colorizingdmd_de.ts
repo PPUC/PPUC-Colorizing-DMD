@@ -2802,7 +2802,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Project saved; the Win32 editor&apos;s %1 was renamed to %1.bak</source>
-        <translation>Projekt gespeichert; die Datei %1 des Win32-Editors wurde in %1.bak umbenannt</translation>
+        <translation type="vanished">Projekt gespeichert; die Datei %1 des Win32-Editors wurde in %1.bak umbenannt</translation>
     </message>
     <message>
         <source>Save New Project As</source>
@@ -2810,11 +2810,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Save cROM As</source>
-        <translation>cROM speichern unter</translation>
+        <translation type="vanished">cROM speichern unter</translation>
     </message>
     <message>
         <source>Serum colorization (*.cROM);;All files (*)</source>
-        <translation>Serum-Kolorierung (*.cROM);;Alle Dateien (*)</translation>
+        <translation type="vanished">Serum-Kolorierung (*.cROM);;Alle Dateien (*)</translation>
     </message>
     <message>
         <source>Project saved as %1</source>
@@ -2943,6 +2943,18 @@ Use Create %1 Frame.</source>
     <message>
         <source>Scenes and Scaling</source>
         <translation type="vanished">Szenen und Skalierung</translation>
+    </message>
+    <message>
+        <source>Project saved; renamed to .bak, as they are out of date: %1</source>
+        <translation>Projekt gespeichert; in .bak umbenannt, da veraltet: %1</translation>
+    </message>
+    <message>
+        <source>Save Project As</source>
+        <translation>Projekt speichern unter</translation>
+    </message>
+    <message>
+        <source>Serum colorization (*.cRZ);;All files (*)</source>
+        <translation>Serum-Kolorierung (*.cRZ);;Alle Dateien (*)</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
@@ -4865,7 +4877,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <name>ProjectSettingsDialog</name>
     <message>
         <source>Project Settings</source>
-        <translation type="unfinished">Projekteinstellungen</translation>
+        <translation>Projekteinstellungen</translation>
     </message>
 </context>
 <context>
@@ -4938,12 +4950,16 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Das .cRZ-Archiv wird entpackt…</translation>
     </message>
     <message>
+        <source>Writing the .cRZ and .cRPX: %1 of %2 MB</source>
+        <translation>.cRZ und .cRPX werden geschrieben: %1 von %2 MB</translation>
+    </message>
+    <message>
         <source>Writing the .cROM and .cRPX: %1 of %2 MB</source>
-        <translation>.cROM und .cRPX werden geschrieben: %1 von %2 MB</translation>
+        <translation type="vanished">.cROM und .cRPX werden geschrieben: %1 von %2 MB</translation>
     </message>
     <message>
         <source>Packing the .cRZ archive (this step cannot be interrupted)…</source>
-        <translation>Das .cRZ-Archiv wird gepackt (dieser Schritt kann nicht unterbrochen werden)…</translation>
+        <translation type="vanished">Das .cRZ-Archiv wird gepackt (dieser Schritt kann nicht unterbrochen werden)…</translation>
     </message>
     <message>
         <source>Replacing the project files…</source>

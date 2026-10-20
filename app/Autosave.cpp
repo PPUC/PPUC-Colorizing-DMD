@@ -28,9 +28,7 @@ QString autosaveSibling(const QString& path, const QString& extension)
 
 AutosaveFiles autosaveFilesFor(const QString& cromPath, const QString& crpPath)
 {
-    // The cROM of a project opened from its .cRZ is saved as .cROM beside it; so is its
-    // autosave.
-    return AutosaveFiles{autosaveSibling(cromPath, QStringLiteral("cROM")),
+    return AutosaveFiles{autosaveSibling(cromPath, QStringLiteral("cRZ")),
                          autosaveSibling(crpPath, QStringLiteral("cRPX"))};
 }
 
@@ -44,7 +42,7 @@ AutosaveFiles untitledAutosaveFiles(const std::string& romName)
 {
     const QDir directory(untitledAutosaveDirectory());
     const QString base = QString::fromStdString(romName) + kAutoSuffix;
-    return AutosaveFiles{directory.absoluteFilePath(base + QStringLiteral(".cROM")),
+    return AutosaveFiles{directory.absoluteFilePath(base + QStringLiteral(".cRZ")),
                          directory.absoluteFilePath(base + QStringLiteral(".cRPX"))};
 }
 
@@ -77,7 +75,7 @@ std::vector<AutosaveFiles> untitledAutosaves()
     const QDir directory(untitledAutosaveDirectory());
     std::vector<std::pair<QDateTime, AutosaveFiles>> found;
     const QFileInfoList croms = directory.entryInfoList(
-        {QStringLiteral("*") + kAutoSuffix + QStringLiteral(".cROM")}, QDir::Files);
+        {QStringLiteral("*") + kAutoSuffix + QStringLiteral(".cRZ")}, QDir::Files);
     for (const QFileInfo& crom : croms) {
         const QFileInfo crp(directory.absoluteFilePath(crom.completeBaseName() +
                                                        QStringLiteral(".cRPX")));
@@ -137,11 +135,17 @@ bool Autosaver::runNow()
     m_thread = QThread::create([run, directory]() {
         try {
             QDir().mkpath(directory);
-            const legacy::LegacyProjectPaths paths{run->job.files.cromPath.toStdString(),
+            const legacy::LegacyProjectPaths paths{{},
                                                    run->job.files.crpPath.toStdString(),
-                                                   {}};
+                                                   run->job.files.cromPath.toStdString()};
             run->result =
                 legacy::LegacyProjectFileWriter().save(paths, run->job.snapshot, &run->progress);
+            if (run->result.ok) {
+                // An autosave of earlier versions, a loose cROM, is out of date now.
+                const QFileInfo archive(run->job.files.cromPath);
+                QFile::remove(archive.dir().absoluteFilePath(archive.completeBaseName() +
+                                                             QStringLiteral(".cROM")));
+            }
         } catch (const std::exception& ex) {
             run->result = legacy::makeSaveFailure(ex.what());
         }

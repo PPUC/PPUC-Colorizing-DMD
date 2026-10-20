@@ -71,14 +71,15 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
                                                const document::ProjectSnapshot& snapshot,
                                                LegacyIoProgress* progress) const
 {
-    if (paths.cromPath.empty() || paths.crpPath.empty()) {
-        return makeSaveFailure("both .cROM and .cRP paths are required");
+    if (paths.crpPath.empty() || (paths.cromPath.empty() && paths.crzPath.empty())) {
+        return makeSaveFailure("a .cRZ or .cROM path and the .cRP path are required");
     }
     // Raw cROM bytes under an archive name would be unreadable for everything that opens it.
     if (hasCrzExtension(paths.cromPath) || hasCrzExtension(paths.crpPath)) {
         return makeSaveFailure("a .cRZ archive cannot be the .cROM or .cRP target");
     }
-    if (paths.crzPath == paths.cromPath || paths.crzPath == paths.crpPath) {
+    if (paths.crzPath == paths.crpPath ||
+        (!paths.cromPath.empty() && paths.crzPath == paths.cromPath)) {
         return makeSaveFailure("the .cRZ path must differ from the .cROM and .cRP paths");
     }
 
@@ -86,33 +87,33 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     const bool crpx = hasCrpxExtension(paths.crpPath);
 
     // All files are written completely beside their targets first, so a failed or interrupted
-    // save never leaves a truncated project behind. The archive is built from the temporary
-    // .cROM, so it holds exactly the bytes that become the .cROM.
-    // A cancel is honoured between the steps and while the files are written; libserum's
-    // compression runs to its end, and the cancel takes effect after it. Until the renames
-    // nothing but the temporary files has been touched.
+    // save never leaves a truncated project behind. The archive gets the cROM compressed while
+    // it is written: no .cROM is written for it. A cancel is honoured while the files are
+    // written; until the renames nothing but the temporary files has been touched.
+    const uint64_t cromBytes = legacyCromByteCount(snapshot);
     if (progress) {
         progress->done.store(0);
-        progress->total.store(legacyCromByteCount(snapshot) +
+        progress->total.store((paths.cromPath.empty() ? 0 : cromBytes) +
+                              (paths.crzPath.empty() ? 0 : cromBytes) +
                               (crpx ? crpxByteCount(snapshot) : legacyCrpByteCount(snapshot)));
         progress->setStage(LegacyIoStage::Writing);
     }
     std::string errorMessage;
     bool written = !isCancelled(progress) &&
-                   writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot,
-                                      progress, errorMessage) &&
+                   (paths.cromPath.empty() ||
+                    writeTemporaryFile(paths.cromPath, ".cROM", writeLegacyCrom, snapshot,
+                                       progress, errorMessage)) &&
                    writeTemporaryFile(paths.crpPath, crpx ? ".cRPX" : ".cRP",
                                       crpx ? writeCrpx : writeLegacyCrp, snapshot, progress,
                                       errorMessage);
     if (written && !paths.crzPath.empty() && !isCancelled(progress)) {
-        if (progress) {
-            progress->setStage(LegacyIoStage::Compressing);
-        }
         std::string detail;
-        written = writeCrzArchive(temporaryPathFor(paths.crzPath),
-                                  crzEntryNameFor(snapshot.romName),
-                                  temporaryPathFor(paths.cromPath),
-                                  detail);
+        written = writeCrzArchive(
+            temporaryPathFor(paths.crzPath), crzEntryNameFor(snapshot.romName), cromBytes,
+            [&](std::ostream& stream) {
+                return writeLegacyCrom(stream, snapshot, detail, nullptr, progress);
+            },
+            kCrzCompressionLevel, detail);
         if (!written) {
             errorMessage = "could not write .cRZ file: " + paths.crzPath + " (" + detail + ")";
         }
@@ -133,16 +134,14 @@ LegacySaveResult LegacyProjectFileWriter::save(const LegacyProjectPaths& paths,
     // and MoveFileExW(MOVEFILE_REPLACE_EXISTING) in both MSVC's and MinGW's libstdc++.
     std::error_code error;
     const auto replace = [&error](const std::string& target) {
-        std::filesystem::rename(platform::pathFromUtf8(temporaryPathFor(target)),
-                                platform::pathFromUtf8(target), error);
+        if (!error && !target.empty()) {
+            std::filesystem::rename(platform::pathFromUtf8(temporaryPathFor(target)),
+                                    platform::pathFromUtf8(target), error);
+        }
     };
     replace(paths.cromPath);
-    if (!error) {
-        replace(paths.crpPath);
-    }
-    if (!error && !paths.crzPath.empty()) {
-        replace(paths.crzPath);
-    }
+    replace(paths.crpPath);
+    replace(paths.crzPath);
     if (error) {
         removeTemporaryFiles(paths);
         return makeSaveFailure("could not replace project files: " + error.message());

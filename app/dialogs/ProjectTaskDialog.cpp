@@ -114,11 +114,8 @@ void ProjectTaskDialog::updateProgress()
         text = tr("Unpacking the .cRZ archive…");
         break;
     case legacy::LegacyIoStage::Writing:
-        text = tr("Writing the .cROM and .cRPX: %1 of %2 MB")
+        text = tr("Writing the .cRZ and .cRPX: %1 of %2 MB")
                    .arg(megabytes(done), megabytes(total));
-        break;
-    case legacy::LegacyIoStage::Compressing:
-        text = tr("Packing the .cRZ archive (this step cannot be interrupted)…");
         break;
     case legacy::LegacyIoStage::Replacing:
         text = tr("Replacing the project files…");
@@ -134,7 +131,6 @@ void ProjectTaskDialog::updateProgress()
     }
     if (cancelling) {
         text = stage == legacy::LegacyIoStage::Decompressing ||
-                       stage == legacy::LegacyIoStage::Compressing ||
                        stage == legacy::LegacyIoStage::Generating
                    ? tr("Cancelling when this step ends…")
                    : tr("Cancelling…");

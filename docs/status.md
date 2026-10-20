@@ -1719,3 +1719,21 @@ sidebar runs the full height: an outer splitter (main column | inspector), the m
 the inner splitter (left sidebar | canvas) above the frame strip. `layout/sidebarWidths` keeps the
 three widths as before.
 
+## Saving as .cRZ only, fast compression (2026-10-20)
+
+Owner: the loose `.cROM` beside each project (and the `(auto).cROM`) took a lot of space. Save,
+Save As and Autosave now write `.cRZ` + `.cRPX` only, deflate level 1 (owner decision, replacing
+the earlier "libserum's default level"). `legacy::writeCrzArchive(path, entry, size, write,
+level, ...)` in `LegacyCrzArchive.cpp` writes the zip itself: the cROM serializer writes into a
+streambuf that deflates (miniz tdefl) straight into the archive file, CRC and sizes are patched
+into the local header afterwards; zip64 (extra fields, zip64 end record and locator) only from
+4 GiB (testable with `forceZip64`). No temporary cROM, no read-back; libserum's
+`Serum_CRZ_WriteFromFile` is no longer used by the editor. `LegacyProjectPaths.cromPath` is
+optional when saving (the round-trip tool and tests still write a `.cROM`). The `Compressing`
+stage is gone. `m_currentCromPath` is the project's `.cRZ`, also for a project opened from a
+`.cROM`; after a save a `.cROM` beside it is renamed to `.cROM.bak` (`retireLooseCrom`). Autosave
+writes `(auto).cRZ` and deletes an old `(auto).cROM` beside it.
+Measured (save, size; before: default level after writing the cROM): afm_113b 0.8 s, 3.0 MB
+(1.25 s, 1.3 MB); trn_174h 2.3 s, 48 MB (6.4 s, 41 MB); GoT (2.8 GB cROM) 15.8 s, 387 MB (34 s,
+351 MB); all reopen.
+

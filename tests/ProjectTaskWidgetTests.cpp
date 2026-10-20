@@ -247,13 +247,13 @@ void testDialogTexts()
     progress.total = 4 * 1024 * 1024;
     progress.done = 1024 * 1024;
     dialog.updateProgress();
-    expect(dialog.statusText() == QStringLiteral("Writing the .cROM and .cRPX: 1 of 4 MB"),
+    expect(dialog.statusText() == QStringLiteral("Writing the .cRZ and .cRPX: 1 of 4 MB"),
            "writing shows the bytes: " + dialog.statusText().toStdString());
-    progress.setStage(legacy::LegacyIoStage::Compressing);
+    progress.setStage(legacy::LegacyIoStage::Generating);
     dialog.updateProgress();
-    expect(dialog.statusText().startsWith(QStringLiteral("Packing the .cRZ archive")),
-           "compressing has its text");
-    expect(dialog.isCancelEnabled(), "compression can be cancelled (after it ends)");
+    expect(dialog.statusText().startsWith(QStringLiteral("libserum generates")),
+           "a libserum step has its text");
+    expect(dialog.isCancelEnabled(), "a libserum step can be cancelled (after it ends)");
     dialog.reject();
     expect(progress.cancel.load() && dialog.statusText() ==
                                          QStringLiteral("Cancelling when this step ends…"),
