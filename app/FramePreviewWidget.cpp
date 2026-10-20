@@ -708,6 +708,12 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
         event->accept();
         return;
     }
+    if (m_panMode) {
+        // Moving the mouse with Space held and no button down: nothing to hover.
+        updateHelperLineCursor(event->position());
+        event->accept();
+        return;
+    }
     if (showsRuntimeView()) {
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
@@ -1046,6 +1052,11 @@ std::optional<std::size_t> FramePreviewWidget::helperLineHandleAt(QPointF positi
 
 void FramePreviewWidget::updateHelperLineCursor(QPointF point)
 {
+    // While Space is held the hand stays, whatever is under the mouse.
+    if (m_panMode) {
+        setCursor(m_panFrom ? Qt::ClosedHandCursor : Qt::OpenHandCursor);
+        return;
+    }
     std::optional<std::size_t> line;
     if (m_helperLineDrag) {
         line = m_helperLineDrag->line;

@@ -639,6 +639,16 @@ void testFramePreviewZoom()
     const QPointF panStart = widget.viewOffset();
     widget.setPanMode(true);
     expect(widget.cursor().shape() == Qt::OpenHandCursor, "an open hand while Space is held");
+    // Hovering over a pixel (no helper line under the mouse) keeps the hand. The window shows
+    // the position, so the canvas follows the mouse without a button.
+    widget.setPositionHandler([](auto, auto) {});
+    const QPointF overPixel(widget.width() / 2.0, widget.height() / 4.0);
+    expect(widget.hitTestAt(overPixel.toPoint()).has_value(), "the point is over a pixel");
+    QMouseEvent hover(QEvent::MouseMove, overPixel, overPixel, widget.mapToGlobal(overPixel),
+                      Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &hover);
+    expect(widget.cursor().shape() == Qt::OpenHandCursor,
+           "moving the mouse over the pixels keeps the hand");
     const QPointF from(widget.width() / 2.0, widget.height() / 4.0);
     const QPointF to = from + QPointF(40.0, 0.0);
     QMouseEvent panPress(QEvent::MouseButtonPress, from, from, widget.mapToGlobal(from),

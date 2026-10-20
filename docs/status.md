@@ -1987,3 +1987,12 @@ target lives in `MainWindow::m_paintTarget` (`setPaintTarget`/`activePaintTarget
 Edit BG, Back to Frame, the frame double click and the history. FramePanel lost
 `setPaintTarget`, `setPaintTargetEnabled`, `paintTarget`, `onPaintTargetChanged`. Handbook
 chapters 13, 18, 19, 20, 25, 32 now speak of Edit BG.
+
+## Space panning cursor (2026-10-20, owner report, macOS)
+
+Bug: with Space held, the hand switched back to the arrow at once over the frame's pixels. The
+hover path of `FramePreviewWidget::mouseMoveEvent` (no button) called
+`updateHelperLineCursor`, which unset the cursor when no helper line was under the mouse. In
+pan mode the hover path now only keeps the hand (open, or closed while dragging) and returns.
+Test: the hover check in the zoom/pan test (needs mouse tracking, given by a position handler
+as in the window).
