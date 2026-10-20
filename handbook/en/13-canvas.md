@@ -46,8 +46,7 @@ shown under the mouse at any zoom.
 
 - `View -> Zoom In` (`Ctrl/Cmd++` or `Ctrl/Cmd+=`) and `Zoom Out` (`Ctrl/Cmd+-`) zoom by a quarter around
   the middle of the shown part; `View -> Show Whole Frame` (`Ctrl/Cmd+0`) goes back to `100%`. The
-  toolbar has `-`, the zoom (a click shows the whole frame), `+` and `100%`, which goes straight
-  back to the whole frame.
+  toolbar has `-`, the zoom (a click goes straight back to the whole frame) and `+`.
 - `Ctrl/Cmd` with the mouse wheel, and a trackpad pinch, zoom around the mouse:
   the pixel under it stays there.
 - When the frame is larger than its half, scroll bars at the bottom and the right of the canvas

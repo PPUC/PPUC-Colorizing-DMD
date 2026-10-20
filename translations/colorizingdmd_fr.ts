@@ -2925,7 +2925,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Back to 100%: the whole frame, or the whole sprite (%1)</source>
-        <translation>Retour à 100 % : la frame entière ou le sprite entier (%1)</translation>
+        <translation type="vanished">Retour à 100 % : la frame entière ou le sprite entier (%1)</translation>
     </message>
     <message>
         <source>Add an empty comparison mask</source>
@@ -4532,7 +4532,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Scene(s) %1 get fewer frames; their later frames are renumbered (markers included), so the frame numbers have no gap.</source>
-        <translation>La ou les scènes %1 ont moins de frames ; leurs frames suivantes sont renumérotées (marqueurs compris), pour que les numéros de frame n'aient pas de trou.</translation>
+        <translation>La ou les scènes %1 ont moins de frames ; leurs frames suivantes sont renumérotées (marqueurs compris), pour que les numéros de frame n&apos;aient pas de trou.</translation>
     </message>
     <message>
         <source>Delete Frames</source>

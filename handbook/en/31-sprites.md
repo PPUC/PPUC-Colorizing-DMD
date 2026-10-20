@@ -41,11 +41,11 @@ The controls:
   shows that frame for editing.
 - The sprite editor zooms as the canvas does: `View -> Zoom In` / `Zoom Out` (`Ctrl/Cmd++`,
   `Ctrl/Cmd+-`) around the middle, `Ctrl/Cmd` with the mouse wheel and a pinch on a trackpad
-  around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) and the
-  toolbar's `100%` go back to that size. Zoomed in, scroll bars at the bottom and the right, the
+  around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) and a
+  click on the toolbar's zoom go back to that size. Zoomed in, scroll bars at the bottom and the right, the
   mouse wheel (with `Shift` sideways), a trackpad, and a drag while `Space` is held move the shown
-  part. While the sprite editor is shown, these entries and the toolbar's `-`, zoom, `+` and
-  `100%` zoom it, not the frame canvas, and the toolbar shows its zoom.
+  part. While the sprite editor is shown, these entries and the toolbar's `-`, zoom and `+` zoom
+  it, not the frame canvas, and the toolbar shows its zoom.
 - `Create HD Sprite` on the `Sprite` section creates the HD mask and colors of the selected
   sprite by scaling its SD data to 2x: the colors with the filter chosen in the window it opens
   (the one used last, by any `Create HD`, is preselected), the mask doubled. `Remove HD Sprite`

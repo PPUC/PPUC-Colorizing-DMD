@@ -1977,3 +1977,5 @@ SceneEditCommand. `MainWindow::deleteFrames` takes this path when a scene frame 
 frames (the question names the scenes; a refusal is a message box). Scene thumbnails get the
 HD badge of their first frame (`drawHdBadge`, shared with sprite/background thumbnails).
 Test: `testDeleteSceneFrames`.
+Owner, later the same day: the separate `100%` toolbar button was redundant (a click on the
+zoom between `-` and `+` already resets it) and is gone again.

@@ -1585,22 +1585,9 @@ void MainWindow::createCentralView()
             m_preview->zoomIn();
         }
     });
-    // Back to 100% (the whole frame, or the whole sprite) in one click.
-    auto* zoomResetButton = new QToolButton(central);
-    zoomResetButton->setText(QStringLiteral("100%"));
-    zoomResetButton->setToolTip(tr("Back to 100%: the whole frame, or the whole sprite (%1)")
-                                    .arg(nativeShortcut(QStringLiteral("Ctrl+0"))));
-    connect(zoomResetButton, &QToolButton::clicked, this, [this]() {
-        if (spriteCanvasShown()) {
-            m_spriteEditor->resetZoom();
-        } else {
-            m_preview->resetZoom();
-        }
-    });
     toolbarLayout->addWidget(zoomOutButton);
     toolbarLayout->addWidget(m_zoomButton);
     toolbarLayout->addWidget(zoomInButton);
-    toolbarLayout->addWidget(zoomResetButton);
     // The zoom of the canvas that is shown: the frame canvas or the sprite canvas.
     m_preview->onViewChanged = [this]() { updateZoomButton(); };
     if (m_spriteEditor) {
