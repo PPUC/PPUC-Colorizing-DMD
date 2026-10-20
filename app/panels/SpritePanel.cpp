@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QSignalBlocker>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QStringList>
 #include <QToolButton>
@@ -189,11 +190,21 @@ SpritePanel::SpritePanel(QWidget* parent)
     frameLayout->setContentsMargins(6, 6, 6, 6);
     m_frameSpritesLabel = new QLabel(tr("No frame sprites"), m_framePage);
     m_frameSpritesLabel->setWordWrap(true);
-    m_frameSpritesLabel->setMinimumHeight(28);
+    m_frameSpritesLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    // The frame's sprites can be 16 lines: they scroll in a few lines' height (the left
+    // sidebar's "Used by the current frame" lists them as well).
+    auto* frameSpritesArea = new QScrollArea(m_framePage);
+    frameSpritesArea->setWidget(m_frameSpritesLabel);
+    frameSpritesArea->setWidgetResizable(true);
+    frameSpritesArea->setFrameShape(QFrame::NoFrame);
+    frameSpritesArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    frameSpritesArea->setMaximumHeight(
+        QFontMetrics(m_frameSpritesLabel->font()).lineSpacing() * 4 + 6);
+    frameSpritesArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
     m_selectedSpriteLabel = new QLabel(tr("Selected: None"), m_framePage);
     m_selectedSpriteLabel->setWordWrap(true);
     frameLayout->addWidget(m_selectedSpriteLabel);
-    frameLayout->addWidget(m_frameSpritesLabel);
+    frameLayout->addWidget(frameSpritesArea);
     frameLayout->addWidget(m_slotComboBox);
     auto* slotButtonLayout = new QHBoxLayout();
     slotButtonLayout->addWidget(m_assignButton);

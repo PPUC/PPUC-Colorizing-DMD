@@ -2048,3 +2048,5 @@ on the colorized frame. Now: `spriteCoverage(document, frame, plane)` (FrameImag
 under green 2 px, cosmetic); widget default off, the window follows the Frame Sprites toggle
 `Outline Sprites` (on at first, `isOutlinesChecked`, `onOutlinesToggled`). Tests: coverage and
 outline in `testSpriteCompositionRendersInSdAndHd`, the toggle in the sprite panel test.
+Frame Sprites list (owner, same day): the frame's sprite lines (up to 16) are in a QScrollArea
+of four lines' height instead of a growing label. Version 3.99.5.
