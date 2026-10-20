@@ -78,6 +78,10 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/InspectorForm.h
     panels/ProjectSettingsPanel.cpp
     panels/ProjectSettingsPanel.h
+    panels/SceneSettingsForm.cpp
+    panels/SceneSettingsForm.h
+    panels/SceneSettingsPanel.cpp
+    panels/SceneSettingsPanel.h
     panels/ScenesPanel.cpp
     panels/ScenesPanel.h
     panels/BackgroundPanel.cpp

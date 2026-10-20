@@ -22,6 +22,8 @@
 #include "edit/StructureCommand.h"
 #include "dialogs/ProjectSettingsDialog.h"
 #include "panels/ProjectSettingsPanel.h"
+#include "panels/SceneSettingsForm.h"
+#include "panels/SceneSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 
 namespace {
@@ -165,6 +167,60 @@ void testProjectSettings()
            "a choice in the dialog changes nothing until the owner applies it");
 }
 
+// The Scene section: the scene of the frame shown, changed with Apply.
+void testSettingsPanel()
+{
+    document::SceneDefinition scene;
+    scene.sceneId = 50003;
+    scene.frameCount = 68;
+    scene.frameGroups = 1;
+    scene.durationMs = 50;
+    scene.options = document::kSceneAsBackground;
+    app::SceneSettingsPanel panel;
+    std::vector<document::SceneDefinition> applied;
+    std::vector<uint16_t> appliedIds;
+    panel.onApplyRequested = [&](uint16_t id, const document::SceneDefinition& changed) {
+        appliedIds.push_back(id);
+        applied.push_back(changed);
+    };
+    QPushButton* apply = button(panel, QStringLiteral("Apply"));
+    QPushButton* revert = button(panel, QStringLiteral("Revert"));
+    expect(apply && revert && !panel.form()->isEnabled() && !panel.sceneId(),
+           "without a scene the section offers nothing");
+    panel.setScene(scene, [](const document::SceneDefinition& candidate) {
+        return candidate.sceneId == 50004 ? std::string("taken") : std::string();
+    });
+    expect(panel.sceneId() == 50003 && panel.form()->scene() == scene && !apply->isEnabled() &&
+               !revert->isEnabled() && !panel.hasChanges(),
+           "the section shows the scene's settings, nothing to apply yet");
+    QSpinBox* duration = nullptr;
+    QSpinBox* id = nullptr;
+    for (QSpinBox* spinBox : panel.findChildren<QSpinBox*>()) {
+        if (spinBox->value() == 50) {
+            duration = spinBox;
+        }
+        if (spinBox->value() == 50003) {
+            id = spinBox;
+        }
+    }
+    expect(duration && id, "the section has the fields");
+    duration->setValue(40);
+    expect(apply->isEnabled() && revert->isEnabled() && panel.hasChanges(),
+           "a change can be applied or reverted");
+    id->setValue(50004);
+    expect(!apply->isEnabled(), "a problem disables Apply");
+    id->setValue(50003);
+    apply->click();
+    expect(appliedIds == std::vector<uint16_t>{50003} && applied.size() == 1 &&
+               applied[0].durationMs == 40 && applied[0].frameCount == 68,
+           "Apply asks for the scene as the fields say, by its old ID");
+    revert->click();
+    expect(duration->value() == 50 && !panel.hasChanges() && !apply->isEnabled(),
+           "Revert shows the scene's settings again");
+    panel.setScene(std::nullopt, nullptr);
+    expect(!panel.form()->isEnabled() && !panel.sceneId(), "a frame of no scene: nothing");
+}
+
 void testDialog()
 {
     document::SceneDefinition scene;
@@ -220,6 +276,7 @@ void runScenesWidgetTests()
 {
     testPanel();
     testThumbnailCaptions();
+    testSettingsPanel();
     testProjectSettings();
     testDialog();
 }

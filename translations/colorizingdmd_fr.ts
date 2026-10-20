@@ -2956,6 +2956,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Sprites</translation>
     </message>
     <message>
+        <source>Scene</source>
+        <translation>Scène</translation>
+    </message>
+    <message>
         <source>Frame</source>
         <translation>Frame</translation>
     </message>
@@ -5612,6 +5616,184 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The PUP trigger that starts the scene, from %1 to %2</source>
+        <translation type="vanished">Le déclencheur PUP qui lance la scène, de %1 à %2</translation>
+    </message>
+    <message>
+        <source>Frames of each group</source>
+        <translation type="vanished">Frames de chaque groupe</translation>
+    </message>
+    <message>
+        <source>Sets of frames the scene can show; each time it plays, it shows one of them</source>
+        <translation type="vanished">Jeux de frames que la scène peut montrer ; à chaque lecture, elle en montre un</translation>
+    </message>
+    <message>
+        <source>Pick the group at random</source>
+        <translation type="vanished">Choisir le groupe au hasard</translation>
+    </message>
+    <message>
+        <source>Otherwise the groups play in turn</source>
+        <translation type="vanished">Sinon les groupes passent à tour de rôle</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation type="vanished"> ms</translation>
+    </message>
+    <message>
+        <source>How long each frame shows</source>
+        <translation type="vanished">Durée d&apos;affichage de chaque frame</translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation type="vanished">Une fois</translation>
+    </message>
+    <message>
+        <source>In a loop</source>
+        <translation type="vanished">En boucle</translation>
+    </message>
+    <message>
+        <source>Several times</source>
+        <translation type="vanished">Plusieurs fois</translation>
+    </message>
+    <message>
+        <source> times</source>
+        <translation type="vanished"> fois</translation>
+    </message>
+    <message>
+        <source>Can be interrupted</source>
+        <translation type="vanished">Interruptible</translation>
+    </message>
+    <message>
+        <source>A frame of the game identified while the scene plays ends it</source>
+        <translation type="vanished">Une frame du jeu identifiée pendant la scène y met fin</translation>
+    </message>
+    <message>
+        <source>Start immediately</source>
+        <translation type="vanished">Démarrer immédiatement</translation>
+    </message>
+    <message>
+        <source>Show the first frame when the trigger fires, without waiting for the next frame of the game</source>
+        <translation type="vanished">Afficher la première frame dès que le déclencheur se produit, sans attendre la frame suivante du jeu</translation>
+    </message>
+    <message>
+        <source>Keep its last frame</source>
+        <translation type="vanished">Garder sa dernière frame</translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation type="vanished">Noir</translation>
+    </message>
+    <message>
+        <source>The frame before the scene</source>
+        <translation type="vanished">La frame d&apos;avant la scène</translation>
+    </message>
+    <message>
+        <source>What shows when the scene has played</source>
+        <translation type="vanished">Ce qui s&apos;affiche une fois la scène jouée</translation>
+    </message>
+    <message>
+        <source> s</source>
+        <translation type="vanished"> s</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation type="vanished">Désactivé</translation>
+    </message>
+    <message>
+        <source>Play as a background</source>
+        <translation type="vanished">Jouer en arrière-plan</translation>
+    </message>
+    <message>
+        <source>The scene shows behind the frames of the game, where their background mask lets it through</source>
+        <translation type="vanished">La scène apparaît derrière les frames du jeu, là où leur masque d&apos;arrière-plan la laisse passer</translation>
+    </message>
+    <message>
+        <source>Keep only dynamic content in front</source>
+        <translation type="vanished">Ne garder que le contenu dynamique devant</translation>
+    </message>
+    <message>
+        <source>Of the frames of the game, only dynamic zones, sprites and shadows show over the scene</source>
+        <translation type="vanished">Des frames du jeu, seuls les zones dynamiques, les sprites et les ombres s&apos;affichent par-dessus la scène</translation>
+    </message>
+    <message>
+        <source>Black dynamic pixels show the scene</source>
+        <translation type="vanished">Les pixels dynamiques noirs montrent la scène</translation>
+    </message>
+    <message>
+        <source>Dynamic-zone pixels that are black let the background scene through and cast no shadow</source>
+        <translation type="vanished">Les pixels noirs des zones dynamiques laissent passer la scène d&apos;arrière-plan et ne projettent pas d&apos;ombre</translation>
+    </message>
+    <message>
+        <source>Resume when triggered again</source>
+        <translation type="vanished">Reprendre au déclenchement suivant</translation>
+    </message>
+    <message>
+        <source>A trigger soon after the scene stopped continues it where it was instead of starting it over</source>
+        <translation type="vanished">Un déclenchement peu après l&apos;arrêt de la scène la reprend là où elle en était au lieu de la recommencer</translation>
+    </message>
+    <message>
+        <source>Scene ID (PUP trigger)</source>
+        <translation type="vanished">ID de scène (déclencheur PUP)</translation>
+    </message>
+    <message>
+        <source>Frames</source>
+        <translation type="vanished">Frames</translation>
+    </message>
+    <message>
+        <source>Groups</source>
+        <translation type="vanished">Groupes</translation>
+    </message>
+    <message>
+        <source>Frame duration</source>
+        <translation type="vanished">Durée des frames</translation>
+    </message>
+    <message>
+        <source>Plays</source>
+        <translation type="vanished">Lecture</translation>
+    </message>
+    <message>
+        <source>When it has played</source>
+        <translation type="vanished">Une fois jouée</translation>
+    </message>
+    <message>
+        <source>Playback</source>
+        <translation type="vanished">Lecture</translation>
+    </message>
+    <message>
+        <source>Options</source>
+        <translation type="vanished">Options</translation>
+    </message>
+    <message>
+        <source>Hold the last frame for</source>
+        <translation type="vanished">Garder la dernière frame pendant</translation>
+    </message>
+    <message>
+        <source>Start by itself after</source>
+        <translation type="vanished">Démarrer d&apos;elle-même après</translation>
+    </message>
+    <message>
+        <source>How long the last frame stays when the scene has played</source>
+        <translation type="vanished">Durée pendant laquelle la dernière frame reste une fois la scène jouée</translation>
+    </message>
+    <message>
+        <source>Start the scene when no new frame came for this long</source>
+        <translation type="vanished">Lancer la scène quand aucune nouvelle frame n&apos;est arrivée pendant ce temps</translation>
+    </message>
+    <message>
+        <source>Frames in the project: %1</source>
+        <translation type="vanished">Frames dans le projet : %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) in the project</source>
+        <translation type="vanished">
+            <numerusform>%n frame dans le projet</numerusform>
+            <numerusform>%n frames dans le projet</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>SceneSettingsForm</name>
+    <message>
+        <source>The PUP trigger that starts the scene, from %1 to %2</source>
         <translation>Le déclencheur PUP qui lance la scène, de %1 à %2</translation>
     </message>
     <message>
@@ -5778,12 +5960,32 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <source>Frames in the project: %1</source>
         <translation>Frames dans le projet : %1</translation>
     </message>
-    <message numerus="yes">
-        <source>%n frame(s) in the project</source>
-        <translation type="vanished">
-            <numerusform>%n frame dans le projet</numerusform>
-            <numerusform>%n frames dans le projet</numerusform>
-        </translation>
+</context>
+<context>
+    <name>SceneSettingsPanel</name>
+    <message>
+        <source>Apply</source>
+        <translation>Appliquer</translation>
+    </message>
+    <message>
+        <source>Change the scene as the fields say; its frames follow (Undo goes back)</source>
+        <translation>Modifier la scène comme l&apos;indiquent les champs ; ses frames suivent (Annuler revient en arrière)</translation>
+    </message>
+    <message>
+        <source>Revert</source>
+        <translation>Rétablir</translation>
+    </message>
+    <message>
+        <source>Show the scene&apos;s settings again, without the changes</source>
+        <translation>Afficher à nouveau les réglages de la scène, sans les modifications</translation>
+    </message>
+    <message>
+        <source>Scene %1</source>
+        <translation>Scène %1</translation>
+    </message>
+    <message>
+        <source>No scene</source>
+        <translation>Aucune scène</translation>
     </message>
 </context>
 <context>

@@ -1920,3 +1920,13 @@ being built (LazyListIcons). `ScenesPanel` shows each scene's first frame
 (`renderResolvedFrameImage`, native plane, with background) built lazily by `LazyListIcons`;
 `refreshThumbnails()` from `refreshComponentBrowsers`. Tests: `testThumbnailCaptions`, the
 thumbnail check in `ScenesWidgetTests::testPanel`.
+
+## Scene section in the left sidebar (2026-10-20, owner request)
+
+The scene window's fields moved into `SceneSettingsForm` (panels/), used by `SceneDialog`
+(new scenes, Edit) and by `SceneSettingsPanel` (title, form, Apply/Revert), the left sidebar
+section `SceneSettings` "Scene" after Scenes. `MainWindow::updateSceneSettingsSection(reload)`
+shows it only while the frame canvas shows a scene frame (from the frame rest timer,
+`updateInspectorSections`, `refreshScenes` with reload); unapplied changes survive frames of the
+same scene. Apply and the dialog both go through `MainWindow::changeScene` (lost-frames
+question, `edit::changeScene`). Test: `testSettingsPanel`.

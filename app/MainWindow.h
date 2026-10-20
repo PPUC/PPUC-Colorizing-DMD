@@ -51,6 +51,7 @@ class FramePanel;
 class SectionBar;
 class HelperLinesPanel;
 class ScenesPanel;
+class SceneSettingsPanel;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -293,6 +294,12 @@ private:
     // Shows only the right sidebar's sections that serve the canvas shown: the frame, a
     // background being edited, or the sprite editor.
     void updateInspectorSections();
+    // The left sidebar's Scene section: shown with the scene of the frame on the canvas.
+    // reload: the scene changed (unapplied changes go).
+    void updateSceneSettingsSection(bool reload);
+    // Edit Scene and the Scene section's Apply: the scene as given; its frames follow (after a
+    // question when frames go).
+    void changeScene(uint16_t sceneId, const document::SceneDefinition& scene);
     // The toolbar's < and >: what the canvas showed before (frames, backgrounds, sprites).
     [[nodiscard]] CanvasPlace currentCanvasPlace() const;
     void noteCanvasPlace(bool frameRested = false);
@@ -742,6 +749,7 @@ private:
     void changeHelperLines(std::vector<document::HelperLine> lines, const QString& status);
     // The Scenes section (Scene.h): changed through the edit::SceneEdits functions.
     ScenesPanel* m_scenesPanel = nullptr;
+    SceneSettingsPanel* m_sceneSettingsPanel = nullptr;
     // The Project Settings section (the scaling settings of ColorizationSettings).
     QAction* m_projectSettingsAction = nullptr;
     void refreshScenes();

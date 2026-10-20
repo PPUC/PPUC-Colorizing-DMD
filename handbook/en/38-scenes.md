@@ -36,6 +36,14 @@ in the project, and below it the scene ID, the groups and frames, the frame dura
 - `Used by the current frame` above the left sidebar's lists shows only the scene of the
   current frame (none for a frame of no scene).
 
+The `Scene` section of the left sidebar, below `Scenes`, shows the settings of the scene the
+frame on the canvas belongs to, the same fields as the scene window. It is there only while a
+frame of a scene is on the frame canvas (not while a background or a sprite is edited), and
+follows the frame once it has stayed a quarter of a second. Changes wait for `Apply`, which
+changes the scene as `Edit` does, frames following and with the same question when frames go;
+`Revert` shows the scene's settings again. Unapplied changes stay while frames of the same scene
+are shown and go when a frame of another scene comes.
+
 Every change is one step of `Undo` and `Redo`, in order with adding, deleting and moving frames.
 
 Scenes need a project with 128x32 ROM frames: libserum plays them in no other. In other projects

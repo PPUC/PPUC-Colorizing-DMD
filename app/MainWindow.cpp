@@ -118,6 +118,7 @@
 #include "panels/HelperLinesPanel.h"
 #include "panels/InspectorForm.h"
 #include "dialogs/ProjectSettingsDialog.h"
+#include "panels/SceneSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
@@ -535,6 +536,7 @@ MainWindow::MainWindow(QWidget* parent)
     m_frameRestTimer.setInterval(250);
     connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() {
         updateFrameRestViews();
+        updateSceneSettingsSection(false);
         noteCanvasPlace(true);
     });
     createActions();
@@ -1691,6 +1693,14 @@ void MainWindow::createCentralView()
     m_scenesPanel->onPressed = [this]() { m_leftBrowserTabs->markCurrent(m_scenesPanel); };
     m_scenesPanel->onSelectionChanged = [this]() { refreshSelectedAssetFilter(); };
     m_leftBrowserTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
+    // The settings of the scene of the frame on the canvas, shown only then.
+    m_sceneSettingsPanel = new SceneSettingsPanel(m_leftBrowserTabs);
+    m_sceneSettingsPanel->onApplyRequested = [this](uint16_t sceneId,
+                                                    const document::SceneDefinition& scene) {
+        changeScene(sceneId, scene);
+    };
+    m_leftBrowserTabs->addTab(m_sceneSettingsPanel, QStringLiteral("SceneSettings"),
+                              tr("Scene"));
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
     // The asset of "Using the selected asset" is that of the list used last: opened, or
     // clicked in.
@@ -7688,6 +7698,7 @@ void MainWindow::updateInspectorSections()
         }
         m_inspectorSections->setSectionHidden(index, !shown);
     }
+    updateSceneSettingsSection(false);
     noteCanvasPlace();
 }
 
@@ -9579,6 +9590,41 @@ void MainWindow::refreshScenes()
         applyAssetFilter();
         refreshSelectedAssetFilter();
     }
+    updateSceneSettingsSection(true);
+}
+
+void MainWindow::updateSceneSettingsSection(bool reload)
+{
+    if (!m_sceneSettingsPanel || !m_leftBrowserTabs) {
+        return;
+    }
+    // The scene of the frame on the frame canvas (not while a background or a sprite is
+    // edited).
+    std::optional<document::SceneDefinition> scene;
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    if (m_document && frame && !spriteCanvasShown() && !isBackgroundImageTargetActive()) {
+        if (const std::optional<document::SceneFrameRef>& ref = m_document->sceneFrame(*frame);
+            ref && m_document->colorizationSettings()) {
+            if (const document::SceneDefinition* definition =
+                    m_document->colorizationSettings()->scene(ref->sceneId)) {
+                scene = *definition;
+            }
+        }
+    }
+    const int index = m_leftBrowserTabs->indexOf(m_sceneSettingsPanel);
+    m_leftBrowserTabs->setSectionHidden(index, !scene);
+    const std::optional<uint16_t> shownId =
+        scene ? std::optional<uint16_t>(scene->sceneId) : std::nullopt;
+    // Unapplied changes stay while the frames of the same scene are shown.
+    if (!reload && shownId == m_sceneSettingsPanel->sceneId()) {
+        return;
+    }
+    m_sceneSettingsPanel->setScene(
+        scene, [this, shownId](const document::SceneDefinition& candidate) {
+            return m_document && shownId
+                       ? edit::sceneProblem(*m_document, candidate, *shownId)
+                       : std::string();
+        });
 }
 
 void MainWindow::openProjectSettings()
@@ -9645,7 +9691,14 @@ void MainWindow::editScene(uint16_t sceneId)
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
-    const document::SceneDefinition scene = dialog.scene();
+    changeScene(sceneId, dialog.scene());
+}
+
+void MainWindow::changeScene(uint16_t sceneId, const document::SceneDefinition& scene)
+{
+    if (!m_document) {
+        return;
+    }
     std::size_t lost = 0;
     for (std::size_t frame : edit::sceneFrames(*m_document, sceneId)) {
         const document::SceneFrameRef& ref = *m_document->sceneFrame(frame);
