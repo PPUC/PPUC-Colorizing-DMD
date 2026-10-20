@@ -21,30 +21,30 @@ in the project, and below it the scene ID, the groups and frames, the frame dura
 - `New` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,
   lasting the scene's frame duration.
-- A double click on a scene lists its frames in the strip (as `Show Frames`) and shows its first
-  frame on the frame canvas; the `Scene` section below then has its settings.
-- `Edit` changes the selected scene in the scene window. Its frames follow:
-  - frames the scene gains (more frames or groups) are added behind its last frame;
-  - frames it no longer has are deleted, after a question, with their colorization;
-  - with another scene ID its frames get the new markers as originals and keep their
-    colorization;
-  - a new frame duration is given to all its frames;
-  - a frame of the scene deleted from the strip before is added again. Editing a scene and
-    pressing `OK` without changes therefore brings back missing frames.
+- A double click on a scene sets the frame filter to `Using the selected asset` with that scene,
+  so the strip lists its frames (selecting another scene then lists that one's), and shows its
+  first frame on the frame canvas; the Inspector's `Scene` section then has its settings. The
+  toolbar's `<` goes back to the frame and the timeline before (see "Canvas"), `>` into the
+  scene again.
 - `Delete` removes the selected scene. The question offers to delete its frames too or to keep
   them as ordinary frames.
-- `Show Frames` sets the frame filter to `Using the selected asset` with the selected scene:
-  the strip lists its frames, and selecting another scene lists that one's.
 - `Used by the current frame` above the left sidebar's lists shows only the scene of the
   current frame (none for a frame of no scene).
 
-The `Scene` section of the left sidebar, below `Scenes`, shows the settings of the scene the
+The `Scene` section of the Inspector (the right sidebar) shows the settings of the scene the
 frame on the canvas belongs to, the same fields as the scene window. It is there only while a
 frame of a scene is on the frame canvas (not while a background or a sprite is edited), and
-follows the frame once it has stayed a quarter of a second. Changes wait for `Apply`, which
-changes the scene as `Edit` does, frames following and with the same question when frames go;
-`Revert` shows the scene's settings again. Unapplied changes stay while frames of the same scene
-are shown and go when a frame of another scene comes.
+follows the frame once it has stayed a quarter of a second. Changes wait for `Apply`; `Revert`
+shows the scene's settings again. Unapplied changes stay while frames of the same scene are
+shown and go when a frame of another scene comes. With `Apply` the scene's frames follow:
+
+- frames the scene gains (more frames or groups) are added behind its last frame;
+- frames it no longer has are deleted, after a question, with their colorization;
+- with another scene ID its frames get the new markers as originals and keep their
+  colorization;
+- a new frame duration is given to all its frames;
+- a frame of the scene deleted from the strip before is added again. Applying the settings
+  after changing a field and changing it back therefore brings back missing frames.
 
 Every change is one step of `Undo` and `Redo`, in order with adding, deleting and moving frames.
 

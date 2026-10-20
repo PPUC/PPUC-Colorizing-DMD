@@ -64,9 +64,7 @@ void testPanel()
     auto deleted = edit::deleteFrames(document, std::vector<std::size_t>{3});
 
     app::ScenesPanel panel;
-    std::vector<int> edits;
     int selectionChanges = 0;
-    panel.onEditRequested = [&](uint16_t id) { edits.push_back(id); };
     panel.onSelectionChanged = [&]() { ++selectionChanges; };
     panel.setProject(&document);
     expect(selectionChanges == 0, "filling the list reports no selection");
@@ -77,17 +75,19 @@ void testPanel()
                list->item(0)->text().contains(QStringLiteral("1 missing")),
            "the section lists the scene with its groups, kind and missing frames");
     QAbstractButton* add = button(panel, QStringLiteral("New"));
-    QAbstractButton* edit = button(panel, QStringLiteral("Edit"));
-    expect(add && add->isEnabled() && edit && !edit->isEnabled(),
-           "Add works in a 128x32 project, Edit needs a selected scene");
+    QAbstractButton* deleteButton = button(panel, QStringLiteral("Delete"));
+    expect(add && add->isEnabled() && deleteButton && !deleteButton->isEnabled() &&
+               !button(panel, QStringLiteral("Edit")) &&
+               !button(panel, QStringLiteral("Show Frames")),
+           "New works in a 128x32 project, Delete needs a selected scene; no Edit or Show "
+           "Frames (the Inspector's Scene section and the double click)");
     list->setCurrentRow(0);
-    expect(edit->isEnabled() && panel.selectedScene() == 51001, "a selected scene can be edited");
-    edit->click();
-    expect(edits == std::vector<int>{51001}, "Edit asks for it");
+    expect(deleteButton->isEnabled() && panel.selectedScene() == 51001,
+           "a selected scene can be deleted");
     std::vector<int> opened;
     panel.onOpenRequested = [&](uint16_t id) { opened.push_back(id); };
     list->itemDoubleClicked(list->item(0));
-    expect(opened == std::vector<int>{51001} && edits.size() == 1,
+    expect(opened == std::vector<int>{51001},
            "a double click shows the scene's frames instead of opening the window");
     expect(selectionChanges == 1, "selecting a scene reports it (the frame filter follows)");
     // "Used by the current frame": only the frame's scene.

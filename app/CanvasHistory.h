@@ -15,11 +15,18 @@ struct CanvasPlace {
     std::size_t index = 0;
     // The current frame at the time (for a background or a sprite: the frame to come back to).
     std::size_t frame = 0;
+    // The timeline at the time: the frame filter (its entry's data) and, for the frames of a
+    // scene, the scene (-1: none).
+    int filter = 0;
+    int filterScene = -1;
 
-    // The same canvas content: a background or a sprite is the same whatever the frame.
+    // The same canvas content: a background or a sprite is the same whatever the frame and the
+    // timeline; a frame is the same frame in the same timeline.
     [[nodiscard]] bool sameContent(const CanvasPlace& other) const
     {
-        return kind == other.kind && index == other.index;
+        return kind == other.kind && index == other.index &&
+               (kind != Kind::Frame ||
+                (filter == other.filter && filterScene == other.filterScene));
     }
 };
 
@@ -30,7 +37,8 @@ public:
     static constexpr std::size_t kMaxPlaces = 100;
 
     // A frame counts once it has rested (stepping through frames notes only where it stopped),
-    // or at once when the canvas comes back to the frames from a background or a sprite.
+    // at once when the canvas comes back to the frames from a background or a sprite, or when
+    // the caller says so (frameRested: another timeline).
     void note(const CanvasPlace& place, bool frameRested);
     void clear();
 

@@ -6016,11 +6016,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Edit</source>
-        <translation>Bearbeiten</translation>
+        <translation type="vanished">Bearbeiten</translation>
     </message>
     <message>
         <source>Change the selected scene; its frames follow</source>
-        <translation>Die gewählte Szene ändern; ihre Frames folgen</translation>
+        <translation type="vanished">Die gewählte Szene ändern; ihre Frames folgen</translation>
     </message>
     <message>
         <source>Delete</source>
@@ -6032,11 +6032,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Show Frames</source>
-        <translation>Frames zeigen</translation>
+        <translation type="vanished">Frames zeigen</translation>
     </message>
     <message>
         <source>List the frames of the selected scene in the strip</source>
-        <translation>Die Frames der gewählten Szene in der Frame-Liste zeigen</translation>
+        <translation type="vanished">Die Frames der gewählten Szene in der Frame-Liste zeigen</translation>
     </message>
     <message>
         <source>Scale2x</source>

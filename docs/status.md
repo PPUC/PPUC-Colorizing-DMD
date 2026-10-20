@@ -1937,3 +1937,15 @@ Scenes section look (owner, same day): `ScenesPanel` buttons are QToolButtons in
 the list (`New` instead of `Add`, as RecordListPage), which also removes the section's outer
 scroll bar the taller 2x2 push-button grid caused; the Scene section's Apply/Revert are tool
 buttons filling their row (`fillButtonRows`).
+
+## Scene section to the Inspector, timeline in the history (2026-10-20, owner request)
+
+The `SceneSettings` section moved to the Inspector (after Comparison Mask, before Frame
+Background); `updateInspectorSections` leaves it to `updateSceneSettingsSection`.
+ScenesPanel lost `Edit` and `Show Frames` (double click and the Inspector section replace
+them); `MainWindow::editScene` removed, `SceneDialog` stays for New. `CanvasPlace` carries the
+timeline: `filter` (combo data) and `filterScene` (UsesSelectedAsset with the Scenes section
+current); a Frame place differs by timeline too. Filter combo changes note a place;
+`openScene` (double click) notes the place before, suppresses the intermediate ones, notes the
+scene's first frame; `showCanvasPlace` restores the filter (and the scene selection) before
+the frame. Tests: timeline block in `testCanvasHistory`, ScenesWidgetTests without Edit.

@@ -7,8 +7,11 @@ void CanvasHistory::note(const CanvasPlace& place, bool frameRested)
     if (!m_places.empty()) {
         CanvasPlace& here = m_places[m_position];
         if (here.sameContent(place)) {
-            // Still there; a background or a sprite keeps the frame to come back to up to date.
+            // Still there; a background or a sprite keeps the frame to come back to (and its
+            // timeline) up to date.
             here.frame = place.frame;
+            here.filter = place.filter;
+            here.filterScene = place.filterScene;
             return;
         }
         if (place.kind == CanvasPlace::Kind::Frame && here.kind == CanvasPlace::Kind::Frame &&

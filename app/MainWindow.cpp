@@ -1687,35 +1687,11 @@ void MainWindow::createCentralView()
     // of "Using the selected asset".
     m_scenesPanel = new ScenesPanel(m_leftBrowserTabs);
     m_scenesPanel->onAddRequested = [this]() { addScene(); };
-    m_scenesPanel->onEditRequested = [this](uint16_t sceneId) { editScene(sceneId); };
     m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
-    m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
-    m_scenesPanel->onOpenRequested = [this](uint16_t sceneId) {
-        showSceneFrames(sceneId);
-        const std::vector<std::size_t> frames = edit::sceneFrames(*m_document, sceneId);
-        if (frames.empty()) {
-            statusBar()->showMessage(tr("Scene %1 has no frames in the project").arg(sceneId),
-                                     3000);
-            return;
-        }
-        // On the frame canvas, as a double click on a frame does.
-        leaveSpriteCanvas();
-        if (activePaintTarget() == PaintTarget::Background) {
-            editFrameInsteadOfBackground();
-        }
-        goToFrame(frames.front());
-    };
+    m_scenesPanel->onOpenRequested = [this](uint16_t sceneId) { openScene(sceneId); };
     m_scenesPanel->onPressed = [this]() { m_leftBrowserTabs->markCurrent(m_scenesPanel); };
     m_scenesPanel->onSelectionChanged = [this]() { refreshSelectedAssetFilter(); };
     m_leftBrowserTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
-    // The settings of the scene of the frame on the canvas, shown only then.
-    m_sceneSettingsPanel = new SceneSettingsPanel(m_leftBrowserTabs);
-    m_sceneSettingsPanel->onApplyRequested = [this](uint16_t sceneId,
-                                                    const document::SceneDefinition& scene) {
-        changeScene(sceneId, scene);
-    };
-    m_leftBrowserTabs->addTab(m_sceneSettingsPanel, QStringLiteral("SceneSettings"),
-                              tr("Scene"));
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
     // The asset of "Using the selected asset" is that of the list used last: opened, or
     // clicked in.
@@ -1748,6 +1724,14 @@ void MainWindow::createCentralView()
 
     // The background and the sprite: on the frame canvas what ties them to the frames, while
     // one is edited the record itself (updateInspectorSections()).
+    // The settings of the scene of the frame on the canvas, shown only then
+    // (updateSceneSettingsSection()).
+    m_sceneSettingsPanel = new SceneSettingsPanel(inspectorTabs);
+    m_sceneSettingsPanel->onApplyRequested = [this](uint16_t sceneId,
+                                                    const document::SceneDefinition& scene) {
+        changeScene(sceneId, scene);
+    };
+    inspectorTabs->addTab(m_sceneSettingsPanel, QStringLiteral("SceneSettings"), tr("Scene"));
     inspectorTabs->addTab(m_backgroundPanel->framePage(), QStringLiteral("BG"),
                           tr("Frame Background"));
     inspectorTabs->addTab(m_spritePanel->framePage(), QStringLiteral("Sprite"),
@@ -1974,6 +1958,8 @@ void MainWindow::createCentralView()
             this,
             [this](int) {
                 refreshFrameList(currentFrameIndex());
+                // Another timeline: a place of the back/forward history.
+                noteCanvasPlace(true);
             });
     connect(m_sdButton, &QToolButton::clicked, this, [this]() {
         m_pasteMode.cancel();
@@ -7706,6 +7692,9 @@ void MainWindow::updateInspectorSections()
     }
     for (int index = 0; index < m_inspectorSections->count(); ++index) {
         const QString key = m_inspectorSections->tabText(index);
+        if (key == QStringLiteral("SceneSettings")) {
+            continue;  // updateSceneSettingsSection()
+        }
         const bool shown = record.isEmpty() ? !records.contains(key)
                                             : key == record || everywhere.contains(key);
         if (key == record && m_inspectorSections->isSectionHidden(index)) {
@@ -7722,6 +7711,17 @@ CanvasPlace MainWindow::currentCanvasPlace() const
     CanvasPlace place;
     place.frame = currentFrameIndex().value_or(0);
     place.index = place.frame;
+    if (m_frameFilterComboBox) {
+        place.filter = m_frameFilterComboBox->currentData().toInt();
+        // The frames of a scene: the scene selected in the Scenes section, in use.
+        if (static_cast<FrameFilter>(place.filter) == FrameFilter::UsesSelectedAsset &&
+            m_scenesPanel && m_leftBrowserTabs &&
+            m_leftBrowserTabs->currentWidget() == m_scenesPanel) {
+            if (const std::optional<uint16_t> scene = m_scenesPanel->selectedScene()) {
+                place.filterScene = *scene;
+            }
+        }
+    }
     if (spriteCanvasShown()) {
         if (const std::optional<std::size_t> sprite = currentSpriteIndex()) {
             place.kind = CanvasPlace::Kind::Sprite;
@@ -7787,6 +7787,19 @@ void MainWindow::showCanvasPlace(const CanvasPlace& place)
     m_showingCanvasPlace = true;
     if (m_playbackTimer && m_playbackTimer->isActive()) {
         setPlaybackRunning(false);
+    }
+    // The timeline first, so that the frame is in it.
+    if (place.filterScene >= 0 && m_scenesPanel) {
+        m_scenesPanel->selectScene(static_cast<uint16_t>(place.filterScene));
+        m_leftBrowserTabs->markCurrent(m_scenesPanel);
+    }
+    if (m_frameFilterComboBox) {
+        const int filterIndex = m_frameFilterComboBox->findData(place.filter);
+        if (filterIndex >= 0 && filterIndex != m_frameFilterComboBox->currentIndex()) {
+            m_frameFilterComboBox->setCurrentIndex(filterIndex);
+        } else if (place.filterScene >= 0) {
+            refreshSelectedAssetFilter();
+        }
     }
     if (place.frame < m_document->frameCount()) {
         goToFrame(place.kind == CanvasPlace::Kind::Frame ? place.index : place.frame);
@@ -9610,7 +9623,7 @@ void MainWindow::refreshScenes()
 
 void MainWindow::updateSceneSettingsSection(bool reload)
 {
-    if (!m_sceneSettingsPanel || !m_leftBrowserTabs) {
+    if (!m_sceneSettingsPanel || !m_inspectorSections) {
         return;
     }
     // The scene of the frame on the frame canvas (not while a background or a sprite is
@@ -9626,8 +9639,8 @@ void MainWindow::updateSceneSettingsSection(bool reload)
             }
         }
     }
-    const int index = m_leftBrowserTabs->indexOf(m_sceneSettingsPanel);
-    m_leftBrowserTabs->setSectionHidden(index, !scene);
+    const int index = m_inspectorSections->indexOf(m_sceneSettingsPanel);
+    m_inspectorSections->setSectionHidden(index, !scene);
     const std::optional<uint16_t> shownId =
         scene ? std::optional<uint16_t>(scene->sceneId) : std::nullopt;
     // Unapplied changes stay while the frames of the same scene are shown.
@@ -9690,23 +9703,29 @@ void MainWindow::addScene()
     }
 }
 
-void MainWindow::editScene(uint16_t sceneId)
+void MainWindow::openScene(uint16_t sceneId)
 {
-    if (!m_document || !m_document->colorizationSettings() ||
-        !m_document->colorizationSettings()->scene(sceneId)) {
+    if (!m_document) {
         return;
     }
-    SceneDialog dialog(
-        *m_document->colorizationSettings()->scene(sceneId),
-        [this, sceneId](const document::SceneDefinition& candidate) {
-            return edit::sceneProblem(*m_document, candidate, sceneId);
-        },
-        this);
-    dialog.setWindowTitle(tr("Edit Scene %1").arg(sceneId));
-    if (dialog.exec() != QDialog::Accepted) {
+    const std::vector<std::size_t> frames = edit::sceneFrames(*m_document, sceneId);
+    if (frames.empty()) {
+        statusBar()->showMessage(tr("Scene %1 has no frames in the project").arg(sceneId), 3000);
         return;
     }
-    changeScene(sceneId, dialog.scene());
+    // The timeline and the frame before, also when the frame has not rested yet: < goes back
+    // to them.
+    noteCanvasPlace(true);
+    m_showingCanvasPlace = true;
+    showSceneFrames(sceneId);
+    // On the frame canvas, as a double click on a frame does.
+    leaveSpriteCanvas();
+    if (activePaintTarget() == PaintTarget::Background) {
+        editFrameInsteadOfBackground();
+    }
+    goToFrame(frames.front());
+    m_showingCanvasPlace = false;
+    noteCanvasPlace(true);
 }
 
 void MainWindow::changeScene(uint16_t sceneId, const document::SceneDefinition& scene)

@@ -682,6 +682,24 @@ void testCanvasHistory()
         full.note(frame(index), true);
     }
     expect(full.size() == app::CanvasHistory::kMaxPlaces, "the history keeps the last places");
+
+    // The timeline is part of a frame's place: the frame in a scene's timeline is another one.
+    app::CanvasHistory timeline;
+    timeline.note(frame(6), true);
+    app::CanvasPlace inScene = frame(120);
+    inScene.filter = 8;
+    inScene.filterScene = 50100;
+    timeline.note(inScene, true);
+    app::CanvasPlace sameFrameAllFrames = frame(120);
+    timeline.note(sameFrameAllFrames, true);
+    expect(timeline.size() == 3, "the same frame in another timeline is another place");
+    timeline.back(all);
+    place = timeline.back(all);
+    expect(place && place->index == 6 && place->filter == 0 && place->filterScene == -1,
+           "back from a scene's timeline: the frame and the timeline before");
+    place = timeline.forward(all);
+    expect(place && place->filter == 8 && place->filterScene == 50100,
+           "forward: the scene's timeline again");
     full.clear();
     expect(full.size() == 0 && !full.canGoBack(), "a project opened starts a new history");
 }

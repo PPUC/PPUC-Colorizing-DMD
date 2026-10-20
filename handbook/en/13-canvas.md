@@ -27,8 +27,10 @@ browser: frames, backgrounds being edited and sprites in the sprite editor (`Cmd
 on macOS, `Alt+Left` and `Alt+Right` elsewhere). A frame counts once it has stayed a quarter of
 a second, so stepping through frames notes only where it stopped; playback notes nothing. A
 background or a sprite counts once, whichever frame is current meanwhile; going back to it
-shows it with the frame that was current. Going somewhere new drops the places ahead, as a
-browser does. Deleted frames, backgrounds and sprites are skipped. Opening a project starts a
+shows it with the frame that was current. A place includes the timeline, the frame filter
+(with the scene for a scene's frames): after a double click on a scene, `<` goes back to the
+frame and the timeline before, and changing the filter is a step of its own. Going somewhere
+new drops the places ahead, as a browser does. Deleted frames, backgrounds and sprites are skipped. Opening a project starts a
 new history.
 
 ## Zoom
@@ -125,7 +127,8 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 
 The Inspector shows only the sections that serve the canvas shown, to leave them the room:
 
-- On the frame canvas, every section but `Background` and `Sprite`.
+- On the frame canvas, every section but `Background` and `Sprite`; `Scene` only for a frame of
+  a scene (see "Scenes and Scaling").
 - While a background is edited (`Edit BG`, or `Target` set to `Background`): `Background`,
   `Palette`, `Color Sets` and `Helper Lines`. `Back to Frame` there, or a double click on a
   frame in the frame strip, goes back to the frame.

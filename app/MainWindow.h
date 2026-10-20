@@ -754,7 +754,9 @@ private:
     QAction* m_projectSettingsAction = nullptr;
     void refreshScenes();
     void addScene();
-    void editScene(uint16_t sceneId);
+    // A double click on a scene: its frames in the strip, its first frame on the canvas; the
+    // timeline before it stays in the back/forward history.
+    void openScene(uint16_t sceneId);
     void deleteScene(uint16_t sceneId);
     void showSceneFrames(uint16_t sceneId);
     void recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command);

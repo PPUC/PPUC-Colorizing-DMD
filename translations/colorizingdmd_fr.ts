@@ -6016,11 +6016,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Edit</source>
-        <translation>Modifier</translation>
+        <translation type="vanished">Modifier</translation>
     </message>
     <message>
         <source>Change the selected scene; its frames follow</source>
-        <translation>Modifier la scène sélectionnée ; ses frames suivent</translation>
+        <translation type="vanished">Modifier la scène sélectionnée ; ses frames suivent</translation>
     </message>
     <message>
         <source>Delete</source>
@@ -6032,11 +6032,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Show Frames</source>
-        <translation>Afficher les frames</translation>
+        <translation type="vanished">Afficher les frames</translation>
     </message>
     <message>
         <source>List the frames of the selected scene in the strip</source>
-        <translation>Afficher les frames de la scène sélectionnée dans la liste des frames</translation>
+        <translation type="vanished">Afficher les frames de la scène sélectionnée dans la liste des frames</translation>
     </message>
     <message>
         <source>Scale2x</source>

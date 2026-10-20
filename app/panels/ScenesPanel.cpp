@@ -58,20 +58,12 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     m_addButton->setText(tr("New"));
     m_addButton->setToolTip(tr("Add a scene with a frame for each of its frames, behind the last "
                                "frame"));
-    m_editButton = new QToolButton(this);
-    m_editButton->setText(tr("Edit"));
-    m_editButton->setToolTip(tr("Change the selected scene; its frames follow"));
     m_deleteButton = new QToolButton(this);
     m_deleteButton->setText(tr("Delete"));
     m_deleteButton->setToolTip(tr("Delete the selected scene"));
-    m_showFramesButton = new QToolButton(this);
-    m_showFramesButton->setText(tr("Show Frames"));
-    m_showFramesButton->setToolTip(tr("List the frames of the selected scene in the strip"));
     auto* buttons = new QHBoxLayout;
     buttons->addWidget(m_addButton);
-    buttons->addWidget(m_editButton);
     buttons->addWidget(m_deleteButton);
-    buttons->addWidget(m_showFramesButton);
     buttons->addStretch(1);
 
     auto* layout = new QVBoxLayout(this);
@@ -85,12 +77,6 @@ ScenesPanel::ScenesPanel(QWidget* parent)
             onAddRequested();
         }
     });
-    const auto edit = [this]() {
-        if (const auto scene = selectedScene(); scene && onEditRequested) {
-            onEditRequested(*scene);
-        }
-    };
-    connect(m_editButton, &QToolButton::clicked, this, edit);
     connect(m_list, &QListWidget::itemDoubleClicked, this, [this]() {
         if (const auto scene = selectedScene(); scene && onOpenRequested) {
             onOpenRequested(*scene);
@@ -99,11 +85,6 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     connect(m_deleteButton, &QToolButton::clicked, this, [this]() {
         if (const auto scene = selectedScene(); scene && onDeleteRequested) {
             onDeleteRequested(*scene);
-        }
-    });
-    connect(m_showFramesButton, &QToolButton::clicked, this, [this]() {
-        if (const auto scene = selectedScene(); scene && onShowFramesRequested) {
-            onShowFramesRequested(*scene);
         }
     });
     connect(m_list, &QListWidget::currentRowChanged, this, [this](int) {
@@ -188,6 +169,16 @@ void ScenesPanel::showOnlyScene(bool filtered, std::optional<uint16_t> sceneId)
     }
 }
 
+void ScenesPanel::selectScene(uint16_t sceneId)
+{
+    for (int row = 0; row < m_list->count(); ++row) {
+        if (m_list->item(row)->data(Qt::UserRole).toInt() == static_cast<int>(sceneId)) {
+            m_list->setCurrentRow(row);
+            return;
+        }
+    }
+}
+
 void ScenesPanel::refreshThumbnails()
 {
     for (int row = 0; row < m_list->count(); ++row) {
@@ -206,9 +197,7 @@ void ScenesPanel::updateButtons()
 {
     const bool selected = selectedScene().has_value();
     m_addButton->setEnabled(m_supportsScenes);
-    m_editButton->setEnabled(selected);
     m_deleteButton->setEnabled(selected);
-    m_showFramesButton->setEnabled(selected);
 }
 
 }  // namespace colorizing::app

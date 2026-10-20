@@ -20,8 +20,9 @@ namespace colorizing::app {
 
 class LazyListIcons;
 
-// The Scenes section of the left sidebar: the project's scenes, with buttons to add, edit and
-// delete them and to list a scene's frames in the strip. It shows them and reports what was
+// The Scenes section of the left sidebar: the project's scenes, with buttons to add and delete
+// them; a double click lists a scene's frames in the strip. The scene of the frame shown is
+// edited in the Inspector's Scene section. It shows them and reports what was
 // asked; the owner changes the project (undoably) and calls setProject().
 class ScenesPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(ScenesPanel)
@@ -32,6 +33,8 @@ public:
     // nullptr without a project.
     void setProject(const document::ProjectDocument* document);
     [[nodiscard]] std::optional<uint16_t> selectedScene() const;
+    // Selects the scene in the list (reported as a selection change); ignored for one it lacks.
+    void selectScene(uint16_t sceneId);
     // "Used by the current frame": only the scene given (none: no scene) is listed; filtered
     // false: every scene.
     void showOnlyScene(bool filtered, std::optional<uint16_t> sceneId);
@@ -41,9 +44,7 @@ public:
     void buildAllThumbnails();
 
     std::function<void()> onAddRequested;
-    std::function<void(uint16_t sceneId)> onEditRequested;
     std::function<void(uint16_t sceneId)> onDeleteRequested;
-    std::function<void(uint16_t sceneId)> onShowFramesRequested;
     // A double click: the scene's frames in the strip and its first frame on the canvas.
     std::function<void(uint16_t sceneId)> onOpenRequested;
     // Another scene selected, or the list clicked (the section is the one in use).
@@ -58,9 +59,7 @@ private:
     const document::ProjectDocument* m_document = nullptr;
     QLabel* m_note = nullptr;
     QToolButton* m_addButton = nullptr;
-    QToolButton* m_editButton = nullptr;
     QToolButton* m_deleteButton = nullptr;
-    QToolButton* m_showFramesButton = nullptr;
     bool m_hasProject = false;
     bool m_supportsScenes = false;
     bool m_filling = false;
