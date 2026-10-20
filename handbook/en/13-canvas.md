@@ -71,8 +71,8 @@ was open.) The project time is saved with the project (in the `.cRPX`, also by t
 autosave) and goes on from there the next time it is opened; a project made from a dump starts
 at 0. Counting does not mark the project as changed.
 
-The left sidebar is the visual component browser (the frames run along the bottom of the window,
-see "Frame List"). `Used by the current frame` above its lists shows only the comparison mask,
+The left sidebar is the visual component browser (the frames run along the bottom of the window
+under it and the canvas, see "Frame List"; the right sidebar takes the full height). `Used by the current frame` above its lists shows only the comparison mask,
 the background and the sprites the current frame uses, and follows the current frame once it has
 stayed a quarter of a second, so that scrolling through the frames stays quick; off, every
 record is listed. The choice is kept for the next start.

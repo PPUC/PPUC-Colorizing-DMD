@@ -1,7 +1,8 @@
 # Frame List
 
-The frames run along the bottom of the window, as in the Win32 editor: one row, left to right,
-scrolled sideways. Each frame shows its thumbnail (colorized above, original below) and under it
+The frames run along the bottom of the window, as in the Win32 editor, under the left sidebar
+and the canvas (the right sidebar takes the full height): one row, left to right, scrolled
+sideways. Each frame shows its thumbnail (colorized above, original below) and under it
 its number (with the name of a section it starts) and a line of compact metadata: duration,
 `HD`, `Dyn`, `BG n`, sprites, `inactive` and the like. The section box, the trigger box and the
 frame filter are at the left end of the strip; the comparison masks, backgrounds and sprites are

@@ -49,7 +49,6 @@ class FramePanel;
 class SectionBar;
 class HelperLinesPanel;
 class ScenesPanel;
-class ProjectSettingsPanel;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -700,7 +699,7 @@ private:
     // The Scenes section (Scene.h): changed through the edit::SceneEdits functions.
     ScenesPanel* m_scenesPanel = nullptr;
     // The Project Settings section (the scaling settings of ColorizationSettings).
-    ProjectSettingsPanel* m_projectSettingsPanel = nullptr;
+    QAction* m_projectSettingsAction = nullptr;
     void refreshScenes();
     void addScene();
     void editScene(uint16_t sceneId);
@@ -708,6 +707,8 @@ private:
     void showSceneFrames(uint16_t sceneId);
     void recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command);
     void refreshAfterSceneEdit(const edit::SceneEditCommand& command);
+    // File -> Project Settings: the dialog, and its settings as one undo step.
+    void openProjectSettings();
     // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.
     void recordPluginEdit(std::unique_ptr<edit::EditCommand> command);
     // After an edit batch ran either way: it may have changed any frame and record.

@@ -1709,3 +1709,13 @@ tools/ui_dump/run.sh after      # after it (--allow-appended for new states)
 ```
 
 The build is warning-free with `-Wall -Wextra` and must stay so.
+
+## Project settings dialog, full-height right sidebar (2026-10-20)
+
+Owner: the sidebar sections took too much room. The Project Settings section left the right
+sidebar for `File -> Project Settings...`, a modal `dialogs/ProjectSettingsDialog` around
+`ProjectSettingsPanel` (OK applies as one undo step, through `setColorizationSettings`). The right
+sidebar runs the full height: an outer splitter (main column | inspector), the main column holds
+the inner splitter (left sidebar | canvas) above the frame strip. `layout/sidebarWidths` keeps the
+three widths as before.
+

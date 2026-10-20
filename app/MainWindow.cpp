@@ -109,7 +109,7 @@
 #include "panels/SameFramesPanel.h"
 #include "panels/HelperLinesPanel.h"
 #include "panels/InspectorForm.h"
-#include "panels/ProjectSettingsPanel.h"
+#include "dialogs/ProjectSettingsDialog.h"
 #include "panels/ScenesPanel.h"
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
@@ -659,6 +659,15 @@ void MainWindow::createActions()
     connect(saveAsAction, &QAction::triggered, this, [this]() {
         saveProjectAs();
     });
+
+    fileMenu->addSeparator();
+    m_projectSettingsAction = fileMenu->addAction(tr("Pro&ject Settings..."));
+    m_projectSettingsAction->setToolTip(tr("Settings of the whole colorization: upscaling"));
+    m_projectSettingsAction->setMenuRole(QAction::NoRole);
+    connect(m_projectSettingsAction, &QAction::triggered, this, [this]() {
+        openProjectSettings();
+    });
+    fileMenu->addSeparator();
 
     QAction* exportCromcAction = fileMenu->addAction(tr("Export .cRO&Mc..."));
     exportCromcAction->setToolTip(
@@ -1547,7 +1556,8 @@ void MainWindow::createCentralView()
     auto* contentLayout = new QHBoxLayout();
     m_leftBrowserTabs = new SectionStack(central);
     m_leftBrowserTabs->setMinimumWidth(180);
-    // The frames run along the bottom of the window, as in the Win32 editor: on the left of
+    // The frames run along the bottom of the window (under the left sidebar and the canvas), as
+    // in the Win32 editor: on the left of
     // the strip the sections and the frame filter, then the frames from left to right.
     auto* frameStrip = new QWidget(central);
     auto* frameStripLayout = new QHBoxLayout(frameStrip);
@@ -1698,19 +1708,6 @@ void MainWindow::createCentralView()
     m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
     m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
     inspectorTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
-    m_projectSettingsPanel = new ProjectSettingsPanel(central);
-    m_projectSettingsPanel->onScalingChanged = [this](uint8_t algorithm, uint8_t shadowOffset) {
-        if (!m_document) {
-            return;
-        }
-        document::ColorizationSettings settings =
-            m_document->colorizationSettings().value_or(document::ColorizationSettings{});
-        settings.scalingAlgorithm = algorithm;
-        settings.shadowOffset = shadowOffset;
-        recordSceneEdit(edit::setColorizationSettings(*m_document, std::move(settings)));
-    };
-    inspectorTabs->addTab(m_projectSettingsPanel, QStringLiteral("ProjectSettings"),
-                          tr("Project Settings"));
     // The action buttons of every section alike (InspectorForm.h).
     for (QWidget* page : std::initializer_list<QWidget*>{
              m_framePanel, m_maskPanel, m_backgroundPanel, m_spritePanel, m_dynamicPanel,
@@ -1746,10 +1743,22 @@ void MainWindow::createCentralView()
     assets->setMinimumWidth(m_leftBrowserTabs->minimumWidth());
     contentSplitter->addWidget(assets);
     contentSplitter->addWidget(m_canvasStack);
-    contentSplitter->addWidget(inspector);
     contentSplitter->setStretchFactor(0, 0);
     contentSplitter->setStretchFactor(1, 1);
-    contentSplitter->setStretchFactor(2, 0);
+    // The right sidebar runs the full height; the frame strip runs under the left sidebar and
+    // the canvas.
+    auto* mainColumn = new QWidget(central);
+    auto* mainColumnLayout = new QVBoxLayout(mainColumn);
+    mainColumnLayout->setContentsMargins(0, 0, 0, 0);
+    mainColumnLayout->addWidget(contentSplitter, 1);
+    mainColumnLayout->addWidget(frameStrip, 0);
+    auto* outerSplitter = new QSplitter(Qt::Horizontal, central);
+    outerSplitter->setChildrenCollapsible(false);
+    outerSplitter->addWidget(mainColumn);
+    outerSplitter->addWidget(inspector);
+    outerSplitter->setStretchFactor(0, 1);
+    outerSplitter->setStretchFactor(1, 0);
+    // Kept as the widths of the left sidebar, the canvas and the right sidebar.
     const QList<int> storedWidths =
         [](const QVariantList& stored) {
             QList<int> widths;
@@ -1758,18 +1767,20 @@ void MainWindow::createCentralView()
             }
             return widths;
         }(QSettings().value(QStringLiteral("layout/sidebarWidths")).toList());
-    contentSplitter->setSizes(storedWidths.size() == 3 ? storedWidths
-                                                       : QList<int>{260, 700, 280});
-    connect(contentSplitter, &QSplitter::splitterMoved, this, [contentSplitter]() {
-        QVariantList widths;
-        for (const int width : contentSplitter->sizes()) {
-            widths << width;
-        }
-        QSettings().setValue(QStringLiteral("layout/sidebarWidths"), widths);
-    });
-    contentLayout->addWidget(contentSplitter, 1);
+    const QList<int> widths =
+        storedWidths.size() == 3 ? storedWidths : QList<int>{260, 700, 280};
+    contentSplitter->setSizes({widths[0], widths[1]});
+    outerSplitter->setSizes({widths[0] + widths[1], widths[2]});
+    const auto storeWidths = [contentSplitter, outerSplitter]() {
+        const QList<int> inner = contentSplitter->sizes();
+        const QList<int> outer = outerSplitter->sizes();
+        QSettings().setValue(QStringLiteral("layout/sidebarWidths"),
+                             QVariantList{inner.value(0), inner.value(1), outer.value(1)});
+    };
+    connect(contentSplitter, &QSplitter::splitterMoved, this, storeWidths);
+    connect(outerSplitter, &QSplitter::splitterMoved, this, storeWidths);
+    contentLayout->addWidget(outerSplitter, 1);
     layout->addLayout(contentLayout, 1);
-    layout->addWidget(frameStrip, 0);
 
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
         selectFrame(row);
@@ -9056,9 +9067,22 @@ void MainWindow::refreshScenes()
     if (m_scenesPanel) {
         m_scenesPanel->setProject(m_document ? &*m_document : nullptr);
     }
-    if (m_projectSettingsPanel) {
-        m_projectSettingsPanel->setProject(m_document ? &*m_document : nullptr);
+}
+
+void MainWindow::openProjectSettings()
+{
+    if (!m_document) {
+        return;
     }
+    ProjectSettingsDialog dialog(*m_document, this);
+    if (dialog.exec() != QDialog::Accepted || !m_document) {
+        return;
+    }
+    document::ColorizationSettings settings =
+        m_document->colorizationSettings().value_or(document::ColorizationSettings{});
+    settings.scalingAlgorithm = dialog.scalingAlgorithm();
+    settings.shadowOffset = dialog.shadowOffset();
+    recordSceneEdit(edit::setColorizationSettings(*m_document, std::move(settings)));
 }
 
 void MainWindow::addScene()
@@ -9378,6 +9402,9 @@ void MainWindow::addSourceFrame()
 void MainWindow::updateStructureControls()
 {
     const bool hasDocument = m_document.has_value();
+    if (m_projectSettingsAction) {
+        m_projectSettingsAction->setEnabled(hasDocument);
+    }
     const bool canDeleteFrames =
         hasDocument && m_document->frameCount() > 1 && !selectedFrameIndices().empty();
     if (m_deleteFramesAction) {

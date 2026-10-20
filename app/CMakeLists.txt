@@ -21,6 +21,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/AboutDialog.h
     dialogs/HelperLineDialog.cpp
     dialogs/HelperLineDialog.h
+    dialogs/ProjectSettingsDialog.cpp
+    dialogs/ProjectSettingsDialog.h
     dialogs/SceneDialog.cpp
     dialogs/SceneDialog.h
     dialogs/MovieImportDialog.cpp

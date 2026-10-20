@@ -2192,6 +2192,14 @@ Use Create %1 Frame.</source>
         <translation>Speichern &amp;unter...</translation>
     </message>
     <message>
+        <source>Pro&amp;ject Settings...</source>
+        <translation>Pro&amp;jekteinstellungen...</translation>
+    </message>
+    <message>
+        <source>Settings of the whole colorization: upscaling</source>
+        <translation>Einstellungen der ganzen Kolorierung: Hochskalierung</translation>
+    </message>
+    <message>
         <source>Export .cRO&amp;Mc...</source>
         <translation>.cRO&amp;Mc exportieren...</translation>
     </message>
@@ -2706,7 +2714,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Project Settings</source>
-        <translation>Projekteinstellungen</translation>
+        <translation type="vanished">Projekteinstellungen</translation>
     </message>
     <message>
         <source>Used by the current frame</source>
@@ -4851,6 +4859,13 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Nothing logged yet.</source>
         <translation>Noch nichts protokolliert.</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectSettingsDialog</name>
+    <message>
+        <source>Project Settings</source>
+        <translation type="unfinished">Projekteinstellungen</translation>
     </message>
 </context>
 <context>

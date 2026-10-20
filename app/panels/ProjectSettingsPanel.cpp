@@ -63,4 +63,14 @@ void ProjectSettingsPanel::setProject(const document::ProjectDocument* document)
     m_shadowComboBox->setEnabled(document != nullptr);
 }
 
+uint8_t ProjectSettingsPanel::scalingAlgorithm() const
+{
+    return static_cast<uint8_t>(m_scalingComboBox->currentData().toInt());
+}
+
+uint8_t ProjectSettingsPanel::shadowOffset() const
+{
+    return static_cast<uint8_t>(m_shadowComboBox->currentData().toInt());
+}
+
 }  // namespace colorizing::app

@@ -2192,6 +2192,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Enregistrer &amp;sous...</translation>
     </message>
     <message>
+        <source>Pro&amp;ject Settings...</source>
+        <translation>Paramètres du pro&amp;jet...</translation>
+    </message>
+    <message>
+        <source>Settings of the whole colorization: upscaling</source>
+        <translation>Paramètres de toute la colorisation : mise à l&apos;échelle</translation>
+    </message>
+    <message>
         <source>Export .cRO&amp;Mc...</source>
         <translation>Exporter .cRO&amp;Mc...</translation>
     </message>
@@ -2706,7 +2714,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Project Settings</source>
-        <translation>Réglages du projet</translation>
+        <translation type="vanished">Réglages du projet</translation>
     </message>
     <message>
         <source>Used by the current frame</source>
@@ -4851,6 +4859,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Nothing logged yet.</source>
         <translation>Rien n&apos;a encore été journalisé.</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectSettingsDialog</name>
+    <message>
+        <source>Project Settings</source>
+        <translation type="unfinished">Réglages du projet</translation>
     </message>
 </context>
 <context>

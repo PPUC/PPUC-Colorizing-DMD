@@ -18,6 +18,7 @@
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
 #include "edit/StructureCommand.h"
+#include "dialogs/ProjectSettingsDialog.h"
 #include "panels/ProjectSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 
@@ -109,6 +110,16 @@ void testProjectSettings()
            "choosing another reports both scaling settings");
     panel.setProject(nullptr);
     expect(!boxes[0]->isEnabled() && !boxes[1]->isEnabled(), "without a project they are off");
+
+    app::ProjectSettingsDialog dialog(document);
+    const QList<QComboBox*> dialogBoxes = dialog.findChildren<QComboBox*>();
+    expect(dialog.isModal() && dialogBoxes.size() == 2 &&
+               dialog.shadowOffset() == document::kShadowOffsetProportional,
+           "the dialog shows the project's settings");
+    dialogBoxes[0]->setCurrentIndex(dialogBoxes[0]->findData(document::kScalingLineDoubling));
+    expect(dialog.scalingAlgorithm() == document::kScalingLineDoubling &&
+               document.colorizationSettings()->scalingAlgorithm == document::kScalingScale2x,
+           "a choice in the dialog changes nothing until the owner applies it");
 }
 
 void testDialog()

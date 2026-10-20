@@ -14,10 +14,9 @@ class ProjectDocument;
 
 namespace colorizing::app {
 
-// The Project Settings section of the inspector: settings of the whole colorization that
-// libserum takes from it (document::ColorizationSettings), for now its scaling settings. It
-// shows them and reports a change; the owner changes the project (undoably) and calls
-// setProject().
+// The settings of the whole colorization that libserum takes from it
+// (document::ColorizationSettings), for now its scaling settings, as ProjectSettingsDialog
+// shows them. It shows them and reports a change.
 class ProjectSettingsPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(ProjectSettingsPanel)
 
@@ -28,6 +27,9 @@ public:
     void setProject(const document::ProjectDocument* document);
 
     std::function<void(uint8_t scalingAlgorithm, uint8_t shadowOffset)> onScalingChanged;
+    // The values chosen.
+    [[nodiscard]] uint8_t scalingAlgorithm() const;
+    [[nodiscard]] uint8_t shadowOffset() const;
 
 private:
     QComboBox* m_scalingComboBox = nullptr;
