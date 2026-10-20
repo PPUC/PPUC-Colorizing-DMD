@@ -128,6 +128,101 @@ std::vector<uint8_t> legacyPupPackNameBytes(const std::string& name)
     return bytes;
 }
 
+namespace {
+
+bool isUtf8(const std::string& bytes)
+{
+    std::size_t index = 0;
+    while (index < bytes.size()) {
+        const auto byte = static_cast<uint8_t>(bytes[index]);
+        std::size_t more = 0;
+        uint32_t codePoint = 0;
+        if (byte < 0x80) {
+            ++index;
+            continue;
+        }
+        if ((byte & 0xe0) == 0xc0) {
+            more = 1;
+            codePoint = byte & 0x1f;
+        } else if ((byte & 0xf0) == 0xe0) {
+            more = 2;
+            codePoint = byte & 0x0f;
+        } else if ((byte & 0xf8) == 0xf0) {
+            more = 3;
+            codePoint = byte & 0x07;
+        } else {
+            return false;
+        }
+        if (index + more >= bytes.size()) {
+            return false;  // cut off
+        }
+        for (std::size_t next = 1; next <= more; ++next) {
+            const auto continuation = static_cast<uint8_t>(bytes[index + next]);
+            if ((continuation & 0xc0) != 0x80) {
+                return false;
+            }
+            codePoint = (codePoint << 6) | (continuation & 0x3f);
+        }
+        // Overlong forms, surrogates and beyond Unicode are not UTF-8.
+        static constexpr uint32_t kSmallest[] = {0, 0x80, 0x800, 0x10000};
+        if (codePoint < kSmallest[more] || codePoint > 0x10ffff ||
+            (codePoint >= 0xd800 && codePoint < 0xe000)) {
+            return false;
+        }
+        index += more + 1;
+    }
+    return true;
+}
+
+void appendUtf8(std::string& text, uint32_t codePoint)
+{
+    if (codePoint < 0x80) {
+        text += static_cast<char>(codePoint);
+    } else if (codePoint < 0x800) {
+        text += static_cast<char>(0xc0 | (codePoint >> 6));
+        text += static_cast<char>(0x80 | (codePoint & 0x3f));
+    } else {
+        text += static_cast<char>(0xe0 | (codePoint >> 12));
+        text += static_cast<char>(0x80 | ((codePoint >> 6) & 0x3f));
+        text += static_cast<char>(0x80 | (codePoint & 0x3f));
+    }
+}
+
+// The name cut to at most `bytes` bytes without splitting a UTF-8 character.
+std::string cutUtf8(const std::string& name, std::size_t bytes)
+{
+    if (name.size() <= bytes) {
+        return name;
+    }
+    std::size_t end = bytes;
+    while (end > 0 && (static_cast<uint8_t>(name[end]) & 0xc0) == 0x80) {
+        --end;
+    }
+    return name.substr(0, end);
+}
+
+}  // namespace
+
+std::string utf8FromLegacyName(const std::string& bytes)
+{
+    if (isUtf8(bytes)) {
+        return bytes;
+    }
+    // Windows-1252: Latin-1 but for 0x80 to 0x9f (unassigned ones kept as their C1 control).
+    static constexpr uint16_t kHigh[32] = {
+        0x20ac, 0x0081, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021,
+        0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008d, 0x017d, 0x008f,
+        0x0090, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
+        0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0x009d, 0x017e, 0x0178};
+    std::string text;
+    text.reserve(bytes.size() * 2);
+    for (const char character : bytes) {
+        const auto byte = static_cast<uint8_t>(character);
+        appendUtf8(text, byte >= 0x80 && byte < 0xa0 ? kHigh[byte - 0x80] : byte);
+    }
+    return text;
+}
+
 std::string fixedName(const std::vector<uint8_t>& table,
                       std::size_t entryIndex,
                       std::size_t entryBytes)
@@ -137,7 +232,7 @@ std::string fixedName(const std::vector<uint8_t>& table,
     }
     const auto begin = table.begin() + static_cast<std::ptrdiff_t>(entryIndex * entryBytes);
     const auto end = begin + static_cast<std::ptrdiff_t>(entryBytes);
-    return std::string(begin, std::find(begin, end, uint8_t{0}));
+    return utf8FromLegacyName(std::string(begin, std::find(begin, end, uint8_t{0})));
 }
 
 void setFixedName(std::vector<uint8_t>& table,
@@ -145,7 +240,7 @@ void setFixedName(std::vector<uint8_t>& table,
                   std::size_t entryBytes,
                   const std::string& name)
 {
-    const std::string truncated = name.substr(0, entryBytes == 0 ? 0 : entryBytes - 1);
+    const std::string truncated = cutUtf8(name, entryBytes == 0 ? 0 : entryBytes - 1);
     if (fixedName(table, entryIndex, entryBytes) == truncated) {
         return;
     }

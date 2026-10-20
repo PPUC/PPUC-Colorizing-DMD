@@ -67,11 +67,17 @@ struct EditorMetadata {
 [[nodiscard]] std::string pupPackNameFromLegacyBytes(const uint8_t* bytes, std::size_t size);
 [[nodiscard]] std::vector<uint8_t> legacyPupPackNameBytes(const std::string& name);
 
-// Reads a NUL-terminated name out of a table of fixed-size entries.
+// The bytes as they are when they are UTF-8, else read as Windows-1252, in UTF-8.
+[[nodiscard]] std::string utf8FromLegacyName(const std::string& bytes);
+
+// Reads a NUL-terminated name out of a table of fixed-size entries, in UTF-8. The Win32 editor
+// wrote names in the Windows code page (an "ü" is the byte 0xfc): bytes that are not UTF-8 are
+// read as Windows-1252.
 [[nodiscard]] std::string fixedName(const std::vector<uint8_t>& table,
                                     std::size_t entryIndex,
                                     std::size_t entryBytes);
-// Stores a name into a table entry. The entry is left untouched when it already holds that name.
+// Stores a name (UTF-8) into a table entry, cut to the entry at a character boundary. The entry
+// is left untouched when it already holds that name (also in the Windows code page).
 void setFixedName(std::vector<uint8_t>& table,
                   std::size_t entryIndex,
                   std::size_t entryBytes,

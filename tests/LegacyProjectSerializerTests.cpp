@@ -473,8 +473,33 @@ void testFramesSkippedAtRuntime()
     expect(!skipped(0), "a dynamic zone on the original plane makes the frame active");
 }
 
+// Names of the Win32 editor are in the Windows code page; the editor's own are UTF-8.
+void testLegacyNameEncoding()
+{
+    using colorizing::document::fixedName;
+    using colorizing::document::setFixedName;
+    std::vector<uint8_t> table(2 * 8, 0);
+    // "Grün" as the Win32 editor wrote it, and "€5" (0x80 in Windows-1252).
+    const uint8_t win32[] = {'G', 'r', 0xfc, 'n'};
+    std::copy(std::begin(win32), std::end(win32), table.begin());
+    table[8] = 0x80;
+    table[9] = '5';
+    expect(fixedName(table, 0, 8) == "Gr\xc3\xbcn", "a Windows-1252 name is read as UTF-8");
+    expect(fixedName(table, 1, 8) == "\xe2\x82\xac" "5", "including the euro sign");
+    const std::vector<uint8_t> before = table;
+    setFixedName(table, 0, 8, "Gr\xc3\xbcn");
+    expect(table == before, "the same name leaves the Win32 bytes untouched");
+    setFixedName(table, 0, 8, "Gr\xc3\xbc\xc3\xbc\xc3\xbc");  // 9 bytes, 7 fit
+    expect(fixedName(table, 0, 8) == "Gr\xc3\xbc\xc3\xbc",
+           "a name is cut at a character boundary, and stays UTF-8");
+    expect(colorizing::document::utf8FromLegacyName("Gr\xc3\xbcn") == "Gr\xc3\xbcn" &&
+               colorizing::document::utf8FromLegacyName("\xc3") == "\xc3\x83",
+           "UTF-8 stays as it is, a cut-off sequence is Windows-1252");
+}
+
 void runLegacyProjectSerializerTests()
 {
+    testLegacyNameEncoding();
     testFrameHashMatchesReferenceCrc();
     testOriginalColorsMatchWin32Ramp();
     testSerializedProjectRoundTrips();

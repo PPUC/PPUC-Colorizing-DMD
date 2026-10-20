@@ -13,6 +13,9 @@ project of the Win32 editor, the `.cRP`. If it finds neither, it asks for one. A
 with its `.cRP` is saved with a `.cRPX` beside its `.cROM` (see "The .cRPX and the Win32
 editor"). Such a project takes the `<rom>.pup.csv` and `scaling.txt` beside its `.cROM` into
 the project, with its scene frames linked to their scenes (see "Scenes and Scaling").
+The Win32 editor stored the names of palettes, sprites, masks, color sets and sections in the
+Windows code page; they are read so, and umlauts and other accented letters show as they were
+named. A name changed here is stored in UTF-8, as this editor reads it.
 
 Opening a `.cRZ` reads the colorization from the archive; nothing is unpacked to disk. The
 archive's first file entry is taken, whatever it is named. If a `.cROM` with the same base name

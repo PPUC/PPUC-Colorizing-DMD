@@ -2008,3 +2008,12 @@ Every "BG" label of the UI is "Background" now (toolbar mask toggle, Show/Assign
 Export Background, Frame -> Background, Background -> Frame, frame list "Background n" /
 "Background: no picture", the Edit Background status text); the handbook follows. "Spr" and
 "Dyn" in the frame list captions are left.
+
+## Names of Win32 projects in the Windows code page (2026-10-20, owner report, Windows build)
+
+Bug: a palette named "Grün" in the Win32 editor showed "Gr� n" (byte 0xfc read as UTF-8).
+`document::fixedName` now returns `utf8FromLegacyName`: bytes that are valid UTF-8 as they
+are, otherwise Windows-1252 converted to UTF-8 (sprite, palette, mask, color set and section
+names all go through it). `setFixedName` writes UTF-8 cut at a character boundary and leaves
+an entry that already decodes to the name untouched, so unrenamed Win32 names keep their
+bytes. Test: `testLegacyNameEncoding`.
