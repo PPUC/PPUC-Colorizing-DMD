@@ -1933,3 +1933,7 @@ question, `edit::changeScene`). Test: `testSettingsPanel`.
 Double click on a scene (owner, same day): `ScenesPanel::onOpenRequested` instead of the
 window: `showSceneFrames` plus the first scene frame on the frame canvas (leaves the sprite
 editor and background editing); the Scene section takes the settings. `Edit` keeps the window.
+Scenes section look (owner, same day): `ScenesPanel` buttons are QToolButtons in one row above
+the list (`New` instead of `Add`, as RecordListPage), which also removes the section's outer
+scroll bar the taller 2x2 push-button grid caused; the Scene section's Apply/Revert are tool
+buttons filling their row (`fillButtonRows`).

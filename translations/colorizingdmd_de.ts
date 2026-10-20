@@ -6004,7 +6004,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Add</source>
-        <translation>Hinzufügen</translation>
+        <translation type="vanished">Hinzufügen</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>Neu</translation>
     </message>
     <message>
         <source>Add a scene with a frame for each of its frames, behind the last frame</source>

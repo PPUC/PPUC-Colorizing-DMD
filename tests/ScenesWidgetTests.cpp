@@ -11,6 +11,7 @@
 #include <QLabel>
 #include <QApplication>
 #include <QListWidget>
+#include <QAbstractButton>
 #include <QPushButton>
 #include <QSpinBox>
 
@@ -38,9 +39,9 @@ void expect(bool condition, const std::string& message)
     }
 }
 
-QPushButton* button(QWidget& parent, const QString& text)
+QAbstractButton* button(QWidget& parent, const QString& text)
 {
-    for (QPushButton* candidate : parent.findChildren<QPushButton*>()) {
+    for (QAbstractButton* candidate : parent.findChildren<QAbstractButton*>()) {
         if (candidate->text() == text) {
             return candidate;
         }
@@ -75,8 +76,8 @@ void testPanel()
                list->item(0)->text().contains(QStringLiteral("background")) &&
                list->item(0)->text().contains(QStringLiteral("1 missing")),
            "the section lists the scene with its groups, kind and missing frames");
-    QPushButton* add = button(panel, QStringLiteral("Add"));
-    QPushButton* edit = button(panel, QStringLiteral("Edit"));
+    QAbstractButton* add = button(panel, QStringLiteral("New"));
+    QAbstractButton* edit = button(panel, QStringLiteral("Edit"));
     expect(add && add->isEnabled() && edit && !edit->isEnabled(),
            "Add works in a 128x32 project, Edit needs a selected scene");
     list->setCurrentRow(0);
@@ -188,8 +189,8 @@ void testSettingsPanel()
         appliedIds.push_back(id);
         applied.push_back(changed);
     };
-    QPushButton* apply = button(panel, QStringLiteral("Apply"));
-    QPushButton* revert = button(panel, QStringLiteral("Revert"));
+    QAbstractButton* apply = button(panel, QStringLiteral("Apply"));
+    QAbstractButton* revert = button(panel, QStringLiteral("Revert"));
     expect(apply && revert && !panel.form()->isEnabled() && !panel.sceneId(),
            "without a scene the section offers nothing");
     panel.setScene(scene, [](const document::SceneDefinition& candidate) {

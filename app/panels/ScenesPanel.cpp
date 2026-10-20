@@ -1,10 +1,10 @@
 #include "panels/ScenesPanel.h"
 
-#include <QGridLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QPixmap>
-#include <QPushButton>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include "FrameImageUtils.h"
@@ -53,20 +53,26 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     });
     m_note = new QLabel(this);
     m_note->setWordWrap(true);
-    m_addButton = new QPushButton(tr("Add"), this);
+    // A row of small buttons above the list, as the other sections of the left sidebar have.
+    m_addButton = new QToolButton(this);
+    m_addButton->setText(tr("New"));
     m_addButton->setToolTip(tr("Add a scene with a frame for each of its frames, behind the last "
                                "frame"));
-    m_editButton = new QPushButton(tr("Edit"), this);
+    m_editButton = new QToolButton(this);
+    m_editButton->setText(tr("Edit"));
     m_editButton->setToolTip(tr("Change the selected scene; its frames follow"));
-    m_deleteButton = new QPushButton(tr("Delete"), this);
+    m_deleteButton = new QToolButton(this);
+    m_deleteButton->setText(tr("Delete"));
     m_deleteButton->setToolTip(tr("Delete the selected scene"));
-    m_showFramesButton = new QPushButton(tr("Show Frames"), this);
+    m_showFramesButton = new QToolButton(this);
+    m_showFramesButton->setText(tr("Show Frames"));
     m_showFramesButton->setToolTip(tr("List the frames of the selected scene in the strip"));
-    auto* buttons = new QGridLayout;
-    buttons->addWidget(m_addButton, 0, 0);
-    buttons->addWidget(m_editButton, 0, 1);
-    buttons->addWidget(m_deleteButton, 1, 0);
-    buttons->addWidget(m_showFramesButton, 1, 1);
+    auto* buttons = new QHBoxLayout;
+    buttons->addWidget(m_addButton);
+    buttons->addWidget(m_editButton);
+    buttons->addWidget(m_deleteButton);
+    buttons->addWidget(m_showFramesButton);
+    buttons->addStretch(1);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -74,7 +80,7 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     layout->addWidget(m_list, 1);
     layout->addWidget(m_note);
 
-    connect(m_addButton, &QPushButton::clicked, this, [this]() {
+    connect(m_addButton, &QToolButton::clicked, this, [this]() {
         if (onAddRequested) {
             onAddRequested();
         }
@@ -84,18 +90,18 @@ ScenesPanel::ScenesPanel(QWidget* parent)
             onEditRequested(*scene);
         }
     };
-    connect(m_editButton, &QPushButton::clicked, this, edit);
+    connect(m_editButton, &QToolButton::clicked, this, edit);
     connect(m_list, &QListWidget::itemDoubleClicked, this, [this]() {
         if (const auto scene = selectedScene(); scene && onOpenRequested) {
             onOpenRequested(*scene);
         }
     });
-    connect(m_deleteButton, &QPushButton::clicked, this, [this]() {
+    connect(m_deleteButton, &QToolButton::clicked, this, [this]() {
         if (const auto scene = selectedScene(); scene && onDeleteRequested) {
             onDeleteRequested(*scene);
         }
     });
-    connect(m_showFramesButton, &QPushButton::clicked, this, [this]() {
+    connect(m_showFramesButton, &QToolButton::clicked, this, [this]() {
         if (const auto scene = selectedScene(); scene && onShowFramesRequested) {
             onShowFramesRequested(*scene);
         }

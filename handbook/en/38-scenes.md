@@ -18,7 +18,7 @@ The `Scenes` section of the left sidebar, below the sprites, lists the project's
 in the project, and below it the scene ID, the groups and frames, the frame duration,
 `background` for a background scene and how many of its frames are missing in the project.
 
-- `Add` opens the scene window for a new scene and adds a frame for each of its frames behind
+- `New` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,
   lasting the scene's frame duration.
 - A double click on a scene lists its frames in the strip (as `Show Frames`) and shows its first
@@ -49,7 +49,7 @@ are shown and go when a frame of another scene comes.
 Every change is one step of `Undo` and `Redo`, in order with adding, deleting and moving frames.
 
 Scenes need a project with 128x32 ROM frames: libserum plays them in no other. In other projects
-the section says so and offers no `Add`.
+the section says so and offers no `New`.
 
 ## The scene window
 
@@ -57,7 +57,7 @@ What one line of a `<rom>.pup.csv` says:
 
 | Field | Meaning |
 | --- | --- |
-| Scene ID (PUP trigger) | The trigger that starts the scene. Each scene has its own. A new scene, or a scene given another ID, takes one of 50000 to 61999, the trigger range kept for scenes; `Add` suggests the lowest free one. A scene of an imported `pup.csv` keeps the ID it has. |
+| Scene ID (PUP trigger) | The trigger that starts the scene. Each scene has its own. A new scene, or a scene given another ID, takes one of 50000 to 61999, the trigger range kept for scenes; `New` suggests the lowest free one. A scene of an imported `pup.csv` keeps the ID it has. |
 | Frames | Frames of each group. |
 | Groups | Sets of frames the scene can show; each time it plays it shows one group. |
 | Pick the group at random | Otherwise the groups play in turn. |

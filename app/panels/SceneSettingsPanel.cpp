@@ -2,9 +2,10 @@
 
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QPushButton>
+#include <QToolButton>
 #include <QVBoxLayout>
 
+#include "panels/InspectorForm.h"
 #include "panels/SceneSettingsForm.h"
 
 namespace colorizing::app {
@@ -19,17 +20,19 @@ SceneSettingsPanel::SceneSettingsPanel(QWidget* parent)
         m_changed = true;
         updateState();
     };
-    m_applyButton = new QPushButton(tr("Apply"), this);
+    m_applyButton = new QToolButton(this);
+    m_applyButton->setText(tr("Apply"));
     m_applyButton->setToolTip(
         tr("Change the scene as the fields say; its frames follow (Undo goes back)"));
-    m_revertButton = new QPushButton(tr("Revert"), this);
+    m_revertButton = new QToolButton(this);
+    m_revertButton->setText(tr("Revert"));
     m_revertButton->setToolTip(tr("Show the scene's settings again, without the changes"));
-    connect(m_applyButton, &QPushButton::clicked, this, [this]() {
+    connect(m_applyButton, &QToolButton::clicked, this, [this]() {
         if (m_scene && onApplyRequested) {
             onApplyRequested(m_scene->sceneId, m_form->scene());
         }
     });
-    connect(m_revertButton, &QPushButton::clicked, this, [this]() {
+    connect(m_revertButton, &QToolButton::clicked, this, [this]() {
         setScene(m_scene, m_problem);
     });
     auto* buttons = new QHBoxLayout;
@@ -41,6 +44,8 @@ SceneSettingsPanel::SceneSettingsPanel(QWidget* parent)
     layout->addWidget(m_form);
     layout->addLayout(buttons);
     layout->addStretch(1);
+    // The buttons share the width, as in the Inspector's sections.
+    fillButtonRows(layout);
     setScene(std::nullopt, nullptr);
 }
 

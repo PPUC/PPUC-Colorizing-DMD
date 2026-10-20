@@ -11,7 +11,7 @@
 #include "document/Scene.h"
 
 class QLabel;
-class QPushButton;
+class QToolButton;
 
 namespace colorizing::app {
 
@@ -45,8 +45,8 @@ private:
     bool m_changed = false;
     QLabel* m_titleLabel = nullptr;
     SceneSettingsForm* m_form = nullptr;
-    QPushButton* m_applyButton = nullptr;
-    QPushButton* m_revertButton = nullptr;
+    QToolButton* m_applyButton = nullptr;
+    QToolButton* m_revertButton = nullptr;
 };
 
 }  // namespace colorizing::app

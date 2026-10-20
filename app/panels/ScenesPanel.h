@@ -10,7 +10,7 @@
 class QLabel;
 class QListWidgetItem;
 class QListWidget;
-class QPushButton;
+class QToolButton;
 
 namespace colorizing::document {
 class ProjectDocument;
@@ -57,10 +57,10 @@ private:
     LazyListIcons* m_thumbnails = nullptr;
     const document::ProjectDocument* m_document = nullptr;
     QLabel* m_note = nullptr;
-    QPushButton* m_addButton = nullptr;
-    QPushButton* m_editButton = nullptr;
-    QPushButton* m_deleteButton = nullptr;
-    QPushButton* m_showFramesButton = nullptr;
+    QToolButton* m_addButton = nullptr;
+    QToolButton* m_editButton = nullptr;
+    QToolButton* m_deleteButton = nullptr;
+    QToolButton* m_showFramesButton = nullptr;
     bool m_hasProject = false;
     bool m_supportsScenes = false;
     bool m_filling = false;
