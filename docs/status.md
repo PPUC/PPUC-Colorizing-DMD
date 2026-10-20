@@ -2017,3 +2017,13 @@ are, otherwise Windows-1252 converted to UTF-8 (sprite, palette, mask, color set
 names all go through it). `setFixedName` writes UTF-8 cut at a character boundary and leaves
 an entry that already decodes to the name untouched, so unrenamed Win32 names keep their
 bytes. Test: `testLegacyNameEncoding`.
+
+## Palette colors in the color picker; Opening Projects text (2026-10-20, tester request)
+
+Tester (SoyGre): colors only through the palette function is limiting; wanted to pick one of
+the existing palettes' colors. `ColorPickerDialog` takes `std::vector<ColorPickerPalette>`
+and the palette shown first; a `Palette` combo with a 16-column `ColorGridWidget` below the
+recent colors, a click sets the color. `MainWindow::pickColor` passes the project's palettes
+and the Palette section's selection; every picker of MainWindow goes through it. Test:
+`testColorPickerPalettes`. Handbook "Opening Projects" no longer says that saving a `.cRZ`
+project writes a `.cROM` (cRZ-only saving since 3.99.3).

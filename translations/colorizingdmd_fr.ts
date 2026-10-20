@@ -612,6 +612,18 @@
         <source>Recent color 0x%1</source>
         <translation>Couleur récente 0x%1</translation>
     </message>
+    <message>
+        <source>A palette of the project to pick a color from</source>
+        <translation>Une palette du projet où choisir une couleur</translation>
+    </message>
+    <message>
+        <source>Click a color of the palette to take it</source>
+        <translation>Cliquer sur une couleur de la palette pour la prendre</translation>
+    </message>
+    <message>
+        <source>Palette</source>
+        <translation>Palette</translation>
+    </message>
 </context>
 <context>
     <name>ColorRotationPanel</name>

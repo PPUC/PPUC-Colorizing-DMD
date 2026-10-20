@@ -11,6 +11,7 @@
 
 #include "edit/ColorModel.h"
 
+class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
@@ -19,12 +20,20 @@ class QToolButton;
 
 namespace colorizing::app {
 
+class ColorGridWidget;
 class HsvSquareWidget;
 class ValueBarWidget;
 
+// A palette of the project the picker offers to pick a color from.
+struct ColorPickerPalette {
+    QString name;
+    std::vector<uint16_t> colors;
+};
+
 // The color picker of the Win32 editor (ColPickProc): hue/saturation square and value bar,
 // RGB888 hex, R8/G8/B8, RGB565 as a decimal number, R5/G6/B5, H/S/V and the last 8 picked
-// colors. Every field follows every other one. The state is an RGB888 color plus the HSV the
+// colors, and, given the project's palettes, a palette to pick a color from (one of them chosen
+// at first, e.g. the one selected in the Palette section). Every field follows every other one. The state is an RGB888 color plus the HSV the
 // square and bar show; the result is that color as RGB565.
 //
 // No drift: a field that is not being edited is only written, never read back, and every
@@ -36,12 +45,19 @@ class ColorPickerDialog final : public QDialog {
 public:
     static constexpr std::size_t kRecentColorCount = 8;
 
-    ColorPickerDialog(uint16_t initialRgb565, const QString& title, QWidget* parent = nullptr);
+    ColorPickerDialog(uint16_t initialRgb565,
+                      const QString& title,
+                      QWidget* parent = nullptr,
+                      std::vector<ColorPickerPalette> palettes = {},
+                      std::size_t shownPalette = 0);
 
     // Opens the dialog modally. The accepted color is remembered as the most recent one.
-    [[nodiscard]] static std::optional<uint16_t> getColor(uint16_t initialRgb565,
-                                                          QWidget* parent,
-                                                          const QString& title);
+    [[nodiscard]] static std::optional<uint16_t> getColor(
+        uint16_t initialRgb565,
+        QWidget* parent,
+        const QString& title,
+        std::vector<ColorPickerPalette> palettes = {},
+        std::size_t shownPalette = 0);
 
     [[nodiscard]] uint16_t rgb565() const;
     [[nodiscard]] edit::Rgb888 rgb888() const;
@@ -74,6 +90,9 @@ private:
     QDoubleSpinBox* m_saturation = nullptr;
     QDoubleSpinBox* m_value = nullptr;
     std::vector<QToolButton*> m_recentButtons;
+    std::vector<ColorPickerPalette> m_palettes;
+    QComboBox* m_paletteComboBox = nullptr;
+    ColorGridWidget* m_paletteGrid = nullptr;
     edit::Rgb888 m_rgb;
     edit::Hsv m_hsv;
     bool m_updating = false;

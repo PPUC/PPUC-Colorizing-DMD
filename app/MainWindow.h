@@ -499,6 +499,8 @@ private:
     [[nodiscard]] bool isDynamicMaskModeActive() const;
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
+    // The color picker, with the project's palettes to pick a color from.
+    [[nodiscard]] std::optional<uint16_t> pickColor(uint16_t initialRgb565, const QString& title);
     [[nodiscard]] std::optional<std::size_t> selectedBackgroundIndex() const;
     [[nodiscard]] std::optional<std::size_t> currentBackgroundIndex() const;
     [[nodiscard]] bool isBackgroundImageTargetActive() const;

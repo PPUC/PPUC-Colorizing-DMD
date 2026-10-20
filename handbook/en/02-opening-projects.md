@@ -10,8 +10,8 @@ changes is closed without a question.
 
 The app looks for the editor file next to it with the same base name: the `.cRPX`, or, for a
 project of the Win32 editor, the `.cRP`. If it finds neither, it asks for one. A project opened
-with its `.cRP` is saved with a `.cRPX` beside its `.cROM` (see "The .cRPX and the Win32
-editor"). Such a project takes the `<rom>.pup.csv` and `scaling.txt` beside its `.cROM` into
+with its `.cRP` is saved as a `.cRZ` and a `.cRPX` beside its `.cROM`, which is then renamed to
+`.cROM.bak` (see "Saving" and "The .cRPX and the Win32 editor"). Such a project takes the `<rom>.pup.csv` and `scaling.txt` beside its `.cROM` into
 the project, with its scene frames linked to their scenes (see "Scenes and Scaling").
 The Win32 editor stored the names of palettes, sprites, masks, color sets and sections in the
 Windows code page; they are read so, and umlauts and other accented letters show as they were
@@ -22,9 +22,8 @@ archive's first file entry is taken, whatever it is named. If a `.cROM` with the
 lies next to the `.cRZ`, the file that was selected is the one that is loaded; the other is not
 looked at.
 
-A project opened from `<name>.cRZ` is from then on the project `<name>.cROM` in the same
-folder: `Save` creates that `.cROM` next to the archive (replacing one that is already there) and
-rewrites the archive, and `Save As...` proposes `<name>_copy.cROM`.
+A project opened from `<name>.cRZ` stays that project: `Save` rewrites the `.cRZ` and its
+`<name>.cRPX`, and no `.cROM` is written (see "Saving"). `Save As...` asks for another `.cRZ`.
 
 After a successful open, the project is added to `File -> Open Recent`.
 

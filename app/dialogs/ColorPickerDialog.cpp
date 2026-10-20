@@ -4,6 +4,7 @@
 #include <cmath>
 #include <functional>
 
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -19,6 +20,9 @@
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
+
+#include "ColorGridWidget.h"
+#include "document/ProjectDocument.h"
 
 namespace colorizing::app {
 
@@ -192,7 +196,11 @@ QDoubleSpinBox* makeDoubleSpinBox(QWidget* parent,
 
 }  // namespace
 
-ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& title, QWidget* parent)
+ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565,
+                                     const QString& title,
+                                     QWidget* parent,
+                                     std::vector<ColorPickerPalette> palettes,
+                                     std::size_t shownPalette)
     : QDialog(parent)
 {
     setObjectName(QStringLiteral("colorPickerDialog"));
@@ -342,6 +350,47 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
     }
     recentRow->addStretch(1);
 
+    // A color of one of the project's palettes, a click away.
+    m_palettes = std::move(palettes);
+    QHBoxLayout* paletteRow = nullptr;
+    if (!m_palettes.empty()) {
+        m_paletteComboBox = new QComboBox(this);
+        m_paletteComboBox->setToolTip(tr("A palette of the project to pick a color from"));
+        for (std::size_t index = 0; index < m_palettes.size(); ++index) {
+            m_paletteComboBox->addItem(m_palettes[index].name.isEmpty()
+                                           ? QString::number(static_cast<int>(index))
+                                           : QStringLiteral("%1 - %2")
+                                                 .arg(static_cast<int>(index))
+                                                 .arg(m_palettes[index].name));
+        }
+        m_paletteGrid = new ColorGridWidget(document::kPaletteColorCount, 16, this);
+        m_paletteGrid->setToolTip(tr("Click a color of the palette to take it"));
+        m_paletteGrid->setColorClickedHandler([this](std::size_t colorIndex) {
+            const int palette = m_paletteComboBox->currentIndex();
+            if (palette >= 0 && static_cast<std::size_t>(palette) < m_palettes.size() &&
+                colorIndex < m_palettes[static_cast<std::size_t>(palette)].colors.size()) {
+                setFromRgb(edit::rgb565ToRgb888(
+                    m_palettes[static_cast<std::size_t>(palette)].colors[colorIndex]));
+            }
+        });
+        const auto showPalette = [this](int palette) {
+            if (palette >= 0 && static_cast<std::size_t>(palette) < m_palettes.size()) {
+                const std::vector<uint16_t>& colors =
+                    m_palettes[static_cast<std::size_t>(palette)].colors;
+                m_paletteGrid->setColors(colors, colors.size());
+            }
+        };
+        connect(m_paletteComboBox,
+                static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+                showPalette);
+        m_paletteComboBox->setCurrentIndex(
+            static_cast<int>(std::min(shownPalette, m_palettes.size() - 1)));
+        showPalette(m_paletteComboBox->currentIndex());
+        paletteRow = new QHBoxLayout();
+        paletteRow->addWidget(new QLabel(tr("Palette"), this));
+        paletteRow->addWidget(m_paletteComboBox, 1);
+    }
+
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -351,6 +400,10 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
     layout->addLayout(swatches);
     layout->addLayout(fields);
     layout->addLayout(recentRow);
+    if (paletteRow) {
+        layout->addLayout(paletteRow);
+        layout->addWidget(m_paletteGrid);
+    }
     layout->addWidget(buttons);
 
     setFromRgb(initial);
@@ -358,9 +411,11 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565, const QString& titl
 
 std::optional<uint16_t> ColorPickerDialog::getColor(uint16_t initialRgb565,
                                                     QWidget* parent,
-                                                    const QString& title)
+                                                    const QString& title,
+                                                    std::vector<ColorPickerPalette> palettes,
+                                                    std::size_t shownPalette)
 {
-    ColorPickerDialog dialog(initialRgb565, title, parent);
+    ColorPickerDialog dialog(initialRgb565, title, parent, std::move(palettes), shownPalette);
     if (dialog.exec() != QDialog::Accepted) {
         return std::nullopt;
     }

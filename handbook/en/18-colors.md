@@ -111,6 +111,8 @@ of the Win32 picker, all kept in step with each other:
 - `H S V`: hue in degrees, saturation and value in percent, with one decimal,
 - the last 8 picked colors (most recent first; a click takes one), kept in the application
   settings and shared by all projects,
+- `Palette`: a palette of the project and its 64 colors below it; a click takes one. It starts
+  with the palette selected in the `Palette` section; another one can be chosen,
 - `Before` and `Now`.
 
 The result is the RGB565 color of the fields. A color that is shown and entered again in any field

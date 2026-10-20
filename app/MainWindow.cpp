@@ -1364,10 +1364,8 @@ void MainWindow::createCentralView()
             return;
         }
         const std::size_t set = m_spritePanel->dynamicSet();
-        const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
-            m_document->spriteDynamicColor(*sprite, set, shade),
-            this,
-            tr("Sprite Dynamic Color"));
+        const std::optional<uint16_t> picked = pickColor(
+            m_document->spriteDynamicColor(*sprite, set, shade), tr("Sprite Dynamic Color"));
         if (!picked) {
             return;
         }
@@ -7160,7 +7158,7 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex, std::optional<
                                                             activeDynamicSet(),
                                                             originalColorIndex);
         const std::optional<uint16_t> picked =
-            color ? color : ColorPickerDialog::getColor(oldRgb565, this, tr("Dynamic Color"));
+            color ? color : pickColor(oldRgb565, tr("Dynamic Color"));
         if (!picked) {
             return;
         }
@@ -7242,7 +7240,7 @@ void MainWindow::editDynamicShadowColor()
         const uint16_t oldRgb565 =
             m_document->dynamicShadowColor(*frameIndex, dynamicPlane(), activeDynamicSet());
         const std::optional<uint16_t> picked =
-            ColorPickerDialog::getColor(oldRgb565, this, tr("Dynamic Shadow Color"));
+            pickColor(oldRgb565, tr("Dynamic Shadow Color"));
         if (!picked) {
             return;
         }
@@ -7388,7 +7386,7 @@ void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_
     const uint16_t oldColor =
         m_document->colorRotationColor(*frameIndex, m_activeResolution, slotIndex, colorIndex);
     const std::optional<uint16_t> picked =
-        ColorPickerDialog::getColor(oldColor, this, tr("Color Rotation Color"));
+        pickColor(oldColor, tr("Color Rotation Color"));
     if (!picked) {
         return;
     }
@@ -7459,6 +7457,20 @@ void MainWindow::clearCurrentColorRotationSlot(std::size_t slotIndex)
         updateColorRotationControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+std::optional<uint16_t> MainWindow::pickColor(uint16_t initialRgb565, const QString& title)
+{
+    // The project's palettes to pick from, the one selected in the Palette section first.
+    std::vector<ColorPickerPalette> palettes;
+    if (m_document) {
+        for (std::size_t index = 0; index < m_document->paletteCount(); ++index) {
+            const document::PaletteRecord& palette = m_document->palette(index);
+            palettes.push_back({QString::fromStdString(palette.name), palette.colors});
+        }
+    }
+    return ColorPickerDialog::getColor(initialRgb565, this, title, std::move(palettes),
+                                       selectedPaletteIndex().value_or(0));
 }
 
 void MainWindow::updatePaletteControls()
@@ -7538,7 +7550,7 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
 
     const uint16_t oldColor = m_document->paletteColor(*paletteIndex, colorIndex);
     const std::optional<uint16_t> picked =
-        ColorPickerDialog::getColor(oldColor, this, tr("Palette Color"));
+        pickColor(oldColor, tr("Palette Color"));
     if (!picked) {
         return;
     }
@@ -8554,8 +8566,8 @@ void MainWindow::editFavoriteColor(std::size_t favoriteIndex)
     if (favoriteIndex >= m_favoriteColors.size()) {
         return;
     }
-    const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
-        m_favoriteColors[favoriteIndex], this, tr("Favorite Color"));
+    const std::optional<uint16_t> picked =
+        pickColor(m_favoriteColors[favoriteIndex], tr("Favorite Color"));
     if (picked) {
         setFavoriteDrawColor(favoriteIndex, *picked);
     }
@@ -8579,10 +8591,8 @@ void MainWindow::editEditColor(std::size_t slot)
     if (!m_document || slot >= m_document->colorCount()) {
         return;
     }
-    const std::optional<uint16_t> picked = ColorPickerDialog::getColor(
-        m_document->editColor(slot),
-        this,
-        tr("Edit Color %1").arg(static_cast<int>(slot)));
+    const std::optional<uint16_t> picked = pickColor(
+        m_document->editColor(slot), tr("Edit Color %1").arg(static_cast<int>(slot)));
     if (picked) {
         setEditColor(slot, *picked);
     }

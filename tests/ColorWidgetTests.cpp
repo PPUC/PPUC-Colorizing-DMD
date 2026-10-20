@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QDropEvent>
 #include <QKeyEvent>
@@ -377,6 +378,36 @@ void testRecentColors()
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
 
+// The project's palettes in the picker: one shown at first, a click takes its color.
+void testColorPickerPalettes()
+{
+    std::vector<app::ColorPickerPalette> palettes(2);
+    palettes[0].name = QStringLiteral("Gr\u00fcn");
+    palettes[0].colors.assign(64, 0x07e0);
+    palettes[1].name = QStringLiteral("Blau");
+    palettes[1].colors.assign(64, 0x001f);
+    palettes[1].colors[5] = 0x1234;
+    ColorPickerDialog dialog(0xf800, QStringLiteral("Palettes"), nullptr, palettes, 1);
+    auto* comboBox = dialog.findChild<QComboBox*>();
+    expect(comboBox && comboBox->count() == 2 && comboBox->currentIndex() == 1 &&
+               comboBox->currentText() == QStringLiteral("1 - Blau"),
+           "the picker shows the palette it was given first");
+    QList<QToolButton*> swatches;
+    for (QWidget* grid : dialog.findChildren<QWidget*>()) {
+        if (grid->toolTip() == QStringLiteral("Click a color of the palette to take it")) {
+            swatches = grid->findChildren<QToolButton*>(QString(), Qt::FindDirectChildrenOnly);
+        }
+    }
+    expect(swatches.size() == 64, "with its 64 colors");
+    swatches[5]->click();
+    expect(dialog.rgb565() == 0x1234, "a click takes the palette's color");
+    comboBox->setCurrentIndex(0);
+    swatches[5]->click();
+    expect(dialog.rgb565() == 0x07e0, "another palette, its colors");
+    ColorPickerDialog plain(0xf800, QStringLiteral("Plain"));
+    expect(!plain.findChild<QComboBox*>(), "without palettes, no palette row");
+}
+
 void testEditColorBar()
 {
     ProjectDocument document = makeDocument(PlaneLayout::Ordinary, 4);
@@ -587,6 +618,7 @@ void runColorWidgetTests()
     testSetReplaceOnBackground();
     testPipetteWithShift();
     testColorPickerFields();
+    testColorPickerPalettes();
     testRecentColors();
     testEditColorBar();
     testColorSetPanel();
