@@ -605,6 +605,29 @@ void testSectionStackResize()
         stack.resetSectionSizes();
         expect(stack.sectionWeight(0) == stack.sectionWeight(2), "and can be made equal again");
     }
+    {
+        // Hidden sections (those the canvas shown has no use for) keep their state.
+        colorizing::app::SectionStack stack;
+        for (const char* name : {"A", "B", "C"}) {
+            stack.addTab(new QLabel(QString::fromLatin1(name)), QString::fromLatin1(name));
+        }
+        stack.setSectionOpen(0, true);
+        stack.setSectionOpen(1, true);
+        stack.setSectionOpen(2, true);
+        stack.setSectionHidden(1, true);
+        expect(stack.isSectionHidden(1) && stack.isSectionOpen(1),
+               "a hidden section stays open underneath");
+        const int before = stack.sectionWeight(1);
+        expect(stack.resizeBelow(0, 20) && stack.sectionWeight(1) == before &&
+                   stack.sectionWeight(2) == 80,
+               "the border below A moves against C, past the hidden B");
+        stack.setSectionHidden(0, true);
+        expect(!stack.resizeBelow(0, 10), "a hidden section has no border");
+        stack.setSectionHidden(0, false);
+        stack.setSectionHidden(1, false);
+        expect(!stack.isSectionHidden(1) && stack.isSectionOpen(1),
+               "shown again, the section is open as before");
+    }
     QCoreApplication::setOrganizationName(QString());
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }

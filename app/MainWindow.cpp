@@ -1578,6 +1578,7 @@ void MainWindow::createCentralView()
     connect(m_canvasStack, &QStackedWidget::currentChanged, this, [this]() {
         endSpacePanning();
         updateZoomButton();
+        updateInspectorSections();
     });
     // The rest of the last row, whatever its text: a long one (the identification hint) is
     // cut instead of widening the window; a row of its own when too little is left.
@@ -1667,6 +1668,7 @@ void MainWindow::createCentralView()
     inspectorLayout->setContentsMargins(0, 0, 0, 0);
     // The inspector's topics in sections that open and close, any number at a time.
     auto* inspectorTabs = new SectionStack(inspector);
+    m_inspectorSections = inspectorTabs;
 
     inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"), tr("Frame"));
 
@@ -7590,6 +7592,27 @@ void MainWindow::updateSpriteControls()
     updateSpriteBrowserSelection();
 }
 
+void MainWindow::updateInspectorSections()
+{
+    if (!m_inspectorSections) {
+        return;
+    }
+    // Palettes, color sets and helper lines serve every canvas; the frame's own topics only the
+    // frame canvas. A background is edited from the Frame (Target) and Background sections.
+    static const QStringList everywhere{QStringLiteral("Palette"), QStringLiteral("Sets"),
+                                        QStringLiteral("HelperLines")};
+    QStringList shown;
+    if (spriteCanvasShown()) {
+        shown = everywhere + QStringList{QStringLiteral("Sprite")};
+    } else if (isBackgroundImageTargetActive()) {
+        shown = everywhere + QStringList{QStringLiteral("Frame"), QStringLiteral("BG")};
+    }
+    for (int index = 0; index < m_inspectorSections->count(); ++index) {
+        m_inspectorSections->setSectionHidden(
+            index, !shown.isEmpty() && !shown.contains(m_inspectorSections->tabText(index)));
+    }
+}
+
 void MainWindow::updatePaintTargetMode()
 {
     const bool backgroundTargetActive = isBackgroundImageTargetActive();
@@ -7601,6 +7624,7 @@ void MainWindow::updatePaintTargetMode()
         m_preview->setBackgroundImageEditModeEnabled(backgroundTargetActive);
         m_preview->clearPreviewPixels();
     }
+    updateInspectorSections();
     updateUndoRedoActions();
 }
 

@@ -3907,7 +3907,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Create the HD image of background %1 from its SD image.</source>
-        <translation>Créer l'image HD du fond %1 à partir de son image SD.</translation>
+        <translation>Créer l&apos;image HD du fond %1 à partir de son image SD.</translation>
     </message>
     <message>
         <source>Gave background %1 a black %2 image</source>

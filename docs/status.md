@@ -1861,3 +1861,13 @@ in HD-only projects (nothing is scaled). `ProjectDocument::createHdSprite(index,
 (HD in HD-only projects) and get the frame list's blue HD badge (`componentIcon`) in ordinary
 projects. Tests: `testBackgroundHdEditableOnFrameWithoutHd`, Bilinear case in
 `testSpriteHdCommands`.
+
+## Inspector sections by canvas (2026-10-20, owner request)
+
+`SectionStack::setSectionHidden` hides a section (header, content, handle) without changing
+its open state; the layout and the resize borders skip hidden ones (`isSectionShown`).
+`MainWindow::updateInspectorSections` (from `updatePaintTargetMode` and the canvas stack's
+`currentChanged`): sprite editor → Sprite, Palette, Sets, HelperLines; background editing →
+Frame (holds Target), BG, Palette, Sets, HelperLines; frame canvas → all. Owner: Palette, Color
+Sets and Helper Lines always make sense; hiding preferred over disabling for the room. Test:
+the hidden-section block of `testSectionStackResize`.

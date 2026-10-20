@@ -47,6 +47,10 @@ public:
 
     [[nodiscard]] bool isSectionOpen(int index) const;
     void setSectionOpen(int index, bool open);
+    // A hidden section takes no room, header included; it keeps being open or closed (and
+    // stored so) and shows again as it was.
+    [[nodiscard]] bool isSectionHidden(int index) const;
+    void setSectionHidden(int index, bool hidden);
     // The section's share of the height among the open ones (100 each at first).
     [[nodiscard]] int sectionWeight(int index) const;
     // Moves the border below the open section by dy pixels, against the next open section below
@@ -71,11 +75,14 @@ private:
         QScrollArea* frame = nullptr;
         SectionResizeHandle* handle = nullptr;
         int weight = kDefaultWeight;
+        bool hidden = false;
     };
     static constexpr int kDefaultWeight = 100;
     // The smallest height a section is resized to.
     static constexpr int kMinimumHeight = 40;
-    // The next open section after the index; -1 for none.
+    // Open and not hidden: it has a share of the height.
+    [[nodiscard]] bool isSectionShown(int index) const;
+    // The next shown open section after the index; -1 for none.
     [[nodiscard]] int nextOpenSection(int index) const;
     void setCurrent(int index);
     void storeOpenSections() const;

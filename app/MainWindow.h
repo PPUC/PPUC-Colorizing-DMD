@@ -289,6 +289,9 @@ private:
     void importImageIntoSelectedBackground();
     // The Background section's Create HD and Remove HD, for the selected background.
     void createSelectedBackgroundHd();
+    // Shows only the right sidebar's sections that serve the canvas shown: the frame, a
+    // background being edited, or the sprite editor.
+    void updateInspectorSections();
     // The Filter row of the Create HD windows, set to the filter used last.
     QComboBox* addUpscaleFilterRow(QDialog& dialog, QVBoxLayout& layout) const;
     // Asks for the filter; false when cancelled. The choice becomes m_createHdFilter.
@@ -567,6 +570,8 @@ private:
     QLabel* m_frameStatusLabel = nullptr;
     // The assets on the left: Masks, Backgrounds, Sprites, in sections that open and close.
     SectionStack* m_leftBrowserTabs = nullptr;
+    // The right sidebar's sections.
+    SectionStack* m_inspectorSections = nullptr;
     FrameListWidget* m_frameList = nullptr;
     LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;

@@ -104,6 +104,15 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
 - `Palette` contains the selected cRP palette name and all 64 palette colors.
 - `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, and sprite editing.
 
+The Inspector shows only the sections that serve the canvas shown, to leave them the room:
+
+- On the frame canvas, every section.
+- While a background is edited (`Edit BG`, or `Target` set to `Background`): `Frame`,
+  `Background`, `Palette`, `Color Sets` and `Helper Lines`.
+- In the sprite editor (`Edit Sprite`): `Sprite`, `Palette`, `Color Sets` and `Helper Lines`.
+
+A hidden section stays open or closed as it was and comes back so when the frame canvas returns.
+
 The `Frame` section exposes:
 
 - `Target` selects whether ordinary drawing tools edit the current frame or the selected background image.

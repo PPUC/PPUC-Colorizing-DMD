@@ -140,7 +140,7 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
         const int position = indexOf(content);
         Section& section = m_sections[static_cast<std::size_t>(position)];
         section.header->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
-        section.frame->setVisible(open);
+        section.frame->setVisible(open && !section.hidden);
         updateStretch();
         if (open) {
             setCurrent(position);
@@ -156,7 +156,7 @@ void SectionStack::updateStretch()
     bool anyOpen = false;
     for (std::size_t index = 0; index < m_sections.size(); ++index) {
         const Section& section = m_sections[index];
-        const bool open = section.header->isChecked();
+        const bool open = isSectionShown(static_cast<int>(index));
         anyOpen = anyOpen || open;
         m_layout->setStretch(static_cast<int>(index * 3 + 1), open ? section.weight : 0);
         section.handle->setVisible(open && nextOpenSection(static_cast<int>(index)) >= 0);
@@ -167,7 +167,7 @@ void SectionStack::updateStretch()
 int SectionStack::nextOpenSection(int index) const
 {
     for (int next = index + 1; next < count(); ++next) {
-        if (isSectionOpen(next)) {
+        if (isSectionShown(next)) {
             return next;
         }
     }
@@ -182,7 +182,7 @@ int SectionStack::sectionWeight(int index) const
 bool SectionStack::resizeBelow(int index, int dy)
 {
     const int below = nextOpenSection(index);
-    if (!isSectionOpen(index) || below < 0) {
+    if (!isSectionShown(index) || below < 0) {
         return false;
     }
     Section& upper = m_sections[static_cast<std::size_t>(index)];
@@ -274,6 +274,31 @@ bool SectionStack::isSectionOpen(int index) const
 {
     return index >= 0 && index < count() &&
            m_sections[static_cast<std::size_t>(index)].header->isChecked();
+}
+
+bool SectionStack::isSectionHidden(int index) const
+{
+    return index >= 0 && index < count() && m_sections[static_cast<std::size_t>(index)].hidden;
+}
+
+void SectionStack::setSectionHidden(int index, bool hidden)
+{
+    if (index < 0 || index >= count()) {
+        return;
+    }
+    Section& section = m_sections[static_cast<std::size_t>(index)];
+    if (section.hidden == hidden) {
+        return;
+    }
+    section.hidden = hidden;
+    section.header->setVisible(!hidden);
+    section.frame->setVisible(!hidden && section.header->isChecked());
+    updateStretch();
+}
+
+bool SectionStack::isSectionShown(int index) const
+{
+    return isSectionOpen(index) && !m_sections[static_cast<std::size_t>(index)].hidden;
 }
 
 void SectionStack::setSectionOpen(int index, bool open)
