@@ -289,15 +289,7 @@ QIcon componentIcon(const QImage& image, QSize targetSize, bool hdBadge)
 {
     QPixmap pixmap = previewPixmap(image, targetSize);
     if (hdBadge) {
-        QPainter painter(&pixmap);
-        QFont font = painter.font();
-        font.setPixelSize(10);
-        font.setBold(true);
-        painter.setFont(font);
-        const QRect badge(pixmap.width() - 26, 2, 24, 13);
-        painter.fillRect(badge, QColor(35, 95, 160));
-        painter.setPen(Qt::white);
-        painter.drawText(badge, Qt::AlignCenter, QCoreApplication::translate("FrameThumbnail", "HD"));
+        drawHdBadge(pixmap);
     }
     return QIcon(pixmap);
 }
@@ -451,6 +443,13 @@ QString sceneEditText(const edit::SceneEditCommand& command)
         case edit::SceneEditCommand::Kind::RemoveScene:
             return QCoreApplication::translate("MainWindow", "delete scene %1")
                 .arg(command.sceneId());
+        case edit::SceneEditCommand::Kind::DeleteSceneFrames:
+            return command.sceneId() != 0
+                       ? QCoreApplication::translate(
+                             "MainWindow", "delete frames of scene %1 and renumber the rest")
+                             .arg(command.sceneId())
+                       : QCoreApplication::translate(
+                             "MainWindow", "delete frames of scenes and renumber the rest");
     }
     return QString();
 }
@@ -9076,6 +9075,24 @@ void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, cons
                        "frames of sprites follow. The deletion can be undone.")
                         .arg(frameRangesText(frameIndices))
                         .arg(total - count);
+    // Frames of scenes: the scenes get smaller and their frames stay numbered without a gap.
+    std::set<uint16_t> scenes;
+    for (std::size_t frame : frameIndices) {
+        if (frame < m_document->frameCount()) {
+            if (const auto& ref = m_document->sceneFrame(frame)) {
+                scenes.insert(ref->sceneId);
+            }
+        }
+    }
+    if (!scenes.empty()) {
+        QStringList ids;
+        for (uint16_t scene : scenes) {
+            ids << QString::number(scene);
+        }
+        consequences << tr("Scene(s) %1 get fewer frames; their later frames are renumbered "
+                           "(markers included), so the frame numbers have no gap.")
+                            .arg(ids.join(QStringLiteral(", ")));
+    }
     if (!confirmDeletion(tr("Delete Frames"),
                          count == 1 ? tr("Delete frame %1?")
                                           .arg(static_cast<qulonglong>(frameIndices.front()))
@@ -9084,10 +9101,16 @@ void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, cons
         return;
     }
     try {
+        if (!scenes.empty()) {
+            recordSceneEdit(edit::deleteFramesOfScenes(*m_document, frameIndices));
+            return;
+        }
         recordStructureEdit(edit::deleteFrames(*m_document, frameIndices));
         showStructureEditStatus(
             tr("Deleted %1 frame(s), %2 remain").arg(count).arg(total - count),
             4000);
+    } catch (const std::invalid_argument& ex) {
+        QMessageBox::warning(this, tr("Delete Frames"), QString::fromUtf8(ex.what()));
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }

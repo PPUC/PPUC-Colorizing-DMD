@@ -15,7 +15,7 @@ files beside it. The `.cRPX` keeps the scenes and which frame is which frame of 
 ## The Scenes section
 
 The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: a thumbnail of the scene's first frame
-in the project, and below it the scene ID, the groups and frames, the frame duration,
+in the project (with the blue `HD` badge when that frame has HD data), and below it the scene ID, the groups and frames, the frame duration,
 `background` for a background scene and how many of its frames are missing in the project.
 
 - `New` opens the scene window for a new scene and adds a frame for each of its frames behind
@@ -53,6 +53,22 @@ Every change is one step of `Undo` and `Redo`, in order with adding, deleting an
 
 Scenes need a project with 128x32 ROM frames: libserum plays them in no other. In other projects
 the section says so and offers no `New`.
+
+## Deleting frames of a scene
+
+libserum identifies a scene frame by the group and frame number of its marker, and plays a
+scene's frames by number: the numbers of a scene must have no gap. Deleting frames of a scene
+from the strip (`Delete Frames`, `Delete` in the strip, or any other deletion of frames)
+therefore makes the scene smaller: it has that many frames less, and each frame behind a
+deleted one takes the number before it, with the new marker as its original; its colorization
+stays. The question before the deletion names the scenes that get fewer frames.
+
+All groups of a scene have the same number of frames. In a scene with several groups the same
+frame number goes in every group (select it in each), or whole groups go, and the groups behind
+them are renumbered. Anything else is refused with a message, and nothing is deleted. A scene
+keeps at least one frame: deleting all its frames is refused; delete the scene in the `Scenes`
+section instead. The deletion is one step of `Undo`, which brings back the frames, the numbers
+and the markers.
 
 ## The scene window
 

@@ -24,6 +24,8 @@ public:
         AddScene,
         ChangeScene,
         RemoveScene,
+        // Frames deleted from the strip, their scenes made smaller (deleteFramesOfScenes()).
+        DeleteSceneFrames,
     };
 
     // sceneId: the scene added, changed (its new ID) or removed.
@@ -84,6 +86,19 @@ private:
 [[nodiscard]] std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& document,
                                                             uint16_t sceneId,
                                                             bool deleteFrames);
+
+// Deletes the frames (any set, in any order). A scene some of them belong to gets smaller, so
+// that its frames stay numbered without a gap (libserum identifies a scene frame by the group
+// and frame number of its marker): the frames behind a deleted one take the numbers before
+// them, with their markers as originals, and the scene has that many frames (or groups) less.
+// All groups of a scene have the same number of frames, so of a scene with several groups the
+// same frame numbers go in each (a frame a group lacks counts as deleted there), or whole
+// groups. Throws std::invalid_argument when the frames do not allow that, or when a scene would
+// have no frame left (Remove the scene instead); nothing changes then. Frames of no scene are
+// deleted as deleteFrames() does. nullptr for no frames.
+[[nodiscard]] std::unique_ptr<SceneEditCommand> deleteFramesOfScenes(
+    document::ProjectDocument& document,
+    const std::vector<std::size_t>& frames);
 
 // The lowest ID from kFirstSceneId to kLastSceneId no scene of the project has; nothing when
 // all are taken.

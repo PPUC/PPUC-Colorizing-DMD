@@ -150,6 +150,71 @@ void testChange()
     (void)deleted;
 }
 
+// Frames deleted from the strip: the scene shrinks, the frames behind them are renumbered.
+void testDeleteSceneFrames()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    auto added = edit::addScene(document, makeScene(50030, 5, 1));
+    expect(document.frameCount() == 7, "a scene of 5 frames behind 2 frames");
+    // Colorization follows the frame, not its number.
+    document.setColorizedPixel(4, render::Resolution::Sd, 0, 0, 0x1234);
+
+    // Frames 2 and 4 of the scene (strip 3 and 5) and an ordinary frame go.
+    const auto command = edit::deleteFramesOfScenes(document, {3, 5, 0});
+    const document::SceneDefinition* scene =
+        document.colorizationSettings()->scene(50030);
+    expect(command && document.frameCount() == 4 && scene && scene->frameCount == 3,
+           "the scene has two frames less");
+    expect(edit::sceneFrames(document, 50030) == std::vector<std::size_t>{1, 2, 3} &&
+               document.sceneFrame(1) == document::SceneFrameRef{50030, 1, 0} &&
+               document.sceneFrame(2) == document::SceneFrameRef{50030, 1, 1} &&
+               document.sceneFrame(3) == document::SceneFrameRef{50030, 1, 2},
+           "its frames are numbered 1 to 3 without a gap");
+    expect(markersMatch(document, 50030), "with their new markers as originals");
+    expect(document.colorizedPixel(2, render::Resolution::Sd, 0, 0) == 0x1234,
+           "a renumbered frame keeps its colorization");
+    command->revert(document);
+    expect(document.frameCount() == 7 && document.colorizationSettings()->scene(50030)->frameCount == 5 &&
+               document.sceneFrame(5) == document::SceneFrameRef{50030, 1, 3} &&
+               markersMatch(document, 50030),
+           "undo brings back the frames, the numbers and the markers");
+
+    // Several groups: the same numbers in each group, or whole groups.
+    document::ProjectDocument grouped = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 1));
+    auto addedGroups = edit::addScene(grouped, makeScene(50040, 3, 3));
+    // Strip: 0 ordinary; group 1: 1-3, group 2: 4-6, group 3: 7-9.
+    bool refused = false;
+    try {
+        (void)edit::deleteFramesOfScenes(grouped, {2});
+    } catch (const std::invalid_argument&) {
+        refused = true;
+    }
+    expect(refused && grouped.frameCount() == 10,
+           "one group alone cannot lose a frame; nothing changes");
+    const auto column = edit::deleteFramesOfScenes(grouped, {2, 5, 8});
+    expect(column && grouped.colorizationSettings()->scene(50040)->frameCount == 2 &&
+               grouped.sceneFrame(4) == document::SceneFrameRef{50040, 2, 1} &&
+               markersMatch(grouped, 50040),
+           "the same frame in each group goes");
+    const auto group = edit::deleteFramesOfScenes(grouped, {3, 4});
+    const document::SceneDefinition* left = grouped.colorizationSettings()->scene(50040);
+    expect(group && left->frameGroups == 2 && left->frameCount == 2 &&
+               grouped.sceneFrame(3) == document::SceneFrameRef{50040, 2, 0} &&
+               markersMatch(grouped, 50040),
+           "a whole group goes, the groups behind it are renumbered");
+    refused = false;
+    try {
+        (void)edit::deleteFramesOfScenes(grouped, {1, 2, 3, 4});
+    } catch (const std::invalid_argument&) {
+        refused = true;
+    }
+    expect(refused, "a scene keeps a frame (the scene is deleted in the Scenes section)");
+    (void)added;
+    (void)addedGroups;
+}
+
 void testRemove()
 {
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
@@ -223,6 +288,7 @@ void runSceneEditTests()
 {
     testAddAndUndo();
     testChange();
+    testDeleteSceneFrames();
     testRemove();
     testSceneIds();
     testOtherLayouts();

@@ -9,6 +9,7 @@
 
 #include "FrameImageUtils.h"
 #include "LazyListIcons.h"
+#include "PlaneLabels.h"
 #include "ThumbnailCaptions.h"
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
@@ -48,8 +49,14 @@ ScenesPanel::ScenesPanel(QWidget* parent)
             *m_document, static_cast<std::size_t>(frame),
             m_document->rendersHdPlaneOnly() ? render::Resolution::Hd : render::Resolution::Sd,
             1, true);
-        return QIcon(QPixmap::fromImage(
-            image.scaled(kThumbnailSize, Qt::KeepAspectRatio, Qt::FastTransformation)));
+        QPixmap pixmap = QPixmap::fromImage(
+            image.scaled(kThumbnailSize, Qt::KeepAspectRatio, Qt::FastTransformation));
+        // As the frames and the other thumbnails: HD when the scene's first frame has it.
+        if (hasHdAsExtraResolution(m_document) &&
+            m_document->hasHdFrame(static_cast<std::size_t>(frame))) {
+            drawHdBadge(pixmap);
+        }
+        return QIcon(pixmap);
     });
     m_note = new QLabel(this);
     m_note->setWordWrap(true);

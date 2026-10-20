@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPixmap>
 #include <QStyledItemDelegate>
 
 class QListWidget;
@@ -25,6 +26,9 @@ private:
 
     QListWidget* m_list = nullptr;
 };
+
+// The frame list's blue HD badge in the upper right corner of a thumbnail of the left sidebar.
+void drawHdBadge(QPixmap& pixmap);
 
 // Gives the list the delegate (and what it needs: rows that follow the list's width).
 void showCaptionsBelowThumbnails(QListWidget* list);

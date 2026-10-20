@@ -1,6 +1,8 @@
 #include "edit/SceneEdits.h"
 
 #include <algorithm>
+#include <map>
+#include <set>
 #include <stdexcept>
 
 #include "edit/FrameMove.h"
@@ -437,6 +439,123 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
     }
     steps.add(settingsStep(document, std::move(settings)));
     return steps.finish(SceneEditCommand::Kind::ChangeScene, scene.sceneId);
+}
+
+std::unique_ptr<SceneEditCommand> deleteFramesOfScenes(document::ProjectDocument& document,
+                                                       const std::vector<std::size_t>& frames)
+{
+    if (frames.empty()) {
+        return nullptr;
+    }
+    const std::set<std::size_t> deleted(frames.begin(), frames.end());
+    // The scenes touched, each with its frames: (group, number) -> frame.
+    std::map<uint16_t, std::map<std::pair<uint8_t, uint16_t>, std::size_t>> touched;
+    for (std::size_t frame : deleted) {
+        if (frame >= document.frameCount()) {
+            throw std::out_of_range("no frame " + std::to_string(frame));
+        }
+        if (const auto& ref = document.sceneFrame(frame)) {
+            touched[ref->sceneId];
+        }
+    }
+    for (auto& [sceneId, sceneFramesByRef] : touched) {
+        for (std::size_t frame : sceneFrames(document, sceneId)) {
+            const document::SceneFrameRef& ref = *document.sceneFrame(frame);
+            sceneFramesByRef[{ref.group, ref.frameIndex}] = frame;
+        }
+    }
+
+    // Each scene's new numbering, checked before anything changes.
+    document::ColorizationSettings settings = settingsOf(document);
+    std::vector<SceneFramesCommand::Change> changes;
+    for (const auto& [sceneId, framesByRef] : touched) {
+        const document::SceneDefinition old = requireScene(document, sceneId);
+        const uint8_t groups = groupsOf(old);
+        const auto gone = [&](uint8_t group, uint16_t number) {
+            const auto found = framesByRef.find({group, number});
+            return found == framesByRef.end() || deleted.count(found->second) > 0;
+        };
+        // Whole groups: a frame of them deleted, none left.
+        std::vector<uint8_t> keptGroups;
+        for (uint8_t group = 1; group <= groups; ++group) {
+            bool anyDeleted = false;
+            bool anyLeft = false;
+            for (const auto& [ref, frame] : framesByRef) {
+                if (ref.first == group) {
+                    (deleted.count(frame) ? anyDeleted : anyLeft) = true;
+                }
+            }
+            if (!anyDeleted || anyLeft) {
+                keptGroups.push_back(group);
+            }
+        }
+        // The frame numbers that go: deleted in a kept group.
+        std::set<uint16_t> goneNumbers;
+        for (const auto& [ref, frame] : framesByRef) {
+            if (deleted.count(frame) &&
+                std::find(keptGroups.begin(), keptGroups.end(), ref.first) != keptGroups.end()) {
+                goneNumbers.insert(ref.second);
+            }
+        }
+        for (uint16_t number : goneNumbers) {
+            for (uint8_t group : keptGroups) {
+                if (!gone(group, number)) {
+                    throw std::invalid_argument(
+                        "scene " + std::to_string(sceneId) + " has " +
+                        std::to_string(groups) +
+                        " groups of the same length: delete frame " +
+                        std::to_string(number + 1) + " in each group, or whole groups");
+                }
+            }
+        }
+        if (keptGroups.empty() || goneNumbers.size() >= old.frameCount) {
+            throw std::invalid_argument("no frame of scene " + std::to_string(sceneId) +
+                                        " would be left: delete the scene instead");
+        }
+        document::SceneDefinition scene = old;
+        scene.frameGroups = static_cast<uint8_t>(keptGroups.size());
+        scene.frameCount = static_cast<uint16_t>(old.frameCount - goneNumbers.size());
+        scene.random = scene.random && scene.frameGroups > 1;
+        for (document::SceneDefinition& definition : settings.scenes) {
+            if (definition.sceneId == sceneId) {
+                definition = scene;
+            }
+        }
+        // The frames that stay, renumbered.
+        for (const auto& [ref, frame] : framesByRef) {
+            if (deleted.count(frame)) {
+                continue;
+            }
+            const auto keptGroup = std::find(keptGroups.begin(), keptGroups.end(), ref.first);
+            if (keptGroup == keptGroups.end() || goneNumbers.count(ref.second)) {
+                continue;  // cannot happen: checked above
+            }
+            const document::SceneFrameRef renumbered{
+                sceneId, static_cast<uint8_t>(keptGroup - keptGroups.begin() + 1),
+                static_cast<uint16_t>(
+                    ref.second - std::distance(goneNumbers.begin(),
+                                               goneNumbers.lower_bound(ref.second)))};
+            SceneFrameState before = sceneFrameState(document, frame);
+            if (before.scene == renumbered) {
+                continue;
+            }
+            SceneFrameState after = before;
+            after.scene = renumbered;
+            after.original = runtime::sceneMarkerFrame(scene, renumbered, document.colorCount());
+            changes.push_back({frame, std::move(before), std::move(after)});
+        }
+    }
+
+    Steps steps(document);
+    if (!changes.empty()) {
+        auto command = std::make_unique<SceneFramesCommand>(std::move(changes));
+        command->apply(document);
+        steps.add(std::move(command));
+    }
+    steps.add(deleteFrames(document, std::vector<std::size_t>(deleted.begin(), deleted.end())));
+    steps.add(settingsStep(document, std::move(settings)));
+    return steps.finish(SceneEditCommand::Kind::DeleteSceneFrames,
+                        touched.size() == 1 ? touched.begin()->first : 0);
 }
 
 std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& document,

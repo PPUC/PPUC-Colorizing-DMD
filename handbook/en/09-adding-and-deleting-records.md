@@ -26,7 +26,8 @@ Every deletion asks first. The question names what goes and what follows from it
 frames remain, how many frames use the record), `Cancel` is the default button, and the status
 bar reports the result with its counts, for example `Deleted 3 frame(s), 12 remain` or
 `Deleted background 1, 4 frame(s) have no background now; 6 background(s) remain`. Adding asks
-nothing, except for the name of a new sprite.
+nothing, except for the name of a new sprite. Deleting frames of a scene makes the scene smaller
+and renumbers its frames behind them, see "Scenes and Scaling".
 
 After an operation, and after its undo or redo, the selection is on the new or restored
 record, or on the record that took the place of a deleted one (the last one if the deleted one

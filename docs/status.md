@@ -1963,3 +1963,17 @@ Scene frames in the Inspector (owner, same day): the Scene section starts hidden
 it is shown; `updateInspectorSections` (now also from the frame rest timer and `openScene`)
 hides `Mask`, `Sprite` and `Dyn` for a scene frame on the frame canvas (identified by the
 marker; no sprites, no dynamic zones from the marker original).
+
+## Deleting scene frames renumbers the scene (2026-10-20, owner requirement)
+
+Owner: a gap in FRAME NUMBER breaks the runtime. `edit::deleteFramesOfScenes(document,
+frames)` (SceneEdits, Kind `DeleteSceneFrames`): per touched scene, whole groups (a frame
+deleted, none left) go and later groups are renumbered; the frame numbers deleted in the kept
+groups must be gone (deleted or missing) in every kept group, else std::invalid_argument; at
+least one frame and group stay. Kept frames get the new `SceneFrameRef` and
+`runtime::sceneMarkerFrame` original (`SceneFramesCommand`, colorization untouched), then
+`deleteFrames`, then the settings (frameCount, frameGroups, random off for one group). One
+SceneEditCommand. `MainWindow::deleteFrames` takes this path when a scene frame is among the
+frames (the question names the scenes; a refusal is a message box). Scene thumbnails get the
+HD badge of their first frame (`drawHdBadge`, shared with sprite/background thumbnails).
+Test: `testDeleteSceneFrames`.

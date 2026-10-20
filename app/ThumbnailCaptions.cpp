@@ -1,6 +1,7 @@
 #include "ThumbnailCaptions.h"
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QListWidget>
 #include <QPainter>
 
@@ -74,6 +75,19 @@ void ThumbnailCaptionDelegate::paint(QPainter* painter,
                       Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap,
                       index.data(Qt::DisplayRole).toString());
     painter->restore();
+}
+
+void drawHdBadge(QPixmap& pixmap)
+{
+    QPainter painter(&pixmap);
+    QFont font = painter.font();
+    font.setPixelSize(10);
+    font.setBold(true);
+    painter.setFont(font);
+    const QRect badge(pixmap.width() - 26, 2, 24, 13);
+    painter.fillRect(badge, QColor(35, 95, 160));
+    painter.setPen(Qt::white);
+    painter.drawText(badge, Qt::AlignCenter, QCoreApplication::translate("FrameThumbnail", "HD"));
 }
 
 void showCaptionsBelowThumbnails(QListWidget* list)

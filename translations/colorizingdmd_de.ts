@@ -2367,6 +2367,14 @@ Use Create %1 Frame.</source>
         <translation>Szene %1 löschen</translation>
     </message>
     <message>
+        <source>delete frames of scene %1 and renumber the rest</source>
+        <translation>Frames von Szene %1 löschen und den Rest neu nummerieren</translation>
+    </message>
+    <message>
+        <source>delete frames of scenes and renumber the rest</source>
+        <translation>Frames von Szenen löschen und den Rest neu nummerieren</translation>
+    </message>
+    <message>
         <source>add %1 frame(s)</source>
         <translation>%1 Frame(s) hinzufügen</translation>
     </message>
@@ -4521,6 +4529,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Frames: %1. %2 frame(s) remain. Sections and the source frames of sprites follow. The deletion can be undone.</source>
         <translation>Frames: %1. %2 Frame(s) bleiben. Abschnitte und die Quell-Frames von Sprites werden angepasst. Das Löschen kann rückgängig gemacht werden.</translation>
+    </message>
+    <message>
+        <source>Scene(s) %1 get fewer frames; their later frames are renumbered (markers included), so the frame numbers have no gap.</source>
+        <translation>Szene(n) %1 bekommen weniger Frames; ihre späteren Frames werden neu nummeriert (Marker eingeschlossen), damit die Frame-Nummern keine Lücke haben.</translation>
     </message>
     <message>
         <source>Delete Frames</source>
