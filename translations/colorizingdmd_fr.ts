@@ -2032,7 +2032,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Name</source>
-        <translation type="unfinished">Nom</translation>
+        <translation>Nom</translation>
     </message>
     <message>
         <source>Save Zone</source>
