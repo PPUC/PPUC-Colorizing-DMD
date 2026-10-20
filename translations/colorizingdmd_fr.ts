@@ -143,6 +143,14 @@
         <translation>Exporter l&apos;arrière-plan sélectionné en PNG</translation>
     </message>
     <message>
+        <source>Back to Frame</source>
+        <translation>Retour à la frame</translation>
+    </message>
+    <message>
+        <source>End editing the background and show the frame again</source>
+        <translation>Terminer l'édition du fond et afficher à nouveau la frame</translation>
+    </message>
+    <message>
         <source>Selected: None</source>
         <translation>Sélection : aucun</translation>
     </message>
@@ -2942,6 +2950,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Comparison Mask</source>
         <translation>Masque de comparaison</translation>
+    </message>
+    <message>
+        <source>Frame Background</source>
+        <translation>Fond de la frame</translation>
+    </message>
+    <message>
+        <source>Frame Sprites</source>
+        <translation>Sprites de la frame</translation>
     </message>
     <message>
         <source>Background</source>
@@ -6201,6 +6217,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Sprite detection area height</source>
         <translation>Hauteur de la zone de détection du sprite</translation>
+    </message>
+    <message>
+        <source>Back to Frame</source>
+        <translation>Retour à la frame</translation>
+    </message>
+    <message>
+        <source>Leave the sprite editor and show the frame again</source>
+        <translation>Quitter l'éditeur de sprite et afficher à nouveau la frame</translation>
     </message>
     <message>
         <source>No frame sprites</source>

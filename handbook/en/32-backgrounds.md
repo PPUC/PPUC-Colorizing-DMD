@@ -12,7 +12,12 @@ Currently implemented:
 - `Show BG` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
   The original pixel looked at is the one the plane pixel belongs to: (x, y) in SD, (x/2, y/2) in
   HD, and (x, y) on the single plane of a project with 256x64 or 192x64 original frames.
-- `Edit BG` in the Inspector's background section (or a double click on a background in the
+- The Inspector has two background sections, each shown on its own canvas: `Frame Background`
+  on the frame canvas (the selected background, `Assign BG`, `Remove BG`, `Frame -> BG`,
+  `BG -> Frame`, `Edit BG`) and `Background` while the background is edited (the selected
+  background, `Import Image`, `Export BG`, `Create HD`, `Remove HD`, and `Back to Frame`, which
+  ends editing as `Edit BG` clicked again does). Entering background editing opens it.
+- `Edit BG` in the Inspector's `Frame Background` section (or a double click on a background in the
   left sidebar) displays the selected background image on the canvas and edits that shared
   background image with the ordinary drawing tools; the button stays down meanwhile. Click
   `Edit BG` again to go back to the frame, as `Edit Sprite` does for a sprite, or double-click

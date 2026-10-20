@@ -13,7 +13,18 @@ Currently preserved sprite data includes:
 - Sprite detection dwords, positions, and areas.
 - Per-frame sprite assignments and bounding boxes.
 
-The Inspector has a sprite browser and assignment controls:
+The Inspector has two sprite sections, each shown on its own canvas:
+
+- `Frame Sprites`, on the frame canvas: what ties sprites to the frames. The selected sprite,
+  the sprites of the current frame, the slot selector, `Assign`, `Capture`, `Remove`,
+  `Select Capture`, `Clear Sel`, `Show Bounds`, `Source Frame`, the slot's bounds (`Min X` to
+  `Max Y`) and `Edit Sprite`.
+- `Sprite`, in the sprite editor: the sprite itself. The selected sprite, its name,
+  `Show Det Areas` and the detection areas, `Shape mode` and the dynamic sets, `Create HD Sprite`
+  and `Remove HD Sprite`, `Apply Sprite`, and `Back to Frame`, which leaves the sprite editor as
+  `Edit Sprite` clicked again does. Entering the sprite editor opens this section.
+
+The controls:
 
 - The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
 - The sprite name field edits the selected sprite name. Names are saved back to the fixed-size

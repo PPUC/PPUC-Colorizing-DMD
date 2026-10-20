@@ -1682,8 +1682,18 @@ void MainWindow::createCentralView()
     inspectorTabs->addTab(maskPage, QStringLiteral("Mask"), tr("Comparison Mask"));
     inspectorTabs->onCurrentChanged = [this](int) { updateSameFrameControls(); };
 
-    inspectorTabs->addTab(m_backgroundPanel, QStringLiteral("BG"), tr("Background"));
-    inspectorTabs->addTab(m_spritePanel, QStringLiteral("Sprite"), tr("Sprite"));
+    // The background and the sprite: on the frame canvas what ties them to the frames, while
+    // one is edited the record itself (updateInspectorSections()).
+    inspectorTabs->addTab(m_backgroundPanel->framePage(), QStringLiteral("BG"),
+                          tr("Frame Background"));
+    inspectorTabs->addTab(m_spritePanel->framePage(), QStringLiteral("Sprite"),
+                          tr("Frame Sprites"));
+    inspectorTabs->addTab(m_backgroundPanel->recordPage(), QStringLiteral("BGRecord"),
+                          tr("Background"));
+    inspectorTabs->addTab(m_spritePanel->recordPage(), QStringLiteral("SpriteRecord"),
+                          tr("Sprite"));
+    m_backgroundPanel->hide();
+    m_spritePanel->hide();
 
     m_dynamicPanel = new DynamicPanel(central);
     m_dynamicPanel->onDynamicSetChanged = [this](int setIndex) {
@@ -1758,7 +1768,9 @@ void MainWindow::createCentralView()
     inspectorTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
     // The action buttons of every section alike (InspectorForm.h).
     for (QWidget* page : std::initializer_list<QWidget*>{
-             m_framePanel, m_maskPanel, m_backgroundPanel, m_spritePanel, m_dynamicPanel,
+             m_framePanel, m_maskPanel, m_backgroundPanel->framePage(),
+             m_backgroundPanel->recordPage(), m_spritePanel->framePage(),
+             m_spritePanel->recordPage(), m_dynamicPanel,
              m_palettePanel, m_colorRotationPanel, m_colorSetPanel, m_sameFramesPanel}) {
         if (page) {
             fillButtonRows(page->layout());
@@ -1767,6 +1779,7 @@ void MainWindow::createCentralView()
 
     inspectorLayout->addWidget(inspectorTabs, 1);
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
+    updateInspectorSections();
     inspector->setMinimumWidth(200);
     // The two sidebars can be made wider or narrower; their widths are kept.
     auto* contentSplitter = new QSplitter(Qt::Horizontal, central);
@@ -7598,18 +7611,25 @@ void MainWindow::updateInspectorSections()
         return;
     }
     // Palettes, color sets and helper lines serve every canvas; the frame's own topics only the
-    // frame canvas. A background is edited from the Background section (Edit BG leaves it).
+    // frame canvas. A background or a sprite being edited has its own section (Back to Frame
+    // there leaves it), opened on the way in.
     static const QStringList everywhere{QStringLiteral("Palette"), QStringLiteral("Sets"),
                                         QStringLiteral("HelperLines")};
-    QStringList shown;
+    static const QStringList records{QStringLiteral("BGRecord"), QStringLiteral("SpriteRecord")};
+    QString record;
     if (spriteCanvasShown()) {
-        shown = everywhere + QStringList{QStringLiteral("Sprite")};
+        record = QStringLiteral("SpriteRecord");
     } else if (isBackgroundImageTargetActive()) {
-        shown = everywhere + QStringList{QStringLiteral("BG")};
+        record = QStringLiteral("BGRecord");
     }
     for (int index = 0; index < m_inspectorSections->count(); ++index) {
-        m_inspectorSections->setSectionHidden(
-            index, !shown.isEmpty() && !shown.contains(m_inspectorSections->tabText(index)));
+        const QString key = m_inspectorSections->tabText(index);
+        const bool shown = record.isEmpty() ? !records.contains(key)
+                                            : key == record || everywhere.contains(key);
+        if (key == record && m_inspectorSections->isSectionHidden(index)) {
+            m_inspectorSections->setSectionOpen(index, true);
+        }
+        m_inspectorSections->setSectionHidden(index, !shown);
     }
 }
 

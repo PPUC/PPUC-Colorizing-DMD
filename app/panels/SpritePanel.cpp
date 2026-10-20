@@ -172,48 +172,59 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_detectionAreaHeightSpinBox->setToolTip(tr("Sprite detection area height"));
     m_detectionAreaHeightSpinBox->setEnabled(false);
 
-    auto* pageLayout = new QVBoxLayout(this);
-    pageLayout->setContentsMargins(6, 6, 6, 6);
-    m_frameSpritesLabel = new QLabel(tr("No frame sprites"), this);
+    m_backToFrameButton = new QToolButton(this);
+    m_backToFrameButton->setText(tr("Back to Frame"));
+    m_backToFrameButton->setToolTip(tr("Leave the sprite editor and show the frame again"));
+
+    // The frame canvas' page: the sprite slots of the frame.
+    m_framePage = new QWidget(this);
+    auto* frameLayout = new QVBoxLayout(m_framePage);
+    frameLayout->setContentsMargins(6, 6, 6, 6);
+    m_frameSpritesLabel = new QLabel(tr("No frame sprites"), m_framePage);
     m_frameSpritesLabel->setWordWrap(true);
     m_frameSpritesLabel->setMinimumHeight(28);
-    m_selectedSpriteLabel = new QLabel(tr("Selected: None"), this);
+    m_selectedSpriteLabel = new QLabel(tr("Selected: None"), m_framePage);
     m_selectedSpriteLabel->setWordWrap(true);
-    pageLayout->addWidget(m_selectedSpriteLabel);
-    pageLayout->addWidget(m_nameLineEdit);
-    pageLayout->addWidget(m_slotComboBox);
+    frameLayout->addWidget(m_selectedSpriteLabel);
+    frameLayout->addWidget(m_frameSpritesLabel);
+    frameLayout->addWidget(m_slotComboBox);
     auto* slotButtonLayout = new QHBoxLayout();
     slotButtonLayout->addWidget(m_assignButton);
     slotButtonLayout->addWidget(m_captureButton);
     slotButtonLayout->addWidget(m_removeButton);
-    pageLayout->addLayout(slotButtonLayout);
+    frameLayout->addLayout(slotButtonLayout);
     auto* captureSelectionLayout = new QHBoxLayout();
     captureSelectionLayout->addWidget(m_captureSelectionButton);
     captureSelectionLayout->addWidget(m_clearCaptureSelectionButton);
-    pageLayout->addLayout(captureSelectionLayout);
-    auto* visualizationGrid = new QGridLayout();
-    visualizationGrid->setHorizontalSpacing(4);
-    visualizationGrid->setVerticalSpacing(4);
-    visualizationGrid->addWidget(m_boundsOverlayButton, 0, 0);
-    visualizationGrid->addWidget(m_detectionAreasButton, 0, 1);
-    visualizationGrid->addWidget(m_spriteCanvasButton, 1, 0);
-    visualizationGrid->addWidget(m_applySpriteEditsButton, 1, 1);
-    visualizationGrid->addWidget(m_sourceFrameButton, 2, 0);
-    visualizationGrid->addWidget(m_createHdButton, 3, 0);
-    visualizationGrid->addWidget(m_removeHdButton, 3, 1);
-    pageLayout->addLayout(visualizationGrid);
+    frameLayout->addLayout(captureSelectionLayout);
+    auto* frameButtonLayout = new QHBoxLayout();
+    frameButtonLayout->addWidget(m_boundsOverlayButton);
+    frameButtonLayout->addWidget(m_sourceFrameButton);
+    frameLayout->addLayout(frameButtonLayout);
     auto* boundsGrid = new QGridLayout();
     boundsGrid->setHorizontalSpacing(4);
     boundsGrid->setVerticalSpacing(4);
-    boundsGrid->addWidget(new QLabel(tr("Min X"), this), 0, 0);
+    boundsGrid->addWidget(new QLabel(tr("Min X"), m_framePage), 0, 0);
     boundsGrid->addWidget(m_minXSpinBox, 0, 1);
-    boundsGrid->addWidget(new QLabel(tr("Min Y"), this), 0, 2);
+    boundsGrid->addWidget(new QLabel(tr("Min Y"), m_framePage), 0, 2);
     boundsGrid->addWidget(m_minYSpinBox, 0, 3);
-    boundsGrid->addWidget(new QLabel(tr("Max X"), this), 1, 0);
+    boundsGrid->addWidget(new QLabel(tr("Max X"), m_framePage), 1, 0);
     boundsGrid->addWidget(m_maxXSpinBox, 1, 1);
-    boundsGrid->addWidget(new QLabel(tr("Max Y"), this), 1, 2);
+    boundsGrid->addWidget(new QLabel(tr("Max Y"), m_framePage), 1, 2);
     boundsGrid->addWidget(m_maxYSpinBox, 1, 3);
-    pageLayout->addLayout(boundsGrid);
+    frameLayout->addLayout(boundsGrid);
+    frameLayout->addWidget(m_spriteCanvasButton);
+    frameLayout->addStretch(1);
+
+    // The sprite editor's page: the sprite itself.
+    m_recordPage = new QWidget(this);
+    auto* pageLayout = new QVBoxLayout(m_recordPage);
+    pageLayout->setContentsMargins(6, 6, 6, 6);
+    m_editedSpriteLabel = new QLabel(tr("Selected: None"), m_recordPage);
+    m_editedSpriteLabel->setWordWrap(true);
+    pageLayout->addWidget(m_editedSpriteLabel);
+    pageLayout->addWidget(m_nameLineEdit);
+    pageLayout->addWidget(m_detectionAreasButton);
     auto* detectionAreaLayout = new QHBoxLayout();
     detectionAreaLayout->addWidget(m_detectionAreaComboBox);
     detectionAreaLayout->addWidget(m_clearDetectionAreaButton);
@@ -221,16 +232,15 @@ SpritePanel::SpritePanel(QWidget* parent)
     auto* detectionAreaGrid = new QGridLayout();
     detectionAreaGrid->setHorizontalSpacing(4);
     detectionAreaGrid->setVerticalSpacing(4);
-    detectionAreaGrid->addWidget(new QLabel(tr("X"), this), 0, 0);
+    detectionAreaGrid->addWidget(new QLabel(tr("X"), m_recordPage), 0, 0);
     detectionAreaGrid->addWidget(m_detectionAreaXSpinBox, 0, 1);
-    detectionAreaGrid->addWidget(new QLabel(tr("Y"), this), 0, 2);
+    detectionAreaGrid->addWidget(new QLabel(tr("Y"), m_recordPage), 0, 2);
     detectionAreaGrid->addWidget(m_detectionAreaYSpinBox, 0, 3);
-    detectionAreaGrid->addWidget(new QLabel(tr("W"), this), 1, 0);
+    detectionAreaGrid->addWidget(new QLabel(tr("W"), m_recordPage), 1, 0);
     detectionAreaGrid->addWidget(m_detectionAreaWidthSpinBox, 1, 1);
-    detectionAreaGrid->addWidget(new QLabel(tr("H"), this), 1, 2);
+    detectionAreaGrid->addWidget(new QLabel(tr("H"), m_recordPage), 1, 2);
     detectionAreaGrid->addWidget(m_detectionAreaHeightSpinBox, 1, 3);
     pageLayout->addLayout(detectionAreaGrid);
-    pageLayout->addWidget(m_frameSpritesLabel);
 
     // Shape mode and dynamic content of the selected sprite.
     m_shapeModeCheckBox = new QCheckBox(tr("Shape mode"), this);
@@ -297,7 +307,44 @@ SpritePanel::SpritePanel(QWidget* parent)
         }
     });
     refreshDynamic(nullptr, std::nullopt);
+    auto* hdLayout = new QHBoxLayout();
+    hdLayout->addWidget(m_createHdButton);
+    hdLayout->addWidget(m_removeHdButton);
+    pageLayout->addLayout(hdLayout);
+    auto* leaveLayout = new QHBoxLayout();
+    leaveLayout->addWidget(m_applySpriteEditsButton);
+    leaveLayout->addWidget(m_backToFrameButton);
+    pageLayout->addLayout(leaveLayout);
     pageLayout->addStretch(1);
+
+    // Both pages, for a panel that is not split into sections (MainWindow moves them).
+    auto* panelLayout = new QVBoxLayout(this);
+    panelLayout->setContentsMargins(0, 0, 0, 0);
+    panelLayout->addWidget(m_framePage);
+    panelLayout->addWidget(m_recordPage);
+    // Tab goes through each page as laid out.
+    for (const std::vector<QWidget*>& order :
+         {std::vector<QWidget*>{m_slotComboBox, m_assignButton, m_captureButton, m_removeButton,
+                                m_captureSelectionButton, m_clearCaptureSelectionButton,
+                                m_boundsOverlayButton, m_sourceFrameButton, m_minXSpinBox,
+                                m_minYSpinBox, m_maxXSpinBox, m_maxYSpinBox,
+                                m_spriteCanvasButton},
+          std::vector<QWidget*>{m_nameLineEdit, m_detectionAreasButton,
+                                m_detectionAreaComboBox, m_clearDetectionAreaButton,
+                                m_detectionAreaXSpinBox, m_detectionAreaYSpinBox,
+                                m_detectionAreaWidthSpinBox, m_detectionAreaHeightSpinBox,
+                                m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox,
+                                m_editColorsToSetButton, m_setToEditColorsButton,
+                                m_createHdButton, m_removeHdButton, m_applySpriteEditsButton,
+                                m_backToFrameButton}}) {
+        for (std::size_t index = 1; index < order.size(); ++index) {
+            QWidget::setTabOrder(order[index - 1], order[index]);
+        }
+    }
+    connect(m_backToFrameButton, &QToolButton::clicked, this, [this]() {
+        // As Edit Sprite clicked up again.
+        m_spriteCanvasButton->setChecked(false);
+    });
 
     connect(m_nameLineEdit, &QLineEdit::editingFinished, this, [this]() {
         if (onNameEdited) {
@@ -620,6 +667,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
         m_detectionAreaWidthSpinBox->setEnabled(false);
         m_detectionAreaHeightSpinBox->setEnabled(false);
         m_selectedSpriteLabel->setText(tr("Selected: None"));
+        m_editedSpriteLabel->setText(tr("Selected: None"));
         return;
     }
 
@@ -634,6 +682,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
         tr("Selected: %1%2")
             .arg(label)
             .arg(extraDataSuffix(*document, sprite.hasHd)));
+    m_editedSpriteLabel->setText(m_selectedSpriteLabel->text());
     {
         QSignalBlocker blocker(m_nameLineEdit);
         m_nameLineEdit->setText(QString::fromStdString(sprite.name));

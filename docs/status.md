@@ -1872,3 +1872,16 @@ BG, Palette, Sets, HelperLines (Frame hidden too, owner: Edit BG and the frame d
 leave background editing); frame canvas → all. Owner: Palette, Color
 Sets and Helper Lines always make sense; hiding preferred over disabling for the room. Test:
 the hidden-section block of `testSectionStackResize`.
+
+## Background and sprite sections split by canvas (2026-10-20, owner request)
+
+`BackgroundPanel` and `SpritePanel` build two pages each, `framePage()` and `recordPage()`;
+the panel's own layout holds both (standalone tests), MainWindow moves them into sections:
+`BG` "Frame Background" and `Sprite` "Frame Sprites" (keys kept, so the stored open state
+stays) on the frame canvas, `BGRecord` "Background" and `SpriteRecord` "Sprite" while the
+record is edited; `updateInspectorSections` opens the record section on the way in. Owner
+placement (as proposed): frame page — assign/remove, Frame->BG/BG->Frame, Edit BG; slots,
+capture, Show Bounds, bounds, Source Frame, Edit Sprite. Record page — Import/Export BG, HD;
+name, Show Det Areas, detection areas, shape mode, dynamic sets, HD, Apply Sprite. Each record
+page has `Back to Frame` (background: `onEditRequested(false)`; sprite: unchecks Edit Sprite).
+SpritePanel sets the tab order per page explicitly (moving widgets into pages scrambled it).

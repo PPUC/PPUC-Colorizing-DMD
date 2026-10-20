@@ -51,7 +51,10 @@ struct SpriteDetectionAreaInput {
 [[nodiscard]] bool isSpriteDetectionAreaSet(const document::SpriteDetectionArea& area);
 
 // Inspector page for the selected sprite and the sprite slots of a frame. It only displays and
-// reports what the user asked for; the owner applies the edits and calls refresh().
+// reports what the user asked for; the owner applies the edits and calls refresh(). It has two
+// pages, which the owner may put into sections of their own: framePage() for the frame canvas
+// (the frame's slots, capture, bounds, Edit Sprite) and recordPage() for the sprite editor
+// (name, detection areas, shape mode, dynamic sets, HD, Apply Sprite, Back to Frame).
 class SpritePanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(SpritePanel)
 
@@ -59,6 +62,8 @@ public:
     explicit SpritePanel(QWidget* parent = nullptr);
 
     void refresh(const SpritePanelState& state);
+    [[nodiscard]] QWidget* framePage() const { return m_framePage; }
+    [[nodiscard]] QWidget* recordPage() const { return m_recordPage; }
     // Ignored for an index the page does not offer.
     void setSelectedDetectionAreaIndex(std::size_t areaIndex);
     // Neither notifies.
@@ -113,7 +118,11 @@ public:
     std::function<void()> onClearDetectionAreaRequested;
 
 private:
+    QWidget* m_framePage = nullptr;
+    QWidget* m_recordPage = nullptr;
     QLabel* m_selectedSpriteLabel = nullptr;
+    QLabel* m_editedSpriteLabel = nullptr;
+    QToolButton* m_backToFrameButton = nullptr;
     QLineEdit* m_nameLineEdit = nullptr;
     QComboBox* m_slotComboBox = nullptr;
     QToolButton* m_assignButton = nullptr;

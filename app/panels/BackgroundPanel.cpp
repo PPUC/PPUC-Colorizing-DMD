@@ -47,20 +47,35 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     m_exportButton->setToolTip(tr("Export the selected background as PNG"));
     m_exportButton->setEnabled(false);
 
-    auto* pageLayout = new QVBoxLayout(this);
-    pageLayout->setContentsMargins(6, 6, 6, 6);
-    m_selectedBackgroundLabel = new QLabel(tr("Selected: None"), this);
+    m_backToFrameButton = new QToolButton(this);
+    m_backToFrameButton->setText(tr("Back to Frame"));
+    m_backToFrameButton->setToolTip(tr("End editing the background and show the frame again"));
+
+    // The frame canvas' page: the background of the frames.
+    m_framePage = new QWidget(this);
+    auto* frameLayout = new QVBoxLayout(m_framePage);
+    frameLayout->setContentsMargins(6, 6, 6, 6);
+    m_selectedBackgroundLabel = new QLabel(tr("Selected: None"), m_framePage);
     m_selectedBackgroundLabel->setWordWrap(true);
-    pageLayout->addWidget(m_selectedBackgroundLabel);
+    frameLayout->addWidget(m_selectedBackgroundLabel);
     auto* buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(m_assignButton);
     buttonLayout->addWidget(m_removeButton);
-    buttonLayout->addWidget(m_editButton);
-    pageLayout->addLayout(buttonLayout);
+    frameLayout->addLayout(buttonLayout);
     auto* copyLayout = new QHBoxLayout();
     copyLayout->addWidget(m_copyFrameToBackgroundButton);
     copyLayout->addWidget(m_copyBackgroundToFramesButton);
-    pageLayout->addLayout(copyLayout);
+    frameLayout->addLayout(copyLayout);
+    frameLayout->addWidget(m_editButton);
+    frameLayout->addStretch(1);
+
+    // The page while the background is edited: the background itself.
+    m_recordPage = new QWidget(this);
+    auto* pageLayout = new QVBoxLayout(m_recordPage);
+    pageLayout->setContentsMargins(6, 6, 6, 6);
+    m_editedBackgroundLabel = new QLabel(tr("Selected: None"), m_recordPage);
+    m_editedBackgroundLabel->setWordWrap(true);
+    pageLayout->addWidget(m_editedBackgroundLabel);
     auto* fileLayout = new QHBoxLayout();
     fileLayout->addWidget(m_importImageButton);
     fileLayout->addWidget(m_exportButton);
@@ -85,7 +100,19 @@ BackgroundPanel::BackgroundPanel(QWidget* parent)
     hdLayout->addWidget(m_createHdButton);
     hdLayout->addWidget(m_removeHdButton);
     pageLayout->addLayout(hdLayout);
+    pageLayout->addWidget(m_backToFrameButton);
     pageLayout->addStretch(1);
+
+    // Both pages, for a panel that is not split into sections (MainWindow moves them).
+    auto* panelLayout = new QVBoxLayout(this);
+    panelLayout->setContentsMargins(0, 0, 0, 0);
+    panelLayout->addWidget(m_framePage);
+    panelLayout->addWidget(m_recordPage);
+    connect(m_backToFrameButton, &QToolButton::clicked, this, [this]() {
+        if (onEditRequested) {
+            onEditRequested(false);
+        }
+    });
 
     connect(m_assignButton, &QToolButton::clicked, this, [this]() {
         if (onAssignRequested) {
@@ -159,6 +186,7 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
 
     if (!hasBackground) {
         m_selectedBackgroundLabel->setText(tr("Selected: None"));
+        m_editedBackgroundLabel->setText(tr("Selected: None"));
         return;
     }
 
@@ -169,6 +197,7 @@ void BackgroundPanel::refresh(const BackgroundPanelState& state)
                                            .arg(extraDataSuffix(
                                                *document,
                                                background.colorizedHd.has_value())));
+    m_editedBackgroundLabel->setText(m_selectedBackgroundLabel->text());
 }
 
 }  // namespace colorizing::app

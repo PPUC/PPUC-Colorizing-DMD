@@ -27,7 +27,10 @@ struct BackgroundPanelState {
 };
 
 // Inspector page for the selected background. It only displays and reports what the user
-// asked for; the owner applies the edits and calls refresh().
+// asked for; the owner applies the edits and calls refresh(). It has two pages, which the
+// owner may put into sections of their own: framePage() for the frame canvas (assigning the
+// background, copying between frame and background, Edit BG) and recordPage() while the
+// background is edited (import, export, its HD image, Back to Frame).
 class BackgroundPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(BackgroundPanel)
 
@@ -35,6 +38,8 @@ public:
     explicit BackgroundPanel(QWidget* parent = nullptr);
 
     void refresh(const BackgroundPanelState& state);
+    [[nodiscard]] QWidget* framePage() const { return m_framePage; }
+    [[nodiscard]] QWidget* recordPage() const { return m_recordPage; }
 
     std::function<void()> onAssignRequested;
     // Remove BG: the selected frames get no background.
@@ -52,7 +57,11 @@ public:
     std::function<void()> onRemoveHdRequested;
 
 private:
+    QWidget* m_framePage = nullptr;
+    QWidget* m_recordPage = nullptr;
     QLabel* m_selectedBackgroundLabel = nullptr;
+    QLabel* m_editedBackgroundLabel = nullptr;
+    QToolButton* m_backToFrameButton = nullptr;
     QToolButton* m_assignButton = nullptr;
     QToolButton* m_removeButton = nullptr;
     QToolButton* m_editButton = nullptr;

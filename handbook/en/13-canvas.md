@@ -97,20 +97,25 @@ Frame metadata, dynamic colors, and sprite controls live in selectable topics in
   actions (`Create 256x64 Frame` alone in a project with 256x64 original frames, none in one with
   192x64 original frames).
 - `Mask` contains comparison-mask assignment, comparison mode, and a shortcut into mask editing.
-- `Background` contains the selected background ID, assignment, and edit shortcut.
+- `Frame Background` contains the selected background ID, its assignment to the frames, copying
+  between frame and background, and `Edit BG`; `Background`, shown while the background is
+  edited, its import, export and HD image (see "Backgrounds").
 - `Dynamic` contains the dynamic set selector and dynamic color swatches. In HD mode of an
   ordinary project it shows the SD plane's colors and shadows, with a note saying so.
 - `Rotation` contains color rotation slots for the current frame and active SD/HD mode.
 - `Palette` contains the selected cRP palette name and all 64 palette colors.
-- `Sprites` contains sprite selection, naming, assignment, bounds, detection areas, and sprite editing.
+- `Frame Sprites` contains the frame's sprite slots, assignment, capture, bounds, and
+  `Edit Sprite`; `Sprite`, shown in the sprite editor, the sprite's name, detection areas,
+  shape mode, dynamic sets and HD data (see "Sprites").
 
 The Inspector shows only the sections that serve the canvas shown, to leave them the room:
 
-- On the frame canvas, every section.
+- On the frame canvas, every section but `Background` and `Sprite`.
 - While a background is edited (`Edit BG`, or `Target` set to `Background`): `Background`,
-  `Palette`, `Color Sets` and `Helper Lines`. `Edit BG` there, or a double click on a frame in
-  the frame strip, goes back to the frame.
+  `Palette`, `Color Sets` and `Helper Lines`. `Back to Frame` there, or a double click on a
+  frame in the frame strip, goes back to the frame.
 - In the sprite editor (`Edit Sprite`): `Sprite`, `Palette`, `Color Sets` and `Helper Lines`.
+  `Back to Frame` there, or a double click on a frame, goes back to the frame.
 
 A hidden section stays open or closed as it was and comes back so when the frame canvas returns.
 

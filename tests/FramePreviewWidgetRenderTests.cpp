@@ -2382,14 +2382,25 @@ void testSpritePanel()
                applyButton->text() == QStringLiteral("Apply Sprite") &&
                clearAreaButton->text() == QStringLiteral("Clear Area"),
            "sprite panel should keep its button texts");
+    // Two pages: the frame's slots (frame canvas) and the sprite itself (sprite editor).
+    expect(slotComboBox->parentWidget() == panel.framePage() &&
+               spriteCanvasButton->parentWidget() == panel.framePage() &&
+               boundsOverlayButton->parentWidget() == panel.framePage() &&
+               nameLineEdit->parentWidget() == panel.recordPage() &&
+               detectionAreasButton->parentWidget() == panel.recordPage() &&
+               applyButton->parentWidget() == panel.recordPage() &&
+               areaComboBox->parentWidget() == panel.recordPage(),
+           "sprite panel should split the frame's slots from the sprite itself");
     expect(tabVisitsInOrder(panel,
-                            {nameLineEdit, slotComboBox, assignButton, captureButton,
-                             removeButton, captureSelectionButton, clearCaptureButton,
-                             boundsOverlayButton, detectionAreasButton, spriteCanvasButton,
-                             applyButton, minXSpinBox, minYSpinBox, maxXSpinBox, maxYSpinBox,
-                             areaComboBox, clearAreaButton, areaXSpinBox, areaYSpinBox,
-                             areaWidthSpinBox, areaHeightSpinBox}),
-           "sprite panel should tab through its controls as laid out");
+                            {slotComboBox, assignButton, captureButton, removeButton,
+                             captureSelectionButton, clearCaptureButton, boundsOverlayButton,
+                             minXSpinBox, minYSpinBox, maxXSpinBox, maxYSpinBox,
+                             spriteCanvasButton}) &&
+               tabVisitsInOrder(panel,
+                                {nameLineEdit, detectionAreasButton, areaComboBox,
+                                 clearAreaButton, areaXSpinBox, areaYSpinBox, areaWidthSpinBox,
+                                 areaHeightSpinBox, applyButton}),
+           "sprite panel should tab through each page as laid out");
     expect(captureSelectionButton->isCheckable() && boundsOverlayButton->isCheckable() &&
                detectionAreasButton->isCheckable() && spriteCanvasButton->isCheckable() &&
                !assignButton->isCheckable(),
@@ -2403,8 +2414,9 @@ void testSpritePanel()
                    static_cast<int>(colorizing::document::kMaxSpriteDetectAreas) &&
                areaComboBox->itemText(1) == QStringLiteral("Area 1"),
            "sprite panel should list every detection area");
-    expect(panel.findChildren<QLabel*>().size() == 10,
-           "sprite panel should hold only its two text labels and eight field captions");
+    expect(panel.findChildren<QLabel*>().size() == 11,
+           "sprite panel should hold only its three text labels (the selection on each page) "
+           "and eight field captions");
 
     panel.refresh(SpritePanelState{});
     expect(!nameLineEdit->isEnabled() && !slotComboBox->isEnabled() &&
@@ -2525,6 +2537,12 @@ void testSpritePanel()
                !assignButton->isEnabled(),
            "sprite panel should treat an unknown sprite as no sprite");
     expect(callbacks == 0, "refreshing the sprite panel should not notify");
+    panel.setSpriteCanvasChecked(true);
+    childByToolTip<QToolButton>(panel, "Leave the sprite editor and show the frame again")
+        ->click();
+    expect(!spriteCanvasButton->isChecked() && callbacks == 1,
+           "Back to Frame leaves the sprite editor, as Edit Sprite clicked up");
+    callbacks = 0;
 
     panel.refresh(stateFor(0, 0));
     slotComboBox->setCurrentIndex(2);
@@ -3181,8 +3199,27 @@ void testBackgroundPanel()
                importButton->text() == QStringLiteral("Import Image") &&
                exportButton->text() == QStringLiteral("Export BG"),
            "background panel should keep its button texts");
-    expect(panel.findChildren<QLabel*>().size() == 1,
-           "background panel should hold no label besides the selected background");
+    expect(panel.findChildren<QLabel*>().size() == 2,
+           "background panel should hold no label besides the selected background, once on "
+           "each page");
+    // Two pages: the frames' background (frame canvas) and the background itself (editing).
+    expect(assignButton->parentWidget() == panel.framePage() &&
+               editButton->parentWidget() == panel.framePage() &&
+               frameToBackgroundButton->parentWidget() == panel.framePage() &&
+               backgroundToFramesButton->parentWidget() == panel.framePage() &&
+               importButton->parentWidget() == panel.recordPage() &&
+               exportButton->parentWidget() == panel.recordPage(),
+           "background panel should split the frames' background from the background itself");
+    {
+        const auto saved = panel.onEditRequested;
+        bool editRequested = true;
+        panel.onEditRequested = [&](bool editing) { editRequested = editing; };
+        childByToolTip<QToolButton>(panel,
+                                    "End editing the background and show the frame again")
+            ->click();
+        expect(!editRequested, "Back to Frame ends editing the background");
+        panel.onEditRequested = saved;
+    }
     expect(tabVisitsInOrder(panel,
                             {assignButton, editButton, frameToBackgroundButton,
                              backgroundToFramesButton, importButton, exportButton}),

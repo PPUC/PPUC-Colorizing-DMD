@@ -143,6 +143,14 @@
         <translation>Ausgewählten Hintergrund als PNG exportieren</translation>
     </message>
     <message>
+        <source>Back to Frame</source>
+        <translation>Zurück zum Frame</translation>
+    </message>
+    <message>
+        <source>End editing the background and show the frame again</source>
+        <translation>Das Bearbeiten des Hintergrunds beenden und wieder das Frame zeigen</translation>
+    </message>
+    <message>
         <source>Selected: None</source>
         <translation>Ausgewählt: keiner</translation>
     </message>
@@ -2942,6 +2950,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Comparison Mask</source>
         <translation>Vergleichsmaske</translation>
+    </message>
+    <message>
+        <source>Frame Background</source>
+        <translation>Hintergrund des Frames</translation>
+    </message>
+    <message>
+        <source>Frame Sprites</source>
+        <translation>Sprites des Frames</translation>
     </message>
     <message>
         <source>Background</source>
@@ -6201,6 +6217,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Sprite detection area height</source>
         <translation>Erkennungsbereich des Sprites, Höhe</translation>
+    </message>
+    <message>
+        <source>Back to Frame</source>
+        <translation>Zurück zum Frame</translation>
+    </message>
+    <message>
+        <source>Leave the sprite editor and show the frame again</source>
+        <translation>Den Sprite-Editor verlassen und wieder das Frame zeigen</translation>
     </message>
     <message>
         <source>No frame sprites</source>
