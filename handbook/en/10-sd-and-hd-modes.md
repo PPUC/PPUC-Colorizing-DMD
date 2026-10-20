@@ -16,8 +16,11 @@ plane). What the window shows for each kind of project:
 | Frame page buttons | `Create HD`, `Remove HD` | `Create 256x64 Frame` | none |
 | Sprite page buttons | `Create HD Sprite`, `Remove HD Sprite` | `Create 256x64 Sprite` | none |
 | Background page buttons | `Create HD`, `Remove HD` | `Create 256x64 Background` | none |
-| Sprite and background lists | `(HD)` | `(no picture)` on records without 256x64 data | no suffix |
+| Sprite and background lists | `(HD)` and a blue `HD` badge on the thumbnail | `(no picture)` on records without 256x64 data | no suffix |
 | Status texts, export file names | `SD`, `HD`, `_sd`, `_hd` | `256x64`, `_256x64` | `192x64`, `_192x64` |
+
+The sprite and background thumbnails in the left sidebar always show the SD picture (the only
+picture in a project with one plane), whichever plane is edited.
 
 Buttons and entries that do not apply are hidden, not disabled, and take no room: the toolbar
 starts with `Mask` in a project without SD and HD, and the `Frame` section ends after `Import Image`

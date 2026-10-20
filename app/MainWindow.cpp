@@ -40,6 +40,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPainter>
 #include <QPixmap>
 #include <QProgressDialog>
 #include <QPushButton>
@@ -278,6 +279,25 @@ QPixmap previewPixmap(const QImage& image, QSize targetSize);
 QIcon previewIcon(const QImage& image, QSize targetSize)
 {
     return QIcon(previewPixmap(image, targetSize));
+}
+
+// A sprite or background thumbnail: the SD picture, with the frame list's HD badge when the
+// record has HD data.
+QIcon componentIcon(const QImage& image, QSize targetSize, bool hdBadge)
+{
+    QPixmap pixmap = previewPixmap(image, targetSize);
+    if (hdBadge) {
+        QPainter painter(&pixmap);
+        QFont font = painter.font();
+        font.setPixelSize(10);
+        font.setBold(true);
+        painter.setFont(font);
+        const QRect badge(pixmap.width() - 26, 2, 24, 13);
+        painter.fillRect(badge, QColor(35, 95, 160));
+        painter.setPen(Qt::white);
+        painter.drawText(badge, Qt::AlignCenter, QCoreApplication::translate("FrameThumbnail", "HD"));
+    }
+    return QIcon(pixmap);
 }
 
 QPixmap previewPixmap(const QImage& image, QSize targetSize)
@@ -4502,6 +4522,11 @@ void MainWindow::refreshComponentBrowsers()
 {
     constexpr QSize iconSize{160, 42};
     const bool hdOnly = isHdOnlyProject();
+    // The thumbnails stay on the SD picture whichever plane is edited (the only plane in a
+    // project with one); the HD badge says which records have HD data.
+    const render::Resolution thumbnailPlane =
+        hdOnly ? render::Resolution::Hd : render::Resolution::Sd;
+    const bool hdBadges = m_document && hasHdAsExtraResolution(&*m_document);
     if (m_maskList) {
         QSignalBlocker blocker(m_maskList);
         m_maskList->clear();
@@ -4528,10 +4553,11 @@ void MainWindow::refreshComponentBrowsers()
                 const document::BackgroundRecord& background =
                     m_document->background(backgroundIndex);
                 auto* item = new QListWidgetItem(
-                    previewIcon(renderBackgroundPreviewImage(background,
-                                                             m_activeResolution,
-                                                             m_document->geometry()),
-                                iconSize),
+                    componentIcon(renderBackgroundPreviewImage(background,
+                                                               thumbnailPlane,
+                                                               m_document->geometry()),
+                                  iconSize,
+                                  hdBadges && background.colorizedHd.has_value()),
                     QStringLiteral("%1%2")
                         .arg(static_cast<int>(backgroundIndex))
                         .arg(extraDataSuffix(*m_document,
@@ -4557,10 +4583,11 @@ void MainWindow::refreshComponentBrowsers()
                               .arg(static_cast<int>(spriteIndex))
                               .arg(QString::fromStdString(sprite.name));
                 auto* item = new QListWidgetItem(
-                    previewIcon(renderSpriteColorizedPreviewImage(sprite,
-                                                                  m_activeResolution,
-                                                                  hdOnly),
-                                iconSize),
+                    componentIcon(renderSpriteColorizedPreviewImage(sprite,
+                                                                    thumbnailPlane,
+                                                                    hdOnly),
+                                  iconSize,
+                                  hdBadges && sprite.hasHd),
                     QStringLiteral("%1%2")
                         .arg(spriteLabel)
                         .arg(extraDataSuffix(*m_document, sprite.hasHd)));
@@ -6619,6 +6646,49 @@ void MainWindow::applyPendingSpriteDependentViews()
     statusBar()->showMessage(tr("Applied sprite edits to previews"), 1000);
 }
 
+QComboBox* MainWindow::addUpscaleFilterRow(QDialog& dialog, QVBoxLayout& layout) const
+{
+    auto* filterRow = new QHBoxLayout();
+    filterRow->addWidget(new QLabel(tr("Filter"), &dialog));
+    auto* filterComboBox = new QComboBox(&dialog);
+    filterComboBox->setToolTip(tr(
+        "How the SD picture becomes twice as large: Nearest doubles every pixel, Scale2x keeps "
+        "the colors and smooths diagonal edges, the others blend neighbouring colors"));
+    for (document::UpscaleFilter filter :
+         {document::UpscaleFilter::Nearest, document::UpscaleFilter::Scale2x,
+          document::UpscaleFilter::Bilinear, document::UpscaleFilter::Bicubic,
+          document::UpscaleFilter::Lanczos4}) {
+        filterComboBox->addItem(QString::fromStdString(document::upscaleFilterName(filter)),
+                                static_cast<int>(filter));
+    }
+    filterComboBox->setCurrentIndex(
+        std::max(0, filterComboBox->findData(static_cast<int>(m_createHdFilter))));
+    filterRow->addWidget(filterComboBox, 1);
+    layout.addLayout(filterRow);
+    return filterComboBox;
+}
+
+bool MainWindow::askUpscaleFilter(const QString& title, const QString& text)
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(title);
+    auto* dialogLayout = new QVBoxLayout(&dialog);
+    auto* description = new QLabel(text, &dialog);
+    description->setWordWrap(true);
+    dialogLayout->addWidget(description);
+    QComboBox* filterComboBox = addUpscaleFilterRow(dialog, *dialogLayout);
+    auto* buttonBox =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    dialogLayout->addWidget(buttonBox);
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+    m_createHdFilter = static_cast<document::UpscaleFilter>(filterComboBox->currentData().toInt());
+    return true;
+}
+
 void MainWindow::createCurrentSpriteHd()
 {
     const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
@@ -6633,10 +6703,18 @@ void MainWindow::createCurrentSpriteHd()
     if (isOriginalPlaneOnlyProject()) {
         return;
     }
+    // An HD-only project takes the HD sprite from the sprite original: nothing is scaled.
+    if (!isHdOnlyProject() &&
+        !askUpscaleFilter(tr("Create HD Sprite"),
+                          tr("Create the HD sprite of sprite %1 from its SD colors; the mask "
+                             "is doubled.")
+                              .arg(*spriteIndex))) {
+        return;
+    }
 
     try {
         std::unique_ptr<edit::EditCommand> command =
-            edit::createSpriteHd(*m_document, *spriteIndex);
+            edit::createSpriteHd(*m_document, *spriteIndex, m_createHdFilter);
         m_activeResolution = render::Resolution::Hd;
         recordEdit(std::move(command));
         updateUndoRedoActions();
@@ -6645,7 +6723,8 @@ void MainWindow::createCurrentSpriteHd()
                 ? tr("Created the %1 sprite from the sprite original in its plain "
                      "colors")
                       .arg(nativePlaneText(*m_document))
-                : tr("Created HD sprite from SD"),
+                : tr("Created HD sprite from SD (%1)")
+                      .arg(QString::fromStdString(document::upscaleFilterName(m_createHdFilter))),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
@@ -6661,9 +6740,15 @@ void MainWindow::createSelectedBackgroundHd()
         updateBackgroundControls();
         return;
     }
+    if (!isHdOnlyProject() &&
+        !askUpscaleFilter(tr("Create HD Background"),
+                          tr("Create the HD image of background %1 from its SD image.")
+                              .arg(*backgroundIndex))) {
+        return;
+    }
     try {
         const render::Size hdSize = m_document->geometry().planeSize(render::Resolution::Hd);
-        // From the SD image with the filter Create HD used last; a project with 256x64
+        // From the SD image with the chosen filter; a project with 256x64
         // original frames has no SD image to take it from: black, as Create 256x64 Frame
         // gives a background.
         document::Rgb565Frame hd =
@@ -6674,6 +6759,11 @@ void MainWindow::createSelectedBackgroundHd()
                       m_createHdFilter);
         commitEdit(std::make_unique<edit::BackgroundHdCreateCommand>(*backgroundIndex,
                                                                      std::move(hd)));
+        if (activePaintTarget() == PaintTarget::Background) {
+            // The background being edited: show its new HD image, as Create HD Sprite does.
+            m_activeResolution = render::Resolution::Hd;
+            updateResolutionMode();
+        }
         refreshComponentBrowsers();
         updateBackgroundControls();
         updateUndoRedoActions();
@@ -6826,23 +6916,7 @@ void MainWindow::createCurrentFrameHd()
     backgroundImageCheckBox->setEnabled(hasAssignedBackground);
     backgroundImageCheckBox->setToolTip(tr("Scale assigned SD background image to HD"));
     dialogLayout->addWidget(backgroundImageCheckBox);
-    auto* filterRow = new QHBoxLayout();
-    filterRow->addWidget(new QLabel(tr("Filter"), &dialog));
-    auto* filterComboBox = new QComboBox(&dialog);
-    filterComboBox->setToolTip(tr(
-        "How the SD picture becomes twice as large: Nearest doubles every pixel, Scale2x keeps "
-        "the colors and smooths diagonal edges, the others blend neighbouring colors"));
-    for (document::UpscaleFilter filter :
-         {document::UpscaleFilter::Nearest, document::UpscaleFilter::Scale2x,
-          document::UpscaleFilter::Bilinear, document::UpscaleFilter::Bicubic,
-          document::UpscaleFilter::Lanczos4}) {
-        filterComboBox->addItem(QString::fromStdString(document::upscaleFilterName(filter)),
-                                static_cast<int>(filter));
-    }
-    filterComboBox->setCurrentIndex(
-        std::max(0, filterComboBox->findData(static_cast<int>(m_createHdFilter))));
-    filterRow->addWidget(filterComboBox, 1);
-    dialogLayout->addLayout(filterRow);
+    QComboBox* filterComboBox = addUpscaleFilterRow(dialog, *dialogLayout);
     auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
                                            &dialog);
     dialogLayout->addWidget(buttonBox);

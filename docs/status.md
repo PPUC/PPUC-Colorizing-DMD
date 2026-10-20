@@ -1845,3 +1845,19 @@ half first. `pixelCentre(original, pixel)` is a test helper. The frame list's do
 also leaves the sprite editor (`leaveSpriteCanvas`), as it leaves background editing. Toolbar
 `100%` (`zoomResetButton`, after `+`) resets the sprite or the frame zoom. Tests use
 `pixelCentre` and a measured scale instead of fixed widget coordinates.
+
+## Background HD editing, filter choice, sidebar badges (2026-10-20, owner report)
+
+Bug: an HD background could not be edited on a frame without HD. `FramePreviewWidget::
+currentLayout` took the plane from `hasHdFrame(frame)` also in background edit mode, so the
+canvas fell back to SD. It now takes the selected background's `colorizedHd` while
+`m_showBackgroundImageEditMode` (CanvasEditController already checked the background).
+`createSelectedBackgroundHd` switches to HD when the background is being edited. Create HD
+Sprite / Create HD (background) ask for the filter (`askUpscaleFilter`, the shared
+`addUpscaleFilterRow` also used by Create HD Frame, preselecting `m_createHdFilter`); not asked
+in HD-only projects (nothing is scaled). `ProjectDocument::createHdSprite(index, filter)` /
+`edit::createSpriteHd(..., filter)` scale the SD quarter of the sprite storage with
+`upscale2x`; the mask stays doubled. Sidebar sprite/background thumbnails always render SD
+(HD in HD-only projects) and get the frame list's blue HD badge (`componentIcon`) in ordinary
+projects. Tests: `testBackgroundHdEditableOnFrameWithoutHd`, Bilinear case in
+`testSpriteHdCommands`.

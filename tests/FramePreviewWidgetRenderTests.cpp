@@ -1203,6 +1203,41 @@ void testBackgroundLayerRendersInSdAndHd()
     expect(hasVisibleGreenPixel(hdImage), "HD background layer should render visibly");
 }
 
+// The background's own HD image decides the plane while it is edited, not the frame's.
+void testBackgroundHdEditableOnFrameWithoutHd()
+{
+    colorizing::document::ProjectDocument document = makeBackgroundPreviewDocument();
+    if (document.hasHdFrame(0)) {
+        document.removeHdFrame(0);
+    }
+    expect(!document.hasHdFrame(0) && document.background(0).colorizedHd.has_value(),
+           "fixture: a frame without HD, a background with HD");
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setFrameIndex(0);
+    widget.setSelectedBackgroundIndex(0);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    const auto planeAtTop = [&]() {
+        for (int y = 0; y < widget.height() / 2; y += 4) {
+            const auto hit = widget.hitTestAt(QPoint(widget.width() / 2, y));
+            if (hit && hit->region == colorizing::render::CanvasRegion::ColorizedFrame) {
+                return std::optional<colorizing::render::Resolution>(hit->resolution);
+            }
+        }
+        return std::optional<colorizing::render::Resolution>();
+    };
+    expect(planeAtTop() == colorizing::render::Resolution::Sd,
+           "the frame without HD is shown in SD");
+    widget.setBackgroundImageEditModeEnabled(true);
+    expect(planeAtTop() == colorizing::render::Resolution::Hd,
+           "its background's HD image is shown and edited in HD");
+    document.removeBackgroundHdFrame(0);
+    widget.update();
+    expect(planeAtTop() == colorizing::render::Resolution::Sd,
+           "a background without HD is edited in SD");
+}
+
 void testDynamicDoesNotReplaceAppliedBackground()
 {
     colorizing::document::ProjectDocument document = makeDynamicOverBackgroundDocument();
@@ -3689,6 +3724,7 @@ int main(int argc, char* argv[])
     testDynamicShadowsRender();
     testSpriteCompositionRendersInSdAndHd();
     testBackgroundImageEditModeRendersInSdAndHd();
+    testBackgroundHdEditableOnFrameWithoutHd();
     testDotPixelsHaveNoOutline();
     testPositionHandler();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();

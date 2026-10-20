@@ -70,6 +70,8 @@ class QCloseEvent;
 class QListWidgetItem;
 class QMenu;
 class QComboBox;
+class QDialog;
+class QVBoxLayout;
 class QCheckBox;
 class QSpinBox;
 class QTimer;
@@ -287,6 +289,10 @@ private:
     void importImageIntoSelectedBackground();
     // The Background section's Create HD and Remove HD, for the selected background.
     void createSelectedBackgroundHd();
+    // The Filter row of the Create HD windows, set to the filter used last.
+    QComboBox* addUpscaleFilterRow(QDialog& dialog, QVBoxLayout& layout) const;
+    // Asks for the filter; false when cancelled. The choice becomes m_createHdFilter.
+    bool askUpscaleFilter(const QString& title, const QString& text);
     void removeSelectedBackgroundHd();
     void exportSelectedBackgroundPng();
     void assignSelectedSpriteToCurrentSlot();

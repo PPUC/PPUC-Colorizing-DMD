@@ -131,8 +131,24 @@ IndexedFrame upscaleSpriteIndexedFrame2x(const IndexedFrame& source)
     return target;
 }
 
-Rgb565Frame upscaleSpriteRgb565Frame2x(const Rgb565Frame& source)
+// The SD sprite fills the upper left quarter of its storage; the filter scales that quarter.
+Rgb565Frame upscaleSpriteRgb565Frame2x(const Rgb565Frame& source,
+                                       UpscaleFilter filter = UpscaleFilter::Nearest)
 {
+    if (filter != UpscaleFilter::Nearest) {
+        const Size quarter{static_cast<int>(kMaxSpriteWidth / 2),
+                           static_cast<int>(kMaxSpriteHeight / 2)};
+        Rgb565Frame sd = makeRgb565Frame(quarter);
+        for (int y = 0; y < quarter.height; ++y) {
+            for (int x = 0; x < quarter.width; ++x) {
+                sd.pixels[static_cast<std::size_t>(y) * quarter.width +
+                          static_cast<std::size_t>(x)] =
+                    source.pixels[static_cast<std::size_t>(y) * kMaxSpriteWidth +
+                                  static_cast<std::size_t>(x)];
+            }
+        }
+        return upscale2x(sd, filter);
+    }
     Rgb565Frame target = makeRgb565Frame(Size{static_cast<int>(kMaxSpriteWidth),
                                               static_cast<int>(kMaxSpriteHeight)});
     for (int y = 0; y < target.size.height; ++y) {
@@ -2049,7 +2065,7 @@ bool ProjectDocument::hasHdSprite(std::size_t spriteIndex) const
     return sprite(spriteIndex).hasHd;
 }
 
-void ProjectDocument::createHdSprite(std::size_t spriteIndex)
+void ProjectDocument::createHdSprite(std::size_t spriteIndex, UpscaleFilter filter)
 {
     requireEditableExtraPlane();
     if (spriteIndex >= m_sprites.size()) {
@@ -2064,7 +2080,7 @@ void ProjectDocument::createHdSprite(std::size_t spriteIndex)
         sprite.colorizedHd = plainRgb565Frame(sprite.originalSd, m_colorCount);
     } else {
         sprite.maskHd = upscaleSpriteIndexedFrame2x(sprite.originalSd);
-        sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd);
+        sprite.colorizedHd = upscaleSpriteRgb565Frame2x(sprite.colorizedSd, filter);
     }
     sprite.hasHd = true;
     markChanged();

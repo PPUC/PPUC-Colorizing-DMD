@@ -380,8 +380,10 @@ private:
                                                          document::FrameHdParts parts);
 [[nodiscard]] std::unique_ptr<EditCommand> removeFrameHd(document::ProjectDocument& document,
                                                          std::size_t frameIndex);
-[[nodiscard]] std::unique_ptr<EditCommand> createSpriteHd(document::ProjectDocument& document,
-                                                          std::size_t spriteIndex);
+[[nodiscard]] std::unique_ptr<EditCommand> createSpriteHd(
+    document::ProjectDocument& document,
+    std::size_t spriteIndex,
+    document::UpscaleFilter filter = document::UpscaleFilter::Nearest);
 [[nodiscard]] std::unique_ptr<EditCommand> removeSpriteHd(document::ProjectDocument& document,
                                                           std::size_t spriteIndex);
 

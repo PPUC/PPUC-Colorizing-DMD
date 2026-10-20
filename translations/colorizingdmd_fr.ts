@@ -3890,6 +3890,26 @@ Utiliser Créer la frame %1.</translation>
         <translation>Arrière-plan %1 attribué sur %2</translation>
     </message>
     <message>
+        <source>Create HD Sprite</source>
+        <translation>Créer le sprite HD</translation>
+    </message>
+    <message>
+        <source>Create the HD sprite of sprite %1 from its SD colors; the mask is doubled.</source>
+        <translation>Créer le sprite HD du sprite %1 à partir de ses couleurs SD ; le masque est doublé.</translation>
+    </message>
+    <message>
+        <source>Created HD sprite from SD (%1)</source>
+        <translation>Sprite HD créé à partir du SD (%1)</translation>
+    </message>
+    <message>
+        <source>Create HD Background</source>
+        <translation>Créer le fond HD</translation>
+    </message>
+    <message>
+        <source>Create the HD image of background %1 from its SD image.</source>
+        <translation>Créer l'image HD du fond %1 à partir de son image SD.</translation>
+    </message>
+    <message>
         <source>Gave background %1 a black %2 image</source>
         <translation>L&apos;arrière-plan %1 a reçu une image %2 noire</translation>
     </message>
@@ -4145,7 +4165,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Created HD sprite from SD</source>
-        <translation>Sprite HD créé à partir du SD</translation>
+        <translation type="vanished">Sprite HD créé à partir du SD</translation>
     </message>
     <message>
         <source>The %1 sprite is the only sprite data this project renders; it cannot be removed</source>

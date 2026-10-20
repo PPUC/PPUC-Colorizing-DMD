@@ -870,8 +870,15 @@ bool FramePreviewWidget::showsRuntimeView() const
 
 render::CanvasLayout FramePreviewWidget::currentLayout() const
 {
-    const bool hasHd = m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
-                       m_document->hasHdFrame(m_frameIndex);
+    // While a background is edited, its own HD image decides, not the frame's.
+    const bool editsBackground = m_document && m_showBackgroundImageEditMode &&
+                                 m_selectedBackgroundIndex &&
+                                 *m_selectedBackgroundIndex < m_document->backgroundCount();
+    const bool hasHd =
+        editsBackground
+            ? m_document->background(*m_selectedBackgroundIndex).colorizedHd.has_value()
+            : m_document && m_hasFrame && m_frameIndex < m_document->frameCount() &&
+                  m_document->hasHdFrame(m_frameIndex);
     // An HD-only project has no SD plane to fall back to.
     const bool hdOnly = m_document && m_document->rendersHdPlaneOnly();
     return render::CanvasLayout::buildFrameLayout({

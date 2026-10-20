@@ -610,13 +610,14 @@ std::unique_ptr<EditCommand> removeFrameHd(document::ProjectDocument& document,
 }
 
 std::unique_ptr<EditCommand> createSpriteHd(document::ProjectDocument& document,
-                                            std::size_t spriteIndex)
+                                            std::size_t spriteIndex,
+                                            document::UpscaleFilter filter)
 {
     if (document.hasHdSprite(spriteIndex)) {
         return nullptr;
     }
     document::SpriteHdState before = document.spriteHdState(spriteIndex);
-    document.createHdSprite(spriteIndex);
+    document.createHdSprite(spriteIndex, filter);
     return std::make_unique<SpriteHdCommand>(spriteIndex,
                                              std::move(before),
                                              document.spriteHdState(spriteIndex));

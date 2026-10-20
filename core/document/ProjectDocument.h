@@ -556,9 +556,10 @@ public:
     void setPaletteColor(std::size_t paletteIndex, std::size_t colorIndex, uint16_t rgb565);
     void setPaletteName(std::size_t paletteIndex, std::string name);
     [[nodiscard]] bool hasHdSprite(std::size_t spriteIndex) const;
-    // Upscales the SD sprite. In an HD-only project the HD sprite lines up with the sprite
-    // original instead: its mask is the original's shape, its colors the plain original colors.
-    void createHdSprite(std::size_t spriteIndex);
+    // Upscales the SD sprite: its colors with the filter, its mask doubled. In an HD-only
+    // project the HD sprite lines up with the sprite original instead: its mask is the
+    // original's shape, its colors the plain original colors.
+    void createHdSprite(std::size_t spriteIndex, UpscaleFilter filter = UpscaleFilter::Nearest);
     // Throws std::logic_error in an HD-only project.
     void removeHdSprite(std::size_t spriteIndex);
     [[nodiscard]] SpriteHdState spriteHdState(std::size_t spriteIndex) const;

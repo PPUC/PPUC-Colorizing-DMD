@@ -877,6 +877,25 @@ void testSpriteHdCommands()
            "Remove HD sprite replaces the sprite's HD pixels");
     expect(colorizing::edit::removeSpriteHd(document, 0) == nullptr,
            "Remove HD does nothing for a sprite without HD");
+    {
+        // The chosen filter scales the colors; the mask is always doubled.
+        ProjectDocument filtered = makeDocument();
+        filtered.setSpriteOriginalPixel(0, 0, 0, 1);
+        filtered.setSpriteOriginalPixel(0, 1, 0, 1);
+        filtered.setSpriteColorizedPixel(0, Resolution::Sd, 0, 0, 0xffff);
+        filtered.setSpriteColorizedPixel(0, Resolution::Sd, 1, 0, 0x0000);
+        if (filtered.hasHdSprite(0)) {
+            filtered.removeHdSprite(0);
+        }
+        const std::unique_ptr<EditCommand> bilinear = colorizing::edit::createSpriteHd(
+            filtered, 0, colorizing::document::UpscaleFilter::Bilinear);
+        const colorizing::document::SpriteRecord& sprite = filtered.sprite(0);
+        const uint16_t between = sprite.colorizedHd.pixels[1];
+        expect(bilinear != nullptr && sprite.hasHd && between != 0xffff && between != 0 &&
+                   sprite.maskHd.pixels[0] == sprite.maskHd.pixels[1] &&
+                   sprite.maskHd.pixels[0] == sprite.maskHd.pixels[256],
+               "Create HD Sprite with Bilinear blends the colors and doubles the mask");
+    }
 
     const std::unique_ptr<EditCommand> create = colorizing::edit::createSpriteHd(document, 0);
     expect(create != nullptr && document.hasHdSprite(0) &&
