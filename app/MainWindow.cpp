@@ -1534,9 +1534,22 @@ void MainWindow::createCentralView()
             m_preview->zoomIn();
         }
     });
+    // Back to 100% (the whole frame, or the whole sprite) in one click.
+    auto* zoomResetButton = new QToolButton(central);
+    zoomResetButton->setText(QStringLiteral("100%"));
+    zoomResetButton->setToolTip(tr("Back to 100%: the whole frame, or the whole sprite (%1)")
+                                    .arg(nativeShortcut(QStringLiteral("Ctrl+0"))));
+    connect(zoomResetButton, &QToolButton::clicked, this, [this]() {
+        if (spriteCanvasShown()) {
+            m_spriteEditor->resetZoom();
+        } else {
+            m_preview->resetZoom();
+        }
+    });
     toolbarLayout->addWidget(zoomOutButton);
     toolbarLayout->addWidget(m_zoomButton);
     toolbarLayout->addWidget(zoomInButton);
+    toolbarLayout->addWidget(zoomResetButton);
     // The zoom of the canvas that is shown: the frame canvas or the sprite canvas.
     m_preview->onViewChanged = [this]() { updateZoomButton(); };
     if (m_spriteEditor) {
@@ -1798,9 +1811,13 @@ void MainWindow::createCentralView()
     connect(m_frameList, &QListWidget::currentRowChanged, this, [this](int row) {
         selectFrame(row);
     });
-    // While a background is edited, a double click on a frame (its first click has made it the
-    // current frame) goes back to editing the frame.
+    // While a sprite or a background is edited, a double click on a frame (its first click has
+    // made it the current frame) goes back to editing the frame.
     connect(m_frameList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) {
+        if (spriteCanvasShown()) {
+            leaveSpriteCanvas();
+            statusBar()->showMessage(tr("Editing the frame"), 1500);
+        }
         if (activePaintTarget() == PaintTarget::Background) {
             editFrameInsteadOfBackground();
         }

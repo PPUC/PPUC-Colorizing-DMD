@@ -2896,6 +2896,10 @@ Use Create %1 Frame.</source>
         <translation>Hineinzoomen (%1)</translation>
     </message>
     <message>
+        <source>Back to 100%: the whole frame, or the whole sprite (%1)</source>
+        <translation>Zurück auf 100 %: das ganze Frame oder das ganze Sprite (%1)</translation>
+    </message>
+    <message>
         <source>Add an empty comparison mask</source>
         <translation>Eine leere Vergleichsmaske hinzufügen</translation>
     </message>

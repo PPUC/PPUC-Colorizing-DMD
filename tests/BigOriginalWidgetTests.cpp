@@ -2,6 +2,7 @@
 // HD plane exists, one to one with the original.
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -747,7 +748,7 @@ void testSpriteBoundsAndSpriteCanvasAreNative()
                maxY->maximum() == 31,
            "slot bounds of an ordinary project stay 0..127 and 0..31");
 
-    // Scale 2: the four HD sprite pixels are drawn as large as the four of the original.
+    // The four HD sprite pixels are drawn as large as the four of the original.
     colorizing::app::SpriteEditorWidget editor;
     editor.resize(536, 316);
     editor.setDocument(&document);
@@ -767,7 +768,9 @@ void testSpriteBoundsAndSpriteCanvasAreNative()
             magenta += image.pixelColor(x, y) == colorizing::app::rgb565ToColor(kMagenta) ? 1 : 0;
         }
     }
-    expect(cyan == 4 * 2 * 2 && magenta == 0,
+    const int scale = static_cast<int>(
+        std::lround(editor.pixelCentre(false, {1, 0}).x() - editor.pixelCentre(false, {0, 0}).x()));
+    expect(scale >= 1 && cyan == 4 * scale * scale && magenta == 0,
            "the sprite canvas shows the HD sprite one to one, never the SD sprite");
 }
 

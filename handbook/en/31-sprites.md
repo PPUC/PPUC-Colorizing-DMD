@@ -24,13 +24,17 @@ The Inspector has a sprite browser and assignment controls:
   fields edit an area that is set; they are disabled while the selected area is not set. A new
   area is created by dragging it in the sprite editor (see below).
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
-- `Edit Sprite` switches the main canvas to a large sprite editor with colorized sprite on top and original sprite below.
+- `Edit Sprite` switches the main canvas to a large sprite editor. It is split like the frame
+  canvas: the colorized sprite in the upper half, the original sprite in the lower half, both
+  showing the same part. A double click on a frame in the frame list leaves the sprite editor and
+  shows that frame for editing.
 - The sprite editor zooms as the canvas does: `View -> Zoom In` / `Zoom Out` (`Ctrl/Cmd++`,
   `Ctrl/Cmd+-`) around the middle, `Ctrl/Cmd` with the mouse wheel and a pinch on a trackpad
-  around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) goes
-  back to that size. Zoomed in, the mouse wheel (with `Shift` sideways), a trackpad, and a drag
-  while `Space` is held move the shown part. While the sprite editor is shown, these entries and
-  the toolbar's `-`, zoom and `+` zoom it, not the frame canvas, and the toolbar shows its zoom.
+  around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) and the
+  toolbar's `100%` go back to that size. Zoomed in, scroll bars at the bottom and the right, the
+  mouse wheel (with `Shift` sideways), a trackpad, and a drag while `Space` is held move the shown
+  part. While the sprite editor is shown, these entries and the toolbar's `-`, zoom, `+` and
+  `100%` zoom it, not the frame canvas, and the toolbar shows its zoom.
 - `Create HD Sprite` on the `Sprite` section creates the HD mask and colors of the selected
   sprite by scaling its SD data to 2x, and `Remove HD Sprite` clears its HD-present flag. Each
   button is enabled when it applies. Both can be undone; Undo restores the sprite's previous HD

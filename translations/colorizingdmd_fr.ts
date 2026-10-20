@@ -2896,6 +2896,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Zoom avant (%1)</translation>
     </message>
     <message>
+        <source>Back to 100%: the whole frame, or the whole sprite (%1)</source>
+        <translation>Retour à 100 % : la frame entière ou le sprite entier (%1)</translation>
+    </message>
+    <message>
         <source>Add an empty comparison mask</source>
         <translation>Ajouter un masque de comparaison vide</translation>
     </message>

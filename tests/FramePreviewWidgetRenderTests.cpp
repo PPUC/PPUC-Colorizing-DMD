@@ -1392,8 +1392,8 @@ void testSpriteEditorZoom()
     };
     // In the middle of the colorized sprite, the upper half: away from its edges, which the
     // zoom keeps in view.
-    const QPointF at(320, 150);
-    const QPointF right(360, 150);
+    const QPointF at(320, 100);
+    const QPointF right(360, 100);
     const auto before = pixelAt(at);
     const auto beforeRight = pixelAt(right);
     expect(before && beforeRight && widget.zoom() == 1.0, "the fitted sprite");
@@ -1468,18 +1468,18 @@ void testSpriteEditorRendersAndEditsDetectionArea()
     widget.setColorizedPaintFinishedHandler([&]() { paintFinished = true; });
 
     QMouseEvent paintPress(QEvent::MouseButtonPress,
-                           QPointF(84, 80),
-                           QPointF(84, 80),
-                           QPointF(84, 80),
+                           widget.pixelCentre(false, {10, 5}),
+                           widget.pixelCentre(false, {10, 5}),
+                           widget.pixelCentre(false, {10, 5}),
                            Qt::LeftButton,
                            Qt::LeftButton,
                            Qt::NoModifier,
                            QPointingDevice::primaryPointingDevice());
     QApplication::sendEvent(&widget, &paintPress);
     QMouseEvent paintRelease(QEvent::MouseButtonRelease,
-                             QPointF(84, 80),
-                             QPointF(84, 80),
-                             QPointF(84, 80),
+                             widget.pixelCentre(false, {10, 5}),
+                             widget.pixelCentre(false, {10, 5}),
+                             widget.pixelCentre(false, {10, 5}),
                              Qt::LeftButton,
                              Qt::NoButton,
                              Qt::NoModifier,
@@ -1495,18 +1495,18 @@ void testSpriteEditorRendersAndEditsDetectionArea()
 
     paintedPixel.reset();
     QMouseEvent erasePress(QEvent::MouseButtonPress,
-                           QPointF(86, 82),
-                           QPointF(86, 82),
-                           QPointF(86, 82),
+                           widget.pixelCentre(false, {11, 6}),
+                           widget.pixelCentre(false, {11, 6}),
+                           widget.pixelCentre(false, {11, 6}),
                            Qt::LeftButton,
                            Qt::LeftButton,
                            Qt::ShiftModifier,
                            QPointingDevice::primaryPointingDevice());
     QApplication::sendEvent(&widget, &erasePress);
     QMouseEvent eraseRelease(QEvent::MouseButtonRelease,
-                             QPointF(86, 82),
-                             QPointF(86, 82),
-                             QPointF(86, 82),
+                             widget.pixelCentre(false, {11, 6}),
+                             widget.pixelCentre(false, {11, 6}),
+                             widget.pixelCentre(false, {11, 6}),
                              Qt::LeftButton,
                              Qt::NoButton,
                              Qt::ShiftModifier,
@@ -1532,18 +1532,18 @@ void testSpriteEditorRendersAndEditsDetectionArea()
         });
 
     QMouseEvent linePress(QEvent::MouseButtonPress,
-                          QPointF(84, 80),
-                          QPointF(84, 80),
-                          QPointF(84, 80),
+                          widget.pixelCentre(false, {10, 5}),
+                          widget.pixelCentre(false, {10, 5}),
+                          widget.pixelCentre(false, {10, 5}),
                           Qt::LeftButton,
                           Qt::LeftButton,
                           Qt::NoModifier,
                           QPointingDevice::primaryPointingDevice());
     QApplication::sendEvent(&widget, &linePress);
     QMouseEvent lineMove(QEvent::MouseMove,
-                         QPointF(104, 80),
-                         QPointF(104, 80),
-                         QPointF(104, 80),
+                         widget.pixelCentre(false, {20, 5}),
+                         widget.pixelCentre(false, {20, 5}),
+                         widget.pixelCentre(false, {20, 5}),
                          Qt::NoButton,
                          Qt::LeftButton,
                          Qt::NoModifier,
@@ -1558,9 +1558,9 @@ void testSpriteEditorRendersAndEditsDetectionArea()
     expect(hasRedTintedPixel(linePreview), "sprite editor should render line preview");
 
     QMouseEvent lineRelease(QEvent::MouseButtonRelease,
-                            QPointF(104, 80),
-                            QPointF(104, 80),
-                            QPointF(104, 80),
+                            widget.pixelCentre(false, {20, 5}),
+                            widget.pixelCentre(false, {20, 5}),
+                            widget.pixelCentre(false, {20, 5}),
                             Qt::LeftButton,
                             Qt::NoButton,
                             Qt::NoModifier,
@@ -1583,9 +1583,9 @@ void testSpriteEditorRendersAndEditsDetectionArea()
             pickedSpritePixel = colorizing::render::Point{x, y};
         });
     QMouseEvent pickPress(QEvent::MouseButtonPress,
-                          QPointF(84, 80),
-                          QPointF(84, 80),
-                          QPointF(84, 80),
+                          widget.pixelCentre(false, {10, 5}),
+                          widget.pixelCentre(false, {10, 5}),
+                          widget.pixelCentre(false, {10, 5}),
                           Qt::LeftButton,
                           Qt::LeftButton,
                           Qt::NoModifier,
@@ -1605,9 +1605,9 @@ void testSpriteEditorRendersAndEditsDetectionArea()
             floodSpritePixel = colorizing::render::Point{x, y};
         });
     QMouseEvent floodPress(QEvent::MouseButtonPress,
-                           QPointF(84, 80),
-                           QPointF(84, 80),
-                           QPointF(84, 80),
+                           widget.pixelCentre(false, {10, 5}),
+                           widget.pixelCentre(false, {10, 5}),
+                           widget.pixelCentre(false, {10, 5}),
                            Qt::LeftButton,
                            Qt::LeftButton,
                            Qt::NoModifier,
@@ -1634,27 +1634,27 @@ void testSpriteEditorRendersAndEditsDetectionArea()
         });
 
     QMouseEvent press(QEvent::MouseButtonPress,
-                      QPointF(84, 232),
-                      QPointF(84, 232),
-                      QPointF(84, 232),
+                      widget.pixelCentre(true, {10, 5}),
+                      widget.pixelCentre(true, {10, 5}),
+                      widget.pixelCentre(true, {10, 5}),
                       Qt::LeftButton,
                       Qt::LeftButton,
                       Qt::NoModifier,
                       QPointingDevice::primaryPointingDevice());
     QApplication::sendEvent(&widget, &press);
     QMouseEvent move(QEvent::MouseMove,
-                     QPointF(104, 252),
-                     QPointF(104, 252),
-                     QPointF(104, 252),
+                     widget.pixelCentre(true, {20, 15}),
+                     widget.pixelCentre(true, {20, 15}),
+                     widget.pixelCentre(true, {20, 15}),
                      Qt::NoButton,
                      Qt::LeftButton,
                      Qt::NoModifier,
                      QPointingDevice::primaryPointingDevice());
     QApplication::sendEvent(&widget, &move);
     QMouseEvent release(QEvent::MouseButtonRelease,
-                        QPointF(104, 252),
-                        QPointF(104, 252),
-                        QPointF(104, 252),
+                        widget.pixelCentre(true, {20, 15}),
+                        widget.pixelCentre(true, {20, 15}),
+                        widget.pixelCentre(true, {20, 15}),
                         Qt::LeftButton,
                         Qt::NoButton,
                         Qt::NoModifier,
@@ -1692,7 +1692,11 @@ void testSpriteEditorHdKeepsSdFootprint()
     widget.render(&painter);
     painter.end();
 
-    const QColor sdFootprintPixel(image.pixel(84, 80));
+    // The top left quarter of SD pixel 10,5 is HD pixel 20,10.
+    const QPointF centre = widget.pixelCentre(false, {10, 5});
+    const QPointF half = (widget.pixelCentre(false, {11, 6}) - centre) / 2.0;
+    const QPointF corner = centre - half;
+    const QColor sdFootprintPixel(image.pixel(static_cast<int>(corner.x()), static_cast<int>(corner.y())));
     expect(sdFootprintPixel.red() > 80 && sdFootprintPixel.green() < 40,
            "HD sprite pixel should render in SD footprint position");
 
@@ -1705,9 +1709,9 @@ void testSpriteEditorHdKeepsSdFootprint()
             pickedPixel = colorizing::render::Point{x, y};
         });
     QMouseEvent pickPress(QEvent::MouseButtonPress,
-                          QPointF(84, 80),
-                          QPointF(84, 80),
-                          QPointF(84, 80),
+                          corner,
+                          corner,
+                          corner,
                           Qt::LeftButton,
                           Qt::LeftButton,
                           Qt::NoModifier,

@@ -11,6 +11,7 @@
 #include <QNativeGestureEvent>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QScrollBar>
 #include <QWheelEvent>
 
 #include "edit/DrawingGeometry.h"
@@ -58,6 +59,68 @@ SpriteEditorWidget::SpriteEditorWidget(QWidget* parent)
     : QWidget(parent)
 {
     setMinimumSize(320, 220);
+    m_horizontalScrollBar = new QScrollBar(Qt::Horizontal, this);
+    m_verticalScrollBar = new QScrollBar(Qt::Vertical, this);
+    m_horizontalScrollBar->hide();
+    m_verticalScrollBar->hide();
+    connect(m_horizontalScrollBar, &QScrollBar::valueChanged, this, [this](int value) {
+        if (!m_updatingScrollBars) {
+            m_scroll.setX(value);
+            update();
+        }
+    });
+    connect(m_verticalScrollBar, &QScrollBar::valueChanged, this, [this](int value) {
+        if (!m_updatingScrollBars) {
+            m_scroll.setY(value);
+            update();
+        }
+    });
+}
+
+QRect SpriteEditorWidget::viewport(bool original) const
+{
+    const int thickness = m_horizontalScrollBar->sizeHint().height();
+    const int available = std::max(2, height() - thickness - kGap);
+    const int half = available / 2;
+    const int width = std::max(1, this->width() - thickness);
+    return original ? QRect(0, half + kGap, width, half) : QRect(0, 0, width, half);
+}
+
+void SpriteEditorWidget::viewChanged()
+{
+    const int scale = displayScale();
+    const QRect half = viewport(false);
+    const int hidden = std::max(0, kSpriteSize.width * scale - half.width());
+    const int hiddenRows = std::max(0, kSpriteSize.height * scale - half.height());
+    m_scroll = QPointF(std::clamp(m_scroll.x(), 0.0, static_cast<double>(hidden)),
+                       std::clamp(m_scroll.y(), 0.0, static_cast<double>(hiddenRows)));
+    m_updatingScrollBars = true;
+    const auto set = [](QScrollBar* bar, int range, int page, double value) {
+        bar->setVisible(range > 0);
+        bar->setRange(0, range);
+        bar->setPageStep(page);
+        bar->setSingleStep(std::max(1, page / 8));
+        bar->setValue(static_cast<int>(std::lround(value)));
+    };
+    set(m_horizontalScrollBar, hidden, half.width(), m_scroll.x());
+    set(m_verticalScrollBar, hiddenRows, half.height(), m_scroll.y());
+    m_updatingScrollBars = false;
+    update();
+}
+
+QPointF SpriteEditorWidget::pixelCentre(bool original, render::Point pixel) const
+{
+    const double scale = displayScale();
+    return displayOrigin(original) + QPointF((pixel.x + 0.5) * scale, (pixel.y + 0.5) * scale);
+}
+
+void SpriteEditorWidget::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    const int thickness = m_horizontalScrollBar->sizeHint().height();
+    m_horizontalScrollBar->setGeometry(0, height() - thickness, width() - thickness, thickness);
+    m_verticalScrollBar->setGeometry(width() - thickness, 0, thickness, height() - thickness);
+    viewChanged();
 }
 
 void SpriteEditorWidget::setDocument(const document::ProjectDocument* document)
@@ -198,21 +261,25 @@ void SpriteEditorWidget::paintEvent(QPaintEvent* event)
     }
 
     const int scale = displayScale();
-    const QPointF origin = displayOrigin();
-    painter.save();
-    painter.setRenderHint(QPainter::Antialiasing,
-                          m_renderOptions.pixelShape == DmdPixelShape::Dot);
-    painter.translate(origin);
-    painter.scale(scale, scale);
-
-    const RegionLayout colorized = colorizedRegion();
-    const RegionLayout original = originalRegion();
-    paintSpriteRegion(painter, colorized);
-    paintSpriteRegion(painter, original);
-    paintColorizedStrokePreview(painter, colorized);
-    paintDetectionAreas(painter, original);
-    paintDragPreview(painter, original);
-    painter.restore();
+    for (const bool original : {false, true}) {
+        painter.save();
+        painter.setClipRect(viewport(original));
+        painter.setRenderHint(QPainter::Antialiasing,
+                              m_renderOptions.pixelShape == DmdPixelShape::Dot);
+        painter.translate(displayOrigin(original));
+        painter.scale(scale, scale);
+        if (original) {
+            const RegionLayout region = originalRegion();
+            paintSpriteRegion(painter, region);
+            paintDetectionAreas(painter, region);
+            paintDragPreview(painter, region);
+        } else {
+            const RegionLayout region = colorizedRegion();
+            paintSpriteRegion(painter, region);
+            paintColorizedStrokePreview(painter, region);
+        }
+        painter.restore();
+    }
 }
 
 void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
@@ -285,8 +352,7 @@ void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
     if (m_panFrom) {
         m_scroll -= event->position() - *m_panFrom;
         m_panFrom = event->position();
-        m_scroll = -displayOrigin();
-        update();
+        viewChanged();
         event->accept();
         return;
     }
@@ -376,11 +442,11 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
 
 int SpriteEditorWidget::fittedScale() const
 {
-    const int logicalWidth = kSpriteSize.width;
-    const int logicalHeight = kSpriteSize.height * 2 + kGap;
+    // Whole screen pixels per sprite pixel that fit a half.
+    const QRect half = viewport(false);
     const double fitted = std::min(
-        static_cast<double>(std::max(1, width() - 24)) / static_cast<double>(logicalWidth),
-        static_cast<double>(std::max(1, height() - 36)) / static_cast<double>(logicalHeight));
+        static_cast<double>(std::max(1, half.width() - 16)) / kSpriteSize.width,
+        static_cast<double>(std::max(1, half.height() - 8)) / kSpriteSize.height);
     return std::max(1, static_cast<int>(std::floor(fitted)));
 }
 
@@ -389,20 +455,21 @@ int SpriteEditorWidget::displayScale() const
     return std::max(1, static_cast<int>(std::lround(fittedScale() * m_zoom)));
 }
 
-QPointF SpriteEditorWidget::displayOrigin() const
+QPointF SpriteEditorWidget::displayOrigin(bool original) const
 {
     const int scale = displayScale();
+    const QRect half = viewport(original);
     const double contentWidth = kSpriteSize.width * scale;
-    const double contentHeight = (kSpriteSize.height * 2 + kGap) * scale;
-    // Centred while it fits; otherwise moved by the scroll, which keeps it covering the widget.
+    const double contentHeight = kSpriteSize.height * scale;
+    // Centred while it fits; otherwise moved by the scroll, which keeps it covering the half.
     const auto along = [](double extent, double content, double scrolled) {
         if (content <= extent) {
             return std::floor((extent - content) / 2.0);
         }
         return -std::clamp(scrolled, 0.0, content - extent);
     };
-    return QPointF(along(width(), contentWidth, m_scroll.x()),
-                   along(height(), contentHeight, m_scroll.y()));
+    return QPointF(half.left() + along(half.width(), contentWidth, m_scroll.x()),
+                   half.top() + along(half.height(), contentHeight, m_scroll.y()));
 }
 
 double SpriteEditorWidget::zoom() const
@@ -413,16 +480,18 @@ double SpriteEditorWidget::zoom() const
 void SpriteEditorWidget::setZoom(double zoom, std::optional<QPoint> anchor)
 {
     zoom = std::clamp(zoom, 1.0, kMaxZoom);
-    const QPointF at = anchor ? QPointF(*anchor) : QPointF(width() / 2.0, height() / 2.0);
-    // The sprite point under the anchor stays there.
-    const QPointF origin = displayOrigin();
+    // The sprite point under the anchor stays there, in the half it is in (the middle of the
+    // upper half without one).
+    const bool original = anchor && viewport(true).contains(*anchor);
+    const QRect half = viewport(original);
+    const QPointF at = anchor ? QPointF(*anchor) : QPointF(half.center());
+    const QPointF origin = displayOrigin(original);
     const double oldScale = displayScale();
     const QPointF logical = (at - origin) / oldScale;
     m_zoom = zoom;
     const double newScale = displayScale();
-    m_scroll = logical * newScale - at;
-    m_scroll = -displayOrigin();
-    update();
+    m_scroll = logical * newScale - (at - QPointF(half.topLeft()));
+    viewChanged();
     if (onZoomChanged) {
         onZoomChanged();
     }
@@ -475,8 +544,7 @@ void SpriteEditorWidget::wheelEvent(QWheelEvent* event)
         delta = QPointF(delta.y(), 0.0);
     }
     m_scroll -= delta;
-    m_scroll = -displayOrigin();
-    update();
+    viewChanged();
     event->accept();
 }
 
@@ -502,9 +570,10 @@ SpriteEditorWidget::RegionLayout SpriteEditorWidget::colorizedRegion() const
 
 SpriteEditorWidget::RegionLayout SpriteEditorWidget::originalRegion() const
 {
+    // In the lower half, at its own origin.
     return RegionLayout{
         render::CanvasRegion::SpriteOriginal,
-        render::Rect{0, kSpriteSize.height + kGap, kSpriteSize.width, kSpriteSize.height},
+        render::Rect{0, 0, kSpriteSize.width, kSpriteSize.height},
     };
 }
 
@@ -541,7 +610,10 @@ std::optional<render::Point> SpriteEditorWidget::hitColorized(QPoint position) c
     if (scale <= 0) {
         return std::nullopt;
     }
-    const QPointF origin = displayOrigin();
+    if (!viewport(false).contains(position)) {
+        return std::nullopt;
+    }
+    const QPointF origin = displayOrigin(false);
     const RegionLayout colorized = colorizedRegion();
     const double logicalX = (position.x() - origin.x()) / scale;
     const double logicalY = (position.y() - origin.y()) / scale;
@@ -575,7 +647,10 @@ std::optional<render::Point> SpriteEditorWidget::hitOriginal(QPoint position) co
     if (scale <= 0) {
         return std::nullopt;
     }
-    const QPointF origin = displayOrigin();
+    if (!viewport(true).contains(position)) {
+        return std::nullopt;
+    }
+    const QPointF origin = displayOrigin(true);
     const RegionLayout original = originalRegion();
     const int logicalX = static_cast<int>(std::floor((position.x() - origin.x()) / scale));
     const int logicalY = static_cast<int>(std::floor((position.y() - origin.y()) / scale));

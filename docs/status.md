@@ -1833,3 +1833,15 @@ filter, `BackgroundHdCreateCommand`) and `removeSelectedBackgroundHd` (new
 `edit::BackgroundHdRemoveCommand`, back to SD when the HD image was being edited). Tests:
 `testSpriteAndBackgroundHdButtons`, BigOriginal (256x64 sprite), NativeOriginal (hidden).
 
+
+## Split sprite canvas, 100% button (2026-10-20, owner report)
+
+`SpriteEditorWidget` is laid out like the frame canvas: `viewport(original)` gives the upper
+(colorized) and lower (original) half, `displayOrigin(original)` where the sprite starts in it,
+one `m_scroll` (widget pixels) for both halves, scroll bars at the bottom and the right kept in
+step by `viewChanged()` (clamps the scroll, hides a bar without range). The fitted scale is the
+whole 256x64 area in a half; the zoom anchors in the half under the mouse. Hit tests check the
+half first. `pixelCentre(original, pixel)` is a test helper. The frame list's double click now
+also leaves the sprite editor (`leaveSpriteCanvas`), as it leaves background editing. Toolbar
+`100%` (`zoomResetButton`, after `+`) resets the sprite or the frame zoom. Tests use
+`pixelCentre` and a measured scale instead of fixed widget coordinates.

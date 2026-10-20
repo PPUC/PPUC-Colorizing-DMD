@@ -15,6 +15,8 @@
 
 class QPainter;
 
+class QScrollBar;
+
 namespace colorizing::app {
 
 enum class SpriteDrawingTool {
@@ -76,6 +78,9 @@ public:
     void zoomIn();
     void zoomOut();
     void resetZoom();
+    // The widget point at the middle of a sprite pixel, in the upper (colorized) or the lower
+    // (original) half; for tests.
+    [[nodiscard]] QPointF pixelCentre(bool original, render::Point pixel) const;
     // After every zoom change, e.g. for a zoom display.
     std::function<void()> onZoomChanged;
     // While Space is held: a drag with the left button moves the shown part (see
@@ -85,6 +90,7 @@ public:
 protected:
     void paintEvent(QPaintEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     bool event(QEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -99,7 +105,13 @@ private:
     // Widget pixels per sprite pixel that fit the widget, and with the zoom.
     [[nodiscard]] int fittedScale() const;
     [[nodiscard]] int displayScale() const;
-    [[nodiscard]] QPointF displayOrigin() const;
+    // As the frame canvas: the colorized sprite in the upper half, the original in the lower,
+    // both showing the same part of the sprite; the scroll bars at the right and the bottom.
+    [[nodiscard]] QRect viewport(bool original) const;
+    // Where the sprite's top left corner is drawn in that half.
+    [[nodiscard]] QPointF displayOrigin(bool original) const;
+    // Keeps the scroll in range and updates the scroll bars.
+    void viewChanged();
     [[nodiscard]] RegionLayout colorizedRegion() const;
     [[nodiscard]] RegionLayout originalRegion() const;
     [[nodiscard]] render::Resolution colorizedPaintResolution() const;
@@ -149,9 +161,12 @@ private:
     double m_zoom = 1.0;
     bool m_panMode = false;
     std::optional<QPointF> m_panFrom;
-    // How far the picture is moved from its top left corner when it is larger than the widget,
-    // in widget pixels.
+    // How far the sprite is moved from its top left corner when it is larger than its half, in
+    // widget pixels; the same for both halves.
     QPointF m_scroll;
+    QScrollBar* m_horizontalScrollBar = nullptr;
+    QScrollBar* m_verticalScrollBar = nullptr;
+    bool m_updatingScrollBars = false;
 };
 
 }  // namespace colorizing::app
