@@ -1808,7 +1808,14 @@ original and/or extra resolution, the extra created when missing (`edit::createF
 Nearest; a background's HD image is its SD image doubled, `BackgroundHdCreateCommand`).
 Selection carried between planes by `areaOnPlane` (doubled; halved: a pixel when any it covers
 is selected). Movie steps by unit, batch as they play / interval / same picture. Adjustments and
-filter kept in QSettings `imageImport/*`. Not ported: crop zone saves (asked the owner), the
+filter kept in QSettings `imageImport/*`. Saved zones (owner 2026-10-20, as proposed):
+`document/ImageZone.h` (`SavedImageZone`: name, start and optional end `PictureZone` in
+millionths of the picture, brightness, contrast, blur; at most 256), `ProjectDocument::
+imageZones/setImageZones` (marks changed, no undo step, as Win32), .cRPX chunk `IZON`; the
+window's `Saved zones` row (`saveZone`, `applySavedZone` keeps the selection's proportions via
+`zoneAt`, `deleteSavedZone`), written into the project also when the window is cancelled.
+Win32's ImagePosSave values are screen pixels of its window (relative to the displayed picture
+size), not convertible: kept untouched in the editor metadata. Not ported: the
 OpenAI image generation (Win32: a prompt sent to OpenAI's image API with a key from
 openai_key.txt in My Documents; the owner did not know it existed). Tests: `ImageImportWidgetTests` (adjustments against the OpenCV
 formula, zones, scroll interpolation, pixels with a mask, plane mapping, the window driven by

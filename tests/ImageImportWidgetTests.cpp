@@ -13,6 +13,7 @@
 
 #include "ImageImport.h"
 #include "dialogs/ImageImportDialog.h"
+#include "document/ImageZone.h"
 
 namespace {
 
@@ -182,6 +183,39 @@ void testDialog()
            "a right click: the end zone of a scroll over the frames");
     dialog.setEndZone(std::nullopt);
     expect(dialog.zoneFor(2, 3) == zone, "without an end zone every frame gets the zone");
+
+    // Saved zones: the zone, the end zone and the settings under a name, relative to the
+    // picture, so they fit a picture of another size.
+    dialog.setEndZone(QRect(200, 100, 200, 50));
+    dialog.setAdjustments(app::ImageAdjustments{5, -3, 2});
+    expect(!dialog.saveZone(QStringLiteral("  ")) && dialog.saveZone(QStringLiteral("Quarter")) &&
+               dialog.savedZonesChanged() && dialog.savedZones().size() == 1,
+           "a zone is saved under a name, not without one");
+    const document::SavedImageZone saved = dialog.savedZones().front();
+    expect(saved.name == "Quarter" && saved.end && saved.brightness == 5 && saved.contrast == -3 &&
+               saved.blur == 2 && saved.start.x == static_cast<uint32_t>(zone.x() * 2500),
+           "with its zones in millionths of the picture and the settings");
+    dialog.setAdjustments(app::ImageAdjustments{});
+    dialog.setZone(QRect(0, 0, 40, 10));
+    dialog.setEndZone(std::nullopt);
+    expect(dialog.saveZone(QStringLiteral("Quarter")) && dialog.savedZones().size() == 1 &&
+               !dialog.savedZones().front().end,
+           "saving a name that exists replaces it");
+    dialog.saveZone(QStringLiteral("Other"));
+    dialog.deleteSavedZone(1);
+    expect(dialog.savedZones().size() == 1, "a saved zone is deleted");
+
+    QImage larger(800, 400, QImage::Format_RGB32);
+    larger.fill(Qt::black);
+    app::ImageImportSetup again = setup;
+    again.savedZones = {saved};
+    app::ImageImportDialog other(larger, QStringLiteral("larger.png"), again);
+    other.applySavedZone(0);
+    expect(other.zone() == QRect(zone.x() * 2, zone.y() * 2, zone.width() * 2, zone.height() * 2) &&
+               other.endZone() == QRect(400, 200, 400, 100) &&
+               other.adjustments().brightness == 5 && other.adjustments().blur == 2 &&
+               !other.savedZonesChanged(),
+           "and taken in another window, on a picture twice the size");
 
     dialog.setAdjustments(app::ImageAdjustments{-50, 0, 0});
     expect(qRed(dialog.adjustedPicture().pixel(0, 0)) == 130 && dialog.adjustments().brightness == -50,

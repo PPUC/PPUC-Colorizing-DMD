@@ -8,6 +8,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -231,6 +232,40 @@ void ImageImportDialog::build(const QString&)
     zoneRow->addWidget(wholeButton);
     zoneRow->addWidget(noEndButton);
 
+    // Saved zones, kept in the project.
+    m_savedZones = m_setup.savedZones;
+    m_savedZoneComboBox = new QComboBox(this);
+    m_savedZoneComboBox->setMinimumContentsLength(16);
+    m_savedZoneComboBox->setToolTip(tr("A saved zone: its zones and the picture's settings"));
+    m_savedZoneNameEdit = new QLineEdit(this);
+    m_savedZoneNameEdit->setPlaceholderText(tr("Name"));
+    m_savedZoneNameEdit->setMaxLength(63);
+    auto* saveZoneButton = new QPushButton(tr("Save Zone"), this);
+    saveZoneButton->setToolTip(tr("Keeps the zones and the picture's settings in the project "
+                                  "under the name (replacing a zone of that name)"));
+    auto* deleteZoneButton = new QPushButton(tr("Delete Zone"), this);
+    deleteZoneButton->setToolTip(tr("Removes the saved zone chosen in the list"));
+    auto* savedRow = new QHBoxLayout;
+    savedRow->addWidget(new QLabel(tr("Saved zones:"), this));
+    savedRow->addWidget(m_savedZoneComboBox, 1);
+    savedRow->addWidget(m_savedZoneNameEdit, 1);
+    savedRow->addWidget(saveZoneButton);
+    savedRow->addWidget(deleteZoneButton);
+    connect(m_savedZoneComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+            this, [this](int index) {
+                if (index > 0) {
+                    applySavedZone(static_cast<std::size_t>(index - 1));
+                }
+            });
+    connect(saveZoneButton, &QPushButton::clicked, this,
+            [this]() { saveZone(m_savedZoneNameEdit->text()); });
+    connect(deleteZoneButton, &QPushButton::clicked, this, [this]() {
+        if (m_savedZoneComboBox->currentIndex() > 0) {
+            deleteSavedZone(static_cast<std::size_t>(m_savedZoneComboBox->currentIndex() - 1));
+        }
+    });
+    fillSavedZoneList();
+
     // Adjustments, as the Win32 editor's sliders.
     QSettings settings;
     auto* adjustGroup = new QGroupBox(tr("Picture"), this);
@@ -326,6 +361,7 @@ void ImageImportDialog::build(const QString&)
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(m_view, 1);
     layout->addLayout(zoneRow);
+    layout->addLayout(savedRow);
 
     if (m_clip) {
         // Where in the clip, stepped by a picture, a second, a minute or an hour.
@@ -675,6 +711,98 @@ void ImageImportDialog::updateResult()
         parts << tr("The zone scrolls from the pink one to the blue one over the frames.");
     }
     m_summaryLabel->setText(parts.join(QLatin1Char(' ')));
+}
+
+void ImageImportDialog::fillSavedZoneList()
+{
+    m_savedZoneComboBox->clear();
+    m_savedZoneComboBox->addItem(m_savedZones.empty() ? tr("(none saved)") : tr("(choose)"));
+    for (const document::SavedImageZone& zone : m_savedZones) {
+        m_savedZoneComboBox->addItem(QString::fromStdString(zone.name));
+    }
+}
+
+document::PictureZone ImageImportDialog::toPictureZone(const QRect& zone) const
+{
+    const QSize picture = pictureSize();
+    const auto part = [](int value, int whole) {
+        return static_cast<uint32_t>(
+            std::lround(1000000.0 * value / std::max(1, whole)));
+    };
+    return document::PictureZone{part(zone.x(), picture.width()), part(zone.y(), picture.height()),
+                                 part(zone.width(), picture.width()),
+                                 part(zone.height(), picture.height())};
+}
+
+QRect ImageImportDialog::fromPictureZone(const document::PictureZone& zone) const
+{
+    // Its width and middle in this picture, with the selection's proportions.
+    const QSize picture = pictureSize();
+    const auto pixels = [](uint32_t part, int whole) { return part / 1000000.0 * whole; };
+    const QPoint centre(
+        static_cast<int>(std::lround(pixels(zone.x, picture.width()) +
+                                     pixels(zone.width, picture.width()) / 2.0)),
+        static_cast<int>(std::lround(pixels(zone.y, picture.height()) +
+                                     pixels(zone.height, picture.height()) / 2.0)));
+    return zoneAt(picture, proportions(),
+                  static_cast<int>(std::lround(pixels(zone.width, picture.width()))), centre);
+}
+
+bool ImageImportDialog::saveZone(const QString& name)
+{
+    const std::string key = name.trimmed().toStdString();
+    if (key.empty()) {
+        m_summaryLabel->setText(tr("Give the zone a name to save it."));
+        return false;
+    }
+    document::SavedImageZone zone;
+    zone.name = key;
+    zone.start = toPictureZone(m_zone);
+    if (m_endZone) {
+        zone.end = toPictureZone(*m_endZone);
+    }
+    const ImageAdjustments values = adjustments();
+    zone.brightness = static_cast<int8_t>(values.brightness);
+    zone.contrast = static_cast<int8_t>(values.contrast);
+    zone.blur = static_cast<uint8_t>(values.blur);
+    auto existing = std::find_if(m_savedZones.begin(), m_savedZones.end(),
+                                 [&key](const document::SavedImageZone& z) { return z.name == key; });
+    if (existing != m_savedZones.end()) {
+        *existing = zone;
+    } else if (m_savedZones.size() >= document::kMaxSavedImageZones) {
+        m_summaryLabel->setText(tr("No more zones can be saved (%1 at most).")
+                                    .arg(document::kMaxSavedImageZones));
+        return false;
+    } else {
+        m_savedZones.push_back(zone);
+    }
+    m_savedZonesChanged = true;
+    fillSavedZoneList();
+    m_savedZoneComboBox->setCurrentText(QString::fromStdString(key));
+    m_summaryLabel->setText(tr("Saved the zone %1.").arg(QString::fromStdString(key)));
+    return true;
+}
+
+void ImageImportDialog::applySavedZone(std::size_t index)
+{
+    if (index >= m_savedZones.size()) {
+        return;
+    }
+    const document::SavedImageZone zone = m_savedZones[index];
+    m_savedZoneNameEdit->setText(QString::fromStdString(zone.name));
+    setAdjustments(ImageAdjustments{zone.brightness, zone.contrast, zone.blur});
+    setZone(fromPictureZone(zone.start));
+    setEndZone(zone.end ? std::optional<QRect>(fromPictureZone(*zone.end)) : std::nullopt);
+}
+
+void ImageImportDialog::deleteSavedZone(std::size_t index)
+{
+    if (index >= m_savedZones.size()) {
+        return;
+    }
+    m_savedZones.erase(m_savedZones.begin() + static_cast<std::ptrdiff_t>(index));
+    m_savedZonesChanged = true;
+    fillSavedZoneList();
 }
 
 void ImageImportDialog::hover(QPoint at)

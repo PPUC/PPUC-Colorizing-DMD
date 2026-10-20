@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "document/HelperLine.h"
+#include "document/ImageZone.h"
 #include "document/ProjectDocument.h"
 #include "render/ProjectGeometry.h"
 
@@ -53,6 +54,8 @@ struct ProjectSnapshot {
     EditorMetadata editorMetadata = makeDefaultEditorMetadata();
     // The editor's helper lines (.cRPX only).
     std::vector<HelperLine> helperLines;
+    // The Images window's saved zones (.cRPX only).
+    std::vector<SavedImageZone> imageZones;
     // The cROM's settings block (.cRPX, and the cROM written from it); nothing for a project
     // of the Win32 editor.
     std::optional<ColorizationSettings> colorizationSettings;

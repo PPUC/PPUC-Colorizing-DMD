@@ -2027,6 +2027,34 @@ Utiliser Créer la frame %1.</translation>
         <translation>Pas de défilement : chaque frame reçoit la zone rose</translation>
     </message>
     <message>
+        <source>A saved zone: its zones and the picture&apos;s settings</source>
+        <translation>Une zone enregistrée : ses zones et les réglages de l&apos;image</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished">Nom</translation>
+    </message>
+    <message>
+        <source>Save Zone</source>
+        <translation>Enregistrer la zone</translation>
+    </message>
+    <message>
+        <source>Keeps the zones and the picture&apos;s settings in the project under the name (replacing a zone of that name)</source>
+        <translation>Garde les zones et les réglages de l&apos;image dans le projet sous ce nom (remplace une zone de ce nom)</translation>
+    </message>
+    <message>
+        <source>Delete Zone</source>
+        <translation>Supprimer la zone</translation>
+    </message>
+    <message>
+        <source>Removes the saved zone chosen in the list</source>
+        <translation>Supprime la zone enregistrée choisie dans la liste</translation>
+    </message>
+    <message>
+        <source>Saved zones:</source>
+        <translation>Zones enregistrées :</translation>
+    </message>
+    <message>
         <source>Picture</source>
         <translation>Image</translation>
     </message>
@@ -2193,6 +2221,26 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>The zone scrolls from the pink one to the blue one over the frames.</source>
         <translation>La zone défile de la rose à la bleue sur les frames.</translation>
+    </message>
+    <message>
+        <source>(none saved)</source>
+        <translation>(aucune enregistrée)</translation>
+    </message>
+    <message>
+        <source>(choose)</source>
+        <translation>(choisir)</translation>
+    </message>
+    <message>
+        <source>Give the zone a name to save it.</source>
+        <translation>Donnez un nom à la zone pour l&apos;enregistrer.</translation>
+    </message>
+    <message>
+        <source>No more zones can be saved (%1 at most).</source>
+        <translation>Impossible d&apos;enregistrer plus de zones (%1 au plus).</translation>
+    </message>
+    <message>
+        <source>Saved the zone %1.</source>
+        <translation>Zone %1 enregistrée.</translation>
     </message>
 </context>
 <context>

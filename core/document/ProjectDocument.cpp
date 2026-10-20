@@ -601,6 +601,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_unsupportedPayloads = std::move(snapshot.unsupportedPayloads);
     document.m_editorMetadata = std::move(snapshot.editorMetadata);
     document.m_helperLines = std::move(snapshot.helperLines);
+    document.m_imageZones = std::move(snapshot.imageZones);
     document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
@@ -989,6 +990,20 @@ void ProjectDocument::setHelperLines(std::vector<HelperLine> lines)
         return;
     }
     m_helperLines = std::move(lines);
+    markChanged();
+}
+
+const std::vector<SavedImageZone>& ProjectDocument::imageZones() const
+{
+    return m_imageZones;
+}
+
+void ProjectDocument::setImageZones(std::vector<SavedImageZone> zones)
+{
+    if (zones == m_imageZones) {
+        return;
+    }
+    m_imageZones = std::move(zones);
     markChanged();
 }
 
@@ -3510,6 +3525,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.geometry = m_geometry;
     snapshot.editorMetadata = m_editorMetadata;
     snapshot.helperLines = m_helperLines;
+    snapshot.imageZones = m_imageZones;
     snapshot.colorizationSettings = m_colorizationSettings;
     if (m_geometry.discardsExtraPlane()) {
         discardExtraPlane(snapshot);

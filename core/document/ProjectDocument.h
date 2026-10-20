@@ -11,6 +11,7 @@
 #include "document/CompactArray.h"
 #include "document/EditorMetadata.h"
 #include "document/HelperLine.h"
+#include "document/ImageZone.h"
 #include "document/Scene.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
@@ -339,6 +340,10 @@ public:
     // The editor's helper lines (HelperLine.h), in their order.
     [[nodiscard]] const std::vector<HelperLine>& helperLines() const;
     void setHelperLines(std::vector<HelperLine> lines);
+    // The Images window's saved zones (ImageZone.h), in their order. A change marks the
+    // project changed; it is not an undo step (as in the Win32 editor).
+    [[nodiscard]] const std::vector<SavedImageZone>& imageZones() const;
+    void setImageZones(std::vector<SavedImageZone> zones);
     // The scenes and scaling settings the cROM carries (Scene.h); nothing for a project whose
     // editor file has none, as one of the Win32 editor (see importColorizationSidecars()).
     [[nodiscard]] const std::optional<ColorizationSettings>& colorizationSettings() const;
@@ -765,6 +770,7 @@ private:
     std::vector<UnsupportedLegacyPayload> m_unsupportedPayloads;
     EditorMetadata m_editorMetadata = makeDefaultEditorMetadata();
     std::vector<HelperLine> m_helperLines;
+    std::vector<SavedImageZone> m_imageZones;
     std::optional<ColorizationSettings> m_colorizationSettings;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;

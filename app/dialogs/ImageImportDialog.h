@@ -12,12 +12,14 @@
 #include <vector>
 
 #include "ImageImport.h"
+#include "document/ImageZone.h"
 #include "render/CanvasTypes.h"
 
 class QButtonGroup;
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QLineEdit;
 class QRadioButton;
 class QSlider;
 class QSpinBox;
@@ -43,6 +45,8 @@ struct ImageImportSetup {
     bool toBackground = false;
     // The selected frames' durations, in their order.
     std::vector<uint32_t> durationsMs;
+    // The project's saved zones.
+    std::vector<document::SavedImageZone> savedZones;
 };
 
 // The picture, fitted into the widget, with the zones: the zone that follows the mouse (the
@@ -134,6 +138,18 @@ public:
     // The clip time of each selected frame; a still picture: empty.
     [[nodiscard]] std::vector<double> frameTimes() const;
 
+    // Saved zones (the Win32 editor's crop zone saves): the zones and the adjustments under a
+    // name, relative to the picture. Saving a name that exists replaces it. The list may have
+    // changed also when the window is cancelled; the caller keeps it in the project.
+    bool saveZone(const QString& name);
+    void applySavedZone(std::size_t index);
+    void deleteSavedZone(std::size_t index);
+    [[nodiscard]] const std::vector<document::SavedImageZone>& savedZones() const
+    {
+        return m_savedZones;
+    }
+    [[nodiscard]] bool savedZonesChanged() const { return m_savedZonesChanged; }
+
     // The picture shown (the clip at the start), adjusted.
     [[nodiscard]] const QImage& adjustedPicture() const { return m_adjusted; }
     // What the selection of the first frame gets, at the selection's size.
@@ -154,6 +170,9 @@ private:
     [[nodiscard]] double proportions() const;
     [[nodiscard]] QSize pictureSize() const;
     [[nodiscard]] double stepMs() const;
+    void fillSavedZoneList();
+    [[nodiscard]] document::PictureZone toPictureZone(const QRect& zone) const;
+    [[nodiscard]] QRect fromPictureZone(const document::PictureZone& zone) const;
 
     VideoClip* m_clip = nullptr;
     ImageImportSetup m_setup;
@@ -166,6 +185,8 @@ private:
     int m_floatingWidth = 0;
     double m_frameStepMs = 40.0;
     StepUnit m_stepUnit = StepUnit::Frame;
+    std::vector<document::SavedImageZone> m_savedZones;
+    bool m_savedZonesChanged = false;
 
     ImageZoneView* m_view = nullptr;
     QLabel* m_zoneLabel = nullptr;
@@ -182,6 +203,8 @@ private:
     QCheckBox* m_secondPlaneCheckBox = nullptr;
     QLabel* m_resultLabel = nullptr;
     QLabel* m_summaryLabel = nullptr;
+    QComboBox* m_savedZoneComboBox = nullptr;
+    QLineEdit* m_savedZoneNameEdit = nullptr;
     // Movie clips.
     QSlider* m_timeSlider = nullptr;
     QLabel* m_timeLabel = nullptr;

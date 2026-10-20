@@ -33,6 +33,7 @@ void appendLittleEndian(std::string& out, uint64_t value, std::size_t bytes)
 constexpr std::array<char, 4> kHelperLinesTag = {'H', 'L', 'I', 'N'};
 constexpr std::array<char, 4> kPupPackTag = {'P', 'U', 'P', 'P'};
 constexpr std::array<char, 4> kScenesTag = {'S', 'C', 'E', 'N'};
+constexpr std::array<char, 4> kImageZonesTag = {'I', 'Z', 'O', 'N'};
 constexpr std::size_t kSceneBytes = 16;
 constexpr std::size_t kSceneFrameBytes = 12;
 constexpr std::size_t kChunkHeaderBytes = 16;
@@ -70,6 +71,28 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             data += line.name;
         }
         appendChunk(chunks, kHelperLinesTag, data);
+    }
+    if (!snapshot.imageZones.empty()) {
+        // Per zone: flags (1: an end zone), brightness, contrast, blur, the start and the end
+        // zone (four u32 each, millionths; the end all 0 without one), the name.
+        std::string data;
+        appendLittleEndian(data, snapshot.imageZones.size(), 4);
+        for (const document::SavedImageZone& zone : snapshot.imageZones) {
+            data.push_back(zone.end ? 1 : 0);
+            data.push_back(static_cast<char>(zone.brightness));
+            data.push_back(static_cast<char>(zone.contrast));
+            data.push_back(static_cast<char>(zone.blur));
+            const document::PictureZone none{0, 0, 0, 0};
+            for (const document::PictureZone& part : {zone.start, zone.end.value_or(none)}) {
+                appendLittleEndian(data, part.x, 4);
+                appendLittleEndian(data, part.y, 4);
+                appendLittleEndian(data, part.width, 4);
+                appendLittleEndian(data, part.height, 4);
+            }
+            appendLittleEndian(data, zone.name.size(), 4);
+            data += zone.name;
+        }
+        appendChunk(chunks, kImageZonesTag, data);
     }
     if (snapshot.colorizationSettings) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -186,6 +209,57 @@ bool parseScenes(LegacyByteSource& source,
     }
     left -= static_cast<uint64_t>(frameCount) * kSceneFrameBytes;
     snapshot.colorizationSettings = std::move(settings);
+    // Room a later version uses for more is skipped.
+    return source.skip(static_cast<std::size_t>(left)) || damaged();
+}
+
+bool parseImageZones(LegacyByteSource& source,
+                     uint64_t size,
+                     std::vector<document::SavedImageZone>& zones,
+                     std::string& errorMessage)
+{
+    const auto damaged = [&]() {
+        errorMessage = "the saved image zones of the .cRPX are damaged";
+        return false;
+    };
+    uint32_t count = 0;
+    if (size < 4 || !source.readU32(count)) {
+        return damaged();
+    }
+    uint64_t left = size - 4;
+    zones.clear();
+    for (uint32_t index = 0; index < count; ++index) {
+        uint8_t flags[4] = {};
+        uint32_t values[8] = {};
+        uint32_t nameBytes = 0;
+        if (left < 40 || !source.readBytes(flags, 4)) {
+            return damaged();
+        }
+        for (uint32_t& value : values) {
+            if (!source.readU32(value)) {
+                return damaged();
+            }
+        }
+        if (!source.readU32(nameBytes) || left - 40 < nameBytes) {
+            return damaged();
+        }
+        left -= 40 + nameBytes;
+        std::string name(nameBytes, '\0');
+        if (nameBytes > 0 &&
+            !source.readBytes(reinterpret_cast<uint8_t*>(name.data()), nameBytes)) {
+            return damaged();
+        }
+        document::SavedImageZone zone;
+        zone.name = std::move(name);
+        zone.brightness = static_cast<int8_t>(flags[1]);
+        zone.contrast = static_cast<int8_t>(flags[2]);
+        zone.blur = flags[3];
+        zone.start = document::PictureZone{values[0], values[1], values[2], values[3]};
+        if (flags[0] & 1) {
+            zone.end = document::PictureZone{values[4], values[5], values[6], values[7]};
+        }
+        zones.push_back(std::move(zone));
+    }
     // Room a later version uses for more is skipped.
     return source.skip(static_cast<std::size_t>(left)) || damaged();
 }
@@ -344,6 +418,10 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kScenesTag.data(), 4) == 0) {
             if (!parseScenes(source, size, snapshot, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kImageZonesTag.data(), 4) == 0) {
+            if (!parseImageZones(source, size, snapshot.imageZones, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kPupPackTag.data(), 4) == 0) {

@@ -81,7 +81,15 @@ selection's bounds, the part that is scaled into the selection:
   carried to the other plane: doubled, or halved where any of the pixels a pixel covers is
   selected;
 - `The selection gets` shows the result for the first frame; pixels outside the selection,
-  which keep theirs, are dark.
+  which keep theirs, are dark;
+- `Saved zones` keeps the zone, the end zone and the picture's settings under a name in the
+  project (the Win32 editor's crop zone saves): type a name and `Save Zone` (a name that exists
+  is replaced), choose a name in the list to take them again, `Delete Zone` removes the chosen
+  one. A saved zone is kept as a part of the picture, so it fits a picture of another size, and
+  it keeps the proportions of the selection at hand. Saved zones are part of the project (its
+  `.cRPX`) as soon as they are saved, also when the window is then cancelled; they are not undo
+  steps. The crop zone saves of the Win32 editor were kept in screen pixels of its window and
+  cannot be carried over: they stay in the project as they were, unused.
 
 For a movie clip the window also has the clip's time: the slider, `◀` and `▶` step back or on
 by the unit chosen (`Hour`, `Minute`, `Second` or `Picture`), and the next selected frames get

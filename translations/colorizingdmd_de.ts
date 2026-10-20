@@ -2027,6 +2027,34 @@ Use Create %1 Frame.</source>
         <translation>Kein Bildlauf: jeder Frame erhält den rosa Bereich</translation>
     </message>
     <message>
+        <source>A saved zone: its zones and the picture&apos;s settings</source>
+        <translation>Ein gespeicherter Bereich: seine Bereiche und die Bildeinstellungen</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished">Name</translation>
+    </message>
+    <message>
+        <source>Save Zone</source>
+        <translation>Bereich speichern</translation>
+    </message>
+    <message>
+        <source>Keeps the zones and the picture&apos;s settings in the project under the name (replacing a zone of that name)</source>
+        <translation>Speichert die Bereiche und die Bildeinstellungen unter dem Namen im Projekt (ersetzt einen Bereich dieses Namens)</translation>
+    </message>
+    <message>
+        <source>Delete Zone</source>
+        <translation>Bereich löschen</translation>
+    </message>
+    <message>
+        <source>Removes the saved zone chosen in the list</source>
+        <translation>Entfernt den in der Liste gewählten gespeicherten Bereich</translation>
+    </message>
+    <message>
+        <source>Saved zones:</source>
+        <translation>Gespeicherte Bereiche:</translation>
+    </message>
+    <message>
         <source>Picture</source>
         <translation>Bild</translation>
     </message>
@@ -2193,6 +2221,26 @@ Use Create %1 Frame.</source>
     <message>
         <source>The zone scrolls from the pink one to the blue one over the frames.</source>
         <translation>Der Bereich wandert über die Frames vom rosa zum blauen.</translation>
+    </message>
+    <message>
+        <source>(none saved)</source>
+        <translation>(keine gespeichert)</translation>
+    </message>
+    <message>
+        <source>(choose)</source>
+        <translation>(wählen)</translation>
+    </message>
+    <message>
+        <source>Give the zone a name to save it.</source>
+        <translation>Gib dem Bereich einen Namen, um ihn zu speichern.</translation>
+    </message>
+    <message>
+        <source>No more zones can be saved (%1 at most).</source>
+        <translation>Es können keine weiteren Bereiche gespeichert werden (höchstens %1).</translation>
+    </message>
+    <message>
+        <source>Saved the zone %1.</source>
+        <translation>Bereich %1 gespeichert.</translation>
     </message>
 </context>
 <context>

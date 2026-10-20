@@ -1050,6 +1050,28 @@ void testFileWriterSavesCrpx()
     expect(reader.load(paths).ok && reader.load(paths).snapshot.helperLines.empty(),
            "a .cRPX without them has none");
 
+    // The Images window's saved zones: a chunk of their own, with and without an end zone.
+    colorizing::document::ProjectSnapshot withZones = source.snapshot;
+    colorizing::document::SavedImageZone scroll;
+    scroll.name = "Sc\xc3\xb6re";
+    scroll.start = colorizing::document::PictureZone{100000, 200000, 500000, 250000};
+    scroll.end = colorizing::document::PictureZone{0, 0, 1000000, 500000};
+    scroll.brightness = -50;
+    scroll.contrast = 20;
+    scroll.blur = 10;
+    colorizing::document::SavedImageZone still;
+    still.name = "Logo";
+    withZones.imageZones = {scroll, still};
+    expect(writer.save(paths, withZones).ok, "a .cRPX with saved zones is saved");
+    const LegacyLoadResult zonesBack = reader.load(paths);
+    expect(zonesBack.ok && zonesBack.snapshot.imageZones == withZones.imageZones,
+           "the saved zones come back as they were (chunk IZON)");
+    std::vector<uint8_t> cutZones = readBytes(crpxPath);
+    cutZones.resize(cutZones.size() - 2);
+    writeBytes(crpxPath, cutZones);
+    expect(!reader.load(paths).ok, "a .cRPX whose saved zones are cut off is refused");
+    writeBytes(crpxPath, crpx);
+
     // The PuP pack name: UTF-8 in a chunk of its own, the cRP part's UTF-16 field left empty;
     // in a .cRP UTF-16 in that field, as the Win32 editor writes it.
     colorizing::document::ProjectSnapshot withPack = source.snapshot;

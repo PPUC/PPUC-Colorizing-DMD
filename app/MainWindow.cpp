@@ -3111,6 +3111,7 @@ void MainWindow::importPicture(const QImage& still,
     for (std::size_t frameIndex : frameIndices) {
         setup.durationsMs.push_back(m_document->frameDurationMs(frameIndex));
     }
+    setup.savedZones = m_document->imageZones();
 
     std::optional<ImageImportDialog> dialog;
     if (clip) {
@@ -3118,7 +3119,16 @@ void MainWindow::importPicture(const QImage& still,
     } else {
         dialog.emplace(still, name, setup, this);
     }
-    if (dialog->exec() != QDialog::Accepted || !m_document) {
+    const bool accepted = dialog->exec() == QDialog::Accepted;
+    if (!m_document) {
+        return;
+    }
+    // Zones saved or deleted are the project's, also when nothing is imported.
+    if (dialog->savedZonesChanged()) {
+        m_document->setImageZones(dialog->savedZones());
+        updateProjectHeaderStatus();
+    }
+    if (!accepted) {
         return;
     }
     std::vector<render::Resolution> targets;

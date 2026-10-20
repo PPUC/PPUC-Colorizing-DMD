@@ -39,6 +39,11 @@ class LegacyByteSource;
 //            random, auto start seconds, options, three bytes 0; then uint32 count of scene
 //            frames, per frame uint32 frame index, uint16 scene ID, uint8 group, uint8 0,
 //            uint16 frame index in the scene, uint16 0.
+//     "IZON" the Images window's saved zones (document/ImageZone.h), when there are any:
+//            uint32 count, per zone uint8 flags (1: it has an end zone), int8 brightness,
+//            int8 contrast, uint8 blur, the start and the end zone as uint32 left, top, width,
+//            height in millionths of the picture (the end all 0 without one), uint32 name
+//            length, the name in UTF-8.
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 
