@@ -36,7 +36,7 @@ ScenesPanel::ScenesPanel(QWidget* parent)
 {
     m_list = new QListWidget(this);
     m_list->setToolTip(tr("The scenes libserum plays when their PUP trigger fires; double-click "
-                          "to edit one"));
+                          "one to list its frames and show its first frame"));
     m_list->setIconSize(kThumbnailSize);
     showCaptionsBelowThumbnails(m_list);
     m_thumbnails = new LazyListIcons(m_list, blankThumbnail(), [this](const QListWidgetItem& item) {
@@ -85,7 +85,11 @@ ScenesPanel::ScenesPanel(QWidget* parent)
         }
     };
     connect(m_editButton, &QPushButton::clicked, this, edit);
-    connect(m_list, &QListWidget::itemDoubleClicked, this, edit);
+    connect(m_list, &QListWidget::itemDoubleClicked, this, [this]() {
+        if (const auto scene = selectedScene(); scene && onOpenRequested) {
+            onOpenRequested(*scene);
+        }
+    });
     connect(m_deleteButton, &QPushButton::clicked, this, [this]() {
         if (const auto scene = selectedScene(); scene && onDeleteRequested) {
             onDeleteRequested(*scene);

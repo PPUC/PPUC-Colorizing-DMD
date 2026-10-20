@@ -44,6 +44,8 @@ public:
     std::function<void(uint16_t sceneId)> onEditRequested;
     std::function<void(uint16_t sceneId)> onDeleteRequested;
     std::function<void(uint16_t sceneId)> onShowFramesRequested;
+    // A double click: the scene's frames in the strip and its first frame on the canvas.
+    std::function<void(uint16_t sceneId)> onOpenRequested;
     // Another scene selected, or the list clicked (the section is the one in use).
     std::function<void()> onSelectionChanged;
     std::function<void()> onPressed;

@@ -2956,6 +2956,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Sprites</translation>
     </message>
     <message>
+        <source>Scene %1 has no frames in the project</source>
+        <translation>La scène %1 n'a aucune frame dans le projet</translation>
+    </message>
+    <message>
         <source>Scene</source>
         <translation>Scène</translation>
     </message>
@@ -5992,7 +5996,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <name>ScenesPanel</name>
     <message>
         <source>The scenes libserum plays when their PUP trigger fires; double-click to edit one</source>
-        <translation>Les scènes que libserum joue quand leur déclencheur PUP se produit ; double-cliquer pour en modifier une</translation>
+        <translation type="vanished">Les scènes que libserum joue quand leur déclencheur PUP se produit ; double-cliquer pour en modifier une</translation>
+    </message>
+    <message>
+        <source>The scenes libserum plays when their PUP trigger fires; double-click one to list its frames and show its first frame</source>
+        <translation>Les scènes que libserum joue quand leur déclencheur PUP se déclenche ; un double-clic liste les frames d'une scène et affiche sa première frame</translation>
     </message>
     <message>
         <source>Add</source>

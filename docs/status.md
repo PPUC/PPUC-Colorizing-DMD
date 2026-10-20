@@ -1930,3 +1930,6 @@ shows it only while the frame canvas shows a scene frame (from the frame rest ti
 `updateInspectorSections`, `refreshScenes` with reload); unapplied changes survive frames of the
 same scene. Apply and the dialog both go through `MainWindow::changeScene` (lost-frames
 question, `edit::changeScene`). Test: `testSettingsPanel`.
+Double click on a scene (owner, same day): `ScenesPanel::onOpenRequested` instead of the
+window: `showSceneFrames` plus the first scene frame on the frame canvas (leaves the sprite
+editor and background editing); the Scene section takes the settings. `Edit` keeps the window.

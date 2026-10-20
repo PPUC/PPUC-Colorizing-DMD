@@ -83,6 +83,11 @@ void testPanel()
     expect(edit->isEnabled() && panel.selectedScene() == 51001, "a selected scene can be edited");
     edit->click();
     expect(edits == std::vector<int>{51001}, "Edit asks for it");
+    std::vector<int> opened;
+    panel.onOpenRequested = [&](uint16_t id) { opened.push_back(id); };
+    list->itemDoubleClicked(list->item(0));
+    expect(opened == std::vector<int>{51001} && edits.size() == 1,
+           "a double click shows the scene's frames instead of opening the window");
     expect(selectionChanges == 1, "selecting a scene reports it (the frame filter follows)");
     // "Used by the current frame": only the frame's scene.
     panel.showOnlyScene(true, uint16_t{51001});

@@ -2956,6 +2956,10 @@ Use Create %1 Frame.</source>
         <translation>Sprites</translation>
     </message>
     <message>
+        <source>Scene %1 has no frames in the project</source>
+        <translation>Szene %1 hat keine Frames im Projekt</translation>
+    </message>
+    <message>
         <source>Scene</source>
         <translation>Szene</translation>
     </message>
@@ -5992,7 +5996,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <name>ScenesPanel</name>
     <message>
         <source>The scenes libserum plays when their PUP trigger fires; double-click to edit one</source>
-        <translation>Die Szenen, die libserum abspielt, wenn ihr PUP-Trigger auslöst; Doppelklick zum Bearbeiten</translation>
+        <translation type="vanished">Die Szenen, die libserum abspielt, wenn ihr PUP-Trigger auslöst; Doppelklick zum Bearbeiten</translation>
+    </message>
+    <message>
+        <source>The scenes libserum plays when their PUP trigger fires; double-click one to list its frames and show its first frame</source>
+        <translation>Die Szenen, die libserum abspielt, wenn ihr PUP-Trigger auslöst; ein Doppelklick listet die Frames einer Szene und zeigt ihr erstes Frame</translation>
     </message>
     <message>
         <source>Add</source>

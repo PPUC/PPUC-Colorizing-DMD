@@ -21,7 +21,9 @@ in the project, and below it the scene ID, the groups and frames, the frame dura
 - `Add` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,
   lasting the scene's frame duration.
-- `Edit` (or a double click) changes the selected scene. Its frames follow:
+- A double click on a scene lists its frames in the strip (as `Show Frames`) and shows its first
+  frame on the frame canvas; the `Scene` section below then has its settings.
+- `Edit` changes the selected scene in the scene window. Its frames follow:
   - frames the scene gains (more frames or groups) are added behind its last frame;
   - frames it no longer has are deleted, after a question, with their colorization;
   - with another scene ID its frames get the new markers as originals and keep their

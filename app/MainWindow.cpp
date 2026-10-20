@@ -1690,6 +1690,21 @@ void MainWindow::createCentralView()
     m_scenesPanel->onEditRequested = [this](uint16_t sceneId) { editScene(sceneId); };
     m_scenesPanel->onDeleteRequested = [this](uint16_t sceneId) { deleteScene(sceneId); };
     m_scenesPanel->onShowFramesRequested = [this](uint16_t sceneId) { showSceneFrames(sceneId); };
+    m_scenesPanel->onOpenRequested = [this](uint16_t sceneId) {
+        showSceneFrames(sceneId);
+        const std::vector<std::size_t> frames = edit::sceneFrames(*m_document, sceneId);
+        if (frames.empty()) {
+            statusBar()->showMessage(tr("Scene %1 has no frames in the project").arg(sceneId),
+                                     3000);
+            return;
+        }
+        // On the frame canvas, as a double click on a frame does.
+        leaveSpriteCanvas();
+        if (activePaintTarget() == PaintTarget::Background) {
+            editFrameInsteadOfBackground();
+        }
+        goToFrame(frames.front());
+    };
     m_scenesPanel->onPressed = [this]() { m_leftBrowserTabs->markCurrent(m_scenesPanel); };
     m_scenesPanel->onSelectionChanged = [this]() { refreshSelectedAssetFilter(); };
     m_leftBrowserTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
