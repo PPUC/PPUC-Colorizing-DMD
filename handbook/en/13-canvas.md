@@ -132,7 +132,8 @@ The `Frame` section exposes:
 - `Background ID`, trigger and `Duration` edits can be undone, see "Undo And Redo".
 - `Show BG` renders the assigned background layer into the colorized frame preview and is enabled
   by default.
-- `Import Image` replaces selected frame pixels from an image file in the active SD/HD mode.
+- `Import Image` puts a picture into the selection of the selected frames (see "Importing
+  images and movie clips" in "Saving").
 
 How DMD pixels are drawn (`Pixel Shape`, `Pixel Size`) is in the Settings, see "Settings".
 
@@ -151,7 +152,8 @@ The `Background` topic exposes:
   overlays.
 - `Frame -> BG` replaces the selected background image with the current frame image in the active SD/HD mode.
 - `BG -> Frame` copies the selected background image into all selected frames in the active SD/HD mode.
-- `Import Image` replaces the selected background image from a PNG/BMP/JPEG, scaled to the active SD/HD DMD size.
+- `Import Image` puts a picture into the selected background (see "Importing images and movie
+  clips" in "Saving").
   In HD mode, a background without HD data gets its HD image from the import; undoing the import
   removes that HD image again.
 - `Export BG` writes the selected background image as a PNG using the current DMD dot/square render settings.

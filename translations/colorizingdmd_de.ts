@@ -1997,6 +1997,205 @@ Use Create %1 Frame.</source>
     </message>
 </context>
 <context>
+    <name>ImageImportDialog</name>
+    <message>
+        <source>Import Image: %1</source>
+        <translation>Bild importieren: %1</translation>
+    </message>
+    <message>
+        <source>Import Movie Clip: %1</source>
+        <translation>Filmclip importieren: %1</translation>
+    </message>
+    <message>
+        <source>The zone follows the mouse; the mouse wheel makes it larger or smaller (with Shift ten times as fast). A click takes it (pink); a right click takes it as the end zone of a scroll over the selected frames (blue).</source>
+        <translation>Der Bereich folgt der Maus; das Mausrad macht ihn größer oder kleiner (mit Umschalt zehnmal so schnell). Ein Klick übernimmt ihn (rosa); ein Rechtsklick übernimmt ihn als Endbereich eines Bildlaufs über die gewählten Frames (blau).</translation>
+    </message>
+    <message>
+        <source>Whole Picture</source>
+        <translation>Ganzes Bild</translation>
+    </message>
+    <message>
+        <source>The largest zone of the selection&apos;s proportions</source>
+        <translation>Der größte Bereich mit den Proportionen der Auswahl</translation>
+    </message>
+    <message>
+        <source>No End Zone</source>
+        <translation>Kein Endbereich</translation>
+    </message>
+    <message>
+        <source>No scroll: every frame gets the pink zone</source>
+        <translation>Kein Bildlauf: jeder Frame erhält den rosa Bereich</translation>
+    </message>
+    <message>
+        <source>Picture</source>
+        <translation>Bild</translation>
+    </message>
+    <message>
+        <source>Nearest</source>
+        <translation>Nächster Nachbar</translation>
+    </message>
+    <message>
+        <source>Smooth</source>
+        <translation>Weich</translation>
+    </message>
+    <message>
+        <source>How the zone is scaled to the selection: Nearest takes one pixel of the picture each, Smooth mixes the pixels</source>
+        <translation>Wie der Bereich auf die Auswahl skaliert wird: Nächster Nachbar nimmt je ein Pixel des Bildes, Weich mischt die Pixel</translation>
+    </message>
+    <message>
+        <source>Brightness</source>
+        <translation>Helligkeit</translation>
+    </message>
+    <message>
+        <source>Contrast</source>
+        <translation>Kontrast</translation>
+    </message>
+    <message>
+        <source>Blur</source>
+        <translation>Unschärfe</translation>
+    </message>
+    <message>
+        <source>Scaling</source>
+        <translation>Skalierung</translation>
+    </message>
+    <message>
+        <source>Into</source>
+        <translation>Ziel</translation>
+    </message>
+    <message numerus="yes">
+        <source>The selection of the %n selected frames</source>
+        <translation>
+            <numerusform>Die Auswahl des %n gewählten Frames</numerusform>
+            <numerusform>Die Auswahl der %n gewählten Frames</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The selection of the frame</source>
+        <translation>Die Auswahl des Frames</translation>
+    </message>
+    <message>
+        <source>Background %1</source>
+        <translation>Hintergrund %1</translation>
+    </message>
+    <message>
+        <source>A background (none is selected)</source>
+        <translation>Ein Hintergrund (keiner gewählt)</translation>
+    </message>
+    <message>
+        <source>%1 (created where it is missing)</source>
+        <translation>%1 (wird erstellt, wo es fehlt)</translation>
+    </message>
+    <message>
+        <source>The selection gets</source>
+        <translation>Die Auswahl erhält</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>Importieren</translation>
+    </message>
+    <message>
+        <source>Where in the clip the first selected frame starts</source>
+        <translation>Wo im Clip der erste gewählte Frame beginnt</translation>
+    </message>
+    <message>
+        <source>◀</source>
+        <translation>◀</translation>
+    </message>
+    <message>
+        <source>One step back</source>
+        <translation>Einen Schritt zurück</translation>
+    </message>
+    <message>
+        <source>▶</source>
+        <translation>▶</translation>
+    </message>
+    <message>
+        <source>One step on</source>
+        <translation>Einen Schritt weiter</translation>
+    </message>
+    <message>
+        <source>Step:</source>
+        <translation>Schritt:</translation>
+    </message>
+    <message>
+        <source>Hour</source>
+        <translation>Stunde</translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation>Minute</translation>
+    </message>
+    <message>
+        <source>Second</source>
+        <translation>Sekunde</translation>
+    </message>
+    <message>
+        <source>The next selected frames get</source>
+        <translation>Die nächsten gewählten Frames erhalten</translation>
+    </message>
+    <message>
+        <source>The clip as the frames play (their durations)</source>
+        <translation>Den Clip, wie die Frames laufen (ihre Dauern)</translation>
+    </message>
+    <message>
+        <source>A picture every</source>
+        <translation>Ein Bild alle</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>This picture, all of them</source>
+        <translation>Dieses Bild, alle</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation>%1 von %2</translation>
+    </message>
+    <message>
+        <source>Zone: %1, %2, %3x%4 of %5x%6 pixels%7</source>
+        <translation>Bereich: %1, %2, %3x%4 von %5x%6 Pixeln%7</translation>
+    </message>
+    <message>
+        <source>; scrolls to %1, %2, %3x%4</source>
+        <translation>; Bildlauf bis %1, %2, %3x%4</translation>
+    </message>
+    <message>
+        <source>Choose a plane to import into.</source>
+        <translation>Wähle eine Ebene, in die importiert wird.</translation>
+    </message>
+    <message>
+        <source>The background gets the zone.</source>
+        <translation>Der Hintergrund erhält den Bereich.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) get the clip from %1 to %2; it ends at %3, the frames after that are left as they are.</source>
+        <translation>
+            <numerusform>%n Frame erhält den Clip von %1 bis %2; er endet bei %3, die Frames danach bleiben, wie sie sind.</numerusform>
+            <numerusform>%n Frames erhalten den Clip von %1 bis %2; er endet bei %3, die Frames danach bleiben, wie sie sind.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) get the clip from %1 to %2.</source>
+        <translation>
+            <numerusform>%n Frame erhält den Clip von %1 bis %2.</numerusform>
+            <numerusform>%n Frames erhalten den Clip von %1 bis %2.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) get the zone.</source>
+        <translation>
+            <numerusform>%n Frame erhält den Bereich.</numerusform>
+            <numerusform>%n Frames erhalten den Bereich.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The zone scrolls from the pink one to the blue one over the frames.</source>
+        <translation>Der Bereich wandert über die Frames vom rosa zum blauen.</translation>
+    </message>
+</context>
+<context>
     <name>KeyNames</name>
     <message>
         <source>Ctrl</source>
@@ -2929,12 +3128,58 @@ Use Create %1 Frame.</source>
         <translation>Der Original-Frame, das 128x32-Bild und das 256x64-Bild übereinander</translation>
     </message>
     <message>
+        <source>Import Image From the C&amp;lipboard...</source>
+        <translation>Bild aus der &amp;Zwischenablage importieren...</translation>
+    </message>
+    <message>
+        <source>The picture on the clipboard into the selection of the selected frames</source>
+        <translation>Das Bild in der Zwischenablage in die Auswahl der gewählten Frames</translation>
+    </message>
+    <message>
         <source>New &amp;Frame From Original Colors</source>
         <translation>Neuer Frame aus &amp;Originalfarben</translation>
     </message>
     <message>
         <source>Add a frame whose original is the current frame&apos;s picture, painted in the plain original colors only (&quot;To Source Frame&quot; in the Win32 editor)</source>
         <translation>Einen Frame hinzufügen, dessen Original das Bild des aktuellen Frames ist, nur in den schlichten Originalfarben gemalt (&quot;To Source Frame&quot; im Win32-Editor)</translation>
+    </message>
+    <message>
+        <source>The clipboard holds no picture</source>
+        <translation>Die Zwischenablage enthält kein Bild</translation>
+    </message>
+    <message>
+        <source>the clipboard</source>
+        <translation>der Zwischenablage</translation>
+    </message>
+    <message>
+        <source>Nothing imported: no plane was chosen</source>
+        <translation>Nichts importiert: keine Ebene gewählt</translation>
+    </message>
+    <message>
+        <source>Imported into background %1</source>
+        <translation>In Hintergrund %1 importiert</translation>
+    </message>
+    <message>
+        <source>Background %1 already has this picture</source>
+        <translation>Hintergrund %1 hat dieses Bild bereits</translation>
+    </message>
+    <message>
+        <source>Importing...</source>
+        <translation>Importieren...</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n HD frame(s) created</source>
+        <translation>
+            <numerusform>%n HD-Frame erstellt</numerusform>
+            <numerusform>%n HD-Frames erstellt</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Imported into %n frame(s)</source>
+        <translation>
+            <numerusform>In %n Frame importiert</numerusform>
+            <numerusform>In %n Frames importiert</numerusform>
+        </translation>
     </message>
     <message>
         <source>Editing the frame</source>
@@ -3098,27 +3343,27 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Selected frames already match the imported image</source>
-        <translation>Die ausgewählten Frames entsprechen bereits dem importierten Bild</translation>
+        <translation type="vanished">Die ausgewählten Frames entsprechen bereits dem importierten Bild</translation>
     </message>
     <message>
         <source>No selected HD frames were available for import</source>
-        <translation>Für den Import waren keine ausgewählten HD-Frames verfügbar</translation>
+        <translation type="vanished">Für den Import waren keine ausgewählten HD-Frames verfügbar</translation>
     </message>
     <message>
         <source>No selected frame has a %1 frame to import into</source>
-        <translation>Kein ausgewählter Frame hat einen %1-Frame, in den importiert werden kann</translation>
+        <translation type="vanished">Kein ausgewählter Frame hat einen %1-Frame, in den importiert werden kann</translation>
     </message>
     <message>
         <source>Imported image into %1 frame(s)%2</source>
-        <translation>Bild in %1 Frame(s) importiert%2</translation>
+        <translation type="vanished">Bild in %1 Frame(s) importiert%2</translation>
     </message>
     <message>
         <source> (%1 skipped without HD)</source>
-        <translation> (%1 ohne HD übersprungen)</translation>
+        <translation type="vanished"> (%1 ohne HD übersprungen)</translation>
     </message>
     <message>
         <source> (%1 skipped without %2 frame)</source>
-        <translation> (%1 ohne %2-Frame übersprungen)</translation>
+        <translation type="vanished"> (%1 ohne %2-Frame übersprungen)</translation>
     </message>
     <message>
         <source>Import Movie Clip</source>
@@ -3138,7 +3383,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Importing the movie clip...</source>
-        <translation>Filmclip wird importiert...</translation>
+        <translation type="vanished">Filmclip wird importiert...</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -3146,7 +3391,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>%1 skipped without HD</source>
-        <translation>%1 ohne HD übersprungen</translation>
+        <translation type="vanished">%1 ohne HD übersprungen</translation>
     </message>
     <message>
         <source>%1 after the clip&apos;s end left as they are</source>
@@ -3154,7 +3399,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Imported the movie clip into %1 frame(s)%2</source>
-        <translation>Filmclip in %1 Frame(s) importiert%2</translation>
+        <translation type="vanished">Filmclip in %1 Frame(s) importiert%2</translation>
     </message>
     <message>
         <source>The project has an autosave from %1 that is newer than its files.</source>
@@ -3700,11 +3945,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Background already matches image</source>
-        <translation>Hintergrund entspricht bereits dem Bild</translation>
+        <translation type="vanished">Hintergrund entspricht bereits dem Bild</translation>
     </message>
     <message>
         <source>Imported image into background %1 (%2)</source>
-        <translation>Bild in Hintergrund %1 importiert (%2)</translation>
+        <translation type="vanished">Bild in Hintergrund %1 importiert (%2)</translation>
     </message>
     <message>
         <source>Export Background PNG</source>
@@ -4494,83 +4739,83 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <name>MovieImportDialog</name>
     <message>
         <source>Import Movie Clip: %1</source>
-        <translation>Filmclip importieren: %1</translation>
+        <translation type="vanished">Filmclip importieren: %1</translation>
     </message>
     <message>
         <source>Drag over the picture to choose the part that goes into the frames</source>
-        <translation>Über das Bild ziehen, um den Teil zu wählen, der in die Frames kommt</translation>
+        <translation type="vanished">Über das Bild ziehen, um den Teil zu wählen, der in die Frames kommt</translation>
     </message>
     <message>
         <source>Where in the clip the first selected frame starts</source>
-        <translation>Wo im Clip der erste ausgewählte Frame beginnt</translation>
+        <translation type="vanished">Wo im Clip der erste ausgewählte Frame beginnt</translation>
     </message>
     <message>
         <source>◀</source>
-        <translation>◀</translation>
+        <translation type="vanished">◀</translation>
     </message>
     <message>
         <source>One picture back</source>
-        <translation>Ein Bild zurück</translation>
+        <translation type="vanished">Ein Bild zurück</translation>
     </message>
     <message>
         <source>▶</source>
-        <translation>▶</translation>
+        <translation type="vanished">▶</translation>
     </message>
     <message>
         <source>One picture on</source>
-        <translation>Ein Bild weiter</translation>
+        <translation type="vanished">Ein Bild weiter</translation>
     </message>
     <message>
         <source>Whole Picture</source>
-        <translation>Ganzes Bild</translation>
+        <translation type="vanished">Ganzes Bild</translation>
     </message>
     <message>
         <source>Keep the DMD&apos;s proportions</source>
-        <translation>DMD-Proportionen beibehalten</translation>
+        <translation type="vanished">DMD-Proportionen beibehalten</translation>
     </message>
     <message>
         <source>The crop zone has the frame&apos;s width to height (%1x%2), so nothing is stretched</source>
-        <translation>Der Ausschnitt hat das Seitenverhältnis des Frames (%1x%2), damit nichts gestreckt wird</translation>
+        <translation type="vanished">Der Ausschnitt hat das Seitenverhältnis des Frames (%1x%2), damit nichts gestreckt wird</translation>
     </message>
     <message>
         <source>The first selected frame gets</source>
-        <translation>Der erste ausgewählte Frame erhält</translation>
+        <translation type="vanished">Der erste ausgewählte Frame erhält</translation>
     </message>
     <message>
         <source>The next frames get</source>
-        <translation>Die folgenden Frames erhalten</translation>
+        <translation type="vanished">Die folgenden Frames erhalten</translation>
     </message>
     <message>
         <source>The clip as the frames play (their durations)</source>
-        <translation>Den Clip, wie die Frames abspielen (ihre Dauern)</translation>
+        <translation type="vanished">Den Clip, wie die Frames abspielen (ihre Dauern)</translation>
     </message>
     <message>
         <source>A picture every</source>
-        <translation>Ein Bild alle</translation>
+        <translation type="vanished">Ein Bild alle</translation>
     </message>
     <message>
         <source> ms</source>
-        <translation> ms</translation>
+        <translation type="vanished"> ms</translation>
     </message>
     <message>
         <source>Import</source>
-        <translation>Importieren</translation>
+        <translation type="vanished">Importieren</translation>
     </message>
     <message>
         <source>%1 of %2</source>
-        <translation>%1 von %2</translation>
+        <translation type="vanished">%1 von %2</translation>
     </message>
     <message>
         <source>Crop zone: %1, %2, %3x%4 pixels of %5x%6</source>
-        <translation>Ausschnitt: %1, %2, %3x%4 Pixel von %5x%6</translation>
+        <translation type="vanished">Ausschnitt: %1, %2, %3x%4 Pixel von %5x%6</translation>
     </message>
     <message>
         <source>%1 frame(s) get the clip from %2 to %3; it ends at %4, the frames after that are left as they are.</source>
-        <translation>%1 Frame(s) erhalten den Clip von %2 bis %3; er endet bei %4, die Frames danach bleiben unverändert.</translation>
+        <translation type="vanished">%1 Frame(s) erhalten den Clip von %2 bis %3; er endet bei %4, die Frames danach bleiben unverändert.</translation>
     </message>
     <message>
         <source>%1 frame(s) get the clip from %2 to %3.</source>
-        <translation>%1 Frame(s) erhalten den Clip von %2 bis %3.</translation>
+        <translation type="vanished">%1 Frame(s) erhalten den Clip von %2 bis %3.</translation>
     </message>
 </context>
 <context>

@@ -3585,6 +3585,7 @@ void runAutosaveWidgetTests();
 void runDmdOutputWidgetTests();
 void runEditorPluginsWidgetTests();
 void runVideoClipWidgetTests();
+void runImageImportWidgetTests();
 void runHelperLinesWidgetTests();
 void runScenesWidgetTests();
 void runPupHostWidgetTests();
@@ -3649,6 +3650,7 @@ int main(int argc, char* argv[])
     runDmdOutputWidgetTests();
     runEditorPluginsWidgetTests();
     runVideoClipWidgetTests();
+    runImageImportWidgetTests();
     runHelperLinesWidgetTests();
     runScenesWidgetTests();
     runPupHostWidgetTests();

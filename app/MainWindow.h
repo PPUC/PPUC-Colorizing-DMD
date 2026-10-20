@@ -44,6 +44,7 @@ class EditMenuActions;
 class FrameListWidget;
 class HandbookWindow;
 class PluginLogWindow;
+class VideoClip;
 class PupTesterWindow;
 class FramePanel;
 class SectionBar;
@@ -163,14 +164,14 @@ private:
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
     void importImageIntoSelectedFrames();
-    // File -> Import Movie Clip Into Selected Frames: a picture of a clip per selected frame,
-    // through MovieImportDialog.
+    void importImageFromClipboard();
+    // File -> Import Movie Clip Into Selected Frames: a picture of a clip per selected frame.
     void importMovieIntoSelectedFrames();
-    // Replaces the frame's picture on the plane by the imported one as one undoable edit;
-    // false when nothing changes.
-    bool commitImportedFramePixels(std::size_t frameIndex,
-                                   render::Resolution resolution,
-                                   const document::Rgb565Frame& imported);
+    // The Images window (ImageImportDialog) for a still picture or a clip, and its result
+    // written into the selection of the selected frames or into the selected background, on
+    // the chosen planes (HD created where it is missing).
+    void importPicture(const QImage& still, const QString& name, VideoClip* clip,
+                       bool toBackground);
     // Offers the project's autosave when it is newer than the project files (see Autosave.h).
     void loadProject(const QString& cromPath, const QString& crpPath);
     // Reads the project from readFrom (an autosave) instead; it is then the project at

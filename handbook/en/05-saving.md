@@ -48,30 +48,52 @@ purpose the runtime export does not: the frames libserum renders nothing for are
 nothing colorized to show (an inactive frame is one that is not colorized, a 256x64 frame without
 its data is black), and the image of a background is exported by `Export BG`.
 
-Use `File -> Import Image Into Selected Frames...` or the Frame topic's `Import Image` button to
-replace selected frame pixels from a PNG/BMP/JPEG. The image is scaled to the active SD/HD DMD size.
-In HD mode, selected frames without HD data are skipped. The import is undoable per frame.
+## Importing images and movie clips
 
-`File -> Import Movie Clip Into Selected Frames...` gives each selected frame a picture of a
-movie clip (MP4, MOV, MKV, AVI, WebM, MPEG, WMV, FLV or an animated GIF; read with ffmpeg, which
-comes with the PUP plugin, so a package without it says it cannot read clips). A window shows
-the clip:
+Pictures go into frames as in the Win32 editor's Images window. First select frames, and on the
+canvas the pixels that get the picture (any selection tool; without a selection, the whole
+frame). Then:
 
-- the slider, `◀` and `▶` (one picture of the clip back or on) choose where the first selected
-  frame starts;
-- dragging over the picture draws the crop zone, the part of the picture that goes into the
-  frames; `Keep the DMD's proportions` (on by default) makes it as wide to high as the frame, so
-  nothing is stretched; `Whole Picture` takes all of it again;
-- the first selected frame's result is shown at DMD resolution;
-- the next selected frames get the clip as the frames play (each frame's duration further on,
-  as the Win32 editor does) or a picture every 5 to 3000 ms.
+- `File -> Import Image Into Selected Frames...` (or the Frame section's `Import Image`): a
+  PNG, BMP or JPEG;
+- `File -> Import Image From the Clipboard...`: the picture on the clipboard;
+- `File -> Import Movie Clip Into Selected Frames...`: a movie clip (MP4, MOV, MKV, AVI, WebM,
+  MPEG, WMV, FLV or an animated GIF; read with ffmpeg, which comes with the PUP plugin, so a
+  package without it says it cannot read clips);
+- the Background section's `Import Image`: an image for the selected background.
 
-`Import` fills the selected frames in their order, on the active SD/HD plane, as `Import Image`
-does: undoable per frame, frames without HD data skipped in HD mode. Frames whose time is past
-the clip's end are left as they are; the status bar says how many. A long import shows its
-progress and can be cancelled; the frames done so far keep their pictures.
+The `Import Image` window shows the picture and a zone of it with the proportions of the
+selection's bounds, the part that is scaled into the selection:
 
-Save behavior:
+- the zone follows the mouse (dashed); the mouse wheel makes it larger or smaller, one screen
+  pixel a notch, ten with `Shift`. A click takes it: the pink zone, which the selection gets.
+  `Whole Picture` takes the largest zone again;
+- a right click takes an end zone (blue): over the selected frames the zone then moves and
+  grows or shrinks from the pink zone to the blue one (the Win32 editor's scroll copy).
+  `No End Zone` drops it;
+- `Brightness` (-50 to 50), `Contrast` (shown as the factor, 0.25 to 2.00) and `Blur` (0 to 10
+  pixels) change the picture as in the Win32 editor; `Scaling` is `Nearest` (one pixel of the
+  picture each, as in the Win32 editor) or `Smooth`. They are kept for the next import;
+- `Into`: the selection of the selected frames, or the selected background (the rectangle of
+  the selection, or all of it). The planes: the 128x32 and the 256x64 picture of an ordinary
+  project, each or both; a frame or background without HD gets it first (as `Create HD` with
+  `Nearest`), the Win32 editor's "copy to extra resolution (create if needed)". The selection is
+  carried to the other plane: doubled, or halved where any of the pixels a pixel covers is
+  selected;
+- `The selection gets` shows the result for the first frame; pixels outside the selection,
+  which keep theirs, are dark.
+
+For a movie clip the window also has the clip's time: the slider, `◀` and `▶` step back or on
+by the unit chosen (`Hour`, `Minute`, `Second` or `Picture`), and the next selected frames get
+the clip as the frames play (each frame's duration further on, as the Win32 editor does), a
+picture every 5 to 3000 ms, or this picture, all of them.
+
+`Import` writes the frames in their order, each frame one undo step. Frames whose time is past
+the clip's end are left as they are; the status bar says how many, and how many HD frames were
+created. A long import shows its progress and can be cancelled; the frames done so far keep
+their pictures.
+
+## Save behavior
 
 - Saving runs in the background. A save that is done within a moment (about 0.3 s) shows
   nothing; a longer one brings up the `Saving Project` window: `Writing the .cRZ and .cRPX: N of

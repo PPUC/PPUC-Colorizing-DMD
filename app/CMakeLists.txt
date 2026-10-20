@@ -25,8 +25,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/ProjectSettingsDialog.h
     dialogs/SceneDialog.cpp
     dialogs/SceneDialog.h
-    dialogs/MovieImportDialog.cpp
-    dialogs/MovieImportDialog.h
+    dialogs/ImageImportDialog.cpp
+    dialogs/ImageImportDialog.h
     dialogs/DumpImportDialog.h
     dialogs/FrameTesterDialog.cpp
     dialogs/FrameTesterDialog.h
@@ -104,6 +104,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     EditorPlugins.h
     KeyNames.cpp
     KeyNames.h
+    ImageImport.cpp
+    ImageImport.h
     MovieImport.cpp
     MovieImport.h
     PluginLogWindow.cpp

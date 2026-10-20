@@ -88,7 +88,8 @@
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/HelperLineDialog.h"
 #include "dialogs/SceneDialog.h"
-#include "dialogs/MovieImportDialog.h"
+#include "ImageImport.h"
+#include "dialogs/ImageImportDialog.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "dialogs/SelectionDialogs.h"
@@ -216,33 +217,6 @@ QString colorButtonStyle(uint16_t rgb565, bool enabled = true)
     return QStringLiteral("QToolButton { background: %1; border: 1px solid %2; }"
                           "QToolButton:disabled { color: #777; }")
         .arg(color.name(), border);
-}
-
-uint16_t colorToRgb565(const QColor& color)
-{
-    const uint16_t r = static_cast<uint16_t>((color.red() * 31) / 255);
-    const uint16_t g = static_cast<uint16_t>((color.green() * 63) / 255);
-    const uint16_t b = static_cast<uint16_t>((color.blue() * 31) / 255);
-    return static_cast<uint16_t>((r << 11) | (g << 5) | b);
-}
-
-document::Rgb565Frame rgb565FrameFromImage(const QImage& source, render::Size targetSize)
-{
-    QImage scaled = source.convertToFormat(QImage::Format_RGB32)
-                        .scaled(targetSize.width,
-                                targetSize.height,
-                                Qt::IgnoreAspectRatio,
-                                Qt::FastTransformation);
-    document::Rgb565Frame frame = document::makeRgb565Frame(targetSize);
-    for (int y = 0; y < targetSize.height; ++y) {
-        for (int x = 0; x < targetSize.width; ++x) {
-            const std::size_t index =
-                static_cast<std::size_t>(y) * static_cast<std::size_t>(targetSize.width) +
-                static_cast<std::size_t>(x);
-            frame.pixels[index] = colorToRgb565(scaled.pixelColor(x, y));
-        }
-    }
-    return frame;
 }
 
 // The mask over an original frame of its size: the frame in gray, the pixels the mask hides
@@ -745,6 +719,13 @@ void MainWindow::createActions()
         fileMenu->addAction(tr("Import Image Into Selected &Frames..."));
     connect(importFrameImageAction, &QAction::triggered, this, [this]() {
         importImageIntoSelectedFrames();
+    });
+    QAction* importClipboardAction =
+        fileMenu->addAction(tr("Import Image From the C&lipboard..."));
+    importClipboardAction->setToolTip(
+        tr("The picture on the clipboard into the selection of the selected frames"));
+    connect(importClipboardAction, &QAction::triggered, this, [this]() {
+        importImageFromClipboard();
     });
     QAction* importMovieAction =
         fileMenu->addAction(tr("Import Mo&vie Clip Into Selected Frames..."));
@@ -2999,110 +2980,44 @@ void MainWindow::exportCurrentFramePng()
 
 void MainWindow::importImageIntoSelectedFrames()
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty()) {
+    if (!m_document || selectedFrameIndices().empty()) {
         statusBar()->showMessage(tr("Select at least one frame first"), 2500);
         return;
     }
-
-    const QString imagePath = QFileDialog::getOpenFileName(
+    const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Import Image Into Selected Frames"),
         m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
         tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
-    if (imagePath.isEmpty()) {
+    if (path.isEmpty()) {
         return;
     }
-
-    QImage image(imagePath);
+    const QImage image(path);
     if (image.isNull()) {
-        QMessageBox::critical(this,
-                              tr("Import Failed"),
-                              tr("Could not read image file."));
+        QMessageBox::critical(this, tr("Import Failed"), tr("Could not read image file."));
         return;
     }
-
-    const render::Resolution targetResolution = m_activeResolution;
-    const render::Size targetSize = m_document->geometry().planeSize(targetResolution);
-    const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
-
-    int updatedFrames = 0;
-    int skippedFrames = 0;
-    try {
-        for (std::size_t frameIndex : frameIndices) {
-            if (targetResolution == render::Resolution::Hd &&
-                !m_document->hasHdFrame(frameIndex)) {
-                ++skippedFrames;
-                continue;
-            }
-
-            if (commitImportedFramePixels(frameIndex, targetResolution, imported)) {
-                ++updatedFrames;
-            }
-        }
-    } catch (const std::exception& ex) {
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-        return;
-    }
-
-    if (updatedFrames == 0) {
-        statusBar()->showMessage(
-            skippedFrames == 0
-                ? tr("Selected frames already match the imported image")
-                : showsHdAndSd()
-                      ? tr("No selected HD frames were available for import")
-                      : tr("No selected frame has a %1 frame to import into")
-                            .arg(nativePlaneText(*m_document)),
-            3000);
-        updateUndoRedoActions();
-        return;
-    }
-
-    updateUndoRedoActions();
-    updateProjectHeaderStatus();
-    statusBar()->showMessage(
-        tr("Imported image into %1 frame(s)%2")
-            .arg(updatedFrames)
-            .arg(skippedFrames == 0
-                     ? QString()
-                     : showsHdAndSd()
-                           ? tr(" (%1 skipped without HD)").arg(skippedFrames)
-                           : tr(" (%1 skipped without %2 frame)")
-                                 .arg(skippedFrames)
-                                 .arg(nativePlaneText(*m_document))),
-        3000);
+    importPicture(image, QFileInfo(path).fileName(), nullptr, false);
 }
 
-bool MainWindow::commitImportedFramePixels(std::size_t frameIndex,
-                                           render::Resolution resolution,
-                                           const document::Rgb565Frame& imported)
+void MainWindow::importImageFromClipboard()
 {
-    std::vector<edit::PixelChange> changes;
-    const document::Rgb565Frame& target = m_document->colorizedFrame(frameIndex, resolution);
-    for (int y = 0; y < imported.size.height; ++y) {
-        for (int x = 0; x < imported.size.width; ++x) {
-            const std::size_t pixelIndex =
-                static_cast<std::size_t>(y) * static_cast<std::size_t>(imported.size.width) +
-                static_cast<std::size_t>(x);
-            const uint16_t oldColor = target.pixels[pixelIndex];
-            const uint16_t newColor = imported.pixels[pixelIndex];
-            if (oldColor != newColor) {
-                changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
-            }
-        }
+    if (!m_document || selectedFrameIndices().empty()) {
+        statusBar()->showMessage(tr("Select at least one frame first"), 2500);
+        return;
     }
-    if (changes.empty()) {
-        return false;
+    const QImage image = QGuiApplication::clipboard()->image();
+    if (image.isNull()) {
+        statusBar()->showMessage(tr("The clipboard holds no picture"), 3000);
+        return;
     }
-    commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::FramePixels, frameIndex,
-                                                        resolution, std::move(changes)));
-    return true;
+    importPicture(image, tr("the clipboard"), nullptr,
+                  activePaintTarget() == PaintTarget::Background);
 }
 
 void MainWindow::importMovieIntoSelectedFrames()
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty()) {
+    if (!m_document || selectedFrameIndices().empty()) {
         statusBar()->showMessage(tr("Select at least one frame first"), 2500);
         return;
     }
@@ -3128,24 +3043,170 @@ void MainWindow::importMovieIntoSelectedFrames()
         QMessageBox::critical(this, tr("Import Failed"), error);
         return;
     }
+    importPicture(QImage(), QFileInfo(path).fileName(), &clip, false);
+}
 
-    const render::Resolution resolution = m_activeResolution;
-    const render::Size size = m_document->geometry().planeSize(resolution);
-    std::vector<uint32_t> durations;
-    for (std::size_t frameIndex : frameIndices) {
-        durations.push_back(m_document->frameDurationMs(frameIndex));
-    }
-    MovieImportDialog dialog(clip, QFileInfo(path).fileName(), size, durations, this);
-    if (dialog.exec() != QDialog::Accepted) {
+void MainWindow::importPicture(const QImage& still,
+                               const QString& name,
+                               VideoClip* clip,
+                               bool toBackground)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
+    if (!m_document || (frameIndices.empty() && !backgroundIndex)) {
+        statusBar()->showMessage(tr("Select at least one frame first"), 2500);
         return;
     }
-    const std::vector<double> times = dialog.frameTimes();
-    const QRect crop = dialog.crop();
+    const render::ProjectGeometry& geometry = m_document->geometry();
+    // The planes: the SD and the HD plane of an ordinary project, the one plane of the others.
+    std::vector<render::Resolution> planes;
+    for (render::Resolution plane : {render::Resolution::Sd, render::Resolution::Hd}) {
+        if (geometry.isEditable(plane)) {
+            planes.push_back(plane);
+        }
+    }
+    if (planes.empty()) {
+        return;
+    }
+    // The selection, on the plane it was made on; without one, the whole plane.
+    const edit::PlaneSelection* selection = m_canvasEdit.selection();
+    const render::Resolution selectionPlane =
+        selection && !selection->isEmpty() ? selection->plane()
+        : std::find(planes.begin(), planes.end(), m_activeResolution) != planes.end()
+            ? m_activeResolution
+            : planes.front();
+    const render::Size selectionPlaneSize = geometry.planeSize(selectionPlane);
+    PlaneArea area;
+    area.rect = render::Rect{0, 0, selectionPlaneSize.width, selectionPlaneSize.height};
+    if (selection && !selection->isEmpty()) {
+        area.rect = *selection->bounds();
+        area.mask = selection->mask();
+    }
 
+    ImageImportSetup setup;
+    setup.selectionSize = render::Size{area.rect.width, area.rect.height};
+    if (!area.mask.empty()) {
+        for (int y = area.rect.y; y < area.rect.y + area.rect.height; ++y) {
+            for (int x = area.rect.x; x < area.rect.x + area.rect.width; ++x) {
+                setup.selectionMask.push_back(
+                    area.mask[static_cast<std::size_t>(y) * selectionPlaneSize.width +
+                              static_cast<std::size_t>(x)]);
+            }
+        }
+    }
+    const auto planeName = [&geometry](render::Resolution plane) {
+        const render::Size size = geometry.planeSize(plane);
+        return QStringLiteral("%1x%2").arg(size.width).arg(size.height);
+    };
+    setup.firstPlaneName = planeName(planes.front());
+    setup.firstPlaneChecked = planes.front() == selectionPlane;
+    if (planes.size() > 1) {
+        setup.secondPlaneName = planeName(planes.back());
+        setup.secondPlaneChecked = planes.back() == selectionPlane;
+    }
+    if (backgroundIndex) {
+        setup.backgroundName = QString::number(*backgroundIndex);
+    }
+    setup.toBackground = toBackground || frameIndices.empty();
+    for (std::size_t frameIndex : frameIndices) {
+        setup.durationsMs.push_back(m_document->frameDurationMs(frameIndex));
+    }
+
+    std::optional<ImageImportDialog> dialog;
+    if (clip) {
+        dialog.emplace(*clip, name, setup, this);
+    } else {
+        dialog.emplace(still, name, setup, this);
+    }
+    if (dialog->exec() != QDialog::Accepted || !m_document) {
+        return;
+    }
+    std::vector<render::Resolution> targets;
+    if (dialog->toFirstPlane()) {
+        targets.push_back(planes.front());
+    }
+    if (dialog->toSecondPlane()) {
+        targets.push_back(planes.back());
+    }
+    if (targets.empty()) {
+        statusBar()->showMessage(tr("Nothing imported: no plane was chosen"), 3000);
+        return;
+    }
+    const ImageAdjustments adjustments = dialog->adjustments();
+    const ImageScaleFilter filter = dialog->filter();
+    // The picture of the n-th target, adjusted; null past a clip's end.
+    const std::vector<double> times = dialog->frameTimes();
+    const auto pictureFor = [&](std::size_t index) -> QImage {
+        if (!clip) {
+            return dialog->adjustedPicture();
+        }
+        const QImage picture =
+            clip->frameAt(index < times.size() ? times[index] : dialog->startMs());
+        return picture.isNull() ? QImage() : adjustedImage(picture, adjustments);
+    };
+    const auto changesFor = [&](const document::Rgb565Frame& plane, render::Resolution resolution,
+                                const QImage& picture, const QRect& zone) {
+        const PlaneArea onPlane =
+            areaOnPlane(area, selectionPlaneSize, geometry.planeSize(resolution));
+        const QImage scaled = zonePicture(
+            picture, zone, QSize(onPlane.rect.width, onPlane.rect.height), filter);
+        return importedPixelChanges(plane, scaled, onPlane.rect, onPlane.mask);
+    };
+
+    if (dialog->toBackground() && backgroundIndex) {
+        const QImage picture = pictureFor(0);
+        int planesChanged = 0;
+        try {
+            for (render::Resolution resolution : targets) {
+                if (resolution == render::Resolution::Hd &&
+                    !m_document->background(*backgroundIndex).colorizedHd) {
+                    // An HD image first, the SD image doubled, as Create HD makes it.
+                    const document::Rgb565Frame& sd =
+                        m_document->backgroundFrame(*backgroundIndex, render::Resolution::Sd);
+                    const render::Size hdSize = geometry.planeSize(render::Resolution::Hd);
+                    document::Rgb565Frame hd = document::makeRgb565Frame(hdSize);
+                    for (int y = 0; y < hdSize.height; ++y) {
+                        for (int x = 0; x < hdSize.width; ++x) {
+                            hd.pixels[static_cast<std::size_t>(y) * hdSize.width + x] =
+                                sd.pixels[static_cast<std::size_t>(y / 2) * sd.size.width + x / 2];
+                        }
+                    }
+                    commitEdit(std::make_unique<edit::BackgroundHdCreateCommand>(*backgroundIndex,
+                                                                                 std::move(hd)));
+                }
+                std::vector<edit::PixelChange> changes =
+                    changesFor(m_document->backgroundFrame(*backgroundIndex, resolution),
+                               resolution, picture, dialog->zoneFor(0, 1));
+                if (!changes.empty()) {
+                    commitEdit(std::make_unique<edit::PixelEditCommand>(
+                        edit::EditKind::BackgroundImage, *backgroundIndex, resolution,
+                        std::move(changes)));
+                    ++planesChanged;
+                }
+            }
+        } catch (const std::exception& ex) {
+            statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        refreshComponentBrowsers();
+        updateBackgroundControls();
+        updateUndoRedoActions();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(planesChanged > 0
+                                     ? tr("Imported into background %1").arg(*backgroundIndex)
+                                     : tr("Background %1 already has this picture")
+                                           .arg(*backgroundIndex),
+                                 4000);
+        return;
+    }
+
+    std::vector<std::unique_ptr<edit::EditCommand>> commands;
     int updatedFrames = 0;
-    int skippedFrames = 0;
+    int createdHd = 0;
     int pastEnd = 0;
-    QProgressDialog progress(tr("Importing the movie clip..."), tr("Cancel"), 0,
+    QProgressDialog progress(tr("Importing..."), tr("Cancel"), 0,
                              static_cast<int>(frameIndices.size()), this);
     progress.setWindowModality(Qt::WindowModal);
     progress.setMinimumDuration(500);
@@ -3156,41 +3217,56 @@ void MainWindow::importMovieIntoSelectedFrames()
                 break;
             }
             const std::size_t frameIndex = frameIndices[index];
-            if (resolution == render::Resolution::Hd && !m_document->hasHdFrame(frameIndex)) {
-                ++skippedFrames;
-                continue;
-            }
-            const QImage picture = clip.frameAt(times[index]);
+            const QImage picture = pictureFor(index);
             if (picture.isNull()) {
                 // Past the clip's end: the frames from here keep their pictures.
                 pastEnd = static_cast<int>(frameIndices.size() - index);
                 break;
             }
-            if (commitImportedFramePixels(
-                    frameIndex, resolution,
-                    rgb565FrameFromImage(croppedMoviePicture(picture, crop), size))) {
-                ++updatedFrames;
+            const QRect zone = dialog->zoneFor(index, frameIndices.size());
+            bool changed = false;
+            for (render::Resolution resolution : targets) {
+                if (resolution == render::Resolution::Hd && planes.size() > 1 &&
+                    !m_document->hasHdFrame(frameIndex)) {
+                    // The Win32 editor's "copy to extra resolution (create if needed)".
+                    document::FrameHdParts parts;
+                    parts.backgroundMask = m_document->backgroundData(frameIndex).has_value();
+                    commands.push_back(edit::createFrameHd(*m_document, frameIndex, parts));
+                    ++createdHd;
+                }
+                std::vector<edit::PixelChange> changes =
+                    changesFor(m_document->colorizedFrame(frameIndex, resolution), resolution,
+                               picture, zone);
+                if (changes.empty()) {
+                    continue;
+                }
+                auto command = std::make_unique<edit::PixelEditCommand>(
+                    edit::EditKind::FramePixels, frameIndex, resolution, std::move(changes));
+                command->apply(*m_document);
+                commands.push_back(std::move(command));
+                changed = true;
             }
+            updatedFrames += changed ? 1 : 0;
         }
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
     progress.setValue(static_cast<int>(frameIndices.size()));
-
+    recordFrameEdits(std::move(commands));
+    updateFrameMetadataControls();
     updateUndoRedoActions();
     updateProjectHeaderStatus();
     QStringList notes;
-    if (skippedFrames > 0) {
-        notes << tr("%1 skipped without HD").arg(skippedFrames);
+    if (createdHd > 0) {
+        notes << tr("%n HD frame(s) created", "", createdHd);
     }
     if (pastEnd > 0) {
         notes << tr("%1 after the clip's end left as they are").arg(pastEnd);
     }
     statusBar()->showMessage(
-        tr("Imported the movie clip into %1 frame(s)%2")
-            .arg(updatedFrames)
-            .arg(notes.isEmpty() ? QString()
-                                 : QStringLiteral(" (%1)").arg(notes.join(QStringLiteral("; ")))),
+        tr("Imported into %n frame(s)", "", updatedFrames) +
+            (notes.isEmpty() ? QString()
+                             : QStringLiteral(" (%1)").arg(notes.join(QStringLiteral("; ")))),
         5000);
 }
 
@@ -5793,88 +5869,24 @@ void MainWindow::copySelectedBackgroundToFrames()
 
 void MainWindow::importImageIntoSelectedBackground()
 {
-    const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
-    if (!m_document || !backgroundIndex) {
+    if (!m_document || !selectedBackgroundIndex()) {
         statusBar()->showMessage(tr("Select a background first"), 2500);
         updateBackgroundControls();
         return;
     }
-
-    const QString imagePath = QFileDialog::getOpenFileName(
-        this,
-        tr("Import Background Image"),
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Import Background Image"),
         m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
         tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
-    if (imagePath.isEmpty()) {
+    if (path.isEmpty()) {
         return;
     }
-
-    QImage image(imagePath);
+    const QImage image(path);
     if (image.isNull()) {
-        QMessageBox::critical(this,
-                              tr("Import Failed"),
-                              tr("Could not read image file."));
+        QMessageBox::critical(this, tr("Import Failed"), tr("Could not read image file."));
         return;
     }
-
-    const render::Resolution targetResolution = m_activeResolution;
-    const render::Size targetSize = m_document->geometry().planeSize(targetResolution);
-    try {
-        const document::Rgb565Frame imported = rgb565FrameFromImage(image, targetSize);
-        const document::BackgroundRecord& background = m_document->background(*backgroundIndex);
-        if (targetResolution == render::Resolution::Hd && !background.colorizedHd) {
-            commitEdit(
-                std::make_unique<edit::BackgroundHdCreateCommand>(*backgroundIndex, imported));
-        } else {
-            const document::Rgb565Frame& oldBackground =
-                m_document->backgroundFrame(*backgroundIndex, targetResolution);
-            std::vector<edit::PixelChange> changes;
-            for (int y = 0; y < imported.size.height; ++y) {
-                for (int x = 0; x < imported.size.width; ++x) {
-                    const std::size_t pixelIndex =
-                        static_cast<std::size_t>(y) *
-                            static_cast<std::size_t>(imported.size.width) +
-                        static_cast<std::size_t>(x);
-                    const uint16_t oldColor = oldBackground.pixels[pixelIndex];
-                    const uint16_t newColor = imported.pixels[pixelIndex];
-                    if (oldColor == newColor) {
-                        continue;
-                    }
-                    changes.push_back(edit::PixelChange{x, y, oldColor, newColor});
-                }
-            }
-            if (changes.empty()) {
-                statusBar()->showMessage(tr("Background already matches image"), 2500);
-                return;
-            }
-            commitEdit(std::make_unique<edit::PixelEditCommand>(edit::EditKind::BackgroundImage,
-                                                                *backgroundIndex,
-                                                                targetResolution,
-                                                                std::move(changes)));
-        }
-        if (m_preview) {
-            m_preview->update();
-        }
-        refreshComponentBrowsers();
-        updateBackgroundControls();
-        updateUndoRedoActions();
-        for (std::size_t frameIndex = 0; frameIndex < m_document->frameCount(); ++frameIndex) {
-            const std::optional<document::FrameBackgroundData>& backgroundData =
-                m_document->backgroundData(frameIndex);
-            if (backgroundData && backgroundData->backgroundId == *backgroundIndex) {
-                updateFrameThumbnail(frameIndex);
-            }
-        }
-        updateProjectHeaderStatus();
-        statusBar()->showMessage(
-            tr("Imported image into background %1 (%2)")
-                .arg(static_cast<int>(*backgroundIndex))
-                .arg(planeName(targetResolution)),
-            3000);
-    } catch (const std::exception& ex) {
-        updateBackgroundControls();
-        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
-    }
+    importPicture(image, QFileInfo(path).fileName(), nullptr, true);
 }
 
 void MainWindow::exportSelectedBackgroundPng()

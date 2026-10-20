@@ -1179,8 +1179,8 @@ owner together.
   `SectionResizeHandle` below each open section with an open one further down moves the border
   (`resizeBelow`, min 40 px), double click `resetSectionSizes`; weights in QSettings
   `layout/<stateKey>Sizes`.
-- Images window: crop zone presets, scroll copy, copying into the selection (the movie clip
-  import itself is done, see "VPX plugins").
+- Images window: crop zone presets (named saved zones) and the AI image generation are not
+  there; the rest is, see "Images window" below.
 - PuP tester: PUP's sound, and triggers from the Runtime view / frame tester identification
   (it sends the shown frame's trigger). See "VPX plugins".
 
@@ -1789,4 +1789,27 @@ by the canvas stack), and the zoom shows its zoom (`updateZoomButton()`, from
 are swallowed, release, window deactivation and a canvas switch end it) sets `setPanMode` on
 `FramePreviewWidget` / `SpriteEditorWidget`: open hand, a left drag moves `m_viewOffset` /
 `m_scroll` instead of drawing (closed hand). Tests in `FramePreviewWidgetRenderTests`.
+
+## Images window (2026-10-20, issue #16)
+
+Authors: image import needs the Win32 Images window's controls; movie clips too (brightness,
+contrast, blur, hour/minute/second steps, a zone resized with the wheel). `ImageImportDialog`
+(replaces `MovieImportDialog`) for an image file, the clipboard (`File -> Import Image From the
+Clipboard...`, new) and a movie clip, and for the selected background (Background section's
+`Import Image`). `MainWindow::importPicture()` writes the result. Win32 (v3.17.3
+`ColorizingDMD.cpp` ~18680, 23832, 19002): the zone has the selection's proportions (SelRatio),
+follows the mouse, the wheel changes it by one view pixel (Shift x10), a left click fixes the
+source zone, a right click the final zone (scroll copy, linear over the frames); brightness
+-50..50 (beta 2.5 b), contrast -15..20 (alpha 1 + 0.05 c, 1.001 for 1), blur 0..10 (cv::blur,
+reflect101), on floats, rounded at the end (`adjustedImage`); resize INTER_NEAREST by default
+(`zonePicture`: Nearest exactly as OpenCV, Smooth = Qt smooth; Win32's Linear/Cubic/Lanczos not
+offered); copy to the frame selection (Copy_iMask) or the active background (its rectangle),
+original and/or extra resolution, the extra created when missing (`edit::createFrameHd`,
+Nearest; a background's HD image is its SD image doubled, `BackgroundHdCreateCommand`).
+Selection carried between planes by `areaOnPlane` (doubled; halved: a pixel when any it covers
+is selected). Movie steps by unit, batch as they play / interval / same picture. Adjustments and
+filter kept in QSettings `imageImport/*`. Not ported: crop zone saves, AI generation, Linear,
+Cubic and Lanczos scaling. Tests: `ImageImportWidgetTests` (adjustments against the OpenCV
+formula, zones, scroll interpolation, pixels with a mask, plane mapping, the window driven by
+mouse and wheel events), `VideoClipWidgetTests` (the window on a clip).
 

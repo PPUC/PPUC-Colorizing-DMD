@@ -12,7 +12,7 @@
 
 #include "MovieImport.h"
 #include "VideoClip.h"
-#include "dialogs/MovieImportDialog.h"
+#include "dialogs/ImageImportDialog.h"
 #include "export/GifWriter.h"
 
 namespace {
@@ -85,25 +85,41 @@ void runVideoClipWidgetTests()
     expect(showsColor(clip.frameAt(299), Qt::green), "and forward to 299 ms: the second");
     expect(clip.frameAt(5000).isNull(), "nothing past the end");
 
-    // The import dialog on the clip: three selected frames of 100, 200 and 300 ms.
+    // The import window on the clip: three selected frames of 100, 200 and 300 ms, a selection
+    // of the whole 128x32 plane (the clip's proportions).
     {
-        app::MovieImportDialog dialog(clip, QStringLiteral("clip.gif"), render::Size{128, 32},
-                                      {100, 200, 300});
-        expect(dialog.crop() == QRect(0, 0, 64, 16) && dialog.intervalMs() == 0 &&
+        app::ImageImportSetup setup;
+        setup.selectionSize = render::Size{128, 32};
+        setup.firstPlaneName = QStringLiteral("128x32");
+        setup.durationsMs = {100, 200, 300};
+        app::ImageImportDialog dialog(clip, QStringLiteral("clip.gif"), setup);
+        expect(dialog.isMovie() && dialog.zone() == QRect(0, 0, 64, 16) &&
+                   dialog.batch() == app::ImageImportDialog::Batch::AsTheyPlay &&
                    dialog.frameTimes() == std::vector<double>{0, 100, 300},
-               "the dialog starts at 0 with the whole picture, following the frames' durations");
-        expect(showsColor(dialog.firstFramePicture(), Qt::red) &&
-                   dialog.firstFramePicture().size() == QSize(128, 32),
-               "the first frame gets the clip's first picture at the plane's size");
+               "the window starts at 0 with the whole picture, following the frames' durations");
+        expect(showsColor(dialog.resultPicture(), Qt::red) &&
+                   dialog.resultPicture().size() == QSize(128, 32),
+               "the selection gets the clip's first picture at its size");
         dialog.setStartMs(150);
-        dialog.setIntervalMs(250);
+        dialog.setBatch(app::ImageImportDialog::Batch::Interval, 250);
         expect(dialog.frameTimes() == std::vector<double>{150, 400, 650} &&
-                   showsColor(dialog.firstFramePicture(), Qt::green),
+                   showsColor(dialog.resultPicture(), Qt::green),
                "a later start and a fixed interval");
-        dialog.setCrop(QRect(8, 4, 16, 8));
-        expect(dialog.crop() == QRect(8, 4, 16, 8), "a crop zone");
-        dialog.setCrop(QRect(200, 200, 10, 10));
-        expect(dialog.crop() == QRect(0, 0, 64, 16), "a zone outside the picture is the whole");
+        dialog.setBatch(app::ImageImportDialog::Batch::SamePicture);
+        expect(dialog.frameTimes() == std::vector<double>{150, 150, 150},
+               "or this picture for all of them");
+        dialog.setStepUnit(app::ImageImportDialog::StepUnit::Second);
+        dialog.step(1);
+        expect(dialog.startMs() > 500 && dialog.startMs() <= clip.durationMs() &&
+                   showsColor(dialog.resultPicture(), Qt::blue),
+               "a step of a second, kept inside the clip");
+        dialog.setStepUnit(app::ImageImportDialog::StepUnit::Hour);
+        dialog.step(-1);
+        expect(dialog.startMs() == 0.0, "an hour back: the start of the clip");
+        dialog.setZone(QRect(8, 4, 16, 4));
+        expect(dialog.zone() == QRect(8, 4, 16, 4), "a zone");
+        dialog.setZone(QRect(200, 200, 10, 10));
+        expect(dialog.zone() == QRect(0, 0, 64, 16), "a zone outside the picture is the whole");
     }
 
     app::VideoClip broken;
