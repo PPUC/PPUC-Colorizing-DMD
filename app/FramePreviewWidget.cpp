@@ -382,6 +382,15 @@ void FramePreviewWidget::setBackgroundMaskOverlayEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setSpriteOutlinesEnabled(bool enabled)
+{
+    if (m_showSpriteOutlines == enabled) {
+        return;
+    }
+    m_showSpriteOutlines = enabled;
+    update();
+}
+
 void FramePreviewWidget::setSpritesLayerEnabled(bool enabled)
 {
     if (m_showSpritesLayer == enabled) {
@@ -1161,6 +1170,7 @@ void FramePreviewWidget::paintFrame(QPainter& painter)
             paintDynamicMaskOverlay(painter, region);
             paintBackgroundMaskOverlay(painter, region);
             paintSelectedSpriteBounds(painter, region);
+            paintSpriteOutlines(painter, region);
             paintSelectionOverlay(painter, region);
             paintPreview(painter, region);
             paintPasteOverlay(painter, region);
@@ -1572,6 +1582,66 @@ void FramePreviewWidget::paintBackgroundMaskOverlay(
                              overlayColor);
         }
     }
+    painter.restore();
+}
+
+void FramePreviewWidget::paintSpriteOutlines(QPainter& painter,
+                                              const render::CanvasRegionLayout& region)
+{
+    // On the colorized frame, where the sprites are drawn.
+    if (!m_showSpriteOutlines || !m_document || !m_hasFrame ||
+        region.region != render::CanvasRegion::ColorizedFrame ||
+        m_frameIndex >= m_document->frameCount() || m_showBackgroundImageEditMode) {
+        return;
+    }
+    const std::vector<uint8_t> covered =
+        spriteCoverage(*m_document, m_frameIndex, region.resolution);
+    const render::Size size = region.logicalSize;
+    if (covered.size() !=
+            static_cast<std::size_t>(size.width) * static_cast<std::size_t>(size.height) ||
+        std::find(covered.begin(), covered.end(), uint8_t{1}) == covered.end()) {
+        return;
+    }
+    const auto at = [&](int x, int y) {
+        return x >= 0 && y >= 0 && x < size.width && y < size.height &&
+               covered[static_cast<std::size_t>(y) * static_cast<std::size_t>(size.width) +
+                       static_cast<std::size_t>(x)] != 0;
+    };
+    const int scale = region.displayScale;
+    // The border between a painted pixel and one that is not, as the dynamic zones have it.
+    const auto outline = [&](const QPen& pen) {
+        painter.setPen(pen);
+        for (int y = 0; y < size.height; ++y) {
+            for (int x = 0; x < size.width; ++x) {
+                if (!at(x, y)) {
+                    continue;
+                }
+                const int left = region.displayRect.x + x * scale;
+                const int top = region.displayRect.y + y * scale;
+                if (!at(x - 1, y)) {
+                    painter.drawLine(QPointF(left, top), QPointF(left, top + scale));
+                }
+                if (!at(x + 1, y)) {
+                    painter.drawLine(QPointF(left + scale, top), QPointF(left + scale, top + scale));
+                }
+                if (!at(x, y - 1)) {
+                    painter.drawLine(QPointF(left, top), QPointF(left + scale, top));
+                }
+                if (!at(x, y + 1)) {
+                    painter.drawLine(QPointF(left, top + scale), QPointF(left + scale, top + scale));
+                }
+            }
+        }
+    };
+    const auto cosmetic = [](QColor color, double width) {
+        QPen pen(color, width);
+        pen.setCosmetic(true);
+        return pen;
+    };
+    painter.save();
+    painter.setBrush(Qt::NoBrush);
+    outline(cosmetic(QColor(0, 0, 0, 180), 4.0));
+    outline(cosmetic(QColor(60, 230, 60), 2.0));
     painter.restore();
 }
 

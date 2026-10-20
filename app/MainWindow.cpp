@@ -1303,6 +1303,11 @@ void MainWindow::createCentralView()
     m_spritePanel->onClearCaptureSelectionRequested = [this]() {
         m_canvasEdit.clearCaptureSelection();
     };
+    m_spritePanel->onOutlinesToggled = [this](bool checked) {
+        if (m_preview) {
+            m_preview->setSpriteOutlinesEnabled(checked);
+        }
+    };
     m_spritePanel->onBoundsOverlayToggled = [this](bool checked) {
         if (m_preview) {
             m_preview->setSelectedSpriteBoundsOverlayEnabled(checked);
@@ -4239,6 +4244,7 @@ void MainWindow::refreshProjectSummary()
     m_preview->setBackgroundLayerEnabled(m_framePanel &&
                                          m_framePanel->isBackgroundLayerChecked());
     m_preview->setSpritesLayerEnabled(!m_framePanel || m_framePanel->isSpritesLayerChecked());
+    m_preview->setSpriteOutlinesEnabled(m_spritePanel && m_spritePanel->isOutlinesChecked());
     m_preview->setSelectedSpriteBoundsOverlayEnabled(
         m_spritePanel && m_spritePanel->isBoundsOverlayChecked());
     if (m_spriteEditor) {

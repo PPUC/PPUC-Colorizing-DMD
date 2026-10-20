@@ -2037,3 +2037,14 @@ width, too few rows, a non-digit) as truncation when no timecode line follows
 (`noFrameFollows`): the frame is dropped and reported by `truncatedFrameLine`. Damage with a
 frame after it stays an error. `x16_HOOK.txt` (128x32, cut inside a row) already read. Tests:
 damaged-last-frame block and the adjusted long-row / 256x64 cases in FrameDumpImportTests.
+
+## Outline Sprites (2026-10-20, owner request)
+
+The first Qt attempt (qt_playback_wip, `buildSpriteCoverageMask`) outlined the found sprites
+on the colorized frame. Now: `spriteCoverage(document, frame, plane)` (FrameImageUtils) runs
+`matchFrameSprites` and `applySpriteMatch` on a scratch frame with a coverage vector (the
+`painted` callback), so the outline is exactly the painted pixels.
+`FramePreviewWidget::paintSpriteOutlines` draws the border on the colorized half (black 4 px
+under green 2 px, cosmetic); widget default off, the window follows the Frame Sprites toggle
+`Outline Sprites` (on at first, `isOutlinesChecked`, `onOutlinesToggled`). Tests: coverage and
+outline in `testSpriteCompositionRendersInSdAndHd`, the toggle in the sprite panel test.

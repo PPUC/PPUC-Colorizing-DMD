@@ -1310,6 +1310,38 @@ void testSpriteCompositionRendersInSdAndHd()
                                               false, nullptr, false);
     expect(withoutSprites.pixels[5 * colorizing::render::kSdFrameSize.width + 10] != 0xf800,
            "Show Sprites off: the frame without its sprites");
+    const std::vector<uint8_t> covered =
+        colorizing::app::spriteCoverage(document, 0, colorizing::render::Resolution::Sd);
+    expect(covered.size() == 128u * 32u &&
+               covered[5 * colorizing::render::kSdFrameSize.width + 10] == 1 &&
+               covered[0] == 0,
+           "the coverage has the pixels the found sprite paints, and only those");
+    {
+        // Outline Sprites: a green border around them on the colorized frame.
+        colorizing::app::FramePreviewWidget widget;
+        widget.resize(640, 420);
+        widget.setDocument(&document);
+        widget.setFrameIndex(0);
+        const auto greenOutline = [&widget]() {
+            QImage image(widget.size(), QImage::Format_ARGB32);
+            image.fill(Qt::transparent);
+            QPainter painter(&image);
+            widget.render(&painter);
+            painter.end();
+            for (int y = 0; y < image.height(); ++y) {
+                for (int x = 0; x < image.width(); ++x) {
+                    const QColor color = image.pixelColor(x, y);
+                    if (color.red() == 60 && color.green() == 230 && color.blue() == 60) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+        expect(!greenOutline(), "no outline unless asked for");
+        widget.setSpriteOutlinesEnabled(true);
+        expect(greenOutline(), "the found sprite is outlined in green");
+    }
 
     const QImage sdImage = colorizing::app::renderResolvedFrameImage(
         document,
@@ -2552,6 +2584,19 @@ void testSpritePanel()
                !assignButton->isEnabled(),
            "sprite panel should treat an unknown sprite as no sprite");
     expect(callbacks == 0, "refreshing the sprite panel should not notify");
+    {
+        auto* outlines = childByToolTip<QToolButton>(
+            panel, "Outline the pixels of the sprites libserum finds on the frame in green");
+        std::optional<bool> toggled;
+        panel.onOutlinesToggled = [&](bool checked) { toggled = checked; };
+        expect(outlines->parentWidget() == panel.framePage() && outlines->isCheckable() &&
+                   outlines->isChecked() && outlines->isEnabled() && panel.isOutlinesChecked(),
+               "Outline Sprites is on the frame page, on at first");
+        outlines->click();
+        expect(toggled == false && !panel.isOutlinesChecked(), "turning it off is reported");
+        outlines->click();
+        panel.onOutlinesToggled = nullptr;
+    }
     panel.setSpriteCanvasChecked(true);
     childByToolTip<QToolButton>(panel, "Leave the sprite editor and show the frame again")
         ->click();

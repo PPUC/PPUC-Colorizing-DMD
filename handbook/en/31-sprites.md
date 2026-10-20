@@ -17,7 +17,7 @@ The Inspector has two sprite sections, each shown on its own canvas:
 
 - `Frame Sprites`, on the frame canvas: what ties sprites to the frames. The selected sprite,
   the sprites of the current frame, the slot selector, `Assign`, `Capture`, `Remove`,
-  `Select Capture`, `Clear Sel`, `Show Bounds`, `Source Frame`, the slot's bounds (`Min X` to
+  `Select Capture`, `Clear Sel`, `Show Bounds`, `Outline Sprites`, `Source Frame`, the slot's bounds (`Min X` to
   `Max Y`) and `Edit Sprite`.
 - `Sprite`, in the sprite editor: the sprite itself. The selected sprite, its name,
   `Show Det Areas` and the detection areas, `Shape mode` and the dynamic sets, `Create HD Sprite`
@@ -136,6 +136,10 @@ The controls:
   empty. A minimum cannot be raised above its maximum and a maximum cannot be lowered below its
   minimum; the edited value stops at the other one.
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
+- `Outline Sprites` (on by default) draws a green outline on the colorized frame around the
+  pixels the sprites libserum finds on the frame paint, exactly those, so that a found sprite
+  can be told from the frame's own colors. It works with `Show Sprites` off too: the outline
+  then shows where the sprites would be.
   The overlay also shows the bounds an empty slot holds.
 - `Edit Sprite` and `Select Capture` are switched off when a project is opened. `Edit Mask` and
   `Edit Background` switch `Edit Sprite` off, since they return to the frame view.

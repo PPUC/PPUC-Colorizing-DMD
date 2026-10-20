@@ -39,6 +39,12 @@ struct SpriteMatch {
 [[nodiscard]] std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& document,
                                                          std::size_t frameIndex);
 
+// The pixels of the plane the sprites found on the frame paint (row-major, 1 painted), as
+// composeResolvedFrame() draws them: for the canvas's outline of the found sprites.
+[[nodiscard]] std::vector<uint8_t> spriteCoverage(const document::ProjectDocument& document,
+                                                  std::size_t frameIndex,
+                                                  render::Resolution resolution);
+
 [[nodiscard]] QColor rgb565ToColor(uint16_t value);
 // The color the editor shows a shade of an original frame in: an amber ramp over the 4 or 16
 // shades of the project (colorCount, ProjectDocument::colorCount()).

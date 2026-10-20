@@ -53,8 +53,9 @@ struct SpriteDetectionAreaInput {
 // Inspector page for the selected sprite and the sprite slots of a frame. It only displays and
 // reports what the user asked for; the owner applies the edits and calls refresh(). It has two
 // pages, which the owner may put into sections of their own: framePage() for the frame canvas
-// (the frame's slots, capture, bounds, Edit Sprite) and recordPage() for the sprite editor
-// (name, detection areas, shape mode, dynamic sets, HD, Apply Sprite, Back to Frame).
+// (the frame's slots, capture, bounds, Outline Sprites, Edit Sprite) and recordPage() for the
+// sprite editor (name, detection areas, shape mode, dynamic sets, HD, Apply Sprite, Back to
+// Frame).
 class SpritePanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(SpritePanel)
 
@@ -80,6 +81,8 @@ public:
     [[nodiscard]] SpriteDetectionAreaInput detectionAreaInput() const;
     [[nodiscard]] bool isCaptureSelectionChecked() const;
     [[nodiscard]] bool isBoundsOverlayChecked() const;
+    // Outline Sprites: the found sprites outlined on the frame canvas (on at first).
+    [[nodiscard]] bool isOutlinesChecked() const;
     [[nodiscard]] bool isDetectionAreasChecked() const;
     [[nodiscard]] bool isSpriteCanvasChecked() const;
 
@@ -91,6 +94,7 @@ public:
     std::function<void(bool checked)> onCaptureSelectionToggled;
     std::function<void()> onClearCaptureSelectionRequested;
     std::function<void(bool checked)> onBoundsOverlayToggled;
+    std::function<void(bool checked)> onOutlinesToggled;
     std::function<void(bool checked)> onDetectionAreasToggled;
     std::function<void(bool checked)> onSpriteCanvasToggled;
     std::function<void()> onApplySpriteEditsRequested;
@@ -131,6 +135,7 @@ private:
     QToolButton* m_captureSelectionButton = nullptr;
     QToolButton* m_clearCaptureSelectionButton = nullptr;
     QToolButton* m_boundsOverlayButton = nullptr;
+    QToolButton* m_outlinesButton = nullptr;
     QToolButton* m_detectionAreasButton = nullptr;
     QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_applySpriteEditsButton = nullptr;

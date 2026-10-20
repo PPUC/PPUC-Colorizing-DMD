@@ -6429,6 +6429,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Grenzen des ausgewählten Sprite-Slots auf dem Original-Frame zeigen</translation>
     </message>
     <message>
+        <source>Outline Sprites</source>
+        <translation>Sprites umranden</translation>
+    </message>
+    <message>
+        <source>Outline the pixels of the sprites libserum finds on the frame in green</source>
+        <translation>Die Pixel der Sprites, die libserum auf dem Frame findet, grün umranden</translation>
+    </message>
+    <message>
         <source>Show Det Areas</source>
         <translation>Erk.-Bereiche zeigen</translation>
     </message>

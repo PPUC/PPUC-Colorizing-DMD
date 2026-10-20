@@ -6429,6 +6429,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Afficher les limites de l&apos;emplacement de sprite sélectionné sur la frame d&apos;origine</translation>
     </message>
     <message>
+        <source>Outline Sprites</source>
+        <translation>Contour des sprites</translation>
+    </message>
+    <message>
+        <source>Outline the pixels of the sprites libserum finds on the frame in green</source>
+        <translation>Entourer en vert les pixels des sprites que libserum trouve sur la frame</translation>
+    </message>
+    <message>
         <source>Show Det Areas</source>
         <translation>Voir zones dét.</translation>
     </message>

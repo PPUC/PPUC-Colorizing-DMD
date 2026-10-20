@@ -313,13 +313,17 @@ void applySpriteMatch(document::Rgb565Frame& frame,
                       const render::ProjectGeometry& geometry,
                       uint32_t colorCount,
                       bool extraDynamicsLoaded,
-                      std::vector<uint8_t>* notRotating)
+                      std::vector<uint8_t>* notRotating,
+                      std::vector<uint8_t>* covered = nullptr)
 {
     // A sprite pixel takes part in the frame's color rotations whatever it covers, its
     // dynamic pixels too (Colorize_Spritev2 looks every sprite pixel's color up).
     const auto painted = [&](int frameX, int frameY) {
         if (notRotating) {
             (*notRotating)[rgb565PixelIndex(frame, frameX, frameY)] = 0;
+        }
+        if (covered) {
+            (*covered)[rgb565PixelIndex(frame, frameX, frameY)] = 1;
         }
     };
     const bool hdOnly = geometry.layout() == render::PlaneLayout::NativeExtra;
@@ -730,6 +734,33 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
         }
     }
     return frame;
+}
+
+std::vector<uint8_t> spriteCoverage(const document::ProjectDocument& document,
+                                    std::size_t frameIndex,
+                                    render::Resolution resolution)
+{
+    const render::Size size = document.geometry().planeSize(resolution);
+    std::vector<uint8_t> covered(static_cast<std::size_t>(size.width) *
+                                     static_cast<std::size_t>(size.height),
+                                 0);
+    if (frameIndex >= document.frameCount() ||
+        (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex))) {
+        return covered;
+    }
+    // The sprites drawn on a scratch frame, as composeResolvedFrame() draws them.
+    document::Rgb565Frame scratch = document::makeRgb565Frame(size);
+    for (const SpriteMatch& match : matchFrameSprites(document, frameIndex)) {
+        if (match.spriteIndex < document.spriteCount()) {
+            const bool extraDynamicsLoaded = match.spriteIndex < document.frameCount() &&
+                                             document.hasHdFrame(match.spriteIndex);
+            applySpriteMatch(scratch, document.originalFrame(frameIndex),
+                             document.sprite(match.spriteIndex), match, resolution,
+                             document.geometry(), document.colorCount(), extraDynamicsLoaded,
+                             nullptr, &covered);
+        }
+    }
+    return covered;
 }
 
 void applyColorRotations(const document::ProjectDocument& document,

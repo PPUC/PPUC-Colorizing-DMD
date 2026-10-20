@@ -55,6 +55,9 @@ public:
     void setBackgroundLayerEnabled(bool enabled);
     // The sprites libserum finds on the frame, drawn over it (on by default).
     void setSpritesLayerEnabled(bool enabled);
+    // A green outline around the pixels the sprites found on the frame paint (off at first; the
+    // window follows Outline Sprites).
+    void setSpriteOutlinesEnabled(bool enabled);
     void setBackgroundImageEditModeEnabled(bool enabled);
     void setSelectedBackgroundIndex(std::optional<std::size_t> backgroundIndex);
     void setDmdRenderOptions(DmdRenderOptions options);
@@ -208,6 +211,7 @@ private:
     void updateMouseTracking();
     void paintBackgroundMaskOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectedSpriteBounds(QPainter& painter, const render::CanvasRegionLayout& region);
+    void paintSpriteOutlines(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintSelectionOverlay(QPainter& painter, const render::CanvasRegionLayout& region);
     void paintPreview(QPainter& painter, const render::CanvasRegionLayout& region);
     // The document's visible helper lines over the region, in widget coordinates.
@@ -239,6 +243,7 @@ private:
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
     bool m_showSpritesLayer = true;
+    bool m_showSpriteOutlines = false;
     bool m_showBackgroundImageEditMode = false;
     std::optional<std::size_t> m_selectedBackgroundIndex;
     std::optional<int> m_colorRotationPreviewElapsedMs;

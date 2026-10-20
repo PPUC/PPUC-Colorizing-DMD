@@ -87,6 +87,13 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_boundsOverlayButton->setCheckable(true);
     m_boundsOverlayButton->setChecked(false);
     m_boundsOverlayButton->setEnabled(false);
+    // Always available: a frame without sprites shows no outline.
+    m_outlinesButton = new QToolButton(this);
+    m_outlinesButton->setText(tr("Outline Sprites"));
+    m_outlinesButton->setToolTip(
+        tr("Outline the pixels of the sprites libserum finds on the frame in green"));
+    m_outlinesButton->setCheckable(true);
+    m_outlinesButton->setChecked(true);
     m_detectionAreasButton = new QToolButton(this);
     m_detectionAreasButton->setText(tr("Show Det Areas"));
     m_detectionAreasButton->setToolTip(
@@ -199,6 +206,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     frameLayout->addLayout(captureSelectionLayout);
     auto* frameButtonLayout = new QHBoxLayout();
     frameButtonLayout->addWidget(m_boundsOverlayButton);
+    frameButtonLayout->addWidget(m_outlinesButton);
     frameButtonLayout->addWidget(m_sourceFrameButton);
     frameLayout->addLayout(frameButtonLayout);
     auto* boundsGrid = new QGridLayout();
@@ -326,7 +334,8 @@ SpritePanel::SpritePanel(QWidget* parent)
     for (const std::vector<QWidget*>& order :
          {std::vector<QWidget*>{m_slotComboBox, m_assignButton, m_captureButton, m_removeButton,
                                 m_captureSelectionButton, m_clearCaptureSelectionButton,
-                                m_boundsOverlayButton, m_sourceFrameButton, m_minXSpinBox,
+                                m_boundsOverlayButton, m_outlinesButton, m_sourceFrameButton,
+                                m_minXSpinBox,
                                 m_minYSpinBox, m_maxXSpinBox, m_maxYSpinBox,
                                 m_spriteCanvasButton},
           std::vector<QWidget*>{m_nameLineEdit, m_detectionAreasButton,
@@ -382,6 +391,11 @@ SpritePanel::SpritePanel(QWidget* parent)
     connect(m_removeButton, &QToolButton::clicked, this, [this]() {
         if (onRemoveRequested) {
             onRemoveRequested();
+        }
+    });
+    connect(m_outlinesButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (onOutlinesToggled) {
+            onOutlinesToggled(checked);
         }
     });
     connect(m_boundsOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -812,6 +826,11 @@ bool SpritePanel::isBoundsOverlayChecked() const
 bool SpritePanel::isDetectionAreasChecked() const
 {
     return m_detectionAreasButton->isChecked();
+}
+
+bool SpritePanel::isOutlinesChecked() const
+{
+    return m_outlinesButton->isChecked();
 }
 
 bool SpritePanel::isSpriteCanvasChecked() const
