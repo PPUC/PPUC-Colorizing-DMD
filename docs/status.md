@@ -1802,14 +1802,15 @@ follows the mouse, the wheel changes it by one view pixel (Shift x10), a left cl
 source zone, a right click the final zone (scroll copy, linear over the frames); brightness
 -50..50 (beta 2.5 b), contrast -15..20 (alpha 1 + 0.05 c, 1.001 for 1), blur 0..10 (cv::blur,
 reflect101), on floats, rounded at the end (`adjustedImage`); resize INTER_NEAREST by default
-(`zonePicture`: Nearest exactly as OpenCV, Smooth = Qt smooth; Win32's Linear/Cubic/Lanczos not
-offered); copy to the frame selection (Copy_iMask) or the active background (its rectangle),
+(`zonePicture`: Nearest exactly as OpenCV, Smooth = Qt smooth; Win32's Linear/Cubic/Lanczos
+dropped, owner decision 2026-10-20); copy to the frame selection (Copy_iMask) or the active background (its rectangle),
 original and/or extra resolution, the extra created when missing (`edit::createFrameHd`,
 Nearest; a background's HD image is its SD image doubled, `BackgroundHdCreateCommand`).
 Selection carried between planes by `areaOnPlane` (doubled; halved: a pixel when any it covers
 is selected). Movie steps by unit, batch as they play / interval / same picture. Adjustments and
-filter kept in QSettings `imageImport/*`. Not ported: crop zone saves, AI generation, Linear,
-Cubic and Lanczos scaling. Tests: `ImageImportWidgetTests` (adjustments against the OpenCV
+filter kept in QSettings `imageImport/*`. Not ported: crop zone saves (asked the owner), the
+OpenAI image generation (Win32: a prompt sent to OpenAI's image API with a key from
+openai_key.txt in My Documents; the owner did not know it existed). Tests: `ImageImportWidgetTests` (adjustments against the OpenCV
 formula, zones, scroll interpolation, pixels with a mask, plane mapping, the window driven by
 mouse and wheel events), `VideoClipWidgetTests` (the window on a clip).
 
