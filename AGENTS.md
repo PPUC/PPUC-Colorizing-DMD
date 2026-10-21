@@ -48,8 +48,11 @@ A change is complete only with all of these, in the same commit:
 - **Tests** for the behaviour. Check that a new test fails without the fix.
 - **Handbook**: update the chapter in `handbook/en/` for every user-visible change, and list a
   new chapter in `handbook/en/README.md`.
-- **Changelog**: add a short, user-facing line to `CHANGELOG.md` under the version being
-  prepared (the current one, until it is pushed).
+- **Changelog**: add a short, user-facing line to `CHANGELOG.md` under *Next version*. The
+  changelog follows the git tags, not the version in `CMakeLists.txt`: *Next version* lists
+  what changed since the last tag, and only a tagged version gets a section with its number
+  (when the release is tagged, *Next version* becomes that section and a new, empty *Next
+  version* starts above it).
 - **Translations**: run `cmake --build build --target update_translations` and translate every
   new or changed string into German and French. An entry lupdate pre-filled is still marked
   `type="unfinished"`; it counts as done only once that mark is removed. No
@@ -77,4 +80,4 @@ A change is complete only with all of these, in the same commit:
 - The version is `project(... VERSION 3.99.x)` in `CMakeLists.txt`; the About dialog's test
   comment in `app/dialogs/AboutDialog.h` names it too.
 - Raise the patch version before every push, in a commit of its own ("Bump the version to
-  3.99.x"). The changelog section then carries that version. 4.0.0 will be the first release.
+  3.99.x"). This does not touch the changelog. 4.0.0 will be the first release.
