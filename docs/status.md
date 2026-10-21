@@ -2163,5 +2163,20 @@ from the frame and editable.
   desktop Adafruit_NeoPixel/Arduino stand-in and a virtual clock;
   runtime/SpeakerLightPlayer runs one channel (duration, back to the default),
   `lightsShownAt()` what plays at a frame in the editor.
+- UI: left sidebar `LightEffects` (panels/LightEffectsPanel); right sidebar `LightEffect`
+  (panels/LightEffectPanel: WS2812FX fields, Apply/Revert, its own preview that repeats an
+  effect with a duration) and `Lights` (panels/FrameLightsPanel: a LightActionEditor per
+  channel for the selected frames, Suggest from Frame); Project Settings has a
+  LightActionEditor per channel for the defaults (a SpeakerLightsCommand of its own after the
+  target/scaling step). SpeakerLightView/SpeakerLightPair (app/SpeakerLightView): the speakers
+  beside the canvas (lightsShownAt of the current frame; an effect that plays goes on) and in
+  the frame tester (RuntimePreview's defaults and RuntimeFrame::lights). Preview options are
+  QSettings `speakerLights/*` (Settings -> Appearance).
+- Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
+  shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,
-  libserum end to end).
+  libserum end to end), tests/SpeakerLightWidgetTests.cpp (list, effect section and preview,
+  frame section, speakers beside the canvas, Project Settings defaults, frame tester with
+  libserum).
+- Open: libdmdutil/libzedmd forwarding (Serum_GetLightEffects -> ZeDMD::SetLightEffect over
+  the UART side channel) and the firmware's UART receiver; CI needs libserum 08269e4 pushed.

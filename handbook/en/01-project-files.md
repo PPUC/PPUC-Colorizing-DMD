@@ -102,7 +102,8 @@ the editor file has to grow for new features, which the Win32 editor would not u
   header the Win32 editor does not know (`CDMDcRPX`, a format version, the size of that part),
   and room for more data after it, in tagged parts: the PuP pack name, the helper lines (see
   "Helper Lines"), the scenes and scaling settings (see "Scenes and Scaling"), the Images
-  window's saved zones, the frames' tags (see "Frame List"), the libserum target and the
+  window's saved zones, the frames' tags (see "Frame List"), the speaker lights (see "Speaker
+  Lights"), the libserum target and the
   names and source data of sprites beyond the 255 a `.cRP` has room for. A part this editor
   does not know (one of a later version) is skipped.
 - When a save writes a project that has a `.cRP` beside it (a project of the Win32 editor saved

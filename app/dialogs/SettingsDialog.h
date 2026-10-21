@@ -8,7 +8,9 @@
 
 #include "Appearance.h"
 #include "DmdOutput.h"
+#include "SpeakerLightView.h"
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QListWidget;
@@ -45,6 +47,9 @@ public:
     void setLanguage(const QString& language);
     [[nodiscard]] QString language() const;
     [[nodiscard]] DmdRenderOptions canvasOptions() const;
+    // The speaker light preview beside the canvas and in the frame tester.
+    void setSpeakerLightPreview(const SpeakerLightPreviewOptions& options);
+    [[nodiscard]] SpeakerLightPreviewOptions speakerLightPreview() const;
     [[nodiscard]] DmdOutputSettings dmdOutputSettings() const;
 
     // The editor's plugins that can be chosen, and those chosen (EditorPlugins).
@@ -67,6 +72,11 @@ private:
     QComboBox* m_languageComboBox = nullptr;
     QComboBox* m_pixelShapeComboBox = nullptr;
     QSpinBox* m_pixelSizeSpinBox = nullptr;
+    QCheckBox* m_speakersShown = nullptr;
+    QComboBox* m_speakerShape = nullptr;
+    QSpinBox* m_speakerLeds = nullptr;
+    QComboBox* m_leftChannel = nullptr;
+    QComboBox* m_rightChannel = nullptr;
     DmdOutputSettingsPage* m_dmdOutputPage = nullptr;
     QListWidget* m_pluginList = nullptr;
     QLabel* m_pluginNote = nullptr;

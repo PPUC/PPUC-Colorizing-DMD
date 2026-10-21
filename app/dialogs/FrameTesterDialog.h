@@ -23,6 +23,8 @@ class QSpinBox;
 
 namespace colorizing::app {
 
+class SpeakerLightPair;
+
 // The Win32 editor's Frame Tester: ROM frames (the selected frames of the project, or every
 // frame of a dump) are fed one after the other to libserum with the whole project loaded, as
 // on a machine, and libserum's planes are shown with the ROM frame. libserum carries its
@@ -79,6 +81,9 @@ public:
     // otherwise the other one; nothing before a frame was fed.
     [[nodiscard]] const document::Rgb565Frame* currentPicture(bool preferRows64) const;
 
+    // The speaker light preview: what libserum starts (Settings -> Appearance).
+    [[nodiscard]] SpeakerLightPair* speakerLights() const { return m_speakerLights; }
+
 private:
     bool loadProject();
     void setFrames(std::vector<runtime::TesterFrame> frames, const QString& source);
@@ -107,6 +112,7 @@ private:
     FramePictureView* m_rows32View = nullptr;
     FramePictureView* m_rows64View = nullptr;
     FramePictureView* m_originalView = nullptr;
+    SpeakerLightPair* m_speakerLights = nullptr;
     QLabel* m_infoLabel = nullptr;
     QSlider* m_slider = nullptr;
     QSpinBox* m_positionSpinBox = nullptr;

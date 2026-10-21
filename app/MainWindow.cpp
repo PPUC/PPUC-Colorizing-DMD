@@ -121,6 +121,11 @@
 #include "dialogs/ProjectSettingsDialog.h"
 #include "panels/SceneSettingsPanel.h"
 #include "panels/ScenesPanel.h"
+#include "panels/FrameLightsPanel.h"
+#include "panels/LightEffectPanel.h"
+#include "panels/LightEffectsPanel.h"
+#include "SpeakerLightView.h"
+#include "runtime/SpeakerLightPlayer.h"
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
@@ -1698,6 +1703,17 @@ void MainWindow::createCentralView()
     m_scenesPanel->onPressed = [this]() { m_leftBrowserTabs->markCurrent(m_scenesPanel); };
     m_scenesPanel->onSelectionChanged = [this]() { refreshSelectedAssetFilter(); };
     m_leftBrowserTabs->addTab(m_scenesPanel, QStringLiteral("Scenes"), tr("Scenes"));
+    m_lightEffectsPanel = new LightEffectsPanel(m_leftBrowserTabs);
+    m_lightEffectsPanel->onAddRequested = [this]() { addLightEffect(); };
+    m_lightEffectsPanel->onDeleteRequested = [this](uint16_t effectId) {
+        deleteLightEffect(effectId);
+    };
+    m_lightEffectsPanel->onPressed = [this]() {
+        m_leftBrowserTabs->markCurrent(m_lightEffectsPanel);
+    };
+    m_lightEffectsPanel->onSelectionChanged = [this]() { updateLightEffectSection(); };
+    m_leftBrowserTabs->addTab(m_lightEffectsPanel, QStringLiteral("LightEffects"),
+                              tr("Light Effects"));
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
     // The asset of "Using the selected asset" is that of the list used last: opened, or
     // clicked in.
@@ -1768,6 +1784,19 @@ void MainWindow::createCentralView()
         editDynamicShadowColor();
     };
     inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"), tr("Dynamic Sets"));
+
+    m_frameLightsPanel = new FrameLightsPanel(central);
+    m_frameLightsPanel->onChannelChanged = [this](std::size_t channel,
+                                                  const document::LightAction& action) {
+        setSelectedFramesLight(channel, action);
+    };
+    m_frameLightsPanel->onSuggestRequested = [this]() { suggestSelectedFramesLights(); };
+    inspectorTabs->addTab(m_frameLightsPanel, QStringLiteral("Lights"), tr("Speaker Lights"));
+    m_lightEffectPanel = new LightEffectPanel(central);
+    m_lightEffectPanel->onApplyRequested = [this](const document::LightEffect& effect) {
+        applyLightEffect(effect);
+    };
+    inspectorTabs->addTab(m_lightEffectPanel, QStringLiteral("LightEffect"), tr("Light Effect"));
 
     inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"), tr("Palette"));
     inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"),
@@ -1854,7 +1883,17 @@ void MainWindow::createCentralView()
     assetsLayout->addWidget(m_leftBrowserTabs, 1);
     assets->setMinimumWidth(m_leftBrowserTabs->minimumWidth());
     contentSplitter->addWidget(assets);
-    contentSplitter->addWidget(m_canvasStack);
+    // The speaker light preview beside the canvas (Settings -> Appearance).
+    auto* canvasRow = new QWidget(central);
+    auto* canvasRowLayout = new QHBoxLayout(canvasRow);
+    canvasRowLayout->setContentsMargins(0, 0, 0, 0);
+    canvasRowLayout->setSpacing(4);
+    m_speakerLights = new SpeakerLightPair(canvasRow);
+    canvasRowLayout->addWidget(m_speakerLights->left(), 0, Qt::AlignVCenter);
+    canvasRowLayout->addWidget(m_canvasStack, 1);
+    canvasRowLayout->addWidget(m_speakerLights->right(), 0, Qt::AlignVCenter);
+    m_speakerLights->setOptions(loadSpeakerLightPreviewOptions());
+    contentSplitter->addWidget(canvasRow);
     contentSplitter->setStretchFactor(0, 0);
     contentSplitter->setStretchFactor(1, 1);
     // The right sidebar runs the full height; the frame strip runs under the left sidebar and
@@ -2684,6 +2723,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     SettingsDialog dialog(loadTheme(), m_dmdRenderOptions, loadDmdOutputSettings(),
                           DmdOutput::isAvailable(), this);
     dialog.setLanguage(loadLanguage());
+    dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
     {
         std::vector<SettingsDialog::PluginChoice> plugins;
         for (const EditorPlugins::Plugin& plugin : EditorPlugins::available()) {
@@ -2713,6 +2753,11 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     }
     m_dmdRenderOptions = dialog.canvasOptions();
     saveDmdRenderOptions(m_dmdRenderOptions);
+    saveSpeakerLightPreviewOptions(dialog.speakerLightPreview());
+    if (m_speakerLights) {
+        m_speakerLights->setOptions(dialog.speakerLightPreview());
+        updateFrameLightControls();
+    }
     updateDmdRenderOptions();
     saveDmdOutputSettings(dialog.dmdOutputSettings());
     if (m_dmdOutput.isRunning()) {
@@ -5505,6 +5550,7 @@ void MainWindow::updateFrameMetadataControls()
         updateMaskBrowserSelection();
     }
     updateMaskControls();
+    updateFrameLightControls();
 }
 
 void MainWindow::updateMaskControls()
@@ -9786,6 +9832,195 @@ QString MainWindow::importColorizationSidecars()
         .arg(static_cast<qulonglong>(imported.linkedFrames));
 }
 
+void MainWindow::refreshSpeakerLights()
+{
+    if (m_lightEffectsPanel) {
+        m_lightEffectsPanel->setProject(m_document ? &*m_document : nullptr);
+    }
+    updateLightEffectSection();
+    updateFrameLightControls();
+}
+
+void MainWindow::updateFrameLightControls()
+{
+    const document::ProjectDocument* document = m_document ? &*m_document : nullptr;
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    if (m_frameLightsPanel) {
+        m_frameLightsPanel->setFrame(document, frame);
+    }
+    if (m_speakerLights) {
+        m_speakerLights->showFrame(document, frame);
+    }
+}
+
+void MainWindow::updateLightEffectSection()
+{
+    if (!m_lightEffectPanel || !m_lightEffectsPanel) {
+        return;
+    }
+    std::optional<document::LightEffect> effect;
+    if (m_document) {
+        if (const std::optional<uint16_t> id = m_lightEffectsPanel->selectedEffect()) {
+            if (const document::LightEffect* found = m_document->speakerLights().effect(*id)) {
+                effect = *found;
+            }
+        }
+    }
+    // Unapplied changes of the effect shown stay while it is the one selected.
+    if (effect && m_lightEffectPanel->effectId() == effect->id &&
+        m_lightEffectPanel->hasChanges()) {
+        return;
+    }
+    m_lightEffectPanel->setEffect(effect);
+}
+
+void MainWindow::recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
+                                         const QString& status)
+{
+    if (!m_document || !command) {
+        return;
+    }
+    const std::vector<std::size_t> frames = command->target().frameIndices;
+    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    refreshSpeakerLights();
+    updateFrameListItems(frames);
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    showStructureEditStatus(status, 3000);
+}
+
+void MainWindow::addLightEffect()
+{
+    if (!m_document) {
+        return;
+    }
+    document::SpeakerLightSettings settings = m_document->speakerLights();
+    document::LightEffect effect;
+    effect.id = settings.nextEffectId();
+    effect.name = tr("Effect %1").arg(effect.id).toStdString();
+    settings.effects.push_back(effect);
+    recordSpeakerLightsEdit(edit::setSpeakerLights(*m_document, std::move(settings)),
+                            tr("Added light effect %1").arg(QString::fromStdString(effect.name)));
+    if (m_lightEffectsPanel) {
+        m_lightEffectsPanel->selectEffect(effect.id);
+        m_leftBrowserTabs->markCurrent(m_lightEffectsPanel);
+    }
+}
+
+void MainWindow::deleteLightEffect(uint16_t effectId)
+{
+    if (!m_document) {
+        return;
+    }
+    const document::LightEffect* effect = m_document->speakerLights().effect(effectId);
+    if (!effect) {
+        return;
+    }
+    const QString name = QString::fromStdString(effect->name);
+    const std::size_t frames = m_document->framesUsingLightEffect(effectId).size();
+    QMessageBox confirm(QMessageBox::Question, tr("Delete Light Effect"),
+                        frames == 0
+                            ? tr("Delete the light effect %1?").arg(name)
+                            : tr("Delete the light effect %1? %n frame(s) start it; they leave "
+                                 "that channel unchanged then.",
+                                 "", static_cast<int>(frames))
+                                  .arg(name),
+                        QMessageBox::Yes | QMessageBox::Cancel, this);
+    confirm.setDefaultButton(QMessageBox::Cancel);
+    if (confirm.exec() != QMessageBox::Yes) {
+        return;
+    }
+    recordSpeakerLightsEdit(edit::removeLightEffect(*m_document, effectId),
+                            tr("Deleted light effect %1").arg(name));
+}
+
+void MainWindow::applyLightEffect(const document::LightEffect& effect)
+{
+    if (!m_document) {
+        return;
+    }
+    document::SpeakerLightSettings settings = m_document->speakerLights();
+    for (document::LightEffect& existing : settings.effects) {
+        if (existing.id == effect.id) {
+            existing = effect;
+        }
+    }
+    if (m_lightEffectPanel) {
+        // Applied: the section shows the project's effect again.
+        m_lightEffectPanel->setEffect(effect);
+    }
+    recordSpeakerLightsEdit(edit::setSpeakerLights(*m_document, std::move(settings)),
+                            tr("Changed light effect %1").arg(QString::fromStdString(effect.name)));
+}
+
+void MainWindow::setSelectedFramesLight(std::size_t channel, const document::LightAction& action)
+{
+    if (!m_document || channel >= document::kLightChannels) {
+        return;
+    }
+    std::vector<std::size_t> changed;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        document::LightActions lights = m_document->frameLights(frameIndex);
+        if (lights[channel] == action) {
+            continue;
+        }
+        lights[channel] = action;
+        auto command = std::make_unique<edit::FrameLightsCommand>(
+            frameIndex, m_document->frameLights(frameIndex), lights);
+        command->apply(*m_document);
+        const edit::HistoryKey key = edit::historyKey(command->target());
+        m_undoHistories.push(key, std::move(command));
+        changed.push_back(frameIndex);
+    }
+    if (changed.empty()) {
+        return;
+    }
+    updateFrameListItems(changed);
+    updateFrameLightControls();
+    if (m_lightEffectsPanel) {
+        m_lightEffectsPanel->setProject(&*m_document);
+    }
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(tr("Speaker light %1 of %n frame(s) changed", "",
+                                static_cast<int>(changed.size()))
+                                 .arg(channel + 1),
+                             2500);
+}
+
+void MainWindow::suggestSelectedFramesLights()
+{
+    if (!m_document) {
+        return;
+    }
+    const render::Resolution plane = m_document->geometry().nativePlane();
+    std::vector<std::size_t> changed;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        const document::LightActions suggested =
+            edit::suggestedAmbientLighting(composeResolvedFrame(*m_document, frameIndex, plane, true));
+        document::LightActions lights = m_document->frameLights(frameIndex);
+        lights[0] = suggested[0];
+        lights[1] = suggested[1];
+        if (lights == m_document->frameLights(frameIndex)) {
+            continue;
+        }
+        auto command = std::make_unique<edit::FrameLightsCommand>(
+            frameIndex, m_document->frameLights(frameIndex), lights);
+        command->apply(*m_document);
+        const edit::HistoryKey key = edit::historyKey(command->target());
+        m_undoHistories.push(key, std::move(command));
+        changed.push_back(frameIndex);
+    }
+    updateFrameListItems(changed);
+    updateFrameLightControls();
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(
+        tr("Speaker lights 1 and 2 of %n frame(s) set from their colors", "",
+           static_cast<int>(changed.size())),
+        2500);
+}
+
 void MainWindow::refreshScenes()
 {
     if (m_scenesPanel) {
@@ -9794,6 +10029,7 @@ void MainWindow::refreshScenes()
         refreshSelectedAssetFilter();
     }
     updateSceneSettingsSection(true);
+    refreshSpeakerLights();
 }
 
 void MainWindow::updateSceneSettingsSection(bool reload)
@@ -9850,6 +10086,10 @@ void MainWindow::openProjectSettings()
     try {
         recordSceneEdit(
             edit::setProjectSettings(*m_document, std::move(settings), dialog.libserumTarget()));
+        document::SpeakerLightSettings lights = m_document->speakerLights();
+        lights.defaults = dialog.lightDefaults();
+        recordSpeakerLightsEdit(edit::setSpeakerLights(*m_document, std::move(lights)),
+                                tr("Changed the speaker lights' defaults"));
     } catch (const std::exception& ex) {
         QMessageBox::warning(this, tr("Project Settings"), QString::fromUtf8(ex.what()));
     }
@@ -10402,6 +10642,11 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
                 refreshAfterSceneEdit(*scene);
             } else if (dynamic_cast<const edit::EditBatchCommand*>(&command)) {
                 refreshAfterEditBatch();
+            } else if (dynamic_cast<const edit::SpeakerLightsCommand*>(&command)) {
+                refreshSpeakerLights();
+                for (std::size_t frameIndex : target.frameIndices) {
+                    updateFrameListItem(frameIndex);
+                }
             }
             break;
         case edit::EditKind::Sections:

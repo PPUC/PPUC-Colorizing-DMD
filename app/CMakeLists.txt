@@ -82,6 +82,12 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/ProjectSettingsPanel.h
     panels/SceneSettingsForm.cpp
     panels/SceneSettingsForm.h
+    panels/FrameLightsPanel.cpp
+    panels/FrameLightsPanel.h
+    panels/LightEffectPanel.cpp
+    panels/LightEffectPanel.h
+    panels/LightEffectsPanel.cpp
+    panels/LightEffectsPanel.h
     panels/SceneSettingsPanel.cpp
     panels/SceneSettingsPanel.h
     panels/ScenesPanel.cpp
@@ -122,6 +128,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     PluginLogWindow.h
     PupTesterWindow.cpp
     PupTesterWindow.h
+    SpeakerLightView.cpp
+    SpeakerLightView.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
     Translations.cpp

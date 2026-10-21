@@ -1510,6 +1510,29 @@
     </message>
 </context>
 <context>
+    <name>FrameLightsPanel</name>
+    <message>
+        <source>What the frame does to speaker light channel %1 when it shows</source>
+        <translation>Ce que la frame fait au canal %1 des lumières de haut-parleur quand elle s&apos;affiche</translation>
+    </message>
+    <message>
+        <source>Channel %1</source>
+        <translation>Canal %1</translation>
+    </message>
+    <message>
+        <source>Suggest from Frame</source>
+        <translation>Suggérer depuis la frame</translation>
+    </message>
+    <message>
+        <source>Ambient lighting: channel 1 the color of the left part of each selected frame, channel 2 of its right part</source>
+        <translation>Éclairage d&apos;ambiance : canal 1 la couleur de la partie gauche de chaque frame sélectionnée, canal 2 celle de sa partie droite</translation>
+    </message>
+    <message>
+        <source>Effects are made in the Light Effects section of the left sidebar.</source>
+        <translation>Les effets se créent dans la section Effets lumineux de la barre latérale gauche.</translation>
+    </message>
+</context>
+<context>
     <name>FramePanel</name>
     <message>
         <source>Drawing target</source>
@@ -2346,6 +2369,233 @@ Utiliser Créer la frame %1.</translation>
         <source>Alt</source>
         <extracomment>The Alt key as its keyboards name it</extracomment>
         <translation>Alt</translation>
+    </message>
+</context>
+<context>
+    <name>LightActionEditor</name>
+    <message>
+        <source>The static color</source>
+        <translation>La couleur fixe</translation>
+    </message>
+    <message>
+        <source>Static Color</source>
+        <translation>Couleur fixe</translation>
+    </message>
+    <message>
+        <source>Unchanged</source>
+        <translation>Inchangé</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>Éteint</translation>
+    </message>
+    <message>
+        <source>Static color</source>
+        <translation>Couleur fixe</translation>
+    </message>
+</context>
+<context>
+    <name>LightEffectPanel</name>
+    <message>
+        <source>The WS2812FX effect</source>
+        <translation>L&apos;effet WS2812FX</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nom</translation>
+    </message>
+    <message>
+        <source>Effect</source>
+        <translation>Effet</translation>
+    </message>
+    <message>
+        <source>Color %1 of the effect</source>
+        <translation>Couleur %1 de l&apos;effet</translation>
+    </message>
+    <message>
+        <source>W </source>
+        <translation>B </translation>
+    </message>
+    <message>
+        <source>The white of an RGBW strip</source>
+        <translation>Le blanc d&apos;une bande RGBW</translation>
+    </message>
+    <message>
+        <source>Color %1</source>
+        <translation>Couleur %1</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>The length of one cycle of the effect: lower is faster</source>
+        <translation>La durée d&apos;un cycle de l&apos;effet : plus petit est plus rapide</translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation>Vitesse</translation>
+    </message>
+    <message>
+        <source>Reverse</source>
+        <translation>Inversé</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Gamma</translation>
+    </message>
+    <message>
+        <source>Gamma-correct the colors</source>
+        <translation>Corriger le gamma des couleurs</translation>
+    </message>
+    <message>
+        <source>Options</source>
+        <translation>Options</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Par défaut</translation>
+    </message>
+    <message>
+        <source>Extra fast</source>
+        <translation>Très rapide</translation>
+    </message>
+    <message>
+        <source>Fast</source>
+        <translation>Rapide</translation>
+    </message>
+    <message>
+        <source>Medium</source>
+        <translation>Moyen</translation>
+    </message>
+    <message>
+        <source>Slow</source>
+        <translation>Lent</translation>
+    </message>
+    <message>
+        <source>Extra slow</source>
+        <translation>Très lent</translation>
+    </message>
+    <message>
+        <source>Very slow</source>
+        <translation>Extrêmement lent</translation>
+    </message>
+    <message>
+        <source>Glacial</source>
+        <translation>Glacial</translation>
+    </message>
+    <message>
+        <source>How fast the effects that fade do</source>
+        <translation>La vitesse de fondu des effets qui en ont un</translation>
+    </message>
+    <message>
+        <source>Fade</source>
+        <translation>Fondu</translation>
+    </message>
+    <message>
+        <source>Small</source>
+        <translation>Petit</translation>
+    </message>
+    <message>
+        <source>Large</source>
+        <translation>Grand</translation>
+    </message>
+    <message>
+        <source>Extra large</source>
+        <translation>Très grand</translation>
+    </message>
+    <message>
+        <source>The size of the moving parts of the effects that have them</source>
+        <translation>La taille des parties mobiles des effets qui en ont</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Taille</translation>
+    </message>
+    <message>
+        <source> %</source>
+        <translation> %</translation>
+    </message>
+    <message>
+        <source>Of the brightness set on the DMD</source>
+        <translation>De la luminosité réglée sur le DMD</translation>
+    </message>
+    <message>
+        <source>Brightness</source>
+        <translation>Luminosité</translation>
+    </message>
+    <message>
+        <source>Until the next effect</source>
+        <translation>Jusqu&apos;à l&apos;effet suivant</translation>
+    </message>
+    <message>
+        <source>How long the effect plays before the channel returns to its default</source>
+        <translation>Combien de temps l&apos;effet joue avant que le canal ne revienne à son réglage par défaut</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>Durée</translation>
+    </message>
+    <message>
+        <source>The effect as the fields say, on %1 LEDs</source>
+        <translation>L&apos;effet tel que les champs l&apos;indiquent, sur %1 LED</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Appliquer</translation>
+    </message>
+    <message>
+        <source>Change the effect as the fields say (Undo goes back)</source>
+        <translation>Modifier l&apos;effet comme l&apos;indiquent les champs (Annuler revient en arrière)</translation>
+    </message>
+    <message>
+        <source>Revert</source>
+        <translation>Rétablir</translation>
+    </message>
+    <message>
+        <source>Show the effect&apos;s settings again, without the changes</source>
+        <translation>Afficher à nouveau les réglages de l&apos;effet, sans les modifications</translation>
+    </message>
+    <message>
+        <source>Effect %1</source>
+        <translation>Effet %1</translation>
+    </message>
+    <message>
+        <source>No effect selected</source>
+        <translation>Aucun effet sélectionné</translation>
+    </message>
+</context>
+<context>
+    <name>LightEffectsPanel</name>
+    <message>
+        <source>The speaker light effects frames can start; the selected one is edited in the Light Effect section</source>
+        <translation>Les effets de lumière de haut-parleur que les frames peuvent lancer ; celui sélectionné se modifie dans la section Effet lumineux</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>Nouveau</translation>
+    </message>
+    <message>
+        <source>Add a speaker light effect</source>
+        <translation>Ajouter un effet de lumière de haut-parleur</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>Delete the selected effect; the frames that start it leave that channel unchanged</source>
+        <translation>Supprimer l&apos;effet sélectionné ; les frames qui le lancent laissent alors ce canal inchangé</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1
+%2, %n frame(s)</source>
+        <translation>
+            <numerusform>%1
+%2, %n frame</numerusform>
+            <numerusform>%1
+%2, %n frames</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -3358,6 +3608,18 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Back to the frames and the frame shown before the scene&apos;s frames were listed</source>
         <translation>Revenir aux frames et à la frame affichées avant que les frames de la scène soient listées</translation>
+    </message>
+    <message>
+        <source>Light Effects</source>
+        <translation>Effets lumineux</translation>
+    </message>
+    <message>
+        <source>Speaker Lights</source>
+        <translation>Lumières de haut-parleur</translation>
+    </message>
+    <message>
+        <source>Light Effect</source>
+        <translation>Effet lumineux</translation>
     </message>
     <message>
         <source>Drop to let the %1 selected frame(s) start scene %2</source>
@@ -4813,6 +5075,55 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message>
+        <source>Effect %1</source>
+        <translation>Effet %1</translation>
+    </message>
+    <message>
+        <source>Added light effect %1</source>
+        <translation>Effet lumineux %1 ajouté</translation>
+    </message>
+    <message>
+        <source>Delete Light Effect</source>
+        <translation>Supprimer l&apos;effet lumineux</translation>
+    </message>
+    <message>
+        <source>Delete the light effect %1?</source>
+        <translation>Supprimer l&apos;effet lumineux %1 ?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete the light effect %1? %n frame(s) start it; they leave that channel unchanged then.</source>
+        <translation>
+            <numerusform>Supprimer l&apos;effet lumineux %1 ? %n frame le lance ; elle laisse alors ce canal inchangé.</numerusform>
+            <numerusform>Supprimer l&apos;effet lumineux %1 ? %n frames le lancent ; elles laissent alors ce canal inchangé.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted light effect %1</source>
+        <translation>Effet lumineux %1 supprimé</translation>
+    </message>
+    <message>
+        <source>Changed light effect %1</source>
+        <translation>Effet lumineux %1 modifié</translation>
+    </message>
+    <message numerus="yes">
+        <source>Speaker light %1 of %n frame(s) changed</source>
+        <translation>
+            <numerusform>Lumière de haut-parleur %1 de %n frame modifiée</numerusform>
+            <numerusform>Lumière de haut-parleur %1 de %n frames modifiée</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Speaker lights 1 and 2 of %n frame(s) set from their colors</source>
+        <translation>
+            <numerusform>Lumières de haut-parleur 1 et 2 de %n frame réglées d&apos;après ses couleurs</numerusform>
+            <numerusform>Lumières de haut-parleur 1 et 2 de %n frames réglées d&apos;après leurs couleurs</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Changed the speaker lights&apos; defaults</source>
+        <translation>Réglages par défaut des lumières de haut-parleur modifiés</translation>
+    </message>
+    <message>
         <source>Add Scene</source>
         <translation>Ajouter une scène</translation>
     </message>
@@ -5441,6 +5752,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Upscaled shadow offset</source>
         <translation>Décalage des ombres agrandies</translation>
+    </message>
+    <message>
+        <source>What speaker light channel %1 shows while no frame has started anything, and after an effect with a duration</source>
+        <translation>Ce que le canal %1 des lumières de haut-parleur affiche tant qu&apos;aucune frame n&apos;a rien lancé, et après un effet à durée</translation>
+    </message>
+    <message>
+        <source>Speaker light %1</source>
+        <translation>Lumière de haut-parleur %1</translation>
     </message>
     <message>
         <source>The project has %1 sprites, it allows %2.</source>
@@ -6409,6 +6728,46 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Taille des pixels</translation>
     </message>
     <message>
+        <source>Speaker Light Preview</source>
+        <translation>Aperçu des lumières de haut-parleur</translation>
+    </message>
+    <message>
+        <source>Show the speakers beside the canvas and in the frame tester</source>
+        <translation>Afficher les haut-parleurs à côté du canevas et dans le testeur de frames</translation>
+    </message>
+    <message>
+        <source>Circle</source>
+        <translation>Cercle</translation>
+    </message>
+    <message>
+        <source>Rectangle</source>
+        <translation>Rectangle</translation>
+    </message>
+    <message>
+        <source>The LEDs of each speaker, as set up on the DMD</source>
+        <translation>Les LED de chaque haut-parleur, telles que réglées sur le DMD</translation>
+    </message>
+    <message>
+        <source>Channel %1</source>
+        <translation>Canal %1</translation>
+    </message>
+    <message>
+        <source>Shape</source>
+        <translation>Forme</translation>
+    </message>
+    <message>
+        <source>LEDs</source>
+        <translation>LED</translation>
+    </message>
+    <message>
+        <source>Left speaker</source>
+        <translation>Haut-parleur gauche</translation>
+    </message>
+    <message>
+        <source>Right speaker</source>
+        <translation>Haut-parleur droit</translation>
+    </message>
+    <message>
         <source>Appearance</source>
         <translation>Apparence</translation>
     </message>
@@ -6443,6 +6802,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Plugins checked here are loaded now and at every start of the editor; their entries appear in the Plugins menu.</source>
         <translation>Les plugins cochés ici sont chargés maintenant et à chaque démarrage de l&apos;éditeur ; leurs entrées apparaissent dans le menu Plugins.</translation>
+    </message>
+</context>
+<context>
+    <name>SpeakerLightPair</name>
+    <message>
+        <source>Speaker light preview: channel %1 (Settings)</source>
+        <translation>Aperçu des lumières de haut-parleur : canal %1 (Paramètres)</translation>
     </message>
 </context>
 <context>

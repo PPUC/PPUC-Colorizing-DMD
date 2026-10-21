@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "document/ProjectDocument.h"
+#include "panels/FrameLightsPanel.h"
 #include "panels/InspectorForm.h"
 
 namespace colorizing::app {
@@ -47,6 +48,14 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     layout->addRow(m_targetLabel);
     layout->addRow(tr("Upscaling"), m_scalingComboBox);
     layout->addRow(tr("Upscaled shadow offset"), m_shadowComboBox);
+    for (std::size_t channel = 0; channel < m_lightDefaults.size(); ++channel) {
+        m_lightDefaults[channel] = new LightActionEditor(true, this);
+        m_lightDefaults[channel]->setToolTip(
+            tr("What speaker light channel %1 shows while no frame has started anything, and "
+               "after an effect with a duration")
+                .arg(channel + 1));
+        layout->addRow(tr("Speaker light %1").arg(channel + 1), m_lightDefaults[channel]);
+    }
 
     const auto changed = [this](int) {
         if (!m_filling && onScalingChanged) {
@@ -88,6 +97,13 @@ void ProjectSettingsPanel::setProject(const document::ProjectDocument* document)
         std::max(0, m_shadowComboBox->findData(settings.shadowOffset)));
     m_filling = false;
     updateTargetProblems();
+    for (std::size_t channel = 0; channel < m_lightDefaults.size(); ++channel) {
+        m_lightDefaults[channel]->setEffects(document ? document->speakerLights()
+                                                      : document::SpeakerLightSettings{});
+        m_lightDefaults[channel]->setAction(document ? document->speakerLights().defaults[channel]
+                                                     : document::LightAction{});
+        m_lightDefaults[channel]->setEnabled(document != nullptr);
+    }
     m_targetComboBox->setEnabled(document != nullptr);
     m_scalingComboBox->setEnabled(document != nullptr);
     m_shadowComboBox->setEnabled(document != nullptr);
@@ -106,6 +122,15 @@ uint8_t ProjectSettingsPanel::shadowOffset() const
 document::LibserumTarget ProjectSettingsPanel::libserumTarget() const
 {
     return static_cast<document::LibserumTarget>(m_targetComboBox->currentData().toInt());
+}
+
+document::LightActions ProjectSettingsPanel::lightDefaults() const
+{
+    document::LightActions defaults{};
+    for (std::size_t channel = 0; channel < m_lightDefaults.size(); ++channel) {
+        defaults[channel] = m_lightDefaults[channel]->action();
+    }
+    return defaults;
 }
 
 bool ProjectSettingsPanel::targetFits() const

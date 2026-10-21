@@ -41,3 +41,5 @@ whenever a user-visible feature changes.
 - [Plugins](35-plugins.md)
 - [Helper Lines](36-helper-lines.md)
 - [PuP Tester](37-pup-tester.md)
+- [Scenes and Scaling](38-scenes.md)
+- [Speaker Lights](39-speaker-lights.md)

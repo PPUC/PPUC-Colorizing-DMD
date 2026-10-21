@@ -16,6 +16,9 @@ colorizations. See `readme.md` for what the editor is and how to build it.
   `panels/` (the sidebar sections), `dialogs/`, and `vpx/` (VPX plugin hosting, the only
   target that sees the plugin SDK).
 - `plugin-api/`: the editor API for plugins.
+- `third-party/WS2812FX/`: the speaker light effect library at the DMD firmware's commit, with a
+  desktop stand-in for Arduino and Adafruit_NeoPixel, for the speaker light preview. Keep it at
+  the commit the firmware pins (its `README.md`).
 - `tests/`: `colorizing_qt_v2_tests` (core) and `colorizing_qt_v2_widget_tests` (widgets). Each
   file has a `run…Tests()` function that the main of its executable calls.
 - `handbook/en/`: the user handbook, one Markdown file per chapter, built into the app

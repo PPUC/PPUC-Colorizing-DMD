@@ -3826,6 +3826,7 @@ void runVideoClipWidgetTests();
 void runImageImportWidgetTests();
 void runHelperLinesWidgetTests();
 void runScenesWidgetTests();
+void runSpeakerLightWidgetTests();
 void runPupHostWidgetTests();
 void runSettingsWidgetTests();
 void runHandbookWidgetTests();
@@ -3894,6 +3895,7 @@ int main(int argc, char* argv[])
     runImageImportWidgetTests();
     runHelperLinesWidgetTests();
     runScenesWidgetTests();
+    runSpeakerLightWidgetTests();
     runPupHostWidgetTests();
     runSettingsWidgetTests();
     runHandbookWidgetTests();

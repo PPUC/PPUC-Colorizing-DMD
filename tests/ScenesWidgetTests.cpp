@@ -157,8 +157,8 @@ void testProjectSettings()
     panel.onTargetChanged = [&](document::LibserumTarget target) { targets.push_back(target); };
     panel.setProject(&document);
     const QList<QComboBox*> boxes = panel.findChildren<QComboBox*>();
-    // The target, the upscaling, the shadow offset.
-    expect(boxes.size() == 3 &&
+    // The target, the upscaling, the shadow offset, then the speaker lights' four defaults.
+    expect(boxes.size() == 7 &&
                boxes[0]->currentData().toInt() ==
                    static_cast<int>(document::LibserumTarget::Libserum28) &&
                boxes[1]->currentData().toInt() == document::kScalingScale2x &&
@@ -181,7 +181,7 @@ void testProjectSettings()
 
     app::ProjectSettingsDialog dialog(document);
     const QList<QComboBox*> dialogBoxes = dialog.findChildren<QComboBox*>();
-    expect(dialog.isModal() && dialogBoxes.size() == 3 &&
+    expect(dialog.isModal() && dialogBoxes.size() == 7 &&
                dialog.shadowOffset() == document::kShadowOffsetProportional &&
                dialog.libserumTarget() == document::LibserumTarget::Libserum28,
            "the dialog shows the project's settings");

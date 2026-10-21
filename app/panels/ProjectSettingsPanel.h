@@ -4,9 +4,11 @@
 #include <QWidget>
 
 #include <cstdint>
+#include <array>
 #include <functional>
 
 #include "document/LibserumTarget.h"
+#include "document/SpeakerLights.h"
 
 class QComboBox;
 class QLabel;
@@ -16,6 +18,8 @@ class ProjectDocument;
 }
 
 namespace colorizing::app {
+
+class LightActionEditor;
 
 // The settings of the whole colorization that libserum takes from it: the libserum the
 // project is made for (document::LibserumTarget) and its scaling settings
@@ -40,6 +44,12 @@ public:
     [[nodiscard]] bool targetFits() const;
     // Why the project does not fit the target; empty when it does.
     [[nodiscard]] QString targetProblemText() const;
+    // The speaker lights' defaults as chosen (LightActionKind::Unchanged: off).
+    [[nodiscard]] document::LightActions lightDefaults() const;
+    [[nodiscard]] LightActionEditor* lightDefault(std::size_t channel) const
+    {
+        return m_lightDefaults[channel];
+    }
 
 private:
     void updateTargetProblems();
@@ -48,6 +58,7 @@ private:
     QComboBox* m_targetComboBox = nullptr;
     QLabel* m_targetLabel = nullptr;
     QComboBox* m_scalingComboBox = nullptr;
+    std::array<LightActionEditor*, document::kLightChannels> m_lightDefaults{};
     QComboBox* m_shadowComboBox = nullptr;
     bool m_filling = false;
 };

@@ -109,8 +109,9 @@ of one scene are `Using the selected asset` with the scene selected in the `Scen
 ## Scaling
 
 `File -> Project Settings...` opens the settings of the whole colorization: `Made for`, the
-libserum the project is made for (see "Project Files", "libserum target"), and the scaling
-settings. `Upscaling` is how libserum makes the 256x64 picture of a frame that has none: `Scale2x`
+libserum the project is made for (see "Project Files", "libserum target"), the scaling
+settings and the speaker lights' defaults (see "Speaker Lights"; a change of them is an undo step
+of its own). `Upscaling` is how libserum makes the 256x64 picture of a frame that has none: `Scale2x`
 (libserum's default) or `Line doubling`. `Upscaled shadow offset` is how far a dynamic shadow falls on
 the 256x64 plane: 1 pixel (native, the default) or 2 pixels (proportional, as thick as on the
 128x32 plane). These are what a `scaling.txt` used to set. `OK` applies them as one undo step, `Cancel`

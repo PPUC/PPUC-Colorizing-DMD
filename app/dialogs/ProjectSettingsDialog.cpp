@@ -45,6 +45,11 @@ document::LibserumTarget ProjectSettingsDialog::libserumTarget() const
     return m_panel->libserumTarget();
 }
 
+document::LightActions ProjectSettingsDialog::lightDefaults() const
+{
+    return m_panel->lightDefaults();
+}
+
 ProjectSettingsPanel* ProjectSettingsDialog::panel() const
 {
     return m_panel;

@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "document/LibserumTarget.h"
+#include "document/SpeakerLights.h"
 
 namespace colorizing::document {
 class ProjectDocument;
@@ -28,6 +29,7 @@ public:
     [[nodiscard]] uint8_t scalingAlgorithm() const;
     [[nodiscard]] uint8_t shadowOffset() const;
     [[nodiscard]] document::LibserumTarget libserumTarget() const;
+    [[nodiscard]] document::LightActions lightDefaults() const;
     [[nodiscard]] ProjectSettingsPanel* panel() const;
 
 private:

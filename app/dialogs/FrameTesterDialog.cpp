@@ -20,6 +20,7 @@
 #include "import/DumpFile.h"
 #include "FrameImageUtils.h"
 #include "FramePictureView.h"
+#include "SpeakerLightView.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "legacy/LegacyProjectIo.h"
 #include "platform/Utf8Path.h"
@@ -112,10 +113,14 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     sourceRow->addWidget(m_sourceLabel, 1);
     sourceRow->addWidget(m_selectedButton);
     sourceRow->addWidget(loadButton);
+    m_speakerLights = new SpeakerLightPair(this);
+    m_speakerLights->setOptions(loadSpeakerLightPreviewOptions());
     auto* pictures = new QGridLayout();
-    pictures->addWidget(m_rows32View, 0, 0);
-    pictures->addWidget(m_rows64View, 0, 1);
-    pictures->addWidget(m_originalView, 1, 0, 1, 2);
+    pictures->addWidget(m_speakerLights->left(), 0, 0, Qt::AlignVCenter);
+    pictures->addWidget(m_rows32View, 0, 1);
+    pictures->addWidget(m_rows64View, 0, 2);
+    pictures->addWidget(m_speakerLights->right(), 0, 3, Qt::AlignVCenter);
+    pictures->addWidget(m_originalView, 1, 1, 1, 2);
     // libserum's planes, what is tested, get the larger share of the height.
     pictures->setRowStretch(0, 2);
     pictures->setRowStretch(1, 1);
@@ -246,6 +251,7 @@ bool FrameTesterDialog::loadProject()
         if (preview.openProject(m_document, runtime::PlaneRequest::Both, &error,
                                 m_playScenesCheckBox->isChecked())) {
             m_error.clear();
+            m_speakerLights->setDefaults(preview.defaultLights());
             return true;
         }
     } catch (const std::exception& ex) {
@@ -364,6 +370,7 @@ void FrameTesterDialog::feed(std::size_t position)
         rotateStep();
     }
     m_result = preview.colorize(m_frames[position].original);
+    m_speakerLights->start(m_result.lights);
     const bool newPicture =
         m_result.ok() && !m_result.unchanged && (m_result.rows32 || m_result.rows64);
     if (newPicture) {
@@ -385,6 +392,7 @@ void FrameTesterDialog::rotateStep()
     if (!rotated.ok()) {
         return;
     }
+    m_speakerLights->start(rotated.lights);
     if (rotated.rows32) {
         m_result.rows32 = rotated.rows32;
     }

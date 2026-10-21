@@ -26,6 +26,7 @@
 #include "edit/FrameMove.h"
 #include "edit/SameFrames.h"
 #include "edit/SceneEdits.h"
+#include "edit/SpeakerLightEdits.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 #include "FrameImageUtils.h"
@@ -53,6 +54,10 @@ class SectionBar;
 class HelperLinesPanel;
 class ScenesPanel;
 class SceneSettingsPanel;
+class FrameLightsPanel;
+class LightEffectPanel;
+class LightEffectsPanel;
+class SpeakerLightPair;
 class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
@@ -779,8 +784,30 @@ private:
     void showSceneFrames(uint16_t sceneId);
     void recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command);
     void refreshAfterSceneEdit(const edit::SceneEditCommand& command);
-    // File -> Project Settings: the dialog, and its settings as one undo step.
+    // File -> Project Settings: the dialog; its libserum target and scaling settings as one
+    // undo step, the speaker lights' defaults as another.
     void openProjectSettings();
+    // Speaker lights (SpeakerLights.h): the Light Effects section of the left sidebar, the
+    // Light Effect and Speaker Lights sections of the right one, and the preview beside the
+    // canvas (Settings). Changed through the edit::SpeakerLightEdits functions.
+    LightEffectsPanel* m_lightEffectsPanel = nullptr;
+    LightEffectPanel* m_lightEffectPanel = nullptr;
+    FrameLightsPanel* m_frameLightsPanel = nullptr;
+    SpeakerLightPair* m_speakerLights = nullptr;
+    // The effects changed: every place that shows them.
+    void refreshSpeakerLights();
+    // The frame on the canvas changed or its lights: the Speaker Lights section and the preview.
+    void updateFrameLightControls();
+    void updateLightEffectSection();
+    void addLightEffect();
+    void deleteLightEffect(uint16_t effectId);
+    void applyLightEffect(const document::LightEffect& effect);
+    // The channel of every selected frame (one step in each frame's history).
+    void setSelectedFramesLight(std::size_t channel, const document::LightAction& action);
+    // Suggest from Frame: channels 1 and 2 of each selected frame from its own colors.
+    void suggestSelectedFramesLights();
+    void recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
+                                 const QString& status);
     // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.
     void recordPluginEdit(std::unique_ptr<edit::EditCommand> command);
     // After an edit batch ran either way: it may have changed any frame and record.

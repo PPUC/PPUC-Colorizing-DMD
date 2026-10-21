@@ -73,6 +73,7 @@ if(TARGET colorizing_qt_v2_widgets)
         EditorPluginsWidgetTests.cpp
         HelperLinesWidgetTests.cpp
         ScenesWidgetTests.cpp
+        SpeakerLightWidgetTests.cpp
         PupHostWidgetTests.cpp
         SettingsWidgetTests.cpp
         HandbookWidgetTests.cpp

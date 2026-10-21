@@ -1,5 +1,6 @@
 #include "dialogs/SettingsDialog.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -75,9 +76,36 @@ SettingsDialog::SettingsDialog(Theme theme,
     canvasForm->addRow(tr("Pixel Shape"), m_pixelShapeComboBox);
     canvasForm->addRow(tr("Pixel Size"), m_pixelSizeSpinBox);
 
+    // As the pixels of the canvas, the speakers are the editor's: machines differ.
+    auto* speakersGroup = new QGroupBox(tr("Speaker Light Preview"), appearance);
+    auto* speakersForm = new QFormLayout(speakersGroup);
+    m_speakersShown = new QCheckBox(tr("Show the speakers beside the canvas and in the frame "
+                                       "tester"),
+                                    speakersGroup);
+    m_speakerShape = new QComboBox(speakersGroup);
+    m_speakerShape->addItem(tr("Circle"), static_cast<int>(SpeakerShape::Circle));
+    m_speakerShape->addItem(tr("Rectangle"), static_cast<int>(SpeakerShape::Rectangle));
+    m_speakerLeds = new QSpinBox(speakersGroup);
+    m_speakerLeds->setRange(1, 256);
+    m_speakerLeds->setToolTip(tr("The LEDs of each speaker, as set up on the DMD"));
+    m_leftChannel = new QComboBox(speakersGroup);
+    m_rightChannel = new QComboBox(speakersGroup);
+    for (QComboBox* box : {m_leftChannel, m_rightChannel}) {
+        for (int channel = 0; channel < 4; ++channel) {
+            box->addItem(tr("Channel %1").arg(channel + 1), channel);
+        }
+    }
+    speakersForm->addRow(m_speakersShown);
+    speakersForm->addRow(tr("Shape"), m_speakerShape);
+    speakersForm->addRow(tr("LEDs"), m_speakerLeds);
+    speakersForm->addRow(tr("Left speaker"), m_leftChannel);
+    speakersForm->addRow(tr("Right speaker"), m_rightChannel);
+    setSpeakerLightPreview(SpeakerLightPreviewOptions{});
+
     auto* appearanceLayout = new QVBoxLayout(appearance);
     appearanceLayout->addLayout(themeForm);
     appearanceLayout->addWidget(canvasGroup);
+    appearanceLayout->addWidget(speakersGroup);
     appearanceLayout->addStretch(1);
     m_tabs->addTab(appearance, tr("Appearance"));
 
@@ -142,6 +170,27 @@ void SettingsDialog::setLanguage(const QString& language)
 QString SettingsDialog::language() const
 {
     return m_languageComboBox->currentData().toString();
+}
+
+void SettingsDialog::setSpeakerLightPreview(const SpeakerLightPreviewOptions& options)
+{
+    m_speakersShown->setChecked(options.visible);
+    m_speakerShape->setCurrentIndex(
+        std::max(0, m_speakerShape->findData(static_cast<int>(options.shape))));
+    m_speakerLeds->setValue(options.ledCount);
+    m_leftChannel->setCurrentIndex(options.leftChannel);
+    m_rightChannel->setCurrentIndex(options.rightChannel);
+}
+
+SpeakerLightPreviewOptions SettingsDialog::speakerLightPreview() const
+{
+    SpeakerLightPreviewOptions options;
+    options.visible = m_speakersShown->isChecked();
+    options.shape = static_cast<SpeakerShape>(m_speakerShape->currentData().toInt());
+    options.ledCount = m_speakerLeds->value();
+    options.leftChannel = m_leftChannel->currentIndex();
+    options.rightChannel = m_rightChannel->currentIndex();
+    return options;
 }
 
 DmdRenderOptions SettingsDialog::canvasOptions() const

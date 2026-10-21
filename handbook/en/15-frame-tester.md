@@ -18,6 +18,8 @@ in the editor, saved or not.
   identified`, `libserum keeps the picture on display`, and a trigger it reported. While
   libserum shows a frame of a scene, the line names the scene instead, as `scene 50082 plays
   (frame 1)` or `background scene 50082 plays (group 2, frame 3)`. Color rotations run.
+- With the speaker light preview on (`Settings -> Appearance`), two speakers beside the planes
+  play the speaker light effects libserum starts, see "Speaker Lights".
 - The slider and the position box go to a frame; `Play` and the backwards `Play` step through
   the frames with their durations at the chosen speed (1/4x to 32x); `Loop` starts again at the
   other end. `◀ Frame` and `Frame ▶` go one frame back or forward, also while playing: the
