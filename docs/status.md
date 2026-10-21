@@ -2195,6 +2195,12 @@ from the frame and editable.
 - Background scene flicker (owner report, video): libserum 332356b scales the game's content in
   front of a background scene as on black (selection and corner rule), so a movie behind the
   text no longer changes its corners.
+- Many-sprites guidance (owner): sprites unchanged, 32 per frame stays the recommendation, more
+  only for a frame that cannot be done otherwise, fine on a flash, avoid in video modes.
+  `SpritePanel::manySpritesAdvice()` is the one text (Frame Sprites warning, Project Settings
+  3.0 note, the confirmation); `ProjectDocument::assignmentPassesSpriteWarning()` decides when
+  Assign/Capture ask (`confirmPassingSpriteWarning`), only for the 33rd. Test in
+  SceneEditTests::testLibserumTarget.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

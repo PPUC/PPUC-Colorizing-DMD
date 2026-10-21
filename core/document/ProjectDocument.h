@@ -685,6 +685,10 @@ public:
     // the first empty slot (which is the slot itself or one before it).
     [[nodiscard]] std::size_t spriteSlotForAssignment(std::size_t frameIndex,
                                                       std::size_t slotIndex) const;
+    // Whether a sprite meant for the slot would be the frame's first sprite past
+    // kSpritesPerFrameWarning: the step the author is warned about (see LibserumTarget.h).
+    [[nodiscard]] bool assignmentPassesSpriteWarning(std::size_t frameIndex,
+                                                     std::size_t slotIndex) const;
     // The first empty slot of a frame that has a used slot behind it: the runtime ignores the
     // sprites from there on. Only a loaded project can have one; nothing here makes one.
     [[nodiscard]] std::optional<std::size_t> firstSpriteSlotGap(std::size_t frameIndex) const;

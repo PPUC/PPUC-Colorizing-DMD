@@ -9,8 +9,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   libserum 3.0 allows 128 sprites per frame and practically any number of sprites and
   backgrounds; such a project plays with libserum 3.0 and later only. Projects for libserum
   2.8 are saved as before.
-- The Frame Sprites section warns when a frame uses more than 32 sprites, which can make the
-  sprite detection noticeably slow.
+- More than 32 sprites on a frame stay the exception: the editor asks before a frame gets its 33rd
+  sprite and warns while a frame has more, since every sprite more costs runtime (fine on a short
+  flash, to be avoided in a video mode). Sprites themselves work as before.
 - Speaker lights: named light effects (the 80 WS2812FX effects with colors, speed, options,
   brightness and duration) in the new Light Effects section; per frame and channel an effect, a
   static color or off in the Speaker Lights section, with ambient lighting colors suggested from the

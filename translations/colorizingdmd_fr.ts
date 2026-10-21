@@ -5099,6 +5099,21 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message>
+        <source>More Than %1 Sprites</source>
+        <translation>Plus de %1 sprites</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) would use more than %1 sprites.</source>
+        <translation>
+            <numerusform>%n frame utiliserait plus de %1 sprites.</numerusform>
+            <numerusform>%n frames utiliseraient plus de %1 sprites.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Use More Sprites</source>
+        <translation>Utiliser plus de sprites</translation>
+    </message>
+    <message>
         <source>Effect %1</source>
         <translation>Effet %1</translation>
     </message>
@@ -5827,8 +5842,12 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Le projet ne convient pas à %1 : %2</translation>
     </message>
     <message>
+        <source>Plays with libserum 3.0 and later only. Up to %1 sprites per frame are possible.</source>
+        <translation>Fonctionne uniquement avec libserum 3.0 et plus récent. Jusqu&apos;à %1 sprites par frame sont possibles.</translation>
+    </message>
+    <message>
         <source>Plays with libserum 3.0 and later only. More than %1 sprites on a frame can make the sprite detection slow.</source>
-        <translation>Fonctionne uniquement avec libserum 3.0 et plus récent. Plus de %1 sprites sur une frame peuvent ralentir la détection des sprites.</translation>
+        <translation type="vanished">Fonctionne uniquement avec libserum 3.0 et plus récent. Plus de %1 sprites sur une frame peuvent ralentir la détection des sprites.</translation>
     </message>
     <message>
         <source>Plays with libserum 2.8 and later.</source>
@@ -7155,8 +7174,16 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>La frame courante n&apos;utilise aucun sprite</translation>
     </message>
     <message>
+        <source>The frame uses %1 sprites.</source>
+        <translation>La frame utilise %1 sprites.</translation>
+    </message>
+    <message>
+        <source>Sprites work the same past %1 per frame, but every sprite more adds to the time libserum needs for each frame. Stay within %1 wherever you can: use more only on a frame that cannot be done otherwise, never as a habit. On a short flash a few milliseconds of latency do not hurt; in a video mode avoid it.</source>
+        <translation>Les sprites fonctionnent de la même façon au-delà de %1 par frame, mais chaque sprite supplémentaire allonge le temps dont libserum a besoin pour chaque frame. Restez à %1 au plus partout où c&apos;est possible : n&apos;en utilisez plus que sur une frame impossible à réaliser autrement, jamais par habitude. Sur un flash bref, quelques millisecondes de latence ne gênent pas ; dans un mode vidéo, évitez-le.</translation>
+    </message>
+    <message>
         <source>The frame uses %1 sprites. More than %2 sprites on a frame can make libserum&apos;s sprite detection noticeably slow.</source>
-        <translation>La frame utilise %1 sprites. Plus de %2 sprites sur une frame peuvent ralentir sensiblement la détection des sprites de libserum.</translation>
+        <translation type="vanished">La frame utilise %1 sprites. Plus de %2 sprites sur une frame peuvent ralentir sensiblement la détection des sprites de libserum.</translation>
     </message>
     <message>
         <source>Go to frame %1, the frame the sprite was taken from</source>

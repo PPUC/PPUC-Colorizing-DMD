@@ -48,8 +48,10 @@ dialog names what keeps it from fitting (too many sprites or backgrounds, frames
 32 sprites and the first of them) and `OK` stays disabled. The change is one undo step,
 together with the other project settings.
 
-More than 32 sprites on one frame can make libserum's sprite detection noticeably slow, so the
-`Frame Sprites` section warns about such a frame (see "Sprites").
+The sprites work exactly as before; libserum 3.0 only allows more of them. Stay within 32
+sprites per frame: it remains the recommendation, and every sprite more costs libserum time on
+each frame. Going past it is a decision for a single frame that cannot be done otherwise, never
+best practice. See "Sprites" for the warnings the editor gives.
 
 A project file stores two planes of colorized data, an "original" and an "extra" one. Which sizes
 they have, and which of them has the size of the ROM's own frame, depends on the project. The

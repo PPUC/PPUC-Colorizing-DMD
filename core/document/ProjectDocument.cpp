@@ -2841,6 +2841,17 @@ std::size_t ProjectDocument::spriteSlotForAssignment(std::size_t frameIndex,
     return std::min(slotIndex, firstEmptySpriteSlot(frame.spriteReferences));
 }
 
+bool ProjectDocument::assignmentPassesSpriteWarning(std::size_t frameIndex,
+                                                    std::size_t slotIndex) const
+{
+    const std::size_t slot = spriteSlotForAssignment(frameIndex, slotIndex);
+    const std::vector<FrameSpriteReference>& references =
+        requireFrame(m_frames, frameIndex).spriteReferences;
+    // Slots are filled from the first on, so a new sprite in slot 32 is the 33rd.
+    return slot == kSpritesPerFrameWarning && slot < references.size() &&
+           references[slot].spriteId == kNoSpriteId;
+}
+
 std::optional<std::size_t> ProjectDocument::firstSpriteSlotGap(std::size_t frameIndex) const
 {
     const std::vector<FrameSpriteReference>& references =

@@ -115,9 +115,15 @@ The controls:
 - Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - A frame has 32 sprite slots in a project for libserum 2.8 and 128 in one for libserum 3.0
-  (see "Project Files", "libserum target"). When the current frame uses more than 32 sprites,
-  the section warns above the list: so many sprites on one frame can make libserum's sprite
-  detection noticeably slow at runtime.
+  (see "Project Files", "libserum target"). Sprites work the same with either; stay within 32
+  per frame wherever you can. Every sprite more adds to the time libserum needs for each frame,
+  so going past 32 is for a single frame that cannot be done otherwise and should never become
+  best practice. On a short flash a few milliseconds of latency do not hurt; in a video mode
+  avoid it.
+  - Putting a 33rd sprite on a frame (`Assign` or `Capture`) asks first, with this advice;
+    `Use More Sprites` goes on, `Cancel` leaves the frame as it is.
+  - While the current frame uses more than 32 sprites, the section shows the warning above the
+    list.
 - A frame's sprite slots never have an empty slot before a used one: libserum stops looking for
   sprites at the first empty slot, so the sprites behind it would be ignored. Every edit keeps the
   list closed up:

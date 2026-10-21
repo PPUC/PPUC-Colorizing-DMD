@@ -30,7 +30,8 @@ constexpr std::size_t kLegacySpritesPerFrame = 32;
 // The most sprite slots any target gives a frame.
 constexpr std::size_t kMaxSpritesPerFrame = 128;
 // More sprites than this on one frame can make libserum's sprite detection noticeably slow:
-// the editor warns about it.
+// the editor warns about it. Sprites work the same past it; the limit stays the recommendation,
+// and going past it is for a single frame that cannot be done otherwise, never the rule.
 constexpr std::size_t kSpritesPerFrameWarning = 32;
 
 [[nodiscard]] constexpr LibserumLimits libserumLimits(LibserumTarget target)

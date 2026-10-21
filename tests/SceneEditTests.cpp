@@ -325,9 +325,19 @@ void testLibserumTarget()
     reference.spriteId = 0;
     reference.maxX = 127;
     reference.maxY = 31;
-    for (std::size_t slot = 1; slot <= 40; ++slot) {
+    for (std::size_t slot = 1; slot < 32; ++slot) {
         document.setFrameSpriteReference(0, slot, reference);
     }
+    expect(document.assignmentPassesSpriteWarning(0, 32) &&
+               document.assignmentPassesSpriteWarning(0, 40) &&
+               !document.assignmentPassesSpriteWarning(0, 5),
+           "a 33rd sprite passes the warning, also asked for a later empty slot; replacing "
+           "one does not");
+    for (std::size_t slot = 32; slot <= 40; ++slot) {
+        document.setFrameSpriteReference(0, slot, reference);
+    }
+    expect(!document.assignmentPassesSpriteWarning(0, 41),
+           "past it already: the author was asked for the 33rd");
     const document::LibserumTargetProblems problems =
         document.libserumTargetProblems(document::LibserumTarget::Libserum28);
     expect(!problems.empty() && problems.framesWithMoreSprites == 1 &&

@@ -6273,6 +6273,9 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
         updateSpriteControls();
         return;
     }
+    if (!confirmPassingSpriteWarning(frameIndices, *slotIndex)) {
+        return;
+    }
 
     try {
         // A sprite meant for an empty slot goes to the frame's first empty slot: libserum's
@@ -6407,6 +6410,10 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         captureHeight > static_cast<int>(document::kMaxSpriteHeight)) {
         statusBar()->showMessage(tr("Sprite capture selection is invalid"), 2500);
         updateSpriteControls();
+        return;
+    }
+
+    if (!confirmPassingSpriteWarning({*frameIndex}, *slotIndex)) {
         return;
     }
 
@@ -9895,6 +9902,32 @@ void MainWindow::setSpeakerLightPreviewShown(bool shown)
         m_speakerLights->setOptions(options);
         updateFrameLightControls();
     }
+}
+
+bool MainWindow::confirmPassingSpriteWarning(const std::vector<std::size_t>& frameIndices,
+                                             std::size_t slotIndex)
+{
+    if (!m_document) {
+        return false;
+    }
+    std::size_t frames = 0;
+    for (std::size_t frameIndex : frameIndices) {
+        frames += m_document->assignmentPassesSpriteWarning(frameIndex, slotIndex) ? 1 : 0;
+    }
+    if (frames == 0) {
+        return true;
+    }
+    QMessageBox confirm(QMessageBox::Warning, tr("More Than %1 Sprites")
+                                                  .arg(document::kSpritesPerFrameWarning),
+                        tr("%n frame(s) would use more than %1 sprites.", "",
+                           static_cast<int>(frames))
+                                .arg(document::kSpritesPerFrameWarning) +
+                            QStringLiteral("\n\n") + SpritePanel::manySpritesAdvice(),
+                        QMessageBox::Cancel, this);
+    QPushButton* useMore = confirm.addButton(tr("Use More Sprites"), QMessageBox::AcceptRole);
+    confirm.setDefaultButton(QMessageBox::Cancel);
+    confirm.exec();
+    return confirm.clickedButton() == useMore;
 }
 
 void MainWindow::refreshSpeakerLights()

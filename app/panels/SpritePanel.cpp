@@ -633,10 +633,8 @@ void SpritePanel::refresh(const SpritePanelState& state)
     }
     if (usedSlots > document::kSpritesPerFrameWarning) {
         m_spriteCountWarningLabel->setText(
-            tr("The frame uses %1 sprites. More than %2 sprites on a frame can make libserum's "
-               "sprite detection noticeably slow.")
-                .arg(usedSlots)
-                .arg(document::kSpritesPerFrameWarning));
+            tr("The frame uses %1 sprites.").arg(usedSlots) + QLatin1Char(' ') +
+            manySpritesAdvice());
         m_spriteCountWarningLabel->show();
     } else {
         m_spriteCountWarningLabel->clear();
@@ -875,6 +873,15 @@ bool SpritePanel::isOutlinesChecked() const
 bool SpritePanel::isSpriteCanvasChecked() const
 {
     return m_spriteCanvasButton->isChecked();
+}
+
+QString SpritePanel::manySpritesAdvice()
+{
+    return tr("Sprites work the same past %1 per frame, but every sprite more adds to the "
+              "time libserum needs for each frame. Stay within %1 wherever you can: use more "
+              "only on a frame that cannot be done otherwise, never as a habit. On a short "
+              "flash a few milliseconds of latency do not hurt; in a video mode avoid it.")
+        .arg(document::kSpritesPerFrameWarning);
 }
 
 QString SpritePanel::spriteCountWarning() const

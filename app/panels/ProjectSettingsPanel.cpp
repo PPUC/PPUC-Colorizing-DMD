@@ -10,6 +10,7 @@
 #include "document/ProjectDocument.h"
 #include "panels/FrameLightsPanel.h"
 #include "panels/InspectorForm.h"
+#include "panels/SpritePanel.h"
 
 namespace colorizing::app {
 
@@ -176,9 +177,9 @@ void ProjectSettingsPanel::updateTargetProblems()
         m_targetLabel->setText(problems);
     } else if (libserumTarget() == document::LibserumTarget::Libserum30) {
         m_targetLabel->setText(
-            tr("Plays with libserum 3.0 and later only. More than %1 sprites on a frame can "
-               "make the sprite detection slow.")
-                .arg(document::kSpritesPerFrameWarning));
+            tr("Plays with libserum 3.0 and later only. Up to %1 sprites per frame are possible.")
+                    .arg(document::kMaxSpritesPerFrame) +
+            QLatin1Char(' ') + SpritePanel::manySpritesAdvice());
     } else {
         m_targetLabel->setText(tr("Plays with libserum 2.8 and later."));
     }

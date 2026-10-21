@@ -88,6 +88,9 @@ public:
     // The warning that the frame uses more than kSpritesPerFrameWarning sprites; empty while
     // it is hidden.
     [[nodiscard]] QString spriteCountWarning() const;
+    // What the author is told about more than kSpritesPerFrameWarning sprites on a frame:
+    // where the warning shows, when a frame is about to pass it, and in Project Settings.
+    [[nodiscard]] static QString manySpritesAdvice();
 
     std::function<void(const QString& name)> onNameEdited;
     std::function<void()> onSlotSelectionChanged;
