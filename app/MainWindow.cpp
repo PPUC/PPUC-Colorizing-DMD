@@ -2075,8 +2075,25 @@ void MainWindow::createCentralView()
         colorizedCanvasClicked(hit, erase);
     });
     // A mask or background dropped onto the canvas is assigned to the selected frames, as its
-    // Assign button does (one undo step).
+    // Assign button does (one undo step); a scene becomes their trigger, as the Frame
+    // section's Scene field makes it.
     m_preview->setDropHandler([this](QObject* source, bool drop) {
+        if (m_document && source && m_scenesPanel && source == m_scenesPanel->dragSource()) {
+            const std::optional<uint16_t> scene = m_scenesPanel->selectedScene();
+            if (!scene || selectedFrameIndices().empty()) {
+                return false;
+            }
+            if (!drop) {
+                statusBar()->showMessage(
+                    tr("Drop to let the %1 selected frame(s) start scene %2")
+                        .arg(static_cast<int>(selectedFrameIndices().size()))
+                        .arg(*scene),
+                    2000);
+                return true;
+            }
+            setSelectedFramesTrigger(document::TriggerKind::Scene, *scene);
+            return true;
+        }
         if (!m_document || selectedFrameIndices().empty() || !source ||
             (source != m_maskList && source != m_backgroundList)) {
             return false;

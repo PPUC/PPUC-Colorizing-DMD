@@ -27,6 +27,11 @@ in the project (with the blue `HD` badge when that frame has HD data), and below
   toolbar's `<` goes back to the frame and the timeline before (see "Canvas"), `>` into the
   scene again. `Leave Scene`, below the frame filter while a scene's frames are listed, goes
   back to the frames before in one step, however many of the scene's frames were visited.
+- A scene dragged from the list onto the canvas becomes the trigger of the selected frames, as
+  the `Scene` field of the Inspector's `Frame` section sets it: each of them starts the scene
+  (a background scene then plays behind the frames that follow, where their background masks
+  let it through). Frames with a trigger of another kind (a PUP trigger, a monochrome
+  fallback) are left as they are. One undo step per frame, as with the field.
 - `Delete` removes the selected scene. The question offers to delete its frames too or to keep
   them as ordinary frames.
 - `Used by the current frame` above the left sidebar's lists shows only the scene of the

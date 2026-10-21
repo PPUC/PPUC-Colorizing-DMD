@@ -2097,3 +2097,10 @@ the end, the tag in `kFilterTagRole`; restored by tag, a vanished tag falls back
 and refreshes the strip. Captions show `#tag`. `CanvasPlace::filterTag` for `<`/`>`. Tests:
 `testFrameTags` (EditCommandTests), FTAG round trip (LegacyProjectFileReaderTests), Tags field
 in `testFramePanel`.
+
+## Scene drag and drop (2026-10-21, owner request)
+
+The Scenes list is a drag source (`ScenesPanel::dragSource()`); the canvas drop handler sets
+the selected frames' trigger to the selected scene with `setSelectedFramesTrigger(Scene, id)`
+(frames with a trigger of another kind skipped, as with the Scene field). Test: drag source
+check in `ScenesWidgetTests::testPanel`.

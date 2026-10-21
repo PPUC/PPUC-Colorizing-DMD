@@ -3344,6 +3344,10 @@ Use Create %1 Frame.</source>
         <translation>Zurück zu den Frames und dem Frame, die vor dem Auflisten der Szenen-Frames gezeigt wurden</translation>
     </message>
     <message>
+        <source>Drop to let the %1 selected frame(s) start scene %2</source>
+        <translation>Loslassen, damit die %1 ausgewählten Frames Szene %2 starten</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Die Zwischenablage enthält kein Bild</translation>
     </message>

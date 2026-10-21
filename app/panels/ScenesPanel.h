@@ -35,6 +35,9 @@ public:
     [[nodiscard]] std::optional<uint16_t> selectedScene() const;
     // Selects the scene in the list (reported as a selection change); ignored for one it lacks.
     void selectScene(uint16_t sceneId);
+    // The list a scene is dragged from (onto the canvas, to start it from the frames); the
+    // dragged scene is the selected one.
+    [[nodiscard]] const QObject* dragSource() const;
     // "Used by the current frame": only the scene given (none: no scene) is listed; filtered
     // false: every scene.
     void showOnlyScene(bool filtered, std::optional<uint16_t> sceneId);

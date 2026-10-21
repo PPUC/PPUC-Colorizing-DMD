@@ -1,5 +1,6 @@
 #include "panels/ScenesPanel.h"
 
+#include <QAbstractItemView>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -39,6 +40,10 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     m_list->setToolTip(tr("The scenes libserum plays when their PUP trigger fires; double-click "
                           "one to list its frames and show its first frame"));
     m_list->setIconSize(kThumbnailSize);
+    // A scene dragged onto the canvas becomes the trigger of the selected frames.
+    m_list->setDragEnabled(true);
+    m_list->setDragDropMode(QAbstractItemView::DragOnly);
+    m_list->setDefaultDropAction(Qt::CopyAction);
     showCaptionsBelowThumbnails(m_list);
     m_thumbnails = new LazyListIcons(m_list, blankThumbnail(), [this](const QListWidgetItem& item) {
         const int frame = item.data(kFirstFrameRole).toInt();
@@ -184,6 +189,11 @@ void ScenesPanel::selectScene(uint16_t sceneId)
             return;
         }
     }
+}
+
+const QObject* ScenesPanel::dragSource() const
+{
+    return m_list;
 }
 
 void ScenesPanel::refreshThumbnails()

@@ -23,6 +23,8 @@
 
 **Scenes**
 - Scenes moved to the left sidebar and now have thumbnails.
+- A scene dragged onto the canvas becomes the trigger of the selected frames, as a background
+  dragged there is assigned to them.
 - Double-clicking a scene lists its frames and shows its first frame. *Leave Scene* returns to
   your previous timeline in one step.
 - A new Scene section in the right sidebar edits the settings of the scene shown. Comparison

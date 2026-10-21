@@ -12,6 +12,7 @@
 #include <QApplication>
 #include <QListWidget>
 #include <QAbstractButton>
+#include <QAbstractItemView>
 #include <QPushButton>
 #include <QSpinBox>
 
@@ -89,6 +90,9 @@ void testPanel()
     list->itemDoubleClicked(list->item(0));
     expect(opened == std::vector<int>{51001},
            "a double click shows the scene's frames instead of opening the window");
+    expect(panel.dragSource() == list && list->dragEnabled() &&
+               list->dragDropMode() == QAbstractItemView::DragOnly,
+           "a scene can be dragged (onto the canvas, to become the frames' trigger)");
     expect(selectionChanges == 1, "selecting a scene reports it (the frame filter follows)");
     // "Used by the current frame": only the frame's scene.
     panel.showOnlyScene(true, uint16_t{51001});

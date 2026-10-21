@@ -3344,6 +3344,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Revenir aux frames et à la frame affichées avant que les frames de la scène soient listées</translation>
     </message>
     <message>
+        <source>Drop to let the %1 selected frame(s) start scene %2</source>
+        <translation>Déposer pour que les %1 frames sélectionnées lancent la scène %2</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Le presse-papiers ne contient pas d&apos;image</translation>
     </message>
