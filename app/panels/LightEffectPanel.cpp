@@ -107,7 +107,8 @@ LightEffectPanel::LightEffectPanel(QWidget* parent)
     m_brightness->setToolTip(tr("Of the brightness set on the DMD"));
     form->addRow(tr("Brightness"), m_brightness);
     m_duration = new QSpinBox(this);
-    m_duration->setRange(0, 3600000);
+    // The DMD takes 16 bits of ms (libzedmd's SetLightEffect).
+    m_duration->setRange(0, 65535);
     m_duration->setSingleStep(100);
     m_duration->setSuffix(tr(" ms"));
     m_duration->setSpecialValueText(tr("Until the next effect"));
@@ -182,7 +183,7 @@ void LightEffectPanel::setEffect(const std::optional<document::LightEffect>& eff
     m_size->setCurrentIndex(
         std::max(0, m_size->findData(static_cast<int>(shown.options & document::kLightSizeMask))));
     m_brightness->setValue(static_cast<int>(std::lround(shown.brightness * 100.0 / 255.0)));
-    m_duration->setValue(static_cast<int>(std::min<uint32_t>(shown.durationMs, 3600000)));
+    m_duration->setValue(static_cast<int>(std::min<uint32_t>(shown.durationMs, 65535)));
     m_filling = false;
     m_changed = false;
     m_titleLabel->setText(effect ? tr("Effect %1").arg(QString::fromStdString(effect->name))

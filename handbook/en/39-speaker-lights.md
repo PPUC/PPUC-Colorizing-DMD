@@ -26,8 +26,8 @@ are those of the WS2812FX library the DMD's firmware plays them with:
   sets how fast the effects that fade do, `Size` the size of the moving parts of the effects that
   have them.
 - `Brightness`: a share of the brightness set on the DMD (100 %: as set there).
-- `Duration`: how long the effect plays before the channel returns to its default (see below);
-  `Until the next effect` keeps it until a frame starts another one.
+- `Duration`: how long the effect plays before the channel returns to its default (see below),
+  up to 65535 ms; `Until the next effect` keeps it until a frame starts another one.
 
 The preview below the fields plays the effect as the fields say, on 16 LEDs. `Apply` changes
 the effect (one undo step), `Revert` shows its settings again.
