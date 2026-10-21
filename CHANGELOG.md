@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.8
+
 - `Esc` reduces a selection of several frames to the frame shown, in the strip and on the
   canvas (after cancelling a paste or a pending click). It joins the ways that were there
   already: a double click on a frame selects it alone, `Ctrl/Cmd`+click takes a frame out of
