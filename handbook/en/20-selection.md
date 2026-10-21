@@ -6,7 +6,8 @@ shown as the translucent cyan overlay of `Sel` and is what `Grad Sel`, `Copy`, `
 it is not saved, it is not part of Undo (the Win32 editor records its changes in its one undo
 buffer; here a selection step would sit between the edits of the frame's histories and make
 Undo skip over invisible steps, and every selection command is one click to repeat). As in the
-Win32 editor it stays when another frame is shown, so it can be checked on each frame of a
+Win32 editor it stays, and stays visible, when another frame is shown (`Select None`,
+`Ctrl/Cmd+D`, drops it), so it can be checked on each frame of a
 selection of frames before copying or pasting (a click on a frame of that selection keeps it, see
 "Frame List"). It is dropped when the SD/HD mode, the paint target or the selected background
 changes.

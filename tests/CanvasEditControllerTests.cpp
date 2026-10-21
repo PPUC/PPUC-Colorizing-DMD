@@ -1166,6 +1166,17 @@ void testCanvasSelection()
                      area,
                      QColor(0, 220, 180, 95)),
            "selection overlay holds the area row by row");
+    // Another frame shown (the window asks for that frame's sprite capture selection, of which
+    // there is none): the canvas selection stays and stays visible (issue #17).
+    controller.showCaptureSelection(std::size_t{1});
+    expect(controller.hasSelection() &&
+               isOverlay(owner.selectionOverlay, CanvasRegion::ColorizedFrame, Resolution::Sd,
+                         area, QColor(0, 220, 180, 95)),
+           "the selection is shown on another frame, not hidden");
+    controller.clearCaptureSelection();
+    expect(isOverlay(owner.selectionOverlay, CanvasRegion::ColorizedFrame, Resolution::Sd, area,
+                     QColor(0, 220, 180, 95)),
+           "dropping a capture selection leaves the canvas selection shown");
 
     owner.next();
     controller.fillSelectionWithPaletteGradient(context);

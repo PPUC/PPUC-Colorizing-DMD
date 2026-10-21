@@ -2067,3 +2067,11 @@ Testers found the SD/HD pictures too small; they stayed 512 px wide whatever the
 `FramePictureView` (app/) keeps a renderer and draws at the largest whole scale fitting its
 size (cached per scale), centred on black; the tester's three pictures use it, the planes'
 row gets stretch 2, the original's 1. Test: `testPicturesGrow`.
+
+## Issue #17: canvas selection hidden after a frame change (2026-10-21)
+
+The canvas selection stays on another frame (Win32 behaviour), but `selectFrame` calls
+`showCaptureSelection`, which cleared the shared overlay when the frame had no sprite capture
+selection: the selection was invisible, and the next Ctrl+click added to it ("the first
+selection appears"). `showCaptureSelection` and `clearCaptureSelection` now show the canvas
+selection again instead of clearing. Test: in `testCanvasSelection`.
