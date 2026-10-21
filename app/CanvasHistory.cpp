@@ -12,6 +12,7 @@ void CanvasHistory::note(const CanvasPlace& place, bool frameRested)
             here.frame = place.frame;
             here.filter = place.filter;
             here.filterScene = place.filterScene;
+            here.filterTag = place.filterTag;
             return;
         }
         if (place.kind == CanvasPlace::Kind::Frame && here.kind == CanvasPlace::Kind::Frame &&

@@ -1072,6 +1072,24 @@ void testFileWriterSavesCrpx()
     expect(!reader.load(paths).ok, "a .cRPX whose saved zones are cut off is refused");
     writeBytes(crpxPath, crpx);
 
+    // The frames' tags: a chunk of their own, a frame in several groups.
+    colorizing::document::ProjectSnapshot withTags = source.snapshot;
+    expect(withTags.frames.size() >= 2, "the fixture has two frames to tag");
+    withTags.frames[0].tags = {"Multiball", "Wizard M\xc3\xb6" "de"};
+    withTags.frames[1].tags = {"Multiball"};
+    expect(writer.save(paths, withTags).ok, "a .cRPX with frame tags is saved");
+    const LegacyLoadResult tagsBack = reader.load(paths);
+    expect(tagsBack.ok && tagsBack.snapshot.frames[0].tags == withTags.frames[0].tags &&
+               tagsBack.snapshot.frames[1].tags == withTags.frames[1].tags,
+           "the frame tags come back as they were (chunk FTAG)");
+    std::vector<uint8_t> cutTags = readBytes(crpxPath);
+    cutTags.resize(cutTags.size() - 2);
+    writeBytes(crpxPath, cutTags);
+    expect(!reader.load(paths).ok, "a .cRPX whose frame tags are cut off is refused");
+    writeBytes(crpxPath, crpx);
+    expect(reader.load(paths).ok && reader.load(paths).snapshot.frames[0].tags.empty(),
+           "a .cRPX without them has no tags");
+
     // The PuP pack name: UTF-8 in a chunk of its own, the cRP part's UTF-16 field left empty;
     // in a .cRP UTF-16 in that field, as the Win32 editor writes it.
     colorizing::document::ProjectSnapshot withPack = source.snapshot;

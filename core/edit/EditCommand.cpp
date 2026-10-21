@@ -482,6 +482,36 @@ FrameAttribute FrameAttributeEditCommand::attribute() const
     return m_attribute;
 }
 
+FrameTagsCommand::FrameTagsCommand(std::size_t frameIndex,
+                                   std::vector<std::string> before,
+                                   std::vector<std::string> after)
+    : m_frameIndex(frameIndex),
+      m_before(std::move(before)),
+      m_after(std::move(after))
+{
+}
+
+void FrameTagsCommand::apply(document::ProjectDocument& document) const
+{
+    document.setFrameTags(m_frameIndex, m_after);
+}
+
+void FrameTagsCommand::revert(document::ProjectDocument& document) const
+{
+    document.setFrameTags(m_frameIndex, m_before);
+}
+
+EditTarget FrameTagsCommand::target() const
+{
+    return EditTarget{EditKind::FrameAttributes, m_frameIndex, render::Resolution::Sd,
+                      {m_frameIndex}};
+}
+
+std::vector<RecordReference> FrameTagsCommand::recordReferences() const
+{
+    return {{RecordKind::Frame, m_frameIndex}};
+}
+
 FrameHdCommand::FrameHdCommand(std::size_t frameIndex,
                                document::FrameHdState before,
                                document::FrameHdState after)

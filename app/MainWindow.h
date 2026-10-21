@@ -119,7 +119,12 @@ private:
         // Frames of the project's scenes, and the others.
         SceneFrames,
         WithoutSceneFrames,
+        // The frames with a tag; one entry per tag, the tag in kFilterTagRole.
+        Tagged,
     };
+
+    // The tag of a "Tag: ..." entry of the frame filter.
+    static constexpr int kFilterTagRole = Qt::UserRole + 1;
 
     void createActions();
     // After the selected mask, background or sprite, or the tab on the left, changed: the frame
@@ -301,6 +306,9 @@ private:
     // Edit Scene and the Scene section's Apply: the scene as given; its frames follow (after a
     // question when frames go).
     void changeScene(uint16_t sceneId, const document::SceneDefinition& scene);
+    // The Frame section's Tags field changed: edit::retaggedFrame() on every selected frame,
+    // a step in each frame's settings history.
+    void setSelectedFramesTags(const QString& text);
     // The toolbar's < and >: what the canvas showed before (frames, backgrounds, sprites).
     [[nodiscard]] CanvasPlace currentCanvasPlace() const;
     void noteCanvasPlace(bool frameRested = false);

@@ -2081,3 +2081,19 @@ selection again instead of clearing. Test: in `testCanvasSelection`.
 `FrameListWidget::mouseDoubleClickEvent` selects the double-clicked frame alone when several
 are selected (Win32 behaviour); a plain click inside a multi-selection still keeps it. Test:
 in `testFrameListClicks`.
+
+## Frame tags (2026-10-21, author request)
+
+Authors wanted groups of frames ("Settings menu", "Multiball", "Wizard Mode") to filter the
+strip by, a frame in several. `FrameRecord::tags` / `ProjectFrameSnapshot::tags` (sorted,
+unique, trimmed by `ProjectDocument::setFrameTags`; `allFrameTags`), .cRPX chunk `FTAG` (names
+once, then per tagged frame the name numbers). Tags live in the frame record, so structure
+commands carry them. `edit::FrameTagsCommand` (FrameAttributes history of the frame);
+core/edit/FrameTags.h: `parseFrameTags`, `frameTagsText`, `retaggedFrame` (the field's change
+from before to after applied to each selected frame, keeping its own tags). FramePanel `Tags`
+QLineEdit with a QCompleter on the part after the last comma (setWidget, not setCompleter);
+reports on editingFinished when changed. Filter: `FrameFilter::Tagged`, one entry per tag at
+the end, the tag in `kFilterTagRole`; restored by tag, a vanished tag falls back to All frames
+and refreshes the strip. Captions show `#tag`. `CanvasPlace::filterTag` for `<`/`>`. Tests:
+`testFrameTags` (EditCommandTests), FTAG round trip (LegacyProjectFileReaderTests), Tags field
+in `testFramePanel`.

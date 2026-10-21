@@ -2,6 +2,11 @@
 
 ## 3.99.5
 
+**Frame tags**
+- Frames can be tagged (e.g. "Settings menu", "Multiball", "Wizard Mode") in the Frame
+  section's new *Tags* field; a frame can have several tags.
+- The timeline filter lists every tag, and the thumbnails show them as `#Multiball`.
+
 **Workspace**
 - Sidebar sections fit the canvas you're on:
   - Frame canvas, background editing and sprite editor each show only their own sections.
@@ -41,7 +46,13 @@
 **Colors**
 - The color picker can take colors from any palette of the project.
 
+**Frame tester**
+- The SD and HD pictures grow with the window.
+
 **Fixes**
+- A canvas selection stays visible on another frame instead of reappearing on the next Ctrl+click
+  (#17).
+- A double click on a frame in the timeline selects that frame alone (#18).
 - Names from Win32 projects with umlauts (e.g. "Grün") display correctly.
 - A dump with a damaged last frame now imports, dropping that frame.
 - Holding Space to pan keeps the hand cursor over the pixels.

@@ -34,6 +34,7 @@ constexpr std::array<char, 4> kHelperLinesTag = {'H', 'L', 'I', 'N'};
 constexpr std::array<char, 4> kPupPackTag = {'P', 'U', 'P', 'P'};
 constexpr std::array<char, 4> kScenesTag = {'S', 'C', 'E', 'N'};
 constexpr std::array<char, 4> kImageZonesTag = {'I', 'Z', 'O', 'N'};
+constexpr std::array<char, 4> kFrameTagsTag = {'F', 'T', 'A', 'G'};
 constexpr std::size_t kSceneBytes = 16;
 constexpr std::size_t kSceneFrameBytes = 12;
 constexpr std::size_t kChunkHeaderBytes = 16;
@@ -133,6 +134,42 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
         }
         appendChunk(chunks, kScenesTag, data);
     }
+    // The frames' tags: the names once, then per tagged frame the numbers of its names.
+    std::vector<std::string> names;
+    for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+        names.insert(names.end(), frame.tags.begin(), frame.tags.end());
+    }
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+    if (!names.empty()) {
+        std::string data;
+        appendLittleEndian(data, names.size(), 4);
+        for (const std::string& name : names) {
+            appendLittleEndian(data, name.size(), 4);
+            data += name;
+        }
+        std::size_t tagged = 0;
+        for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+            tagged += frame.tags.empty() ? 0 : 1;
+        }
+        appendLittleEndian(data, tagged, 4);
+        for (std::size_t index = 0; index < snapshot.frames.size(); ++index) {
+            const std::vector<std::string>& tags = snapshot.frames[index].tags;
+            if (tags.empty()) {
+                continue;
+            }
+            appendLittleEndian(data, index, 4);
+            appendLittleEndian(data, tags.size(), 4);
+            for (const std::string& tag : tags) {
+                appendLittleEndian(
+                    data,
+                    static_cast<std::size_t>(
+                        std::lower_bound(names.begin(), names.end(), tag) - names.begin()),
+                    4);
+            }
+        }
+        appendChunk(chunks, kFrameTagsTag, data);
+    }
     return chunks;
 }
 
@@ -209,6 +246,66 @@ bool parseScenes(LegacyByteSource& source,
     }
     left -= static_cast<uint64_t>(frameCount) * kSceneFrameBytes;
     snapshot.colorizationSettings = std::move(settings);
+    // Room a later version uses for more is skipped.
+    return source.skip(static_cast<std::size_t>(left)) || damaged();
+}
+
+bool parseFrameTags(LegacyByteSource& source,
+                    uint64_t size,
+                    document::ProjectSnapshot& snapshot,
+                    std::string& errorMessage)
+{
+    const auto damaged = [&]() {
+        errorMessage = "the frame tags of the .cRPX are damaged";
+        return false;
+    };
+    uint64_t left = size;
+    const auto readCount = [&](uint32_t& value) {
+        if (left < 4 || !source.readU32(value)) {
+            return false;
+        }
+        left -= 4;
+        return true;
+    };
+    uint32_t nameCount = 0;
+    if (!readCount(nameCount)) {
+        return damaged();
+    }
+    std::vector<std::string> names;
+    for (uint32_t index = 0; index < nameCount; ++index) {
+        uint32_t bytes = 0;
+        if (!readCount(bytes) || left < bytes) {
+            return damaged();
+        }
+        std::string name(bytes, '\0');
+        if (bytes > 0 && !source.readBytes(reinterpret_cast<uint8_t*>(name.data()), bytes)) {
+            return damaged();
+        }
+        left -= bytes;
+        names.push_back(std::move(name));
+    }
+    uint32_t taggedCount = 0;
+    if (!readCount(taggedCount)) {
+        return damaged();
+    }
+    for (uint32_t tagged = 0; tagged < taggedCount; ++tagged) {
+        uint32_t frame = 0;
+        uint32_t count = 0;
+        if (!readCount(frame) || !readCount(count) || frame >= snapshot.frames.size()) {
+            return damaged();
+        }
+        std::vector<std::string>& tags = snapshot.frames[frame].tags;
+        tags.clear();
+        for (uint32_t index = 0; index < count; ++index) {
+            uint32_t name = 0;
+            if (!readCount(name) || name >= names.size()) {
+                return damaged();
+            }
+            tags.push_back(names[name]);
+        }
+        std::sort(tags.begin(), tags.end());
+        tags.erase(std::unique(tags.begin(), tags.end()), tags.end());
+    }
     // Room a later version uses for more is skipped.
     return source.skip(static_cast<std::size_t>(left)) || damaged();
 }
@@ -422,6 +519,10 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kImageZonesTag.data(), 4) == 0) {
             if (!parseImageZones(source, size, snapshot.imageZones, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kFrameTagsTag.data(), 4) == 0) {
+            if (!parseFrameTags(source, size, snapshot, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kPupPackTag.data(), 4) == 0) {

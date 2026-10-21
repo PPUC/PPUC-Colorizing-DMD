@@ -589,6 +589,7 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         normalizedColorRotations(std::move(frameSnapshot.colorRotationsHd)),
         std::move(frameSnapshot.inactiveHd),
         frameSnapshot.scene,
+        std::move(frameSnapshot.tags),
     };
 }
 
@@ -1058,6 +1059,40 @@ void ProjectDocument::setSceneFrame(std::size_t frameIndex, std::optional<SceneF
     }
     frame.scene = scene;
     markChanged();
+}
+
+const std::vector<std::string>& ProjectDocument::frameTags(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).tags;
+}
+
+void ProjectDocument::setFrameTags(std::size_t frameIndex, std::vector<std::string> tags)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    for (std::string& tag : tags) {
+        const std::size_t first = tag.find_first_not_of(" \t");
+        const std::size_t last = tag.find_last_not_of(" \t");
+        tag = first == std::string::npos ? std::string() : tag.substr(first, last - first + 1);
+    }
+    tags.erase(std::remove(tags.begin(), tags.end(), std::string()), tags.end());
+    std::sort(tags.begin(), tags.end());
+    tags.erase(std::unique(tags.begin(), tags.end()), tags.end());
+    if (frame.tags == tags) {
+        return;
+    }
+    frame.tags = std::move(tags);
+    markChanged();
+}
+
+std::vector<std::string> ProjectDocument::allFrameTags() const
+{
+    std::vector<std::string> tags;
+    for (const FrameRecord& frame : m_frames) {
+        tags.insert(tags.end(), frame.tags.begin(), frame.tags.end());
+    }
+    std::sort(tags.begin(), tags.end());
+    tags.erase(std::unique(tags.begin(), tags.end()), tags.end());
+    return tags;
 }
 
 void ProjectDocument::setOriginalFrame(std::size_t frameIndex, IndexedFrame original)
@@ -3452,6 +3487,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.colorRotationsHd,
         frame.inactiveHd,
         frame.scene,
+        frame.tags,
     };
 }
 

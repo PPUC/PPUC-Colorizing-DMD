@@ -1580,6 +1580,14 @@
         <translation type="vanished">Voir AP</translation>
     </message>
     <message>
+        <source>The frame&apos;s tags, separated by commas; a change adds or removes them on all selected frames</source>
+        <translation>Les tags de la frame, séparés par des virgules ; une modification les ajoute ou les retire sur toutes les frames sélectionnées</translation>
+    </message>
+    <message>
+        <source>e.g. Multiball, Settings menu</source>
+        <translation>p. ex. Multiball, Menu des réglages</translation>
+    </message>
+    <message>
         <source>Show Background</source>
         <translation>Voir le fond</translation>
     </message>
@@ -1634,6 +1642,10 @@
     <message>
         <source>Scene</source>
         <translation>Scène</translation>
+    </message>
+    <message>
+        <source>Tags</source>
+        <translation>Tags</translation>
     </message>
     <message>
         <source>%1 (no such scene)</source>
@@ -3012,6 +3024,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Sprites</translation>
     </message>
     <message>
+        <source>Tag: %1</source>
+        <translation>Tag : %1</translation>
+    </message>
+    <message>
         <source>Background %1</source>
         <translation>Fond %1</translation>
     </message>
@@ -3996,6 +4012,13 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Assigned background %1 on %2</source>
         <translation>Arrière-plan %1 attribué sur %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Tags of %n frame(s) changed</source>
+        <translation>
+            <numerusform>Tags de %n frame modifiés</numerusform>
+            <numerusform>Tags de %n frames modifiés</numerusform>
+        </translation>
     </message>
     <message>
         <source>Editing background %1; Edit Background again goes back to the frame</source>

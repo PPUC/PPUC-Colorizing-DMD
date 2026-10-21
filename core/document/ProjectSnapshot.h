@@ -30,6 +30,7 @@ struct ProjectFrameSnapshot {
     std::optional<Rgb565Frame> inactiveHd;
     // .cRPX only.
     std::optional<SceneFrameRef> scene;
+    std::vector<std::string> tags;
 };
 
 struct ProjectSnapshot {

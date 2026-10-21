@@ -164,6 +164,8 @@ The `Frame` section exposes:
   clearing one clears it on the frames that have one of that kind. New frames start without a
   trigger.
 - `Duration` edits the per-frame `.cRP` duration for all selected frames.
+- `Tags` names the groups the frame is in, separated by commas; a change adds or removes those
+  tags on all selected frames (see "Frame List").
 - `Background ID`, trigger and `Duration` edits can be undone, see "Undo And Redo".
 - `Show Background` renders the assigned background layer into the colorized frame preview and is enabled
   by default.

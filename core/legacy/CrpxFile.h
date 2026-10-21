@@ -44,6 +44,10 @@ class LegacyByteSource;
 //            int8 contrast, uint8 blur, the start and the end zone as uint32 left, top, width,
 //            height in millionths of the picture (the end all 0 without one), uint32 name
 //            length, the name in UTF-8.
+//     "FTAG" the frames' tags (FrameRecord::tags), when a frame has one: uint32 count of
+//            names, per name uint32 length and the name in UTF-8; then uint32 count of tagged
+//            frames, per frame uint32 frame index, uint32 count of its tags and per tag
+//            uint32 the number of its name.
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 

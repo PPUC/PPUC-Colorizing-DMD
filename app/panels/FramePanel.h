@@ -14,7 +14,9 @@
 
 class QCheckBox;
 class QComboBox;
+class QCompleter;
 class QLabel;
+class QLineEdit;
 class QSpinBox;
 class QToolButton;
 
@@ -62,6 +64,8 @@ public:
     // that kind was cleared.
     std::function<void(document::TriggerKind kind, uint32_t triggerId)> onTriggerEdited;
     std::function<void(int durationMs)> onDurationEdited;
+    // The Tags field changed (comma-separated): see edit::retaggedFrame().
+    std::function<void(const QString& text)> onTagsEdited;
     std::function<void(bool checked)> onBackgroundLayerToggled;
     std::function<void(bool checked)> onSpritesLayerToggled;
     std::function<void()> onImportImageRequested;
@@ -82,6 +86,10 @@ private:
     QCheckBox* m_paletteMonochromeCheckBox = nullptr;
     QLabel* m_otherTriggerLabel = nullptr;
     QSpinBox* m_durationSpinBox = nullptr;
+    QLineEdit* m_tagsEdit = nullptr;
+    QCompleter* m_tagsCompleter = nullptr;
+    // The tags of the frame shown, as the field shows them.
+    QString m_shownTags;
     uint32_t m_triggerId = document::kNoTriggerId;
     QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_spritesLayerButton = nullptr;

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace colorizing::app {
@@ -19,6 +20,8 @@ struct CanvasPlace {
     // scene, the scene (-1: none).
     int filter = 0;
     int filterScene = -1;
+    // For the frames of a tag, the tag.
+    std::string filterTag;
 
     // The same canvas content: a background or a sprite is the same whatever the frame and the
     // timeline; a frame is the same frame in the same timeline.
@@ -26,7 +29,8 @@ struct CanvasPlace {
     {
         return kind == other.kind && index == other.index &&
                (kind != Kind::Frame ||
-                (filter == other.filter && filterScene == other.filterScene));
+                (filter == other.filter && filterScene == other.filterScene &&
+                 filterTag == other.filterTag));
     }
 };
 

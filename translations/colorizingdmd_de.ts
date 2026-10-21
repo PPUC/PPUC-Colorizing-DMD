@@ -1580,6 +1580,14 @@
         <translation type="vanished">HG zeigen</translation>
     </message>
     <message>
+        <source>The frame&apos;s tags, separated by commas; a change adds or removes them on all selected frames</source>
+        <translation>Die Tags des Frames, durch Kommas getrennt; eine Änderung fügt sie bei allen ausgewählten Frames hinzu oder entfernt sie</translation>
+    </message>
+    <message>
+        <source>e.g. Multiball, Settings menu</source>
+        <translation>z. B. Multiball, Einstellungsmenü</translation>
+    </message>
+    <message>
         <source>Show Background</source>
         <translation>Hintergrund zeigen</translation>
     </message>
@@ -1634,6 +1642,10 @@
     <message>
         <source>Scene</source>
         <translation>Szene</translation>
+    </message>
+    <message>
+        <source>Tags</source>
+        <translation>Tags</translation>
     </message>
     <message>
         <source>%1 (no such scene)</source>
@@ -3012,6 +3024,10 @@ Use Create %1 Frame.</source>
         <translation>Sprites</translation>
     </message>
     <message>
+        <source>Tag: %1</source>
+        <translation>Tag: %1</translation>
+    </message>
+    <message>
         <source>Background %1</source>
         <translation>Hintergrund %1</translation>
     </message>
@@ -3996,6 +4012,13 @@ Use Create %1 Frame.</source>
     <message>
         <source>Assigned background %1 on %2</source>
         <translation>Hintergrund %1 zugewiesen auf %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Tags of %n frame(s) changed</source>
+        <translation>
+            <numerusform>Tags von %n Frame geändert</numerusform>
+            <numerusform>Tags von %n Frames geändert</numerusform>
+        </translation>
     </message>
     <message>
         <source>Editing background %1; Edit Background again goes back to the frame</source>

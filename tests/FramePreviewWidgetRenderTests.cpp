@@ -3711,6 +3711,25 @@ void testFramePanel()
     expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
                document.backgroundId(0) == 0 && !document.isDirty(),
            "frame panel should leave the document untouched");
+
+    // Tags: the frame's, as a comma list; a change is reported once.
+    colorizing::document::ProjectDocument tagged = makeInspectorPanelDocument();
+    tagged.setFrameTags(0, {"Multiball", "Wizard Mode"});
+    panel.refresh(stateFor(tagged, 0));
+    auto* tagsEdit = childByToolTip<QLineEdit>(
+        panel, "The frame's tags, separated by commas; a change adds or removes them on all "
+               "selected frames");
+    expect(tagsEdit->isEnabled() && tagsEdit->text() == QStringLiteral("Multiball, Wizard Mode"),
+           "the Tags field shows the frame's tags");
+    std::vector<QString> tagEdits;
+    panel.onTagsEdited = [&](const QString& text) { tagEdits.push_back(text); };
+    tagsEdit->setText(QStringLiteral("Multiball, Jackpot"));
+    Q_EMIT tagsEdit->editingFinished();
+    Q_EMIT tagsEdit->editingFinished();
+    expect(tagEdits == std::vector<QString>{QStringLiteral("Multiball, Jackpot")},
+           "a changed Tags field is reported once");
+    panel.refresh(stateFor(tagged, std::nullopt));
+    expect(!tagsEdit->isEnabled() && tagsEdit->text().isEmpty(), "no frame, no tags");
 }
 
 void testRecordListPage()

@@ -132,6 +132,9 @@ struct FrameRecord {
     std::optional<Rgb565Frame> inactiveHd;
     // The scene frame this frame is (.cRPX only).
     std::optional<SceneFrameRef> scene;
+    // The author's tags of the frame ("Multiball", "Settings menu"), sorted, each once
+    // (.cRPX only): groups of frames to filter the frame strip by.
+    std::vector<std::string> tags;
 };
 
 // Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
@@ -348,6 +351,12 @@ public:
     // editor file has none, as one of the Win32 editor (see importColorizationSidecars()).
     [[nodiscard]] const std::optional<ColorizationSettings>& colorizationSettings() const;
     void setColorizationSettings(std::optional<ColorizationSettings> settings);
+    // The frame's tags (FrameRecord::tags). setFrameTags() sorts them, drops empty ones and
+    // repeats, and trims blanks.
+    [[nodiscard]] const std::vector<std::string>& frameTags(std::size_t frameIndex) const;
+    void setFrameTags(std::size_t frameIndex, std::vector<std::string> tags);
+    // Every tag of the project's frames, sorted.
+    [[nodiscard]] std::vector<std::string> allFrameTags() const;
     // The scene frame the frame is, if it is one.
     [[nodiscard]] const std::optional<SceneFrameRef>& sceneFrame(std::size_t frameIndex) const;
     void setSceneFrame(std::size_t frameIndex, std::optional<SceneFrameRef> scene);

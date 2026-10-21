@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -331,6 +332,24 @@ private:
     FrameAttribute m_attribute;
     uint32_t m_oldValue;
     uint32_t m_newValue;
+};
+
+// The tags of one frame (ProjectDocument::frameTags()), in the frame's settings history.
+class FrameTagsCommand final : public EditCommand {
+public:
+    FrameTagsCommand(std::size_t frameIndex,
+                     std::vector<std::string> before,
+                     std::vector<std::string> after);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
+
+private:
+    std::size_t m_frameIndex;
+    std::vector<std::string> m_before;
+    std::vector<std::string> m_after;
 };
 
 // Create HD or Remove HD of a frame: swaps the frame's HD data, and the related HD data the

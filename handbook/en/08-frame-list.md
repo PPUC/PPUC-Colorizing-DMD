@@ -82,7 +82,20 @@ selected in the section used last on the left (opened, or clicked in): the compa
 (`Sprites`), or the frames of the selected scene (`Scenes`); before any was used, the first open
 one. It follows both: choosing another one, or using another section, shows its frames. While a
 scene's frames are listed, `Leave Scene` below the filter goes back to the frames and the frame
-shown before (see "Scenes and Scaling").
+shown before (see "Scenes and Scaling"). At the end of the list come the project's tags, one
+entry each (`Tag: Multiball`): the frames with that tag.
+
+### Tags
+
+Tags group frames by what they show, such as `Settings menu`, `Multiball` or `Wizard Mode`, to
+list a group in the strip with the filter. A frame can have several tags, so it can be in
+several groups. The `Tags` field of the Inspector's `Frame` section shows the current frame's
+tags, separated by commas, and offers the project's tags while one is typed. Changing the field
+changes all selected frames: a tag added there is added to each of them, a tag removed there
+is removed from each, and their other tags stay. Each frame's change is a step of its settings
+history (`Undo`). The tags show below the thumbnails as `#Multiball` and are saved in the
+`.cRPX`; libserum does not see them. A tag no frame has any more leaves the filter; a filter on
+it goes back to all frames. The toolbar's `<` and `>` keep the tag of a tag filter.
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.
 

@@ -2,18 +2,23 @@
 
 #include <algorithm>
 
+#include <QAbstractItemView>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCompleter>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QStringListModel>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 #include "panels/InspectorForm.h"
 #include "PlaneLabels.h"
+#include "edit/FrameTags.h"
 
 namespace colorizing::app {
 
@@ -57,6 +62,46 @@ FramePanel::FramePanel(QWidget* parent)
     m_durationSpinBox->setSingleStep(10);
     m_durationSpinBox->setSuffix(tr(" ms"));
     m_durationSpinBox->setEnabled(false);
+    // Tags: groups of frames ("Multiball", "Settings menu") to filter the frame strip by.
+    m_tagsEdit = new QLineEdit(this);
+    m_tagsEdit->setToolTip(tr("The frame's tags, separated by commas; a change adds or removes "
+                              "them on all selected frames"));
+    m_tagsEdit->setPlaceholderText(tr("e.g. Multiball, Settings menu"));
+    m_tagsEdit->setEnabled(false);
+    // Completes the tag being typed (after the last comma) from the project's tags.
+    m_tagsCompleter = new QCompleter(this);
+    m_tagsCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+    m_tagsCompleter->setModel(new QStringListModel(m_tagsCompleter));
+    m_tagsCompleter->setWidget(m_tagsEdit);
+    connect(m_tagsEdit, &QLineEdit::textEdited, this, [this](const QString& text) {
+        const QString typed = text.section(QLatin1Char(','), -1).trimmed();
+        if (typed.isEmpty()) {
+            m_tagsCompleter->popup()->hide();
+            return;
+        }
+        m_tagsCompleter->setCompletionPrefix(typed);
+        m_tagsCompleter->complete();
+    });
+    connect(m_tagsCompleter, static_cast<void (QCompleter::*)(const QString&)>(
+                                 &QCompleter::activated),
+            this, [this](const QString& tag) {
+                // The tag replaces what is typed after the last comma.
+                const QString text = m_tagsEdit->text();
+                const int comma = text.lastIndexOf(QLatin1Char(','));
+                const QString before =
+                    comma < 0 ? QString() : text.left(comma + 1) + QLatin1Char(' ');
+                m_tagsEdit->setText(before + tag);
+            });
+    connect(m_tagsEdit, &QLineEdit::editingFinished, this, [this]() {
+        // Only a change counts (focus leaving the field changes nothing).
+        if (m_tagsCompleter->popup()->isVisible() || m_tagsEdit->text() == m_shownTags) {
+            return;
+        }
+        m_shownTags = m_tagsEdit->text();
+        if (onTagsEdited) {
+            onTagsEdited(m_tagsEdit->text());
+        }
+    });
     m_backgroundLayerButton = new QToolButton(this);
     m_backgroundLayerButton->setText(tr("Show Background"));
     m_backgroundLayerButton->setToolTip(tr("Show assigned background layer"));
@@ -94,6 +139,7 @@ FramePanel::FramePanel(QWidget* parent)
     form->addRow(m_paletteMonochromeCheckBox);
     form->addRow(m_otherTriggerLabel);
     form->addRow(tr("Duration"), m_durationSpinBox);
+    form->addRow(tr("Tags"), m_tagsEdit);
     pageLayout->addLayout(form);
     auto* layerLayout = new QHBoxLayout();
     layerLayout->addWidget(m_backgroundLayerButton);
@@ -228,6 +274,9 @@ void FramePanel::refresh(const FramePanelState& state)
         m_durationSpinBox->setValue(0);
         m_durationSpinBox->setEnabled(false);
         m_durationSpinBox->setToolTip(tr("Per-frame cRP duration"));
+        m_tagsEdit->clear();
+        m_shownTags.clear();
+        m_tagsEdit->setEnabled(false);
         m_backgroundLayerButton->setEnabled(false);
         m_spritesLayerButton->setEnabled(false);
         m_importImageButton->setEnabled(false);
@@ -270,6 +319,20 @@ void FramePanel::refresh(const FramePanelState& state)
     m_otherTriggerLabel->setText(
         tr("Trigger ID %1 is kept until another trigger is chosen").arg(triggerId));
     m_otherTriggerLabel->setVisible(kind == document::TriggerKind::Other);
+    m_shownTags = QString::fromStdString(edit::frameTagsText(document->frameTags(frameIndex)));
+    // Not while it is being typed in: a refresh would throw the typing away.
+    if (!m_tagsEdit->hasFocus() || !m_tagsEdit->isModified()) {
+        m_tagsEdit->setText(m_shownTags);
+        m_tagsEdit->setModified(false);
+    }
+    m_tagsEdit->setEnabled(true);
+    {
+        QStringList known;
+        for (const std::string& tag : document->allFrameTags()) {
+            known << QString::fromStdString(tag);
+        }
+        static_cast<QStringListModel*>(m_tagsCompleter->model())->setStringList(known);
+    }
     const uint32_t durationMs = document->frameDurationMs(frameIndex);
     m_durationSpinBox->setEnabled(true);
     m_durationSpinBox->setValue(durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)

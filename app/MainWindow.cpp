@@ -97,6 +97,7 @@
 #include "dialogs/SelectionDialogs.h"
 #include "edit/EditBatch.h"
 #include "edit/FrameContentCommand.h"
+#include "edit/FrameTags.h"
 #include "edit/ColorSetEdits.h"
 #include "document/Upscale.h"
 #include "edit/HelperLines.h"
@@ -1229,6 +1230,7 @@ void MainWindow::createCentralView()
     m_framePanel->onDurationEdited = [this](int durationMs) {
         setCurrentFrameDurationMs(durationMs);
     };
+    m_framePanel->onTagsEdited = [this](const QString& text) { setSelectedFramesTags(text); };
     m_framePanel->onBackgroundLayerToggled = [this](bool checked) {
         if (m_preview) {
             m_preview->setBackgroundLayerEnabled(checked);
@@ -4504,10 +4506,12 @@ void MainWindow::updateFrameFilterChoices()
             ? m_document->colorizationSettings()->scenes
             : std::vector<document::SceneDefinition>{};
     const int current = m_frameFilterComboBox->currentData().toInt();
+    const QString currentTag = m_frameFilterComboBox->currentData(kFilterTagRole).toString();
     for (int index = m_frameFilterComboBox->count() - 1; index >= 0; --index) {
         const int data = m_frameFilterComboBox->itemData(index).toInt();
         if (data == static_cast<int>(FrameFilter::SceneFrames) ||
-            data == static_cast<int>(FrameFilter::WithoutSceneFrames)) {
+            data == static_cast<int>(FrameFilter::WithoutSceneFrames) ||
+            data == static_cast<int>(FrameFilter::Tagged)) {
             m_frameFilterComboBox->removeItem(index);
         }
     }
@@ -4517,8 +4521,29 @@ void MainWindow::updateFrameFilterChoices()
         m_frameFilterComboBox->addItem(tr("Without scene frames"),
                                        static_cast<int>(FrameFilter::WithoutSceneFrames));
     }
-    const int restored = m_frameFilterComboBox->findData(current);
+    // The frames' tags, one entry each, at the very end.
+    int restored = -1;
+    if (m_document) {
+        for (const std::string& tag : m_document->allFrameTags()) {
+            const QString name = QString::fromStdString(tag);
+            m_frameFilterComboBox->addItem(tr("Tag: %1").arg(name),
+                                           static_cast<int>(FrameFilter::Tagged));
+            m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1, name,
+                                               kFilterTagRole);
+            if (current == static_cast<int>(FrameFilter::Tagged) && name == currentTag) {
+                restored = m_frameFilterComboBox->count() - 1;
+            }
+        }
+    }
+    if (current != static_cast<int>(FrameFilter::Tagged)) {
+        restored = m_frameFilterComboBox->findData(current);
+    }
     m_frameFilterComboBox->setCurrentIndex(restored >= 0 ? restored : 0);
+    if (current == static_cast<int>(FrameFilter::Tagged) && restored < 0) {
+        // The tag shown is on no frame any more: all frames.
+        blocker.unblock();
+        refreshFrameList(currentFrameIndex());
+    }
 }
 
 QString MainWindow::frameListItemText(std::size_t frameIndex) const
@@ -4579,6 +4604,9 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     }
     if (m_document->frameReferenceProblems(frameIndex).any()) {
         details << tr("ref. problem");
+    }
+    for (const std::string& tag : m_document->frameTags(frameIndex)) {
+        details << QStringLiteral("#%1").arg(QString::fromStdString(tag));
     }
     QString first = QString::number(static_cast<qulonglong>(frameIndex));
     if (const std::optional<std::size_t> section =
@@ -4867,6 +4895,12 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
                                                  : static_cast<int>(FrameFilter::All);
     const std::optional<document::SceneFrameRef>& scene = m_document->sceneFrame(frameIndex);
     const FrameFilter filter = static_cast<FrameFilter>(filterData);
+    if (filter == FrameFilter::Tagged) {
+        const std::string tag =
+            m_frameFilterComboBox->currentData(kFilterTagRole).toString().toStdString();
+        const std::vector<std::string>& tags = m_document->frameTags(frameIndex);
+        return std::find(tags.begin(), tags.end(), tag) != tags.end();
+    }
     if (filter == FrameFilter::SceneFrames) {
         return scene.has_value();
     }
@@ -5766,6 +5800,37 @@ void MainWindow::setSelectedFramesTrigger(document::TriggerKind kind, uint32_t t
         updateUndoRedoActions();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+void MainWindow::setSelectedFramesTags(const QString& text)
+{
+    const std::optional<std::size_t> current = currentFrameIndex();
+    if (!m_document || !current) {
+        return;
+    }
+    const std::vector<std::string> before = m_document->frameTags(*current);
+    const std::vector<std::string> after = edit::parseFrameTags(text.toStdString());
+    std::vector<std::size_t> changed;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        std::vector<std::string> tags =
+            edit::retaggedFrame(m_document->frameTags(frameIndex), before, after);
+        if (tags == m_document->frameTags(frameIndex)) {
+            continue;
+        }
+        auto command = std::make_unique<edit::FrameTagsCommand>(
+            frameIndex, m_document->frameTags(frameIndex), std::move(tags));
+        command->apply(*m_document);
+        const edit::HistoryKey key = edit::historyKey(command->target());
+        m_undoHistories.push(key, std::move(command));
+        changed.push_back(frameIndex);
+    }
+    updateFrameListItems(changed);
+    updateFrameFilterChoices();
+    updateFrameMetadataControls();
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(
+        tr("Tags of %n frame(s) changed", "", static_cast<int>(changed.size())), 2500);
 }
 
 void MainWindow::setCurrentFrameDurationMs(int durationMs)
@@ -7748,6 +7813,8 @@ CanvasPlace MainWindow::currentCanvasPlace() const
     place.index = place.frame;
     if (m_frameFilterComboBox) {
         place.filter = m_frameFilterComboBox->currentData().toInt();
+        place.filterTag =
+            m_frameFilterComboBox->currentData(kFilterTagRole).toString().toStdString();
         // The frames of a scene: the scene selected in the Scenes section, in use.
         if (static_cast<FrameFilter>(place.filter) == FrameFilter::UsesSelectedAsset &&
             m_scenesPanel && m_leftBrowserTabs &&
@@ -7857,7 +7924,11 @@ void MainWindow::showCanvasPlace(const CanvasPlace& place)
         m_leftBrowserTabs->markCurrent(m_scenesPanel);
     }
     if (m_frameFilterComboBox) {
-        const int filterIndex = m_frameFilterComboBox->findData(place.filter);
+        int filterIndex = m_frameFilterComboBox->findData(place.filter);
+        if (!place.filterTag.empty()) {
+            filterIndex = m_frameFilterComboBox->findData(QString::fromStdString(place.filterTag),
+                                                          kFilterTagRole);
+        }
         if (filterIndex >= 0 && filterIndex != m_frameFilterComboBox->currentIndex()) {
             m_frameFilterComboBox->setCurrentIndex(filterIndex);
         } else if (place.filterScene >= 0) {
@@ -10250,6 +10321,10 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             updateProjectHeaderStatus();
             break;
         case edit::EditKind::FrameAttributes:
+            // A tag that comes or goes: the frame filter's entries follow.
+            if (dynamic_cast<const edit::FrameTagsCommand*>(&command)) {
+                updateFrameFilterChoices();
+            }
             if (hdDataReplaced) {
                 const std::optional<std::size_t> frameIndex = currentFrameIndex();
                 if (m_activeResolution == render::Resolution::Hd && frameIndex &&

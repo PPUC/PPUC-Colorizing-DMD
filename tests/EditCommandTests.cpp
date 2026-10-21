@@ -1,4 +1,5 @@
 #include "edit/EditCommand.h"
+#include "edit/FrameTags.h"
 #include "edit/UndoHistories.h"
 
 #include <cstdlib>
@@ -1156,8 +1157,46 @@ void testCommandThatFailsStaysInItsHistory()
 
 }  // namespace
 
+// Frame tags: groups of frames, a frame in several.
+void testFrameTags()
+{
+    using colorizing::edit::frameTagsText;
+    using colorizing::edit::parseFrameTags;
+    using colorizing::edit::retaggedFrame;
+    using Tags = std::vector<std::string>;
+    expect(parseFrameTags(" Wizard Mode,Multiball , ,multiball, Multiball") ==
+               Tags{"Multiball", "Wizard Mode", "multiball"},
+           "a comma list is trimmed, sorted, each tag once, empty ones out");
+    expect(frameTagsText({"Multiball", "Wizard Mode"}) == "Multiball, Wizard Mode",
+           "and shown as such a list");
+    // The field of the current frame (before -> after) applied to another selected frame.
+    expect(retaggedFrame({"Bonus", "Multiball"}, {"Multiball"}, {"Multiball", "Jackpot"}) ==
+               Tags{"Bonus", "Jackpot", "Multiball"},
+           "a tag added in the field is added, the frame's own stay");
+    expect(retaggedFrame({"Bonus", "Multiball"}, {"Multiball"}, {}) == Tags{"Bonus"},
+           "a tag removed in the field is removed");
+    expect(retaggedFrame({"Bonus"}, {"Multiball"}, {"Multiball"}) == Tags{"Bonus"},
+           "an unchanged field changes nothing");
+
+    ProjectDocument document = makeDocument();
+    document.setFrameTags(0, {" Wizard Mode ", "Multiball", "", "Multiball"});
+    expect(document.frameTags(0) == Tags{"Multiball", "Wizard Mode"} && document.isDirty(),
+           "the document keeps a frame's tags sorted, trimmed, each once");
+    document.setFrameTags(1, {"Bonus", "Multiball"});
+    expect(document.allFrameTags() == Tags{"Bonus", "Multiball", "Wizard Mode"},
+           "the project's tags, each once");
+    colorizing::edit::FrameTagsCommand command(1, {"Bonus", "Multiball"}, {"Bonus"});
+    expect(command.target().kind == EditKind::FrameAttributes && command.target().index == 1,
+           "a tag change is a step of the frame's settings");
+    command.apply(document);
+    expect(document.frameTags(1) == Tags{"Bonus"}, "apply sets the tags");
+    command.revert(document);
+    expect(document.frameTags(1) == Tags{"Bonus", "Multiball"}, "undo puts them back");
+}
+
 void runEditCommandTests()
 {
+    testFrameTags();
     testFramePixelCommand();
     testBackgroundImageCommand();
     testSpriteImageCommand();
