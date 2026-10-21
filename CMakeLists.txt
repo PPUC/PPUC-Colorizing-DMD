@@ -98,6 +98,9 @@ set(COLORIZINGDMD_VPINBALL_DIR "" CACHE PATH
 set(COLORIZINGDMD_DMDUTIL_PREFIX "" CACHE PATH
     "libdmdutil staged by packaging/build-libdmdutil.sh; empty builds without DMD output")
 
+# WS2812FX, the speaker light effects, for the preview (third-party/WS2812FX/README.md).
+add_subdirectory(third-party/WS2812FX)
+
 add_subdirectory(core)
 
 if(COLORIZINGDMD_QT_V2_BUILD_APP)

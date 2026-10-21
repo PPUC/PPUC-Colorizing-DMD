@@ -2138,3 +2138,30 @@ features hang off later targets.
   `testLibserumTarget` (SceneEditTests), `testProjectSettings` (ScenesWidgetTests),
   `testSpritePanelWarnsAboutManySprites`.
 - Open: CI's `LIBSERUM_SHA` must move to the libserum commit once it is pushed.
+
+## Speaker lights (2026-10-21, owner request)
+
+The author drives the DMD's speaker lights (WS2812FX strips, up to 4 channels, LED count set
+on the device) from the colorization. Owner decisions: effects live in the cROM via libserum;
+a frame has its own per-channel field (independent of its trigger); brightness and RGB/RGBW
+stay in the device menu (an effect scales the brightness); the ambient lighting colors are suggested
+from the frame and editable.
+
+- Model (core/document/SpeakerLights.h): `LightEffect` (stable ID, name, WS2812FX mode,
+  options, speed, duration, 3 colors 0xWWRRGGBB, brightness scale), `LightAction` per channel
+  (Unchanged, Effect, Color, Off), `SpeakerLightSettings` (effects, defaults) on the document;
+  `FrameRecord::lights`. Edits: core/edit/SpeakerLightEdits (FrameLightsCommand in the frame's
+  settings history; SpeakerLightsCommand in the structure history, removeLightEffect() clears
+  the frames and defaults naming it; suggestedAmbientLighting()).
+- Storage: .cRPX chunk `LGHT` (everything, names and IDs); the cROM settings block gets the
+  lights part (`kCromSettingsLights`, libserum 08269e4, effects by position), also without
+  colorization settings. A project without lights writes no block, as before.
+- libserum (local commit 08269e4, concentrate version 11): `Serum_GetLightEffects()` /
+  `Serum_GetDefaultLightEffects()`. RuntimePreview reports them per call
+  (`RuntimeFrame::lights`, `defaultLights()`).
+- Preview: third-party/WS2812FX vendors the library at the firmware's pin (6a5cb5b) with a
+  desktop Adafruit_NeoPixel/Arduino stand-in and a virtual clock;
+  runtime/SpeakerLightPlayer runs one channel (duration, back to the default),
+  `lightsShownAt()` what plays at a frame in the editor.
+- Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,
+  libserum end to end).

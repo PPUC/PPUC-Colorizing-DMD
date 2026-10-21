@@ -86,6 +86,9 @@ struct RuntimeFrame {
     // The trigger libserum reported, or document::kNoTriggerId. libserum does not repeat a
     // trigger it reported less than 500 ms ago, in this process, whatever was loaded since.
     uint32_t triggerId = document::kNoTriggerId;
+    // The speaker light effects libserum started with this call, per channel
+    // (Serum_GetLightEffects()); nothing for a channel it left alone.
+    std::array<std::optional<document::LightEffect>, document::kLightChannels> lights{};
     // Milliseconds until libserum wants rotate() called; 0 when nothing rotates.
     uint32_t nextRotationMs = 0;
     // The frame whose picture libserum shows, as a document frame index: the one it reported
@@ -194,6 +197,10 @@ public:
                                    std::string* errorMessage = nullptr,
                                    bool withScenes = true);
     [[nodiscard]] bool isOpen() const;
+    // The speaker light defaults of the loaded colorization (Serum_GetDefaultLightEffects()),
+    // nothing per channel for a colorization without speaker lights.
+    [[nodiscard]] std::array<std::optional<document::LightEffect>, document::kLightChannels>
+    defaultLights() const;
     // Whether the loaded window plays the document frame.
     [[nodiscard]] bool sequenceHasFrame(std::size_t frameIndex) const;
     // Feeds the ROM frame the sequence was opened with for that document frame.

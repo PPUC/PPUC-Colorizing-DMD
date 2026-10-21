@@ -32,6 +32,7 @@ struct ProjectFrameSnapshot {
     // .cRPX only.
     std::optional<SceneFrameRef> scene;
     std::vector<std::string> tags;
+    LightActions lights{};
 };
 
 struct ProjectSnapshot {
@@ -64,6 +65,8 @@ struct ProjectSnapshot {
     // The cROM's settings block (.cRPX, and the cROM written from it); nothing for a project
     // of the Win32 editor.
     std::optional<ColorizationSettings> colorizationSettings;
+    // The speaker lights (.cRPX, and the cROM's settings block written from them).
+    SpeakerLightSettings speakerLights;
 };
 
 [[nodiscard]] Size originalFrameSize(const ProjectSnapshot& snapshot);

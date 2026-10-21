@@ -37,6 +37,10 @@ constexpr std::array<char, 4> kImageZonesTag = {'I', 'Z', 'O', 'N'};
 constexpr std::array<char, 4> kFrameTagsTag = {'F', 'T', 'A', 'G'};
 constexpr std::array<char, 4> kLibserumTargetTag = {'L', 'S', 'R', 'T'};
 constexpr std::array<char, 4> kMoreSpritesTag = {'S', 'P', 'R', 'X'};
+constexpr std::array<char, 4> kLightsTag = {'L', 'G', 'H', 'T'};
+// Per effect of LGHT before its name, and per action.
+constexpr std::size_t kLightEffectBytes = 28;
+constexpr std::size_t kLightActionBytes = 8;
 // Per sprite of SPRX: the name, the source frame, the rectangle, the mirrors.
 constexpr std::size_t kMoreSpriteBytes = document::kSpriteNameBytes + 4 + 4 * 2 + 2 * 4;
 constexpr std::size_t kSceneBytes = 16;
@@ -179,6 +183,53 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
         data.push_back(static_cast<char>(snapshot.libserumTarget));
         appendLittleEndian(data, 0, 3);
         appendChunk(chunks, kLibserumTargetTag, data);
+    }
+    // The speaker lights.
+    {
+        const document::SpeakerLightSettings& lights = snapshot.speakerLights;
+        std::size_t framesWithLights = 0;
+        for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+            framesWithLights += document::changesNothing(frame.lights) ? 0 : 1;
+        }
+        if (!lights.empty() || framesWithLights > 0) {
+            std::string data;
+            const auto putAction = [&data](const document::LightAction& action) {
+                data.push_back(static_cast<char>(action.kind));
+                data.push_back(0);
+                appendLittleEndian(data, action.effectId, 2);
+                appendLittleEndian(data, action.color, 4);
+            };
+            appendLittleEndian(data, lights.effects.size(), 4);
+            for (const document::LightEffect& effect : lights.effects) {
+                appendLittleEndian(data, effect.id, 2);
+                data.push_back(static_cast<char>(effect.mode));
+                data.push_back(static_cast<char>(effect.options));
+                appendLittleEndian(data, effect.speed, 2);
+                appendLittleEndian(data, 0, 2);
+                appendLittleEndian(data, effect.durationMs, 4);
+                for (uint32_t color : effect.colors) {
+                    appendLittleEndian(data, color, 4);
+                }
+                data.push_back(static_cast<char>(effect.brightness));
+                appendLittleEndian(data, 0, 3);
+                appendLittleEndian(data, effect.name.size(), 4);
+                data += effect.name;
+            }
+            for (const document::LightAction& action : lights.defaults) {
+                putAction(action);
+            }
+            appendLittleEndian(data, framesWithLights, 4);
+            for (std::size_t index = 0; index < snapshot.frames.size(); ++index) {
+                if (document::changesNothing(snapshot.frames[index].lights)) {
+                    continue;
+                }
+                appendLittleEndian(data, index, 4);
+                for (const document::LightAction& action : snapshot.frames[index].lights) {
+                    putAction(action);
+                }
+            }
+            appendChunk(chunks, kLightsTag, data);
+        }
     }
     // The sprite table entries the cRP part has no room for.
     if (snapshot.sprites.size() > document::kCrpSpriteEntries) {
@@ -378,6 +429,98 @@ bool parseLibserumTarget(LegacyByteSource& source,
         return false;
     }
     return true;
+}
+
+bool parseLights(LegacyByteSource& source,
+                 uint64_t size,
+                 document::ProjectSnapshot& snapshot,
+                 std::string& errorMessage)
+{
+    const auto damaged = [&]() {
+        errorMessage = "the speaker lights of the .cRPX are damaged";
+        return false;
+    };
+    uint64_t left = size;
+    const auto read = [&](uint8_t* bytes, std::size_t count) {
+        if (left < count || !source.readBytes(bytes, count)) {
+            return false;
+        }
+        left -= count;
+        return true;
+    };
+    const auto readAction = [&](document::LightAction& action) {
+        uint8_t bytes[kLightActionBytes] = {};
+        if (!read(bytes, kLightActionBytes) ||
+            bytes[0] > static_cast<uint8_t>(document::LightActionKind::Off)) {
+            return false;
+        }
+        action.kind = static_cast<document::LightActionKind>(bytes[0]);
+        action.effectId = littleEndian16(bytes + 2);
+        action.color = littleEndian32(bytes + 4);
+        return true;
+    };
+    document::SpeakerLightSettings lights;
+    uint8_t countBytes[4] = {};
+    if (!read(countBytes, 4)) {
+        return damaged();
+    }
+    const uint32_t effectCount = littleEndian32(countBytes);
+    if (left < uint64_t{effectCount} * (kLightEffectBytes + 4)) {
+        return damaged();
+    }
+    for (uint32_t index = 0; index < effectCount; ++index) {
+        uint8_t bytes[kLightEffectBytes + 4] = {};
+        if (!read(bytes, sizeof(bytes))) {
+            return damaged();
+        }
+        document::LightEffect effect;
+        effect.id = littleEndian16(bytes);
+        effect.mode = bytes[2];
+        effect.options = bytes[3];
+        effect.speed = littleEndian16(bytes + 4);
+        effect.durationMs = littleEndian32(bytes + 8);
+        for (std::size_t i = 0; i < 3; ++i) {
+            effect.colors[i] = littleEndian32(bytes + 12 + 4 * i);
+        }
+        effect.brightness = bytes[24];
+        const uint32_t nameBytes = littleEndian32(bytes + kLightEffectBytes);
+        if (left < nameBytes) {
+            return damaged();
+        }
+        effect.name.assign(nameBytes, '\0');
+        if (nameBytes > 0 &&
+            !read(reinterpret_cast<uint8_t*>(effect.name.data()), nameBytes)) {
+            return damaged();
+        }
+        lights.effects.push_back(std::move(effect));
+    }
+    for (document::LightAction& action : lights.defaults) {
+        if (!readAction(action)) {
+            return damaged();
+        }
+    }
+    if (!read(countBytes, 4)) {
+        return damaged();
+    }
+    const uint32_t frameCount = littleEndian32(countBytes);
+    for (uint32_t index = 0; index < frameCount; ++index) {
+        uint8_t frameBytes[4] = {};
+        if (!read(frameBytes, 4)) {
+            return damaged();
+        }
+        const uint32_t frame = littleEndian32(frameBytes);
+        if (frame >= snapshot.frames.size()) {
+            return damaged();
+        }
+        for (document::LightAction& action : snapshot.frames[frame].lights) {
+            if (!readAction(action)) {
+                return damaged();
+            }
+        }
+    }
+    snapshot.speakerLights = std::move(lights);
+    // Room a later version uses for more is skipped.
+    return source.skip(static_cast<std::size_t>(left)) || damaged();
 }
 
 bool parseMoreSprites(LegacyByteSource& source,
@@ -644,6 +787,10 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kLibserumTargetTag.data(), 4) == 0) {
             if (!parseLibserumTarget(source, size, snapshot, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kLightsTag.data(), 4) == 0) {
+            if (!parseLights(source, size, snapshot, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kMoreSpritesTag.data(), 4) == 0) {

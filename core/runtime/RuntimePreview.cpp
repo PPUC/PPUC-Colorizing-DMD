@@ -23,6 +23,35 @@ namespace colorizing::runtime {
 
 namespace {
 
+// libserum's effect as the editor's (no ID, no name).
+document::LightEffect lightEffectOf(const Serum_Light_Effect& effect)
+{
+    document::LightEffect light;
+    light.mode = effect.mode;
+    light.options = effect.options;
+    light.speed = effect.speed;
+    light.durationMs = effect.durationMs;
+    for (std::size_t i = 0; i < light.colors.size(); ++i) {
+        light.colors[i] = effect.colors[i];
+    }
+    light.brightness = effect.brightness;
+    return light;
+}
+
+// The speaker light effects libserum started since it was asked last.
+std::array<std::optional<document::LightEffect>, document::kLightChannels> takeLightEffects()
+{
+    std::array<std::optional<document::LightEffect>, document::kLightChannels> lights{};
+    Serum_Light_Effect effects[SERUM_LIGHT_CHANNELS] = {};
+    const uint32_t mask = Serum_GetLightEffects(effects);
+    for (std::size_t channel = 0; channel < document::kLightChannels; ++channel) {
+        if (mask & (1u << channel)) {
+            lights[channel] = lightEffectOf(effects[channel]);
+        }
+    }
+    return lights;
+}
+
 using Clock = std::chrono::steady_clock;
 
 double millisecondsSince(Clock::time_point start)
@@ -585,6 +614,9 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
         // colorization starts with, which leaves its search exactly where it was.
         romFrame.assign(replay->pixels.begin(), replay->pixels.end());
         const uint32_t result = Serum_Colorize(romFrame.data());
+        // Not played: what it started on the lights is not shown.
+        Serum_Light_Effect unused[SERUM_LIGHT_CHANNELS];
+        (void)Serum_GetLightEffects(unused);
         if (result != IDENTIFY_NO_FRAME && result != IDENTIFY_SAME_FRAME) {
             RuntimeFrame frame;
             frame.identified = true;
@@ -633,6 +665,7 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     const Clock::time_point start = Clock::now();
     const uint32_t result = Serum_Colorize(romFrame.data());
     frame.cost.colorizeMs = millisecondsSince(start);
+    const auto lights = takeLightEffects();
     const char* lastError = Serum_GetLastErrorMessage();
     if (lastError && lastError[0] != '\0') {
         frame.error = lastError;
@@ -682,6 +715,7 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
         return frame;
     }
     frame.triggerId = serum->triggerID;
+    frame.lights = lights;
     frame.nextRotationMs = result & 0xffff;
     frame.shownFrameIndex = reported;
     readPlanes(frame);
@@ -814,6 +848,24 @@ bool RuntimePreview::openProject(const document::ProjectDocument& document,
     return m_impl->loadProject(document, request, errorMessage, withScenes);
 }
 
+std::array<std::optional<document::LightEffect>, document::kLightChannels>
+RuntimePreview::defaultLights() const
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    std::array<std::optional<document::LightEffect>, document::kLightChannels> lights{};
+    if (!m_impl->serum) {
+        return lights;
+    }
+    Serum_Light_Effect effects[SERUM_LIGHT_CHANNELS] = {};
+    const uint32_t mask = Serum_GetDefaultLightEffects(effects);
+    for (std::size_t channel = 0; channel < document::kLightChannels; ++channel) {
+        if (mask & (1u << channel)) {
+            lights[channel] = lightEffectOf(effects[channel]);
+        }
+    }
+    return lights;
+}
+
 bool RuntimePreview::isOpen() const
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
@@ -874,6 +926,8 @@ RuntimeFrame RuntimePreview::rotate()
     RuntimeFrame frame = shown;
     frame.unchanged = !rotated;
     frame.triggerId = document::kNoTriggerId;
+    // A scene step can start effects: its frames are frames of the colorization.
+    frame.lights = takeLightEffects();
     frame.cost = RuntimeCost{};
     return frame;
 }

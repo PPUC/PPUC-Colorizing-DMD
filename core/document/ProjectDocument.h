@@ -14,6 +14,7 @@
 #include "document/ImageZone.h"
 #include "document/LibserumTarget.h"
 #include "document/Scene.h"
+#include "document/SpeakerLights.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
 
@@ -136,6 +137,8 @@ struct FrameRecord {
     // The author's tags of the frame ("Multiball", "Settings menu"), sorted, each once
     // (.cRPX only): groups of frames to filter the frame strip by.
     std::vector<std::string> tags;
+    // What the frame does to the speaker light channels when it shows (SpeakerLights.h).
+    LightActions lights{};
 };
 
 // Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
@@ -363,6 +366,16 @@ public:
     // Makes the project one for the target: every frame gets its slot count (empty slots
     // added or dropped). Throws std::invalid_argument when libserumTargetProblems() objects.
     void setLibserumTarget(LibserumTarget target);
+    // The speaker lights (SpeakerLights.h): the effects, the channels' defaults, and what a
+    // frame does to the channels. setSpeakerLights() needs every effect ID unique and every
+    // effect a default or a frame names to exist (std::invalid_argument otherwise);
+    // setFrameLights() an effect that exists.
+    [[nodiscard]] const SpeakerLightSettings& speakerLights() const { return m_speakerLights; }
+    void setSpeakerLights(SpeakerLightSettings settings);
+    [[nodiscard]] const LightActions& frameLights(std::size_t frameIndex) const;
+    void setFrameLights(std::size_t frameIndex, const LightActions& lights);
+    // The frames that start the effect on some channel.
+    [[nodiscard]] std::vector<std::size_t> framesUsingLightEffect(uint16_t effectId) const;
     // The frame's tags (FrameRecord::tags). setFrameTags() sorts them, drops empty ones and
     // repeats, and trims blanks.
     [[nodiscard]] const std::vector<std::string>& frameTags(std::size_t frameIndex) const;
@@ -794,6 +807,7 @@ private:
     std::vector<HelperLine> m_helperLines;
     std::vector<SavedImageZone> m_imageZones;
     std::optional<ColorizationSettings> m_colorizationSettings;
+    SpeakerLightSettings m_speakerLights;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
     LibserumTarget m_libserumTarget = LibserumTarget::Libserum28;

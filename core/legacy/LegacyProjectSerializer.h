@@ -83,8 +83,13 @@ struct LegacyIoProgress;
 // and ignores a "<rom>.pup.csv" and "scaling.txt" beside it; a libserum without it stops
 // reading before it. Only a project with a ROM frame of 128x32 has scenes there (libserum
 // plays scenes in no other). Empty for a snapshot without colorizationSettings, as one of the
-// Win32 editor: its cROM stays as that editor writes it.
+// Win32 editor: its cROM stays as that editor writes it. The speaker lights (effects,
+// defaults, the frames that change channels; libserum's kCromSettingsLights) follow when the
+// project has any, also without colorizationSettings; libserum before 3.0 ignores them.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
+inline constexpr uint32_t kCromSettingsScenes = 1;
+inline constexpr uint32_t kCromSettingsScaling = 2;
+inline constexpr uint32_t kCromSettingsLights = 4;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
 
 // How many bytes writeLegacyCrom() and writeLegacyCrp() write for a valid snapshot, without

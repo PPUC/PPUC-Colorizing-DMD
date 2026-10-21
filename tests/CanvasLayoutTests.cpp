@@ -151,6 +151,7 @@ void runCompactStorageTests();
 void runCromcExportTests();
 void runSceneTests();
 void runSceneEditTests();
+void runSpeakerLightTests();
 void runEditBatchTests();
 
 int main()
@@ -186,6 +187,7 @@ try {
     runCromcExportTests();
     runSceneTests();
     runSceneEditTests();
+    runSpeakerLightTests();
     runEditBatchTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";

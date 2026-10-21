@@ -190,6 +190,13 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
                                               " has invalid HD background mask data");
             }
         }
+        for (const LightAction& action : frame.lights) {
+            if (action.kind == LightActionKind::Effect &&
+                !snapshot.speakerLights.effect(action.effectId)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                              " starts a light effect the project does not have");
+            }
+        }
         if (!frame.spriteReferences.empty() &&
             frame.spriteReferences.size() != limits.spritesPerFrame) {
             return fail(errorMessage, "frame " + std::to_string(i) +

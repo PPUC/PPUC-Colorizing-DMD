@@ -21,6 +21,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/RecolorHelpers.cpp
     edit/SameFrames.cpp
     edit/SceneEdits.cpp
+    edit/SpeakerLightEdits.cpp
     edit/SpriteClipboard.cpp
     edit/ScrollFill.cpp
     edit/SourceFrame.cpp
@@ -50,6 +51,7 @@ add_library(colorizing_qt_v2_core STATIC
     runtime/FrameTester.cpp
     runtime/RuntimePreview.cpp
     runtime/Scenes.cpp
+    runtime/SpeakerLightPlayer.cpp
 )
 
 target_include_directories(colorizing_qt_v2_core
@@ -64,6 +66,7 @@ target_include_directories(colorizing_qt_v2_core
 target_link_libraries(colorizing_qt_v2_core
     PRIVATE
         serum_static
+        ws2812fx_desktop
 )
 
 colorizing_qt_v2_enable_warnings(colorizing_qt_v2_core)

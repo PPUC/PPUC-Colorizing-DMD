@@ -848,21 +848,31 @@ uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot)
 std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot)
 {
     std::vector<uint8_t> block;
-    if (!snapshot.colorizationSettings) {
+    const document::SpeakerLightSettings& lights = snapshot.speakerLights;
+    std::size_t framesWithLights = 0;
+    for (const auto& frame : snapshot.frames) {
+        framesWithLights += document::changesNothing(frame.lights) ? 0 : 1;
+    }
+    const bool withLights = !lights.empty() || framesWithLights > 0;
+    if (!snapshot.colorizationSettings && !withLights) {
         return block;
     }
-    const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
     const auto put = [&block](uint64_t value, std::size_t bytes) {
         for (std::size_t i = 0; i < bytes; ++i) {
             block.push_back(static_cast<uint8_t>((value >> (8 * i)) & 0xff));
         }
     };
     const document::Size rom = document::originalFrameSize(snapshot);
-    const bool withScenes = rom.width == 128 && rom.height == 32;
+    const bool withScenes =
+        snapshot.colorizationSettings && rom.width == 128 && rom.height == 32;
+    const bool withScaling = snapshot.colorizationSettings.has_value();
     put(kCromSettingsMagic, 4);
     put(0, 4);  // the payload size, set below
-    put(withScenes ? 3 : 2, 4);
+    put((withScenes ? kCromSettingsScenes : 0) | (withScaling ? kCromSettingsScaling : 0) |
+            (withLights ? kCromSettingsLights : 0),
+        4);
     if (withScenes) {
+        const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
         put(settings.scenes.size(), 4);
         for (const document::SceneDefinition& scene : settings.scenes) {
             put(scene.sceneId, 2);
@@ -877,8 +887,50 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             put(scene.options, 1);
         }
     }
-    put(settings.scalingAlgorithm, 1);
-    put(settings.shadowOffset, 1);
+    if (withScaling) {
+        put(snapshot.colorizationSettings->scalingAlgorithm, 1);
+        put(snapshot.colorizationSettings->shadowOffset, 1);
+    }
+    if (withLights) {
+        // The effects by their position; actions name an effect by it.
+        put(lights.effects.size(), 4);
+        for (const document::LightEffect& effect : lights.effects) {
+            put(effect.mode, 1);
+            put(effect.options, 1);
+            put(effect.speed, 2);
+            put(effect.durationMs, 4);
+            for (uint32_t color : effect.colors) {
+                put(color, 4);
+            }
+            put(effect.brightness, 1);
+            put(0, 3);
+        }
+        const auto putAction = [&](const document::LightAction& action) {
+            uint16_t index = 0;
+            for (std::size_t i = 0; i < lights.effects.size(); ++i) {
+                if (lights.effects[i].id == action.effectId) {
+                    index = static_cast<uint16_t>(i);
+                }
+            }
+            put(static_cast<uint8_t>(action.kind), 1);
+            put(0, 1);
+            put(action.kind == document::LightActionKind::Effect ? index : 0, 2);
+            put(action.kind == document::LightActionKind::Color ? action.color : 0, 4);
+        };
+        for (const document::LightAction& action : lights.defaults) {
+            putAction(action);
+        }
+        put(framesWithLights, 4);
+        for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+            if (document::changesNothing(snapshot.frames[frame].lights)) {
+                continue;
+            }
+            put(frame, 4);
+            for (const document::LightAction& action : snapshot.frames[frame].lights) {
+                putAction(action);
+            }
+        }
+    }
     const uint64_t payload = block.size() - 8;
     for (std::size_t i = 0; i < 4; ++i) {
         block[4 + i] = static_cast<uint8_t>((payload >> (8 * i)) & 0xff);

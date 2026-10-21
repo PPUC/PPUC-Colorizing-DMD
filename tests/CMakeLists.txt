@@ -33,6 +33,7 @@ add_executable(colorizing_qt_v2_tests
     SectionsTests.cpp
     FrameMoveTests.cpp
     SelectionEditTests.cpp
+    SpeakerLightTests.cpp
     SpriteClipboardTests.cpp
     StateCommandsTests.cpp
     StructureCommandTests.cpp

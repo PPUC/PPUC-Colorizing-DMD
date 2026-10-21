@@ -50,6 +50,13 @@ class LegacyByteSource;
 //            uint32 the number of its name.
 //     "LSRT" the libserum target (document/LibserumTarget.h), when it is not libserum 2.8:
 //            uint8 target, three bytes 0. The .cROM is written for it (its sprite slots).
+//     "LGHT" the speaker lights (document/SpeakerLights.h), when the project has effects,
+//            defaults or frames that change channels: uint32 effect count, per effect
+//            uint16 ID, uint8 mode, uint8 options, uint16 speed, uint16 0, uint32 duration
+//            in ms, uint32 colors (3), uint8 brightness, three bytes 0, uint32 name length,
+//            the name in UTF-8; the default of each channel (4) as an action; uint32 count
+//            of frames, per frame uint32 frame index and an action per channel. An action is
+//            uint8 kind (LightActionKind), uint8 0, uint16 effect ID, uint32 color.
 //     "SPRX" the sprite table entries beyond the cRP part's kCrpSpriteEntries, when the
 //            project has more sprites: uint32 first sprite (kCrpSpriteEntries), uint32 count,
 //            per sprite the name (kSpriteNameBytes, as in the cRP part), uint32 source frame,

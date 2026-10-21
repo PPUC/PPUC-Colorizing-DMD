@@ -591,6 +591,7 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         std::move(frameSnapshot.inactiveHd),
         frameSnapshot.scene,
         std::move(frameSnapshot.tags),
+        frameSnapshot.lights,
     };
 }
 
@@ -622,6 +623,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_helperLines = std::move(snapshot.helperLines);
     document.m_imageZones = std::move(snapshot.imageZones);
     document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
+    document.m_speakerLights = std::move(snapshot.speakerLights);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
     document.m_libserumTarget = snapshot.libserumTarget;
@@ -1107,6 +1109,77 @@ void ProjectDocument::setSceneFrame(std::size_t frameIndex, std::optional<SceneF
     }
     frame.scene = scene;
     markChanged();
+}
+
+void ProjectDocument::setSpeakerLights(SpeakerLightSettings settings)
+{
+    for (std::size_t i = 0; i < settings.effects.size(); ++i) {
+        if (settings.effects[i].id == 0) {
+            throw std::invalid_argument("a light effect needs an ID");
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (settings.effects[j].id == settings.effects[i].id) {
+                throw std::invalid_argument("two light effects have the ID " +
+                                            std::to_string(settings.effects[i].id));
+            }
+        }
+    }
+    const auto missing = [&settings](const LightActions& actions) {
+        for (const LightAction& action : actions) {
+            if (action.kind == LightActionKind::Effect && !settings.effect(action.effectId)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    if (missing(settings.defaults)) {
+        throw std::invalid_argument("a default names a light effect the project does not have");
+    }
+    for (const FrameRecord& frame : m_frames) {
+        if (missing(frame.lights)) {
+            throw std::invalid_argument("a frame starts a light effect that would be gone");
+        }
+    }
+    if (settings == m_speakerLights) {
+        return;
+    }
+    m_speakerLights = std::move(settings);
+    markChanged();
+}
+
+const LightActions& ProjectDocument::frameLights(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).lights;
+}
+
+void ProjectDocument::setFrameLights(std::size_t frameIndex, const LightActions& lights)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    for (const LightAction& action : lights) {
+        if (action.kind == LightActionKind::Effect && !m_speakerLights.effect(action.effectId)) {
+            throw std::invalid_argument("the project has no light effect " +
+                                        std::to_string(action.effectId));
+        }
+    }
+    if (frame.lights == lights) {
+        return;
+    }
+    frame.lights = lights;
+    markChanged();
+}
+
+std::vector<std::size_t> ProjectDocument::framesUsingLightEffect(uint16_t effectId) const
+{
+    std::vector<std::size_t> frames;
+    for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
+        for (const LightAction& action : m_frames[frameIndex].lights) {
+            if (action.kind == LightActionKind::Effect && action.effectId == effectId) {
+                frames.push_back(frameIndex);
+                break;
+            }
+        }
+    }
+    return frames;
 }
 
 const std::vector<std::string>& ProjectDocument::frameTags(std::size_t frameIndex) const
@@ -3544,6 +3617,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.inactiveHd,
         frame.scene,
         frame.tags,
+        frame.lights,
     };
 }
 
@@ -3575,6 +3649,7 @@ ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>
     snapshot.libserumTarget = m_libserumTarget;
     snapshot.geometry = m_geometry;
     snapshot.colorizationSettings = m_colorizationSettings;
+    snapshot.speakerLights = m_speakerLights;
     snapshot.frames.reserve(frameIndices.size());
     for (std::size_t frameIndex : frameIndices) {
         if (frameIndex >= m_frames.size()) {
@@ -3637,6 +3712,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.helperLines = m_helperLines;
     snapshot.imageZones = m_imageZones;
     snapshot.colorizationSettings = m_colorizationSettings;
+    snapshot.speakerLights = m_speakerLights;
     if (m_geometry.discardsExtraPlane()) {
         discardExtraPlane(snapshot);
     }
