@@ -126,6 +126,11 @@ private:
         WithoutSceneFrames,
         // The frames with a tag; one entry per tag, the tag in kFilterTagRole.
         Tagged,
+        // Frames with speaker lights the ambient lighting set, and those of them whose colors
+        // give something else now (edit::updatedAmbientLighting()). Offered while a frame has
+        // such lights.
+        AmbientLighting,
+        AmbientLightingOutOfDate,
     };
 
     // The tag of a "Tag: ..." entry of the frame filter.
@@ -233,6 +238,11 @@ private:
     void updateInactiveFrameMarker(std::size_t frameIndex);
     void updateFrameFilterChoices();
     [[nodiscard]] bool frameMatchesFilter(std::size_t frameIndex) const;
+    // Whether an automatic speaker light of the frame is no longer what its colors give.
+    [[nodiscard]] bool ambientLightingOutOfDate(std::size_t frameIndex) const;
+    // After the speaker lights of these frames changed: the filter's ambient lighting entries,
+    // and the strip when it is filtered by them.
+    void refreshAfterLightsChanged(const std::vector<std::size_t>& frameIndices);
     [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
     [[nodiscard]] std::vector<std::size_t> selectedFrameIndices() const;
     void selectFrame(int frameIndex);

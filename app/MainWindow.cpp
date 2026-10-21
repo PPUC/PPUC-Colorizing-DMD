@@ -4628,6 +4628,17 @@ void MainWindow::updateFrameFilterChoices()
           tr("Not rendered"),
           m_frameFilterComboBox->count(),
           isHdOnlyProject());
+    bool ambientLighting = false;
+    for (std::size_t frame = 0; m_document && !ambientLighting && frame < m_document->frameCount();
+         ++frame) {
+        ambientLighting = edit::hasAutomaticLights(m_document->frameLights(frame));
+    }
+    offer(FrameFilter::AmbientLighting, tr("Ambient lighting"), m_frameFilterComboBox->count(),
+          ambientLighting);
+    offer(FrameFilter::AmbientLightingOutOfDate,
+          tr("Ambient lighting out of date"),
+          m_frameFilterComboBox->count(),
+          ambientLighting);
 
     // The scenes, at the end: all scene frames and the others. A scene's own frames: "Using the
     // selected asset" with the scene selected in the left sidebar.
@@ -5016,6 +5027,17 @@ void MainWindow::updatePaletteBrowserSelection()
     }
 }
 
+bool MainWindow::ambientLightingOutOfDate(std::size_t frameIndex) const
+{
+    const document::LightActions& lights = m_document->frameLights(frameIndex);
+    if (!edit::hasAutomaticLights(lights)) {
+        return false;
+    }
+    const document::LightActions suggested = edit::suggestedAmbientLighting(composeResolvedFrame(
+        *m_document, frameIndex, m_document->geometry().nativePlane(), true));
+    return edit::updatedAmbientLighting(lights, suggested) != lights;
+}
+
 bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
 {
     if (!m_document || frameIndex >= m_document->frameCount()) {
@@ -5045,6 +5067,12 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     }
     if (filter == FrameFilter::Inactive) {
         return legacy::isFrameSkippedAtRuntime(*m_document, frameIndex);
+    }
+    if (filter == FrameFilter::AmbientLighting) {
+        return edit::hasAutomaticLights(m_document->frameLights(frameIndex));
+    }
+    if (filter == FrameFilter::AmbientLightingOutOfDate) {
+        return ambientLightingOutOfDate(frameIndex);
     }
     if (filter == FrameFilter::Background) {
         const std::optional<document::FrameBackgroundData>& backgroundData =
@@ -9990,6 +10018,18 @@ void MainWindow::updateLightEffectSection()
     m_lightEffectPanel->setEffect(effect);
 }
 
+void MainWindow::refreshAfterLightsChanged(const std::vector<std::size_t>& frameIndices)
+{
+    updateFrameFilterChoices();
+    const int filter = m_frameFilterComboBox ? m_frameFilterComboBox->currentData().toInt() : 0;
+    if (filter == static_cast<int>(FrameFilter::AmbientLighting) ||
+        filter == static_cast<int>(FrameFilter::AmbientLightingOutOfDate)) {
+        refreshFrameList(currentFrameIndex());
+        return;
+    }
+    updateFrameListItems(frameIndices);
+}
+
 void MainWindow::recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
                                          const QString& status)
 {
@@ -9999,7 +10039,7 @@ void MainWindow::recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsComm
     const std::vector<std::size_t> frames = command->target().frameIndices;
     m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
     refreshSpeakerLights();
-    updateFrameListItems(frames);
+    refreshAfterLightsChanged(frames);
     updateUndoRedoActions();
     updateProjectHeaderStatus();
     showStructureEditStatus(status, 3000);
@@ -10091,7 +10131,7 @@ void MainWindow::setSelectedFramesLight(std::size_t channel, const document::Lig
     if (changed.empty()) {
         return;
     }
-    updateFrameListItems(changed);
+    refreshAfterLightsChanged(changed);
     updateFrameLightControls();
     if (m_lightEffectsPanel) {
         m_lightEffectsPanel->setProject(&*m_document);
@@ -10127,7 +10167,7 @@ void MainWindow::suggestSelectedFramesLights()
         m_undoHistories.push(key, std::move(command));
         changed.push_back(frameIndex);
     }
-    updateFrameListItems(changed);
+    refreshAfterLightsChanged(changed);
     updateFrameLightControls();
     updateUndoRedoActions();
     updateProjectHeaderStatus();
@@ -10774,6 +10814,9 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             if (dynamic_cast<const edit::FrameTagsCommand*>(&command)) {
                 updateFrameFilterChoices();
             }
+            if (dynamic_cast<const edit::FrameLightsCommand*>(&command)) {
+                refreshAfterLightsChanged(target.frameIndices);
+            }
             if (hdDataReplaced) {
                 const std::optional<std::size_t> frameIndex = currentFrameIndex();
                 if (m_activeResolution == render::Resolution::Hd && frameIndex &&
@@ -10818,9 +10861,7 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
                 refreshAfterEditBatch();
             } else if (dynamic_cast<const edit::SpeakerLightsCommand*>(&command)) {
                 refreshSpeakerLights();
-                for (std::size_t frameIndex : target.frameIndices) {
-                    updateFrameListItem(frameIndex);
-                }
+                refreshAfterLightsChanged(target.frameIndices);
             }
             break;
         case edit::EditKind::Sections:

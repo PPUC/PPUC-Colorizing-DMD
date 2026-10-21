@@ -4200,6 +4200,14 @@ Use Create %1 Frame.</source>
         <translation>Nicht gerendert</translation>
     </message>
     <message>
+        <source>Ambient lighting</source>
+        <translation>Umgebungsbeleuchtung</translation>
+    </message>
+    <message>
+        <source>Ambient lighting out of date</source>
+        <translation>Umgebungsbeleuchtung veraltet</translation>
+    </message>
+    <message>
         <source>Scene frames</source>
         <translation>Szenen-Frames</translation>
     </message>

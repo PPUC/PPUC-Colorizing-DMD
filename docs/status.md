@@ -2208,6 +2208,10 @@ from the frame and editable.
   "automatic" / "automatic, out of date", refreshed 150 ms after any edit via
   m_frameLightMarksTimer). A manual choice drops the flag (LightActionEditor). Tests:
   testUpdateAmbientLighting, LGHT round trip, testFrameSection.
+- Timeline filters `AmbientLighting` / `AmbientLightingOutOfDate` (MainWindow::
+  ambientLightingOutOfDate(): composeResolvedFrame + suggestion per frame; fast enough on GoT
+  per the owner), offered while a frame has automatic lights; refreshAfterLightsChanged()
+  keeps the entries and a filtered strip current after light edits and their undo.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

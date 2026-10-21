@@ -4200,6 +4200,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Pas de rendu</translation>
     </message>
     <message>
+        <source>Ambient lighting</source>
+        <translation>Éclairage d&apos;ambiance</translation>
+    </message>
+    <message>
+        <source>Ambient lighting out of date</source>
+        <translation>Éclairage d&apos;ambiance obsolète</translation>
+    </message>
+    <message>
         <source>Scene frames</source>
         <translation>Frames de scène</translation>
     </message>

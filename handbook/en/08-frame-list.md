@@ -85,6 +85,10 @@ scene's frames are listed, `Leave Scene` below the filter goes back to the frame
 shown before (see "Scenes and Scaling"). At the end of the list come the project's tags, one
 entry each (`Tag: Multiball`): the frames with that tag.
 
+While a frame has speaker lights set by the ambient lighting, the filter also offers `Ambient
+lighting` (those frames) and `Ambient lighting out of date` (those whose colors have changed
+since, see "Speaker Lights").
+
 ### Tags
 
 Tags group frames by what they show, such as `Settings menu`, `Multiball` or `Wizard Mode`, to

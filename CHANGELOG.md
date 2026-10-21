@@ -24,8 +24,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   the other, at the same size: the 32-row plane, the ROM frame, the 64-row plane.
 - The Speaker Lights and Light Effect sections are the last ones of the right sidebar.
 - Ambient lighting colors are marked *automatic* in the Speaker Lights section (*out of date*
-  once the frame changed); *Edit -> Update Ambient Lighting* updates them all, leaving the colors
-  the author chose.
+  once the frame changed), the timeline filter lists them (*Ambient lighting*, *Ambient lighting
+  out of date*), and *Edit -> Update Ambient Lighting* updates them all, leaving the colors the
+  author chose.
 - *Ambient Lighting For Frames Without Speaker Lights* gives every frame without speaker light settings
   the ambient lighting colors of its left and right part, in one undo step, for existing projects.
 

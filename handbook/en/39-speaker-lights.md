@@ -49,7 +49,8 @@ black frame turns both off. The colors can be changed afterwards like any other.
 
 Colors set this way are marked `automatic` beside the channel in the `Speaker Lights` section.
 When the frame's colors have changed since (the frame was painted after), the mark reads
-`automatic, out of date`. `Edit -> Update Ambient Lighting` brings every automatic channel of
+`automatic, out of date`; the frame list's filter `Ambient lighting out of date` lists those
+frames. `Edit -> Update Ambient Lighting` brings every automatic channel of
 the project up to date with its frame's colors, in one undo step; it is the one to run after
 reworking frames. A channel you set yourself, including a color you pick for an automatic
 one, is yours: it loses the mark and no update changes it.
