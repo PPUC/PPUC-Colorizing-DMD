@@ -14,6 +14,7 @@
 #include <QVBoxLayout>
 
 #include "vpx/VpxHost.h"
+#include "WindowGeometry.h"
 
 namespace colorizing::app {
 
@@ -45,6 +46,7 @@ PluginLogWindow::PluginLogWindow(QWidget* parent)
 {
     setWindowTitle(tr("Plugin Log"));
     resize(900, 500);
+    keepWindowGeometry(this, QStringLiteral("pluginLog"));
 
     m_levelComboBox = new QComboBox(this);
     m_levelComboBox->addItem(tr("Everything"), 0u);

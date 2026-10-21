@@ -134,6 +134,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     SpriteEditorWidget.h
     Translations.cpp
     Translations.h
+    WindowGeometry.cpp
+    WindowGeometry.h
     VideoClip.cpp
     VideoClip.h
     UnsavedChanges.cpp

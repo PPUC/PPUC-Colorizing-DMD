@@ -30,6 +30,7 @@
 #include "document/ProjectSnapshot.h"
 #include "Appearance.h"
 #include "FrameListWidget.h"
+#include "WindowGeometry.h"
 #include "FrameThumbnail.h"
 #include "CanvasHistory.h"
 #include "LazyListIcons.h"
@@ -611,6 +612,37 @@ void testFrameListClicks()
     expect(list.currentRow() == 1, "Left goes back");
 }
 
+// Issue #2: a window opens where and as large as it was left.
+void testWindowGeometryIsKept()
+{
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("WindowGeometryTests"));
+    {
+        QWidget window;
+        window.resize(400, 300);
+        colorizing::app::keepWindowGeometry(&window, QStringLiteral("test"));
+        expect(window.size() == QSize(400, 300), "nothing stored: the window keeps its size");
+        window.show();
+        window.resize(640, 480);
+        QApplication::processEvents();
+        window.close();
+    }
+    {
+        QWidget window;
+        window.resize(400, 300);
+        colorizing::app::keepWindowGeometry(&window, QStringLiteral("test"));
+        expect(window.size() == QSize(640, 480), "the next one opens as large as it was left");
+        QWidget other;
+        other.resize(200, 100);
+        colorizing::app::keepWindowGeometry(&other, QStringLiteral("other"));
+        expect(other.size() == QSize(200, 100), "each window has its own");
+    }
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
+}
+
 // Issue #23: a combo box with more entries than it shows drops down a list that scrolls; the
 // popup of Fusion and the Windows styles showed all of them and ran past the screen.
 void testLongComboBoxesScroll()
@@ -887,5 +919,6 @@ void runPlaneLabelsWidgetTests()
     testFrameListClicks();
     testSectionStackResize();
     testLongComboBoxesScroll();
+    testWindowGeometryIsKept();
     testSectionStackArrangement();
 }

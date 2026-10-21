@@ -14,6 +14,7 @@
 #include <QVBoxLayout>
 
 #include "Translations.h"
+#include "WindowGeometry.h"
 
 namespace colorizing::app {
 
@@ -56,6 +57,7 @@ HandbookWindow::HandbookWindow(QWidget* parent)
 {
     setWindowTitle(tr("ColorizingDMD Handbook"));
     resize(1000, 720);
+    keepWindowGeometry(this, QStringLiteral("handbook"));
     m_chapters = loadChapters(currentLanguage());
 
     m_searchEdit = new QLineEdit(this);

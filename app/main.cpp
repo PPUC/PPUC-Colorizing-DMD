@@ -14,6 +14,7 @@
 #include "MainWindow.h"
 #include "Translations.h"
 #include "vpx/VpxHost.h"
+#include "WindowGeometry.h"
 
 namespace {
 
@@ -133,6 +134,8 @@ int main(int argc, char* argv[])
     colorizing::app::installTranslations();
     colorizing::app::applyTheme(colorizing::app::loadTheme());
     colorizing::app::MainWindow window;
+    // Where and how large it was left (issue #2).
+    colorizing::app::keepWindowGeometry(&window, QStringLiteral("main"));
     window.show();
     window.offerUntitledAutosave();
     return app.exec();

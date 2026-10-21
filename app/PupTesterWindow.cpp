@@ -23,6 +23,7 @@
 
 #include "document/ProjectDocument.h"
 #include "vpx/PupHost.h"
+#include "WindowGeometry.h"
 
 namespace colorizing::app {
 
@@ -105,6 +106,7 @@ PupTesterWindow::PupTesterWindow(QWidget* parent)
 {
     setWindowTitle(tr("PuP Tester"));
     resize(900, 760);
+    keepWindowGeometry(this, QStringLiteral("pupTester"));
 
     m_folderEdit = new QLineEdit(QSettings().value(kFolderKey).toString(), this);
     m_folderEdit->setPlaceholderText(tr("The PinUP System folder, which holds pupvideos"));

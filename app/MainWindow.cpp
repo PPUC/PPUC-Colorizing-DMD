@@ -134,6 +134,7 @@
 #include "runtime/CromcExport.h"
 #include "runtime/Scenes.h"
 #include "legacy/LegacyProjectSerializer.h"
+#include "WindowGeometry.h"
 
 namespace colorizing::app {
 
@@ -2662,6 +2663,7 @@ void MainWindow::newProjectFromDump()
         return;
     }
     DumpImportDialog dialog(DumpImportDialog::Mode::NewProject, nullptr, this);
+    keepWindowGeometry(&dialog, QStringLiteral("dumpImport"));
     dialog.setDumpPath(path);
     if (dialog.exec() != QDialog::Accepted || !dialog.result()) {
         return;
@@ -2719,6 +2721,7 @@ void MainWindow::addFramesFromDump()
     setPlaybackRunning(false);
     applyPendingSpriteDependentViews();
     DumpImportDialog dialog(DumpImportDialog::Mode::AddFrames, &*m_document, this);
+    keepWindowGeometry(&dialog, QStringLiteral("dumpImport"));
     dialog.setDumpPath(path);
     if (dialog.exec() != QDialog::Accepted || !dialog.result()) {
         return;
@@ -3041,6 +3044,7 @@ void MainWindow::openFrameTester()
     std::optional<std::size_t> frameToShow;
     {
         FrameTesterDialog dialog(*m_document, selectedFrameIndices(), this);
+        keepWindowGeometry(&dialog, QStringLiteral("frameTester"));
         dialog.onAddFrameRequested = [this](const runtime::TesterFrame& frame) {
             try {
                 std::vector<document::FrameRecord> frames;

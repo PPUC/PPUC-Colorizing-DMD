@@ -25,6 +25,7 @@
 
 #include "MovieImport.h"
 #include "VideoClip.h"
+#include "WindowGeometry.h"
 
 namespace colorizing::app {
 
@@ -448,6 +449,7 @@ void ImageImportDialog::build(const QString&)
     m_zone = fittingZone(pictureSize(), proportions());
     m_floatingWidth = m_zone.width();
     resize(860, 720);
+    keepWindowGeometry(this, QStringLiteral("images"));
     adjustmentsChanged();
 }
 

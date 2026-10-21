@@ -2248,3 +2248,12 @@ section unknown to a stored order takes its own place. Test: testSectionStackArr
   0 for a combo box with more entries than maxVisibleItems: a scrolling drop-down instead of
   Fusion's/Windows' all-entries popup that ran off the screen.
 - Tests: testFrameListClicks (keys), testLongComboBoxesScroll (fails without the hint).
+
+## Issue #2: window geometry (2026-10-21)
+
+The pixel shape and size were kept since 8a7a070 (3.99.2: settings under the organization
+ppuc.org; on Windows QSettings stored nothing before). The window's size and place were never
+kept: `keepWindowGeometry()` (app/WindowGeometry) restores `windows/<key>` before a window is
+shown and stores saveGeometry() on Hide/Close (not while minimized). Used for the main window
+(main.cpp), Handbook, plugin log, PuP tester, Images, Frame Tester and dump import. Test:
+testWindowGeometryIsKept.
