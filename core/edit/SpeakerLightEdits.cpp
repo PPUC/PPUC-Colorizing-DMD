@@ -171,17 +171,43 @@ document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& fra
     if (width <= 0 || height <= 0 || !frame.isValid()) {
         return actions;
     }
+    const auto pixelAt = [&](int x, int y) {
+        return frame.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
+                            static_cast<std::size_t>(x)];
+    };
+    const auto columnLit = [&](int x) {
+        for (int y = 0; y < height; ++y) {
+            if (pixelAt(x, y) != 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // The lit content nearest to each edge: a black margin (a Stern ROM's empty score
+    // block of a single player game) is skipped.
+    int firstLit = 0;
+    while (firstLit < width && !columnLit(firstLit)) {
+        ++firstLit;
+    }
+    if (firstLit == width) {
+        actions[0].kind = document::LightActionKind::Off;
+        actions[1].kind = document::LightActionKind::Off;
+        return actions;
+    }
+    int lastLit = width - 1;
+    while (!columnLit(lastLit)) {
+        --lastLit;
+    }
     const int part = std::max(1, width / 4);
     const auto average = [&](int firstColumn) {
+        firstColumn = std::clamp(firstColumn, 0, width - part);
         uint64_t red = 0;
         uint64_t green = 0;
         uint64_t blue = 0;
         uint64_t lit = 0;
         for (int y = 0; y < height; ++y) {
             for (int x = firstColumn; x < firstColumn + part; ++x) {
-                const uint16_t pixel =
-                    frame.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
-                                 static_cast<std::size_t>(x)];
+                const uint16_t pixel = pixelAt(x, y);
                 if (pixel == 0) {
                     continue;
                 }
@@ -193,17 +219,13 @@ document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& fra
             }
         }
         document::LightAction action;
-        if (lit == 0) {
-            action.kind = document::LightActionKind::Off;
-            return action;
-        }
         action.kind = document::LightActionKind::Color;
         action.color = static_cast<uint32_t>(((red / lit) << 16) | ((green / lit) << 8) |
                                              (blue / lit));
         return action;
     };
-    actions[0] = average(0);
-    actions[1] = average(width - part);
+    actions[0] = average(firstLit);
+    actions[1] = average(lastLit + 1 - part);
     return actions;
 }
 

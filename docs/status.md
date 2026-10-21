@@ -2175,6 +2175,10 @@ from the frame and editable.
 - Migration: `edit::addAmbientLightingToFramesWithoutLights()` (frames whose LightActions change
   nothing get suggestedAmbientLighting() on channels 1/2, one SpeakerLightsCommand with unchanged
   settings), Edit menu and the section's `Ambient Lighting for All...`; test `testAmbientLightingForAll`.
+- suggestedAmbientLighting() skips black margins (owner: Stern ROMs such as trn_174 have an
+  empty score block on the left in single player games): each side averages a quarter of the
+  width from the first lit column seen from its edge; only a black frame gives off. Test in
+  `testAmbientLighting`.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

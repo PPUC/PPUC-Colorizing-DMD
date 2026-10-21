@@ -81,9 +81,11 @@ private:
 [[nodiscard]] std::vector<std::size_t> framesWithoutLights(
     const document::ProjectDocument& document);
 
-// The ambient lighting suggestion for a colorized frame: channel 1 (left) the color of the frame's
-// left part, channel 2 (right) of its right part, each the average of the lit pixels of the
-// outer quarter of the frame (off when there are none); channels 3 and 4 unchanged.
+// The ambient lighting suggestion for a colorized frame: channel 1 (left) the color of the
+// frame's left content, channel 2 (right) of its right content, each the average of the lit
+// pixels in a quarter of the frame's width from the first column with a lit pixel seen from
+// that edge, so that a black margin is skipped; off for a black frame. Channels 3 and 4 are
+// unchanged.
 [[nodiscard]] document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& frame);
 
 }  // namespace colorizing::edit

@@ -41,9 +41,11 @@ to every selected frame, that channel only; each frame's change is a step in its
 history. The channels are independent: a frame can start a different effect on each.
 
 `Suggest from Frame` sets channels 1 and 2 of every selected frame to a static color taken from
-the frame itself, as ambient lighting: channel 1 the average of the lit pixels of the left quarter of
-the frame, channel 2 of the right quarter (off for a black part). The colors can be changed
-afterwards like any other.
+the frame itself, as ambient lighting: channel 1 the average of the lit pixels of the frame's
+leftmost content, channel 2 of its rightmost content, each a quarter of the frame's width from
+the first lit column seen from that side. A black margin, such as the empty score block of a
+single player game on many Stern ROMs, is skipped, so the color comes from what is shown; a
+black frame turns both off. The colors can be changed afterwards like any other.
 
 `Ambient Lighting for All...` (also `Edit -> Ambient Lighting For Frames Without Speaker Lights...`) does the
 same for every frame of the project that does nothing to any channel yet, in one undo step. It

@@ -173,6 +173,19 @@ void testAmbientLighting()
     expect(suggested[0] == colorAction(0x00ff0000u) && suggested[1] == colorAction(0x000000ffu) &&
                suggested[2].kind == LightActionKind::Unchanged,
            "left red, right blue: the lit pixels of the outer quarters");
+    // A black block on the left (a single player's empty score block): the left channel takes
+    // the leftmost content, here the green of columns 40 to 71, not off.
+    document::Rgb565Frame block = document::makeRgb565Frame(render::Size{128, 32}, 0);
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 40; x < 128; ++x) {
+            if (x < 72 || x >= 96) {
+                block.pixels[static_cast<std::size_t>(y) * 128 + x] = x < 72 ? 0x07e0 : 0x001f;
+            }
+        }
+    }
+    const LightActions skipped = edit::suggestedAmbientLighting(block);
+    expect(skipped[0] == colorAction(0x0000ff00u) && skipped[1] == colorAction(0x000000ffu),
+           "a black margin is skipped: green on the left, blue on the right");
     const LightActions dark =
         edit::suggestedAmbientLighting(document::makeRgb565Frame(render::Size{128, 32}, 0));
     expect(dark[0].kind == LightActionKind::Off && dark[1].kind == LightActionKind::Off,
@@ -265,10 +278,10 @@ void testAmbientLightingForAll()
     const auto command = edit::addAmbientLightingToFramesWithoutLights(document, colorsOf);
     expect(command && asked == std::vector<std::size_t>{0} &&
                document.frameLights(0)[0] == colorAction(0x0000ff00u) &&
-               document.frameLights(0)[1].kind == LightActionKind::Off &&
+               document.frameLights(0)[1] == colorAction(0x0000ff00u) &&
                document.frameLights(0)[2].kind == LightActionKind::Unchanged &&
                document.frameLights(1) == frame1,
-           "frame 0 gets green on the left and off on the right, frame 1 keeps its lights");
+           "frame 0 gets its only content, green, on both sides; frame 1 keeps its lights");
     expect(!edit::addAmbientLightingToFramesWithoutLights(document, colorsOf),
            "a second run finds no frame without lights");
     command->revert(document);
