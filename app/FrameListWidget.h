@@ -3,6 +3,7 @@
 #include <QListWidget>
 
 #include <functional>
+#include <vector>
 
 class QKeyEvent;
 
@@ -46,6 +47,20 @@ public:
     // there was one to reduce.
     bool selectCurrentAlone();
 
+    // Rows to mark with an outline and with ticks on the scroll bar, ascending: the frames that
+    // are the same as the current one while the comparison mask is shown (issue #24).
+    void setMarkedRows(std::vector<int> rows);
+    [[nodiscard]] const std::vector<int>& markedRows() const;
+    // Ctrl+Left or Ctrl+Right (Cmd on macOS), as in the Win32 editor: through the marked rows.
+    [[nodiscard]] static bool isMarkedRowStepKey(const QKeyEvent& event);
+    // Scrolls to the marked row before (direction < 0) or after the one shown last, at first
+    // the current row, and outlines it more strongly. The current frame and the selection stay,
+    // so the frames can be looked through before a deletion. Returns the row; -1 if there is
+    // none in that direction (nothing then moves).
+    int showMarkedRow(int direction);
+    // The marked row showMarkedRow() went to; -1 once the current row changes.
+    [[nodiscard]] int shownMarkedRow() const;
+
 protected:
     [[nodiscard]] QItemSelectionModel::SelectionFlags selectionCommand(
         const QModelIndex& index, const QEvent* event = nullptr) const override;
@@ -64,6 +79,8 @@ private:
     bool takeDrag(QDragMoveEvent* event);
 
     int m_dropRow = -1;
+    std::vector<int> m_markedRows;
+    int m_shownMarkedRow = -1;
 };
 
 }  // namespace colorizing::app

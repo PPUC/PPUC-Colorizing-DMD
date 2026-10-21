@@ -11,6 +11,7 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+Shift+V` | Paste where the originals match | `Shift`+click in paste mode |
 | `Ctrl/Cmd+Alt+V` | Paste the dynamic mask only | `Alt`+click in paste mode |
 | `Left`, `Right` (`Shift`: extend the selection) | Previous, next frame of the strip, also on the canvas | same |
+| `Ctrl/Cmd+Left`, `Ctrl/Cmd+Right` | Scroll the strip to the previous, next frame that is the same as the current one; the current frame stays | `Ctrl+Left`, `Ctrl+Right` |
 | Arrows, `Shift`+arrows, keypad `2 4 6 8` | Move the paste (1 or 10 pixels) | keypad |
 | `K`, `L` | Mirror the paste | held when paste starts |
 | Click, `Enter` | Stamp the paste (`Shift`, `Alt`: variants) | same |

@@ -3796,9 +3796,11 @@ void MainWindow::updateSameFrameControls()
     state.hasFrame = m_document && frameIndex;
     // Hidden, the page costs nothing; it is brought up to date when it is shown.
     if (state.hasFrame && !m_sameFramesPanel->isVisible()) {
+        markFramesInList({});
         return;
     }
     if (!state.hasFrame) {
+        markFramesInList({});
         m_sameFramesPanel->refresh(state);
         m_sameFramesPanel->setMaskCounts(nullptr);
         m_sameFramesPanel->setMaskChoices(0, {});
@@ -3810,6 +3812,9 @@ void MainWindow::updateSameFrameControls()
     state.hasAssignedMask = currentComparisonMaskIndex().has_value();
     state.sameFrames = m_sameFrameFinder.sameFrames(
         *m_document, *frameIndex, edit::comparisonRuleOf(*m_document, *frameIndex));
+    // Outlined in the frame list and ticked on its scroll bar, as the Win32 editor marks them
+    // (issue #24).
+    markFramesInList(state.sameFrames);
     m_sameFramesPanel->refresh(state);
     const bool countsFit = m_sameFrameCounts && m_sameFrameCounts->frameIndex == *frameIndex &&
                            m_sameFrameCounts->identificationRevision ==
@@ -3823,6 +3828,23 @@ void MainWindow::updateSameFrameControls()
         edit::framesUsingComparisonMask(*m_document, document::kNoComparisonMaskId).size(),
         useCounts);
     showFramesUsingMask();
+}
+
+void MainWindow::markFramesInList(const std::vector<std::size_t>& frameIndices)
+{
+    if (!m_frameList) {
+        return;
+    }
+    std::vector<int> rows;
+    rows.reserve(frameIndices.size());
+    for (const std::size_t frameIndex : frameIndices) {
+        // A frame the filter hides has no row.
+        if (frameIndex < m_frameRows.size() && m_frameRows[frameIndex] >= 0) {
+            rows.push_back(m_frameRows[frameIndex]);
+        }
+    }
+    // The rows follow the frames' order.
+    m_frameList->setMarkedRows(std::move(rows));
 }
 
 void MainWindow::updateSameFrameCounts()
@@ -4497,6 +4519,8 @@ void MainWindow::refreshFrameList(std::optional<std::size_t> selectedFrameIndex)
     } else {
         selectFrame(-1);
     }
+    // The rows marked for the list before are no longer right.
+    updateSameFrameControls();
     m_frameThumbnails->scheduleRowsInView();
     updatePlaybackControls();
 }
@@ -9160,6 +9184,11 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         // canvas keeps the focus.
         if (m_frameList && FrameListWidget::isFrameStepKey(*keyEvent)) {
             m_frameList->stepWithKey(*keyEvent);
+            return true;
+        }
+        // Ctrl+Left and Ctrl+Right look through the same frames in the strip (issue #24).
+        if (m_frameList && FrameListWidget::isMarkedRowStepKey(*keyEvent)) {
+            m_frameList->showMarkedRow(keyEvent->key() == Qt::Key_Left ? -1 : 1);
             return true;
         }
         if (keyEvent->key() == Qt::Key_Escape &&

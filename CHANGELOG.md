@@ -5,6 +5,11 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- While the `Comparison Mask` section is shown, the frames that are the same as the current one
+  are outlined in green in the frame strip and ticked on its scroll bar, and
+  `Ctrl/Cmd+Left`/`Right` scroll the strip through them while the current frame stays, as in the
+  Win32 editor (issue #24).
+
 ## 3.99.8
 
 - `Esc` reduces a selection of several frames to the frame shown, in the strip and on the

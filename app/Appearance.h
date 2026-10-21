@@ -45,6 +45,13 @@ inline constexpr const char* kPlainCheckedProperty = "plainChecked";
     return QColor(140, 255, 90);
 }
 
+// Frames the frame list marks, the same frames of the current one: a green, as the Win32
+// editor marks them.
+[[nodiscard]] inline QColor markedFrameColor()
+{
+    return QColor(60, 200, 60);
+}
+
 // How the canvas, the sprite editor and PNG exports draw DMD pixels: squares or dots, at 50 to
 // 100 % of their cell in steps of ten (squares at 80 % until set otherwise).
 [[nodiscard]] DmdRenderOptions loadDmdRenderOptions();

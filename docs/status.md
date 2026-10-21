@@ -2313,3 +2313,19 @@ selected-asset filter replace it. Test in testLongComboBoxesScroll.
 `FrameListWidget::selectCurrentAlone()` (selectSingleRow on the current row when several are
 selected), from the strip's keyPressEvent and from MainWindow's canvas event filter after the
 paste and pending-click cancels. Test in testFrameListClicks.
+
+## Same frames marked in the strip, Ctrl+Left/Right (2026-10-22, issue #24)
+
+As in Win32 (green frame numbers and scroll bar ticks; Ctrl+Left/Right moved
+`PreFrameInStrip` to the previous/next entry of `SameFrames` without touching `acFrame`).
+`FrameListWidget::setMarkedRows()` outlines the rows (paintEvent) and the list's scroll bars
+(`MarkedRowsScrollBar`, both orientations) tick them along the outer edge of the groove, where
+the row is in the whole list. `showMarkedRow(direction)` scrolls to the previous/next marked
+row from the one shown last (the current row at first; reset on currentRowChanged), outlines it
+thicker and keeps the current row and the selection; `isMarkedRowStepKey()` (Ctrl, i.e. Cmd on
+macOS) from the strip's keyPressEvent and the canvas event filter. MainWindow sets the rows in
+`updateSameFrameControls()` through `markFramesInList()` (frames to rows via `m_frameRows`, so
+filtered-out frames are skipped), clears them while the Comparison Mask section is hidden, and
+refreshes them after `refreshFrameList()`. Win32's Shift+Left/Right through the selected
+frames is not taken over (Shift+Left/Right extends the selection here). Test:
+testMarkedFramesInTheStrip.

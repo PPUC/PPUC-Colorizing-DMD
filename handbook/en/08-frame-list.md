@@ -73,7 +73,10 @@ zone or a background, or a duration of 15 ms or more removes it.
 
 `Left` and `Right` go to the previous and the next frame of the strip (with `Shift` extending
 the selection), also while the canvas has the focus after a click on a pixel; in paste mode the
-arrows move the paste instead. A new or opened project starts with `All frames`.
+arrows move the paste instead. While the `Comparison Mask` section is shown, the frames that are
+the same as the current one are outlined in green, and `Ctrl/Cmd+Left` and `Ctrl/Cmd+Right`
+scroll to them without changing the current frame (see "Same Frames And Common Pixels"). A new
+or opened project starts with `All frames`.
 
 The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames

@@ -2,13 +2,73 @@
 
 #include <QKeyEvent>
 
+#include "Appearance.h"
 #include "ListSelection.h"
 
 #include <QDropEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QScrollBar>
+#include <QStyleOptionSlider>
+
+#include <algorithm>
 
 namespace colorizing::app {
+
+namespace {
+
+// A scroll bar with a tick for each marked row of the list, where the row is in the whole
+// list, so a part with marked frames can be scrolled to.
+class MarkedRowsScrollBar final : public QScrollBar {
+public:
+    MarkedRowsScrollBar(Qt::Orientation orientation, const FrameListWidget* list)
+        : QScrollBar(orientation)
+        , m_list(list)
+    {
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        QScrollBar::paintEvent(event);
+        const std::vector<int>& rows = m_list->markedRows();
+        const int count = m_list->count();
+        if (rows.empty() || count <= 0) {
+            return;
+        }
+        QStyleOptionSlider option;
+        initStyleOption(&option);
+        QRect groove = style()->subControlRect(QStyle::CC_ScrollBar, &option,
+                                               QStyle::SC_ScrollBarGroove, this);
+        if (groove.isEmpty()) {
+            groove = rect();
+        }
+        // Along the outer edge, a third of the bar thick, so the handle stays visible.
+        const bool across = orientation() == Qt::Horizontal;
+        const int length = across ? groove.width() : groove.height();
+        const int thickness = std::max(3, (across ? groove.height() : groove.width()) / 3);
+        QPainter painter(this);
+        int lastPosition = -1;
+        for (const int row : rows) {
+            const int position =
+                static_cast<int>((static_cast<double>(row) + 0.5) * length / count);
+            if (position == lastPosition) {
+                continue;
+            }
+            lastPosition = position;
+            const QRect tick = across ? QRect(groove.left() + position - 1,
+                                              groove.bottom() - thickness + 1, 2, thickness)
+                                      : QRect(groove.right() - thickness + 1,
+                                              groove.top() + position - 1, thickness, 2);
+            painter.fillRect(tick, markedFrameColor());
+        }
+    }
+
+private:
+    const FrameListWidget* m_list;
+};
+
+}  // namespace
 
 FrameListWidget::FrameListWidget(QWidget* parent)
     : QListWidget(parent)
@@ -17,6 +77,14 @@ FrameListWidget::FrameListWidget(QWidget* parent)
     setDefaultDropAction(Qt::MoveAction);
     // The list draws its own line where the frames go (paintEvent()).
     setDropIndicatorShown(false);
+    setHorizontalScrollBar(new MarkedRowsScrollBar(Qt::Horizontal, this));
+    setVerticalScrollBar(new MarkedRowsScrollBar(Qt::Vertical, this));
+    connect(this, &QListWidget::currentRowChanged, this, [this]() {
+        if (m_shownMarkedRow >= 0) {
+            m_shownMarkedRow = -1;
+            viewport()->update();
+        }
+    });
 }
 
 void FrameListWidget::useStripLayout(QSize gridSize)
@@ -152,8 +220,68 @@ bool FrameListWidget::selectCurrentAlone()
     return true;
 }
 
+void FrameListWidget::setMarkedRows(std::vector<int> rows)
+{
+    if (rows == m_markedRows) {
+        return;
+    }
+    m_markedRows = std::move(rows);
+    if (!std::binary_search(m_markedRows.begin(), m_markedRows.end(), m_shownMarkedRow)) {
+        m_shownMarkedRow = -1;
+    }
+    viewport()->update();
+    horizontalScrollBar()->update();
+    verticalScrollBar()->update();
+}
+
+const std::vector<int>& FrameListWidget::markedRows() const
+{
+    return m_markedRows;
+}
+
+bool FrameListWidget::isMarkedRowStepKey(const QKeyEvent& event)
+{
+    return (event.key() == Qt::Key_Left || event.key() == Qt::Key_Right) &&
+           (event.modifiers() & ~Qt::KeypadModifier) == Qt::ControlModifier;
+}
+
+int FrameListWidget::showMarkedRow(int direction)
+{
+    const int from = m_shownMarkedRow >= 0 ? m_shownMarkedRow : currentRow();
+    int row = -1;
+    if (direction < 0) {
+        const auto before = std::lower_bound(m_markedRows.begin(), m_markedRows.end(), from);
+        if (before != m_markedRows.begin()) {
+            row = *(before - 1);
+        }
+    } else {
+        const auto after = std::upper_bound(m_markedRows.begin(), m_markedRows.end(), from);
+        if (after != m_markedRows.end()) {
+            row = *after;
+        }
+    }
+    if (row < 0 || row >= count()) {
+        return -1;
+    }
+    m_shownMarkedRow = row;
+    scrollToItem(item(row), QAbstractItemView::PositionAtCenter);
+    viewport()->update();
+    return row;
+}
+
+int FrameListWidget::shownMarkedRow() const
+{
+    return m_shownMarkedRow;
+}
+
 void FrameListWidget::keyPressEvent(QKeyEvent* event)
 {
+    if (isMarkedRowStepKey(*event)) {
+        // Taken also without a marked row, so that the current frame never moves.
+        showMarkedRow(event->key() == Qt::Key_Left ? -1 : 1);
+        event->accept();
+        return;
+    }
     if (event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier &&
         selectCurrentAlone()) {
         event->accept();
@@ -165,6 +293,21 @@ void FrameListWidget::keyPressEvent(QKeyEvent* event)
 void FrameListWidget::paintEvent(QPaintEvent* event)
 {
     QListWidget::paintEvent(event);
+    QPainter painter(viewport());
+    const QRect shown = viewport()->rect();
+    for (const int row : m_markedRows) {
+        if (row >= count()) {
+            break;
+        }
+        const QRect rect = visualRect(model()->index(row, 0));
+        if (!rect.intersects(shown)) {
+            continue;
+        }
+        const int width = row == m_shownMarkedRow ? 4 : 2;
+        painter.setPen(QPen(markedFrameColor(), width));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawRect(rect.adjusted(width / 2, width / 2, -(width + 1) / 2, -(width + 1) / 2));
+    }
     if (m_dropRow < 0 || count() == 0) {
         return;
     }
@@ -172,7 +315,6 @@ void FrameListWidget::paintEvent(QPaintEvent* event)
     const bool behindLast = m_dropRow >= count();
     const QRect rect = visualRect(model()->index(behindLast ? count() - 1 : m_dropRow, 0));
     const bool across = flow() == QListView::LeftToRight;
-    QPainter painter(viewport());
     painter.setPen(QPen(palette().highlight(), 3));
     if (across) {
         const int x = behindLast ? rect.right() + 1 : rect.left() - 1;

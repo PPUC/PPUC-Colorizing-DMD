@@ -15,6 +15,14 @@ the same list of frames each time.
   mask and shape mode. It follows the frame, its `Mask ID` and `Shape`, and every stroke on its
   mask. The box beside it lists them; choosing one goes to that frame. From 10000 on the label
   reads `>=10000` and the box lists the first 10000, as in the Win32 editor.
+- While the section is shown, the same frames are outlined in green in the frame strip, and the
+  strip's scroll bar has a green tick where each of them is in the project, so a part with same
+  frames can be scrolled to. A frame the filter hides is not marked.
+- `Ctrl/Cmd+Left` and `Ctrl/Cmd+Right` scroll the strip to the previous and the next same frame
+  and outline it more strongly, from the strip or the canvas. The current frame and the selection
+  stay, so the canvas keeps the frame whose mask is drawn while the same frames are looked
+  through, e.g. before `Delete Same As Current...`. The keys can be held down. Going to another
+  frame starts from that frame again.
 - `Update Same List` counts the same frames of the current frame for no mask and for every mask
   of the project, each as `full comparison / shape N`. It helps to choose a mask. The list is
   emptied when the frame or anything the comparison depends on changes.

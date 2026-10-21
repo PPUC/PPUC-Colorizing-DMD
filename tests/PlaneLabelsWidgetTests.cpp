@@ -626,6 +626,81 @@ void testFrameListClicks()
     expect(!list.selectCurrentAlone(), "with one frame selected there is nothing to reduce");
 }
 
+// Issue #24: the same frames are outlined in the strip and ticked on its scroll bar, and
+// Ctrl+Left and Ctrl+Right look through them while the current frame stays.
+void testMarkedFramesInTheStrip()
+{
+    using colorizing::app::FrameListWidget;
+    FrameListWidget list;
+    list.setSelectionMode(QAbstractItemView::ExtendedSelection);
+    list.useStripLayout(QSize(176, 130));
+    list.resize(900, 160);
+    for (int row = 0; row < 60; ++row) {
+        list.addItem(QStringLiteral("frame %1").arg(row));
+    }
+    list.show();
+    list.setCurrentRow(0);
+    QApplication::processEvents();
+
+    const auto key = [](int code, Qt::KeyboardModifiers modifiers) {
+        return QKeyEvent(QEvent::KeyPress, code, modifiers);
+    };
+    expect(FrameListWidget::isMarkedRowStepKey(key(Qt::Key_Left, Qt::ControlModifier)) &&
+               FrameListWidget::isMarkedRowStepKey(key(Qt::Key_Right, Qt::ControlModifier)) &&
+               !FrameListWidget::isMarkedRowStepKey(
+                   key(Qt::Key_Right, Qt::ControlModifier | Qt::ShiftModifier)) &&
+               !FrameListWidget::isMarkedRowStepKey(key(Qt::Key_Right, Qt::NoModifier)),
+           "Ctrl+Left and Ctrl+Right, without other modifiers, look through the marked frames");
+
+    const QColor mark = colorizing::app::markedFrameColor();
+    const auto hasMark = [&mark](const QImage& image) {
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (image.pixelColor(x, y) == mark) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    expect(!hasMark(list.horizontalScrollBar()->grab().toImage()),
+           "without marked frames the scroll bar has no ticks");
+
+    list.setMarkedRows({3, 20, 41});
+    QApplication::processEvents();
+    expect(hasMark(list.horizontalScrollBar()->grab().toImage()),
+           "the scroll bar has a tick for each marked frame");
+
+    QKeyEvent next = key(Qt::Key_Right, Qt::ControlModifier);
+    QApplication::sendEvent(&list, &next);
+    expect(list.shownMarkedRow() == 3 && list.currentRow() == 0, "Ctrl+Right goes to frame 3");
+    QApplication::sendEvent(&list, &next);
+    QApplication::processEvents();
+    const QRect shown = list.visualItemRect(list.item(20));
+    expect(list.shownMarkedRow() == 20 && list.currentRow() == 0 &&
+               list.selectedItems().size() == 1 && list.item(0)->isSelected() &&
+               list.viewport()->rect().contains(shown),
+           "the next one is scrolled into view; the current frame and the selection stay");
+    const QImage viewport = list.viewport()->grab().toImage();
+    expect(viewport.pixelColor(shown.left() + 1, shown.center().y()) == mark,
+           "the frame shown is outlined");
+    QApplication::sendEvent(&list, &next);
+    QApplication::sendEvent(&list, &next);
+    expect(list.shownMarkedRow() == 41 && list.showMarkedRow(1) == -1,
+           "behind the last marked frame nothing moves");
+    QKeyEvent previous = key(Qt::Key_Left, Qt::ControlModifier);
+    QApplication::sendEvent(&list, &previous);
+    expect(list.shownMarkedRow() == 20 && list.currentRow() == 0, "Ctrl+Left goes back");
+
+    list.setCurrentRow(5);
+    expect(list.shownMarkedRow() == -1, "another current frame starts from itself again");
+    expect(list.showMarkedRow(-1) == 3, "from frame 5 back to frame 3");
+    list.setMarkedRows({});
+    QApplication::processEvents();
+    expect(list.shownMarkedRow() == -1 && !hasMark(list.horizontalScrollBar()->grab().toImage()),
+           "the marks go with the rows");
+}
+
 // Issue #2: a window opens where and as large as it was left.
 void testWindowGeometryIsKept()
 {
@@ -947,6 +1022,7 @@ void runPlaneLabelsWidgetTests()
     testLazyListIcons();
     testLazyStripIcons();
     testFrameListClicks();
+    testMarkedFramesInTheStrip();
     testSectionStackResize();
     testLongComboBoxesScroll();
     testWindowGeometryIsKept();

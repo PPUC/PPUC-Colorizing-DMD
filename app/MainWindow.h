@@ -268,6 +268,8 @@ private:
     // The comparison side of the Mask page, see SameFramesPanel. The same frames are worked
     // out only while the page is shown.
     void updateSameFrameControls();
+    // Marks the frames' rows in the frame list (FrameListWidget::setMarkedRows()).
+    void markFramesInList(const std::vector<std::size_t>& frameIndices);
     void updateSameFrameCounts();
     void updateSpotCommonOverlay();
     enum class SameFrameDeletion {
