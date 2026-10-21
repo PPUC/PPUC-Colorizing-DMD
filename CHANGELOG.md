@@ -7,20 +7,18 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 - The section list drops down as wide as its longest name. The trigger list below it is gone:
   the frame filter's *With triggers* lists the frames with a trigger.
-
 - *Using the selected asset* with a scene selected lists the frames that start the scene (also
   as a background scene) instead of the scene's own frames; a double click on a scene lists
   those under a filter entry of their own, *Frames of scene ...*. With a light effect selected
   it lists the frames that start the effect.
-
 - The editor opens where and as large as it was left, maximized or not; so do the Handbook,
   the Frame Tester, the PuP Tester, the plugin log, the Images window and the dump import (#2).
 - `Left` and `Right` step through the frames also after a click on the canvas (#20).
 - The frame filter has *With triggers*: frames with a PUP trigger, a scene or the monochrome
   fallback (#21).
 - A new or opened project starts with the frame filter on *All frames* (#22).
-- Long drop-down lists (the sections, the triggers) scroll instead of running past the screen,
-  so their last entries can be chosen (#23).
+- Long drop-down lists such as the sections scroll instead of running past the screen, so their
+  last entries can be chosen (#23).
 - The sections of both sidebars can be arranged: drag a header to move its section, or use the
   header's context menu, which also hides optional sections (speaker lights, helper lines,
   scenes, color rotations, color sets) and shows them again. The arrangement is kept.
