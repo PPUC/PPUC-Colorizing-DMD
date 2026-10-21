@@ -1,5 +1,7 @@
 #include "FrameListWidget.h"
 
+#include <QKeyEvent>
+
 #include "ListSelection.h"
 
 #include <QDropEvent>
@@ -53,6 +55,21 @@ int FrameListWidget::dropRow(const QPoint& position) const
 int FrameListWidget::shownDropRow() const
 {
     return m_dropRow;
+}
+
+bool FrameListWidget::isFrameStepKey(const QKeyEvent& event)
+{
+    const Qt::KeyboardModifiers others =
+        event.modifiers() & ~(Qt::ShiftModifier | Qt::KeypadModifier);
+    return (event.key() == Qt::Key_Left || event.key() == Qt::Key_Right) &&
+           others == Qt::NoModifier;
+}
+
+void FrameListWidget::stepWithKey(const QKeyEvent& event)
+{
+    QKeyEvent copy(event.type(), event.key(), event.modifiers(), event.text(),
+                   event.isAutoRepeat(), static_cast<ushort>(event.count()));
+    keyPressEvent(&copy);
 }
 
 bool FrameListWidget::takeDrag(QDragMoveEvent* event)

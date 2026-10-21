@@ -3065,6 +3065,14 @@ Use Create %1 Frame.</source>
         <translation>Mit Rotation</translation>
     </message>
     <message>
+        <source>With triggers</source>
+        <translation>Mit Triggern</translation>
+    </message>
+    <message>
+        <source>The frames with a trigger: a PUP trigger, a scene or the monochrome fallback</source>
+        <translation>Die Frames mit einem Trigger: einem PUP-Trigger, einer Szene oder dem Monochrom-Ausweichmodus</translation>
+    </message>
+    <message>
         <source>Inactive</source>
         <translation>Inaktiv</translation>
     </message>

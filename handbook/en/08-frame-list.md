@@ -71,10 +71,15 @@ for it, so a machine keeps the picture it shows. An inactive frame with a backgr
 by libserum and is not marked. The marker follows edits: painting the frame, giving it a dynamic
 zone or a background, or a duration of 15 ms or more removes it.
 
+`Left` and `Right` go to the previous and the next frame of the strip (with `Shift` extending
+the selection), also while the canvas has the focus after a click on a pixel; in paste mode the
+arrows move the paste instead. A new or opened project starts with `All frames`.
+
 The filter of the frame strip can show all frames, only frames with HD data (`HD frames`),
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
 with sprite assignments, frames with a color rotation (`With rotation`: a rotation slot of a
-length above 0 on a plane the frame has), the frames marked `inactive` (`Inactive`), in a
+length above 0 on a plane the frame has), frames with a trigger (`With triggers`: a PUP trigger,
+a scene or the monochrome fallback), the frames marked `inactive` (`Inactive`), in a
 project with scenes the frames of all scenes (`Scene frames`) or the others (`Without scene
 frames`; see "Scenes and Scaling"), or `Using the selected asset`: the frames that use what is
 selected in the section used last on the left (opened, or clicked in): the comparison mask

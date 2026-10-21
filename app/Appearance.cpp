@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPalette>
+#include <QComboBox>
 #include <QProxyStyle>
 #include <QSettings>
 #include <QStyle>
@@ -39,6 +40,23 @@ QString g_styleName;
 class CheckedButtonStyle final : public QProxyStyle {
 public:
     explicit CheckedButtonStyle(QStyle* base) : QProxyStyle(base) {}
+
+    // A combo box with more entries than it shows at once drops down a list that scrolls
+    // (issue #23). The popup some styles use instead (Fusion, Windows) shows every entry
+    // around the current one and ran past the screen, its last entries out of reach.
+    int styleHint(StyleHint hint,
+                  const QStyleOption* option,
+                  const QWidget* widget,
+                  QStyleHintReturn* returnData) const override
+    {
+        if (hint == SH_ComboBox_Popup) {
+            const auto* box = qobject_cast<const QComboBox*>(widget);
+            if (box && box->count() > box->maxVisibleItems()) {
+                return 0;
+            }
+        }
+        return QProxyStyle::styleHint(hint, option, widget, returnData);
+    }
 
     void drawComplexControl(ComplexControl control,
                             const QStyleOptionComplex* option,
@@ -132,10 +150,19 @@ private:
 void setStyleNamed(const QString& name)
 {
     if (QStyle* base = QStyleFactory::create(name)) {
-        QApplication::setStyle(new CheckedButtonStyle(base));
+        QApplication::setStyle(createEditorStyle(base));
         g_styleName = name;
     }
 }
+
+}  // namespace
+
+QStyle* createEditorStyle(QStyle* base)
+{
+    return new CheckedButtonStyle(base);
+}
+
+namespace {
 
 const Original& original()
 {

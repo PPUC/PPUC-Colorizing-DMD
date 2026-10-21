@@ -4,6 +4,8 @@
 
 #include "FrameImageUtils.h"
 
+class QStyle;
+
 namespace colorizing::app {
 
 // Light or dark, or as the operating system has it (the default).
@@ -21,6 +23,9 @@ void saveTheme(Theme theme);
 // only), and Qt before 6.8, use the Fusion style with a light or dark palette instead; back to
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
+// The editor's style over that of the platform or Fusion (checked buttons in the accent
+// color, long combo box lists that scroll); takes base over.
+[[nodiscard]] QStyle* createEditorStyle(QStyle* base);
 
 // The style draws a checked button in the highlight color, so that it stands out from the
 // others in every theme. A button with this property set to true is drawn as the style draws

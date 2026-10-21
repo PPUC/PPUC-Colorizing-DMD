@@ -5,6 +5,13 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Left` and `Right` step through the frames also after a click on the canvas (#20).
+- The frame filter has *With triggers*: frames with a PUP trigger, a scene or the monochrome
+  fallback (#21).
+- A new or opened project starts with the frame filter on *All frames* (#22).
+- Long drop-down lists (the sections, the triggers) scroll instead of running past the screen,
+  so their last entries can be chosen (#23).
+
 - The sections of both sidebars can be arranged: drag a header to move its section, or use the
   header's context menu, which also hides optional sections (speaker lights, helper lines,
   scenes, color rotations, color sets) and shows them again. The arrangement is kept.

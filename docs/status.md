@@ -2236,3 +2236,15 @@ only, `setSectionOptional()` in MainWindow before `restoreOpenSections()`) is se
 canvas hiding (`setSectionHidden()`). QSettings `layout/<state>Order` and `.../<state>Hidden`; a
 section unknown to a stored order takes its own place. Test: testSectionStackArrangement
 (PlaneLabelsWidgetTests).
+
+## Issues #20-#23 (2026-10-21)
+
+- #20: the canvas keeps the focus after a click, so arrows went nowhere. MainWindow's event
+  filter forwards Left/Right (Shift allowed, no Ctrl/Alt/Meta; `FrameListWidget::
+  isFrameStepKey()`) to the strip (`stepWithKey()`), after paste mode had its chance.
+- #21: `FrameFilter::Triggers` ("With triggers"): triggerId != kNoTriggerId.
+- #22: refreshProjectSummary() (new and opened projects) puts the filter on All frames.
+- #23: the editor style (`createEditorStyle()`, Appearance.cpp) answers SH_ComboBox_Popup with
+  0 for a combo box with more entries than maxVisibleItems: a scrolling drop-down instead of
+  Fusion's/Windows' all-entries popup that ran off the screen.
+- Tests: testFrameListClicks (keys), testLongComboBoxesScroll (fails without the hint).

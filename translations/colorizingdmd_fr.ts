@@ -3065,6 +3065,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Avec rotation</translation>
     </message>
     <message>
+        <source>With triggers</source>
+        <translation>Avec déclencheurs</translation>
+    </message>
+    <message>
+        <source>The frames with a trigger: a PUP trigger, a scene or the monochrome fallback</source>
+        <translation>Les frames avec un déclencheur : un déclencheur PUP, une scène ou le repli monochrome</translation>
+    </message>
+    <message>
         <source>Inactive</source>
         <translation>Inactives</translation>
     </message>

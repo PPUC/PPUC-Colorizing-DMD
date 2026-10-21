@@ -112,6 +112,8 @@ private:
         Sprites,
         // Frames with a color rotation (a slot of length above 0) on a plane they have.
         Rotations,
+        // Frames with a trigger: PUP, scene or the monochrome fallback (issue #21).
+        Triggers,
         // Offered for HD-only projects alone, as "Not rendered": frames the runtime shows
         // nothing for.
         HdIncomplete,

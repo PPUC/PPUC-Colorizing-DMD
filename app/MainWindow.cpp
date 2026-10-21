@@ -1044,6 +1044,12 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::Sprites));
     m_frameFilterComboBox->addItem(tr("With rotation"),
                                    static_cast<int>(FrameFilter::Rotations));
+    m_frameFilterComboBox->addItem(tr("With triggers"),
+                                   static_cast<int>(FrameFilter::Triggers));
+    m_frameFilterComboBox->setItemData(
+        m_frameFilterComboBox->count() - 1,
+        tr("The frames with a trigger: a PUP trigger, a scene or the monochrome fallback"),
+        Qt::ToolTipRole);
     m_frameFilterComboBox->addItem(tr("Inactive"),
                                    static_cast<int>(FrameFilter::Inactive));
     m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
@@ -4362,6 +4368,12 @@ void MainWindow::setFrameStatusText(const QString& text)
 
 void MainWindow::refreshProjectSummary()
 {
+    // Another project starts with all its frames: a filter kept from the one before could show
+    // none of them (issue #22).
+    if (m_frameFilterComboBox) {
+        const QSignalBlocker blocker(m_frameFilterComboBox);
+        m_frameFilterComboBox->setCurrentIndex(0);
+    }
     updateWindowTitle();
     updateEditMenuActions();
     m_selectedEditColor.reset();
@@ -5084,6 +5096,9 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
     }
     if (filter == FrameFilter::Inactive) {
         return legacy::isFrameSkippedAtRuntime(*m_document, frameIndex);
+    }
+    if (filter == FrameFilter::Triggers) {
+        return m_document->triggerId(frameIndex) != document::kNoTriggerId;
     }
     if (filter == FrameFilter::AmbientLighting) {
         return edit::hasAutomaticLights(m_document->frameLights(frameIndex));
@@ -9132,6 +9147,12 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_preview && event->type() == QEvent::KeyPress && m_document) {
         const auto* keyEvent = static_cast<QKeyEvent*>(event);
         if (m_pasteMode.handleKey(canvasEditContext(), keyEvent->key(), keyEvent->modifiers())) {
+            return true;
+        }
+        // Left and Right step through the frames from the canvas as well (issue #20); the
+        // canvas keeps the focus.
+        if (m_frameList && FrameListWidget::isFrameStepKey(*keyEvent)) {
+            m_frameList->stepWithKey(*keyEvent);
             return true;
         }
         if (keyEvent->key() == Qt::Key_Escape &&

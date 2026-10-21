@@ -15,12 +15,20 @@
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QKeyEvent>
+#include <QLineEdit>
+#include <QStyleFactory>
+#include <QStyleOptionComboBox>
+#include <QStyle>
 #include <QSettings>
+
+#include <memory>
 #include <QTemporaryDir>
 #include <QToolButton>
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
+#include "Appearance.h"
 #include "FrameListWidget.h"
 #include "FrameThumbnail.h"
 #include "CanvasHistory.h"
@@ -577,6 +585,58 @@ void testFrameListClicks()
     expect(list.currentRow() == 2 && list.selectedItems().size() == 1 &&
                list.item(2)->isSelected(),
            "a double click leaves the frame alone selected");
+
+    // Issue #20: Left and Right step through the frames from the canvas too, where the focus
+    // is after a click on a pixel.
+    const auto key = [](int code, Qt::KeyboardModifiers modifiers) {
+        return QKeyEvent(QEvent::KeyPress, code, modifiers);
+    };
+    using colorizing::app::FrameListWidget;
+    expect(FrameListWidget::isFrameStepKey(key(Qt::Key_Left, Qt::NoModifier)) &&
+               FrameListWidget::isFrameStepKey(key(Qt::Key_Right, Qt::ShiftModifier)) &&
+               !FrameListWidget::isFrameStepKey(key(Qt::Key_Right, Qt::AltModifier)) &&
+               !FrameListWidget::isFrameStepKey(key(Qt::Key_Left, Qt::ControlModifier)) &&
+               !FrameListWidget::isFrameStepKey(key(Qt::Key_Up, Qt::NoModifier)),
+           "Left and Right step, also with Shift; Alt and Ctrl keep their shortcuts");
+    QLineEdit elsewhere;
+    elsewhere.show();
+    elsewhere.setFocus();
+    list.setCurrentRow(2);
+    list.stepWithKey(key(Qt::Key_Right, Qt::NoModifier));
+    expect(list.currentRow() == 3 && list.selectedItems().size() == 1 &&
+               list.item(3)->isSelected(),
+           "Right shows the next frame alone, while another widget has the focus");
+    list.stepWithKey(key(Qt::Key_Left, Qt::NoModifier));
+    list.stepWithKey(key(Qt::Key_Left, Qt::NoModifier));
+    expect(list.currentRow() == 1, "Left goes back");
+}
+
+// Issue #23: a combo box with more entries than it shows drops down a list that scrolls; the
+// popup of Fusion and the Windows styles showed all of them and ran past the screen.
+void testLongComboBoxesScroll()
+{
+    std::unique_ptr<QStyle> style(
+        colorizing::app::createEditorStyle(QStyleFactory::create(QStringLiteral("Fusion"))));
+    QComboBox shortBox;
+    QComboBox longBox;
+    for (int i = 0; i < 5; ++i) {
+        shortBox.addItem(QString::number(i));
+    }
+    for (int i = 0; i < 60; ++i) {
+        longBox.addItem(QString::number(i));
+    }
+    // As QComboBox asks: with the option of a box that cannot be edited.
+    QStyleOptionComboBox option;
+    option.initFrom(&longBox);
+    option.editable = false;
+    std::unique_ptr<QStyle> fusion(QStyleFactory::create(QStringLiteral("Fusion")));
+    expect(fusion->styleHint(QStyle::SH_ComboBox_Popup, &option, &longBox) != 0,
+           "Fusion itself pops up every entry");
+    expect(style->styleHint(QStyle::SH_ComboBox_Popup, &option, &longBox) == 0,
+           "a long list drops down as a scrolling list");
+    expect(style->styleHint(QStyle::SH_ComboBox_Popup, &option, &shortBox) ==
+               fusion->styleHint(QStyle::SH_ComboBox_Popup, &option, &shortBox),
+           "a short one looks as the style has it");
 }
 
 // Issue #13: the open sections of a side bar are resized by dragging the border between two of
@@ -826,5 +886,6 @@ void runPlaneLabelsWidgetTests()
     testLazyStripIcons();
     testFrameListClicks();
     testSectionStackResize();
+    testLongComboBoxesScroll();
     testSectionStackArrangement();
 }

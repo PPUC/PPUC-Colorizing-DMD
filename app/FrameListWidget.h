@@ -4,6 +4,8 @@
 
 #include <functional>
 
+class QKeyEvent;
+
 namespace colorizing::app {
 
 // The frame list. The selected frames can be dragged to another place in the list; the list
@@ -34,6 +36,12 @@ public:
 
     // The row the line shows the frames going before during a drag; -1 without a drag.
     [[nodiscard]] int shownDropRow() const;
+
+    // A key that steps through the frames while the canvas has the focus (issue #20): Left or
+    // Right, with Shift extending the selection as in the strip, without Ctrl, Alt or Meta.
+    [[nodiscard]] static bool isFrameStepKey(const QKeyEvent& event);
+    // Steps as the key does in the strip, wherever the focus is.
+    void stepWithKey(const QKeyEvent& event);
 
 protected:
     [[nodiscard]] QItemSelectionModel::SelectionFlags selectionCommand(
