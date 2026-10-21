@@ -17,6 +17,7 @@
 #include <QTemporaryDir>
 
 #include "RuntimeFixtures.h"
+#include "FramePictureView.h"
 #include "dialogs/FrameTesterDialog.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "document/ProjectDocument.h"
@@ -252,8 +253,38 @@ void testBackgroundScene()
 
 }  // namespace
 
+// The tester's pictures grow with the window, in whole screen pixels per frame pixel.
+void testPicturesGrow()
+{
+    app::FramePictureView view;
+    expect(view.pixelScale() == 0, "no frame, no scale");
+    int rendered = 0;
+    view.setFrame(render::Size{256, 64}, [&rendered](int scale) {
+        ++rendered;
+        QImage image(256 * scale, 64 * scale, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        return image;
+    });
+    view.resize(512, 200);
+    expect(view.pixelScale() == 2, "256x64 in 512 pixels: 2 per frame pixel");
+    view.resize(1400, 500);
+    expect(view.pixelScale() == 5, "a larger window, a larger picture");
+    view.resize(1400, 130);
+    expect(view.pixelScale() == 2, "the height limits it too");
+    view.resize(100, 30);
+    expect(view.pixelScale() == 1, "at least 1");
+    view.resize(1400, 500);
+    const QImage shown = view.grab().toImage();
+    expect(rendered == 1 && shown.pixelColor(700, 250) == QColor(Qt::red) &&
+               shown.pixelColor(5, 5) == QColor(Qt::black),
+           "drawn once at that scale, centred on black");
+    view.clear();
+    expect(!view.hasFrame() && view.pixelScale() == 0, "cleared");
+}
+
 void runFrameTesterWidgetTests()
 {
+    testPicturesGrow();
     testCore();
     testDialog();
     testScenes();

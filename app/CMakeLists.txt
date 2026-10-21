@@ -48,6 +48,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     EditColorKeys.h
     FrameImageUtils.cpp
     FlowLayout.cpp
+    FramePictureView.cpp
+    FramePictureView.h
     FlowLayout.h
     FrameListWidget.cpp
     FrameListWidget.h

@@ -2060,3 +2060,10 @@ binding is back). Not C++23: GCC 13 (Ubuntu 24.04) and Apple's libc++ support it
 part. The full build with warnings as errors (Apple clang) and core with GCC 16
 (`-Wall -Wextra -Werror`) are clean. Scratch builds should keep
 `CMAKE_COMPILE_WARNING_AS_ERROR=ON` as CI does: without it the C++17 warning went unseen.
+
+## Frame tester pictures grow with the window (2026-10-21, tester request)
+
+Testers found the SD/HD pictures too small; they stayed 512 px wide whatever the window.
+`FramePictureView` (app/) keeps a renderer and draws at the largest whole scale fitting its
+size (cached per scale), centred on black; the tester's three pictures use it, the planes'
+row gets stretch 2, the original's 1. Test: `testPicturesGrow`.

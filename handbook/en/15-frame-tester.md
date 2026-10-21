@@ -10,7 +10,9 @@ in the editor, saved or not.
   A dump must have the project's frame size and no shade the project's frames cannot have.
   A frame of a dump lasts until the next one, as the dump import measures it.
 - The tester shows libserum's 32-row and 64-row planes (a project with 256x64 or 192x64
-  original frames has the 64-row one only) and below them the ROM frame that was fed. The line
+  original frames has the 64-row one only) and below them the ROM frame that was fed. The
+  pictures grow with the window (the planes take two thirds of the height), each drawn with as
+  many whole screen pixels per frame pixel as fit. The line
   under the pictures gives the position, the project frame or the dump time, the duration, and
   libserum's answer: `identified as frame N`, `(inactive: the display keeps its picture)`, `not
   identified`, `libserum keeps the picture on display`, and a trigger it reported. While

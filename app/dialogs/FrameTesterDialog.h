@@ -31,6 +31,8 @@ namespace colorizing::app {
 //
 // Modal: libserum holds one colorization per process, and the project must not change while
 // it is loaded (adding a dump frame reloads it).
+class FramePictureView;
+
 class FrameTesterDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(FrameTesterDialog)
 
@@ -102,9 +104,9 @@ private:
     QTimer m_rotationTimer;
 
     QLabel* m_sourceLabel = nullptr;
-    QLabel* m_rows32Label = nullptr;
-    QLabel* m_rows64Label = nullptr;
-    QLabel* m_originalLabel = nullptr;
+    FramePictureView* m_rows32View = nullptr;
+    FramePictureView* m_rows64View = nullptr;
+    FramePictureView* m_originalView = nullptr;
     QLabel* m_infoLabel = nullptr;
     QSlider* m_slider = nullptr;
     QSpinBox* m_positionSpinBox = nullptr;

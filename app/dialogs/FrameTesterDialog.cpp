@@ -19,6 +19,7 @@
 
 #include "import/DumpFile.h"
 #include "FrameImageUtils.h"
+#include "FramePictureView.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "legacy/LegacyProjectIo.h"
 #include "platform/Utf8Path.h"
@@ -29,19 +30,16 @@ namespace {
 
 using runtime::RuntimePreview;
 
-// Shown at a width of 512 pixels: 128 columns at 4, 256 at 2.
-int scaleFor(int width)
-{
-    return std::max(1, 512 / std::max(1, width));
-}
-
-QPixmap planePixmap(const runtime::RuntimePlane* plane)
+// libserum's picture of a plane, as large as its view allows.
+void showPlane(FramePictureView& view, const runtime::RuntimePlane* plane)
 {
     if (!plane || !plane->image.isValid()) {
-        return QPixmap();
+        view.clear();
+        return;
     }
-    return QPixmap::fromImage(
-        renderRgb565FrameImage(plane->image, scaleFor(plane->image.size.width)));
+    view.setFrame(plane->image.size, [image = plane->image](int pixelScale) {
+        return renderRgb565FrameImage(image, pixelScale);
+    });
 }
 
 }  // namespace
@@ -60,17 +58,13 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     m_selectedButton = new QPushButton(tr("Selected Frames"), this);
     m_selectedButton->setToolTip(tr("Test the frames selected in the frame list"));
 
-    m_rows32Label = new QLabel(this);
-    m_rows32Label->setToolTip(tr("libserum's 32-row plane"));
-    m_rows64Label = new QLabel(this);
-    m_rows64Label->setToolTip(tr("libserum's 64-row plane"));
-    m_originalLabel = new QLabel(this);
-    m_originalLabel->setToolTip(tr("The ROM frame fed to libserum"));
-    for (QLabel* label : {m_rows32Label, m_rows64Label, m_originalLabel}) {
-        label->setAlignment(Qt::AlignCenter);
-        label->setMinimumSize(512, 128);
-        label->setStyleSheet(QStringLiteral("background: black"));
-    }
+    // The pictures grow with the window, in whole screen pixels per frame pixel.
+    m_rows32View = new FramePictureView(this);
+    m_rows32View->setToolTip(tr("libserum's 32-row plane"));
+    m_rows64View = new FramePictureView(this);
+    m_rows64View->setToolTip(tr("libserum's 64-row plane"));
+    m_originalView = new FramePictureView(this);
+    m_originalView->setToolTip(tr("The ROM frame fed to libserum"));
     m_infoLabel = new QLabel(this);
     m_infoLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
@@ -119,9 +113,12 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     sourceRow->addWidget(m_selectedButton);
     sourceRow->addWidget(loadButton);
     auto* pictures = new QGridLayout();
-    pictures->addWidget(m_rows32Label, 0, 0);
-    pictures->addWidget(m_rows64Label, 0, 1);
-    pictures->addWidget(m_originalLabel, 1, 0, 1, 2);
+    pictures->addWidget(m_rows32View, 0, 0);
+    pictures->addWidget(m_rows64View, 0, 1);
+    pictures->addWidget(m_originalView, 1, 0, 1, 2);
+    // libserum's planes, what is tested, get the larger share of the height.
+    pictures->setRowStretch(0, 2);
+    pictures->setRowStretch(1, 1);
     auto* positionRow = new QHBoxLayout();
     positionRow->addWidget(m_slider, 1);
     positionRow->addWidget(m_positionSpinBox);
@@ -147,7 +144,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     findRow->addWidget(closeButton);
     auto* layout = new QVBoxLayout(this);
     layout->addLayout(sourceRow);
-    layout->addLayout(pictures);
+    layout->addLayout(pictures, 1);
     layout->addWidget(m_infoLabel);
     layout->addLayout(positionRow);
     layout->addLayout(playRow);
@@ -409,15 +406,18 @@ void FrameTesterDialog::rotateStep()
 void FrameTesterDialog::showResult()
 {
     if (!m_result.unchanged) {
-        m_rows32Label->setPixmap(planePixmap(m_result.plane(runtime::PlaneRequest::Rows32)));
-        m_rows64Label->setPixmap(planePixmap(m_result.plane(runtime::PlaneRequest::Rows64)));
+        showPlane(*m_rows32View, m_result.plane(runtime::PlaneRequest::Rows32));
+        showPlane(*m_rows64View, m_result.plane(runtime::PlaneRequest::Rows64));
     }
     if (!m_frames.empty()) {
         const document::IndexedFrame& original = m_frames[m_position].original;
-        m_originalLabel->setPixmap(QPixmap::fromImage(renderIndexedFrameImage(
-            original, scaleFor(original.size.width), {}, m_document.colorCount())));
+        m_originalView->setFrame(
+            original.size,
+            [original, colorCount = m_document.colorCount()](int pixelScale) {
+                return renderIndexedFrameImage(original, pixelScale, {}, colorCount);
+            });
     } else {
-        m_originalLabel->clear();
+        m_originalView->clear();
     }
     m_infoLabel->setText(infoText());
 }
