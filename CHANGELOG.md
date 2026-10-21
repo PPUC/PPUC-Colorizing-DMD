@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.7
+
 - A project is made for libserum 2.8 or libserum 2.9 (*Project Settings*, *Made for*).
   libserum 2.9 allows 128 sprites per frame and practically any number of sprites and
   backgrounds; such a project plays with libserum 2.9 and later only. Projects for libserum
@@ -14,8 +16,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   flash, to be avoided in a video mode). Sprites themselves work as before.
 - Speaker lights: named light effects (the 80 WS2812FX effects with colors, speed, options,
   brightness and duration) in the new Light Effects section; per frame and channel an effect, a
-  static color or off in the Speaker Lights section, with ambient lighting colors suggested from the
-  frame; a default per channel in Project Settings. A preview beside the canvas and in the frame
+  static color or off in the Speaker Lights section, with ambient lighting colors suggested from
+  the frame; a default per channel in Project Settings. A preview beside the canvas and in the frame
   tester plays them with the firmware's effect code (Settings -> Appearance). Needs libserum 2.9
   at runtime.
 - *View -> Speaker Light Preview* switches the speakers beside the canvas on and off; they sit
@@ -23,12 +25,15 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The frame tester draws the pixel shape and size of the canvas and shows its three DMDs one above
   the other, at the same size: the 32-row plane, the ROM frame, the 64-row plane.
 - The Speaker Lights and Light Effect sections are the last ones of the right sidebar.
+- Text in front of a background scene no longer flickers in the 64-row plane while the scene
+  plays (libserum 2.9; the frame tester and the Runtime view show it as a machine does).
 - Ambient lighting colors are marked *automatic* in the Speaker Lights section (*out of date*
   once the frame changed), the timeline filter lists them (*Ambient lighting*, *Ambient lighting
   out of date*), and *Edit -> Update Ambient Lighting* updates them all, leaving the colors the
   author chose.
-- *Ambient Lighting For Frames Without Speaker Lights* gives every frame without speaker light settings
-  the ambient lighting colors of its left and right part, in one undo step, for existing projects.
+- *Ambient Lighting For Frames Without Speaker Lights* gives every frame without speaker light
+  settings the ambient lighting colors of its left and right part, in one undo step, for existing
+  projects.
 
 ## 3.99.6
 
