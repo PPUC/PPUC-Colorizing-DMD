@@ -647,6 +647,90 @@ void testSectionStackResize()
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
 
+// The author arranges a side bar: sections moved (in the context menu or by dragging a header)
+// and optional ones hidden; both come back at the next start.
+void testSectionStackArrangement()
+{
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("SectionStackTests"));
+    const QString key = QStringLiteral("testSectionStackArrangement");
+    const auto make = [](colorizing::app::SectionStack& stack, const QStringList& names) {
+        for (const QString& name : names) {
+            stack.addTab(new QLabel(name), name);
+        }
+        stack.setSectionOptional(3, true);
+    };
+    {
+        colorizing::app::SectionStack stack;
+        make(stack, {QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"),
+                     QStringLiteral("D")});
+        stack.restoreOpenSections(key, {QStringLiteral("A"), QStringLiteral("C")});
+        stack.moveSection(2, 0);
+        expect(stack.sectionOrder() == QStringList({QStringLiteral("C"), QStringLiteral("A"),
+                                                    QStringLiteral("B"), QStringLiteral("D")}) &&
+                   stack.tabText(2) == QStringLiteral("C") && stack.indexOf(stack.widget(2)) == 2,
+               "C moves to the top; its index stays");
+        expect(stack.resizeBelow(2, 20) && stack.sectionWeight(2) == 120 &&
+                   stack.sectionWeight(0) == 80 && !stack.resizeBelow(0, 10),
+               "the border below C now moves against A, and A, last open, has none");
+        stack.setSectionHiddenByAuthor(1, true);
+        expect(!stack.isSectionHiddenByAuthor(1), "a section that is not optional stays");
+        expect(stack.contextMenuEntries(3).contains(QStringLiteral("Hide D")) &&
+                   !stack.contextMenuEntries(1).contains(QStringLiteral("Hide B")),
+               "the menu offers to hide an optional section");
+        stack.setSectionHiddenByAuthor(3, true);
+        expect(stack.isSectionHiddenByAuthor(3) && !stack.isSectionHidden(3) &&
+                   stack.contextMenuEntries(0).contains(QStringLiteral("Show D")),
+               "D hidden by the author, apart from what the editor hides, and offered again");
+    }
+    {
+        // The next start, with a section added since.
+        colorizing::app::SectionStack stack;
+        make(stack, {QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"),
+                     QStringLiteral("D"), QStringLiteral("E")});
+        stack.restoreOpenSections(key, {});
+        expect(stack.sectionOrder() == QStringList({QStringLiteral("C"), QStringLiteral("A"),
+                                                    QStringLiteral("B"), QStringLiteral("D"),
+                                                    QStringLiteral("E")}) &&
+                   stack.isSectionHiddenByAuthor(3),
+               "the order and the hidden section come back, the new one at its own place");
+        stack.resetArrangement();
+        expect(stack.sectionOrder() == QStringList({QStringLiteral("A"), QStringLiteral("B"),
+                                                    QStringLiteral("C"), QStringLiteral("D"),
+                                                    QStringLiteral("E")}) &&
+                   !stack.isSectionHiddenByAuthor(3),
+               "restored: the first order, everything shown");
+
+        // Dragging B's header above A's: B moves, and is not opened by the drag.
+        stack.resize(240, 400);
+        stack.show();
+        QApplication::processEvents();
+        const QList<QToolButton*> headers = stack.findChildren<QToolButton*>();
+        QToolButton* a = headers[0];
+        QToolButton* b = headers[1];
+        const bool bOpen = stack.isSectionOpen(1);
+        const auto send = [](QWidget* target, QEvent::Type type, const QPoint& global,
+                             Qt::MouseButtons buttons) {
+            const QPoint local = target->mapFromGlobal(global);
+            QMouseEvent event(type, local, global, Qt::LeftButton, buttons, Qt::NoModifier);
+            QApplication::sendEvent(target, &event);
+        };
+        const QPoint start = b->mapToGlobal(b->rect().center());
+        const QPoint target = a->mapToGlobal(QPoint(a->width() / 2, 1));
+        send(b, QEvent::MouseButtonPress, start, Qt::LeftButton);
+        send(b, QEvent::MouseMove, start - QPoint(0, 10), Qt::LeftButton);
+        send(b, QEvent::MouseMove, target, Qt::LeftButton);
+        send(b, QEvent::MouseButtonRelease, target, Qt::NoButton);
+        expect(stack.sectionOrder().front() == QStringLiteral("B") &&
+                   stack.isSectionOpen(1) == bOpen,
+               "a dragged header moves its section and leaves it open or closed");
+    }
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
+}
+
 void testCanvasHistory()
 {
     using Kind = app::CanvasPlace::Kind;
@@ -742,4 +826,5 @@ void runPlaneLabelsWidgetTests()
     testLazyStripIcons();
     testFrameListClicks();
     testSectionStackResize();
+    testSectionStackArrangement();
 }

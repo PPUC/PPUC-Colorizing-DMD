@@ -6772,6 +6772,34 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <source>Drag to resize the sections; double-click to share the height equally</source>
         <translation>Ziehen, um die Bereiche in der Höhe zu ändern; Doppelklick verteilt die Höhe gleichmäßig</translation>
     </message>
+    <message>
+        <source>Click to open or close; drag to move; right-click to arrange the sections</source>
+        <translation>Klicken zum Öffnen oder Schließen; ziehen zum Verschieben; Rechtsklick zum Anordnen der Bereiche</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Nach oben</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Nach unten</translation>
+    </message>
+    <message>
+        <source>Hide %1</source>
+        <translation>%1 ausblenden</translation>
+    </message>
+    <message>
+        <source>Show %1</source>
+        <translation>%1 einblenden</translation>
+    </message>
+    <message>
+        <source>Restore the Sections</source>
+        <translation>Bereiche zurücksetzen</translation>
+    </message>
+    <message>
+        <source>The first order, every section shown</source>
+        <translation>Die ursprüngliche Reihenfolge, alle Bereiche sichtbar</translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>

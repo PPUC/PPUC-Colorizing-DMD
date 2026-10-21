@@ -2,7 +2,11 @@
 
 #include "Appearance.h"
 
+#include <QApplication>
+#include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QFrame>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollArea>
@@ -81,6 +85,12 @@ SectionStack::SectionStack(QWidget* parent)
     m_layout->setSpacing(2);
     // Takes the height while no section is open.
     m_layout->addStretch(1);
+    // Where a dragged header would go.
+    m_dropLine = new QFrame(this);
+    m_dropLine->setFrameShape(QFrame::NoFrame);
+    m_dropLine->setAutoFillBackground(true);
+    m_dropLine->setBackgroundRole(QPalette::Highlight);
+    m_dropLine->hide();
 }
 
 int SectionStack::addTab(QWidget* content, const QString& key, const QString& title)
@@ -111,11 +121,22 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
     auto* handle = new SectionResizeHandle(this);
     handle->setVisible(false);
     // Header, content and handle, one after the other, before the stretch.
-    m_layout->insertWidget(index * 3, header);
-    m_layout->insertWidget(index * 3 + 1, frame);
-    m_layout->insertWidget(index * 3 + 2, handle);
+    const int position = static_cast<int>(m_order.size());
+    m_layout->insertWidget(position * 3, header);
+    m_layout->insertWidget(position * 3 + 1, frame);
+    m_layout->insertWidget(position * 3 + 2, handle);
     m_sections.push_back(
         Section{key, title.isEmpty() ? key : title, content, header, frame, handle});
+    m_order.push_back(index);
+    // Dragged to move the section; the context menu arranges the sections.
+    header->installEventFilter(this);
+    header->setContextMenuPolicy(Qt::CustomContextMenu);
+    header->setToolTip(tr("Click to open or close; drag to move; right-click to arrange the "
+                          "sections"));
+    connect(header, &QToolButton::customContextMenuRequested, this,
+            [this, content, header](const QPoint& at) {
+                showContextMenu(indexOf(content), header->mapToGlobal(at));
+            });
     // The heights at the press: the drag moves from them.
     auto pressed = std::make_shared<std::vector<int>>();
     handle->onDragged = [this, content, pressed](int dy, bool press) {
@@ -140,7 +161,7 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
         const int position = indexOf(content);
         Section& section = m_sections[static_cast<std::size_t>(position)];
         section.header->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
-        section.frame->setVisible(open && !section.hidden);
+        section.frame->setVisible(open && !isSectionOutOfView(position));
         updateStretch();
         if (open) {
             setCurrent(position);
@@ -154,24 +175,304 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
 void SectionStack::updateStretch()
 {
     bool anyOpen = false;
-    for (std::size_t index = 0; index < m_sections.size(); ++index) {
-        const Section& section = m_sections[index];
-        const bool open = isSectionShown(static_cast<int>(index));
+    for (std::size_t position = 0; position < m_order.size(); ++position) {
+        const int index = m_order[position];
+        const Section& section = m_sections[static_cast<std::size_t>(index)];
+        const bool open = isSectionShown(index);
         anyOpen = anyOpen || open;
-        m_layout->setStretch(static_cast<int>(index * 3 + 1), open ? section.weight : 0);
-        section.handle->setVisible(open && nextOpenSection(static_cast<int>(index)) >= 0);
+        m_layout->setStretch(static_cast<int>(position * 3 + 1), open ? section.weight : 0);
+        section.handle->setVisible(open && nextOpenSection(index) >= 0);
     }
-    m_layout->setStretch(static_cast<int>(m_sections.size() * 3), anyOpen ? 0 : 1);
+    m_layout->setStretch(static_cast<int>(m_order.size() * 3), anyOpen ? 0 : 1);
+}
+
+int SectionStack::positionOf(int index) const
+{
+    const auto found = std::find(m_order.begin(), m_order.end(), index);
+    return found == m_order.end() ? -1 : static_cast<int>(found - m_order.begin());
 }
 
 int SectionStack::nextOpenSection(int index) const
 {
-    for (int next = index + 1; next < count(); ++next) {
-        if (isSectionShown(next)) {
-            return next;
+    const int position = positionOf(index);
+    for (std::size_t next = static_cast<std::size_t>(position + 1); next < m_order.size();
+         ++next) {
+        if (isSectionShown(m_order[next])) {
+            return m_order[next];
         }
     }
     return -1;
+}
+
+void SectionStack::relayout()
+{
+    while (m_layout->count() > 0) {
+        delete m_layout->takeAt(0);
+    }
+    for (int index : m_order) {
+        const Section& section = m_sections[static_cast<std::size_t>(index)];
+        m_layout->addWidget(section.header);
+        m_layout->addWidget(section.frame);
+        m_layout->addWidget(section.handle);
+    }
+    m_layout->addStretch(1);
+    updateStretch();
+}
+
+QStringList SectionStack::sectionOrder() const
+{
+    QStringList keys;
+    for (int index : m_order) {
+        keys << tabText(index);
+    }
+    return keys;
+}
+
+void SectionStack::moveSection(int index, int position)
+{
+    const int from = positionOf(index);
+    if (from < 0) {
+        return;
+    }
+    position = std::clamp(position, 0, count() - 1);
+    if (position == from) {
+        return;
+    }
+    m_order.erase(m_order.begin() + from);
+    m_order.insert(m_order.begin() + position, index);
+    relayout();
+    storeArrangement();
+}
+
+void SectionStack::resetArrangement()
+{
+    for (int index = 0; index < count(); ++index) {
+        m_order[static_cast<std::size_t>(index)] = index;
+        m_sections[static_cast<std::size_t>(index)].hiddenByAuthor = false;
+        applyVisibility(index);
+    }
+    relayout();
+    storeArrangement();
+}
+
+void SectionStack::setSectionOptional(int index, bool optional)
+{
+    if (index >= 0 && index < count()) {
+        m_sections[static_cast<std::size_t>(index)].optional = optional;
+        if (!optional) {
+            setSectionHiddenByAuthor(index, false);
+        }
+    }
+}
+
+bool SectionStack::isSectionOptional(int index) const
+{
+    return index >= 0 && index < count() && m_sections[static_cast<std::size_t>(index)].optional;
+}
+
+bool SectionStack::isSectionHiddenByAuthor(int index) const
+{
+    return index >= 0 && index < count() &&
+           m_sections[static_cast<std::size_t>(index)].hiddenByAuthor;
+}
+
+void SectionStack::setSectionHiddenByAuthor(int index, bool hidden)
+{
+    if (index < 0 || index >= count()) {
+        return;
+    }
+    Section& section = m_sections[static_cast<std::size_t>(index)];
+    if ((hidden && !section.optional) || section.hiddenByAuthor == hidden) {
+        return;
+    }
+    section.hiddenByAuthor = hidden;
+    applyVisibility(index);
+    updateStretch();
+    storeArrangement();
+}
+
+bool SectionStack::isSectionOutOfView(int index) const
+{
+    const Section& section = m_sections[static_cast<std::size_t>(index)];
+    return section.hidden || section.hiddenByAuthor;
+}
+
+void SectionStack::applyVisibility(int index)
+{
+    Section& section = m_sections[static_cast<std::size_t>(index)];
+    const bool outOfView = isSectionOutOfView(index);
+    section.header->setVisible(!outOfView);
+    section.frame->setVisible(!outOfView && section.header->isChecked());
+}
+
+QStringList SectionStack::contextMenuEntries(int index) const
+{
+    QStringList entries;
+    entries << tr("Move Up") << tr("Move Down");
+    if (isSectionOptional(index)) {
+        entries << tr("Hide %1").arg(title(index));
+    }
+    for (int other = 0; other < count(); ++other) {
+        if (isSectionHiddenByAuthor(other)) {
+            entries << tr("Show %1").arg(title(other));
+        }
+    }
+    entries << tr("Restore the Sections");
+    return entries;
+}
+
+void SectionStack::showContextMenu(int index, const QPoint& globalPos)
+{
+    if (index < 0) {
+        return;
+    }
+    // Up and down past the sections in view: those the editor hides for this canvas are
+    // passed over.
+    const int position = positionOf(index);
+    int previous = -1;
+    for (int p = position - 1; p >= 0 && previous < 0; --p) {
+        if (!isSectionOutOfView(m_order[static_cast<std::size_t>(p)])) {
+            previous = p;
+        }
+    }
+    int next = -1;
+    for (int p = position + 1; p < count() && next < 0; ++p) {
+        if (!isSectionOutOfView(m_order[static_cast<std::size_t>(p)])) {
+            next = p;
+        }
+    }
+    QMenu menu(this);
+    QAction* up = menu.addAction(tr("Move Up"));
+    up->setEnabled(previous >= 0);
+    connect(up, &QAction::triggered, this, [this, index, previous]() {
+        moveSection(index, previous);
+    });
+    QAction* down = menu.addAction(tr("Move Down"));
+    down->setEnabled(next >= 0);
+    connect(down, &QAction::triggered, this, [this, index, next]() { moveSection(index, next); });
+    menu.addSeparator();
+    if (isSectionOptional(index)) {
+        QAction* hide = menu.addAction(tr("Hide %1").arg(title(index)));
+        connect(hide, &QAction::triggered, this,
+                [this, index]() { setSectionHiddenByAuthor(index, true); });
+    }
+    for (int other = 0; other < count(); ++other) {
+        if (isSectionHiddenByAuthor(other)) {
+            QAction* show = menu.addAction(tr("Show %1").arg(title(other)));
+            connect(show, &QAction::triggered, this,
+                    [this, other]() { setSectionHiddenByAuthor(other, false); });
+        }
+    }
+    menu.addSeparator();
+    QAction* reset = menu.addAction(tr("Restore the Sections"));
+    reset->setToolTip(tr("The first order, every section shown"));
+    connect(reset, &QAction::triggered, this, [this]() { resetArrangement(); });
+    menu.exec(globalPos);
+}
+
+int SectionStack::dropPosition(int globalY) const
+{
+    const int y = mapFromGlobal(QPoint(0, globalY)).y();
+    for (std::size_t position = 0; position < m_order.size(); ++position) {
+        const Section& section = m_sections[static_cast<std::size_t>(m_order[position])];
+        if (section.header->isHidden()) {
+            continue;
+        }
+        if (y < section.header->geometry().center().y()) {
+            return static_cast<int>(position);
+        }
+    }
+    return static_cast<int>(m_order.size());
+}
+
+bool SectionStack::eventFilter(QObject* watched, QEvent* event)
+{
+    int index = -1;
+    for (int candidate = 0; candidate < count(); ++candidate) {
+        if (m_sections[static_cast<std::size_t>(candidate)].header == watched) {
+            index = candidate;
+        }
+    }
+    if (index < 0) {
+        return QWidget::eventFilter(watched, event);
+    }
+    auto* header = m_sections[static_cast<std::size_t>(index)].header;
+    switch (event->type()) {
+        case QEvent::MouseButtonPress: {
+            const auto* mouse = static_cast<QMouseEvent*>(event);
+            if (mouse->button() == Qt::LeftButton) {
+                m_dragIndex = index;
+                m_dragging = false;
+                m_pressY = static_cast<int>(mouse->globalPosition().y());
+            }
+            break;
+        }
+        case QEvent::MouseMove: {
+            const auto* mouse = static_cast<QMouseEvent*>(event);
+            if (m_dragIndex != index || !(mouse->buttons() & Qt::LeftButton)) {
+                break;
+            }
+            const int globalY = static_cast<int>(mouse->globalPosition().y());
+            if (!m_dragging &&
+                std::abs(globalY - m_pressY) >= QApplication::startDragDistance()) {
+                m_dragging = true;
+                header->setDown(false);
+                header->setCursor(Qt::ClosedHandCursor);
+            }
+            if (m_dragging) {
+                // The line above the header the section would go before, or below the last.
+                const int position = dropPosition(globalY);
+                int lineY = 0;
+                if (position < count()) {
+                    lineY = m_sections[static_cast<std::size_t>(m_order[position])]
+                                .header->geometry()
+                                .top() -
+                            2;
+                } else {
+                    for (int p = count() - 1; p >= 0; --p) {
+                        const int lastIndex = m_order[static_cast<std::size_t>(p)];
+                        const Section& last = m_sections[static_cast<std::size_t>(lastIndex)];
+                        if (!last.header->isHidden()) {
+                            const QWidget* bottom =
+                                last.frame->isVisible() ? static_cast<const QWidget*>(last.frame)
+                                                        : last.header;
+                            lineY = bottom->geometry().bottom() + 1;
+                            break;
+                        }
+                    }
+                }
+                m_dropLine->setGeometry(0, std::max(0, lineY), width(), 3);
+                m_dropLine->show();
+                m_dropLine->raise();
+                return true;
+            }
+            break;
+        }
+        case QEvent::MouseButtonRelease: {
+            const auto* mouse = static_cast<QMouseEvent*>(event);
+            const bool wasDragging = m_dragging && m_dragIndex == index;
+            m_dragging = false;
+            m_dragIndex = -1;
+            if (wasDragging && mouse->button() == Qt::LeftButton) {
+                m_dropLine->hide();
+                header->unsetCursor();
+                header->setDown(false);
+                int position = dropPosition(static_cast<int>(mouse->globalPosition().y()));
+                // Placed before the header at that position, counted with the section itself
+                // still in the order.
+                if (position > positionOf(index)) {
+                    --position;
+                }
+                moveSection(index, position);
+                // Not a click: the section stays open or closed.
+                return true;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 int SectionStack::sectionWeight(int index) const
@@ -291,14 +592,13 @@ void SectionStack::setSectionHidden(int index, bool hidden)
         return;
     }
     section.hidden = hidden;
-    section.header->setVisible(!hidden);
-    section.frame->setVisible(!hidden && section.header->isChecked());
+    applyVisibility(index);
     updateStretch();
 }
 
 bool SectionStack::isSectionShown(int index) const
 {
-    return isSectionOpen(index) && !m_sections[static_cast<std::size_t>(index)].hidden;
+    return isSectionOpen(index) && !isSectionOutOfView(index);
 }
 
 void SectionStack::setSectionOpen(int index, bool open)
@@ -320,8 +620,59 @@ void SectionStack::restoreOpenSections(const QString& stateKey, const QStringLis
         m_sections[static_cast<std::size_t>(index)].weight = std::max(1, weight);
         setSectionOpen(index, open.contains(tabText(index)));
     }
-    updateStretch();
+    // The author's order: the stored keys first in their order, a section added since at its
+    // own place among them.
+    const QStringList order =
+        QSettings().value(QStringLiteral("layout/") + stateKey + QStringLiteral("Order"))
+            .toStringList();
+    if (!order.isEmpty()) {
+        std::vector<int> arranged;
+        for (const QString& key : order) {
+            for (int index = 0; index < count(); ++index) {
+                if (tabText(index) == key &&
+                    std::find(arranged.begin(), arranged.end(), index) == arranged.end()) {
+                    arranged.push_back(index);
+                }
+            }
+        }
+        for (int index = 0; index < count(); ++index) {
+            if (std::find(arranged.begin(), arranged.end(), index) == arranged.end()) {
+                arranged.insert(arranged.begin() +
+                                    std::min<std::ptrdiff_t>(index,
+                                                             static_cast<std::ptrdiff_t>(
+                                                                 arranged.size())),
+                                index);
+            }
+        }
+        m_order = arranged;
+    }
+    const QStringList hidden =
+        QSettings().value(QStringLiteral("layout/") + stateKey + QStringLiteral("Hidden"))
+            .toStringList();
+    for (int index = 0; index < count(); ++index) {
+        Section& section = m_sections[static_cast<std::size_t>(index)];
+        section.hiddenByAuthor = section.optional && hidden.contains(tabText(index));
+        applyVisibility(index);
+    }
+    relayout();
     m_stateKey = stateKey;
+}
+
+void SectionStack::storeArrangement() const
+{
+    if (m_stateKey.isEmpty()) {
+        return;
+    }
+    QStringList hidden;
+    for (int index = 0; index < count(); ++index) {
+        if (isSectionHiddenByAuthor(index)) {
+            hidden << tabText(index);
+        }
+    }
+    QSettings().setValue(QStringLiteral("layout/") + m_stateKey + QStringLiteral("Order"),
+                         sectionOrder());
+    QSettings().setValue(QStringLiteral("layout/") + m_stateKey + QStringLiteral("Hidden"),
+                         hidden);
 }
 
 void SectionStack::setCurrent(int index)

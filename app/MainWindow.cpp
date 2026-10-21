@@ -1742,6 +1742,14 @@ void MainWindow::createCentralView()
     m_lightEffectsPanel->onSelectionChanged = [this]() { updateLightEffectSection(); };
     m_leftBrowserTabs->addTab(m_lightEffectsPanel, QStringLiteral("LightEffects"),
                               tr("Light Effects"));
+    // What not every colorization uses; the author can hide them (the headers' context menu).
+    for (const QString& key : {QStringLiteral("Scenes"), QStringLiteral("LightEffects")}) {
+        for (int index = 0; index < m_leftBrowserTabs->count(); ++index) {
+            if (m_leftBrowserTabs->tabText(index) == key) {
+                m_leftBrowserTabs->setSectionOptional(index, true);
+            }
+        }
+    }
     m_leftBrowserTabs->restoreOpenSections(QStringLiteral("assets"), {QStringLiteral("Masks")});
     // The asset of "Using the selected asset" is that of the list used last: opened, or
     // clicked in.
@@ -1887,6 +1895,15 @@ void MainWindow::createCentralView()
     }
 
     inspectorLayout->addWidget(inspectorTabs, 1);
+    for (const QString& key : {QStringLiteral("Rot"), QStringLiteral("Sets"),
+                               QStringLiteral("HelperLines"), QStringLiteral("Lights"),
+                               QStringLiteral("LightEffect")}) {
+        for (int index = 0; index < inspectorTabs->count(); ++index) {
+            if (inspectorTabs->tabText(index) == key) {
+                inspectorTabs->setSectionOptional(index, true);
+            }
+        }
+    }
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
     updateInspectorSections();
     inspector->setMinimumWidth(200);

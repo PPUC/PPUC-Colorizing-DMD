@@ -6772,6 +6772,34 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <source>Drag to resize the sections; double-click to share the height equally</source>
         <translation>Faire glisser pour redimensionner les sections ; double-cliquer pour répartir la hauteur également</translation>
     </message>
+    <message>
+        <source>Click to open or close; drag to move; right-click to arrange the sections</source>
+        <translation>Cliquer pour ouvrir ou fermer ; glisser pour déplacer ; clic droit pour organiser les sections</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Monter</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Descendre</translation>
+    </message>
+    <message>
+        <source>Hide %1</source>
+        <translation>Masquer %1</translation>
+    </message>
+    <message>
+        <source>Show %1</source>
+        <translation>Afficher %1</translation>
+    </message>
+    <message>
+        <source>Restore the Sections</source>
+        <translation>Rétablir les sections</translation>
+    </message>
+    <message>
+        <source>The first order, every section shown</source>
+        <translation>L&apos;ordre d&apos;origine, toutes les sections affichées</translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>

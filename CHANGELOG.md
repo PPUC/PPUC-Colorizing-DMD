@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The sections of both sidebars can be arranged: drag a header to move its section, or use the
+  header's context menu, which also hides optional sections (speaker lights, helper lines,
+  scenes, color rotations, color sets) and shows them again. The arrangement is kept.
+
 ## 3.99.7
 
 - A project is made for libserum 2.8 or libserum 2.9 (*Project Settings*, *Made for*).
@@ -12,8 +16,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   backgrounds; such a project plays with libserum 2.9 and later only. Projects for libserum
   2.8 are saved as before.
 - More than 32 sprites on a frame stay the exception: the editor asks before a frame gets its 33rd
-  sprite and warns while a frame has more, since every sprite more costs runtime (fine on a short
-  flash, to be avoided in a video mode). Sprites themselves work as before.
+  sprite and warns while a frame has more, since every sprite more costs runtime (fine for almost
+  static System 3-6 colorizations, to be avoided in a video mode). Sprites themselves work as
+  before.
 - Speaker lights: named light effects (the 80 WS2812FX effects with colors, speed, options,
   brightness and duration) in the new Light Effects section; per frame and channel an effect, a
   static color or off in the Speaker Lights section, with ambient lighting colors suggested from

@@ -2224,3 +2224,15 @@ from the frame and editable.
   libserum).
 - Open: libdmdutil/libzedmd forwarding (Serum_GetLightEffects -> ZeDMD::SetLightEffect over
   the UART side channel) and the firmware's UART receiver; CI needs libserum 08269e4 pushed.
+
+## Arranging the sidebar sections (2026-10-21, owner request)
+
+SectionStack keeps the indices as added (the editor addresses sections by them) and shows them
+in `m_order`; `relayout()` rebuilds the layout, `nextOpenSection()` / `updateStretch()` follow
+the order. Headers: an event filter drags them (drop line, release eaten so the toggle does
+not fire) and a context menu (`Move Up/Down` past the sections in view, `Hide`/`Show` for
+optional sections, `Restore the Sections`). Author hiding (`hiddenByAuthor`, optional sections
+only, `setSectionOptional()` in MainWindow before `restoreOpenSections()`) is separate from the
+canvas hiding (`setSectionHidden()`). QSettings `layout/<state>Order` and `.../<state>Hidden`; a
+section unknown to a stored order takes its own place. Test: testSectionStackArrangement
+(PlaneLabelsWidgetTests).
