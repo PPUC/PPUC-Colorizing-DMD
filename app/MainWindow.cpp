@@ -873,7 +873,8 @@ void MainWindow::createActions()
     m_moveFramesToAction->setEnabled(false);
     connect(m_moveFramesToAction, &QAction::triggered, this, [this]() { moveSelectedFramesTo(); });
     editMenu->addSeparator();
-    m_ambientLightingAction = editMenu->addAction(tr("Ambient Lighting For Frames Without Speaker Lights..."));
+    m_ambientLightingAction =
+        editMenu->addAction(tr("Ambient Lighting For Frames Without Speaker Lights..."));
     m_ambientLightingAction->setToolTip(
         tr("Speaker lights 1 and 2 from the colors of the left and right part of every frame "
            "that does nothing to the speaker lights yet"));
@@ -10007,8 +10008,8 @@ void MainWindow::suggestSelectedFramesLights()
     const render::Resolution plane = m_document->geometry().nativePlane();
     std::vector<std::size_t> changed;
     for (std::size_t frameIndex : selectedFrameIndices()) {
-        const document::LightActions suggested =
-            edit::suggestedAmbientLighting(composeResolvedFrame(*m_document, frameIndex, plane, true));
+        const document::LightActions suggested = edit::suggestedAmbientLighting(
+            composeResolvedFrame(*m_document, frameIndex, plane, true));
         document::LightActions lights = m_document->frameLights(frameIndex);
         lights[0] = suggested[0];
         lights[1] = suggested[1];
