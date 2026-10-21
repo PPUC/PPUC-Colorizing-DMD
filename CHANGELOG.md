@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.6
+
 - Frames can be tagged (e.g. "Settings menu", "Multiball", "Wizard Mode") in the Frame
   section's *Tags* field; a frame can have several tags. The timeline filter lists every tag,
   and the thumbnails show them as `#Multiball`.
