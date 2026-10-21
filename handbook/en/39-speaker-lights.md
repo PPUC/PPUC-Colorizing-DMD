@@ -45,6 +45,11 @@ the frame itself, as ambient lighting: channel 1 the average of the lit pixels o
 the frame, channel 2 of the right quarter (off for a black part). The colors can be changed
 afterwards like any other.
 
+`Ambient Lighting for All...` (also `Edit -> Ambient Lighting For Frames Without Speaker Lights...`) does the
+same for every frame of the project that does nothing to any channel yet, in one undo step. It
+is meant for a project made before speaker lights: frames already set up are left as they are,
+so it can be run again after adding frames.
+
 A frame that starts the effect a channel already plays (the frames of an animation that all
 start it, a frame shown again) leaves it running, unless its duration has run out.
 

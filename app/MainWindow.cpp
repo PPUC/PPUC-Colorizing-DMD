@@ -872,6 +872,14 @@ void MainWindow::createActions()
         tr("Move the selected frames before a frame number, or to the end"));
     m_moveFramesToAction->setEnabled(false);
     connect(m_moveFramesToAction, &QAction::triggered, this, [this]() { moveSelectedFramesTo(); });
+    editMenu->addSeparator();
+    m_ambientLightingAction = editMenu->addAction(tr("Ambient Lighting For Frames Without Speaker Lights..."));
+    m_ambientLightingAction->setToolTip(
+        tr("Speaker lights 1 and 2 from the colors of the left and right part of every frame "
+           "that does nothing to the speaker lights yet"));
+    m_ambientLightingAction->setEnabled(false);
+    connect(m_ambientLightingAction, &QAction::triggered, this,
+            [this]() { addAmbientLightingToFramesWithoutLights(); });
     createSelectionActions(editMenu);
 
     QAction* frameTesterAction = viewMenu->addAction(tr("Frame &Tester..."));
@@ -1791,6 +1799,9 @@ void MainWindow::createCentralView()
         setSelectedFramesLight(channel, action);
     };
     m_frameLightsPanel->onSuggestRequested = [this]() { suggestSelectedFramesLights(); };
+    m_frameLightsPanel->onAmbientLightingForAllRequested = [this]() {
+        addAmbientLightingToFramesWithoutLights();
+    };
     inspectorTabs->addTab(m_frameLightsPanel, QStringLiteral("Lights"), tr("Speaker Lights"));
     m_lightEffectPanel = new LightEffectPanel(central);
     m_lightEffectPanel->onApplyRequested = [this](const document::LightEffect& effect) {
@@ -10021,6 +10032,38 @@ void MainWindow::suggestSelectedFramesLights()
         2500);
 }
 
+void MainWindow::addAmbientLightingToFramesWithoutLights()
+{
+    if (!m_document) {
+        return;
+    }
+    const std::size_t frames = edit::framesWithoutLights(*m_document).size();
+    if (frames == 0) {
+        QMessageBox::information(this, tr("Ambient Lighting"),
+                                 tr("Every frame does something to the speaker lights already."));
+        return;
+    }
+    QMessageBox confirm(
+        QMessageBox::Question, tr("Ambient Lighting"),
+        tr("Set speaker lights 1 and 2 of %n frame(s) that do nothing to the speaker lights yet "
+           "to the colors of their left and right part?",
+           "", static_cast<int>(frames)),
+        QMessageBox::Yes | QMessageBox::Cancel, this);
+    confirm.setDefaultButton(QMessageBox::Yes);
+    if (confirm.exec() != QMessageBox::Yes) {
+        return;
+    }
+    const render::Resolution plane = m_document->geometry().nativePlane();
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    auto command = edit::addAmbientLightingToFramesWithoutLights(
+        *m_document, [this, plane](std::size_t frameIndex) {
+            return composeResolvedFrame(*m_document, frameIndex, plane, true);
+        });
+    QApplication::restoreOverrideCursor();
+    recordSpeakerLightsEdit(std::move(command),
+                            tr("Ambient lighting for %n frame(s)", "", static_cast<int>(frames)));
+}
+
 void MainWindow::refreshScenes()
 {
     if (m_scenesPanel) {
@@ -10471,6 +10514,9 @@ void MainWindow::updateStructureControls()
     const bool hasDocument = m_document.has_value();
     if (m_projectSettingsAction) {
         m_projectSettingsAction->setEnabled(hasDocument);
+    }
+    if (m_ambientLightingAction) {
+        m_ambientLightingAction->setEnabled(hasDocument);
     }
     const bool canDeleteFrames =
         hasDocument && m_document->frameCount() > 1 && !selectedFrameIndices().empty();

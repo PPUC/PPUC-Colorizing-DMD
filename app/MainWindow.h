@@ -806,6 +806,10 @@ private:
     void setSelectedFramesLight(std::size_t channel, const document::LightAction& action);
     // Suggest from Frame: channels 1 and 2 of each selected frame from its own colors.
     void suggestSelectedFramesLights();
+    // Edit -> Ambient Lighting For Frames Without Speaker Lights: channels 1 and 2 from their colors
+    // for every frame that does nothing to the lights, one undo step (migrating a project).
+    void addAmbientLightingToFramesWithoutLights();
+    QAction* m_ambientLightingAction = nullptr;
     void recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
                                  const QString& status);
     // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.

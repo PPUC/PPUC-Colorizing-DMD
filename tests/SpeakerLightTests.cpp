@@ -245,6 +245,36 @@ void testPlayer()
            "the LED count changes, the effect stays");
 }
 
+// Migrating a project: ambient lighting for every frame without lights, one step.
+void testAmbientLightingForAll()
+{
+    document::ProjectDocument document =
+        document::ProjectDocument::fromSnapshot(makeProjectWithLights());
+    expect(edit::framesWithoutLights(document) == std::vector<std::size_t>{0},
+           "only frame 0 does nothing to the lights");
+    std::vector<std::size_t> asked;
+    const auto colorsOf = [&](std::size_t frameIndex) {
+        asked.push_back(frameIndex);
+        document::Rgb565Frame frame = document::makeRgb565Frame(render::Size{128, 32}, 0);
+        for (int y = 0; y < 32; ++y) {
+            frame.pixels[static_cast<std::size_t>(y) * 128] = 0x07e0;
+        }
+        return frame;
+    };
+    const LightActions frame1 = document.frameLights(1);
+    const auto command = edit::addAmbientLightingToFramesWithoutLights(document, colorsOf);
+    expect(command && asked == std::vector<std::size_t>{0} &&
+               document.frameLights(0)[0] == colorAction(0x0000ff00u) &&
+               document.frameLights(0)[1].kind == LightActionKind::Off &&
+               document.frameLights(0)[2].kind == LightActionKind::Unchanged &&
+               document.frameLights(1) == frame1,
+           "frame 0 gets green on the left and off on the right, frame 1 keeps its lights");
+    expect(!edit::addAmbientLightingToFramesWithoutLights(document, colorsOf),
+           "a second run finds no frame without lights");
+    command->revert(document);
+    expect(document::changesNothing(document.frameLights(0)), "undo takes it back in one step");
+}
+
 std::filesystem::path tempPath(const std::string& suffix)
 {
     static int counter = 0;
@@ -327,6 +357,7 @@ void runSpeakerLightTests()
 {
     testModelAndEdits();
     testAmbientLighting();
+    testAmbientLightingForAll();
     testPlayer();
     testFiles();
     testLibserumPlaysThem();

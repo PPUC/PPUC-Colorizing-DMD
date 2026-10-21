@@ -1528,6 +1528,14 @@
         <translation>Umgebungsbeleuchtung: Kanal 1 die Farbe des linken Teils jedes ausgewählten Frames, Kanal 2 die seines rechten Teils</translation>
     </message>
     <message>
+        <source>Ambient Lighting for All...</source>
+        <translation>Umgebungsbeleuchtung für alle...</translation>
+    </message>
+    <message>
+        <source>Channels 1 and 2 from their colors for every frame that does nothing to the speaker lights yet</source>
+        <translation>Kanäle 1 und 2 aus seinen Farben für jeden Frame, der noch nichts mit den Lautsprecherlichtern macht</translation>
+    </message>
+    <message>
         <source>Effects are made in the Light Effects section of the left sidebar.</source>
         <translation>Effekte werden im Bereich Lichteffekte der linken Seitenleiste angelegt.</translation>
     </message>
@@ -2911,6 +2919,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Move the selected frames before a frame number, or to the end</source>
         <translation>Ausgewählte Frames vor eine Frame-Nummer oder ans Ende verschieben</translation>
+    </message>
+    <message>
+        <source>Ambient Lighting For Frames Without Speaker Lights...</source>
+        <translation>Umgebungsbeleuchtung für Frames ohne Lautsprecherlichter...</translation>
+    </message>
+    <message>
+        <source>Speaker lights 1 and 2 from the colors of the left and right part of every frame that does nothing to the speaker lights yet</source>
+        <translation>Lautsprecherlichter 1 und 2 aus den Farben des linken und rechten Teils jedes Frames, der noch nichts mit den Lautsprecherlichtern macht</translation>
     </message>
     <message>
         <source>Frame &amp;Tester...</source>
@@ -5117,6 +5133,28 @@ Use Create %1 Frame.</source>
         <translation>
             <numerusform>Lautsprecherlichter 1 und 2 von %n Frame aus seinen Farben gesetzt</numerusform>
             <numerusform>Lautsprecherlichter 1 und 2 von %n Frames aus ihren Farben gesetzt</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Ambient Lighting</source>
+        <translation>Umgebungsbeleuchtung</translation>
+    </message>
+    <message>
+        <source>Every frame does something to the speaker lights already.</source>
+        <translation>Jeder Frame macht bereits etwas mit den Lautsprecherlichtern.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Set speaker lights 1 and 2 of %n frame(s) that do nothing to the speaker lights yet to the colors of their left and right part?</source>
+        <translation>
+            <numerusform>Lautsprecherlichter 1 und 2 von %n Frame, der noch nichts mit den Lautsprecherlichtern macht, auf die Farben seines linken und rechten Teils setzen?</numerusform>
+            <numerusform>Lautsprecherlichter 1 und 2 von %n Frames, die noch nichts mit den Lautsprecherlichtern machen, auf die Farben ihres linken und rechten Teils setzen?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Ambient lighting for %n frame(s)</source>
+        <translation>
+            <numerusform>Umgebungsbeleuchtung für %n Frame</numerusform>
+            <numerusform>Umgebungsbeleuchtung für %n Frames</numerusform>
         </translation>
     </message>
     <message>

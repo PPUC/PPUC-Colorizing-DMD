@@ -17,6 +17,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   frame; a default per channel in Project Settings. A preview beside the canvas and in the frame
   tester plays them with the firmware's effect code (Settings -> Appearance). Needs libserum 3.0
   at runtime.
+- *Ambient Lighting For Frames Without Speaker Lights* gives every frame without speaker light settings
+  the ambient lighting colors of its left and right part, in one undo step, for existing projects.
 
 ## 3.99.6
 

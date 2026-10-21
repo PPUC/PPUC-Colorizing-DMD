@@ -128,6 +128,41 @@ std::unique_ptr<SpeakerLightsCommand> removeLightEffect(document::ProjectDocumen
     return command;
 }
 
+std::vector<std::size_t> framesWithoutLights(const document::ProjectDocument& document)
+{
+    std::vector<std::size_t> frames;
+    for (std::size_t frameIndex = 0; frameIndex < document.frameCount(); ++frameIndex) {
+        if (document::changesNothing(document.frameLights(frameIndex))) {
+            frames.push_back(frameIndex);
+        }
+    }
+    return frames;
+}
+
+std::unique_ptr<SpeakerLightsCommand> addAmbientLightingToFramesWithoutLights(
+    document::ProjectDocument& document,
+    const std::function<document::Rgb565Frame(std::size_t frameIndex)>& colorsOf)
+{
+    std::vector<SpeakerLightsCommand::FrameChange> frames;
+    for (std::size_t frameIndex : framesWithoutLights(document)) {
+        SpeakerLightsCommand::FrameChange change;
+        change.frameIndex = frameIndex;
+        change.before = document.frameLights(frameIndex);
+        change.after = change.before;
+        const document::LightActions suggested = suggestedAmbientLighting(colorsOf(frameIndex));
+        change.after[0] = suggested[0];
+        change.after[1] = suggested[1];
+        frames.push_back(change);
+    }
+    if (frames.empty()) {
+        return nullptr;
+    }
+    auto command = std::make_unique<SpeakerLightsCommand>(
+        document.speakerLights(), document.speakerLights(), std::move(frames));
+    command->apply(document);
+    return command;
+}
+
 document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& frame)
 {
     document::LightActions actions{};

@@ -67,10 +67,13 @@ public:
         onChannelChanged;
     // Suggest from Frame: the colors of each selected frame for channels 1 and 2.
     std::function<void()> onSuggestRequested;
+    // Ambient Lighting for All: the same for every frame that does nothing to the lights yet.
+    std::function<void()> onAmbientLightingForAllRequested;
 
 private:
     std::array<LightActionEditor*, document::kLightChannels> m_channels{};
     QToolButton* m_suggestButton = nullptr;
+    QToolButton* m_allButton = nullptr;
     QLabel* m_note = nullptr;
 };
 

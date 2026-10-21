@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -69,6 +70,16 @@ private:
 [[nodiscard]] std::unique_ptr<SpeakerLightsCommand> removeLightEffect(
     document::ProjectDocument& document,
     uint16_t effectId);
+
+// Ambient lighting for every frame that does nothing to any channel yet (a project from before
+// speaker lights): channels 1 and 2 as suggestedAmbientLighting() says for the frame's picture,
+// colorsOf(frameIndex). One step; nullptr when no frame is without lights.
+[[nodiscard]] std::unique_ptr<SpeakerLightsCommand> addAmbientLightingToFramesWithoutLights(
+    document::ProjectDocument& document,
+    const std::function<document::Rgb565Frame(std::size_t frameIndex)>& colorsOf);
+// The frames addAmbientLightingToFramesWithoutLights() would give lights.
+[[nodiscard]] std::vector<std::size_t> framesWithoutLights(
+    const document::ProjectDocument& document);
 
 // The ambient lighting suggestion for a colorized frame: channel 1 (left) the color of the frame's
 // left part, channel 2 (right) of its right part, each the average of the lit pixels of the

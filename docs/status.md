@@ -2172,6 +2172,9 @@ from the frame and editable.
   beside the canvas (lightsShownAt of the current frame; an effect that plays goes on) and in
   the frame tester (RuntimePreview's defaults and RuntimeFrame::lights). Preview options are
   QSettings `speakerLights/*` (Settings -> Appearance).
+- Migration: `edit::addAmbientLightingToFramesWithoutLights()` (frames whose LightActions change
+  nothing get suggestedAmbientLighting() on channels 1/2, one SpeakerLightsCommand with unchanged
+  settings), Edit menu and the section's `Ambient Lighting for All...`; test `testAmbientLightingForAll`.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,
