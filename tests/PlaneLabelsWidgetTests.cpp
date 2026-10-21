@@ -612,6 +612,18 @@ void testFrameListClicks()
     list.stepWithKey(key(Qt::Key_Left, Qt::NoModifier));
     list.stepWithKey(key(Qt::Key_Left, Qt::NoModifier));
     expect(list.currentRow() == 1, "Left goes back");
+
+    // Esc reduces a selection of several frames to the frame shown.
+    for (int row = 1; row <= 3; ++row) {
+        list.item(row)->setSelected(true);
+    }
+    list.setCurrentRow(2, QItemSelectionModel::NoUpdate);
+    QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(&list, &escape);
+    expect(list.selectedItems().size() == 1 && list.item(2)->isSelected() &&
+               list.currentRow() == 2,
+           "Esc leaves the current frame alone selected");
+    expect(!list.selectCurrentAlone(), "with one frame selected there is nothing to reduce");
 }
 
 // Issue #2: a window opens where and as large as it was left.

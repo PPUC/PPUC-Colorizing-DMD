@@ -9168,6 +9168,12 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
             statusBar()->showMessage(tr("Cancelled"), 1500);
             return true;
         }
+        // With nothing to cancel, Esc reduces a selection of frames to the frame shown, as in
+        // the strip.
+        if (keyEvent->key() == Qt::Key_Escape && keyEvent->modifiers() == Qt::NoModifier &&
+            m_frameList && m_frameList->selectCurrentAlone()) {
+            return true;
+        }
         if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
             m_nonBlackKeyDown = true;
         }

@@ -126,7 +126,10 @@ several frames keeps the selection and only makes that frame the current one, so
 can show each of them in turn (the canvas selection stays, see "Selection"); a plain click on a
 frame outside the selection selects that frame alone. A double click on a frame selects that
 frame alone as well, also inside a selection of several frames (as in the Win32 editor), and
-goes back to editing the frame from the sprite editor or a background. Frame drawing, comparison-mask drawing,
+goes back to editing the frame from the sprite editor or a background. `Esc` reduces a
+selection of several frames to the frame shown, in the strip and on the canvas (where it first
+cancels a paste or a pending click); `Ctrl/Cmd`+click takes a single frame out of the
+selection, and `Left` or `Right` selects the next frame alone. Frame drawing, comparison-mask drawing,
 dynamic-mask drawing, background-mask drawing, and all frame settings (comparison mask ID, shape
 mode, background ID, trigger, duration) apply to all selected frames where
 the operation is valid. Comparison-mask edits are grouped by assigned mask ID, so a shared mask is

@@ -2275,3 +2275,9 @@ names were cut. SectionBar::setContent() sets the view's minimum width to the lo
 (up to the screen). The trigger box (one entry per frame with a trigger, 1968 in GoT) is
 removed with `edit::triggerList()`; the frame filter's `With triggers` (#21) and the scene
 selected-asset filter replace it. Test in testLongComboBoxesScroll.
+
+## Esc reduces the frame selection (2026-10-21, owner)
+
+`FrameListWidget::selectCurrentAlone()` (selectSingleRow on the current row when several are
+selected), from the strip's keyPressEvent and from MainWindow's canvas event filter after the
+paste and pending-click cancels. Test in testFrameListClicks.

@@ -143,6 +143,25 @@ void FrameListWidget::mouseDoubleClickEvent(QMouseEvent* event)
     }
 }
 
+bool FrameListWidget::selectCurrentAlone()
+{
+    if (selectedItems().size() <= 1 || currentRow() < 0) {
+        return false;
+    }
+    selectSingleRow(*this, currentRow());
+    return true;
+}
+
+void FrameListWidget::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier &&
+        selectCurrentAlone()) {
+        event->accept();
+        return;
+    }
+    QListWidget::keyPressEvent(event);
+}
+
 void FrameListWidget::paintEvent(QPaintEvent* event)
 {
     QListWidget::paintEvent(event);

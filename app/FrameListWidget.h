@@ -42,6 +42,9 @@ public:
     [[nodiscard]] static bool isFrameStepKey(const QKeyEvent& event);
     // Steps as the key does in the strip, wherever the focus is.
     void stepWithKey(const QKeyEvent& event);
+    // Esc: a selection of several frames becomes the current frame alone. Returns whether
+    // there was one to reduce.
+    bool selectCurrentAlone();
 
 protected:
     [[nodiscard]] QItemSelectionModel::SelectionFlags selectionCommand(
@@ -53,6 +56,7 @@ protected:
     // As in the Win32 editor, a double click selects the frame alone: a selection of several
     // frames is dropped (issue #18).
     void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
 private:
