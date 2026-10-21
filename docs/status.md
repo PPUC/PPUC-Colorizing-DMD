@@ -916,78 +916,110 @@ for `frankst1`. Memory stays that of a window.
 
 ## Open decisions (waiting for the owner)
 
-1. **192x64: decided.** The 96x32 data is discarded on load and written as "no extra data";
-   nothing is padded or converted to 256x64. Padding could be done in libserum later if it is
-   ever needed. Still open inside that decision: which value an unused extra background mask
-   gets. The editor writes 1 (what the Win32 editor gives new frames); `frankst1` has 0 there
-   (what the Win32 editor writes when it converts an old-format file).
-2. **Confirmations asked of the authors**, relayed by the owner, no answer recorded yet:
-   - Sprite bounds fields are disabled for an empty slot, so a rectangle capture into an empty
-     slot needs Assign or Select Capture first.
+Only questions without an answer are listed; each says what the editor does now. Updated on
+2026-10-22. Dropped as settled since the last revision: the selection is kept across frame
+changes now (as in Win32); `Using the selected asset` lists the frames of a comparison mask; the
+one- and two-pixel playback differences on the 64-row plane are gone (`smb3` 4430 and `trn_174h`
+5211 steps, windows against the whole project: 0 pixels, measured with
+`colorizing_qt_v2_preview_diff --playback` after the libserum background-scene fix).
+
+### Formats and libserum
+
+1. **Unused extra background mask of a 192x64 project.** The 96x32 data is discarded on load
+   (decided). Which value should an unused extra background mask get on save: 1 (what the editor
+   writes now, as Win32 does for new frames) or 0 (what Win32 writes when it converts an
+   old-format file, and what `frankst1` has)?
+2. **256x64 monochrome trigger and repaired backgrounds.** libserum reads the monochrome palette
+   trigger's palette from the HD dynamic colour set, and a background repaired by
+   `Create 256x64 Frame` becomes black. Are both intended?
+3. **HD dynamic shadows of ordinary projects.** libserum falls back to a set's HD shadow
+   direction and color when the set has no SD direction; the editor shows the result but cannot
+   edit or switch it off (only replace it with an SD shadow). Which: (a) leave it, (b) show the
+   fallback on the `Dyn` page, or (c) copy the HD shadow into the SD table when the frame is
+   first edited?
+4. **HD pixels under a stored HD dynamic mask** are saved as 0. Such a mask can no longer be seen
+   or removed, so HD pixels painted under it are black on a machine where no SD zone covers them
+   (the Runtime view shows it, the canvas does not). `afm_113b`, `trn_174h`, `hook_501` and
+   `smb3` round-trip byte-identical without the rule. Drop the rule for the HD plane of ordinary
+   projects?
+5. **The 15 ms rule.** A frame shorter than 15 ms that is not colorized is saved inactive (as
+   Win32); such frames are marked `inactive`. Keep the rule?
+6. **`trn_174h` HD plane.** The canvas differs from libserum in 114,722 pixels of 4,249 frames
+   (re-measured 2026-10-22), all edge rounding of upscaled dynamic text; only the Runtime view
+   shows it exactly. Should the canvas (a) stay as it is, (b) say that the Runtime view is exact
+   for upscaled dynamic content, or (c) reproduce libserum's upscaling?
+
+### Behaviour to confirm with the authors
+
+7. **Sprites, monochrome and HD:**
+   - The sprite bounds fields are disabled for an empty slot, so a rectangle capture into an
+     empty slot needs `Assign` or `Select Capture` first. Enable them for an empty slot?
    - Switching monochrome off on a multi-selection clears the trigger only on frames that carry
-     the monochrome trigger.
-   - Undoing Create/Remove HD discards HD pixel edits made in between.
-   - Frame settings cannot be undone while Dynamic mask mode is active.
-3. **256x64 details:** the monochrome palette trigger in libserum now reads its palette from the
-   HD dynamic colour set; a background repaired by `Create 256x64 Frame` becomes black.
-4. **HD dynamic shadows of ordinary projects.** libserum uses the HD shadow direction and color
-   of a set as a fallback when the set has no SD direction. The editor renders that and cannot
-   edit it: such a shadow can be replaced by an SD one and not switched off. Options: leave it;
-   show the fallback on the `Dyn` page; or copy an HD shadow into the SD table when a frame is
-   first edited. Not counted how many real frames rely on it.
-5. **The save rule for HD pixels under a stored HD dynamic mask.** Kept as decided: such a pixel
-   is written as 0. With HD dynamic masks no longer shown or editable an author cannot see or
-   remove a stale one, and HD pixels painted under it are black on a machine wherever no SD zone
-   covers them (the Runtime view shows it, the canvas does not). Tried: without the rule for
-   ordinary projects `afm_113b`, `trn_174h`, `hook_501` and `smb3` still round-trip
-   byte-identical, because their files have 0 there already. So the rule could be dropped for
-   the HD plane of ordinary projects without losing the round trip.
-6. **The 15 ms rule** (a frame shorter than 15 ms that is not colorized is saved inactive) is
-   unchanged and asked about separately. Such frames are now marked.
-7. **Playback pictures differ by one or two pixels on the 64-row plane.** Runtime playback through
-   windows of frames identifies every frame as the whole project does, and the 32-row plane is
-   always identical, but in a few steps one or two 64-row pixels differ from playing the whole
-   project (`smb3` 19 steps, `trn_174h` 13), starting at window boundaries. It looks like libserum
-   keeping a pixel an earlier frame painted. Cause not found.
-8. **`trn_174h` HD plane against libserum**: 114,722 pixels in 4,249 frames still differ in the
-   editor's canvas, classed as edge rounding of upscaled dynamic text. Only the Runtime view shows
-   that exactly. Open whether the canvas should say so or try to reproduce it.
+     the monochrome trigger, not other triggers. Right?
+   - Undoing `Create 256x64 Frame` or `Remove 256x64 Frame` also discards the HD pixel edits made
+     after it. Acceptable?
+   - With `Dynamic` active, Undo does not reach the frame settings; `Undo Last Edit Anywhere`
+     (`Ctrl/Cmd+Alt+Z`) does. Enough, or should the `Dynamic` context include them?
+8. **Records:**
+   - Deleting a comparison mask that frames use asks first, naming the frames, which are then
+     compared without a mask. Since `Using the selected asset` lists those frames, the deletion
+     could be refused while the mask is in use instead. Ask or refuse?
+   - A section left empty at the end of the project is removed. Right?
+   - `Delete` and `Backspace` delete the selected frames (after the question) while the frame
+     list has the focus. Right?
+   - `Delete Frames Shorter Than...` proposes 15 ms. Right?
+   - A new background takes the stored colorized frame (Win32 `AddBackground`); `Frame ->
+     Background` copies the composed picture (with sprites and dynamic colors). Keep both?
+9. **Dump import and same frames:**
+   - A bad line anywhere but in the last frame refuses the whole import (the damaged last frame of
+     an interrupted recording is left out). Win32 silently keeps the frames before the bad line.
+     Keep refusing?
+   - A 4-shade dump is accepted into a 16-color project. Right?
+   - `Common To Mask` writes into the mask assigned to the current frame and replaces its content
+     (as Win32), not into the mask selected in the browser. Right?
+   - Same-frame deletions are not capped at 10000 per frame (Win32 is). Right?
+   - The same frames are worked out only while the `Mask` page is shown. Right?
+   - A new project made from a dump is proposed for saving beside the dump. Right?
+10. **Colors:**
+    - The draw color is free (Win32: always one of the edit colors, which the pipette writes
+      into). Keep it free?
+    - Set replace uses each selected frame's own shades, also for `Point` (Win32: the current
+      frame's); a background in set replace takes the current frame's shades. Right?
+    - A color mode change is not a project change (not undoable, does not mark the project
+      modified), and a stored mode 2 is kept until the mode is changed. Right?
+    - A renamed color set's name entry is zero filled. Right?
+    - The color keys work only while the canvas has the focus. Right?
+11. **Selection, copy and paste:**
+    - The selection is not undoable (Win32 records it). Right?
+    - Select by color takes the composed colors, including dynamic pixels. Right?
+    - Paste ends after one stamp (as Win32). Stay in paste mode for several stamps instead?
+    - The paste of a dynamic mask alone is mirrored with the selection. Right?
+    - Dynamic data is never copied, pasted, auto-copied or scrolled on the HD plane of an
+      ordinary project, since the SD zones would need their own placement. Right?
+    - Black-to-black and the dynamic helpers act on the selection when there is one (Win32: on
+      the whole frame). Right?
+    - `Black Original To Black` is `Ctrl+Shift+O`. Right?
+    - `Auto Copy...` and `Scrolling Auto Fill...` are undone one frame at a time, so undoing them
+      means visiting each frame (or repeating `Undo Last Edit Anywhere`). A single undo step for
+      all frames would need a new kind of history entry. Wanted?
 
-9. **Record management, to confirm:** deleting a comparison mask that frames use is allowed
-   after a question that names the frames (they are then compared without a mask); the
-   alternative is to refuse while it is in use, but there is no way yet to list the frames of a
-   mask. A section emptied at the end of the project is removed. `Delete` and `Backspace`
-   delete frames while the frame list has the focus (after the question). The duration preset
-   of `Delete Frames Shorter Than...` is 15 ms. A new background takes the stored colorized
-   frame (Win32 `AddBackground`), while `Frame -> BG` copies the composed picture.
+### Newer work
 
-10. **Dump import and same frames, to confirm:** a dump with a bad line is refused as a whole
-    (Win32 keeps the frames before it); a 4-shade dump is accepted into a 16-color project;
-    `Common To Mask` writes the mask assigned to the current frame and replaces its content
-    (as Win32), not the mask selected in the browser; `Spot Common` marks the differing pixels;
-    the same-frame deletions are not capped at 10000 per frame; the same frames are worked
-    out only while the `Mask` page is shown; a new project is proposed for saving beside its
-    dump.
-
-11. **Colors, to confirm:** the draw color stays free (Win32: always an edit color, the pipette
-    writes into it); set replace uses each selected frame's own shades also for `Point` (Win32:
-    the current frame's); a mode change is not a project change (not undoable, no "modified");
-    a stored mode 2 is kept until the mode changes; `Deactivate` exists; a renamed set's name
-    entry is zero filled; the keys work only while the frame canvas has the focus; a background
-    in set replace takes the current frame's shades.
-
-12. **Selection, copy and paste, to confirm:** the selection is dropped on a frame change (Win32
-    keeps it) and is not undoable (Win32 records it); select by color takes the composed colors
-    with dynamic pixels; paste ends with one stamp as in Win32 (staying in paste mode for several
-    stamps would be easy); the dynamic-mask-only paste is mirrored; dynamic data is never copied,
-    pasted, auto-copied or scrolled on the HD plane of an ordinary project (the SD zones would
-    need their own placement); black-to-black and the dynamic helpers act on the selection when
-    there is one (Win32: whole frame); `Black Original To Black` is `Ctrl+Shift+O`; auto copy
-    and scrolling fill ask first and are undoable per frame, so undoing them means visiting each
-    frame (a multi-frame undo step would need a new kind of history entry).
-
-Items 4 to 8 came out of the runtime-view work on 2026-10-14 and are to be discussed with the
-owner together.
+12. **Optional sidebar sections.** The author can hide Scenes and Light Effects (left) and Color
+    Rotations, Color Sets, Helper Lines, Lights and Light Effect (right). Should Color Rotations
+    and Color Sets stay hideable, and should any other section be?
+13. **Linux packages.** A user reported that the Linux package does not install because of
+    libraries (not reproduced; no distribution or message known). The AppImage is built on
+    Ubuntu 24.04, so it needs glibc 2.39 and FUSE 2, and only the offscreen platform is tested.
+    Build it on Ubuntu 22.04 with the official Qt and add an xcb smoke test? Needs the user's
+    distribution and error text.
+14. **Release job.** The `Draft release` job runs only for `qt-v*` tags but requires the tag to
+    be `v<version>`, so it never runs for the `v3.99.x` tags. Change the condition to `v*` so
+    tagged versions get draft releases?
+15. **libserum 2.8.x.** The background-scene fix is cherry-picked to the 2.8.x branch (198dc47).
+    Raise its patch version and release it?
+16. **Speaker lights firmware.** The UART receiver in PPUCDMD-firmwares (0734704) compiles but is
+    not tested on hardware. Push only after a test on a Pico (GPIO 8/9) and a Pi (GPIO 12/13)?
 
 ## Known bugs and gaps in the editor (not fixed)
 
