@@ -13,7 +13,7 @@ class AboutDialog final : public QDialog {
 public:
     explicit AboutDialog(QWidget* parent = nullptr);
 
-    // The text of the version line, for tests: "Version 3.99.7".
+    // The text of the version line, for tests: "Version 3.99.8".
     [[nodiscard]] static QString versionText();
 };
 
