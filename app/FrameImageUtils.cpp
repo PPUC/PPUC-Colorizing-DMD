@@ -169,10 +169,11 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
         document.frameSpriteReferences(frameIndex);
     // Sprites are detected on the original frame at its own resolution, as libserum does.
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
-    std::vector<uint8_t> seenSprites;
+    std::vector<uint16_t> seenSprites;
     for (const document::FrameSpriteReference& reference : references) {
         // The frame's sprite list ends at its first empty slot.
-        if (reference.spriteId == 255 || reference.spriteId >= document.spriteCount()) {
+        if (reference.spriteId == document::kNoSpriteId ||
+            reference.spriteId >= document.spriteCount()) {
             break;
         }
         // A sprite listed twice is looked for once, with the search area of its first slot.

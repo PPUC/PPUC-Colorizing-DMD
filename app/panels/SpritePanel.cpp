@@ -552,7 +552,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
             for (std::size_t slot = 0; slot < references.size(); ++slot) {
                 const document::FrameSpriteReference& reference = references[slot];
                 const QString assignedSprite =
-                    reference.spriteId == 255
+                    reference.spriteId == document::kNoSpriteId
                         ? QString()
                         : static_cast<std::size_t>(reference.spriteId) >=
                                 document->spriteCount()
@@ -560,7 +560,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
                                   .arg(static_cast<int>(reference.spriteId))
                         : spriteDisplayName(*document, reference.spriteId);
                 m_slotComboBox->addItem(
-                    reference.spriteId == 255
+                    reference.spriteId == document::kNoSpriteId
                         ? tr("Slot %1: Empty").arg(static_cast<int>(slot))
                         : tr("Slot %1: %2")
                               .arg(static_cast<int>(slot))
@@ -588,7 +588,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
         QStringList assignedSprites;
         for (std::size_t slot = 0; slot < references.size(); ++slot) {
             const document::FrameSpriteReference& reference = references[slot];
-            if (reference.spriteId == 255) {
+            if (reference.spriteId == document::kNoSpriteId) {
                 continue;
             }
             const QString assignedSprite =
@@ -629,7 +629,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
             document->frameSpriteReferences(*frameIndex);
         if (*slotIndex < references.size()) {
             selectedReference = references[*slotIndex];
-            slotHasSprite = selectedReference->spriteId != 255;
+            slotHasSprite = selectedReference->spriteId != document::kNoSpriteId;
         }
     }
     m_removeButton->setEnabled(slotHasSprite);

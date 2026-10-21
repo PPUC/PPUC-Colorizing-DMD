@@ -264,7 +264,7 @@ void testSerializedProjectRoundTrips()
     expect(reloaded.palettes[1].name == "Warm", "palette name");
     expect(reloaded.frames[1].durationMs == 100, "frame duration");
     expect(reloaded.frames[1].spriteReferences[0].maxX == 30, "frame sprite bounding box");
-    expect(reloaded.frames[0].spriteReferences[0].spriteId == 255 &&
+    expect(reloaded.frames[0].spriteReferences[0].spriteId == 0xffff &&
                reloaded.frames[0].spriteReferences[0].maxX == 127,
            "frames without sprite data get empty full-frame slots");
 

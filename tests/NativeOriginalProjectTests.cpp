@@ -128,7 +128,7 @@ ProjectSnapshot makeSnapshot()
     noBackground.maskSd = makeIndexedFrame(kNativeSize, 0);
     noBackground.maskHd = makeIndexedFrame(kExtraSize, 0);
     plain.backgroundData = noBackground;
-    plain.spriteReferences.assign(32, {255, 0, 0, 191, 63});
+    plain.spriteReferences.assign(32, {0xffff, 0, 0, 191, 63});
     plain.colorRotationsSd.assign(4 * 64, 0);
     plain.colorRotationsHd.assign(4 * 64, 0);
     snapshot.frames.assign(4, plain);

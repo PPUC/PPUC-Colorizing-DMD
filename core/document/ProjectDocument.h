@@ -108,7 +108,8 @@ struct SpriteRecord {
 };
 
 struct FrameSpriteReference {
-    uint8_t spriteId = 255;
+    // kNoSpriteId for an empty slot (255 in a cROM of format version 0, read as such).
+    uint16_t spriteId = 0xffff;
     uint16_t minX = 0;
     uint16_t minY = 0;
     uint16_t maxX = 0;
@@ -187,7 +188,7 @@ struct FrameHdGaps {
     bool frame = false;
     bool background = false;
     // Sprite IDs, ascending and unique.
-    std::vector<uint8_t> sprites;
+    std::vector<uint16_t> sprites;
 
     [[nodiscard]] bool any() const { return frame || background || !sprites.empty(); }
 };
@@ -255,7 +256,7 @@ struct SnapshotSubsetMap {
 constexpr std::size_t kMaxBackgrounds = 255;
 constexpr uint16_t kNoBackgroundId = 0xffff;
 constexpr uint8_t kNoComparisonMaskId = 255;
-constexpr uint8_t kNoSpriteId = 255;
+constexpr uint16_t kNoSpriteId = 0xffff;
 // SpriteRect[0] of a sprite whose source rectangle is not known.
 constexpr uint16_t kNoSpriteSourceRect = 0xffff;
 

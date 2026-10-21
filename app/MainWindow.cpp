@@ -4423,7 +4423,7 @@ QString MainWindow::frameHdGapsText(std::size_t frameIndex) const
     }
     if (!gaps.sprites.empty()) {
         QStringList ids;
-        for (uint8_t spriteId : gaps.sprites) {
+        for (uint16_t spriteId : gaps.sprites) {
             ids << QString::number(static_cast<int>(spriteId));
         }
         reasons << tr("%1 %2 without %3 picture")
@@ -4589,7 +4589,7 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
         std::count_if(spriteReferences.begin(),
                       spriteReferences.end(),
                       [](const document::FrameSpriteReference& reference) {
-                          return reference.spriteId != 255;
+                          return reference.spriteId != document::kNoSpriteId;
                       }));
     if (spriteCount > 0) {
         details << tr("%1 sprites").arg(spriteCount);
@@ -4946,7 +4946,7 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
             m_document->frameSpriteReferences(frameIndex);
         return std::any_of(references.begin(), references.end(),
                            [](const document::FrameSpriteReference& reference) {
-                               return reference.spriteId != 255;
+                               return reference.spriteId != document::kNoSpriteId;
                            });
     }
     if (filter == FrameFilter::Rotations) {
@@ -6190,7 +6190,7 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
                 reference.maxX = static_cast<uint16_t>(size.width - 1);
                 reference.maxY = static_cast<uint16_t>(size.height - 1);
             }
-            reference.spriteId = static_cast<uint8_t>(spriteIndex);
+            reference.spriteId = static_cast<uint16_t>(spriteIndex);
             std::vector<document::FrameSpriteReference> before = references;
             m_document->setFrameSpriteReference(frameIndex, slot, reference);
             pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
@@ -6388,7 +6388,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
             m_document->setFrameSpriteReference(*frameIndex,
                                                 targetSlot,
                                                 document::FrameSpriteReference{
-                                                    static_cast<uint8_t>(*spriteIndex),
+                                                    static_cast<uint16_t>(*spriteIndex),
                                                     static_cast<uint16_t>(captureMinX),
                                                     static_cast<uint16_t>(captureMinY),
                                                     static_cast<uint16_t>(captureMaxX),
@@ -6462,7 +6462,7 @@ void MainWindow::removeCurrentSpriteSlot()
     // As the Win32 editor's IDC_DELSPRITE2: the sprite of the current frame's selected slot
     // leaves every selected frame that has it, from the last slot that holds it, and the
     // slots behind move up so that the list keeps no empty slot before a used one.
-    const uint8_t spriteId = currentReferences[*slotIndex].spriteId;
+    const uint16_t spriteId = currentReferences[*slotIndex].spriteId;
     try {
         int changed = 0;
         int skipped = 0;
@@ -6527,7 +6527,8 @@ void MainWindow::setCurrentSpriteSlotBounds()
             const std::vector<document::FrameSpriteReference>& references =
                 m_document->frameSpriteReferences(frameIndex);
             // Bounds belong to an assigned sprite; an empty slot keeps none.
-            if (*slotIndex >= references.size() || references[*slotIndex].spriteId == 255) {
+            if (*slotIndex >= references.size() ||
+                references[*slotIndex].spriteId == document::kNoSpriteId) {
                 continue;
             }
             const document::FrameSpriteReference reference = references[*slotIndex];

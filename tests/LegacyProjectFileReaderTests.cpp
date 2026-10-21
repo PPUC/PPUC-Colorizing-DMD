@@ -523,7 +523,7 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.sprites[0].detectionDwords[1] = 0x87654321;
     loadResult.snapshot.sprites[0].detectionDwordPositions[1] = 34;
     loadResult.snapshot.sprites[0].detectionAreas[1] = {9, 10, 11, 12};
-    loadResult.snapshot.frames[0].spriteReferences[0].spriteId = 255;
+    loadResult.snapshot.frames[0].spriteReferences[0].spriteId = 0xffff;
     loadResult.snapshot.frames[0].spriteReferences[1] = {0, 13, 14, 15, 16};
     loadResult.snapshot.frames[0].triggerId = 1234;
     loadResult.snapshot.frames[1].triggerId = 65432;
@@ -615,7 +615,7 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update sprite detection dword positions");
     expect(reloadResult.snapshot.sprites[0].detectionAreas[1].width == 11,
            "file writer should update sprite detection areas");
-    expect(reloadResult.snapshot.frames[0].spriteReferences[0].spriteId == 255,
+    expect(reloadResult.snapshot.frames[0].spriteReferences[0].spriteId == 0xffff,
            "file writer should update frame sprite assignment removals");
     expect(reloadResult.snapshot.frames[0].spriteReferences[1].spriteId == 0,
            "file writer should update frame sprite assignment additions");

@@ -268,8 +268,10 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(LegacyByteSource& cursor)
                 return fail("unexpected end of cROM while reading frame sprite assignments");
             }
             for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
+                // 255 is an empty slot in an 8-bit sprite table.
                 frameData.frameSpriteReferences[frameIndex][spriteSlot].spriteId =
-                    spriteIds[spriteSlot];
+                    spriteIds[spriteSlot] == 255 ? document::kNoSpriteId
+                                                 : spriteIds[spriteSlot];
             }
         }
     }

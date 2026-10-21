@@ -102,12 +102,12 @@ ProjectDocument makeDocument(PlaneLayout layout)
         frame.backgroundData = backgroundData;
         frame.spriteReferences.assign(
             document::kMaxSpritesPerFrame,
-            document::FrameSpriteReference{255,
+            document::FrameSpriteReference{0xffff,
                                            0,
                                            0,
                                            static_cast<uint16_t>(romFrame.width - 1),
                                            static_cast<uint16_t>(romFrame.height - 1)});
-        frame.spriteReferences[0].spriteId = static_cast<uint8_t>(index);
+        frame.spriteReferences[0].spriteId = static_cast<uint16_t>(index);
         snapshot.frames.push_back(frame);
     }
     return ProjectDocument::fromSnapshot(snapshot);

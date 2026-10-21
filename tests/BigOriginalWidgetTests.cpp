@@ -607,7 +607,7 @@ void testMissingHdIsFlaggedAndNotRendered()
                document.frameHdGaps(1).sprites.empty(),
            "frame 1 lacks its HD frame");
     const document::FrameHdGaps gaps = document.frameHdGaps(2);
-    expect(!gaps.frame && gaps.background && gaps.sprites == std::vector<uint8_t>{1},
+    expect(!gaps.frame && gaps.background && gaps.sprites == std::vector<uint16_t>{1},
            "frame 2 lacks the HD of its background and of sprite 1");
 
     const document::Rgb565Frame nothing =

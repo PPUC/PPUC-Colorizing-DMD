@@ -376,7 +376,7 @@ void testHdPresenceOfHdOnlyProject()
            "an ordinary project has an SD plane and no HD gaps, with or without HD");
 
     const document::FrameHdGaps gaps = document.frameHdGaps(0);
-    expect(gaps.frame && gaps.background && gaps.sprites == std::vector<uint8_t>{0} && gaps.any(),
+    expect(gaps.frame && gaps.background && gaps.sprites == std::vector<uint16_t>{0} && gaps.any(),
            "frame, background and sprite without HD are reported, a sprite once");
     expect(!document.frameHdGaps(1).any(), "a frame with HD and nothing assigned is complete");
 
@@ -414,7 +414,7 @@ void testHdPresenceOfHdOnlyProject()
            "the background gets a black HD image; its SD image is kept, not upscaled");
     const document::FrameHdGaps afterFrame = document.frameHdGaps(0);
     expect(!afterFrame.frame && !afterFrame.background &&
-               afterFrame.sprites == std::vector<uint8_t>{0},
+               afterFrame.sprites == std::vector<uint16_t>{0},
            "only the sprite is still missing");
 
     command->revert(document);

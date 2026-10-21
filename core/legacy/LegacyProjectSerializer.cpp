@@ -479,8 +479,12 @@ bool writeCromContent(std::ostream& stream,
     writer.section("frame sprites");
     for (const auto& frame : frames) {
         for (std::size_t slot = 0; slot < document::kMaxSpritesPerFrame; ++slot) {
-            writer.u8(slot < frame.spriteReferences.size() ? frame.spriteReferences[slot].spriteId
-                                                           : uint8_t{255});
+            // 8-bit IDs, 255 for an empty slot.
+            const uint16_t spriteId = slot < frame.spriteReferences.size()
+                                          ? frame.spriteReferences[slot].spriteId
+                                          : document::kNoSpriteId;
+            writer.u8(spriteId == document::kNoSpriteId ? uint8_t{255}
+                                                        : static_cast<uint8_t>(spriteId));
         }
     }
     writer.section("sprite originals");

@@ -3259,7 +3259,7 @@ void ProjectDocument::insertSprite(RemovedSprite removed)
     requireFittingRecordTables(removed.tables);
     for (FrameRecord& frame : m_frames) {
         for (FrameSpriteReference& reference : frame.spriteReferences) {
-            // 254 would become "no sprite".
+            // The last ID would become "no sprite".
             if (reference.spriteId >= removed.index && reference.spriteId < kNoSpriteId - 1) {
                 ++reference.spriteId;
             }
@@ -3538,8 +3538,8 @@ ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>
         for (FrameSpriteReference& reference : frame.spriteReferences) {
             reference.spriteId =
                 reference.spriteId < m_sprites.size()
-                    ? static_cast<uint8_t>(subsetId(ids.sprites, reference.spriteId))
-                    : uint8_t{255};
+                    ? static_cast<uint16_t>(subsetId(ids.sprites, reference.spriteId))
+                    : kNoSpriteId;
         }
         snapshot.frames.push_back(std::move(frame));
         ids.frames.push_back(frameIndex);

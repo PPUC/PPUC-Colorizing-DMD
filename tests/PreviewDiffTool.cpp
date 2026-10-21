@@ -147,7 +147,7 @@ PixelClass classify(const ProjectDocument& document,
         }
     }
     for (const auto& reference : document.frameSpriteReferences(frame)) {
-        if (reference.spriteId == 255) {
+        if (reference.spriteId == 0xffff) {
             break;
         }
         if (rom.x >= reference.minX && rom.y >= reference.minY && rom.x <= reference.maxX &&

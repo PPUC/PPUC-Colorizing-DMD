@@ -529,7 +529,7 @@ void testSubsetBuilding(PlaneLayout layout)
            "the background's pixels are the document's");
     expect(!subset.frames[2].backgroundData, "a frame without background data stays without");
     const std::vector<FrameSpriteReference>& slots = subset.frames[0].spriteReferences;
-    expect(slots[0].spriteId == 0 && slots[1].spriteId == 1 && slots[2].spriteId == 255,
+    expect(slots[0].spriteId == 0 && slots[1].spriteId == 1 && slots[2].spriteId == 0xffff,
            "sprite slots keep their place and get the new IDs");
     expect(slots[0].minX == 80 && slots[0].minY == 10 && slots[0].maxX == 110 &&
                slots[0].maxY == 30,

@@ -130,7 +130,7 @@ int MSGPIAPI getFrameInfo(uint32_t frame, ColorizingDMDFrameInfo* info)
         document->backgroundData(frame);
     info->background = background ? toApiId(background->backgroundId, document::kNoBackgroundId)
                                   : CDMDPI_NONE;
-    std::set<uint8_t> sprites;
+    std::set<uint16_t> sprites;
     for (const document::FrameSpriteReference& reference :
          document->frameSpriteReferences(frame)) {
         if (reference.spriteId != document::kNoSpriteId) {

@@ -916,9 +916,9 @@ void testFrameSpriteReferenceEditing()
     expectThrows<std::invalid_argument>(
         [&]() { document.setFrameSpriteReference(0, 2, FrameSpriteReference{0, 0, 0, 1, 1}); },
         "a sprite in a slot behind the first empty one");
-    expect(!document.isDirty() && document.frameSpriteReferences(0)[2].spriteId == 255,
+    expect(!document.isDirty() && document.frameSpriteReferences(0)[2].spriteId == 0xffff,
            "the refused assignment changes nothing");
-    document.setFrameSpriteReference(0, 5, FrameSpriteReference{255, 7, 7, 8, 8});
+    document.setFrameSpriteReference(0, 5, FrameSpriteReference{0xffff, 7, 7, 8, 8});
     expect(document.frameSpriteReferences(0)[5].minX == 7 && !document.firstSpriteSlotGap(0),
            "the bounds of an empty slot can be set");
     document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 9, 9, 10, 10});
@@ -929,19 +929,19 @@ void testFrameSpriteReferenceEditing()
     expect(document.frameSpriteReferences(0)[0].minX == 9 &&
                document.frameSpriteReferences(0)[1].minX == 11 &&
                document.frameSpriteReferences(0)[1].spriteId == 0 &&
-               document.frameSpriteReferences(0)[2].spriteId == 255,
+               document.frameSpriteReferences(0)[2].spriteId == 0xffff,
            "removing a slot moves the slots behind it up with their bounds");
-    expect(document.frameSpriteReferences(0)[31].spriteId == 255 &&
+    expect(document.frameSpriteReferences(0)[31].spriteId == 0xffff &&
                !document.firstSpriteSlotGap(0),
            "the last slot becomes empty, and no gap is left");
     expect(document.isDirty(), "frame sprite removal should mark dirty");
     document.markClean();
     document.clearFrameSpriteReference(0, 4);
     expect(!document.isDirty(), "removing an empty slot changes nothing");
-    document.setFrameSpriteReference(0, 0, FrameSpriteReference{255, 1, 1, 2, 2});
+    document.setFrameSpriteReference(0, 0, FrameSpriteReference{0xffff, 1, 1, 2, 2});
     expect(document.frameSpriteReferences(0)[0].minX == 11 &&
                document.frameSpriteReferences(0)[0].spriteId == 0 &&
-               document.frameSpriteReferences(0)[1].spriteId == 255,
+               document.frameSpriteReferences(0)[1].spriteId == 0xffff,
            "writing an empty sprite ID into a used slot removes it the same way");
 
     expectThrows<std::out_of_range>(

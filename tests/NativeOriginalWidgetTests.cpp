@@ -127,7 +127,7 @@ ProjectDocument makeDocument()
     backgroundData.maskHd = document::makeIndexedFrame(kExtraSize, 1);
     frame.backgroundData = backgroundData;
     frame.spriteReferences.assign(document::kMaxSpritesPerFrame,
-                                  document::FrameSpriteReference{255, 0, 0, 191, 63});
+                                  document::FrameSpriteReference{0xffff, 0, 0, 191, 63});
     snapshot.frames.assign(2, frame);
 
     document::ProjectFrameSnapshot& first = snapshot.frames[0];
