@@ -2174,7 +2174,7 @@ from the frame and editable.
   QSettings `speakerLights/*` (Settings -> Appearance).
 - Migration: `edit::addAmbientLightingToFramesWithoutLights()` (frames whose LightActions change
   nothing get suggestedAmbientLighting() on channels 1/2, one SpeakerLightsCommand with unchanged
-  settings), Edit menu and the section's `Ambient Lighting for All...`; test `testAmbientLightingForAll`.
+  settings), Edit menu; test `testAmbientLightingForAll`.
 - suggestedAmbientLighting() skips black margins (owner: Stern ROMs such as trn_174 have an
   empty score block on the left in single player games): each side averages a quarter of the
   width from the first lit column seen from its edge; only a black frame gives off. Test in
@@ -2182,6 +2182,10 @@ from the frame and editable.
 - View -> Speaker Light Preview (`setSpeakerLightPreviewShown`) toggles the saved option. The
   frame tester renders with `loadDmdRenderOptions()` (was default squares); test at the end of
   `testFrameTester` (SpeakerLightWidgetTests).
+- The speakers beside the canvas are in a QSplitter with the canvas stack (both widths alike,
+  QSettings `layout/speakerWidth`); SpeakerLightPair::setCenterSource() gives the colorized
+  region's centre (FramePreviewWidget::regionViews(), clamped to its viewport) as a global y,
+  SpeakerLightView::setCenterY() draws there. Test in testSpeakersBesideTheCanvas.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

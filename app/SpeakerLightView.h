@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -53,6 +54,9 @@ public:
 
     void setShape(SpeakerShape shape);
     void setColors(const std::vector<uint32_t>& colors);
+    // Where the speaker's centre sits, in the view's own y; nothing: the view's middle. The
+    // speaker is as large as the view's width allows (and its height).
+    void setCenterY(std::optional<double> y);
     [[nodiscard]] const std::vector<uint32_t>& colors() const { return m_colors; }
     [[nodiscard]] QSize sizeHint() const override;
     [[nodiscard]] QSize minimumSizeHint() const override;
@@ -63,6 +67,7 @@ protected:
 private:
     SpeakerShape m_shape = SpeakerShape::Circle;
     std::vector<uint32_t> m_colors;
+    std::optional<double> m_centerY;
 };
 
 // A left and a right speaker, each playing a channel with the WS2812FX effects
@@ -90,6 +95,9 @@ public:
                    effects);
     // For tests: advances the effects by ms and draws them.
     void advance(uint32_t ms);
+    // Where the speakers' centres go, as a global screen y (the middle of the frame they
+    // accompany); asked with every step of the effects. Nothing: the views' middles.
+    void setCenterSource(std::function<std::optional<int>()> globalY);
 
 private:
     void tick();
@@ -104,6 +112,7 @@ private:
     std::array<std::optional<document::LightEffect>, 2> m_shown;
     std::array<bool, 2> m_hasShown{};
     QTimer* m_timer = nullptr;
+    std::function<std::optional<int>()> m_centerSource;
     QElapsedTimer m_clock;
     uint32_t m_offsetMs = 0;
 };

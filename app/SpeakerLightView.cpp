@@ -109,6 +109,14 @@ void SpeakerLightView::setShape(SpeakerShape shape)
     }
 }
 
+void SpeakerLightView::setCenterY(std::optional<double> y)
+{
+    if (y != m_centerY) {
+        m_centerY = y;
+        update();
+    }
+}
+
 void SpeakerLightView::setColors(const std::vector<uint32_t>& colors)
 {
     if (colors != m_colors) {
@@ -132,15 +140,21 @@ void SpeakerLightView::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(rect(), Qt::black);
-    // The speaker: square for a circle, two by one standing for a rectangle, centred.
+    // The speaker: square for a circle, two by one standing for a rectangle, as wide as the
+    // view, centred on m_centerY (kept inside the view).
     QRectF area = rect();
+    const double centerX = area.center().x();
+    double width = 0.0;
+    double height = 0.0;
     if (m_shape == SpeakerShape::Circle) {
-        const double side = std::min(area.width(), area.height());
-        area = QRectF(area.center().x() - side / 2, area.center().y() - side / 2, side, side);
+        width = height = std::min(area.width(), area.height());
     } else {
-        const double width = std::min(area.width(), area.height() / 2.0);
-        area = QRectF(area.center().x() - width / 2, area.center().y() - width, width, 2 * width);
+        width = std::min(area.width(), area.height() / 2.0);
+        height = 2.0 * width;
     }
+    const double centerY = std::clamp(m_centerY.value_or(area.center().y()),
+                                      area.top() + height / 2.0, area.bottom() - height / 2.0);
+    area = QRectF(centerX - width / 2.0, centerY - height / 2.0, width, height);
     const std::size_t count = std::max<std::size_t>(m_colors.size(), 1);
     const double perimeter = m_shape == SpeakerShape::Circle
                                  ? std::numbers::pi * area.width()
@@ -306,10 +320,22 @@ void SpeakerLightPair::advance(uint32_t ms)
     tick();
 }
 
+void SpeakerLightPair::setCenterSource(std::function<std::optional<int>()> globalY)
+{
+    m_centerSource = std::move(globalY);
+    tick();
+}
+
 void SpeakerLightPair::tick()
 {
     if (!m_options.visible) {
         return;
+    }
+    const std::optional<int> center = m_centerSource ? m_centerSource() : std::nullopt;
+    for (SpeakerLightView* view : m_views) {
+        view->setCenterY(center ? std::optional<double>(
+                                      view->mapFromGlobal(QPoint(0, *center)).y())
+                                : std::nullopt);
     }
     for (std::size_t speaker = 0; speaker < 2; ++speaker) {
         m_players[speaker]->update(now());

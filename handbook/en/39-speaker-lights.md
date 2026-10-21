@@ -47,8 +47,7 @@ the first lit column seen from that side. A black margin, such as the empty scor
 single player game on many Stern ROMs, is skipped, so the color comes from what is shown; a
 black frame turns both off. The colors can be changed afterwards like any other.
 
-`Ambient Lighting for All...` (also `Edit -> Ambient Lighting For Frames Without Speaker Lights...`) does the
-same for every frame of the project that does nothing to any channel yet, in one undo step. It
+`Edit -> Ambient Lighting For Frames Without Speaker Lights...` does the same for every frame of the project that does nothing to any channel yet, in one undo step. It
 is meant for a project made before speaker lights: frames already set up are left as they are,
 so it can be run again after adding frames.
 
@@ -70,8 +69,9 @@ project, since machines differ: the `Shape` (a ring of LEDs, `Circle`, or LEDs a
 standing `Rectangle`), the number of `LEDs` per speaker, and which channel the `Left speaker`
 and the `Right speaker` show.
 
-- Beside the canvas the speakers play what the channels play while the frame on the canvas
-  shows: per channel the last frame up to it in the frame list that changes the channel, the
+- Beside the canvas the speakers sit level with the middle of the colorized frame; dragging the
+  border between a speaker and the canvas makes both speakers larger or smaller (kept for the
+  next start). They play what the channels play while the frame on the canvas shows: per channel the last frame up to it in the frame list that changes the channel, the
   default before that.
 - In the frame tester they play what libserum starts while the frames are fed, from the defaults
   of the loaded project on, as the DMD would get it.

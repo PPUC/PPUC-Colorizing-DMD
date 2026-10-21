@@ -168,25 +168,12 @@ FrameLightsPanel::FrameLightsPanel(QWidget* parent)
             onSuggestRequested();
         }
     });
-    m_allButton = new QToolButton(this);
-    m_allButton->setText(tr("Ambient Lighting for All..."));
-    m_allButton->setToolTip(
-        tr("Channels 1 and 2 from their colors for every frame that does nothing to the speaker "
-           "lights yet"));
-    connect(m_allButton, &QToolButton::clicked, this, [this]() {
-        if (onAmbientLightingForAllRequested) {
-            onAmbientLightingForAllRequested();
-        }
-    });
     m_note = new QLabel(this);
     m_note->setWordWrap(true);
-    auto* buttons = new QHBoxLayout;
-    buttons->addWidget(m_suggestButton);
-    buttons->addWidget(m_allButton);
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 6);
     layout->addLayout(form);
-    layout->addLayout(buttons);
+    layout->addWidget(m_suggestButton);
     layout->addWidget(m_note);
     layout->addStretch(1);
     fillButtonRows(layout);
@@ -206,7 +193,6 @@ void FrameLightsPanel::setFrame(const document::ProjectDocument* document,
         editor->setEnabled(hasFrame);
     }
     m_suggestButton->setEnabled(hasFrame);
-    m_allButton->setEnabled(document != nullptr);
     m_note->setText(document && document->speakerLights().effects.empty()
                         ? tr("Effects are made in the Light Effects section of the left sidebar.")
                         : QString());

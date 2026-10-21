@@ -11,6 +11,7 @@
 #include <QTemporaryDir>
 #include <QToolButton>
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -197,6 +198,32 @@ void testSpeakersBesideTheCanvas()
     const std::vector<uint32_t> right = speakers.right()->colors();
     expect(!allLeds(right, 0x000000ffu) && right[0] != right[6],
            "both speakers can show channel 1: the right one plays the rainbow too");
+    // Centred on the frame it accompanies: in a tall view, near the top when asked for.
+    app::SpeakerLightView view;
+    view.resize(100, 400);
+    view.setColors(std::vector<uint32_t>(12, 0x00ff0000u));
+    const auto litRows = [&view]() {
+        const QImage image = view.grab().toImage();
+        int first = image.height();
+        int last = -1;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (qRed(image.pixel(x, y)) > 200) {
+                    first = std::min(first, y);
+                    last = std::max(last, y);
+                }
+            }
+        }
+        return std::make_pair(first, last);
+    };
+    const auto middle = litRows();
+    expect(middle.first > 120 && middle.second < 280, "without a centre: the view's middle");
+    view.setCenterY(80.0);
+    const auto top = litRows();
+    expect(top.first < 40 && top.second < 160, "centred on y 80 near the top");
+    view.setCenterY(10.0);
+    expect(litRows().first >= 0 && litRows().second < 120,
+           "kept inside the view when the centre is too close to the edge");
     options.visible = false;
     speakers.setOptions(options);
     expect(speakers.left()->isHidden(), "the preview can be off");

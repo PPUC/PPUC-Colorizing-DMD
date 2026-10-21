@@ -1529,11 +1529,11 @@
     </message>
     <message>
         <source>Ambient Lighting for All...</source>
-        <translation>Umgebungsbeleuchtung für alle...</translation>
+        <translation type="vanished">Umgebungsbeleuchtung für alle...</translation>
     </message>
     <message>
         <source>Channels 1 and 2 from their colors for every frame that does nothing to the speaker lights yet</source>
-        <translation>Kanäle 1 und 2 aus seinen Farben für jeden Frame, der noch nichts mit den Lautsprecherlichtern macht</translation>
+        <translation type="vanished">Kanäle 1 und 2 aus seinen Farben für jeden Frame, der noch nichts mit den Lautsprecherlichtern macht</translation>
     </message>
     <message>
         <source>Effects are made in the Light Effects section of the left sidebar.</source>

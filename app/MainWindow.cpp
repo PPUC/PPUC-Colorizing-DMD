@@ -1808,9 +1808,6 @@ void MainWindow::createCentralView()
         setSelectedFramesLight(channel, action);
     };
     m_frameLightsPanel->onSuggestRequested = [this]() { suggestSelectedFramesLights(); };
-    m_frameLightsPanel->onAmbientLightingForAllRequested = [this]() {
-        addAmbientLightingToFramesWithoutLights();
-    };
     inspectorTabs->addTab(m_frameLightsPanel, QStringLiteral("Lights"), tr("Speaker Lights"));
     m_lightEffectPanel = new LightEffectPanel(central);
     m_lightEffectPanel->onApplyRequested = [this](const document::LightEffect& effect) {
@@ -1903,16 +1900,48 @@ void MainWindow::createCentralView()
     assetsLayout->addWidget(m_leftBrowserTabs, 1);
     assets->setMinimumWidth(m_leftBrowserTabs->minimumWidth());
     contentSplitter->addWidget(assets);
-    // The speaker light preview beside the canvas (Settings -> Appearance).
-    auto* canvasRow = new QWidget(central);
-    auto* canvasRowLayout = new QHBoxLayout(canvasRow);
-    canvasRowLayout->setContentsMargins(0, 0, 0, 0);
-    canvasRowLayout->setSpacing(4);
+    // The speaker light preview beside the canvas (View -> Speaker Light Preview), centred on
+    // the colorized frame; the splitter's handles size the speakers.
+    auto* canvasRow = new QSplitter(Qt::Horizontal, central);
+    canvasRow->setChildrenCollapsible(false);
     m_speakerLights = new SpeakerLightPair(canvasRow);
-    canvasRowLayout->addWidget(m_speakerLights->left(), 0, Qt::AlignVCenter);
-    canvasRowLayout->addWidget(m_canvasStack, 1);
-    canvasRowLayout->addWidget(m_speakerLights->right(), 0, Qt::AlignVCenter);
+    canvasRow->addWidget(m_speakerLights->left());
+    canvasRow->addWidget(m_canvasStack);
+    canvasRow->addWidget(m_speakerLights->right());
+    canvasRow->setStretchFactor(0, 0);
+    canvasRow->setStretchFactor(1, 1);
+    canvasRow->setStretchFactor(2, 0);
+    {
+        // Both speakers as wide as stored (or 96 pixels), the canvas the rest.
+        const int speakerWidth = std::clamp(
+            QSettings().value(QStringLiteral("layout/speakerWidth"), 96).toInt(), 32, 600);
+        canvasRow->setSizes({speakerWidth, 1000, speakerWidth});
+    }
+    connect(canvasRow, &QSplitter::splitterMoved, this, [canvasRow](int, int handle) {
+        // The handle dragged sizes both speakers alike.
+        QList<int> sizes = canvasRow->sizes();
+        const int width = handle == 1 ? sizes[0] : sizes[2];
+        const int total = sizes[0] + sizes[1] + sizes[2];
+        sizes = {width, std::max(1, total - 2 * width), width};
+        const QSignalBlocker blocker(canvasRow);
+        canvasRow->setSizes(sizes);
+        QSettings().setValue(QStringLiteral("layout/speakerWidth"), width);
+    });
     m_speakerLights->setOptions(loadSpeakerLightPreviewOptions());
+    m_speakerLights->setCenterSource([this]() -> std::optional<int> {
+        if (!m_preview || !m_preview->isVisible()) {
+            return std::nullopt;
+        }
+        for (const FramePreviewWidget::RegionView& view : m_preview->regionViews()) {
+            if (view.region.region == render::CanvasRegion::ColorizedFrame) {
+                const double frameCenter = view.origin.y() + view.contentSize.height() / 2.0;
+                const double y = std::clamp(frameCenter, view.viewport.top(),
+                                            view.viewport.bottom());
+                return m_preview->mapToGlobal(QPoint(0, static_cast<int>(y))).y();
+            }
+        }
+        return std::nullopt;
+    });
     contentSplitter->addWidget(canvasRow);
     contentSplitter->setStretchFactor(0, 0);
     contentSplitter->setStretchFactor(1, 1);
