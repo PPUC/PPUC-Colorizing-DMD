@@ -21,9 +21,8 @@ in the project (with the blue `HD` badge when that frame has HD data), and below
 - `New` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,
   lasting the scene's frame duration.
-- A double click on a scene sets the frame filter to `Using the selected asset` with that scene,
-  so the strip lists its frames (selecting another scene then lists that one's), and shows its
-  first frame on the frame canvas; the Inspector's `Scene` section then has its settings. The
+- A double click on a scene sets the frame filter to `Frames of scene ...`, an entry for that
+  scene, so the strip lists its frames, and shows its first frame on the frame canvas; the Inspector's `Scene` section then has its settings. The
   toolbar's `<` goes back to the frame and the timeline before (see "Canvas"), `>` into the
   scene again. `Leave Scene`, below the frame filter while a scene's frames are listed, goes
   back to the frames before in one step, however many of the scene's frames were visited.
@@ -104,7 +103,9 @@ another scene has), and `OK` waits until it can.
 A frame of a scene says so below its thumbnail: `Scene 1001 (3)` for its third frame, with
 groups `Scene 1001 (2.3)` for the third frame of group 2. The frame filter has, for a project
 with scenes, `Scene frames` and `Without scene frames` (the frames of the game alone). The frames
-of one scene are `Using the selected asset` with the scene selected in the `Scenes` section.
+of one scene are listed by a double click on it (`Frames of scene ...`); `Using the selected
+asset` with a scene selected in the `Scenes` section lists the frames of the game that start it,
+by their trigger, also as a background scene.
 
 ## Scaling
 

@@ -274,6 +274,21 @@ void testSceneIds()
     (void)third;
 }
 
+// "Using the selected asset" with a scene: the game's frames that start it, not its own.
+void testFramesStartingScene()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+    const auto command = edit::addScene(document, makeScene(50500, 2, 1));
+    document.setTriggerId(1, 50500);
+    expect(edit::startsScene(document, 1, 50500) && !edit::startsScene(document, 0, 50500) &&
+               !edit::startsScene(document, 1, 50501),
+           "frame 1 starts scene 50500 by its trigger");
+    for (std::size_t frame : edit::sceneFrames(document, 50500)) {
+        expect(!edit::startsScene(document, frame, 50500), "the scene's own frames do not");
+    }
+}
+
 void testOtherLayouts()
 {
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
@@ -368,5 +383,6 @@ void runSceneEditTests()
     testRemove();
     testSceneIds();
     testOtherLayouts();
+    testFramesStartingScene();
     testLibserumTarget();
 }

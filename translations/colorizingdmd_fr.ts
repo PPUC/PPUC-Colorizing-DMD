@@ -3278,7 +3278,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>The frames that use the mask, background or sprite selected in the section used last on the left, or the frames of the selected scene; follows the selection and the section</source>
-        <translation>Les frames qui utilisent le masque, le fond ou le sprite sélectionné dans la section utilisée en dernier à gauche, ou les frames de la scène sélectionnée ; suit la sélection et la section</translation>
+        <translation type="vanished">Les frames qui utilisent le masque, le fond ou le sprite sélectionné dans la section utilisée en dernier à gauche, ou les frames de la scène sélectionnée ; suit la sélection et la section</translation>
     </message>
     <message>
         <source>Zoom out (%1)</source>
@@ -3656,6 +3656,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Add a frame whose original is the current frame&apos;s picture, painted in the plain original colors only (&quot;To Source Frame&quot; in the Win32 editor)</source>
         <translation>Ajouter une frame dont l&apos;originale est l&apos;image de la frame courante, peinte uniquement dans les couleurs originales simples (&quot;To Source Frame&quot; dans l&apos;éditeur Win32)</translation>
+    </message>
+    <message>
+        <source>The frames that use the mask, background or sprite selected in the section used last on the left, that start the selected scene (also as background) or the selected light effect; follows the selection and the section</source>
+        <translation>Les frames qui utilisent le masque, l&apos;arrière-plan ou le sprite sélectionné dans la dernière section utilisée à gauche, qui lancent la scène sélectionnée (aussi en arrière-plan) ou l&apos;effet lumineux sélectionné ; suit la sélection et la section</translation>
     </message>
     <message>
         <source>Leave Scene</source>
@@ -5284,6 +5288,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Delete Scene</source>
         <translation>Supprimer la scène</translation>
+    </message>
+    <message>
+        <source>Frames of scene %1</source>
+        <translation>Frames de la scène %1</translation>
     </message>
     <message>
         <source>Time: Project %1 / Session %2</source>

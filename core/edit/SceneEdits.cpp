@@ -350,6 +350,13 @@ std::optional<uint16_t> nextFreeSceneId(const document::ProjectDocument& documen
     return std::nullopt;
 }
 
+bool startsScene(const document::ProjectDocument& document,
+                 std::size_t frameIndex,
+                 uint16_t sceneId)
+{
+    return !document.sceneFrame(frameIndex) && document.triggerId(frameIndex) == sceneId;
+}
+
 std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document, uint16_t sceneId)
 {
     std::vector<std::size_t> frames;

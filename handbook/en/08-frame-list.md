@@ -84,10 +84,14 @@ project with scenes the frames of all scenes (`Scene frames`) or the others (`Wi
 frames`; see "Scenes and Scaling"), or `Using the selected asset`: the frames that use what is
 selected in the section used last on the left (opened, or clicked in): the comparison mask
 (`Masks`), the assigned background (`Backgrounds`), the sprite in one of their sprite slots
-(`Sprites`), or the frames of the selected scene (`Scenes`); before any was used, the first open
-one. It follows both: choosing another one, or using another section, shows its frames. While a
-scene's frames are listed, `Leave Scene` below the filter goes back to the frames and the frame
-shown before (see "Scenes and Scaling"). At the end of the list come the project's tags, one
+(`Sprites`), the frames of the game whose trigger starts the selected scene, also as a background
+scene (`Scenes`; not the scene's own frames), or the frames that start the selected light effect
+on a channel (`Light Effects`); before any was used, the first open one. It follows both:
+choosing another one, or using another section, shows its frames.
+
+A double click on a scene lists the scene's own frames: the filter gets the entry `Frames of
+scene ...` for it. While they are listed, `Leave Scene` below the filter goes back to the frames
+and the frame shown before (see "Scenes and Scaling"). At the end of the list come the project's tags, one
 entry each (`Tag: Multiball`): the frames with that tag.
 
 While a frame has speaker lights set by the ambient lighting, the filter also offers `Ambient

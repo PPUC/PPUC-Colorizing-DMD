@@ -1060,9 +1060,9 @@ void MainWindow::createCentralView()
                                    static_cast<int>(FrameFilter::UsesSelectedAsset));
     m_frameFilterComboBox->setItemData(
         m_frameFilterComboBox->count() - 1,
-        tr("The frames that use the mask, background or sprite selected in the section "
-           "used last on the left, or the frames of the selected scene; follows the selection "
-           "and the section"),
+        tr("The frames that use the mask, background or sprite selected in the section used "
+           "last on the left, that start the selected scene (also as background) or the "
+           "selected light effect; follows the selection and the section"),
         Qt::ToolTipRole);
     m_frameFilterComboBox->setEnabled(false);
     m_frameList = new FrameListWidget(central);
@@ -1746,7 +1746,10 @@ void MainWindow::createCentralView()
     m_lightEffectsPanel->onPressed = [this]() {
         m_leftBrowserTabs->markCurrent(m_lightEffectsPanel);
     };
-    m_lightEffectsPanel->onSelectionChanged = [this]() { updateLightEffectSection(); };
+    m_lightEffectsPanel->onSelectionChanged = [this]() {
+        updateLightEffectSection();
+        refreshSelectedAssetFilter();
+    };
     m_leftBrowserTabs->addTab(m_lightEffectsPanel, QStringLiteral("LightEffects"),
                               tr("Light Effects"));
     // What not every colorization uses; the author can hide them (the headers' context menu).
@@ -4378,6 +4381,7 @@ void MainWindow::refreshProjectSummary()
         const QSignalBlocker blocker(m_frameFilterComboBox);
         m_frameFilterComboBox->setCurrentIndex(0);
     }
+    setSceneTimelineEntry(std::nullopt);
     updateWindowTitle();
     updateEditMenuActions();
     m_selectedEditColor.reset();
@@ -5141,6 +5145,9 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         }
         return m_document->hasHdFrame(frameIndex) && rotates(render::Resolution::Hd);
     }
+    if (filter == FrameFilter::SceneTimeline) {
+        return m_sceneTimeline && scene && scene->sceneId == *m_sceneTimeline;
+    }
     if (filter != FrameFilter::UsesSelectedAsset) {
         return true;
     }
@@ -5153,8 +5160,13 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         }
     }
     if (assetTab && assetTab == m_scenesPanel) {
+        // The game's frames that start the scene, as a background scene too: their trigger.
         const std::optional<uint16_t> sceneId = m_scenesPanel->selectedScene();
-        return sceneId && scene && scene->sceneId == *sceneId;
+        return sceneId && edit::startsScene(*m_document, frameIndex, *sceneId);
+    }
+    if (assetTab && assetTab == m_lightEffectsPanel) {
+        const std::optional<uint16_t> effectId = m_lightEffectsPanel->selectedEffect();
+        return effectId && m_document->frameUsesLightEffect(frameIndex, *effectId);
     }
     if (assetTab && assetTab == m_maskPage) {
         return m_selectedMaskIndex && *m_selectedMaskIndex < m_document->comparisonMaskCount() &&
@@ -8018,13 +8030,10 @@ CanvasPlace MainWindow::currentCanvasPlace() const
         place.filter = m_frameFilterComboBox->currentData().toInt();
         place.filterTag =
             m_frameFilterComboBox->currentData(kFilterTagRole).toString().toStdString();
-        // The frames of a scene: the scene selected in the Scenes section, in use.
-        if (static_cast<FrameFilter>(place.filter) == FrameFilter::UsesSelectedAsset &&
-            m_scenesPanel && m_leftBrowserTabs &&
-            m_leftBrowserTabs->currentWidget() == m_scenesPanel) {
-            if (const std::optional<uint16_t> scene = m_scenesPanel->selectedScene()) {
-                place.filterScene = *scene;
-            }
+        // The frames of a scene.
+        if (static_cast<FrameFilter>(place.filter) == FrameFilter::SceneTimeline &&
+            m_sceneTimeline) {
+            place.filterScene = *m_sceneTimeline;
         }
     }
     if (spriteCanvasShown()) {
@@ -8122,9 +8131,8 @@ void MainWindow::showCanvasPlace(const CanvasPlace& place)
         setPlaybackRunning(false);
     }
     // The timeline first, so that the frame is in it.
-    if (place.filterScene >= 0 && m_scenesPanel) {
-        m_scenesPanel->selectScene(static_cast<uint16_t>(place.filterScene));
-        m_leftBrowserTabs->markCurrent(m_scenesPanel);
+    if (place.filterScene >= 0) {
+        setSceneTimelineEntry(static_cast<uint16_t>(place.filterScene));
     }
     if (m_frameFilterComboBox) {
         int filterIndex = m_frameFilterComboBox->findData(place.filter);
@@ -8135,7 +8143,7 @@ void MainWindow::showCanvasPlace(const CanvasPlace& place)
         if (filterIndex >= 0 && filterIndex != m_frameFilterComboBox->currentIndex()) {
             m_frameFilterComboBox->setCurrentIndex(filterIndex);
         } else if (place.filterScene >= 0) {
-            refreshSelectedAssetFilter();
+            refreshFrameListItems();
         }
     }
     if (place.frame < m_document->frameCount()) {
@@ -10273,6 +10281,18 @@ void MainWindow::updateAmbientLighting()
 
 void MainWindow::refreshScenes()
 {
+    // The scene whose frames are listed is gone: back to all frames.
+    if (m_sceneTimeline &&
+        (!m_document || !m_document->colorizationSettings() ||
+         !m_document->colorizationSettings()->scene(*m_sceneTimeline))) {
+        const bool shown = m_frameFilterComboBox &&
+                           m_frameFilterComboBox->currentData().toInt() ==
+                               static_cast<int>(FrameFilter::SceneTimeline);
+        setSceneTimelineEntry(std::nullopt);
+        if (shown && m_document) {
+            refreshFrameList(currentFrameIndex());
+        }
+    }
     if (m_scenesPanel) {
         m_scenesPanel->setProject(m_document ? &*m_document : nullptr);
         applyAssetFilter();
@@ -10459,23 +10479,47 @@ void MainWindow::deleteScene(uint16_t sceneId)
     }
 }
 
+void MainWindow::setSceneTimelineEntry(std::optional<uint16_t> sceneId)
+{
+    if (!m_frameFilterComboBox) {
+        return;
+    }
+    m_sceneTimeline = sceneId;
+    const int existing =
+        m_frameFilterComboBox->findData(static_cast<int>(FrameFilter::SceneTimeline));
+    if (!sceneId) {
+        if (existing >= 0) {
+            const QSignalBlocker blocker(m_frameFilterComboBox);
+            if (m_frameFilterComboBox->currentIndex() == existing) {
+                m_frameFilterComboBox->setCurrentIndex(0);
+            }
+            m_frameFilterComboBox->removeItem(existing);
+        }
+        return;
+    }
+    const QString text = tr("Frames of scene %1").arg(*sceneId);
+    if (existing >= 0) {
+        m_frameFilterComboBox->setItemText(existing, text);
+        return;
+    }
+    const QSignalBlocker blocker(m_frameFilterComboBox);
+    m_frameFilterComboBox->addItem(text, static_cast<int>(FrameFilter::SceneTimeline));
+}
+
 void MainWindow::showSceneFrames(uint16_t sceneId)
 {
     if (!m_frameFilterComboBox) {
         return;
     }
-    // The scene selected in the left sidebar, as the asset of "Using the selected asset".
-    if (m_scenesPanel->selectedScene() != sceneId) {
-        return;
-    }
-    m_leftBrowserTabs->markCurrent(m_scenesPanel);
+    setSceneTimelineEntry(sceneId);
     const int index =
-        m_frameFilterComboBox->findData(static_cast<int>(FrameFilter::UsesSelectedAsset));
+        m_frameFilterComboBox->findData(static_cast<int>(FrameFilter::SceneTimeline));
     if (index < 0) {
         return;
     }
     if (m_frameFilterComboBox->currentIndex() == index) {
-        refreshSelectedAssetFilter();
+        refreshFrameList(currentFrameIndex());
+        updateHistoryButtons();
     } else {
         m_frameFilterComboBox->setCurrentIndex(index);
     }

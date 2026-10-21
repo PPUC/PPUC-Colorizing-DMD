@@ -120,8 +120,9 @@ private:
         // Frames a save flags inactive and the runtime skips, see
         // legacy::isFrameSkippedAtRuntime().
         Inactive,
-        // Frames that use the asset selected on the left: the mask, background or sprite of
-        // the tab that is open there.
+        // Frames that use the asset selected on the left, in the section used last there: the
+        // mask, background or sprite; for a scene the frames whose trigger starts it (also as
+        // background), not its own frames; for a light effect the frames that start it.
         UsesSelectedAsset,
         // Frames of the project's scenes, and the others.
         SceneFrames,
@@ -133,6 +134,9 @@ private:
         // such lights.
         AmbientLighting,
         AmbientLightingOutOfDate,
+        // The frames of the scene m_sceneTimeline (a double click on a scene); the entry is
+        // there while a scene's frames have been listed.
+        SceneTimeline,
     };
 
     // The tag of a "Tag: ..." entry of the frame filter.
@@ -624,6 +628,10 @@ private:
     QToolButton* m_historyBackButton = nullptr;
     QToolButton* m_historyForwardButton = nullptr;
     QToolButton* m_leaveSceneButton = nullptr;
+    // The scene whose frames the filter's SceneTimeline entry lists.
+    std::optional<uint16_t> m_sceneTimeline;
+    // Puts the SceneTimeline entry for the scene in the filter (or takes it out for none).
+    void setSceneTimelineEntry(std::optional<uint16_t> sceneId);
     FrameListWidget* m_frameList = nullptr;
     LazyListIcons* m_frameThumbnails = nullptr;
     QListWidget* m_maskList = nullptr;

@@ -3278,7 +3278,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>The frames that use the mask, background or sprite selected in the section used last on the left, or the frames of the selected scene; follows the selection and the section</source>
-        <translation>Die Frames, die die Maske, den Hintergrund oder das Sprite verwenden, das im zuletzt benutzten Bereich links ausgewählt ist, oder die Frames der ausgewählten Szene; folgt der Auswahl und dem Bereich</translation>
+        <translation type="vanished">Die Frames, die die Maske, den Hintergrund oder das Sprite verwenden, das im zuletzt benutzten Bereich links ausgewählt ist, oder die Frames der ausgewählten Szene; folgt der Auswahl und dem Bereich</translation>
     </message>
     <message>
         <source>Zoom out (%1)</source>
@@ -3656,6 +3656,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Add a frame whose original is the current frame&apos;s picture, painted in the plain original colors only (&quot;To Source Frame&quot; in the Win32 editor)</source>
         <translation>Einen Frame hinzufügen, dessen Original das Bild des aktuellen Frames ist, nur in den schlichten Originalfarben gemalt (&quot;To Source Frame&quot; im Win32-Editor)</translation>
+    </message>
+    <message>
+        <source>The frames that use the mask, background or sprite selected in the section used last on the left, that start the selected scene (also as background) or the selected light effect; follows the selection and the section</source>
+        <translation>Die Frames, die die Maske, den Hintergrund oder das Sprite verwenden, das im zuletzt links benutzten Bereich ausgewählt ist, die die ausgewählte Szene starten (auch als Hintergrund) oder den ausgewählten Lichteffekt; folgt der Auswahl und dem Bereich</translation>
     </message>
     <message>
         <source>Leave Scene</source>
@@ -5284,6 +5288,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Delete Scene</source>
         <translation>Szene löschen</translation>
+    </message>
+    <message>
+        <source>Frames of scene %1</source>
+        <translation>Frames der Szene %1</translation>
     </message>
     <message>
         <source>Time: Project %1 / Session %2</source>

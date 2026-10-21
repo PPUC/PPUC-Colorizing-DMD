@@ -376,6 +376,8 @@ public:
     void setFrameLights(std::size_t frameIndex, const LightActions& lights);
     // The frames that start the effect on some channel.
     [[nodiscard]] std::vector<std::size_t> framesUsingLightEffect(uint16_t effectId) const;
+    // Whether the frame starts the effect on some channel.
+    [[nodiscard]] bool frameUsesLightEffect(std::size_t frameIndex, uint16_t effectId) const;
     // The frame's tags (FrameRecord::tags). setFrameTags() sorts them, drops empty ones and
     // repeats, and trims blanks.
     [[nodiscard]] const std::vector<std::string>& frameTags(std::size_t frameIndex) const;

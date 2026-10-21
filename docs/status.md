@@ -2257,3 +2257,13 @@ kept: `keepWindowGeometry()` (app/WindowGeometry) restores `windows/<key>` befor
 shown and stores saveGeometry() on Hide/Close (not while minimized). Used for the main window
 (main.cpp), Handbook, plugin log, PuP tester, Images, Frame Tester and dump import. Test:
 testWindowGeometryIsKept.
+
+## Selected asset: scenes and light effects (2026-10-21, owner request)
+
+UsesSelectedAsset with a scene: `edit::startsScene()` (game frames whose trigger is the scene
+ID, background scenes included); with a light effect: `ProjectDocument::frameUsesLightEffect()`.
+The scene's own frames (double click, Leave Scene, back/forward) moved to
+`FrameFilter::SceneTimeline`, an entry added by `setSceneTimelineEntry()` for
+`m_sceneTimeline`; `CanvasPlace::filterScene` comes from it, a deleted scene drops it,
+a new project removes it. Tests: testFramesStartingScene, frameUsesLightEffect in
+testModelAndEdits.

@@ -1168,15 +1168,22 @@ void ProjectDocument::setFrameLights(std::size_t frameIndex, const LightActions&
     markChanged();
 }
 
+bool ProjectDocument::frameUsesLightEffect(std::size_t frameIndex, uint16_t effectId) const
+{
+    for (const LightAction& action : requireFrame(m_frames, frameIndex).lights) {
+        if (action.kind == LightActionKind::Effect && action.effectId == effectId) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<std::size_t> ProjectDocument::framesUsingLightEffect(uint16_t effectId) const
 {
     std::vector<std::size_t> frames;
     for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
-        for (const LightAction& action : m_frames[frameIndex].lights) {
-            if (action.kind == LightActionKind::Effect && action.effectId == effectId) {
-                frames.push_back(frameIndex);
-                break;
-            }
+        if (frameUsesLightEffect(frameIndex, effectId)) {
+            frames.push_back(frameIndex);
         }
     }
     return frames;

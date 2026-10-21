@@ -114,6 +114,11 @@ private:
 [[nodiscard]] std::optional<uint16_t> nextFreeSceneId(const document::ProjectDocument& document);
 
 // The frames of the scene, ascending.
+// Whether the frame starts the scene: a frame of the game (not one of a scene) whose trigger
+// is the scene's ID -- also for a background scene, which the same trigger keeps playing.
+[[nodiscard]] bool startsScene(const document::ProjectDocument& document,
+                               std::size_t frameIndex,
+                               uint16_t sceneId);
 [[nodiscard]] std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document,
                                                    uint16_t sceneId);
 

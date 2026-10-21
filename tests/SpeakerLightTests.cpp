@@ -90,7 +90,9 @@ void testModelAndEdits()
         document::ProjectDocument::fromSnapshot(makeProjectWithLights());
     expect(document.speakerLights().effects.size() == 2 &&
                document.frameLights(1)[0] == effectAction(1) &&
-               document.framesUsingLightEffect(1) == std::vector<std::size_t>{1},
+               document.framesUsingLightEffect(1) == std::vector<std::size_t>{1} &&
+               document.frameUsesLightEffect(1, 1) && !document.frameUsesLightEffect(0, 1) &&
+               !document.frameUsesLightEffect(1, 2),
            "the snapshot's lights are the document's");
 
     SpeakerLightSettings settings = document.speakerLights();

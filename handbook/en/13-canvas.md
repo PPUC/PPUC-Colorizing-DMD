@@ -108,8 +108,11 @@ wrapped to the sidebar's width, so a narrow sidebar still shows all of it.
   Inspector's `Edit Background` does.
 - `Sprites` shows sprite thumbnails; selecting one selects the same sprite in the Inspector. A
   double click opens it on the sprite canvas for editing, as the Inspector's `Edit Sprite` does.
-- `Scenes` lists the project's scenes (see "Scenes and Scaling"); a selected scene is what
-  `Using the selected asset` of the frame filter lists the frames of.
+- `Scenes` lists the project's scenes (see "Scenes and Scaling"); with a scene selected,
+  `Using the selected asset` of the frame filter lists the frames that start it, and a double
+  click lists the scene's own frames.
+- `Light Effects` lists the speaker light effects (see "Speaker Lights"); with one selected,
+  `Using the selected asset` lists the frames that start it.
 
 Frame metadata, dynamic colors, and sprite controls live in selectable topics in the right-side Inspector:
 
