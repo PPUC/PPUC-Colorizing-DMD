@@ -2278,12 +2278,12 @@ colorizing::document::ProjectDocument makeSpritePanelDocument()
     return document;
 }
 
-// More than 32 sprites on a frame of a libserum 3.0 project: the Frame Sprites section warns.
+// More than 32 sprites on a frame of a libserum 2.9 project: the Frame Sprites section warns.
 void testSpritePanelWarnsAboutManySprites()
 {
     using colorizing::document::FrameSpriteReference;
     colorizing::document::ProjectDocument document = makeSpritePanelDocument();
-    document.setLibserumTarget(colorizing::document::LibserumTarget::Libserum30);
+    document.setLibserumTarget(colorizing::document::LibserumTarget::Libserum29);
     colorizing::app::SpritePanel panel;
     colorizing::app::SpritePanelState state;
     state.document = &document;

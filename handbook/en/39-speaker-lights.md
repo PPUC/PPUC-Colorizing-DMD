@@ -3,7 +3,7 @@
 A PPUC DMD can drive LED strips around the speakers of the backbox (WS2812 "speaker lights",
 up to four channels; usually channel 1 is the left speaker and channel 2 the right one). A
 colorization can play effects on them: a frame starts an effect, a static color or turns a
-channel off when it shows. libserum 3.0 and later read them from the colorization and hand them
+channel off when it shows. libserum 2.9 and later read them from the colorization and hand them
 to the DMD; an older libserum ignores them. The number of LEDs and whether a strip is RGB or
 RGBW are set up on the DMD itself (its menu), as is the brightness.
 

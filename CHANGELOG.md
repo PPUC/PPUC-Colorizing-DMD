@@ -5,9 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
-- A project is made for libserum 2.8 or libserum 3.0 (*Project Settings*, *Made for*).
-  libserum 3.0 allows 128 sprites per frame and practically any number of sprites and
-  backgrounds; such a project plays with libserum 3.0 and later only. Projects for libserum
+- A project is made for libserum 2.8 or libserum 2.9 (*Project Settings*, *Made for*).
+  libserum 2.9 allows 128 sprites per frame and practically any number of sprites and
+  backgrounds; such a project plays with libserum 2.9 and later only. Projects for libserum
   2.8 are saved as before.
 - More than 32 sprites on a frame stay the exception: the editor asks before a frame gets its 33rd
   sprite and warns while a frame has more, since every sprite more costs runtime (fine on a short
@@ -16,7 +16,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   brightness and duration) in the new Light Effects section; per frame and channel an effect, a
   static color or off in the Speaker Lights section, with ambient lighting colors suggested from the
   frame; a default per channel in Project Settings. A preview beside the canvas and in the frame
-  tester plays them with the firmware's effect code (Settings -> Appearance). Needs libserum 3.0
+  tester plays them with the firmware's effect code (Settings -> Appearance). Needs libserum 2.9
   at runtime.
 - *View -> Speaker Light Preview* switches the speakers beside the canvas on and off; they sit
   level with the colorized frame and are sized by dragging their border.

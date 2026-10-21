@@ -114,7 +114,7 @@ The controls:
   button is still disabled.
 - Rectangle capture without a capture selection still treats black original pixels as transparent.
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
-- A frame has 32 sprite slots in a project for libserum 2.8 and 128 in one for libserum 3.0
+- A frame has 32 sprite slots in a project for libserum 2.8 and 128 in one for libserum 2.9
   (see "Project Files", "libserum target"). Sprites work the same with either; stay within 32
   per frame wherever you can. Every sprite more adds to the time libserum needs for each frame,
   so going past 32 is for a single frame that cannot be done otherwise and should never become

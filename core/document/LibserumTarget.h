@@ -8,10 +8,10 @@ namespace colorizing::document {
 
 // The libserum a project is made for, chosen by its author. It decides the limits of the
 // project and the cROM format a save writes: a project for libserum 2.8 plays on every
-// libserum since 2.8, one for 3.0 needs libserum 3.0 or later. Later targets add features.
+// libserum since 2.8, one for 2.9 needs libserum 2.9 or later. Later targets add features.
 enum class LibserumTarget : uint8_t {
     Libserum28 = 0,
-    Libserum30 = 1,
+    Libserum29 = 1,
 };
 
 // What a target allows.
@@ -37,7 +37,7 @@ constexpr std::size_t kSpritesPerFrameWarning = 32;
 [[nodiscard]] constexpr LibserumLimits libserumLimits(LibserumTarget target)
 {
     switch (target) {
-        case LibserumTarget::Libserum30:
+        case LibserumTarget::Libserum29:
             // 16-bit IDs, 0xffff for none.
             return LibserumLimits{kMaxSpritesPerFrame, 65535, 65535, 1};
         case LibserumTarget::Libserum28:
@@ -64,10 +64,10 @@ struct LibserumTargetProblems {
     }
 };
 
-// "libserum 2.8", "libserum 3.0".
+// "libserum 2.8", "libserum 2.9".
 [[nodiscard]] inline std::string libserumTargetName(LibserumTarget target)
 {
-    return target == LibserumTarget::Libserum30 ? "libserum 3.0" : "libserum 2.8";
+    return target == LibserumTarget::Libserum29 ? "libserum 2.9" : "libserum 2.8";
 }
 
 }  // namespace colorizing::document

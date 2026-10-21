@@ -1208,9 +1208,9 @@ void testFileWriterSavesCrpx()
     }
 }
 
-// A project for libserum 3.0: the cROM of format version 1 (header revision 21, 128 slots,
+// A project for libserum 2.9: the cROM of format version 1 (header revision 21, 128 slots,
 // 16-bit sprite IDs), the target and the sprites beyond the cRP part's 255 in .cRPX chunks.
-void testFileWriterSavesLibserum30Project()
+void testFileWriterSavesLibserum29Project()
 {
     namespace document = colorizing::document;
     const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
@@ -1226,7 +1226,7 @@ void testFileWriterSavesLibserum30Project()
            "a cROM without a format version is one for libserum 2.8");
 
     document::ProjectSnapshot project = source.snapshot;
-    project.libserumTarget = document::LibserumTarget::Libserum30;
+    project.libserumTarget = document::LibserumTarget::Libserum29;
     for (document::ProjectFrameSnapshot& frame : project.frames) {
         frame.spriteReferences.resize(document::kMaxSpritesPerFrame);
     }
@@ -1246,7 +1246,7 @@ void testFileWriterSavesLibserum30Project()
     const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
     const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpxPath)};
     const LegacyProjectFileWriter writer;
-    expect(writer.save(paths, project).ok, "a libserum 3.0 project is saved");
+    expect(writer.save(paths, project).ok, "a libserum 2.9 project is saved");
     const std::vector<uint8_t> crom = readBytes(cromPath);
     const auto u32At = [&crom](std::size_t offset) {
         return static_cast<uint32_t>(crom[offset]) | (static_cast<uint32_t>(crom[offset + 1]) << 8) |
@@ -1262,13 +1262,13 @@ void testFileWriterSavesLibserum30Project()
     const LegacyLoadResult back = reader.load(paths);
     expect(back.ok, "and loads: " + back.error.message);
     const document::ProjectSnapshot& loaded = back.snapshot;
-    expect(loaded.libserumTarget == document::LibserumTarget::Libserum30 &&
+    expect(loaded.libserumTarget == document::LibserumTarget::Libserum29 &&
                loaded.sprites.size() == 300 &&
                loaded.frames[0].spriteReferences.size() == 128 &&
                loaded.frames[0].spriteReferences[100].spriteId == 299 &&
                loaded.frames[0].spriteReferences[100].maxX == 30 &&
                loaded.frames[0].spriteReferences[101].spriteId == document::kNoSpriteId,
-           "as one for libserum 3.0, with sprite 299 in slot 100");
+           "as one for libserum 2.9, with sprite 299 in slot 100");
     expect(loaded.sprites[299].name == "Gr\xc3\xbcn 299" &&
                loaded.editorMetadata.spriteSourceFrames.size() == 300 &&
                loaded.editorMetadata.spriteSourceFrames[299] == 1 &&
@@ -1308,7 +1308,7 @@ void testFileWriterSavesLibserum30Project()
 void runLegacyProjectFileReaderTests()
 {
     testFileWriterSavesCrpx();
-    testFileWriterSavesLibserum30Project();
+    testFileWriterSavesLibserum29Project();
     testFileReaderLoadsModernProject();
     testFileReaderReportsMissingCrom();
     testFileReaderRejectsLegacyPalettedCrom();

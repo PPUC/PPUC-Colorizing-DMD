@@ -73,9 +73,9 @@ LegacySnapshotBuildResult buildProjectSnapshot(LegacyCromFrameData&& cromFrameDa
         cromFrameData.metadata.headerLengthBytes / static_cast<uint32_t>(sizeof(uint32_t));
     snapshot.editorMetadata = std::move(crpOriginalData.editorMetadata);
     snapshot.geometry = *geometry;
-    // A cROM of format version 1 is made for libserum 3.0.
+    // A cROM of format version 1 is made for libserum 2.9.
     snapshot.libserumTarget = cromFrameData.metadata.formatVersion >= 1
-                                  ? document::LibserumTarget::Libserum30
+                                  ? document::LibserumTarget::Libserum29
                                   : document::LibserumTarget::Libserum28;
     const std::size_t slots = document::libserumLimits(snapshot.libserumTarget).spritesPerFrame;
     const render::Size romSize = document::originalFrameSize(snapshot);

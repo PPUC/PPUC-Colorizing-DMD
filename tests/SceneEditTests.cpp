@@ -297,7 +297,7 @@ void testLibserumTarget()
     document::ColorizationSettings settings;
     settings.scalingAlgorithm = document::kScalingLineDoubling;
     const auto command =
-        edit::setProjectSettings(document, settings, document::LibserumTarget::Libserum30);
+        edit::setProjectSettings(document, settings, document::LibserumTarget::Libserum29);
     expect(command && command->kind() == edit::SceneEditCommand::Kind::LibserumTarget &&
                !command->changesFrames(),
            "the target and the scaling settings are one step");
@@ -310,7 +310,7 @@ void testLibserumTarget()
                document.colorizationSettings()->scalingAlgorithm ==
                    document::kScalingLineDoubling &&
                document.limits().maxSprites == 65535,
-           "libserum 3.0: 128 slots, the new ones empty and searching the whole frame");
+           "libserum 2.9: 128 slots, the new ones empty and searching the whole frame");
     command->revert(document);
     expect(document.libserumTarget() == document::LibserumTarget::Libserum28 &&
                document.frameSpriteReferences(0).size() == 32 &&
@@ -354,7 +354,7 @@ void testLibserumTarget()
                document.frameSpriteReferences(0)[40].spriteId == 0,
            "and the change is refused, the project left as it was");
     expect(!edit::setProjectSettings(document, *document.colorizationSettings(),
-                                     document::LibserumTarget::Libserum30),
+                                     document::LibserumTarget::Libserum29),
            "nothing changed, no step");
 }
 

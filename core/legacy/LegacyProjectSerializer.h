@@ -85,7 +85,7 @@ struct LegacyIoProgress;
 // plays scenes in no other). Empty for a snapshot without colorizationSettings, as one of the
 // Win32 editor: its cROM stays as that editor writes it. The speaker lights (effects,
 // defaults, the frames that change channels; libserum's kCromSettingsLights) follow when the
-// project has any, also without colorizationSettings; libserum before 3.0 ignores them.
+// project has any, also without colorizationSettings; libserum before 2.9 ignores them.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
 inline constexpr uint32_t kCromSettingsScenes = 1;
 inline constexpr uint32_t kCromSettingsScaling = 2;

@@ -2113,13 +2113,14 @@ with earlier cROM/cROMc files. Decision: the author picks the libserum a project
 (`document::LibserumTarget`, core/document/LibserumTarget.h, `libserumLimits()`); later
 features hang off later targets.
 
-- libserum `master` (3.0.0, commit dfb95a6, local only): `MAX_SPRITES_PER_FRAME` 128,
+- libserum `master` (released as 2.9.0, c5ce26a; the format work is dfb95a6):
+  `MAX_SPRITES_PER_FRAME` 128,
   `SERUM_NO_SPRITE` 0xffff, `framesprites` as uint16; cROM header revision 21 adds
   `formatVersion` (`SERUM_CROM_FORMAT_VERSION` 1) and `spritesPerFrame`; format 0 and older
   cROMc (concentrate below 10) are widened on load. See its AGENTS.md.
 - 2.8 (default, every file without a format version): 32 slots, 255 sprites/backgrounds, cROM
   revision 19/20 with 8-bit IDs, byte-identical as before (round trip of smb3, hook_501, afm,
-  trn: identical). 3.0: 128 slots, 65535 sprites/backgrounds, revision 21 format 1, 16-bit
+  trn: identical). 2.9: 128 slots, 65535 sprites/backgrounds, revision 21 format 1, 16-bit
   IDs (`writtenCromRevision`, `LegacyCromFrames`, `LegacyCromMetadata`).
 - Model: `ProjectDocument::libserumTarget()/limits()/spritesPerFrame()`,
   `libserumTargetProblems()` (struct `LibserumTargetProblems`), `setLibserumTarget()` resizes
@@ -2132,9 +2133,9 @@ features hang off later targets.
 - UI: Project Settings `Made for` combo with the reasons a target does not fit (OK disabled);
   Frame Sprites warning label above `kSpritesPerFrameWarning` (32); "Not added" messages name
   the target.
-- Tests: `testLibserum30Project` (EditorMatchesRuntimeTests: 300 sprites, sprite 299 in slot
+- Tests: `testLibserum29Project` (EditorMatchesRuntimeTests: 300 sprites, sprite 299 in slot
   39, editor and libserum agree; fails when the writer writes format 0),
-  `testFileWriterSavesLibserum30Project` (header, LSRT/SPRX round trip, cRP part size),
+  `testFileWriterSavesLibserum29Project` (header, LSRT/SPRX round trip, cRP part size),
   `testLibserumTarget` (SceneEditTests), `testProjectSettings` (ScenesWidgetTests),
   `testSpritePanelWarnsAboutManySprites`.
 - Open: CI's `LIBSERUM_SHA` must move to the libserum commit once it is pushed.
@@ -2198,7 +2199,7 @@ from the frame and editable.
 - Many-sprites guidance (owner): sprites unchanged, 32 per frame stays the recommendation, more
   only for a frame that cannot be done otherwise, fine on a flash, avoid in video modes.
   `SpritePanel::manySpritesAdvice()` is the one text (Frame Sprites warning, Project Settings
-  3.0 note, the confirmation); `ProjectDocument::assignmentPassesSpriteWarning()` decides when
+  2.9 note, the confirmation); `ProjectDocument::assignmentPassesSpriteWarning()` decides when
   Assign/Capture ask (`confirmPassingSpriteWarning`), only for the 33rd. Test in
   SceneEditTests::testLibserumTarget.
 - Automatic ambient lighting: `LightAction::automatic` (LGHT action byte 1, bit 0; the cROM
@@ -2212,9 +2213,12 @@ from the frame and editable.
   ambientLightingOutOfDate(): composeResolvedFrame + suggestion per frame; fast enough on GoT
   per the owner), offered while a frame has automatic lights; refreshAfterLightsChanged()
   keeps the entries and a filtered strip current after light edits and their undo.
+- libserum master is versioned 2.9.0 (owner), not 3.0.0: the target is `Libserum29`, shown as
+  "libserum 2.9"; its stored value (1, LSRT) is unchanged.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
-- Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,
+- Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM
+  block,
   libserum end to end), tests/SpeakerLightWidgetTests.cpp (list, effect section and preview,
   frame section, speakers beside the canvas, Project Settings defaults, frame tester with
   libserum).

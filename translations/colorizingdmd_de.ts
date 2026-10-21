@@ -5814,12 +5814,12 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>libserum 2.8</translation>
     </message>
     <message>
-        <source>libserum 3.0</source>
-        <translation>libserum 3.0</translation>
+        <source>libserum 2.9</source>
+        <translation>libserum 2.9</translation>
     </message>
     <message>
-        <source>The libserum the colorization is made for. libserum 2.8 allows 32 sprites per frame and 255 sprites and backgrounds; libserum 3.0 allows 128 sprites per frame and needs libserum 3.0 or later to play.</source>
-        <translation>Die libserum, für die die Kolorierung gemacht ist. libserum 2.8 erlaubt 32 Sprites pro Frame und 255 Sprites und Hintergründe; libserum 3.0 erlaubt 128 Sprites pro Frame und braucht zum Abspielen libserum 3.0 oder neuer.</translation>
+        <source>The libserum the colorization is made for. libserum 2.8 allows 32 sprites per frame and 255 sprites and backgrounds; libserum 2.9 allows 128 sprites per frame and needs libserum 2.9 or later to play.</source>
+        <translation>Die libserum, für die die Kolorierung gemacht ist. libserum 2.8 erlaubt 32 Sprites pro Frame und 255 Sprites und Hintergründe; libserum 2.9 erlaubt 128 Sprites pro Frame und braucht zum Abspielen libserum 2.9 oder neuer.</translation>
     </message>
     <message>
         <source>Scale2x</source>
@@ -5885,12 +5885,12 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Das Projekt passt nicht zu %1: %2</translation>
     </message>
     <message>
-        <source>Plays with libserum 3.0 and later only. Up to %1 sprites per frame are possible.</source>
-        <translation>Läuft nur mit libserum 3.0 und neuer. Bis zu %1 Sprites pro Frame sind möglich.</translation>
+        <source>Plays with libserum 2.9 and later only. Up to %1 sprites per frame are possible.</source>
+        <translation>Läuft nur mit libserum 2.9 und neuer. Bis zu %1 Sprites pro Frame sind möglich.</translation>
     </message>
     <message>
-        <source>Plays with libserum 3.0 and later only. More than %1 sprites on a frame can make the sprite detection slow.</source>
-        <translation type="vanished">Läuft nur mit libserum 3.0 und neuer. Mehr als %1 Sprites auf einem Frame können die Sprite-Erkennung verlangsamen.</translation>
+        <source>Plays with libserum 2.9 and later only. More than %1 sprites on a frame can make the sprite detection slow.</source>
+        <translation type="vanished">Läuft nur mit libserum 2.9 und neuer. Mehr als %1 Sprites auf einem Frame können die Sprite-Erkennung verlangsamen.</translation>
     </message>
     <message>
         <source>Plays with libserum 2.8 and later.</source>

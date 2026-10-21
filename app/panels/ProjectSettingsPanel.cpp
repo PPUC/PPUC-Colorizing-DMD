@@ -20,12 +20,12 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     m_targetComboBox = new QComboBox(this);
     m_targetComboBox->addItem(tr("libserum 2.8"),
                               static_cast<int>(document::LibserumTarget::Libserum28));
-    m_targetComboBox->addItem(tr("libserum 3.0"),
-                              static_cast<int>(document::LibserumTarget::Libserum30));
+    m_targetComboBox->addItem(tr("libserum 2.9"),
+                              static_cast<int>(document::LibserumTarget::Libserum29));
     m_targetComboBox->setToolTip(
         tr("The libserum the colorization is made for. libserum 2.8 allows 32 sprites per "
-           "frame and 255 sprites and backgrounds; libserum 3.0 allows 128 sprites per frame "
-           "and needs libserum 3.0 or later to play."));
+           "frame and 255 sprites and backgrounds; libserum 2.9 allows 128 sprites per frame "
+           "and needs libserum 2.9 or later to play."));
     m_targetLabel = new QLabel(this);
     m_targetLabel->setWordWrap(true);
     m_scalingComboBox = new QComboBox(this);
@@ -175,9 +175,9 @@ void ProjectSettingsPanel::updateTargetProblems()
     const QString problems = targetProblemText();
     if (!problems.isEmpty()) {
         m_targetLabel->setText(problems);
-    } else if (libserumTarget() == document::LibserumTarget::Libserum30) {
+    } else if (libserumTarget() == document::LibserumTarget::Libserum29) {
         m_targetLabel->setText(
-            tr("Plays with libserum 3.0 and later only. Up to %1 sprites per frame are possible.")
+            tr("Plays with libserum 2.9 and later only. Up to %1 sprites per frame are possible.")
                     .arg(document::kMaxSpritesPerFrame) +
             QLatin1Char(' ') + SpritePanel::manySpritesAdvice());
     } else {

@@ -408,7 +408,7 @@ bool parseLibserumTarget(LegacyByteSource& source,
         errorMessage = "the libserum target of the .cRPX is damaged";
         return false;
     }
-    if (bytes[0] > static_cast<uint8_t>(document::LibserumTarget::Libserum30)) {
+    if (bytes[0] > static_cast<uint8_t>(document::LibserumTarget::Libserum29)) {
         errorMessage = "the project is made for a libserum this version of the editor does not "
                        "know (target " +
                        std::to_string(bytes[0]) + ")";

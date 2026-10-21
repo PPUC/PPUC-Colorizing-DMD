@@ -48,7 +48,7 @@ struct ProjectSnapshot {
     // cROM header revision (header length in 32-bit words) the project was loaded with, so a
     // save does not silently move it to a revision an older libserum cannot read.
     uint32_t cromRevision = kCurrentCromRevision;
-    // The libserum the project is made for (.cRPX; a cROM of format version 1 is for 3.0).
+    // The libserum the project is made for (.cRPX; a cROM of format version 1 is for 2.9).
     // Every frame's sprite slots are that target's spritesPerFrame.
     LibserumTarget libserumTarget = LibserumTarget::Libserum28;
     // Sizes of the stored planes and which of them is the ROM frame's. Everything named ...Sd

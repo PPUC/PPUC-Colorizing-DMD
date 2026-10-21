@@ -20,7 +20,7 @@ Saving writes complete `.cRZ` and `.cRPX` files from the in-memory project (see 
 `.cROM` is only read. Opening is verified with cROM header revision 19, 20 and 21 projects.
 A project for libserum 2.8 keeps its revision: revision 20 projects are saved as revision 20,
 everything older as revision 19, so a save never moves a project to a revision an older
-libserum cannot read. A project for libserum 3.0 is saved as revision 21 (see "libserum
+libserum cannot read. A project for libserum 2.9 is saved as revision 21 (see "libserum
 target").
 
 ## libserum target
@@ -28,9 +28,9 @@ target").
 Every project is made for a libserum, chosen in `File -> Project Settings...` (`Made for`). It
 decides what the project may hold and how the `.cROM` is written:
 
-| | libserum 2.8 | libserum 3.0 |
+| | libserum 2.8 | libserum 2.9 |
 | --- | --- | --- |
-| Plays with | libserum 2.8 and later | libserum 3.0 and later only |
+| Plays with | libserum 2.8 and later | libserum 2.9 and later only |
 | Sprites per frame | 32 | 128 |
 | Sprites in the project | 255 | 65535 |
 | Backgrounds in the project | 255 | 65535 |
@@ -38,17 +38,17 @@ decides what the project may hold and how the `.cROM` is written:
 
 A project of the Win32 editor, a new project and every `.cROM` without a format version are
 for libserum 2.8, and stay readable by the Win32 editor's libserum as long as they are. A
-`.cROM` of format version 1 is opened as a project for libserum 3.0. Format version 1 adds the
+`.cROM` of format version 1 is opened as a project for libserum 2.9. Format version 1 adds the
 format version and the number of sprite slots per frame to the header and stores sprite IDs
 with 16 bits; a `.cROM` of a newer format version than this editor knows is refused.
 
-Switching to libserum 3.0 gives every frame 128 sprite slots; the new ones are empty and search
+Switching to libserum 2.9 gives every frame 128 sprite slots; the new ones are empty and search
 the whole frame. Switching back is only possible while the project fits libserum 2.8: the
 dialog names what keeps it from fitting (too many sprites or backgrounds, frames with more than
 32 sprites and the first of them) and `OK` stays disabled. The change is one undo step,
 together with the other project settings.
 
-The sprites work exactly as before; libserum 3.0 only allows more of them. Stay within 32
+The sprites work exactly as before; libserum 2.9 only allows more of them. Stay within 32
 sprites per frame: it remains the recommendation, and every sprite more costs libserum time on
 each frame. Going past it is a decision for a single frame that cannot be done otherwise, never
 best practice. See "Sprites" for the warnings the editor gives.

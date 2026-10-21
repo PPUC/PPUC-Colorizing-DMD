@@ -135,12 +135,12 @@ void testNativePlane(PlaneLayout layout)
            "a shape-mode sprite is found by its lit pixels, sprites in slot order");
 }
 
-// A project for libserum 3.0 (cROM format version 1): 300 sprites, a frame whose found sprite
+// A project for libserum 2.9 (cROM format version 1): 300 sprites, a frame whose found sprite
 // is the 300th, in its slot 40.
-void testLibserum30Project()
+void testLibserum29Project()
 {
     ProjectSnapshot snapshot = makeFullProject(PlaneLayout::Ordinary);
-    snapshot.libserumTarget = colorizing::document::LibserumTarget::Libserum30;
+    snapshot.libserumTarget = colorizing::document::LibserumTarget::Libserum29;
     for (auto& frame : snapshot.frames) {
         if (!frame.spriteReferences.empty()) {
             frame.spriteReferences.resize(colorizing::document::kMaxSpritesPerFrame);
@@ -156,13 +156,13 @@ void testLibserum30Project()
     }
     setSpriteSlot(snapshot, 3, 39, 299, 30, 8, 35, 11);
     const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
-    expect(document.spritesPerFrame() == 128, "a libserum 3.0 project has 128 sprite slots");
+    expect(document.spritesPerFrame() == 128, "a libserum 2.9 project has 128 sprite slots");
 
     const std::vector<SpriteMatch> found = matchFrameSprites(document, 3);
     expect(found.size() == 1 && found[0].spriteIndex == 299 && found[0].frameX == 30,
            "the editor finds sprite 299 of slot 39");
     for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
-        const std::string text = "libserum 3.0 project, frame " + std::to_string(frame);
+        const std::string text = "libserum 2.9 project, frame " + std::to_string(frame);
         const RuntimeFrame runtime =
             RuntimePreview::instance().renderFrame(document, frame, PlaneRequest::Rows32);
         expect(runtime.ok() && runtime.identified, text + ": libserum identifies the frame");
@@ -690,7 +690,7 @@ void runEditorMatchesRuntimeTests()
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
         testNativePlane(layout);
     }
-    testLibserum30Project();
+    testLibserum29Project();
     testHdPlaneOfOrdinaryProject();
     testHdDynamicZonesOfOrdinaryProject();
     testDynamicContentStandsStillInRotations();

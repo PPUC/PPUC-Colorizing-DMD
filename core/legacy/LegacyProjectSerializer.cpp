@@ -10,7 +10,7 @@ namespace colorizing::legacy {
 
 namespace {
 
-// The header revision a save writes: 21 for libserum 3.0 on (the format version and the sprite
+// The header revision a save writes: 21 for libserum 2.9 on (the format version and the sprite
 // slots in the header); otherwise the revision the project was loaded with, older ones as 19,
 // the oldest one that carries every block.
 uint32_t writtenCromRevision(const document::ProjectSnapshot& snapshot)
@@ -412,7 +412,7 @@ bool writeCromContent(std::ostream& stream,
     if (revision >= 20) {
         writer.u32(snapshot.geometry.original256x64Flag() ? 1 : 0);
     }
-    // Revision 21 (libserum 3.0 on): the format version and the sprite slots of a frame.
+    // Revision 21 (libserum 2.9 on): the format version and the sprite slots of a frame.
     if (revision >= 21) {
         writer.u32(limits.cromFormatVersion);
         writer.u32(static_cast<uint32_t>(slots));
