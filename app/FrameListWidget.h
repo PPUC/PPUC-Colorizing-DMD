@@ -42,6 +42,9 @@ protected:
     void dragMoveEvent(QDragMoveEvent* event) override;
     void dragLeaveEvent(QDragLeaveEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+    // As in the Win32 editor, a double click selects the frame alone: a selection of several
+    // frames is dropped (issue #18).
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
 private:

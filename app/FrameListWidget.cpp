@@ -1,5 +1,7 @@
 #include "FrameListWidget.h"
 
+#include "ListSelection.h"
+
 #include <QDropEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -110,6 +112,18 @@ void FrameListWidget::dragLeaveEvent(QDragLeaveEvent* event)
     m_dropRow = -1;
     viewport()->update();
     QListWidget::dragLeaveEvent(event);
+}
+
+void FrameListWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    QListWidget::mouseDoubleClickEvent(event);
+    if (event->button() != Qt::LeftButton || event->modifiers() != Qt::NoModifier) {
+        return;
+    }
+    QListWidgetItem* item = itemAt(event->position().toPoint());
+    if (item && selectedItems().size() > 1) {
+        selectSingleRow(*this, row(item));
+    }
 }
 
 void FrameListWidget::paintEvent(QPaintEvent* event)

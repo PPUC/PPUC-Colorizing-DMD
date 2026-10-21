@@ -563,6 +563,20 @@ void testFrameListClicks()
            "a click outside it selects that frame alone");
     click(5);
     expect(list.selectedItems().size() == 1, "a click on the only selected frame keeps it");
+
+    // Issue #18: a double click selects the frame alone, as in the Win32 editor.
+    for (int row = 1; row <= 3; ++row) {
+        list.item(row)->setSelected(true);
+    }
+    list.setCurrentRow(1, QItemSelectionModel::NoUpdate);
+    const QPoint at = list.visualItemRect(list.item(2)).center();
+    click(2);
+    QMouseEvent doubleClick(QEvent::MouseButtonDblClick, at, list.viewport()->mapToGlobal(at),
+                            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(list.viewport(), &doubleClick);
+    expect(list.currentRow() == 2 && list.selectedItems().size() == 1 &&
+               list.item(2)->isSelected(),
+           "a double click leaves the frame alone selected");
 }
 
 // Issue #13: the open sections of a side bar are resized by dragging the border between two of

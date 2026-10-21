@@ -2075,3 +2075,9 @@ The canvas selection stays on another frame (Win32 behaviour), but `selectFrame`
 selection: the selection was invisible, and the next Ctrl+click added to it ("the first
 selection appears"). `showCaptureSelection` and `clearCaptureSelection` now show the canvas
 selection again instead of clearing. Test: in `testCanvasSelection`.
+
+## Issue #18: double click selects the frame alone (2026-10-21)
+
+`FrameListWidget::mouseDoubleClickEvent` selects the double-clicked frame alone when several
+are selected (Win32 behaviour); a plain click inside a multi-selection still keeps it. Test:
+in `testFrameListClicks`.
