@@ -4,11 +4,13 @@
 #include <vector>
 
 #include <QCheckBox>
+#include <QColor>
 #include <QComboBox>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPalette>
 #include <QSignalBlocker>
 #include <QScrollArea>
 #include <QSpinBox>
@@ -203,7 +205,20 @@ SpritePanel::SpritePanel(QWidget* parent)
     frameSpritesArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
     m_selectedSpriteLabel = new QLabel(tr("Selected: None"), m_framePage);
     m_selectedSpriteLabel->setWordWrap(true);
+    m_spriteCountWarningLabel = new QLabel(m_framePage);
+    m_spriteCountWarningLabel->setWordWrap(true);
+    m_spriteCountWarningLabel->setForegroundRole(QPalette::BrightText);
+    m_spriteCountWarningLabel->setAutoFillBackground(true);
+    {
+        QPalette warning = m_spriteCountWarningLabel->palette();
+        warning.setColor(QPalette::Window, QColor(0xb0, 0x50, 0x00));
+        warning.setColor(QPalette::BrightText, Qt::white);
+        m_spriteCountWarningLabel->setPalette(warning);
+    }
+    m_spriteCountWarningLabel->setContentsMargins(4, 2, 4, 2);
+    m_spriteCountWarningLabel->hide();
     frameLayout->addWidget(m_selectedSpriteLabel);
+    frameLayout->addWidget(m_spriteCountWarningLabel);
     frameLayout->addWidget(frameSpritesArea);
     frameLayout->addWidget(m_slotComboBox);
     auto* slotButtonLayout = new QHBoxLayout();
@@ -580,6 +595,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
     }
     m_slotComboBox->setEnabled(document && frameIndex.has_value());
 
+    std::size_t usedSlots = 0;
     if (!document || !frameIndex) {
         m_frameSpritesLabel->setText(tr("No frame sprites"));
     } else {
@@ -591,6 +607,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
             if (reference.spriteId == document::kNoSpriteId) {
                 continue;
             }
+            ++usedSlots;
             const QString assignedSprite =
                 reference.spriteId >= document->spriteCount()
                     ? tr("sprite %1").arg(static_cast<int>(reference.spriteId))
@@ -613,6 +630,17 @@ void SpritePanel::refresh(const SpritePanelState& state)
             assignedSprites.isEmpty()
                 ? tr("Current frame uses no sprites")
                 : assignedSprites.join(QStringLiteral("\n")));
+    }
+    if (usedSlots > document::kSpritesPerFrameWarning) {
+        m_spriteCountWarningLabel->setText(
+            tr("The frame uses %1 sprites. More than %2 sprites on a frame can make libserum's "
+               "sprite detection noticeably slow.")
+                .arg(usedSlots)
+                .arg(document::kSpritesPerFrameWarning));
+        m_spriteCountWarningLabel->show();
+    } else {
+        m_spriteCountWarningLabel->clear();
+        m_spriteCountWarningLabel->hide();
     }
 
     const bool hasSprite =
@@ -847,6 +875,11 @@ bool SpritePanel::isOutlinesChecked() const
 bool SpritePanel::isSpriteCanvasChecked() const
 {
     return m_spriteCanvasButton->isChecked();
+}
+
+QString SpritePanel::spriteCountWarning() const
+{
+    return m_spriteCountWarningLabel->text();
 }
 
 }  // namespace colorizing::app

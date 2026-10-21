@@ -42,8 +42,12 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     if (snapshot.comparisonMasks.size() > kMaxComparisonMasks) {
         return fail(errorMessage, "too many comparison masks");
     }
-    if (snapshot.sprites.size() > kMaxSprites) {
+    const LibserumLimits limits = libserumLimits(snapshot.libserumTarget);
+    if (snapshot.sprites.size() > limits.maxSprites) {
         return fail(errorMessage, "too many sprites");
+    }
+    if (snapshot.backgrounds.size() > limits.maxBackgrounds) {
+        return fail(errorMessage, "too many backgrounds");
     }
     if (!isValidEditorMetadata(snapshot.editorMetadata, errorMessage)) {
         return false;
@@ -187,7 +191,7 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             }
         }
         if (!frame.spriteReferences.empty() &&
-            frame.spriteReferences.size() != kMaxSpritesPerFrame) {
+            frame.spriteReferences.size() != limits.spritesPerFrame) {
             return fail(errorMessage, "frame " + std::to_string(i) +
                                           " has invalid sprite reference data");
         }
@@ -245,7 +249,8 @@ void discardExtraPlane(ProjectSnapshot& snapshot)
 ProjectFrameSnapshot makeUncolorizedFrameSnapshot(const render::ProjectGeometry& geometry,
                                                   uint32_t colorCount,
                                                   IndexedFrame original,
-                                                  uint32_t durationMs)
+                                                  uint32_t durationMs,
+                                                  std::size_t spritesPerFrame)
 {
     const Size romSize = geometry.romFrameSize();
     if (!original.isValid() || !hasSize(original.size, romSize)) {
@@ -304,7 +309,7 @@ ProjectFrameSnapshot makeUncolorizedFrameSnapshot(const render::ProjectGeometry&
     noSprite.spriteId = kNoSpriteId;
     noSprite.maxX = static_cast<uint16_t>(romSize.width - 1);
     noSprite.maxY = static_cast<uint16_t>(romSize.height - 1);
-    frame.spriteReferences.assign(kMaxSpritesPerFrame, noSprite);
+    frame.spriteReferences.assign(spritesPerFrame, noSprite);
 
     frame.triggerId = kNoTriggerId;
     frame.durationMs = durationMs;

@@ -13,7 +13,6 @@ namespace {
 
 constexpr std::size_t kHashCodeBytes = sizeof(uint32_t);
 constexpr std::size_t kRgb565Bytes = sizeof(uint16_t);
-constexpr std::size_t kMaxSpritesPerFrame = 32;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
 constexpr std::size_t kMaxColorRotations = 4;
@@ -257,21 +256,27 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(LegacyByteSource& cursor)
         return fail("unexpected end of cROM while reading extra sprite flags");
     }
 
+    // The slots of a frame: 32 of 8-bit IDs (255 empty) before format version 1, the header's
+    // count of 16-bit IDs (0xffff empty) from it on.
+    const std::size_t slots = metadata.spritesPerFrame;
+    const bool wideIds = metadata.formatVersion >= 1;
     frameData.frameSpriteReferences.assign(
-        frameCount,
-        std::vector<document::FrameSpriteReference>(kMaxSpritesPerFrame));
+        frameCount, std::vector<document::FrameSpriteReference>(slots));
     frameData.frameSpritesOffset = cursor.offset();
     {
-        uint8_t spriteIds[kMaxSpritesPerFrame] = {};
+        std::vector<uint8_t> narrowIds(slots);
+        std::vector<uint16_t> wideIdValues(slots);
         for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-            if (!cursor.readBytes(spriteIds, kMaxSpritesPerFrame)) {
+            const bool read = wideIds ? cursor.readU16s(wideIdValues.data(), slots)
+                                      : cursor.readBytes(narrowIds.data(), slots);
+            if (!read) {
                 return fail("unexpected end of cROM while reading frame sprite assignments");
             }
-            for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
-                // 255 is an empty slot in an 8-bit sprite table.
+            for (std::size_t spriteSlot = 0; spriteSlot < slots; ++spriteSlot) {
                 frameData.frameSpriteReferences[frameIndex][spriteSlot].spriteId =
-                    spriteIds[spriteSlot] == 255 ? document::kNoSpriteId
-                                                 : spriteIds[spriteSlot];
+                    wideIds ? wideIdValues[spriteSlot]
+                    : narrowIds[spriteSlot] == 255 ? document::kNoSpriteId
+                                                   : narrowIds[spriteSlot];
             }
         }
     }
@@ -375,12 +380,12 @@ LegacyCromFrameParseResult parseModernLegacyCromFrames(LegacyByteSource& cursor)
 
     frameData.frameSpriteBoundingBoxesOffset = cursor.offset();
     {
-        uint16_t boxes[4 * kMaxSpritesPerFrame] = {};
+        std::vector<uint16_t> boxes(4 * slots);
         for (std::size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-            if (!cursor.readU16s(boxes, 4 * kMaxSpritesPerFrame)) {
+            if (!cursor.readU16s(boxes.data(), 4 * slots)) {
                 return fail("unexpected end of cROM while reading frame sprite bounding boxes");
             }
-            for (std::size_t spriteSlot = 0; spriteSlot < kMaxSpritesPerFrame; ++spriteSlot) {
+            for (std::size_t spriteSlot = 0; spriteSlot < slots; ++spriteSlot) {
                 document::FrameSpriteReference& reference =
                     frameData.frameSpriteReferences[frameIndex][spriteSlot];
                 reference.minX = boxes[4 * spriteSlot];

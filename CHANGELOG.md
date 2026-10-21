@@ -5,6 +5,13 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A project is made for libserum 2.8 or libserum 3.0 (*Project Settings*, *Made for*).
+  libserum 3.0 allows 128 sprites per frame and practically any number of sprites and
+  backgrounds; such a project plays with libserum 3.0 and later only. Projects for libserum
+  2.8 are saved as before.
+- The Frame Sprites section warns when a frame uses more than 32 sprites, which can make the
+  sprite detection noticeably slow.
+
 ## 3.99.6
 
 - Frames can be tagged (e.g. "Settings menu", "Multiball", "Wizard Mode") in the Frame

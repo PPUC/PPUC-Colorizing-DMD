@@ -48,6 +48,12 @@ class LegacyByteSource;
 //            names, per name uint32 length and the name in UTF-8; then uint32 count of tagged
 //            frames, per frame uint32 frame index, uint32 count of its tags and per tag
 //            uint32 the number of its name.
+//     "LSRT" the libserum target (document/LibserumTarget.h), when it is not libserum 2.8:
+//            uint8 target, three bytes 0. The .cROM is written for it (its sprite slots).
+//     "SPRX" the sprite table entries beyond the cRP part's kCrpSpriteEntries, when the
+//            project has more sprites: uint32 first sprite (kCrpSpriteEntries), uint32 count,
+//            per sprite the name (kSpriteNameBytes, as in the cRP part), uint32 source frame,
+//            uint16 source rectangle (4), uint32 mirrors (2).
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 

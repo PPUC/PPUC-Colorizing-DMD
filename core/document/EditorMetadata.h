@@ -14,7 +14,9 @@ constexpr std::size_t kMaxComparisonMasks = 64;
 constexpr std::size_t kMaskNameBytes = 32;
 constexpr std::size_t kMaxSections = 512;
 constexpr std::size_t kSectionNameBytes = 32;
-constexpr std::size_t kMaxSprites = 255;
+// Entries of the cRP's sprite tables (names, source frames, rectangles, mirrors). The tables
+// grow in memory for more sprites; the .cRPX keeps the entries beyond them in a chunk.
+constexpr std::size_t kCrpSpriteEntries = 255;
 constexpr std::size_t kSpriteNameBytes = 32;
 constexpr std::size_t kEditColorCount = 16;
 constexpr std::size_t kMaxImagePositions = 256;
@@ -59,6 +61,13 @@ struct EditorMetadata {
 };
 
 [[nodiscard]] EditorMetadata makeDefaultEditorMetadata();
+// The entries of the sprite tables (at least kCrpSpriteEntries), and growing them (with
+// empty entries) to hold `count` sprites.
+[[nodiscard]] std::size_t spriteTableEntries(const EditorMetadata& metadata);
+void ensureSpriteTableEntries(EditorMetadata& metadata, std::size_t count);
+// Cuts the sprite tables to their first `count` entries (no-op when they hold fewer).
+void truncateSpriteTableEntries(EditorMetadata& metadata, std::size_t count);
+
 [[nodiscard]] bool isValidEditorMetadata(const EditorMetadata& metadata,
                                          std::string* errorMessage = nullptr);
 

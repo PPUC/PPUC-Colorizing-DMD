@@ -342,7 +342,7 @@ document::ProjectDocument makeHdOnlyDocument()
             0,
             255,
         });
-        snapshot.frames.back().spriteReferences.assign(document::kMaxSpritesPerFrame,
+        snapshot.frames.back().spriteReferences.assign(document::kLegacySpritesPerFrame,
                                                        document::FrameSpriteReference{});
     }
     snapshot.frames[0].backgroundData = document::FrameBackgroundData{

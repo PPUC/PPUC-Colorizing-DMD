@@ -338,7 +338,7 @@ colorizing::document::ProjectDocument makeSpriteCompositionDocument()
     snapshot.sprites.push_back(sprite);
 
     std::vector<colorizing::document::FrameSpriteReference> spriteReferences(
-        colorizing::document::kMaxSpritesPerFrame);
+        colorizing::document::kLegacySpritesPerFrame);
     spriteReferences[0] = colorizing::document::FrameSpriteReference{0, 0, 0, 127, 31};
     snapshot.frames.push_back(colorizing::document::ProjectFrameSnapshot{
         original,
@@ -2245,7 +2245,7 @@ colorizing::document::ProjectDocument makeSpritePanelDocument()
             colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize, 0),
         };
         if (frameIndex < 2) {
-            frame.spriteReferences.assign(colorizing::document::kMaxSpritesPerFrame,
+            frame.spriteReferences.assign(colorizing::document::kLegacySpritesPerFrame,
                                           FrameSpriteReference{});
         }
         snapshot.frames.push_back(frame);
@@ -2276,6 +2276,31 @@ colorizing::document::ProjectDocument makeSpritePanelDocument()
         colorizing::document::ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
     return document;
+}
+
+// More than 32 sprites on a frame of a libserum 3.0 project: the Frame Sprites section warns.
+void testSpritePanelWarnsAboutManySprites()
+{
+    using colorizing::document::FrameSpriteReference;
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    document.setLibserumTarget(colorizing::document::LibserumTarget::Libserum30);
+    colorizing::app::SpritePanel panel;
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 1;
+    for (std::size_t slot = 0; slot < 32; ++slot) {
+        document.setFrameSpriteReference(1, slot, FrameSpriteReference{0, 0, 0, 127, 31});
+    }
+    panel.refresh(state);
+    expect(panel.spriteCountWarning().isEmpty(), "32 sprites on a frame need no warning");
+    document.setFrameSpriteReference(1, 32, FrameSpriteReference{1, 0, 0, 127, 31});
+    panel.refresh(state);
+    expect(panel.spriteCountWarning().contains(QStringLiteral("33 sprites")),
+           "33 sprites on a frame are warned about: " +
+               panel.spriteCountWarning().toStdString());
+    state.frameIndex = 0;
+    panel.refresh(state);
+    expect(panel.spriteCountWarning().isEmpty(), "another frame with two sprites has none");
 }
 
 void testSpritePanel()
@@ -2469,9 +2494,9 @@ void testSpritePanel()
                    static_cast<int>(colorizing::document::kMaxSpriteDetectAreas) &&
                areaComboBox->itemText(1) == QStringLiteral("Area 1"),
            "sprite panel should list every detection area");
-    expect(panel.findChildren<QLabel*>().size() == 11,
-           "sprite panel should hold only its three text labels (the selection on each page) "
-           "and eight field captions");
+    expect(panel.findChildren<QLabel*>().size() == 12,
+           "sprite panel should hold only its three text labels (the selection on each page), "
+           "the sprite count warning and eight field captions");
 
     panel.refresh(SpritePanelState{});
     expect(!nameLineEdit->isEnabled() && !slotComboBox->isEnabled() &&
@@ -2496,7 +2521,7 @@ void testSpritePanel()
            "sprite panel should show the selected named HD sprite");
     expect(slotComboBox->isEnabled() &&
                slotComboBox->count() ==
-                   static_cast<int>(colorizing::document::kMaxSpritesPerFrame) &&
+                   static_cast<int>(colorizing::document::kLegacySpritesPerFrame) &&
                slotComboBox->itemText(0) == QStringLiteral("Slot 0: Sprite 0 - hero") &&
                slotComboBox->itemText(1) == QStringLiteral("Slot 1: Empty") &&
                slotComboBox->itemText(2) == QStringLiteral("Slot 2: Sprite 1") &&
@@ -3853,6 +3878,7 @@ int main(int argc, char* argv[])
     testColorRotationPanel();
     testPalettePanel();
     testSpritePanel();
+    testSpritePanelWarnsAboutManySprites();
     testSpriteAndBackgroundHdButtons();
     testMaskPanel();
     testDynamicPanel();

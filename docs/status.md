@@ -2104,3 +2104,37 @@ The Scenes list is a drag source (`ScenesPanel::dragSource()`); the canvas drop 
 the selected frames' trigger to the selected scene with `setSelectedFramesTrigger(Scene, id)`
 (frames with a trigger of another kind skipped, as with the Scene field). Test: drag source
 check in `ScenesWidgetTests::testPanel`.
+
+## libserum target, 128 sprites per frame (2026-10-21, owner request)
+
+The owner wanted 128 sprite slots per frame, no project-wide limit on sprites and backgrounds,
+a warning above 32 sprites on a frame, and a versioned cROM; libserum must stay compatible
+with earlier cROM/cROMc files. Decision: the author picks the libserum a project is made for
+(`document::LibserumTarget`, core/document/LibserumTarget.h, `libserumLimits()`); later
+features hang off later targets.
+
+- libserum `master` (3.0.0, commit dfb95a6, local only): `MAX_SPRITES_PER_FRAME` 128,
+  `SERUM_NO_SPRITE` 0xffff, `framesprites` as uint16; cROM header revision 21 adds
+  `formatVersion` (`SERUM_CROM_FORMAT_VERSION` 1) and `spritesPerFrame`; format 0 and older
+  cROMc (concentrate below 10) are widened on load. See its AGENTS.md.
+- 2.8 (default, every file without a format version): 32 slots, 255 sprites/backgrounds, cROM
+  revision 19/20 with 8-bit IDs, byte-identical as before (round trip of smb3, hook_501, afm,
+  trn: identical). 3.0: 128 slots, 65535 sprites/backgrounds, revision 21 format 1, 16-bit
+  IDs (`writtenCromRevision`, `LegacyCromFrames`, `LegacyCromMetadata`).
+- Model: `ProjectDocument::libserumTarget()/limits()/spritesPerFrame()`,
+  `libserumTargetProblems()` (struct `LibserumTargetProblems`), `setLibserumTarget()` resizes
+  every frame's slot vector (new slots empty with full-frame bounds). Undo:
+  `edit::setProjectSettings()` (SceneEditCommand kind `LibserumTarget`, `TargetCommand`).
+- Sprite tables of the editor metadata grow past `kCrpSpriteEntries` (255) in memory
+  (`ensureSpriteTableEntries`); the cRP part writes the first 255 (`truncateSpriteTableEntries`),
+  the rest is .cRPX chunk `SPRX`; the target is chunk `LSRT` (checked against the cROM's
+  slot count).
+- UI: Project Settings `Made for` combo with the reasons a target does not fit (OK disabled);
+  Frame Sprites warning label above `kSpritesPerFrameWarning` (32); "Not added" messages name
+  the target.
+- Tests: `testLibserum30Project` (EditorMatchesRuntimeTests: 300 sprites, sprite 299 in slot
+  39, editor and libserum agree; fails when the writer writes format 0),
+  `testFileWriterSavesLibserum30Project` (header, LSRT/SPRX round trip, cRP part size),
+  `testLibserumTarget` (SceneEditTests), `testProjectSettings` (ScenesWidgetTests),
+  `testSpritePanelWarnsAboutManySprites`.
+- Open: CI's `LIBSERUM_SHA` must move to the libserum commit once it is pushed.

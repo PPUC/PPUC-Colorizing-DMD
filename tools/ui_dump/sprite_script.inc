@@ -23,7 +23,7 @@
             }
         }
         if (i < 2) {
-            frame.spriteReferences.assign(document::kMaxSpritesPerFrame, document::FrameSpriteReference{});
+            frame.spriteReferences.assign(document::kLegacySpritesPerFrame, document::FrameSpriteReference{});
         }
         ss.frames.push_back(frame);
     }

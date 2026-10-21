@@ -6,7 +6,10 @@
 #include <cstdint>
 #include <functional>
 
+#include "document/LibserumTarget.h"
+
 class QComboBox;
+class QLabel;
 
 namespace colorizing::document {
 class ProjectDocument;
@@ -14,9 +17,10 @@ class ProjectDocument;
 
 namespace colorizing::app {
 
-// The settings of the whole colorization that libserum takes from it
-// (document::ColorizationSettings), for now its scaling settings, as ProjectSettingsDialog
-// shows them. It shows them and reports a change.
+// The settings of the whole colorization that libserum takes from it: the libserum the
+// project is made for (document::LibserumTarget) and its scaling settings
+// (document::ColorizationSettings), as ProjectSettingsDialog shows them. It shows them and
+// reports a change; a target the project does not fit is named with the reasons.
 class ProjectSettingsPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(ProjectSettingsPanel)
 
@@ -27,11 +31,22 @@ public:
     void setProject(const document::ProjectDocument* document);
 
     std::function<void(uint8_t scalingAlgorithm, uint8_t shadowOffset)> onScalingChanged;
+    std::function<void(document::LibserumTarget)> onTargetChanged;
     // The values chosen.
     [[nodiscard]] uint8_t scalingAlgorithm() const;
     [[nodiscard]] uint8_t shadowOffset() const;
+    [[nodiscard]] document::LibserumTarget libserumTarget() const;
+    // Whether the project fits the target chosen.
+    [[nodiscard]] bool targetFits() const;
+    // Why the project does not fit the target; empty when it does.
+    [[nodiscard]] QString targetProblemText() const;
 
 private:
+    void updateTargetProblems();
+
+    const document::ProjectDocument* m_document = nullptr;
+    QComboBox* m_targetComboBox = nullptr;
+    QLabel* m_targetLabel = nullptr;
     QComboBox* m_scalingComboBox = nullptr;
     QComboBox* m_shadowComboBox = nullptr;
     bool m_filling = false;

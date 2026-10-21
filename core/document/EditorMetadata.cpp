@@ -14,15 +14,42 @@ EditorMetadata makeDefaultEditorMetadata()
     metadata.maskNames.assign(kMaxComparisonMasks * kMaskNameBytes, 0);
     metadata.sectionFirstFrames.assign(kMaxSections, 0);
     metadata.sectionNames.assign(kMaxSections * kSectionNameBytes, 0);
-    metadata.spriteNames.assign(kMaxSprites * kSpriteNameBytes, 0);
-    metadata.spriteSourceFrames.assign(kMaxSprites, 0);
-    metadata.spriteSourceRects.assign(kMaxSprites * 4, 0);
-    metadata.spriteSourceMirrors.assign(kMaxSprites * 2, 0);
+    metadata.spriteNames.assign(kCrpSpriteEntries * kSpriteNameBytes, 0);
+    metadata.spriteSourceFrames.assign(kCrpSpriteEntries, 0);
+    metadata.spriteSourceRects.assign(kCrpSpriteEntries * 4, 0);
+    metadata.spriteSourceMirrors.assign(kCrpSpriteEntries * 2, 0);
     metadata.editColors.assign(kEditColorCount, 0);
     metadata.imagePositionNames.assign(kMaxImagePositions * kImagePositionNameBytes, 0);
     metadata.imagePositions.assign(kMaxImagePositions * kImagePositionValueCount, 0);
     metadata.paletteNames.assign(256 * kPaletteNameBytes, 0);
     return metadata;
+}
+
+std::size_t spriteTableEntries(const EditorMetadata& metadata)
+{
+    return metadata.spriteSourceFrames.size();
+}
+
+void ensureSpriteTableEntries(EditorMetadata& metadata, std::size_t count)
+{
+    if (count <= metadata.spriteSourceFrames.size()) {
+        return;
+    }
+    metadata.spriteNames.resize(count * kSpriteNameBytes, 0);
+    metadata.spriteSourceFrames.resize(count, 0);
+    metadata.spriteSourceRects.resize(count * 4, 0);
+    metadata.spriteSourceMirrors.resize(count * 2, 0);
+}
+
+void truncateSpriteTableEntries(EditorMetadata& metadata, std::size_t count)
+{
+    if (count >= metadata.spriteSourceFrames.size()) {
+        return;
+    }
+    metadata.spriteNames.resize(count * kSpriteNameBytes);
+    metadata.spriteSourceFrames.resize(count);
+    metadata.spriteSourceRects.resize(count * 4);
+    metadata.spriteSourceMirrors.resize(count * 2);
 }
 
 bool isValidEditorMetadata(const EditorMetadata& metadata, std::string* errorMessage)
@@ -35,10 +62,12 @@ bool isValidEditorMetadata(const EditorMetadata& metadata, std::string* errorMes
         metadata.maskNames.size() == expected.maskNames.size() &&
         metadata.sectionFirstFrames.size() == expected.sectionFirstFrames.size() &&
         metadata.sectionNames.size() == expected.sectionNames.size() &&
-        metadata.spriteNames.size() == expected.spriteNames.size() &&
-        metadata.spriteSourceFrames.size() == expected.spriteSourceFrames.size() &&
-        metadata.spriteSourceRects.size() == expected.spriteSourceRects.size() &&
-        metadata.spriteSourceMirrors.size() == expected.spriteSourceMirrors.size() &&
+        // The sprite tables: at least the cRP's entries, all four alike.
+        metadata.spriteSourceFrames.size() >= kCrpSpriteEntries &&
+        metadata.spriteNames.size() ==
+            metadata.spriteSourceFrames.size() * kSpriteNameBytes &&
+        metadata.spriteSourceRects.size() == metadata.spriteSourceFrames.size() * 4 &&
+        metadata.spriteSourceMirrors.size() == metadata.spriteSourceFrames.size() * 2 &&
         metadata.editColors.size() == expected.editColors.size() &&
         metadata.imagePositionNames.size() == expected.imagePositionNames.size() &&
         metadata.imagePositions.size() == expected.imagePositions.size() &&

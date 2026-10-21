@@ -85,6 +85,9 @@ public:
     [[nodiscard]] bool isOutlinesChecked() const;
     [[nodiscard]] bool isDetectionAreasChecked() const;
     [[nodiscard]] bool isSpriteCanvasChecked() const;
+    // The warning that the frame uses more than kSpritesPerFrameWarning sprites; empty while
+    // it is hidden.
+    [[nodiscard]] QString spriteCountWarning() const;
 
     std::function<void(const QString& name)> onNameEdited;
     std::function<void()> onSlotSelectionChanged;
@@ -163,6 +166,8 @@ private:
     QSpinBox* m_detectionAreaWidthSpinBox = nullptr;
     QSpinBox* m_detectionAreaHeightSpinBox = nullptr;
     QLabel* m_frameSpritesLabel = nullptr;
+    // Shown when the frame uses more than kSpritesPerFrameWarning sprites.
+    QLabel* m_spriteCountWarningLabel = nullptr;
 };
 
 }  // namespace colorizing::app

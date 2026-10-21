@@ -436,6 +436,8 @@ QString sceneEditText(const edit::SceneEditCommand& command)
     switch (command.kind()) {
         case edit::SceneEditCommand::Kind::Scaling:
             return QCoreApplication::translate("MainWindow", "change the scaling settings");
+        case edit::SceneEditCommand::Kind::LibserumTarget:
+            return QCoreApplication::translate("MainWindow", "change the libserum target");
         case edit::SceneEditCommand::Kind::AddScene:
             return QCoreApplication::translate("MainWindow", "add scene %1").arg(command.sceneId());
         case edit::SceneEditCommand::Kind::ChangeScene:
@@ -685,7 +687,8 @@ void MainWindow::createActions()
 
     fileMenu->addSeparator();
     m_projectSettingsAction = fileMenu->addAction(tr("Pro&ject Settings..."));
-    m_projectSettingsAction->setToolTip(tr("Settings of the whole colorization: upscaling"));
+    m_projectSettingsAction->setToolTip(
+        tr("Settings of the whole colorization: the libserum it is made for, upscaling"));
     m_projectSettingsAction->setMenuRole(QAction::NoRole);
     connect(m_projectSettingsAction, &QAction::triggered, this, [this]() {
         openProjectSettings();
@@ -6332,7 +6335,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     replaceButton->setEnabled(spriteIndex.has_value());
     QPushButton* createButton =
         confirm.addButton(tr("Create New"), QMessageBox::ActionRole);
-    createButton->setEnabled(m_document->spriteCount() < document::kMaxSprites);
+    createButton->setEnabled(m_document->spriteCount() < m_document->limits().maxSprites);
     confirm.addButton(QMessageBox::Cancel);
     confirm.setDefaultButton(spriteIndex ? replaceButton : createButton);
     confirm.exec();
@@ -9219,10 +9222,12 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
     if (!m_document) {
         return std::nullopt;
     }
-    if (m_document->spriteCount() >= document::kMaxSprites) {
+    if (m_document->spriteCount() >= m_document->limits().maxSprites) {
         statusBar()->showMessage(
-            tr("Not added: a project holds at most %1 sprites")
-                .arg(static_cast<int>(document::kMaxSprites)),
+            tr("Not added: a project for %1 holds at most %2 sprites (Project Settings)")
+                .arg(QString::fromStdString(
+                    document::libserumTargetName(m_document->libserumTarget())))
+                .arg(static_cast<int>(m_document->limits().maxSprites)),
             4000);
         return std::nullopt;
     }
@@ -9305,10 +9310,12 @@ void MainWindow::addBackgroundFromCurrentFrame()
         statusBar()->showMessage(tr("Select a frame first"), 2500);
         return;
     }
-    if (m_document->backgroundCount() >= document::kMaxBackgrounds) {
+    if (m_document->backgroundCount() >= m_document->limits().maxBackgrounds) {
         statusBar()->showMessage(
-            tr("Not added: a project holds at most %1 backgrounds")
-                .arg(static_cast<int>(document::kMaxBackgrounds)),
+            tr("Not added: a project for %1 holds at most %2 backgrounds (Project Settings)")
+                .arg(QString::fromStdString(
+                    document::libserumTargetName(m_document->libserumTarget())))
+                .arg(static_cast<int>(m_document->limits().maxBackgrounds)),
             4000);
         return;
     }
@@ -9840,7 +9847,12 @@ void MainWindow::openProjectSettings()
         m_document->colorizationSettings().value_or(document::ColorizationSettings{});
     settings.scalingAlgorithm = dialog.scalingAlgorithm();
     settings.shadowOffset = dialog.shadowOffset();
-    recordSceneEdit(edit::setColorizationSettings(*m_document, std::move(settings)));
+    try {
+        recordSceneEdit(
+            edit::setProjectSettings(*m_document, std::move(settings), dialog.libserumTarget()));
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(this, tr("Project Settings"), QString::fromUtf8(ex.what()));
+    }
 }
 
 void MainWindow::addScene()
@@ -10006,6 +10018,11 @@ void MainWindow::refreshAfterSceneEdit(const edit::SceneEditCommand& command)
     updateProjectHeaderStatus();
     // The Frame section lists the scenes.
     updateFrameMetadataControls();
+    if (command.kind() == edit::SceneEditCommand::Kind::LibserumTarget) {
+        // The frames' sprite slots and the limits of sprites and backgrounds.
+        updateSpriteControls();
+        updateStructureControls();
+    }
     if (!command.changesFrames()) {
         return;
     }
@@ -10245,14 +10262,14 @@ void MainWindow::updateStructureControls()
     }
     if (m_backgroundPage) {
         state.recordCount = hasDocument ? m_document->backgroundCount() : 0;
-        state.maxRecordCount = document::kMaxBackgrounds;
+        state.maxRecordCount = hasDocument ? m_document->limits().maxBackgrounds : 0;
         state.hasSource = currentFrameIndex().has_value();
         state.hasSelection = selectedBackgroundIndex().has_value();
         m_backgroundPage->refresh(state);
     }
     if (m_spritePage) {
         state.recordCount = hasDocument ? m_document->spriteCount() : 0;
-        state.maxRecordCount = document::kMaxSprites;
+        state.maxRecordCount = hasDocument ? m_document->limits().maxSprites : 0;
         state.hasSource = true;
         state.hasSelection = currentSpriteIndex().has_value();
         m_spritePage->refresh(state);

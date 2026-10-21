@@ -101,7 +101,7 @@ ProjectDocument makeDocument(PlaneLayout layout)
         backgroundData.maskHd = document::makeIndexedFrame(extra, 0);
         frame.backgroundData = backgroundData;
         frame.spriteReferences.assign(
-            document::kMaxSpritesPerFrame,
+            document::kLegacySpritesPerFrame,
             document::FrameSpriteReference{0xffff,
                                            0,
                                            0,

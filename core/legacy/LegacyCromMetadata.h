@@ -22,7 +22,14 @@ struct LegacyCromMetadata {
     bool modernRgb565Format = false;
     // Revision 20 projects can keep 256x64 original frames next to 128x32 colorized ones.
     bool originalIs256x64 = false;
+    // Revision 21 on: the cROM format version (0 without it), and from version 1 on the
+    // sprite slots of a frame, whose sprite IDs are then 16 bit (8 bit before).
+    uint32_t formatVersion = 0;
+    uint32_t spritesPerFrame = 32;
 };
+
+// The newest cROM format version the editor reads and writes.
+constexpr uint32_t kNewestCromFormatVersion = 1;
 
 struct LegacyCromParseResult {
     LegacyCromMetadata metadata;

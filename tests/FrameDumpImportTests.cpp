@@ -1102,7 +1102,7 @@ void testNewProject(Size dumpSize, uint32_t shades)
                project.backgroundId(0) == document::kNoBackgroundId &&
                project.triggerId(0) == document::kNoTriggerId &&
                project.dynamicData(0).has_value() && project.backgroundData(0).has_value() &&
-               project.frameSpriteReferences(0).size() == document::kMaxSpritesPerFrame &&
+               project.frameSpriteReferences(0).size() == document::kLegacySpritesPerFrame &&
                project.paletteCount() == document::kPaletteCount,
            what + ": document defaults");
     expectEqual(project.hasHdFrame(0), expectedLayout == PlaneLayout::NativeExtra,

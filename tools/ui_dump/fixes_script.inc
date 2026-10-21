@@ -29,7 +29,7 @@
             std::vector<uint16_t>(document::kMaxDynamicSetsPerFrame * 4, 0),
         };
         frame.durationMs = 50;
-        frame.spriteReferences.assign(document::kMaxSpritesPerFrame,
+        frame.spriteReferences.assign(document::kLegacySpritesPerFrame,
                                       document::FrameSpriteReference{255, 0, 0, 127, 31});
         fs.frames.push_back(std::move(frame));
     }

@@ -105,7 +105,7 @@
     is.frames[0].backgroundData = makeBackgroundData(0, 3);
     is.frames[0].triggerId = 5;
     is.frames[0].durationMs = 100;
-    is.frames[0].spriteReferences.assign(document::kMaxSpritesPerFrame, document::FrameSpriteReference{});
+    is.frames[0].spriteReferences.assign(document::kLegacySpritesPerFrame, document::FrameSpriteReference{});
     is.frames[0].spriteReferences[0] = document::FrameSpriteReference{0, 10, 5, 40, 20};
     is.frames[1].colorizedHd = patternFrame(render::kHdFrameSize, 21);
     is.frames[1].comparisonMaskId = 1;

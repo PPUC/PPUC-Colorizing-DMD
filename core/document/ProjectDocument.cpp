@@ -467,7 +467,8 @@ std::string sizeText(Size size)
 void requireFittingFrameRecord(const FrameRecord& frame,
                                std::size_t position,
                                const render::ProjectGeometry& geometry,
-                               uint32_t colorCount)
+                               uint32_t colorCount,
+                               std::size_t spritesPerFrame)
 {
     const std::string prefix = "frame " + std::to_string(position) + " to insert: ";
     const auto requireBlock = [&prefix](bool valid, Size actual, Size expected,
@@ -568,7 +569,7 @@ void requireFittingFrameRecord(const FrameRecord& frame,
         }
     }
     if (!frame.spriteReferences.empty()) {
-        requireCount(frame.spriteReferences.size(), kMaxSpritesPerFrame, "the sprite slots");
+        requireCount(frame.spriteReferences.size(), spritesPerFrame, "the sprite slots");
     }
 }
 
@@ -617,11 +618,13 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_palettes = std::move(snapshot.palettes);
     document.m_unsupportedPayloads = std::move(snapshot.unsupportedPayloads);
     document.m_editorMetadata = std::move(snapshot.editorMetadata);
+    ensureSpriteTableEntries(document.m_editorMetadata, document.m_sprites.size());
     document.m_helperLines = std::move(snapshot.helperLines);
     document.m_imageZones = std::move(snapshot.imageZones);
     document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
+    document.m_libserumTarget = snapshot.libserumTarget;
     document.m_geometry = snapshot.geometry;
     if (document.m_geometry.discardsExtraPlane()) {
         for (FrameRecord& frame : document.m_frames) {
@@ -1044,6 +1047,51 @@ void ProjectDocument::setColorizationSettings(std::optional<ColorizationSettings
     if (scenesChanged) {
         m_identificationRevision = m_revision;
     }
+}
+
+LibserumTargetProblems ProjectDocument::libserumTargetProblems(LibserumTarget target) const
+{
+    LibserumTargetProblems problems;
+    problems.limits = libserumLimits(target);
+    problems.sprites = m_sprites.size();
+    problems.backgrounds = m_backgrounds.size();
+    for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
+        const std::vector<FrameSpriteReference>& references = m_frames[frameIndex].spriteReferences;
+        for (std::size_t slot = problems.limits.spritesPerFrame; slot < references.size();
+             ++slot) {
+            if (references[slot].spriteId != kNoSpriteId) {
+                if (problems.framesWithMoreSprites++ == 0) {
+                    problems.firstFrameWithMoreSprites = frameIndex;
+                }
+                break;
+            }
+        }
+    }
+    return problems;
+}
+
+void ProjectDocument::setLibserumTarget(LibserumTarget target)
+{
+    if (target == m_libserumTarget) {
+        return;
+    }
+    if (!libserumTargetProblems(target).empty()) {
+        throw std::invalid_argument("the project does not fit " + libserumTargetName(target));
+    }
+    const std::size_t slots = libserumLimits(target).spritesPerFrame;
+    const Size romSize = originalFrameSize();
+    // A new slot is empty and searches the whole frame, as one of a new frame.
+    FrameSpriteReference empty;
+    empty.spriteId = kNoSpriteId;
+    empty.maxX = static_cast<uint16_t>(romSize.width - 1);
+    empty.maxY = static_cast<uint16_t>(romSize.height - 1);
+    for (FrameRecord& frame : m_frames) {
+        if (!frame.spriteReferences.empty()) {
+            frame.spriteReferences.resize(slots, empty);
+        }
+    }
+    m_libserumTarget = target;
+    markChanged();
 }
 
 const std::optional<SceneFrameRef>& ProjectDocument::sceneFrame(std::size_t frameIndex) const
@@ -2630,9 +2678,9 @@ void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
                                               FrameSpriteReference reference)
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
-    if (slotIndex >= kMaxSpritesPerFrame ||
+    if (slotIndex >= spritesPerFrame() ||
         (!frame.spriteReferences.empty() &&
-         frame.spriteReferences.size() != kMaxSpritesPerFrame)) {
+         frame.spriteReferences.size() != spritesPerFrame())) {
         throw std::out_of_range("sprite slot index out of range");
     }
     if (reference.spriteId != kNoSpriteId && reference.spriteId >= m_sprites.size()) {
@@ -2662,7 +2710,7 @@ void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
         return;
     }
     if (frame.spriteReferences.empty()) {
-        frame.spriteReferences.assign(kMaxSpritesPerFrame, FrameSpriteReference{});
+        frame.spriteReferences.assign(spritesPerFrame(), FrameSpriteReference{});
     }
     frame.spriteReferences[slotIndex] = reference;
     markChanged();
@@ -2672,8 +2720,8 @@ void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::siz
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     std::vector<FrameSpriteReference>& references = frame.spriteReferences;
-    if (slotIndex >= kMaxSpritesPerFrame ||
-        (!references.empty() && references.size() != kMaxSpritesPerFrame)) {
+    if (slotIndex >= spritesPerFrame() ||
+        (!references.empty() && references.size() != spritesPerFrame())) {
         throw std::out_of_range("sprite slot index out of range");
     }
     if (references.empty() || references[slotIndex].spriteId == kNoSpriteId) {
@@ -2692,7 +2740,7 @@ void ProjectDocument::restoreFrameSpriteReferences(std::size_t frameIndex,
                                                    std::vector<FrameSpriteReference> references)
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
-    if (!references.empty() && references.size() != kMaxSpritesPerFrame) {
+    if (!references.empty() && references.size() != spritesPerFrame()) {
         throw std::invalid_argument("sprite slots do not fit the frame");
     }
     for (const FrameSpriteReference& reference : references) {
@@ -2708,7 +2756,7 @@ std::size_t ProjectDocument::spriteSlotForAssignment(std::size_t frameIndex,
                                                      std::size_t slotIndex) const
 {
     const FrameRecord& frame = requireFrame(m_frames, frameIndex);
-    if (slotIndex >= kMaxSpritesPerFrame) {
+    if (slotIndex >= spritesPerFrame()) {
         throw std::out_of_range("sprite slot index out of range");
     }
     if (frame.spriteReferences.empty()) {
@@ -2863,10 +2911,11 @@ void ProjectDocument::requireFittingRecordTables(const RecordTables& tables) con
     if (tables.maskNames.size() != m_editorMetadata.maskNames.size() ||
         tables.sectionFirstFrames.size() != m_editorMetadata.sectionFirstFrames.size() ||
         tables.sectionNames.size() != m_editorMetadata.sectionNames.size() ||
-        tables.spriteNames.size() != m_editorMetadata.spriteNames.size() ||
-        tables.spriteSourceFrames.size() != m_editorMetadata.spriteSourceFrames.size() ||
-        tables.spriteSourceRects.size() != m_editorMetadata.spriteSourceRects.size() ||
-        tables.spriteSourceMirrors.size() != m_editorMetadata.spriteSourceMirrors.size() ||
+        // The sprite tables grow with the sprites: any size, all four alike.
+        tables.spriteSourceFrames.size() < kCrpSpriteEntries ||
+        tables.spriteNames.size() != tables.spriteSourceFrames.size() * kSpriteNameBytes ||
+        tables.spriteSourceRects.size() != tables.spriteSourceFrames.size() * 4 ||
+        tables.spriteSourceMirrors.size() != tables.spriteSourceFrames.size() * 2 ||
         tables.sectionCount > kMaxSections) {
         throw std::invalid_argument("record tables have invalid sizes");
     }
@@ -2883,6 +2932,7 @@ void ProjectDocument::restoreRecordTables(RecordTables tables)
     m_editorMetadata.spriteSourceFrames = std::move(tables.spriteSourceFrames);
     m_editorMetadata.spriteSourceRects = std::move(tables.spriteSourceRects);
     m_editorMetadata.spriteSourceMirrors = std::move(tables.spriteSourceMirrors);
+    ensureSpriteTableEntries(m_editorMetadata, m_sprites.size());
     markChanged();
 }
 
@@ -3073,7 +3123,7 @@ void ProjectDocument::insertFrames(RemovedFrames removed)
     }
     for (std::size_t position = 0; position < insertCount; ++position) {
         requireFittingFrameRecord(removed.frames[position], removed.indices[position], m_geometry,
-                                  m_colorCount);
+                                  m_colorCount, spritesPerFrame());
     }
     requireFittingRecordTables(removed.tables);
 
@@ -3126,7 +3176,8 @@ FrameRecord ProjectDocument::makeUncolorizedFrame(IndexedFrame original,
         }
     }
     FrameRecord frame = frameRecord(
-        makeUncolorizedFrameSnapshot(m_geometry, m_colorCount, std::move(original), durationMs));
+        makeUncolorizedFrameSnapshot(m_geometry, m_colorCount, std::move(original), durationMs,
+                                     spritesPerFrame()));
     if (m_geometry.discardsExtraPlane()) {
         dropDiscardedPlane(frame);
     }
@@ -3164,8 +3215,10 @@ bool ProjectDocument::isSpriteNameUsed(const std::string& name) const
 
 std::size_t ProjectDocument::appendSprite(SpriteRecord sprite, std::size_t sourceFrameIndex)
 {
-    if (m_sprites.size() >= kMaxSprites) {
-        throw std::length_error("a project holds at most 255 sprites");
+    if (m_sprites.size() >= limits().maxSprites) {
+        throw std::length_error("a project for " + libserumTargetName(m_libserumTarget) +
+                                " holds at most " + std::to_string(limits().maxSprites) +
+                                " sprites");
     }
     const Size spriteSize{static_cast<int>(kMaxSpriteWidth), static_cast<int>(kMaxSpriteHeight)};
     const bool hasExtra = !editsOriginalPlaneOnly();
@@ -3182,6 +3235,7 @@ std::size_t ProjectDocument::appendSprite(SpriteRecord sprite, std::size_t sourc
     }
     const std::size_t spriteIndex = m_sprites.size();
     EditorMetadata& metadata = m_editorMetadata;
+    ensureSpriteTableEntries(metadata, spriteIndex + 1);
     setFixedName(metadata.spriteNames, spriteIndex, kSpriteNameBytes, sprite.name);
     metadata.spriteSourceFrames[spriteIndex] = static_cast<uint32_t>(sourceFrameIndex);
     metadata.spriteSourceRects[spriteIndex * 4] = kNoSpriteSourceRect;
@@ -3247,12 +3301,12 @@ RemovedSprite ProjectDocument::removeSprite(std::size_t spriteIndex)
 
 void ProjectDocument::insertSprite(RemovedSprite removed)
 {
-    if (removed.index > m_sprites.size() || m_sprites.size() >= kMaxSprites) {
+    if (removed.index > m_sprites.size() || m_sprites.size() >= limits().maxSprites) {
         throw std::invalid_argument("removed sprite does not fit the document");
     }
     for (const RemovedSpriteReference& reference : removed.references) {
         if (reference.frameIndex >= m_frames.size() ||
-            reference.slotIndex >= kMaxSpritesPerFrame) {
+            reference.slotIndex >= spritesPerFrame()) {
             throw std::invalid_argument("removed sprite does not fit the document");
         }
     }
@@ -3268,8 +3322,8 @@ void ProjectDocument::insertSprite(RemovedSprite removed)
     for (const RemovedSpriteReference& reference : removed.references) {
         std::vector<FrameSpriteReference>& references =
             m_frames[reference.frameIndex].spriteReferences;
-        if (references.size() != kMaxSpritesPerFrame) {
-            references.assign(kMaxSpritesPerFrame, FrameSpriteReference{});
+        if (references.size() != spritesPerFrame()) {
+            references.assign(spritesPerFrame(), FrameSpriteReference{});
         }
         references.insert(references.begin() + static_cast<std::ptrdiff_t>(reference.slotIndex),
                           reference.reference);
@@ -3296,8 +3350,10 @@ BackgroundRecord ProjectDocument::makeBackgroundFromFrame(std::size_t frameIndex
 
 std::size_t ProjectDocument::appendBackground(BackgroundRecord background)
 {
-    if (m_backgrounds.size() >= kMaxBackgrounds) {
-        throw std::length_error("a project holds at most 255 backgrounds");
+    if (m_backgrounds.size() >= limits().maxBackgrounds) {
+        throw std::length_error("a project for " + libserumTargetName(m_libserumTarget) +
+                                " holds at most " + std::to_string(limits().maxBackgrounds) +
+                                " backgrounds");
     }
     if (!background.colorizedSd.isValid() ||
         !hasSize(background.colorizedSd.size, m_geometry.planeSize(Resolution::Sd)) ||
@@ -3339,7 +3395,7 @@ RemovedBackground ProjectDocument::removeBackground(std::size_t backgroundIndex)
 
 void ProjectDocument::insertBackground(RemovedBackground removed)
 {
-    if (removed.index > m_backgrounds.size() || m_backgrounds.size() >= kMaxBackgrounds ||
+    if (removed.index > m_backgrounds.size() || m_backgrounds.size() >= limits().maxBackgrounds ||
         (!removed.frames.empty() && removed.frames.back() >= m_frames.size())) {
         throw std::invalid_argument("removed background does not fit the document");
     }
@@ -3516,6 +3572,7 @@ ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>
     snapshot.romName = m_romName;
     snapshot.colorCount = m_colorCount;
     snapshot.cromRevision = m_cromRevision;
+    snapshot.libserumTarget = m_libserumTarget;
     snapshot.geometry = m_geometry;
     snapshot.colorizationSettings = m_colorizationSettings;
     snapshot.frames.reserve(frameIndices.size());
@@ -3574,6 +3631,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.unsupportedPayloads = m_unsupportedPayloads;
     snapshot.colorCount = m_colorCount;
     snapshot.cromRevision = m_cromRevision;
+    snapshot.libserumTarget = m_libserumTarget;
     snapshot.geometry = m_geometry;
     snapshot.editorMetadata = m_editorMetadata;
     snapshot.helperLines = m_helperLines;

@@ -73,6 +73,15 @@ LegacySnapshotBuildResult buildProjectSnapshot(LegacyCromFrameData&& cromFrameDa
         cromFrameData.metadata.headerLengthBytes / static_cast<uint32_t>(sizeof(uint32_t));
     snapshot.editorMetadata = std::move(crpOriginalData.editorMetadata);
     snapshot.geometry = *geometry;
+    // A cROM of format version 1 is made for libserum 3.0.
+    snapshot.libserumTarget = cromFrameData.metadata.formatVersion >= 1
+                                  ? document::LibserumTarget::Libserum30
+                                  : document::LibserumTarget::Libserum28;
+    const std::size_t slots = document::libserumLimits(snapshot.libserumTarget).spritesPerFrame;
+    const render::Size romSize = document::originalFrameSize(snapshot);
+    document::FrameSpriteReference emptySlot;
+    emptySlot.maxX = static_cast<uint16_t>(romSize.width - 1);
+    emptySlot.maxY = static_cast<uint16_t>(romSize.height - 1);
     for (std::size_t spriteIndex = 0;
          spriteIndex < snapshot.sprites.size() &&
              spriteIndex < crpOriginalData.spriteNames.size();
@@ -99,6 +108,8 @@ LegacySnapshotBuildResult buildProjectSnapshot(LegacyCromFrameData&& cromFrameDa
         frame.dynamicData = std::move(cromFrameData.dynamicFrames[frameIndex]);
         frame.backgroundData = std::move(cromFrameData.frameBackgrounds[frameIndex]);
         frame.spriteReferences = std::move(cromFrameData.frameSpriteReferences[frameIndex]);
+        // The target's slot count, whatever the file stored (empty slots search the frame).
+        frame.spriteReferences.resize(slots, emptySlot);
         frame.triggerId = cromFrameData.triggerIds[frameIndex];
         frame.durationMs = frameIndex < crpOriginalData.frameDurationsMs.size()
                                ? crpOriginalData.frameDurationsMs[frameIndex]

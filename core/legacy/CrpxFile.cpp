@@ -35,6 +35,10 @@ constexpr std::array<char, 4> kPupPackTag = {'P', 'U', 'P', 'P'};
 constexpr std::array<char, 4> kScenesTag = {'S', 'C', 'E', 'N'};
 constexpr std::array<char, 4> kImageZonesTag = {'I', 'Z', 'O', 'N'};
 constexpr std::array<char, 4> kFrameTagsTag = {'F', 'T', 'A', 'G'};
+constexpr std::array<char, 4> kLibserumTargetTag = {'L', 'S', 'R', 'T'};
+constexpr std::array<char, 4> kMoreSpritesTag = {'S', 'P', 'R', 'X'};
+// Per sprite of SPRX: the name, the source frame, the rectangle, the mirrors.
+constexpr std::size_t kMoreSpriteBytes = document::kSpriteNameBytes + 4 + 4 * 2 + 2 * 4;
 constexpr std::size_t kSceneBytes = 16;
 constexpr std::size_t kSceneFrameBytes = 12;
 constexpr std::size_t kChunkHeaderBytes = 16;
@@ -169,6 +173,39 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             }
         }
         appendChunk(chunks, kFrameTagsTag, data);
+    }
+    if (snapshot.libserumTarget != document::LibserumTarget::Libserum28) {
+        std::string data;
+        data.push_back(static_cast<char>(snapshot.libserumTarget));
+        appendLittleEndian(data, 0, 3);
+        appendChunk(chunks, kLibserumTargetTag, data);
+    }
+    // The sprite table entries the cRP part has no room for.
+    if (snapshot.sprites.size() > document::kCrpSpriteEntries) {
+        document::EditorMetadata tables = metadata;
+        document::ensureSpriteTableEntries(tables, snapshot.sprites.size());
+        const std::size_t first = document::kCrpSpriteEntries;
+        const std::size_t count = snapshot.sprites.size() - first;
+        std::string data;
+        appendLittleEndian(data, first, 4);
+        appendLittleEndian(data, count, 4);
+        for (std::size_t sprite = first; sprite < snapshot.sprites.size(); ++sprite) {
+            document::setFixedName(tables.spriteNames,
+                                   sprite,
+                                   document::kSpriteNameBytes,
+                                   snapshot.sprites[sprite].name);
+            data.append(reinterpret_cast<const char*>(tables.spriteNames.data()) +
+                            sprite * document::kSpriteNameBytes,
+                        document::kSpriteNameBytes);
+            appendLittleEndian(data, tables.spriteSourceFrames[sprite], 4);
+            for (std::size_t i = 0; i < 4; ++i) {
+                appendLittleEndian(data, tables.spriteSourceRects[sprite * 4 + i], 2);
+            }
+            for (std::size_t i = 0; i < 2; ++i) {
+                appendLittleEndian(data, tables.spriteSourceMirrors[sprite * 2 + i], 4);
+            }
+        }
+        appendChunk(chunks, kMoreSpritesTag, data);
     }
     return chunks;
 }
@@ -308,6 +345,86 @@ bool parseFrameTags(LegacyByteSource& source,
     }
     // Room a later version uses for more is skipped.
     return source.skip(static_cast<std::size_t>(left)) || damaged();
+}
+
+bool parseLibserumTarget(LegacyByteSource& source,
+                         uint64_t size,
+                         document::ProjectSnapshot& snapshot,
+                         std::string& errorMessage)
+{
+    uint8_t bytes[4] = {};
+    if (size < 4 || !source.readBytes(bytes, 4)) {
+        errorMessage = "the libserum target of the .cRPX is damaged";
+        return false;
+    }
+    if (bytes[0] > static_cast<uint8_t>(document::LibserumTarget::Libserum30)) {
+        errorMessage = "the project is made for a libserum this version of the editor does not "
+                       "know (target " +
+                       std::to_string(bytes[0]) + ")";
+        return false;
+    }
+    const auto target = static_cast<document::LibserumTarget>(bytes[0]);
+    // The frames' sprite slots come from the .cROM, which was written for the target.
+    for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+        if (frame.spriteReferences.size() != document::libserumLimits(target).spritesPerFrame) {
+            errorMessage = "the libserum target of the .cRPX does not match the .cROM";
+            return false;
+        }
+    }
+    snapshot.libserumTarget = target;
+    // Room a later version uses for more is skipped.
+    if (!source.skip(static_cast<std::size_t>(size - 4))) {
+        errorMessage = "the libserum target of the .cRPX is damaged";
+        return false;
+    }
+    return true;
+}
+
+bool parseMoreSprites(LegacyByteSource& source,
+                      uint64_t size,
+                      document::ProjectSnapshot& snapshot,
+                      std::string& errorMessage)
+{
+    const auto damaged = [&]() {
+        errorMessage = "the sprites of the .cRPX are damaged";
+        return false;
+    };
+    uint32_t first = 0;
+    uint32_t count = 0;
+    if (size < 8 || !source.readU32(first) || !source.readU32(count)) {
+        return damaged();
+    }
+    const uint64_t left = size - 8;
+    if (first != document::kCrpSpriteEntries || left < uint64_t{count} * kMoreSpriteBytes ||
+        uint64_t{first} + count > snapshot.sprites.size()) {
+        return damaged();
+    }
+    document::EditorMetadata& tables = snapshot.editorMetadata;
+    document::ensureSpriteTableEntries(tables, uint64_t{first} + count);
+    for (uint32_t index = 0; index < count; ++index) {
+        const std::size_t sprite = first + index;
+        uint8_t bytes[kMoreSpriteBytes] = {};
+        if (!source.readBytes(bytes, kMoreSpriteBytes)) {
+            return damaged();
+        }
+        std::copy_n(bytes,
+                    document::kSpriteNameBytes,
+                    tables.spriteNames.begin() +
+                        static_cast<std::ptrdiff_t>(sprite * document::kSpriteNameBytes));
+        const uint8_t* values = bytes + document::kSpriteNameBytes;
+        tables.spriteSourceFrames[sprite] = littleEndian32(values);
+        for (std::size_t i = 0; i < 4; ++i) {
+            tables.spriteSourceRects[sprite * 4 + i] = littleEndian16(values + 4 + 2 * i);
+        }
+        for (std::size_t i = 0; i < 2; ++i) {
+            tables.spriteSourceMirrors[sprite * 2 + i] = littleEndian32(values + 12 + 4 * i);
+        }
+        snapshot.sprites[sprite].name =
+            document::fixedName(tables.spriteNames, sprite, document::kSpriteNameBytes);
+    }
+    // Room a later version uses for more is skipped.
+    const uint64_t rest = left - uint64_t{count} * kMoreSpriteBytes;
+    return source.skip(static_cast<std::size_t>(rest)) || damaged();
 }
 
 bool parseImageZones(LegacyByteSource& source,
@@ -523,6 +640,14 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kFrameTagsTag.data(), 4) == 0) {
             if (!parseFrameTags(source, size, snapshot, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kLibserumTargetTag.data(), 4) == 0) {
+            if (!parseLibserumTarget(source, size, snapshot, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kMoreSpritesTag.data(), 4) == 0) {
+            if (!parseMoreSprites(source, size, snapshot, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kPupPackTag.data(), 4) == 0) {

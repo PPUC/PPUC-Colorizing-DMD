@@ -17,9 +17,39 @@ The Qt rewrite opens the projects of the Win32 editor (CDMD 3.17.3) and saves it
   frames a ROM showed, as text. It is only read, see "Creating A Project From A Dump".
 
 Saving writes complete `.cRZ` and `.cRPX` files from the in-memory project (see "Saving"); a
-`.cROM` is only read. Opening is verified with cROM header revision 19 and 20 projects. Revision 20 projects are
-saved as revision 20, everything older as revision 19, so a save never moves a project to a
-revision an older libserum cannot read.
+`.cROM` is only read. Opening is verified with cROM header revision 19, 20 and 21 projects.
+A project for libserum 2.8 keeps its revision: revision 20 projects are saved as revision 20,
+everything older as revision 19, so a save never moves a project to a revision an older
+libserum cannot read. A project for libserum 3.0 is saved as revision 21 (see "libserum
+target").
+
+## libserum target
+
+Every project is made for a libserum, chosen in `File -> Project Settings...` (`Made for`). It
+decides what the project may hold and how the `.cROM` is written:
+
+| | libserum 2.8 | libserum 3.0 |
+| --- | --- | --- |
+| Plays with | libserum 2.8 and later | libserum 3.0 and later only |
+| Sprites per frame | 32 | 128 |
+| Sprites in the project | 255 | 65535 |
+| Backgrounds in the project | 255 | 65535 |
+| `.cROM` | revision 19 or 20, format version 0 | revision 21, format version 1 |
+
+A project of the Win32 editor, a new project and every `.cROM` without a format version are
+for libserum 2.8, and stay readable by the Win32 editor's libserum as long as they are. A
+`.cROM` of format version 1 is opened as a project for libserum 3.0. Format version 1 adds the
+format version and the number of sprite slots per frame to the header and stores sprite IDs
+with 16 bits; a `.cROM` of a newer format version than this editor knows is refused.
+
+Switching to libserum 3.0 gives every frame 128 sprite slots; the new ones are empty and search
+the whole frame. Switching back is only possible while the project fits libserum 2.8: the
+dialog names what keeps it from fitting (too many sprites or backgrounds, frames with more than
+32 sprites and the first of them) and `OK` stays disabled. The change is one undo step,
+together with the other project settings.
+
+More than 32 sprites on one frame can make libserum's sprite detection noticeably slow, so the
+`Frame Sprites` section warns about such a frame (see "Sprites").
 
 A project file stores two planes of colorized data, an "original" and an "extra" one. Which sizes
 they have, and which of them has the size of the ROM's own frame, depends on the project. The
@@ -72,8 +102,9 @@ the editor file has to grow for new features, which the Win32 editor would not u
   header the Win32 editor does not know (`CDMDcRPX`, a format version, the size of that part),
   and room for more data after it, in tagged parts: the PuP pack name, the helper lines (see
   "Helper Lines"), the scenes and scaling settings (see "Scenes and Scaling"), the Images
-  window's saved zones and the frames' tags (see "Frame List"). A part this editor does not
-  know (one of a later version) is skipped.
+  window's saved zones, the frames' tags (see "Frame List"), the libserum target and the
+  names and source data of sprites beyond the 255 a `.cRP` has room for. A part this editor
+  does not know (one of a later version) is skipped.
 - When a save writes a project that has a `.cRP` beside it (a project of the Win32 editor saved
   here for the first time), that `.cRP` is renamed to `<name>.cRP.bak`, so that the Win32 editor
   cannot open the new `.cROM` with the old editor file. The status bar says so. Opening a

@@ -282,6 +282,72 @@ void testOtherLayouts()
            "a project with 256x64 ROM frames has no scenes");
 }
 
+// The libserum target in Project Settings: one step with the scaling settings, its slots
+// following, refused while the project does not fit.
+void testLibserumTarget()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
+    runtime_fixtures::addSprite(snapshot);
+    runtime_fixtures::setSpriteSlot(snapshot, 0, 0, 0, 1, 2, 30, 20);
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    expect(document.libserumTarget() == document::LibserumTarget::Libserum28 &&
+               document.spritesPerFrame() == 32 && document.limits().maxSprites == 255,
+           "a project is one for libserum 2.8 at first");
+    document::ColorizationSettings settings;
+    settings.scalingAlgorithm = document::kScalingLineDoubling;
+    const auto command =
+        edit::setProjectSettings(document, settings, document::LibserumTarget::Libserum30);
+    expect(command && command->kind() == edit::SceneEditCommand::Kind::LibserumTarget &&
+               !command->changesFrames(),
+           "the target and the scaling settings are one step");
+    const auto& references = document.frameSpriteReferences(0);
+    expect(document.spritesPerFrame() == 128 && references.size() == 128 &&
+               references[0].spriteId == 0 && references[0].maxX == 30 &&
+               references[100].spriteId == document::kNoSpriteId &&
+               references[100].maxX == 127 && references[100].maxY == 31 &&
+               document.frameSpriteReferences(1).empty() &&
+               document.colorizationSettings()->scalingAlgorithm ==
+                   document::kScalingLineDoubling &&
+               document.limits().maxSprites == 65535,
+           "libserum 3.0: 128 slots, the new ones empty and searching the whole frame");
+    command->revert(document);
+    expect(document.libserumTarget() == document::LibserumTarget::Libserum28 &&
+               document.frameSpriteReferences(0).size() == 32 &&
+               document.frameSpriteReferences(0)[0].spriteId == 0 &&
+               !document.colorizationSettings(),
+           "undo takes both back");
+    command->apply(document);
+    expect(document.spritesPerFrame() == 128, "redo puts them back");
+
+    // A sprite in slot 40 keeps the project from libserum 2.8.
+    document::FrameSpriteReference reference;
+    reference.spriteId = 0;
+    reference.maxX = 127;
+    reference.maxY = 31;
+    for (std::size_t slot = 1; slot <= 40; ++slot) {
+        document.setFrameSpriteReference(0, slot, reference);
+    }
+    const document::LibserumTargetProblems problems =
+        document.libserumTargetProblems(document::LibserumTarget::Libserum28);
+    expect(!problems.empty() && problems.framesWithMoreSprites == 1 &&
+               problems.firstFrameWithMoreSprites == 0 && !problems.tooManySprites(),
+           "a frame with a sprite in slot 40 does not fit libserum 2.8");
+    bool refused = false;
+    try {
+        (void)edit::setProjectSettings(document, *document.colorizationSettings(),
+                                       document::LibserumTarget::Libserum28);
+    } catch (const std::invalid_argument&) {
+        refused = true;
+    }
+    expect(refused && document.spritesPerFrame() == 128 &&
+               document.frameSpriteReferences(0)[40].spriteId == 0,
+           "and the change is refused, the project left as it was");
+    expect(!edit::setProjectSettings(document, *document.colorizationSettings(),
+                                     document::LibserumTarget::Libserum30),
+           "nothing changed, no step");
+}
+
 }  // namespace
 
 void runSceneEditTests()
@@ -292,4 +358,5 @@ void runSceneEditTests()
     testRemove();
     testSceneIds();
     testOtherLayouts();
+    testLibserumTarget();
 }

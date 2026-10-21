@@ -69,8 +69,10 @@ A change is complete only with all of these, in the same commit:
 - The Win32 editor 3.17.3 is the compatibility target for opening projects. Its sources are at
   the tag `v3.17.3` (`git show v3.17.3:<file>`); they are not on the branch.
 - New editor-only project data goes into a new chunk of the `.cRPX`
-  (`core/legacy/CrpxFile.h` documents the layout). Never change the cROM layout libserum
-  reads.
+  (`core/legacy/CrpxFile.h` documents the layout).
+- The cROM layout libserum reads changes only together with libserum, under a new cROM format
+  version, and only for projects of a libserum target that knows it
+  (`core/document/LibserumTarget.h`). A project for libserum 2.8 is written exactly as before.
 - Keep repository text (code, commits, docs) technical.
 
 ## Commits and versions

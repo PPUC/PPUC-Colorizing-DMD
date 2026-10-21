@@ -135,6 +135,61 @@ void testNativePlane(PlaneLayout layout)
            "a shape-mode sprite is found by its lit pixels, sprites in slot order");
 }
 
+// A project for libserum 3.0 (cROM format version 1): 300 sprites, a frame whose found sprite
+// is the 300th, in its slot 40.
+void testLibserum30Project()
+{
+    ProjectSnapshot snapshot = makeFullProject(PlaneLayout::Ordinary);
+    snapshot.libserumTarget = colorizing::document::LibserumTarget::Libserum30;
+    for (auto& frame : snapshot.frames) {
+        if (!frame.spriteReferences.empty()) {
+            frame.spriteReferences.resize(colorizing::document::kMaxSpritesPerFrame);
+        }
+    }
+    while (snapshot.sprites.size() < 300) {
+        addSprite(snapshot);
+    }
+    // Frame 3 shows sprite 2 at 30,8; slots 0 to 38 look for the shape sprite where it is not,
+    // slot 39 for sprite 299, a copy of sprite 2 in other colors, where it is.
+    for (std::size_t slot = 0; slot < 39; ++slot) {
+        setSpriteSlot(snapshot, 3, slot, 1, 0, 0, 20, 5);
+    }
+    setSpriteSlot(snapshot, 3, 39, 299, 30, 8, 35, 11);
+    const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    expect(document.spritesPerFrame() == 128, "a libserum 3.0 project has 128 sprite slots");
+
+    const std::vector<SpriteMatch> found = matchFrameSprites(document, 3);
+    expect(found.size() == 1 && found[0].spriteIndex == 299 && found[0].frameX == 30,
+           "the editor finds sprite 299 of slot 39");
+    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
+        const std::string text = "libserum 3.0 project, frame " + std::to_string(frame);
+        const RuntimeFrame runtime =
+            RuntimePreview::instance().renderFrame(document, frame, PlaneRequest::Rows32);
+        expect(runtime.ok() && runtime.identified, text + ": libserum identifies the frame");
+        const RuntimePlane* plane = runtime.plane(PlaneRequest::Rows32);
+        expect(plane != nullptr, text + ": libserum shows it");
+        const Rgb565Frame editor = composeResolvedFrame(document, frame, Resolution::Sd, true);
+        const std::size_t differing = differingPixels(editor, *plane);
+        expect(differing == 0, text + ": " + std::to_string(differing) +
+                                   " pixels differ between the editor and libserum");
+    }
+    // Sprite 299 drawn, in its own colors.
+    const RuntimeFrame withSprite =
+        RuntimePreview::instance().renderFrame(document, 3, PlaneRequest::Rows32);
+    const RuntimePlane* plane = withSprite.plane(PlaneRequest::Rows32);
+    bool drawn = false;
+    for (int y = 0; y < kSpriteHeight; ++y) {
+        for (int x = 0; x < kSpriteWidth; ++x) {
+            if (kSpritePixels[y][x] != kT) {
+                drawn = drawn || plane->image.pixels[static_cast<std::size_t>(8 + y) * 128 +
+                                                     static_cast<std::size_t>(30 + x)] ==
+                                     spriteColor(299, x, y);
+            }
+        }
+    }
+    expect(drawn, "libserum draws sprite 299 in its colors");
+}
+
 // The 256x64 plane of a 128x32 project.
 void testHdPlaneOfOrdinaryProject()
 {
@@ -635,6 +690,7 @@ void runEditorMatchesRuntimeTests()
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
         testNativePlane(layout);
     }
+    testLibserum30Project();
     testHdPlaneOfOrdinaryProject();
     testHdDynamicZonesOfOrdinaryProject();
     testDynamicContentStandsStillInRotations();

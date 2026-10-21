@@ -56,7 +56,7 @@
                 frame.originalSd.pixels[pixel(nativeSize, x, y)] = static_cast<uint8_t>((x / 3 + 2 * y + i) % 4);
             }
         }
-        frame.spriteReferences.assign(document::kMaxSpritesPerFrame,
+        frame.spriteReferences.assign(document::kLegacySpritesPerFrame,
                                       document::FrameSpriteReference{255, 0, 0, 191, 63});
         ns.frames.push_back(frame);
     }

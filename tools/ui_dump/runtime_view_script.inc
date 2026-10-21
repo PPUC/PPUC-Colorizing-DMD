@@ -173,7 +173,7 @@
         sprite.detectionDwords[0] = 1u | (2u << 8) | (3u << 16) | (1u << 24);
         sprite.detectionDwordPositions[0] = 1 * 256 + 1;
         rs.sprites.push_back(sprite);
-        rs.frames[0].spriteReferences.assign(document::kMaxSpritesPerFrame,
+        rs.frames[0].spriteReferences.assign(document::kLegacySpritesPerFrame,
                                              document::FrameSpriteReference{255, 0, 0, 127, 31});
         rs.frames[0].spriteReferences[0] = document::FrameSpriteReference{0, 100, 20, 105, 23};
         addDynamicZone(rs, 0, 8, 4, 60, 18);

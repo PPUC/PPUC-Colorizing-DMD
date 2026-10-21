@@ -1208,9 +1208,107 @@ void testFileWriterSavesCrpx()
     }
 }
 
+// A project for libserum 3.0: the cROM of format version 1 (header revision 21, 128 slots,
+// 16-bit sprite IDs), the target and the sprites beyond the cRP part's 255 in .cRPX chunks.
+void testFileWriterSavesLibserum30Project()
+{
+    namespace document = colorizing::document;
+    const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path sourceCrpPath = uniqueTempPath(".cRP");
+    writeBytes(sourceCromPath, makeModernCromWithFrames());
+    writeBytes(sourceCrpPath, makeCrpWithPalettes("file_rom"));
+    const LegacyProjectFileReader reader;
+    const LegacyLoadResult source = reader.load(
+        LegacyProjectPaths{utf8FromPath(sourceCromPath), utf8FromPath(sourceCrpPath)});
+    std::filesystem::remove(sourceCromPath);
+    std::filesystem::remove(sourceCrpPath);
+    expect(source.ok && source.snapshot.libserumTarget == document::LibserumTarget::Libserum28,
+           "a cROM without a format version is one for libserum 2.8");
+
+    document::ProjectSnapshot project = source.snapshot;
+    project.libserumTarget = document::LibserumTarget::Libserum30;
+    for (document::ProjectFrameSnapshot& frame : project.frames) {
+        frame.spriteReferences.resize(document::kMaxSpritesPerFrame);
+    }
+    document::ensureSpriteTableEntries(project.editorMetadata, 300);
+    while (project.sprites.size() < 300) {
+        project.sprites.push_back(project.sprites[0]);
+    }
+    project.sprites[299].name = "Gr\xc3\xbcn 299";
+    project.editorMetadata.spriteSourceFrames[299] = 1;
+    for (std::size_t i = 0; i < 4; ++i) {
+        project.editorMetadata.spriteSourceRects[299 * 4 + i] = static_cast<uint16_t>(10 + i);
+    }
+    project.editorMetadata.spriteSourceMirrors[299 * 2 + 1] = 1;
+    project.frames[0].spriteReferences[100] = document::FrameSpriteReference{299, 1, 2, 30, 20};
+
+    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
+    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
+    const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpxPath)};
+    const LegacyProjectFileWriter writer;
+    expect(writer.save(paths, project).ok, "a libserum 3.0 project is saved");
+    const std::vector<uint8_t> crom = readBytes(cromPath);
+    const auto u32At = [&crom](std::size_t offset) {
+        return static_cast<uint32_t>(crom[offset]) | (static_cast<uint32_t>(crom[offset + 1]) << 8) |
+               (static_cast<uint32_t>(crom[offset + 2]) << 16) |
+               (static_cast<uint32_t>(crom[offset + 3]) << 24);
+    };
+    // ROM name, header size, 8 values, the background count (u16), the 256x64 flag.
+    constexpr std::size_t kHeader = 64;
+    expect(u32At(kHeader) == 21 * 4 && u32At(kHeader + 4 + 8 * 4 + 2 + 4) == 1 &&
+               u32At(kHeader + 4 + 8 * 4 + 2 + 8) == 128,
+           "the cROM has header revision 21, format version 1 and 128 slots");
+
+    const LegacyLoadResult back = reader.load(paths);
+    expect(back.ok, "and loads: " + back.error.message);
+    const document::ProjectSnapshot& loaded = back.snapshot;
+    expect(loaded.libserumTarget == document::LibserumTarget::Libserum30 &&
+               loaded.sprites.size() == 300 &&
+               loaded.frames[0].spriteReferences.size() == 128 &&
+               loaded.frames[0].spriteReferences[100].spriteId == 299 &&
+               loaded.frames[0].spriteReferences[100].maxX == 30 &&
+               loaded.frames[0].spriteReferences[101].spriteId == document::kNoSpriteId,
+           "as one for libserum 3.0, with sprite 299 in slot 100");
+    expect(loaded.sprites[299].name == "Gr\xc3\xbcn 299" &&
+               loaded.editorMetadata.spriteSourceFrames.size() == 300 &&
+               loaded.editorMetadata.spriteSourceFrames[299] == 1 &&
+               loaded.editorMetadata.spriteSourceRects[299 * 4 + 3] == 13 &&
+               loaded.editorMetadata.spriteSourceMirrors[299 * 2 + 1] == 1,
+           "sprite 299 keeps its name, source frame, rectangle and mirrors (chunk SPRX)");
+
+    // The cRP part has the size of one with 255 sprites: what it has no room for is in chunks.
+    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
+    expect(writer.save({utf8FromPath(uniqueTempPath(".cROM")), utf8FromPath(crpPath)},
+                       source.snapshot)
+               .ok,
+           "the libserum 2.8 project is saved as a .cRP");
+    const std::vector<uint8_t> crpx = readBytes(crpxPath);
+    uint64_t crpSize = 0;
+    for (int i = 7; i >= 0; --i) {
+        crpSize = (crpSize << 8) | crpx[16 + i];
+    }
+    expect(crpSize == readBytes(crpPath).size(), "the cRP part keeps the Win32 editor's size");
+    const std::string chunks(crpx.begin() + static_cast<std::ptrdiff_t>(
+                                                colorizing::legacy::kCrpxHeaderBytes + crpSize),
+                             crpx.end());
+    expect(chunks.find("LSRT") != std::string::npos && chunks.find("SPRX") != std::string::npos,
+           "the target and the sprites beyond 255 are chunks");
+
+    // A cut SPRX is refused.
+    std::vector<uint8_t> cut = crpx;
+    cut.resize(cut.size() - 3);
+    writeBytes(crpxPath, cut);
+    expect(!reader.load(paths).ok, "a .cRPX whose sprites are cut off is refused");
+
+    for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath}) {
+        std::filesystem::remove(path);
+    }
+}
+
 void runLegacyProjectFileReaderTests()
 {
     testFileWriterSavesCrpx();
+    testFileWriterSavesLibserum30Project();
     testFileReaderLoadsModernProject();
     testFileReaderReportsMissingCrom();
     testFileReaderRejectsLegacyPalettedCrom();

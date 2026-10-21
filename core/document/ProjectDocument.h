@@ -12,6 +12,7 @@
 #include "document/EditorMetadata.h"
 #include "document/HelperLine.h"
 #include "document/ImageZone.h"
+#include "document/LibserumTarget.h"
 #include "document/Scene.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
@@ -41,7 +42,6 @@ struct IndexedFrame {
 
 constexpr std::size_t kMaxDynamicSetsPerFrame = 32;
 constexpr std::size_t kMaxDynamicSetsPerSprite = 9;
-constexpr std::size_t kMaxSpritesPerFrame = 32;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
 constexpr std::size_t kMaxSpriteDetectAreas = 4;
@@ -253,7 +253,6 @@ struct SnapshotSubsetMap {
     std::vector<std::size_t> sprites;
 };
 
-constexpr std::size_t kMaxBackgrounds = 255;
 constexpr uint16_t kNoBackgroundId = 0xffff;
 constexpr uint8_t kNoComparisonMaskId = 255;
 constexpr uint16_t kNoSpriteId = 0xffff;
@@ -352,6 +351,18 @@ public:
     // editor file has none, as one of the Win32 editor (see importColorizationSidecars()).
     [[nodiscard]] const std::optional<ColorizationSettings>& colorizationSettings() const;
     void setColorizationSettings(std::optional<ColorizationSettings> settings);
+    // The libserum the project is made for (LibserumTarget.h): its limits and the cROM format
+    // a save writes.
+    [[nodiscard]] LibserumTarget libserumTarget() const { return m_libserumTarget; }
+    [[nodiscard]] LibserumLimits limits() const { return libserumLimits(m_libserumTarget); }
+    // The sprite slots of every frame.
+    [[nodiscard]] std::size_t spritesPerFrame() const { return limits().spritesPerFrame; }
+    // Why the project does not fit the target (too many sprites or backgrounds, a sprite in a
+    // slot the target does not have); empty() when it does.
+    [[nodiscard]] LibserumTargetProblems libserumTargetProblems(LibserumTarget target) const;
+    // Makes the project one for the target: every frame gets its slot count (empty slots
+    // added or dropped). Throws std::invalid_argument when libserumTargetProblems() objects.
+    void setLibserumTarget(LibserumTarget target);
     // The frame's tags (FrameRecord::tags). setFrameTags() sorts them, drops empty ones and
     // repeats, and trims blanks.
     [[nodiscard]] const std::vector<std::string>& frameTags(std::size_t frameIndex) const;
@@ -785,6 +796,7 @@ private:
     std::optional<ColorizationSettings> m_colorizationSettings;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
+    LibserumTarget m_libserumTarget = LibserumTarget::Libserum28;
     render::ProjectGeometry m_geometry;
     bool m_dirty = false;
     uint64_t m_revision = 0;

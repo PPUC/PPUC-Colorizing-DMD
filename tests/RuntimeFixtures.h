@@ -324,8 +324,8 @@ inline void setSpriteSlot(ProjectSnapshot& snapshot, std::size_t frame, std::siz
                    std::size_t sprite, int minX, int minY, int maxX, int maxY)
 {
     std::vector<FrameSpriteReference>& references = snapshot.frames[frame].spriteReferences;
-    references.resize(32);
-    references[slot] = FrameSpriteReference{static_cast<uint8_t>(sprite),
+    references.resize(colorizing::document::libserumLimits(snapshot.libserumTarget).spritesPerFrame);
+    references[slot] = FrameSpriteReference{static_cast<uint16_t>(sprite),
                                             static_cast<uint16_t>(minX),
                                             static_cast<uint16_t>(minY),
                                             static_cast<uint16_t>(maxX),

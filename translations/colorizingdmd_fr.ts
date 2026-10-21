@@ -2415,6 +2415,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>modifier les réglages de mise à l&apos;échelle</translation>
     </message>
     <message>
+        <source>change the libserum target</source>
+        <translation>changer la cible libserum</translation>
+    </message>
+    <message>
         <source>add scene %1</source>
         <translation>ajouter la scène %1</translation>
     </message>
@@ -2544,7 +2548,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Settings of the whole colorization: upscaling</source>
-        <translation>Paramètres de toute la colorisation : mise à l&apos;échelle</translation>
+        <translation type="vanished">Paramètres de toute la colorisation : mise à l&apos;échelle</translation>
     </message>
     <message>
         <source>Export .cRO&amp;Mc...</source>
@@ -3036,6 +3040,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Fond : %1</translation>
     </message>
     <message>
+        <source>Not added: a project for %1 holds at most %2 sprites (Project Settings)</source>
+        <translation>Non ajouté : un projet pour %1 contient au plus %2 sprites (Paramètres du projet)</translation>
+    </message>
+    <message>
+        <source>Not added: a project for %1 holds at most %2 backgrounds (Project Settings)</source>
+        <translation>Non ajouté : un projet pour %1 contient au plus %2 arrière-plans (Paramètres du projet)</translation>
+    </message>
+    <message>
         <source>Scene %1 has no frames in the project</source>
         <translation>La scène %1 n&apos;a aucune frame dans le projet</translation>
     </message>
@@ -3105,11 +3117,15 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Project Settings</source>
-        <translation type="vanished">Réglages du projet</translation>
+        <translation>Réglages du projet</translation>
     </message>
     <message>
         <source>Used by the current frame</source>
         <translation>Utilisés par la frame courante</translation>
+    </message>
+    <message>
+        <source>Settings of the whole colorization: the libserum it is made for, upscaling</source>
+        <translation>Paramètres de toute la colorisation : la libserum pour laquelle elle est faite, mise à l&apos;échelle</translation>
     </message>
     <message>
         <source>List only the comparison mask, the background and the sprites of the current frame</source>
@@ -4639,7 +4655,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Not added: a project holds at most %1 sprites</source>
-        <translation>Non ajouté : un projet contient au plus %1 sprites</translation>
+        <translation type="vanished">Non ajouté : un projet contient au plus %1 sprites</translation>
     </message>
     <message>
         <source>New Sprite</source>
@@ -4695,7 +4711,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Not added: a project holds at most %1 backgrounds</source>
-        <translation>Non ajouté : un projet contient au plus %1 arrière-plans</translation>
+        <translation type="vanished">Non ajouté : un projet contient au plus %1 arrière-plans</translation>
     </message>
     <message>
         <source>Not added: frame %1 has no %2 frame to make a background of</source>
@@ -5379,6 +5395,18 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
 <context>
     <name>ProjectSettingsPanel</name>
     <message>
+        <source>libserum 2.8</source>
+        <translation>libserum 2.8</translation>
+    </message>
+    <message>
+        <source>libserum 3.0</source>
+        <translation>libserum 3.0</translation>
+    </message>
+    <message>
+        <source>The libserum the colorization is made for. libserum 2.8 allows 32 sprites per frame and 255 sprites and backgrounds; libserum 3.0 allows 128 sprites per frame and needs libserum 3.0 or later to play.</source>
+        <translation>La libserum pour laquelle la colorisation est faite. libserum 2.8 permet 32 sprites par frame et 255 sprites et arrière-plans ; libserum 3.0 permet 128 sprites par frame et nécessite libserum 3.0 ou plus récent pour la lecture.</translation>
+    </message>
+    <message>
         <source>Scale2x</source>
         <translation>Scale2x</translation>
     </message>
@@ -5403,12 +5431,43 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Distance de l&apos;ombre dynamique sur le plan 256x64</translation>
     </message>
     <message>
+        <source>Made for</source>
+        <translation>Faite pour</translation>
+    </message>
+    <message>
         <source>Upscaling</source>
         <translation>Agrandissement</translation>
     </message>
     <message>
         <source>Upscaled shadow offset</source>
         <translation>Décalage des ombres agrandies</translation>
+    </message>
+    <message>
+        <source>The project has %1 sprites, it allows %2.</source>
+        <translation>Le projet a %1 sprites, %2 sont permis.</translation>
+    </message>
+    <message>
+        <source>The project has %1 backgrounds, it allows %2.</source>
+        <translation>Le projet a %1 arrière-plans, %2 sont permis.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) use more than %1 sprites, the first is frame %2.</source>
+        <translation>
+            <numerusform>%n frame utilise plus de %1 sprites, la première est la frame %2.</numerusform>
+            <numerusform>%n frames utilisent plus de %1 sprites, la première est la frame %2.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The project does not fit %1: %2</source>
+        <translation>Le projet ne convient pas à %1 : %2</translation>
+    </message>
+    <message>
+        <source>Plays with libserum 3.0 and later only. More than %1 sprites on a frame can make the sprite detection slow.</source>
+        <translation>Fonctionne uniquement avec libserum 3.0 et plus récent. Plus de %1 sprites sur une frame peuvent ralentir la détection des sprites.</translation>
+    </message>
+    <message>
+        <source>Plays with libserum 2.8 and later.</source>
+        <translation>Fonctionne avec libserum 2.8 et plus récent.</translation>
     </message>
     <message>
         <source>Shadow offset</source>
@@ -6682,6 +6741,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Current frame uses no sprites</source>
         <translation>La frame courante n&apos;utilise aucun sprite</translation>
+    </message>
+    <message>
+        <source>The frame uses %1 sprites. More than %2 sprites on a frame can make libserum&apos;s sprite detection noticeably slow.</source>
+        <translation>La frame utilise %1 sprites. Plus de %2 sprites sur une frame peuvent ralentir sensiblement la détection des sprites de libserum.</translation>
     </message>
     <message>
         <source>Go to frame %1, the frame the sprite was taken from</source>

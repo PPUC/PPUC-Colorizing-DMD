@@ -181,7 +181,7 @@ ProjectDocument makeBigOriginalDocument()
     const uint8_t otherRow[4] = {2, 2, 1, 1};
     snapshot.sprites.push_back(makeSprite(spriteRow, true));
     snapshot.sprites.push_back(makeSprite(otherRow, false));
-    std::vector<document::FrameSpriteReference> spriteReferences(document::kMaxSpritesPerFrame);
+    std::vector<document::FrameSpriteReference> spriteReferences(document::kLegacySpritesPerFrame);
     spriteReferences[0] = document::FrameSpriteReference{0, 0, 0, 255, 63};
 
     snapshot.frames.push_back(document::ProjectFrameSnapshot{

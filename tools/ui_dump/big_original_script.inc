@@ -62,7 +62,7 @@
                                                                     : (x + 2 * y + i) % 16);
             }
         }
-        frame.spriteReferences.assign(document::kMaxSpritesPerFrame, document::FrameSpriteReference{});
+        frame.spriteReferences.assign(document::kLegacySpritesPerFrame, document::FrameSpriteReference{});
         bs.frames.push_back(frame);
     }
     bs.frames[0].colorizedHd = bigPattern(render::kHdFrameSize, 40);

@@ -11,6 +11,9 @@ constexpr std::size_t kRomNameBytes = 64;
 constexpr uint32_t kModernHeaderThreshold = 14 * sizeof(uint32_t);
 constexpr uint32_t kBackgroundHeaderThreshold = 13 * sizeof(uint32_t);
 constexpr uint32_t kOriginal256x64HeaderThreshold = 20 * sizeof(uint32_t);
+constexpr uint32_t kFormatVersionHeaderThreshold = 21 * sizeof(uint32_t);
+// The most sprite slots a frame of format version 1 has (libserum's MAX_SPRITES_PER_FRAME).
+constexpr uint32_t kMaxFormatSpritesPerFrame = 128;
 
 class Cursor {
 public:
@@ -178,6 +181,26 @@ LegacyCromParseResult parseLegacyCromMetadata(const uint8_t* bytes, std::size_t 
             return fail(error);
         }
         metadata.originalIs256x64 = originalIs256x64 != 0;
+    }
+
+    if (metadata.headerLengthBytes >= kFormatVersionHeaderThreshold) {
+        if (!readRequiredU32(cursor, metadata.formatVersion, "format version", error)) {
+            return fail(error);
+        }
+        if (metadata.formatVersion > kNewestCromFormatVersion) {
+            return fail("the cROM has format version " + std::to_string(metadata.formatVersion) +
+                        "; this editor reads up to " +
+                        std::to_string(kNewestCromFormatVersion));
+        }
+        if (metadata.formatVersion >= 1) {
+            if (!readRequiredU32(cursor, metadata.spritesPerFrame, "sprites per frame", error)) {
+                return fail(error);
+            }
+            if (metadata.spritesPerFrame == 0 ||
+                metadata.spritesPerFrame > kMaxFormatSpritesPerFrame) {
+                return fail("cROM sprites per frame must be between 1 and 128");
+            }
+        }
     }
 
     if (metadata.frameWidth == 0 || metadata.frameHeight == 0 ||

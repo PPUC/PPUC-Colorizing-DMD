@@ -10,6 +10,18 @@ namespace colorizing::legacy {
 
 namespace {
 
+// The header revision a save writes: 21 for libserum 3.0 on (the format version and the sprite
+// slots in the header); otherwise the revision the project was loaded with, older ones as 19,
+// the oldest one that carries every block.
+uint32_t writtenCromRevision(const document::ProjectSnapshot& snapshot)
+{
+    if (document::libserumLimits(snapshot.libserumTarget).cromFormatVersion >= 1) {
+        return 21;
+    }
+    return std::clamp(snapshot.cromRevision, document::kOldestWritableCromRevision,
+                      document::kCurrentCromRevision);
+}
+
 constexpr std::size_t kRomNameBytes = 64;
 constexpr std::size_t kFlushThresholdBytes = 1 << 20;
 
@@ -384,10 +396,9 @@ bool writeCromContent(std::ostream& stream,
     Writer writer(stream, sections, progress);
     writer.section("header");
     writer.name(snapshot.romName, kRomNameBytes);
-    // Older revisions are written as 19, the oldest one that carries every block below.
-    const uint32_t revision = std::clamp(snapshot.cromRevision,
-                                         document::kOldestWritableCromRevision,
-                                         document::kCurrentCromRevision);
+    const uint32_t revision = writtenCromRevision(snapshot);
+    const document::LibserumLimits limits = document::libserumLimits(snapshot.libserumTarget);
+    const std::size_t slots = limits.spritesPerFrame;
     writer.u32(revision * static_cast<uint32_t>(sizeof(uint32_t)));
     writer.u32(static_cast<uint32_t>(sdSize.width));
     writer.u32(static_cast<uint32_t>(sdSize.height));
@@ -400,6 +411,11 @@ bool writeCromContent(std::ostream& stream,
     writer.u16(static_cast<uint16_t>(snapshot.backgrounds.size()));
     if (revision >= 20) {
         writer.u32(snapshot.geometry.original256x64Flag() ? 1 : 0);
+    }
+    // Revision 21 (libserum 3.0 on): the format version and the sprite slots of a frame.
+    if (revision >= 21) {
+        writer.u32(limits.cromFormatVersion);
+        writer.u32(static_cast<uint32_t>(slots));
     }
 
     writer.section("hash codes");
@@ -478,13 +494,17 @@ bool writeCromContent(std::ostream& stream,
     }
     writer.section("frame sprites");
     for (const auto& frame : frames) {
-        for (std::size_t slot = 0; slot < document::kMaxSpritesPerFrame; ++slot) {
-            // 8-bit IDs, 255 for an empty slot.
+        for (std::size_t slot = 0; slot < slots; ++slot) {
             const uint16_t spriteId = slot < frame.spriteReferences.size()
                                           ? frame.spriteReferences[slot].spriteId
                                           : document::kNoSpriteId;
-            writer.u8(spriteId == document::kNoSpriteId ? uint8_t{255}
-                                                        : static_cast<uint8_t>(spriteId));
+            if (limits.cromFormatVersion >= 1) {
+                writer.u16(spriteId);
+            } else {
+                // 8-bit IDs, 255 for an empty slot.
+                writer.u8(spriteId == document::kNoSpriteId ? uint8_t{255}
+                                                            : static_cast<uint8_t>(spriteId));
+            }
         }
     }
     writer.section("sprite originals");
@@ -539,7 +559,7 @@ bool writeCromContent(std::ostream& stream,
     }
     writer.section("frame sprite bounding boxes");
     for (const auto& frame : frames) {
-        for (std::size_t slot = 0; slot < document::kMaxSpritesPerFrame; ++slot) {
+        for (std::size_t slot = 0; slot < slots; ++slot) {
             if (slot < frame.spriteReferences.size()) {
                 const auto& reference = frame.spriteReferences[slot];
                 writer.u16(reference.minX);
@@ -662,6 +682,7 @@ bool writeCrpContent(std::ostream& stream,
     // Sprite and palette names are edited through the model; everything else is carried in the
     // metadata tables. Unchanged names keep their original bytes.
     document::EditorMetadata metadata = snapshot.editorMetadata;
+    document::ensureSpriteTableEntries(metadata, snapshot.sprites.size());
     for (std::size_t i = 0; i < snapshot.sprites.size(); ++i) {
         document::setFixedName(metadata.spriteNames,
                                i,
@@ -700,6 +721,8 @@ bool writeCrpContent(std::ostream& stream,
     writer.u32(metadata.sectionCount);
     writer.u32s(metadata.sectionFirstFrames);
     writer.bytes(metadata.sectionNames);
+    // The cRP has room for kCrpSpriteEntries sprites; the .cRPX keeps the entries beyond.
+    document::truncateSpriteTableEntries(metadata, document::kCrpSpriteEntries);
     writer.section("sprite names");
     writer.bytes(metadata.spriteNames);
     writer.section("sprite source frames");
@@ -801,17 +824,18 @@ uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot)
     const uint64_t sprites = snapshot.sprites.size();
     const uint64_t backgrounds = snapshot.backgrounds.size();
     const uint64_t spritePixels = document::kMaxSpriteWidth * document::kMaxSpriteHeight;
-    const uint64_t slots = document::kMaxSpritesPerFrame;
+    const document::LibserumLimits limits = document::libserumLimits(snapshot.libserumTarget);
+    const uint64_t slots = limits.spritesPerFrame;
+    const uint64_t idBytes = limits.cromFormatVersion >= 1 ? 2 : 1;
     const uint64_t sets = document::kMaxDynamicSetsPerFrame;
     const uint64_t rotations = document::kMaxColorRotations * document::kMaxColorRotationLength;
     const uint64_t areas = document::kMaxSpriteDetectAreas;
-    const uint32_t revision = std::clamp(snapshot.cromRevision,
-                                         document::kOldestWritableCromRevision,
-                                         document::kCurrentCromRevision);
-    const uint64_t header = kRomNameBytes + 9 * 4 + 2 + (revision >= 20 ? 4 : 0);
+    const uint32_t revision = writtenCromRevision(snapshot);
+    const uint64_t header = kRomNameBytes + 9 * 4 + 2 + (revision >= 20 ? 4 : 0) +
+                            (revision >= 21 ? 8 : 0);
     const uint64_t perFrame = 4 + 1 + 1 + 1 + 2 * sd + 2 * hd + sd + hd + 2 * 2 * sets * colors +
-                              slots + 1 + 2 * 2 * rotations + 4 + 8 * slots + 2 + sd + hd +
-                              sets + 2 * sets + sets + 2 * sets;
+                              idBytes * slots + 1 + 2 * 2 * rotations + 4 + 8 * slots + 2 + sd +
+                              hd + sets + 2 * sets + sets + 2 * sets;
     const uint64_t perSprite = 1 + spritePixels + 2 * spritePixels + spritePixels +
                                2 * spritePixels + 4 * areas + 2 * areas + 8 * areas +
                                2 * 2 * document::kMaxDynamicSetsPerSprite * colors +
@@ -870,9 +894,9 @@ uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot)
     return kRomNameBytes + frames * rom + 4 * metadata.activeColorSets.size() +
            2 * metadata.colorSets.size() + 1 + 1 + metadata.colorSetNames.size() + 4 + 1 + 4 +
            4 + metadata.maskNames.size() + 4 + 4 * metadata.sectionFirstFrames.size() +
-           metadata.sectionNames.size() + metadata.spriteNames.size() +
-           4 * metadata.spriteSourceFrames.size() + 4 * frames +
-           2 * metadata.spriteSourceRects.size() + 4 * metadata.spriteSourceMirrors.size() +
+           metadata.sectionNames.size() +
+           document::kCrpSpriteEntries * (document::kSpriteNameBytes + 4 + 2 * 4 + 4 * 2) +
+           4 * frames +
            2 * document::kPaletteCount * document::kPaletteColorCount +
            2 * metadata.editColors.size() + 4 + metadata.imagePositionNames.size() +
            4 * metadata.imagePositions.size() + metadata.paletteNames.size() + 4 +
