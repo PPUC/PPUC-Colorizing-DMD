@@ -2945,6 +2945,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Lire le pack PuP du projet avec le plugin PUP : les déclencheurs des frames affichées lui sont envoyés comme sur une machine</translation>
     </message>
     <message>
+        <source>&amp;Speaker Light Preview</source>
+        <translation>Aperçu des lumières de &amp;haut-parleur</translation>
+    </message>
+    <message>
+        <source>Show the speaker lights beside the canvas and in the frame tester; their shape, LEDs and channels are in Settings -&gt; Appearance</source>
+        <translation>Afficher les lumières de haut-parleur à côté du canevas et dans le testeur de frames ; forme, LED et canaux se trouvent dans Paramètres -&gt; Apparence</translation>
+    </message>
+    <message>
         <source>Output To &amp;DMD</source>
         <translation>Sortie vers le &amp;DMD</translation>
     </message>

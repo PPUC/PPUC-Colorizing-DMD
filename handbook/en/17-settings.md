@@ -26,7 +26,7 @@ report a problem.
     `100%` leave black spacing between pixels, which makes the DMD grid visible.
   They are view and export settings only: no project data and no file changes with them.
   Under `Speaker Light Preview`: whether two speakers show beside the canvas and in the frame
-  tester, their `Shape`, their number of `LEDs` and the channel each shows, see "Speaker
+  tester (also `View -> Speaker Light Preview`), their `Shape`, their number of `LEDs` and the channel each shows, see "Speaker
   Lights".
 - `DMD Output`: the settings of the DMD output, see "DMD Output".
 - `Plugins`: which of the editor's plugins load, see "Plugins".

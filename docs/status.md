@@ -2179,6 +2179,9 @@ from the frame and editable.
   empty score block on the left in single player games): each side averages a quarter of the
   width from the first lit column seen from its edge; only a black frame gives off. Test in
   `testAmbientLighting`.
+- View -> Speaker Light Preview (`setSpeakerLightPreviewShown`) toggles the saved option. The
+  frame tester renders with `loadDmdRenderOptions()` (was default squares); test at the end of
+  `testFrameTester` (SpeakerLightWidgetTests).
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

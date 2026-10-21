@@ -2945,6 +2945,14 @@ Use Create %1 Frame.</source>
         <translation>Das PuP-Pack des Projekts mit dem PUP-Plugin abspielen: Die Trigger der gezeigten Frames gehen wie an einem Automaten daran</translation>
     </message>
     <message>
+        <source>&amp;Speaker Light Preview</source>
+        <translation>&amp;Vorschau der Lautsprecherlichter</translation>
+    </message>
+    <message>
+        <source>Show the speaker lights beside the canvas and in the frame tester; their shape, LEDs and channels are in Settings -&gt; Appearance</source>
+        <translation>Die Lautsprecherlichter neben der Zeichenfläche und im Frame-Tester zeigen; Form, LEDs und Kanäle stehen unter Einstellungen -&gt; Darstellung</translation>
+    </message>
+    <message>
         <source>Output To &amp;DMD</source>
         <translation>Ausgabe auf &amp;DMD</translation>
     </message>

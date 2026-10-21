@@ -901,6 +901,14 @@ void MainWindow::createActions()
         m_pupTesterWindow->raise();
         m_pupTesterWindow->activateWindow();
     });
+    m_speakerPreviewAction = viewMenu->addAction(tr("&Speaker Light Preview"));
+    m_speakerPreviewAction->setCheckable(true);
+    m_speakerPreviewAction->setChecked(loadSpeakerLightPreviewOptions().visible);
+    m_speakerPreviewAction->setToolTip(
+        tr("Show the speaker lights beside the canvas and in the frame tester; their shape, "
+           "LEDs and channels are in Settings -> Appearance"));
+    connect(m_speakerPreviewAction, &QAction::toggled, this,
+            [this](bool checked) { setSpeakerLightPreviewShown(checked); });
     viewMenu->addSeparator();
 
     m_dmdOutputAction = viewMenu->addAction(tr("Output To &DMD"));
@@ -2766,6 +2774,10 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     m_dmdRenderOptions = dialog.canvasOptions();
     saveDmdRenderOptions(m_dmdRenderOptions);
     saveSpeakerLightPreviewOptions(dialog.speakerLightPreview());
+    if (m_speakerPreviewAction) {
+        const QSignalBlocker blocker(m_speakerPreviewAction);
+        m_speakerPreviewAction->setChecked(dialog.speakerLightPreview().visible);
+    }
     if (m_speakerLights) {
         m_speakerLights->setOptions(dialog.speakerLightPreview());
         updateFrameLightControls();
@@ -9842,6 +9854,17 @@ QString MainWindow::importColorizationSidecars()
               static_cast<int>(imported.scenes))
         .arg(files.join(tr(" and ")))
         .arg(static_cast<qulonglong>(imported.linkedFrames));
+}
+
+void MainWindow::setSpeakerLightPreviewShown(bool shown)
+{
+    SpeakerLightPreviewOptions options = loadSpeakerLightPreviewOptions();
+    options.visible = shown;
+    saveSpeakerLightPreviewOptions(options);
+    if (m_speakerLights) {
+        m_speakerLights->setOptions(options);
+        updateFrameLightControls();
+    }
 }
 
 void MainWindow::refreshSpeakerLights()

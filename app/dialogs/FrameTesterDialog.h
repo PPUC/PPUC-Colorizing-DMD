@@ -10,6 +10,7 @@
 #include <optional>
 #include <vector>
 
+#include "FrameImageUtils.h"
 #include "document/ProjectDocument.h"
 #include "runtime/FrameTester.h"
 #include "runtime/RuntimePreview.h"
@@ -113,6 +114,8 @@ private:
     FramePictureView* m_rows64View = nullptr;
     FramePictureView* m_originalView = nullptr;
     SpeakerLightPair* m_speakerLights = nullptr;
+    // The canvas' pixel shape and size (Settings -> Appearance).
+    DmdRenderOptions m_renderOptions;
     QLabel* m_infoLabel = nullptr;
     QSlider* m_slider = nullptr;
     QSpinBox* m_positionSpinBox = nullptr;

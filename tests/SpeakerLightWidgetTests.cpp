@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "Appearance.h"
 #include "RuntimeFixtures.h"
 #include "SpeakerLightView.h"
 #include "dialogs/FrameTesterDialog.h"
@@ -238,6 +239,32 @@ void testFrameTester()
                speakers->left()->colors()[0] != speakers->left()->colors()[4],
            "frame 1: libserum starts the rainbow and the blue");
     dialog.close();
+
+    // The tester draws the canvas' pixels: dots at 50 % leave black between them.
+    const auto blackPixels = [&](const app::DmdRenderOptions& options) {
+        app::saveDmdRenderOptions(options);
+        app::FrameTesterDialog tester(document, {0});
+        tester.resize(900, 600);
+        tester.show();
+        QApplication::processEvents();
+        const QImage image = tester.grab().toImage();
+        int black = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                black += (image.pixel(x, y) & 0xffffff) == 0 ? 1 : 0;
+            }
+        }
+        tester.close();
+        return black;
+    };
+    app::DmdRenderOptions squares;
+    squares.pixelShape = app::DmdPixelShape::Square;
+    squares.pixelCoverage = 1.0;
+    app::DmdRenderOptions dots;
+    dots.pixelShape = app::DmdPixelShape::Dot;
+    dots.pixelCoverage = 0.5;
+    expect(blackPixels(dots) > blackPixels(squares) + 1000,
+           "the frame tester draws the pixel shape and size of the canvas");
 }
 
 }  // namespace

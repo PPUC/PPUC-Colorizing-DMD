@@ -64,8 +64,8 @@ menu setting.
 
 ## The preview
 
-`Settings -> Appearance -> Speaker Light Preview` shows two speakers beside the canvas and in the
-frame tester. Like the size of the canvas pixels it is a setting of the editor, not of the
+`View -> Speaker Light Preview` shows two speakers beside the canvas and in the frame tester (off
+until switched on). `Settings -> Appearance -> Speaker Light Preview` sets them up. Like the size of the canvas pixels it is a setting of the editor, not of the
 project, since machines differ: the `Shape` (a ring of LEDs, `Circle`, or LEDs around a
 standing `Rectangle`), the number of `LEDs` per speaker, and which channel the `Left speaker`
 and the `Right speaker` show.

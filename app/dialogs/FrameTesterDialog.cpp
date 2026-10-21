@@ -19,6 +19,7 @@
 
 #include "import/DumpFile.h"
 #include "FrameImageUtils.h"
+#include "Appearance.h"
 #include "FramePictureView.h"
 #include "SpeakerLightView.h"
 #include "dialogs/ProjectTaskDialog.h"
@@ -31,15 +32,17 @@ namespace {
 
 using runtime::RuntimePreview;
 
-// libserum's picture of a plane, as large as its view allows.
-void showPlane(FramePictureView& view, const runtime::RuntimePlane* plane)
+// libserum's picture of a plane, as large as its view allows, with the canvas' pixels.
+void showPlane(FramePictureView& view,
+               const runtime::RuntimePlane* plane,
+               const DmdRenderOptions& options)
 {
     if (!plane || !plane->image.isValid()) {
         view.clear();
         return;
     }
-    view.setFrame(plane->image.size, [image = plane->image](int pixelScale) {
-        return renderRgb565FrameImage(image, pixelScale);
+    view.setFrame(plane->image.size, [image = plane->image, options](int pixelScale) {
+        return renderRgb565FrameImage(image, pixelScale, options);
     });
 }
 
@@ -50,7 +53,8 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
                                      QWidget* parent)
     : QDialog(parent),
       m_document(document),
-      m_selectedFrames(std::move(selectedFrames))
+      m_selectedFrames(std::move(selectedFrames)),
+      m_renderOptions(loadDmdRenderOptions())
 {
     setWindowTitle(tr("Frame Tester"));
     m_sourceLabel = new QLabel(this);
@@ -414,15 +418,16 @@ void FrameTesterDialog::rotateStep()
 void FrameTesterDialog::showResult()
 {
     if (!m_result.unchanged) {
-        showPlane(*m_rows32View, m_result.plane(runtime::PlaneRequest::Rows32));
-        showPlane(*m_rows64View, m_result.plane(runtime::PlaneRequest::Rows64));
+        showPlane(*m_rows32View, m_result.plane(runtime::PlaneRequest::Rows32), m_renderOptions);
+        showPlane(*m_rows64View, m_result.plane(runtime::PlaneRequest::Rows64), m_renderOptions);
     }
     if (!m_frames.empty()) {
         const document::IndexedFrame& original = m_frames[m_position].original;
         m_originalView->setFrame(
             original.size,
-            [original, colorCount = m_document.colorCount()](int pixelScale) {
-                return renderIndexedFrameImage(original, pixelScale, {}, colorCount);
+            [original, colorCount = m_document.colorCount(), options = m_renderOptions](
+                int pixelScale) {
+                return renderIndexedFrameImage(original, pixelScale, options, colorCount);
             });
     } else {
         m_originalView->clear();

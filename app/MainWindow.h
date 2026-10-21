@@ -810,6 +810,10 @@ private:
     // for every frame that does nothing to the lights, one undo step (migrating a project).
     void addAmbientLightingToFramesWithoutLights();
     QAction* m_ambientLightingAction = nullptr;
+    // View -> Speaker Light Preview: the speakers beside the canvas and in the frame tester
+    // (Settings -> Appearance has their shape, LEDs and channels).
+    QAction* m_speakerPreviewAction = nullptr;
+    void setSpeakerLightPreviewShown(bool shown);
     void recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
                                  const QString& status);
     // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.
