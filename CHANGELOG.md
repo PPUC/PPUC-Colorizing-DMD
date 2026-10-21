@@ -6,7 +6,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 ## Next version
 
 - `Esc` reduces a selection of several frames to the frame shown, in the strip and on the
-  canvas (after cancelling a paste or a pending click).
+  canvas (after cancelling a paste or a pending click). It joins the ways that were there
+  already: a double click on a frame selects it alone, `Ctrl/Cmd`+click takes a frame out of
+  the selection, `Left`/`Right` select the next frame alone, and a click on a frame outside the
+  selection selects that one.
 - The section list drops down as wide as its longest name. The trigger list below it is gone:
   the frame filter's *With triggers* lists the frames with a trigger.
 - *Using the selected asset* with a scene selected lists the frames that start the scene (also
