@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 
 #include "document/ProjectDocument.h"
+#include "edit/SpeakerLightEdits.h"
 #include "panels/InspectorForm.h"
 
 namespace colorizing::app {
@@ -35,15 +36,23 @@ LightActionEditor::LightActionEditor(bool forDefault, QWidget* parent)
     m_kind->setMinimumContentsLength(8);
     m_colorButton = new QToolButton(this);
     m_colorButton->setToolTip(tr("The static color"));
+    m_automaticLabel = new QLabel(this);
+    m_automaticLabel->hide();
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_kind, 1);
     layout->addWidget(m_colorButton);
+    layout->addWidget(m_automaticLabel);
     connect(m_kind, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
             [this](int) {
                 updateColorButton();
-                if (!m_filling && onChanged) {
-                    onChanged();
+                if (!m_filling) {
+                    // The author's own choice from now on.
+                    m_automaticAction.reset();
+                    setAutomatic(Automatic::No);
+                    if (onChanged) {
+                        onChanged();
+                    }
                 }
             });
     connect(m_colorButton, &QToolButton::clicked, this, [this]() {
@@ -78,6 +87,12 @@ void LightActionEditor::setEffects(const document::SpeakerLightSettings& setting
 
 void LightActionEditor::setAction(const document::LightAction& action)
 {
+    if (action.automatic) {
+        m_automaticAction = action;
+    } else {
+        m_automaticAction.reset();
+        setAutomatic(Automatic::No);
+    }
     m_filling = true;
     document::LightActionKind kind = action.kind;
     if (m_forDefault && kind == document::LightActionKind::Unchanged) {
@@ -102,6 +117,9 @@ void LightActionEditor::setAction(const document::LightAction& action)
 
 document::LightAction LightActionEditor::action() const
 {
+    if (m_automaticAction) {
+        return *m_automaticAction;
+    }
     document::LightAction action;
     if (m_kind->currentIndex() < 0) {
         return action;
@@ -121,6 +139,8 @@ document::LightAction LightActionEditor::action() const
 
 void LightActionEditor::setColor(uint32_t color)
 {
+    m_automaticAction.reset();
+    setAutomatic(Automatic::No);
     m_color = color;
     const int index = m_kind->findData(static_cast<int>(document::LightActionKind::Color));
     if (m_kind->currentIndex() != index) {
@@ -131,6 +151,36 @@ void LightActionEditor::setColor(uint32_t color)
     if (onChanged) {
         onChanged();
     }
+}
+
+void LightActionEditor::setAutomatic(Automatic automatic)
+{
+    switch (automatic) {
+        case Automatic::No:
+            m_automaticLabel->clear();
+            m_automaticLabel->setToolTip(QString());
+            m_automaticLabel->hide();
+            return;
+        case Automatic::Current:
+            m_automaticLabel->setText(tr("automatic"));
+            m_automaticLabel->setStyleSheet(QString());
+            m_automaticLabel->setToolTip(
+                tr("Set by the ambient lighting from the frame's colors"));
+            break;
+        case Automatic::OutOfDate:
+            m_automaticLabel->setText(tr("automatic, out of date"));
+            m_automaticLabel->setStyleSheet(QStringLiteral("color: #e08a00;"));
+            m_automaticLabel->setToolTip(
+                tr("Set by the ambient lighting, but the frame's colors have changed since: "
+                   "Edit -> Update Ambient Lighting"));
+            break;
+    }
+    m_automaticLabel->show();
+}
+
+QString LightActionEditor::automaticText() const
+{
+    return m_automaticLabel->isHidden() ? QString() : m_automaticLabel->text();
 }
 
 void LightActionEditor::updateColorButton()
@@ -161,8 +211,8 @@ FrameLightsPanel::FrameLightsPanel(QWidget* parent)
     m_suggestButton = new QToolButton(this);
     m_suggestButton->setText(tr("Suggest from Frame"));
     m_suggestButton->setToolTip(
-        tr("Ambient lighting: channel 1 the color of the left part of each selected frame, channel 2 of "
-           "its right part"));
+        tr("Ambient lighting: channel 1 the color of the left part of each selected frame, "
+           "channel 2 of its right part"));
     connect(m_suggestButton, &QToolButton::clicked, this, [this]() {
         if (onSuggestRequested) {
             onSuggestRequested();
@@ -181,15 +231,24 @@ FrameLightsPanel::FrameLightsPanel(QWidget* parent)
 }
 
 void FrameLightsPanel::setFrame(const document::ProjectDocument* document,
-                                std::optional<std::size_t> frame)
+                                std::optional<std::size_t> frame,
+                                const std::optional<document::LightActions>& suggested)
 {
     const bool hasFrame = document && frame && *frame < document->frameCount();
+    const document::LightActions lights =
+        hasFrame ? document->frameLights(*frame) : document::LightActions{};
+    const document::LightActions updated =
+        suggested ? edit::updatedAmbientLighting(lights, *suggested) : lights;
     for (std::size_t index = 0; index < m_channels.size(); ++index) {
         LightActionEditor* editor = m_channels[index];
         editor->setEffects(document ? document->speakerLights()
                                     : document::SpeakerLightSettings{});
-        editor->setAction(hasFrame ? document->frameLights(*frame)[index]
-                                   : document::LightAction{});
+        editor->setAction(lights[index]);
+        if (lights[index].automatic) {
+            editor->setAutomatic(updated[index] == lights[index]
+                                     ? LightActionEditor::Automatic::Current
+                                     : LightActionEditor::Automatic::OutOfDate);
+        }
         editor->setEnabled(hasFrame);
     }
     m_suggestButton->setEnabled(hasFrame);

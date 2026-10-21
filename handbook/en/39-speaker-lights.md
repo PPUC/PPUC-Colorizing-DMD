@@ -47,6 +47,13 @@ the first lit column seen from that side. A black margin, such as the empty scor
 single player game on many Stern ROMs, is skipped, so the color comes from what is shown; a
 black frame turns both off. The colors can be changed afterwards like any other.
 
+Colors set this way are marked `automatic` beside the channel in the `Speaker Lights` section.
+When the frame's colors have changed since (the frame was painted after), the mark reads
+`automatic, out of date`. `Edit -> Update Ambient Lighting` brings every automatic channel of
+the project up to date with its frame's colors, in one undo step; it is the one to run after
+reworking frames. A channel you set yourself, including a color you pick for an automatic
+one, is yours: it loses the mark and no update changes it.
+
 `Edit -> Ambient Lighting For Frames Without Speaker Lights...` does the same for every frame of the project that does nothing to any channel yet, in one undo step. It
 is meant for a project made before speaker lights: frames already set up are left as they are,
 so it can be run again after adding frames.

@@ -163,6 +163,54 @@ std::unique_ptr<SpeakerLightsCommand> addAmbientLightingToFramesWithoutLights(
     return command;
 }
 
+bool hasAutomaticLights(const document::LightActions& actions)
+{
+    for (const document::LightAction& action : actions) {
+        if (action.automatic) {
+            return true;
+        }
+    }
+    return false;
+}
+
+document::LightActions updatedAmbientLighting(const document::LightActions& actions,
+                                              const document::LightActions& suggested)
+{
+    document::LightActions updated = actions;
+    for (std::size_t channel = 0; channel < updated.size(); ++channel) {
+        if (updated[channel].automatic &&
+            suggested[channel].kind != document::LightActionKind::Unchanged) {
+            updated[channel] = suggested[channel];
+        }
+    }
+    return updated;
+}
+
+std::unique_ptr<SpeakerLightsCommand> updateAmbientLighting(
+    document::ProjectDocument& document,
+    const std::function<document::Rgb565Frame(std::size_t frameIndex)>& colorsOf)
+{
+    std::vector<SpeakerLightsCommand::FrameChange> frames;
+    for (std::size_t frameIndex = 0; frameIndex < document.frameCount(); ++frameIndex) {
+        const document::LightActions& lights = document.frameLights(frameIndex);
+        if (!hasAutomaticLights(lights)) {
+            continue;
+        }
+        const document::LightActions updated =
+            updatedAmbientLighting(lights, suggestedAmbientLighting(colorsOf(frameIndex)));
+        if (updated != lights) {
+            frames.push_back({frameIndex, lights, updated});
+        }
+    }
+    if (frames.empty()) {
+        return nullptr;
+    }
+    auto command = std::make_unique<SpeakerLightsCommand>(
+        document.speakerLights(), document.speakerLights(), std::move(frames));
+    command->apply(document);
+    return command;
+}
+
 document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& frame)
 {
     document::LightActions actions{};
@@ -190,8 +238,10 @@ document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& fra
         ++firstLit;
     }
     if (firstLit == width) {
-        actions[0].kind = document::LightActionKind::Off;
-        actions[1].kind = document::LightActionKind::Off;
+        for (std::size_t channel : {std::size_t{0}, std::size_t{1}}) {
+            actions[channel].kind = document::LightActionKind::Off;
+            actions[channel].automatic = true;
+        }
         return actions;
     }
     int lastLit = width - 1;
@@ -222,6 +272,7 @@ document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& fra
         action.kind = document::LightActionKind::Color;
         action.color = static_cast<uint32_t>(((red / lit) << 16) | ((green / lit) << 8) |
                                              (blue / lit));
+        action.automatic = true;
         return action;
     };
     actions[0] = average(firstLit);

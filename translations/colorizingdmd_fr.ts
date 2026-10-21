@@ -2401,6 +2401,22 @@ Utiliser Créer la frame %1.</translation>
         <source>Static color</source>
         <translation>Couleur fixe</translation>
     </message>
+    <message>
+        <source>automatic</source>
+        <translation>automatique</translation>
+    </message>
+    <message>
+        <source>Set by the ambient lighting from the frame&apos;s colors</source>
+        <translation>Réglé par l&apos;éclairage d&apos;ambiance d&apos;après les couleurs de la frame</translation>
+    </message>
+    <message>
+        <source>automatic, out of date</source>
+        <translation>automatique, obsolète</translation>
+    </message>
+    <message>
+        <source>Set by the ambient lighting, but the frame&apos;s colors have changed since: Edit -&gt; Update Ambient Lighting</source>
+        <translation>Réglé par l&apos;éclairage d&apos;ambiance, mais les couleurs de la frame ont changé depuis : Édition -&gt; Mettre à jour l&apos;éclairage d&apos;ambiance</translation>
+    </message>
 </context>
 <context>
     <name>LightEffectPanel</name>
@@ -2927,6 +2943,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Speaker lights 1 and 2 from the colors of the left and right part of every frame that does nothing to the speaker lights yet</source>
         <translation>Lumières de haut-parleur 1 et 2 d&apos;après les couleurs des parties gauche et droite de chaque frame qui ne fait encore rien aux lumières de haut-parleur</translation>
+    </message>
+    <message>
+        <source>Update Ambient Lighting</source>
+        <translation>Mettre à jour l&apos;éclairage d&apos;ambiance</translation>
+    </message>
+    <message>
+        <source>Set every speaker light the ambient lighting chose to what the frame&apos;s colors give now; lights you chose yourself stay</source>
+        <translation>Régler chaque lumière de haut-parleur choisie par l&apos;éclairage d&apos;ambiance sur ce que donnent maintenant les couleurs de la frame ; celles que vous avez choisies restent</translation>
     </message>
     <message>
         <source>Frame &amp;Tester...</source>
@@ -5178,6 +5202,17 @@ Utiliser Créer la frame %1.</translation>
         <translation>
             <numerusform>Éclairage d&apos;ambiance pour %n frame</numerusform>
             <numerusform>Éclairage d&apos;ambiance pour %n frames</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The ambient lighting is up to date</source>
+        <translation>L&apos;éclairage d&apos;ambiance est à jour</translation>
+    </message>
+    <message numerus="yes">
+        <source>Ambient lighting of %n frame(s) updated</source>
+        <translation>
+            <numerusform>Éclairage d&apos;ambiance de %n frame mis à jour</numerusform>
+            <numerusform>Éclairage d&apos;ambiance de %n frames mis à jour</numerusform>
         </translation>
     </message>
     <message>

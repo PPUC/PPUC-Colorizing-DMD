@@ -810,9 +810,16 @@ private:
     // of one of them (ProjectDocument::assignmentPassesSpriteWarning()). Returns whether to go on.
     [[nodiscard]] bool confirmPassingSpriteWarning(const std::vector<std::size_t>& frameIndices,
                                                    std::size_t slotIndex);
-    // Edit -> Ambient Lighting For Frames Without Speaker Lights: channels 1 and 2 from their colors
-    // for every frame that does nothing to the lights, one undo step (migrating a project).
+    // Edit -> Ambient Lighting For Frames Without Speaker Lights: channels 1 and 2 from their
+    // colors for every frame that does nothing to the lights, one undo step (migrating a
+    // project).
     void addAmbientLightingToFramesWithoutLights();
+    // Edit -> Update Ambient Lighting: every channel the ambient lighting set takes what the
+    // frame's colors give now, one undo step (frames edited after it was set).
+    void updateAmbientLighting();
+    QAction* m_updateAmbientLightingAction = nullptr;
+    // The Speaker Lights section's marks follow edits of the frame shown, a moment later.
+    QTimer m_frameLightMarksTimer;
     QAction* m_ambientLightingAction = nullptr;
     // View -> Speaker Light Preview: the speakers beside the canvas and in the frame tester
     // (Settings -> Appearance has their shape, LEDs and channels).

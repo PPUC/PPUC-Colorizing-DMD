@@ -881,6 +881,17 @@ void MainWindow::createActions()
     m_ambientLightingAction->setEnabled(false);
     connect(m_ambientLightingAction, &QAction::triggered, this,
             [this]() { addAmbientLightingToFramesWithoutLights(); });
+    m_updateAmbientLightingAction = editMenu->addAction(tr("Update Ambient Lighting"));
+    m_updateAmbientLightingAction->setToolTip(
+        tr("Set every speaker light the ambient lighting chose to what the frame's colors give "
+           "now; lights you chose yourself stay"));
+    m_updateAmbientLightingAction->setEnabled(false);
+    connect(m_updateAmbientLightingAction, &QAction::triggered, this,
+            [this]() { updateAmbientLighting(); });
+    m_frameLightMarksTimer.setSingleShot(true);
+    m_frameLightMarksTimer.setInterval(150);
+    connect(&m_frameLightMarksTimer, &QTimer::timeout, this,
+            [this]() { updateFrameLightControls(); });
     createSelectionActions(editMenu);
 
     QAction* frameTesterAction = viewMenu->addAction(tr("Frame &Tester..."));
@@ -9944,7 +9955,14 @@ void MainWindow::updateFrameLightControls()
     const document::ProjectDocument* document = m_document ? &*m_document : nullptr;
     const std::optional<std::size_t> frame = currentFrameIndex();
     if (m_frameLightsPanel) {
-        m_frameLightsPanel->setFrame(document, frame);
+        // What the ambient lighting would set now, for the channels it set.
+        std::optional<document::LightActions> suggested;
+        if (document && frame && *frame < document->frameCount() &&
+            edit::hasAutomaticLights(document->frameLights(*frame))) {
+            suggested = edit::suggestedAmbientLighting(composeResolvedFrame(
+                *document, *frame, document->geometry().nativePlane(), true));
+        }
+        m_frameLightsPanel->setFrame(document, frame, suggested);
     }
     if (m_speakerLights) {
         m_speakerLights->showFrame(document, frame);
@@ -10149,6 +10167,26 @@ void MainWindow::addAmbientLightingToFramesWithoutLights()
     QApplication::restoreOverrideCursor();
     recordSpeakerLightsEdit(std::move(command),
                             tr("Ambient lighting for %n frame(s)", "", static_cast<int>(frames)));
+}
+
+void MainWindow::updateAmbientLighting()
+{
+    if (!m_document) {
+        return;
+    }
+    const render::Resolution plane = m_document->geometry().nativePlane();
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    auto command = edit::updateAmbientLighting(*m_document, [this, plane](std::size_t frameIndex) {
+        return composeResolvedFrame(*m_document, frameIndex, plane, true);
+    });
+    QApplication::restoreOverrideCursor();
+    if (!command) {
+        statusBar()->showMessage(tr("The ambient lighting is up to date"), 3000);
+        return;
+    }
+    const int frames = static_cast<int>(command->target().frameIndices.size());
+    recordSpeakerLightsEdit(std::move(command),
+                            tr("Ambient lighting of %n frame(s) updated", "", frames));
 }
 
 void MainWindow::refreshScenes()
@@ -10604,6 +10642,9 @@ void MainWindow::updateStructureControls()
     }
     if (m_ambientLightingAction) {
         m_ambientLightingAction->setEnabled(hasDocument);
+    }
+    if (m_updateAmbientLightingAction) {
+        m_updateAmbientLightingAction->setEnabled(hasDocument);
     }
     const bool canDeleteFrames =
         hasDocument && m_document->frameCount() > 1 && !selectedFrameIndices().empty();
@@ -11152,6 +11193,8 @@ void MainWindow::goToHistory(const edit::HistoryKey& key)
 
 void MainWindow::updateUndoRedoActions()
 {
+    // An edit may have changed the colors of the frame shown.
+    m_frameLightMarksTimer.start();
     if (m_undoAnywhereAction) {
         const std::vector<edit::HistoryKey> all = m_undoHistories.keys();
         m_undoAnywhereAction->setEnabled(m_document &&

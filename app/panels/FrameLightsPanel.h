@@ -37,6 +37,11 @@ public:
     [[nodiscard]] document::LightAction action() const;
     // For tests: what the color button would pick.
     void setColor(uint32_t color);
+    // The mark beside an action set by the ambient lighting: none, set by it, or set by it
+    // and no longer what the frame's colors give.
+    enum class Automatic { No, Current, OutOfDate };
+    void setAutomatic(Automatic automatic);
+    [[nodiscard]] QString automaticText() const;
 
     std::function<void()> onChanged;
 
@@ -46,7 +51,11 @@ private:
     bool m_forDefault = false;
     QComboBox* m_kind = nullptr;
     QToolButton* m_colorButton = nullptr;
+    QLabel* m_automaticLabel = nullptr;
     uint32_t m_color = 0x00ffffffu;
+    // The action shown when it was set by the ambient lighting; kept until the author
+    // changes it.
+    std::optional<document::LightAction> m_automaticAction;
     bool m_filling = false;
 };
 
@@ -59,8 +68,12 @@ class FrameLightsPanel final : public QWidget {
 public:
     explicit FrameLightsPanel(QWidget* parent = nullptr);
 
-    // nullptr or no frame: nothing to edit.
-    void setFrame(const document::ProjectDocument* document, std::optional<std::size_t> frame);
+    // nullptr or no frame: nothing to edit. suggested: what the ambient lighting would set for
+    // the frame's picture now (edit::suggestedAmbientLighting()), to mark the channels it set
+    // and that are out of date; nothing when the frame has no such channel.
+    void setFrame(const document::ProjectDocument* document,
+                  std::optional<std::size_t> frame,
+                  const std::optional<document::LightActions>& suggested = std::nullopt);
     [[nodiscard]] LightActionEditor* channel(std::size_t index) const { return m_channels[index]; }
 
     std::function<void(std::size_t channel, const document::LightAction& action)>

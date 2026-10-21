@@ -2201,6 +2201,13 @@ from the frame and editable.
   3.0 note, the confirmation); `ProjectDocument::assignmentPassesSpriteWarning()` decides when
   Assign/Capture ask (`confirmPassingSpriteWarning`), only for the 33rd. Test in
   SceneEditTests::testLibserumTarget.
+- Automatic ambient lighting: `LightAction::automatic` (LGHT action byte 1, bit 0; the cROM
+  block ignores it) is set by suggestedAmbientLighting(). `edit::updateAmbientLighting()`
+  re-suggests the automatic channels of all frames (one SpeakerLightsCommand),
+  `updatedAmbientLighting()` is the per-frame rule the section's marks use (FrameLightsPanel
+  "automatic" / "automatic, out of date", refreshed 150 ms after any edit via
+  m_frameLightMarksTimer). A manual choice drops the flag (LightActionEditor). Tests:
+  testUpdateAmbientLighting, LGHT round trip, testFrameSection.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

@@ -60,6 +60,12 @@ LightAction colorAction(uint32_t color)
     return LightAction{LightActionKind::Color, 0, color};
 }
 
+// A color the ambient lighting set.
+LightAction autoColor(uint32_t color)
+{
+    return LightAction{LightActionKind::Color, 0, color, true};
+}
+
 // Three frames; effects 1 (rainbow) and 2 (larson scanner, 2 s); channel 1 defaults to 2.
 // Frame 1 starts effect 1 on channel 1 and a static color on channel 2, frame 2 turns
 // channel 1 off.
@@ -74,6 +80,7 @@ document::ProjectSnapshot makeProjectWithLights()
     snapshot.frames[1].lights[0] = effectAction(1);
     snapshot.frames[1].lights[1] = colorAction(0x00123456u);
     snapshot.frames[2].lights[0] = LightAction{LightActionKind::Off, 0, 0};
+    snapshot.frames[2].lights[1] = LightAction{LightActionKind::Color, 0, 0x00445566u, true};
     return snapshot;
 }
 
@@ -151,7 +158,8 @@ void testModelAndEdits()
     expect(runtime::lightsShownAt(document, 0)[0] == effectAction(2) &&
                runtime::lightsShownAt(document, 1)[0] == effectAction(1) &&
                runtime::lightsShownAt(document, 2)[0].kind == LightActionKind::Off &&
-               runtime::lightsShownAt(document, 2)[1] == colorAction(0x00123456u) &&
+               runtime::lightsShownAt(document, 2)[1] == autoColor(0x00445566u) &&
+               runtime::lightsShownAt(document, 1)[1] == colorAction(0x00123456u) &&
                runtime::lightsShownAt(document, 0)[1].kind == LightActionKind::Unchanged,
            "what the channels play at a frame: the last change up to it, else the default");
 }
@@ -170,7 +178,7 @@ void testAmbientLighting()
         }
     }
     const LightActions suggested = edit::suggestedAmbientLighting(frame);
-    expect(suggested[0] == colorAction(0x00ff0000u) && suggested[1] == colorAction(0x000000ffu) &&
+    expect(suggested[0] == autoColor(0x00ff0000u) && suggested[1] == autoColor(0x000000ffu) &&
                suggested[2].kind == LightActionKind::Unchanged,
            "left red, right blue: the lit pixels of the outer quarters");
     // A black block on the left (a single player's empty score block): the left channel takes
@@ -184,11 +192,12 @@ void testAmbientLighting()
         }
     }
     const LightActions skipped = edit::suggestedAmbientLighting(block);
-    expect(skipped[0] == colorAction(0x0000ff00u) && skipped[1] == colorAction(0x000000ffu),
+    expect(skipped[0] == autoColor(0x0000ff00u) && skipped[1] == autoColor(0x000000ffu),
            "a black margin is skipped: green on the left, blue on the right");
     const LightActions dark =
         edit::suggestedAmbientLighting(document::makeRgb565Frame(render::Size{128, 32}, 0));
-    expect(dark[0].kind == LightActionKind::Off && dark[1].kind == LightActionKind::Off,
+    expect(dark[0].kind == LightActionKind::Off && dark[1].kind == LightActionKind::Off &&
+               dark[0].automatic && dark[1].automatic,
            "a black frame turns them off");
 }
 
@@ -277,8 +286,8 @@ void testAmbientLightingForAll()
     const LightActions frame1 = document.frameLights(1);
     const auto command = edit::addAmbientLightingToFramesWithoutLights(document, colorsOf);
     expect(command && asked == std::vector<std::size_t>{0} &&
-               document.frameLights(0)[0] == colorAction(0x0000ff00u) &&
-               document.frameLights(0)[1] == colorAction(0x0000ff00u) &&
+               document.frameLights(0)[0] == autoColor(0x0000ff00u) &&
+               document.frameLights(0)[1] == autoColor(0x0000ff00u) &&
                document.frameLights(0)[2].kind == LightActionKind::Unchanged &&
                document.frameLights(1) == frame1,
            "frame 0 gets its only content, green, on both sides; frame 1 keeps its lights");
@@ -286,6 +295,39 @@ void testAmbientLightingForAll()
            "a second run finds no frame without lights");
     command->revert(document);
     expect(document::changesNothing(document.frameLights(0)), "undo takes it back in one step");
+}
+
+// Frames edited after the ambient lighting was set: Update Ambient Lighting brings the
+// channels it set up to date and leaves the author's own.
+void testUpdateAmbientLighting()
+{
+    document::ProjectDocument document =
+        document::ProjectDocument::fromSnapshot(makeProjectWithLights());
+    // Frame 0: both channels automatic, red and blue. Frame 2: channel 1 automatic red,
+    // channel 2 the author's red.
+    document.setFrameLights(0, LightActions{autoColor(0x00ff0000u), autoColor(0x000000ffu)});
+    document.setFrameLights(2, LightActions{autoColor(0x00ff0000u), colorAction(0x00ff0000u)});
+    // Every frame's picture is green now.
+    const auto green = [](std::size_t) {
+        return document::makeRgb565Frame(render::Size{128, 32}, 0x07e0);
+    };
+    const LightActions frame1 = document.frameLights(1);
+    const auto command = edit::updateAmbientLighting(document, green);
+    expect(command && command->target().frameIndices == std::vector<std::size_t>{0, 2},
+           "frames 0 and 2 have automatic lights to update, frame 1 none");
+    expect(document.frameLights(0)[0] == autoColor(0x0000ff00u) &&
+               document.frameLights(0)[1] == autoColor(0x0000ff00u) &&
+               document.frameLights(2)[0] == autoColor(0x0000ff00u) &&
+               document.frameLights(2)[1] == colorAction(0x00ff0000u) &&
+               document.frameLights(1) == frame1,
+           "the automatic channels take the frame's colors, the author's channel stays");
+    expect(!edit::updateAmbientLighting(document, green), "up to date: nothing to do");
+    command->revert(document);
+    expect(document.frameLights(0)[0] == autoColor(0x00ff0000u), "undo in one step");
+    const LightActions stale = edit::updatedAmbientLighting(
+        document.frameLights(2), edit::suggestedAmbientLighting(green(0)));
+    expect(stale[0] == autoColor(0x0000ff00u) && stale[1] == colorAction(0x00ff0000u),
+           "what an update would set, for the marks in the Speaker Lights section");
 }
 
 std::filesystem::path tempPath(const std::string& suffix)
@@ -359,8 +401,9 @@ void testLibserumPlaysThem()
                frame.lights[1] && frame.lights[1]->colors[0] == 0x00123456u && !frame.lights[2],
            "frame 1 starts the rainbow on channel 1 and the color on channel 2");
     frame = preview.colorize(document.originalFrame(2));
-    expect(frame.lights[0] && frame.lights[0]->colors[0] == 0 && !frame.lights[1],
-           "frame 2 turns channel 1 off");
+    expect(frame.lights[0] && frame.lights[0]->colors[0] == 0 && frame.lights[1] &&
+               frame.lights[1]->colors[0] == 0x00445566u,
+           "frame 2 turns channel 1 off and channel 2 to its color");
     preview.close();
 }
 
@@ -371,6 +414,7 @@ void runSpeakerLightTests()
     testModelAndEdits();
     testAmbientLighting();
     testAmbientLightingForAll();
+    testUpdateAmbientLighting();
     testPlayer();
     testFiles();
     testLibserumPlaysThem();

@@ -61,6 +61,9 @@ struct LightAction {
     uint16_t effectId = 0;
     // Color.
     uint32_t color = 0;
+    // Set by the ambient lighting (from the frame's colors) rather than chosen by the author:
+    // updated when the frame's colors change (edit::updateAmbientLighting()). Editor only.
+    bool automatic = false;
 
     friend bool operator==(const LightAction&, const LightAction&) = default;
 };

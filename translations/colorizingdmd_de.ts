@@ -2401,6 +2401,22 @@ Use Create %1 Frame.</source>
         <source>Static color</source>
         <translation>Feste Farbe</translation>
     </message>
+    <message>
+        <source>automatic</source>
+        <translation>automatisch</translation>
+    </message>
+    <message>
+        <source>Set by the ambient lighting from the frame&apos;s colors</source>
+        <translation>Von der Umgebungsbeleuchtung aus den Farben des Frames gesetzt</translation>
+    </message>
+    <message>
+        <source>automatic, out of date</source>
+        <translation>automatisch, veraltet</translation>
+    </message>
+    <message>
+        <source>Set by the ambient lighting, but the frame&apos;s colors have changed since: Edit -&gt; Update Ambient Lighting</source>
+        <translation>Von der Umgebungsbeleuchtung gesetzt, aber die Farben des Frames haben sich seitdem geändert: Bearbeiten -&gt; Umgebungsbeleuchtung aktualisieren</translation>
+    </message>
 </context>
 <context>
     <name>LightEffectPanel</name>
@@ -2927,6 +2943,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Speaker lights 1 and 2 from the colors of the left and right part of every frame that does nothing to the speaker lights yet</source>
         <translation>Lautsprecherlichter 1 und 2 aus den Farben des linken und rechten Teils jedes Frames, der noch nichts mit den Lautsprecherlichtern macht</translation>
+    </message>
+    <message>
+        <source>Update Ambient Lighting</source>
+        <translation>Umgebungsbeleuchtung aktualisieren</translation>
+    </message>
+    <message>
+        <source>Set every speaker light the ambient lighting chose to what the frame&apos;s colors give now; lights you chose yourself stay</source>
+        <translation>Jedes Lautsprecherlicht, das die Umgebungsbeleuchtung gewählt hat, auf das setzen, was die Farben des Frames jetzt ergeben; selbst gewählte Lichter bleiben</translation>
     </message>
     <message>
         <source>Frame &amp;Tester...</source>
@@ -5178,6 +5202,17 @@ Use Create %1 Frame.</source>
         <translation>
             <numerusform>Umgebungsbeleuchtung für %n Frame</numerusform>
             <numerusform>Umgebungsbeleuchtung für %n Frames</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The ambient lighting is up to date</source>
+        <translation>Die Umgebungsbeleuchtung ist aktuell</translation>
+    </message>
+    <message numerus="yes">
+        <source>Ambient lighting of %n frame(s) updated</source>
+        <translation>
+            <numerusform>Umgebungsbeleuchtung von %n Frame aktualisiert</numerusform>
+            <numerusform>Umgebungsbeleuchtung von %n Frames aktualisiert</numerusform>
         </translation>
     </message>
     <message>

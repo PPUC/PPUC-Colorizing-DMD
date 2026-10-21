@@ -80,12 +80,25 @@ private:
 // The frames addAmbientLightingToFramesWithoutLights() would give lights.
 [[nodiscard]] std::vector<std::size_t> framesWithoutLights(
     const document::ProjectDocument& document);
+// The ambient lighting brought up to date: every channel set by it (LightAction::automatic)
+// takes what suggestedAmbientLighting() says for the frame's picture now, colorsOf(frameIndex)
+// -- for frames changed after it was set. Channels the author chose stay. One step; nullptr
+// when every automatic channel is up to date.
+[[nodiscard]] std::unique_ptr<SpeakerLightsCommand> updateAmbientLighting(
+    document::ProjectDocument& document,
+    const std::function<document::Rgb565Frame(std::size_t frameIndex)>& colorsOf);
+// Whether the frame has a channel set by the ambient lighting.
+[[nodiscard]] bool hasAutomaticLights(const document::LightActions& actions);
+// The frame's automatic channels as the suggestion for its picture now would set them.
+[[nodiscard]] document::LightActions updatedAmbientLighting(
+    const document::LightActions& actions,
+    const document::LightActions& suggested);
 
 // The ambient lighting suggestion for a colorized frame: channel 1 (left) the color of the
 // frame's left content, channel 2 (right) of its right content, each the average of the lit
 // pixels in a quarter of the frame's width from the first column with a lit pixel seen from
-// that edge, so that a black margin is skipped; off for a black frame. Channels 3 and 4 are
-// unchanged.
+// that edge, so that a black margin is skipped; off for a black frame. Both are marked
+// automatic. Channels 3 and 4 are unchanged.
 [[nodiscard]] document::LightActions suggestedAmbientLighting(const document::Rgb565Frame& frame);
 
 }  // namespace colorizing::edit

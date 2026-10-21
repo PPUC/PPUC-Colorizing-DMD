@@ -195,7 +195,7 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             std::string data;
             const auto putAction = [&data](const document::LightAction& action) {
                 data.push_back(static_cast<char>(action.kind));
-                data.push_back(0);
+                data.push_back(action.automatic ? 1 : 0);
                 appendLittleEndian(data, action.effectId, 2);
                 appendLittleEndian(data, action.color, 4);
             };
@@ -455,6 +455,7 @@ bool parseLights(LegacyByteSource& source,
             return false;
         }
         action.kind = static_cast<document::LightActionKind>(bytes[0]);
+        action.automatic = (bytes[1] & 1) != 0;
         action.effectId = littleEndian16(bytes + 2);
         action.color = littleEndian32(bytes + 4);
         return true;

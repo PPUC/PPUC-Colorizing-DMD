@@ -164,6 +164,30 @@ void testFrameSection()
            "a color for channel 4 too");
     panel.setFrame(&document, std::nullopt);
     expect(!panel.channel(0)->isEnabled(), "without a frame there is nothing to edit");
+
+    // Channels the ambient lighting set are marked, out of date when the frame's colors give
+    // something else now; the author's own choice clears the mark.
+    document::ProjectDocument automatic = makeDocument();
+    automatic.setFrameLights(0, document::LightActions{
+                                    LightAction{LightActionKind::Color, 0, 0x00ff0000u, true},
+                                    LightAction{LightActionKind::Color, 0, 0x000000ffu, true}});
+    document::LightActions now{LightAction{LightActionKind::Color, 0, 0x00ff0000u, true},
+                               LightAction{LightActionKind::Color, 0, 0x0000ff00u, true}};
+    app::FrameLightsPanel marks;
+    marks.setFrame(&automatic, 0, now);
+    expect(marks.channel(0)->automaticText() == QStringLiteral("automatic") &&
+               marks.channel(1)->automaticText() == QStringLiteral("automatic, out of date") &&
+               marks.channel(2)->automaticText().isEmpty() &&
+               marks.channel(0)->action().automatic,
+           "red is still what the frame gives, blue no longer");
+    std::vector<LightAction> chosen;
+    marks.onChannelChanged = [&](std::size_t, const LightAction& action) {
+        chosen.push_back(action);
+    };
+    marks.channel(1)->setColor(0x00ffff00u);
+    expect(chosen.size() == 1 && !chosen[0].automatic &&
+               marks.channel(1)->automaticText().isEmpty(),
+           "a color the author picks is the author's");
 }
 
 void testSpeakersBesideTheCanvas()
