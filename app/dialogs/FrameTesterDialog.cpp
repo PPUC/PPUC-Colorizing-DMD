@@ -117,17 +117,24 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     sourceRow->addWidget(m_sourceLabel, 1);
     sourceRow->addWidget(m_selectedButton);
     sourceRow->addWidget(loadButton);
+    // Three DMDs one above the other, centred: libserum's 32-row plane, the ROM frame fed, the
+    // 64-row plane; the speaker lights beside each of libserum's planes.
     m_speakerLights = new SpeakerLightPair(this);
     m_speakerLights->setOptions(loadSpeakerLightPreviewOptions());
+    m_speakerLightsHd = new SpeakerLightPair(this);
+    m_speakerLightsHd->setOptions(loadSpeakerLightPreviewOptions());
     auto* pictures = new QGridLayout();
     pictures->addWidget(m_speakerLights->left(), 0, 0, Qt::AlignVCenter);
     pictures->addWidget(m_rows32View, 0, 1);
-    pictures->addWidget(m_rows64View, 0, 2);
-    pictures->addWidget(m_speakerLights->right(), 0, 3, Qt::AlignVCenter);
-    pictures->addWidget(m_originalView, 1, 1, 1, 2);
-    // libserum's planes, what is tested, get the larger share of the height.
-    pictures->setRowStretch(0, 2);
-    pictures->setRowStretch(1, 1);
+    pictures->addWidget(m_speakerLights->right(), 0, 2, Qt::AlignVCenter);
+    pictures->addWidget(m_originalView, 1, 1);
+    pictures->addWidget(m_speakerLightsHd->left(), 2, 0, Qt::AlignVCenter);
+    pictures->addWidget(m_rows64View, 2, 1);
+    pictures->addWidget(m_speakerLightsHd->right(), 2, 2, Qt::AlignVCenter);
+    for (int row = 0; row < 3; ++row) {
+        pictures->setRowStretch(row, 1);
+    }
+    pictures->setColumnStretch(1, 1);
     auto* positionRow = new QHBoxLayout();
     positionRow->addWidget(m_slider, 1);
     positionRow->addWidget(m_positionSpinBox);
@@ -256,6 +263,7 @@ bool FrameTesterDialog::loadProject()
                                 m_playScenesCheckBox->isChecked())) {
             m_error.clear();
             m_speakerLights->setDefaults(preview.defaultLights());
+            m_speakerLightsHd->setDefaults(preview.defaultLights());
             return true;
         }
     } catch (const std::exception& ex) {
@@ -375,6 +383,7 @@ void FrameTesterDialog::feed(std::size_t position)
     }
     m_result = preview.colorize(m_frames[position].original);
     m_speakerLights->start(m_result.lights);
+    m_speakerLightsHd->start(m_result.lights);
     const bool newPicture =
         m_result.ok() && !m_result.unchanged && (m_result.rows32 || m_result.rows64);
     if (newPicture) {
@@ -397,6 +406,7 @@ void FrameTesterDialog::rotateStep()
         return;
     }
     m_speakerLights->start(rotated.lights);
+    m_speakerLightsHd->start(rotated.lights);
     if (rotated.rows32) {
         m_result.rows32 = rotated.rows32;
     }

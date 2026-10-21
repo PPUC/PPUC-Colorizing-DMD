@@ -83,7 +83,9 @@ public:
     [[nodiscard]] const document::Rgb565Frame* currentPicture(bool preferRows64) const;
 
     // The speaker light preview: what libserum starts (Settings -> Appearance).
+    // Beside the 32-row plane, and beside the 64-row plane.
     [[nodiscard]] SpeakerLightPair* speakerLights() const { return m_speakerLights; }
+    [[nodiscard]] SpeakerLightPair* speakerLightsHd() const { return m_speakerLightsHd; }
 
 private:
     bool loadProject();
@@ -114,6 +116,7 @@ private:
     FramePictureView* m_rows64View = nullptr;
     FramePictureView* m_originalView = nullptr;
     SpeakerLightPair* m_speakerLights = nullptr;
+    SpeakerLightPair* m_speakerLightsHd = nullptr;
     // The canvas' pixel shape and size (Settings -> Appearance).
     DmdRenderOptions m_renderOptions;
     QLabel* m_infoLabel = nullptr;

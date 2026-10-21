@@ -2186,6 +2186,9 @@ from the frame and editable.
   QSettings `layout/speakerWidth`); SpeakerLightPair::setCenterSource() gives the colorized
   region's centre (FramePreviewWidget::regionViews(), clamped to its viewport) as a global y,
   SpeakerLightView::setCenterY() draws there. Test in testSpeakersBesideTheCanvas.
+- The right sidebar ends with `Lights` and `LightEffect`. The frame tester stacks its views
+  (rows32, original, rows64, centred) with a SpeakerLightPair beside each plane
+  (`speakerLights()`, `speakerLightsHd()`), both fed alike.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

@@ -73,7 +73,7 @@ and the `Right speaker` show.
   border between a speaker and the canvas makes both speakers larger or smaller (kept for the
   next start). They play what the channels play while the frame on the canvas shows: per channel the last frame up to it in the frame list that changes the channel, the
   default before that.
-- In the frame tester they play what libserum starts while the frames are fed, from the defaults
+- In the frame tester, beside the 32-row and the 64-row plane, they play what libserum starts while the frames are fed, from the defaults
   of the loaded project on, as the DMD would get it.
 
 The preview runs the effect code of the DMD's firmware itself, so the effects look the same as on

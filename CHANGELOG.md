@@ -19,7 +19,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   at runtime.
 - *View -> Speaker Light Preview* switches the speakers beside the canvas on and off; they sit
   level with the colorized frame and are sized by dragging their border.
-- The frame tester draws the pixel shape and size of the canvas.
+- The frame tester draws the pixel shape and size of the canvas and shows its three DMDs one above
+  the other: the 32-row plane, the ROM frame, the 64-row plane.
+- The Speaker Lights and Light Effect sections are the last ones of the right sidebar.
 - *Ambient Lighting For Frames Without Speaker Lights* gives every frame without speaker light settings
   the ambient lighting colors of its left and right part, in one undo step, for existing projects.
 

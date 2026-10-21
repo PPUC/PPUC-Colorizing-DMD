@@ -9,9 +9,9 @@ in the editor, saved or not.
   `New Project From Dump`, also as `.gz` or `.zip`, repeats included; a 128x16 dump is taken centred in 128x32 frames).
   A dump must have the project's frame size and no shade the project's frames cannot have.
   A frame of a dump lasts until the next one, as the dump import measures it.
-- The tester shows libserum's 32-row and 64-row planes (a project with 256x64 or 192x64
-  original frames has the 64-row one only) and below them the ROM frame that was fed. The
-  pictures grow with the window (the planes take two thirds of the height), each drawn with as
+- The tester shows three DMDs one above the other, centred: libserum's 32-row plane, the ROM
+  frame that was fed, and libserum's 64-row plane (a project with 256x64 or 192x64 original
+  frames has the 64-row one only). The pictures grow with the window, each drawn with as
   many whole screen pixels per frame pixel as fit, with the pixel shape and size of the canvas
   (Settings -> Appearance). The line
   under the pictures gives the position, the project frame or the dump time, the duration, and
@@ -19,8 +19,8 @@ in the editor, saved or not.
   identified`, `libserum keeps the picture on display`, and a trigger it reported. While
   libserum shows a frame of a scene, the line names the scene instead, as `scene 50082 plays
   (frame 1)` or `background scene 50082 plays (group 2, frame 3)`. Color rotations run.
-- With the speaker light preview on (`View -> Speaker Light Preview`), two speakers beside the planes
-  play the speaker light effects libserum starts, see "Speaker Lights".
+- With the speaker light preview on (`View -> Speaker Light Preview`), speakers beside each of
+  libserum's planes play the speaker light effects libserum starts, see "Speaker Lights".
 - The slider and the position box go to a frame; `Play` and the backwards `Play` step through
   the frames with their durations at the chosen speed (1/4x to 32x); `Loop` starts again at the
   other end. `◀ Frame` and `Frame ▶` go one frame back or forward, also while playing: the

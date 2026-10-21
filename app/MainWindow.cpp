@@ -1808,12 +1808,10 @@ void MainWindow::createCentralView()
         setSelectedFramesLight(channel, action);
     };
     m_frameLightsPanel->onSuggestRequested = [this]() { suggestSelectedFramesLights(); };
-    inspectorTabs->addTab(m_frameLightsPanel, QStringLiteral("Lights"), tr("Speaker Lights"));
     m_lightEffectPanel = new LightEffectPanel(central);
     m_lightEffectPanel->onApplyRequested = [this](const document::LightEffect& effect) {
         applyLightEffect(effect);
     };
-    inspectorTabs->addTab(m_lightEffectPanel, QStringLiteral("LightEffect"), tr("Light Effect"));
 
     inspectorTabs->addTab(m_palettePanel, QStringLiteral("Palette"), tr("Palette"));
     inspectorTabs->addTab(m_colorRotationPanel, QStringLiteral("Rot"),
@@ -1862,6 +1860,9 @@ void MainWindow::createCentralView()
                           visible ? tr("Showing the helper line") : tr("Hid the helper line"));
     };
     inspectorTabs->addTab(m_helperLinesPanel, QStringLiteral("HelperLines"), tr("Helper Lines"));
+    // The speaker lights last: a topic of their own, after the frame's pictures.
+    inspectorTabs->addTab(m_frameLightsPanel, QStringLiteral("Lights"), tr("Speaker Lights"));
+    inspectorTabs->addTab(m_lightEffectPanel, QStringLiteral("LightEffect"), tr("Light Effect"));
     // The action buttons of every section alike (InspectorForm.h).
     for (QWidget* page : std::initializer_list<QWidget*>{
              m_framePanel, m_maskPanel, m_backgroundPanel->framePage(),

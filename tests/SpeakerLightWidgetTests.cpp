@@ -265,6 +265,9 @@ void testFrameTester()
     expect(allLeds(speakers->right()->colors(), 0x000000ffu) &&
                speakers->left()->colors()[0] != speakers->left()->colors()[4],
            "frame 1: libserum starts the rainbow and the blue");
+    dialog.speakerLightsHd()->advance(50);
+    expect(allLeds(dialog.speakerLightsHd()->right()->colors(), 0x000000ffu),
+           "the speakers beside the 64-row plane play the same");
     dialog.close();
 
     // The tester draws the canvas' pixels: dots at 50 % leave black between them.
