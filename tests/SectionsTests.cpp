@@ -162,22 +162,6 @@ void testFrameDeletionDropsSectionSteps()
            "the sections followed the deletion");
 }
 
-void testTriggerList()
-{
-    ProjectSnapshot snapshot = fixtures::makeProject(PlaneLayout::Ordinary, 6);
-    snapshot.frames[4].triggerId = 3;
-    snapshot.frames[1].triggerId = 7;
-    snapshot.frames[2].triggerId = 3;
-    snapshot.frames[5].triggerId = 65432;
-    const ProjectDocument document = ProjectDocument::fromSnapshot(std::move(snapshot));
-    const std::vector<edit::TriggerEntry> list = edit::triggerList(document);
-    std::string text;
-    for (const edit::TriggerEntry& entry : list) {
-        text += std::to_string(entry.frameIndex) + ":" + std::to_string(entry.triggerId) + " ";
-    }
-    expect(text == "2:3 4:3 1:7 5:65432 ", "by trigger ID, then frame: " + text);
-}
-
 }  // namespace
 
 void runSectionsTests()
@@ -187,5 +171,4 @@ void runSectionsTests()
     testAddRenameDelete();
     testOrder();
     testFrameDeletionDropsSectionSteps();
-    testTriggerList();
 }

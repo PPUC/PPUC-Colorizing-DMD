@@ -85,13 +85,5 @@ private:
 // Sorts the list by name, ignoring case.
 [[nodiscard]] std::unique_ptr<EditCommand> sortSectionsByName(document::ProjectDocument& document);
 
-// The frames that have a trigger ID, sorted by trigger ID and then frame, as the Win32
-// editor's trigger list.
-struct TriggerEntry {
-    std::size_t frameIndex = 0;
-    uint32_t triggerId = 0;
-};
-
-[[nodiscard]] std::vector<TriggerEntry> triggerList(const document::ProjectDocument& document);
 
 }  // namespace colorizing::edit

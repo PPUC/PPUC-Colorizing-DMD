@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The section list drops down as wide as its longest name. The trigger list below it is gone:
+  the frame filter's *With triggers* lists the frames with a trigger.
+
 - *Using the selected asset* with a scene selected lists the frames that start the scene (also
   as a background scene) instead of the scene's own frames; a double click on a scene lists
   those under a filter entry of their own, *Frames of scene ...*. With a light effect selected

@@ -4,8 +4,8 @@ The frames run along the bottom of the window, as in the Win32 editor, under the
 and the canvas (the right sidebar takes the full height): one row, left to right, scrolled
 sideways. Each frame shows its thumbnail (colorized above, original below) and under it
 its number (with the name of a section it starts) and a line of compact metadata: duration,
-`HD`, `Dyn`, `Background n`, sprites, `inactive` and the like. The section box, the trigger box and the
-frame filter are at the left end of the strip; the comparison masks, backgrounds and sprites are
+`HD`, `Dyn`, `Background n`, sprites, `inactive` and the like. The section box and the frame
+filter are at the left end of the strip; the comparison masks, backgrounds and sprites are
 in the sections on the left of the window (see "Sections").
 
 In the rest of this handbook "the frame list" is this strip.
@@ -29,10 +29,10 @@ At the left end of the frame strip:
 - Every change of the sections is an undo step of its own (`Undo section change`), reachable
   from every view. Deleting frames moves the first frames (see "Deleting frames") and drops the
   section undo steps made before.
-- The trigger box lists every frame with a trigger ID as `Fr: <frame> / TID: <id>`, sorted by
-  ID and then frame, as CDMD's trigger list; it shows the current frame's entry when it has
-  one. Choosing an entry goes to the frame. A frame hidden by the frame filter is not shown;
-  the status bar says so.
+- The section list drops down as wide as its longest name.
+- CDMD's trigger list (every frame with a trigger, one entry each) is not there: the frame
+  filter's `With triggers` lists those frames, and `Using the selected asset` with a scene
+  selected the frames that start that scene.
 
 Sections are editor data of the `.cRP`; the runtime does not use them.
 

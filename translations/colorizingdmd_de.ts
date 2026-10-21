@@ -6732,7 +6732,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Frames with a trigger ID, by ID; choose one to go to the frame</source>
-        <translation>Frames mit Trigger-ID, nach ID; Auswahl springt zum Frame</translation>
+        <translation type="vanished">Frames mit Trigger-ID, nach ID; Auswahl springt zum Frame</translation>
     </message>
     <message>
         <source>- None -</source>
@@ -6744,15 +6744,15 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>No triggers</source>
-        <translation>Keine Trigger</translation>
+        <translation type="vanished">Keine Trigger</translation>
     </message>
     <message>
         <source>%1 trigger(s)</source>
-        <translation>%1 Trigger</translation>
+        <translation type="vanished">%1 Trigger</translation>
     </message>
     <message>
         <source>Fr: %1 / TID: %2</source>
-        <translation>Fr: %1 / TID: %2</translation>
+        <translation type="vanished">Fr: %1 / TID: %2</translation>
     </message>
     <message>
         <source>Rename</source>

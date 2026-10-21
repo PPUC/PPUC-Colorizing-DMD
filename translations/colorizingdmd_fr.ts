@@ -6732,7 +6732,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Frames with a trigger ID, by ID; choose one to go to the frame</source>
-        <translation>Frames avec un ID de déclencheur, par ID ; en choisir une pour aller à la frame</translation>
+        <translation type="vanished">Frames avec un ID de déclencheur, par ID ; en choisir une pour aller à la frame</translation>
     </message>
     <message>
         <source>- None -</source>
@@ -6744,15 +6744,15 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>No triggers</source>
-        <translation>Aucun déclencheur</translation>
+        <translation type="vanished">Aucun déclencheur</translation>
     </message>
     <message>
         <source>%1 trigger(s)</source>
-        <translation>%1 déclencheur(s)</translation>
+        <translation type="vanished">%1 déclencheur(s)</translation>
     </message>
     <message>
         <source>Fr: %1 / TID: %2</source>
-        <translation>Fr : %1 / ID décl. : %2</translation>
+        <translation type="vanished">Fr : %1 / ID décl. : %2</translation>
     </message>
     <message>
         <source>Rename</source>

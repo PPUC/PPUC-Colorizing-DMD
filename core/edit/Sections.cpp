@@ -266,20 +266,4 @@ std::unique_ptr<EditCommand> sortSectionsByName(document::ProjectDocument& docum
     return change(document, std::move(before), std::move(after));
 }
 
-std::vector<TriggerEntry> triggerList(const document::ProjectDocument& document)
-{
-    std::vector<TriggerEntry> entries;
-    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
-        const uint32_t trigger = document.triggerId(frame);
-        if (trigger != document::kNoTriggerId) {
-            entries.push_back(TriggerEntry{frame, trigger});
-        }
-    }
-    std::sort(entries.begin(), entries.end(), [](const TriggerEntry& a, const TriggerEntry& b) {
-        return a.triggerId != b.triggerId ? a.triggerId < b.triggerId
-                                          : a.frameIndex < b.frameIndex;
-    });
-    return entries;
-}
-
 }  // namespace colorizing::edit

@@ -22,23 +22,18 @@ struct SectionBarEntry {
     std::size_t firstFrame = 0;
 };
 
-struct TriggerBarEntry {
-    std::size_t frameIndex = 0;
-    uint32_t triggerId = 0;
-};
 
-// Above the frame list: the sections (jump to one, name, delete, order) and the trigger list
-// (jump to a frame with a trigger), as the Win32 editor's section and trigger boxes.
+// Above the frame list: the sections (jump to one, name, delete, order), as the Win32 editor's
+// section box. Its trigger list is gone: one entry per frame with a trigger was no help with
+// hundreds of them; the frame filter's With triggers lists those frames.
 class SectionBar final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(SectionBar)
 
 public:
     explicit SectionBar(QWidget* parent = nullptr);
 
-    // The lists; then setCurrent() shows where the current frame is in them.
-    void setContent(bool hasProject,
-                    const std::vector<SectionBarEntry>& sections,
-                    const std::vector<TriggerBarEntry>& triggers);
+    // The list; then setCurrent() shows the current frame's section in it.
+    void setContent(bool hasProject, const std::vector<SectionBarEntry>& sections);
     // currentSection: the section of the current frame; startsHere: it starts at that frame.
     void setCurrent(std::optional<std::size_t> currentSection,
                     bool startsHere,
@@ -48,16 +43,13 @@ public:
     std::function<void()> onNameRequested;
     std::function<void()> onDeleteRequested;
     std::function<void()> onOrderRequested;
-    std::function<void(std::size_t frameIndex)> onTriggerChosen;
 
 private:
     QComboBox* m_sectionComboBox = nullptr;
     QToolButton* m_nameButton = nullptr;
     QToolButton* m_deleteButton = nullptr;
     QToolButton* m_orderButton = nullptr;
-    QComboBox* m_triggerComboBox = nullptr;
     bool m_hasProject = false;
-    std::vector<std::size_t> m_triggerFrames;
 };
 
 // The section organizer: the list in its order, Up, Down and A-Z, each applied at once.

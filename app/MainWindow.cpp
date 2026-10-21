@@ -1687,7 +1687,6 @@ void MainWindow::createCentralView()
             goToFrame(edit::sections(*m_document).at(section).firstFrame);
         }
     };
-    m_sectionBar->onTriggerChosen = [this](std::size_t frameIndex) { goToFrame(frameIndex); };
     m_sectionBar->onNameRequested = [this]() { nameSectionAtCurrentFrame(); };
     m_sectionBar->onDeleteRequested = [this]() { deleteCurrentSection(); };
     m_sectionBar->onOrderRequested = [this]() { orderSections(); };
@@ -4021,7 +4020,7 @@ void MainWindow::updateSectionControls()
         return;
     }
     if (!m_document) {
-        m_sectionBar->setContent(false, {}, {});
+        m_sectionBar->setContent(false, {});
         m_sectionBar->setCurrent(std::nullopt, false, std::nullopt);
         m_sectionBarRevision.reset();
         return;
@@ -4034,11 +4033,7 @@ void MainWindow::updateSectionControls()
             entries.push_back(SectionBarEntry{QString::fromStdString(section.name),
                                               section.firstFrame});
         }
-        std::vector<TriggerBarEntry> triggers;
-        for (const edit::TriggerEntry& trigger : edit::triggerList(*m_document)) {
-            triggers.push_back(TriggerBarEntry{trigger.frameIndex, trigger.triggerId});
-        }
-        m_sectionBar->setContent(true, entries, triggers);
+        m_sectionBar->setContent(true, entries);
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
     const std::optional<std::size_t> section =

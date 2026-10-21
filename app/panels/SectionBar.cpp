@@ -1,6 +1,11 @@
 #include "panels/SectionBar.h"
 
+#include <QAbstractItemView>
 #include <QComboBox>
+#include <QScreen>
+#include <QStyle>
+
+#include <algorithm>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QListWidget>
@@ -29,11 +34,6 @@ SectionBar::SectionBar(QWidget* parent)
     m_orderButton = new QToolButton(this);
     m_orderButton->setText(tr("Order"));
     m_orderButton->setToolTip(tr("Change the order of the section list"));
-    m_triggerComboBox = new QComboBox(this);
-    m_triggerComboBox->setToolTip(
-        tr("Frames with a trigger ID, by ID; choose one to go to the frame"));
-    m_triggerComboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    m_triggerComboBox->setMinimumContentsLength(8);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -45,7 +45,6 @@ SectionBar::SectionBar(QWidget* parent)
     sectionRow->addWidget(m_deleteButton);
     sectionRow->addWidget(m_orderButton);
     layout->addLayout(sectionRow);
-    layout->addWidget(m_triggerComboBox);
 
     connect(m_sectionComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
@@ -54,15 +53,6 @@ SectionBar::SectionBar(QWidget* parent)
                 const QVariant section = m_sectionComboBox->itemData(row);
                 if (section.isValid() && onSectionChosen) {
                     onSectionChosen(section.toULongLong());
-                }
-            });
-    connect(m_triggerComboBox,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
-            this,
-            [this](int row) {
-                const QVariant frame = m_triggerComboBox->itemData(row);
-                if (frame.isValid() && onTriggerChosen) {
-                    onTriggerChosen(frame.toULongLong());
                 }
             });
     connect(m_nameButton, &QToolButton::clicked, this, [this]() {
@@ -80,13 +70,11 @@ SectionBar::SectionBar(QWidget* parent)
             onOrderRequested();
         }
     });
-    setContent(false, {}, {});
+    setContent(false, {});
     setCurrent(std::nullopt, false, std::nullopt);
 }
 
-void SectionBar::setContent(bool hasProject,
-                            const std::vector<SectionBarEntry>& sections,
-                            const std::vector<TriggerBarEntry>& triggers)
+void SectionBar::setContent(bool hasProject, const std::vector<SectionBarEntry>& sections)
 {
     m_hasProject = hasProject;
     {
@@ -100,24 +88,21 @@ void SectionBar::setContent(bool hasProject,
                                        QVariant::fromValue<qulonglong>(i));
         }
     }
+    // The list drops down as wide as its longest entry (the box itself stays narrow), up to
+    // the screen's width.
+    QAbstractItemView* view = m_sectionComboBox->view();
+    const QFontMetrics metrics(view->font());
+    int widest = 0;
+    for (int row = 0; row < m_sectionComboBox->count(); ++row) {
+        widest = std::max(widest, metrics.horizontalAdvance(m_sectionComboBox->itemText(row)));
+    }
+    const QScreen* screen = m_sectionComboBox->screen();
+    const int limit = screen ? screen->availableGeometry().width() - 40 : 1200;
+    view->setMinimumWidth(std::min(limit, widest + view->style()->pixelMetric(
+                                                       QStyle::PM_ScrollBarExtent) +
+                                              32));
     m_sectionComboBox->setEnabled(hasProject && !sections.empty());
     m_orderButton->setEnabled(hasProject && sections.size() > 1);
-
-    const QSignalBlocker blocker(m_triggerComboBox);
-    m_triggerComboBox->clear();
-    m_triggerComboBox->addItem(triggers.empty()
-                                   ? tr("No triggers")
-                                   : tr("%1 trigger(s)")
-                                         .arg(static_cast<int>(triggers.size())));
-    m_triggerFrames.clear();
-    for (const TriggerBarEntry& trigger : triggers) {
-        m_triggerComboBox->addItem(tr("Fr: %1 / TID: %2")
-                                       .arg(static_cast<qulonglong>(trigger.frameIndex))
-                                       .arg(trigger.triggerId),
-                                   QVariant::fromValue<qulonglong>(trigger.frameIndex));
-        m_triggerFrames.push_back(trigger.frameIndex);
-    }
-    m_triggerComboBox->setEnabled(hasProject && !triggers.empty());
 }
 
 void SectionBar::setCurrent(std::optional<std::size_t> currentSection,
@@ -132,17 +117,6 @@ void SectionBar::setCurrent(std::optional<std::size_t> currentSection,
     m_nameButton->setEnabled(m_hasProject && currentFrame.has_value());
     m_nameButton->setText(startsHere ? tr("Rename") : tr("Name"));
     m_deleteButton->setEnabled(m_hasProject && currentSection.has_value());
-    int row = 0;
-    if (currentFrame) {
-        for (std::size_t i = 0; i < m_triggerFrames.size(); ++i) {
-            if (m_triggerFrames[i] == *currentFrame) {
-                row = static_cast<int>(i) + 1;
-                break;
-            }
-        }
-    }
-    const QSignalBlocker blocker(m_triggerComboBox);
-    m_triggerComboBox->setCurrentIndex(row);
 }
 
 SectionOrderDialog::SectionOrderDialog(QWidget* parent)

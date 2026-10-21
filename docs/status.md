@@ -2267,3 +2267,11 @@ The scene's own frames (double click, Leave Scene, back/forward) moved to
 `m_sceneTimeline`; `CanvasPlace::filterScene` comes from it, a deleted scene drops it,
 a new project removes it. Tests: testFramesStartingScene, frameUsesLightEffect in
 testModelAndEdits.
+
+## Section list width, no trigger list (2026-10-21, owner)
+
+Since #23 the section list scrolls, and its popup was only as wide as the narrow box, so the
+names were cut. SectionBar::setContent() sets the view's minimum width to the longest entry
+(up to the screen). The trigger box (one entry per frame with a trigger, 1968 in GoT) is
+removed with `edit::triggerList()`; the frame filter's `With triggers` (#21) and the scene
+selected-asset filter replace it. Test in testLongComboBoxesScroll.

@@ -8,6 +8,7 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QAbstractItemView>
 #include <QComboBox>
 #include <QLabel>
 #include <QMouseEvent>
@@ -30,6 +31,7 @@
 #include "document/ProjectSnapshot.h"
 #include "Appearance.h"
 #include "FrameListWidget.h"
+#include "panels/SectionBar.h"
 #include "WindowGeometry.h"
 #include "FrameThumbnail.h"
 #include "CanvasHistory.h"
@@ -669,6 +671,22 @@ void testLongComboBoxesScroll()
     expect(style->styleHint(QStyle::SH_ComboBox_Popup, &option, &shortBox) ==
                fusion->styleHint(QStyle::SH_ComboBox_Popup, &option, &shortBox),
            "a short one looks as the style has it");
+
+    // The sections box drops down as wide as its longest name; the box stays narrow. The
+    // trigger box is gone (the frame filter's With triggers).
+    colorizing::app::SectionBar bar;
+    std::vector<colorizing::app::SectionBarEntry> sections;
+    for (int i = 0; i < 40; ++i) {
+        sections.push_back({QStringLiteral("Wildfire Jackpot plus extra ball %1").arg(i),
+                            static_cast<std::size_t>(i * 10)});
+    }
+    bar.setContent(true, sections);
+    const QList<QComboBox*> boxes = bar.findChildren<QComboBox*>();
+    const QString longest = QStringLiteral("Wildfire Jackpot plus extra ball 39 (frame 390)");
+    expect(boxes.size() == 1 &&
+               boxes[0]->view()->minimumWidth() >=
+                   QFontMetrics(boxes[0]->view()->font()).horizontalAdvance(longest),
+           "one box, its list as wide as the longest section name");
 }
 
 // Issue #13: the open sections of a side bar are resized by dragging the border between two of
