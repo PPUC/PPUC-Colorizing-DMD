@@ -11,8 +11,8 @@ in the editor, saved or not.
   A frame of a dump lasts until the next one, as the dump import measures it.
 - The tester shows three DMDs one above the other, centred: libserum's 32-row plane, the ROM
   frame that was fed, and libserum's 64-row plane (a project with 256x64 or 192x64 original
-  frames has the 64-row one only). The pictures grow with the window, each drawn with as
-  many whole screen pixels per frame pixel as fit, with the pixel shape and size of the canvas
+  frames has the 64-row one only). The pictures grow with the window, all three at the same
+  size, in whole screen pixels per pixel of the largest of them, with the pixel shape and size of the canvas
   (Settings -> Appearance). The line
   under the pictures gives the position, the project frame or the dump time, the duration, and
   libserum's answer: `identified as frame N`, `(inactive: the display keeps its picture)`, `not

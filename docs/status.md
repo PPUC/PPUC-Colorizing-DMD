@@ -2189,6 +2189,12 @@ from the frame and editable.
 - The right sidebar ends with `Lights` and `LightEffect`. The frame tester stacks its views
   (rows32, original, rows64, centred) with a SpeakerLightPair beside each plane
   (`speakerLights()`, `speakerLightsHd()`), both fed alike.
+- FramePictureView::setLayoutSize(): the frame tester lays its three views out on the largest
+  of the plane and ROM frame sizes, so the 256x64 plane is as large as the 128x32 ones (it got
+  3 screen pixels per pixel where they got 7). Test in testPicturesGrow.
+- Background scene flicker (owner report, video): libserum 332356b scales the game's content in
+  front of a background scene as on black (selection and corner rule), so a movie behind the
+  text no longer changes its corners.
 - Hardware note: WS2812FX scales by brightness/256, so full brightness is 0xfe; the preview
   shows the same.
 - Tests: tests/SpeakerLightTests.cpp (model and edits, ambient lighting, player, LGHT and cROM block,

@@ -27,12 +27,28 @@ void FramePictureView::clear()
     setFrame(render::Size{0, 0}, nullptr);
 }
 
+void FramePictureView::setLayoutSize(render::Size layoutSize)
+{
+    m_layoutSize = layoutSize;
+    m_image = QImage();
+    m_imageScale = 0;
+    update();
+}
+
 int FramePictureView::pixelScale() const
 {
     if (!m_renderer || m_frameSize.width <= 0 || m_frameSize.height <= 0) {
         return 0;
     }
-    return std::max(1, std::min(width() / m_frameSize.width, height() / m_frameSize.height));
+    const bool onGrid = m_layoutSize.width >= m_frameSize.width &&
+                        m_layoutSize.height >= m_frameSize.height &&
+                        m_layoutSize.width % m_frameSize.width == 0 &&
+                        m_layoutSize.height % m_frameSize.height == 0 &&
+                        m_layoutSize.width / m_frameSize.width ==
+                            m_layoutSize.height / m_frameSize.height;
+    const render::Size grid = onGrid ? m_layoutSize : m_frameSize;
+    const int cells = std::max(1, std::min(width() / grid.width, height() / grid.height));
+    return cells * (grid.width / m_frameSize.width);
 }
 
 QSize FramePictureView::sizeHint() const

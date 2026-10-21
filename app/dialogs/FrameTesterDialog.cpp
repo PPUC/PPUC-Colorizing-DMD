@@ -70,6 +70,20 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     m_rows64View->setToolTip(tr("libserum's 64-row plane"));
     m_originalView = new FramePictureView(this);
     m_originalView->setToolTip(tr("The ROM frame fed to libserum"));
+    // The three pictures show at the same size: laid out on the largest of them.
+    {
+        const render::ProjectGeometry& geometry = document.geometry();
+        render::Size grid{0, 0};
+        for (const render::Size size : {geometry.planeSize(render::Resolution::Sd),
+                                        geometry.planeSize(render::Resolution::Hd),
+                                        geometry.romFrameSize()}) {
+            grid.width = std::max(grid.width, size.width);
+            grid.height = std::max(grid.height, size.height);
+        }
+        for (FramePictureView* view : {m_rows32View, m_rows64View, m_originalView}) {
+            view->setLayoutSize(grid);
+        }
+    }
     m_infoLabel = new QLabel(this);
     m_infoLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
 

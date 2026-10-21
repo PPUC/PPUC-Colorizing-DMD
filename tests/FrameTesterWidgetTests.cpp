@@ -278,6 +278,22 @@ void testPicturesGrow()
     expect(rendered == 1 && shown.pixelColor(700, 250) == QColor(Qt::red) &&
                shown.pixelColor(5, 5) == QColor(Qt::black),
            "drawn once at that scale, centred on black");
+    // A 128x32 and a 256x64 picture on one 256x64 grid show at the same size: 900 pixels
+    // fit 3 per 256x64 pixel, so 6 per 128x32 pixel (not the 7 it would get alone).
+    const auto drawn = [](int scale) { return QImage(scale, scale, QImage::Format_RGB32); };
+    app::FramePictureView sd;
+    app::FramePictureView hd;
+    sd.setFrame(render::Size{128, 32}, drawn);
+    hd.setFrame(render::Size{256, 64}, drawn);
+    for (app::FramePictureView* picture : {&sd, &hd}) {
+        picture->setLayoutSize(render::Size{256, 64});
+        picture->resize(900, 300);
+    }
+    expect(sd.pixelScale() == 6 && hd.pixelScale() == 3 &&
+               128 * sd.pixelScale() == 256 * hd.pixelScale(),
+           "on one grid both pictures are equally large");
+    sd.setLayoutSize(render::Size{0, 0});
+    expect(sd.pixelScale() == 7, "without it the 128x32 picture takes all the room it has");
     view.clear();
     expect(!view.hasFrame() && view.pixelScale() == 0, "cleared");
 }
