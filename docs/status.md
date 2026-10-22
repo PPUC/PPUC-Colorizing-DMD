@@ -1003,6 +1003,49 @@ one- and two-pixel playback differences on the 64-row plane are gone (`smb3` 443
       means visiting each frame (or repeating `Undo Last Edit Anywhere`). A single undo step for
       all frames would need a new kind of history entry. Wanted?
 
+### Answers of one author (2026-10-22)
+
+The owner relayed the answers of one author (Enthusiast) to a questionnaire built from the
+items above; other authors may see it differently, so the items stay open. Numbers are those of
+the author's questionnaire; unanswered ones are left out.
+
+As the editor does it now (confirmed by this author):
+
+- Set Replace uses each selected frame's own shades for all tools (4); the mode switch (6) and
+  the edit color keys (7) stay as they are.
+- Select by color (10), the helpers on the selection (13), `Ctrl+Shift+O` (14).
+- Deleting a used comparison mask after the question (17); `Delete` in the frame list (21);
+  15 ms for `Delete Frames Shorter Than...` (22); new background against `Frame -> Background`
+  (23).
+- Monochrome off on several frames (26), undo of Create/Remove HD (27), frame settings not
+  undone in `Dynamic` (28), sections after deleting the last frames (29).
+- HD pixels under hidden HD zones saved as 0 (32, item 4: keep the rule).
+- A dump with a broken line refused (39), a 4-shade dump in a 16-color project (40), known
+  frames left out by default (41), the first save of a new project asks where (42).
+- The selection kept across frames (8), done since.
+
+Asked for a change:
+
+- Colors (item 10): the draw color is always an edit color (1); `Pick` writes into the selected
+  edit color (2) and takes the color as seen, i.e. the composed picture (3). All three as Win32.
+- Selection (item 11): selection steps are undoable (9); paste stays in paste mode until `Esc`
+  (11); one undo step for a whole `Auto Copy...` or `Scrolling Auto Fill...` run, and likewise
+  for an image or video import over many frames (15).
+- Masks: `Common To Mask` into a new mask (18); `Spot Common` switchable between the differing
+  and the common pixels (19); the same-frames count also outside the section, e.g. in the frame
+  status line (20).
+- The 15 ms rule (item 5): a limit per project instead of the fixed 15 ms (24). It would be
+  editor data (a `.cRPX` chunk); the cROM is unchanged.
+- `trn_174h` edges (item 6): the canvas should show the smoothed edges of upscaled content
+  (33), i.e. reproduce libserum's upscaling.
+- 256x64 (item 2): ask each time before `Create 256x64 Frame` repairs a background (35).
+- 192x64 (item 1): warn before the first save when the project has 96x32 pictures, which are
+  discarded (36).
+- Dynamic data on the HD plane (16, 31): the SD zones and shadows carried to HD by the
+  upscaler as now, but for an HD frame made from an imported image or video, HD zones drawn by
+  hand (the author did that per HD frame for a Stern Batman colorization). That is an HD
+  dynamic mask per frame for ordinary projects, which the editor no longer shows or edits.
+
 ### Newer work
 
 12. **Optional sidebar sections.** The author can hide Scenes and Light Effects (left) and Color
