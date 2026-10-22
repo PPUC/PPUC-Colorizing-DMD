@@ -85,11 +85,14 @@ struct LegacyIoProgress;
 // plays scenes in no other). Empty for a snapshot without colorizationSettings, as one of the
 // Win32 editor: its cROM stays as that editor writes it. The speaker lights (effects,
 // defaults, the frames that change channels; libserum's kCromSettingsLights) follow when the
-// project has any, also without colorizationSettings; libserum before 2.9 ignores them.
+// project has any, also without colorizationSettings; libserum before 2.9 ignores them. The
+// dynamic sets that color the SD picture only (libserum's kCromSettingsOriginalOnlySets: frame
+// IDs and set masks) follow for a project for libserum 2.9 whose frames have any.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
 inline constexpr uint32_t kCromSettingsScenes = 1;
 inline constexpr uint32_t kCromSettingsScaling = 2;
 inline constexpr uint32_t kCromSettingsLights = 4;
+inline constexpr uint32_t kCromSettingsOriginalOnlySets = 8;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
 
 // How many bytes writeLegacyCrom() and writeLegacyCrp() write for a valid snapshot, without

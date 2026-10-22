@@ -1072,6 +1072,10 @@
         <translation>Dynamische Schattenfarbe des aktiven Sets</translation>
     </message>
     <message>
+        <source>Only on the SD Picture</source>
+        <translation>Nur im SD-Bild</translation>
+    </message>
+    <message>
         <source>%1
 %2 px</source>
         <translation>%1
@@ -1104,6 +1108,14 @@
     <message>
         <source>Dynamic shadow color is not available</source>
         <translation>Dynamische Schattenfarbe ist nicht verfügbar</translation>
+    </message>
+    <message>
+        <source>Set %1 colors the SD picture only. On the HD picture of a frame with an HD frame of its own, that HD frame shows in the set&apos;s zones instead of the upscaled set: for pixel art recolored through the set on a frame whose HD picture is imported.</source>
+        <translation>Set %1 färbt nur das SD-Bild. Im HD-Bild eines Frames mit eigenem HD-Frame zeigt dieser HD-Frame sich in den Zonen des Sets statt des hochskalierten Sets: für Pixel-Art, die über das Set umgefärbt wird, auf einem Frame mit importiertem HD-Bild.</translation>
+    </message>
+    <message>
+        <source>Needs libserum 2.9 (Project Settings)</source>
+        <translation>Erfordert libserum 2.9 (Projekteinstellungen)</translation>
     </message>
 </context>
 <context>
@@ -4770,6 +4782,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Updated dynamic color 0x%1</source>
         <translation>Dynamische Farbe 0x%1 aktualisiert</translation>
+    </message>
+    <message>
+        <source>Set %1 colors the SD picture only</source>
+        <translation>Set %1 färbt nur das SD-Bild</translation>
+    </message>
+    <message>
+        <source>Set %1 colors the SD and the HD picture</source>
+        <translation>Set %1 färbt das SD- und das HD-Bild</translation>
     </message>
     <message>
         <source>Updated dynamic shadow direction</source>

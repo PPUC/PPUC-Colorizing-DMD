@@ -1045,6 +1045,8 @@ Asked for a change:
   upscaler as now, but for an HD frame made from an imported image or video, HD zones drawn by
   hand (the author did that per HD frame for a Stern Batman colorization). That is an HD
   dynamic mask per frame for ordinary projects, which the editor no longer shows or edits.
+  Owner decision: no HD masks; a set can be kept off the HD picture instead ("Dynamic sets that
+  color the SD picture only", done).
 
 ### Newer work
 
@@ -2409,3 +2411,22 @@ show without a rendered-plane image (`FrameHdGaps::background`), ascending and u
 `MainWindow::createSelectedFramesHdFromOriginal()` asks with them: `Give Them a Black Image`,
 `Frames Only` (when frames lack their own picture too) or Cancel; `FrameHdParts::backgroundImage`
 follows the answer. Test in testMissingHdIsFlaggedAndNotRendered (BigOriginalWidgetTests).
+
+## Dynamic sets that color the SD picture only (2026-10-22, owner, author answers 16/31)
+
+libserum 2.9.1 (9837a7a, `SerumOriginalOnlySets`, settings block part 8, concentrate version
+12): in layer mode, on a frame with HD statics (`HasHdStaticContent()`), the zones of a flagged
+set stay out of the scaled layer and the extra-plane pass treats them as static. Editor:
+`FrameRecord::originalOnlyDynamicSets` (bit n for set n), .cRPX chunk `DSSD`, written into the
+cROM settings block (`kCromSettingsOriginalOnlySets`) for libserum 2.9 only.
+`ProjectDocument::originalOnlyDynamicSetsApply()` mirrors HasHdStaticContent() plus target and
+layout; `resolveFramePixel()` and `applyDynamicShadows()` leave such zones to the HD picture on
+the scaled plane. UI: `Only on the SD Picture` on the Dynamic Sets page
+(`DynamicPanel::onOriginalOnlyToggled`, `MainWindow::setDynamicSetOriginalOnly()`, one
+`OriginalOnlyDynamicSetsCommand` per selected frame in the dynamic shadow history). Not done:
+Import Image on an HD frame offering to set it for the sets its picture covers. CI pins the
+libserum commit, which has to be pushed first. Tests: testOriginalOnlyDynamicSets
+(EditorMatchesRuntimeTests: editor HD plane equals libserum's, and the 2.8 case),
+testFileWriterSavesLibserum29Project (chunk, settings block, not for 2.8),
+testOriginalOnlyDynamicSetsCommand, testDynamicPanelOriginalOnlySets; libserum
+`colorize/original_only_set_shows_the_extra_plane`, `crom/settings_original_only_sets`.

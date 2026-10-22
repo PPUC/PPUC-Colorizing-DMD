@@ -592,6 +592,7 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         frameSnapshot.scene,
         std::move(frameSnapshot.tags),
         frameSnapshot.lights,
+        frameSnapshot.originalOnlyDynamicSets,
     };
 }
 
@@ -1171,6 +1172,40 @@ void ProjectDocument::setFrameLights(std::size_t frameIndex, const LightActions&
     }
     frame.lights = lights;
     markChanged();
+}
+
+uint32_t ProjectDocument::originalOnlyDynamicSets(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).originalOnlyDynamicSets;
+}
+
+void ProjectDocument::setOriginalOnlyDynamicSets(std::size_t frameIndex, uint32_t sets)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (frame.originalOnlyDynamicSets == sets) {
+        return;
+    }
+    frame.originalOnlyDynamicSets = sets;
+    markChanged();
+}
+
+bool ProjectDocument::originalOnlyDynamicSetsApply(std::size_t frameIndex) const
+{
+    if (m_libserumTarget != LibserumTarget::Libserum29 || rendersHdPlaneOnly() ||
+        editsOriginalPlaneOnly() || !hasHdFrame(frameIndex)) {
+        return false;
+    }
+    const std::optional<FrameBackgroundData>& data = backgroundData(frameIndex);
+    if (!data || data->backgroundId == kNoBackgroundId) {
+        return true;
+    }
+    return data->backgroundId < m_backgrounds.size() &&
+           m_backgrounds[data->backgroundId].colorizedHd.has_value();
+}
+
+uint32_t ProjectDocument::effectiveOriginalOnlyDynamicSets(std::size_t frameIndex) const
+{
+    return originalOnlyDynamicSetsApply(frameIndex) ? originalOnlyDynamicSets(frameIndex) : 0;
 }
 
 bool ProjectDocument::frameUsesLightEffect(std::size_t frameIndex, uint16_t effectId) const
@@ -3641,6 +3676,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.scene,
         frame.tags,
         frame.lights,
+        frame.originalOnlyDynamicSets,
     };
 }
 

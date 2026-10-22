@@ -854,7 +854,15 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         framesWithLights += document::changesNothing(frame.lights) ? 0 : 1;
     }
     const bool withLights = !lights.empty() || framesWithLights > 0;
-    if (!snapshot.colorizationSettings && !withLights) {
+    // Only libserum 2.9 knows them; a project for 2.8 is written as before.
+    std::size_t framesWithOriginalOnlySets = 0;
+    if (snapshot.libserumTarget == document::LibserumTarget::Libserum29) {
+        for (const auto& frame : snapshot.frames) {
+            framesWithOriginalOnlySets += frame.originalOnlyDynamicSets != 0 ? 1 : 0;
+        }
+    }
+    const bool withOriginalOnlySets = framesWithOriginalOnlySets > 0;
+    if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets) {
         return block;
     }
     const auto put = [&block](uint64_t value, std::size_t bytes) {
@@ -869,7 +877,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
     put(kCromSettingsMagic, 4);
     put(0, 4);  // the payload size, set below
     put((withScenes ? kCromSettingsScenes : 0) | (withScaling ? kCromSettingsScaling : 0) |
-            (withLights ? kCromSettingsLights : 0),
+            (withLights ? kCromSettingsLights : 0) |
+            (withOriginalOnlySets ? kCromSettingsOriginalOnlySets : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -928,6 +937,15 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             put(frame, 4);
             for (const document::LightAction& action : snapshot.frames[frame].lights) {
                 putAction(action);
+            }
+        }
+    }
+    if (withOriginalOnlySets) {
+        put(framesWithOriginalOnlySets, 4);
+        for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+            if (snapshot.frames[frame].originalOnlyDynamicSets != 0) {
+                put(frame, 4);
+                put(snapshot.frames[frame].originalOnlyDynamicSets, 4);
             }
         }
     }

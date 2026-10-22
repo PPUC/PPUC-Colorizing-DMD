@@ -495,7 +495,12 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
         const uint8_t dynamicSet = originalIndex < dynamicMask.pixels.size()
                                        ? dynamicMask.pixels[originalIndex]
                                        : uint8_t{255};
-        dynamicZone = dynamicSet != 255;
+        // A set that colors the SD picture only is not on the scaled layer: the HD picture
+        // shows there as everywhere else (libserum's original-only sets).
+        dynamicZone = dynamicSet != 255 &&
+                      !(scaledDynamics && dynamicSet < document::kMaxDynamicSetsPerFrame &&
+                        ((document.effectiveOriginalOnlyDynamicSets(frameIndex) >> dynamicSet) &
+                         1u) != 0);
         const document::CompactArray<uint16_t>& dynamicColors =
             extraDynamics ? dynamicData->colorsHd : dynamicData->colorsSd;
         const std::size_t colorCount = dynamicColors.size() / document::kMaxDynamicSetsPerFrame;
@@ -613,6 +618,9 @@ void applyDynamicShadows(const document::ProjectDocument& document,
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
     const render::ProjectGeometry& geometry = document.geometry();
+    // Sets that color the SD picture only have neither content nor a shadow on the scaled one.
+    const uint32_t offScaledLayer =
+        scaledDynamics ? document.effectiveOriginalOnlyDynamicSets(frameIndex) : 0;
     // The set of a pixel that shows lit dynamic content; 255 for every other pixel.
     const auto litDynamicSet = [&](int x, int y) -> uint8_t {
         const render::Point originalPoint = geometry.toRomFrame(resolution, render::Point{x, y});
@@ -622,7 +630,7 @@ void applyDynamicShadows(const document::ProjectDocument& document,
                                        ? dynamicMask.pixels[originalIndex]
                                        : uint8_t{255};
         if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||
-            original.pixels[originalIndex] == 0) {
+            original.pixels[originalIndex] == 0 || ((offScaledLayer >> dynamicSet) & 1u) != 0) {
             return 255;
         }
         return dynamicSet;

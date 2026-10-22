@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Dynamic sets can color the SD picture only (`Only on the SD Picture` on the `Dynamic Sets`
+  section, libserum 2.9): on a frame with its own HD frame, such as an imported image or video,
+  their zones show that HD frame instead of the upscaled set, while other sets such as a score
+  stay on it.
 - In a 256x64 project, `Create 256x64 Frame` asks before it gives a background without a
   256x64 image a black one, and can create the frames only.
 - `Spot Common` can mark the pixels the selected frames have in common, as the Win32 editor

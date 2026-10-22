@@ -1072,6 +1072,10 @@
         <translation>Couleur d&apos;ombre dynamique du jeu actif</translation>
     </message>
     <message>
+        <source>Only on the SD Picture</source>
+        <translation>Seulement dans l&apos;image SD</translation>
+    </message>
+    <message>
         <source>%1
 %2 px</source>
         <translation>%1
@@ -1104,6 +1108,14 @@
     <message>
         <source>Dynamic shadow color is not available</source>
         <translation>La couleur d&apos;ombre dynamique n&apos;est pas disponible</translation>
+    </message>
+    <message>
+        <source>Set %1 colors the SD picture only. On the HD picture of a frame with an HD frame of its own, that HD frame shows in the set&apos;s zones instead of the upscaled set: for pixel art recolored through the set on a frame whose HD picture is imported.</source>
+        <translation>Le jeu %1 ne colore que l&apos;image SD. Dans l&apos;image HD d&apos;une frame qui a sa propre frame HD, cette frame HD apparaît dans les zones du jeu au lieu du jeu agrandi : pour du pixel art recoloré par le jeu sur une frame dont l&apos;image HD est importée.</translation>
+    </message>
+    <message>
+        <source>Needs libserum 2.9 (Project Settings)</source>
+        <translation>Nécessite libserum 2.9 (Paramètres du projet)</translation>
     </message>
 </context>
 <context>
@@ -4770,6 +4782,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Updated dynamic color 0x%1</source>
         <translation>Couleur dynamique mise à jour : 0x%1</translation>
+    </message>
+    <message>
+        <source>Set %1 colors the SD picture only</source>
+        <translation>Le jeu %1 ne colore que l&apos;image SD</translation>
+    </message>
+    <message>
+        <source>Set %1 colors the SD and the HD picture</source>
+        <translation>Le jeu %1 colore l&apos;image SD et l&apos;image HD</translation>
     </message>
     <message>
         <source>Updated dynamic shadow direction</source>

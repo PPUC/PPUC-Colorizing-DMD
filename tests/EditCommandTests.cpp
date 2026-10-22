@@ -42,6 +42,7 @@ using colorizing::edit::FrameAttributeEditCommand;
 using colorizing::edit::FrameHdCommand;
 using colorizing::edit::HistoryKey;
 using colorizing::edit::MaskEditCommand;
+using colorizing::edit::OriginalOnlyDynamicSetsCommand;
 using colorizing::edit::PaletteEditCommand;
 using colorizing::edit::PixelEditCommand;
 using colorizing::edit::ReplacedData;
@@ -293,6 +294,23 @@ void testDynamicColorCommand()
            "dynamic color other resolution untouched");
     command.revert(document);
     expect(document.dynamicColor(1, Resolution::Sd, 2, 3) == 0, "dynamic color revert");
+}
+
+// Which sets color the SD picture only, and where the runtime keeps them off the HD picture.
+void testOriginalOnlyDynamicSetsCommand()
+{
+    ProjectDocument document = makeDocument();
+    const OriginalOnlyDynamicSetsCommand command(1, 0, 0x24);
+    expectTarget(command, EditKind::DynamicShadow, 1, Resolution::Sd, {1}, "original-only sets");
+    command.apply(document);
+    expect(document.originalOnlyDynamicSets(1) == 0x24 && document.originalOnlyDynamicSets(0) == 0,
+           "original-only sets apply");
+    // For libserum 2.8 they are kept but do not apply.
+    expect(!document.originalOnlyDynamicSetsApply(1) &&
+               document.effectiveOriginalOnlyDynamicSets(1) == 0,
+           "they do not apply for libserum 2.8");
+    command.revert(document);
+    expect(document.originalOnlyDynamicSets(1) == 0, "original-only sets revert");
 }
 
 void testDynamicShadowCommand()
@@ -1206,6 +1224,7 @@ void runEditCommandTests()
     testBackgroundMaskCommand();
     testDynamicColorCommand();
     testDynamicShadowCommand();
+    testOriginalOnlyDynamicSetsCommand();
     testPaletteCommand();
     testCommandKindValidation();
     testBackgroundHdCreateCommand();

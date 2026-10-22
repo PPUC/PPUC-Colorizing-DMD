@@ -139,6 +139,9 @@ struct FrameRecord {
     std::vector<std::string> tags;
     // What the frame does to the speaker light channels when it shows (SpeakerLights.h).
     LightActions lights{};
+    // The dynamic sets that color the SD picture only, bit n for set n
+    // (ProjectDocument::originalOnlyDynamicSets()).
+    uint32_t originalOnlyDynamicSets = 0;
 };
 
 // Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
@@ -399,6 +402,19 @@ public:
     [[nodiscard]] const SpeakerLightSettings& speakerLights() const { return m_speakerLights; }
     void setSpeakerLights(SpeakerLightSettings settings);
     [[nodiscard]] const LightActions& frameLights(std::size_t frameIndex) const;
+    // The frame's dynamic sets that color the SD picture only, bit n for set n. libserum 2.9
+    // keeps their zones off the HD picture of a frame with HD content of its own, which then
+    // shows there instead of the upscaled set: for pixel art recolored through a set on a frame
+    // whose HD picture is an imported one (libserum's SerumOriginalOnlySets). Kept for every
+    // project; the cROM carries them for libserum 2.9 only.
+    [[nodiscard]] uint32_t originalOnlyDynamicSets(std::size_t frameIndex) const;
+    void setOriginalOnlyDynamicSets(std::size_t frameIndex, uint32_t sets);
+    // Whether the runtime keeps a set off the frame's HD picture, as libserum decides it: a
+    // project for libserum 2.9 with 128x32 frames and an HD plane, a frame with its HD frame
+    // and, if it has a background, the background's HD image (HasHdStaticContent()).
+    [[nodiscard]] bool originalOnlyDynamicSetsApply(std::size_t frameIndex) const;
+    // originalOnlyDynamicSets() where they apply, 0 elsewhere.
+    [[nodiscard]] uint32_t effectiveOriginalOnlyDynamicSets(std::size_t frameIndex) const;
     void setFrameLights(std::size_t frameIndex, const LightActions& lights);
     // The frames that start the effect on some channel.
     [[nodiscard]] std::vector<std::size_t> framesUsingLightEffect(uint16_t effectId) const;

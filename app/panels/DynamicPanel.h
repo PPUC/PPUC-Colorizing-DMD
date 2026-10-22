@@ -11,6 +11,7 @@
 
 #include "document/ProjectDocument.h"
 
+class QCheckBox;
 class QLabel;
 class QListWidget;
 class QSpinBox;
@@ -37,7 +38,8 @@ public:
     void refreshColors(const document::ProjectDocument* document,
                        std::optional<std::size_t> frameIndex,
                        render::Resolution resolution);
-    // Shadow directions and shadow color of the selected set.
+    // Shadow directions and shadow color of the selected set, and whether it colors the SD
+    // picture only.
     void refreshShadow(const document::ProjectDocument* document,
                        std::optional<std::size_t> frameIndex,
                        render::Resolution resolution);
@@ -56,6 +58,8 @@ public:
     // bit is the direction's bit in the shadow direction mask.
     std::function<void(uint8_t bit, bool enabled)> onShadowDirectionToggled;
     std::function<void()> onShadowColorClicked;
+    // "Only on the SD Picture" of the selected set was switched.
+    std::function<void(bool originalOnly)> onOriginalOnlyToggled;
 
 private:
     void selectListedSet();
@@ -71,6 +75,7 @@ private:
     std::vector<QToolButton*> m_colorButtons;
     std::vector<QToolButton*> m_shadowDirectionButtons;
     QToolButton* m_shadowColorButton = nullptr;
+    QCheckBox* m_originalOnlyCheckBox = nullptr;
 };
 
 }  // namespace colorizing::app

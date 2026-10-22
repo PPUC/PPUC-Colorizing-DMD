@@ -277,6 +277,24 @@ private:
     DynamicShadowChange m_change;
 };
 
+// Which dynamic sets of one frame color the SD picture only
+// (ProjectDocument::originalOnlyDynamicSets()). In the frame's dynamic shadow history, beside
+// the other settings of its sets.
+class OriginalOnlyDynamicSetsCommand final : public EditCommand {
+public:
+    OriginalOnlyDynamicSetsCommand(std::size_t frameIndex, uint32_t before, uint32_t after);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
+
+private:
+    std::size_t m_frameIndex;
+    uint32_t m_before;
+    uint32_t m_after;
+};
+
 struct PaletteColorChange {
     std::size_t colorIndex = 0;
     uint16_t oldColor = 0;

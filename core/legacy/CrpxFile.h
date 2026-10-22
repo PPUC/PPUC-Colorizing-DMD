@@ -62,6 +62,9 @@ class LegacyByteSource;
 //            project has more sprites: uint32 first sprite (kCrpSpriteEntries), uint32 count,
 //            per sprite the name (kSpriteNameBytes, as in the cRP part), uint32 source frame,
 //            uint16 source rectangle (4), uint32 mirrors (2).
+//     "DSSD" the dynamic sets that color the SD picture only
+//            (FrameRecord::originalOnlyDynamicSets), when a frame has one: uint32 count, per
+//            frame uint32 frame index and uint32 set mask.
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 

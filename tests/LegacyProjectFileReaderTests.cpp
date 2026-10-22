@@ -1241,6 +1241,8 @@ void testFileWriterSavesLibserum29Project()
     }
     project.editorMetadata.spriteSourceMirrors[299 * 2 + 1] = 1;
     project.frames[0].spriteReferences[100] = document::FrameSpriteReference{299, 1, 2, 30, 20};
+    // Sets 2 and 5 of frame 0 color the SD picture only.
+    project.frames[0].originalOnlyDynamicSets = 0x24;
 
     const std::filesystem::path cromPath = uniqueTempPath(".cROM");
     const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
@@ -1275,6 +1277,27 @@ void testFileWriterSavesLibserum29Project()
                loaded.editorMetadata.spriteSourceRects[299 * 4 + 3] == 13 &&
                loaded.editorMetadata.spriteSourceMirrors[299 * 2 + 1] == 1,
            "sprite 299 keeps its name, source frame, rectangle and mirrors (chunk SPRX)");
+    expect(loaded.frames[0].originalOnlyDynamicSets == 0x24 &&
+               loaded.frames[1].originalOnlyDynamicSets == 0,
+           "frame 0 keeps its sets that color the SD picture only (chunk DSSD)");
+    // In the cROM's settings block for libserum 2.9: frame 0, sets 2 and 5.
+    const std::vector<uint8_t> block = colorizing::legacy::cromSettingsBlock(project);
+    const auto blockU32 = [&block](std::size_t offset) {
+        return static_cast<uint32_t>(block[offset]) |
+               (static_cast<uint32_t>(block[offset + 1]) << 8) |
+               (static_cast<uint32_t>(block[offset + 2]) << 16) |
+               (static_cast<uint32_t>(block[offset + 3]) << 24);
+    };
+    expect(block.size() == 8 + 4 + 4 + 8 &&
+               blockU32(8) == colorizing::legacy::kCromSettingsOriginalOnlySets &&
+               blockU32(12) == 1 && blockU32(16) == 0 && blockU32(20) == 0x24 &&
+               std::equal(block.begin(), block.end(),
+                          crom.end() - static_cast<std::ptrdiff_t>(block.size())),
+           "the cROM ends with them in its settings block");
+    document::ProjectSnapshot for28 = source.snapshot;
+    for28.frames[0].originalOnlyDynamicSets = 0x24;
+    expect(colorizing::legacy::cromSettingsBlock(for28).empty(),
+           "a project for libserum 2.8 does not write them into the cROM");
 
     // The cRP part has the size of one with 255 sprites: what it has no room for is in chunks.
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
@@ -1294,11 +1317,11 @@ void testFileWriterSavesLibserum29Project()
     expect(chunks.find("LSRT") != std::string::npos && chunks.find("SPRX") != std::string::npos,
            "the target and the sprites beyond 255 are chunks");
 
-    // A cut SPRX is refused.
+    // A cut last chunk is refused.
     std::vector<uint8_t> cut = crpx;
     cut.resize(cut.size() - 3);
     writeBytes(crpxPath, cut);
-    expect(!reader.load(paths).ok, "a .cRPX whose sprites are cut off is refused");
+    expect(!reader.load(paths).ok, "a .cRPX whose last chunk is cut off is refused");
 
     for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath}) {
         std::filesystem::remove(path);

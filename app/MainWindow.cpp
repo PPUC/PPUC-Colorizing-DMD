@@ -1846,6 +1846,9 @@ void MainWindow::createCentralView()
     m_dynamicPanel->onShadowColorClicked = [this]() {
         editDynamicShadowColor();
     };
+    m_dynamicPanel->onOriginalOnlyToggled = [this](bool originalOnly) {
+        setDynamicSetOriginalOnly(originalOnly);
+    };
     inspectorTabs->addTab(m_dynamicPanel, QStringLiteral("Dyn"), tr("Dynamic Sets"));
 
     m_frameLightsPanel = new FrameLightsPanel(central);
@@ -7579,6 +7582,39 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex, std::optional<
     } catch (const std::exception& ex) {
         updateDynamicColorControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setDynamicSetOriginalOnly(bool originalOnly)
+{
+    if (!m_document || !currentFrameIndex() ||
+        activeDynamicSet() >= document::kMaxDynamicSetsPerFrame) {
+        return;
+    }
+    // Every selected frame, one step each, as the set's shadow.
+    const uint32_t bit = 1u << activeDynamicSet();
+    bool changed = false;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        if (!m_document->dynamicData(frameIndex).has_value()) {
+            continue;
+        }
+        const uint32_t before = m_document->originalOnlyDynamicSets(frameIndex);
+        const uint32_t after = originalOnly ? before | bit : before & ~bit;
+        if (after != before) {
+            commitEdit(
+                std::make_unique<edit::OriginalOnlyDynamicSetsCommand>(frameIndex, before, after));
+            changed = true;
+        }
+    }
+    updateDynamicShadowControls();
+    if (changed) {
+        updateUndoRedoActions();
+        statusBar()->showMessage(originalOnly
+                                     ? tr("Set %1 colors the SD picture only")
+                                           .arg(activeDynamicSet())
+                                     : tr("Set %1 colors the SD and the HD picture")
+                                           .arg(activeDynamicSet()),
+                                 2500);
     }
 }
 

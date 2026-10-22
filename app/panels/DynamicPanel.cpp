@@ -4,6 +4,7 @@
 #include <array>
 #include <exception>
 
+#include <QCheckBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFormLayout>
@@ -181,7 +182,15 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     m_shadowColorButton->setToolTip(tr("Dynamic shadow color for active set"));
     m_shadowColorButton->setEnabled(false);
     pageLayout->addWidget(m_shadowColorButton);
+    m_originalOnlyCheckBox = new QCheckBox(tr("Only on the SD Picture"), this);
+    m_originalOnlyCheckBox->setEnabled(false);
+    pageLayout->addWidget(m_originalOnlyCheckBox);
     pageLayout->addStretch(1);
+    connect(m_originalOnlyCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        if (onOriginalOnlyToggled) {
+            onOriginalOnlyToggled(checked);
+        }
+    });
 
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -374,6 +383,26 @@ void DynamicPanel::refreshShadow(const document::ProjectDocument* document,
                       .arg(dynamicSet())
                       .arg(color, 4, 16, QLatin1Char('0'))
                 : tr("Dynamic shadow color is not available"));
+
+    // Only where the runtime has an HD picture made of an SD one: an ordinary project with HD.
+    const bool upscaledHd = document && !document->rendersHdPlaneOnly() &&
+                            !document->editsOriginalPlaneOnly();
+    const bool forLibserum29 =
+        document && document->libserumTarget() == document::LibserumTarget::Libserum29;
+    QSignalBlocker blocker(m_originalOnlyCheckBox);
+    m_originalOnlyCheckBox->setVisible(upscaledHd);
+    m_originalOnlyCheckBox->setEnabled(enabled && forLibserum29);
+    m_originalOnlyCheckBox->setChecked(
+        enabled && dynamicSet() < document::kMaxDynamicSetsPerFrame &&
+        ((document->originalOnlyDynamicSets(*frameIndex) >> dynamicSet()) & 1u) != 0);
+    m_originalOnlyCheckBox->setToolTip(
+        forLibserum29
+            ? tr("Set %1 colors the SD picture only. On the HD picture of a frame with an HD "
+                 "frame of its own, that HD frame shows in the set's zones instead of the "
+                 "upscaled set: for pixel art recolored through the set on a frame whose HD "
+                 "picture is imported.")
+                  .arg(dynamicSet())
+            : tr("Needs libserum 2.9 (Project Settings)"));
 }
 
 void DynamicPanel::setDynamicSetEnabled(bool enabled)

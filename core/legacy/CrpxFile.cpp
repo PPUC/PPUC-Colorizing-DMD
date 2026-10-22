@@ -38,6 +38,7 @@ constexpr std::array<char, 4> kFrameTagsTag = {'F', 'T', 'A', 'G'};
 constexpr std::array<char, 4> kLibserumTargetTag = {'L', 'S', 'R', 'T'};
 constexpr std::array<char, 4> kMoreSpritesTag = {'S', 'P', 'R', 'X'};
 constexpr std::array<char, 4> kLightsTag = {'L', 'G', 'H', 'T'};
+constexpr std::array<char, 4> kOriginalOnlySetsTag = {'D', 'S', 'S', 'D'};
 // Per effect of LGHT before its name, and per action.
 constexpr std::size_t kLightEffectBytes = 28;
 constexpr std::size_t kLightActionBytes = 8;
@@ -257,6 +258,23 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             }
         }
         appendChunk(chunks, kMoreSpritesTag, data);
+    }
+    // The dynamic sets that color the SD picture only.
+    {
+        std::string data;
+        std::size_t count = 0;
+        for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+            if (snapshot.frames[frame].originalOnlyDynamicSets != 0) {
+                appendLittleEndian(data, frame, 4);
+                appendLittleEndian(data, snapshot.frames[frame].originalOnlyDynamicSets, 4);
+                ++count;
+            }
+        }
+        if (count > 0) {
+            std::string chunk;
+            appendLittleEndian(chunk, count, 4);
+            appendChunk(chunks, kOriginalOnlySetsTag, chunk + data);
+        }
     }
     return chunks;
 }
@@ -522,6 +540,38 @@ bool parseLights(LegacyByteSource& source,
     snapshot.speakerLights = std::move(lights);
     // Room a later version uses for more is skipped.
     return source.skip(static_cast<std::size_t>(left)) || damaged();
+}
+
+bool parseOriginalOnlySets(LegacyByteSource& source,
+                           uint64_t size,
+                           document::ProjectSnapshot& snapshot,
+                           std::string& errorMessage)
+{
+    const auto damaged = [&errorMessage]() {
+        errorMessage = "the dynamic sets of the .cRPX are damaged";
+        return false;
+    };
+    uint8_t countBytes[4] = {};
+    if (size < 4 || !source.readBytes(countBytes, 4)) {
+        return damaged();
+    }
+    const uint32_t count = littleEndian32(countBytes);
+    if ((size - 4) / 8 < count) {
+        return damaged();
+    }
+    for (uint32_t index = 0; index < count; ++index) {
+        uint8_t bytes[8] = {};
+        if (!source.readBytes(bytes, 8)) {
+            return damaged();
+        }
+        const uint32_t frame = littleEndian32(bytes);
+        if (frame >= snapshot.frames.size()) {
+            return damaged();
+        }
+        snapshot.frames[frame].originalOnlyDynamicSets = littleEndian32(bytes + 4);
+    }
+    // Room a later version uses for more is skipped.
+    return source.skip(static_cast<std::size_t>(size - 4 - 8 * uint64_t{count})) || damaged();
 }
 
 bool parseMoreSprites(LegacyByteSource& source,
@@ -792,6 +842,10 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kLightsTag.data(), 4) == 0) {
             if (!parseLights(source, size, snapshot, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kOriginalOnlySetsTag.data(), 4) == 0) {
+            if (!parseOriginalOnlySets(source, size, snapshot, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kMoreSpritesTag.data(), 4) == 0) {

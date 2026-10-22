@@ -59,6 +59,26 @@ So in an ordinary project:
 - The save rule that writes colorized pixels under a dynamic mask as 0 still uses the stored HD
   mask for the HD frame, see "Saving".
 
+### Sets that color the SD picture only
+
+Dynamic zones serve two purposes: content the game changes (score, ball number, bonus
+multiplier) and static pixel art colored through a set, because a set is easy to recolor. On
+a frame whose HD picture is an imported image or video, the upscaled zone of such pixel art
+covers the imported picture. `Only on the SD Picture` under the shadow on the `Dynamic Sets`
+section marks the selected set for that:
+
+- The set still colors the SD picture, its shadow included.
+- On the HD picture its zones show the frame's HD frame instead (or the HD background, where
+  the original is unlit under the HD background mask), and it casts no shadow there. The other
+  sets of the frame stay on the HD picture, so a score keeps its colors on an imported clip.
+- It applies to a frame that has an HD frame and, if it has a background, a background with an
+  HD image. On a frame without them the HD picture is the upscaled SD one, and the set is
+  upscaled like any other.
+- It needs libserum 2.9 (`Project Settings`); for libserum 2.8 the box is disabled. The setting
+  is kept when the target changes but written into the `.cROM` only for libserum 2.9.
+- Like the shadow, it applies to all selected frames that have dynamic data and is undoable per
+  frame. The canvas, the Runtime view and the frame tester show it.
+
 Helpers of the `Edit` menu, on every selected frame and on the dynamic plane only (in HD mode of
 an ordinary project they are refused with a message), in the selection if there is one on the
 plane and otherwise on the whole frame (the Win32 editor always takes the whole frame):

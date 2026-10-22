@@ -33,6 +33,7 @@ struct ProjectFrameSnapshot {
     std::optional<SceneFrameRef> scene;
     std::vector<std::string> tags;
     LightActions lights{};
+    uint32_t originalOnlyDynamicSets = 0;
 };
 
 struct ProjectSnapshot {

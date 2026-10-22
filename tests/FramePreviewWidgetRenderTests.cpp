@@ -2984,6 +2984,41 @@ void testMaskPanel()
            "mask panel should leave the document untouched");
 }
 
+// "Only on the SD Picture": for libserum 2.9 only, per set, reported when switched.
+void testDynamicPanelOriginalOnlySets()
+{
+    using colorizing::render::Resolution;
+    colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
+    colorizing::app::DynamicPanel panel;
+    std::vector<bool> toggles;
+    panel.onOriginalOnlyToggled = [&](bool originalOnly) { toggles.push_back(originalOnly); };
+    QCheckBox* box = nullptr;
+    for (QCheckBox* candidate : panel.findChildren<QCheckBox*>()) {
+        if (candidate->text() == QStringLiteral("Only on the SD Picture")) {
+            box = candidate;
+        }
+    }
+    expect(box != nullptr, "the dynamic panel has Only on the SD Picture");
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(!box->isHidden() && !box->isEnabled() &&
+               box->toolTip() == QStringLiteral("Needs libserum 2.9 (Project Settings)"),
+           "for libserum 2.8 it is disabled and says why");
+
+    document.setLibserumTarget(colorizing::document::LibserumTarget::Libserum29);
+    document.setOriginalOnlyDynamicSets(0, 1u << 2);
+    panel.setDynamicSet(2);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(box->isEnabled() && box->isChecked(), "set 2 colors the SD picture only");
+    panel.setDynamicSet(0);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(box->isEnabled() && !box->isChecked(), "set 0 does not");
+    box->click();
+    expect(toggles == std::vector<bool>{true}, "switching it reports it");
+    panel.refreshShadow(&document, 3, Resolution::Sd);
+    expect(!box->isEnabled() && !box->isChecked() && toggles.size() == 1,
+           "a frame without dynamic data has nothing to switch; refreshing does not report");
+}
+
 void testDynamicPanel()
 {
     using colorizing::render::Resolution;
@@ -3883,6 +3918,7 @@ int main(int argc, char* argv[])
     testSpriteAndBackgroundHdButtons();
     testMaskPanel();
     testDynamicPanel();
+    testDynamicPanelOriginalOnlySets();
     testDynamicSetList();
     testBackgroundPanel();
     testFramePanel();

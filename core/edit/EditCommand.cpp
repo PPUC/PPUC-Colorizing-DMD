@@ -330,6 +330,36 @@ void DynamicShadowEditCommand::write(document::ProjectDocument& document, bool u
     }
 }
 
+OriginalOnlyDynamicSetsCommand::OriginalOnlyDynamicSetsCommand(std::size_t frameIndex,
+                                                               uint32_t before,
+                                                               uint32_t after)
+    : m_frameIndex(frameIndex),
+      m_before(before),
+      m_after(after)
+{
+}
+
+void OriginalOnlyDynamicSetsCommand::apply(document::ProjectDocument& document) const
+{
+    document.setOriginalOnlyDynamicSets(m_frameIndex, m_after);
+}
+
+void OriginalOnlyDynamicSetsCommand::revert(document::ProjectDocument& document) const
+{
+    document.setOriginalOnlyDynamicSets(m_frameIndex, m_before);
+}
+
+EditTarget OriginalOnlyDynamicSetsCommand::target() const
+{
+    return EditTarget{
+        EditKind::DynamicShadow, m_frameIndex, render::Resolution::Sd, {m_frameIndex}};
+}
+
+std::vector<RecordReference> OriginalOnlyDynamicSetsCommand::recordReferences() const
+{
+    return {{RecordKind::Frame, m_frameIndex}};
+}
+
 PaletteEditCommand::PaletteEditCommand(std::size_t paletteIndex,
                                        std::vector<PaletteColorChange> changes)
     : m_paletteIndex(paletteIndex),
