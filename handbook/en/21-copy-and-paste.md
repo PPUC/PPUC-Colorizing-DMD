@@ -19,7 +19,7 @@ first where they were copied from, then centred on the mouse. In paste mode:
 
 With `Edit -> Stay In Paste Mode` checked, a click or `Enter` pastes and paste mode goes on: the
 copied pixels can be stamped again elsewhere, on this or another frame, until `Esc` ends it. The
-status bar says so after each stamp. Each stamp is its own undo step per frame. The setting is
+status bar says so after each stamp. Each stamp is its own undo step. The setting is
 kept for every project; it is off at first, as the Win32 editor works.
 
 What a paste writes, per frame: the colors, the dynamic mask, and the colors and shadow of the
@@ -32,8 +32,9 @@ dynamic sets the copied pixels use (Win32 `CopyDynaCol`). Variants:
   mirrored like the others.
 
 Pixels that land outside the plane are left out. Frames without a picture on the HD plane are
-left alone when pasting there. Each changed frame is one undoable step in its own pixel history
-(in the `Dynamic` mode its dynamic mask history), see "Undo And Redo".
+left alone when pasting there. A paste is one undoable step on all frames it changed; each frame
+keeps its part in its own pixel history (in the `Dynamic` mode its dynamic mask history), see
+"Undo And Redo".
 
 Content is pasted only on the plane it was copied from (the Win32 editor's `Copy_Content`
 check): SD content on the HD plane and HD content on the SD plane are refused with a message

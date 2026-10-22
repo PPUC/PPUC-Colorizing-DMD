@@ -966,6 +966,73 @@ void testHistoryLatestAnywhere()
            "histories with only redo steps stay listed; the last undone is redone first");
 }
 
+// The commands of one action over several histories are one step: undone and redone
+// together, as far as each is still the latest of its history.
+void testHistoryGroups()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    const auto state = [&]() {
+        return std::vector<uint16_t>{document.colorizedPixel(0, Resolution::Sd, 1, 0),
+                                     document.colorizedPixel(1, Resolution::Sd, 1, 0),
+                                     document.paletteColor(0, 2)};
+    };
+    using State = std::vector<uint16_t>;
+    const State before = state();
+    histories.beginGroup();
+    histories.beginGroup();
+    const HistoryKey frame0 =
+        commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 0x0001));
+    histories.endGroup();
+    expect(histories.isGroupOpen(), "a nested group joins the outer one");
+    const HistoryKey frame1 =
+        commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 0x0002));
+    const HistoryKey palette = commit(histories, document, makePaletteColor(0, 0x0003));
+    histories.endGroup();
+    expect(!histories.isGroupOpen(), "the group is closed");
+    const State after = state();
+
+    std::vector<HistoryKey> ran;
+    const auto record = [&](const EditCommand& command) {
+        ran.push_back(historyKey(command.target()));
+    };
+    expect(histories.undo(frame1, document, record) != nullptr && state() == before &&
+               ran.size() == 3 && ran.front() == frame1,
+           "undoing one command of the group undoes all three, its own first");
+    expect(!histories.canUndo(frame0) && !histories.canUndo(palette) &&
+               histories.canRedo(frame0) && histories.canRedo(palette),
+           "all three can be redone");
+    ran.clear();
+    expect(histories.redoLatest({palette}, document, record) != nullptr && state() == after &&
+               ran.size() == 3,
+           "redoing one redoes the group");
+
+    // Frame 1 is edited after the action: its command of the group is no longer its latest.
+    commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0x0002, 0x0004));
+    ran.clear();
+    histories.undo(frame0, document, record);
+    expect(ran.size() == 2 && document.colorizedPixel(0, Resolution::Sd, 1, 0) == before[0] &&
+               document.paletteColor(0, 2) == before[2] &&
+               document.colorizedPixel(1, Resolution::Sd, 1, 0) == 0x0004,
+           "a command the frame's later edit covers stays, and so does that edit");
+    ran.clear();
+    histories.undo(frame1, document, record);
+    expect(ran.size() == 1 && document.colorizedPixel(1, Resolution::Sd, 1, 0) == 0x0002,
+           "the later edit is undone alone");
+    ran.clear();
+    histories.undo(frame1, document, record);
+    expect(ran.size() == 1 && state() == before,
+           "then the frame's command of the group, the others being undone already");
+
+    // Commands pushed outside a group stay single steps.
+    commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 0x0005));
+    commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 0x0006));
+    ran.clear();
+    histories.undo(frame1, document, record);
+    expect(ran.size() == 1 && document.colorizedPixel(0, Resolution::Sd, 1, 0) == 0x0005,
+           "without a group each command is its own step");
+}
+
 void testHistoryUndoLatestIsChronological()
 {
     ProjectDocument document = makeDocument();
@@ -1240,6 +1307,7 @@ void runEditCommandTests()
     testFrameHdCommands();
     testSpriteHdCommands();
     testHistoryUndoLatestIsChronological();
+    testHistoryGroups();
     testHistoryLatestAnywhere();
     testReplacingCommandDropsHistories();
     testCommandThatFailsStaysInItsHistory();

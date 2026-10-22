@@ -30,7 +30,7 @@ in the project (with the blue `HD` badge when that frame has HD data), and below
   the `Scene` field of the Inspector's `Frame` section sets it: each of them starts the scene
   (a background scene then plays behind the frames that follow, where their background masks
   let it through). Frames with a trigger of another kind (a PUP trigger, a monochrome
-  fallback) are left as they are. One undo step per frame, as with the field.
+  fallback) are left as they are. One undo step, as with the field.
 - `Delete` removes the selected scene. The question offers to delete its frames too or to keep
   them as ordinary frames.
 - `Used by the current frame` above the left sidebar's lists shows only the scene of the

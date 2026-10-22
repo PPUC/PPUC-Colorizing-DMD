@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- One action is one undo step: an edit of several frames (drawing on selected frames, paste,
+  `Auto Copy...`, `Scrolling Auto Fill...`, image and movie clip import, the recolor helpers,
+  frame settings and the like) is undone and redone on all of them at once.
 - `Edit -> Stay In Paste Mode`: a paste can be stamped several times, until `Esc` ends paste
   mode.
 - `Common To New Mask` in the `Comparison Mask` section adds a mask that covers the pixels in

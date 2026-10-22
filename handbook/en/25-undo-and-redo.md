@@ -64,19 +64,21 @@ undoes the paste and then the edits made before it on the frame copied from. `Re
 Anywhere` (`Ctrl/Cmd+Alt+Shift+Z`) redoes the edit undone most recently anywhere. A comparison
 mask, a background, a sprite or a palette is not selected for it; its edit is undone where it is.
 
-An edit applied to several selected frames is recorded once per changed frame, in that frame's own
-history. Undo therefore reverts it only on the current frame; select another frame to undo it
-there. This applies to drawing (also in `Set Replace` mode), to dynamic shadow direction and color
-changes, to `Edit > Dyn`, and to all frame settings.
+**One action is one step.** An action that changes several frames, or several kinds of data,
+is undone and redone as a whole: drawing on several selected frames (also in `Set Replace`
+mode), paste, `Auto Copy...`, `Scrolling Auto Fill...`, an image or a movie clip imported into
+many frames, `Recolor`, `Black Original To Black`, `Remove Dynamic Zones`, `Assign Dynamic Set`,
+`Edit > Dyn`, dynamic shadow and set settings and frame settings on several frames, and every
+other edit. One `Undo` takes back the whole action on every frame, and one `Redo` brings it
+back; the status bar says how many changes the step held.
 
-Paste, `Auto Copy...`, `Scrolling Auto Fill...`, `Recolor`, `Black Original To Black`, `Remove
-Dynamic Zones` and `Assign Dynamic Set` are recorded the same way, one step per changed frame,
-even when a step changes the frame's colors, its dynamic mask and its dynamic set colors
-together. The step goes into the frame's pixel history of the plane it was made on, or, when it
-was made in the `Dynamic` mode, into the frame's dynamic mask history, so that it is undone in
-the context it was made in. Auto copy and the scrolling fill change other frames than the current
-one: their steps are undone on those frames. The selection itself is not part of Undo (see
-"Selection").
+Each frame still records its part in its own history (its pixel history of the plane the action
+was made on, or, in the `Dynamic` mode, its dynamic mask history), so `Undo` reaches the action
+from any of the frames it changed, and `Undo Last Edit Anywhere` reaches it as the latest edit.
+A frame edited again after the action keeps that later edit: `Undo` of the action then leaves
+this frame's part alone, and it is undone with the frame's own steps later, after the later edit.
+Nothing made after the action is ever undone with it. The selection itself is not part of Undo
+(see "Selection").
 
 Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
 overwritten: the frame's HD background mask and the HD image of the background that was assigned
@@ -152,7 +154,7 @@ project is left as it was, the step stays where it is in its history, and the st
 stays undoable: it is not dropped, so it never becomes permanent that way.
 
 Undoable besides: sprite slot assignment, removal and bounds and color rotation settings (in the
-history of each frame they change, one step per frame), sprite capture (one step in the history
+history of each frame they change, one step for all of them), sprite capture (one step in the history
 of the frame it was made on: the sprite's picture, detection area `0`, source frame and the
 frame's slot together), sprite detection areas and sprite names (in the selected sprite's
 history, which Undo reaches while that sprite is selected).

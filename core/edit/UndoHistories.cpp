@@ -55,7 +55,7 @@ std::size_t UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditComma
     }
     dropReplacedHistories(*command);
     History& history = m_histories[key];
-    history.undoStack.push_back(Entry{std::move(command), m_nextSequence++});
+    history.undoStack.push_back(Entry{std::move(command), m_nextSequence++, m_openGroup});
     history.redoStack.clear();
     if (!(key == structureHistoryKey())) {
         return 0;
@@ -68,6 +68,25 @@ std::size_t UndoHistories::push(const HistoryKey& key, std::unique_ptr<EditComma
         ++dropped;
     }
     return dropped;
+}
+
+void UndoHistories::beginGroup()
+{
+    if (m_groupDepth++ == 0) {
+        m_openGroup = m_nextGroup++;
+    }
+}
+
+void UndoHistories::endGroup()
+{
+    if (m_groupDepth > 0 && --m_groupDepth == 0) {
+        m_openGroup = 0;
+    }
+}
+
+bool UndoHistories::isGroupOpen() const
+{
+    return m_groupDepth > 0;
 }
 
 std::size_t UndoHistories::structureMemoryLimit() const
@@ -127,40 +146,94 @@ bool UndoHistories::canRedoAny(const std::vector<HistoryKey>& keys) const
     return false;
 }
 
-const EditCommand* UndoHistories::undo(const HistoryKey& key,
-                                       document::ProjectDocument& document)
+uint64_t UndoHistories::runOne(const HistoryKey& key,
+                               bool undoing,
+                               document::ProjectDocument& document,
+                               const RunHandler& ran,
+                               const EditCommand** command)
 {
+    *command = nullptr;
     const auto history = m_histories.find(key);
-    if (history == m_histories.end() || history->second.undoStack.empty()) {
-        return nullptr;
+    if (history == m_histories.end()) {
+        return 0;
+    }
+    std::vector<Entry>& from = undoing ? history->second.undoStack : history->second.redoStack;
+    if (from.empty()) {
+        return 0;
     }
     // The command leaves its stack only once it has run: a command that throws stays where it
     // is, so that a failed undo of a deletion cannot make the deletion permanent.
-    history->second.undoStack.back().command->revert(document);
-    std::unique_ptr<EditCommand> command = std::move(history->second.undoStack.back().command);
-    history->second.undoStack.pop_back();
-    dropReplacedHistories(*command);
+    if (undoing) {
+        from.back().command->revert(document);
+    } else {
+        from.back().command->apply(document);
+    }
+    Entry entry = std::move(from.back());
+    from.pop_back();
+    dropReplacedHistories(*entry.command);
     History& own = m_histories[key];
-    own.redoStack.push_back(Entry{std::move(command), m_nextSequence++});
-    return own.redoStack.back().command.get();
+    std::vector<Entry>& to = undoing ? own.redoStack : own.undoStack;
+    entry.sequence = m_nextSequence++;
+    const uint64_t group = entry.group;
+    to.push_back(std::move(entry));
+    *command = to.back().command.get();
+    if (ran) {
+        ran(**command);
+    }
+    return group;
+}
+
+std::optional<HistoryKey> UndoHistories::latestOfGroup(uint64_t group, bool undoing) const
+{
+    std::optional<HistoryKey> latestKey;
+    uint64_t latestSequence = 0;
+    for (const auto& [key, history] : m_histories) {
+        const std::vector<Entry>& stack = undoing ? history.undoStack : history.redoStack;
+        if (!stack.empty() && stack.back().group == group &&
+            (!latestKey || stack.back().sequence > latestSequence)) {
+            latestKey = key;
+            latestSequence = stack.back().sequence;
+        }
+    }
+    return latestKey;
+}
+
+const EditCommand* UndoHistories::undo(const HistoryKey& key,
+                                       document::ProjectDocument& document,
+                                       const RunHandler& ran)
+{
+    const EditCommand* command = nullptr;
+    const uint64_t group = runOne(key, true, document, ran, &command);
+    // The rest of the group, newest first. A command of it can drop the history of another
+    // (replacedData), so the pointers handed to ran are valid only during the call.
+    while (command && group != 0) {
+        const std::optional<HistoryKey> next = latestOfGroup(group, true);
+        if (!next) {
+            break;
+        }
+        const EditCommand* member = nullptr;
+        runOne(*next, true, document, ran, &member);
+    }
+    return command;
 }
 
 const EditCommand* UndoHistories::redo(const HistoryKey& key,
-                                       document::ProjectDocument& document)
+                                       document::ProjectDocument& document,
+                                       const RunHandler& ran)
 {
-    const auto history = m_histories.find(key);
-    if (history == m_histories.end() || history->second.redoStack.empty()) {
-        return nullptr;
+    const EditCommand* command = nullptr;
+    const uint64_t group = runOne(key, false, document, ran, &command);
+    // The rest of the group in the order it was made: undone newest first, the oldest has
+    // the highest sequence on the redo stacks.
+    while (command && group != 0) {
+        const std::optional<HistoryKey> next = latestOfGroup(group, false);
+        if (!next) {
+            break;
+        }
+        const EditCommand* member = nullptr;
+        runOne(*next, false, document, ran, &member);
     }
-    // The command leaves its stack only once it has run: a command that throws stays where it
-    // is, so that a failed undo of a deletion cannot make the deletion permanent.
-    history->second.redoStack.back().command->apply(document);
-    std::unique_ptr<EditCommand> command = std::move(history->second.redoStack.back().command);
-    history->second.redoStack.pop_back();
-    dropReplacedHistories(*command);
-    History& own = m_histories[key];
-    own.undoStack.push_back(Entry{std::move(command), m_nextSequence++});
-    return own.undoStack.back().command.get();
+    return command;
 }
 
 std::optional<HistoryKey> UndoHistories::latestUndoKey(const std::vector<HistoryKey>& keys) const
@@ -211,17 +284,19 @@ std::vector<HistoryKey> UndoHistories::keys() const
 }
 
 const EditCommand* UndoHistories::undoLatest(const std::vector<HistoryKey>& keys,
-                                             document::ProjectDocument& document)
+                                             document::ProjectDocument& document,
+                                             const RunHandler& ran)
 {
     const std::optional<HistoryKey> key = latestUndoKey(keys);
-    return key ? undo(*key, document) : nullptr;
+    return key ? undo(*key, document, ran) : nullptr;
 }
 
 const EditCommand* UndoHistories::redoLatest(const std::vector<HistoryKey>& keys,
-                                             document::ProjectDocument& document)
+                                             document::ProjectDocument& document,
+                                             const RunHandler& ran)
 {
     const std::optional<HistoryKey> key = latestRedoKey(keys);
-    return key ? redo(*key, document) : nullptr;
+    return key ? redo(*key, document, ran) : nullptr;
 }
 
 void UndoHistories::dropReplacedHistories(const EditCommand& command)

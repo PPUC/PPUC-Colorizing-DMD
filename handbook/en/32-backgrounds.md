@@ -44,7 +44,8 @@ Currently implemented:
   the original frame. The mask is set there (with `Shift`, cleared), whatever it held before.
 - Hold `Shift` while clicking, drawing, or flood filling to erase background-mask pixels back to `0`.
 - The frame strip follows mask edits: where the background shows changes the frame's thumbnail.
-- Background-mask edits are undoable per frame and per resolution.
+- Background-mask edits are undoable (histories per frame and per resolution; an edit of several
+  selected frames is one step).
 
 `New` and `Delete` above the background list of the left sidebar add a background with the picture
 of the current frame and delete the selected one, see "Adding And Deleting Records".

@@ -17,8 +17,8 @@ A comparison mask dragged from the `Comparison Masks` list, or a background from
 dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign Background` do;
 a scene dropped there becomes the selected frames' trigger (see "Scenes and Scaling").
 While it is over the canvas the status bar says what the drop will do. It is undoable like those
-buttons: one step per frame in each frame's settings history, so Undo takes it back from the
-frame shown (see "Undo And Redo"). Frames without background data are skipped for a background.
+buttons: one step, its part of each frame in that frame's settings history, so Undo takes it
+back on all of them (see "Undo And Redo"). Frames without background data are skipped for a background.
 Nothing else can be dropped onto the canvas.
 
 ## Back and forward

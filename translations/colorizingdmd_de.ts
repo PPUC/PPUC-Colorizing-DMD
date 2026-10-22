@@ -4264,6 +4264,10 @@ Use Create %1 Frame.</source>
         <translation>Ohne Szenen-Frames</translation>
     </message>
     <message>
+        <source>%1 (one step of %2 changes)</source>
+        <translation>%1 (ein Schritt aus %2 Änderungen)</translation>
+    </message>
+    <message>
         <source>Scene %1</source>
         <translation type="vanished">Szene %1</translation>
     </message>
@@ -5394,20 +5398,36 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Frame %1 mit dem Bild von Frame %2 als Original hinzugefügt</translation>
     </message>
     <message>
+        <source>Undo</source>
+        <translation>Rückgängig</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation>Wiederholen</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>%1: move %2 frame(s)</source>
+        <translation>%1: %2 Frame(s) verschieben</translation>
+    </message>
+    <message>
         <source>Undo failed, the step stays in the history: %1</source>
         <translation>Rückgängig fehlgeschlagen, der Schritt bleibt im Verlauf: %1</translation>
     </message>
     <message>
         <source>Undo: %1</source>
-        <translation>Rückgängig: %1</translation>
+        <translation type="vanished">Rückgängig: %1</translation>
     </message>
     <message>
         <source>Undo: move %1 frame(s)</source>
-        <translation>Rückgängig: %1 Frame(s) verschieben</translation>
+        <translation type="vanished">Rückgängig: %1 Frame(s) verschieben</translation>
     </message>
     <message>
         <source>Undo%1</source>
-        <translation>Rückgängig%1</translation>
+        <translation type="vanished">Rückgängig%1</translation>
     </message>
     <message>
         <source>Redo failed, the step stays in the history: %1</source>
@@ -5415,15 +5435,15 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Redo: %1</source>
-        <translation>Wiederholen: %1</translation>
+        <translation type="vanished">Wiederholen: %1</translation>
     </message>
     <message>
         <source>Redo: move %1 frame(s)</source>
-        <translation>Wiederholen: %1 Frame(s) verschieben</translation>
+        <translation type="vanished">Wiederholen: %1 Frame(s) verschieben</translation>
     </message>
     <message>
         <source>Redo%1</source>
-        <translation>Wiederholen%1</translation>
+        <translation type="vanished">Wiederholen%1</translation>
     </message>
     <message>
         <source>%1: %2 frames%3, %4 backgrounds, %5 sprites%6%7</source>

@@ -15,8 +15,8 @@ many frames show the same and how many of them would change (a frame that alread
 colors does not change), how many have no picture on the HD plane, and how many had the same CRC
 but other pixels. `Apply` writes the colors and, on the dynamic plane, the dynamic mask of the
 selected pixels; the dynamic set colors are not copied (Win32 `AutoCopy` copies the frame and the
-mask only). One undoable step per changed frame. Unlike the Win32 editor (which asks nothing and
-cannot undo it), the count comes first and every frame can be undone.
+mask only). The whole run is one undoable step. Unlike the Win32 editor (which asks nothing and
+cannot undo it), the count comes first and the run can be undone.
 
 ## Scrolling auto fill
 
@@ -33,7 +33,7 @@ get the reference's colors and, on the dynamic plane, its dynamic mask; the unco
 This is done with the first frame, then with the last, which wins where both apply. On the HD
 plane of an ordinary project the shift counts twice. Frames without a picture on the plane take
 no part. The question before it runs says how many frames scroll from each reference and how
-many change; one undoable step per changed frame.
+many change; the whole fill is one undoable step.
 
 With a selection on the plane, only the selected part is looked for and copied (not in the
 Win32 editor): the selected pixels of a reference, moved by a shift, have to show the same as

@@ -59,8 +59,8 @@ Rules:
   dynamic colors and shadows of the SD plane. See "Dynamic Masks".
 - The Inspector `Remove HD` button removes HD data from every selected frame that has it and
   switches the canvas back to SD when needed.
-- `Create HD` and `Remove HD` can be undone, frame by frame (each frame's step is in the history
-  of that frame). Undo puts back exactly what was there before: the
+- `Create HD` and `Remove HD` can be undone, on all frames they changed in one step (each
+  frame's part is in the history of that frame). Undo puts back exactly what was there before: the
   frame's HD pixels (or their absence) and, for `Create HD`, every related item the dialog upscaled,
   including the previous HD image of the assigned background. See "Undo And Redo".
 

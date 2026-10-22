@@ -4,7 +4,7 @@
   Recolor...` and then a click: every pixel that has the clicked pixel's stored color, in the
   current frame or in every selected frame, gets the draw color, or in `Set Replace` mode the edit
   color of its original shade. Refused on a dynamic pixel ("works only for static content", as
-  in the Win32 editor). One undoable step per changed frame.
+  in the Win32 editor). One undoable step, on all frames it changed.
 - `Black Original To Black` (`Ctrl/Cmd+Shift+O`; Win32 `Ctrl+O`, which is `Open` here): pixels
   whose original shade is 0 become black on every selected frame, in the selection if there is
   one on the plane, else everywhere. The original pixel is the ROM pixel the plane pixel shows,
@@ -27,5 +27,5 @@
   all around or on one side. A dynamic shadow (CDMD's shadow buttons with `Alt`) is set on the
   `Dynamic` page.
 
-Each is one undoable step per changed frame. CDMD's `Black And White` (the whole project to
+Each is one undoable step, on all frames it changed. CDMD's `Black And White` (the whole project to
 grey, not undoable there) is not offered.

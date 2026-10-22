@@ -138,6 +138,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     WindowGeometry.h
     VideoClip.cpp
     VideoClip.h
+    ActionUndoGroups.cpp
+    ActionUndoGroups.h
     UnsavedChanges.cpp
     UnsavedChanges.h
 )

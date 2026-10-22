@@ -4264,6 +4264,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Sans frames de scène</translation>
     </message>
     <message>
+        <source>%1 (one step of %2 changes)</source>
+        <translation>%1 (une étape de %2 modifications)</translation>
+    </message>
+    <message>
         <source>Scene %1</source>
         <translation type="vanished">Scène %1</translation>
     </message>
@@ -5394,20 +5398,36 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Frame %1 ajoutée avec l&apos;image de la frame %2 comme originale</translation>
     </message>
     <message>
+        <source>Undo</source>
+        <translation>Annulation</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation>Rétablissement</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1 : %2</translation>
+    </message>
+    <message>
+        <source>%1: move %2 frame(s)</source>
+        <translation>%1 : déplacement de %2 frame(s)</translation>
+    </message>
+    <message>
         <source>Undo failed, the step stays in the history: %1</source>
         <translation>Échec de l&apos;annulation, l&apos;étape reste dans l&apos;historique : %1</translation>
     </message>
     <message>
         <source>Undo: %1</source>
-        <translation>Annulation : %1</translation>
+        <translation type="vanished">Annulation : %1</translation>
     </message>
     <message>
         <source>Undo: move %1 frame(s)</source>
-        <translation>Annulation : déplacement de %1 frame(s)</translation>
+        <translation type="vanished">Annulation : déplacement de %1 frame(s)</translation>
     </message>
     <message>
         <source>Undo%1</source>
-        <translation>Annulation%1</translation>
+        <translation type="vanished">Annulation%1</translation>
     </message>
     <message>
         <source>Redo failed, the step stays in the history: %1</source>
@@ -5415,15 +5435,15 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Redo: %1</source>
-        <translation>Rétablissement : %1</translation>
+        <translation type="vanished">Rétablissement : %1</translation>
     </message>
     <message>
         <source>Redo: move %1 frame(s)</source>
-        <translation>Rétablissement : déplacement de %1 frame(s)</translation>
+        <translation type="vanished">Rétablissement : déplacement de %1 frame(s)</translation>
     </message>
     <message>
         <source>Redo%1</source>
-        <translation>Rétablissement%1</translation>
+        <translation type="vanished">Rétablissement%1</translation>
     </message>
     <message>
         <source>%1: %2 frames%3, %4 backgrounds, %5 sprites%6%7</source>

@@ -56,7 +56,10 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     and deleting records, see "Record management" below), `SameFrames` (which frames have
     the same hash under a mask and shape mode, the frames "delete same frames" removes, the
     pixels that differ among frames), `UndoHistories` (scoped stacks with a
-    global sequence for chronological undo; drops histories that name renumbered records),
+    global sequence for chronological undo; drops histories that name renumbered records;
+    groups make one user action one step across histories: `app/ActionUndoGroups` opens a group
+    at an action's first push and closes it back in the event loop, every MainWindow push goes
+    through `pushToHistory()`, and undo/redo refresh through the per-command callback),
     `DrawingTools`, `DrawingGeometry`, `FramePixelSelection`, `ColorModel` (RGB565/RGB888/HSV/hex
     conversions of the color picker) and `ColorSetEdits` (edit colors, color sets, the draw color
     mode, `EditorColorsCommand`, Edit <-> Dyn), see "Colors" below; `PlaneSelection` (the
@@ -903,9 +906,6 @@ one is removed.
     - Black-to-black and the dynamic helpers act on the selection when there is one (Win32: on
       the whole frame). Right?
     - `Black Original To Black` is `Ctrl+Shift+O`. Right?
-    - `Auto Copy...` and `Scrolling Auto Fill...` are undone one frame at a time, so undoing them
-      means visiting each frame (or repeating `Undo Last Edit Anywhere`). A single undo step for
-      all frames would need a new kind of history entry. Wanted?
 
 ### Answers of one author (2026-10-22)
 
@@ -931,10 +931,7 @@ Asked for a change:
 
 - Colors (item 10): the draw color is always an edit color (1); `Pick` writes into the selected
   edit color (2) and takes the color as seen, i.e. the composed picture (3). All three as Win32.
-- Selection (item 11): selection steps are undoable (9); one undo step for a whole `Auto
-  Copy...` or `Scrolling Auto Fill...` run, and likewise for an image or video import over many
-  frames (15). (Paste staying in paste mode until `Esc`, 11, is the option `Stay In Paste
-  Mode` now.)
+- Selection (item 11): selection steps are undoable (9).
 - The 15 ms rule (item 5): a limit per project instead of the fixed 15 ms (24). It would be
   editor data (a `.cRPX` chunk); the cROM is unchanged.
 - `trn_174h` edges (item 6): the canvas should show the smoothed edges of upscaled content
@@ -992,8 +989,6 @@ Asked for a change:
   (`smb3` frames 2200 to 2700, 3.8 MB cROM each). The view renders at paint time and only when
   the document revision, the frame or the plane changed, so repaints are free and bursts of
   changes coalesce; no timer and no thread.
-- An undo step of a multi-frame edit (drawing, paste, auto copy, scrolling fill) is in each
-  frame's own history, so after an auto copy to 300 frames the frames are undone one by one.
 - Not undoable: palette names. Sprite slots, capture, detection areas, sprite names and colour
   rotations are undoable through `edit/StateCommands` (state before/after; capture is one
   `CommandGroup` in the frame's history). The source rectangle and mirror flags of a sprite

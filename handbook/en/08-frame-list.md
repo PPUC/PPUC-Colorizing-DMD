@@ -138,8 +138,9 @@ selection, and `Left` or `Right` selects the next frame alone. Frame drawing, co
 dynamic-mask drawing, background-mask drawing, and all frame settings (comparison mask ID, shape
 mode, background ID, trigger, duration) apply to all selected frames where
 the operation is valid. Comparison-mask edits are grouped by assigned mask ID, so a shared mask is
-edited once even if multiple selected frames use it. Undo/redo history is still stored per frame,
-per resolution, or per shared mask as appropriate.
+edited once even if multiple selected frames use it. Each frame keeps its part in its own
+history, per resolution or per shared mask, and the whole edit is one step for Undo and Redo
+(see "Undo And Redo").
 
 When an edit cannot apply to some of the selected frames, those frames are skipped and the others
 are edited. The status bar then reports both counts, for example

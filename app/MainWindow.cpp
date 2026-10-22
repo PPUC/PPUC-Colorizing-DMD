@@ -5941,7 +5941,7 @@ MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
                                                                              value);
             command->apply(*m_document);
             const edit::HistoryKey key = edit::historyKey(command->target());
-            m_undoHistories.push(key, std::move(command));
+            pushToHistory(key, std::move(command));
             changedFrames.push_back(frameIndex);
             ++count.changed;
         }
@@ -6148,7 +6148,7 @@ void MainWindow::setSelectedFramesTags(const QString& text)
             frameIndex, m_document->frameTags(frameIndex), std::move(tags));
         command->apply(*m_document);
         const edit::HistoryKey key = edit::historyKey(command->target());
-        m_undoHistories.push(key, std::move(command));
+        pushToHistory(key, std::move(command));
         changed.push_back(frameIndex);
     }
     updateFrameListItems(changed);
@@ -7351,7 +7351,7 @@ void MainWindow::recordFrameEdits(std::vector<std::unique_ptr<edit::EditCommand>
         const edit::EditTarget target = command->target();
         frames.insert(frames.end(), target.frameIndices.begin(), target.frameIndices.end());
         last = command.get();
-        m_undoHistories.push(edit::historyKey(target), std::move(command));
+        pushToHistory(edit::historyKey(target), std::move(command));
     }
     if (!last) {
         return;
@@ -9502,7 +9502,7 @@ void MainWindow::recordEdit(std::unique_ptr<edit::EditCommand> command)
         return;
     }
     const edit::EditCommand& applied = *command;
-    m_undoHistories.push(edit::historyKey(applied.target()), std::move(command));
+    pushToHistory(edit::historyKey(applied.target()), std::move(command));
     refreshAfterEdit(applied);
 }
 
@@ -9512,7 +9512,7 @@ void MainWindow::pushEdit(std::unique_ptr<edit::EditCommand> command)
         return;
     }
     const edit::HistoryKey key = edit::historyKey(command->target());
-    m_undoHistories.push(key, std::move(command));
+    pushToHistory(key, std::move(command));
     updateUndoRedoActions();
 }
 
@@ -9961,7 +9961,7 @@ void MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
         }
         const edit::FrameMoveCommand& applied = *command;
         m_droppedStructureSteps =
-            m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+            pushToHistory(edit::structureHistoryKey(), std::move(command));
         refreshAfterFrameMove(applied);
         updateUndoRedoActions();
         const std::vector<std::size_t> moved = applied.movedFrames();
@@ -10025,7 +10025,7 @@ void MainWindow::recordStructureEdit(std::unique_ptr<edit::StructureCommand> com
         return;
     }
     const edit::StructureCommand& applied = *command;
-    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
     refreshAfterStructureEdit(applied);
     updateUndoRedoActions();
 }
@@ -10318,7 +10318,7 @@ void MainWindow::recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsComm
         return;
     }
     const std::vector<std::size_t> frames = command->target().frameIndices;
-    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
     refreshSpeakerLights();
     refreshAfterLightsChanged(frames);
     updateUndoRedoActions();
@@ -10406,7 +10406,7 @@ void MainWindow::setSelectedFramesLight(std::size_t channel, const document::Lig
             frameIndex, m_document->frameLights(frameIndex), lights);
         command->apply(*m_document);
         const edit::HistoryKey key = edit::historyKey(command->target());
-        m_undoHistories.push(key, std::move(command));
+        pushToHistory(key, std::move(command));
         changed.push_back(frameIndex);
     }
     if (changed.empty()) {
@@ -10445,7 +10445,7 @@ void MainWindow::suggestSelectedFramesLights()
             frameIndex, m_document->frameLights(frameIndex), lights);
         command->apply(*m_document);
         const edit::HistoryKey key = edit::historyKey(command->target());
-        m_undoHistories.push(key, std::move(command));
+        pushToHistory(key, std::move(command));
         changed.push_back(frameIndex);
     }
     refreshAfterLightsChanged(changed);
@@ -10762,7 +10762,7 @@ void MainWindow::recordSceneEdit(std::unique_ptr<edit::SceneEditCommand> command
         return;
     }
     const edit::SceneEditCommand& applied = *command;
-    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
     refreshAfterSceneEdit(applied);
     updateUndoRedoActions();
     QString text = sceneEditText(applied);
@@ -10821,7 +10821,7 @@ void MainWindow::recordPluginEdit(std::unique_ptr<edit::EditCommand> command)
     }
     const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
     const QString name = batch ? QString::fromStdString(batch->name()) : QString();
-    m_droppedStructureSteps = m_undoHistories.push(edit::structureHistoryKey(), std::move(command));
+    m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
     refreshAfterEditBatch();
     updateUndoRedoActions();
     showStructureEditStatus(name, 3000);
@@ -11401,116 +11401,94 @@ bool MainWindow::isSpriteCanvasActive() const
            currentSpriteIndex().has_value();
 }
 
+std::size_t MainWindow::pushToHistory(const edit::HistoryKey& key,
+                                      std::unique_ptr<edit::EditCommand> command)
+{
+    return m_actionGroups.push(key, std::move(command));
+}
+
+QString MainWindow::undoRedoStatusText(const edit::EditCommand& command, bool undoing) const
+{
+    const QString verb = undoing ? tr("Undo") : tr("Redo");
+    if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(&command)) {
+        return tr("%1: %2").arg(verb, structureCommandText(*structure));
+    }
+    if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(&command)) {
+        return tr("%1: move %2 frame(s)")
+            .arg(verb)
+            .arg(static_cast<int>(move->movedFrames().size()));
+    }
+    if (const auto* scene = dynamic_cast<const edit::SceneEditCommand*>(&command)) {
+        return tr("%1: %2").arg(verb, sceneEditText(*scene));
+    }
+    if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(&command)) {
+        return tr("%1: %2").arg(verb, QString::fromStdString(batch->name()));
+    }
+    return verb + editKindStatusSuffix(command, showsHdAndSd());
+}
+
 void MainWindow::undo(bool anywhere)
 {
-    if (!m_document) {
-        return;
-    }
-    std::vector<edit::HistoryKey> keys = currentHistoryKeys();
-    if (anywhere) {
-        keys = m_undoHistories.keys();
-        const std::optional<edit::HistoryKey> key = m_undoHistories.latestUndoKey(keys);
-        if (!key) {
-            return;
-        }
-        goToHistory(*key);
-        keys = {*key};
-    }
-    const edit::EditCommand* command = nullptr;
-    try {
-        command = m_undoHistories.undoLatest(keys, *m_document);
-    } catch (const std::exception& ex) {
-        // The command could not run and stays where it was (UndoHistories leaves it on its
-        // stack), and the document is unchanged.
-        updateUndoRedoActions();
-        statusBar()->showMessage(
-            tr("Undo failed, the step stays in the history: %1")
-                .arg(QString::fromUtf8(ex.what())),
-            6000);
-        return;
-    }
-    if (!command) {
-        return;
-    }
-    refreshAfterEdit(*command);
-    updateUndoRedoActions();
-    if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
-        statusBar()->showMessage(
-            tr("Undo: %1").arg(structureCommandText(*structure)), 2500);
-        return;
-    }
-    if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(command)) {
-        statusBar()->showMessage(
-            tr("Undo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
-            2500);
-        return;
-    }
-    if (const auto* scene = dynamic_cast<const edit::SceneEditCommand*>(command)) {
-        statusBar()->showMessage(tr("Undo: %1").arg(sceneEditText(*scene)), 2500);
-        return;
-    }
-    if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command)) {
-        statusBar()->showMessage(tr("Undo: %1").arg(QString::fromStdString(batch->name())), 2500);
-        return;
-    }
-    statusBar()->showMessage(tr("Undo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
-                             1500);
+    runUndoRedo(anywhere, true);
 }
 
 void MainWindow::redo(bool anywhere)
 {
+    runUndoRedo(anywhere, false);
+}
+
+void MainWindow::runUndoRedo(bool anywhere, bool undoing)
+{
     if (!m_document) {
         return;
     }
     std::vector<edit::HistoryKey> keys = currentHistoryKeys();
     if (anywhere) {
         keys = m_undoHistories.keys();
-        const std::optional<edit::HistoryKey> key = m_undoHistories.latestRedoKey(keys);
+        const std::optional<edit::HistoryKey> key = undoing
+                                                        ? m_undoHistories.latestUndoKey(keys)
+                                                        : m_undoHistories.latestRedoKey(keys);
         if (!key) {
             return;
         }
         goToHistory(*key);
         keys = {*key};
     }
-    const edit::EditCommand* command = nullptr;
+    // Each command the step ran (several for one action over several frames) refreshes what
+    // it changed right away: a later command of the step can drop its history.
+    QString text;
+    std::size_t ran = 0;
+    const auto refresh = [&](const edit::EditCommand& command) {
+        if (ran++ == 0) {
+            text = undoRedoStatusText(command, undoing);
+        }
+        refreshAfterEdit(command);
+    };
     try {
-        command = m_undoHistories.redoLatest(keys, *m_document);
+        if (undoing) {
+            (void)m_undoHistories.undoLatest(keys, *m_document, refresh);
+        } else {
+            (void)m_undoHistories.redoLatest(keys, *m_document, refresh);
+        }
     } catch (const std::exception& ex) {
         // The command could not run and stays where it was (UndoHistories leaves it on its
         // stack), and the document is unchanged.
         updateUndoRedoActions();
         statusBar()->showMessage(
-            tr("Redo failed, the step stays in the history: %1")
+            (undoing ? tr("Undo failed, the step stays in the history: %1")
+                     : tr("Redo failed, the step stays in the history: %1"))
                 .arg(QString::fromUtf8(ex.what())),
             6000);
         return;
     }
-    if (!command) {
+    if (ran == 0) {
         return;
     }
-    refreshAfterEdit(*command);
     updateUndoRedoActions();
-    if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(command)) {
-        statusBar()->showMessage(
-            tr("Redo: %1").arg(structureCommandText(*structure)), 2500);
-        return;
+    if (ran > 1) {
+        text = tr("%1 (one step of %2 changes)").arg(text).arg(static_cast<qulonglong>(ran));
     }
-    if (const auto* move = dynamic_cast<const edit::FrameMoveCommand*>(command)) {
-        statusBar()->showMessage(
-            tr("Redo: move %1 frame(s)").arg(static_cast<int>(move->movedFrames().size())),
-            2500);
-        return;
-    }
-    if (const auto* scene = dynamic_cast<const edit::SceneEditCommand*>(command)) {
-        statusBar()->showMessage(tr("Redo: %1").arg(sceneEditText(*scene)), 2500);
-        return;
-    }
-    if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command)) {
-        statusBar()->showMessage(tr("Redo: %1").arg(QString::fromStdString(batch->name())), 2500);
-        return;
-    }
-    statusBar()->showMessage(tr("Redo%1").arg(editKindStatusSuffix(*command, showsHdAndSd())),
-                             1500);
+    statusBar()->showMessage(text, 2500);
 }
 
 void MainWindow::goToHistory(const edit::HistoryKey& key)

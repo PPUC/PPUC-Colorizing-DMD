@@ -125,5 +125,5 @@ H, S and V, as the Win32 picker shows them, about 10,000 colors would come back 
 (`Dyn Set` on the `Dynamic Sets` section) of every selected frame that has dynamic data; `Dyn > Edit`
 (`IDC_DYNATOCOL`) copies the current frame's dynamic set into the edit colors. Both use the plane
 dynamic data is edited on (see "Dynamic Masks") and as many colors as the project has. `Edit >
-Dyn` is one undoable step per frame, in the frame's dynamic color history; `Dyn > Edit` is one step
+Dyn` is one undoable step, its part of each frame in that frame's dynamic color history; `Dyn > Edit` is one step
 in the edit color history.

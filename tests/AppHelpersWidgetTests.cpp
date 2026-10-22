@@ -10,7 +10,9 @@
 #include <QLabel>
 #include <QListWidget>
 
+#include "ActionUndoGroups.h"
 #include "ActivityClock.h"
+#include "RuntimeFixtures.h"
 #include "AppInfo.h"
 #include "FrameImageUtils.h"
 #include "dialogs/AboutDialog.h"
@@ -124,6 +126,49 @@ void testDiscardedExtraPlaneWarning()
            "the warning names what the files hold: " + warning.toStdString());
 }
 
+// What one user action records is one undo step: the pushes until it returns to the event
+// loop are a group.
+void testActionUndoGroups()
+{
+    namespace edit = colorizing::edit;
+    using colorizing::render::Resolution;
+    namespace fixtures = colorizing::runtime_fixtures;
+    colorizing::document::ProjectDocument document =
+        colorizing::document::ProjectDocument::fromSnapshot(
+            fixtures::makeProject(colorizing::render::PlaneLayout::Ordinary, 3));
+    edit::UndoHistories histories;
+    app::ActionUndoGroups groups(histories);
+    const auto paint = [&](std::size_t frame, uint16_t color) {
+        const uint16_t old = document.colorizedPixel(frame, Resolution::Sd, 2, 2);
+        auto command = std::make_unique<edit::PixelEditCommand>(
+            edit::EditKind::FramePixels, frame, Resolution::Sd,
+            std::vector<edit::PixelChange>{{2, 2, old, color}});
+        command->apply(document);
+        const edit::HistoryKey key = edit::historyKey(command->target());
+        groups.push(key, std::move(command));
+        return key;
+    };
+    // One action on three frames, then another on frame 0.
+    const edit::HistoryKey frame0 = paint(0, 0x1111);
+    paint(1, 0x2222);
+    paint(2, 0x3333);
+    QApplication::processEvents();
+    paint(0, 0x4444);
+    QApplication::processEvents();
+    expect(!histories.isGroupOpen(), "the group closes back in the event loop");
+
+    std::size_t ran = 0;
+    const auto count = [&](const edit::EditCommand&) { ++ran; };
+    histories.undo(frame0, document, count);
+    expect(ran == 1 && document.colorizedPixel(0, Resolution::Sd, 2, 2) == 0x1111,
+           "the later action is a step of its own");
+    ran = 0;
+    histories.undo(frame0, document, count);
+    expect(ran == 3 && document.colorizedPixel(1, Resolution::Sd, 2, 2) != 0x2222 &&
+               document.colorizedPixel(2, Resolution::Sd, 2, 2) != 0x3333,
+           "the action on three frames is undone in one step");
+}
+
 // The reference view of a 16-color project shows 16 shades, not each shade modulo 4.
 void testOriginalShadeColors()
 {
@@ -185,5 +230,6 @@ void runAppHelpersWidgetTests()
     testSelectSingleRow();
     testMayCloseProject();
     testDiscardedExtraPlaneWarning();
+    testActionUndoGroups();
     testOriginalShadeColors();
 }

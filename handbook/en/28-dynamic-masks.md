@@ -76,8 +76,7 @@ section marks the selected set for that:
   upscaled like any other.
 - It needs libserum 2.9 (`Project Settings`); for libserum 2.8 the box is disabled. The setting
   is kept when the target changes but written into the `.cROM` only for libserum 2.9.
-- Like the shadow, it applies to all selected frames that have dynamic data and is undoable per
-  frame. The canvas, the Runtime view and the frame tester show it.
+- Like the shadow, it applies to all selected frames that have dynamic data, one undoable step. The canvas, the Runtime view and the frame tester show it.
 
 Helpers of the `Edit` menu, on every selected frame and on the dynamic plane only (in HD mode of
 an ordinary project they are refused with a message), in the selection if there is one on the
@@ -108,12 +107,12 @@ Rules:
   clicked one that have its color in the frame's colorized picture, or its shade when clicked on
   the original frame. They get the selected set (with `Shift`, none), whatever they held before.
 - Hold `Shift` while clicking, drawing, or flood filling to erase dynamic-mask pixels back to `255`.
-- Dynamic-mask edits are undoable per frame.
-- Dynamic color changes are undoable per frame.
-- Dynamic shadow direction and color changes apply to all selected frames that have dynamic data
-  and are undoable per frame.
+- Dynamic-mask edits and dynamic color changes are undoable; an edit of several selected frames
+  is one step.
+- Dynamic shadow direction and color changes apply to all selected frames that have dynamic data,
+  one undoable step.
 - `Edit > Dyn` under the toolbar copies the edit colors into the selected `Dyn Set` of all selected
-  frames that have dynamic data, one undoable step per frame; `Dyn > Edit` copies the current
+  frames that have dynamic data, one undoable step; `Dyn > Edit` copies the current
   frame's set into the edit colors (see "Edit colors and dynamic sets" under "Colors").
 - The color swatches and `Shadow Color` open the editor's color picker (see "Color picker").
 

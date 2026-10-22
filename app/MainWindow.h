@@ -13,6 +13,7 @@
 #include <QString>
 #include <QStringList>
 
+#include "ActionUndoGroups.h"
 #include "ActivityClock.h"
 #include "Autosave.h"
 #include "DmdOutput.h"
@@ -544,6 +545,12 @@ private:
     [[nodiscard]] bool isSpriteCanvasActive() const;
     // anywhere: the most recent step of the whole project (Edit -> Undo Last Edit Anywhere),
     // after going to its frame; otherwise the most recent of the current context's histories.
+    void runUndoRedo(bool anywhere, bool undoing);
+    [[nodiscard]] QString undoRedoStatusText(const edit::EditCommand& command,
+                                             bool undoing) const;
+    // Every push goes through here: one user action is one undo step (UndoHistories groups).
+    std::size_t pushToHistory(const edit::HistoryKey& key,
+                              std::unique_ptr<edit::EditCommand> command);
     void undo(bool anywhere = false);
     void redo(bool anywhere = false);
     // Shows the frame (and plane) an undo or redo of the history changes.
@@ -702,6 +709,7 @@ private:
     edit::StripePattern m_autoSelectPattern;
     RuntimeView m_runtimeView;
     edit::UndoHistories m_undoHistories;
+    ActionUndoGroups m_actionGroups{m_undoHistories};
     edit::SameFrameFinder m_sameFrameFinder;
     // The counts of "Update Same List" and what they were made for.
     struct SameFrameCountsFor {
