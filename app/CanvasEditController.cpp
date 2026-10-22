@@ -82,6 +82,41 @@ bool isOnOriginal(const render::ProjectGeometry& geometry, const render::CanvasH
            hit.resolution == geometry.nativePlane();
 }
 
+// A rectangle on the original frame that sets the sprite slot bounds (context.spriteBounds).
+bool drawsSpriteBounds(const CanvasEditContext& context,
+                       const render::ProjectGeometry& geometry,
+                       const render::CanvasHit& start)
+{
+    return context.spriteBounds && context.layer == CanvasEditLayer::FramePixels &&
+           (context.tool == DrawingTool::Rectangle ||
+            context.tool == DrawingTool::FilledRectangle) &&
+           isOnOriginal(geometry, start);
+}
+
+// The smallest rectangle around the pixels, filled.
+std::vector<render::Point> filledBox(const std::vector<render::Point>& pixels,
+                                     render::Point& min,
+                                     render::Point& max)
+{
+    std::vector<render::Point> box;
+    if (pixels.empty()) {
+        return box;
+    }
+    min = max = pixels.front();
+    for (const render::Point& pixel : pixels) {
+        min.x = std::min(min.x, pixel.x);
+        min.y = std::min(min.y, pixel.y);
+        max.x = std::max(max.x, pixel.x);
+        max.y = std::max(max.y, pixel.y);
+    }
+    for (int y = min.y; y <= max.y; ++y) {
+        for (int x = min.x; x <= max.x; ++x) {
+            box.push_back(render::Point{x, y});
+        }
+    }
+    return box;
+}
+
 QString onFramesText(const QString& statusText, std::size_t frameCount)
 {
     if (frameCount <= 1) {
@@ -333,6 +368,15 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         case CanvasEditLayer::FramePixels:
             break;
     }
+    if (drawsSpriteBounds(context, geometry, start)) {
+        render::Point min;
+        render::Point max;
+        showPreview(render::CanvasRegion::OriginalFrame,
+                    geometry.nativePlane(),
+                    filledBox(strokePixels(context, start, end), min, max),
+                    QColor(255, 140, 0, 120));
+        return;
+    }
     if (!onColorized) {
         return;
     }
@@ -441,6 +485,15 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
             break;
     }
 
+    if (drawsSpriteBounds(context, projectGeometry(context), start)) {
+        render::Point min;
+        render::Point max;
+        if (!filledBox(strokePixels(context, start, end), min, max).empty() &&
+            m_outputs.spriteBoundsDrawn) {
+            m_outputs.spriteBoundsDrawn(min, max);
+        }
+        return;
+    }
     if (!onColorized) {
         return;
     }

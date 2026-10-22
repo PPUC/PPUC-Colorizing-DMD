@@ -4407,6 +4407,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Modification du fond %1 ; Éditer le fond à nouveau revient à la frame</translation>
     </message>
     <message>
+        <source>Sprite slot %1 has these bounds already</source>
+        <translation>L&apos;emplacement de sprite %1 a déjà ces limites</translation>
+    </message>
+    <message>
+        <source>Sprite slot %1 is empty: assign a sprite to it first</source>
+        <translation>L&apos;emplacement de sprite %1 est vide : attribuez-lui d&apos;abord un sprite</translation>
+    </message>
+    <message>
         <source>Create HD Sprite</source>
         <translation>Créer le sprite HD</translation>
     </message>

@@ -36,6 +36,7 @@
 #include "SectionStack.h"
 #include "UnsavedChanges.h"
 #include "panels/FramePanel.h"
+#include "panels/SpritePanel.h"
 
 namespace colorizing::app {
 class BackgroundPanel;
@@ -349,7 +350,9 @@ private:
     void assignSelectedSpriteToCurrentSlot();
     void captureSelectedSpriteFromCurrentFrame();
     void removeCurrentSpriteSlot();
-    void setCurrentSpriteSlotBounds();
+    // The bounds of the Min/Max fields, or drawn ones (a rectangle on the original frame while
+    // Show Bounds is on), for the selected slot of all selected frames that have a sprite in it.
+    void setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> drawn = std::nullopt);
     void setCurrentSpriteName(const QString& name);
     void setCurrentSpriteDetectionArea();
     void clearCurrentSpriteDetectionArea();

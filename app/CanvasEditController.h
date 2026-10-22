@@ -45,6 +45,9 @@ struct CanvasEditContext {
     // Clicks and strokes on the original frame mark the sprite capture selection instead of
     // editing the layer.
     bool spriteCaptureSelection = false;
+    // Show Bounds is on: while the frame's pixels are edited, a rectangle drawn on the original
+    // frame (Rectangle or Filled Rectangle) gives the selected sprite slot its bounds.
+    bool spriteBounds = false;
     // The chosen target, which stays Background while no background is selected; layer is
     // FramePixels then.
     PaintTarget paintTarget = PaintTarget::Frame;
@@ -98,6 +101,8 @@ struct CanvasEditOutputs {
     std::function<void()> selectionChanged;
     std::function<void(bool active)> selectionDirectionModeChanged;
     std::function<void()> captureSelectionChanged;
+    // A rectangle drawn for the sprite slot bounds, inclusive, in original frame pixels.
+    std::function<void(render::Point min, render::Point max)> spriteBoundsDrawn;
 };
 
 // Turns clicks and strokes on the frame canvas into undoable commands for the layer being

@@ -6775,7 +6775,7 @@ void MainWindow::removeCurrentSpriteSlot()
     }
 }
 
-void MainWindow::setCurrentSpriteSlotBounds()
+void MainWindow::setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> drawn)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     if (!m_document || frameIndices.empty() || !m_spritePanel) {
@@ -6788,7 +6788,7 @@ void MainWindow::setCurrentSpriteSlotBounds()
         return;
     }
 
-    const SpriteSlotBounds bounds = m_spritePanel->slotBounds();
+    const SpriteSlotBounds bounds = drawn.value_or(m_spritePanel->slotBounds());
     const int minX = bounds.minX;
     const int maxX = std::max(bounds.minX, bounds.maxX);
     const int minY = bounds.minY;
@@ -6827,6 +6827,20 @@ void MainWindow::setCurrentSpriteSlotBounds()
         }
         if (changed == 0) {
             updateSpriteControls();
+            if (drawn) {
+                const bool assigned = std::any_of(
+                    frameIndices.begin(), frameIndices.end(), [&](std::size_t frameIndex) {
+                        const auto& slots = m_document->frameSpriteReferences(frameIndex);
+                        return *slotIndex < slots.size() &&
+                               slots[*slotIndex].spriteId != document::kNoSpriteId;
+                    });
+                statusBar()->showMessage(
+                    assigned ? tr("Sprite slot %1 has these bounds already")
+                                   .arg(static_cast<int>(*slotIndex))
+                             : tr("Sprite slot %1 is empty: assign a sprite to it first")
+                                   .arg(static_cast<int>(*slotIndex)),
+                    3000);
+            }
             return;
         }
         if (m_preview) {
@@ -8384,6 +8398,7 @@ CanvasEditContext MainWindow::canvasEditContext() const
         context.layer = CanvasEditLayer::BackgroundImage;
     }
     context.spriteCaptureSelection = isSpriteCaptureSelectionModeActive();
+    context.spriteBounds = m_spritePanel && m_spritePanel->isBoundsOverlayChecked();
     context.paintTarget = activePaintTarget();
     context.selectedBackground = selectedBackgroundIndex();
     context.selectedPalette = selectedPaletteIndex();
@@ -8470,6 +8485,9 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
     };
     outputs.captureSelectionChanged = [this]() {
         updateSpriteControls();
+    };
+    outputs.spriteBoundsDrawn = [this](render::Point min, render::Point max) {
+        setCurrentSpriteSlotBounds(SpriteSlotBounds{min.x, min.y, max.x, max.y});
     };
     return outputs;
 }

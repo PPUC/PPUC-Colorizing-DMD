@@ -144,6 +144,10 @@ struct Owner {
             directionModes.push_back(active);
         };
         out.captureSelectionChanged = [this]() { ++captureChanges; };
+        out.spriteBoundsDrawn = [this](colorizing::render::Point min,
+                                       colorizing::render::Point max) {
+            drawnBounds.push_back({min, max});
+        };
         return out;
     }
 
@@ -159,6 +163,7 @@ struct Owner {
         selectionChanges = 0;
         directionModes.clear();
         captureChanges = 0;
+        drawnBounds.clear();
         previewClears = 0;
         selectionOverlayClears = 0;
     }
@@ -198,6 +203,7 @@ struct Owner {
     int selectionOverlayClears = 0;
     int selectionChanges = 0;
     std::vector<bool> directionModes;
+    std::vector<std::pair<colorizing::render::Point, colorizing::render::Point>> drawnBounds;
     int captureChanges = 0;
 };
 
@@ -1363,6 +1369,53 @@ void testCanvasSelectionOnBackground()
            "on the original in capture mode it neither selects nor paints the capture");
 }
 
+// With Show Bounds on, a rectangle on the original frame gives the sprite slot its bounds.
+void testSpriteBoundsAreDrawn()
+{
+    ProjectDocument document = makeDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::FilledRectangle, {1});
+    context.spriteBounds = true;
+    controller.strokePreviewed(context, original(12, 7), original(4, 3), false);
+    expect(owner.preview &&
+               owner.preview->region == colorizing::render::CanvasRegion::OriginalFrame &&
+               owner.preview->pixels.size() == 9 * 5,
+           "the preview is the filled rectangle on the original");
+    controller.strokeFinished(context, original(12, 7), original(4, 3), false);
+    expect(owner.drawnBounds.size() == 1 && owner.drawnBounds[0].first.x == 4 &&
+               owner.drawnBounds[0].first.y == 3 && owner.drawnBounds[0].second.x == 12 &&
+               owner.drawnBounds[0].second.y == 7 && owner.commits.empty(),
+           "a filled rectangle gives its corners, whichever way it was dragged");
+    owner.next();
+    context.tool = DrawingTool::Rectangle;
+    controller.strokeFinished(context, original(0, 0), original(127, 31), false);
+    expect(owner.drawnBounds.size() == 1 && owner.drawnBounds[0].second.x == 127 &&
+               owner.drawnBounds[0].second.y == 31,
+           "so does an outlined one");
+
+    owner.next();
+    context.tool = DrawingTool::Line;
+    controller.strokeFinished(context, original(0, 0), original(10, 10), false);
+    expect(owner.drawnBounds.empty(), "another tool draws no bounds");
+    context.tool = DrawingTool::FilledRectangle;
+    controller.strokeFinished(context, colorized(0, 0), colorized(10, 10), false);
+    expect(owner.drawnBounds.empty() && !owner.commits.empty(),
+           "on the colorized frame the rectangle paints as before");
+    owner.next();
+    context.spriteBounds = false;
+    controller.strokeFinished(context, original(0, 0), original(10, 10), false);
+    expect(owner.drawnBounds.empty() && owner.commits.empty(),
+           "without Show Bounds the original frame is not drawn on");
+    CanvasEditContext mask =
+        makeContext(document, CanvasEditLayer::ComparisonMask, DrawingTool::FilledRectangle, {1});
+    mask.spriteBounds = true;
+    controller.strokeFinished(mask, original(0, 0), original(10, 10), false);
+    expect(owner.drawnBounds.empty() && !owner.commits.empty(),
+           "while a mask is edited the rectangle paints the mask");
+}
+
 void testSpriteCaptureSelection()
 {
     ProjectDocument document = makeDocument();
@@ -1741,6 +1794,7 @@ void runCanvasEditControllerTests()
     testCanvasSelection();
     testCanvasSelectionOnBackground();
     testSpriteCaptureSelection();
+    testSpriteBoundsAreDrawn();
     testComparisonMaskOnBigOriginal();
     testSpriteCaptureSelectionOnBigOriginal();
     testFramePixelsOnHdOnlyProject();

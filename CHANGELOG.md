@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The search area of a sprite slot can be drawn: with `Show Bounds` on, a rectangle drawn on the
+  original frame sets the slot's `Min X` to `Max Y`.
 - Dynamic sets can color the SD picture only (`Only on the SD Picture` on the `Dynamic Sets`
   section, libserum 2.9): on a frame with its own HD frame, such as an imported image or video,
   their zones show that HD frame instead of the upscaled set, while other sets such as a score

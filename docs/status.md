@@ -2430,3 +2430,13 @@ libserum commit, which has to be pushed first. Tests: testOriginalOnlyDynamicSet
 testFileWriterSavesLibserum29Project (chunk, settings block, not for 2.8),
 testOriginalOnlyDynamicSetsCommand, testDynamicPanelOriginalOnlySets; libserum
 `colorize/original_only_set_shows_the_extra_plane`, `crom/settings_original_only_sets`.
+
+## Sprite slot bounds drawn on the original frame (2026-10-22, owner)
+
+As the earlier rewrite (qt_playback_wip, its sprite zone mode) had it. `CanvasEditContext::
+spriteBounds` (Show Bounds checked); with the frame-pixels layer, a Rectangle or Filled
+Rectangle stroke on the original frame previews the filled box and reports its corners through
+`CanvasEditOutputs::spriteBoundsDrawn`. `MainWindow::setCurrentSpriteSlotBounds(drawn)` applies
+them as the Min/Max fields do (selected frames with a sprite in the slot, one
+FrameSpriteSlotsCommand each) and says when the slot is empty. Test:
+testSpriteBoundsAreDrawn (CanvasEditControllerTests).

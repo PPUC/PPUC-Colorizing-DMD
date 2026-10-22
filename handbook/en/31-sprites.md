@@ -147,6 +147,12 @@ The controls:
   empty. A minimum cannot be raised above its maximum and a maximum cannot be lowered below its
   minimum; the edited value stops at the other one.
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
+- While `Show Bounds` is on and the frame itself is edited (no mask, dynamic zone or background
+  mode), the `Rectangle` and `Filled Rectangle` tools draw the bounds on the original frame:
+  drag the area in which the sprite is looked for, and on release it becomes the selected slot's
+  bounds (`Min X` to `Max Y`), filled or not, from any corner, as typing them does: for all
+  selected frames in which that slot has a sprite, one undo step per frame. An empty slot gets
+  none; the status bar says so. On the colorized frame the tools paint as always.
 - `Outline Sprites` (on by default) draws a green outline on the colorized frame around the
   pixels the sprites libserum finds on the frame paint, exactly those, so that a found sprite
   can be told from the frame's own colors. It works with `Show Sprites` off too: the outline

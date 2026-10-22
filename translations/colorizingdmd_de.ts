@@ -4407,6 +4407,14 @@ Use Create %1 Frame.</source>
         <translation>Hintergrund %1 wird bearbeitet; Hintergrund bearbeiten erneut führt zum Frame zurück</translation>
     </message>
     <message>
+        <source>Sprite slot %1 has these bounds already</source>
+        <translation>Sprite-Slot %1 hat diese Grenzen bereits</translation>
+    </message>
+    <message>
+        <source>Sprite slot %1 is empty: assign a sprite to it first</source>
+        <translation>Sprite-Slot %1 ist leer: Weise ihm zuerst ein Sprite zu</translation>
+    </message>
+    <message>
         <source>Create HD Sprite</source>
         <translation>HD-Sprite erstellen</translation>
     </message>
