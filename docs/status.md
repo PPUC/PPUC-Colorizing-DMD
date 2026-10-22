@@ -46,6 +46,13 @@ behaviour reference; what changed when, and why, is in the git history (commit m
 
 - `core/` (Qt-free static library, links libserum):
   - `document/`: `ProjectDocument`, `ProjectSnapshot`, `EditorMetadata` (all cRP editor data).
+    Branch `format-v3`: every frame, comparison mask, background, sprite and palette has a
+    `ComponentMeta` (`document/ComponentId.h`: a version 4 UUID, revision, author, time,
+    content hash). The document gives an ID to a component without one and a new one to a
+    copy (`ensureComponentIds()`, the insert and append methods); undo keeps IDs, snapshots
+    and subsets carry them (mask meta in `ProjectSnapshot::comparisonMaskMeta`). No file
+    stores them yet, so every load gives new IDs; revision, author and hash stay empty until
+    the new project file (ComponentIdTests).
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 #include <string_view>
 #include <atomic>
 #include <map>
@@ -431,6 +432,7 @@ ProjectDocument ProjectDocument::createEmpty(const ProjectCreateOptions& options
     for (uint32_t i = 0; i < options.frameCount; ++i) {
         document.m_frames.push_back(makeEmptyFrame(options.createHdFrames));
     }
+    document.ensureComponentIds();
     document.m_dirty = false;
     document.m_revision = nextRevision();
     document.m_identificationRevision = document.m_revision;
@@ -593,10 +595,108 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         std::move(frameSnapshot.tags),
         frameSnapshot.lights,
         frameSnapshot.originalOnlyDynamicSets,
+        std::move(frameSnapshot.meta),
     };
 }
 
+// Gives a new ID to every component in the list that has none or the ID of a component before
+// it, so the first of several with one ID keeps it. A component that gets a new ID is a new
+// one: it has no revision and no author yet.
+void giveUniqueIds(const std::vector<ComponentMeta*>& metas)
+{
+    std::unordered_set<ComponentId, ComponentIdHash> seen;
+    seen.reserve(metas.size());
+    for (ComponentMeta* meta : metas) {
+        if (meta->id.isNull() || !seen.insert(meta->id).second) {
+            *meta = ComponentMeta{};
+            meta->id = ComponentId::generate();
+            seen.insert(meta->id);
+        }
+    }
+}
+
+ComponentMeta& recordMeta(FrameRecord& record) { return record.meta; }
+ComponentMeta& recordMeta(BackgroundRecord& record) { return record.meta; }
+ComponentMeta& recordMeta(SpriteRecord& record) { return record.meta; }
+ComponentMeta& recordMeta(PaletteRecord& record) { return record.meta; }
+ComponentMeta& recordMeta(ComponentMeta& meta) { return meta; }
+
+template <typename Record>
+void ensureUniqueIds(std::vector<Record>& records)
+{
+    std::vector<ComponentMeta*> metas;
+    metas.reserve(records.size());
+    for (Record& record : records) {
+        metas.push_back(&recordMeta(record));
+    }
+    giveUniqueIds(metas);
+}
+
+// The record at newIndex goes last, so that it is the one that gets a new ID when another
+// record has its ID.
+template <typename Record>
+void ensureUniqueIdOf(std::vector<Record>& records, std::size_t newIndex)
+{
+    std::vector<ComponentMeta*> metas;
+    metas.reserve(records.size());
+    for (std::size_t index = 0; index < records.size(); ++index) {
+        if (index != newIndex) {
+            metas.push_back(&recordMeta(records[index]));
+        }
+    }
+    metas.push_back(&recordMeta(records[newIndex]));
+    giveUniqueIds(metas);
+}
+
 }  // namespace
+
+void ProjectDocument::ensureComponentIds()
+{
+    ensureUniqueIds(m_frames);
+    m_comparisonMaskMeta.resize(m_comparisonMasks.size());
+    ensureUniqueIds(m_comparisonMaskMeta);
+    ensureUniqueIds(m_backgrounds);
+    ensureUniqueIds(m_sprites);
+    ensureUniqueIds(m_palettes);
+}
+
+const ComponentMeta& ProjectDocument::frameMeta(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).meta;
+}
+
+const ComponentMeta& ProjectDocument::comparisonMaskMeta(std::size_t maskIndex) const
+{
+    if (maskIndex >= m_comparisonMaskMeta.size()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    return m_comparisonMaskMeta[maskIndex];
+}
+
+const ComponentMeta& ProjectDocument::backgroundMeta(std::size_t backgroundIndex) const
+{
+    return background(backgroundIndex).meta;
+}
+
+const ComponentMeta& ProjectDocument::spriteMeta(std::size_t spriteIndex) const
+{
+    return sprite(spriteIndex).meta;
+}
+
+const ComponentMeta& ProjectDocument::paletteMeta(std::size_t paletteIndex) const
+{
+    return palette(paletteIndex).meta;
+}
+
+std::optional<std::size_t> ProjectDocument::frameIndexOf(const ComponentId& id) const
+{
+    const auto found = std::find_if(m_frames.begin(), m_frames.end(),
+                                    [&id](const FrameRecord& frame) { return frame.meta.id == id; });
+    if (found == m_frames.end()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(found - m_frames.begin());
+}
 
 ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
 {
@@ -617,6 +717,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
         document.m_frames.push_back(frameRecord(std::move(frameSnapshot)));
     }
     document.m_comparisonMasks = std::move(snapshot.comparisonMasks);
+    document.m_comparisonMaskMeta = std::move(snapshot.comparisonMaskMeta);
     document.m_backgrounds = std::move(snapshot.backgrounds);
     document.m_sprites = std::move(snapshot.sprites);
     for (SpriteRecord& sprite : document.m_sprites) {
@@ -650,6 +751,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
             sprite.dynamicColorsHd = {};
         }
     }
+    document.ensureComponentIds();
     document.m_dirty = false;
     document.m_revision = nextRevision();
     document.m_identificationRevision = document.m_revision;
@@ -2336,6 +2438,8 @@ void ProjectDocument::restoreSprite(std::size_t spriteIndex, SpriteRecord sprite
         sprite.detectionAreas.size() != current.detectionAreas.size()) {
         throw std::invalid_argument("sprite record does not fit the project");
     }
+    // The sprite stays the same component.
+    sprite.meta = current.meta;
     m_sprites[spriteIndex] = std::move(sprite);
     markChanged();
 }
@@ -3271,6 +3375,21 @@ void ProjectDocument::insertFrames(RemovedFrames removed)
     }
     m_frames = std::move(merged);
     m_dynamicPixelStates.clear();
+    // The frames that were there keep their IDs; an inserted one that has none or one of them
+    // gets a new one.
+    std::vector<ComponentMeta*> metas;
+    metas.reserve(total);
+    for (std::size_t frameIndex = 0, position = 0; frameIndex < total; ++frameIndex) {
+        if (position < insertCount && removed.indices[position] == frameIndex) {
+            ++position;
+        } else {
+            metas.push_back(&m_frames[frameIndex].meta);
+        }
+    }
+    for (std::size_t frameIndex : removed.indices) {
+        metas.push_back(&m_frames[frameIndex].meta);
+    }
+    giveUniqueIds(metas);
 
     if (paletteInsertCount > 0) {
         const std::vector<uint8_t>& current = m_editorMetadata.importedPalettes;
@@ -3379,6 +3498,7 @@ std::size_t ProjectDocument::appendSprite(SpriteRecord sprite, std::size_t sourc
                 2,
                 uint32_t{0});
     m_sprites.push_back(std::move(sprite));
+    ensureUniqueIdOf(m_sprites, m_sprites.size() - 1);
     markChanged();
     return spriteIndex;
 }
@@ -3462,6 +3582,7 @@ void ProjectDocument::insertSprite(RemovedSprite removed)
     }
     m_sprites.insert(m_sprites.begin() + static_cast<std::ptrdiff_t>(removed.index),
                      std::move(removed.sprite));
+    ensureUniqueIdOf(m_sprites, removed.index);
     restoreRecordTables(std::move(removed.tables));
 }
 
@@ -3495,6 +3616,7 @@ std::size_t ProjectDocument::appendBackground(BackgroundRecord background)
         throw std::invalid_argument("background record does not fit the project");
     }
     m_backgrounds.push_back(std::move(background));
+    ensureUniqueIdOf(m_backgrounds, m_backgrounds.size() - 1);
     markChanged();
     return m_backgrounds.size() - 1;
 }
@@ -3544,6 +3666,7 @@ void ProjectDocument::insertBackground(RemovedBackground removed)
     }
     m_backgrounds.insert(m_backgrounds.begin() + static_cast<std::ptrdiff_t>(removed.index),
                          std::move(removed.background));
+    ensureUniqueIdOf(m_backgrounds, removed.index);
     markChanged();
 }
 
@@ -3553,6 +3676,8 @@ std::size_t ProjectDocument::appendComparisonMask()
         throw std::length_error("a project holds at most 64 comparison masks");
     }
     m_comparisonMasks.push_back(makeIndexedFrame(originalFrameSize(), 0));
+    m_comparisonMaskMeta.push_back(ComponentMeta{});
+    ensureUniqueIdOf(m_comparisonMaskMeta, m_comparisonMaskMeta.size() - 1);
     markChanged();
     m_identificationRevision = m_revision;
     return m_comparisonMasks.size() - 1;
@@ -3567,7 +3692,10 @@ RemovedComparisonMask ProjectDocument::removeComparisonMask(std::size_t maskInde
     removed.index = maskIndex;
     removed.tables = recordTables();
     removed.mask = std::move(m_comparisonMasks[maskIndex]);
+    removed.meta = std::move(m_comparisonMaskMeta[maskIndex]);
     m_comparisonMasks.erase(m_comparisonMasks.begin() + static_cast<std::ptrdiff_t>(maskIndex));
+    m_comparisonMaskMeta.erase(m_comparisonMaskMeta.begin() +
+                               static_cast<std::ptrdiff_t>(maskIndex));
     for (std::size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex) {
         uint8_t& maskId = m_frames[frameIndex].comparisonMaskId;
         if (maskId == kNoComparisonMaskId) {
@@ -3608,6 +3736,10 @@ void ProjectDocument::insertComparisonMask(RemovedComparisonMask removed)
     m_comparisonMasks.insert(
         m_comparisonMasks.begin() + static_cast<std::ptrdiff_t>(removed.index),
         std::move(removed.mask));
+    m_comparisonMaskMeta.insert(
+        m_comparisonMaskMeta.begin() + static_cast<std::ptrdiff_t>(removed.index),
+        std::move(removed.meta));
+    ensureUniqueIdOf(m_comparisonMaskMeta, removed.index);
     restoreRecordTables(std::move(removed.tables));
     m_identificationRevision = m_revision;
 }
@@ -3677,6 +3809,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.tags,
         frame.lights,
         frame.originalOnlyDynamicSets,
+        frame.meta,
     };
 }
 
@@ -3737,6 +3870,7 @@ ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>
     }
     for (std::size_t maskIndex : ids.comparisonMasks) {
         snapshot.comparisonMasks.push_back(m_comparisonMasks[maskIndex]);
+        snapshot.comparisonMaskMeta.push_back(m_comparisonMaskMeta[maskIndex]);
     }
     for (std::size_t backgroundIndex : ids.backgrounds) {
         snapshot.backgrounds.push_back(m_backgrounds[backgroundIndex]);
@@ -3759,6 +3893,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
         snapshot.frames.push_back(frameSnapshot(frame));
     }
     snapshot.comparisonMasks = m_comparisonMasks;
+    snapshot.comparisonMaskMeta = m_comparisonMaskMeta;
     snapshot.backgrounds = m_backgrounds;
     snapshot.sprites = m_sprites;
     snapshot.palettes = m_palettes;

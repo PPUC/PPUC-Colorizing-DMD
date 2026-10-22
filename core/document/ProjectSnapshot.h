@@ -34,6 +34,7 @@ struct ProjectFrameSnapshot {
     std::vector<std::string> tags;
     LightActions lights{};
     uint32_t originalOnlyDynamicSets = 0;
+    ComponentMeta meta;
 };
 
 struct ProjectSnapshot {
@@ -70,6 +71,9 @@ struct ProjectSnapshot {
     SpeakerLightSettings speakerLights;
     // What discardExtraPlane() dropped (not written to the files).
     DiscardedExtraPlane discardedExtraPlane;
+    // The change information of the comparison masks, in their order (a mask is a picture
+    // only); shorter or empty when not known, then the masks get new ids.
+    std::vector<ComponentMeta> comparisonMaskMeta;
 };
 
 [[nodiscard]] Size originalFrameSize(const ProjectSnapshot& snapshot);

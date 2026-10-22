@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "document/ComponentId.h"
 #include "document/CompactArray.h"
 #include "document/EditorMetadata.h"
 #include "document/HelperLine.h"
@@ -74,6 +75,7 @@ struct BackgroundRecord {
     // HD pixels the Win32 editor left in the file although HD is switched off. They are kept so
     // an unedited project saves back unchanged, and dropped once HD is created or removed here.
     std::optional<Rgb565Frame> inactiveHd;
+    ComponentMeta meta;
 };
 
 struct FrameBackgroundData {
@@ -106,6 +108,7 @@ struct SpriteRecord {
     CompactArray<uint16_t> dynamicColorsSd;
     CompactArray<uint16_t> dynamicColorsHd;
     uint8_t shapeMode = 0;
+    ComponentMeta meta;
 };
 
 struct FrameSpriteReference {
@@ -142,6 +145,7 @@ struct FrameRecord {
     // The dynamic sets that color the SD picture only, bit n for set n
     // (ProjectDocument::originalOnlyDynamicSets()).
     uint32_t originalOnlyDynamicSets = 0;
+    ComponentMeta meta;
 };
 
 // Which related HD data Create HD upscales besides the frame itself. Dynamic data is not
@@ -259,6 +263,7 @@ struct UnsupportedLegacyPayload {
 struct PaletteRecord {
     std::vector<uint16_t> colors;
     std::string name;
+    ComponentMeta meta;
 };
 
 struct ProjectCreateOptions {
@@ -332,6 +337,7 @@ struct RemovedBackground {
 struct RemovedComparisonMask {
     std::size_t index = 0;
     IndexedFrame mask;
+    ComponentMeta meta;
     // The frames it was assigned to, ascending.
     std::vector<std::size_t> frames;
     RecordTables tables;
@@ -821,6 +827,17 @@ public:
     void addUnsupportedPayload(UnsupportedLegacyPayload payload);
     [[nodiscard]] const std::vector<UnsupportedLegacyPayload>& unsupportedPayloads() const;
     [[nodiscard]] ProjectSnapshot toSnapshot() const;
+
+    // The identity and change information of each component (ComponentId.h). Every component
+    // has an ID, unique within its kind: the document gives one to a component that comes
+    // without one, and a new one to a component that comes with the ID of another (a copy).
+    // A component keeps its ID when it is removed and put back (undo).
+    [[nodiscard]] const ComponentMeta& frameMeta(std::size_t frameIndex) const;
+    [[nodiscard]] const ComponentMeta& comparisonMaskMeta(std::size_t maskIndex) const;
+    [[nodiscard]] const ComponentMeta& backgroundMeta(std::size_t backgroundIndex) const;
+    [[nodiscard]] const ComponentMeta& spriteMeta(std::size_t spriteIndex) const;
+    [[nodiscard]] const ComponentMeta& paletteMeta(std::size_t paletteIndex) const;
+    [[nodiscard]] std::optional<std::size_t> frameIndexOf(const ComponentId& id) const;
     // The given frames alone, in that order, with the comparison masks, backgrounds and sprites
     // they reference and nothing else. The IDs in the frames are renumbered to match, in order
     // of first use; an ID that points at nothing becomes "none". Palettes, editor metadata and
@@ -838,6 +855,8 @@ private:
     void requireDynamicPlane(Resolution resolution) const;
     void requireFittingRecordTables(const RecordTables& tables) const;
     void markChanged();
+    // Gives a new ID to each component that has none or the ID of one before it.
+    void ensureComponentIds();
     // The records packBlocks() goes through: the frames, then the comparison masks, the
     // backgrounds and the sprites; visit is called with each CompactArray of the record.
     [[nodiscard]] std::size_t storageItemCount() const;
@@ -847,6 +866,8 @@ private:
     std::string m_romName;
     std::vector<FrameRecord> m_frames;
     std::vector<IndexedFrame> m_comparisonMasks;
+    // Parallel to m_comparisonMasks.
+    std::vector<ComponentMeta> m_comparisonMaskMeta;
     std::vector<BackgroundRecord> m_backgrounds;
     std::vector<SpriteRecord> m_sprites;
     std::vector<PaletteRecord> m_palettes;

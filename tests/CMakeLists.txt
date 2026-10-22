@@ -11,6 +11,7 @@ add_executable(colorizing_qt_v2_tests
     CanvasLayoutTests.cpp
     ColorSetTests.cpp
     CompactStorageTests.cpp
+    ComponentIdTests.cpp
     CromcExportTests.cpp
     DrawingToolsTests.cpp
     EditCommandTests.cpp

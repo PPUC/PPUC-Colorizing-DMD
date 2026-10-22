@@ -1,4 +1,5 @@
 add_library(colorizing_qt_v2_core STATIC
+    document/ComponentId.cpp
     document/CompactArray.cpp
     document/EditorMetadata.cpp
     document/ProjectSnapshot.cpp
