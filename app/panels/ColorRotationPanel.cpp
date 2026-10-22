@@ -5,11 +5,13 @@
 
 #include <QComboBox>
 #include <QFormLayout>
+#include <QLabel>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "FrameImageUtils.h"
 #include "panels/InspectorForm.h"
 #include "ColorGridWidget.h"
 #include "PlaneLabels.h"
@@ -59,6 +61,10 @@ ColorRotationPanel::ColorRotationPanel(QWidget* parent)
     form->addRow(tr("Delay"), m_delaySpinBox);
     pageLayout->addLayout(form);
     pageLayout->addWidget(m_grid);
+    m_useLabel = new QLabel(this);
+    m_useLabel->setWordWrap(true);
+    m_useLabel->setVisible(false);
+    pageLayout->addWidget(m_useLabel);
     pageLayout->addWidget(m_clearSlotButton);
     pageLayout->addStretch(1);
 
@@ -113,6 +119,7 @@ void ColorRotationPanel::refresh(const document::ProjectDocument* document,
         m_lengthSpinBox->setValue(0);
         m_delaySpinBox->setValue(0);
         m_grid->setColors({}, 0);
+        m_useLabel->setVisible(false);
         return;
     }
 
@@ -129,6 +136,20 @@ void ColorRotationPanel::refresh(const document::ProjectDocument* document,
         colors[colorIndex] = rotations[slotOffset + colorIndex];
     }
     m_grid->setColors(colors, length);
+
+    // A rotation moves only pixels of exactly its colors: say how many there are, so that a
+    // frame drawn with other colors (a palette changed after drawing) shows at once.
+    m_useLabel->setVisible(length > 0);
+    if (length > 0) {
+        const RotationSlotUse use = rotationSlotUse(*document, *frameIndex, resolution, slotIndex);
+        m_useLabel->setText(
+            use.rotating == 0
+                ? tr("No pixel of the frame has a color of this slot, so nothing rotates. A "
+                     "rotation moves only pixels whose color is exactly one of its colors.")
+                : tr("%1 of the frame's %2 colored pixels have a color of this slot and rotate.")
+                      .arg(static_cast<qulonglong>(use.rotating))
+                      .arg(static_cast<qulonglong>(use.colored)));
+    }
 }
 
 std::size_t ColorRotationPanel::selectedSlotIndex() const

@@ -71,6 +71,19 @@ struct SpriteMatch {
     std::vector<uint8_t>* notRotating = nullptr,
     // Without the sprites libserum finds on the frame ("Show Sprites" off).
     bool includeSprites = true);
+// How many pixels of the frame's picture a rotation slot moves: those that are not dynamic
+// content or a dynamic shadow and whose color the slot owns (the first slot, within its
+// length, that lists the color; see applyColorRotations()), out of the picture's pixels that
+// are not black.
+struct RotationSlotUse {
+    std::size_t rotating = 0;
+    std::size_t colored = 0;
+};
+[[nodiscard]] RotationSlotUse rotationSlotUse(const document::ProjectDocument& document,
+                                              std::size_t frameIndex,
+                                              render::Resolution resolution,
+                                              std::size_t slotIndex);
+
 // The frame's color rotations elapsedMs after they started, every slot stepping at its own
 // delay: a pixel whose color is in a rotation takes the color that many places further in it.
 // frame and notRotating are those of composeResolvedFrame(); without notRotating every pixel

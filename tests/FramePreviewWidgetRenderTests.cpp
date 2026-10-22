@@ -1882,6 +1882,50 @@ int enabledButtonCount(const QList<QToolButton*>& buttons)
     return count;
 }
 
+// How many of the frame's pixels a slot moves: exactly its colors, a color listed twice
+// belonging to the first slot; the section says it.
+void testRotationSlotUse()
+{
+    using colorizing::render::Resolution;
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    // Frame 0 has two colored pixels, 0xf800 and 0x07e0.
+    document.setColorRotationLength(0, Resolution::Sd, 0, 2);
+    document.setColorRotationColor(0, Resolution::Sd, 0, 0, 0xf800);
+    document.setColorRotationColor(0, Resolution::Sd, 0, 1, 0x001f);
+    document.setColorRotationLength(0, Resolution::Sd, 1, 2);
+    document.setColorRotationColor(0, Resolution::Sd, 1, 0, 0x07e0);
+    document.setColorRotationColor(0, Resolution::Sd, 1, 1, 0xf800);
+    const auto first = colorizing::app::rotationSlotUse(document, 0, Resolution::Sd, 0);
+    const auto second = colorizing::app::rotationSlotUse(document, 0, Resolution::Sd, 1);
+    const auto unused = colorizing::app::rotationSlotUse(document, 0, Resolution::Sd, 2);
+    expect(first.rotating == 1 && first.colored == 2, "slot 0 moves the 0xf800 pixel");
+    expect(second.rotating == 1 && second.colored == 2,
+           "slot 1 moves the 0x07e0 pixel; 0xf800 belongs to slot 0");
+    expect(unused.rotating == 0 && unused.colored == 0, "a slot without colors moves nothing");
+
+    colorizing::app::ColorRotationPanel panel;
+    QLabel* useLabel = nullptr;
+    for (QLabel* label : panel.findChildren<QLabel*>()) {
+        if (label->wordWrap()) {
+            useLabel = label;
+        }
+    }
+    expect(useLabel != nullptr, "the rotation section has a line about the slot's use");
+    panel.refresh(&document, 0, Resolution::Sd);
+    expect(!useLabel->isHidden() &&
+               useLabel->text() ==
+                   QStringLiteral("1 of the frame's 2 colored pixels have a color of this slot "
+                                  "and rotate."),
+           "it counts the pixels the slot moves");
+    document.setColorRotationColor(0, Resolution::Sd, 0, 0, 0x1234);
+    panel.refresh(&document, 0, Resolution::Sd);
+    expect(useLabel->text().startsWith(QStringLiteral("No pixel of the frame has a color")),
+           "and says when it moves none");
+    document.setColorRotationLength(0, Resolution::Sd, 0, 0);
+    panel.refresh(&document, 0, Resolution::Sd);
+    expect(useLabel->isHidden(), "nothing to say about an unused slot");
+}
+
 void testColorRotationPanel()
 {
     using colorizing::render::Resolution;
@@ -3912,6 +3956,7 @@ int main(int argc, char* argv[])
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();
     testColorRotationPanel();
+    testRotationSlotUse();
     testPalettePanel();
     testSpritePanel();
     testSpritePanelWarnsAboutManySprites();

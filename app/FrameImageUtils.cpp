@@ -772,6 +772,48 @@ std::vector<uint8_t> spriteCoverage(const document::ProjectDocument& document,
     return covered;
 }
 
+RotationSlotUse rotationSlotUse(const document::ProjectDocument& document,
+                                std::size_t frameIndex,
+                                render::Resolution resolution,
+                                std::size_t slotIndex)
+{
+    RotationSlotUse use;
+    if (slotIndex >= document::kMaxColorRotations ||
+        document.colorRotationLength(frameIndex, resolution, slotIndex) == 0) {
+        return use;
+    }
+    // The colors this slot owns: listed in it and in no slot before it.
+    std::vector<uint16_t> owned;
+    std::vector<uint16_t> earlier;
+    for (std::size_t slot = 0; slot <= slotIndex; ++slot) {
+        const uint16_t length = document.colorRotationLength(frameIndex, resolution, slot);
+        for (std::size_t colorIndex = 0; colorIndex < length; ++colorIndex) {
+            const uint16_t color =
+                document.colorRotationColor(frameIndex, resolution, slot, colorIndex);
+            if (slot < slotIndex) {
+                earlier.push_back(color);
+            } else if (std::find(earlier.begin(), earlier.end(), color) == earlier.end()) {
+                owned.push_back(color);
+            }
+        }
+    }
+    std::vector<uint8_t> notRotating;
+    const document::Rgb565Frame picture =
+        composeResolvedFrame(document, frameIndex, resolution, true, &notRotating);
+    for (std::size_t index = 0; index < picture.pixels.size(); ++index) {
+        const uint16_t color = picture.pixels[index];
+        if (color == 0) {
+            continue;
+        }
+        ++use.colored;
+        if (notRotating[index] == 0 &&
+            std::find(owned.begin(), owned.end(), color) != owned.end()) {
+            ++use.rotating;
+        }
+    }
+    return use;
+}
+
 void applyColorRotations(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,

@@ -10,6 +10,7 @@
 #include "document/ProjectDocument.h"
 
 class QComboBox;
+class QLabel;
 class QSpinBox;
 class QToolButton;
 
@@ -42,6 +43,8 @@ private:
     QSpinBox* m_delaySpinBox = nullptr;
     ColorGridWidget* m_grid = nullptr;
     QToolButton* m_clearSlotButton = nullptr;
+    // How many pixels of the frame the selected slot moves.
+    QLabel* m_useLabel = nullptr;
 };
 
 }  // namespace colorizing::app

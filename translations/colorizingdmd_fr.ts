@@ -691,6 +691,14 @@
         <source>Color rotation slot</source>
         <translation>Emplacement de rotation de couleurs</translation>
     </message>
+    <message>
+        <source>No pixel of the frame has a color of this slot, so nothing rotates. A rotation moves only pixels whose color is exactly one of its colors.</source>
+        <translation>Aucun pixel de la frame n&apos;a une couleur de cet emplacement : rien ne tourne. Une rotation ne déplace que les pixels dont la couleur est exactement l&apos;une des siennes.</translation>
+    </message>
+    <message>
+        <source>%1 of the frame&apos;s %2 colored pixels have a color of this slot and rotate.</source>
+        <translation>%1 des %2 pixels colorés de la frame ont une couleur de cet emplacement et tournent.</translation>
+    </message>
 </context>
 <context>
     <name>ColorSetPanel</name>
