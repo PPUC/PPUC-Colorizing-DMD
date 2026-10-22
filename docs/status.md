@@ -1032,15 +1032,15 @@ Asked for a change:
   (11); one undo step for a whole `Auto Copy...` or `Scrolling Auto Fill...` run, and likewise
   for an image or video import over many frames (15).
 - Masks: `Common To Mask` into a new mask (18); `Spot Common` switchable between the differing
-  and the common pixels (19); the same-frames count also outside the section, e.g. in the frame
-  status line (20).
+  and the common pixels (19, done); the same-frames count also outside the section, e.g. in the
+  frame status line (20, done).
 - The 15 ms rule (item 5): a limit per project instead of the fixed 15 ms (24). It would be
   editor data (a `.cRPX` chunk); the cROM is unchanged.
 - `trn_174h` edges (item 6): the canvas should show the smoothed edges of upscaled content
   (33), i.e. reproduce libserum's upscaling.
-- 256x64 (item 2): ask each time before `Create 256x64 Frame` repairs a background (35).
+- 256x64 (item 2): ask each time before `Create 256x64 Frame` repairs a background (35, done).
 - 192x64 (item 1): warn before the first save when the project has 96x32 pictures, which are
-  discarded (36).
+  discarded (36, done).
 - Dynamic data on the HD plane (16, 31): the SD zones and shadows carried to HD by the
   upscaler as now, but for an HD frame made from an imported image or video, HD zones drawn by
   hand (the author did that per HD frame for a Stern Batman colorization). That is an HD
