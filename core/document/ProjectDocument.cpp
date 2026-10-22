@@ -605,6 +605,11 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     }
 
     ProjectDocument document;
+    if (snapshot.geometry.discardsExtraPlane()) {
+        // Dropped by the load, and what this drops below.
+        document.m_discardedExtraPlane = snapshot.discardedExtraPlane;
+        document.m_discardedExtraPlane += extraPlanePictures(snapshot);
+    }
     document.m_romName = std::move(snapshot.romName);
     document.m_frames.reserve(snapshot.frames.size());
     for (ProjectFrameSnapshot& frameSnapshot : snapshot.frames) {
@@ -3731,6 +3736,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.imageZones = m_imageZones;
     snapshot.colorizationSettings = m_colorizationSettings;
     snapshot.speakerLights = m_speakerLights;
+    snapshot.discardedExtraPlane = m_discardedExtraPlane;
     if (m_geometry.discardsExtraPlane()) {
         discardExtraPlane(snapshot);
     }

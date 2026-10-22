@@ -129,7 +129,9 @@ their pictures.
   against real projects with the `colorizing_qt_v2_roundtrip` tool (see Testing Checklist). The
   one exception is the 96x32 data of a project with 192x64 original frames, which is discarded:
   the blocks of the extra plane are written as "no extra data" and differ from the file if the
-  file held anything else there. All other blocks and the `.cRP` are identical.
+  file held anything else there. All other blocks and the `.cRP` are identical. If the file had
+  96x32 pictures in use, the first save asks first (see "Projects With 192x64 Original
+  Frames").
 - Frame identification hashes are recalculated from the original frame, its comparison mask, and
   its shape mode.
 - The "active frame" flag is recalculated: a frame shorter than 15 ms stays inactive until it is

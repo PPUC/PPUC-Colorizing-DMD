@@ -2372,3 +2372,14 @@ filtered-out frames are skipped), clears them while the Comparison Mask section 
 refreshes them after `refreshFrameList()`. Win32's Shift+Left/Right through the selected
 frames is not taken over (Shift+Left/Right extends the selection here). Test:
 testMarkedFramesInTheStrip.
+
+## Warning before 96x32 pictures are lost (2026-10-22, author answer 36)
+
+`document::DiscardedExtraPlane` counts the frames and backgrounds with an extra-plane picture
+and the sprites with `hasHd` (`extraPlanePictures()`). `discardExtraPlane()` adds what it drops
+to `ProjectSnapshot::discardedExtraPlane` (LegacySnapshotBuilder on load);
+`ProjectDocument::fromSnapshot()` keeps that plus what it drops itself, and `toSnapshot()`
+carries it, so structure commands keep it. `MainWindow::saveProject()` asks with
+`discardedExtraPlaneWarning()` (UnsavedChanges) and `Save Without Them` / Cancel, and calls
+`forgetDiscardedExtraPlane()` after a successful save. Tests: testExtraPlaneIsDiscardedOnLoad,
+testDocumentDiscardsExtraPlane (NativeOriginalProjectTests), testDiscardedExtraPlaneWarning.

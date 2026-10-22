@@ -67,6 +67,8 @@ struct ProjectSnapshot {
     std::optional<ColorizationSettings> colorizationSettings;
     // The speaker lights (.cRPX, and the cROM's settings block written from them).
     SpeakerLightSettings speakerLights;
+    // What discardExtraPlane() dropped (not written to the files).
+    DiscardedExtraPlane discardedExtraPlane;
 };
 
 [[nodiscard]] Size originalFrameSize(const ProjectSnapshot& snapshot);
@@ -77,8 +79,12 @@ void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount);
 // Makes the extra plane "no extra data": no frame, background or sprite has it, and every
 // extra-plane array holds what the Win32 editor gives an item without extra resolution
 // (colors, dynamic colors, shadows and rotations 0, dynamic and sprite masks 255, background
-// masks 1). Sizes and the header stay as the geometry says.
+// masks 1). Sizes and the header stay as the geometry says. Adds the pictures it drops
+// (extraPlanePictures()) to discardedExtraPlane.
 void discardExtraPlane(ProjectSnapshot& snapshot);
+// The frames and backgrounds with a picture on the extra plane and the sprites with extra
+// resolution data.
+[[nodiscard]] DiscardedExtraPlane extraPlanePictures(const ProjectSnapshot& snapshot);
 
 // A frame nobody has worked on, as the Win32 editor makes it from a frame of a dump
 // (CopyTXTFrames2Frame): its picture on the native plane is the original in the plain

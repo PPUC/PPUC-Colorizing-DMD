@@ -3686,6 +3686,18 @@ Use Create %1 Frame.</source>
         <translation>Loslassen, damit die %1 ausgewählten Frames Szene %2 starten</translation>
     </message>
     <message>
+        <source>Save Project</source>
+        <translation>Projekt speichern</translation>
+    </message>
+    <message>
+        <source>Save Without Them</source>
+        <translation>Ohne sie speichern</translation>
+    </message>
+    <message>
+        <source>Not saved</source>
+        <translation>Nicht gespeichert</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Die Zwischenablage enthält kein Bild</translation>
     </message>
@@ -7279,6 +7291,25 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Selected: %1%2</source>
         <translation>Ausgewählt: %1%2</translation>
+    </message>
+</context>
+<context>
+    <name>UnsavedChanges</name>
+    <message>
+        <source>frames: %1</source>
+        <translation>Frames: %1</translation>
+    </message>
+    <message>
+        <source>backgrounds: %1</source>
+        <translation>Hintergründe: %1</translation>
+    </message>
+    <message>
+        <source>sprites: %1</source>
+        <translation>Sprites: %1</translation>
+    </message>
+    <message>
+        <source>The project&apos;s files have 96x32 pictures (%1). The editor does not keep the 96x32 plane of a 192x64 project, so saving writes the project without them. Until then the files keep them.</source>
+        <translation>Die Dateien des Projekts enthalten 96x32-Bilder (%1). Der Editor behält die 96x32-Ebene eines 192x64-Projekts nicht, daher speichert er das Projekt ohne sie. Bis dahin bleiben sie in den Dateien.</translation>
     </message>
 </context>
 <context>

@@ -69,7 +69,9 @@ What this means:
 - A project that had 96x32 pictures in use (frames, backgrounds or sprites flagged as having
   extra data) loses them with the first save from this editor. They cannot be brought back from
   the saved file; keep a copy of the original files if they matter. The 192x64 picture is not
-  affected.
+  affected. Before that save (also `Save As`, whose copy has them neither) the editor says how
+  many frames, backgrounds and sprites have 96x32 pictures and saves only after `Save Without
+  Them`; `Cancel` leaves the files as they are. Once saved, it does not ask again.
 - Saving twice writes the same bytes: after the first save the extra plane is already "no extra
   data".
 - Everything on the 192x64 plane, and the whole `.cRP`, is written back as it was loaded or

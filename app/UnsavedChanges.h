@@ -2,6 +2,10 @@
 
 #include <functional>
 
+#include <QString>
+
+#include "document/ProjectDocument.h"
+
 namespace colorizing::app {
 
 // What the user answers when a project with unsaved changes is about to be closed or replaced.
@@ -19,5 +23,9 @@ enum class UnsavedChangesAnswer {
 [[nodiscard]] bool mayCloseProject(bool hasUnsavedChanges,
                                    const std::function<UnsavedChangesAnswer()>& ask,
                                    const std::function<bool()>& save);
+
+// What a save of a 192x64 project loses: the 96x32 pictures its files still hold, which the
+// editor dropped on load. Empty when there are none.
+[[nodiscard]] QString discardedExtraPlaneWarning(const document::DiscardedExtraPlane& discarded);
 
 }  // namespace colorizing::app

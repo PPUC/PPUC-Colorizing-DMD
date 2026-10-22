@@ -500,6 +500,21 @@ void testExtraPlaneIsDiscardedOnLoad()
                loaded.sprites[0].dynamicMaskHd.pixels[4] == 255 &&
                loaded.sprites[0].dynamicColorsHd[0] == 0,
            "the loaded extra arrays hold the values of an item without extra resolution");
+    // Frame 1, the flagged background and the sprite; not the leftovers behind a cleared
+    // flag.
+    expect(loaded.discardedExtraPlane == colorizing::document::DiscardedExtraPlane{1, 1, 1},
+           "the load counts the 96x32 pictures it drops");
+    {
+        ProjectDocument document = ProjectDocument::fromSnapshot(loaded);
+        expect(document.discardedExtraPlane() == loaded.discardedExtraPlane &&
+                   ProjectDocument::fromSnapshot(document.toSnapshot()).discardedExtraPlane() ==
+                       loaded.discardedExtraPlane,
+               "the document keeps the count, also through its snapshots");
+        document.forgetDiscardedExtraPlane();
+        expect(!document.discardedExtraPlane().any() &&
+                   !document.toSnapshot().discardedExtraPlane.any(),
+               "after a save there is nothing left to lose");
+    }
     std::string error;
     expect(isValidProjectSnapshot(loaded, &error), "the loaded snapshot is valid: " + error);
 
@@ -523,6 +538,8 @@ void testDocumentDiscardsExtraPlane()
 
     expect(document.editsOriginalPlaneOnly() && !document.rendersHdPlaneOnly(),
            "the document edits the original plane only");
+    expect(document.discardedExtraPlane() == colorizing::document::DiscardedExtraPlane{1, 1, 1},
+           "a snapshot with 96x32 pictures: the document counts what it drops");
     expect(document.originalFrameSize() == kNativeSize &&
                document.colorizedFrame(1, Resolution::Sd).size == kNativeSize,
            "the edited plane is 192x64");

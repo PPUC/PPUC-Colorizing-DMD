@@ -185,6 +185,25 @@ struct SpriteHdState {
     Rgb565Frame colorizedHd;
 };
 
+// The 96x32 pictures of a 192x64 project that were dropped on load (the editor does not keep
+// that plane): frames and backgrounds with a picture of extra resolution, sprites with extra
+// resolution data. The project's files hold them until it is saved.
+struct DiscardedExtraPlane {
+    std::size_t frames = 0;
+    std::size_t backgrounds = 0;
+    std::size_t sprites = 0;
+
+    [[nodiscard]] bool any() const { return frames > 0 || backgrounds > 0 || sprites > 0; }
+    DiscardedExtraPlane& operator+=(const DiscardedExtraPlane& other)
+    {
+        frames += other.frames;
+        backgrounds += other.backgrounds;
+        sprites += other.sprites;
+        return *this;
+    }
+    bool operator==(const DiscardedExtraPlane&) const = default;
+};
+
 // Missing HD data of an HD-only project. The runtime shows a frame only if the frame, its
 // background and every sprite assigned to it have HD data.
 struct FrameHdGaps {
@@ -340,6 +359,13 @@ public:
     // "no extra data" (discardExtraPlane()). No frame, background or sprite has HD, HD data
     // cannot be created, and every access to Resolution::Hd throws std::logic_error.
     [[nodiscard]] bool editsOriginalPlaneOnly() const;
+    // What of the 96x32 plane fromSnapshot() or the load before it dropped; forgotten once the
+    // project is saved (forgetDiscardedExtraPlane()), when the files no longer hold it.
+    [[nodiscard]] const DiscardedExtraPlane& discardedExtraPlane() const
+    {
+        return m_discardedExtraPlane;
+    }
+    void forgetDiscardedExtraPlane() { m_discardedExtraPlane = {}; }
     // What keeps the runtime from showing the frame; nothing for other projects.
     [[nodiscard]] FrameHdGaps frameHdGaps(std::size_t frameIndex) const;
     [[nodiscard]] const EditorMetadata& editorMetadata() const;
@@ -814,6 +840,7 @@ private:
     std::vector<SavedImageZone> m_imageZones;
     std::optional<ColorizationSettings> m_colorizationSettings;
     SpeakerLightSettings m_speakerLights;
+    DiscardedExtraPlane m_discardedExtraPlane;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;
     LibserumTarget m_libserumTarget = LibserumTarget::Libserum28;

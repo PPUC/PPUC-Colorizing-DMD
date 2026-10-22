@@ -3686,6 +3686,18 @@ Utiliser Créer la frame %1.</translation>
         <translation>Déposer pour que les %1 frames sélectionnées lancent la scène %2</translation>
     </message>
     <message>
+        <source>Save Project</source>
+        <translation>Enregistrer le projet</translation>
+    </message>
+    <message>
+        <source>Save Without Them</source>
+        <translation>Enregistrer sans elles</translation>
+    </message>
+    <message>
+        <source>Not saved</source>
+        <translation>Non enregistré</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Le presse-papiers ne contient pas d&apos;image</translation>
     </message>
@@ -7279,6 +7291,25 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Selected: %1%2</source>
         <translation>Sélection : %1%2</translation>
+    </message>
+</context>
+<context>
+    <name>UnsavedChanges</name>
+    <message>
+        <source>frames: %1</source>
+        <translation>frames : %1</translation>
+    </message>
+    <message>
+        <source>backgrounds: %1</source>
+        <translation>arrière-plans : %1</translation>
+    </message>
+    <message>
+        <source>sprites: %1</source>
+        <translation>sprites : %1</translation>
+    </message>
+    <message>
+        <source>The project&apos;s files have 96x32 pictures (%1). The editor does not keep the 96x32 plane of a 192x64 project, so saving writes the project without them. Until then the files keep them.</source>
+        <translation>Les fichiers du projet contiennent des images 96x32 (%1). L&apos;éditeur ne garde pas le plan 96x32 d&apos;un projet 192x64 : l&apos;enregistrement écrit donc le projet sans elles. Jusque-là, les fichiers les conservent.</translation>
     </message>
 </context>
 <context>

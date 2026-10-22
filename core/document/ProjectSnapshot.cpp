@@ -220,8 +220,24 @@ Size originalFrameSize(const ProjectSnapshot& snapshot)
     return snapshot.geometry.romFrameSize();
 }
 
+DiscardedExtraPlane extraPlanePictures(const ProjectSnapshot& snapshot)
+{
+    DiscardedExtraPlane pictures;
+    for (const ProjectFrameSnapshot& frame : snapshot.frames) {
+        pictures.frames += frame.colorizedHd ? 1 : 0;
+    }
+    for (const BackgroundRecord& background : snapshot.backgrounds) {
+        pictures.backgrounds += background.colorizedHd ? 1 : 0;
+    }
+    for (const SpriteRecord& sprite : snapshot.sprites) {
+        pictures.sprites += sprite.hasHd ? 1 : 0;
+    }
+    return pictures;
+}
+
 void discardExtraPlane(ProjectSnapshot& snapshot)
 {
+    snapshot.discardedExtraPlane += extraPlanePictures(snapshot);
     const Size extraSize = snapshot.geometry.planeSize(Resolution::Hd);
     const Size spriteSize{static_cast<int>(kMaxSpriteWidth),
                           static_cast<int>(kMaxSpriteHeight)};

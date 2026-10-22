@@ -112,6 +112,18 @@ void testMayCloseProject()
            "save failed)");
 }
 
+// A save of a 192x64 project warns about the 96x32 pictures its files still hold.
+void testDiscardedExtraPlaneWarning()
+{
+    expect(app::discardedExtraPlaneWarning({}).isEmpty(), "nothing dropped, no warning");
+    const QString warning = app::discardedExtraPlaneWarning({3, 0, 2});
+    expect(warning.contains(QStringLiteral("96x32")) &&
+               warning.contains(QStringLiteral("frames: 3")) &&
+               warning.contains(QStringLiteral("sprites: 2")) &&
+               !warning.contains(QStringLiteral("backgrounds")),
+           "the warning names what the files hold: " + warning.toStdString());
+}
+
 // The reference view of a 16-color project shows 16 shades, not each shade modulo 4.
 void testOriginalShadeColors()
 {
@@ -172,5 +184,6 @@ void runAppHelpersWidgetTests()
     testActivityClock();
     testSelectSingleRow();
     testMayCloseProject();
+    testDiscardedExtraPlaneWarning();
     testOriginalShadeColors();
 }

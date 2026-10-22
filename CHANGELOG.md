@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Saving a 192x64 project whose files have 96x32 pictures in use asks first: the editor does
+  not keep that plane, and the question says how many frames, backgrounds and sprites lose them.
 - While the `Comparison Mask` section is shown, the frames that are the same as the current one
   are outlined in green in the frame strip and ticked on its scroll bar, and
   `Ctrl/Cmd+Left`/`Right` scroll the strip through them while the current frame stays, as in the

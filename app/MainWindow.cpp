@@ -2483,6 +2483,24 @@ bool MainWindow::saveProject()
     if (isUntitledProject()) {
         return saveProjectAs();
     }
+    // A 192x64 project loses the 96x32 pictures its files still hold.
+    const QString lost = discardedExtraPlaneWarning(m_document->discardedExtraPlane());
+    if (!lost.isEmpty()) {
+        QMessageBox question(this);
+        question.setIcon(QMessageBox::Warning);
+        question.setWindowTitle(tr("Save Project"));
+        question.setText(lost);
+        QPushButton* saveButton =
+            question.addButton(tr("Save Without Them"), QMessageBox::DestructiveRole);
+        QPushButton* cancelButton = question.addButton(QMessageBox::Cancel);
+        question.setDefaultButton(cancelButton);
+        question.setEscapeButton(cancelButton);
+        question.exec();
+        if (question.clickedButton() != saveButton) {
+            statusBar()->showMessage(tr("Not saved"), 3000);
+            return false;
+        }
+    }
     applyPendingSpriteDependentViews();
 
     // The files are written on a worker thread (runProjectTask) from a snapshot that shares
@@ -2524,6 +2542,7 @@ bool MainWindow::saveProject()
     }
 
     m_document->markClean();
+    m_document->forgetDiscardedExtraPlane();
     updateProjectHeaderStatus();
     QStringList retired;
     for (const QString& file : {retireWin32EditorFile(m_currentCromPath),
