@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.9
+
 - One action is one undo step: an edit of several frames (drawing on selected frames, paste,
   `Auto Copy...`, `Scrolling Auto Fill...`, image and movie clip import, the recolor helpers,
   frame settings and the like) is undone and redone on all of them at once.
