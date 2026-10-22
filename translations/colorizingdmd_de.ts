@@ -6174,11 +6174,23 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Spot Common</source>
-        <translation>Unterschiede zeigen</translation>
+        <translation>Vergleich zeigen</translation>
     </message>
     <message>
         <source>Mark the pixels that differ among the selected frames on the original frame</source>
         <translation>Die Pixel, die sich zwischen den ausgewählten Frames unterscheiden, auf dem Original-Frame markieren</translation>
+    </message>
+    <message>
+        <source>Differing Pixels</source>
+        <translation>Abweichende Pixel</translation>
+    </message>
+    <message>
+        <source>Common Pixels</source>
+        <translation>Gemeinsame Pixel</translation>
+    </message>
+    <message>
+        <source>Which pixels Spot Common marks: those in which the selected frames differ, or those they have in common (as the Win32 editor)</source>
+        <translation>Welche Pixel „Vergleich zeigen“ markiert: die, in denen sich die ausgewählten Frames unterscheiden, oder die, die sie gemeinsam haben (wie der Win32-Editor)</translation>
     </message>
     <message>
         <source>Common To Mask</source>
@@ -6203,6 +6215,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Select the frames that use the mask above</source>
         <translation>Die Frames auswählen, die die Maske oben verwenden</translation>
+    </message>
+    <message>
+        <source>Spot Common marks</source>
+        <translation>„Vergleich zeigen“ markiert</translation>
     </message>
     <message>
         <source>Frames using</source>

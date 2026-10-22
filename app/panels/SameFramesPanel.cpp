@@ -74,6 +74,12 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
                    tr("Mark the pixels that differ among the selected frames on "
                       "the original frame"));
     m_spotCommonButton->setCheckable(true);
+    m_spotMarksComboBox = new QComboBox(this);
+    m_spotMarksComboBox->addItem(tr("Differing Pixels"), static_cast<int>(SpotMarks::Differing));
+    m_spotMarksComboBox->addItem(tr("Common Pixels"), static_cast<int>(SpotMarks::Common));
+    m_spotMarksComboBox->setToolTip(
+        tr("Which pixels Spot Common marks: those in which the selected frames differ, or "
+           "those they have in common (as the Win32 editor)"));
     m_commonToMaskButton =
         makeButton(this, tr("Common To Mask"),
                    tr("Make the comparison mask of the current frame cover exactly "
@@ -107,6 +113,10 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
     commonLayout->addWidget(m_commonToMaskButton);
     commonLayout->addStretch(1);
     layout->addLayout(commonLayout);
+    auto* marksLayout = new QHBoxLayout();
+    marksLayout->addWidget(new QLabel(tr("Spot Common marks"), this));
+    marksLayout->addWidget(m_spotMarksComboBox, 1);
+    layout->addLayout(marksLayout);
     auto* usingLayout = new QHBoxLayout();
     usingLayout->addWidget(new QLabel(tr("Frames using"), this));
     usingLayout->addWidget(m_usingMaskComboBox, 1);
@@ -140,6 +150,14 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
             onSpotCommonToggled(checked);
         }
     });
+    connect(m_spotMarksComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                if (onSpotMarksChanged) {
+                    onSpotMarksChanged(spotMarks());
+                }
+            });
     const auto forward = [this](QToolButton* button, std::function<void()> SameFramesPanel::*slot) {
         connect(button, &QToolButton::clicked, this, [this, slot]() {
             if (this->*slot) {
@@ -237,6 +255,20 @@ void SameFramesPanel::setSpotCommonChecked(bool checked)
 {
     QSignalBlocker blocker(m_spotCommonButton);
     m_spotCommonButton->setChecked(checked);
+}
+
+void SameFramesPanel::setSpotMarks(SpotMarks marks)
+{
+    QSignalBlocker blocker(m_spotMarksComboBox);
+    m_spotMarksComboBox->setCurrentIndex(
+        m_spotMarksComboBox->findData(static_cast<int>(marks)));
+}
+
+SpotMarks SameFramesPanel::spotMarks() const
+{
+    return m_spotMarksComboBox->currentData().toInt() == static_cast<int>(SpotMarks::Common)
+               ? SpotMarks::Common
+               : SpotMarks::Differing;
 }
 
 int SameFramesPanel::usingMaskId() const

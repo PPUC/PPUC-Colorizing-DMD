@@ -194,6 +194,19 @@ document::IndexedFrame differingPixels(const document::ProjectDocument& document
     return differing;
 }
 
+document::IndexedFrame commonPixels(const document::ProjectDocument& document,
+                                    const std::vector<std::size_t>& frameIndices)
+{
+    document::IndexedFrame common = differingPixels(document, frameIndices);
+    if (frameIndices.size() < 2) {
+        return common;
+    }
+    for (uint8_t& pixel : common.pixels) {
+        pixel = pixel == 0 ? 1 : 0;
+    }
+    return common;
+}
+
 std::vector<std::size_t> framesUsingComparisonMask(const document::ProjectDocument& document,
                                                    uint8_t maskId)
 {

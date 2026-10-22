@@ -217,6 +217,25 @@ void testSameFramesPanel()
     expect(!panel.isSpotCommonChecked() && spotCommonToggles.size() == 1,
            "setting it does not report");
 
+    // Which pixels Spot Common marks: the differing ones first, the common ones as in Win32.
+    auto* spotMarks = byTip<QComboBox>(
+        panel, "Which pixels Spot Common marks: those in which the selected frames differ, or "
+               "those they have in common (as the Win32 editor)");
+    std::vector<colorizing::app::SpotMarks> marksReported;
+    panel.onSpotMarksChanged = [&](colorizing::app::SpotMarks marks) {
+        marksReported.push_back(marks);
+    };
+    expect(panel.spotMarks() == colorizing::app::SpotMarks::Differing,
+           "Spot Common marks the differing pixels at first");
+    spotMarks->setCurrentIndex(1);
+    expect(panel.spotMarks() == colorizing::app::SpotMarks::Common &&
+               marksReported == std::vector{colorizing::app::SpotMarks::Common},
+           "choosing the common pixels reports it");
+    panel.setSpotMarks(colorizing::app::SpotMarks::Differing);
+    expect(panel.spotMarks() == colorizing::app::SpotMarks::Differing &&
+               marksReported.size() == 1,
+           "setting the choice does not report");
+
     // No same frame: nothing to go to or to delete for the current frame; the last frame
     // of a project cannot be deleted at all.
     state.sameFrames.clear();

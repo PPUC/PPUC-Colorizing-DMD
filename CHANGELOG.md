@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Spot Common` can mark the pixels the selected frames have in common, as the Win32 editor
+  does, instead of the differing ones (`Spot Common marks` in the `Comparison Mask` section).
 - The frame status line shows how many frames are the same as the current one (`| N same`),
   also while the `Comparison Mask` section is not shown.
 - Saving a 192x64 project whose files have 96x32 pictures in use asks first: the editor does

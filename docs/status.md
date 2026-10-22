@@ -2392,3 +2392,12 @@ never costs a pass over the originals. `m_frameRestTimer` (250 ms after the fram
 rest) asks `sameFrameCount()` and updates the line; `updateSameFrameControls()` updates it too.
 During a quick scroll or playback through frames of not yet hashed rules the count is left out.
 Test in testSameFrames (SameFramesTests).
+
+## Spot Common: differing or common pixels (2026-10-22, author answer 19)
+
+`edit::commonPixels()` is the inverse of `differingPixels()` for two or more frames (all 0
+otherwise). SameFramesPanel has `Spot Common marks` (`SpotMarks::Differing`/`Common`,
+`onSpotMarksChanged`); MainWindow keeps the choice in QSettings
+`sameFrames/spotCommonMarksCommon` and `updateSpotCommonOverlay()` picks the function. Common To
+Mask still writes the differing pixels. Tests: testCommonPixelsAndMasks (SameFramesTests),
+testSameFramesPanel (DumpImportWidgetTests).

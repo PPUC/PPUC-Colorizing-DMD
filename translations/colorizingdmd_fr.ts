@@ -6181,6 +6181,18 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Marquer sur la frame d&apos;origine les pixels qui diffèrent entre les frames sélectionnées</translation>
     </message>
     <message>
+        <source>Differing Pixels</source>
+        <translation>Pixels différents</translation>
+    </message>
+    <message>
+        <source>Common Pixels</source>
+        <translation>Pixels communs</translation>
+    </message>
+    <message>
+        <source>Which pixels Spot Common marks: those in which the selected frames differ, or those they have in common (as the Win32 editor)</source>
+        <translation>Les pixels que « Repérer commun » marque : ceux où les frames sélectionnées diffèrent, ou ceux qu’elles ont en commun (comme l’éditeur Win32)</translation>
+    </message>
+    <message>
         <source>Common To Mask</source>
         <translation>Commun -&gt; masque</translation>
     </message>
@@ -6203,6 +6215,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Select the frames that use the mask above</source>
         <translation>Sélectionner les frames qui utilisent le masque ci-dessus</translation>
+    </message>
+    <message>
+        <source>Spot Common marks</source>
+        <translation>« Repérer commun » marque</translation>
     </message>
     <message>
         <source>Frames using</source>

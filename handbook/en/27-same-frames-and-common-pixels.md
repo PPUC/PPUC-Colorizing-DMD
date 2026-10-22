@@ -45,8 +45,10 @@ frames of a frame.
 
 - `Spot Common` marks, in yellow on the original/reference region, the pixels in which the
   originals of the selected frames differ. With fewer than two frames selected nothing is
-  marked. The marking follows the selection. (The Win32 editor tints the other pixels, the
-  common ones.)
+  marked. The marking follows the selection.
+- `Spot Common marks` chooses which pixels: `Differing Pixels` (the default) or `Common
+  Pixels`, the pixels in which all selected originals are the same, as the Win32 editor tints
+  them. The choice is kept for every project. `Common To Mask` is not affected by it.
 - `Common To Mask` makes the comparison mask of the current frame cover exactly those pixels,
   replacing what the mask held. It needs at least two selected frames and a mask assigned to
   the current frame; it does not need `Spot Common` to be on. The `Mask` toggle is switched on,

@@ -107,6 +107,11 @@ private:
     const document::ProjectDocument& document,
     uint8_t maskId);
 
+// 1 where the originals of the frames are all the same, 0 where they are not: what the Win32
+// editor's "spot common" marks. All 0 for fewer than two frames.
+[[nodiscard]] document::IndexedFrame commonPixels(const document::ProjectDocument& document,
+                                                  const std::vector<std::size_t>& frameIndices);
+
 // Makes the comparison mask equal to `mask` (any value but 0 masks). Not applied; nullptr
 // if the mask is that already. Throws std::out_of_range for a mask that does not exist and
 // std::invalid_argument for another size.

@@ -377,6 +377,15 @@ void testCommonPixelsAndMasks()
         expect((differing.pixels[index] == 1) == expected && differing.pixels[index] <= 1,
                "differing pixel " + std::to_string(index));
     }
+    const IndexedFrame common = edit::commonPixels(project, {0, 1, 5, 2});
+    bool inverse = common.size == size;
+    for (std::size_t index = 0; index < common.pixels.size(); ++index) {
+        inverse = inverse && common.pixels[index] == (differing.pixels[index] == 0 ? 1 : 0);
+    }
+    expect(inverse, "the common pixels are the others");
+    const IndexedFrame alone = edit::commonPixels(project, {4});
+    expect(std::all_of(alone.pixels.begin(), alone.pixels.end(), [](uint8_t v) { return v == 0; }),
+           "one frame has no common pixel to mark");
     const IndexedFrame none = edit::differingPixels(project, {4});
     expect(std::all_of(none.pixels.begin(), none.pixels.end(), [](uint8_t v) { return v == 0; }),
            "one frame has no differing pixel");

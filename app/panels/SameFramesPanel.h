@@ -28,6 +28,13 @@ struct SameFramesPanelState {
     bool hasAssignedMask = false;
 };
 
+// Which pixels Spot Common marks: those in which the selected frames differ, or those they
+// have in common, as the Win32 editor marks them.
+enum class SpotMarks {
+    Differing,
+    Common,
+};
+
 // The comparison side of the Mask page: which frames are the same as the current one, how
 // many would be under each mask, deleting same frames, the pixels that differ among the
 // selected frames, and the frames that use a mask. It only displays and reports what the
@@ -47,11 +54,14 @@ public:
     void setFramesUsingMask(const std::vector<std::size_t>& frames);
     // Does not notify.
     void setSpotCommonChecked(bool checked);
+    // Does not notify.
+    void setSpotMarks(SpotMarks marks);
 
     // -1 for "no mask".
     [[nodiscard]] int usingMaskId() const;
     [[nodiscard]] bool keepsSelectedFrames() const;
     [[nodiscard]] bool isSpotCommonChecked() const;
+    [[nodiscard]] SpotMarks spotMarks() const;
 
     std::function<void(std::size_t frameIndex)> onFrameRequested;
     std::function<void()> onUpdateCountsRequested;
@@ -59,6 +69,7 @@ public:
     std::function<void()> onDeleteSameAsSelectedRequested;
     std::function<void()> onDeleteAllDuplicatesRequested;
     std::function<void(bool checked)> onSpotCommonToggled;
+    std::function<void(SpotMarks marks)> onSpotMarksChanged;
     std::function<void()> onCommonToMaskRequested;
     std::function<void()> onUsingMaskChanged;
     std::function<void()> onSelectUsingMaskRequested;
@@ -73,6 +84,7 @@ private:
     QToolButton* m_deleteAllDuplicatesButton = nullptr;
     QCheckBox* m_keepSelectedCheckBox = nullptr;
     QToolButton* m_spotCommonButton = nullptr;
+    QComboBox* m_spotMarksComboBox = nullptr;
     QToolButton* m_commonToMaskButton = nullptr;
     QComboBox* m_usingMaskComboBox = nullptr;
     QListWidget* m_usingMaskList = nullptr;

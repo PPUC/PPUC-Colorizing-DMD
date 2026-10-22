@@ -1223,6 +1223,16 @@ void MainWindow::createCentralView()
         deleteSameFrames(SameFrameDeletion::AllDuplicates);
     };
     m_sameFramesPanel->onSpotCommonToggled = [this](bool) { updateSpotCommonOverlay(); };
+    // Which pixels Spot Common marks is the author's choice for every project.
+    m_sameFramesPanel->setSpotMarks(
+        QSettings().value(QStringLiteral("sameFrames/spotCommonMarksCommon"), false).toBool()
+            ? SpotMarks::Common
+            : SpotMarks::Differing);
+    m_sameFramesPanel->onSpotMarksChanged = [this](SpotMarks marks) {
+        QSettings().setValue(QStringLiteral("sameFrames/spotCommonMarksCommon"),
+                             marks == SpotMarks::Common);
+        updateSpotCommonOverlay();
+    };
     m_sameFramesPanel->onCommonToMaskRequested = [this]() { writeCommonPixelsToMask(); };
     m_sameFramesPanel->onUsingMaskChanged = [this]() { showFramesUsingMask(); };
     m_sameFramesPanel->onSelectUsingMaskRequested = [this]() { selectFramesUsingMask(); };
@@ -3907,7 +3917,10 @@ void MainWindow::updateSpotCommonOverlay()
         m_preview->setDifferenceOverlay(std::nullopt);
         return;
     }
-    m_preview->setDifferenceOverlay(edit::differingPixels(*m_document, selectedFrameIndices()));
+    const std::vector<std::size_t> selected = selectedFrameIndices();
+    m_preview->setDifferenceOverlay(m_sameFramesPanel->spotMarks() == SpotMarks::Common
+                                        ? edit::commonPixels(*m_document, selected)
+                                        : edit::differingPixels(*m_document, selected));
 }
 
 void MainWindow::deleteSameFrames(SameFrameDeletion deletion)
