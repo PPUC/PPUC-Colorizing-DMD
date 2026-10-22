@@ -109,6 +109,13 @@ private:
     std::size_t backgroundIndex);
 [[nodiscard]] std::unique_ptr<StructureCommand> addComparisonMask(
     document::ProjectDocument& document);
+// Adds a comparison mask that covers the pixels where `mask` is not 0 and assigns it to the
+// frames; undone, they get back the masks they had. Throws std::invalid_argument for a mask
+// of another size than the ROM frame.
+[[nodiscard]] std::unique_ptr<StructureCommand> addComparisonMaskForFrames(
+    document::ProjectDocument& document,
+    const document::IndexedFrame& mask,
+    const std::vector<std::size_t>& frameIndices);
 [[nodiscard]] std::unique_ptr<StructureCommand> deleteComparisonMask(
     document::ProjectDocument& document,
     std::size_t maskIndex);

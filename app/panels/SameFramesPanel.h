@@ -71,6 +71,7 @@ public:
     std::function<void(bool checked)> onSpotCommonToggled;
     std::function<void(SpotMarks marks)> onSpotMarksChanged;
     std::function<void()> onCommonToMaskRequested;
+    std::function<void()> onCommonToNewMaskRequested;
     std::function<void()> onUsingMaskChanged;
     std::function<void()> onSelectUsingMaskRequested;
 
@@ -86,6 +87,7 @@ private:
     QToolButton* m_spotCommonButton = nullptr;
     QComboBox* m_spotMarksComboBox = nullptr;
     QToolButton* m_commonToMaskButton = nullptr;
+    QToolButton* m_commonToNewMaskButton = nullptr;
     QComboBox* m_usingMaskComboBox = nullptr;
     QListWidget* m_usingMaskList = nullptr;
     QToolButton* m_selectUsingMaskButton = nullptr;

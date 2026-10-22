@@ -55,9 +55,16 @@ frames of a frame.
   and the step is undone with `Undo` like a stroke on the mask. The mask is shared: every frame
   that uses it is compared with it, and the status bar says how many do.
 
-  A typical use: select the frames that show the same scene with a changing score, add a mask
-  (`New` on the `Comparison Masks` section), assign it to them with `Mask ID`, press `Common To Mask`. `Same
-  frames` then counts them, and `Delete Same As Current...` leaves one of them.
+- `Common To New Mask` does it with a new mask instead: it adds a comparison mask that covers
+  exactly those pixels and assigns it to all selected frames, whatever masks they had. It needs
+  at least two selected frames and no mask of the current frame. It is one step for `Undo`,
+  which removes the mask and gives the frames back the masks they had. The new mask is selected
+  and shown.
+
+  A typical use: select the frames that show the same scene with a changing score and press
+  `Common To New Mask`. `Same frames` then counts them, and `Delete Same As Current...` leaves
+  one of them. (With `Common To Mask` the same takes a mask added with `New` on the `Comparison
+  Masks` section and assigned to the frames with `Mask ID` first.)
 
 - `Frames using` lists the frames that have the chosen mask assigned, or no mask; the entries
   show how many there are. A click on a frame goes to it. `Select Them` selects them in the

@@ -243,6 +243,44 @@ private:
     mutable document::RemovedComparisonMask m_removed;
 };
 
+// A new mask with its content, assigned to frames that had other masks before.
+class NewComparisonMaskCommand final : public StructureCommand {
+public:
+    NewComparisonMaskCommand(std::size_t maskIndex,
+                             document::RecordTables tablesWithout,
+                             std::vector<std::pair<std::size_t, uint8_t>> previousMasks)
+        : StructureCommand(RecordKind::ComparisonMask, {maskIndex}, true,
+                           std::move(tablesWithout)),
+          m_previousMasks(std::move(previousMasks))
+    {
+    }
+
+private:
+    std::vector<std::size_t> take(document::ProjectDocument& document) const override
+    {
+        m_removed = document.removeComparisonMask(recordIndices().front());
+        // The new mask is the last one: the masks the frames had keep their numbers.
+        for (const auto& [frameIndex, maskId] : m_previousMasks) {
+            document.setComparisonMaskId(frameIndex, maskId);
+        }
+        return m_removed.frames;
+    }
+
+    void put(document::ProjectDocument& document) const override
+    {
+        document.insertComparisonMask(std::move(m_removed));
+        m_removed = {};
+    }
+
+    std::size_t heldBytes() const override
+    {
+        return recordsPresent() ? 0 : m_removed.mask.pixels.ownedBytes();
+    }
+
+    std::vector<std::pair<std::size_t, uint8_t>> m_previousMasks;
+    mutable document::RemovedComparisonMask m_removed;
+};
+
 template <typename Command, typename... Arguments>
 std::unique_ptr<StructureCommand> applied(document::ProjectDocument& document,
                                           Arguments&&... arguments)
@@ -352,6 +390,37 @@ std::unique_ptr<StructureCommand> addComparisonMask(document::ProjectDocument& d
     document::RecordTables tablesWithout = document.recordTables();
     const std::size_t maskIndex = document.appendComparisonMask();
     return std::make_unique<ComparisonMaskCommand>(maskIndex, true, std::move(tablesWithout));
+}
+
+std::unique_ptr<StructureCommand> addComparisonMaskForFrames(
+    document::ProjectDocument& document,
+    const document::IndexedFrame& mask,
+    const std::vector<std::size_t>& frameIndices)
+{
+    const document::Size size = document.originalFrameSize();
+    if (mask.size.width != size.width || mask.size.height != size.height ||
+        mask.pixels.size() != static_cast<std::size_t>(size.width) * size.height) {
+        throw std::invalid_argument("the mask has not the size of the ROM frame");
+    }
+    std::vector<std::pair<std::size_t, uint8_t>> previousMasks;
+    for (std::size_t frameIndex : frameIndices) {
+        previousMasks.emplace_back(frameIndex, document.comparisonMaskId(frameIndex));
+    }
+    document::RecordTables tablesWithout = document.recordTables();
+    const std::size_t maskIndex = document.appendComparisonMask();
+    for (int y = 0; y < size.height; ++y) {
+        for (int x = 0; x < size.width; ++x) {
+            const uint8_t value = mask.pixels[static_cast<std::size_t>(y) * size.width + x];
+            if (value != 0) {
+                document.setComparisonMaskPixel(maskIndex, x, y, 1);
+            }
+        }
+    }
+    for (std::size_t frameIndex : frameIndices) {
+        document.setComparisonMaskId(frameIndex, static_cast<uint8_t>(maskIndex));
+    }
+    return std::make_unique<NewComparisonMaskCommand>(maskIndex, std::move(tablesWithout),
+                                                      std::move(previousMasks));
 }
 
 std::unique_ptr<StructureCommand> deleteComparisonMask(document::ProjectDocument& document,

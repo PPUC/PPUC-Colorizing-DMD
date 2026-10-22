@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Common To New Mask` in the `Comparison Mask` section adds a mask that covers the pixels in
+  which the selected frames differ and assigns it to them, in one undoable step.
 - The search area of a sprite slot can be drawn: with `Show Bounds` on, a rectangle drawn on the
   original frame sets the slot's `Min X` to `Max Y`.
 - Dynamic sets can color the SD picture only (`Only on the SD Picture` on the `Dynamic Sets`

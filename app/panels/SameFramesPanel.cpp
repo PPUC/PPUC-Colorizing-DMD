@@ -85,6 +85,11 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
                    tr("Make the comparison mask of the current frame cover exactly "
                       "the pixels that differ among the selected frames"));
 
+    m_commonToNewMaskButton =
+        makeButton(this, tr("Common To New Mask"),
+                   tr("Add a comparison mask that covers exactly the pixels that differ among "
+                      "the selected frames, and assign it to them"));
+
     m_usingMaskComboBox = new QComboBox(this);
     m_usingMaskComboBox->setToolTip(tr("List the frames that use this mask"));
     m_usingMaskComboBox->setEnabled(false);
@@ -113,6 +118,10 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
     commonLayout->addWidget(m_commonToMaskButton);
     commonLayout->addStretch(1);
     layout->addLayout(commonLayout);
+    auto* newMaskLayout = new QHBoxLayout();
+    newMaskLayout->addWidget(m_commonToNewMaskButton);
+    newMaskLayout->addStretch(1);
+    layout->addLayout(newMaskLayout);
     auto* marksLayout = new QHBoxLayout();
     marksLayout->addWidget(new QLabel(tr("Spot Common marks"), this));
     marksLayout->addWidget(m_spotMarksComboBox, 1);
@@ -170,6 +179,7 @@ SameFramesPanel::SameFramesPanel(QWidget* parent)
     forward(m_deleteSameAsSelectedButton, &SameFramesPanel::onDeleteSameAsSelectedRequested);
     forward(m_deleteAllDuplicatesButton, &SameFramesPanel::onDeleteAllDuplicatesRequested);
     forward(m_commonToMaskButton, &SameFramesPanel::onCommonToMaskRequested);
+    forward(m_commonToNewMaskButton, &SameFramesPanel::onCommonToNewMaskRequested);
     forward(m_selectUsingMaskButton, &SameFramesPanel::onSelectUsingMaskRequested);
 }
 
@@ -203,6 +213,7 @@ void SameFramesPanel::refresh(const SameFramesPanelState& state)
     m_spotCommonButton->setEnabled(state.hasFrame);
     m_commonToMaskButton->setEnabled(state.hasFrame && state.hasAssignedMask &&
                                      state.selectedFrameCount > 1);
+    m_commonToNewMaskButton->setEnabled(state.hasFrame && state.selectedFrameCount > 1);
 }
 
 void SameFramesPanel::setMaskCounts(const std::vector<edit::SameFrameCounts>* counts)

@@ -1234,6 +1234,7 @@ void MainWindow::createCentralView()
         updateSpotCommonOverlay();
     };
     m_sameFramesPanel->onCommonToMaskRequested = [this]() { writeCommonPixelsToMask(); };
+    m_sameFramesPanel->onCommonToNewMaskRequested = [this]() { writeCommonPixelsToNewMask(); };
     m_sameFramesPanel->onUsingMaskChanged = [this]() { showFramesUsingMask(); };
     m_sameFramesPanel->onSelectUsingMaskRequested = [this]() { selectFramesUsingMask(); };
     m_colorRotationPanel = new ColorRotationPanel(central);
@@ -4018,6 +4019,49 @@ void MainWindow::writeCommonPixelsToMask()
             .arg(static_cast<qlonglong>(differingCount))
             .arg(static_cast<qulonglong>(selected.size()))
             .arg(static_cast<qulonglong>(m_document->comparisonMaskUseCount(*maskIndex))),
+        6000);
+}
+
+void MainWindow::writeCommonPixelsToNewMask()
+{
+    const std::vector<std::size_t> selected = selectedFrameIndices();
+    if (!m_document || selected.size() < 2) {
+        statusBar()->showMessage(
+            tr("Select the frames whose differing pixels the mask is to cover"), 4000);
+        return;
+    }
+    if (m_document->comparisonMaskCount() >= document::kMaxComparisonMasks) {
+        statusBar()->showMessage(
+            tr("Not added: a project holds at most %1 comparison masks")
+                .arg(static_cast<int>(document::kMaxComparisonMasks)),
+            4000);
+        return;
+    }
+    const document::IndexedFrame differing = edit::differingPixels(*m_document, selected);
+    const auto differingCount =
+        std::count_if(differing.pixels.begin(), differing.pixels.end(),
+                      [](uint8_t value) { return value != 0; });
+    try {
+        leaveSpriteCanvas();
+        recordStructureEdit(edit::addComparisonMaskForFrames(*m_document, differing, selected));
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+    const std::size_t maskIndex = m_document->comparisonMaskCount() - 1;
+    m_selectedMaskIndex = maskIndex;
+    if (m_comparisonMaskOverlayButton && !m_runtimeView.isEnabled()) {
+        m_comparisonMaskOverlayButton->setChecked(true);
+    }
+    refreshComponentBrowsers();
+    updateMaskControls();
+    updateUndoRedoActions();
+    showStructureEditStatus(
+        tr("Added comparison mask %1: it covers the %2 pixel(s) that differ among the %3 "
+           "selected frames, which use it now")
+            .arg(static_cast<int>(maskIndex))
+            .arg(static_cast<qlonglong>(differingCount))
+            .arg(static_cast<qulonglong>(selected.size())),
         6000);
 }
 

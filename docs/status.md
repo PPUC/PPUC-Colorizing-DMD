@@ -933,7 +933,6 @@ Asked for a change:
 - Selection (item 11): selection steps are undoable (9); paste stays in paste mode until `Esc`
   (11); one undo step for a whole `Auto Copy...` or `Scrolling Auto Fill...` run, and likewise
   for an image or video import over many frames (15).
-- Masks: `Common To Mask` into a new mask (18).
 - The 15 ms rule (item 5): a limit per project instead of the fixed 15 ms (24). It would be
   editor data (a `.cRPX` chunk); the cROM is unchanged.
 - `trn_174h` edges (item 6): the canvas should show the smoothed edges of upscaled content

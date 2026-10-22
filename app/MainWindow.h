@@ -279,6 +279,7 @@ private:
         AllDuplicates,
     };
     void deleteSameFrames(SameFrameDeletion deletion);
+    void writeCommonPixelsToNewMask();
     void writeCommonPixelsToMask();
     void showFramesUsingMask();
     void selectFramesUsingMask();

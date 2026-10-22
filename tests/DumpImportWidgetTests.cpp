@@ -141,6 +141,10 @@ void testSameFramesPanel()
         panel,
         "Make the comparison mask of the current frame cover exactly the pixels that differ "
         "among the selected frames");
+    auto* commonToNewMask = byTip<QToolButton>(
+        panel,
+        "Add a comparison mask that covers exactly the pixels that differ among the selected "
+        "frames, and assign it to them");
     auto* usingCombo = byTip<QComboBox>(panel, "List the frames that use this mask");
     auto* usingList = byTip<QListWidget>(panel, "Frames using the mask above; click to go there");
     auto* selectThem = byTip<QToolButton>(panel, "Select the frames that use the mask above");
@@ -148,7 +152,8 @@ void testSameFramesPanel()
     // Without a project nothing can be asked for.
     const std::vector<QWidget*> controls{sameCombo,    deleteCurrent, deleteSelected,
                                          deleteAll,    updateCounts,  spotCommon,
-                                         commonToMask, usingCombo,    selectThem};
+                                         commonToMask, commonToNewMask, usingCombo,
+                                         selectThem};
     for (QWidget* control : controls) {
         expect(!control->isEnabled(), "disabled without a project");
     }
@@ -162,6 +167,7 @@ void testSameFramesPanel()
     int deleteSelectedRequests = 0;
     int deleteAllRequests = 0;
     int commonToMaskRequests = 0;
+    int commonToNewMaskRequests = 0;
     int usingMaskChanges = 0;
     int selectRequests = 0;
     std::vector<bool> spotCommonToggles;
@@ -171,6 +177,7 @@ void testSameFramesPanel()
     panel.onDeleteSameAsSelectedRequested = [&]() { ++deleteSelectedRequests; };
     panel.onDeleteAllDuplicatesRequested = [&]() { ++deleteAllRequests; };
     panel.onCommonToMaskRequested = [&]() { ++commonToMaskRequests; };
+    panel.onCommonToNewMaskRequested = [&]() { ++commonToNewMaskRequests; };
     panel.onUsingMaskChanged = [&]() { ++usingMaskChanges; };
     panel.onSelectUsingMaskRequested = [&]() { ++selectRequests; };
     panel.onSpotCommonToggled = [&](bool checked) { spotCommonToggles.push_back(checked); };
@@ -191,6 +198,12 @@ void testSameFramesPanel()
                updateCounts->isEnabled() && spotCommon->isEnabled(),
            "what a frame allows");
     expect(!commonToMask->isEnabled(), "Common To Mask needs a mask and two selected frames");
+    expect(!commonToNewMask->isEnabled(), "Common To New Mask needs two selected frames");
+    state.selectedFrameCount = 2;
+    panel.refresh(state);
+    expect(commonToNewMask->isEnabled() && !commonToMask->isEnabled(),
+           "Common To New Mask needs no mask of the current frame");
+    state.selectedFrameCount = 1;
     state.hasAssignedMask = true;
     panel.refresh(state);
     expect(!commonToMask->isEnabled(), "one selected frame has no differing pixels");
@@ -205,8 +218,9 @@ void testSameFramesPanel()
     deleteAll->click();
     updateCounts->click();
     commonToMask->click();
+    commonToNewMask->click();
     expect(deleteCurrentRequests == 1 && deleteSelectedRequests == 1 && deleteAllRequests == 1 &&
-               updateRequests == 1 && commonToMaskRequests == 1,
+               updateRequests == 1 && commonToMaskRequests == 1 && commonToNewMaskRequests == 1,
            "each button reports once");
     keepSelected->click();
     expect(panel.keepsSelectedFrames(), "keep selected is the panel's state");

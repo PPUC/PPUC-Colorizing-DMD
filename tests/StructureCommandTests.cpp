@@ -1063,6 +1063,49 @@ void testAddComparisonMask(PlaneLayout layout)
     expectSame(document, used, what + ", redone");
 }
 
+// Common To New Mask: a new mask with its content, assigned to frames that had other masks;
+// one step, undone to the masks they had.
+void testAddComparisonMaskForFrames(PlaneLayout layout)
+{
+    const std::string what = layoutName(layout) + ", add comparison mask for frames";
+    ProjectDocument document = makeDocument(layout);
+    const ProjectSnapshot before = document.toSnapshot();
+    IndexedFrame content = colorizing::document::makeIndexedFrame(document.originalFrameSize(), 0);
+    content.pixels[0] = 1;
+    content.pixels[static_cast<std::size_t>(4) * content.size.width + 4] = 7;
+    const std::vector<std::size_t> frames{1, 2, 5};
+    const auto command = colorizing::edit::addComparisonMaskForFrames(document, content, frames);
+    expect(command->recordKind() == RecordKind::ComparisonMask && command->addsRecords() &&
+               command->recordIndices() == std::vector<std::size_t>({3}) &&
+               document.comparisonMaskCount() == 4,
+           what + ": the command adds mask 3");
+    const IndexedFrame& mask = document.comparisonMask(3);
+    const std::size_t at44 = static_cast<std::size_t>(4) * mask.size.width + 4;
+    expect(mask.pixels[0] == 1 && mask.pixels[at44] == 1 &&
+               std::count(mask.pixels.begin(), mask.pixels.end(), uint8_t{1}) == 2,
+           what + ": the mask covers the pixels given");
+    for (std::size_t f = 0; f < document.frameCount(); ++f) {
+        const bool assigned = std::find(frames.begin(), frames.end(), f) != frames.end();
+        expect(document.comparisonMaskId(f) ==
+                   (assigned ? uint8_t{3} : before.frames[f].comparisonMaskId),
+               what + ": the frames use it, the others keep theirs");
+    }
+    expectSavesAndRenders(document, what);
+    const ProjectSnapshot after = document.toSnapshot();
+    command->revert(document);
+    expectSame(document, before, what + ", undone: the frames have their masks again");
+    command->apply(document);
+    expectSame(document, after, what + ", redone");
+    command->revert(document);
+    expectSame(document, before, what + ", undone again");
+
+    const IndexedFrame wrong = colorizing::document::makeIndexedFrame({8, 8}, 1);
+    expectThrows<std::invalid_argument>(
+        [&]() { (void)colorizing::edit::addComparisonMaskForFrames(document, wrong, frames); },
+        what + ": a mask of another size");
+    expectSame(document, before, what + ": a refused mask changes nothing");
+}
+
 void testComparisonMaskLimit()
 {
     ProjectDocument document =
@@ -1667,6 +1710,7 @@ void runStructureCommandTests()
             testDeleteBackground(layout, background);
         }
         testAddComparisonMask(layout);
+        testAddComparisonMaskForFrames(layout);
         for (std::size_t mask = 0; mask < 3; ++mask) {
             testDeleteComparisonMask(layout, mask);
         }

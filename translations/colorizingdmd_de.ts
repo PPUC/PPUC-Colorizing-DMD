@@ -4084,6 +4084,10 @@ Use Create %1 Frame.</source>
         <translation>Vergleichsmaske %1 deckt jetzt die %2 Pixel ab, die sich zwischen den %3 ausgewählten Frames unterscheiden; %4 Frame(s) verwenden sie</translation>
     </message>
     <message>
+        <source>Added comparison mask %1: it covers the %2 pixel(s) that differ among the %3 selected frames, which use it now</source>
+        <translation>Vergleichsmaske %1 hinzugefügt: Sie deckt die %2 Pixel ab, in denen sich die %3 ausgewählten Frames unterscheiden, die sie jetzt verwenden</translation>
+    </message>
+    <message>
         <source>no mask</source>
         <translation>ohne Maske</translation>
     </message>
@@ -6243,6 +6247,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Make the comparison mask of the current frame cover exactly the pixels that differ among the selected frames</source>
         <translation>Die Vergleichsmaske des aktuellen Frames genau die Pixel abdecken lassen, die sich zwischen den ausgewählten Frames unterscheiden</translation>
+    </message>
+    <message>
+        <source>Common To New Mask</source>
+        <translation>Unterschiede in neue Maske</translation>
+    </message>
+    <message>
+        <source>Add a comparison mask that covers exactly the pixels that differ among the selected frames, and assign it to them</source>
+        <translation>Eine Vergleichsmaske hinzufügen, die genau die Pixel abdeckt, die sich zwischen den ausgewählten Frames unterscheiden, und sie ihnen zuweisen</translation>
     </message>
     <message>
         <source>List the frames that use this mask</source>
