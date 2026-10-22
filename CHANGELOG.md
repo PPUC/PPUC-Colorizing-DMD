@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- In a 256x64 project, `Create 256x64 Frame` asks before it gives a background without a
+  256x64 image a black one, and can create the frames only.
 - `Spot Common` can mark the pixels the selected frames have in common, as the Win32 editor
   does, instead of the differing ones (`Spot Common marks` in the `Comparison Mask` section).
 - The frame status line shows how many frames are the same as the current one (`| N same`),

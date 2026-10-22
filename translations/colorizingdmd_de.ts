@@ -4434,6 +4434,22 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message>
+        <source>Create %1 Frame</source>
+        <translation>%1-Frame erstellen</translation>
+    </message>
+    <message>
+        <source>Backgrounds without a %2 image: %1. Give them a black one? Every frame that shows such a background shows black there until it gets a picture (Import Image on the Background section).</source>
+        <translation>Hintergründe ohne %2-Bild: %1. Sollen sie ein schwarzes bekommen? Jeder Frame, der einen solchen Hintergrund zeigt, ist dort schwarz, bis er ein Bild bekommt (Bild importieren im Bereich Hintergrund).</translation>
+    </message>
+    <message>
+        <source>Give Them a Black Image</source>
+        <translation>Schwarzes Bild geben</translation>
+    </message>
+    <message>
+        <source>Frames Only</source>
+        <translation>Nur Frames</translation>
+    </message>
+    <message>
         <source>Created %1 frame(s) from the originals in their plain colors and %2 black background image(s)</source>
         <translation>%1 Frame(s) aus den Originalen in ihren einfachen Farben und %2 schwarze Hintergrundbild(er) erstellt</translation>
     </message>

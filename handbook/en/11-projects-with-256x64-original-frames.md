@@ -95,11 +95,13 @@ Repairing:
 - `Create 256x64 Frame` on the `Frame` section (the ordinary project's `Create HD`) is enabled for a
   frame that lacks something. For a frame without its 256x64 frame it creates that frame from the
   256x64 original, each pixel in the plain color of its original color index: the same picture an
-  uncolorized frame has. It does not ask anything and upscales nothing; the frame's dynamic mask,
+  uncolorized frame has. It upscales nothing; the frame's dynamic mask,
   dynamic colors, background mask and rotations stay as they are stored.
 - `Create 256x64 Frame` is also enabled when only the assigned background lacks its 256x64
-  image, and in both cases gives that background a black 256x64 image. An existing background
-  image is never replaced. `Create 256x64 Background` on the `Background` section gives the
+  image. It then asks first, naming the backgrounds: `Give Them a Black Image` gives each a
+  black 256x64 image, which every frame showing it shows until the background gets a picture;
+  `Frames Only` (offered when frames lack their 256x64 frame too) creates just those; `Cancel`
+  creates nothing. An existing background image is never replaced. `Create 256x64 Background` on the `Background` section gives the
   selected background a black 256x64 image as well, and its `Import Image` gives it a picture.
 - `Create 256x64 Sprite` on the `Sprite` section creates the 256x64 sprite of the selected sprite
   from the sprite original: its mask gets the shape of the sprite original, its colors are the

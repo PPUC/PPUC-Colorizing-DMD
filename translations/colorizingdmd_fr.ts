@@ -4434,6 +4434,22 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message>
+        <source>Create %1 Frame</source>
+        <translation>Créer la frame %1</translation>
+    </message>
+    <message>
+        <source>Backgrounds without a %2 image: %1. Give them a black one? Every frame that shows such a background shows black there until it gets a picture (Import Image on the Background section).</source>
+        <translation>Arrière-plans sans image %2 : %1. Leur donner une image noire ? Chaque frame qui montre un tel arrière-plan y est noire jusqu’à ce qu’il reçoive une image (Importer une image dans la section Arrière-plan).</translation>
+    </message>
+    <message>
+        <source>Give Them a Black Image</source>
+        <translation>Donner une image noire</translation>
+    </message>
+    <message>
+        <source>Frames Only</source>
+        <translation>Frames seulement</translation>
+    </message>
+    <message>
         <source>Created %1 frame(s) from the originals in their plain colors and %2 black background image(s)</source>
         <translation>%1 frame(s) créée(s) depuis les originaux dans leurs couleurs simples et %2 image(s) d&apos;arrière-plan noire(s)</translation>
     </message>

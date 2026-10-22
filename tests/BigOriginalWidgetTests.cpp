@@ -609,6 +609,10 @@ void testMissingHdIsFlaggedAndNotRendered()
     const document::FrameHdGaps gaps = document.frameHdGaps(2);
     expect(!gaps.frame && gaps.background && gaps.sprites == std::vector<uint16_t>{1},
            "frame 2 lacks the HD of its background and of sprite 1");
+    expect(colorizing::edit::backgroundsWithoutHdImage(document, {0, 1, 2, 2}) ==
+                   std::vector<std::size_t>{document.backgroundData(2)->backgroundId} &&
+               colorizing::edit::backgroundsWithoutHdImage(document, {0, 1}).empty(),
+           "Create 256x64 Frame asks about the background of frame 2, once");
 
     const document::Rgb565Frame nothing =
         colorizing::app::composeResolvedFrame(document, 1, Resolution::Hd, true);

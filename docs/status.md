@@ -2401,3 +2401,11 @@ otherwise). SameFramesPanel has `Spot Common marks` (`SpotMarks::Differing`/`Com
 `sameFrames/spotCommonMarksCommon` and `updateSpotCommonOverlay()` picks the function. Common To
 Mask still writes the differing pixels. Tests: testCommonPixelsAndMasks (SameFramesTests),
 testSameFramesPanel (DumpImportWidgetTests).
+
+## Create 256x64 Frame asks about black backgrounds (2026-10-22, author answer 35)
+
+`edit::backgroundsWithoutHdImage()` (EditCommand.h) lists the backgrounds the selected frames
+show without a rendered-plane image (`FrameHdGaps::background`), ascending and unique.
+`MainWindow::createSelectedFramesHdFromOriginal()` asks with them: `Give Them a Black Image`,
+`Frames Only` (when frames lack their own picture too) or Cancel; `FrameHdParts::backgroundImage`
+follows the answer. Test in testMissingHdIsFlaggedAndNotRendered (BigOriginalWidgetTests).

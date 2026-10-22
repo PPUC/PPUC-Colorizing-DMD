@@ -399,6 +399,12 @@ private:
                                                          document::FrameHdParts parts);
 [[nodiscard]] std::unique_ptr<EditCommand> removeFrameHd(document::ProjectDocument& document,
                                                          std::size_t frameIndex);
+// The backgrounds that the frames show without an image of their own on the rendered plane
+// of a 256x64 project (FrameHdGaps::background), ascending and unique: what
+// FrameHdParts::backgroundImage gives a black image.
+[[nodiscard]] std::vector<std::size_t> backgroundsWithoutHdImage(
+    const document::ProjectDocument& document,
+    const std::vector<std::size_t>& frameIndices);
 [[nodiscard]] std::unique_ptr<EditCommand> createSpriteHd(
     document::ProjectDocument& document,
     std::size_t spriteIndex,

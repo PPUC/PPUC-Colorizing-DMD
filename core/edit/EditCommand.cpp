@@ -1,5 +1,6 @@
 #include "edit/EditCommand.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -624,6 +625,22 @@ std::unique_ptr<EditCommand> createFrameHd(document::ProjectDocument& document,
     return std::make_unique<FrameHdCommand>(frameIndex,
                                             std::move(before),
                                             document.frameHdState(frameIndex, parts));
+}
+
+std::vector<std::size_t> backgroundsWithoutHdImage(const document::ProjectDocument& document,
+                                                   const std::vector<std::size_t>& frameIndices)
+{
+    std::vector<std::size_t> backgrounds;
+    for (const std::size_t frameIndex : frameIndices) {
+        const std::optional<document::FrameBackgroundData>& data =
+            document.backgroundData(frameIndex);
+        if (data && document.frameHdGaps(frameIndex).background) {
+            backgrounds.push_back(data->backgroundId);
+        }
+    }
+    std::sort(backgrounds.begin(), backgrounds.end());
+    backgrounds.erase(std::unique(backgrounds.begin(), backgrounds.end()), backgrounds.end());
+    return backgrounds;
 }
 
 std::unique_ptr<EditCommand> removeFrameHd(document::ProjectDocument& document,

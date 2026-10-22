@@ -7403,12 +7403,52 @@ void MainWindow::createCurrentFrameHd()
 
 void MainWindow::createSelectedFramesHdFromOriginal()
 {
+    const std::vector<std::size_t> selected = selectedFrameIndices();
+    // A black image for a background is the author's decision each time: every frame that
+    // shows the background shows it black then.
+    bool blackBackgrounds = false;
+    const std::vector<std::size_t> withoutImage =
+        edit::backgroundsWithoutHdImage(*m_document, selected);
+    if (!withoutImage.empty()) {
+        const bool framesMissing =
+            std::any_of(selected.begin(), selected.end(), [this](std::size_t frameIndex) {
+                return m_document->frameHdGaps(frameIndex).frame;
+            });
+        QStringList names;
+        for (const std::size_t background : withoutImage) {
+            names << QString::number(background);
+        }
+        QMessageBox question(this);
+        question.setIcon(QMessageBox::Question);
+        question.setWindowTitle(tr("Create %1 Frame").arg(nativePlaneText(*m_document)));
+        question.setText(
+            tr("Backgrounds without a %2 image: %1. Give them a black one? Every frame that "
+               "shows such a background shows black there until it gets a picture (Import "
+               "Image on the Background section).")
+                .arg(names.join(QStringLiteral(", ")))
+                .arg(nativePlaneText(*m_document)));
+        QPushButton* blackButton =
+            question.addButton(tr("Give Them a Black Image"), QMessageBox::AcceptRole);
+        QPushButton* framesOnlyButton =
+            framesMissing ? question.addButton(tr("Frames Only"), QMessageBox::AcceptRole)
+                          : nullptr;
+        QPushButton* cancelButton = question.addButton(QMessageBox::Cancel);
+        question.setDefaultButton(blackButton);
+        question.setEscapeButton(cancelButton);
+        question.exec();
+        if (question.clickedButton() == blackButton) {
+            blackBackgrounds = true;
+        } else if (!framesOnlyButton || question.clickedButton() != framesOnlyButton) {
+            return;
+        }
+    }
     std::vector<std::unique_ptr<edit::EditCommand>> commands;
     int frames = 0;
     int backgrounds = 0;
     try {
-        for (std::size_t frameIndex : selectedFrameIndices()) {
-            const document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
+        for (std::size_t frameIndex : selected) {
+            document::FrameHdGaps gaps = m_document->frameHdGaps(frameIndex);
+            gaps.background = gaps.background && blackBackgrounds;
             if (!gaps.frame && !gaps.background) {
                 continue;
             }
