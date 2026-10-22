@@ -15,6 +15,9 @@ the same list of frames each time.
   mask and shape mode. It follows the frame, its `Mask ID` and `Shape`, and every stroke on its
   mask. The box beside it lists them; choosing one goes to that frame. From 10000 on the label
   reads `>=10000` and the box lists the first 10000, as in the Win32 editor.
+- The frame status line below the canvas shows the same count, `| N same`, wherever the
+  section is: once a frame has stayed current for a moment (a quick scroll through the frames
+  does not wait for it), or at once while the section is shown.
 - While the section is shown, the same frames are outlined in green in the frame strip, and the
   strip's scroll bar has a green tick where each of them is in the project, so a part with same
   frames can be scrolled to. A frame the filter hides is not marked.

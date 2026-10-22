@@ -4312,6 +4312,14 @@ Use Create %1 Frame.</source>
         <translation> | nicht gerendert</translation>
     </message>
     <message>
+        <source> | %1 same</source>
+        <translation> | %1 gleich</translation>
+    </message>
+    <message>
+        <source>%1 frames are the same as this one under its comparison mask and shape mode: the runtime cannot tell them apart. The Comparison Mask section lists them.</source>
+        <translation>%1 Frames sind unter der Vergleichsmaske und dem Formmodus dieses Frames gleich: Die Runtime kann sie nicht unterscheiden. Der Bereich Vergleichsmaske listet sie auf.</translation>
+    </message>
+    <message>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>

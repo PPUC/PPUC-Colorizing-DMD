@@ -544,6 +544,14 @@ MainWindow::MainWindow(QWidget* parent)
     m_frameRestTimer.setInterval(250);
     connect(&m_frameRestTimer, &QTimer::timeout, this, [this]() {
         updateFrameRestViews();
+        // The same-frames count of the status line, which the first question about a rule
+        // costs a pass over the originals for; then it is kept.
+        if (const std::optional<std::size_t> frameIndex = currentFrameIndex();
+            m_document && frameIndex) {
+            (void)m_sameFrameFinder.sameFrameCount(
+                *m_document, *frameIndex, edit::comparisonRuleOf(*m_document, *frameIndex));
+            updateFrameStatusText();
+        }
         // A scene frame or not: the Inspector's sections follow.
         updateInspectorSections();
         noteCanvasPlace(true);
@@ -3834,6 +3842,8 @@ void MainWindow::updateSameFrameControls()
     // Outlined in the frame list and ticked on its scroll bar, as the Win32 editor marks them
     // (issue #24).
     markFramesInList(state.sameFrames);
+    // The count in the status line is known now as well.
+    updateFrameStatusText();
     m_sameFramesPanel->refresh(state);
     const bool countsFit = m_sameFrameCounts && m_sameFrameCounts->frameIndex == *frameIndex &&
                            m_sameFrameCounts->identificationRevision ==
@@ -5372,6 +5382,11 @@ void MainWindow::updateFrameStatusText()
                                       ? QStringLiteral("HD 256x64")
                                       : tr("HD unavailable"))
                        : nativePlaneText(*m_document);
+    // How many frames the runtime cannot tell from this one, as the Win32 editor shows it
+    // beside the frame; known once the frame has come to rest (m_frameRestTimer) or the
+    // Comparison Mask section has asked.
+    const std::optional<std::size_t> sameFrames = m_sameFrameFinder.knownSameFrameCount(
+        *m_document, *frameIndex, edit::comparisonRuleOf(*m_document, *frameIndex));
     // An inactive frame is marked in the frame list and explained in the tool tip here; the
     // line itself stays as short as it was.
     setFrameStatusText(tr("Frame %1 | %2 | %3 ms%4%5")
@@ -5382,8 +5397,15 @@ void MainWindow::updateFrameStatusText()
                                     ? tr(" | %1 selected").arg(selectedCount)
                                     : QString())
                            .arg(gapsText.isEmpty() ? QString()
-                                                   : tr(" | not rendered")));
+                                                   : tr(" | not rendered")) +
+                       (sameFrames ? tr(" | %1 same").arg(*sameFrames) : QString()));
     QStringList toolTip;
+    if (sameFrames) {
+        toolTip << tr("%1 frames are the same as this one under its comparison mask and shape "
+                      "mode: the runtime cannot tell them apart. The Comparison Mask section "
+                      "lists them.")
+                       .arg(*sameFrames);
+    }
     if (!gapsText.isEmpty()) {
         toolTip << QStringLiteral("%1.").arg(gapsText);
     }

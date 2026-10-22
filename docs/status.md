@@ -2383,3 +2383,12 @@ carries it, so structure commands keep it. `MainWindow::saveProject()` asks with
 `discardedExtraPlaneWarning()` (UnsavedChanges) and `Save Without Them` / Cancel, and calls
 `forgetDiscardedExtraPlane()` after a successful save. Tests: testExtraPlaneIsDiscardedOnLoad,
 testDocumentDiscardsExtraPlane (NativeOriginalProjectTests), testDiscardedExtraPlaneWarning.
+
+## Same-frames count in the frame status line (2026-10-22, author answer 20)
+
+`updateFrameStatusText()` appends `| N same` (with a tool tip) from
+`SameFrameFinder::knownSameFrameCount()`, which answers only from the kept hashes, so the line
+never costs a pass over the originals. `m_frameRestTimer` (250 ms after the frame comes to
+rest) asks `sameFrameCount()` and updates the line; `updateSameFrameControls()` updates it too.
+During a quick scroll or playback through frames of not yet hashed rules the count is left out.
+Test in testSameFrames (SameFramesTests).

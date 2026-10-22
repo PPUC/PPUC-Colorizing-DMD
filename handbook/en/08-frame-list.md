@@ -51,7 +51,9 @@ dynamic mask on the plane libserum takes dynamic zones from (the 128x32 plane of
 project, the 256x64 or 192x64 plane of the other layouts). Every frame of a loaded project carries
 dynamic data, mostly all "not dynamic", so the flag does not just say that the data exists. It
 follows dynamic mask edits, their undo and redo, and so does the frame's thumbnail.
-Selecting a frame updates the central canvas and the frame status line.
+Selecting a frame updates the central canvas and the frame status line. The line ends with the
+number of frames that are the same as the current one (`| N same`, see "Same Frames And Common
+Pixels").
 Whenever the editor picks the current frame itself (after deleting or adding frames, after undo
 and redo of such a step, after a filter change, during playback, `Go to frame`), that frame
 becomes the only selected one; an earlier multi-selection does not stay behind.

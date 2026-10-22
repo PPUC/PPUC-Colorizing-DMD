@@ -4312,6 +4312,14 @@ Utiliser Créer la frame %1.</translation>
         <translation> | pas de rendu</translation>
     </message>
     <message>
+        <source> | %1 same</source>
+        <translation> | %1 identique(s)</translation>
+    </message>
+    <message>
+        <source>%1 frames are the same as this one under its comparison mask and shape mode: the runtime cannot tell them apart. The Comparison Mask section lists them.</source>
+        <translation>%1 frames sont identiques à celle-ci sous son masque de comparaison et son mode forme : le runtime ne peut pas les distinguer. La section Masque de comparaison les liste.</translation>
+    </message>
+    <message>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>

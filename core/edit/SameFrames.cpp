@@ -79,6 +79,25 @@ std::size_t SameFrameFinder::sameFrameCount(const document::ProjectDocument& doc
     return entry.frames.at(entry.ofFrame[frameIndex]).size() - 1;
 }
 
+std::optional<std::size_t> SameFrameFinder::knownSameFrameCount(
+    const document::ProjectDocument& document,
+    std::size_t frameIndex,
+    ComparisonRule rule) const
+{
+    if (m_revision != document.identificationRevision()) {
+        return std::nullopt;
+    }
+    if (rule.maskId >= document.comparisonMaskCount()) {
+        rule.maskId = document::kNoComparisonMaskId;
+    }
+    const auto found = m_hashes.find(std::make_pair(rule.maskId, rule.shapeMode));
+    if (found == m_hashes.end() || frameIndex >= found->second.ofFrame.size()) {
+        return std::nullopt;
+    }
+    const RuleHashes& entry = found->second;
+    return entry.frames.at(entry.ofFrame[frameIndex]).size() - 1;
+}
+
 std::vector<SameFrameCounts> SameFrameFinder::countsPerMask(
     const document::ProjectDocument& document,
     std::size_t frameIndex,

@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -53,6 +54,12 @@ public:
     [[nodiscard]] std::size_t sameFrameCount(const document::ProjectDocument& document,
                                              std::size_t frameIndex,
                                              ComparisonRule rule);
+    // sameFrameCount() if it costs no pass over the originals (the rule's hashes are kept
+    // for the document as it is); nothing otherwise.
+    [[nodiscard]] std::optional<std::size_t> knownSameFrameCount(
+        const document::ProjectDocument& document,
+        std::size_t frameIndex,
+        ComparisonRule rule) const;
     // The count for no mask and for every comparison mask of the project, each without and
     // with shape mode ("Update same list"). progress is called before each rule with the
     // number done and the total; returning false stops and returns what there is so far.

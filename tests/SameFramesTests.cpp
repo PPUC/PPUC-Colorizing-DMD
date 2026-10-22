@@ -227,6 +227,22 @@ void testSameFrames()
                  "same as frame 7 under mask 1");
     expect(finder.sameFrameCount(project, 1, {0, false}) == 3, "the count is the list's size");
 
+    // The status line's count costs nothing: known only while the rule's hashes are kept.
+    {
+        ProjectDocument edited = makeDocument();
+        SameFrameFinder fresh;
+        expect(!fresh.knownSameFrameCount(edited, 1, {0, false}),
+               "unknown before the first question about the rule");
+        expect(fresh.sameFrameCount(edited, 1, {0, false}) == 3 &&
+                   fresh.knownSameFrameCount(edited, 1, {0, false}).value_or(0) == 3,
+               "known after it");
+        expect(!fresh.knownSameFrameCount(edited, 1, {0, true}),
+               "another rule is not known yet");
+        edited.setComparisonMaskId(0, 1);
+        expect(!fresh.knownSameFrameCount(edited, 1, {0, false}),
+               "unknown again once the identification changed");
+    }
+
     // Every frame under every rule is what a pixel comparison finds.
     for (const ComparisonRule rule : allRules(project)) {
         for (std::size_t frame = 0; frame < project.frameCount(); ++frame) {
