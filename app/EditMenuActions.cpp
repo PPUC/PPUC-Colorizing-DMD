@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QPlainTextEdit>
+#include <QSignalBlocker>
 #include <QTextEdit>
 
 #include "KeyNames.h"
@@ -36,6 +37,16 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     m_pasteDynamicAction = add(menu, tr("Paste D&ynamic Mask Only"),
                                tr("Paste the copied dynamic zones without colors"),
                                {ctrlAlt(Qt::Key_V)}, &EditMenuActions::onPasteDynamicMaskOnly);
+    m_stayInPasteModeAction = menu->addAction(tr("Stay In Paste Mode"));
+    m_stayInPasteModeAction->setCheckable(true);
+    m_stayInPasteModeAction->setToolTip(
+        tr("Paste mode stays after a stamp, for pasting again elsewhere, until Esc"));
+    connect(m_stayInPasteModeAction, &QAction::toggled, this, [this](bool checked) {
+        if (onStayInPasteModeToggled) {
+            onStayInPasteModeToggled(checked);
+        }
+    });
+    m_actions.push_back(m_stayInPasteModeAction);
 
     menu->addSeparator();
     add(menu, tr("Select &All"), tr("Select every pixel of the plane"),
@@ -183,6 +194,17 @@ void EditMenuActions::setState(bool hasProject, bool hasClipboard)
 bool EditMenuActions::nonBlackOnly() const
 {
     return m_nonBlackOnlyAction->isChecked();
+}
+
+void EditMenuActions::setStayInPasteMode(bool stay)
+{
+    QSignalBlocker blocker(m_stayInPasteModeAction);
+    m_stayInPasteModeAction->setChecked(stay);
+}
+
+bool EditMenuActions::stayInPasteMode() const
+{
+    return m_stayInPasteModeAction->isChecked();
 }
 
 const std::vector<QAction*>& EditMenuActions::actions() const

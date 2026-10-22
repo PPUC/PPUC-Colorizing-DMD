@@ -1315,6 +1315,14 @@
         <translation>Coller les zones dynamiques copiées sans les couleurs</translation>
     </message>
     <message>
+        <source>Stay In Paste Mode</source>
+        <translation>Rester en mode collage</translation>
+    </message>
+    <message>
+        <source>Paste mode stays after a stamp, for pasting again elsewhere, until Esc</source>
+        <translation>Le mode collage reste actif après un collage, pour coller à nouveau ailleurs, jusqu&apos;à Échap</translation>
+    </message>
+    <message>
         <source>Select &amp;All</source>
         <translation>&amp;Tout sélectionner</translation>
     </message>
@@ -5812,6 +5820,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>%1: nothing changed</source>
         <translation>%1 : rien n&apos;a changé</translation>
+    </message>
+    <message>
+        <source>%1; still pasting, Esc ends it</source>
+        <translation>%1 ; le mode collage continue, Échap le termine</translation>
     </message>
     <message>
         <source>Paste cancelled</source>

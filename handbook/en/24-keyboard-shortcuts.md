@@ -15,7 +15,7 @@ key. The `Win32` column is CDMD's, a Windows program.
 | Arrows, `Shift`+arrows, keypad `2 4 6 8` | Move the paste (1 or 10 pixels) | keypad |
 | `K`, `L` | Mirror the paste | held when paste starts |
 | Click, `Enter` | Stamp the paste (`Shift`, `Alt`: variants) | same |
-| `Esc` | Cancel paste mode or a pending `Select By Color` / `Recolor` click; with nothing to cancel, reduce a selection of frames to the frame shown | - |
+| `Esc` | End paste mode (also with `Stay In Paste Mode`) or cancel a pending `Select By Color` / `Recolor` click; with nothing to cancel, reduce a selection of frames to the frame shown | - |
 | `Ctrl/Cmd+A` | Select all pixels | same |
 | `Ctrl/Cmd+Shift+A`, `Ctrl/Cmd+D` | Select none | `Ctrl+D` |
 | `Ctrl/Cmd+Shift+I` | Invert the selection | button |

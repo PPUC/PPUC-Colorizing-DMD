@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Edit -> Stay In Paste Mode`: a paste can be stamped several times, until `Esc` ends paste
+  mode.
 - `Common To New Mask` in the `Comparison Mask` section adds a mask that covers the pixels in
   which the selected frames differ and assigns it to them, in one undoable step.
 - The search area of a sprite slot can be drawn: with `Show Bounds` on, a rectangle drawn on the

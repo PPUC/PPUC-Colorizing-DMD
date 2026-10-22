@@ -22,6 +22,7 @@ namespace colorizing::app {
 //   Paste                         Ctrl+V (Cmd+V)       Win32 Ctrl+V
 //   Paste Where Originals Match   Ctrl+Shift+V         Win32 Shift+click in paste mode
 //   Paste Dynamic Mask Only       Ctrl+Alt+V           Win32 Alt+click in paste mode
+//   Stay In Paste Mode            (checkable)          Win32 ends paste mode with a stamp
 //   Select All                    Ctrl+A (Cmd+A)       Win32 Ctrl+A
 //   Select None                   Ctrl+Shift+A, Ctrl+D Win32 Ctrl+D
 //   Invert Selection              Ctrl+Shift+I         Win32 button only
@@ -72,6 +73,10 @@ public:
     void setState(bool hasProject, bool hasClipboard);
     // "Only Non-Black Pixels": selection strokes leave out black pixels (Win32: W held).
     [[nodiscard]] bool nonBlackOnly() const;
+    // "Stay In Paste Mode": a stamp keeps paste mode until Esc. Does not notify.
+    void setStayInPasteMode(bool stay);
+    [[nodiscard]] bool stayInPasteMode() const;
+    std::function<void(bool stay)> onStayInPasteModeToggled;
     [[nodiscard]] const std::vector<QAction*>& actions() const;
 
     // Gives a standard key to the focused text field, spin box or item view if it has one;
@@ -97,6 +102,7 @@ private:
     QAction* m_pasteMatchAction = nullptr;
     QAction* m_pasteDynamicAction = nullptr;
     QAction* m_nonBlackOnlyAction = nullptr;
+    QAction* m_stayInPasteModeAction = nullptr;
 };
 
 }  // namespace colorizing::app

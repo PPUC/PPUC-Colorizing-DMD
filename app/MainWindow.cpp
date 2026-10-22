@@ -8587,6 +8587,15 @@ void MainWindow::createSelectionActions(QMenu* editMenu)
 {
     m_editMenuActions = new EditMenuActions(editMenu, this);
     EditMenuActions& actions = *m_editMenuActions;
+    // The author's choice for every project, off as in Win32.
+    const bool stayInPasteMode =
+        QSettings().value(QStringLiteral("edit/stayInPasteMode"), false).toBool();
+    actions.setStayInPasteMode(stayInPasteMode);
+    m_pasteMode.setStaysActive(stayInPasteMode);
+    actions.onStayInPasteModeToggled = [this](bool stay) {
+        m_pasteMode.setStaysActive(stay);
+        QSettings().setValue(QStringLiteral("edit/stayInPasteMode"), stay);
+    };
     actions.onCopy = [this]() {
         if (isSpriteCanvasActive()) {
             copySpriteToClipboard();

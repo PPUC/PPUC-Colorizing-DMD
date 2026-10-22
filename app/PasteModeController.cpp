@@ -245,18 +245,31 @@ bool PasteModeController::stamp(const CanvasEditContext& context,
         showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
         return changedFrames > 0;
     }
-    // Win32 leaves paste mode with the stamp.
-    cancel();
+    // Win32 leaves paste mode with the stamp; with "Stay In Paste Mode" it goes on.
+    if (!m_staysActive) {
+        cancel();
+    }
     if (changedFrames > 0 && m_outputs.commitsFinished) {
         m_outputs.commitsFinished();
     }
-    showStatus(changedFrames > 0
-                   ? tr("%1 on %2 frame(s)")
-                         .arg(modeText(mode))
-                         .arg(static_cast<qulonglong>(changedFrames))
-                   : tr("%1: nothing changed").arg(modeText(mode)),
+    const QString result = changedFrames > 0
+                               ? tr("%1 on %2 frame(s)")
+                                     .arg(modeText(mode))
+                                     .arg(static_cast<qulonglong>(changedFrames))
+                               : tr("%1: nothing changed").arg(modeText(mode));
+    showStatus(m_staysActive ? tr("%1; still pasting, Esc ends it").arg(result) : result,
                kStatusMs);
     return changedFrames > 0;
+}
+
+void PasteModeController::setStaysActive(bool staysActive)
+{
+    m_staysActive = staysActive;
+}
+
+bool PasteModeController::staysActive() const
+{
+    return m_staysActive;
 }
 
 bool PasteModeController::handleKey(const CanvasEditContext& context,

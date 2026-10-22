@@ -1315,6 +1315,14 @@
         <translation>Kopierte dynamische Zonen ohne Farben einfügen</translation>
     </message>
     <message>
+        <source>Stay In Paste Mode</source>
+        <translation>Im Einfügemodus bleiben</translation>
+    </message>
+    <message>
+        <source>Paste mode stays after a stamp, for pasting again elsewhere, until Esc</source>
+        <translation>Der Einfügemodus bleibt nach dem Einfügen bestehen, um an anderer Stelle erneut einzufügen, bis Esc</translation>
+    </message>
+    <message>
         <source>Select &amp;All</source>
         <translation>&amp;Alles auswählen</translation>
     </message>
@@ -5812,6 +5820,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>%1: nothing changed</source>
         <translation>%1: nichts geändert</translation>
+    </message>
+    <message>
+        <source>%1; still pasting, Esc ends it</source>
+        <translation>%1; Einfügemodus bleibt, Esc beendet ihn</translation>
     </message>
     <message>
         <source>Paste cancelled</source>

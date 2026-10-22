@@ -62,8 +62,13 @@ public:
     void follow(const render::CanvasHit& hit);
     void nudge(int dx, int dy);
     void toggleMirror(bool horizontally, bool vertically);
-    // Pastes on context.selectedFrames and ends paste mode; true if a frame changed.
+    // Pastes on context.selectedFrames and ends paste mode, unless it stays (setStaysActive());
+    // true if a frame changed.
     bool stamp(const CanvasEditContext& context, Qt::KeyboardModifiers modifiers);
+    // Whether a stamp keeps paste mode, so the paste can be stamped again elsewhere until
+    // Escape ends it. Off by default: Win32 leaves paste mode with the stamp.
+    void setStaysActive(bool staysActive);
+    [[nodiscard]] bool staysActive() const;
     // A key while the canvas has the focus in paste mode; true if it was taken.
     bool handleKey(const CanvasEditContext& context, int key, Qt::KeyboardModifiers modifiers);
 
@@ -80,6 +85,7 @@ private:
     PasteModeOutputs m_outputs;
     std::optional<edit::CopyBuffer> m_clipboard;
     bool m_active = false;
+    bool m_staysActive = false;
     edit::PasteMode m_mode = edit::PasteMode::All;
     edit::PastePlacement m_placement;
 };

@@ -388,6 +388,23 @@ void testPasteMode()
     expect(document.colorizedPixel(1, Resolution::Sd, 0, 0) == 0x200,
            "pixel 0,0 has another original shade and is left alone");
     expect(document.colorizedPixel(1, Resolution::Sd, 1, 0) == 0xf800, "matching pixels change");
+    expect(!paste.isActive() && !paste.staysActive(), "as in Win32 the stamp ends paste mode");
+
+    // Stay In Paste Mode: stamps go on until Escape.
+    paste.setStaysActive(true);
+    paste.begin(context, edit::PasteMode::All);
+    paste.follow(hitAt(Resolution::Sd, 1, 1));
+    owner.keys.clear();
+    expect(paste.stamp(context, Qt::NoModifier) && paste.isActive() &&
+               owner.status.find("Esc ends it") != std::string::npos,
+           "with Stay In Paste Mode the stamp keeps paste mode and says how to end it");
+    const std::size_t steps = owner.keys.size();
+    paste.follow(hitAt(Resolution::Sd, 60, 20));
+    expect(paste.stamp(context, Qt::NoModifier) && paste.isActive() && owner.keys.size() > steps,
+           "the paste is stamped again elsewhere, with undo steps of its own");
+    expect(paste.handleKey(context, Qt::Key_Escape, Qt::NoModifier) && !paste.isActive(),
+           "Escape ends it");
+    paste.setStaysActive(false);
 
     // On the HD plane the SD content is refused with a message.
     context.activePlane = Resolution::Hd;
