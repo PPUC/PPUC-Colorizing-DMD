@@ -896,7 +896,8 @@ one is removed.
     - A renamed color set's name entry is zero filled. Right?
     - The color keys work only while the canvas has the focus. Right?
 11. **Selection, copy and paste:**
-    - The selection is not undoable (Win32 records it). Right?
+    - The selection has its own undo (`Undo Selection`, `Alt+Z`, 50 steps) instead of being
+      in the project's Undo (Win32 records it there). Enough?
     - Select by color takes the composed colors, including dynamic pixels. Right?
     - Paste ends after one stamp (as Win32) unless `Edit -> Stay In Paste Mode` is checked
       (off at first). Right default?
@@ -931,7 +932,6 @@ Asked for a change:
 
 - Colors (item 10): the draw color is always an edit color (1); `Pick` writes into the selected
   edit color (2) and takes the color as seen, i.e. the composed picture (3). All three as Win32.
-- Selection (item 11): selection steps are undoable (9).
 - The 15 ms rule (item 5): a limit per project instead of the fixed 15 ms (24). It would be
   editor data (a `.cRPX` chunk); the cROM is unchanged.
 - `trn_174h` edges (item 6): the canvas should show the smoothed edges of upscaled content

@@ -514,6 +514,22 @@
         <source>No background or palette selected</source>
         <translation>Kein Hintergrund oder keine Palette ausgewählt</translation>
     </message>
+    <message>
+        <source>Selection undone (%1 pixels selected)</source>
+        <translation>Auswahl rückgängig gemacht (%1 Pixel ausgewählt)</translation>
+    </message>
+    <message>
+        <source>Selection undone: nothing selected</source>
+        <translation>Auswahl rückgängig gemacht: nichts ausgewählt</translation>
+    </message>
+    <message>
+        <source>Selection redone (%1 pixels selected)</source>
+        <translation>Auswahl wiederhergestellt (%1 Pixel ausgewählt)</translation>
+    </message>
+    <message>
+        <source>Selection redone: nothing selected</source>
+        <translation>Auswahl wiederhergestellt: nichts ausgewählt</translation>
+    </message>
 </context>
 <context>
     <name>ColorGridWidget</name>
@@ -1349,6 +1365,22 @@
     <message>
         <source>Select By &amp;Color</source>
         <translation>Nach &amp;Farbe auswählen</translation>
+    </message>
+    <message>
+        <source>Undo Selection</source>
+        <translation>Auswahl rückgängig</translation>
+    </message>
+    <message>
+        <source>Bring back the selection before its last change (the project&apos;s Undo leaves the selection alone)</source>
+        <translation>Die Auswahl vor ihrer letzten Änderung zurückholen (das Rückgängig des Projekts lässt die Auswahl unverändert)</translation>
+    </message>
+    <message>
+        <source>Redo Selection</source>
+        <translation>Auswahl wiederherstellen</translation>
+    </message>
+    <message>
+        <source>Bring back the selection undone last</source>
+        <translation>Die zuletzt rückgängig gemachte Auswahl zurückholen</translation>
     </message>
     <message>
         <source>Selection From &amp;Background Mask</source>
@@ -4262,6 +4294,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Without scene frames</source>
         <translation>Ohne Szenen-Frames</translation>
+    </message>
+    <message>
+        <source>No selection to bring back</source>
+        <translation>Keine Auswahl zum Zurückholen</translation>
+    </message>
+    <message>
+        <source>No undone selection to bring back</source>
+        <translation>Keine rückgängig gemachte Auswahl zum Wiederherstellen</translation>
     </message>
     <message>
         <source>%1 (one step of %2 changes)</source>

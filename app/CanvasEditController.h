@@ -196,6 +196,18 @@ public:
     // Without telling the owner.
     void resetCaptureSelection();
 
+    // The selection's own history, apart from the project's Undo: every change of the canvas
+    // selection (made, edited, cleared) is a step, the last kMaxSelectionSteps of them.
+    // undoSelection() brings back the selection before the last change, redoSelection() the
+    // one undone last; both return false when there is none.
+    static constexpr std::size_t kMaxSelectionSteps = 50;
+    bool undoSelection();
+    bool redoSelection();
+    [[nodiscard]] bool canUndoSelection() const;
+    [[nodiscard]] bool canRedoSelection() const;
+    // For another project, whose planes a kept selection may not fit.
+    void clearSelectionHistory();
+
 private:
     struct PendingFreeGradient {
         render::CanvasHit shapeStart;
@@ -365,12 +377,19 @@ private:
                               QColor color) const;
     void clearSelectionOverlay() const;
     void commitsFinished() const;
-    void selectionChanged() const;
+    // Records the change in the selection history and tells the owner.
+    void selectionChanged();
+    // Makes the selection the current one, as a step of the history moves.
+    void restoreSelection(std::optional<Selection> selection);
     void selectionDirectionModeChanged() const;
 
     CanvasEditOutputs m_outputs;
     std::optional<PendingFreeGradient> m_pendingFreeGradient;
     std::optional<Selection> m_selection;
+    // The selection as the history last saw it, and the steps before and after it.
+    std::optional<Selection> m_recordedSelection;
+    std::vector<std::optional<Selection>> m_selectionUndo;
+    std::vector<std::optional<Selection>> m_selectionRedo;
     bool m_selectionDirectionMode = false;
     // The preview shows pointerMoved()'s pixel, which it may clear (and only then: other
     // previews, of a pending gradient for one, stay while the mouse moves).

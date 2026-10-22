@@ -62,6 +62,12 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
            "%1+%2+click with the fill tool)")
             .arg(ctrlKeyName(), altKeyName()),
         {}, &EditMenuActions::onSelectByColor);
+    add(menu, tr("Undo Selection"),
+        tr("Bring back the selection before its last change (the project's Undo leaves the "
+           "selection alone)"),
+        {alt(Qt::Key_Z)}, &EditMenuActions::onUndoSelection);
+    add(menu, tr("Redo Selection"), tr("Bring back the selection undone last"),
+        {QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Z)}, &EditMenuActions::onRedoSelection);
     add(menu, tr("Selection From &Background Mask"),
         tr("Select the frame's background mask"), {ctrl(Qt::Key_B)},
         &EditMenuActions::onSelectBackgroundMask);

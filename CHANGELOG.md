@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Edit -> Undo Selection` (`Alt+Z`) and `Redo Selection` (`Alt+Shift+Z`) bring back an earlier
+  selection; the selection has its own history of the last 50 changes, apart from the
+  project's Undo.
 ## 3.99.9
 
 - One action is one undo step: an edit of several frames (drawing on selected frames, paste,

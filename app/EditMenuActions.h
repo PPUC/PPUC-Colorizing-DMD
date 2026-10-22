@@ -26,6 +26,8 @@ namespace colorizing::app {
 //   Select All                    Ctrl+A (Cmd+A)       Win32 Ctrl+A
 //   Select None                   Ctrl+Shift+A, Ctrl+D Win32 Ctrl+D
 //   Invert Selection              Ctrl+Shift+I         Win32 button only
+//   Undo Selection                Alt+Z                Win32 Ctrl+Z (one undo for all)
+//   Redo Selection                Alt+Shift+Z
 //   Selection From Background Mask Ctrl+B              Win32 Ctrl+B
 //   Mirror Selection Horizontally Ctrl+K               Win32 Ctrl+K
 //   Mirror Selection Vertically   Ctrl+L               Win32 Ctrl+L
@@ -51,6 +53,8 @@ public:
     std::function<void()> onSelectAll;
     std::function<void()> onSelectNone;
     std::function<void()> onInvertSelection;
+    std::function<void()> onUndoSelection;
+    std::function<void()> onRedoSelection;
     std::function<void()> onSelectByColor;
     std::function<void()> onSelectBackgroundMask;
     std::function<void()> onMirrorHorizontally;

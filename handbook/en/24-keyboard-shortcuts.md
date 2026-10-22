@@ -19,6 +19,7 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+A` | Select all pixels | same |
 | `Ctrl/Cmd+Shift+A`, `Ctrl/Cmd+D` | Select none | `Ctrl+D` |
 | `Ctrl/Cmd+Shift+I` | Invert the selection | button |
+| `Alt+Z` (`Option+Z`), `Alt+Shift+Z` | Undo, redo a change of the selection | `Ctrl+Z` (one undo for everything) |
 | `Ctrl/Cmd+B` | Selection from the background mask | same |
 | `Ctrl/Cmd+K`, `Ctrl/Cmd+L` | Mirror the selection | same |
 | `Ctrl/Cmd`(+`Shift`)+click or drag | Add to (remove from) the selection | same |

@@ -144,6 +144,54 @@ struct CanvasOwner {
     int commits = 0;
 };
 
+// The selection's own history (Edit -> Undo Selection, Redo Selection): every change is a
+// step, apart from the project's Undo.
+void testSelectionHistory()
+{
+    ProjectDocument document = makeDocument();
+    CanvasOwner owner;
+    owner.document = &document;
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context = makeContext(document, {0});
+    expect(!controller.canUndoSelection() && !controller.undoSelection(),
+           "nothing to bring back at first");
+
+    controller.editSelectionAtPoint(context, hitAt(Resolution::Sd, 3, 4), false, false);
+    controller.editSelectionAtPoint(context, hitAt(Resolution::Sd, 4, 4), false, false);
+    controller.clearSelection(context);
+    expect(!controller.selection() && controller.canUndoSelection(), "three changes");
+
+    expect(controller.undoSelection() && controller.selection() &&
+               controller.selection()->count() == 2 && owner.overlayPixels == 2 &&
+               owner.status.find("Selection undone") != std::string::npos,
+           "undo brings back the selection that was cleared, and shows it");
+    expect(controller.undoSelection() && controller.selection()->count() == 1,
+           "and the one before it");
+    expect(controller.undoSelection() && !controller.selection() && !controller.undoSelection(),
+           "back to no selection; nothing before that");
+    expect(controller.redoSelection() && controller.selection()->count() == 1 &&
+               controller.redoSelection() && controller.selection()->count() == 2,
+           "redo goes forward again");
+    controller.editSelectionAtPoint(context, hitAt(Resolution::Sd, 5, 4), false, false);
+    expect(!controller.canRedoSelection() && controller.selection()->count() == 3,
+           "a new change drops what could be redone");
+    expect(owner.commits == 0, "the project is not touched");
+
+    for (int step = 0; step < 60; ++step) {
+        controller.editSelectionAtPoint(context, hitAt(Resolution::Sd, step % 20, 10 + step / 20),
+                                        false, false);
+    }
+    int undone = 0;
+    while (controller.undoSelection()) {
+        ++undone;
+    }
+    expect(undone == static_cast<int>(CanvasEditController::kMaxSelectionSteps),
+           "the last 50 changes are kept");
+    controller.clearSelectionHistory();
+    expect(!controller.canUndoSelection() && !controller.canRedoSelection(),
+           "another project starts without them");
+}
+
 void testSelectionEditing()
 {
     ProjectDocument document = makeDocument();
@@ -635,6 +683,7 @@ void testMenuActions()
 void runSelectionWidgetTests()
 {
     testSelectionEditing();
+    testSelectionHistory();
     testPasteMode();
     testHelpers();
     testPreviewInterceptAndHover();

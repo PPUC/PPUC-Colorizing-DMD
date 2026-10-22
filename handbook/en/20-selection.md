@@ -3,9 +3,13 @@
 The selection is a set of pixels of the plane being edited (the Win32 editor's copy mask). It is
 shown as the translucent cyan overlay of `Sel` and is what `Grad Sel`, `Copy`, `Auto Copy...`,
 `Black Original To Black` and the dynamic helpers work on. It is editor state, not project data:
-it is not saved, it is not part of Undo (the Win32 editor records its changes in its one undo
-buffer; here a selection step would sit between the edits of the frame's histories and make
-Undo skip over invisible steps, and every selection command is one click to repeat). As in the
+it is not saved, and the project's Undo leaves it alone (the Win32 editor records its changes
+in its one undo buffer; here a selection step would sit between the edits of the frame's
+histories and make Undo skip over invisible steps). It has an undo of its own instead:
+`Edit -> Undo Selection` (`Alt+Z`, `Option+Z` on macOS) brings back the selection before its
+last change, whether it was made, added to, cut, inverted, mirrored or dropped, and `Edit ->
+Redo Selection` (`Alt+Shift+Z`) brings back the one undone last. The last 50 changes are kept;
+opening another project starts without them. As in the
 Win32 editor it stays, and stays visible, when another frame is shown (`Select None`,
 `Ctrl/Cmd+D`, drops it), so it can be checked on each frame of a
 selection of frames before copying or pasting (a click on a frame of that selection keeps it, see

@@ -514,6 +514,22 @@
         <source>No background or palette selected</source>
         <translation>Aucun arrière-plan ni aucune palette sélectionné</translation>
     </message>
+    <message>
+        <source>Selection undone (%1 pixels selected)</source>
+        <translation>Sélection annulée (%1 pixels sélectionnés)</translation>
+    </message>
+    <message>
+        <source>Selection undone: nothing selected</source>
+        <translation>Sélection annulée : rien n&apos;est sélectionné</translation>
+    </message>
+    <message>
+        <source>Selection redone (%1 pixels selected)</source>
+        <translation>Sélection rétablie (%1 pixels sélectionnés)</translation>
+    </message>
+    <message>
+        <source>Selection redone: nothing selected</source>
+        <translation>Sélection rétablie : rien n&apos;est sélectionné</translation>
+    </message>
 </context>
 <context>
     <name>ColorGridWidget</name>
@@ -1349,6 +1365,22 @@
     <message>
         <source>Select By &amp;Color</source>
         <translation>Sélectionner par co&amp;uleur</translation>
+    </message>
+    <message>
+        <source>Undo Selection</source>
+        <translation>Annuler la sélection</translation>
+    </message>
+    <message>
+        <source>Bring back the selection before its last change (the project&apos;s Undo leaves the selection alone)</source>
+        <translation>Revenir à la sélection d&apos;avant sa dernière modification (l&apos;annulation du projet ne touche pas à la sélection)</translation>
+    </message>
+    <message>
+        <source>Redo Selection</source>
+        <translation>Rétablir la sélection</translation>
+    </message>
+    <message>
+        <source>Bring back the selection undone last</source>
+        <translation>Rétablir la dernière sélection annulée</translation>
     </message>
     <message>
         <source>Selection From &amp;Background Mask</source>
@@ -4262,6 +4294,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Without scene frames</source>
         <translation>Sans frames de scène</translation>
+    </message>
+    <message>
+        <source>No selection to bring back</source>
+        <translation>Aucune sélection à rétablir</translation>
+    </message>
+    <message>
+        <source>No undone selection to bring back</source>
+        <translation>Aucune sélection annulée à rétablir</translation>
     </message>
     <message>
         <source>%1 (one step of %2 changes)</source>

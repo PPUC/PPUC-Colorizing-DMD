@@ -1951,11 +1951,101 @@ void CanvasEditController::commitsFinished() const
     }
 }
 
-void CanvasEditController::selectionChanged() const
+void CanvasEditController::selectionChanged()
 {
+    const auto sameHit = [](const std::optional<render::CanvasHit>& a,
+                            const std::optional<render::CanvasHit>& b) {
+        if (!a || !b) {
+            return !a && !b;
+        }
+        return a->region == b->region && a->resolution == b->resolution && a->x == b->x &&
+               a->y == b->y;
+    };
+    const auto same = [&](const std::optional<Selection>& a, const std::optional<Selection>& b) {
+        if (!a || !b) {
+            return !a && !b;
+        }
+        return a->pixels == b->pixels && a->target == b->target &&
+               a->backgroundIndex == b->backgroundIndex &&
+               sameHit(a->gradientStart, b->gradientStart) &&
+               sameHit(a->gradientEnd, b->gradientEnd);
+    };
+    if (!same(m_recordedSelection, m_selection)) {
+        m_selectionUndo.push_back(std::move(m_recordedSelection));
+        if (m_selectionUndo.size() > kMaxSelectionSteps) {
+            m_selectionUndo.erase(m_selectionUndo.begin());
+        }
+        m_selectionRedo.clear();
+        m_recordedSelection = m_selection;
+    }
     if (m_outputs.selectionChanged) {
         m_outputs.selectionChanged();
     }
+}
+
+void CanvasEditController::restoreSelection(std::optional<Selection> selection)
+{
+    m_selection = std::move(selection);
+    m_recordedSelection = m_selection;
+    m_selectionDirectionMode = false;
+    selectionDirectionModeChanged();
+    if (m_selection) {
+        showSelection();
+    } else {
+        clearSelectionOverlay();
+    }
+    if (m_outputs.selectionChanged) {
+        m_outputs.selectionChanged();
+    }
+}
+
+bool CanvasEditController::undoSelection()
+{
+    if (m_selectionUndo.empty()) {
+        return false;
+    }
+    m_selectionRedo.push_back(m_selection);
+    std::optional<Selection> previous = std::move(m_selectionUndo.back());
+    m_selectionUndo.pop_back();
+    restoreSelection(std::move(previous));
+    showStatus(m_selection ? tr("Selection undone (%1 pixels selected)")
+                                 .arg(static_cast<qulonglong>(m_selection->pixels.count()))
+                           : tr("Selection undone: nothing selected"),
+               kShortStatusMs);
+    return true;
+}
+
+bool CanvasEditController::redoSelection()
+{
+    if (m_selectionRedo.empty()) {
+        return false;
+    }
+    m_selectionUndo.push_back(m_selection);
+    std::optional<Selection> next = std::move(m_selectionRedo.back());
+    m_selectionRedo.pop_back();
+    restoreSelection(std::move(next));
+    showStatus(m_selection ? tr("Selection redone (%1 pixels selected)")
+                                 .arg(static_cast<qulonglong>(m_selection->pixels.count()))
+                           : tr("Selection redone: nothing selected"),
+               kShortStatusMs);
+    return true;
+}
+
+bool CanvasEditController::canUndoSelection() const
+{
+    return !m_selectionUndo.empty();
+}
+
+bool CanvasEditController::canRedoSelection() const
+{
+    return !m_selectionRedo.empty();
+}
+
+void CanvasEditController::clearSelectionHistory()
+{
+    m_selectionUndo.clear();
+    m_selectionRedo.clear();
+    m_recordedSelection = m_selection;
 }
 
 void CanvasEditController::selectionDirectionModeChanged() const

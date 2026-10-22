@@ -77,8 +77,8 @@ was made on, or, in the `Dynamic` mode, its dynamic mask history), so `Undo` rea
 from any of the frames it changed, and `Undo Last Edit Anywhere` reaches it as the latest edit.
 A frame edited again after the action keeps that later edit: `Undo` of the action then leaves
 this frame's part alone, and it is undone with the frame's own steps later, after the later edit.
-Nothing made after the action is ever undone with it. The selection itself is not part of Undo
-(see "Selection").
+Nothing made after the action is ever undone with it. The selection itself is not part of Undo;
+it has `Undo Selection` and `Redo Selection` of its own (see "Selection").
 
 Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
 overwritten: the frame's HD background mask and the HD image of the background that was assigned

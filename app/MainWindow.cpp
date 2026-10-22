@@ -4504,6 +4504,9 @@ void MainWindow::refreshProjectSummary()
     }
     m_spriteDependentViewsDirty = false;
     m_canvasEdit.resetCaptureSelection();
+    // Another project: no selection, and none to bring back.
+    m_canvasEdit.clearSelection(canvasEditContext());
+    m_canvasEdit.clearSelectionHistory();
     if (m_spritePanel) {
         m_spritePanel->setApplySpriteEditsEnabled(false);
         m_spritePanel->setSpriteCanvasChecked(false);
@@ -8659,6 +8662,16 @@ void MainWindow::createSelectionActions(QMenu* editMenu)
         if (canUseFrameCanvasHelpers()) {
             m_canvasEdit.clearSelection(canvasEditContext());
             statusBar()->showMessage(tr("Selection cleared"), 1500);
+        }
+    };
+    actions.onUndoSelection = [this]() {
+        if (canUseFrameCanvasHelpers() && !m_canvasEdit.undoSelection()) {
+            statusBar()->showMessage(tr("No selection to bring back"), 1500);
+        }
+    };
+    actions.onRedoSelection = [this]() {
+        if (canUseFrameCanvasHelpers() && !m_canvasEdit.redoSelection()) {
+            statusBar()->showMessage(tr("No undone selection to bring back"), 1500);
         }
     };
     actions.onInvertSelection = [this]() {
