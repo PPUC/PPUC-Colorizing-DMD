@@ -24,7 +24,7 @@ colorizations. See `readme.md` for what the editor is and how to build it.
 - `handbook/en/`: the user handbook, one Markdown file per chapter, built into the app
   (`Help -> Handbook`). `handbook/en/README.md` lists the chapters in order.
 - `translations/`: Qt Linguist files for German and French.
-- `docs/status.md`: the detailed working notes (decisions, state, open work). Read it first
+- `docs/status.md`: the working notes (decisions in force, state, open work). Read it first
   when resuming work.
 - `CHANGELOG.md`: user-facing changes per version.
 
@@ -60,7 +60,9 @@ A change is complete only with all of these, in the same commit:
   new or changed string into German and French. An entry lupdate pre-filled is still marked
   `type="unfinished"`; it counts as done only once that mark is removed. No
   `type="unfinished"` may remain.
-- **`docs/status.md`**: a short technical note (what changed, where, why, which test).
+- **`docs/status.md`**: only when the change alters the state it describes: a decision in force,
+  an open question, a known gap, or how something is built. Remove what the change settles.
+  What changed and why goes into the commit message, not into this file.
 
 ## Conventions
 
