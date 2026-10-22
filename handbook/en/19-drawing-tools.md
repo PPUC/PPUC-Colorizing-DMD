@@ -55,6 +55,9 @@ Press, drag, and release to draw a filled rectangle bounded by the start and end
 
 The preview is shown while dragging. The whole filled rectangle is committed on release as one undoable edit.
 
+On the original frame, while `Show Bounds` is on, `Rect` and `Fill Rect` draw the search area of
+the selected sprite slot instead (see "Sprites").
+
 ## Circle
 
 Press, drag, and release to draw a circle outline.
