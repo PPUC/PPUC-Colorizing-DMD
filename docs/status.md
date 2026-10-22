@@ -1050,21 +1050,17 @@ Asked for a change:
 
 ### Newer work
 
-12. **Optional sidebar sections.** The author can hide Scenes and Light Effects (left) and Color
-    Rotations, Color Sets, Helper Lines, Lights and Light Effect (right). Should Color Rotations
-    and Color Sets stay hideable, and should any other section be?
-13. **Linux packages.** A user reported that the Linux package does not install because of
-    libraries (not reproduced; no distribution or message known). The AppImage is built on
-    Ubuntu 24.04, so it needs glibc 2.39 and FUSE 2, and only the offscreen platform is tested.
-    Build it on Ubuntu 22.04 with the official Qt and add an xcb smoke test? Needs the user's
-    distribution and error text.
-14. **Release job.** The `Draft release` job runs only for `qt-v*` tags but requires the tag to
-    be `v<version>`, so it never runs for the `v3.99.x` tags. Change the condition to `v*` so
-    tagged versions get draft releases?
-15. **libserum 2.8.x.** The background-scene fix is cherry-picked to the 2.8.x branch (198dc47).
-    Raise its patch version and release it?
-16. **Speaker lights firmware.** The UART receiver in PPUCDMD-firmwares (0734704) compiles but is
-    not tested on hardware. Push only after a test on a Pico (GPIO 8/9) and a Pi (GPIO 12/13)?
+12. **Linux packages, postponed (owner, 2026-10-22).** A user reported that the Linux package
+    does not install because of libraries (not reproduced; no distribution or message known).
+    The AppImage is built on Ubuntu 24.04, so it needs glibc 2.39 and FUSE 2, and only the
+    offscreen platform is tested. The proposal stands for later: build it on Ubuntu 22.04 with
+    the official Qt and add an xcb smoke test, with the user's distribution and error text.
+
+Decided on 2026-10-22 (owner): Color Rotations and Color Sets stay hideable sections; the
+`Draft release` job runs for `v*` tags now (it ran for `qt-v*` only, while checking for
+`v<version>`); libserum 2.8.x with the background-scene fix (198dc47) is released by the
+owner by hand; the speaker light UART receiver of PPUCDMD-firmwares (0734704) is pushed and will be
+tested on hardware.
 
 ## Known bugs and gaps in the editor (not fixed)
 

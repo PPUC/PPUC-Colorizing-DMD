@@ -449,7 +449,7 @@ jobs:
 
   release:
     name: Draft release
-    if: startsWith(github.ref, 'refs/tags/qt-v')
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-24.04
     permissions:
