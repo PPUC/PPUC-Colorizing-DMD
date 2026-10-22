@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -54,6 +55,76 @@ using LegacySectionOffsets = std::vector<std::pair<std::string, std::size_t>>;
                                            std::size_t frameIndex);
 
 struct LegacyIoProgress;
+
+// The blocks of a cROM after its header, in file order (libserum's Serum_Block). Each element
+// of a block belongs to one frame, comparison mask, sprite or background.
+enum class CromBlock {
+    FrameHash,
+    FrameShapeMode,
+    FrameMaskId,
+    ComparisonMask,
+    FrameHasExtra,
+    FrameColors,
+    FrameColorsExtra,
+    FrameDynamicMask,
+    FrameDynamicMaskExtra,
+    FrameDynamicColors,
+    FrameDynamicColorsExtra,
+    SpriteHasExtra,
+    FrameSprites,
+    SpriteOriginal,
+    SpriteColors,
+    SpriteMaskExtra,
+    SpriteColorsExtra,
+    FrameActive,
+    FrameRotations,
+    FrameRotationsExtra,
+    SpriteDetectionDwords,
+    SpriteDetectionPositions,
+    SpriteDetectionAreas,
+    FrameTrigger,
+    FrameSpriteBounds,
+    BackgroundHasExtra,
+    BackgroundColors,
+    BackgroundColorsExtra,
+    FrameBackgroundId,
+    FrameBackgroundMask,
+    FrameBackgroundMaskExtra,
+    FrameShadowDirections,
+    FrameShadowColors,
+    FrameShadowDirectionsExtra,
+    FrameShadowColorsExtra,
+    SpriteDynamicColors,
+    SpriteDynamicColorsExtra,
+    SpriteDynamicMask,
+    SpriteDynamicMaskExtra,
+    SpriteShapeMode,
+};
+inline constexpr std::size_t kCromBlockCount = 40;
+// The block's name in LegacySectionOffsets.
+[[nodiscard]] const char* cromBlockName(CromBlock block);
+// How many elements the block has: one per frame, comparison mask, sprite or background.
+[[nodiscard]] std::size_t cromBlockElementCount(const document::ProjectSnapshot& snapshot,
+                                                CromBlock block);
+
+// The bytes of single elements of the cROM blocks, as writeLegacyCrom() writes them (little
+// endian), for handing a project to libserum without a cROM (Serum_LoadFromSource()). The
+// snapshot must outlive the object. wideSpriteIds: 16-bit sprite IDs, as format version 1
+// has them, also for a project for libserum 2.8.
+class CromElements {
+public:
+    CromElements(const document::ProjectSnapshot& snapshot, bool wideSpriteIds);
+    ~CromElements();
+    CromElements(const CromElements&) = delete;
+    CromElements& operator=(const CromElements&) = delete;
+
+    // Replaces out with the element's bytes.
+    void write(CromBlock block, std::size_t index, std::vector<uint8_t>& out) const;
+
+private:
+    struct Context;
+    std::unique_ptr<Context> m_context;
+};
 
 // Write complete files from the snapshot alone, in the current legacy layout. With a progress,
 // every byte written is added to its `done`, and a set `cancel` stops the write (it returns

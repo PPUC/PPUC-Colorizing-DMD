@@ -1,10 +1,8 @@
 #include "runtime/RuntimePreview.h"
 
 #include <algorithm>
-#include <condition_variable>
 #include <deque>
 #include <functional>
-#include <thread>
 #include <array>
 #include <chrono>
 #include <cstdarg>
@@ -12,12 +10,12 @@
 #include <ostream>
 #include <set>
 #include <stdexcept>
-#include <streambuf>
 
 #include <serum-decode.h>
 
 #include "document/ProjectSnapshot.h"
 #include "legacy/LegacyProjectSerializer.h"
+#include "runtime/SnapshotSource.h"
 
 namespace colorizing::runtime {
 
@@ -58,32 +56,6 @@ double millisecondsSince(Clock::time_point start)
 {
     return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
-
-class VectorBuffer final : public std::streambuf {
-public:
-    explicit VectorBuffer(std::vector<uint8_t>& bytes)
-        : m_bytes(bytes)
-    {
-    }
-
-protected:
-    std::streamsize xsputn(const char* data, std::streamsize count) override
-    {
-        m_bytes.insert(m_bytes.end(), data, data + count);
-        return count;
-    }
-
-    int_type overflow(int_type character) override
-    {
-        if (!traits_type::eq_int_type(character, traits_type::eof())) {
-            m_bytes.push_back(static_cast<uint8_t>(traits_type::to_char_type(character)));
-        }
-        return traits_type::not_eof(character);
-    }
-
-private:
-    std::vector<uint8_t>& m_bytes;
-};
 
 uint8_t requestFlags(PlaneRequest request)
 {
@@ -243,115 +215,20 @@ RuntimeSubset buildRuntimeSubset(const document::ProjectDocument& document,
     keepExtraSpriteDynamicsAsInProject(document, snapshot, subset.map);
     subset.subsetMs = millisecondsSince(start);
 
-    start = Clock::now();
-    VectorBuffer buffer(subset.crom);
-    std::ostream stream(&buffer);
     std::string errorMessage;
-    if (!legacy::writeLegacyCrom(stream, snapshot, errorMessage)) {
+    if (!document::isValidProjectSnapshot(snapshot, &errorMessage)) {
         throw std::runtime_error(errorMessage);
     }
-    subset.serializeMs = millisecondsSince(start);
-
     subset.originals.reserve(snapshot.frames.size());
-    for (document::ProjectFrameSnapshot& frame : snapshot.frames) {
-        subset.originals.push_back(std::move(frame.originalSd));
+    for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+        // Shared, not copied (CompactArray).
+        subset.originals.push_back(frame.originalSd);
     }
+    subset.snapshot = std::move(snapshot);
     return subset;
 }
 
 namespace {
-
-// The cROM between the thread that writes it and libserum, which reads it: a bounded buffer,
-// so that neither holds the whole cROM.
-class CromPipe {
-public:
-    // Blocks while the buffer is full; false once the reader stopped.
-    bool write(const char* data, std::size_t size)
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        while (size > 0) {
-            m_changed.wait(lock, [this]() { return m_closed || m_bytes.size() < kCapacity; });
-            if (m_closed) {
-                return false;
-            }
-            const std::size_t count = std::min(size, kCapacity - m_bytes.size());
-            m_bytes.insert(m_bytes.end(), data, data + count);
-            data += count;
-            size -= count;
-            m_changed.notify_all();
-        }
-        return true;
-    }
-    // The writer is done, or gave up: the reader gets what is left, then 0.
-    void finishWriting(bool ok)
-    {
-        const std::lock_guard<std::mutex> lock(m_mutex);
-        m_written = true;
-        m_writerFailedFirst = !ok && !m_closed;
-        m_changed.notify_all();
-    }
-    // The writer failed while the reader still read: the writer's error is the reason.
-    bool writerFailedFirst()
-    {
-        const std::lock_guard<std::mutex> lock(m_mutex);
-        return m_writerFailedFirst;
-    }
-    // Blocks until there are bytes or the writer is done; 0 at the end.
-    std::size_t read(uint8_t* buffer, std::size_t size)
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_changed.wait(lock, [this]() { return m_written || !m_bytes.empty(); });
-        const std::size_t count = std::min(size, m_bytes.size());
-        std::copy_n(m_bytes.begin(), count, buffer);
-        m_bytes.erase(m_bytes.begin(), m_bytes.begin() + static_cast<std::ptrdiff_t>(count));
-        m_changed.notify_all();
-        return count;
-    }
-    // The reader stopped: a blocked writer returns.
-    void closeReading()
-    {
-        const std::lock_guard<std::mutex> lock(m_mutex);
-        m_closed = true;
-        m_changed.notify_all();
-    }
-
-private:
-    static constexpr std::size_t kCapacity = 4u << 20;
-    std::mutex m_mutex;
-    std::condition_variable m_changed;
-    std::deque<char> m_bytes;
-    bool m_written = false;
-    bool m_closed = false;
-    bool m_writerFailedFirst = false;
-};
-
-// writeLegacyCrom() into the pipe.
-class CromPipeBuffer final : public std::streambuf {
-public:
-    explicit CromPipeBuffer(CromPipe& pipe) : m_pipe(pipe) {}
-
-protected:
-    std::streamsize xsputn(const char* data, std::streamsize count) override
-    {
-        return m_pipe.write(data, static_cast<std::size_t>(count)) ? count : 0;
-    }
-    int_type overflow(int_type character) override
-    {
-        if (traits_type::eq_int_type(character, traits_type::eof())) {
-            return traits_type::not_eof(character);
-        }
-        const char byte = traits_type::to_char_type(character);
-        return m_pipe.write(&byte, 1) ? character : traits_type::eof();
-    }
-
-private:
-    CromPipe& m_pipe;
-};
-
-size_t readCromPipe(void* userData, uint8_t* buffer, size_t size)
-{
-    return static_cast<CromPipe*>(userData)->read(buffer, size);
-}
 
 }  // namespace
 
@@ -404,6 +281,11 @@ struct RuntimePreview::Impl {
                                    PlaneRequest request,
                                    std::string* errorMessage,
                                    bool withScenes);
+    [[nodiscard]] bool loadSnapshot(document::ProjectSnapshot snapshot,
+                                    std::size_t frames,
+                                    PlaneRequest request,
+                                    std::string* errorMessage,
+                                    bool withScenes);
     [[nodiscard]] bool load(RuntimeSubset subset, PlaneRequest request, std::string* errorMessage);
     void unload();
     void readPlanes(RuntimeFrame& frame) const;
@@ -428,8 +310,7 @@ bool RuntimePreview::Impl::loadProject(const document::ProjectDocument& document
                                        std::string* errorMessage,
                                        bool withScenes)
 {
-    // The cROM is written on a thread of its own into a bounded pipe that libserum reads:
-    // it is never in memory as a whole.
+    // Handed to libserum as it is: no cROM is written.
     document::ProjectSnapshot snapshot = document.toSnapshot();
     if (!withScenes) {
         // A settings block without scenes, so that no scene file beside it counts either.
@@ -438,34 +319,35 @@ bool RuntimePreview::Impl::loadProject(const document::ProjectDocument& document
         }
         snapshot.colorizationSettings->scenes.clear();
     }
-    const uint64_t size = legacy::legacyCromByteCount(snapshot);
-    CromPipe pipe;
-    std::string writeError;
-    std::thread writer([&pipe, &writeError, snapshot = std::move(snapshot)]() {
-        CromPipeBuffer buffer(pipe);
-        std::ostream stream(&buffer);
-        bool ok = false;
-        try {
-            ok = legacy::writeLegacyCrom(stream, snapshot, writeError) && stream.flush();
-        } catch (const std::exception& ex) {
-            writeError = ex.what();
-        }
-        if (!ok && writeError.empty()) {
-            writeError = "the cROM could not be written";
-        }
-        pipe.finishWriting(ok);
-    });
+    return loadSnapshot(std::move(snapshot), document.frameCount(), request, errorMessage,
+                        withScenes);
+}
+
+bool RuntimePreview::Impl::loadSnapshot(document::ProjectSnapshot snapshot,
+                                        std::size_t frames,
+                                        PlaneRequest request,
+                                        std::string* errorMessage,
+                                        bool withScenes)
+{
+    const render::ProjectGeometry geometry = snapshot.geometry;
+    const auto source = std::make_unique<SnapshotSource>(std::move(snapshot));
     std::string loadError;
     const bool loaded = load(
-        [&pipe, size, withScenes](const char* scenes, uint8_t flags) {
-            return Serum_LoadFromCallback(readCromPipe, &pipe, static_cast<size_t>(size),
-                                          withScenes ? scenes : nullptr, flags);
+        [&source, withScenes](const char* scenes, uint8_t flags) {
+            return source->load(withScenes ? scenes : nullptr, flags);
         },
-        document.geometry(), document.frameCount(), request, &loadError);
-    pipe.closeReading();
-    writer.join();
+        geometry, frames, request, &loadError);
+    if (!source->error().empty()) {
+        if (loaded) {
+            unload();
+        }
+        if (errorMessage) {
+            *errorMessage = source->error();
+        }
+        return false;
+    }
     if (!loaded && errorMessage) {
-        *errorMessage = pipe.writerFailedFirst() ? writeError : loadError;
+        *errorMessage = loadError;
     }
     return loaded;
 }
@@ -512,10 +394,11 @@ bool RuntimePreview::Impl::load(RuntimeSubset subset,
                                 PlaneRequest request,
                                 std::string* errorMessage)
 {
-    if (!load(subset.crom, subset.geometry, subset.map.frames.size(), request, errorMessage)) {
+    cromBytes = legacy::legacyCromByteCount(subset.snapshot);
+    const std::size_t frames = subset.map.frames.size();
+    if (!loadSnapshot(std::move(subset.snapshot), frames, request, errorMessage, true)) {
         return false;
     }
-    cromBytes = subset.crom.size();
     frameMap = std::move(subset.map.frames);
     originals = std::move(subset.originals);
     return true;
@@ -750,7 +633,7 @@ RuntimeFrame RuntimePreview::renderFrame(const document::ProjectDocument& docume
         RuntimeSubset subset = buildRuntimeSubset(document, {frameIndex});
         cost.subsetMs = subset.subsetMs;
         cost.serializeMs = subset.serializeMs;
-        cost.cromBytes = subset.crom.size();
+        cost.cromBytes = legacy::legacyCromByteCount(subset.snapshot);
         const Clock::time_point start = Clock::now();
         std::string errorMessage;
         if (!m_impl->load(std::move(subset), request, &errorMessage)) {

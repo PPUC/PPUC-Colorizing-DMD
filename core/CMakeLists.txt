@@ -60,7 +60,8 @@ target_include_directories(colorizing_qt_v2_core
 )
 
 # PRIVATE: only document/CompactArray.cpp (lz4), legacy/LegacyCrzArchive.cpp, runtime/CromcExport.cpp,
-# runtime/RuntimePreview.cpp and runtime/Scenes.cpp include libserum headers, and
+# runtime/RuntimePreview.cpp, runtime/Scenes.cpp and runtime/SnapshotSource.h (included by
+# the two runtime files before it) include libserum headers, and
 # import/DumpFile.cpp its miniz, and they must not reach the targets that
 # link the core.
 target_link_libraries(colorizing_qt_v2_core

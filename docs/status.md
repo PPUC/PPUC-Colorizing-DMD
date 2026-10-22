@@ -72,9 +72,14 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   - `runtime/`: `RuntimePreview`, the libserum-backed renderer (the only other file that
     includes libserum headers). One instance per process, every call under one mutex, because
     libserum's state is process-global. `ProjectDocument::toSubsetSnapshot()` gives it a
-    snapshot of the wanted frames and what they reference, with renumbered IDs, which the
-    existing `writeLegacyCrom()` turns into a small cROM in memory. A still is: load that
-    cROM, colorize once, dispose. A sequence (playback) loads windows of at most 48 played
+    snapshot of the wanted frames and what they reference, with renumbered IDs. No cROM is
+    written: `runtime/SnapshotSource.h` hands a snapshot to libserum's
+    `Serum_LoadFromSource()` (libserum `format-v3`), answering its `fill()` calls with the
+    bytes of single block elements (`legacy::CromElements`, the code `writeLegacyCrom()`
+    writes every element with). A still is: load that subset, colorize once, dispose.
+    `openProject()` (frame tester) and the cROMc export (`Serum_ConcentrateFromSource()`)
+    hand over the whole project the same way; the export is libserum's own cROMc of the
+    project's cROM, byte for byte (CromcExportTests). A sequence (playback) loads windows of at most 48 played
     frames with the other frames that take part in identifying them, and carries libserum's
     identification state from window to window, see "Runtime playback" below.
     `ProjectDocument::revision()` changes with every edit and lets callers cache results;

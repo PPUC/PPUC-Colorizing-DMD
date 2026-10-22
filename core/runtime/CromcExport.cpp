@@ -12,6 +12,8 @@
 
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
+#include "runtime/Scenes.h"
+#include "runtime/SnapshotSource.h"
 #include "serum-decode.h"
 
 #ifdef _WIN32
@@ -158,48 +160,30 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
             fs::remove_all(directory, ignored);
         }
     } cleanup{*work};
-    const fs::path folder = *work / platform::pathFromUtf8(rom);
-    if (!fs::create_directories(folder, error)) {
-        result.error = "cannot create " + platform::utf8FromPath(folder) + ": " + error.message();
-        return result;
-    }
     result.error.clear();
 
-    {
-        std::ofstream crom(folder / platform::pathFromUtf8(rom + ".cROM"), std::ios::binary);
-        if (!crom) {
-            result.error = "cannot write the cROM into " + platform::utf8FromPath(folder);
-            return result;
-        }
-        if (progress) {
-            progress->total = legacy::legacyCromByteCount(snapshot);
-            progress->setStage(legacy::LegacyIoStage::Writing);
-        }
-        std::string message;
-        if (!legacy::writeLegacyCrom(crom, snapshot, message, nullptr, progress)) {
-            result.cancelled = message == legacy::kLegacyIoCancelledMessage;
-            result.error = message;
-            return result;
-        }
-        crom.close();
-        if (!crom) {
-            result.error = "cannot write the cROM into " + platform::utf8FromPath(folder);
-            return result;
-        }
-    }
-    // A project with colorization settings has them in the cROM, and libserum ignores the files.
-    const std::vector<std::string> sidecarNames =
-        snapshot.colorizationSettings
-            ? std::vector<std::string>{}
-            : std::vector<std::string>{rom + ".pup.csv", std::string("scaling.txt")};
-    for (const std::string& name : sidecarNames) {
-        if (const std::optional<fs::path> sidecar = findCaseInsensitive(sidecarDirectory, name)) {
-            if (!fs::copy_file(*sidecar, folder / sidecar->filename(), error)) {
-                result.error = "cannot copy " + platform::utf8FromPath(*sidecar) + ": " +
-                               error.message();
-                return result;
+    // A project without colorization settings (one of the Win32 editor) takes them from the
+    // files beside it, as libserum would: the scenes of "<rom>.pup.csv" and "scaling.txt".
+    document::ProjectSnapshot exported = snapshot;
+    if (!exported.colorizationSettings && !sidecarDirectory.empty()) {
+        const std::optional<fs::path> csv = findCaseInsensitive(sidecarDirectory, rom + ".pup.csv");
+        const std::optional<fs::path> scaling =
+            findCaseInsensitive(sidecarDirectory, "scaling.txt");
+        if (csv || scaling) {
+            document::ColorizationSettings settings;
+            if (scaling) {
+                if (const auto read = readScalingFile(*scaling)) {
+                    settings = *read;
+                }
+                result.sidecars.push_back(platform::utf8FromPath(scaling->filename()));
             }
-            result.sidecars.push_back(platform::utf8FromPath(sidecar->filename()));
+            if (csv) {
+                if (const auto scenes = readSceneCsv(*csv)) {
+                    settings.scenes = *scenes;
+                }
+                result.sidecars.push_back(platform::utf8FromPath(csv->filename()));
+            }
+            exported.colorizationSettings = std::move(settings);
         }
     }
 
@@ -211,20 +195,26 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
         }
         progress->setStage(legacy::LegacyIoStage::Generating);
     }
+    // No cROM: libserum builds the colorization from the project (Serum_ConcentrateFromSource())
+    // and writes the cROMc into the work folder, whose path it can open on every platform.
+    const fs::path generated = *work / platform::pathFromUtf8(rom + ".cROMc");
     std::vector<std::string> log;
     Serum_SetLogCallback(logLine, &log);
-    Serum_SetGenerateCRomC(true);
-    const Serum_Frame_Struc* loaded =
-        Serum_Load(libserumPath(*work).value_or(std::string()).c_str(), rom.c_str(), 0);
+    bool written = false;
+    std::string sourceError;
+    {
+        SnapshotSource source(std::move(exported));
+        const std::optional<std::string> path = libserumPath(*work);
+        written = path && source.writeConcentrate(*path + "/" + rom + ".cROMc");
+        sourceError = source.error();
+    }
     const char* lastError = Serum_GetLastErrorMessage();
     const std::string serumError = lastError ? lastError : "";
-    Serum_Dispose();
     Serum_SetLogCallback(nullptr, nullptr);
-    const std::optional<fs::path> generated = findCaseInsensitive(folder, rom + ".cROMc");
-    if (!loaded || !generated) {
-        result.error = !serumError.empty() ? serumError
-                       : loaded            ? "libserum wrote no cROMc"
-                                           : "libserum could not load the project";
+    if (!written || !sourceError.empty() || !fs::exists(generated, error)) {
+        result.error = !sourceError.empty() ? sourceError
+                       : !serumError.empty() ? serumError
+                                             : "libserum wrote no cROMc";
         if (!log.empty()) {
             result.error += " (" + log.back() + ")";
         }
@@ -234,7 +224,7 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
     // Replaced only once the new file is complete beside it.
     const fs::path partial = fs::path(target).concat(".saving");
     fs::remove(partial, error);
-    if (!fs::copy_file(*generated, partial, error)) {
+    if (!fs::copy_file(generated, partial, error)) {
         result.error = "cannot write " + platform::utf8FromPath(partial) + ": " + error.message();
         return result;
     }

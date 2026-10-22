@@ -51,11 +51,15 @@ struct WriteCancelled {
 class Writer {
 public:
     Writer(std::ostream& stream, LegacySectionOffsets* sections, LegacyIoProgress* progress)
-        : m_stream(stream)
+        : m_stream(&stream)
         , m_sections(sections)
         , m_progress(progress)
     {
     }
+    // Into memory only: what was written stays in buffer().
+    Writer() = default;
+
+    [[nodiscard]] std::vector<uint8_t>& buffer() { return m_buffer; }
 
     void section(const char* name)
     {
@@ -163,22 +167,22 @@ public:
     [[nodiscard]] bool finish()
     {
         flush();
-        m_stream.flush();
-        return static_cast<bool>(m_stream);
+        m_stream->flush();
+        return static_cast<bool>(*m_stream);
     }
 
 private:
     void advance(std::size_t count)
     {
         m_offset += count;
-        if (m_buffer.size() >= kFlushThresholdBytes) {
+        if (m_stream && m_buffer.size() >= kFlushThresholdBytes) {
             flush();
         }
     }
 
     void flush()
     {
-        m_stream.write(reinterpret_cast<const char*>(m_buffer.data()),
+        m_stream->write(reinterpret_cast<const char*>(m_buffer.data()),
                        static_cast<std::streamsize>(m_buffer.size()));
         if (m_progress) {
             m_progress->done.fetch_add(m_buffer.size());
@@ -190,7 +194,7 @@ private:
         m_buffer.clear();
     }
 
-    std::ostream& m_stream;
+    std::ostream* m_stream = nullptr;
     LegacySectionOffsets* m_sections = nullptr;
     LegacyIoProgress* m_progress = nullptr;
     std::vector<uint8_t> m_buffer;
@@ -356,6 +360,297 @@ bool isFrameSkippedAtRuntime(const document::ProjectDocument& document, std::siz
 
 namespace {
 
+// What every element of the cROM blocks is written from.
+struct CromContext {
+    const document::ProjectSnapshot* snapshot = nullptr;
+    std::size_t sdPixels = 0;
+    std::size_t hdPixels = 0;
+    std::size_t spritePixels = 0;
+    std::size_t dynamicColorCount = 0;
+    std::size_t spriteDynamicColorCount = 0;
+    std::size_t rotationValueCount = 0;
+    std::size_t shadowCount = 0;
+    std::size_t slots = 0;
+    // 16-bit sprite IDs (format version 1), or 8-bit ones with 255 for an empty slot.
+    bool wideSpriteIds = true;
+    // Sprite bounds are original frame pixels.
+    render::Size originalSize;
+    render::Resolution nativePlane = render::Resolution::Sd;
+    std::vector<uint16_t> originalColors;
+    document::CompactArray<uint8_t> noDirections;
+    document::CompactArray<uint16_t> noColors;
+};
+
+CromContext makeCromContext(const document::ProjectSnapshot& snapshot, bool wideSpriteIds)
+{
+    CromContext context;
+    context.snapshot = &snapshot;
+    context.sdPixels = pixelCount(snapshot.geometry.planeSize(render::Resolution::Sd));
+    context.hdPixels = pixelCount(snapshot.geometry.planeSize(render::Resolution::Hd));
+    context.spritePixels = document::kMaxSpriteWidth * document::kMaxSpriteHeight;
+    context.dynamicColorCount =
+        document::kMaxDynamicSetsPerFrame * static_cast<std::size_t>(snapshot.colorCount);
+    context.spriteDynamicColorCount =
+        document::kMaxDynamicSetsPerSprite * static_cast<std::size_t>(snapshot.colorCount);
+    context.rotationValueCount = document::kMaxColorRotations * document::kMaxColorRotationLength;
+    context.shadowCount = document::kMaxDynamicSetsPerFrame;
+    context.slots = document::libserumLimits(snapshot.libserumTarget).spritesPerFrame;
+    context.wideSpriteIds = wideSpriteIds;
+    context.originalSize = document::originalFrameSize(snapshot);
+    context.nativePlane = snapshot.geometry.nativePlane();
+    context.originalColors = legacyOriginalColors(snapshot.colorCount);
+    return context;
+}
+
+// One element of a block: a frame, comparison mask, sprite or background.
+void writeCromElement(Writer& writer, const CromContext& c, CromBlock block, std::size_t index)
+{
+    const document::ProjectSnapshot& snapshot = *c.snapshot;
+    switch (block) {
+        case CromBlock::FrameHash: {
+            const auto& frame = snapshot.frames[index];
+            // The Win32 editor only treats the exact value 1 as shape mode when hashing.
+            writer.u32(legacyFrameHash(frame.originalSd,
+                                       comparisonMaskForFrame(snapshot, frame),
+                                       frame.shapeComparisonMode == 1));
+            return;
+        }
+        case CromBlock::FrameShapeMode:
+            writer.u8(snapshot.frames[index].shapeComparisonMode);
+            return;
+        case CromBlock::FrameMaskId:
+            writer.u8(snapshot.frames[index].comparisonMaskId);
+            return;
+        case CromBlock::ComparisonMask:
+            writer.bytes(snapshot.comparisonMasks[index].pixels);
+            return;
+        case CromBlock::FrameHasExtra:
+            writer.u8(snapshot.frames[index].colorizedHd ? 1 : 0);
+            return;
+        case CromBlock::FrameColors: {
+            const auto& frame = snapshot.frames[index];
+            writeColorizedUnderDynamicMask(writer,
+                                           frame.colorizedSd,
+                                           frame.dynamicData ? &frame.dynamicData->maskSd
+                                                             : nullptr);
+            return;
+        }
+        case CromBlock::FrameColorsExtra: {
+            const auto& frame = snapshot.frames[index];
+            if (frame.colorizedHd) {
+                writeColorizedUnderDynamicMask(
+                    writer,
+                    *frame.colorizedHd,
+                    frame.dynamicData ? &frame.dynamicData->maskHd : nullptr);
+            } else if (frame.inactiveHd) {
+                writer.u16s(frame.inactiveHd->pixels);
+            } else {
+                writer.repeatU16(0, c.hdPixels);
+            }
+            return;
+        }
+        case CromBlock::FrameDynamicMask: {
+            const auto& frame = snapshot.frames[index];
+            if (frame.dynamicData) {
+                writer.bytes(frame.dynamicData->maskSd.pixels);
+            } else {
+                writer.repeatU8(255, c.sdPixels);
+            }
+            return;
+        }
+        case CromBlock::FrameDynamicMaskExtra: {
+            const auto& frame = snapshot.frames[index];
+            if (frame.dynamicData) {
+                writer.bytes(frame.dynamicData->maskHd.pixels);
+            } else {
+                writer.repeatU8(255, c.hdPixels);
+            }
+            return;
+        }
+        case CromBlock::FrameDynamicColors: {
+            const auto& frame = snapshot.frames[index];
+            writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsSd : c.noColors,
+                          c.dynamicColorCount,
+                          0);
+            return;
+        }
+        case CromBlock::FrameDynamicColorsExtra: {
+            const auto& frame = snapshot.frames[index];
+            writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsHd : c.noColors,
+                          c.dynamicColorCount,
+                          0);
+            return;
+        }
+        case CromBlock::SpriteHasExtra:
+            writer.u8(snapshot.sprites[index].hasHd ? 1 : 0);
+            return;
+        case CromBlock::FrameSprites: {
+            const auto& frame = snapshot.frames[index];
+            for (std::size_t slot = 0; slot < c.slots; ++slot) {
+                const uint16_t spriteId = slot < frame.spriteReferences.size()
+                                              ? frame.spriteReferences[slot].spriteId
+                                              : document::kNoSpriteId;
+                if (c.wideSpriteIds) {
+                    writer.u16(spriteId);
+                } else {
+                    // 8-bit IDs, 255 for an empty slot.
+                    writer.u8(spriteId == document::kNoSpriteId
+                                  ? uint8_t{255}
+                                  : static_cast<uint8_t>(spriteId));
+                }
+            }
+            return;
+        }
+        case CromBlock::SpriteOriginal:
+            writer.bytes(snapshot.sprites[index].originalSd.pixels);
+            return;
+        case CromBlock::SpriteColors:
+            writer.u16s(snapshot.sprites[index].colorizedSd.pixels);
+            return;
+        case CromBlock::SpriteMaskExtra:
+            writer.bytes(snapshot.sprites[index].maskHd.pixels);
+            return;
+        case CromBlock::SpriteColorsExtra:
+            writer.u16s(snapshot.sprites[index].colorizedHd.pixels);
+            return;
+        case CromBlock::FrameActive:
+            writer.u8(isLegacyFrameActive(snapshot.frames[index], c.originalColors,
+                                          c.nativePlane)
+                          ? 1
+                          : 0);
+            return;
+        case CromBlock::FrameRotations:
+            writer.u16sOr(snapshot.frames[index].colorRotationsSd, c.rotationValueCount, 0);
+            return;
+        case CromBlock::FrameRotationsExtra:
+            writer.u16sOr(snapshot.frames[index].colorRotationsHd, c.rotationValueCount, 0);
+            return;
+        case CromBlock::SpriteDetectionDwords:
+            writer.u32s(snapshot.sprites[index].detectionDwords);
+            return;
+        case CromBlock::SpriteDetectionPositions:
+            writer.u16s(snapshot.sprites[index].detectionDwordPositions);
+            return;
+        case CromBlock::SpriteDetectionAreas:
+            for (const auto& area : snapshot.sprites[index].detectionAreas) {
+                writer.u16(area.x);
+                writer.u16(area.y);
+                writer.u16(area.width);
+                writer.u16(area.height);
+            }
+            return;
+        case CromBlock::FrameTrigger:
+            writer.u32(snapshot.frames[index].triggerId);
+            return;
+        case CromBlock::FrameSpriteBounds: {
+            const auto& frame = snapshot.frames[index];
+            for (std::size_t slot = 0; slot < c.slots; ++slot) {
+                if (slot < frame.spriteReferences.size()) {
+                    const auto& reference = frame.spriteReferences[slot];
+                    writer.u16(reference.minX);
+                    writer.u16(reference.minY);
+                    writer.u16(reference.maxX);
+                    writer.u16(reference.maxY);
+                } else {
+                    writer.u16(0);
+                    writer.u16(0);
+                    writer.u16(static_cast<uint16_t>(c.originalSize.width - 1));
+                    writer.u16(static_cast<uint16_t>(c.originalSize.height - 1));
+                }
+            }
+            return;
+        }
+        case CromBlock::BackgroundHasExtra:
+            writer.u8(snapshot.backgrounds[index].colorizedHd ? 1 : 0);
+            return;
+        case CromBlock::BackgroundColors:
+            writer.u16s(snapshot.backgrounds[index].colorizedSd.pixels);
+            return;
+        case CromBlock::BackgroundColorsExtra: {
+            const auto& background = snapshot.backgrounds[index];
+            if (background.colorizedHd) {
+                writer.u16s(background.colorizedHd->pixels);
+            } else if (background.inactiveHd) {
+                writer.u16s(background.inactiveHd->pixels);
+            } else {
+                writer.repeatU16(0, c.hdPixels);
+            }
+            return;
+        }
+        case CromBlock::FrameBackgroundId: {
+            const auto& frame = snapshot.frames[index];
+            writer.u16(frame.backgroundData ? frame.backgroundData->backgroundId
+                                            : uint16_t{0xffff});
+            return;
+        }
+        // A frame that never had background data gets the editor's "whole frame" default
+        // mask.
+        case CromBlock::FrameBackgroundMask: {
+            const auto& frame = snapshot.frames[index];
+            if (frame.backgroundData) {
+                writer.bytes(frame.backgroundData->maskSd.pixels);
+            } else {
+                writer.repeatU8(1, c.sdPixels);
+            }
+            return;
+        }
+        case CromBlock::FrameBackgroundMaskExtra: {
+            const auto& frame = snapshot.frames[index];
+            if (frame.backgroundData) {
+                writer.bytes(frame.backgroundData->maskHd.pixels);
+            } else {
+                writer.repeatU8(1, c.hdPixels);
+            }
+            return;
+        }
+        case CromBlock::FrameShadowDirections: {
+            const auto& frame = snapshot.frames[index];
+            writer.bytesOr(frame.dynamicData ? frame.dynamicData->shadowDirectionsSd
+                                             : c.noDirections,
+                           c.shadowCount,
+                           0);
+            return;
+        }
+        case CromBlock::FrameShadowColors: {
+            const auto& frame = snapshot.frames[index];
+            writer.u16sOr(frame.dynamicData ? frame.dynamicData->shadowColorsSd : c.noColors,
+                          c.shadowCount,
+                          0);
+            return;
+        }
+        case CromBlock::FrameShadowDirectionsExtra: {
+            const auto& frame = snapshot.frames[index];
+            writer.bytesOr(frame.dynamicData ? frame.dynamicData->shadowDirectionsHd
+                                             : c.noDirections,
+                           c.shadowCount,
+                           0);
+            return;
+        }
+        case CromBlock::FrameShadowColorsExtra: {
+            const auto& frame = snapshot.frames[index];
+            writer.u16sOr(frame.dynamicData ? frame.dynamicData->shadowColorsHd : c.noColors,
+                          c.shadowCount,
+                          0);
+            return;
+        }
+        case CromBlock::SpriteDynamicColors:
+            writer.u16sOr(snapshot.sprites[index].dynamicColorsSd, c.spriteDynamicColorCount, 0);
+            return;
+        case CromBlock::SpriteDynamicColorsExtra:
+            writer.u16sOr(snapshot.sprites[index].dynamicColorsHd, c.spriteDynamicColorCount, 0);
+            return;
+        case CromBlock::SpriteDynamicMask:
+            writer.bytesOr(snapshot.sprites[index].dynamicMaskSd.pixels, c.spritePixels, 255);
+            return;
+        case CromBlock::SpriteDynamicMaskExtra:
+            writer.bytesOr(snapshot.sprites[index].dynamicMaskHd.pixels, c.spritePixels, 255);
+            return;
+        case CromBlock::SpriteShapeMode:
+            writer.u8(snapshot.sprites[index].shapeMode);
+            return;
+    }
+}
+
 bool writeCromContent(std::ostream& stream,
                       const document::ProjectSnapshot& snapshot,
                       std::string& errorMessage,
@@ -376,22 +671,7 @@ bool writeCromContent(std::ostream& stream,
 
     const render::Size sdSize = snapshot.geometry.planeSize(render::Resolution::Sd);
     const render::Size hdSize = snapshot.geometry.planeSize(render::Resolution::Hd);
-    // Sprite bounds are original frame pixels.
-    const render::Size originalSize = document::originalFrameSize(snapshot);
-    const std::size_t sdPixels = pixelCount(sdSize);
-    const std::size_t hdPixels = pixelCount(hdSize);
-    const std::size_t spritePixels = document::kMaxSpriteWidth * document::kMaxSpriteHeight;
-    const std::size_t dynamicColorCount =
-        document::kMaxDynamicSetsPerFrame * static_cast<std::size_t>(snapshot.colorCount);
-    const std::size_t spriteDynamicColorCount =
-        document::kMaxDynamicSetsPerSprite * static_cast<std::size_t>(snapshot.colorCount);
-    const std::size_t rotationValueCount =
-        document::kMaxColorRotations * document::kMaxColorRotationLength;
-    const std::size_t shadowCount = document::kMaxDynamicSetsPerFrame;
-    const std::vector<uint16_t> originalColors = legacyOriginalColors(snapshot.colorCount);
     const auto& frames = snapshot.frames;
-    const document::CompactArray<uint8_t> noDirections;
-    const document::CompactArray<uint16_t> noColors;
 
     Writer writer(stream, sections, progress);
     writer.section("header");
@@ -418,244 +698,14 @@ bool writeCromContent(std::ostream& stream,
         writer.u32(static_cast<uint32_t>(slots));
     }
 
-    writer.section("hash codes");
-    for (const auto& frame : frames) {
-        // The Win32 editor only treats the exact value 1 as shape mode when hashing.
-        writer.u32(legacyFrameHash(frame.originalSd,
-                                   comparisonMaskForFrame(snapshot, frame),
-                                   frame.shapeComparisonMode == 1));
-    }
-    writer.section("shape comparison modes");
-    for (const auto& frame : frames) {
-        writer.u8(frame.shapeComparisonMode);
-    }
-    writer.section("comparison mask IDs");
-    for (const auto& frame : frames) {
-        writer.u8(frame.comparisonMaskId);
-    }
-    writer.section("comparison masks");
-    for (const auto& mask : snapshot.comparisonMasks) {
-        writer.bytes(mask.pixels);
-    }
-    writer.section("extra frame flags");
-    for (const auto& frame : frames) {
-        writer.u8(frame.colorizedHd ? 1 : 0);
-    }
-    writer.section("SD colorized frames");
-    for (const auto& frame : frames) {
-        writeColorizedUnderDynamicMask(writer,
-                                       frame.colorizedSd,
-                                       frame.dynamicData ? &frame.dynamicData->maskSd : nullptr);
-    }
-    writer.section("HD colorized frames");
-    for (const auto& frame : frames) {
-        if (frame.colorizedHd) {
-            writeColorizedUnderDynamicMask(
-                writer,
-                *frame.colorizedHd,
-                frame.dynamicData ? &frame.dynamicData->maskHd : nullptr);
-        } else if (frame.inactiveHd) {
-            writer.u16s(frame.inactiveHd->pixels);
-        } else {
-            writer.repeatU16(0, hdPixels);
+    const CromContext context = makeCromContext(snapshot, limits.cromFormatVersion >= 1);
+    for (std::size_t block = 0; block < kCromBlockCount; ++block) {
+        const auto kind = static_cast<CromBlock>(block);
+        writer.section(cromBlockName(kind));
+        const std::size_t count = cromBlockElementCount(snapshot, kind);
+        for (std::size_t index = 0; index < count; ++index) {
+            writeCromElement(writer, context, kind, index);
         }
-    }
-    writer.section("SD dynamic masks");
-    for (const auto& frame : frames) {
-        if (frame.dynamicData) {
-            writer.bytes(frame.dynamicData->maskSd.pixels);
-        } else {
-            writer.repeatU8(255, sdPixels);
-        }
-    }
-    writer.section("HD dynamic masks");
-    for (const auto& frame : frames) {
-        if (frame.dynamicData) {
-            writer.bytes(frame.dynamicData->maskHd.pixels);
-        } else {
-            writer.repeatU8(255, hdPixels);
-        }
-    }
-    writer.section("SD dynamic colors");
-    for (const auto& frame : frames) {
-        writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsSd : noColors,
-                      dynamicColorCount,
-                      0);
-    }
-    writer.section("HD dynamic colors");
-    for (const auto& frame : frames) {
-        writer.u16sOr(frame.dynamicData ? frame.dynamicData->colorsHd : noColors,
-                      dynamicColorCount,
-                      0);
-    }
-    writer.section("extra sprite flags");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u8(sprite.hasHd ? 1 : 0);
-    }
-    writer.section("frame sprites");
-    for (const auto& frame : frames) {
-        for (std::size_t slot = 0; slot < slots; ++slot) {
-            const uint16_t spriteId = slot < frame.spriteReferences.size()
-                                          ? frame.spriteReferences[slot].spriteId
-                                          : document::kNoSpriteId;
-            if (limits.cromFormatVersion >= 1) {
-                writer.u16(spriteId);
-            } else {
-                // 8-bit IDs, 255 for an empty slot.
-                writer.u8(spriteId == document::kNoSpriteId ? uint8_t{255}
-                                                            : static_cast<uint8_t>(spriteId));
-            }
-        }
-    }
-    writer.section("sprite originals");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.bytes(sprite.originalSd.pixels);
-    }
-    writer.section("SD sprite colors");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u16s(sprite.colorizedSd.pixels);
-    }
-    writer.section("HD sprite masks");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.bytes(sprite.maskHd.pixels);
-    }
-    writer.section("HD sprite colors");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u16s(sprite.colorizedHd.pixels);
-    }
-    writer.section("active frame flags");
-    const render::Resolution nativePlane = snapshot.geometry.nativePlane();
-    for (const auto& frame : frames) {
-        writer.u8(isLegacyFrameActive(frame, originalColors, nativePlane) ? 1 : 0);
-    }
-    writer.section("SD color rotations");
-    for (const auto& frame : frames) {
-        writer.u16sOr(frame.colorRotationsSd, rotationValueCount, 0);
-    }
-    writer.section("HD color rotations");
-    for (const auto& frame : frames) {
-        writer.u16sOr(frame.colorRotationsHd, rotationValueCount, 0);
-    }
-    writer.section("sprite detection dwords");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u32s(sprite.detectionDwords);
-    }
-    writer.section("sprite detection dword positions");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u16s(sprite.detectionDwordPositions);
-    }
-    writer.section("sprite detection areas");
-    for (const auto& sprite : snapshot.sprites) {
-        for (const auto& area : sprite.detectionAreas) {
-            writer.u16(area.x);
-            writer.u16(area.y);
-            writer.u16(area.width);
-            writer.u16(area.height);
-        }
-    }
-    writer.section("trigger IDs");
-    for (const auto& frame : frames) {
-        writer.u32(frame.triggerId);
-    }
-    writer.section("frame sprite bounding boxes");
-    for (const auto& frame : frames) {
-        for (std::size_t slot = 0; slot < slots; ++slot) {
-            if (slot < frame.spriteReferences.size()) {
-                const auto& reference = frame.spriteReferences[slot];
-                writer.u16(reference.minX);
-                writer.u16(reference.minY);
-                writer.u16(reference.maxX);
-                writer.u16(reference.maxY);
-            } else {
-                writer.u16(0);
-                writer.u16(0);
-                writer.u16(static_cast<uint16_t>(originalSize.width - 1));
-                writer.u16(static_cast<uint16_t>(originalSize.height - 1));
-            }
-        }
-    }
-    writer.section("extra background flags");
-    for (const auto& background : snapshot.backgrounds) {
-        writer.u8(background.colorizedHd ? 1 : 0);
-    }
-    writer.section("SD backgrounds");
-    for (const auto& background : snapshot.backgrounds) {
-        writer.u16s(background.colorizedSd.pixels);
-    }
-    writer.section("HD backgrounds");
-    for (const auto& background : snapshot.backgrounds) {
-        if (background.colorizedHd) {
-            writer.u16s(background.colorizedHd->pixels);
-        } else if (background.inactiveHd) {
-            writer.u16s(background.inactiveHd->pixels);
-        } else {
-            writer.repeatU16(0, hdPixels);
-        }
-    }
-    writer.section("background IDs");
-    for (const auto& frame : frames) {
-        writer.u16(frame.backgroundData ? frame.backgroundData->backgroundId : uint16_t{0xffff});
-    }
-    // A frame that never had background data gets the editor's "whole frame" default mask.
-    writer.section("SD background masks");
-    for (const auto& frame : frames) {
-        if (frame.backgroundData) {
-            writer.bytes(frame.backgroundData->maskSd.pixels);
-        } else {
-            writer.repeatU8(1, sdPixels);
-        }
-    }
-    writer.section("HD background masks");
-    for (const auto& frame : frames) {
-        if (frame.backgroundData) {
-            writer.bytes(frame.backgroundData->maskHd.pixels);
-        } else {
-            writer.repeatU8(1, hdPixels);
-        }
-    }
-    writer.section("SD dynamic shadow directions");
-    for (const auto& frame : frames) {
-        writer.bytesOr(frame.dynamicData ? frame.dynamicData->shadowDirectionsSd : noDirections,
-                       shadowCount,
-                       0);
-    }
-    writer.section("SD dynamic shadow colors");
-    for (const auto& frame : frames) {
-        writer.u16sOr(frame.dynamicData ? frame.dynamicData->shadowColorsSd : noColors,
-                      shadowCount,
-                      0);
-    }
-    writer.section("HD dynamic shadow directions");
-    for (const auto& frame : frames) {
-        writer.bytesOr(frame.dynamicData ? frame.dynamicData->shadowDirectionsHd : noDirections,
-                       shadowCount,
-                       0);
-    }
-    writer.section("HD dynamic shadow colors");
-    for (const auto& frame : frames) {
-        writer.u16sOr(frame.dynamicData ? frame.dynamicData->shadowColorsHd : noColors,
-                      shadowCount,
-                      0);
-    }
-    writer.section("SD sprite dynamic colors");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u16sOr(sprite.dynamicColorsSd, spriteDynamicColorCount, 0);
-    }
-    writer.section("HD sprite dynamic colors");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u16sOr(sprite.dynamicColorsHd, spriteDynamicColorCount, 0);
-    }
-    writer.section("SD sprite dynamic masks");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.bytesOr(sprite.dynamicMaskSd.pixels, spritePixels, 255);
-    }
-    writer.section("HD sprite dynamic masks");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.bytesOr(sprite.dynamicMaskHd.pixels, spritePixels, 255);
-    }
-    writer.section("sprite shape modes");
-    for (const auto& sprite : snapshot.sprites) {
-        writer.u8(sprite.shapeMode);
     }
     writer.section("settings block");
     writer.bytes(cromSettingsBlock(snapshot));
@@ -770,6 +820,102 @@ bool writeCrpContent(std::ostream& stream,
 }
 
 }  // namespace
+
+const char* cromBlockName(CromBlock block)
+{
+    // The names of LegacySectionOffsets, in cROM order.
+    static constexpr std::array<const char*, kCromBlockCount> kNames{
+        "hash codes",
+        "shape comparison modes",
+        "comparison mask IDs",
+        "comparison masks",
+        "extra frame flags",
+        "SD colorized frames",
+        "HD colorized frames",
+        "SD dynamic masks",
+        "HD dynamic masks",
+        "SD dynamic colors",
+        "HD dynamic colors",
+        "extra sprite flags",
+        "frame sprites",
+        "sprite originals",
+        "SD sprite colors",
+        "HD sprite masks",
+        "HD sprite colors",
+        "active frame flags",
+        "SD color rotations",
+        "HD color rotations",
+        "sprite detection dwords",
+        "sprite detection dword positions",
+        "sprite detection areas",
+        "trigger IDs",
+        "frame sprite bounding boxes",
+        "extra background flags",
+        "SD backgrounds",
+        "HD backgrounds",
+        "background IDs",
+        "SD background masks",
+        "HD background masks",
+        "SD dynamic shadow directions",
+        "SD dynamic shadow colors",
+        "HD dynamic shadow directions",
+        "HD dynamic shadow colors",
+        "SD sprite dynamic colors",
+        "HD sprite dynamic colors",
+        "SD sprite dynamic masks",
+        "HD sprite dynamic masks",
+        "sprite shape modes",
+    };
+    return kNames[static_cast<std::size_t>(block)];
+}
+
+std::size_t cromBlockElementCount(const document::ProjectSnapshot& snapshot, CromBlock block)
+{
+    switch (block) {
+        case CromBlock::ComparisonMask:
+            return snapshot.comparisonMasks.size();
+        case CromBlock::SpriteHasExtra:
+        case CromBlock::SpriteOriginal:
+        case CromBlock::SpriteColors:
+        case CromBlock::SpriteMaskExtra:
+        case CromBlock::SpriteColorsExtra:
+        case CromBlock::SpriteDetectionDwords:
+        case CromBlock::SpriteDetectionPositions:
+        case CromBlock::SpriteDetectionAreas:
+        case CromBlock::SpriteDynamicColors:
+        case CromBlock::SpriteDynamicColorsExtra:
+        case CromBlock::SpriteDynamicMask:
+        case CromBlock::SpriteDynamicMaskExtra:
+        case CromBlock::SpriteShapeMode:
+            return snapshot.sprites.size();
+        case CromBlock::BackgroundHasExtra:
+        case CromBlock::BackgroundColors:
+        case CromBlock::BackgroundColorsExtra:
+            return snapshot.backgrounds.size();
+        default:
+            return snapshot.frames.size();
+    }
+}
+
+struct CromElements::Context : CromContext {
+};
+
+CromElements::CromElements(const document::ProjectSnapshot& snapshot, bool wideSpriteIds)
+    : m_context(std::make_unique<Context>())
+{
+    static_cast<CromContext&>(*m_context) = makeCromContext(snapshot, wideSpriteIds);
+}
+
+CromElements::~CromElements() = default;
+
+void CromElements::write(CromBlock block, std::size_t index, std::vector<uint8_t>& out) const
+{
+    Writer writer;
+    writer.buffer().swap(out);
+    writer.buffer().clear();
+    writeCromElement(writer, *m_context, block, index);
+    writer.buffer().swap(out);
+}
 
 bool writeLegacyCrom(std::ostream& stream,
                      const document::ProjectSnapshot& snapshot,

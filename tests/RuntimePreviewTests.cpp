@@ -556,22 +556,32 @@ void testSubsetBuilding(PlaneLayout layout)
     }
     expect(threw, "a frame that does not exist is refused");
 
-    // The cROM: counts in the header, and a size that depends on the subset alone.
+    // What libserum is given, written as a cROM: counts in the header, and a size that
+    // depends on the subset alone.
+    const auto cromOf = [](const RuntimeSubset& subset) {
+        std::ostringstream stream;
+        std::string error;
+        expect(colorizing::legacy::writeLegacyCrom(stream, subset.snapshot, error),
+               "the subset is written: " + error);
+        const std::string bytes = stream.str();
+        return std::vector<uint8_t>(bytes.begin(), bytes.end());
+    };
     const RuntimeSubset built = buildRuntimeSubset(document, {4, 1, 3});
+    const std::vector<uint8_t> builtCrom = cromOf(built);
     const std::size_t padding = built.map.frames.size() - 3;
     expect(layout == PlaneLayout::NativeExtra ? padding == 3 : padding == 0,
            "frames are put in front only where a sprite's 256x64 dynamic data needs them");
     for (std::size_t i = 0; i < padding; ++i) {
         expect(built.map.frames[i] == kNoDocumentFrame, "such a frame stands for no frame");
     }
-    expect(readU32(built.crom, 64) == 20 * 4, "the header revision is the project's");
-    expect(readU32(built.crom, 68) == static_cast<uint32_t>(sd.width) &&
-               readU32(built.crom, 72) == static_cast<uint32_t>(sd.height) &&
-               readU32(built.crom, 76) == static_cast<uint32_t>(hd.width) &&
-               readU32(built.crom, 80) == static_cast<uint32_t>(hd.height),
+    expect(readU32(builtCrom, 64) == 20 * 4, "the header revision is the project's");
+    expect(readU32(builtCrom, 68) == static_cast<uint32_t>(sd.width) &&
+               readU32(builtCrom, 72) == static_cast<uint32_t>(sd.height) &&
+               readU32(builtCrom, 76) == static_cast<uint32_t>(hd.width) &&
+               readU32(builtCrom, 80) == static_cast<uint32_t>(hd.height),
            "the header has the project's plane sizes");
-    expect(readU32(built.crom, 84) == 3 + padding && readU32(built.crom, 92) == 1 &&
-               readU32(built.crom, 96) == 3,
+    expect(readU32(builtCrom, 84) == 3 + padding && readU32(builtCrom, 92) == 1 &&
+               readU32(builtCrom, 96) == 3,
            "the header counts the subset's frames, masks and sprites");
     expect(built.originals.size() == built.map.frames.size() &&
                built.originals.back().pixels == document.originalFrame(3).pixels,
@@ -586,14 +596,14 @@ void testSubsetBuilding(PlaneLayout layout)
     }
     const ProjectDocument largerDocument = ProjectDocument::fromSnapshot(larger);
     const RuntimeSubset fromLarger = buildRuntimeSubset(largerDocument, {4, 1, 3});
-    expect(fromLarger.crom == built.crom,
+    expect(cromOf(fromLarger) == builtCrom,
            "the subset of the same frames is the same bytes in a larger project");
     std::ostringstream wholeStream;
     std::string error;
     expect(colorizing::legacy::writeLegacyCrom(wholeStream, largerDocument.toSnapshot(), error),
            "the larger project is written");
     const RuntimeSubset single = buildRuntimeSubset(largerDocument, {5});
-    expect(single.crom.size() * 20 < wholeStream.str().size(),
+    expect(cromOf(single).size() * 20 < wholeStream.str().size(),
            "a one-frame subset is a small part of the project");
 }
 

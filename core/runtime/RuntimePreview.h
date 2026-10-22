@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "document/ProjectDocument.h"
+#include "document/ProjectSnapshot.h"
 #include "render/ProjectGeometry.h"
 #include "runtime/FrameIdentification.h"
 
@@ -110,12 +111,14 @@ constexpr std::size_t kNoDocumentFrame = static_cast<std::size_t>(-1);
 // comparison bucket of their own that never matches: they do not change the order in which
 // libserum's search meets the buckets of the other frames.
 struct RuntimeSubset {
-    std::vector<uint8_t> crom;
+    // What libserum is given (Serum_LoadFromSource()); no cROM is written.
+    document::ProjectSnapshot snapshot;
     document::SnapshotSubsetMap map;
     // The ROM frames of map.frames, in that order.
     std::vector<document::IndexedFrame> originals;
     render::ProjectGeometry geometry;
     double subsetMs = 0.0;
+    // Always 0: the subset is handed to libserum without a cROM.
     double serializeMs = 0.0;
 };
 

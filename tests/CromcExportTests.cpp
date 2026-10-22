@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "RuntimeFixtures.h"
+#include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
 #include "runtime/RuntimePreview.h"
 #include "serum-decode.h"
@@ -55,8 +56,8 @@ void testExportLoadsInLibserum()
     expect(!fs::exists(base / "work"), "the work folder is removed");
     expect(result.sidecars == std::vector<std::string>{snapshot.romName + ".PUP.csv"},
            "the PUP csv went in");
-    expect(progress.done.load() == progress.total.load() && progress.total.load() > 0,
-           "the cROM write is reported");
+    expect(progress.stage.load() == static_cast<int>(legacy::LegacyIoStage::Generating),
+           "the export reports libserum's part; no cROM is written");
 
     // libserum loads it as a machine does: from <altcolor>/<rom>/<rom>.cROMc, no cROM beside.
     // libserum's paths are ANSI on Windows: this folder has no character outside it.
@@ -118,6 +119,54 @@ void testSettingsTakeNoSidecars()
     fs::remove_all(base);
 }
 
+// The export writes no cROM: libserum builds the cROMc from the project. It is the cROMc
+// libserum generates itself from the project's cROM, byte for byte.
+void testExportIsLibserumsOwnCromc()
+{
+    for (const render::PlaneLayout layout : {render::PlaneLayout::Ordinary,
+                                             render::PlaneLayout::NativeExtra,
+                                             render::PlaneLayout::NativeOriginal}) {
+        runtime::RuntimePreview::instance().close();
+        document::ProjectSnapshot snapshot = runtime_fixtures::makeProject(layout, 4);
+        if (layout == render::PlaneLayout::Ordinary) {
+            snapshot.colorizationSettings = document::ColorizationSettings{};
+            snapshot.colorizationSettings->scalingAlgorithm = document::kScalingLineDoubling;
+        }
+        const fs::path base = uniqueDirectory("same");
+        const fs::path target = base / "exported.cROMc";
+        const runtime::CromcExportResult result =
+            runtime::exportCromc(snapshot, base / "work", {}, target);
+        expect(result.ok, "the export works: " + result.error);
+
+        // libserum's own generation, from the cROM in an altcolor folder (ANSI on Windows).
+        const fs::path altcolor =
+            fs::temp_directory_path() /
+            ("colorizing_qt_v2_cromc_same_" +
+             std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
+        const fs::path folder = altcolor / snapshot.romName;
+        fs::create_directories(folder);
+        {
+            std::ofstream crom(folder / (snapshot.romName + ".cROM"), std::ios::binary);
+            std::string error;
+            expect(legacy::writeLegacyCrom(crom, snapshot, error), "the cROM is written");
+        }
+        Serum_SetGenerateCRomC(true);
+        expect(Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(),
+                          0) != nullptr,
+               "libserum loads the cROM");
+        Serum_Dispose();
+        const auto bytes = [](const fs::path& path) {
+            std::ifstream in(path, std::ios::binary);
+            return std::vector<char>(std::istreambuf_iterator<char>(in), {});
+        };
+        const std::vector<char> generated = bytes(folder / (snapshot.romName + ".cROMc"));
+        expect(!generated.empty() && generated == bytes(target),
+               "the exported cROMc is libserum's own");
+        fs::remove_all(altcolor);
+        fs::remove_all(base);
+    }
+}
+
 void testFailureLeavesTarget()
 {
     runtime::RuntimePreview::instance().close();
@@ -146,5 +195,6 @@ void runCromcExportTests()
 {
     testExportLoadsInLibserum();
     testSettingsTakeNoSidecars();
+    testExportIsLibserumsOwnCromc();
     testFailureLeavesTarget();
 }

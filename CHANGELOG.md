@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The frame tester and the cROMc export hand the project to libserum without writing a cROM
+  first: the frame tester opens large projects faster (GoT: libserum's part 3.7 s instead of
+  6.7 s).
 - The `Color Rotations` section says how many of the frame's pixels the selected slot moves, so
   that a frame whose colors are not the slot's (a palette changed after drawing) shows at once.
 - `Edit -> Undo Selection` (`Alt+Z`) and `Redo Selection` (`Alt+Shift+Z`) bring back an earlier
