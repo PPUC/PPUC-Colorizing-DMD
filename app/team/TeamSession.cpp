@@ -3,7 +3,11 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QCoreApplication>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QSaveFile>
 #include <QStringList>
 #include <QTemporaryDir>
@@ -21,6 +25,7 @@ namespace {
 const QString kClaimsFile = QStringLiteral("claims.json");
 const QString kPackagesFolder = QStringLiteral("packages");
 const QString kPackageSuffix = QStringLiteral(".cdmdchanges");
+const QString kNoticeSuffix = QStringLiteral(".cdmdnotice");
 
 }  // namespace
 
@@ -178,12 +183,87 @@ QString changePackageName(const team::ChangePackage& package)
              QString::fromStdString(package.packageId.toString()), kPackageSuffix);
 }
 
-std::optional<PackageName> parsePackageName(const QString& name)
+QString changePackageNoticeName(const team::ChangePackage& package)
 {
-    if (!name.endsWith(kPackageSuffix)) {
+    return changePackageName(package).chopped(kPackageSuffix.size()) + kNoticeSuffix;
+}
+
+QByteArray changePackageNotice(const team::ChangePackage& package, qint64 sizeBytes)
+{
+    QJsonObject notice;
+    notice.insert(QStringLiteral("author"), QString::fromStdString(package.author));
+    notice.insert(QStringLiteral("created"), static_cast<double>(package.createdMs));
+    notice.insert(QStringLiteral("comment"), QString::fromStdString(package.comment));
+    notice.insert(QStringLiteral("size"), static_cast<double>(sizeBytes));
+    return QJsonDocument(notice).toJson();
+}
+
+bool isPackageNotice(const QString& name)
+{
+    return name.endsWith(kNoticeSuffix);
+}
+
+QString packageFileName(const QString& name)
+{
+    return isPackageNotice(name) ? name.chopped(kNoticeSuffix.size()) + kPackageSuffix : name;
+}
+
+std::optional<PendingNote> pendingNoteFromNotice(const QByteArray& bytes)
+{
+    QJsonParseError error;
+    const QJsonDocument document = QJsonDocument::fromJson(bytes, &error);
+    if (error.error != QJsonParseError::NoError || !document.isObject()) {
         return std::nullopt;
     }
-    const QString stem = name.chopped(kPackageSuffix.size());
+    const QJsonObject notice = document.object();
+    PendingNote note;
+    note.asFile = true;
+    note.available = false;
+    note.comment = notice.value(QStringLiteral("comment")).toString();
+    note.sizeBytes = static_cast<qint64>(notice.value(QStringLiteral("size")).toDouble());
+    return note;
+}
+
+QString addPackageFileToCache(const QByteArray& bytes,
+                              const document::ProjectDocument& document,
+                              const QString& cacheFolder,
+                              QString* name)
+{
+    QString error;
+    const std::optional<team::ChangePackage> package = changePackageFrom(bytes, error);
+    if (!package) {
+        return QCoreApplication::translate("TeamSession", "The file is no shared change: %1")
+            .arg(error);
+    }
+    if (!document.team() || package->snapshotId != document.team()->snapshotId) {
+        return QCoreApplication::translate(
+            "TeamSession",
+            "The shared change belongs to another team project, or to another snapshot of it.");
+    }
+    const std::vector<document::ComponentId>& merged = document.team()->mergedPackages;
+    if (std::find(merged.begin(), merged.end(), package->packageId) != merged.end()) {
+        return QCoreApplication::translate("TeamSession",
+                                           "The shared change is merged already.");
+    }
+    const QString fileName = changePackageName(*package);
+    if (!QDir().mkpath(cacheFolder) || !writeAll(QDir(cacheFolder).filePath(fileName), bytes)) {
+        return QCoreApplication::translate("TeamSession",
+                                           "The shared change could not be stored in %1.")
+            .arg(cacheFolder);
+    }
+    if (name) {
+        *name = fileName;
+    }
+    return {};
+}
+
+std::optional<PackageName> parsePackageName(const QString& name)
+{
+    const QString suffix = isPackageNotice(name) ? kNoticeSuffix : kPackageSuffix;
+    if (!name.endsWith(suffix)) {
+        return std::nullopt;
+    }
+    const QString stem = name.chopped(suffix.size());
     // A UUID has 36 characters; the login (GitHub's: letters, digits, hyphens) lies between.
     const int firstDash = stem.indexOf(QLatin1Char('-'));
     if (firstDash < 0 || stem.size() < firstDash + 2 + 36) {
@@ -240,35 +320,50 @@ TeamSession::TeamSession(TeamRemote& remote, QString login)
 {
 }
 
-void TeamSession::share(document::ProjectDocument& document,
-                        int64_t nowMs,
-                        const QString& comment,
-                        std::function<void(QString error, bool nothingToShare)> done)
+TeamSession::PreparedShare TeamSession::prepareShare(const document::ProjectDocument& document,
+                                                     int64_t nowMs,
+                                                     const QString& comment) const
 {
-    std::optional<team::ChangePackage> package;
+    PreparedShare prepared;
     try {
         if (team::changesSinceCommon(document).empty()) {
-            done(QString(), true);
-            return;
+            prepared.nothing = true;
+            return prepared;
         }
-        package = team::makeChangePackage(document, m_login.toStdString(), nowMs);
-        package->comment = comment.trimmed().toStdString();
+        prepared.package = team::makeChangePackage(document, m_login.toStdString(), nowMs);
+        prepared.package->comment = comment.trimmed().toStdString();
     } catch (const std::exception& ex) {
-        done(QString::fromUtf8(ex.what()), false);
-        return;
+        prepared.error = QString::fromUtf8(ex.what());
+        prepared.package.reset();
+        return prepared;
     }
-    QString error;
-    const std::optional<QByteArray> bytes = changePackageBytes(*package, error);
+    std::optional<QByteArray> bytes = changePackageBytes(*prepared.package, prepared.error);
     if (!bytes) {
-        done(error, false);
+        prepared.package.reset();
+        return prepared;
+    }
+    prepared.bytes = std::move(*bytes);
+    return prepared;
+}
+
+void TeamSession::publish(document::ProjectDocument& document,
+                          const PreparedShare& prepared,
+                          bool asFile,
+                          int64_t nowMs,
+                          std::function<void(QString)> done)
+{
+    if (!prepared.package) {
+        done(prepared.error);
         return;
     }
-    const document::SentPackage sent = team::sentPackageOf(*package);
+    const team::ChangePackage& package = *prepared.package;
+    const document::SentPackage sent = team::sentPackageOf(package);
     m_remote.writePackage(
-        changePackageName(*package), *bytes,
+        asFile ? changePackageNoticeName(package) : changePackageName(package),
+        asFile ? changePackageNotice(package, prepared.bytes.size()) : prepared.bytes,
         [this, &document, sent, nowMs, done = std::move(done)](QString writeError) {
             if (!writeError.isEmpty()) {
-                done(writeError, false);
+                done(writeError);
                 return;
             }
             document::TeamState team = *document.team();
@@ -276,9 +371,23 @@ void TeamSession::share(document::ProjectDocument& document,
             document.setTeam(std::move(team));
             syncClaims(document, {}, nowMs,
                        [done](std::optional<team::Claims>, QString claimsError) {
-                           done(claimsError, false);
+                           done(claimsError);
                        });
         });
+}
+
+void TeamSession::share(document::ProjectDocument& document,
+                        int64_t nowMs,
+                        const QString& comment,
+                        std::function<void(QString error, bool nothingToShare)> done)
+{
+    const PreparedShare prepared = prepareShare(document, nowMs, comment);
+    if (prepared.nothing) {
+        done(QString(), true);
+        return;
+    }
+    publish(document, prepared, false, nowMs,
+            [done = std::move(done)](QString error) { done(error, false); });
 }
 
 void TeamSession::pendingPackages(const document::ProjectDocument& document,

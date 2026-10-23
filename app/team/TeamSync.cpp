@@ -139,7 +139,7 @@ struct TeamSync::Worker {
             ++next;
         }
         if (next >= result->pendingPackages.size()) {
-            readComments(*result, cache);
+            readNotes(*result, cache);
             deliver(result);
             return;
         }
@@ -163,25 +163,40 @@ struct TeamSync::Worker {
         });
     }
 
-    // The comments of the downloaded packages, each read once.
-    void readComments(Result& result, const QString& cache)
+    // The notes of the downloaded packages and notices, each read once; whether the file of
+    // a notice is there is looked at every time (the author adds it).
+    void readNotes(Result& result, const QString& cache)
     {
+        if (cache.isEmpty()) {
+            return;
+        }
         for (const QString& name : result.pendingPackages) {
-            auto known = comments.find(name);
-            if (known == comments.end()) {
+            auto known = notes.find(name);
+            if (known == notes.end()) {
                 const QString path = QDir(cache).filePath(name);
-                if (cache.isEmpty() || !QFileInfo::exists(path)) {
+                if (!QFileInfo::exists(path)) {
                     continue;
                 }
-                const std::optional<team::ChangePackageNote> note =
-                    team::readChangePackageNote(path.toStdString());
-                known = comments.emplace(name, note ? QString::fromStdString(note->comment)
-                                                    : QString())
-                            .first;
+                PendingNote note;
+                if (isPackageNotice(name)) {
+                    QFile file(path);
+                    if (!file.open(QIODevice::ReadOnly)) {
+                        continue;
+                    }
+                    note = pendingNoteFromNotice(file.readAll()).value_or(PendingNote{});
+                    note.asFile = true;
+                } else {
+                    const std::optional<team::ChangePackageNote> read =
+                        team::readChangePackageNote(path.toStdString());
+                    note.comment = read ? QString::fromStdString(read->comment) : QString();
+                    note.sizeBytes = QFileInfo(path).size();
+                }
+                known = notes.emplace(name, note).first;
             }
-            if (!known->second.isEmpty()) {
-                result.comments.emplace(name, known->second);
-            }
+            PendingNote note = known->second;
+            note.available =
+                !note.asFile || QFileInfo::exists(QDir(cache).filePath(packageFileName(name)));
+            result.notes.emplace(name, note);
         }
     }
 
@@ -207,8 +222,8 @@ struct TeamSync::Worker {
     bool again = false;
     bool shuttingDown = false;
     QString remoteKey;
-    // The comments of the packages read so far, by name (a name is never reused).
-    std::map<QString, QString> comments;
+    // The notes of the packages read so far, by name (a name is never reused).
+    std::map<QString, PendingNote> notes;
     std::unique_ptr<TeamRemote> remote;
     std::unique_ptr<TeamSession> session;
     // Last, so that it goes first: its replies are cancelled while the rest is there.

@@ -1,6 +1,9 @@
 #include "team/TeamController.h"
 
 #include <QAction>
+#include <QApplication>
+#include <QFileDialog>
+#include <QSaveFile>
 #include <QDateTime>
 #include <QEventLoop>
 #include <QInputDialog>
@@ -12,6 +15,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QDir>
+#include <QFile>
 #include <QStandardPaths>
 #include <QWidget>
 
@@ -43,6 +47,10 @@ const QString kLoginKey = QStringLiteral("github/login");
 // How often the background sync writes and reads the claims and looks for shared changes.
 constexpr std::chrono::seconds kSyncInterval{15};
 constexpr int kInputDelayMs = 2000;
+// Shared changes larger than this are offered to go as a file another way; GitHub takes no
+// file larger than 100 MB (the base64 of the contents API adds a third).
+constexpr qint64 kShareAsFileBytes = 20LL * 1024 * 1024;
+constexpr qint64 kGitHubFileBytes = 70LL * 1024 * 1024;
 
 int64_t nowMs()
 {
@@ -198,6 +206,7 @@ void TeamController::projectChanged()
     m_reserved.clear();
     m_touched = {};
     m_pending.clear();
+    m_notes.clear();
     m_checked.reset();
     updateActions();
     notifyTeamChanged();
@@ -260,6 +269,7 @@ void TeamController::signOut()
     m_login.clear();
     m_claims.reset();
     m_pending.clear();
+    m_notes.clear();
     m_checked.reset();
     updateSync();
     updateActions();
@@ -417,20 +427,44 @@ void TeamController::share()
     }
     const std::unique_ptr<TeamRemote> teamRemote = remote();
     TeamSession session(*teamRemote, m_login);
-    QString error;
-    bool nothing = false;
-    runModal(tr("Sharing your changes…"), [&](std::function<void()> finished) {
-        session.share(*document, nowMs(), comment, [&, finished](QString shareError,
-                                                                 bool none) {
-            error = shareError;
-            nothing = none;
-            finished();
-        });
-    });
-    if (nothing) {
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const TeamSession::PreparedShare prepared = session.prepareShare(*document, nowMs(), comment);
+    QApplication::restoreOverrideCursor();
+    if (prepared.nothing) {
         m_host.status(tr("Nothing to share: nothing changed since the last merge"), 5000);
         return;
     }
+    if (!prepared.package) {
+        QMessageBox::warning(m_window, tr("Share My Changes"), prepared.error);
+        return;
+    }
+    // A large package goes another way, GitHub gets its notice.
+    QString filePath;
+    if (prepared.bytes.size() > kShareAsFileBytes) {
+        const std::optional<QString> chosen =
+            askForShareFile(*prepared.package, prepared.bytes.size());
+        if (!chosen) {
+            return;
+        }
+        filePath = *chosen;
+    }
+    if (!filePath.isEmpty()) {
+        QSaveFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly) ||
+            file.write(prepared.bytes) != prepared.bytes.size() || !file.commit()) {
+            QMessageBox::warning(m_window, tr("Share My Changes"),
+                                 tr("The file could not be written: %1").arg(filePath));
+            return;
+        }
+    }
+    QString error;
+    runModal(tr("Sharing your changes…"), [&](std::function<void()> finished) {
+        session.publish(*document, prepared, !filePath.isEmpty(), nowMs(),
+                        [&, finished](QString publishError) {
+                            error = publishError;
+                            finished();
+                        });
+    });
     if (document->isDirty()) {
         // The package is recorded as sent.
         (void)m_host.save();
@@ -440,7 +474,51 @@ void TeamController::share()
         return;
     }
     updateSync();
-    m_host.status(tr("Shared your changes with the partners"), 5000);
+    if (filePath.isEmpty()) {
+        m_host.status(tr("Shared your changes with the partners"), 5000);
+        return;
+    }
+    QMessageBox::information(
+        m_window, tr("Share My Changes"),
+        tr("Your changes are saved as %1. Send this file to the partners another way (a cloud "
+           "drive, for example); they see that it comes and add it in their Team section with "
+           "Add File.")
+            .arg(QDir::toNativeSeparators(filePath)));
+}
+
+std::optional<QString> TeamController::askForShareFile(const team::ChangePackage& package,
+                                                       qint64 sizeBytes)
+{
+    const QString size =
+        QLocale().formattedDataSize(sizeBytes, 0, QLocale::DataSizeTraditionalFormat);
+    QMessageBox box(QMessageBox::Question, tr("Share My Changes"),
+                    tr("Your changes come to %1. Large changes are better sent as a file another "
+                       "way (a cloud drive, for example): GitHub then gets only a notice, so that "
+                       "the partners know the file comes.")
+                        .arg(size),
+                    QMessageBox::Cancel, m_window);
+    QPushButton* asFile = box.addButton(tr("Save As File..."), QMessageBox::AcceptRole);
+    QPushButton* throughGitHub = nullptr;
+    if (sizeBytes <= kGitHubFileBytes) {
+        throughGitHub = box.addButton(tr("Through GitHub"), QMessageBox::ActionRole);
+    } else {
+        box.setInformativeText(tr("GitHub takes no file this large."));
+    }
+    box.setDefaultButton(asFile);
+    box.exec();
+    if (throughGitHub && box.clickedButton() == throughGitHub) {
+        return QString();
+    }
+    if (box.clickedButton() != asFile) {
+        return std::nullopt;
+    }
+    const QString suggested =
+        QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+            .filePath(changePackageName(package));
+    const QString path = QFileDialog::getSaveFileName(
+        m_window, tr("Save Changes As File"), suggested,
+        tr("Shared changes (*.cdmdchanges)"));
+    return path.isEmpty() ? std::nullopt : std::optional<QString>(path);
 }
 
 void TeamController::merge()
@@ -480,10 +558,25 @@ void TeamController::merge()
     team::TeamMergeCommand::Counts total;
     for (const QString& name : pending) {
         std::optional<team::ChangePackage> package;
-        // Downloaded in the background already, as a rule.
-        const std::optional<QByteArray> cached = TeamSync::cachedPackage(cacheFolder(), name);
+        // Downloaded in the background already, as a rule; one shared as a file is there once
+        // the author added it.
+        const std::optional<QByteArray> cached =
+            TeamSync::cachedPackage(cacheFolder(), packageFileName(name));
         if (cached) {
             package = changePackageFrom(*cached, error);
+        }
+        if (!package && isPackageNotice(name)) {
+            const std::optional<PackageName> parsed = parsePackageName(name);
+            QMessageBox::information(
+                m_window, tr("Merge Changes"),
+                tr("The shared change of %1 from %2 comes as a file. Add it with Add File in the "
+                   "Team section; the changes after it wait until then.")
+                    .arg(parsed ? parsed->login : name,
+                         parsed ? QLocale().toString(
+                                      QDateTime::fromMSecsSinceEpoch(parsed->createdMs),
+                                      QLocale::ShortFormat)
+                                : QString()));
+            break;
         }
         if (!package) {
             runModal(tr("Fetching the partners' changes…"), [&](std::function<void()> finished) {
@@ -740,7 +833,7 @@ void TeamController::syncDelivered(TeamSync::Result result)
     m_claims = std::move(result.claims);
     const std::size_t before = m_pending.size();
     m_pending = std::move(result.pendingPackages);
-    m_comments = std::move(result.comments);
+    m_notes = std::move(result.notes);
     m_checked = QDateTime::currentDateTime();
     notifyTeamChanged();
     if (m_pending.size() > before) {
@@ -761,6 +854,46 @@ void TeamController::syncDelivered(TeamSync::Result result)
     } else if (report) {
         m_host.status(tr("The claims are up to date"), 3000);
     }
+}
+
+void TeamController::addPackageFile(const QString& path)
+{
+    document::ProjectDocument* document = m_host.document();
+    if (!document || !isTeamProject()) {
+        return;
+    }
+    const QString chosen =
+        !path.isEmpty() ? path
+                        : QFileDialog::getOpenFileName(m_window, tr("Add Shared Changes File"),
+                                                       QString(),
+                                                       tr("Shared changes (*.cdmdchanges)"));
+    if (chosen.isEmpty()) {
+        return;
+    }
+    QFile file(chosen);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(m_window, tr("Add File"),
+                             tr("The file could not be read: %1").arg(chosen));
+        return;
+    }
+    QString name;
+    const QString problem = addPackageFileToCache(file.readAll(), *document, cacheFolder(), &name);
+    if (!problem.isEmpty()) {
+        QMessageBox::warning(m_window, tr("Add File"), problem);
+        return;
+    }
+    const std::optional<PackageName> parsed = parsePackageName(name);
+    m_host.status(tr("Added the shared change of %1; merge it in the Team section")
+                      .arg(parsed ? parsed->login : name),
+                  6000);
+    // The list shows it as there at once; the sync confirms it.
+    for (auto& [pending, note] : m_notes) {
+        if (packageFileName(pending) == name) {
+            note.available = true;
+        }
+    }
+    notifyTeamChanged();
+    updateSync();
 }
 
 void TeamController::notifyTeamChanged()
@@ -784,7 +917,7 @@ TeamPanel::State TeamController::panelState() const
     state.login = m_login;
     state.repository = QString::fromStdString(m_host.document()->team()->repository);
     state.pendingPackages = m_pending;
-    state.comments = m_comments;
+    state.notes = m_notes;
     for (const QString& name : m_pending) {
         if (const std::optional<PackageName> parsed = parsePackageName(name)) {
             const QImage avatar = m_avatars->avatar(parsed->login);

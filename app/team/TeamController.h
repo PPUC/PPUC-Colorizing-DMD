@@ -89,6 +89,9 @@ public:
     void signIn();
     void share();
     void merge();
+    // Adds a shared change a partner sent as a file (Team section); asks for the file without
+    // a path.
+    void addPackageFile(const QString& path = QString());
     // Takes these claims as the team's, signed in as login: for tests and tools.
     void setClaims(team::Claims claims, QString login)
     {
@@ -101,6 +104,10 @@ public:
 private:
     void signOut();
     void startTeam();
+    // Large shared changes: the file to save them as; empty to send them through GitHub after
+    // all, nothing when the author cancelled.
+    [[nodiscard]] std::optional<QString> askForShareFile(const team::ChangePackage& package,
+                                                         qint64 sizeBytes);
     void reserveSelected();
     void releaseReservations();
     void breakLock();
@@ -140,8 +147,8 @@ private:
     // Edited since the last save (early claims).
     Touched m_touched;
     std::vector<QString> m_pending;
-    // The comments of the pending packages, by name, as far as they are downloaded.
-    std::map<QString, QString> m_comments;
+    // What is known of the pending packages, by name (TeamSync::Result::notes).
+    std::map<QString, PendingNote> m_notes;
     // The partners' avatars for the Team section.
     std::unique_ptr<AvatarCache> m_avatars;
     // When the background sync last answered for this project.

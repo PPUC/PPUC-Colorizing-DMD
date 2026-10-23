@@ -16,6 +16,7 @@
 #include "team/Claims.h"
 #include "team/GitHub.h"
 #include "team/TeamChanges.h"
+#include "team/TeamSession.h"
 
 class QObject;
 
@@ -51,8 +52,9 @@ public:
         // The partners' packages not merged yet, oldest first; those that could be downloaded
         // are in the cache.
         std::vector<QString> pendingPackages;
-        // The comments of the downloaded ones, by name; a package without one is left out.
-        std::map<QString, QString> comments;
+        // What is known of them, by name: comment, size, shared as a file and whether this
+        // copy has that file; a package not downloaded yet is left out.
+        std::map<QString, PendingNote> notes;
         QString error;
         // The setInput() call the result answers; an older one's result is outdated.
         uint64_t input = 0;

@@ -8172,6 +8172,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Ein kurzer Kommentar für die Partner: was Sie geändert haben, was noch offen ist (optional).</translation>
     </message>
     <message>
+        <source>The file could not be written: %1</source>
+        <translation>Die Datei konnte nicht geschrieben werden: %1</translation>
+    </message>
+    <message>
         <source>Sharing your changes…</source>
         <translation>Ihre Änderungen werden geteilt…</translation>
     </message>
@@ -8184,6 +8188,34 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Ihre Änderungen sind mit den Partnern geteilt</translation>
     </message>
     <message>
+        <source>Your changes are saved as %1. Send this file to the partners another way (a cloud drive, for example); they see that it comes and add it in their Team section with Add File.</source>
+        <translation>Ihre Änderungen sind als %1 gespeichert. Senden Sie diese Datei auf anderem Weg an die Partner (zum Beispiel über einen Cloud-Speicher); sie sehen, dass sie kommt, und fügen sie in ihrem Bereich Team mit Datei hinzufügen hinzu.</translation>
+    </message>
+    <message>
+        <source>Your changes come to %1. Large changes are better sent as a file another way (a cloud drive, for example): GitHub then gets only a notice, so that the partners know the file comes.</source>
+        <translation>Ihre Änderungen umfassen %1. Große Änderungen senden Sie besser als Datei auf anderem Weg (zum Beispiel über einen Cloud-Speicher): GitHub erhält dann nur eine Mitteilung, damit die Partner wissen, dass die Datei kommt.</translation>
+    </message>
+    <message>
+        <source>Save As File...</source>
+        <translation>Als Datei speichern...</translation>
+    </message>
+    <message>
+        <source>Through GitHub</source>
+        <translation>Über GitHub</translation>
+    </message>
+    <message>
+        <source>GitHub takes no file this large.</source>
+        <translation>GitHub nimmt keine so große Datei an.</translation>
+    </message>
+    <message>
+        <source>Save Changes As File</source>
+        <translation>Änderungen als Datei speichern</translation>
+    </message>
+    <message>
+        <source>Shared changes (*.cdmdchanges)</source>
+        <translation>Geteilte Änderungen (*.cdmdchanges)</translation>
+    </message>
+    <message>
         <source>Merge Changes</source>
         <translation>Änderungen zusammenführen</translation>
     </message>
@@ -8194,6 +8226,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>No changes from the partners to merge</source>
         <translation>Keine Änderungen der Partner zum Zusammenführen</translation>
+    </message>
+    <message>
+        <source>The shared change of %1 from %2 comes as a file. Add it with Add File in the Team section; the changes after it wait until then.</source>
+        <translation>Die geteilte Änderung von %1 vom %2 kommt als Datei. Fügen Sie sie mit Datei hinzufügen im Bereich Team hinzu; die Änderungen danach warten bis dahin.</translation>
     </message>
     <message>
         <source>Fetching the partners&apos; changes…</source>
@@ -8293,6 +8329,22 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Die Ansprüche sind aktuell</translation>
     </message>
     <message>
+        <source>Add Shared Changes File</source>
+        <translation>Datei mit geteilten Änderungen hinzufügen</translation>
+    </message>
+    <message>
+        <source>Add File</source>
+        <translation>Datei hinzufügen</translation>
+    </message>
+    <message>
+        <source>The file could not be read: %1</source>
+        <translation>Die Datei konnte nicht gelesen werden: %1</translation>
+    </message>
+    <message>
+        <source>Added the shared change of %1; merge it in the Team section</source>
+        <translation>Geteilte Änderung von %1 hinzugefügt; führen Sie sie im Bereich Team zusammen</translation>
+    </message>
+    <message>
         <source>%1 works on it since %2</source>
         <translation>%1 arbeitet daran seit %2</translation>
     </message>
@@ -8332,6 +8384,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Speichern, dann senden, was Sie seit dem letzten Zusammenführen geändert haben, an die Partner</translation>
     </message>
     <message>
+        <source>Add File...</source>
+        <translation>Datei hinzufügen...</translation>
+    </message>
+    <message>
+        <source>Add a shared change a partner sent as a file (too large for GitHub); dropping the file here does the same</source>
+        <translation>Eine geteilte Änderung hinzufügen, die ein Partner als Datei geschickt hat (zu groß für GitHub); die Datei hier abzulegen bewirkt dasselbe</translation>
+    </message>
+    <message>
         <source>Repository %1, signed in as %2</source>
         <translation>Repository %1, angemeldet als %2</translation>
     </message>
@@ -8342,6 +8402,18 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>From %1, %2</source>
         <translation>Von %1, %2</translation>
+    </message>
+    <message>
+        <source>Comes as a file</source>
+        <translation>Kommt als Datei</translation>
+    </message>
+    <message>
+        <source>%1, comes as a file: add it with Add File</source>
+        <translation>%1, kommt als Datei: mit Datei hinzufügen hinzufügen</translation>
+    </message>
+    <message>
+        <source>%1, added as a file</source>
+        <translation>%1, als Datei hinzugefügt</translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) to merge:</source>
@@ -8365,6 +8437,25 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Merge Changes (%1)...</source>
         <translation>Änderungen zusammenführen (%1)...</translation>
+    </message>
+</context>
+<context>
+    <name>TeamSession</name>
+    <message>
+        <source>The file is no shared change: %1</source>
+        <translation>Die Datei ist keine geteilte Änderung: %1</translation>
+    </message>
+    <message>
+        <source>The shared change belongs to another team project, or to another snapshot of it.</source>
+        <translation>Die geteilte Änderung gehört zu einem anderen Teamprojekt oder zu einem anderen Stand davon.</translation>
+    </message>
+    <message>
+        <source>The shared change is merged already.</source>
+        <translation>Die geteilte Änderung ist bereits zusammengeführt.</translation>
+    </message>
+    <message>
+        <source>The shared change could not be stored in %1.</source>
+        <translation>Die geteilte Änderung konnte nicht in %1 gespeichert werden.</translation>
     </message>
 </context>
 <context>

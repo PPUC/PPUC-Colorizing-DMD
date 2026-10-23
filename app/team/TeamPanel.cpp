@@ -1,6 +1,10 @@
 #include "team/TeamPanel.h"
 
-#include <QHBoxLayout>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QGridLayout>
+#include <QMimeData>
+#include <QUrl>
 #include <QIcon>
 #include <QPixmap>
 #include <QLabel>
@@ -38,9 +42,14 @@ TeamPanel::TeamPanel(QWidget* parent)
     m_shareButton = new QPushButton(tr("Share My Changes"), this);
     m_shareButton->setToolTip(
         tr("Save, then send what you changed since the last merge to the partners"));
-    auto* buttons = new QHBoxLayout;
-    buttons->addWidget(m_mergeButton);
-    buttons->addWidget(m_shareButton);
+    m_addFileButton = new QPushButton(tr("Add File..."), this);
+    m_addFileButton->setToolTip(
+        tr("Add a shared change a partner sent as a file (too large for GitHub); dropping the "
+           "file here does the same"));
+    auto* buttons = new QGridLayout;
+    buttons->addWidget(m_mergeButton, 0, 0);
+    buttons->addWidget(m_shareButton, 0, 1);
+    buttons->addWidget(m_addFileButton, 1, 0, 1, 2);
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_accountLabel);
@@ -71,6 +80,12 @@ TeamPanel::TeamPanel(QWidget* parent)
             onShareRequested();
         }
     });
+    connect(m_addFileButton, &QPushButton::clicked, this, [this]() {
+        if (onAddFileRequested) {
+            onAddFileRequested(QString());
+        }
+    });
+    setAcceptDrops(true);
     setState({});
 }
 
@@ -95,12 +110,26 @@ void TeamPanel::setState(const State& state)
                               locale.toString(QDateTime::fromMSecsSinceEpoch(parsed->createdMs),
                                               QLocale::ShortFormat))
                    : name;
-        const auto comment = state.comments.find(name);
-        if (comment != state.comments.end()) {
-            text += QLatin1Char('\n') + comment->second;
+        const auto found = state.notes.find(name);
+        const PendingNote note = found != state.notes.end() ? found->second : PendingNote{};
+        if (isPackageNotice(name) && found == state.notes.end()) {
+            text += QLatin1Char('\n') + tr("Comes as a file");
+        } else if (note.asFile && !note.available) {
+            text += QLatin1Char('\n') +
+                    tr("%1, comes as a file: add it with Add File")
+                        .arg(locale.formattedDataSize(note.sizeBytes, 0,
+                                                      QLocale::DataSizeTraditionalFormat));
+        } else if (note.asFile) {
+            text += QLatin1Char('\n') +
+                    tr("%1, added as a file")
+                        .arg(locale.formattedDataSize(note.sizeBytes, 0,
+                                                      QLocale::DataSizeTraditionalFormat));
+        }
+        if (!note.comment.isEmpty()) {
+            text += QLatin1Char('\n') + note.comment;
         }
         auto* item = new QListWidgetItem(text, m_pendingList);
-        item->setToolTip(comment != state.comments.end() ? comment->second : name);
+        item->setToolTip(note.comment.isEmpty() ? packageFileName(name) : note.comment);
         if (parsed) {
             const auto avatar = state.avatars.find(parsed->login);
             if (avatar != state.avatars.end()) {
@@ -124,6 +153,26 @@ void TeamPanel::setState(const State& state)
                                      : tr("Merge Changes..."));
     m_mergeButton->setEnabled(signedIn && count > 0 && state.problem.isEmpty());
     m_shareButton->setEnabled(signedIn && state.problem.isEmpty());
+    m_addFileButton->setEnabled(signedIn && state.problem.isEmpty());
+    m_signedIn = signedIn && state.problem.isEmpty();
+}
+
+void TeamPanel::dragEnterEvent(QDragEnterEvent* event)
+{
+    const QList<QUrl> urls = event->mimeData()->urls();
+    if (m_signedIn && urls.size() == 1 && urls[0].isLocalFile() &&
+        urls[0].toLocalFile().endsWith(QStringLiteral(".cdmdchanges"), Qt::CaseInsensitive)) {
+        event->acceptProposedAction();
+    }
+}
+
+void TeamPanel::dropEvent(QDropEvent* event)
+{
+    const QList<QUrl> urls = event->mimeData()->urls();
+    if (urls.size() == 1 && onAddFileRequested) {
+        event->acceptProposedAction();
+        onAddFileRequested(urls[0].toLocalFile());
+    }
 }
 
 QStringList TeamPanel::pendingTexts() const

@@ -89,6 +89,36 @@ struct PackageName {
 };
 [[nodiscard]] std::optional<PackageName> parsePackageName(const QString& name);
 
+// A package too large for the remote is shared as a file the author sends another way (a
+// cloud drive): the remote has only its notice, "<the package's name without .cdmdchanges>
+// .cdmdnotice", JSON with author, created, comment and size, so that the partners know of it
+// and merge in order; they add the file themselves (addPackageFileToCache()).
+[[nodiscard]] QString changePackageNoticeName(const team::ChangePackage& package);
+[[nodiscard]] QByteArray changePackageNotice(const team::ChangePackage& package, qint64 sizeBytes);
+[[nodiscard]] bool isPackageNotice(const QString& name);
+// The file name of the package a name in packages/ stands for: the name itself, or for a
+// notice the package's.
+[[nodiscard]] QString packageFileName(const QString& name);
+
+// What the Team section shows of a pending package besides its name.
+struct PendingNote {
+    QString comment;
+    // Shared as a file, and whether this copy has it (in the cache) yet.
+    bool asFile = false;
+    bool available = true;
+    qint64 sizeBytes = 0;
+};
+// The note of a notice's bytes; nothing for damaged ones.
+[[nodiscard]] std::optional<PendingNote> pendingNoteFromNotice(const QByteArray& bytes);
+
+// Puts a package a partner sent as a file into the cache folder, under its name in packages/,
+// where the merge finds it. Returns why it cannot be (no package, another team project or
+// snapshot, merged already); empty on success, name then says which it is.
+[[nodiscard]] QString addPackageFileToCache(const QByteArray& bytes,
+                                            const document::ProjectDocument& document,
+                                            const QString& cacheFolder,
+                                            QString* name = nullptr);
+
 // A change package as the bytes of its file, and back (through a temporary file, as the zip
 // code works on files).
 [[nodiscard]] std::optional<QByteArray> changePackageBytes(const team::ChangePackage& package,
@@ -102,6 +132,25 @@ public:
     TeamSession(TeamRemote& remote, QString login);
 
     [[nodiscard]] const QString& login() const { return m_login; }
+
+    // The package of the copy's changes and its bytes, made before it is sent (the author
+    // decides by the size how); nothing set when nothing changed.
+    struct PreparedShare {
+        std::optional<team::ChangePackage> package;
+        QByteArray bytes;
+        QString error;
+        bool nothing = false;
+    };
+    [[nodiscard]] PreparedShare prepareShare(const document::ProjectDocument& document,
+                                             int64_t nowMs,
+                                             const QString& comment) const;
+    // Sends the prepared package, or with asFile only its notice (the author sends the file
+    // another way); then as share().
+    void publish(document::ProjectDocument& document,
+                 const PreparedShare& prepared,
+                 bool asFile,
+                 int64_t nowMs,
+                 std::function<void(QString error)> done);
 
     // Sends the copy's changes as a package; on success the document records it as sent
     // (TeamState::sent) and the claims are brought up to date. The document must be saved;

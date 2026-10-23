@@ -95,7 +95,9 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     `NetworkTransport` is Qt Network, which the widgets library now links) and `TeamSession`
     (share, pending packages, fetch, claims sync with retry on a changed claims.json) over a
     `TeamRemote`: `GitHubRemote` (claims.json and packages/ in the repository; package names
-    "<created ms>-<login>-<id>.cdmdchanges") or `FolderRemote` (tests). Tested against canned
+    "<created ms>-<login>-<id>.cdmdchanges"; a package over 20 MB may go as a file another
+    way, the repository then has its notice "<same stem>.cdmdnotice" and the partner adds the
+    file to the cache, `addPackageFileToCache()`) or `FolderRemote` (tests). Tested against canned
     GitHub answers only. `TeamController` (Team menu, dialogs in `TeamDialogs.h`) runs the
     steps modally (`runModal`, no cancel: every request has a 30 s timeout). `TeamSync` keeps
     the claims and the pending packages in step in a thread of its own (own network access,
@@ -1344,6 +1346,9 @@ Reviewed for Windows/MinGW and left unchanged:
    through an animation, shade-adjusted and with motion, then offer it to the AI assistant.
 5. After the authors confirm feature parity with 3.17.3 (owner decision 2026-10-19): the
    persistent runtime instance below. Later, by decision of the owner: a new project format.
+6. Teams: remove packages (and notices) from the repository once every partner merged them,
+   after a grace period (owner, 2026-10-23: later). Nothing removes them yet, so packages/
+   only grows.
 
 ## Persistent runtime instance (deferred)
 

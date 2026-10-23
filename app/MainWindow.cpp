@@ -1955,6 +1955,9 @@ void MainWindow::createCentralView()
     m_teamPanel->onSignInRequested = [this]() { m_team->signIn(); };
     m_teamPanel->onMergeRequested = [this]() { m_team->merge(); };
     m_teamPanel->onShareRequested = [this]() { m_team->share(); };
+    m_teamPanel->onAddFileRequested = [this](const QString& path) {
+        m_team->addPackageFile(path);
+    };
     inspectorTabs->addTab(m_teamPanel, QStringLiteral("Team"), tr("Team"));
     // The action buttons of every section alike (InspectorForm.h).
     for (QWidget* page : std::initializer_list<QWidget*>{

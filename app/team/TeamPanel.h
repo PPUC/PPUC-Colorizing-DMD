@@ -11,6 +11,10 @@
 #include <optional>
 #include <vector>
 
+#include "team/TeamSession.h"
+
+class QDragEnterEvent;
+class QDropEvent;
 class QLabel;
 class QListWidget;
 class QPushButton;
@@ -32,8 +36,9 @@ public:
         QString repository;
         // The packages' names in packages/ (parsePackageName()), oldest first.
         std::vector<QString> pendingPackages;
-        // Their authors' comments, by name, and the authors' avatars, by login.
-        std::map<QString, QString> comments;
+        // What is known of them, by name (TeamSync::Result::notes), and the authors' avatars,
+        // by login.
+        std::map<QString, PendingNote> notes;
         std::map<QString, QImage> avatars;
         // When the background sync last answered; nothing before its first answer.
         std::optional<QDateTime> checked;
@@ -54,6 +59,8 @@ public:
     std::function<void()> onSignInRequested;
     std::function<void()> onMergeRequested;
     std::function<void()> onShareRequested;
+    // Add File, or a file dropped on the section: a shared change a partner sent as a file.
+    std::function<void(const QString& path)> onAddFileRequested;
 
 private:
     QLabel* m_accountLabel = nullptr;
@@ -64,6 +71,12 @@ private:
     QLabel* m_checkedLabel = nullptr;
     QPushButton* m_mergeButton = nullptr;
     QPushButton* m_shareButton = nullptr;
+    QPushButton* m_addFileButton = nullptr;
+    bool m_signedIn = false;
+
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 };
 
 }  // namespace colorizing::app

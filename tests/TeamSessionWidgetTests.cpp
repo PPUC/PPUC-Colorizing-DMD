@@ -1,5 +1,6 @@
 // The team session (team/TeamSession.h) with a folder as the team's remote: package names,
-// two copies sharing and merging through it, and the claims they leave there.
+// two copies sharing and merging through it, and the claims they leave there. A large change
+// shared as a file: only its notice on the remote, the file added by the partner.
 
 #include <cstdlib>
 #include <filesystem>
@@ -210,14 +211,111 @@ void testBackgroundSync()
     expect(results[0].pendingPackages.size() == 1 &&
                app::TeamSync::cachedPackage(cachePath, results[0].pendingPackages[0]),
            "the owner's package is waiting, downloaded into the cache");
-    expect(results[0].comments.size() == 1 &&
-               results[0].comments.begin()->second == QStringLiteral("Attract mode"),
+    expect(results[0].notes.size() == 1 &&
+               results[0].notes.begin()->second.comment == QStringLiteral("Attract mode") &&
+               !results[0].notes.begin()->second.asFile,
            "with the owner's comment");
     QString error;
     expect(app::changePackageFrom(
                *app::TeamSync::cachedPackage(cachePath, results[0].pendingPackages[0]), error)
                .has_value(),
            "and readable from there: " + error.toStdString());
+}
+
+// Waits for the sync's next answer.
+app::TeamSync::Result nextResult(app::TeamSync& sync,
+                                 const app::TeamSync::Input& input,
+                                 std::vector<app::TeamSync::Result>& results)
+{
+    results.clear();
+    (void)sync.setInput(input);
+    QElapsedTimer timer;
+    timer.start();
+    while (results.empty() && timer.elapsed() < 20000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    }
+    expect(!results.empty(), "the sync answers");
+    return results.back();
+}
+
+void testShareAsFile()
+{
+    QTemporaryDir folder;
+    const QString remotePath = QDir(folder.path()).filePath(QStringLiteral("remote"));
+    const QString ownerPath = QDir(folder.path()).filePath(QStringLiteral("kraken.cdmd"));
+    const QString cachePath = QDir(folder.path()).filePath(QStringLiteral("cache"));
+    app::FolderRemote remote(remotePath);
+    ProjectDocument owner = ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    save(owner, ownerPath, "kraken", 1000);
+    owner.setTeam(team::startTeam(owner, "folder", "kraken", {"enthusiast"}));
+    save(owner, ownerPath, "kraken", 1000);
+    ProjectDocument partner = owner;
+    owner.setFrameDurationMs(2, 222);
+    save(owner, ownerPath, "kraken", 2000);
+
+    // The owner shares as a file: the remote gets the notice only.
+    app::TeamSession ownerSession(remote, QStringLiteral("kraken"));
+    const app::TeamSession::PreparedShare prepared =
+        ownerSession.prepareShare(owner, 2000, QStringLiteral("The new movie clips"));
+    expect(prepared.package && !prepared.bytes.isEmpty(), "the package is made");
+    QString error = QStringLiteral("unset");
+    ownerSession.publish(owner, prepared, true, 2000, [&error](QString answer) {
+        error = answer;
+    });
+    const QStringList onRemote =
+        QDir(QDir(remotePath).filePath(QStringLiteral("packages"))).entryList(QDir::Files);
+    expect(error.isEmpty() && owner.team()->sent.size() == 1 && onRemote.size() == 1 &&
+               app::isPackageNotice(onRemote[0]),
+           "only the notice is on the remote, and the package counts as sent");
+    expect(app::packageFileName(onRemote[0]) == app::changePackageName(*prepared.package),
+           "the notice names the package's file");
+
+    // The partner's sync lists it, with the comment and the size, as not there yet.
+    QObject context;
+    std::vector<app::TeamSync::Result> results;
+    app::TeamSync sync(
+        &context, [&results](app::TeamSync::Result result) { results.push_back(result); },
+        std::chrono::hours(1),
+        [remotePath](const app::TeamSync::Input&, app::HttpTransport&) {
+            return std::make_unique<app::FolderRemote>(remotePath);
+        });
+    app::TeamSync::Input input;
+    input.active = true;
+    input.login = QStringLiteral("enthusiast");
+    input.repository = QStringLiteral("folder");
+    input.mergedPackages = partner.team()->mergedPackages;
+    input.cacheFolder = cachePath;
+    app::TeamSync::Result result = nextResult(sync, input, results);
+    expect(result.pendingPackages.size() == 1 && result.notes.count(onRemote[0]) == 1,
+           "the partner sees the notice");
+    app::PendingNote note = result.notes[onRemote[0]];
+    expect(note.asFile && !note.available && note.comment == QStringLiteral("The new movie clips")
+               && note.sizeBytes == prepared.bytes.size(),
+           "a file not added yet, with its comment and size");
+
+    // A file of another snapshot is refused; the right one goes into the cache.
+    ProjectDocument stranger = partner;
+    stranger.setTeam(team::startTeam(stranger, "other", "kraken", {"enthusiast"}));
+    expect(!app::addPackageFileToCache(QByteArray("no zip"), partner, cachePath).isEmpty() &&
+               !app::addPackageFileToCache(prepared.bytes, stranger, cachePath).isEmpty(),
+           "no package, or another snapshot's, is refused");
+    QString added;
+    expect(app::addPackageFileToCache(prepared.bytes, partner, cachePath, &added).isEmpty() &&
+               added == app::packageFileName(onRemote[0]),
+           "the file goes into the cache under the package's name");
+    result = nextResult(sync, input, results);
+    expect(result.notes[onRemote[0]].available, "now the partner has it");
+
+    // Merged from the cache, as a package that came through the remote.
+    error.clear();
+    const std::optional<team::ChangePackage> package = app::changePackageFrom(
+        *app::TeamSync::cachedPackage(cachePath, app::packageFileName(onRemote[0])), error);
+    expect(package.has_value(), "the added file reads: " + error.toStdString());
+    (void)team::mergeChangePackage(partner, *package, {}, "enthusiast");
+    expect(partner.frameDurationMs(2) == 222, "and merges");
+    expect(!app::addPackageFileToCache(prepared.bytes, partner, cachePath).isEmpty(),
+           "a merged package is not added again");
 }
 
 }  // namespace
@@ -227,4 +325,5 @@ void runTeamSessionWidgetTests()
     testPackageNames();
     testShareAndMerge();
     testBackgroundSync();
+    testShareAsFile();
 }

@@ -170,7 +170,7 @@ void testTeamSection()
            "each shared change says from whom and when");
     expect(panel.checkedText().startsWith(QStringLiteral("Checked at ")), "when it was checked");
     app::TeamPanel::State withNotes = state;
-    withNotes.comments[state.pendingPackages[1]] = QStringLiteral("Attract mode done");
+    withNotes.notes[state.pendingPackages[1]].comment = QStringLiteral("Attract mode done");
     QImage avatar(64, 64, QImage::Format_ARGB32);
     avatar.fill(Qt::red);
     withNotes.avatars[QStringLiteral("enthusiast")] = avatar;
@@ -179,6 +179,25 @@ void testTeamSection()
                !panel.pendingTexts()[0].contains(QLatin1Char('\n')),
            "a shared change's comment below its line");
     expect(panel.hasAvatar(0) && panel.hasAvatar(1), "the author's avatar beside it");
+    // A shared change that comes as a file, not added yet.
+    app::TeamPanel::State withFile = state;
+    withFile.pendingPackages[0] = app::packageFileName(state.pendingPackages[0]);
+    withFile.pendingPackages[0].replace(QStringLiteral(".cdmdchanges"),
+                                        QStringLiteral(".cdmdnotice"));
+    app::PendingNote fileNote;
+    fileNote.asFile = true;
+    fileNote.available = false;
+    fileNote.sizeBytes = 120LL * 1024 * 1024;
+    withFile.notes[withFile.pendingPackages[0]] = fileNote;
+    panel.setState(withFile);
+    expect(panel.pendingTexts()[0].contains(
+               QStringLiteral("120 MB, comes as a file: add it with Add File")),
+           "a file still to add says so, with its size: " +
+               panel.pendingTexts()[0].toStdString());
+    withFile.notes[withFile.pendingPackages[0]].available = true;
+    panel.setState(withFile);
+    expect(panel.pendingTexts()[0].contains(QStringLiteral("120 MB, added as a file")),
+           "an added one too");
     panel.setState(state);
     expect(!panel.hasAvatar(0), "no avatar before it is loaded");
     QPushButton* merge = nullptr;

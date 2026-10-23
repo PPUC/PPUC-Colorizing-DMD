@@ -43,7 +43,8 @@ A team project has a `Team` section in the right side bar (it is not there for o
   (and their GitHub picture), when, and their comment; a double click merges them, as `Merge
   Changes (2)...` below does;
 - when the editor last looked for them (`Checked at 14:05:12`);
-- `Merge Changes...` and `Share My Changes`, as in the `Team` menu.
+- `Merge Changes...` and `Share My Changes`, as in the `Team` menu, and `Add File...` for
+  shared changes that come as a file (see below).
 
 While shared changes wait, the section's header shows a bell and their number, also while the
 section is closed; it goes once they are merged.
@@ -67,6 +68,22 @@ section is closed; it goes once they are merged.
 
 The project is saved before sharing and merging, and after merging: a save gives the changed
 frames their new revisions, by which the copies tell what changed.
+
+## Large changes as a file
+
+GitHub is no place for large files: it takes none over 100 MB, and the repository keeps every
+file it ever had. When your shared changes come to more than 20 MB (new frames from a long
+video, for example), `Share My Changes` asks how to send them:
+
+- `Save As File...` saves them as a file (`.cdmdchanges`) for you to send another way, for
+  example through Google Drive. GitHub gets only a notice: the partners see the change in their
+  `Team` section at once, with its size and your comment, and `comes as a file`.
+- `Through GitHub` sends them as usual (not offered above 70 MB).
+
+A partner who received the file adds it with `Add File...` in the `Team` section, or drops it
+there. The editor checks that it belongs to this team project and has not been merged yet;
+then the change merges like any other. Shared changes merge in the order they were shared: a
+merge stops at a change whose file is not added yet, and says so.
 
 ## Claims
 
