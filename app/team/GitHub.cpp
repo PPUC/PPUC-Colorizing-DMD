@@ -54,6 +54,8 @@ void NetworkTransport::send(const HttpRequest& request, std::function<void(HttpR
     }
     networkRequest.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                                 QNetworkRequest::NoLessSafeRedirectPolicy);
+    // A step of the team features waits for the answer; it does not wait forever.
+    networkRequest.setTransferTimeout(30000);
     QNetworkReply* reply =
         m_manager->sendCustomRequest(networkRequest, request.method, request.body);
     QObject::connect(reply, &QNetworkReply::finished, reply, [reply, done = std::move(done)]() {

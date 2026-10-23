@@ -62,6 +62,7 @@
 
 #include "AppInfo.h"
 #include "AuthorName.h"
+#include "team/TeamController.h"
 #include "FramesClipboard.h"
 #include "Appearance.h"
 #include "EditColorKeys.h"
@@ -545,6 +546,21 @@ MainWindow::MainWindow(QWidget* parent)
         updateInspectorSections();
         noteCanvasPlace(true);
     });
+    TeamController::Host teamHost;
+    teamHost.document = [this]() { return m_document ? &*m_document : nullptr; };
+    teamHost.projectPath = [this]() { return m_projectPath; };
+    teamHost.save = [this]() { return saveProject(); };
+    teamHost.record = [this](std::unique_ptr<edit::EditCommand> command) {
+        m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
+        refreshAfterEditBatch();
+        updateUndoRedoActions();
+    };
+    teamHost.status = [this](const QString& message, int timeoutMs) {
+        statusBar()->showMessage(message, timeoutMs);
+    };
+    teamHost.selectedFrames = [this]() { return selectedFrameIndices(); };
+    teamHost.claimsChanged = [this]() { updateFrameStatusText(); };
+    m_team = std::make_unique<TeamController>(this, std::move(teamHost));
     createActions();
     createCentralView();
     EditorPlugins::Window pluginWindow;
@@ -630,6 +646,7 @@ void MainWindow::createActions()
     // Help: the handbook, in a window of its own that stays open beside the editor.
     // The menu of the editor's plugins, shown while one has entries (EditorPlugins).
     m_pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
+    m_team->createMenu(menuBar());
     QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
     QAction* handbookAction = helpMenu->addAction(tr("&Handbook"));
     handbookAction->setShortcut(QKeySequence::HelpContents);
@@ -2585,8 +2602,13 @@ bool MainWindow::saveProject()
     // Every component that changed gets a new revision with the author and the time.
     project::ProjectFileOptions options;
     options.editorVersion = kApplicationVersion.toStdString();
-    options.stamp = project::RevisionStamp{loadAuthorName().toStdString(),
-                                           QDateTime::currentMSecsSinceEpoch()};
+    // The author's name; in a team project without one, the GitHub login.
+    QString author = loadAuthorName();
+    if (author.isEmpty() && m_team && m_document->team()) {
+        author = m_team->login();
+    }
+    options.stamp =
+        project::RevisionStamp{author.toStdString(), QDateTime::currentMSecsSinceEpoch()};
     const std::string path = m_projectPath.toStdString();
     legacy::LegacySaveResult result;
     std::vector<document::StampedMeta> stamped;
@@ -3037,6 +3059,7 @@ void MainWindow::newProjectFromDump()
         m_document->markUnsaved();
         m_projectPath.clear();
         m_sourcePath.clear();
+        m_team->projectChanged();
         m_undoHistories.clear();
         m_canvasHistory.clear();
         updateHistoryButtons();
@@ -4036,6 +4059,7 @@ bool MainWindow::takeLoadedProject(legacy::LegacyDocumentLoadResult result,
     if (!sidecarNote.isEmpty()) {
         statusBar()->showMessage(sidecarNote, 8000);
     }
+    m_team->projectChanged();
     return true;
 }
 
@@ -4054,6 +4078,10 @@ std::optional<Autosaver::Job> MainWindow::autosaveJob()
         job.path = m_projectPath;
     }
     job.revision = m_document->revision();
+    // A team project's common versions are in its project file.
+    if (m_document->team() && !m_projectPath.isEmpty() && !isAutosavePath(m_projectPath)) {
+        job.baseSourcePath = m_projectPath;
+    }
     job.snapshot = m_document->toSnapshot();
     job.snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
     return job;
@@ -5765,6 +5793,7 @@ void MainWindow::updateFrameStatusText()
         *m_document, *frameIndex, edit::comparisonRuleOf(*m_document, *frameIndex));
     // An inactive frame is marked in the frame list and explained in the tool tip here; the
     // line itself stays as short as it was.
+    const QString claim = m_team ? m_team->frameClaimText(*frameIndex) : QString();
     setFrameStatusText(tr("Frame %1 | %2 | %3 ms%4%5")
                            .arg(static_cast<int>(*frameIndex))
                            .arg(planes)
@@ -5774,8 +5803,14 @@ void MainWindow::updateFrameStatusText()
                                     : QString())
                            .arg(gapsText.isEmpty() ? QString()
                                                    : tr(" | not rendered")) +
-                       (sameFrames ? tr(" | %1 same").arg(*sameFrames) : QString()));
+                       (sameFrames ? tr(" | %1 same").arg(*sameFrames) : QString()) +
+                       (claim.isEmpty() ? QString() : tr(" | claimed")));
     QStringList toolTip;
+    if (!claim.isEmpty()) {
+        toolTip << tr("A partner's frame: %1. It stays read-only here until the change is "
+                      "merged.")
+                       .arg(claim);
+    }
     if (sameFrames) {
         toolTip << tr("%1 frames are the same as this one under its comparison mask and shape "
                       "mode: the runtime cannot tell them apart. The Comparison Mask section "
@@ -11736,6 +11771,24 @@ bool MainWindow::isSpriteCanvasActive() const
 std::size_t MainWindow::pushToHistory(const edit::HistoryKey& key,
                                       std::unique_ptr<edit::EditCommand> command)
 {
+    // In a team project, what a partner works on stays as it is here (their claim).
+    if (m_team && m_document && command) {
+        if (const std::optional<QString> refusal = m_team->refusal(*command, *m_document)) {
+            command->revert(*m_document);
+            // The caller may still look at the command; it goes back in the event loop, and
+            // the window shows the project as it is then.
+            m_refusedCommands.push_back(std::move(command));
+            QTimer::singleShot(0, this, [this]() {
+                m_refusedCommands.clear();
+                refreshAfterEditBatch();
+            });
+            statusBar()->showMessage(
+                tr("Not changed: %1. Merge the partners' changes first, or ask them.")
+                    .arg(*refusal),
+                10000);
+            return 0;
+        }
+    }
     return m_actionGroups.push(key, std::move(command));
 }
 

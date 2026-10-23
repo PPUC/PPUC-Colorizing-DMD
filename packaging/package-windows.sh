@@ -146,6 +146,9 @@ if [ -d "${vpx_plugins}" ]; then
     (cd "${check}" && PATH="${system_path}" QT_QPA_PLATFORM=offscreen \
         "${timeout_bin}" 60 ./PPUC-Colorizing-DMD.exe --check-plugins)
 fi
+# HTTPS works, for the team features.
+(cd "${check}" && PATH="${system_path}" QT_QPA_PLATFORM=offscreen \
+    "${timeout_bin}" 60 ./PPUC-Colorizing-DMD.exe --check-tls)
 
 rm -f "${output}"
 (cd "${stage}" && zip -qr "${output}" PPUC-Colorizing-DMD)

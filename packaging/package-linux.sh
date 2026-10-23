@@ -95,4 +95,6 @@ fi
 if [ -d "${vpx_plugins}" ]; then
     env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen "${stage}/squashfs-root/AppRun" --check-plugins
 fi
+# HTTPS works, for the team features.
+env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen "${stage}/squashfs-root/AppRun" --check-tls
 echo "Wrote ${output}"

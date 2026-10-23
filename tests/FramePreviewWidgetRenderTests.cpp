@@ -3902,6 +3902,7 @@ void runAutosaveWidgetTests();
 void runFramesClipboardWidgetTests();
 void runGitHubWidgetTests();
 void runTeamSessionWidgetTests();
+void runTeamControllerWidgetTests();
 void runDmdOutputWidgetTests();
 void runEditorPluginsWidgetTests();
 void runVideoClipWidgetTests();
@@ -3976,6 +3977,7 @@ int main(int argc, char* argv[])
     runFramesClipboardWidgetTests();
     runGitHubWidgetTests();
     runTeamSessionWidgetTests();
+    runTeamControllerWidgetTests();
     runDmdOutputWidgetTests();
     runEditorPluginsWidgetTests();
     runVideoClipWidgetTests();

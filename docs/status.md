@@ -102,8 +102,14 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     (share, pending packages, fetch, claims sync with retry on a changed claims.json) over a
     `TeamRemote`: `GitHubRemote` (claims.json and packages/ in the repository; package names
     "<created ms>-<login>-<id>.cdmdchanges") or `FolderRemote` (tests). Tested against canned
-    GitHub answers only; it needs a GitHub OAuth app with the device flow (its client ID) to
-    talk to GitHub.
+    GitHub answers only. `TeamController` (Team menu, dialogs in `TeamDialogs.h`) runs the
+    steps modally (`runModal`, no cancel: every request has a 30 s timeout), refreshes the
+    claims every minute in the background, and guards edits: `MainWindow::pushToHistory()`
+    reverts an edit of a partner's claimed component (a deletion is looked at by undoing and
+    redoing it) and keeps the command until the event loop. Token and login in QSettings
+    (github/token, plain). Open: a GitHub OAuth app with the device flow for the PPUC builds
+    (CMake `COLORIZINGDMD_GITHUB_CLIENT_ID`, or the environment variable of that name); never
+    run against GitHub yet. Packages check `--check-tls`.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

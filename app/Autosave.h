@@ -42,6 +42,8 @@ class Autosaver final : public QObject {
 public:
     struct Job {
         QString path;
+        // Where a team project's common versions are (ProjectFileOptions::baseSourcePath).
+        QString baseSourcePath;
         document::ProjectSnapshot snapshot;
         // The document revision the snapshot shows.
         uint64_t revision = 0;

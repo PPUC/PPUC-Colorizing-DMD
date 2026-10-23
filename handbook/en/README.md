@@ -44,3 +44,4 @@ whenever a user-visible feature changes.
 - [Scenes and Scaling](38-scenes.md)
 - [Speaker Lights](39-speaker-lights.md)
 - [Packages](40-packages.md)
+- [Working As A Team](41-working-as-a-team.md)

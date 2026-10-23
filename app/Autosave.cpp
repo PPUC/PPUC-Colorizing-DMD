@@ -116,6 +116,7 @@ bool Autosaver::runNow()
             QDir().mkpath(directory);
             project::ProjectFileOptions options;
             options.editorVersion = kApplicationVersion.toStdString();
+            options.baseSourcePath = run->job.baseSourcePath.toStdString();
             run->result = project::saveProjectFile(run->job.path.toStdString(),
                                                    run->job.snapshot, options, &run->progress);
         } catch (const std::exception& ex) {

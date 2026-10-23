@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QSettings>
+#include <QSslSocket>
 #include <QElapsedTimer>
 #include <QStringList>
 #include <QThread>
@@ -35,6 +36,20 @@ int checkPlugins()
     }
     std::fflush(stdout);
     return ok ? 0 : 1;
+}
+
+// --check-tls, for the packaging scripts: the team features talk to GitHub over HTTPS; fails
+// when the package has no TLS backend that works.
+int checkTls()
+{
+    if (!QSslSocket::supportsSsl()) {
+        const QByteArray available =
+            QSslSocket::availableBackends().join(QStringLiteral(", ")).toUtf8();
+        std::fprintf(stderr, "No TLS backend works; available: %s\n", available.constData());
+        return 1;
+    }
+    std::printf("TLS backend: %s\n", QSslSocket::activeBackend().toUtf8().constData());
+    return 0;
 }
 
 // --check-dmd-output, to find out why a display is not found: starts the DMD output with the
@@ -127,6 +142,9 @@ int main(int argc, char* argv[])
     QApplication::setWindowIcon(icon);
     if (QApplication::arguments().contains(QStringLiteral("--check-plugins"))) {
         return checkPlugins();
+    }
+    if (QApplication::arguments().contains(QStringLiteral("--check-tls"))) {
+        return checkTls();
     }
     if (QApplication::arguments().contains(QStringLiteral("--check-dmd-output"))) {
         return checkDmdOutput();

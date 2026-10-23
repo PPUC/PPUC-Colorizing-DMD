@@ -91,6 +91,8 @@ fi
 if [ -d "${vpx_plugins}" ]; then
     QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/${name}" --check-plugins
 fi
+# HTTPS works, for the team features.
+QT_QPA_PLATFORM=offscreen "${check}/Contents/MacOS/${name}" --check-tls
 
 rm -f "${output}"
 # Without the extended attributes (a build machine's com.apple.provenance and the like would

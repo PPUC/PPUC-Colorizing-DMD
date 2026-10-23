@@ -124,7 +124,7 @@ void testWriter()
         std::chrono::hours(1),
         [&]() -> std::optional<Autosaver::Job> {
             ++jobs;
-            return Autosaver::Job{path, document.toSnapshot(), document.revision()};
+            return Autosaver::Job{path, {}, document.toSnapshot(), document.revision()};
         },
         [&](const QString&, uint64_t revision, const legacy::LegacySaveResult& result) {
             ++finished;

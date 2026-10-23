@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Team projects (`Team` menu): sign in to GitHub, start a team project with a repository for the
+  partners, share your changes and merge theirs per frame, with a choice for every frame both
+  changed; frames a partner works on stay read-only, frames can be reserved, and anyone can
+  break the lock and go on alone.
 - `Edit -> Copy Frames` and `Paste Frames` carry frames with what they use from one editor window
   to another, as a package does.
 - `File -> Export Selected Frames As Package...` writes the selected frames with the masks,

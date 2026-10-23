@@ -123,6 +123,10 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramesClipboard.h
     team/GitHub.cpp
     team/GitHub.h
+    team/TeamController.cpp
+    team/TeamController.h
+    team/TeamDialogs.cpp
+    team/TeamDialogs.h
     team/TeamSession.cpp
     team/TeamSession.h
     EditorPlugins.h
@@ -185,6 +189,11 @@ target_include_directories(colorizing_qt_v2_widgets
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+if(COLORIZINGDMD_GITHUB_CLIENT_ID)
+    set_property(SOURCE team/TeamController.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+        "COLORIZINGDMD_GITHUB_CLIENT_ID=\"${COLORIZINGDMD_GITHUB_CLIENT_ID}\"")
+endif()
 
 target_compile_definitions(colorizing_qt_v2_widgets
     PUBLIC

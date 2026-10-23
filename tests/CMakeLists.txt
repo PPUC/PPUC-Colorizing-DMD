@@ -75,6 +75,7 @@ if(TARGET colorizing_qt_v2_widgets)
         FramesClipboardWidgetTests.cpp
         GitHubWidgetTests.cpp
         TeamSessionWidgetTests.cpp
+        TeamControllerWidgetTests.cpp
         BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
         DmdOutputWidgetTests.cpp

@@ -31,6 +31,7 @@
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 #include "legacy/LegacyProjectFileReader.h"
+#include "team/TeamController.h"
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
 #include "CanvasHistory.h"
@@ -762,6 +763,10 @@ private:
     // The document revision the last finished autosave wrote.
     uint64_t m_autosavedRevision = 0;
     std::unique_ptr<Autosaver> m_autosaver;
+    // The Team menu and the claims of a team project (TeamController.h).
+    std::unique_ptr<TeamController> m_team;
+    // Edits refused for a partner's claim, kept until the event loop (pushToHistory()).
+    std::vector<std::unique_ptr<edit::EditCommand>> m_refusedCommands;
     SectionBar* m_sectionBar = nullptr;
     DmdOutput m_dmdOutput;
     QAction* m_dmdOutputAction = nullptr;

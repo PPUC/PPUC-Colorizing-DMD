@@ -5436,6 +5436,14 @@ Use Create %1 Frame.</source>
         <translation> %1 weitere automatische Sicherung(en) von Projekten ohne Projektdatei liegen in %2.</translation>
     </message>
     <message>
+        <source> | claimed</source>
+        <translation> | beansprucht</translation>
+    </message>
+    <message>
+        <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
+        <translation>Frame eines Partners: %1. Er bleibt hier schreibgeschützt, bis die Änderung zusammengeführt ist.</translation>
+    </message>
+    <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
         <translation>Vergleichsmaske %1 hinzugefügt, jetzt %2 Maske(n); noch kein Frame verwendet sie</translation>
     </message>
@@ -5674,6 +5682,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Frame %1 mit dem Bild von Frame %2 als Original hinzugefügt</translation>
     </message>
     <message>
+        <source>Not changed: %1. Merge the partners&apos; changes first, or ask them.</source>
+        <translation>Nicht geändert: %1. Führen Sie zuerst die Änderungen der Partner zusammen, oder fragen Sie sie.</translation>
+    </message>
+    <message>
         <source>Undo</source>
         <translation>Rückgängig</translation>
     </message>
@@ -5807,6 +5819,121 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Selected: %1 (assigned)</source>
         <translation>Ausgewählt: %1 (zugewiesen)</translation>
+    </message>
+</context>
+<context>
+    <name>MergeDialog</name>
+    <message>
+        <source>Merge Changes</source>
+        <translation>Änderungen zusammenführen</translation>
+    </message>
+    <message>
+        <source>%1 and you both changed these. Keep one of the two for each; what you keep goes to the partners with your next shared changes.</source>
+        <translation>%1 und Sie haben beide diese geändert. Behalten Sie jeweils eine der beiden Fassungen; was Sie behalten, geht mit Ihren nächsten geteilten Änderungen an die Partner.</translation>
+    </message>
+    <message>
+        <source>Yours</source>
+        <translation>Ihre</translation>
+    </message>
+    <message>
+        <source>%1&apos;s</source>
+        <translation>Von %1</translation>
+    </message>
+    <message>
+        <source>Before</source>
+        <translation>Vorher</translation>
+    </message>
+    <message>
+        <source>Frame %1</source>
+        <translation>Frame %1</translation>
+    </message>
+    <message>
+        <source>A frame you deleted</source>
+        <translation>Ein Frame, den Sie gelöscht haben</translation>
+    </message>
+    <message>
+        <source>Comparison mask %1</source>
+        <translation>Vergleichsmaske %1</translation>
+    </message>
+    <message>
+        <source>A mask you deleted</source>
+        <translation>Eine Maske, die Sie gelöscht haben</translation>
+    </message>
+    <message>
+        <source>Background %1</source>
+        <translation>Hintergrund %1</translation>
+    </message>
+    <message>
+        <source>A background you deleted</source>
+        <translation>Ein Hintergrund, den Sie gelöscht haben</translation>
+    </message>
+    <message>
+        <source>Sprite %1</source>
+        <translation>Sprite %1</translation>
+    </message>
+    <message>
+        <source>A sprite you deleted</source>
+        <translation>Ein Sprite, den Sie gelöscht haben</translation>
+    </message>
+    <message>
+        <source>Palette %1</source>
+        <translation>Palette %1</translation>
+    </message>
+    <message>
+        <source>A palette</source>
+        <translation>Eine Palette</translation>
+    </message>
+    <message>
+        <source>deleted by the partner, changed by you</source>
+        <translation>vom Partner gelöscht, von Ihnen geändert</translation>
+    </message>
+    <message>
+        <source>Keep Mine</source>
+        <translation>Meine behalten</translation>
+    </message>
+    <message>
+        <source>Delete It</source>
+        <translation>Löschen</translation>
+    </message>
+    <message>
+        <source>deleted by you, changed by the partner</source>
+        <translation>von Ihnen gelöscht, vom Partner geändert</translation>
+    </message>
+    <message>
+        <source>Keep It Deleted</source>
+        <translation>Gelöscht lassen</translation>
+    </message>
+    <message>
+        <source>Take Theirs</source>
+        <translation>Ihre übernehmen</translation>
+    </message>
+    <message>
+        <source>changed by both</source>
+        <translation>von beiden geändert</translation>
+    </message>
+    <message>
+        <source>deleted</source>
+        <translation>gelöscht</translation>
+    </message>
+    <message>
+        <source>not kept</source>
+        <translation>nicht aufbewahrt</translation>
+    </message>
+    <message>
+        <source>The settings&lt;br&gt;&lt;small&gt;license, scenes, speaker lights, helper lines, sections&lt;/small&gt;</source>
+        <translation>Die Einstellungen&lt;br&gt;&lt;small&gt;Lizenz, Szenen, Lautsprecherlichter, Hilfslinien, Abschnitte&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>Zusammenführen</translation>
+    </message>
+    <message>
+        <source>All Mine</source>
+        <translation>Alle meine</translation>
+    </message>
+    <message>
+        <source>All Theirs</source>
+        <translation>Alle ihre</translation>
     </message>
 </context>
 <context>
@@ -7465,6 +7592,45 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>SignInDialog</name>
+    <message>
+        <source>Sign In To GitHub</source>
+        <translation>Bei GitHub anmelden</translation>
+    </message>
+    <message>
+        <source>Enter this code on GitHub&apos;s page, which opens in your browser, and allow PPUC Colorizing DMD access. Your password stays with GitHub.</source>
+        <translation>Geben Sie diesen Code auf der GitHub-Seite ein, die sich im Browser öffnet, und erlauben Sie PPUC Colorizing DMD den Zugriff. Ihr Passwort bleibt bei GitHub.</translation>
+    </message>
+    <message>
+        <source>Asking GitHub for a code…</source>
+        <translation>GitHub wird nach einem Code gefragt…</translation>
+    </message>
+    <message>
+        <source>Copy Code And Open GitHub</source>
+        <translation>Code kopieren und GitHub öffnen</translation>
+    </message>
+    <message>
+        <source>Waiting for the code to be entered at %1…</source>
+        <translation>Warten, bis der Code unter %1 eingegeben ist…</translation>
+    </message>
+    <message>
+        <source>Access was not allowed on GitHub.</source>
+        <translation>Der Zugriff wurde auf GitHub nicht erlaubt.</translation>
+    </message>
+    <message>
+        <source>The code expired; sign in again.</source>
+        <translation>Der Code ist abgelaufen; melden Sie sich erneut an.</translation>
+    </message>
+    <message>
+        <source>Signed in; asking GitHub who you are…</source>
+        <translation>Angemeldet; GitHub wird gefragt, wer Sie sind…</translation>
+    </message>
+    <message>
+        <source>Signing in failed: %1</source>
+        <translation>Anmeldung fehlgeschlagen: %1</translation>
+    </message>
+</context>
+<context>
     <name>SpeakerLightPair</name>
     <message>
         <source>Speaker light preview: channel %1 (Settings)</source>
@@ -7787,6 +7953,295 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Selected: %1%2</source>
         <translation>Ausgewählt: %1%2</translation>
+    </message>
+</context>
+<context>
+    <name>StartTeamDialog</name>
+    <message>
+        <source>Start Team Project</source>
+        <translation>Teamprojekt beginnen</translation>
+    </message>
+    <message>
+        <source>Your account, %1</source>
+        <translation>Ihr Konto, %1</translation>
+    </message>
+    <message>
+        <source>A GitHub organization the repository goes to, for example the Serum team&apos;s; empty for your own account</source>
+        <translation>Eine GitHub-Organisation, zu der das Repository gehört, zum Beispiel die des Serum-Teams; leer für Ihr eigenes Konto</translation>
+    </message>
+    <message>
+        <source>The repository&apos;s name; it holds the claims and the shared changes, not the project</source>
+        <translation>Der Name des Repositorys; es enthält die Ansprüche und die geteilten Änderungen, nicht das Projekt</translation>
+    </message>
+    <message>
+        <source>GitHub logins, separated by commas</source>
+        <translation>GitHub-Anmeldenamen, durch Kommas getrennt</translation>
+    </message>
+    <message>
+        <source>The editor creates a private repository and invites the partners. Then share the saved project file with them once, for example through Google Drive: it is the snapshot everyone starts from.</source>
+        <translation>Der Editor legt ein privates Repository an und lädt die Partner ein. Geben Sie ihnen dann einmal die gespeicherte Projektdatei, zum Beispiel über Google Drive: Sie ist der Stand, von dem alle ausgehen.</translation>
+    </message>
+    <message>
+        <source>Organization</source>
+        <translation>Organisation</translation>
+    </message>
+    <message>
+        <source>Repository</source>
+        <translation>Repository</translation>
+    </message>
+    <message>
+        <source>Partners</source>
+        <translation>Partner</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Beginnen</translation>
+    </message>
+</context>
+<context>
+    <name>TeamController</name>
+    <message>
+        <source>&amp;Team</source>
+        <translation>&amp;Team</translation>
+    </message>
+    <message>
+        <source>Sign In To &amp;GitHub...</source>
+        <translation>Bei &amp;GitHub anmelden...</translation>
+    </message>
+    <message>
+        <source>Sign in with your GitHub account, for team projects</source>
+        <translation>Mit Ihrem GitHub-Konto anmelden, für Teamprojekte</translation>
+    </message>
+    <message>
+        <source>Sign &amp;Out</source>
+        <translation>&amp;Abmelden</translation>
+    </message>
+    <message>
+        <source>&amp;Start Team Project...</source>
+        <translation>Teamprojekt &amp;beginnen...</translation>
+    </message>
+    <message>
+        <source>Make this project a team project: a GitHub repository for the claims and the shared changes, and the partners invited</source>
+        <translation>Dieses Projekt zu einem Teamprojekt machen: ein GitHub-Repository für die Ansprüche und die geteilten Änderungen, und die Partner eingeladen</translation>
+    </message>
+    <message>
+        <source>S&amp;hare My Changes</source>
+        <translation>Meine Änderungen &amp;teilen</translation>
+    </message>
+    <message>
+        <source>Save, then send what you changed since the last merge to the partners</source>
+        <translation>Speichern, dann senden, was Sie seit dem letzten Zusammenführen geändert haben, an die Partner</translation>
+    </message>
+    <message>
+        <source>&amp;Merge Changes...</source>
+        <translation>Änderungen &amp;zusammenführen...</translation>
+    </message>
+    <message>
+        <source>Take the changes the partners shared into this project</source>
+        <translation>Die Änderungen, die die Partner geteilt haben, in dieses Projekt übernehmen</translation>
+    </message>
+    <message>
+        <source>&amp;Reserve Selected Frames</source>
+        <translation>Ausgewählte Frames &amp;reservieren</translation>
+    </message>
+    <message>
+        <source>Claim the selected frames before changing them, so that the partners leave them to you</source>
+        <translation>Die ausgewählten Frames beanspruchen, bevor Sie sie ändern, damit die Partner sie Ihnen überlassen</translation>
+    </message>
+    <message>
+        <source>Release My Reser&amp;vations</source>
+        <translation>Meine Reser&amp;vierungen freigeben</translation>
+    </message>
+    <message>
+        <source>Re&amp;fresh Claims</source>
+        <translation>Ansprüche &amp;aktualisieren</translation>
+    </message>
+    <message>
+        <source>&amp;Break The Lock...</source>
+        <translation>Sperre &amp;brechen...</translation>
+    </message>
+    <message>
+        <source>Go on alone from this copy: the partners start again from a new snapshot</source>
+        <translation>Allein mit dieser Kopie weitermachen: Die Partner beginnen mit einem neuen Stand von vorn</translation>
+    </message>
+    <message>
+        <source>Signed In As %1</source>
+        <translation>Angemeldet als %1</translation>
+    </message>
+    <message>
+        <source>A team project: sign in to GitHub (Team menu) to see the claims and share changes</source>
+        <translation>Ein Teamprojekt: Melden Sie sich bei GitHub an (Menü Team), um die Ansprüche zu sehen und Änderungen zu teilen</translation>
+    </message>
+    <message>
+        <source>You (%1) are not one of this team project&apos;s members</source>
+        <translation>Sie (%1) gehören nicht zu den Mitgliedern dieses Teamprojekts</translation>
+    </message>
+    <message>
+        <source>Sign In To GitHub</source>
+        <translation>Bei GitHub anmelden</translation>
+    </message>
+    <message>
+        <source>This build has no GitHub app to sign in through. Builds of the PPUC project have one; for another build, set COLORIZINGDMD_GITHUB_CLIENT_ID to the client ID of a GitHub OAuth app with the device flow enabled.</source>
+        <translation>Dieser Build hat keine GitHub-App für die Anmeldung. Die Builds des PPUC-Projekts haben eine; setzen Sie für einen anderen Build COLORIZINGDMD_GITHUB_CLIENT_ID auf die Client-ID einer GitHub-OAuth-App mit eingeschaltetem Device Flow.</translation>
+    </message>
+    <message>
+        <source>Signed in to GitHub as %1</source>
+        <translation>Bei GitHub angemeldet als %1</translation>
+    </message>
+    <message>
+        <source>Signed out of GitHub</source>
+        <translation>Von GitHub abgemeldet</translation>
+    </message>
+    <message>
+        <source>The project is no team project.</source>
+        <translation>Das Projekt ist kein Teamprojekt.</translation>
+    </message>
+    <message>
+        <source>%1 broke the lock on %2 and goes on alone. Start again from their new snapshot of the project; to give them what you changed meanwhile, export it as a package (File -&gt; Export Selected Frames As Package).</source>
+        <translation>%1 hat am %2 die Sperre gebrochen und macht allein weiter. Beginnen Sie mit dem neuen Stand des Projekts von vorn; um ihr oder ihm zu geben, was Sie inzwischen geändert haben, exportieren Sie es als Paket (Datei -&gt; Ausgewählte Frames als Paket exportieren).</translation>
+    </message>
+    <message>
+        <source>Creating the team&apos;s repository…</source>
+        <translation>Das Repository des Teams wird angelegt…</translation>
+    </message>
+    <message>
+        <source>Claims and shared changes of the colorization %1</source>
+        <translation>Ansprüche und geteilte Änderungen der Kolorierung %1</translation>
+    </message>
+    <message>
+        <source>Start Team Project</source>
+        <translation>Teamprojekt beginnen</translation>
+    </message>
+    <message>
+        <source>The repository could not be created: %1</source>
+        <translation>Das Repository konnte nicht angelegt werden: %1</translation>
+    </message>
+    <message>
+        <source>Inviting %1…</source>
+        <translation>%1 wird eingeladen…</translation>
+    </message>
+    <message>
+        <source>The team project is started in %1. Now give the partners the project file once, for example through Google Drive: %2. They open it, sign in, and share and merge from the Team menu.%3</source>
+        <translation>Das Teamprojekt ist in %1 begonnen. Geben Sie den Partnern jetzt einmal die Projektdatei, zum Beispiel über Google Drive: %2. Sie öffnen sie, melden sich an und teilen und führen über das Menü Team zusammen.%3</translation>
+    </message>
+    <message>
+        <source> Not invited: %1.</source>
+        <translation> Nicht eingeladen: %1.</translation>
+    </message>
+    <message>
+        <source>Share My Changes</source>
+        <translation>Meine Änderungen teilen</translation>
+    </message>
+    <message>
+        <source>Sharing your changes…</source>
+        <translation>Ihre Änderungen werden geteilt…</translation>
+    </message>
+    <message>
+        <source>Nothing to share: nothing changed since the last merge</source>
+        <translation>Nichts zu teilen: Seit dem letzten Zusammenführen hat sich nichts geändert</translation>
+    </message>
+    <message>
+        <source>Shared your changes with the partners</source>
+        <translation>Ihre Änderungen sind mit den Partnern geteilt</translation>
+    </message>
+    <message>
+        <source>Merge Changes</source>
+        <translation>Änderungen zusammenführen</translation>
+    </message>
+    <message>
+        <source>Looking for the partners&apos; changes…</source>
+        <translation>Die Änderungen der Partner werden gesucht…</translation>
+    </message>
+    <message>
+        <source>No changes from the partners to merge</source>
+        <translation>Keine Änderungen der Partner zum Zusammenführen</translation>
+    </message>
+    <message>
+        <source>Fetching the partners&apos; changes…</source>
+        <translation>Die Änderungen der Partner werden geholt…</translation>
+    </message>
+    <message>
+        <source>A package could not be read: %1</source>
+        <translation>Ein Paket konnte nicht gelesen werden: %1</translation>
+    </message>
+    <message>
+        <source>Merged %1 package(s): %2 taken, %3 added, %4 deleted, %5 conflict(s)</source>
+        <translation>%1 Paket(e) zusammengeführt: %2 übernommen, %3 hinzugefügt, %4 gelöscht, %5 Konflikt(e)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Reserved %n frame(s)</source>
+        <translation>
+            <numerusform>%n Frame reserviert</numerusform>
+            <numerusform>%n Frames reserviert</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Break The Lock</source>
+        <translation>Sperre brechen</translation>
+    </message>
+    <message>
+        <source>Go on from this copy, with a new snapshot?</source>
+        <translation>Mit dieser Kopie weitermachen, mit einem neuen Stand?</translation>
+    </message>
+    <message>
+        <source>Go on alone from this copy, in a fork of the repository?</source>
+        <translation>Allein mit dieser Kopie weitermachen, in einem Fork des Repositorys?</translation>
+    </message>
+    <message>
+        <source>The partners&apos; claims stop counting, and their shared changes that you have not merged are not merged any more. They start again from the project file you give them after this.</source>
+        <translation>Die Ansprüche der Partner zählen nicht mehr, und ihre geteilten Änderungen, die Sie nicht zusammengeführt haben, werden nicht mehr zusammengeführt. Sie beginnen von vorn mit der Projektdatei, die Sie ihnen danach geben.</translation>
+    </message>
+    <message>
+        <source>The editor makes a fork of the team&apos;s repository in your account, and you go on there alone, as its owner. The team&apos;s repository stays as it is.</source>
+        <translation>Der Editor legt in Ihrem Konto einen Fork des Team-Repositorys an, und Sie machen dort allein weiter, als seine Eigentümerin oder sein Eigentümer. Das Repository des Teams bleibt, wie es ist.</translation>
+    </message>
+    <message>
+        <source>Forking the repository…</source>
+        <translation>Das Repository wird geforkt…</translation>
+    </message>
+    <message>
+        <source>The repository could not be forked: %1</source>
+        <translation>Das Repository konnte nicht geforkt werden: %1</translation>
+    </message>
+    <message>
+        <source>Writing the claims…</source>
+        <translation>Die Ansprüche werden geschrieben…</translation>
+    </message>
+    <message>
+        <source>The claims could not be written: %1</source>
+        <translation>Die Ansprüche konnten nicht geschrieben werden: %1</translation>
+    </message>
+    <message>
+        <source>The lock is broken. Give the partners the saved project file again: they start from it.</source>
+        <translation>Die Sperre ist gebrochen. Geben Sie den Partnern die gespeicherte Projektdatei erneut: Sie beginnen damit.</translation>
+    </message>
+    <message>
+        <source>You go on alone in %1.</source>
+        <translation>Sie machen allein in %1 weiter.</translation>
+    </message>
+    <message>
+        <source>Reading the claims…</source>
+        <translation>Die Ansprüche werden gelesen…</translation>
+    </message>
+    <message>
+        <source>The team&apos;s claims could not be read: %1</source>
+        <translation>Die Ansprüche des Teams konnten nicht gelesen werden: %1</translation>
+    </message>
+    <message>
+        <source>Team</source>
+        <translation>Team</translation>
+    </message>
+    <message>
+        <source>%1 works on it since %2</source>
+        <translation>%1 arbeitet daran seit %2</translation>
+    </message>
+    <message>
+        <source>%1 is moving or deleting frames</source>
+        <translation>%1 verschiebt oder löscht Frames</translation>
+    </message>
+    <message>
+        <source>%1 is changing the project&apos;s settings</source>
+        <translation>%1 ändert die Einstellungen des Projekts</translation>
     </message>
 </context>
 <context>
