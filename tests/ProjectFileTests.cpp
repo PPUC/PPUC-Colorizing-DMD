@@ -281,10 +281,13 @@ void testFile()
            "and opened again: " + loaded.error.message);
 
     // Damaged files.
-    project::ZipReader reader(utf8);
     Entries entries;
-    for (const std::string& name : reader.entryNames()) {
-        entries[name] = *reader.read(name);
+    {
+        // Closed before the file is written over and removed: Windows keeps an open file.
+        project::ZipReader reader(utf8);
+        for (const std::string& name : reader.entryNames()) {
+            entries[name] = *reader.read(name);
+        }
     }
     const auto refused = [&](Entries changed, const std::string& expected) {
         std::string error;
