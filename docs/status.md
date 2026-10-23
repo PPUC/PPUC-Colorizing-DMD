@@ -111,9 +111,10 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     guards edits: `MainWindow::pushToHistory()`
     reverts an edit of a partner's claimed component (a deletion is looked at by undoing and
     redoing it) and keeps the command until the event loop. Undo and redo are not looked at. Token and login in QSettings
-    (github/token, plain). Open: a GitHub OAuth app with the device flow for the PPUC builds
-    (CMake `COLORIZINGDMD_GITHUB_CLIENT_ID`, or the environment variable of that name); never
-    run against GitHub yet. Packages check `--check-tls`.
+    (github/token, plain). The GitHub OAuth app is PPUC's "PPUC Colorizing DMD" (client ID
+    the default of CMake `COLORIZINGDMD_GITHUB_CLIENT_ID`, device flow on, tokens without
+    expiry: the client does not refresh tokens); the environment variable of that name
+    overrides it. Not run against GitHub yet. Packages check `--check-tls`.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

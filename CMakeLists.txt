@@ -104,9 +104,10 @@ add_subdirectory(third-party/WS2812FX)
 add_subdirectory(core)
 
 if(COLORIZINGDMD_QT_V2_BUILD_APP)
-    # The GitHub OAuth app (with the device flow on) the team features sign in through; the
-    # environment's COLORIZINGDMD_GITHUB_CLIENT_ID overrides it at run time.
-    set(COLORIZINGDMD_GITHUB_CLIENT_ID "" CACHE STRING
+    # The GitHub OAuth app (with the device flow on) the team features sign in through: PPUC's
+    # "PPUC Colorizing DMD". A client ID is no secret; the environment's
+    # COLORIZINGDMD_GITHUB_CLIENT_ID overrides it at run time.
+    set(COLORIZINGDMD_GITHUB_CLIENT_ID "Ov23liIm2RiLWDVQMIZe" CACHE STRING
         "Client ID of the GitHub OAuth app for team projects")
     # Network: the team features talk to GitHub over HTTPS.
     find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
