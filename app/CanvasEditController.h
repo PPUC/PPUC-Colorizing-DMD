@@ -175,6 +175,7 @@ public:
                                 const render::CanvasHit& end,
                                 bool remove);
     void selectAll(const CanvasEditContext& context);
+    // In the Mask mode it inverts the comparison masks of the selected frames instead.
     void invertSelection(const CanvasEditContext& context);
     // Adds the pixels next to the selection in the direction (Win32 Ctrl+shadow buttons).
     void growSelection(const CanvasEditContext& context, edit::SelectionDirection direction);
@@ -361,6 +362,7 @@ private:
                                      const QString& statusText);
     // Both return false, without committing, when there is nothing to change.
     bool commitPixelChanges(const edit::EditLayer& layer, std::vector<edit::PixelChange> changes);
+    void invertComparisonMasks(const CanvasEditContext& context);
     bool commitMaskChanges(const edit::EditLayer& layer,
                            std::vector<edit::MaskPixelChange> changes);
 

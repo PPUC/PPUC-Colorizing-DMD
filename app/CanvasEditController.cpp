@@ -1303,6 +1303,13 @@ void CanvasEditController::selectAll(const CanvasEditContext& context)
 
 void CanvasEditController::invertSelection(const CanvasEditContext& context)
 {
+    // In the Mask mode the comparison mask is what is inverted, as the Win32 editor's "Invert
+    // the mask selection" did (issue #27).
+    if (context.document && context.layer == CanvasEditLayer::ComparisonMask &&
+        !context.spriteCaptureSelection) {
+        invertComparisonMasks(context);
+        return;
+    }
     if (!canEditSelection(context) || !selectionPicture(context, context.activePlane)) {
         showStatus(tr("Nothing to select"), kStatusMs);
         return;
@@ -1310,6 +1317,46 @@ void CanvasEditController::invertSelection(const CanvasEditContext& context)
     Selection selection = selectionFor(context, context.activePlane);
     selection.pixels.invert();
     setSelection(context, std::move(selection), tr("Inverted the selection"));
+}
+
+void CanvasEditController::invertComparisonMasks(const CanvasEditContext& context)
+{
+    const document::ProjectDocument& document = *context.document;
+    std::set<std::size_t> maskIndices;
+    for (std::size_t frameIndex : context.selectedFrames) {
+        const uint8_t maskId = document.comparisonMaskId(frameIndex);
+        if (maskId < document.comparisonMaskCount()) {
+            maskIndices.insert(static_cast<std::size_t>(maskId));
+        }
+    }
+    if (maskIndices.empty()) {
+        showStatus(tr("No comparison mask assigned"), kStatusMs);
+        return;
+    }
+    try {
+        for (const std::size_t maskIndex : maskIndices) {
+            const document::IndexedFrame& mask = document.comparisonMask(maskIndex);
+            std::vector<edit::MaskPixelChange> changes;
+            changes.reserve(mask.pixelCount());
+            for (int y = 0; y < mask.size.height; ++y) {
+                for (int x = 0; x < mask.size.width; ++x) {
+                    const uint8_t value = document.comparisonMaskPixel(maskIndex, x, y);
+                    changes.push_back({x, y, value, static_cast<uint8_t>(value == 0 ? 1 : 0)});
+                }
+            }
+            (void)commitMaskChanges(
+                {edit::EditKind::ComparisonMask, maskIndex, render::Resolution::Sd},
+                std::move(changes));
+        }
+        commitsFinished();
+    } catch (const std::exception& ex) {
+        showError(ex);
+        return;
+    }
+    showStatus(maskIndices.size() > 1
+                   ? tr("Inverted %1 comparison masks").arg(maskIndices.size())
+                   : tr("Inverted the comparison mask"),
+               kStatusMs);
 }
 
 void CanvasEditController::growSelection(const CanvasEditContext& context,

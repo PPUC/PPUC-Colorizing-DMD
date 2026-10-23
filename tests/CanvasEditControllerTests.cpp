@@ -692,6 +692,32 @@ void testComparisonMaskLayer()
     controller.strokeFinished(context, original(1, 1), original(3, 1), false);
     expect(owner.commits.empty() && owner.status == "Palette gradients edit RGB pixels only",
            "no gradients on masks");
+
+    // Invert Selection inverts the masks in the Mask mode (issue #27), each once.
+    owner.next();
+    context.selectedFrames = {0, 1, 2, 3};
+    const uint8_t before0 = document.comparisonMaskPixel(0, 4, 5);
+    const uint8_t before1 = document.comparisonMaskPixel(1, 3, 2);
+    controller.invertSelection(context);
+    expect(owner.committed(EditKind::ComparisonMask, {0, 1}) &&
+               owner.status == "Inverted 2 comparison masks",
+           "Invert Selection inverts the masks of the selected frames");
+    expect(document.comparisonMaskPixel(0, 4, 5) == (before0 == 0 ? 1 : 0) &&
+               document.comparisonMaskPixel(1, 3, 2) == (before1 == 0 ? 1 : 0),
+           "every pixel flips");
+    owner.next();
+    context.selectedFrames = {1};
+    controller.invertSelection(context);
+    owner.next();
+    controller.invertSelection(context);
+    expect(document.comparisonMaskPixel(1, 3, 2) == (before1 == 0 ? 1 : 0) &&
+               owner.status == "Inverted the comparison mask",
+           "twice is as before");
+    owner.next();
+    context.selectedFrames = {3};
+    controller.invertSelection(context);
+    expect(owner.commits.empty() && owner.status == "No comparison mask assigned",
+           "a frame without a mask has none to invert");
 }
 
 void testDynamicMaskLayer()

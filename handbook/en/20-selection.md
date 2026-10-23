@@ -37,7 +37,8 @@ painted on the original frame, has no selection. The `Shape` of the `Sel` tool i
   shows (with dynamic content, sprites and, when shown, the background layer); the Win32 editor
   compares stored colors and leaves dynamic pixels out.
 - `Edit -> Select All` (`Ctrl/Cmd+A`), `Select None` (`Ctrl/Cmd+Shift+A` or `Ctrl/Cmd+D`), `Invert
-  Selection` (`Ctrl/Cmd+Shift+I`).
+  Selection` (`Ctrl/Cmd+Shift+I`; in the Mask mode it inverts the comparison masks, see
+  "Comparison Masks").
 - `Edit -> Selection From Background Mask` (`Ctrl/Cmd+B`): the current frame's background mask on
   the plane; the frame needs a background.
 - `Edit -> Mirror Selection Horizontally` (`Ctrl/Cmd+K`) and `Vertically` (`Ctrl/Cmd+L`).

@@ -451,6 +451,14 @@
         <translation>Auswahl umgekehrt</translation>
     </message>
     <message>
+        <source>Inverted %1 comparison masks</source>
+        <translation>%1 Vergleichsmasken invertiert</translation>
+    </message>
+    <message>
+        <source>Inverted the comparison mask</source>
+        <translation>Vergleichsmaske invertiert</translation>
+    </message>
+    <message>
         <source>Grew the selection</source>
         <translation>Auswahl erweitert</translation>
     </message>

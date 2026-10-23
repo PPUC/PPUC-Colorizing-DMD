@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Edit -> Invert Selection` inverts the comparison mask in the Mask mode, as in the Win32
+  editor (issue #27).
 - `New Project From Dump...` and `Add Frames From Dump...` list zip and gzip dumps in their file
   dialog too (issue #26).
 - With several frames selected, the frame status line says how long they last together

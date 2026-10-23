@@ -52,5 +52,8 @@ Editing rules:
 - Hold `Shift` while clicking, drawing, or flood filling the original/reference region to erase mask pixels back to `0`.
 - Shift-erase shape tools show a dark live preview.
 - Edits apply to the assigned comparison mask, not just the current frame.
+- `Edit -> Invert Selection` (`Ctrl/Cmd+Shift+I`) inverts the comparison masks of the selected
+  frames, each once, as the Win32 editor's "Invert the mask selection" did: what a mask hid is
+  compared then, and the rest hidden. It is one undo step.
 - If the current frame has no valid comparison mask assignment, clicking the original/reference region does nothing and shows a short status message.
 - Mask pixels are saved back into `.cROM`.
