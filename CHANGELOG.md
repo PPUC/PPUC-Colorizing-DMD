@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.12
+
 - Teams: a frame (or the frame order, the settings) whose change you have merged is no longer
   locked for you until the partner merges your next shared changes.
 - The time spent on a project is kept per author too (the clock's tool tip); in a team project
