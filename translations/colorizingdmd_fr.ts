@@ -319,6 +319,10 @@
         <translation>Couleurs originales de %1 restaurées</translation>
     </message>
     <message>
+        <source>Filled the selection with a gradient</source>
+        <translation>Sélection remplie avec un dégradé</translation>
+    </message>
+    <message>
         <source>Free gradient selection cancelled</source>
         <translation>Sélection de dégradé libre annulée</translation>
     </message>
@@ -6043,15 +6047,23 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>First palette color index for gradient fill</source>
-        <translation>Index de la première couleur de palette pour le remplissage en dégradé</translation>
+        <translation type="vanished">Index de la première couleur de palette pour le remplissage en dégradé</translation>
     </message>
     <message>
         <source>Last palette color index for gradient fill</source>
-        <translation>Index de la dernière couleur de palette pour le remplissage en dégradé</translation>
+        <translation type="vanished">Index de la dernière couleur de palette pour le remplissage en dégradé</translation>
     </message>
     <message>
         <source>Shape used by the Grad drawing tool</source>
         <translation type="vanished">Forme utilisée par l&apos;outil de dessin Dégr.</translation>
+    </message>
+    <message>
+        <source>First palette color of a gradient; Ctrl+drag across the colors below sets both (Shift reverses them)</source>
+        <translation>Première couleur de palette d’un dégradé ; Ctrl+glisser sur les couleurs ci-dessous définit les deux (Maj les inverse)</translation>
+    </message>
+    <message>
+        <source>Last palette color of a gradient; Ctrl+drag across the colors below sets both (Shift reverses them)</source>
+        <translation>Dernière couleur de palette d’un dégradé ; Ctrl+glisser sur les couleurs ci-dessous définit les deux (Maj les inverse)</translation>
     </message>
     <message>
         <source>Shape of the Grad and Sel tools</source>

@@ -88,6 +88,21 @@ The preview is shown while dragging. The whole filled ellipse is committed on re
 
 Press, drag, and release to fill the selected Palette `Shape` with a directional palette gradient.
 
+With a canvas selection on the plane (made with `Sel` or the other selection helpers), a drag
+fills the selection at once instead, as the Win32 editor's "Gradient draw" did: on every selected
+frame (or the selected background), one undo step, the pixels outside the selection untouched.
+The `Pattern` decides how:
+
+- `Linear`: from the drag's start to its end; before the start the first color, behind the end
+  the last one.
+- `Circle`: around the drag's start, out to the drag's length.
+- `Ellipse`: around the drag's start, with the drag's width and height as its radii.
+
+`Direction` `Edge -> Center` turns a circle or ellipse round; the linear direction is the drag's.
+While dragging, the line (or the circle or ellipse) is shown. To pick the colors as in the Win32
+editor, `Ctrl+drag` (`Cmd+drag` on macOS) across the colors of the `Palette` section: it sets
+`From` and `To` in the order of the drag; with `Shift` held the other way round.
+
 The filled pixels sample the actual palette entries from `From` through `To`; the canvas tool does
 not recalculate colors between the endpoints. Palette color numbers are displayed as `1` through
 `64`, while the saved cRP data remains unchanged internally.

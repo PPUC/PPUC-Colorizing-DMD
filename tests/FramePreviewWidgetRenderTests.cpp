@@ -2122,9 +2122,13 @@ void testPalettePanel()
     auto* paletteComboBox = childByToolTip<QComboBox>(panel, "Selected palette");
     auto* nameLineEdit = childByToolTip<QLineEdit>(panel, "Selected palette name");
     auto* startSpinBox =
-        childByToolTip<QSpinBox>(panel, "First palette color index for gradient fill");
+        childByToolTip<QSpinBox>(
+        panel, "First palette color of a gradient; Ctrl+drag across the colors below sets both "
+               "(Shift reverses them)");
     auto* endSpinBox =
-        childByToolTip<QSpinBox>(panel, "Last palette color index for gradient fill");
+        childByToolTip<QSpinBox>(
+        panel, "Last palette color of a gradient; Ctrl+drag across the colors below sets both "
+               "(Shift reverses them)");
     auto* shapeComboBox = childByToolTip<QComboBox>(panel, "Shape of the Grad and Sel tools");
     auto* patternComboBox =
         childByToolTip<QComboBox>(panel, "Color distribution used by the Grad drawing tool");

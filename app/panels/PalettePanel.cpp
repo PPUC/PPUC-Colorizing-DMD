@@ -63,12 +63,14 @@ PalettePanel::PalettePanel(QWidget* parent)
     m_nameLineEdit->setEnabled(false);
     m_gradientStartSpinBox = new QSpinBox(this);
     m_gradientStartSpinBox->setToolTip(
-        tr("First palette color index for gradient fill"));
+        tr("First palette color of a gradient; Ctrl+drag across the colors below sets both "
+           "(Shift reverses them)"));
     m_gradientStartSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
     m_gradientStartSpinBox->setEnabled(false);
     m_gradientEndSpinBox = new QSpinBox(this);
     m_gradientEndSpinBox->setToolTip(
-        tr("Last palette color index for gradient fill"));
+        tr("Last palette color of a gradient; Ctrl+drag across the colors below sets both "
+           "(Shift reverses them)"));
     m_gradientEndSpinBox->setRange(1, static_cast<int>(document::kPaletteColorCount));
     m_gradientEndSpinBox->setValue(static_cast<int>(document::kPaletteColorCount));
     m_gradientEndSpinBox->setEnabled(false);
@@ -130,6 +132,14 @@ PalettePanel::PalettePanel(QWidget* parent)
     m_grid = new ColorGridWidget(document::kPaletteColorCount, 8, this);
     m_grid->setDisplayIndexOffset(1);
     m_grid->setToolTip(tr("Colors in the selected palette"));
+    // The Win32 editor's way to pick a gradient's colors: Ctrl+drag across them.
+    m_grid->setRangeDraggedHandler([this](std::size_t first, std::size_t last) {
+        if (!m_gradientStartSpinBox->isEnabled()) {
+            return;
+        }
+        m_gradientStartSpinBox->setValue(static_cast<int>(first) + 1);
+        m_gradientEndSpinBox->setValue(static_cast<int>(last) + 1);
+    });
     m_grid->setColorClickedHandler([this](std::size_t colorIndex) {
         if (onColorClicked) {
             onColorClicked(colorIndex);

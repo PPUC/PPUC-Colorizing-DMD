@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- With a selection, one drag of the `Grad` tool fills it with a gradient on every selected
+  frame (linear along the drag, or a circle or ellipse around its start), as the Win32 editor's
+  gradient draw did; `Ctrl+drag` across the palette colors picks `From` and `To`.
+
 ## 3.99.10
 
 - `Edit -> Invert Selection` inverts the comparison mask in the Mask mode, as in the Win32

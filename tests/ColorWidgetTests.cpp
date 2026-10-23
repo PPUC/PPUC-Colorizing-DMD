@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMouseEvent>
 #include <QMimeData>
 #include <QScrollBar>
 #include <QSettings>
@@ -21,6 +22,7 @@
 #include <QToolButton>
 
 #include "CanvasEditController.h"
+#include "ColorGridWidget.h"
 #include "EditColorKeys.h"
 #include "FrameImageUtils.h"
 #include "dialogs/ColorPickerDialog.h"
@@ -608,8 +610,52 @@ void testRgb565ToColorIsTheCoreExpansion()
 
 }  // namespace
 
+// A gradient's colors picked as in the Win32 editor: Ctrl+drag across the palette.
+void testColorRangeDrag()
+{
+    colorizing::app::ColorGridWidget grid(16, 8);
+    grid.setColors(std::vector<uint16_t>(16, 0x1234), 16);
+    std::vector<std::pair<std::size_t, std::size_t>> ranges;
+    std::vector<std::size_t> clicks;
+    grid.setRangeDraggedHandler([&ranges](std::size_t first, std::size_t last) {
+        ranges.emplace_back(first, last);
+    });
+    grid.setColorClickedHandler([&clicks](std::size_t color) { clicks.push_back(color); });
+    grid.show();
+    QApplication::processEvents();
+    const QList<QToolButton*> buttons = grid.findChildren<QToolButton*>();
+    const auto centre = [&buttons](int index) {
+        return buttons[index]->mapToGlobal(buttons[index]->rect().center());
+    };
+    const auto send = [&buttons](int target, QEvent::Type type, const QPoint& global,
+                                 Qt::KeyboardModifiers modifiers) {
+        QMouseEvent event(type, QPointF(buttons[target]->mapFromGlobal(global)), QPointF(global),
+                          Qt::LeftButton,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton,
+                          modifiers);
+        QApplication::sendEvent(buttons[target], &event);
+    };
+    send(3, QEvent::MouseButtonPress, centre(3), Qt::ControlModifier);
+    send(3, QEvent::MouseMove, centre(9), Qt::ControlModifier);
+    send(3, QEvent::MouseButtonRelease, centre(9), Qt::ControlModifier);
+    expect(!ranges.empty() && ranges.back() == std::pair<std::size_t, std::size_t>{3, 9} &&
+               clicks.empty(),
+           "Ctrl+drag picks the colors from the first to the last, and clicks nothing");
+    send(4, QEvent::MouseButtonPress, centre(4), Qt::ControlModifier | Qt::ShiftModifier);
+    send(4, QEvent::MouseMove, centre(1), Qt::ControlModifier | Qt::ShiftModifier);
+    send(4, QEvent::MouseButtonRelease, centre(1), Qt::ControlModifier | Qt::ShiftModifier);
+    expect(ranges.back() == std::pair<std::size_t, std::size_t>{1, 4},
+           "with Shift the other way round");
+    const std::size_t before = ranges.size();
+    send(5, QEvent::MouseButtonPress, centre(5), Qt::NoModifier);
+    send(5, QEvent::MouseButtonRelease, centre(5), Qt::NoModifier);
+    expect(ranges.size() == before && clicks == std::vector<std::size_t>{5},
+           "a plain click is a click");
+}
+
 void runColorWidgetTests()
 {
+    testColorRangeDrag();
     for (PlaneLayout layout :
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
         testSetReplaceDrawing(layout, 4);

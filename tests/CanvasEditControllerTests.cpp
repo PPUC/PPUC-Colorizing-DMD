@@ -978,6 +978,70 @@ edit::PaletteGradient gradientOf(const CanvasEditContext& context,
     };
 }
 
+// Kraken's report: the Win32 editor's gradient draw. With a selection, a Grad drag fills the
+// selected pixels at once on every selected frame: linear along the drag, radial around its
+// start.
+void testGradientDrawOnSelection()
+{
+    ProjectDocument document = makeDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Selection, {0, 1});
+    controller.strokeFinished(context, colorized(10, 2), colorized(30, 5), false);
+    expect(controller.hasSelection() && owner.commits.empty(), "a selection first");
+
+    owner.next();
+    context.tool = DrawingTool::PaletteGradient;
+    context.gradientPattern = edit::PaletteGradientPattern::Linear;
+    controller.strokePreviewed(context, colorized(12, 3), colorized(28, 3), false);
+    expect(isOverlay(owner.preview, CanvasRegion::ColorizedFrame, Resolution::Sd,
+                     edit::makeLinePixels(Point{12, 3}, Point{28, 3}), drawColor(170)),
+           "the drag shows its line");
+    controller.strokeFinished(context, colorized(12, 3), colorized(28, 3), false);
+    expect(owner.committed(EditKind::FramePixels, {0, 1}) &&
+               owner.status == "Filled the selection with a gradient" &&
+               !controller.isFreeGradientPending(),
+           "one drag fills the selection on both frames, no second step");
+    for (const std::size_t frame : {std::size_t{0}, std::size_t{1}}) {
+        expect(document.colorizedPixel(frame, Resolution::Sd, 10, 4) == 0x202 &&
+                   document.colorizedPixel(frame, Resolution::Sd, 30, 2) == 0x205,
+               "before the drag's start the first color, behind its end the last");
+    }
+    expect(document.colorizedPixel(0, Resolution::Sd, 20, 3) != 0x202 &&
+               document.colorizedPixel(0, Resolution::Sd, 20, 3) != 0x205,
+           "between them the colors in between");
+    expect(document.colorizedPixel(0, Resolution::Sd, 9, 3) == 0 &&
+               document.colorizedPixel(0, Resolution::Sd, 31, 3) == 0 &&
+               document.colorizedPixel(0, Resolution::Sd, 20, 6) == 0,
+           "pixels outside the selection stay as they are");
+
+    owner.next();
+    context.gradientPattern = edit::PaletteGradientPattern::Circle;
+    controller.strokeFinished(context, colorized(20, 3), colorized(23, 7), false);
+    expect(owner.committed(EditKind::FramePixels, {0, 1}) &&
+               document.colorizedPixel(1, Resolution::Sd, 20, 3) == 0x202 &&
+               document.colorizedPixel(1, Resolution::Sd, 26, 3) == 0x205 &&
+               document.colorizedPixel(1, Resolution::Sd, 10, 2) == 0x205,
+           "a circle: the first color at the drag's start, the last from its length on");
+
+    owner.next();
+    context.gradientDirection = PaletteGradientDirection::EdgeToCenter;
+    controller.strokeFinished(context, colorized(20, 3), colorized(23, 7), false);
+    expect(document.colorizedPixel(1, Resolution::Sd, 20, 3) == 0x205,
+           "Edge -> Center turns it round");
+
+    // Without a selection Grad draws its shape, as before.
+    owner.next();
+    controller.clearSelection(context);
+    context.gradientPattern = edit::PaletteGradientPattern::Linear;
+    context.gradientDirection = PaletteGradientDirection::LeftToRight;
+    controller.strokeFinished(context, colorized(60, 10), colorized(70, 12), false);
+    expect(owner.committed(EditKind::FramePixels, {0, 1}) &&
+               owner.status == "Filled palette gradient on 2 frame(s)",
+           "without a selection the gradient shape is drawn");
+}
+
 void testPaletteGradientTool()
 {
     ProjectDocument document = makeDocument();
@@ -1816,6 +1880,7 @@ void runCanvasEditControllerTests()
     testDynamicMaskLayer();
     testBackgroundMaskLayer();
     testPaletteGradientTool();
+    testGradientDrawOnSelection();
     testFreePaletteGradientTwoSteps();
     testCanvasSelection();
     testCanvasSelectionOnBackground();

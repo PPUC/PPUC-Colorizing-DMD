@@ -14,6 +14,8 @@ The Inspector's `Palette` section provides a palette selector, the selected pale
   or onto an edit color swatch under the toolbar to set that edit color (undoable).
 - Double-click any palette color to open a color picker for that RGB565 palette entry.
 - Palette color cells and `From`/`To` controls are displayed as `1` through `64`.
+- `Ctrl+drag` (`Cmd+drag` on macOS) across the colors sets `From` and `To` (with `Shift` the
+  other way round), see "Grad" in "Drawing Tools".
 - Use `From`, `To`, and `Apply Gradient` to fill a palette range by interpolating between the
   endpoint colors. Reversing `From` and `To` reverses the generated palette range. The red, green,
   and blue RGB565 components are interpolated separately and rounded to the nearest value; the two

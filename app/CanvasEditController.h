@@ -150,6 +150,12 @@ public:
     void leaveSelectionDirectionMode();
     void clearSelection(const CanvasEditContext& context);
     void fillSelectionWithPaletteGradient(const CanvasEditContext& context);
+    // The Win32 editor's gradient draw: with a canvas selection on the plane (and target)
+    // dragged on, a Grad drag fills the selection at once, on every selected frame. The
+    // pattern decides how: Linear along the drag, Circle around its start out to its length,
+    // Ellipse around its start with the drag's width and height as radii.
+    [[nodiscard]] bool gradientFillsSelection(const CanvasEditContext& context,
+                                              const render::CanvasHit& start) const;
 
     // The selection, or null when nothing is selected. It is on the plane of the frame or
     // background it was made on and is dropped when the frame, plane or target changes.
@@ -272,6 +278,14 @@ private:
     void beginFreeGradient(const CanvasEditContext& context,
                            const render::CanvasHit& start,
                            const render::CanvasHit& end);
+    [[nodiscard]] edit::PaletteGradient dragGradient(const CanvasEditContext& context,
+                                                     const render::CanvasHit& start,
+                                                     const render::CanvasHit& end) const;
+    // The selected pixels of every selected frame (or of the selected background) in the
+    // colors of the source.
+    void fillSelection(const CanvasEditContext& context,
+                       const edit::PixelColorSource& colors,
+                       const QString& statusText);
     void previewFreeGradientDirection(const CanvasEditContext& context,
                                       const render::CanvasHit& start,
                                       const render::CanvasHit& end);

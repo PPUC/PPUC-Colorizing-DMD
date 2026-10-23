@@ -319,6 +319,10 @@
         <translation>Originalfarben von %1 wiederhergestellt</translation>
     </message>
     <message>
+        <source>Filled the selection with a gradient</source>
+        <translation>Auswahl mit einem Verlauf gefüllt</translation>
+    </message>
+    <message>
         <source>Free gradient selection cancelled</source>
         <translation>Freie Verlaufsauswahl abgebrochen</translation>
     </message>
@@ -6043,15 +6047,23 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>First palette color index for gradient fill</source>
-        <translation>Erster Palettenfarbindex für die Verlaufsfüllung</translation>
+        <translation type="vanished">Erster Palettenfarbindex für die Verlaufsfüllung</translation>
     </message>
     <message>
         <source>Last palette color index for gradient fill</source>
-        <translation>Letzter Palettenfarbindex für die Verlaufsfüllung</translation>
+        <translation type="vanished">Letzter Palettenfarbindex für die Verlaufsfüllung</translation>
     </message>
     <message>
         <source>Shape used by the Grad drawing tool</source>
         <translation type="vanished">Form, die das Verlauf-Werkzeug verwendet</translation>
+    </message>
+    <message>
+        <source>First palette color of a gradient; Ctrl+drag across the colors below sets both (Shift reverses them)</source>
+        <translation>Erste Palettenfarbe eines Verlaufs; Strg+Ziehen über die Farben darunter setzt beide (Umschalt kehrt sie um)</translation>
+    </message>
+    <message>
+        <source>Last palette color of a gradient; Ctrl+drag across the colors below sets both (Shift reverses them)</source>
+        <translation>Letzte Palettenfarbe eines Verlaufs; Strg+Ziehen über die Farben darunter setzt beide (Umschalt kehrt sie um)</translation>
     </message>
     <message>
         <source>Shape of the Grad and Sel tools</source>

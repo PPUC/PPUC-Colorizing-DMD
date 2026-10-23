@@ -120,6 +120,7 @@ ColorGridWidget::ColorGridWidget(std::size_t colorCount, int columns, QWidget* p
         const int column = static_cast<int>(index) % safeColumns;
         layout->addWidget(button, row, column);
         m_buttons.push_back(button);
+        button->installEventFilter(this);
         QObject::connect(button, &QToolButton::clicked, this, [this, index]() {
             if (m_colorClickedHandler) {
                 m_colorClickedHandler(index);
@@ -173,6 +174,72 @@ void ColorGridWidget::setColorClickedHandler(std::function<void(std::size_t)> ha
 void ColorGridWidget::setColorDoubleClickedHandler(std::function<void(std::size_t)> handler)
 {
     m_colorDoubleClickedHandler = std::move(handler);
+}
+
+void ColorGridWidget::setRangeDraggedHandler(
+    std::function<void(std::size_t, std::size_t)> handler)
+{
+    m_rangeDraggedHandler = std::move(handler);
+}
+
+std::optional<std::size_t> ColorGridWidget::colorAt(const QPoint& globalPosition) const
+{
+    for (std::size_t index = 0; index < m_buttons.size(); ++index) {
+        const QToolButton* button = m_buttons[index];
+        if (button->isEnabled() &&
+            button->rect().contains(button->mapFromGlobal(globalPosition))) {
+            return index;
+        }
+    }
+    return std::nullopt;
+}
+
+void ColorGridWidget::reportRange(std::size_t last, bool reversed)
+{
+    if (m_rangeStart && m_rangeDraggedHandler) {
+        if (reversed) {
+            m_rangeDraggedHandler(last, *m_rangeStart);
+        } else {
+            m_rangeDraggedHandler(*m_rangeStart, last);
+        }
+    }
+}
+
+bool ColorGridWidget::eventFilter(QObject* watched, QEvent* event)
+{
+    if (!m_rangeDraggedHandler) {
+        return QWidget::eventFilter(watched, event);
+    }
+    const auto type = event->type();
+    if (type != QEvent::MouseButtonPress && type != QEvent::MouseMove &&
+        type != QEvent::MouseButtonRelease) {
+        return QWidget::eventFilter(watched, event);
+    }
+    auto* mouse = static_cast<QMouseEvent*>(event);
+    const bool reversed = mouse->modifiers().testFlag(Qt::ShiftModifier);
+    if (type == QEvent::MouseButtonPress) {
+        if (mouse->button() != Qt::LeftButton ||
+            !mouse->modifiers().testFlag(Qt::ControlModifier)) {
+            return QWidget::eventFilter(watched, event);
+        }
+        m_rangeStart = colorAt(mouse->globalPosition().toPoint());
+        if (!m_rangeStart) {
+            return QWidget::eventFilter(watched, event);
+        }
+        reportRange(*m_rangeStart, reversed);
+        // Not a click on the color, and no drag of it.
+        return true;
+    }
+    if (!m_rangeStart) {
+        return QWidget::eventFilter(watched, event);
+    }
+    if (const std::optional<std::size_t> color = colorAt(mouse->globalPosition().toPoint())) {
+        reportRange(*color, reversed);
+    }
+    if (type == QEvent::MouseButtonRelease) {
+        m_rangeStart.reset();
+    }
+    return true;
 }
 
 }  // namespace colorizing::app

@@ -380,6 +380,17 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
     if (!onColorized) {
         return;
     }
+    if (gradientFillsSelection(context, start)) {
+        // The drag that fills the selection: its line, or the circle or ellipse it reaches.
+        const edit::PaletteGradient gradient = dragGradient(context, start, end);
+        showPreview(render::CanvasRegion::ColorizedFrame,
+                    start.resolution,
+                    gradient.pattern == edit::PaletteGradientPattern::Linear
+                        ? edit::makeLinePixels(gradient.directionStart, gradient.directionEnd)
+                        : edit::makeEllipsePixels(gradient.shapeStart, gradient.shapeEnd),
+                    translucentDrawColor(context, 170));
+        return;
+    }
     if (tool == DrawingTool::PaletteGradient &&
         context.gradientDirection == PaletteGradientDirection::Free && isFreeGradientPending()) {
         previewFreeGradientDirection(context, start, end);
@@ -516,6 +527,19 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         return;
     }
 
+    if (gradientFillsSelection(context, start)) {
+        if (!context.selectedPalette) {
+            showStatus(tr("No palette selected"), kStatusMs);
+            return;
+        }
+        cancelFreeGradient();
+        fillSelection(context,
+                      edit::paletteGradientColorSource(*context.document,
+                                                       *context.selectedPalette,
+                                                       dragGradient(context, start, end)),
+                      tr("Filled the selection with a gradient"));
+        return;
+    }
     auto [shapeStart, shapeEnd] = shapeCorners(context, start, end);
     const bool isFree = context.gradientDirection == PaletteGradientDirection::Free;
     if (isFree) {
@@ -1044,17 +1068,24 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
         return;
     }
 
-    const document::ProjectDocument& document = *context.document;
     const render::CanvasHit shapeStart = m_selection->shapeStart;
     const render::CanvasHit shapeEnd = m_selection->shapeEnd;
-    const edit::PixelColorSource colorForPoint =
-        gradientColorSource(context,
-                            *context.selectedPalette,
-                            shapeStart,
-                            shapeEnd,
-                            m_selection->gradientStart.value_or(shapeStart),
-                            m_selection->gradientEnd.value_or(shapeEnd));
+    fillSelection(context,
+                  gradientColorSource(context,
+                                      *context.selectedPalette,
+                                      shapeStart,
+                                      shapeEnd,
+                                      m_selection->gradientStart.value_or(shapeStart),
+                                      m_selection->gradientEnd.value_or(shapeEnd)),
+                  tr("Filled selection gradient"));
+}
 
+void CanvasEditController::fillSelection(const CanvasEditContext& context,
+                                         const edit::PixelColorSource& colors,
+                                         const QString& statusText)
+{
+    const document::ProjectDocument& document = *context.document;
+    const render::Resolution plane = m_selection->pixels.plane();
     try {
         if (m_selection->target == PaintTarget::Background) {
             if (!context.selectedBackground) {
@@ -1062,30 +1093,24 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
             }
             const edit::EditLayer layer{edit::EditKind::BackgroundImage,
                                         *context.selectedBackground,
-                                        shapeStart.resolution};
+                                        plane};
             if (!commitPixelChanges(layer,
                                     edit::makePixelChanges(document,
                                                            layer,
                                                            m_selection->pixels.pixels(),
-                                                           colorForPoint))) {
+                                                           colors))) {
                 return;
             }
         } else {
             const std::vector<render::Point> pixels = m_selection->pixels.pixels();
             bool changed = false;
             for (std::size_t frameIndex : context.selectedFrames) {
-                if (shapeStart.resolution == render::Resolution::Hd &&
-                    !document.hasHdFrame(frameIndex)) {
+                if (plane == render::Resolution::Hd && !document.hasHdFrame(frameIndex)) {
                     continue;
                 }
-                const edit::EditLayer layer{edit::EditKind::FramePixels,
-                                            frameIndex,
-                                            shapeStart.resolution};
+                const edit::EditLayer layer{edit::EditKind::FramePixels, frameIndex, plane};
                 if (commitPixelChanges(layer,
-                                       edit::makePixelChanges(document,
-                                                              layer,
-                                                              pixels,
-                                                              colorForPoint))) {
+                                       edit::makePixelChanges(document, layer, pixels, colors))) {
                     changed = true;
                 }
             }
@@ -1094,10 +1119,60 @@ void CanvasEditController::fillSelectionWithPaletteGradient(const CanvasEditCont
             }
         }
         commitsFinished();
-        showStatus(tr("Filled selection gradient"), kStatusMs);
+        showStatus(statusText, kStatusMs);
     } catch (const std::exception& ex) {
         showError(ex);
     }
+}
+
+bool CanvasEditController::gradientFillsSelection(const CanvasEditContext& context,
+                                                  const render::CanvasHit& start) const
+{
+    if (context.tool != DrawingTool::PaletteGradient || !m_selection ||
+        m_selection->pixels.isEmpty() || m_selection->pixels.plane() != start.resolution ||
+        start.region != render::CanvasRegion::ColorizedFrame) {
+        return false;
+    }
+    if (context.layer == CanvasEditLayer::BackgroundImage) {
+        return m_selection->target == PaintTarget::Background &&
+               m_selection->backgroundIndex == context.selectedBackground;
+    }
+    return context.layer == CanvasEditLayer::FramePixels &&
+           m_selection->target == PaintTarget::Frame;
+}
+
+edit::PaletteGradient CanvasEditController::dragGradient(const CanvasEditContext& context,
+                                                         const render::CanvasHit& start,
+                                                         const render::CanvasHit& end) const
+{
+    const std::pair<int, int> endpoints =
+        context.gradientEndpoints ? context.gradientEndpoints() : std::pair<int, int>{0, 0};
+    const render::Point from{start.x, start.y};
+    const render::Point to{end.x, end.y};
+    edit::PaletteGradient gradient;
+    gradient.pattern = context.gradientPattern;
+    gradient.startColorIndex = endpoints.first;
+    gradient.endColorIndex = endpoints.second;
+    if (gradient.pattern == edit::PaletteGradientPattern::Linear) {
+        gradient.direction = PaletteGradientDirection::Free;
+        gradient.shapeStart = gradient.directionStart = from;
+        gradient.shapeEnd = gradient.directionEnd = to;
+        return gradient;
+    }
+    // Around the drag's start, as far out as the drag reaches.
+    int radiusX = std::abs(to.x - from.x);
+    int radiusY = std::abs(to.y - from.y);
+    if (gradient.pattern == edit::PaletteGradientPattern::Circle) {
+        radiusX = radiusY =
+            static_cast<int>(std::lround(std::hypot(static_cast<double>(radiusX),
+                                                    static_cast<double>(radiusY))));
+    }
+    gradient.shapeStart = {from.x - radiusX, from.y - radiusY};
+    gradient.shapeEnd = {from.x + radiusX, from.y + radiusY};
+    gradient.direction = context.gradientDirection == PaletteGradientDirection::EdgeToCenter
+                             ? PaletteGradientDirection::EdgeToCenter
+                             : PaletteGradientDirection::CenterToEdge;
+    return gradient;
 }
 
 const edit::PlaneSelection* CanvasEditController::selection() const
