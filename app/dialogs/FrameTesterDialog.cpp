@@ -17,6 +17,7 @@
 #include <exception>
 #include <fstream>
 
+#include "dialogs/DumpImportDialog.h"
 #include "import/DumpFile.h"
 #include "FrameImageUtils.h"
 #include "Appearance.h"
@@ -186,8 +187,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     connect(&m_rotationTimer, &QTimer::timeout, this, [this]() { rotateStep(); });
     connect(loadButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(
-            this, tr("Load Frame Dump"), QString(),
-            tr("Frame dumps (*.txt *.gz *.zip);;All files (*)"));
+            this, tr("Load Frame Dump"), QString(), frameDumpFileFilter());
         if (!path.isEmpty()) {
             loadDumpFile(path);
         }

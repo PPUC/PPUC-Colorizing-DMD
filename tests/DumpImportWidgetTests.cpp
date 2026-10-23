@@ -590,8 +590,19 @@ void testDifferenceOverlay()
 
 }  // namespace
 
+// Issue #26: every dump file dialog offers the archives the import reads.
+void testDumpFileFilter()
+{
+    const QString filter = colorizing::app::frameDumpFileFilter();
+    expect(filter.startsWith(QStringLiteral("Frame dumps (")) &&
+               filter.contains(QStringLiteral("*.txt")) &&
+               filter.contains(QStringLiteral("*.zip")) && filter.contains(QStringLiteral("*.gz")),
+           "the frame dump filter lists text, zip and gzip");
+}
+
 void runDumpImportWidgetTests()
 {
+    testDumpFileFilter();
     testSameFramesPanel();
     testDumpImportDialog();
     testDifferenceOverlay();

@@ -301,13 +301,19 @@ importing::DumpImportOptions DumpImportDialog::options() const
     return current;
 }
 
+QString frameDumpFileFilter()
+{
+    return QCoreApplication::translate("DumpImportDialog",
+                                       "Frame dumps (*.txt *.gz *.zip);;All files (*)");
+}
+
 void DumpImportDialog::chooseFile()
 {
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Choose Frame Dump"),
         QFileInfo(dumpPath()).absolutePath(),
-        tr("Frame dumps (*.txt *.gz *.zip);;All files (*)"));
+        frameDumpFileFilter());
     if (!path.isEmpty()) {
         setDumpPath(path);
     }

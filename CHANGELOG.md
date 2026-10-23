@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `New Project From Dump...` and `Add Frames From Dump...` list zip and gzip dumps in their file
+  dialog too (issue #26).
 - With several frames selected, the frame status line says how long they last together
   (issue #28).
 - Team projects (`Team` menu): sign in to GitHub, start a team project with a repository for the

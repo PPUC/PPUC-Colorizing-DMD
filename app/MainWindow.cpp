@@ -3039,7 +3039,7 @@ void MainWindow::newProjectFromDump()
         this,
         tr("Choose Frame Dump For New Project"),
         m_dumpDirectory,
-        tr("Frame dumps (*.txt);;All files (*)"));
+        frameDumpFileFilter());
     if (path.isEmpty()) {
         return;
     }
@@ -3095,7 +3095,7 @@ void MainWindow::addFramesFromDump()
         this,
         tr("Choose Frame Dump To Add"),
         m_dumpDirectory,
-        tr("Frame dumps (*.txt);;All files (*)"));
+        frameDumpFileFilter());
     if (path.isEmpty()) {
         return;
     }

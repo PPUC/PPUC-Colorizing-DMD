@@ -28,6 +28,9 @@ namespace colorizing::app {
 [[nodiscard]] QString dumpFormatText(const importing::DumpImportResult& result);
 [[nodiscard]] QString dumpCountsText(const importing::DumpImportResult& result, bool addsFrames);
 
+// The file dialogs' filter for frame dumps: text, and gzip and zip archives of it (issue #26).
+[[nodiscard]] QString frameDumpFileFilter();
+
 // The dialog of File -> New Project From Dump and File -> Add Frames From Dump: the dump
 // file, the import filter, and what the import would do before anything is done. Accepting
 // it changes nothing; the owner takes the frames with takeResult().

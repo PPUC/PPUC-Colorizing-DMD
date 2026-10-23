@@ -1964,7 +1964,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Frame dumps (*.txt *.gz *.zip);;All files (*)</source>
-        <translation>Dumps de frames (*.txt *.gz *.zip);;Tous les fichiers (*)</translation>
+        <translation type="vanished">Dumps de frames (*.txt *.gz *.zip);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>Frame dumps (*.txt);;All files (*)</source>
@@ -3627,7 +3627,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Frame dumps (*.txt);;All files (*)</source>
-        <translation>Dumps de frames (*.txt);;Tous les fichiers (*)</translation>
+        <translation type="vanished">Dumps de frames (*.txt);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>New Project Failed</source>
