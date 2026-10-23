@@ -10,6 +10,8 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QApplication>
 #include <QListWidget>
 #include <QAbstractButton>
@@ -157,8 +159,9 @@ void testProjectSettings()
     panel.onTargetChanged = [&](document::LibserumTarget target) { targets.push_back(target); };
     panel.setProject(&document);
     const QList<QComboBox*> boxes = panel.findChildren<QComboBox*>();
-    // The target, the upscaling, the shadow offset, then the speaker lights' four defaults.
-    expect(boxes.size() == 7 &&
+    // The target, the upscaling, the shadow offset, the speaker lights' four defaults, then
+    // the license.
+    expect(boxes.size() == 8 &&
                boxes[0]->currentData().toInt() ==
                    static_cast<int>(document::LibserumTarget::Libserum28) &&
                boxes[1]->currentData().toInt() == document::kScalingScale2x &&
@@ -181,7 +184,7 @@ void testProjectSettings()
 
     app::ProjectSettingsDialog dialog(document);
     const QList<QComboBox*> dialogBoxes = dialog.findChildren<QComboBox*>();
-    expect(dialog.isModal() && dialogBoxes.size() == 7 &&
+    expect(dialog.isModal() && dialogBoxes.size() == 8 &&
                dialog.shadowOffset() == document::kShadowOffsetProportional &&
                dialog.libserumTarget() == document::LibserumTarget::Libserum28,
            "the dialog shows the project's settings");
@@ -217,6 +220,46 @@ void testProjectSettings()
     target->setCurrentIndex(
         target->findData(static_cast<int>(document::LibserumTarget::Libserum29)));
     expect(ok->isEnabled(), "back to the project's target, it can be accepted again");
+}
+
+// The license in the project settings.
+void testLicense()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    document::ProjectLicense license;
+    license.kind = document::LicenseKind::CcBySa;
+    license.attribution = "Kraken";
+    license.url = "https://example.org";
+    license.customText = "Old terms";
+    document.setLicense(license);
+    app::ProjectSettingsDialog dialog(document);
+    app::ProjectSettingsPanel* panel = dialog.panel();
+    dialog.show();
+    QApplication::processEvents();
+    expect(dialog.license() == license && panel->attributionEdit()->text() == "Kraken" &&
+               panel->licenseUrlEdit()->text() == "https://example.org",
+           "the dialog shows the project's license");
+    expect(panel->licenseLabel()->text().contains(
+               QStringLiteral("https://creativecommons.org/licenses/by-sa/4.0/")) &&
+               panel->licenseLabel()->openExternalLinks() &&
+               !panel->licenseTextEdit()->isVisible(),
+           "a Creative Commons license links its deed and has no text of its own");
+    QComboBox* box = panel->licenseComboBox();
+    box->setCurrentIndex(box->findData(static_cast<int>(document::LicenseKind::Custom)));
+    expect(panel->licenseTextEdit()->isVisible() &&
+               panel->licenseTextEdit()->toPlainText() == "Old terms" &&
+               !panel->licenseLabel()->text().contains(QStringLiteral("href")),
+           "a custom license shows its text");
+    panel->licenseTextEdit()->setPlainText(QStringLiteral("Ask first."));
+    panel->attributionEdit()->setText(QStringLiteral("  Kraken, Enthusiast  "));
+    const document::ProjectLicense chosen = dialog.license();
+    expect(chosen.kind == document::LicenseKind::Custom && chosen.customText == "Ask first." &&
+               chosen.attribution == "Kraken, Enthusiast" && document.license() == license,
+           "the choice is read trimmed and changes nothing until it is applied");
+    panel->setProject(nullptr);
+    expect(!box->isEnabled() && !panel->attributionEdit()->isEnabled(),
+           "without a project the license is off");
 }
 
 // The Scene section: the scene of the frame shown, changed with Apply.
@@ -330,5 +373,6 @@ void runScenesWidgetTests()
     testThumbnailCaptions();
     testSettingsPanel();
     testProjectSettings();
+    testLicense();
     testDialog();
 }

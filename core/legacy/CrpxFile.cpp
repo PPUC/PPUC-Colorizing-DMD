@@ -39,6 +39,7 @@ constexpr std::array<char, 4> kLibserumTargetTag = {'L', 'S', 'R', 'T'};
 constexpr std::array<char, 4> kMoreSpritesTag = {'S', 'P', 'R', 'X'};
 constexpr std::array<char, 4> kLightsTag = {'L', 'G', 'H', 'T'};
 constexpr std::array<char, 4> kOriginalOnlySetsTag = {'D', 'S', 'S', 'D'};
+constexpr std::array<char, 4> kLicenseTag = {'L', 'I', 'C', 'N'};
 // Per effect of LGHT before its name, and per action.
 constexpr std::size_t kLightEffectBytes = 28;
 constexpr std::size_t kLightActionBytes = 8;
@@ -275,6 +276,16 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             appendLittleEndian(chunk, count, 4);
             appendChunk(chunks, kOriginalOnlySetsTag, chunk + data);
         }
+    }
+    if (snapshot.license.isSet()) {
+        const document::ProjectLicense& license = snapshot.license;
+        std::string data;
+        appendLittleEndian(data, static_cast<uint8_t>(license.kind), 4);
+        for (const std::string* text : {&license.customText, &license.attribution, &license.url}) {
+            appendLittleEndian(data, text->size(), 4);
+            data += *text;
+        }
+        appendChunk(chunks, kLicenseTag, data);
     }
     return chunks;
 }
@@ -574,6 +585,40 @@ bool parseOriginalOnlySets(LegacyByteSource& source,
     return source.skip(static_cast<std::size_t>(size - 4 - 8 * uint64_t{count})) || damaged();
 }
 
+bool parseLicense(LegacyByteSource& source,
+                  uint64_t size,
+                  document::ProjectLicense& license,
+                  std::string& errorMessage)
+{
+    const auto damaged = [&errorMessage]() {
+        errorMessage = "the license of the .cRPX is damaged";
+        return false;
+    };
+    uint8_t kind[4] = {};
+    if (size < 4 || !source.readBytes(kind, 4)) {
+        return damaged();
+    }
+    uint64_t left = size - 4;
+    document::ProjectLicense read;
+    // A kind of a later version: its terms are not known here, the texts are kept.
+    read.kind = kind[0] <= document::kLastLicenseKind ? static_cast<document::LicenseKind>(kind[0])
+                                                      : document::LicenseKind::Custom;
+    for (std::string* text : {&read.customText, &read.attribution, &read.url}) {
+        uint32_t length = 0;
+        if (left < 4 || !source.readU32(length) || left - 4 < length) {
+            return damaged();
+        }
+        left -= 4 + uint64_t{length};
+        text->assign(length, '\0');
+        if (length > 0 && !source.readBytes(reinterpret_cast<uint8_t*>(text->data()), length)) {
+            return damaged();
+        }
+    }
+    license = std::move(read);
+    // Room a later version uses for more is skipped.
+    return source.skip(static_cast<std::size_t>(left)) || damaged();
+}
+
 bool parseMoreSprites(LegacyByteSource& source,
                       uint64_t size,
                       document::ProjectSnapshot& snapshot,
@@ -846,6 +891,10 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kOriginalOnlySetsTag.data(), 4) == 0) {
             if (!parseOriginalOnlySets(source, size, snapshot, errorMessage)) {
+                return false;
+            }
+        } else if (std::memcmp(tag, kLicenseTag.data(), 4) == 0) {
+            if (!parseLicense(source, size, snapshot.license, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kMoreSpritesTag.data(), 4) == 0) {

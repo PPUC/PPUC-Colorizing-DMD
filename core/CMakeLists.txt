@@ -1,6 +1,7 @@
 add_library(colorizing_qt_v2_core STATIC
     document/CompactArray.cpp
     document/EditorMetadata.cpp
+    document/ProjectLicense.cpp
     document/ProjectSnapshot.cpp
     document/Upscale.cpp
     document/ProjectDocument.cpp
@@ -21,6 +22,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/RecolorHelpers.cpp
     edit/SameFrames.cpp
     edit/SceneEdits.cpp
+    edit/LicenseEdits.cpp
     edit/SpeakerLightEdits.cpp
     edit/SpriteClipboard.cpp
     edit/ScrollFill.cpp

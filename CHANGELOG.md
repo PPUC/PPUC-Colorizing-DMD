@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `File -> Project Settings...` has a license for the colorization (all rights reserved, the
+  Creative Commons licenses or your own text), with an attribution and a link. It is saved in
+  the `.cRPX`.
 - The `Color Rotations` section says how many of the frame's pixels the selected slot moves, so
   that a frame whose colors are not the slot's (a palette changed after drawing) shows at once.
 - `Edit -> Undo Selection` (`Alt+Z`) and `Redo Selection` (`Alt+Shift+Z`) bring back an earlier

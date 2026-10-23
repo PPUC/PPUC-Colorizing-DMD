@@ -4312,6 +4312,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Aucune sélection annulée à rétablir</translation>
     </message>
     <message>
+        <source>Changed the license</source>
+        <translation>Licence modifiée</translation>
+    </message>
+    <message>
         <source>%1 (one step of %2 changes)</source>
         <translation>%1 (une étape de %2 modifications)</translation>
     </message>
@@ -6010,6 +6014,38 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Distance de l&apos;ombre dynamique sur le plan 256x64</translation>
     </message>
     <message>
+        <source>Not chosen</source>
+        <translation>Non choisie</translation>
+    </message>
+    <message>
+        <source>All rights reserved</source>
+        <translation>Tous droits réservés</translation>
+    </message>
+    <message>
+        <source>Custom</source>
+        <translation>Personnalisée</translation>
+    </message>
+    <message>
+        <source>What others may do with the colorization: share it, change it, use it commercially. Saved with the project.</source>
+        <translation>Ce que d'autres peuvent faire de la colorisation : la partager, la modifier, l'utiliser commercialement. Enregistrée avec le projet.</translation>
+    </message>
+    <message>
+        <source>The terms of the license</source>
+        <translation>Les conditions de la licence</translation>
+    </message>
+    <message>
+        <source>For example the authors&apos; names</source>
+        <translation>Par exemple les noms des auteurs</translation>
+    </message>
+    <message>
+        <source>Who is to be named when the colorization is used</source>
+        <translation>Qui doit être cité lorsque la colorisation est utilisée</translation>
+    </message>
+    <message>
+        <source>Where the colorization or its license can be found</source>
+        <translation>Où trouver la colorisation ou sa licence</translation>
+    </message>
+    <message>
         <source>Made for</source>
         <translation>Faite pour</translation>
     </message>
@@ -6028,6 +6064,54 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Speaker light %1</source>
         <translation>Lumière de haut-parleur %1</translation>
+    </message>
+    <message>
+        <source>License</source>
+        <translation>Licence</translation>
+    </message>
+    <message>
+        <source>Attribution</source>
+        <translation>Attribution</translation>
+    </message>
+    <message>
+        <source>Link</source>
+        <translation>Lien</translation>
+    </message>
+    <message>
+        <source>Without a license, others cannot tell what they may do with the colorization.</source>
+        <translation>Sans licence, les autres ne savent pas ce qu'ils peuvent faire de la colorisation.</translation>
+    </message>
+    <message>
+        <source>Others may play the colorization, but not share or change it without your permission.</source>
+        <translation>Les autres peuvent jouer la colorisation, mais ni la partager ni la modifier sans votre permission.</translation>
+    </message>
+    <message>
+        <source>The terms are your own text, below.</source>
+        <translation>Les conditions sont votre propre texte, ci-dessous.</translation>
+    </message>
+    <message>
+        <source>Anyone may use it for anything, without naming you.</source>
+        <translation>Chacun peut l'utiliser pour tout, sans vous citer.</translation>
+    </message>
+    <message>
+        <source>Anyone may share and change it, also commercially, naming you.</source>
+        <translation>Chacun peut la partager et la modifier, y compris commercialement, en vous citant.</translation>
+    </message>
+    <message>
+        <source>Anyone may share and change it, also commercially, naming you; changed versions under the same license.</source>
+        <translation>Chacun peut la partager et la modifier, y compris commercialement, en vous citant ; les versions modifiées sous la même licence.</translation>
+    </message>
+    <message>
+        <source>Anyone may share and change it, not commercially, naming you.</source>
+        <translation>Chacun peut la partager et la modifier, sans usage commercial, en vous citant.</translation>
+    </message>
+    <message>
+        <source>Anyone may share and change it, not commercially, naming you; changed versions under the same license.</source>
+        <translation>Chacun peut la partager et la modifier, sans usage commercial, en vous citant ; les versions modifiées sous la même licence.</translation>
+    </message>
+    <message>
+        <source>The license</source>
+        <translation>La licence</translation>
     </message>
     <message>
         <source>The project has %1 sprites, it allows %2.</source>

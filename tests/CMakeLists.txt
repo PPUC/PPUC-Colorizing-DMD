@@ -21,6 +21,7 @@ add_executable(colorizing_qt_v2_tests
     LegacyProjectFileReaderTests.cpp
     LegacyProjectIoTests.cpp
     LegacyProjectSerializerTests.cpp
+    LicenseTests.cpp
     NativeOriginalProjectTests.cpp
     PlaybackIdentificationTests.cpp
     ProjectDocumentTests.cpp

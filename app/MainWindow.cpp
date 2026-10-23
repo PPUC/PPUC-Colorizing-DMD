@@ -132,6 +132,7 @@
 #include "legacy/LegacyProjectFileWriter.h"
 #include "platform/Utf8Path.h"
 #include "runtime/CromcExport.h"
+#include "edit/LicenseEdits.h"
 #include "runtime/Scenes.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "WindowGeometry.h"
@@ -10604,6 +10605,13 @@ void MainWindow::openProjectSettings()
         lights.defaults = dialog.lightDefaults();
         recordSpeakerLightsEdit(edit::setSpeakerLights(*m_document, std::move(lights)),
                                 tr("Changed the speaker lights' defaults"));
+        if (auto command = edit::setLicense(*m_document, dialog.license())) {
+            m_droppedStructureSteps =
+                pushToHistory(edit::structureHistoryKey(), std::move(command));
+            updateUndoRedoActions();
+            updateProjectHeaderStatus();
+            showStructureEditStatus(tr("Changed the license"), 3000);
+        }
     } catch (const std::exception& ex) {
         QMessageBox::warning(this, tr("Project Settings"), QString::fromUtf8(ex.what()));
     }

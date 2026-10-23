@@ -65,6 +65,9 @@ class LegacyByteSource;
 //     "DSSD" the dynamic sets that color the SD picture only
 //            (FrameRecord::originalOnlyDynamicSets), when a frame has one: uint32 count, per
 //            frame uint32 frame index and uint32 set mask.
+//     "LICN" the license (document/ProjectLicense.h), when one is set: uint8 kind, three bytes
+//            0, then the custom text, the attribution and the URL, each as uint32 length and
+//            UTF-8. A kind this editor does not know is read as a custom license.
 inline constexpr uint32_t kCrpxVersion = 1;
 inline constexpr uint32_t kCrpxHeaderBytes = 24;
 
