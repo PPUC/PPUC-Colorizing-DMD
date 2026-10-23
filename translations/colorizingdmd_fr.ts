@@ -4393,7 +4393,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source> | %1 selected</source>
-        <translation> | %1 sélectionnée(s)</translation>
+        <translation type="vanished"> | %1 sélectionnée(s)</translation>
     </message>
     <message>
         <source> | not rendered</source>
@@ -5752,6 +5752,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source> (modified)</source>
         <translation> (modifié)</translation>
+    </message>
+    <message>
+        <source> | %1 selected, %2 ms</source>
+        <translation> | %1 sélectionnée(s), %2 ms</translation>
     </message>
 </context>
 <context>

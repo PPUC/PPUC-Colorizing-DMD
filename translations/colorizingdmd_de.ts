@@ -4393,7 +4393,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source> | %1 selected</source>
-        <translation> | %1 ausgewählt</translation>
+        <translation type="vanished"> | %1 ausgewählt</translation>
     </message>
     <message>
         <source> | not rendered</source>
@@ -5752,6 +5752,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source> (modified)</source>
         <translation> (geändert)</translation>
+    </message>
+    <message>
+        <source> | %1 selected, %2 ms</source>
+        <translation> | %1 ausgewählt, %2 ms</translation>
     </message>
 </context>
 <context>

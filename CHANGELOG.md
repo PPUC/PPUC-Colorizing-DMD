@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- With several frames selected, the frame status line says how long they last together
+  (issue #28).
 - Team projects (`Team` menu): sign in to GitHub, start a team project with a repository for the
   partners, share your changes and merge theirs per frame, with a choice for every frame both
   changed; what you edit is claimed at once and kept in step in the background, frames a

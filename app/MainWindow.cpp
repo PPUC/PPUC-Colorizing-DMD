@@ -64,6 +64,7 @@
 #include "AuthorName.h"
 #include "team/TeamController.h"
 #include "FramesClipboard.h"
+#include "FrameStatusText.h"
 #include "Appearance.h"
 #include "EditColorKeys.h"
 #include "EditMenuActions.h"
@@ -5777,7 +5778,6 @@ void MainWindow::updateFrameStatusText()
         m_frameStatusLabel->setToolTip(toolTip.join(QChar('\n')));
         return;
     }
-    const int selectedCount = static_cast<int>(selectedFrameIndices().size());
     // Kept short: the label's width is part of the window's minimum width. The reasons are in
     // the tool tip, in the frame list and on the canvas.
     const QString gapsText = frameHdGapsText(*frameIndex);
@@ -5799,9 +5799,7 @@ void MainWindow::updateFrameStatusText()
                            .arg(static_cast<int>(*frameIndex))
                            .arg(planes)
                            .arg(m_document->frameDurationMs(*frameIndex))
-                           .arg(selectedCount > 1
-                                    ? tr(" | %1 selected").arg(selectedCount)
-                                    : QString())
+                           .arg(selectedFramesStatusText(*m_document, selectedFrameIndices()))
                            .arg(gapsText.isEmpty() ? QString()
                                                    : tr(" | not rendered")) +
                        (sameFrames ? tr(" | %1 same").arg(*sameFrames) : QString()) +

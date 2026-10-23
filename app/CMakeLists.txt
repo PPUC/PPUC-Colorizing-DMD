@@ -120,6 +120,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/SpritePanel.h
     EditorPlugins.cpp
     FramesClipboard.cpp
+    FrameStatusText.cpp
+    FrameStatusText.h
     FramesClipboard.h
     team/GitHub.cpp
     team/GitHub.h

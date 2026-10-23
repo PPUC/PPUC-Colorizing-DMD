@@ -15,6 +15,7 @@
 #include "RuntimeFixtures.h"
 #include "AppInfo.h"
 #include "FrameImageUtils.h"
+#include "FrameStatusText.h"
 #include "dialogs/AboutDialog.h"
 #include "ListSelection.h"
 #include "UnsavedChanges.h"
@@ -223,6 +224,22 @@ void testAboutDialog()
            "the About dialog shows the name and the version");
 }
 
+// Issue #28: the selected frames' duration together, for a scene made of them.
+void testSelectedFramesStatusText()
+{
+    using colorizing::document::ProjectDocument;
+    ProjectDocument document = ProjectDocument::fromSnapshot(
+        colorizing::runtime_fixtures::makeProject(colorizing::render::PlaneLayout::Ordinary, 4));
+    document.setFrameDurationMs(0, 125);
+    document.setFrameDurationMs(1, 125);
+    document.setFrameDurationMs(3, 1000);
+    expect(colorizing::app::selectedFramesStatusText(document, {1}).isEmpty(),
+           "one frame: its duration is in the line already");
+    expect(colorizing::app::selectedFramesStatusText(document, {0, 1, 3}) ==
+               QStringLiteral(" | 3 selected, 1250 ms"),
+           "the frames and their durations added up");
+}
+
 void runAppHelpersWidgetTests()
 {
     testAboutDialog();
@@ -232,4 +249,5 @@ void runAppHelpersWidgetTests()
     testDiscardedExtraPlaneWarning();
     testActionUndoGroups();
     testOriginalShadeColors();
+    testSelectedFramesStatusText();
 }
