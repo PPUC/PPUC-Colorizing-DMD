@@ -73,6 +73,8 @@ if(TARGET colorizing_qt_v2_widgets)
         AppHelpersWidgetTests.cpp
         AutosaveWidgetTests.cpp
         FramesClipboardWidgetTests.cpp
+        GitHubWidgetTests.cpp
+        TeamSessionWidgetTests.cpp
         BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
         DmdOutputWidgetTests.cpp

@@ -104,7 +104,8 @@ add_subdirectory(third-party/WS2812FX)
 add_subdirectory(core)
 
 if(COLORIZINGDMD_QT_V2_BUILD_APP)
-    find_package(Qt6 REQUIRED COMPONENTS Widgets)
+    # Network: the team features talk to GitHub over HTTPS.
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
     add_subdirectory(app)
 endif()
 

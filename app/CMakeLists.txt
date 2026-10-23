@@ -121,6 +121,10 @@ add_library(colorizing_qt_v2_widgets STATIC
     EditorPlugins.cpp
     FramesClipboard.cpp
     FramesClipboard.h
+    team/GitHub.cpp
+    team/GitHub.h
+    team/TeamSession.cpp
+    team/TeamSession.h
     EditorPlugins.h
     KeyNames.cpp
     KeyNames.h
@@ -162,6 +166,7 @@ target_link_libraries(colorizing_qt_v2_widgets
         colorizing_qt_v2_core
         colorizing_qt_v2_vpx
         Qt6::Widgets
+        Qt6::Network
 )
 
 add_subdirectory(vpx)

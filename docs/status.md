@@ -97,6 +97,13 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     this copy kept the common one, else this copy's with added frames after their predecessor.
     Settings (license, scenes, lights, helper lines, sections, target) go as one. Claims
     (`Claims.h`, claims.json) are derived from the change set plus reservations.
+    App side (`app/team/`): `GitHubClient` (REST and device flow over an `HttpTransport`;
+    `NetworkTransport` is Qt Network, which the widgets library now links) and `TeamSession`
+    (share, pending packages, fetch, claims sync with retry on a changed claims.json) over a
+    `TeamRemote`: `GitHubRemote` (claims.json and packages/ in the repository; package names
+    "<created ms>-<login>-<id>.cdmdchanges") or `FolderRemote` (tests). Tested against canned
+    GitHub answers only; it needs a GitHub OAuth app with the device flow (its client ID) to
+    talk to GitHub.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).
