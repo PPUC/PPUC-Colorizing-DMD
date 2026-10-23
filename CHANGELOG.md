@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.11
+
 - A team project has a `Team` section in the right side bar: the partners' shared changes
   waiting to be merged, with their GitHub pictures and comments, a bell and their number on its
   header, and the buttons to merge and to share. Sharing asks for a short comment.
