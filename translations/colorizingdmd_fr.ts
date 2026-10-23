@@ -3758,6 +3758,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Non enregistré</translation>
     </message>
     <message>
+        <source>The clipboard holds no frames: copy them with Copy Frames first</source>
+        <translation>Le presse-papiers ne contient pas de frames : copiez-les d'abord avec « Copier les frames »</translation>
+    </message>
+    <message>
+        <source>Paste Frames</source>
+        <translation>Coller les frames</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Le presse-papiers ne contient pas d&apos;image</translation>
     </message>
@@ -5225,7 +5233,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Add the frames of a package, with what they use; frames the project has already can be updated</source>
-        <translation>Ajouter les frames d'un paquet avec ce qu'elles utilisent ; les frames que le projet a déjà peuvent être mises à jour</translation>
+        <translation>Ajouter les frames d&apos;un paquet avec ce qu&apos;elles utilisent ; les frames que le projet a déjà peuvent être mises à jour</translation>
     </message>
     <message>
         <source>Export Selected Frames As Pac&amp;kage...</source>
@@ -5233,7 +5241,23 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Write the selected frames with the masks, backgrounds, sprites and light effects they use, for another project</source>
-        <translation>Écrire les frames sélectionnées avec les masques, arrière-plans, sprites et effets lumineux qu'elles utilisent, pour un autre projet</translation>
+        <translation>Écrire les frames sélectionnées avec les masques, arrière-plans, sprites et effets lumineux qu&apos;elles utilisent, pour un autre projet</translation>
+    </message>
+    <message>
+        <source>Cop&amp;y Frames</source>
+        <translation>Cop&amp;ier les frames</translation>
+    </message>
+    <message>
+        <source>Copy the selected frames with what they use, for Paste Frames in this or another editor window</source>
+        <translation>Copier les frames sélectionnées avec ce qu'elles utilisent, pour « Coller les frames » dans cette fenêtre de l'éditeur ou une autre</translation>
+    </message>
+    <message>
+        <source>Paste F&amp;rames</source>
+        <translation>Coller les f&amp;rames</translation>
+    </message>
+    <message>
+        <source>Add the copied frames behind the last frame, as Import Package does</source>
+        <translation>Ajouter les frames copiées après la dernière frame, comme « Importer un paquet »</translation>
     </message>
     <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
@@ -5253,7 +5277,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Select the frames for the package first</source>
-        <translation>Sélectionnez d'abord les frames du paquet</translation>
+        <translation>Sélectionnez d&apos;abord les frames du paquet</translation>
     </message>
     <message>
         <source>Export Selected Frames As Package</source>
@@ -5303,6 +5327,21 @@ Utiliser Créer la frame %1.</translation>
         <translation>Importation annulée</translation>
     </message>
     <message>
+        <source>Select the frames to copy first</source>
+        <translation>Sélectionnez d'abord les frames à copier</translation>
+    </message>
+    <message>
+        <source>Copy Frames</source>
+        <translation>Copier les frames</translation>
+    </message>
+    <message numerus="yes">
+        <source>Copied %n frame(s): Paste Frames adds them in this or another editor window</source>
+        <translation>
+            <numerusform>%n frame copiée : « Coller les frames » l'ajoute dans cette fenêtre de l'éditeur ou une autre</numerusform>
+            <numerusform>%n frames copiées : « Coller les frames » les ajoute dans cette fenêtre de l'éditeur ou une autre</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>The package does not fit this project: %1</source>
         <translation>Le paquet ne convient pas à ce projet : %1</translation>
     </message>
@@ -5346,7 +5385,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Only the frames the project does not have are added</source>
-        <translation>Seules les frames que le projet n'a pas sont ajoutées</translation>
+        <translation>Seules les frames que le projet n&apos;a pas sont ajoutées</translation>
     </message>
     <message>
         <source>Every frame of the package is added</source>

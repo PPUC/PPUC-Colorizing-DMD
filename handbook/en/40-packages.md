@@ -47,3 +47,11 @@ The import is one undo step. It also ends the undo histories of the frames it up
 earlier edits can no longer be undone one by one. A package may hold at most as many sprites per
 frame as the project allows (see "libserum target"); a project of libserum 2.8 refuses a frame
 with more than 32.
+
+## Copying frames to another window
+
+`Edit -> Copy Frames` puts the selected frames on the clipboard as a package, and `Edit -> Paste
+Frames` imports them into the project of this or another editor window, with the same question
+and the same rules as `Import Package`. They have no shortcut: `Copy` and `Paste` (`Ctrl+C`,
+`Ctrl+V`) stay the copy and paste of pixels (see "Copy And Paste"). The frames stay on the
+clipboard until something else is copied, so they can be pasted into several projects.

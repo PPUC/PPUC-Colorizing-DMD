@@ -71,6 +71,7 @@ if(TARGET colorizing_qt_v2_widgets)
     add_executable(colorizing_qt_v2_widget_tests
         AppHelpersWidgetTests.cpp
         AutosaveWidgetTests.cpp
+        FramesClipboardWidgetTests.cpp
         BigOriginalWidgetTests.cpp
         CanvasEditControllerTests.cpp
         DmdOutputWidgetTests.cpp

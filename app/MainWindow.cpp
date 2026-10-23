@@ -62,6 +62,7 @@
 
 #include "AppInfo.h"
 #include "AuthorName.h"
+#include "FramesClipboard.h"
 #include "Appearance.h"
 #include "EditColorKeys.h"
 #include "EditMenuActions.h"
@@ -853,6 +854,17 @@ void MainWindow::createActions()
     });
     // The Win32 editor's "To Source Frame": a fake frame no dump has, painted in the original
     // colors, added behind the last frame.
+    QAction* copyFramesAction = editMenu->addAction(tr("Cop&y Frames"));
+    copyFramesAction->setToolTip(
+        tr("Copy the selected frames with what they use, for Paste Frames in this or another "
+           "editor window"));
+    connect(copyFramesAction, &QAction::triggered, this, [this]() { copyFramesToClipboard(); });
+    QAction* pasteFramesAction = editMenu->addAction(tr("Paste F&rames"));
+    pasteFramesAction->setToolTip(
+        tr("Add the copied frames behind the last frame, as Import Package does"));
+    connect(pasteFramesAction, &QAction::triggered, this, [this]() {
+        pasteFramesFromClipboard();
+    });
     m_sourceFrameAction = editMenu->addAction(tr("New &Frame From Original Colors"));
     m_sourceFrameAction->setToolTip(
         tr("Add a frame whose original is the current frame's picture, painted in the plain "
@@ -2777,7 +2789,53 @@ void MainWindow::importPackageFrom(const QString& path)
                               QString::fromStdString(loaded.error.message));
         return;
     }
-    const document::ProjectSnapshot& package = loaded.snapshot;
+    importPackage(loaded.snapshot);
+}
+
+void MainWindow::copyFramesToClipboard()
+{
+    if (!m_document) {
+        statusBar()->showMessage(tr("No project loaded"), 2500);
+        return;
+    }
+    const std::vector<std::size_t> frames = selectedFrameIndices();
+    if (frames.empty()) {
+        statusBar()->showMessage(tr("Select the frames to copy first"), 4000);
+        return;
+    }
+    std::string error;
+    if (!copyPackageToClipboard(edit::makePackage(*m_document, frames), error)) {
+        QMessageBox::warning(this, tr("Copy Frames"), QString::fromStdString(error));
+        return;
+    }
+    statusBar()->showMessage(
+        tr("Copied %n frame(s): Paste Frames adds them in this or another editor window", "",
+           static_cast<int>(frames.size())),
+        5000);
+}
+
+void MainWindow::pasteFramesFromClipboard()
+{
+    if (!m_document) {
+        statusBar()->showMessage(tr("No project loaded"), 2500);
+        return;
+    }
+    if (!packageOnClipboard()) {
+        statusBar()->showMessage(
+            tr("The clipboard holds no frames: copy them with Copy Frames first"), 4000);
+        return;
+    }
+    std::string error;
+    const std::optional<document::ProjectSnapshot> package = readPackageFromClipboard(error);
+    if (!package) {
+        QMessageBox::warning(this, tr("Paste Frames"), QString::fromStdString(error));
+        return;
+    }
+    importPackage(*package);
+}
+
+void MainWindow::importPackage(const document::ProjectSnapshot& package)
+{
     const edit::PackageImportPlan plan = edit::planPackageImport(*m_document, package);
     if (!plan.problem.empty()) {
         QMessageBox::warning(this, tr("Import Package"),

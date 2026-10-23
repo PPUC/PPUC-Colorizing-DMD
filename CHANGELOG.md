@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Edit -> Copy Frames` and `Paste Frames` carry frames with what they use from one editor window
+  to another, as a package does.
 - `File -> Export Selected Frames As Package...` writes the selected frames with the masks,
   backgrounds, sprites and light effects they use as a package (`.cdmdpkg`); `File -> Import
   Package...` adds them to another project, using what it has already, and frames it has already

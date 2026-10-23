@@ -79,8 +79,9 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     backgrounds and sprites of equal content. `PackageImportCommand` keeps the document before
     and after (copies that share the blocks) and swaps them; it drops the histories of updated
     frames (`replacedData()`) and names what it adds (`renumberedRecords()`). The UI refreshes
-    it as an edit batch. Open: copy and paste of frames between two editor windows, which can
-    put a package on the clipboard.
+    it as an edit batch. `Edit -> Copy Frames`/`Paste Frames` put a package on the clipboard
+    (`app/FramesClipboard.h`, its own mime type, through a temporary file as the zip code
+    works on files) for another editor window.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

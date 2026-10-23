@@ -180,8 +180,12 @@ private:
     // File -> Export Selected Frames As Package and Import Package (edit/PackageImport.h).
     void exportPackage();
     void importPackageFile();
-    // Asks what to do with the frames the project has already, then imports.
     void importPackageFrom(const QString& path);
+    // Asks what to do with the frames the project has already, then imports.
+    void importPackage(const document::ProjectSnapshot& package);
+    // Edit -> Copy Frames and Paste Frames: a package on the clipboard (FramesClipboard.h).
+    void copyFramesToClipboard();
+    void pasteFramesFromClipboard();
     [[nodiscard]] static QString licenseText(const document::ProjectLicense& license);
     void updateWindowTitle();
     // Writes the project's .cROMc through libserum, see runtime::exportCromc().

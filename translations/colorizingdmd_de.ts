@@ -3758,6 +3758,14 @@ Use Create %1 Frame.</source>
         <translation>Nicht gespeichert</translation>
     </message>
     <message>
+        <source>The clipboard holds no frames: copy them with Copy Frames first</source>
+        <translation>Die Zwischenablage enthält keine Frames: Zuerst mit „Frames kopieren“ kopieren</translation>
+    </message>
+    <message>
+        <source>Paste Frames</source>
+        <translation>Frames einfügen</translation>
+    </message>
+    <message>
         <source>The clipboard holds no picture</source>
         <translation>Die Zwischenablage enthält kein Bild</translation>
     </message>
@@ -5236,6 +5244,22 @@ Use Create %1 Frame.</source>
         <translation>Die ausgewählten Frames mit den Masken, Hintergründen, Sprites und Lichteffekten schreiben, die sie verwenden, für ein anderes Projekt</translation>
     </message>
     <message>
+        <source>Cop&amp;y Frames</source>
+        <translation>Frames &amp;kopieren</translation>
+    </message>
+    <message>
+        <source>Copy the selected frames with what they use, for Paste Frames in this or another editor window</source>
+        <translation>Die ausgewählten Frames mit allem, was sie verwenden, kopieren, für „Frames einfügen“ in diesem oder einem anderen Editorfenster</translation>
+    </message>
+    <message>
+        <source>Paste F&amp;rames</source>
+        <translation>F&amp;rames einfügen</translation>
+    </message>
+    <message>
+        <source>Add the copied frames behind the last frame, as Import Package does</source>
+        <translation>Die kopierten Frames hinter dem letzten Frame hinzufügen, wie „Paket importieren“</translation>
+    </message>
+    <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
         <translation>Projekte (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing-DMD-Projekt (*.cdmd);;Serum-Kolorierung früherer Editoren (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Alle Dateien (*)</translation>
     </message>
@@ -5301,6 +5325,21 @@ Use Create %1 Frame.</source>
     <message>
         <source>Import cancelled</source>
         <translation>Import abgebrochen</translation>
+    </message>
+    <message>
+        <source>Select the frames to copy first</source>
+        <translation>Zuerst die zu kopierenden Frames auswählen</translation>
+    </message>
+    <message>
+        <source>Copy Frames</source>
+        <translation>Frames kopieren</translation>
+    </message>
+    <message numerus="yes">
+        <source>Copied %n frame(s): Paste Frames adds them in this or another editor window</source>
+        <translation>
+            <numerusform>%n Frame kopiert: „Frames einfügen“ fügt ihn in diesem oder einem anderen Editorfenster hinzu</numerusform>
+            <numerusform>%n Frames kopiert: „Frames einfügen“ fügt sie in diesem oder einem anderen Editorfenster hinzu</numerusform>
+        </translation>
     </message>
     <message>
         <source>The package does not fit this project: %1</source>

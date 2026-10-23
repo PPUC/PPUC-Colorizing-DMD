@@ -3899,6 +3899,7 @@ void testRecordListPage()
 
 void runAppHelpersWidgetTests();
 void runAutosaveWidgetTests();
+void runFramesClipboardWidgetTests();
 void runDmdOutputWidgetTests();
 void runEditorPluginsWidgetTests();
 void runVideoClipWidgetTests();
@@ -3970,6 +3971,7 @@ int main(int argc, char* argv[])
     testRecordListPage();
     runCanvasEditControllerTests();
     runAutosaveWidgetTests();
+    runFramesClipboardWidgetTests();
     runDmdOutputWidgetTests();
     runEditorPluginsWidgetTests();
     runVideoClipWidgetTests();

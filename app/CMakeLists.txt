@@ -119,6 +119,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/SpritePanel.cpp
     panels/SpritePanel.h
     EditorPlugins.cpp
+    FramesClipboard.cpp
+    FramesClipboard.h
     EditorPlugins.h
     KeyNames.cpp
     KeyNames.h
