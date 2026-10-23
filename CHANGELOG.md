@@ -10,6 +10,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The time spent on a project is kept per author too (the clock's tool tip); in a team project
   shared changes carry it, so the project time is the time of all authors.
 - `Pick` picks once and gives the tool chosen before it back (issue #29).
+- Teams: frames a partner works on show the partner's GitHub picture (or a lock) in the frame
+  list.
 
 ## 3.99.11
 

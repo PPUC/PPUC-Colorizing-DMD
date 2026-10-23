@@ -560,8 +560,14 @@ MainWindow::MainWindow(QWidget* parent)
         statusBar()->showMessage(message, timeoutMs);
     };
     teamHost.selectedFrames = [this]() { return selectedFrameIndices(); };
-    teamHost.claimsChanged = [this]() { updateFrameStatusText(); };
-    teamHost.teamChanged = [this]() { updateTeamSection(); };
+    teamHost.claimsChanged = [this]() {
+        updateFrameStatusText();
+        updateFrameClaimBadges();
+    };
+    teamHost.teamChanged = [this]() {
+        updateTeamSection();
+        updateFrameClaimBadges();
+    };
     teamHost.authorTimes = [this]() { return authorTimesMs(); };
     teamHost.mergeAuthorTimes = [this](const std::map<std::string, uint64_t>& theirs) {
         m_projectTime.merge(theirs, authorName().toStdString(), sessionTimeMs());
@@ -4985,6 +4991,22 @@ void MainWindow::rebuildFrameRows()
             m_frameRows[frameIndex] = row;
         }
     }
+    updateFrameClaimBadges();
+}
+
+void MainWindow::updateFrameClaimBadges()
+{
+    if (!m_frameList || !m_team) {
+        return;
+    }
+    std::map<int, QImage> badges;
+    for (const auto& [frameIndex, login] : m_team->claimedFrames()) {
+        // A frame the filter hides has no row.
+        if (frameIndex < m_frameRows.size() && m_frameRows[frameIndex] >= 0) {
+            badges[m_frameRows[frameIndex]] = m_team->avatar(login);
+        }
+    }
+    m_frameList->setClaimBadges(std::move(badges));
 }
 
 QListWidgetItem* MainWindow::frameListItem(std::size_t frameIndex) const

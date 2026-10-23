@@ -8,6 +8,7 @@
 #include <QDropEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QScrollBar>
 #include <QStyleOptionSlider>
 
@@ -220,6 +221,51 @@ bool FrameListWidget::selectCurrentAlone()
     return true;
 }
 
+void FrameListWidget::setClaimBadges(std::map<int, QImage> badges)
+{
+    m_claimBadges = std::move(badges);
+    viewport()->update();
+}
+
+QImage FrameListWidget::claimBadge(const QImage& avatar, int size, qreal ratio)
+{
+    const int pixels = static_cast<int>(size * ratio);
+    QImage badge(pixels, pixels, QImage::Format_ARGB32_Premultiplied);
+    badge.fill(Qt::transparent);
+    QPainter painter(&badge);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    const QRectF whole(0, 0, pixels, pixels);
+    // A light ring, so that the badge stands out from dark and light frames alike.
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(255, 255, 255, 230));
+    painter.drawEllipse(whole);
+    const QRectF inner = whole.adjusted(pixels * 0.1, pixels * 0.1, -pixels * 0.1, -pixels * 0.1);
+    if (!avatar.isNull()) {
+        QPainterPath circle;
+        circle.addEllipse(inner);
+        painter.setClipPath(circle);
+        painter.drawImage(inner, avatar);
+        return badge;
+    }
+    // A lock: the shackle above the body.
+    const QColor lock(70, 70, 70);
+    const qreal s = inner.width();
+    const QPointF o = inner.topLeft();
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(lock, s * 0.12));
+    painter.drawArc(QRectF(o.x() + s * 0.28, o.y() + s * 0.08, s * 0.44, s * 0.5), 0, 180 * 16);
+    painter.drawLine(QPointF(o.x() + s * 0.28, o.y() + s * 0.33),
+                     QPointF(o.x() + s * 0.28, o.y() + s * 0.45));
+    painter.drawLine(QPointF(o.x() + s * 0.72, o.y() + s * 0.33),
+                     QPointF(o.x() + s * 0.72, o.y() + s * 0.45));
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(lock);
+    painter.drawRoundedRect(QRectF(o.x() + s * 0.18, o.y() + s * 0.45, s * 0.64, s * 0.45),
+                            s * 0.08, s * 0.08);
+    return badge;
+}
+
 void FrameListWidget::setMarkedRows(std::vector<int> rows)
 {
     if (rows == m_markedRows) {
@@ -307,6 +353,21 @@ void FrameListWidget::paintEvent(QPaintEvent* event)
         painter.setPen(QPen(markedFrameColor(), width));
         painter.setBrush(Qt::NoBrush);
         painter.drawRect(rect.adjusted(width / 2, width / 2, -(width + 1) / 2, -(width + 1) / 2));
+    }
+    if (!m_claimBadges.empty()) {
+        constexpr int kBadgeSize = 18;
+        const qreal ratio = viewport()->devicePixelRatioF();
+        for (const auto& [row, avatar] : m_claimBadges) {
+            if (row >= count()) {
+                break;
+            }
+            const QRect rect = visualRect(model()->index(row, 0));
+            if (rect.intersects(shown)) {
+                painter.drawImage(QRect(rect.topLeft() + QPoint(3, 3),
+                                        QSize(kBadgeSize, kBadgeSize)),
+                                  claimBadge(avatar, kBadgeSize, ratio));
+            }
+        }
     }
     if (m_dropRow < 0 || count() == 0) {
         return;

@@ -254,6 +254,8 @@ private:
     // The frame list row of a frame, through m_frameRows; nullptr when it is not listed.
     [[nodiscard]] QListWidgetItem* frameListItem(std::size_t frameIndex) const;
     void rebuildFrameRows();
+    // The partners' avatars on the frames they work on (FrameListWidget::setClaimBadges()).
+    void updateFrameClaimBadges();
     // References of the frame the runtime cannot follow (dangling IDs, a gap in the sprite
     // slots), one line each; empty if there are none.
     [[nodiscard]] QStringList frameReferenceProblemTexts(std::size_t frameIndex) const;

@@ -102,6 +102,10 @@ public:
         m_claims = std::move(claims);
         m_login = std::move(login);
     }
+    // The frames a partner works on (blocking claims), with the partner's login.
+    [[nodiscard]] std::vector<std::pair<std::size_t, QString>> claimedFrames() const;
+    // A member's avatar; a null image until it is loaded (teamChanged() follows then).
+    [[nodiscard]] QImage avatar(const QString& login) const { return m_avatars->avatar(login); }
     // "enthusiast works on it since 14:02" for a frame a partner works on; empty otherwise.
     [[nodiscard]] QString frameClaimText(std::size_t frameIndex) const;
 

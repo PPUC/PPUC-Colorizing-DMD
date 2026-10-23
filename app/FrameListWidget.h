@@ -1,8 +1,10 @@
 #pragma once
 
+#include <QImage>
 #include <QListWidget>
 
 #include <functional>
+#include <map>
 #include <vector>
 
 class QKeyEvent;
@@ -58,6 +60,13 @@ public:
     // so the frames can be looked through before a deletion. Returns the row; -1 if there is
     // none in that direction (nothing then moves).
     int showMarkedRow(int direction);
+
+    // Rows of frames a partner works on in a team project: the partner's avatar in the upper
+    // left corner of the thumbnail, a lock while there is none (a null image).
+    void setClaimBadges(std::map<int, QImage> badges);
+    [[nodiscard]] const std::map<int, QImage>& claimBadges() const { return m_claimBadges; }
+    // The badge as painted, size pixels wide and high: the avatar in a ring, or a lock.
+    [[nodiscard]] static QImage claimBadge(const QImage& avatar, int size, qreal ratio = 1.0);
     // The marked row showMarkedRow() went to; -1 once the current row changes.
     [[nodiscard]] int shownMarkedRow() const;
 
@@ -81,6 +90,7 @@ private:
     int m_dropRow = -1;
     std::vector<int> m_markedRows;
     int m_shownMarkedRow = -1;
+    std::map<int, QImage> m_claimBadges;
 };
 
 }  // namespace colorizing::app

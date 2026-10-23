@@ -18,6 +18,7 @@
 #include <QPushButton>
 #include <QWidget>
 
+#include "FrameListWidget.h"
 #include "RuntimeFixtures.h"
 #include "SectionStack.h"
 #include "document/ProjectDocument.h"
@@ -287,6 +288,53 @@ void testAvatars()
     expect(transport.urls.size() == 1, "one request, none for a text that is no login");
 }
 
+// The frames a partner works on, for the badges of the frame list: not one whose version this
+// copy has merged, not this copy's own.
+void testClaimedFrames()
+{
+    document::ProjectDocument document = teamProject();
+    QWidget window;
+    app::TeamController::Host host;
+    host.document = [&document]() { return &document; };
+    host.projectPath = []() { return QString(); };
+    host.save = []() { return false; };
+    host.record = [](std::unique_ptr<edit::EditCommand>) {};
+    host.status = [](const QString&, int) {};
+    host.selectedFrames = []() { return std::vector<std::size_t>{}; };
+    app::TeamController controller(&window, host);
+    team::Claims claims;
+    claims.claims.push_back(
+        {document::ComponentKind::Frame, document.frameMeta(2).id, "enthusiast", 1000, false,
+         document::ComponentId::generate()});
+    // A version this copy has as the common one: merged.
+    claims.claims.push_back({document::ComponentKind::Frame, document.frameMeta(4).id,
+                             "enthusiast", 1000, false,
+                             document.team()->common[0].at(document.frameMeta(4).id)});
+    claims.claims.push_back(
+        {document::ComponentKind::Frame, document.frameMeta(5).id, "kraken", 1000, false});
+    claims.claims.push_back(
+        {document::ComponentKind::Frame, document.frameMeta(6).id, "other", 1000, true});
+    controller.setClaims(claims, QStringLiteral("kraken"));
+    const auto frames = controller.claimedFrames();
+    expect(frames.size() == 2 && frames[0].first == 2 &&
+               frames[0].second == QStringLiteral("enthusiast") && frames[1].first == 6 &&
+               frames[1].second == QStringLiteral("other"),
+           "a partner's frames and reservations; not a merged version, not mine");
+
+    // The badge: the avatar in a ring, or a lock.
+    QImage avatar(64, 64, QImage::Format_ARGB32);
+    avatar.fill(Qt::red);
+    const QImage withAvatar = app::FrameListWidget::claimBadge(avatar, 20);
+    const QImage lock = app::FrameListWidget::claimBadge(QImage(), 20);
+    expect(withAvatar.size() == QSize(20, 20) && qAlpha(withAvatar.pixel(0, 0)) == 0 &&
+               withAvatar.pixelColor(10, 10) == QColor(Qt::red),
+           "the avatar, round");
+    expect(qGray(lock.pixel(10, 15)) < 100, "a dark lock without an avatar");
+    app::FrameListWidget list;
+    list.setClaimBadges({{0, avatar}, {3, QImage()}});
+    expect(list.claimBadges().size() == 2, "the list keeps the badges of its rows");
+}
+
 void testStartTeamDialog()
 {
     app::StartTeamDialog dialog(QStringLiteral("afm_113b"), QStringLiteral("kraken"));
@@ -327,5 +375,6 @@ void runTeamControllerWidgetTests()
     testRefusals();
     testTeamSection();
     testAvatars();
+    testClaimedFrames();
     testStartTeamDialog();
 }

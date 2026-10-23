@@ -980,6 +980,25 @@ const team::Claim* TeamController::blockingClaim(document::ComponentKind kind,
                                found != common.end() ? found->second : document::ComponentId{});
 }
 
+std::vector<std::pair<std::size_t, QString>> TeamController::claimedFrames() const
+{
+    std::vector<std::pair<std::size_t, QString>> frames;
+    const document::ProjectDocument* document = m_host.document();
+    if (!m_claims || !document || !document->team()) {
+        return frames;
+    }
+    for (const team::Claim& claim : m_claims->claims) {
+        if (claim.kind != document::ComponentKind::Frame ||
+            blockingClaim(claim.kind, claim.id) != &claim) {
+            continue;
+        }
+        if (const std::optional<std::size_t> index = document->frameIndexOf(claim.id)) {
+            frames.emplace_back(*index, QString::fromStdString(claim.login));
+        }
+    }
+    return frames;
+}
+
 QString TeamController::frameClaimText(std::size_t frameIndex) const
 {
     const document::ProjectDocument* document = m_host.document();

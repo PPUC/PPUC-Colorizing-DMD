@@ -94,8 +94,9 @@ merge stops at a change whose file is not added yet, and says so.
 Your first edit of a frame (or mask, background, sprite, palette) claims it, saved or not: the
 partners see it read-only a few seconds later. An edit of a frame a partner claimed is undone at
 once; the status bar says who works on it since when, and the frame's line below the canvas says
-`claimed`. Moving or deleting frames claims the frame order, changing the settings claims the
-settings.
+`claimed`. In the frame list, a frame a partner works on (or reserved) shows the partner's
+GitHub picture in its upper left corner, a lock until the picture is loaded. Moving or deleting
+frames claims the frame order, changing the settings claims the settings.
 
 - The editor keeps the claims in step in the background, every 15 seconds and a moment after
   you edit something new, without making you wait; `Team -> Refresh Claims` does it now and says
