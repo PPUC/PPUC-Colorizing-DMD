@@ -47,6 +47,9 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacyProjectIo.cpp
     legacy/LegacyProjectSerializer.cpp
     legacy/LegacySnapshotBuilder.cpp
+    project/Json.cpp
+    project/ProjectFile.cpp
+    project/ZipArchive.cpp
     render/CanvasLayout.cpp
     render/ProjectGeometry.cpp
     runtime/FrameIdentification.cpp
@@ -62,11 +65,11 @@ target_include_directories(colorizing_qt_v2_core
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# PRIVATE: only document/CompactArray.cpp (lz4), legacy/LegacyCrzArchive.cpp, runtime/CromcExport.cpp,
-# runtime/RuntimePreview.cpp, runtime/Scenes.cpp and runtime/SnapshotSource.h (included by
-# the two runtime files before it) include libserum headers, and
-# import/DumpFile.cpp its miniz, and they must not reach the targets that
-# link the core.
+# PRIVATE: only document/CompactArray.cpp (lz4), legacy/LegacyCrzArchive.cpp,
+# runtime/CromcExport.cpp, runtime/RuntimePreview.cpp, runtime/Scenes.cpp and
+# runtime/SnapshotSource.h (included by the two runtime files before it) include libserum
+# headers, and import/DumpFile.cpp and project/ZipArchive.cpp its miniz, and they must not reach
+# the targets that link the core.
 target_link_libraries(colorizing_qt_v2_core
     PRIVATE
         serum_static

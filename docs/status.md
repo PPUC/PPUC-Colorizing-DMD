@@ -50,9 +50,19 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     `ComponentMeta` (`document/ComponentId.h`: a version 4 UUID, revision, author, time,
     content hash). The document gives an ID to a component without one and a new one to a
     copy (`ensureComponentIds()`, the insert and append methods); undo keeps IDs, snapshots
-    and subsets carry them (mask meta in `ProjectSnapshot::comparisonMaskMeta`). No file
-    stores them yet, so every load gives new IDs; revision, author and hash stay empty until
-    the new project file (ComponentIdTests).
+    and subsets carry them (mask meta in `ProjectSnapshot::comparisonMaskMeta`), and the
+    project has an ID of its own (`projectId()`). Only the project file keeps them; a legacy
+    load gives new IDs. Revision, author and hash are kept but not yet set by a save.
+  - `project/` (branch `format-v3`): the editor's own project file, `<name>.cdmd`
+    (`ProjectFile.h` documents the layout): a zip with JSON metadata (`Json.h`, the core's own,
+    integers only) and one binary entry per component, references by UUID. Not used by the
+    app yet. Round trip: the same cROM byte for byte, for the fixtures of every layout and for
+    the real projects (`COLORIZING_TEST_PROJECT=<cROM or cRZ>` runs it on one); the .cRPX
+    written from it differs only in bytes the legacy tables carry without meaning (after a
+    name's NUL, entries behind the last section or sprite), which the file does not keep. GoT:
+    496 MB, saved in 20 s, opened in 12 s (its .cRZ and .cRPX: 546 MB, 34 s). The zip code
+    is libserum's miniz (`ZipArchive.h`); it has to come into the editor when libserum 3.0
+    drops the cRZ. The extension is an open question of the design document.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

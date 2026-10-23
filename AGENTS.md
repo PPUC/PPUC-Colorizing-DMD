@@ -9,6 +9,7 @@ colorizations. See `readme.md` for what the editor is and how to build it.
   - `document/`: `ProjectDocument`, frames, sprites, backgrounds, palettes, scenes.
   - `edit/`: edit commands and undo histories.
   - `legacy/`: reading and writing `.cROM`, `.cRZ`, `.cRP` and `.cRPX`.
+  - `project/`: the editor's own project file (`.cdmd`, branch `format-v3`).
   - `import/`: frame dumps.
   - `runtime/`: libserum, the frame tester and the Runtime view.
   - `render/`: canvas geometry.

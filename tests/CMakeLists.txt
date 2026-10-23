@@ -26,6 +26,7 @@ add_executable(colorizing_qt_v2_tests
     NativeOriginalProjectTests.cpp
     PlaybackIdentificationTests.cpp
     ProjectDocumentTests.cpp
+    ProjectFileTests.cpp
     ProjectGeometryTests.cpp
     RuntimePreviewTests.cpp
     SameFramesTests.cpp

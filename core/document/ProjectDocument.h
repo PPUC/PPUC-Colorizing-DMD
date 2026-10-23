@@ -842,6 +842,8 @@ public:
     [[nodiscard]] const ComponentMeta& spriteMeta(std::size_t spriteIndex) const;
     [[nodiscard]] const ComponentMeta& paletteMeta(std::size_t paletteIndex) const;
     [[nodiscard]] std::optional<std::size_t> frameIndexOf(const ComponentId& id) const;
+    // The project's own ID, kept by every copy of the project file.
+    [[nodiscard]] const ComponentId& projectId() const { return m_projectId; }
     // The given frames alone, in that order, with the comparison masks, backgrounds and sprites
     // they reference and nothing else. The IDs in the frames are renumbered to match, in order
     // of first use; an ID that points at nothing becomes "none". Palettes, editor metadata and
@@ -868,6 +870,7 @@ private:
     void visitItemBlocks(std::size_t item, Visit&& visit);
 
     std::string m_romName;
+    ComponentId m_projectId;
     std::vector<FrameRecord> m_frames;
     std::vector<IndexedFrame> m_comparisonMasks;
     // Parallel to m_comparisonMasks.

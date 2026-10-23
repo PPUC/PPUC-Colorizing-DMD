@@ -652,6 +652,9 @@ void ensureUniqueIdOf(std::vector<Record>& records, std::size_t newIndex)
 
 void ProjectDocument::ensureComponentIds()
 {
+    if (m_projectId.isNull()) {
+        m_projectId = ComponentId::generate();
+    }
     ensureUniqueIds(m_frames);
     m_comparisonMaskMeta.resize(m_comparisonMasks.size());
     ensureUniqueIds(m_comparisonMaskMeta);
@@ -712,6 +715,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
         document.m_discardedExtraPlane += extraPlanePictures(snapshot);
     }
     document.m_romName = std::move(snapshot.romName);
+    document.m_projectId = snapshot.projectId;
     document.m_frames.reserve(snapshot.frames.size());
     for (ProjectFrameSnapshot& frameSnapshot : snapshot.frames) {
         document.m_frames.push_back(frameRecord(std::move(frameSnapshot)));
@@ -3907,6 +3911,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     }
     snapshot.comparisonMasks = m_comparisonMasks;
     snapshot.comparisonMaskMeta = m_comparisonMaskMeta;
+    snapshot.projectId = m_projectId;
     snapshot.backgrounds = m_backgrounds;
     snapshot.sprites = m_sprites;
     snapshot.palettes = m_palettes;
