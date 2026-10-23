@@ -9,6 +9,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   locked for you until the partner merges your next shared changes.
 - The time spent on a project is kept per author too (the clock's tool tip); in a team project
   shared changes carry it, so the project time is the time of all authors.
+- `Pick` picks once and gives the tool chosen before it back (issue #29).
 
 ## 3.99.11
 

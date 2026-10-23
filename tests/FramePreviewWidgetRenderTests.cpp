@@ -1,4 +1,5 @@
 #include "FramePreviewWidget.h"
+#include "PickToolReturn.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -697,6 +698,46 @@ void testFramePreviewClickCallback()
                       Qt::NoModifier);
     QApplication::sendEvent(&widget, &event);
     expect(clicked, "preview click should invoke pixel callback on colorized frame");
+}
+
+// Issue #29: Pick picks once and gives the tool before it back; the click's release then
+// finishes no stroke of that tool.
+void testPickReturnsToTheTool()
+{
+    using colorizing::edit::DrawingTool;
+    colorizing::app::PickToolReturn pick;
+    pick.toolChosen(DrawingTool::Point, DrawingTool::Rectangle);
+    pick.toolChosen(DrawingTool::Rectangle, DrawingTool::ColorPicker);
+    expect(pick.afterPick(DrawingTool::ColorPicker) == DrawingTool::Rectangle,
+           "after a pick the rectangle is back");
+    expect(!pick.afterPick(DrawingTool::Rectangle), "a pick with another tool changes nothing");
+    pick.toolChosen(DrawingTool::ColorPicker, DrawingTool::ColorPicker);
+    expect(pick.afterPick(DrawingTool::ColorPicker) == DrawingTool::Rectangle,
+           "choosing Pick again keeps the tool to go back to");
+    pick.toolChosen(DrawingTool::ColorPicker, DrawingTool::Line);
+    pick.toolChosen(DrawingTool::Line, DrawingTool::Line);
+    expect(!pick.afterPick(DrawingTool::ColorPicker), "another tool chosen forgets it");
+
+    colorizing::document::ProjectDocument document = makePreviewDocument();
+    colorizing::app::FramePreviewWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setFrameIndex(0);
+    int clicks = 0;
+    int strokes = 0;
+    widget.setPixelClickedHandler([&](colorizing::render::CanvasHit, bool) {
+        ++clicks;
+        widget.cancelStroke();
+    });
+    widget.setStrokeFinishedHandler(
+        [&](colorizing::render::CanvasHit, colorizing::render::CanvasHit, bool) { ++strokes; });
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(90, 90), QPointF(90, 90),
+                      QPointF(90, 90), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &press);
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(90, 90), QPointF(90, 90),
+                        QPointF(90, 90), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &release);
+    expect(clicks == 1 && strokes == 0, "the click's release finishes no stroke");
 }
 
 void testFramePreviewStrokeCallback()
@@ -3942,6 +3983,7 @@ int main(int argc, char* argv[])
     testFramePreviewZoom();
     testFramePreviewClickCallback();
     testFramePreviewStrokeCallback();
+    testPickReturnsToTheTool();
     testHdPreviewPixelsRender();
     testOriginalFrameStrokeCallback();
     testComparisonMaskOverlayRenders();

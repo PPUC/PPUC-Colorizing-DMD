@@ -7455,6 +7455,7 @@ void MainWindow::pickSpriteColorizedPixel(std::size_t spriteIndex,
         statusBar()->showMessage(tr("Picked sprite color 0x%1")
                                      .arg(color, 4, 16, QLatin1Char('0')),
                                  2500);
+        pickDone();
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -8855,9 +8856,11 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
     };
     outputs.pickColor = [this](uint16_t rgb565) {
         setActiveDrawColor(rgb565);
+        pickDone();
     };
     outputs.pickEditColorSlot = [this](uint16_t rgb565) {
         pickEditColorSlot(rgb565);
+        pickDone();
     };
     outputs.pickDynamicSet = [this](uint8_t dynamicSet) {
         if (!m_dynamicPanel) {
@@ -8868,6 +8871,7 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
             dynamicSetChanged(static_cast<int>(dynamicSet));
         }
         updateDynamicColorControls();
+        pickDone();
     };
     outputs.showPreview = [this](CanvasPixelOverlay overlay) {
         if (m_preview) {
@@ -9803,11 +9807,23 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
     return QMainWindow::eventFilter(watched, event);
 }
 
+void MainWindow::pickDone()
+{
+    if (const std::optional<DrawingTool> back = m_pickToolReturn.afterPick(m_drawingTool)) {
+        // The click's release must not finish a stroke of the tool that is back.
+        if (m_preview) {
+            m_preview->cancelStroke();
+        }
+        setDrawingTool(*back);
+    }
+}
+
 void MainWindow::setDrawingTool(DrawingTool tool)
 {
     if (tool != m_drawingTool) {
         m_canvasEdit.cancelFreeGradient();
     }
+    m_pickToolReturn.toolChosen(m_drawingTool, tool);
     m_drawingTool = tool;
     if (m_preview) {
         m_preview->clearPreviewPixels();

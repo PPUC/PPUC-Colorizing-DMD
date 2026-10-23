@@ -713,6 +713,12 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
     QWidget::mousePressEvent(event);
 }
 
+void FramePreviewWidget::cancelStroke()
+{
+    m_strokeStart.reset();
+    clearPreviewPixels();
+}
+
 void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
 {
     if (m_panFrom) {

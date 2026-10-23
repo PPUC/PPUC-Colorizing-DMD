@@ -15,6 +15,7 @@
 
 #include "ActionUndoGroups.h"
 #include "ActivityClock.h"
+#include "PickToolReturn.h"
 #include "document/ProjectTime.h"
 #include "Autosave.h"
 #include "DmdOutput.h"
@@ -285,6 +286,8 @@ private:
     // Enabled state of the SD/HD, overlay and tool buttons: off while the Runtime view is on.
     void updateCanvasModeButtons();
     void setDrawingTool(DrawingTool tool);
+    // After a pick: the tool chosen before Pick is back (PickToolReturn).
+    void pickDone();
     void setActiveDrawColor(uint16_t rgb565);
     void updateFrameMetadataControls();
     // The section and trigger boxes above the frame list, see SectionBar.
@@ -727,6 +730,7 @@ private:
     QElapsedTimer m_playbackElapsedTimer;
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
+    PickToolReturn m_pickToolReturn;
     uint16_t m_activeDrawColor = 0xffff;
     // Sprite shown on the Sprite page and in the sprite canvas; -1 once a project has none.
     int m_selectedSpriteIndex = 0;

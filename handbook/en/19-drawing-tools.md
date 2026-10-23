@@ -179,6 +179,9 @@ picked color into the selected edit color; here it only becomes the draw color.
 When the `Dynamic` overlay is enabled, click a pixel of the colorized frame or of the original
 to select the dynamic set stored at that pixel instead. This is useful before editing the set's dynamic colors or shadows.
 
+`Pick` picks once: after the click the tool chosen before it is back, so that a rectangle (or any
+other tool) goes on with the picked color.
+
 This tool does not modify project data and does not create an undo entry.
 
 ## Flood

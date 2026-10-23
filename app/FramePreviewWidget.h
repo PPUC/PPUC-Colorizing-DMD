@@ -78,6 +78,9 @@ public:
                           std::vector<render::Point> pixels,
                           QColor color);
     void clearPreviewPixels();
+    // Drops the stroke under way: its release finishes nothing (after a click that switched
+    // the tool, such as a pick).
+    void cancelStroke();
     void setPasteOverlay(std::optional<CanvasPasteOverlay> overlay);
     // Called first on a left press over the colorized frame; returning true takes the press,
     // so that no click or stroke follows (paste mode stamps with it).
