@@ -103,10 +103,14 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     `TeamRemote`: `GitHubRemote` (claims.json and packages/ in the repository; package names
     "<created ms>-<login>-<id>.cdmdchanges") or `FolderRemote` (tests). Tested against canned
     GitHub answers only. `TeamController` (Team menu, dialogs in `TeamDialogs.h`) runs the
-    steps modally (`runModal`, no cancel: every request has a 30 s timeout), refreshes the
-    claims every minute in the background, and guards edits: `MainWindow::pushToHistory()`
+    steps modally (`runModal`, no cancel: every request has a 30 s timeout). `TeamSync` keeps
+    the claims and the pending packages in step in a thread of its own (own network access,
+    every 15 s and 2 s after an edit of something new), downloads pending packages into the
+    cache (QStandardPaths::CacheLocation/team/<repository>), and answers through invokeMethod;
+    early claims: `admitEdit()` notes what an admitted edit touched until the next save. It
+    guards edits: `MainWindow::pushToHistory()`
     reverts an edit of a partner's claimed component (a deletion is looked at by undoing and
-    redoing it) and keeps the command until the event loop. Token and login in QSettings
+    redoing it) and keeps the command until the event loop. Undo and redo are not looked at. Token and login in QSettings
     (github/token, plain). Open: a GitHub OAuth app with the device flow for the PPUC builds
     (CMake `COLORIZINGDMD_GITHUB_CLIENT_ID`, or the environment variable of that name); never
     run against GitHub yet. Packages check `--check-tls`.

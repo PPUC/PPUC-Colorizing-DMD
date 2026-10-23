@@ -8221,7 +8221,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Reading the claims…</source>
-        <translation>Die Ansprüche werden gelesen…</translation>
+        <translation type="vanished">Die Ansprüche werden gelesen…</translation>
     </message>
     <message>
         <source>The team&apos;s claims could not be read: %1</source>
@@ -8230,6 +8230,21 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Team</source>
         <translation>Team</translation>
+    </message>
+    <message>
+        <source>&amp;Merge Changes (%1)...</source>
+        <translation>Änderungen &amp;zusammenführen (%1)...</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners to merge (Team -&gt; Merge Changes)</source>
+        <translation>
+            <numerusform>%n geteilte Änderung der Partner zum Zusammenführen (Team -&gt; Änderungen zusammenführen)</numerusform>
+            <numerusform>%n geteilte Änderungen der Partner zum Zusammenführen (Team -&gt; Änderungen zusammenführen)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The claims are up to date</source>
+        <translation>Die Ansprüche sind aktuell</translation>
     </message>
     <message>
         <source>%1 works on it since %2</source>

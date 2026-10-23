@@ -7,7 +7,10 @@
 #include <string>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QObject>
 #include <QTemporaryDir>
 
 #include "RuntimeFixtures.h"
@@ -15,6 +18,7 @@
 #include "project/ProjectFile.h"
 #include "team/TeamMerge.h"
 #include "team/TeamSession.h"
+#include "team/TeamSync.h"
 
 namespace {
 
@@ -150,10 +154,72 @@ void testShareAndMerge()
            "the owner's claim is released once the change is common");
 }
 
+// The background sync: claims written and read in its thread, an unsaved edit claimed early,
+// the partner's package downloaded into the cache.
+void testBackgroundSync()
+{
+    QTemporaryDir folder;
+    const QString remotePath = QDir(folder.path()).filePath(QStringLiteral("remote"));
+    const QString ownerPath = QDir(folder.path()).filePath(QStringLiteral("kraken.cdmd"));
+    const QString cachePath = QDir(folder.path()).filePath(QStringLiteral("cache"));
+    app::FolderRemote remote(remotePath);
+    ProjectDocument owner = ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    save(owner, ownerPath, "kraken", 1000);
+    owner.setTeam(team::startTeam(owner, "folder", "kraken", {"enthusiast"}));
+    save(owner, ownerPath, "kraken", 1000);
+    const ProjectDocument partner = owner;
+    owner.setFrameDurationMs(2, 222);
+    save(owner, ownerPath, "kraken", 2000);
+    app::TeamSession ownerSession(remote, QStringLiteral("kraken"));
+    ownerSession.share(owner, 2000, [](QString, bool) {});
+
+    QObject context;
+    std::vector<app::TeamSync::Result> results;
+    app::TeamSync sync(
+        &context, [&results](app::TeamSync::Result result) { results.push_back(result); },
+        std::chrono::hours(1),
+        [remotePath](const app::TeamSync::Input&, app::HttpTransport&) {
+            return std::make_unique<app::FolderRemote>(remotePath);
+        });
+    app::TeamSync::Input input;
+    input.active = true;
+    input.login = QStringLiteral("enthusiast");
+    input.repository = QStringLiteral("folder");
+    // An edit of frame 5 not saved yet: claimed early.
+    input.claimed.changed[0].emplace(partner.frameMeta(5).id, document::ComponentId{});
+    input.mergedPackages = partner.team()->mergedPackages;
+    input.cacheFolder = cachePath;
+    const uint64_t number = sync.setInput(input);
+    QElapsedTimer timer;
+    timer.start();
+    while (results.empty() && timer.elapsed() < 20000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    }
+    expect(results.size() == 1 && results[0].input == number && results[0].claims,
+           "the sync answers on this thread: " +
+               (results.empty() ? std::string("nothing") : results[0].error.toStdString()));
+    const team::Claims& claims = *results[0].claims;
+    expect(team::partnerClaim(claims, document::ComponentKind::Frame, partner.frameMeta(5).id,
+                              "kraken") &&
+               team::partnerClaim(claims, document::ComponentKind::Frame,
+                                  partner.frameMeta(2).id, "enthusiast"),
+           "the partner's unsaved edit is claimed, and the owner's claim is read");
+    expect(results[0].pendingPackages.size() == 1 &&
+               app::TeamSync::cachedPackage(cachePath, results[0].pendingPackages[0]),
+           "the owner's package is waiting, downloaded into the cache");
+    QString error;
+    expect(app::changePackageFrom(
+               *app::TeamSync::cachedPackage(cachePath, results[0].pendingPackages[0]), error)
+               .has_value(),
+           "and readable from there: " + error.toStdString());
+}
+
 }  // namespace
 
 void runTeamSessionWidgetTests()
 {
     testPackageNames();
     testShareAndMerge();
+    testBackgroundSync();
 }

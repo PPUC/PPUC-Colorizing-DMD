@@ -2642,6 +2642,7 @@ bool MainWindow::saveProject()
 
     m_document->adoptComponentMeta(stamped);
     m_document->markClean();
+    m_team->projectSaved();
     m_document->forgetDiscardedExtraPlane();
     if (!m_sourcePath.isEmpty()) {
         // Converted: the project lives in its project file from now on.
@@ -11773,7 +11774,7 @@ std::size_t MainWindow::pushToHistory(const edit::HistoryKey& key,
 {
     // In a team project, what a partner works on stays as it is here (their claim).
     if (m_team && m_document && command) {
-        if (const std::optional<QString> refusal = m_team->refusal(*command, *m_document)) {
+        if (const std::optional<QString> refusal = m_team->admitEdit(*command, *m_document)) {
             command->revert(*m_document);
             // The caller may still look at the command; it goes back in the event loop, and
             // the window shows the project as it is then.

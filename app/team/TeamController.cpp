@@ -10,6 +10,8 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QSettings>
+#include <QDir>
+#include <QStandardPaths>
 #include <QWidget>
 
 #include <algorithm>
@@ -37,7 +39,9 @@ namespace {
 
 const QString kTokenKey = QStringLiteral("github/token");
 const QString kLoginKey = QStringLiteral("github/login");
-constexpr int kClaimsPollMs = 60 * 1000;
+// How often the background sync writes and reads the claims and looks for shared changes.
+constexpr std::chrono::seconds kSyncInterval{15};
+constexpr int kInputDelayMs = 2000;
 
 int64_t nowMs()
 {
@@ -100,11 +104,21 @@ TeamController::TeamController(QWidget* window, Host host)
     QSettings settings;
     m_client.setToken(settings.value(kTokenKey).toString());
     m_login = m_client.token().isEmpty() ? QString() : settings.value(kLoginKey).toString();
-    m_poll.setInterval(kClaimsPollMs);
-    QObject::connect(&m_poll, &QTimer::timeout, m_window, [this]() { refreshClaims(true); });
+    m_context = std::make_unique<QObject>();
+    m_sync = std::make_unique<TeamSync>(
+        m_context.get(), [this](TeamSync::Result result) { syncDelivered(std::move(result)); },
+        kSyncInterval);
+    m_inputDelay.setSingleShot(true);
+    m_inputDelay.setInterval(kInputDelayMs);
+    QObject::connect(&m_inputDelay, &QTimer::timeout, m_context.get(),
+                     [this]() { updateSync(); });
 }
 
-TeamController::~TeamController() = default;
+TeamController::~TeamController()
+{
+    // The thread stops before the context its answers go to.
+    m_sync.reset();
+}
 
 void TeamController::createMenu(QMenuBar* menuBar)
 {
@@ -140,7 +154,7 @@ void TeamController::createMenu(QMenuBar* menuBar)
                      [this]() { releaseReservations(); });
     m_refreshAction = menu->addAction(tr("Re&fresh Claims"));
     QObject::connect(m_refreshAction, &QAction::triggered, m_window,
-                     [this]() { refreshClaims(false); });
+                     [this]() { updateSync(true); });
     menu->addSeparator();
     m_breakLockAction = menu->addAction(tr("&Break The Lock..."));
     m_breakLockAction->setToolTip(
@@ -179,9 +193,10 @@ void TeamController::projectChanged()
 {
     m_claims.reset();
     m_reserved.clear();
-    m_poll.stop();
-    ++m_claimsRequest;
+    m_touched = {};
+    m_pending.clear();
     updateActions();
+    updateSync();
     if (!isTeamProject()) {
         return;
     }
@@ -197,8 +212,6 @@ void TeamController::projectChanged()
         m_host.status(tr("You (%1) are not one of this team project's members").arg(m_login),
                       8000);
     }
-    refreshClaims(true);
-    m_poll.start();
 }
 
 bool TeamController::ensureSignedIn()
@@ -241,7 +254,8 @@ void TeamController::signOut()
     m_client.setToken(QString());
     m_login.clear();
     m_claims.reset();
-    m_poll.stop();
+    m_pending.clear();
+    updateSync();
     updateActions();
     if (m_host.claimsChanged) {
         m_host.claimsChanged();
@@ -398,7 +412,7 @@ void TeamController::share()
         QMessageBox::warning(m_window, tr("Share My Changes"), error);
         return;
     }
-    refreshClaims(true);
+    updateSync();
     m_host.status(tr("Shared your changes with the partners"), 5000);
 }
 
@@ -439,14 +453,22 @@ void TeamController::merge()
     team::TeamMergeCommand::Counts total;
     for (const QString& name : pending) {
         std::optional<team::ChangePackage> package;
-        runModal(tr("Fetching the partners' changes…"), [&](std::function<void()> finished) {
-            session.fetchPackage(name, [&, finished](std::optional<team::ChangePackage> answer,
-                                                     QString fetchError) {
-                package = std::move(answer);
-                error = fetchError;
-                finished();
+        // Downloaded in the background already, as a rule.
+        const std::optional<QByteArray> cached = TeamSync::cachedPackage(cacheFolder(), name);
+        if (cached) {
+            package = changePackageFrom(*cached, error);
+        }
+        if (!package) {
+            runModal(tr("Fetching the partners' changes…"), [&](std::function<void()> finished) {
+                session.fetchPackage(
+                    name, [&, finished](std::optional<team::ChangePackage> answer,
+                                        QString fetchError) {
+                        package = std::move(answer);
+                        error = fetchError;
+                        finished();
+                    });
             });
-        });
+        }
         if (!package) {
             QMessageBox::warning(m_window, tr("Merge Changes"),
                                  tr("A package could not be read: %1").arg(error));
@@ -486,7 +508,7 @@ void TeamController::merge()
     }
     // What was merged gets this copy's revisions (the partners' own), and the claims follow.
     (void)m_host.save();
-    refreshClaims(true);
+    updateSync();
     m_host.status(tr("Merged %1 package(s): %2 taken, %3 added, %4 deleted, %5 conflict(s)")
                       .arg(static_cast<qulonglong>(merged))
                       .arg(static_cast<qulonglong>(total.taken))
@@ -515,14 +537,14 @@ void TeamController::reserveSelected()
             ++count;
         }
     }
-    refreshClaims(false);
+    updateSync(true);
     m_host.status(tr("Reserved %n frame(s)", "", static_cast<int>(count)), 4000);
 }
 
 void TeamController::releaseReservations()
 {
     m_reserved.clear();
-    refreshClaims(false);
+    updateSync(true);
 }
 
 void TeamController::breakLock()
@@ -544,7 +566,8 @@ void TeamController::breakLock()
                    "you give them after this.")
               : tr("The editor makes a fork of the team's repository in your account, and you "
                    "go on there alone, as its owner. The team's repository stays as it is."));
-    QPushButton* breakButton = question.addButton(tr("Break The Lock"), QMessageBox::DestructiveRole);
+    QPushButton* breakButton =
+        question.addButton(tr("Break The Lock"), QMessageBox::DestructiveRole);
     question.addButton(QMessageBox::Cancel);
     question.exec();
     if (question.clickedButton() != breakButton) {
@@ -622,58 +645,101 @@ void TeamController::breakLock()
               : tr("You go on alone in %1.").arg(repository));
 }
 
-void TeamController::refreshClaims(bool quiet)
+QString TeamController::cacheFolder() const
 {
-    document::ProjectDocument* document = m_host.document();
-    if (!document || !document->team() || m_login.isEmpty()) {
-        return;
+    const document::ProjectDocument* document = m_host.document();
+    if (!document || !document->team()) {
+        return {};
     }
-    const uint64_t request = ++m_claimsRequest;
-    // The session lives as long as its answer is outstanding.
-    std::shared_ptr<TeamRemote> teamRemote = remote();
-    auto session = std::make_shared<TeamSession>(*teamRemote, m_login);
-    if (quiet) {
-        session->syncClaims(*document, m_reserved, nowMs(),
-                            [this, request, teamRemote, session](
-                                std::optional<team::Claims> claims, QString error) {
-                                if (request == m_claimsRequest) {
-                                    takeClaims(std::move(claims), error, true);
-                                }
-                            });
-        return;
-    }
-    std::optional<team::Claims> claims;
-    QString error;
-    runModal(tr("Reading the claims…"), [&](std::function<void()> finished) {
-        session->syncClaims(*document, m_reserved, nowMs(),
-                            [&, finished](std::optional<team::Claims> answer, QString syncError) {
-                                claims = std::move(answer);
-                                error = syncError;
-                                finished();
-                            });
-    });
-    takeClaims(std::move(claims), error, false);
+    QString repository = QString::fromStdString(document->team()->repository);
+    repository.replace(QLatin1Char('/'), QLatin1Char('_'));
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+        .filePath(QStringLiteral("team/") + repository);
 }
 
-void TeamController::takeClaims(std::optional<team::Claims> claims,
-                                const QString& error,
-                                bool quiet)
+void TeamController::updateSync(bool report)
 {
-    if (!claims) {
-        m_host.status(tr("The team's claims could not be read: %1").arg(error), 6000);
+    m_inputDelay.stop();
+    TeamSync::Input input;
+    const document::ProjectDocument* document = m_host.document();
+    input.active = document && document->team() && !m_login.isEmpty() &&
+                   !m_client.clientId().isEmpty();
+    if (input.active) {
+        const document::TeamState& team = *document->team();
+        input.clientId = m_client.clientId();
+        input.token = m_client.token();
+        input.login = m_login;
+        input.repository = QString::fromStdString(team.repository);
+        try {
+            input.claimed = team::changesSinceCommon(*document);
+        } catch (const std::exception&) {
+            input.active = false;
+        }
+        // What was edited since the last save counts as changed: claimed early.
+        for (const auto& [kind, id] : m_touched.components) {
+            input.claimed.changed[document::kindIndex(kind)].emplace(id, document::ComponentId{});
+        }
+        input.claimed.orderChanged = input.claimed.orderChanged || m_touched.order;
+        input.claimed.settingsChanged = input.claimed.settingsChanged || m_touched.settings;
+        input.reserved = m_reserved;
+        input.mergedPackages = team.mergedPackages;
+        input.cacheFolder = cacheFolder();
+    }
+    m_reportNext = m_reportNext || report;
+    m_syncInput = m_sync->setInput(std::move(input));
+}
+
+void TeamController::syncDelivered(TeamSync::Result result)
+{
+    if (result.input != m_syncInput || !isTeamProject()) {
         return;
     }
-    m_claims = std::move(claims);
+    const bool report = m_reportNext;
+    m_reportNext = false;
+    if (!result.claims) {
+        if (report) {
+            QMessageBox::warning(m_window, tr("Team"),
+                                 tr("The team's claims could not be read: %1").arg(result.error));
+        } else {
+            m_host.status(tr("The team's claims could not be read: %1").arg(result.error), 6000);
+        }
+        return;
+    }
+    m_claims = std::move(result.claims);
+    const std::size_t before = m_pending.size();
+    m_pending = std::move(result.pendingPackages);
+    if (m_mergeAction) {
+        m_mergeAction->setText(m_pending.empty()
+                                   ? tr("&Merge Changes...")
+                                   : tr("&Merge Changes (%1)...").arg(m_pending.size()));
+    }
+    if (m_pending.size() > before) {
+        m_host.status(tr("%n shared change(s) from the partners to merge (Team -> Merge "
+                         "Changes)",
+                         "", static_cast<int>(m_pending.size())),
+                      10000);
+    }
     if (m_host.claimsChanged) {
         m_host.claimsChanged();
     }
     if (const QString problem = teamProblem(); !problem.isEmpty()) {
-        if (quiet) {
-            m_host.status(problem, 10000);
-        } else {
+        if (report) {
             QMessageBox::warning(m_window, tr("Team"), problem);
+        } else {
+            m_host.status(problem, 10000);
         }
+    } else if (report) {
+        m_host.status(tr("The claims are up to date"), 3000);
     }
+}
+
+void TeamController::projectSaved()
+{
+    if (!isTeamProject()) {
+        return;
+    }
+    m_touched = {};
+    updateSync();
 }
 
 QString TeamController::claimText(const team::Claim& claim) const
@@ -696,24 +762,23 @@ QString TeamController::frameClaimText(std::size_t frameIndex) const
     return claim ? claimText(*claim) : QString();
 }
 
-std::optional<QString> TeamController::refusal(const edit::EditCommand& command,
-                                               document::ProjectDocument& document) const
+TeamController::Touched TeamController::touchedBy(const edit::EditCommand& command,
+                                                  document::ProjectDocument& document) const
 {
-    if (!m_claims || !document.team()) {
-        return std::nullopt;
-    }
+    Touched touched;
     if (dynamic_cast<const edit::DocumentStateCommand*>(&command)) {
-        // A package import or a merge.
-        return std::nullopt;
+        // A package import or a merge: it adds what it brings, and a merge is no claim.
+        return touched;
     }
-    const std::string me = m_login.toStdString();
-    std::vector<std::pair<document::ComponentKind, document::ComponentId>> touched;
-    bool order = false;
-    bool settings = false;
+    const auto add = [&](document::ComponentKind kind, std::size_t index) {
+        const document::ComponentId id = idOf(document, kind, index);
+        if (!id.isNull()) {
+            touched.components.emplace_back(kind, id);
+        }
+    };
     const edit::EditTarget target = command.target();
     for (const std::size_t frame : target.frameIndices) {
-        touched.emplace_back(document::ComponentKind::Frame,
-                             idOf(document, document::ComponentKind::Frame, frame));
+        add(document::ComponentKind::Frame, frame);
     }
     switch (target.kind) {
     case edit::EditKind::FramePixels:
@@ -722,70 +787,105 @@ std::optional<QString> TeamController::refusal(const edit::EditCommand& command,
     case edit::EditKind::DynamicShadow:
     case edit::EditKind::BackgroundMask:
     case edit::EditKind::FrameAttributes:
-        touched.emplace_back(document::ComponentKind::Frame,
-                             idOf(document, document::ComponentKind::Frame, target.index));
+        add(document::ComponentKind::Frame, target.index);
         break;
     case edit::EditKind::ComparisonMask:
-        touched.emplace_back(document::ComponentKind::ComparisonMask,
-                             idOf(document, document::ComponentKind::ComparisonMask,
-                                  target.index));
+        add(document::ComponentKind::ComparisonMask, target.index);
         break;
     case edit::EditKind::BackgroundImage:
-        touched.emplace_back(document::ComponentKind::Background,
-                             idOf(document, document::ComponentKind::Background, target.index));
+        add(document::ComponentKind::Background, target.index);
         break;
     case edit::EditKind::SpriteImage:
     case edit::EditKind::SpriteAttributes:
-        touched.emplace_back(document::ComponentKind::Sprite,
-                             idOf(document, document::ComponentKind::Sprite, target.index));
+        add(document::ComponentKind::Sprite, target.index);
         break;
     case edit::EditKind::Palette:
-        touched.emplace_back(document::ComponentKind::Palette,
-                             idOf(document, document::ComponentKind::Palette, target.index));
+        add(document::ComponentKind::Palette, target.index);
         break;
     case edit::EditKind::EditorColors:
     case edit::EditKind::Sections:
     case edit::EditKind::HelperLines:
-        settings = true;
+        touched.settings = true;
         break;
     case edit::EditKind::ProjectStructure:
         if (const auto* structure = dynamic_cast<const edit::StructureCommand*>(&command)) {
             if (!structure->addsRecords()) {
                 // The deleted records, by the IDs they had: back for a moment.
-                order = structure->recordKind() == edit::RecordKind::Frame;
+                touched.order = structure->recordKind() == edit::RecordKind::Frame;
                 command.revert(document);
                 for (const std::size_t index : structure->recordIndices()) {
-                    const document::ComponentKind kind = kindOf(structure->recordKind());
-                    touched.emplace_back(kind, idOf(document, kind, index));
+                    add(kindOf(structure->recordKind()), index);
                 }
                 command.apply(document);
             }
         } else if (dynamic_cast<const edit::FrameMoveCommand*>(&command)) {
-            order = true;
+            touched.order = true;
         } else if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(&command)) {
-            order = batch->changesStructure();
+            touched.order = batch->changesStructure();
         } else if (dynamic_cast<const edit::SceneEditCommand*>(&command) ||
                    dynamic_cast<const edit::SpeakerLightsCommand*>(&command) ||
                    dynamic_cast<const edit::LicenseCommand*>(&command)) {
-            settings = true;
+            touched.settings = true;
         }
         break;
     }
-    for (const auto& [kind, id] : touched) {
-        if (id.isNull()) {
-            continue;
-        }
+    return touched;
+}
+
+std::optional<QString> TeamController::refusalFor(const Touched& touched) const
+{
+    if (!m_claims) {
+        return std::nullopt;
+    }
+    const std::string me = m_login.toStdString();
+    for (const auto& [kind, id] : touched.components) {
         if (const team::Claim* claim = team::partnerClaim(*m_claims, kind, id, me)) {
             return claimText(*claim);
         }
     }
-    if (order && m_claims->order && m_claims->order->login != me) {
+    if (touched.order && m_claims->order && m_claims->order->login != me) {
         return tr("%1 is moving or deleting frames").arg(
             QString::fromStdString(m_claims->order->login));
     }
-    if (settings && m_claims->settings && m_claims->settings->login != me) {
+    if (touched.settings && m_claims->settings && m_claims->settings->login != me) {
         return tr("%1 is changing the project's settings").arg(
             QString::fromStdString(m_claims->settings->login));
+    }
+    return std::nullopt;
+}
+
+std::optional<QString> TeamController::refusal(const edit::EditCommand& command,
+                                               document::ProjectDocument& document) const
+{
+    if (!m_claims || !document.team()) {
+        return std::nullopt;
+    }
+    return refusalFor(touchedBy(command, document));
+}
+
+std::optional<QString> TeamController::admitEdit(const edit::EditCommand& command,
+                                                 document::ProjectDocument& document)
+{
+    if (!document.team()) {
+        return std::nullopt;
+    }
+    const Touched touched = touchedBy(command, document);
+    if (std::optional<QString> refused = refusalFor(touched)) {
+        return refused;
+    }
+    bool more = (touched.order && !m_touched.order) || (touched.settings && !m_touched.settings);
+    m_touched.order = m_touched.order || touched.order;
+    m_touched.settings = m_touched.settings || touched.settings;
+    for (const team::Reservation& component : touched.components) {
+        if (std::find(m_touched.components.begin(), m_touched.components.end(), component) ==
+            m_touched.components.end()) {
+            m_touched.components.push_back(component);
+            more = true;
+        }
+    }
+    // Something not claimed yet: the partners hear of it after the burst of edits.
+    if (more && !m_inputDelay.isActive()) {
+        m_inputDelay.start();
     }
     return std::nullopt;
 }

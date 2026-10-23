@@ -54,19 +54,22 @@ frames their new revisions, by which the copies tell what changed.
 
 ## Claims
 
-A saved change of a frame (or mask, background, sprite, palette) claims it: the claim goes to the
-repository with the next share or refresh of the claims (at the latest a minute later), and the
-partners see it read-only. Save early when others might work on the same frames. An edit of a
-frame a partner claimed is undone at once; the status bar says who works on it since when, and
-the frame's line below the canvas says `claimed`. Moving or deleting frames claims the frame
-order, changing the settings claims the settings.
+Your first edit of a frame (or mask, background, sprite, palette) claims it, saved or not: the
+partners see it read-only a few seconds later. An edit of a frame a partner claimed is undone at
+once; the status bar says who works on it since when, and the frame's line below the canvas says
+`claimed`. Moving or deleting frames claims the frame order, changing the settings claims the
+settings.
 
-- Claims are read when the project opens and every minute while it is open; `Team -> Refresh
-  Claims` reads them now.
+- The editor keeps the claims in step in the background, every 15 seconds and a moment after
+  you edit something new, without making you wait; `Team -> Refresh Claims` does it now and says
+  when they are up to date.
+- In the same way it looks for the partners' shared changes and downloads them: the status bar
+  says when there are new ones, and `Team -> Merge Changes (2)...` how many wait. Merging them
+  then needs no waiting for the network.
 - `Team -> Reserve Selected Frames` claims frames before you change them ("I'll do the attract
   mode tonight"); `Release My Reservations` gives them back.
 - A claim ends when your change has reached every partner: when they merged it and you merged
-  their next shared changes.
+  their next shared changes. An edit you undo and save without a change ends its claim too.
 - Assigning a mask, background or sprite a partner claimed is allowed: it changes the frame,
   not the mask. The mask may still change until the next merge.
 

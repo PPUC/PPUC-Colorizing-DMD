@@ -113,6 +113,9 @@ public:
     // The partners' packages this copy has not merged, oldest first.
     void pendingPackages(const document::ProjectDocument& document,
                          std::function<void(std::vector<QString> names, QString error)> done);
+    // The same, without the document: the packages merged already given.
+    void pendingPackages(std::vector<document::ComponentId> merged,
+                         std::function<void(std::vector<QString> names, QString error)> done);
     void fetchPackage(const QString& name,
                       std::function<void(std::optional<team::ChangePackage>, QString error)>
                           done);
@@ -121,6 +124,11 @@ public:
     // answers all claims; a write that comes too late is retried with the new claims.
     void syncClaims(const document::ProjectDocument& document,
                     const std::vector<team::Reservation>& reserved,
+                    int64_t nowMs,
+                    std::function<void(std::optional<team::Claims>, QString error)> done);
+    // The same for a claim set worked out before (in the background: TeamSync).
+    void syncClaims(team::ChangeSet claimed,
+                    std::vector<team::Reservation> reserved,
                     int64_t nowMs,
                     std::function<void(std::optional<team::Claims>, QString error)> done);
     // The claims as they are, without writing.

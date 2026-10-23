@@ -5441,7 +5441,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
-        <translation>Frame d'un partenaire : %1. Elle reste en lecture seule ici jusqu'à ce que la modification soit fusionnée.</translation>
+        <translation>Frame d&apos;un partenaire : %1. Elle reste en lecture seule ici jusqu&apos;à ce que la modification soit fusionnée.</translation>
     </message>
     <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
@@ -5683,7 +5683,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Not changed: %1. Merge the partners&apos; changes first, or ask them.</source>
-        <translation>Non modifié : %1. Fusionnez d'abord les modifications des partenaires, ou demandez-leur.</translation>
+        <translation>Non modifié : %1. Fusionnez d&apos;abord les modifications des partenaires, ou demandez-leur.</translation>
     </message>
     <message>
         <source>Undo</source>
@@ -5829,7 +5829,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>%1 and you both changed these. Keep one of the two for each; what you keep goes to the partners with your next shared changes.</source>
-        <translation>%1 et vous avez tous deux modifié ces éléments. Gardez l'une des deux versions pour chacun ; ce que vous gardez part chez les partenaires avec vos prochaines modifications partagées.</translation>
+        <translation>%1 et vous avez tous deux modifié ces éléments. Gardez l&apos;une des deux versions pour chacun ; ce que vous gardez part chez les partenaires avec vos prochaines modifications partagées.</translation>
     </message>
     <message>
         <source>Yours</source>
@@ -5921,7 +5921,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The settings&lt;br&gt;&lt;small&gt;license, scenes, speaker lights, helper lines, sections&lt;/small&gt;</source>
-        <translation>Les réglages&lt;br&gt;&lt;small&gt;licence, scènes, lumières des haut-parleurs, lignes d'aide, sections&lt;/small&gt;</translation>
+        <translation>Les réglages&lt;br&gt;&lt;small&gt;licence, scènes, lumières des haut-parleurs, lignes d&apos;aide, sections&lt;/small&gt;</translation>
     </message>
     <message>
         <source>Merge</source>
@@ -7599,11 +7599,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Enter this code on GitHub&apos;s page, which opens in your browser, and allow PPUC Colorizing DMD access. Your password stays with GitHub.</source>
-        <translation>Saisissez ce code sur la page de GitHub, qui s'ouvre dans votre navigateur, et autorisez l'accès à PPUC Colorizing DMD. Votre mot de passe reste chez GitHub.</translation>
+        <translation>Saisissez ce code sur la page de GitHub, qui s&apos;ouvre dans votre navigateur, et autorisez l&apos;accès à PPUC Colorizing DMD. Votre mot de passe reste chez GitHub.</translation>
     </message>
     <message>
         <source>Asking GitHub for a code…</source>
-        <translation>Demande d'un code à GitHub…</translation>
+        <translation>Demande d&apos;un code à GitHub…</translation>
     </message>
     <message>
         <source>Copy Code And Open GitHub</source>
@@ -7615,7 +7615,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Access was not allowed on GitHub.</source>
-        <translation>L'accès n'a pas été autorisé sur GitHub.</translation>
+        <translation>L&apos;accès n&apos;a pas été autorisé sur GitHub.</translation>
     </message>
     <message>
         <source>The code expired; sign in again.</source>
@@ -7959,7 +7959,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <name>StartTeamDialog</name>
     <message>
         <source>Start Team Project</source>
-        <translation>Démarrer un projet d'équipe</translation>
+        <translation>Démarrer un projet d&apos;équipe</translation>
     </message>
     <message>
         <source>Your account, %1</source>
@@ -7967,7 +7967,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>A GitHub organization the repository goes to, for example the Serum team&apos;s; empty for your own account</source>
-        <translation>Une organisation GitHub qui reçoit le dépôt, par exemple celle de l'équipe Serum ; vide pour votre propre compte</translation>
+        <translation>Une organisation GitHub qui reçoit le dépôt, par exemple celle de l&apos;équipe Serum ; vide pour votre propre compte</translation>
     </message>
     <message>
         <source>The repository&apos;s name; it holds the claims and the shared changes, not the project</source>
@@ -7979,7 +7979,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The editor creates a private repository and invites the partners. Then share the saved project file with them once, for example through Google Drive: it is the snapshot everyone starts from.</source>
-        <translation>L'éditeur crée un dépôt privé et invite les partenaires. Partagez ensuite une fois avec eux le fichier de projet enregistré, par exemple via Google Drive : c'est l'instantané dont tout le monde part.</translation>
+        <translation>L&apos;éditeur crée un dépôt privé et invite les partenaires. Partagez ensuite une fois avec eux le fichier de projet enregistré, par exemple via Google Drive : c&apos;est l&apos;instantané dont tout le monde part.</translation>
     </message>
     <message>
         <source>Organization</source>
@@ -8010,7 +8010,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Sign in with your GitHub account, for team projects</source>
-        <translation>Se connecter avec votre compte GitHub, pour les projets d'équipe</translation>
+        <translation>Se connecter avec votre compte GitHub, pour les projets d&apos;équipe</translation>
     </message>
     <message>
         <source>Sign &amp;Out</source>
@@ -8018,11 +8018,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>&amp;Start Team Project...</source>
-        <translation>&amp;Démarrer un projet d'équipe...</translation>
+        <translation>&amp;Démarrer un projet d&apos;équipe...</translation>
     </message>
     <message>
         <source>Make this project a team project: a GitHub repository for the claims and the shared changes, and the partners invited</source>
-        <translation>Faire de ce projet un projet d'équipe : un dépôt GitHub pour les réservations et les modifications partagées, et les partenaires invités</translation>
+        <translation>Faire de ce projet un projet d&apos;équipe : un dépôt GitHub pour les réservations et les modifications partagées, et les partenaires invités</translation>
     </message>
     <message>
         <source>S&amp;hare My Changes</source>
@@ -8062,7 +8062,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Go on alone from this copy: the partners start again from a new snapshot</source>
-        <translation>Continuer seul à partir de cette copie : les partenaires repartent d'un nouvel instantané</translation>
+        <translation>Continuer seul à partir de cette copie : les partenaires repartent d&apos;un nouvel instantané</translation>
     </message>
     <message>
         <source>Signed In As %1</source>
@@ -8070,11 +8070,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>A team project: sign in to GitHub (Team menu) to see the claims and share changes</source>
-        <translation>Un projet d'équipe : connectez-vous à GitHub (menu Équipe) pour voir les réservations et partager des modifications</translation>
+        <translation>Un projet d&apos;équipe : connectez-vous à GitHub (menu Équipe) pour voir les réservations et partager des modifications</translation>
     </message>
     <message>
         <source>You (%1) are not one of this team project&apos;s members</source>
-        <translation>Vous (%1) ne faites pas partie des membres de ce projet d'équipe</translation>
+        <translation>Vous (%1) ne faites pas partie des membres de ce projet d&apos;équipe</translation>
     </message>
     <message>
         <source>Sign In To GitHub</source>
@@ -8082,7 +8082,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>This build has no GitHub app to sign in through. Builds of the PPUC project have one; for another build, set COLORIZINGDMD_GITHUB_CLIENT_ID to the client ID of a GitHub OAuth app with the device flow enabled.</source>
-        <translation>Cette version n'a pas d'application GitHub pour la connexion. Les versions du projet PPUC en ont une ; pour une autre version, définissez COLORIZINGDMD_GITHUB_CLIENT_ID avec l'identifiant client d'une application OAuth GitHub dont le device flow est activé.</translation>
+        <translation>Cette version n&apos;a pas d&apos;application GitHub pour la connexion. Les versions du projet PPUC en ont une ; pour une autre version, définissez COLORIZINGDMD_GITHUB_CLIENT_ID avec l&apos;identifiant client d&apos;une application OAuth GitHub dont le device flow est activé.</translation>
     </message>
     <message>
         <source>Signed in to GitHub as %1</source>
@@ -8094,7 +8094,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The project is no team project.</source>
-        <translation>Le projet n'est pas un projet d'équipe.</translation>
+        <translation>Le projet n&apos;est pas un projet d&apos;équipe.</translation>
     </message>
     <message>
         <source>%1 broke the lock on %2 and goes on alone. Start again from their new snapshot of the project; to give them what you changed meanwhile, export it as a package (File -&gt; Export Selected Frames As Package).</source>
@@ -8102,7 +8102,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Creating the team&apos;s repository…</source>
-        <translation>Création du dépôt de l'équipe…</translation>
+        <translation>Création du dépôt de l&apos;équipe…</translation>
     </message>
     <message>
         <source>Claims and shared changes of the colorization %1</source>
@@ -8110,11 +8110,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Start Team Project</source>
-        <translation>Démarrer un projet d'équipe</translation>
+        <translation>Démarrer un projet d&apos;équipe</translation>
     </message>
     <message>
         <source>The repository could not be created: %1</source>
-        <translation>Le dépôt n'a pas pu être créé : %1</translation>
+        <translation>Le dépôt n&apos;a pas pu être créé : %1</translation>
     </message>
     <message>
         <source>Inviting %1…</source>
@@ -8122,7 +8122,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The team project is started in %1. Now give the partners the project file once, for example through Google Drive: %2. They open it, sign in, and share and merge from the Team menu.%3</source>
-        <translation>Le projet d'équipe est démarré dans %1. Donnez maintenant une fois le fichier de projet aux partenaires, par exemple via Google Drive : %2. Ils l'ouvrent, se connectent, et partagent et fusionnent depuis le menu Équipe.%3</translation>
+        <translation>Le projet d&apos;équipe est démarré dans %1. Donnez maintenant une fois le fichier de projet aux partenaires, par exemple via Google Drive : %2. Ils l&apos;ouvrent, se connectent, et partagent et fusionnent depuis le menu Équipe.%3</translation>
     </message>
     <message>
         <source> Not invited: %1.</source>
@@ -8138,7 +8138,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Nothing to share: nothing changed since the last merge</source>
-        <translation>Rien à partager : rien n'a changé depuis la dernière fusion</translation>
+        <translation>Rien à partager : rien n&apos;a changé depuis la dernière fusion</translation>
     </message>
     <message>
         <source>Shared your changes with the partners</source>
@@ -8162,7 +8162,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>A package could not be read: %1</source>
-        <translation>Un paquet n'a pas pu être lu : %1</translation>
+        <translation>Un paquet n&apos;a pas pu être lu : %1</translation>
     </message>
     <message>
         <source>Merged %1 package(s): %2 taken, %3 added, %4 deleted, %5 conflict(s)</source>
@@ -8189,11 +8189,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The partners&apos; claims stop counting, and their shared changes that you have not merged are not merged any more. They start again from the project file you give them after this.</source>
-        <translation>Les réservations des partenaires ne comptent plus, et leurs modifications partagées que vous n'avez pas fusionnées ne le seront plus. Ils repartent du fichier de projet que vous leur donnez ensuite.</translation>
+        <translation>Les réservations des partenaires ne comptent plus, et leurs modifications partagées que vous n&apos;avez pas fusionnées ne le seront plus. Ils repartent du fichier de projet que vous leur donnez ensuite.</translation>
     </message>
     <message>
         <source>The editor makes a fork of the team&apos;s repository in your account, and you go on there alone, as its owner. The team&apos;s repository stays as it is.</source>
-        <translation>L'éditeur crée un fork du dépôt de l'équipe dans votre compte, et vous y continuez seul, en tant que propriétaire. Le dépôt de l'équipe reste tel quel.</translation>
+        <translation>L&apos;éditeur crée un fork du dépôt de l&apos;équipe dans votre compte, et vous y continuez seul, en tant que propriétaire. Le dépôt de l&apos;équipe reste tel quel.</translation>
     </message>
     <message>
         <source>Forking the repository…</source>
@@ -8201,7 +8201,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The repository could not be forked: %1</source>
-        <translation>Le dépôt n'a pas pu être forké : %1</translation>
+        <translation>Le dépôt n&apos;a pas pu être forké : %1</translation>
     </message>
     <message>
         <source>Writing the claims…</source>
@@ -8209,7 +8209,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The claims could not be written: %1</source>
-        <translation>Les réservations n'ont pas pu être écrites : %1</translation>
+        <translation>Les réservations n&apos;ont pas pu être écrites : %1</translation>
     </message>
     <message>
         <source>The lock is broken. Give the partners the saved project file again: they start from it.</source>
@@ -8221,15 +8221,30 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Reading the claims…</source>
-        <translation>Lecture des réservations…</translation>
+        <translation type="vanished">Lecture des réservations…</translation>
     </message>
     <message>
         <source>The team&apos;s claims could not be read: %1</source>
-        <translation>Les réservations de l'équipe n'ont pas pu être lues : %1</translation>
+        <translation>Les réservations de l&apos;équipe n&apos;ont pas pu être lues : %1</translation>
     </message>
     <message>
         <source>Team</source>
         <translation>Équipe</translation>
+    </message>
+    <message>
+        <source>&amp;Merge Changes (%1)...</source>
+        <translation>&amp;Fusionner les modifications (%1)...</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners to merge (Team -&gt; Merge Changes)</source>
+        <translation>
+            <numerusform>%n modification partagée des partenaires à fusionner (Équipe -&gt; Fusionner les modifications)</numerusform>
+            <numerusform>%n modifications partagées des partenaires à fusionner (Équipe -&gt; Fusionner les modifications)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The claims are up to date</source>
+        <translation>Les réservations sont à jour</translation>
     </message>
     <message>
         <source>%1 works on it since %2</source>

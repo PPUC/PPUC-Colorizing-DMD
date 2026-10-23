@@ -282,8 +282,14 @@ void TeamSession::share(document::ProjectDocument& document,
 void TeamSession::pendingPackages(const document::ProjectDocument& document,
                                   std::function<void(std::vector<QString>, QString)> done)
 {
-    const std::vector<document::ComponentId> merged =
-        document.team() ? document.team()->mergedPackages : std::vector<document::ComponentId>{};
+    pendingPackages(document.team() ? document.team()->mergedPackages
+                                    : std::vector<document::ComponentId>{},
+                    std::move(done));
+}
+
+void TeamSession::pendingPackages(std::vector<document::ComponentId> merged,
+                                  std::function<void(std::vector<QString>, QString)> done)
+{
     m_remote.listPackages([this, merged, done = std::move(done)](std::vector<QString> names,
                                                                 QString error) {
         std::vector<QString> pending;
@@ -329,6 +335,14 @@ void TeamSession::syncClaims(const document::ProjectDocument& document,
         return;
     }
     syncClaimsAttempt(std::move(changes), reserved, nowMs, 3, std::move(done));
+}
+
+void TeamSession::syncClaims(team::ChangeSet claimed,
+                             std::vector<team::Reservation> reserved,
+                             int64_t nowMs,
+                             std::function<void(std::optional<team::Claims>, QString)> done)
+{
+    syncClaimsAttempt(std::move(claimed), std::move(reserved), nowMs, 3, std::move(done));
 }
 
 void TeamSession::syncClaimsAttempt(team::ChangeSet changes,

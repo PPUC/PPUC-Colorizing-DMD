@@ -129,6 +129,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     team/TeamDialogs.h
     team/TeamSession.cpp
     team/TeamSession.h
+    team/TeamSync.cpp
+    team/TeamSync.h
     EditorPlugins.h
     KeyNames.cpp
     KeyNames.h
