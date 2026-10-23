@@ -318,6 +318,111 @@ void testFile()
     std::filesystem::remove(path);
 }
 
+void testContentHash()
+{
+    // Pinned: a hash that changed would give every component of every project a new revision.
+    expect(document::contentHash("") == 2967654521833311460ULL &&
+               document::contentHash("Colorizing DMD frame") == 10019337165094342085ULL,
+           "the content hash is the same on every platform: " +
+               std::to_string(document::contentHash("")) + " " +
+               std::to_string(document::contentHash("Colorizing DMD frame")));
+    expect(document::contentHash("abcdefgh1") != document::contentHash("abcdefgh2") &&
+               document::contentHash(std::string(9, '\0')) !=
+                   document::contentHash(std::string(10, '\0')),
+           "the hash sees the tail and the length");
+}
+
+std::size_t componentCount(const ProjectSnapshot& snapshot)
+{
+    return snapshot.frames.size() + snapshot.comparisonMasks.size() +
+           snapshot.backgrounds.size() + snapshot.sprites.size() + snapshot.palettes.size();
+}
+
+std::vector<document::StampedMeta> stamp(const ProjectDocument& document,
+                                         const std::string& author,
+                                         int64_t time)
+{
+    project::ProjectFileOptions options{"test"};
+    options.stamp = project::RevisionStamp{author, time};
+    std::vector<document::StampedMeta> stamped;
+    project::forEachProjectEntry(document.toSnapshot(), options,
+                                 [](const std::string&, const std::string&) {}, &stamped);
+    return stamped;
+}
+
+// A save gives a component that changed a new revision with its author and time; the rest
+// keep theirs.
+void testRevisions()
+{
+    ProjectDocument document = ProjectDocument::fromSnapshot(
+        makeRichProject(render::PlaneLayout::Ordinary));
+    const std::vector<document::StampedMeta> first = stamp(document, "Kraken", 1000);
+    expect(first.size() == componentCount(document.toSnapshot()),
+           "the first save gives every component a revision");
+    for (const document::StampedMeta& entry : first) {
+        expect(!entry.meta.revision.isNull() && entry.meta.author == "Kraken" &&
+                   entry.meta.modifiedMs == 1000 && entry.meta.contentHash != 0,
+               "with the author, the time and the hash");
+    }
+    const ProjectDocument unstamped = document;
+    expect(stamp(document, "Kraken", 1000).size() == first.size(),
+           "without taking them over, the next save stamps again");
+    const bool dirty = document.isDirty();
+    const uint64_t revision = document.revision();
+    document.adoptComponentMeta(first);
+    expect(document.frameMeta(3) == first[first.size() - document.frameCount() + 3].meta &&
+               document.isDirty() == dirty && document.revision() == revision,
+           "the document takes them over without a change");
+    expect(stamp(document, "Enthusiast", 2000).empty(), "an unchanged project stamps nothing");
+
+    document.setFrameDurationMs(3, 77);
+    document.setComparisonMaskPixel(1, 2, 2, 1);
+    const std::vector<document::StampedMeta> second = stamp(document, "Enthusiast", 2000);
+    expect(second.size() == 2, "only what changed gets a new revision");
+    for (const document::StampedMeta& entry : second) {
+        const bool frame = entry.kind == document::ComponentKind::Frame &&
+                           entry.meta.id == document.frameMeta(3).id;
+        const bool mask = entry.kind == document::ComponentKind::ComparisonMask &&
+                          entry.meta.id == document.comparisonMaskMeta(1).id;
+        expect((frame || mask) && entry.meta.author == "Enthusiast" &&
+                   entry.meta.modifiedMs == 2000 &&
+                   entry.meta.revision != (frame ? document.frameMeta(3).revision
+                                                 : document.comparisonMaskMeta(1).revision),
+               "the frame and the mask, by the new author");
+    }
+    document.adoptComponentMeta(second);
+    expect(document.frameMeta(2).author == "Kraken" && document.frameMeta(3).author ==
+                                                           "Enthusiast",
+           "the other frames keep their author");
+
+    // The file keeps what the save stamped.
+    const std::filesystem::path path = tempPath(".cdmd");
+    project::ProjectFileOptions options{"test"};
+    options.stamp = project::RevisionStamp{"Kraken", 3000};
+    document.setTriggerId(4, 99);
+    std::vector<document::StampedMeta> saved;
+    expect(project::saveProjectFile(platform::utf8FromPath(path), document.toSnapshot(), options,
+                                    nullptr, &saved)
+                   .ok &&
+               saved.size() == 1,
+           "a save stamps the changed frame");
+    const legacy::LegacyLoadResult loaded = project::loadProjectFile(platform::utf8FromPath(path));
+    expect(loaded.ok && loaded.snapshot.frames[4].meta == saved[0].meta &&
+               loaded.snapshot.frames[3].meta == document.frameMeta(3),
+           "the file has the new revision and keeps the others");
+    std::filesystem::remove(path);
+
+    // A component removed after the snapshot is skipped.
+    ProjectDocument other = unstamped;
+    document::StampedMeta foreign = first[first.size() - other.frameCount()];
+    expect(foreign.kind == document::ComponentKind::Frame &&
+               foreign.meta.id == other.frameMeta(0).id,
+           "the frames come last");
+    foreign.meta.id = document::ComponentId::generate();
+    other.adoptComponentMeta({foreign});
+    expect(other.frameMeta(0).author.empty(), "an unknown ID changes nothing");
+}
+
 // A real project, when COLORIZING_TEST_PROJECT names its cROM or cRZ (the editor file beside
 // it): converted to the project file and back, it has the same cROM.
 void testRealProject()
@@ -367,5 +472,7 @@ void runProjectFileTests()
         testRoundTrip(layout);
     }
     testFile();
+    testContentHash();
+    testRevisions();
     testRealProject();
 }

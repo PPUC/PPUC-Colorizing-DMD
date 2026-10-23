@@ -691,6 +691,48 @@ const ComponentMeta& ProjectDocument::paletteMeta(std::size_t paletteIndex) cons
     return palette(paletteIndex).meta;
 }
 
+void ProjectDocument::adoptComponentMeta(const std::vector<StampedMeta>& stamped)
+{
+    std::unordered_map<ComponentId, ComponentMeta*, ComponentIdHash> metas;
+    const auto add = [&metas](ComponentMeta& meta) { metas.emplace(meta.id, &meta); };
+    // IDs are unique within a kind only; the kinds are looked up one after another.
+    for (const ComponentKind kind :
+         {ComponentKind::Frame, ComponentKind::ComparisonMask, ComponentKind::Background,
+          ComponentKind::Sprite, ComponentKind::Palette}) {
+        metas.clear();
+        switch (kind) {
+        case ComponentKind::Frame:
+            std::for_each(m_frames.begin(), m_frames.end(),
+                          [&](FrameRecord& record) { add(record.meta); });
+            break;
+        case ComponentKind::ComparisonMask:
+            std::for_each(m_comparisonMaskMeta.begin(), m_comparisonMaskMeta.end(), add);
+            break;
+        case ComponentKind::Background:
+            std::for_each(m_backgrounds.begin(), m_backgrounds.end(),
+                          [&](BackgroundRecord& record) { add(record.meta); });
+            break;
+        case ComponentKind::Sprite:
+            std::for_each(m_sprites.begin(), m_sprites.end(),
+                          [&](SpriteRecord& record) { add(record.meta); });
+            break;
+        case ComponentKind::Palette:
+            std::for_each(m_palettes.begin(), m_palettes.end(),
+                          [&](PaletteRecord& record) { add(record.meta); });
+            break;
+        }
+        for (const StampedMeta& entry : stamped) {
+            if (entry.kind != kind) {
+                continue;
+            }
+            const auto found = metas.find(entry.meta.id);
+            if (found != metas.end()) {
+                *found->second = entry.meta;
+            }
+        }
+    }
+}
+
 std::optional<std::size_t> ProjectDocument::frameIndexOf(const ComponentId& id) const
 {
     const auto found = std::find_if(m_frames.begin(), m_frames.end(),

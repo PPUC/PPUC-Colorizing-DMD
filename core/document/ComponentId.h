@@ -49,4 +49,23 @@ struct ComponentMeta {
     bool operator==(const ComponentMeta&) const = default;
 };
 
+enum class ComponentKind : uint8_t {
+    Frame,
+    ComparisonMask,
+    Background,
+    Sprite,
+    Palette,
+};
+
+// The change information a save gave a component (project::saveProjectFile()), for the
+// document to take over (ProjectDocument::adoptComponentMeta()).
+struct StampedMeta {
+    ComponentKind kind = ComponentKind::Frame;
+    ComponentMeta meta;
+};
+
+// A 64-bit hash of the bytes, the same on every platform; for telling whether a component
+// changed, not for security.
+[[nodiscard]] uint64_t contentHash(std::string_view bytes);
+
 }  // namespace colorizing::document

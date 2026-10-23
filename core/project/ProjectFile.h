@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "document/ProjectSnapshot.h"
 #include "legacy/LegacyProjectIo.h"
@@ -59,20 +60,33 @@ inline constexpr const char* kProjectFormatName = "PPUC Colorizing DMD project";
 // Whether the path ends in ".cdmd" (any case).
 [[nodiscard]] bool hasProjectFileExtension(const std::string& path);
 
+// Who saves and when, for the components whose content changed.
+struct RevisionStamp {
+    std::string author;
+    // UTC milliseconds since 1970.
+    int64_t modifiedMs = 0;
+};
+
 struct ProjectFileOptions {
     // Written into the manifest, for people and support.
     std::string editorVersion;
     // The deflate level of the entries: fast by default, as the .cRZ.
     int compressionLevel = 1;
+    // When set, a component whose content is not the one of its revision (a content hash that
+    // differs, or no revision yet) is written with a new revision, the stamp's author and time
+    // and the new hash. Without it the change information is written as it is.
+    std::optional<RevisionStamp> stamp;
 };
 
 // The entries of the project file, one after another: name and content. Throws
 // std::invalid_argument for a snapshot whose components lack unique IDs (a document's
-// snapshot always has them).
+// snapshot always has them). stamped (may be null) gets the change information of the
+// components the options' stamp gave a new revision.
 void forEachProjectEntry(
     const document::ProjectSnapshot& snapshot,
     const ProjectFileOptions& options,
-    const std::function<void(const std::string& name, const std::string& bytes)>& entry);
+    const std::function<void(const std::string& name, const std::string& bytes)>& entry,
+    std::vector<document::StampedMeta>* stamped = nullptr);
 
 // The project back from its entries; read(name) returns an entry's content, nothing for an
 // entry that is not there. errorMessage says what is missing or damaged.
@@ -82,12 +96,15 @@ void forEachProjectEntry(
     legacy::LegacyIoProgress* progress = nullptr);
 
 // Writes the file beside the target and renames it into place, so that a failed save leaves
-// the previous file as it was. progress may be null; done and total count entries.
-[[nodiscard]] legacy::LegacySaveResult saveProjectFile(const std::string& path,
-                                                       const document::ProjectSnapshot& snapshot,
-                                                       const ProjectFileOptions& options,
-                                                       legacy::LegacyIoProgress* progress =
-                                                           nullptr);
+// the previous file as it was. progress may be null; done and total count entries. stamped
+// (may be null) gets the change information the save gave components, only when it
+// succeeds: the document takes it over (ProjectDocument::adoptComponentMeta()).
+[[nodiscard]] legacy::LegacySaveResult saveProjectFile(
+    const std::string& path,
+    const document::ProjectSnapshot& snapshot,
+    const ProjectFileOptions& options,
+    legacy::LegacyIoProgress* progress = nullptr,
+    std::vector<document::StampedMeta>* stamped = nullptr);
 
 [[nodiscard]] legacy::LegacyLoadResult loadProjectFile(const std::string& path,
                                                        legacy::LegacyIoProgress* progress =

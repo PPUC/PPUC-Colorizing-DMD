@@ -52,7 +52,10 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     copy (`ensureComponentIds()`, the insert and append methods); undo keeps IDs, snapshots
     and subsets carry them (mask meta in `ProjectSnapshot::comparisonMaskMeta`), and the
     project has an ID of its own (`projectId()`). Only the project file keeps them; a legacy
-    load gives new IDs. Revision, author and hash are kept but not yet set by a save.
+    load gives new IDs. A save with `ProjectFileOptions::stamp` gives each component whose
+    content hash (`contentHash()`, of its entry without META) differs, or that has no revision
+    yet, a new revision with the stamp's author and time, and hands those back for
+    `adoptComponentMeta()`; a change undone by hand is a new revision too. GoT: +0.6 s.
   - `project/` (branch `format-v3`): the editor's own project file, `<name>.cdmd`
     (`ProjectFile.h` documents the layout): a zip with JSON metadata (`Json.h`, the core's own,
     integers only) and one binary entry per component, references by UUID. Not used by the

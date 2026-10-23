@@ -842,6 +842,10 @@ public:
     [[nodiscard]] const ComponentMeta& spriteMeta(std::size_t spriteIndex) const;
     [[nodiscard]] const ComponentMeta& paletteMeta(std::size_t paletteIndex) const;
     [[nodiscard]] std::optional<std::size_t> frameIndexOf(const ComponentId& id) const;
+    // Takes over the change information a save gave components (project::saveProjectFile()),
+    // found by their IDs; a component removed since is skipped. Not an edit: the project
+    // stays as it was, also unchanged when it was.
+    void adoptComponentMeta(const std::vector<StampedMeta>& stamped);
     // The project's own ID, kept by every copy of the project file.
     [[nodiscard]] const ComponentId& projectId() const { return m_projectId; }
     // The given frames alone, in that order, with the comparison masks, backgrounds and sprites

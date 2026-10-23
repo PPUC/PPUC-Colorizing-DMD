@@ -78,4 +78,36 @@ std::optional<ComponentId> ComponentId::fromString(std::string_view text)
     return id;
 }
 
+uint64_t contentHash(std::string_view bytes)
+{
+    // Eight bytes at a time, little endian, each multiplied in and rotated; murmur3's
+    // finalizer mixes the result.
+    constexpr uint64_t kPrime = 0x9e3779b97f4a7c15ULL;
+    uint64_t hash = 0xcbf29ce484222325ULL ^ (bytes.size() * kPrime);
+    const auto* data = reinterpret_cast<const unsigned char*>(bytes.data());
+    std::size_t left = bytes.size();
+    while (left >= 8) {
+        uint64_t word = 0;
+        for (int i = 7; i >= 0; --i) {
+            word = (word << 8) | data[i];
+        }
+        hash = ((hash ^ word) * kPrime);
+        hash = (hash << 31) | (hash >> 33);
+        data += 8;
+        left -= 8;
+    }
+    uint64_t tail = 0;
+    for (std::size_t i = left; i > 0; --i) {
+        tail = (tail << 8) | data[i - 1];
+    }
+    hash = (hash ^ tail) * kPrime;
+    hash ^= hash >> 33;
+    hash *= 0xff51afd7ed558ccdULL;
+    hash ^= hash >> 33;
+    hash *= 0xc4ceb9fe1a85ec53ULL;
+    hash ^= hash >> 33;
+    // 0 stands for "no hash yet".
+    return hash == 0 ? 1 : hash;
+}
+
 }  // namespace colorizing::document

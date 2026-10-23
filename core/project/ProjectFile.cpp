@@ -257,13 +257,13 @@ References referencesOf(const ProjectSnapshot& snapshot)
     return references;
 }
 
-std::string frameEntry(const ProjectSnapshot& snapshot,
-                       std::size_t frameIndex,
-                       const References& references)
+// The fields of a component after META: what its content hash is taken of.
+std::string frameContent(const ProjectSnapshot& snapshot,
+                         std::size_t frameIndex,
+                         const References& references)
 {
     const document::ProjectFrameSnapshot& frame = snapshot.frames[frameIndex];
     std::string out;
-    appendField(out, "META", metaData(frame.meta));
     appendField(out, "ORIG", pictureData(frame.originalSd));
     appendField(out, "COLS", pictureData(frame.colorizedSd));
     if (frame.colorizedHd) {
@@ -352,10 +352,9 @@ std::string frameEntry(const ProjectSnapshot& snapshot,
     return out;
 }
 
-std::string maskEntry(const ProjectSnapshot& snapshot, std::size_t maskIndex)
+std::string maskContent(const ProjectSnapshot& snapshot, std::size_t maskIndex)
 {
     std::string out;
-    appendField(out, "META", metaData(snapshot.comparisonMaskMeta[maskIndex]));
     appendField(out, "NAME",
                 document::fixedName(snapshot.editorMetadata.maskNames, maskIndex,
                                     document::kMaskNameBytes));
@@ -363,10 +362,9 @@ std::string maskEntry(const ProjectSnapshot& snapshot, std::size_t maskIndex)
     return out;
 }
 
-std::string backgroundEntry(const document::BackgroundRecord& background)
+std::string backgroundContent(const document::BackgroundRecord& background)
 {
     std::string out;
-    appendField(out, "META", metaData(background.meta));
     appendField(out, "COLS", pictureData(background.colorizedSd));
     if (background.colorizedHd) {
         appendField(out, "COLH", pictureData(*background.colorizedHd));
@@ -377,14 +375,13 @@ std::string backgroundEntry(const document::BackgroundRecord& background)
     return out;
 }
 
-std::string spriteEntry(const ProjectSnapshot& snapshot,
-                        std::size_t spriteIndex,
-                        const References& references)
+std::string spriteContent(const ProjectSnapshot& snapshot,
+                          std::size_t spriteIndex,
+                          const References& references)
 {
     const document::SpriteRecord& sprite = snapshot.sprites[spriteIndex];
     const document::EditorMetadata& tables = snapshot.editorMetadata;
     std::string out;
-    appendField(out, "META", metaData(sprite.meta));
     appendField(out, "NAME", sprite.name);
     appendField(out, "FLAG", integerData(sprite.hasHd ? 1 : 0, 1));
     appendField(out, "ORIG", pictureData(sprite.originalSd));
@@ -513,12 +510,57 @@ JsonValue orderJson(const ProjectSnapshot& snapshot, const References& reference
     return order;
 }
 
-JsonValue palettesJson(const ProjectSnapshot& snapshot)
+// The change information to write for a component of that content: as it is, or with a new
+// revision, the author and the time when the save stamps revisions and the content is not the
+// one of its revision.
+ComponentMeta stampedMeta(const ComponentMeta& meta,
+                          document::ComponentKind kind,
+                          std::string_view content,
+                          const ProjectFileOptions& options,
+                          std::vector<document::StampedMeta>* stamped)
+{
+    if (!options.stamp) {
+        return meta;
+    }
+    const uint64_t hash = document::contentHash(content);
+    if (hash == meta.contentHash && !meta.revision.isNull()) {
+        return meta;
+    }
+    ComponentMeta written = meta;
+    written.revision = ComponentId::generate();
+    written.author = options.stamp->author;
+    written.modifiedMs = options.stamp->modifiedMs;
+    written.contentHash = hash;
+    if (stamped) {
+        stamped->push_back({kind, written});
+    }
+    return written;
+}
+
+std::string componentEntry(const ComponentMeta& meta,
+                           document::ComponentKind kind,
+                           const std::string& content,
+                           const ProjectFileOptions& options,
+                           std::vector<document::StampedMeta>* stamped)
+{
+    std::string out;
+    appendField(out, "META", metaData(stampedMeta(meta, kind, content, options, stamped)));
+    out += content;
+    return out;
+}
+
+JsonValue palettesJson(const ProjectSnapshot& snapshot,
+                       const ProjectFileOptions& options,
+                       std::vector<document::StampedMeta>* stamped)
 {
     JsonValue palettes = JsonValue::array();
     for (const document::PaletteRecord& palette : snapshot.palettes) {
         JsonValue item = JsonValue::object();
-        item.set("meta", metaJson(palette.meta));
+        std::string content = palette.name;
+        content.push_back('\0');
+        content += valuesData(palette.colors.data(), palette.colors.size());
+        item.set("meta", metaJson(stampedMeta(palette.meta, document::ComponentKind::Palette,
+                                              content, options, stamped)));
         item.set("name", palette.name);
         item.set("colors", colorsHex(palette.colors));
         palettes.push(std::move(item));
@@ -1389,8 +1431,10 @@ bool hasProjectFileExtension(const std::string& path)
 void forEachProjectEntry(
     const ProjectSnapshot& snapshot,
     const ProjectFileOptions& options,
-    const std::function<void(const std::string& name, const std::string& bytes)>& entry)
+    const std::function<void(const std::string& name, const std::string& bytes)>& entry,
+    std::vector<document::StampedMeta>* stamped)
 {
+    using document::ComponentKind;
     if (snapshot.projectId.isNull()) {
         throw std::invalid_argument("the snapshot has no project ID");
     }
@@ -1400,24 +1444,31 @@ void forEachProjectEntry(
     entry("editor.json", writeJson(editorJson(snapshot)));
     entry("lights.json", writeJson(lightsJson(snapshot.speakerLights)));
     if (!snapshot.palettes.empty()) {
-        entry("palettes.json", writeJson(palettesJson(snapshot)));
+        entry("palettes.json", writeJson(palettesJson(snapshot, options, stamped)));
     }
     for (std::size_t i = 0; i < snapshot.unsupportedPayloads.size(); ++i) {
         const std::vector<uint8_t>& bytes = snapshot.unsupportedPayloads[i].bytes;
         entry("unsupported/" + std::to_string(i) + ".bin", std::string(bytes.begin(), bytes.end()));
     }
     for (std::size_t i = 0; i < snapshot.comparisonMasks.size(); ++i) {
-        entry(entryName("masks", references.masks[i]), maskEntry(snapshot, i));
+        entry(entryName("masks", references.masks[i]),
+              componentEntry(snapshot.comparisonMaskMeta[i], ComponentKind::ComparisonMask,
+                             maskContent(snapshot, i), options, stamped));
     }
     for (std::size_t i = 0; i < snapshot.backgrounds.size(); ++i) {
         entry(entryName("backgrounds", references.backgrounds[i]),
-              backgroundEntry(snapshot.backgrounds[i]));
+              componentEntry(snapshot.backgrounds[i].meta, ComponentKind::Background,
+                             backgroundContent(snapshot.backgrounds[i]), options, stamped));
     }
     for (std::size_t i = 0; i < snapshot.sprites.size(); ++i) {
-        entry(entryName("sprites", references.sprites[i]), spriteEntry(snapshot, i, references));
+        entry(entryName("sprites", references.sprites[i]),
+              componentEntry(snapshot.sprites[i].meta, ComponentKind::Sprite,
+                             spriteContent(snapshot, i, references), options, stamped));
     }
     for (std::size_t i = 0; i < snapshot.frames.size(); ++i) {
-        entry(entryName("frames", references.frames[i]), frameEntry(snapshot, i, references));
+        entry(entryName("frames", references.frames[i]),
+              componentEntry(snapshot.frames[i].meta, ComponentKind::Frame,
+                             frameContent(snapshot, i, references), options, stamped));
     }
 }
 
@@ -1585,8 +1636,10 @@ std::optional<ProjectSnapshot> readProjectEntries(
 legacy::LegacySaveResult saveProjectFile(const std::string& path,
                                          const ProjectSnapshot& snapshot,
                                          const ProjectFileOptions& options,
-                                         legacy::LegacyIoProgress* progress)
+                                         legacy::LegacyIoProgress* progress,
+                                         std::vector<document::StampedMeta>* stamped)
 {
+    std::vector<document::StampedMeta> stamps;
     const std::string temporaryPath = path + ".saving";
     std::error_code ignored;
     const auto removeTemporary = [&]() {
@@ -1623,7 +1676,8 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
                                     if (progress) {
                                         progress->done.fetch_add(1);
                                     }
-                                });
+                                },
+                                &stamps);
         } catch (const std::invalid_argument& error) {
             removeTemporary();
             return legacy::makeSaveFailure(error.what());
@@ -1648,6 +1702,9 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
     if (error) {
         removeTemporary();
         return legacy::makeSaveFailure("could not replace the project file: " + error.message());
+    }
+    if (stamped) {
+        *stamped = std::move(stamps);
     }
     return legacy::makeSaveSuccess();
 }
