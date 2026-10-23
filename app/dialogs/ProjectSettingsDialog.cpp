@@ -50,6 +50,11 @@ document::LightActions ProjectSettingsDialog::lightDefaults() const
     return m_panel->lightDefaults();
 }
 
+document::ProjectLicense ProjectSettingsDialog::license() const
+{
+    return m_panel->license();
+}
+
 ProjectSettingsPanel* ProjectSettingsDialog::panel() const
 {
     return m_panel;

@@ -15,6 +15,7 @@
 #include "document/ImageZone.h"
 #include "document/LibserumTarget.h"
 #include "document/Scene.h"
+#include "document/ProjectLicense.h"
 #include "document/SpeakerLights.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
@@ -407,6 +408,9 @@ public:
     // setFrameLights() an effect that exists.
     [[nodiscard]] const SpeakerLightSettings& speakerLights() const { return m_speakerLights; }
     void setSpeakerLights(SpeakerLightSettings settings);
+    // The license the colorization is published under (ProjectLicense.h).
+    [[nodiscard]] const ProjectLicense& license() const { return m_license; }
+    void setLicense(ProjectLicense license);
     [[nodiscard]] const LightActions& frameLights(std::size_t frameIndex) const;
     // The frame's dynamic sets that color the SD picture only, bit n for set n. libserum 2.9
     // keeps their zones off the HD picture of a frame with HD content of its own, which then
@@ -877,6 +881,7 @@ private:
     std::vector<SavedImageZone> m_imageZones;
     std::optional<ColorizationSettings> m_colorizationSettings;
     SpeakerLightSettings m_speakerLights;
+    ProjectLicense m_license;
     DiscardedExtraPlane m_discardedExtraPlane;
     uint32_t m_colorCount = 4;
     uint32_t m_cromRevision = 20;

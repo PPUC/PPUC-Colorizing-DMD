@@ -731,6 +731,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_imageZones = std::move(snapshot.imageZones);
     document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
     document.m_speakerLights = std::move(snapshot.speakerLights);
+    document.m_license = std::move(snapshot.license);
     document.m_colorCount = snapshot.colorCount;
     document.m_cromRevision = snapshot.cromRevision;
     document.m_libserumTarget = snapshot.libserumTarget;
@@ -1252,6 +1253,18 @@ void ProjectDocument::setSpeakerLights(SpeakerLightSettings settings)
         return;
     }
     m_speakerLights = std::move(settings);
+    markChanged();
+}
+
+void ProjectDocument::setLicense(ProjectLicense license)
+{
+    if (static_cast<uint8_t>(license.kind) > kLastLicenseKind) {
+        throw std::invalid_argument("unknown license kind");
+    }
+    if (license == m_license) {
+        return;
+    }
+    m_license = std::move(license);
     markChanged();
 }
 
@@ -3907,6 +3920,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.imageZones = m_imageZones;
     snapshot.colorizationSettings = m_colorizationSettings;
     snapshot.speakerLights = m_speakerLights;
+    snapshot.license = m_license;
     snapshot.discardedExtraPlane = m_discardedExtraPlane;
     if (m_geometry.discardsExtraPlane()) {
         discardExtraPlane(snapshot);

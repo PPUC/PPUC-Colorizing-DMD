@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `File -> Project Settings...` has a license for the colorization (all rights reserved, the
+  Creative Commons licenses or your own text), with an attribution and a link. It is saved in
+  the `.cRPX`.
 - The frame tester and the cROMc export hand the project to libserum without writing a cROM
   first: the frame tester opens large projects faster (GoT: libserum's part 3.7 s instead of
   6.7 s).

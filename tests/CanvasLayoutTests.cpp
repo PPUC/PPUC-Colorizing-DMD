@@ -154,6 +154,7 @@ void runSceneEditTests();
 void runSpeakerLightTests();
 void runEditBatchTests();
 void runComponentIdTests();
+void runLicenseTests();
 
 int main()
 try {
@@ -191,6 +192,7 @@ try {
     runSpeakerLightTests();
     runEditBatchTests();
     runComponentIdTests();
+    runLicenseTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

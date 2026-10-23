@@ -8,10 +8,13 @@
 #include <functional>
 
 #include "document/LibserumTarget.h"
+#include "document/ProjectLicense.h"
 #include "document/SpeakerLights.h"
 
 class QComboBox;
 class QLabel;
+class QLineEdit;
+class QPlainTextEdit;
 
 namespace colorizing::document {
 class ProjectDocument;
@@ -23,8 +26,9 @@ class LightActionEditor;
 
 // The settings of the whole colorization that libserum takes from it: the libserum the
 // project is made for (document::LibserumTarget) and its scaling settings
-// (document::ColorizationSettings), as ProjectSettingsDialog shows them. It shows them and
-// reports a change; a target the project does not fit is named with the reasons.
+// (document::ColorizationSettings), the speaker lights' defaults and the license, as
+// ProjectSettingsDialog shows them. It shows them and reports a change; a target the project
+// does not fit is named with the reasons.
 class ProjectSettingsPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(ProjectSettingsPanel)
 
@@ -50,9 +54,17 @@ public:
     {
         return m_lightDefaults[channel];
     }
+    // The license as chosen.
+    [[nodiscard]] document::ProjectLicense license() const;
+    [[nodiscard]] QComboBox* licenseComboBox() const { return m_licenseComboBox; }
+    [[nodiscard]] QPlainTextEdit* licenseTextEdit() const { return m_licenseTextEdit; }
+    [[nodiscard]] QLineEdit* attributionEdit() const { return m_attributionEdit; }
+    [[nodiscard]] QLineEdit* licenseUrlEdit() const { return m_licenseUrlEdit; }
+    [[nodiscard]] QLabel* licenseLabel() const { return m_licenseLabel; }
 
 private:
     void updateTargetProblems();
+    void updateLicenseLabel();
 
     const document::ProjectDocument* m_document = nullptr;
     QComboBox* m_targetComboBox = nullptr;
@@ -60,6 +72,11 @@ private:
     QComboBox* m_scalingComboBox = nullptr;
     std::array<LightActionEditor*, document::kLightChannels> m_lightDefaults{};
     QComboBox* m_shadowComboBox = nullptr;
+    QComboBox* m_licenseComboBox = nullptr;
+    QLabel* m_licenseLabel = nullptr;
+    QPlainTextEdit* m_licenseTextEdit = nullptr;
+    QLineEdit* m_attributionEdit = nullptr;
+    QLineEdit* m_licenseUrlEdit = nullptr;
     bool m_filling = false;
 };
 

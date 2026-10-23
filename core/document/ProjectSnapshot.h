@@ -69,6 +69,8 @@ struct ProjectSnapshot {
     std::optional<ColorizationSettings> colorizationSettings;
     // The speaker lights (.cRPX, and the cROM's settings block written from them).
     SpeakerLightSettings speakerLights;
+    // The license the colorization is published under (.cRPX).
+    ProjectLicense license;
     // What discardExtraPlane() dropped (not written to the files).
     DiscardedExtraPlane discardedExtraPlane;
     // The change information of the comparison masks, in their order (a mask is a picture
