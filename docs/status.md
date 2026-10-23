@@ -71,6 +71,16 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     496 MB, saved in 20 s, opened in 12 s (its .cRZ and .cRPX: 546 MB, 34 s). The zip code
     is libserum's miniz (`ZipArchive.h`); it has to come into the editor when libserum 3.0
     drops the cRZ. The extension is an open question of the design document.
+  - Packages (branch `format-v3`, `edit/PackageImport.h`): `makePackage()` is a subset
+    snapshot (masks with names, backgrounds, sprites, the light effects the frames start;
+    no scenes, sections, palettes) written as a project file of kind "package" (`.cdmdpkg`).
+    `planPackageImport()` finds known frames by ID, else by libserum's identification (the
+    original's hash under a mask of the same pixels, the same shape mode), and reuses masks,
+    backgrounds and sprites of equal content. `PackageImportCommand` keeps the document before
+    and after (copies that share the blocks) and swaps them; it drops the histories of updated
+    frames (`replacedData()`) and names what it adds (`renumberedRecords()`). The UI refreshes
+    it as an edit batch. Open: copy and paste of frames between two editor windows, which can
+    put a package on the clipboard.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

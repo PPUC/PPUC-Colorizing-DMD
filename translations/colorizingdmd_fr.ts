@@ -5217,7 +5217,23 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Write the project as .cRZ and .cRPX: the .cRZ plays with libserum 2.8 and 2.9, the .cRPX opens in editor versions before the project file</source>
-        <translation>Écrire le projet en .cRZ et .cRPX : le .cRZ fonctionne avec libserum 2.8 et 2.9, le .cRPX s'ouvre dans les versions de l'éditeur antérieures au fichier de projet</translation>
+        <translation>Écrire le projet en .cRZ et .cRPX : le .cRZ fonctionne avec libserum 2.8 et 2.9, le .cRPX s&apos;ouvre dans les versions de l&apos;éditeur antérieures au fichier de projet</translation>
+    </message>
+    <message>
+        <source>Import &amp;Package...</source>
+        <translation>Importer un &amp;paquet...</translation>
+    </message>
+    <message>
+        <source>Add the frames of a package, with what they use; frames the project has already can be updated</source>
+        <translation>Ajouter les frames d'un paquet avec ce qu'elles utilisent ; les frames que le projet a déjà peuvent être mises à jour</translation>
+    </message>
+    <message>
+        <source>Export Selected Frames As Pac&amp;kage...</source>
+        <translation>Exporter les frames sélectionnées en pa&amp;quet...</translation>
+    </message>
+    <message>
+        <source>Write the selected frames with the masks, backgrounds, sprites and light effects they use, for another project</source>
+        <translation>Écrire les frames sélectionnées avec les masques, arrière-plans, sprites et effets lumineux qu'elles utilisent, pour un autre projet</translation>
     </message>
     <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
@@ -5234,6 +5250,119 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Colorizing DMD project (*.cdmd);;All files (*)</source>
         <translation>Projet Colorizing DMD (*.cdmd);;Tous les fichiers (*)</translation>
+    </message>
+    <message>
+        <source>Select the frames for the package first</source>
+        <translation>Sélectionnez d'abord les frames du paquet</translation>
+    </message>
+    <message>
+        <source>Export Selected Frames As Package</source>
+        <translation>Exporter les frames sélectionnées en paquet</translation>
+    </message>
+    <message>
+        <source>Colorizing DMD package (*.cdmdpkg);;All files (*)</source>
+        <translation>Paquet Colorizing DMD (*.cdmdpkg);;Tous les fichiers (*)</translation>
+    </message>
+    <message>
+        <source>Exporting Package</source>
+        <translation>Exportation du paquet</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n frame(s) to %1</source>
+        <translation>
+            <numerusform>%n frame exportée vers %1</numerusform>
+            <numerusform>%n frames exportées vers %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>not chosen</source>
+        <translation>non choisie</translation>
+    </message>
+    <message>
+        <source>all rights reserved</source>
+        <translation>tous droits réservés</translation>
+    </message>
+    <message>
+        <source>its own terms: %1</source>
+        <translation>conditions propres : %1</translation>
+    </message>
+    <message>
+        <source>, name %1</source>
+        <translation>, attribution %1</translation>
+    </message>
+    <message>
+        <source>Import Package</source>
+        <translation>Importer un paquet</translation>
+    </message>
+    <message>
+        <source>Opening Package</source>
+        <translation>Ouverture du paquet</translation>
+    </message>
+    <message>
+        <source>Import cancelled</source>
+        <translation>Importation annulée</translation>
+    </message>
+    <message>
+        <source>The package does not fit this project: %1</source>
+        <translation>Le paquet ne convient pas à ce projet : %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>The package has %n frame(s); they are added behind the last frame.</source>
+        <translation>
+            <numerusform>Le paquet a %n frame ; elle est ajoutée après la dernière frame.</numerusform>
+            <numerusform>Le paquet a %n frames ; elles sont ajoutées après la dernière frame.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>The package has %n frame(s). The project has %1 of them already: the same ROM frames under the same masks.</source>
+        <translation>
+            <numerusform>Le paquet a %n frame. Le projet en a déjà %1 : les mêmes frames de ROM sous les mêmes masques.</numerusform>
+            <numerusform>Le paquet a %n frames. Le projet en a déjà %1 : les mêmes frames de ROM sous les mêmes masques.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>License: %1. Made by: %2. Masks, backgrounds and sprites the project has already are used; the others are added.</source>
+        <translation>Licence : %1. Réalisé par : %2. Les masques, arrière-plans et sprites que le projet a déjà sont utilisés ; les autres sont ajoutés.</translation>
+    </message>
+    <message>
+        <source>not named</source>
+        <translation>non nommé</translation>
+    </message>
+    <message>
+        <source>Update Them</source>
+        <translation>Les mettre à jour</translation>
+    </message>
+    <message>
+        <source>Skip Them</source>
+        <translation>Les ignorer</translation>
+    </message>
+    <message>
+        <source>Add Them As New</source>
+        <translation>Les ajouter comme nouvelles</translation>
+    </message>
+    <message>
+        <source>The package&apos;s frames replace those of the project, which keep their places</source>
+        <translation>Les frames du paquet remplacent celles du projet, qui gardent leur place</translation>
+    </message>
+    <message>
+        <source>Only the frames the project does not have are added</source>
+        <translation>Seules les frames que le projet n'a pas sont ajoutées</translation>
+    </message>
+    <message>
+        <source>Every frame of the package is added</source>
+        <translation>Chaque frame du paquet est ajoutée</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>Importer</translation>
+    </message>
+    <message>
+        <source>Nothing to import: the project has every frame</source>
+        <translation>Rien à importer : le projet a toutes les frames</translation>
+    </message>
+    <message>
+        <source>Imported the package: %1 frame(s) added, %2 updated</source>
+        <translation>Paquet importé : %1 frame(s) ajoutée(s), %2 mise(s) à jour</translation>
     </message>
     <message>
         <source>Export For Earlier Editors</source>
@@ -5253,15 +5382,15 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>It holds changes that were not saved, for example after a crash. Open Autosave opens it as this project with unsaved changes: Save then writes them to the project file. %1 is kept either way.</source>
-        <translation>Elle contient des modifications non enregistrées, par exemple après un plantage. « Ouvrir la sauvegarde » l'ouvre comme ce projet avec des modifications non enregistrées : « Enregistrer » les écrit alors dans le fichier de projet. %1 est conservé dans tous les cas.</translation>
+        <translation>Elle contient des modifications non enregistrées, par exemple après un plantage. « Ouvrir la sauvegarde » l&apos;ouvre comme ce projet avec des modifications non enregistrées : « Enregistrer » les écrit alors dans le fichier de projet. %1 est conservé dans tous les cas.</translation>
     </message>
     <message>
         <source>Opened the files of an earlier editor: Save writes the project as a project file (.cdmd); %1 and %2 stay as they are</source>
-        <translation>Fichiers d'un éditeur précédent ouverts : « Enregistrer » écrit le projet comme fichier de projet (.cdmd) ; %1 et %2 restent tels quels</translation>
+        <translation>Fichiers d&apos;un éditeur précédent ouverts : « Enregistrer » écrit le projet comme fichier de projet (.cdmd) ; %1 et %2 restent tels quels</translation>
     </message>
     <message>
         <source>A project of %1 that has no project file yet has an autosave from %2.</source>
-        <translation>Un projet de %1 qui n'a pas encore de fichier de projet a une sauvegarde automatique du %2.</translation>
+        <translation>Un projet de %1 qui n&apos;a pas encore de fichier de projet a une sauvegarde automatique du %2.</translation>
     </message>
     <message>
         <source> %1 more autosave(s) of projects without a project file are in %2.</source>
@@ -5520,6 +5649,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>%1: move %2 frame(s)</source>
         <translation>%1 : déplacement de %2 frame(s)</translation>
+    </message>
+    <message>
+        <source>%1: import package</source>
+        <translation>%1 : importer un paquet</translation>
     </message>
     <message>
         <source>Undo failed, the step stays in the history: %1</source>
@@ -7261,7 +7394,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>A save writes it as the author of every frame, mask, background, sprite and palette that changed, with the time. Partners see who changed what.</source>
-        <translation>Un enregistrement l'inscrit comme auteur de chaque frame, masque, arrière-plan, sprite et palette modifié, avec l'heure. Les partenaires voient qui a modifié quoi.</translation>
+        <translation>Un enregistrement l&apos;inscrit comme auteur de chaque frame, masque, arrière-plan, sprite et palette modifié, avec l&apos;heure. Les partenaires voient qui a modifié quoi.</translation>
     </message>
     <message>
         <source>Your name</source>

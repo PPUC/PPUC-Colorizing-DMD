@@ -20,6 +20,8 @@ Other files:
   `File -> Export For Earlier Editors...` writes a `.cRZ` and a `.cRPX` of the project: the `.cRZ`
   plays with libserum 2.8 and 2.9, the `.cRPX` opens in the editor versions before the project
   file.
+- `.cdmdpkg` is a package: frames of a project with what they use, for another project (see
+  "Packages").
 - A frame dump (`.txt`) is what a project starts from and what frames are added from: the
   frames a ROM showed, as text. It is only read, see "Creating A Project From A Dump".
 

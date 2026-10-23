@@ -5220,6 +5220,22 @@ Use Create %1 Frame.</source>
         <translation>Das Projekt als .cRZ und .cRPX schreiben: Die .cRZ läuft mit libserum 2.8 und 2.9, die .cRPX öffnet sich in Editor-Versionen vor der Projektdatei</translation>
     </message>
     <message>
+        <source>Import &amp;Package...</source>
+        <translation>&amp;Paket importieren...</translation>
+    </message>
+    <message>
+        <source>Add the frames of a package, with what they use; frames the project has already can be updated</source>
+        <translation>Die Frames eines Pakets hinzufügen, mit allem, was sie verwenden; Frames, die das Projekt schon hat, können aktualisiert werden</translation>
+    </message>
+    <message>
+        <source>Export Selected Frames As Pac&amp;kage...</source>
+        <translation>Ausgewählte Frames als Pa&amp;ket exportieren...</translation>
+    </message>
+    <message>
+        <source>Write the selected frames with the masks, backgrounds, sprites and light effects they use, for another project</source>
+        <translation>Die ausgewählten Frames mit den Masken, Hintergründen, Sprites und Lichteffekten schreiben, die sie verwenden, für ein anderes Projekt</translation>
+    </message>
+    <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
         <translation>Projekte (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing-DMD-Projekt (*.cdmd);;Serum-Kolorierung früherer Editoren (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Alle Dateien (*)</translation>
     </message>
@@ -5234,6 +5250,119 @@ Use Create %1 Frame.</source>
     <message>
         <source>Colorizing DMD project (*.cdmd);;All files (*)</source>
         <translation>Colorizing-DMD-Projekt (*.cdmd);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Select the frames for the package first</source>
+        <translation>Zuerst die Frames für das Paket auswählen</translation>
+    </message>
+    <message>
+        <source>Export Selected Frames As Package</source>
+        <translation>Ausgewählte Frames als Paket exportieren</translation>
+    </message>
+    <message>
+        <source>Colorizing DMD package (*.cdmdpkg);;All files (*)</source>
+        <translation>Colorizing-DMD-Paket (*.cdmdpkg);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Exporting Package</source>
+        <translation>Paket wird exportiert</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n frame(s) to %1</source>
+        <translation>
+            <numerusform>%n Frame nach %1 exportiert</numerusform>
+            <numerusform>%n Frames nach %1 exportiert</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>not chosen</source>
+        <translation>nicht gewählt</translation>
+    </message>
+    <message>
+        <source>all rights reserved</source>
+        <translation>alle Rechte vorbehalten</translation>
+    </message>
+    <message>
+        <source>its own terms: %1</source>
+        <translation>eigene Bedingungen: %1</translation>
+    </message>
+    <message>
+        <source>, name %1</source>
+        <translation>, Namensnennung %1</translation>
+    </message>
+    <message>
+        <source>Import Package</source>
+        <translation>Paket importieren</translation>
+    </message>
+    <message>
+        <source>Opening Package</source>
+        <translation>Paket wird geöffnet</translation>
+    </message>
+    <message>
+        <source>Import cancelled</source>
+        <translation>Import abgebrochen</translation>
+    </message>
+    <message>
+        <source>The package does not fit this project: %1</source>
+        <translation>Das Paket passt nicht zu diesem Projekt: %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>The package has %n frame(s); they are added behind the last frame.</source>
+        <translation>
+            <numerusform>Das Paket hat %n Frame; er wird hinter dem letzten Frame hinzugefügt.</numerusform>
+            <numerusform>Das Paket hat %n Frames; sie werden hinter dem letzten Frame hinzugefügt.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>The package has %n frame(s). The project has %1 of them already: the same ROM frames under the same masks.</source>
+        <translation>
+            <numerusform>Das Paket hat %n Frame. Das Projekt hat %1 davon schon: dieselben ROM-Frames unter denselben Masken.</numerusform>
+            <numerusform>Das Paket hat %n Frames. Das Projekt hat %1 davon schon: dieselben ROM-Frames unter denselben Masken.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>License: %1. Made by: %2. Masks, backgrounds and sprites the project has already are used; the others are added.</source>
+        <translation>Lizenz: %1. Erstellt von: %2. Masken, Hintergründe und Sprites, die das Projekt schon hat, werden verwendet; die übrigen werden hinzugefügt.</translation>
+    </message>
+    <message>
+        <source>not named</source>
+        <translation>nicht genannt</translation>
+    </message>
+    <message>
+        <source>Update Them</source>
+        <translation>Aktualisieren</translation>
+    </message>
+    <message>
+        <source>Skip Them</source>
+        <translation>Überspringen</translation>
+    </message>
+    <message>
+        <source>Add Them As New</source>
+        <translation>Als neue hinzufügen</translation>
+    </message>
+    <message>
+        <source>The package&apos;s frames replace those of the project, which keep their places</source>
+        <translation>Die Frames des Pakets ersetzen die des Projekts, die ihren Platz behalten</translation>
+    </message>
+    <message>
+        <source>Only the frames the project does not have are added</source>
+        <translation>Nur die Frames, die das Projekt nicht hat, werden hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Every frame of the package is added</source>
+        <translation>Jeder Frame des Pakets wird hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>Importieren</translation>
+    </message>
+    <message>
+        <source>Nothing to import: the project has every frame</source>
+        <translation>Nichts zu importieren: Das Projekt hat jeden Frame</translation>
+    </message>
+    <message>
+        <source>Imported the package: %1 frame(s) added, %2 updated</source>
+        <translation>Paket importiert: %1 Frame(s) hinzugefügt, %2 aktualisiert</translation>
     </message>
     <message>
         <source>Export For Earlier Editors</source>
@@ -5520,6 +5649,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>%1: move %2 frame(s)</source>
         <translation>%1: %2 Frame(s) verschieben</translation>
+    </message>
+    <message>
+        <source>%1: import package</source>
+        <translation>%1: Paket importieren</translation>
     </message>
     <message>
         <source>Undo failed, the step stays in the history: %1</source>

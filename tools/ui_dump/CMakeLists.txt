@@ -34,6 +34,7 @@ add_executable(colorizing_qt_v2_ui_dump
     fixes_script.inc
     inspector_script.inc
     native_original_script.inc
+    package_script.inc
     progress_script.inc
     runtime_view_script.inc
     selection_script.inc
@@ -44,7 +45,7 @@ add_executable(colorizing_qt_v2_ui_dump
 
 set_source_files_properties(big_original_script.inc dump_import_script.inc fixes_script.inc
                             inspector_script.inc
-                            native_original_script.inc progress_script.inc
+                            native_original_script.inc package_script.inc progress_script.inc
                             runtime_view_script.inc
                             selection_script.inc sprite_script.inc structure_script.inc
                             PROPERTIES HEADER_FILE_ONLY ON)

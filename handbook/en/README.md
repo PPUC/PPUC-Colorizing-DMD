@@ -43,3 +43,4 @@ whenever a user-visible feature changes.
 - [PuP Tester](37-pup-tester.md)
 - [Scenes and Scaling](38-scenes.md)
 - [Speaker Lights](39-speaker-lights.md)
+- [Packages](40-packages.md)

@@ -275,6 +275,7 @@ struct ProjectCreateOptions {
 };
 
 struct ProjectSnapshot;
+struct ProjectFrameSnapshot;
 
 // What the IDs of a subset snapshot stand for: subset index -> document index.
 struct SnapshotSubsetMap {
@@ -785,6 +786,19 @@ public:
     // extra-plane data in a project that discards that plane. Throws std::invalid_argument
     // naming the frame and the block otherwise.
     void insertFrames(RemovedFrames removed);
+    // A frame record of the snapshot's content, for insertFrames(); its color rotations are
+    // normalized as a load does.
+    [[nodiscard]] static FrameRecord frameRecordFrom(ProjectFrameSnapshot frame);
+    // The frame's content as a snapshot frame, with its change information.
+    [[nodiscard]] ProjectFrameSnapshot frameSnapshotOf(std::size_t frameIndex) const;
+    // Puts the record's content in place of the frame's (a newer version of the frame from
+    // a package): pictures, masks, settings, references. The frame keeps its ID. Checks the
+    // record as insertFrames() does; std::out_of_range for a frame that does not exist.
+    void replaceFrame(std::size_t frameIndex, FrameRecord record);
+    // Makes the project the one in state, as a whole: for undo steps that keep whole states
+    // (edit::PackageImportCommand), which share every block with it. It is a change of the
+    // project, also of what identifies frames.
+    void restoreState(const ProjectDocument& state);
     // Puts the frames in a new order: the frame numbered newOrder[i] becomes frame i. The
     // source frames of sprites and the first frames of sections follow their frames, and so
     // do imported palettes. Throws std::invalid_argument when newOrder is no order of all

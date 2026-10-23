@@ -575,6 +575,9 @@ void requireFittingFrameRecord(const FrameRecord& frame,
     }
 }
 
+// Defined with toSnapshot() below.
+ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame);
+
 FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
 {
     return FrameRecord{
@@ -3397,6 +3400,34 @@ void ProjectDocument::reorderFrames(const std::vector<std::size_t>& newOrder)
         }
     }
 
+    markChanged();
+    m_identificationRevision = m_revision;
+}
+
+FrameRecord ProjectDocument::frameRecordFrom(ProjectFrameSnapshot frame)
+{
+    return frameRecord(std::move(frame));
+}
+
+ProjectFrameSnapshot ProjectDocument::frameSnapshotOf(std::size_t frameIndex) const
+{
+    return frameSnapshot(requireFrame(m_frames, frameIndex));
+}
+
+void ProjectDocument::replaceFrame(std::size_t frameIndex, FrameRecord record)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    requireFittingFrameRecord(record, frameIndex, m_geometry, m_colorCount, spritesPerFrame());
+    record.meta = frame.meta;
+    frame = std::move(record);
+    m_dynamicPixelStates.clear();
+    markChanged();
+    m_identificationRevision = m_revision;
+}
+
+void ProjectDocument::restoreState(const ProjectDocument& state)
+{
+    *this = state;
     markChanged();
     m_identificationRevision = m_revision;
 }

@@ -24,6 +24,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/SameFrames.cpp
     edit/SceneEdits.cpp
     edit/LicenseEdits.cpp
+    edit/PackageImport.cpp
     edit/SpeakerLightEdits.cpp
     edit/SpriteClipboard.cpp
     edit/ScrollFill.cpp

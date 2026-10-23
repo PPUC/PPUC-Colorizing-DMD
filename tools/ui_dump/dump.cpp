@@ -86,6 +86,12 @@
 #define UI_DUMP_HAS_PROJECT_FILE 1
 #endif
 
+#if __has_include("edit/PackageImport.h")
+#include "edit/PackageImport.h"
+#include "project/ProjectFile.h"
+#define UI_DUMP_HAS_PACKAGES 1
+#endif
+
 #if __has_include("edit/FrameMove.h")
 #include "FrameListWidget.h"
 #include "panels/BackgroundPanel.h"
@@ -720,6 +726,11 @@ int main(int argc, char* argv[])
 // States of a tree that saves a project file; a tree without it ends here.
 #ifdef UI_DUMP_HAS_PROJECT_FILE
 #include "format_script.inc"
+#endif
+
+// Packages; a tree without them ends here.
+#ifdef UI_DUMP_HAS_PACKAGES
+#include "package_script.inc"
 #endif
 
     return 0;

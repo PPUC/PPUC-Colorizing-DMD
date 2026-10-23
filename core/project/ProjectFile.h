@@ -73,6 +73,9 @@ struct ProjectFileOptions {
     std::string editorVersion;
     // The deflate level of the entries: fast by default, as the .cRZ.
     int compressionLevel = 1;
+    // A package (edit/PackageImport.h): frames of a project with what they use, for
+    // another project. The manifest says so ("kind").
+    bool package = false;
     // When set, a component whose content is not the one of its revision (a content hash that
     // differs, or no revision yet) is written with a new revision, the stamp's author and time
     // and the new hash. Without it the change information is written as it is.
@@ -90,11 +93,13 @@ void forEachProjectEntry(
     std::vector<document::StampedMeta>* stamped = nullptr);
 
 // The project back from its entries; read(name) returns an entry's content, nothing for an
-// entry that is not there. errorMessage says what is missing or damaged.
+// entry that is not there. errorMessage says what is missing or damaged. isPackage (may be
+// null) says whether it is a package.
 [[nodiscard]] std::optional<document::ProjectSnapshot> readProjectEntries(
     const std::function<std::optional<std::string>(const std::string& name)>& read,
     std::string& errorMessage,
-    legacy::LegacyIoProgress* progress = nullptr);
+    legacy::LegacyIoProgress* progress = nullptr,
+    bool* isPackage = nullptr);
 
 // Writes the file beside the target and renames it into place, so that a failed save leaves
 // the previous file as it was. progress may be null; done and total count entries. stamped
@@ -107,9 +112,16 @@ void forEachProjectEntry(
     legacy::LegacyIoProgress* progress = nullptr,
     std::vector<document::StampedMeta>* stamped = nullptr);
 
+// Refuses a package, which is imported instead.
 [[nodiscard]] legacy::LegacyLoadResult loadProjectFile(const std::string& path,
                                                        legacy::LegacyIoProgress* progress =
                                                            nullptr);
+// A package ("<name>.cdmdpkg"); refuses a project file.
+[[nodiscard]] legacy::LegacyLoadResult loadPackageFile(const std::string& path,
+                                                       legacy::LegacyIoProgress* progress =
+                                                           nullptr);
+// Whether the path ends in ".cdmdpkg" (any case).
+[[nodiscard]] bool hasPackageExtension(const std::string& path);
 
 // What File -> Open does off the UI thread with a project file, as
 // legacy::loadLegacyProjectDocument() does with the files of earlier editors.

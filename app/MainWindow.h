@@ -177,6 +177,12 @@ private:
     [[nodiscard]] QString proposedFilePath(const QString& suffix) const;
     // File -> Export For Earlier Editors: the .cRZ and .cRPX of the project.
     void exportForEarlierEditors();
+    // File -> Export Selected Frames As Package and Import Package (edit/PackageImport.h).
+    void exportPackage();
+    void importPackageFile();
+    // Asks what to do with the frames the project has already, then imports.
+    void importPackageFrom(const QString& path);
+    [[nodiscard]] static QString licenseText(const document::ProjectLicense& license);
     void updateWindowTitle();
     // Writes the project's .cROMc through libserum, see runtime::exportCromc().
     void exportCromc();

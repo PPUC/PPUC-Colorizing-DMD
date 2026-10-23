@@ -429,6 +429,7 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
     JsonValue manifest = JsonValue::object();
     manifest.set("format", kProjectFormatName);
     manifest.set("formatVersion", kProjectFormatVersion);
+    manifest.set("kind", options.package ? "package" : "project");
     manifest.set("editorVersion", options.editorVersion);
     manifest.set("projectId", snapshot.projectId.toString());
     manifest.set("romName", snapshot.romName);
@@ -1223,7 +1224,7 @@ document::LightAction readAction(const JsonObjectReader& object)
     return action;
 }
 
-void readManifest(const JsonValue& value, ProjectSnapshot& snapshot)
+void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, bool* isPackage)
 {
     const JsonObjectReader manifest(value, "manifest");
     if (manifest.string("format") != kProjectFormatName) {
@@ -1233,6 +1234,13 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot)
     if (version > kProjectFormatVersion) {
         throw FormatError("the project was saved by a newer editor (format version " +
                           std::to_string(version) + ")");
+    }
+    const std::string kind = manifest.string("kind", "project");
+    if (kind != "project" && kind != "package") {
+        throw FormatError("the file holds an unknown kind of data: " + kind);
+    }
+    if (isPackage) {
+        *isPackage = kind == "package";
     }
     snapshot.projectId = parseId(manifest.string("projectId"), "manifest");
     snapshot.romName = manifest.string("romName");
@@ -1475,11 +1483,12 @@ void forEachProjectEntry(
 std::optional<ProjectSnapshot> readProjectEntries(
     const std::function<std::optional<std::string>(const std::string& name)>& read,
     std::string& errorMessage,
-    legacy::LegacyIoProgress* progress)
+    legacy::LegacyIoProgress* progress,
+    bool* isPackage)
 {
     try {
         ProjectSnapshot snapshot;
-        readManifest(readJsonEntry(read, "manifest.json", true), snapshot);
+        readManifest(readJsonEntry(read, "manifest.json", true), snapshot, isPackage);
         const JsonValue orderValue = readJsonEntry(read, "order.json", true);
         const JsonObjectReader order(orderValue, "frame order");
         const std::vector<ComponentId> frameIds = readIds(order, "frames");
@@ -1709,14 +1718,18 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
     return legacy::makeSaveSuccess();
 }
 
-legacy::LegacyLoadResult loadProjectFile(const std::string& path,
-                                         legacy::LegacyIoProgress* progress)
+namespace {
+
+legacy::LegacyLoadResult loadArchive(const std::string& path,
+                                     legacy::LegacyIoProgress* progress,
+                                     bool package)
 {
     ZipReader zip(path);
     if (!zip.isOpen()) {
         return legacy::makeLoadFailure(zip.error());
     }
     std::string errorMessage;
+    bool isPackage = false;
     std::optional<ProjectSnapshot> snapshot = readProjectEntries(
         [&zip](const std::string& name) -> std::optional<std::string> {
             if (!zip.contains(name)) {
@@ -1728,14 +1741,45 @@ legacy::LegacyLoadResult loadProjectFile(const std::string& path,
             }
             return bytes;
         },
-        errorMessage, progress);
+        errorMessage, progress, &isPackage);
     if (!snapshot) {
         if (errorMessage == legacy::kLegacyIoCancelledMessage) {
             return legacy::makeLoadCancelled();
         }
         return legacy::makeLoadFailure(errorMessage);
     }
+    if (isPackage != package) {
+        return legacy::makeLoadFailure(package ? "the file is a project, not a package"
+                                               : "the file is a package: import it into a "
+                                                 "project instead");
+    }
     return legacy::makeLoadSuccess(std::move(*snapshot));
+}
+
+}  // namespace
+
+legacy::LegacyLoadResult loadProjectFile(const std::string& path,
+                                         legacy::LegacyIoProgress* progress)
+{
+    return loadArchive(path, progress, false);
+}
+
+legacy::LegacyLoadResult loadPackageFile(const std::string& path,
+                                         legacy::LegacyIoProgress* progress)
+{
+    return loadArchive(path, progress, true);
+}
+
+bool hasPackageExtension(const std::string& path)
+{
+    constexpr std::string_view extension = ".cdmdpkg";
+    if (path.size() < extension.size()) {
+        return false;
+    }
+    return std::equal(extension.begin(), extension.end(), path.end() - extension.size(),
+                      [](char expected, char actual) {
+                          return expected == std::tolower(static_cast<unsigned char>(actual));
+                      });
 }
 
 legacy::LegacyDocumentLoadResult loadProjectDocument(const std::string& path,

@@ -134,6 +134,7 @@
 #include "platform/Utf8Path.h"
 #include "runtime/CromcExport.h"
 #include "edit/LicenseEdits.h"
+#include "edit/PackageImport.h"
 #include "runtime/Scenes.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "project/ProjectFile.h"
@@ -780,6 +781,18 @@ void MainWindow::createActions()
     connect(m_addFramesFromDumpAction, &QAction::triggered, this, [this]() {
         addFramesFromDump();
     });
+
+    QAction* importPackageAction = fileMenu->addAction(tr("Import &Package..."));
+    importPackageAction->setToolTip(
+        tr("Add the frames of a package, with what they use; frames the project has already "
+           "can be updated"));
+    connect(importPackageAction, &QAction::triggered, this, [this]() { importPackageFile(); });
+    QAction* exportPackageAction =
+        fileMenu->addAction(tr("Export Selected Frames As Pac&kage..."));
+    exportPackageAction->setToolTip(
+        tr("Write the selected frames with the masks, backgrounds, sprites and light effects "
+           "they use, for another project"));
+    connect(exportPackageAction, &QAction::triggered, this, [this]() { exportPackage(); });
 
     m_recentProjectsMenu = fileMenu->addMenu(tr("Open &Recent"));
     refreshRecentProjectsMenu();
@@ -2650,6 +2663,197 @@ bool MainWindow::saveProjectAs()
 
     m_projectPath = oldPath;
     return false;
+}
+
+void MainWindow::exportPackage()
+{
+    if (!m_document) {
+        statusBar()->showMessage(tr("No project loaded"), 2500);
+        return;
+    }
+    const std::vector<std::size_t> frames = selectedFrameIndices();
+    if (frames.empty()) {
+        statusBar()->showMessage(tr("Select the frames for the package first"), 4000);
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(
+        this, tr("Export Selected Frames As Package"),
+        proposedFilePath(QStringLiteral("_frames.cdmdpkg")),
+        tr("Colorizing DMD package (*.cdmdpkg);;All files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    if (!project::hasPackageExtension(path.toStdString())) {
+        path += QStringLiteral(".cdmdpkg");
+    }
+    project::ProjectFileOptions options;
+    options.editorVersion = kApplicationVersion.toStdString();
+    options.package = true;
+    const std::string target = path.toStdString();
+    legacy::LegacySaveResult result;
+    {
+        const document::ProjectSnapshot package = edit::makePackage(*m_document, frames);
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, tr("Exporting Package"), progress, [&]() {
+                result = project::saveProjectFile(target, package, options, &progress);
+            });
+        if (failure) {
+            result = legacy::makeSaveFailure(*failure);
+        }
+    }
+    if (result.cancelled) {
+        statusBar()->showMessage(tr("Export cancelled"), 4000);
+        return;
+    }
+    if (!result.ok) {
+        QMessageBox::critical(this, tr("Export Selected Frames As Package"),
+                              QString::fromStdString(result.error.message));
+        return;
+    }
+    statusBar()->showMessage(tr("Exported %n frame(s) to %1", "", static_cast<int>(frames.size()))
+                                 .arg(QFileInfo(path).fileName()),
+                             5000);
+}
+
+QString MainWindow::licenseText(const document::ProjectLicense& license)
+{
+    QString text;
+    switch (license.kind) {
+    case document::LicenseKind::Unspecified:
+        text = tr("not chosen");
+        break;
+    case document::LicenseKind::AllRightsReserved:
+        text = tr("all rights reserved");
+        break;
+    case document::LicenseKind::Custom:
+        text = tr("its own terms: %1").arg(QString::fromStdString(license.customText));
+        break;
+    default:
+        text = QString::fromStdString(document::licenseShortName(license.kind));
+        break;
+    }
+    if (!license.attribution.empty()) {
+        text += tr(", name %1").arg(QString::fromStdString(license.attribution));
+    }
+    return text;
+}
+
+void MainWindow::importPackageFile()
+{
+    if (!m_document) {
+        statusBar()->showMessage(tr("No project loaded"), 2500);
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Import Package"), projectFolder(),
+        tr("Colorizing DMD package (*.cdmdpkg);;All files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    importPackageFrom(path);
+}
+
+void MainWindow::importPackageFrom(const QString& path)
+{
+    const std::string source = path.toStdString();
+    legacy::LegacyLoadResult loaded;
+    {
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, tr("Opening Package"), progress, [&]() {
+                loaded = project::loadPackageFile(source, &progress);
+            });
+        if (failure) {
+            loaded = legacy::makeLoadFailure(*failure);
+        }
+    }
+    if (loaded.cancelled) {
+        statusBar()->showMessage(tr("Import cancelled"), 4000);
+        return;
+    }
+    if (!loaded.ok) {
+        QMessageBox::critical(this, tr("Import Package"),
+                              QString::fromStdString(loaded.error.message));
+        return;
+    }
+    const document::ProjectSnapshot& package = loaded.snapshot;
+    const edit::PackageImportPlan plan = edit::planPackageImport(*m_document, package);
+    if (!plan.problem.empty()) {
+        QMessageBox::warning(this, tr("Import Package"),
+                             tr("The package does not fit this project: %1")
+                                 .arg(QString::fromStdString(plan.problem)));
+        return;
+    }
+
+    const int frameCount = static_cast<int>(package.frames.size());
+    const int known = static_cast<int>(plan.knownFrameCount());
+    QStringList authors;
+    for (const std::string& author : plan.authors) {
+        authors << QString::fromStdString(author);
+    }
+    QMessageBox question(this);
+    question.setIcon(QMessageBox::Question);
+    question.setWindowTitle(tr("Import Package"));
+    question.setText(known == 0
+                         ? tr("The package has %n frame(s); they are added behind the last "
+                              "frame.",
+                              "", frameCount)
+                         : tr("The package has %n frame(s). The project has %1 of them "
+                              "already: the same ROM frames under the same masks.",
+                              "", frameCount)
+                               .arg(known));
+    question.setInformativeText(
+        tr("License: %1. Made by: %2. Masks, backgrounds and sprites the project has already "
+           "are used; the others are added.")
+            .arg(licenseText(package.license),
+                 authors.isEmpty() ? tr("not named") : authors.join(QStringLiteral(", "))));
+    QPushButton* updateButton = nullptr;
+    QPushButton* skipButton = nullptr;
+    QPushButton* addButton = nullptr;
+    if (known > 0) {
+        updateButton = question.addButton(tr("Update Them"), QMessageBox::AcceptRole);
+        skipButton = question.addButton(tr("Skip Them"), QMessageBox::AcceptRole);
+        addButton = question.addButton(tr("Add Them As New"), QMessageBox::AcceptRole);
+        updateButton->setToolTip(
+            tr("The package's frames replace those of the project, which keep their places"));
+        skipButton->setToolTip(tr("Only the frames the project does not have are added"));
+        addButton->setToolTip(tr("Every frame of the package is added"));
+        question.setDefaultButton(updateButton);
+    } else {
+        addButton = question.addButton(tr("Import"), QMessageBox::AcceptRole);
+        question.setDefaultButton(addButton);
+    }
+    question.addButton(QMessageBox::Cancel);
+    question.exec();
+    edit::KnownFrames mode = edit::KnownFrames::Add;
+    if (question.clickedButton() == updateButton && updateButton) {
+        mode = edit::KnownFrames::Update;
+    } else if (question.clickedButton() == skipButton && skipButton) {
+        mode = edit::KnownFrames::Skip;
+    } else if (question.clickedButton() != addButton) {
+        return;
+    }
+
+    std::unique_ptr<edit::PackageImportCommand> command;
+    try {
+        command = edit::importPackage(*m_document, package, mode);
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(this, tr("Import Package"), QString::fromUtf8(ex.what()));
+        return;
+    }
+    if (!command) {
+        statusBar()->showMessage(tr("Nothing to import: the project has every frame"), 4000);
+        return;
+    }
+    const edit::PackageImportCommand::Counts counts = command->counts();
+    m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
+    refreshAfterEditBatch();
+    updateUndoRedoActions();
+    showStructureEditStatus(tr("Imported the package: %1 frame(s) added, %2 updated")
+                                .arg(static_cast<qulonglong>(counts.addedFrames))
+                                .arg(static_cast<qulonglong>(counts.updatedFrames)),
+                            5000);
 }
 
 void MainWindow::exportForEarlierEditors()
@@ -11243,7 +11447,8 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
             } else if (const auto* scene =
                            dynamic_cast<const edit::SceneEditCommand*>(&command)) {
                 refreshAfterSceneEdit(*scene);
-            } else if (dynamic_cast<const edit::EditBatchCommand*>(&command)) {
+            } else if (dynamic_cast<const edit::EditBatchCommand*>(&command) ||
+                       dynamic_cast<const edit::PackageImportCommand*>(&command)) {
                 refreshAfterEditBatch();
             } else if (dynamic_cast<const edit::SpeakerLightsCommand*>(&command)) {
                 refreshSpeakerLights();
@@ -11492,6 +11697,9 @@ QString MainWindow::undoRedoStatusText(const edit::EditCommand& command, bool un
     }
     if (const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(&command)) {
         return tr("%1: %2").arg(verb, QString::fromStdString(batch->name()));
+    }
+    if (dynamic_cast<const edit::PackageImportCommand*>(&command)) {
+        return tr("%1: import package").arg(verb);
     }
     return verb + editKindStatusSuffix(command, showsHdAndSd());
 }

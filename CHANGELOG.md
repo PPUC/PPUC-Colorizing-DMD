@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `File -> Export Selected Frames As Package...` writes the selected frames with the masks,
+  backgrounds, sprites and light effects they use as a package (`.cdmdpkg`); `File -> Import
+  Package...` adds them to another project, using what it has already, and frames it has already
+  (the same ROM frame under the same mask) can be updated, skipped or added again.
 - A project is now one file, its project file (`.cdmd`): `Save` writes it, with every frame,
   mask, background and sprite in a part of its own that keeps its ID and notes who changed it
   last and when (`Settings -> Projects -> Your name`). Projects of the Win32 editor and of
