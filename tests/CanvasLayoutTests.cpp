@@ -157,6 +157,7 @@ void runComponentIdTests();
 void runLicenseTests();
 void runProjectFileTests();
 void runPackageTests();
+void runTeamTests();
 
 int main()
 try {
@@ -197,6 +198,7 @@ try {
     runLicenseTests();
     runProjectFileTests();
     runPackageTests();
+    runTeamTests();
 
     std::cout << "colorizing_qt_v2_tests passed\n";
     return 0;

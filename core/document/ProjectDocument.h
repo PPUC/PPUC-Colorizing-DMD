@@ -17,6 +17,7 @@
 #include "document/Scene.h"
 #include "document/ProjectLicense.h"
 #include "document/SpeakerLights.h"
+#include "document/TeamState.h"
 #include "render/CanvasTypes.h"
 #include "render/ProjectGeometry.h"
 
@@ -795,6 +796,10 @@ public:
     // a package): pictures, masks, settings, references. The frame keeps its ID. Checks the
     // record as insertFrames() does; std::out_of_range for a frame that does not exist.
     void replaceFrame(std::size_t frameIndex, FrameRecord record);
+    // The same for a comparison mask (a picture of the ROM frame's size) and a background
+    // (of the planes' sizes, without inactive HD pixels): it keeps its ID and its frames.
+    void replaceComparisonMask(std::size_t maskIndex, IndexedFrame mask);
+    void replaceBackground(std::size_t backgroundIndex, BackgroundRecord background);
     // Makes the project the one in state, as a whole: for undo steps that keep whole states
     // (edit::PackageImportCommand), which share every block with it. It is a change of the
     // project, also of what identifies frames.
@@ -860,6 +865,10 @@ public:
     // found by their IDs; a component removed since is skipped. Not an edit: the project
     // stays as it was, also unchanged when it was.
     void adoptComponentMeta(const std::vector<StampedMeta>& stamped);
+    // What this copy of a team project keeps about the team (TeamState.h); nothing for a solo
+    // project. Setting it is no edit of the project, but it is saved with it.
+    [[nodiscard]] const std::optional<TeamState>& team() const { return m_team; }
+    void setTeam(std::optional<TeamState> team);
     // The project's own ID, kept by every copy of the project file.
     [[nodiscard]] const ComponentId& projectId() const { return m_projectId; }
     // The given frames alone, in that order, with the comparison masks, backgrounds and sprites
@@ -889,6 +898,7 @@ private:
 
     std::string m_romName;
     ComponentId m_projectId;
+    std::optional<TeamState> m_team;
     std::vector<FrameRecord> m_frames;
     std::vector<IndexedFrame> m_comparisonMasks;
     // Parallel to m_comparisonMasks.

@@ -23,6 +23,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/RecolorHelpers.cpp
     edit/SameFrames.cpp
     edit/SceneEdits.cpp
+    edit/DocumentStateCommand.cpp
     edit/LicenseEdits.cpp
     edit/PackageImport.cpp
     edit/SpeakerLightEdits.cpp
@@ -59,6 +60,9 @@ add_library(colorizing_qt_v2_core STATIC
     runtime/RuntimePreview.cpp
     runtime/Scenes.cpp
     runtime/SpeakerLightPlayer.cpp
+    team/Claims.cpp
+    team/TeamChanges.cpp
+    team/TeamMerge.cpp
 )
 
 target_include_directories(colorizing_qt_v2_core

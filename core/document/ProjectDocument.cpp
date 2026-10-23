@@ -694,6 +694,15 @@ const ComponentMeta& ProjectDocument::paletteMeta(std::size_t paletteIndex) cons
     return palette(paletteIndex).meta;
 }
 
+void ProjectDocument::setTeam(std::optional<TeamState> team)
+{
+    if (team == m_team) {
+        return;
+    }
+    m_team = std::move(team);
+    m_dirty = true;
+}
+
 void ProjectDocument::adoptComponentMeta(const std::vector<StampedMeta>& stamped)
 {
     std::unordered_map<ComponentId, ComponentMeta*, ComponentIdHash> metas;
@@ -761,6 +770,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     }
     document.m_romName = std::move(snapshot.romName);
     document.m_projectId = snapshot.projectId;
+    document.m_team = std::move(snapshot.team);
     document.m_frames.reserve(snapshot.frames.size());
     for (ProjectFrameSnapshot& frameSnapshot : snapshot.frames) {
         document.m_frames.push_back(frameRecord(std::move(frameSnapshot)));
@@ -3425,6 +3435,37 @@ void ProjectDocument::replaceFrame(std::size_t frameIndex, FrameRecord record)
     m_identificationRevision = m_revision;
 }
 
+void ProjectDocument::replaceComparisonMask(std::size_t maskIndex, IndexedFrame mask)
+{
+    if (maskIndex >= m_comparisonMasks.size()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    if (!mask.isValid() || !hasSize(mask.size, originalFrameSize())) {
+        throw std::invalid_argument("comparison mask does not fit the project");
+    }
+    m_comparisonMasks[maskIndex] = std::move(mask);
+    markChanged();
+    m_identificationRevision = m_revision;
+}
+
+void ProjectDocument::replaceBackground(std::size_t backgroundIndex, BackgroundRecord background)
+{
+    if (backgroundIndex >= m_backgrounds.size()) {
+        throw std::out_of_range("background index out of range");
+    }
+    if (!background.colorizedSd.isValid() ||
+        !hasSize(background.colorizedSd.size, m_geometry.planeSize(Resolution::Sd)) ||
+        (background.colorizedHd &&
+         (editsOriginalPlaneOnly() || !background.colorizedHd->isValid() ||
+          !hasSize(background.colorizedHd->size, m_geometry.planeSize(Resolution::Hd)))) ||
+        background.inactiveHd) {
+        throw std::invalid_argument("background record does not fit the project");
+    }
+    background.meta = m_backgrounds[backgroundIndex].meta;
+    m_backgrounds[backgroundIndex] = std::move(background);
+    markChanged();
+}
+
 void ProjectDocument::restoreState(const ProjectDocument& state)
 {
     *this = state;
@@ -3985,6 +4026,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.comparisonMasks = m_comparisonMasks;
     snapshot.comparisonMaskMeta = m_comparisonMaskMeta;
     snapshot.projectId = m_projectId;
+    snapshot.team = m_team;
     snapshot.backgrounds = m_backgrounds;
     snapshot.sprites = m_sprites;
     snapshot.palettes = m_palettes;

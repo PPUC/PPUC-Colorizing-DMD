@@ -8,6 +8,7 @@
 
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
+#include "edit/DocumentStateCommand.h"
 #include "edit/EditCommand.h"
 
 namespace colorizing::edit {
@@ -58,10 +59,8 @@ enum class KnownFrames {
     Add,
 };
 
-// The import as one step in the structure history. It keeps the project as it was before
-// and after (the two share every block that did not change, so this costs little) and puts
-// one or the other back. Whenever it runs it drops the histories of the frames it replaced.
-class PackageImportCommand final : public EditCommand {
+// The import as one step in the structure history (DocumentStateCommand).
+class PackageImportCommand final : public DocumentStateCommand {
 public:
     struct Counts {
         std::size_t addedFrames = 0;
@@ -76,24 +75,14 @@ public:
                          std::vector<std::size_t> updatedFrames,
                          Counts counts);
 
-    void apply(document::ProjectDocument& document) const override;
-    void revert(document::ProjectDocument& document) const override;
-    [[nodiscard]] EditTarget target() const override;
-    [[nodiscard]] std::vector<ReplacedData> replacedData() const override;
-    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
-    [[nodiscard]] std::vector<RenumberedRecords> renumberedRecords() const override;
-
     [[nodiscard]] const Counts& counts() const { return m_counts; }
     // The frames whose content the import replaced, ascending.
     [[nodiscard]] const std::vector<std::size_t>& updatedFrames() const
     {
-        return m_updatedFrames;
+        return replacedFrames();
     }
 
 private:
-    document::ProjectDocument m_before;
-    document::ProjectDocument m_after;
-    std::vector<std::size_t> m_updatedFrames;
     Counts m_counts;
 };
 

@@ -8,6 +8,7 @@
 #include "document/ImageZone.h"
 #include "document/LibserumTarget.h"
 #include "document/ProjectDocument.h"
+#include "document/TeamState.h"
 #include "render/ProjectGeometry.h"
 
 namespace colorizing::document {
@@ -73,6 +74,8 @@ struct ProjectSnapshot {
     ProjectLicense license;
     // What discardExtraPlane() dropped (not written to the files).
     DiscardedExtraPlane discardedExtraPlane;
+    // What this copy of a team project keeps about the team; nothing for a solo project.
+    std::optional<TeamState> team;
     // The project's own ID (ComponentId.h), given once; null when not known (a project of the
     // legacy files), then the document gives it one.
     ComponentId projectId;

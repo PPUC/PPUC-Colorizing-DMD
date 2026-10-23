@@ -82,6 +82,21 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     it as an edit batch. `Edit -> Copy Frames`/`Paste Frames` put a package on the clipboard
     (`app/FramesClipboard.h`, its own mime type, through a temporary file as the zip code
     works on files) for another editor window.
+  - Teams (branch `format-v3`, `core/team/`, no UI yet): `TeamState` (document/TeamState.h,
+    in the project file as team/state.json and team/common.bin) holds the common revision of
+    every component, the common frame order and settings hash, the packages sent and who
+    merged them, and the partners' packages merged. Changed = revision differs from the common
+    one, so Share and Merge need a saved copy. A save keeps the common version of each changed
+    component in team/base from the file it replaces (`ProjectFileOptions::baseSourcePath`;
+    the autosave has to pass the project file). A change package (`TeamChanges.h`, file kind
+    "changes") is a closure like a package plus team/changes.json (base revisions, deletions,
+    order, sections, merged packages). `planMerge()`: Take when this copy did not change it or
+    has the package's base, Same, Add, Delete, and three conflicts; `mergeChangePackage()` is a
+    `DocumentStateCommand` (shared with the package import) and moves the common state on;
+    a sent package is common once every member listed it as merged. Order: the partner's when
+    this copy kept the common one, else this copy's with added frames after their predecessor.
+    Settings (license, scenes, lights, helper lines, sections, target) go as one. Claims
+    (`Claims.h`, claims.json) are derived from the change set plus reservations.
   - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
     `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
     `LegacyCrzArchive` (includes libserum headers).

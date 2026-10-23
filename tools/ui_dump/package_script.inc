@@ -72,7 +72,7 @@
     document::ProjectDocument source = makeProject("source", true);
     source.setFrameDurationMs(1, 250);
     project::ProjectFileOptions options;
-    options.package = true;
+    options.kind = project::FileKind::Package;
     if (!project::saveProjectFile(packagePath.toStdString(), edit::makePackage(source, {1, 2}),
                                   options)
              .ok) {

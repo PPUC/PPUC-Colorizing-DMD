@@ -24,7 +24,7 @@ bool copyPackageToClipboard(const document::ProjectSnapshot& package, std::strin
     const QString path = directory.filePath(QStringLiteral("frames.cdmdpkg"));
     project::ProjectFileOptions options;
     options.editorVersion = kApplicationVersion.toStdString();
-    options.package = true;
+    options.kind = project::FileKind::Package;
     const legacy::LegacySaveResult saved =
         project::saveProjectFile(path.toStdString(), package, options);
     if (!saved.ok) {

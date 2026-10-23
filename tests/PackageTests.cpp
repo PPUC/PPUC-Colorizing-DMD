@@ -101,7 +101,7 @@ void testPackageFile()
     const ProjectSnapshot package = edit::makePackage(source, {1, 4});
     const std::string packagePath = platform::utf8FromPath(tempPath(".cdmdpkg"));
     project::ProjectFileOptions options{"test"};
-    options.package = true;
+    options.kind = project::FileKind::Package;
     expect(project::hasPackageExtension(packagePath) &&
                project::saveProjectFile(packagePath, package, options).ok,
            "the package is written");

@@ -283,60 +283,9 @@ PackageImportCommand::PackageImportCommand(ProjectDocument before,
                                            ProjectDocument after,
                                            std::vector<std::size_t> updatedFrames,
                                            Counts counts)
-    : m_before(std::move(before)),
-      m_after(std::move(after)),
-      m_updatedFrames(std::move(updatedFrames)),
+    : DocumentStateCommand(std::move(before), std::move(after), std::move(updatedFrames)),
       m_counts(counts)
 {
-}
-
-void PackageImportCommand::apply(ProjectDocument& document) const
-{
-    document.restoreState(m_after);
-}
-
-void PackageImportCommand::revert(ProjectDocument& document) const
-{
-    document.restoreState(m_before);
-}
-
-EditTarget PackageImportCommand::target() const
-{
-    EditTarget target{EditKind::ProjectStructure, 0, render::Resolution::Sd, m_updatedFrames};
-    for (std::size_t frame = m_before.frameCount(); frame < m_after.frameCount(); ++frame) {
-        target.frameIndices.push_back(frame);
-    }
-    return target;
-}
-
-std::vector<ReplacedData> PackageImportCommand::replacedData() const
-{
-    std::vector<ReplacedData> replaced;
-    for (const std::size_t frame : m_updatedFrames) {
-        for (const EditKind kind : {EditKind::FramePixels, EditKind::DynamicMask,
-                                    EditKind::DynamicColor, EditKind::DynamicShadow,
-                                    EditKind::BackgroundMask, EditKind::FrameAttributes}) {
-            for (const render::Resolution resolution :
-                 {render::Resolution::Sd, render::Resolution::Hd}) {
-                replaced.push_back({kind, frame, resolution});
-            }
-        }
-    }
-    return replaced;
-}
-
-std::vector<RecordReference> PackageImportCommand::recordReferences() const
-{
-    return {};
-}
-
-std::vector<RenumberedRecords> PackageImportCommand::renumberedRecords() const
-{
-    // The records it adds come and go with it.
-    return {{RecordKind::Frame, m_before.frameCount()},
-            {RecordKind::ComparisonMask, m_before.comparisonMaskCount()},
-            {RecordKind::Background, m_before.backgroundCount()},
-            {RecordKind::Sprite, m_before.spriteCount()}};
 }
 
 std::unique_ptr<PackageImportCommand> importPackage(ProjectDocument& document,

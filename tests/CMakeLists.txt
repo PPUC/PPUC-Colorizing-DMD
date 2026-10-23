@@ -41,6 +41,7 @@ add_executable(colorizing_qt_v2_tests
     SpriteClipboardTests.cpp
     StateCommandsTests.cpp
     StructureCommandTests.cpp
+    TeamTests.cpp
     UpscaleTests.cpp
 )
 

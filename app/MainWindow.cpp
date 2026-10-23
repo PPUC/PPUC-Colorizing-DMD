@@ -2700,7 +2700,7 @@ void MainWindow::exportPackage()
     }
     project::ProjectFileOptions options;
     options.editorVersion = kApplicationVersion.toStdString();
-    options.package = true;
+    options.kind = project::FileKind::Package;
     const std::string target = path.toStdString();
     legacy::LegacySaveResult result;
     {
@@ -11506,7 +11506,7 @@ void MainWindow::refreshAfterEdit(const edit::EditCommand& command)
                            dynamic_cast<const edit::SceneEditCommand*>(&command)) {
                 refreshAfterSceneEdit(*scene);
             } else if (dynamic_cast<const edit::EditBatchCommand*>(&command) ||
-                       dynamic_cast<const edit::PackageImportCommand*>(&command)) {
+                       dynamic_cast<const edit::DocumentStateCommand*>(&command)) {
                 refreshAfterEditBatch();
             } else if (dynamic_cast<const edit::SpeakerLightsCommand*>(&command)) {
                 refreshSpeakerLights();

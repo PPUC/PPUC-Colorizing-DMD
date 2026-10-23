@@ -429,7 +429,9 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
     JsonValue manifest = JsonValue::object();
     manifest.set("format", kProjectFormatName);
     manifest.set("formatVersion", kProjectFormatVersion);
-    manifest.set("kind", options.package ? "package" : "project");
+    manifest.set("kind", options.kind == FileKind::Package   ? "package"
+                         : options.kind == FileKind::Changes ? "changes"
+                                                             : "project");
     manifest.set("editorVersion", options.editorVersion);
     manifest.set("projectId", snapshot.projectId.toString());
     manifest.set("romName", snapshot.romName);
@@ -694,6 +696,107 @@ JsonValue editorJson(const ProjectSnapshot& snapshot)
 std::string entryName(const char* folder, const ComponentId& id)
 {
     return std::string(folder) + "/" + id.toString() + ".bin";
+}
+
+// The folder of a kind's entries; none for palettes, which are JSON.
+const char* folderOf(document::ComponentKind kind)
+{
+    switch (kind) {
+    case document::ComponentKind::Frame:
+        return "frames";
+    case document::ComponentKind::ComparisonMask:
+        return "masks";
+    case document::ComponentKind::Background:
+        return "backgrounds";
+    case document::ComponentKind::Sprite:
+        return "sprites";
+    case document::ComponentKind::Palette:
+        break;
+    }
+    return nullptr;
+}
+
+constexpr std::array<document::ComponentKind, document::kComponentKindCount> kKinds = {
+    document::ComponentKind::Frame, document::ComponentKind::ComparisonMask,
+    document::ComponentKind::Background, document::ComponentKind::Sprite,
+    document::ComponentKind::Palette};
+
+void appendRevisions(std::string& out, const document::RevisionMaps& maps)
+{
+    for (const document::RevisionMap& map : maps) {
+        // In the order of the IDs, so that a file is written the same way every time.
+        std::vector<std::pair<ComponentId, ComponentId>> sorted(map.begin(), map.end());
+        std::sort(sorted.begin(), sorted.end());
+        appendLittleEndian(out, sorted.size(), 4);
+        for (const auto& [id, revision] : sorted) {
+            appendId(out, id);
+            appendId(out, revision);
+        }
+    }
+}
+
+std::string teamCommonData(const document::TeamState& team)
+{
+    std::string out;
+    appendRevisions(out, team.common);
+    appendLittleEndian(out, team.commonOrder.size(), 4);
+    for (const ComponentId& id : team.commonOrder) {
+        appendId(out, id);
+    }
+    appendLittleEndian(out, team.sent.size(), 4);
+    for (const document::SentPackage& sent : team.sent) {
+        appendRevisions(out, sent.components);
+    }
+    return out;
+}
+
+JsonValue stringsJson(const std::vector<std::string>& texts)
+{
+    JsonValue array = JsonValue::array();
+    for (const std::string& text : texts) {
+        array.push(text);
+    }
+    return array;
+}
+
+JsonValue teamStateJson(const document::TeamState& team)
+{
+    JsonValue root = JsonValue::object();
+    root.set("repository", team.repository);
+    root.set("owner", team.ownerLogin);
+    root.set("members", stringsJson(team.members));
+    root.set("snapshotId", team.snapshotId.toString());
+    root.set("commonSettingsHash", hexOf(team.commonSettingsHash, 16));
+    JsonValue sent = JsonValue::array();
+    for (const document::SentPackage& package : team.sent) {
+        JsonValue item = JsonValue::object();
+        item.set("id", package.id.toString());
+        item.set("created", package.createdMs);
+        item.set("mergedBy", stringsJson(package.mergedBy));
+        sent.push(std::move(item));
+    }
+    root.set("sent", std::move(sent));
+    JsonValue merged = JsonValue::array();
+    for (const ComponentId& id : team.mergedPackages) {
+        merged.push(id.toString());
+    }
+    root.set("mergedPackages", std::move(merged));
+    return root;
+}
+
+// The revision in an entry's META, or nothing for an entry that has none.
+std::optional<ComponentId> revisionOfEntry(std::string_view entry)
+{
+    // char[4] tag, uint32 0, uint64 size, then the UUID and the revision.
+    if (entry.size() < 16 + 32 || entry.substr(0, 4) != "META") {
+        return std::nullopt;
+    }
+    ComponentId revision;
+    for (int i = 0; i < 8; ++i) {
+        revision.high = (revision.high << 8) | static_cast<unsigned char>(entry[32 + i]);
+        revision.low = (revision.low << 8) | static_cast<unsigned char>(entry[40 + i]);
+    }
+    return revision;
 }
 
 // Reading --------------------------------------------------------------------------------
@@ -1224,7 +1327,7 @@ document::LightAction readAction(const JsonObjectReader& object)
     return action;
 }
 
-void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, bool* isPackage)
+void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* fileKind)
 {
     const JsonObjectReader manifest(value, "manifest");
     if (manifest.string("format") != kProjectFormatName) {
@@ -1236,11 +1339,13 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, bool* isPac
                           std::to_string(version) + ")");
     }
     const std::string kind = manifest.string("kind", "project");
-    if (kind != "project" && kind != "package") {
+    if (kind != "project" && kind != "package" && kind != "changes") {
         throw FormatError("the file holds an unknown kind of data: " + kind);
     }
-    if (isPackage) {
-        *isPackage = kind == "package";
+    if (fileKind) {
+        *fileKind = kind == "package"   ? FileKind::Package
+                    : kind == "changes" ? FileKind::Changes
+                                        : FileKind::Project;
     }
     snapshot.projectId = parseId(manifest.string("projectId"), "manifest");
     snapshot.romName = manifest.string("romName");
@@ -1422,6 +1527,80 @@ void readLightsJson(const JsonValue& value, ProjectSnapshot& snapshot)
     }
 }
 
+document::RevisionMaps readRevisions(Cursor& cursor)
+{
+    document::RevisionMaps maps;
+    for (document::RevisionMap& map : maps) {
+        const uint64_t count = cursor.integer(4);
+        if (count > cursor.remaining() / 32) {
+            cursor.fail();
+        }
+        for (uint64_t i = 0; i < count; ++i) {
+            const ComponentId id = cursor.id();
+            map[id] = cursor.id();
+        }
+    }
+    return maps;
+}
+
+std::vector<std::string> readStrings(const JsonObjectReader& object, std::string_view key)
+{
+    std::vector<std::string> texts;
+    for (const JsonValue& item : object.optionalArray(key)) {
+        const std::string* text = item.stringValue();
+        if (!text) {
+            throw FormatError("the " + object.what() + " has a damaged list");
+        }
+        texts.push_back(*text);
+    }
+    return texts;
+}
+
+document::TeamState readTeamState(const JsonValue& value, std::string_view common)
+{
+    const JsonObjectReader state(value, "team state");
+    document::TeamState team;
+    team.repository = state.string("repository", "");
+    team.ownerLogin = state.string("owner", "");
+    team.members = readStrings(state, "members");
+    team.snapshotId = parseId(state.string("snapshotId"), "team state");
+    if (state.has("commonSettingsHash")) {
+        team.commonSettingsHash = parseHex(state.string("commonSettingsHash"), "team state");
+    }
+    for (const JsonValue& item : state.optionalArray("sent")) {
+        const JsonObjectReader sent = objectItem(item, "sent package");
+        document::SentPackage package;
+        package.id = parseId(sent.string("id"), "sent package");
+        package.createdMs = sent.integer("created", INT64_MIN, INT64_MAX, 0);
+        package.mergedBy = readStrings(sent, "mergedBy");
+        team.sent.push_back(std::move(package));
+    }
+    for (const JsonValue& item : state.optionalArray("mergedPackages")) {
+        const std::string* text = item.stringValue();
+        if (!text) {
+            throw FormatError("the team state has a damaged list of merged packages");
+        }
+        team.mergedPackages.push_back(parseId(*text, "team state"));
+    }
+    Cursor cursor(common, "the team's common state");
+    team.common = readRevisions(cursor);
+    const uint64_t order = cursor.integer(4);
+    if (order > cursor.remaining() / 16) {
+        cursor.fail();
+    }
+    for (uint64_t i = 0; i < order; ++i) {
+        team.commonOrder.push_back(cursor.id());
+    }
+    const uint64_t sent = cursor.integer(4);
+    if (sent != team.sent.size()) {
+        cursor.fail();
+    }
+    for (document::SentPackage& package : team.sent) {
+        package.components = readRevisions(cursor);
+    }
+    return team;
+}
+
 }  // namespace
 
 bool hasProjectFileExtension(const std::string& path)
@@ -1454,6 +1633,13 @@ void forEachProjectEntry(
     if (!snapshot.palettes.empty()) {
         entry("palettes.json", writeJson(palettesJson(snapshot, options, stamped)));
     }
+    if (snapshot.team) {
+        entry("team/state.json", writeJson(teamStateJson(*snapshot.team)));
+        entry("team/common.bin", teamCommonData(*snapshot.team));
+    }
+    for (const auto& [name, bytes] : options.extraEntries) {
+        entry(name, bytes);
+    }
     for (std::size_t i = 0; i < snapshot.unsupportedPayloads.size(); ++i) {
         const std::vector<uint8_t>& bytes = snapshot.unsupportedPayloads[i].bytes;
         entry("unsupported/" + std::to_string(i) + ".bin", std::string(bytes.begin(), bytes.end()));
@@ -1484,11 +1670,11 @@ std::optional<ProjectSnapshot> readProjectEntries(
     const std::function<std::optional<std::string>(const std::string& name)>& read,
     std::string& errorMessage,
     legacy::LegacyIoProgress* progress,
-    bool* isPackage)
+    FileKind* kind)
 {
     try {
         ProjectSnapshot snapshot;
-        readManifest(readJsonEntry(read, "manifest.json", true), snapshot, isPackage);
+        readManifest(readJsonEntry(read, "manifest.json", true), snapshot, kind);
         const JsonValue orderValue = readJsonEntry(read, "order.json", true);
         const JsonObjectReader order(orderValue, "frame order");
         const std::vector<ComponentId> frameIds = readIds(order, "frames");
@@ -1619,6 +1805,9 @@ std::optional<ProjectSnapshot> readProjectEntries(
         }
         readLightsJson(readJsonEntry(read, "lights.json", false), snapshot);
         readEditor(readJsonEntry(read, "editor.json", false), snapshot);
+        if (std::optional<std::string> common = read("team/common.bin")) {
+            snapshot.team = readTeamState(readJsonEntry(read, "team/state.json", true), *common);
+        }
         for (std::size_t i = 0; i < snapshot.unsupportedPayloads.size(); ++i) {
             const std::string name = "unsupported/" + std::to_string(i) + ".bin";
             const std::optional<std::string> bytes = read(name);
@@ -1642,6 +1831,73 @@ std::optional<ProjectSnapshot> readProjectEntries(
     return std::nullopt;
 }
 
+namespace {
+
+// The common versions of a team project's components that changed since (team/base): kept
+// from the file before, or taken from its entry there while that still is the common version.
+bool writeCommonVersions(ZipWriter& zip,
+                         const ProjectSnapshot& snapshot,
+                         const std::vector<document::StampedMeta>& stamps,
+                         const std::string& sourcePath,
+                         int level)
+{
+    std::error_code error;
+    if (!std::filesystem::exists(platform::pathFromUtf8(sourcePath), error)) {
+        return true;
+    }
+    ZipReader source(sourcePath);
+    if (!source.isOpen()) {
+        return true;
+    }
+    // The revision each component has in the new file.
+    document::RevisionMaps current;
+    for (const auto& frame : snapshot.frames) {
+        current[0][frame.meta.id] = frame.meta.revision;
+    }
+    for (const ComponentMeta& meta : snapshot.comparisonMaskMeta) {
+        current[1][meta.id] = meta.revision;
+    }
+    for (const auto& background : snapshot.backgrounds) {
+        current[2][background.meta.id] = background.meta.revision;
+    }
+    for (const auto& sprite : snapshot.sprites) {
+        current[3][sprite.meta.id] = sprite.meta.revision;
+    }
+    for (const document::StampedMeta& stamp : stamps) {
+        current[document::kindIndex(stamp.kind)][stamp.meta.id] = stamp.meta.revision;
+    }
+    for (const document::ComponentKind kind : kKinds) {
+        const char* folder = folderOf(kind);
+        if (!folder) {
+            continue;
+        }
+        const document::RevisionMap& now = current[document::kindIndex(kind)];
+        for (const auto& [id, commonRevision] : snapshot.team->common[document::kindIndex(kind)]) {
+            const auto found = now.find(id);
+            if (found != now.end() && found->second == commonRevision) {
+                continue;
+            }
+            const std::string base = "team/base/" + std::string(folder) + "/" + id.toString() +
+                                     ".bin";
+            std::optional<std::string> bytes;
+            if (source.contains(base)) {
+                bytes = source.read(base);
+            } else if (const std::string own = entryName(folder, id); source.contains(own)) {
+                bytes = source.read(own);
+                if (bytes && revisionOfEntry(*bytes) != commonRevision) {
+                    bytes.reset();
+                }
+            }
+            if (bytes && !zip.add(base, *bytes, level)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+}  // namespace
+
 legacy::LegacySaveResult saveProjectFile(const std::string& path,
                                          const ProjectSnapshot& snapshot,
                                          const ProjectFileOptions& options,
@@ -1659,7 +1915,8 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
         progress->done.store(0);
         // The four JSON entries every file has, the palettes, the unsupported data and the
         // components.
-        progress->total.store(4 + (snapshot.palettes.empty() ? 0 : 1) +
+        progress->total.store(4 + (snapshot.palettes.empty() ? 0 : 1) + (snapshot.team ? 2 : 0) +
+                              options.extraEntries.size() +
                               snapshot.unsupportedPayloads.size() + snapshot.frames.size() +
                               snapshot.comparisonMasks.size() + snapshot.backgrounds.size() +
                               snapshot.sprites.size());
@@ -1691,6 +1948,12 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
             removeTemporary();
             return legacy::makeSaveFailure(error.what());
         }
+        if (written && !cancelled && snapshot.team) {
+            written = writeCommonVersions(zip, snapshot, stamps,
+                                          options.baseSourcePath.empty() ? path
+                                                                         : options.baseSourcePath,
+                                          options.compressionLevel);
+        }
         if (cancelled) {
             (void)zip.finish();
             removeTemporary();
@@ -1720,40 +1983,57 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
 
 namespace {
 
-legacy::LegacyLoadResult loadArchive(const std::string& path,
-                                     legacy::LegacyIoProgress* progress,
-                                     bool package)
+KindLoadResult loadArchive(const std::string& path,
+                           legacy::LegacyIoProgress* progress,
+                           FileKind expected,
+                           const std::vector<std::string>& extraEntryNames)
 {
+    KindLoadResult result;
     ZipReader zip(path);
     if (!zip.isOpen()) {
-        return legacy::makeLoadFailure(zip.error());
+        result.load = legacy::makeLoadFailure(zip.error());
+        return result;
     }
     std::string errorMessage;
-    bool isPackage = false;
-    std::optional<ProjectSnapshot> snapshot = readProjectEntries(
-        [&zip](const std::string& name) -> std::optional<std::string> {
-            if (!zip.contains(name)) {
-                return std::nullopt;
-            }
-            std::optional<std::string> bytes = zip.read(name);
-            if (!bytes) {
-                throw FormatError(zip.error());
-            }
-            return bytes;
-        },
-        errorMessage, progress, &isPackage);
-    if (!snapshot) {
-        if (errorMessage == legacy::kLegacyIoCancelledMessage) {
-            return legacy::makeLoadCancelled();
+    FileKind kind = FileKind::Project;
+    const auto read = [&zip](const std::string& name) -> std::optional<std::string> {
+        if (!zip.contains(name)) {
+            return std::nullopt;
         }
-        return legacy::makeLoadFailure(errorMessage);
+        std::optional<std::string> bytes = zip.read(name);
+        if (!bytes) {
+            throw FormatError(zip.error());
+        }
+        return bytes;
+    };
+    std::optional<ProjectSnapshot> snapshot;
+    try {
+        snapshot = readProjectEntries(read, errorMessage, progress, &kind);
+        if (snapshot) {
+            for (const std::string& name : extraEntryNames) {
+                result.extraEntries.push_back(read(name));
+            }
+        }
+    } catch (const FormatError& error) {
+        snapshot.reset();
+        errorMessage = error.what();
     }
-    if (isPackage != package) {
-        return legacy::makeLoadFailure(package ? "the file is a project, not a package"
-                                               : "the file is a package: import it into a "
-                                                 "project instead");
+    if (!snapshot) {
+        result.load = errorMessage == legacy::kLegacyIoCancelledMessage
+                          ? legacy::makeLoadCancelled()
+                          : legacy::makeLoadFailure(errorMessage);
+        return result;
     }
-    return legacy::makeLoadSuccess(std::move(*snapshot));
+    if (kind != expected) {
+        const char* names[] = {"a project", "a package", "a team member's changes"};
+        result.load = legacy::makeLoadFailure(
+            std::string("the file holds ") + names[static_cast<int>(kind)] + ", not " +
+            names[static_cast<int>(expected)] +
+            (kind == FileKind::Package ? ": import it into a project instead" : ""));
+        return result;
+    }
+    result.load = legacy::makeLoadSuccess(std::move(*snapshot));
+    return result;
 }
 
 }  // namespace
@@ -1761,13 +2041,51 @@ legacy::LegacyLoadResult loadArchive(const std::string& path,
 legacy::LegacyLoadResult loadProjectFile(const std::string& path,
                                          legacy::LegacyIoProgress* progress)
 {
-    return loadArchive(path, progress, false);
+    return loadArchive(path, progress, FileKind::Project, {}).load;
 }
 
 legacy::LegacyLoadResult loadPackageFile(const std::string& path,
                                          legacy::LegacyIoProgress* progress)
 {
-    return loadArchive(path, progress, true);
+    return loadArchive(path, progress, FileKind::Package, {}).load;
+}
+
+KindLoadResult loadFileOfKind(const std::string& path,
+                              FileKind kind,
+                              const std::vector<std::string>& extraEntryNames,
+                              legacy::LegacyIoProgress* progress)
+{
+    return loadArchive(path, progress, kind, extraEntryNames);
+}
+
+std::string settingsContent(const ProjectSnapshot& snapshot)
+{
+    JsonValue root = JsonValue::object();
+    JsonValue license = JsonValue::object();
+    license.set("kind", kLicenseNames[static_cast<std::size_t>(snapshot.license.kind)]);
+    license.set("text", snapshot.license.customText);
+    license.set("attribution", snapshot.license.attribution);
+    license.set("url", snapshot.license.url);
+    root.set("license", std::move(license));
+    root.set("libserumTarget", targetName(snapshot.libserumTarget));
+    // The manifest's colorization settings, without what names this editor.
+    ProjectFileOptions options;
+    const JsonValue manifest = manifestJson(snapshot, options);
+    if (const JsonValue* colorization = manifest.find("colorization")) {
+        root.set("colorization", *colorization);
+    }
+    root.set("lights", lightsJson(snapshot.speakerLights));
+    std::vector<ComponentId> frames;
+    for (const auto& frame : snapshot.frames) {
+        frames.push_back(frame.meta.id);
+    }
+    References references;
+    references.frames = frames;
+    const JsonValue order = orderJson(snapshot, references);
+    root.set("sections", *order.find("sections"));
+    const JsonValue editor = editorJson(snapshot);
+    root.set("helperLines", *editor.find("helperLines"));
+    return writeJson(root);
 }
 
 bool hasPackageExtension(const std::string& path)
@@ -1800,6 +2118,37 @@ legacy::LegacyDocumentLoadResult loadProjectDocument(const std::string& path,
         result.error.message = ex.what();
     }
     return result;
+}
+
+std::optional<FramePictures> readCommonFramePictures(const std::string& projectPath,
+                                                    const ComponentId& frameId,
+                                                    const ComponentId& commonRevision)
+{
+    ZipReader zip(projectPath);
+    if (!zip.isOpen()) {
+        return std::nullopt;
+    }
+    for (const std::string& name : {"team/base/frames/" + frameId.toString() + ".bin",
+                                    entryName("frames", frameId)}) {
+        if (!zip.contains(name)) {
+            continue;
+        }
+        const std::optional<std::string> bytes = zip.read(name);
+        if (!bytes || revisionOfEntry(*bytes) != commonRevision) {
+            continue;
+        }
+        try {
+            const Fields fields(*bytes, "frame");
+            FramePictures pictures;
+            pictures.original = readIndexed(fields, "ORIG");
+            pictures.colorizedSd = readRgb565(fields, "COLS");
+            pictures.colorizedHd = readOptionalRgb565(fields, "COLH");
+            return pictures;
+        } catch (const FormatError&) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
 }
 
 }  // namespace colorizing::project
