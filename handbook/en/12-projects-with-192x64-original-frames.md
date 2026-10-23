@@ -30,8 +30,8 @@ the same 256x64 sprite cell as in every project.
 On the canvas a 192x64 pixel is as large as a pixel of an HD frame or of a 256x64 original; the
 frame is 3:1 instead of 4:1, and the thumbnails keep that shape.
 
-On save a frame counts as colorized ("active") if its 192x64 frame differs from the plain
-original colors or it has dynamic content on the 192x64 plane, or if it lasts 15 ms or longer.
+In the `.cROMc` and an exported `.cRZ` a frame counts as colorized ("active") if its 192x64
+frame differs from the plain original colors or it has dynamic content on the 192x64 plane, or if it lasts 15 ms or longer.
 
 ## The 96x32 data is discarded
 
@@ -62,20 +62,16 @@ resolution.
 
 What this means:
 
-- A project that never had 96x32 pictures loses nothing visible. Its file can still change on
-  the first save, because the Win32 editor leaves other values in the unused blocks (for example
-  dynamic colors it copied to both planes, or background masks of 0 in a project converted from
-  an old file format).
+- A project that never had 96x32 pictures loses nothing visible. A `.cRZ` exported for earlier
+  editors can still differ from the files it was opened from, because the Win32 editor leaves
+  other values in the unused blocks (for example dynamic colors it copied to both planes, or
+  background masks of 0 in a project converted from an old file format).
 - A project that had 96x32 pictures in use (frames, backgrounds or sprites flagged as having
-  extra data) loses them with the first save from this editor. They cannot be brought back from
-  the saved file; keep a copy of the original files if they matter. The 192x64 picture is not
-  affected. Before that save (also `Save As`, whose copy has them neither) the editor says how
-  many frames, backgrounds and sprites have 96x32 pictures and saves only after `Save Without
-  Them`; `Cancel` leaves the files as they are. Once saved, it does not ask again.
-- Saving twice writes the same bytes: after the first save the extra plane is already "no extra
-  data".
-- Everything on the 192x64 plane, and the whole `.cRP`, is written back as it was loaded or
-  edited.
+  extra data) does not have them in its project file. The files it was opened from keep them.
+  Before the first save (also `Save As`) the editor says how many frames, backgrounds and
+  sprites have 96x32 pictures and saves only after `Save Without Them`; `Cancel` writes nothing.
+  Once saved, it does not ask again.
+- Everything on the 192x64 plane is kept as it was loaded or edited.
 
 A new sprite or background (`New` on the `Sprites` and `Backgrounds` sections) has 192x64 data only
 and is written with "no extra data" like every other record.
@@ -95,8 +91,8 @@ and is written with "no extra data" like every other record.
 Verified with one real project saved by the Win32 editor 3.17.3 (`frankst1`: 11199 frames, no
 sprites, no backgrounds, no 96x32 pictures in use), and with constructed projects in the
 automated tests and `tools/ui_dump` that also have sprites, backgrounds and 96x32 data in use.
-`frankst1` loads, shows and saves; a load and save changes two blocks of its extra plane, the
-dynamic colors (the file has values there) and the background masks (the file has 0, the editor
+`frankst1` loads, shows and saves; an export for earlier editors changes two blocks of its extra
+plane, the dynamic colors (the file has values there) and the background masks (the file has 0, the editor
 writes 1), and nothing else.
 
 Nothing is padded or converted to another geometry.

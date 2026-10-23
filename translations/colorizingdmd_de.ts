@@ -3527,11 +3527,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Open cROM or cRZ</source>
-        <translation>cROM oder cRZ öffnen</translation>
+        <translation type="vanished">cROM oder cRZ öffnen</translation>
     </message>
     <message>
         <source>Serum colorization (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
-        <translation>Serum-Kolorierung (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Alle Dateien (*)</translation>
+        <translation type="vanished">Serum-Kolorierung (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Alle Dateien (*)</translation>
     </message>
     <message>
         <source>Open matching cRPX or cRP</source>
@@ -3559,7 +3559,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Save cancelled: the project files on disk are unchanged</source>
-        <translation>Speichern abgebrochen: Die Projektdateien auf dem Datenträger sind unverändert</translation>
+        <translation type="vanished">Speichern abgebrochen: Die Projektdateien auf dem Datenträger sind unverändert</translation>
     </message>
     <message>
         <source>Save Project Failed</source>
@@ -3805,7 +3805,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Project saved; renamed to .bak, as they are out of date: %1</source>
-        <translation>Projekt gespeichert; in .bak umbenannt, da veraltet: %1</translation>
+        <translation type="vanished">Projekt gespeichert; in .bak umbenannt, da veraltet: %1</translation>
     </message>
     <message>
         <source>Save Project As</source>
@@ -4017,11 +4017,11 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>The project has an autosave from %1 that is newer than its files.</source>
-        <translation>Für das Projekt gibt es eine automatische Sicherung vom %1, die neuer ist als seine Dateien.</translation>
+        <translation type="vanished">Für das Projekt gibt es eine automatische Sicherung vom %1, die neuer ist als seine Dateien.</translation>
     </message>
     <message>
         <source>It holds changes that were not saved, for example after a crash. Open Autosave opens it as this project with unsaved changes: Save then writes them to the project files. %1 and %2 are kept either way.</source>
-        <translation>Sie enthält Änderungen, die nicht gespeichert wurden, etwa nach einem Absturz. „Sicherung öffnen“ öffnet sie als dieses Projekt mit ungespeicherten Änderungen: Speichern schreibt sie dann in die Projektdateien. %1 und %2 bleiben in jedem Fall erhalten.</translation>
+        <translation type="vanished">Sie enthält Änderungen, die nicht gespeichert wurden, etwa nach einem Absturz. „Sicherung öffnen“ öffnet sie als dieses Projekt mit ungespeicherten Änderungen: Speichern schreibt sie dann in die Projektdateien. %1 und %2 bleiben in jedem Fall erhalten.</translation>
     </message>
     <message>
         <source>Open Autosave</source>
@@ -4045,7 +4045,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>A project of the Win32 editor: once saved here, the Win32 editor cannot open it any more</source>
-        <translation>Ein Projekt des Win32-Editors: Nach dem Speichern hier kann der Win32-Editor es nicht mehr öffnen</translation>
+        <translation type="vanished">Ein Projekt des Win32-Editors: Nach dem Speichern hier kann der Win32-Editor es nicht mehr öffnen</translation>
     </message>
     <message>
         <source>Autosave failed: %1</source>
@@ -4061,7 +4061,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>A new project of %1 that was never saved has an autosave from %2.</source>
-        <translation>Ein nie gespeichertes neues Projekt von %1 hat eine automatische Sicherung vom %2.</translation>
+        <translation type="vanished">Ein nie gespeichertes neues Projekt von %1 hat eine automatische Sicherung vom %2.</translation>
     </message>
     <message>
         <source>Open opens it as a new project with unsaved changes. Delete removes the autosave. Later keeps it and asks again at the next start.%1</source>
@@ -4069,7 +4069,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source> %1 more autosave(s) of never saved projects are in %2.</source>
-        <translation> %1 weitere automatische Sicherung(en) nie gespeicherter Projekte liegen in %2.</translation>
+        <translation type="vanished"> %1 weitere automatische Sicherung(en) nie gespeicherter Projekte liegen in %2.</translation>
     </message>
     <message>
         <source>Open</source>
@@ -5212,6 +5212,62 @@ Use Create %1 Frame.</source>
         <translation>Nicht hinzugefügt: Ein Projekt enthält höchstens %1 Vergleichsmasken</translation>
     </message>
     <message>
+        <source>Export For &amp;Earlier Editors...</source>
+        <translation>Für &amp;frühere Editoren exportieren...</translation>
+    </message>
+    <message>
+        <source>Write the project as .cRZ and .cRPX: the .cRZ plays with libserum 2.8 and 2.9, the .cRPX opens in editor versions before the project file</source>
+        <translation>Das Projekt als .cRZ und .cRPX schreiben: Die .cRZ läuft mit libserum 2.8 und 2.9, die .cRPX öffnet sich in Editor-Versionen vor der Projektdatei</translation>
+    </message>
+    <message>
+        <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
+        <translation>Projekte (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing-DMD-Projekt (*.cdmd);;Serum-Kolorierung früherer Editoren (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>%1 (converted, not saved yet) — %2</source>
+        <translation>%1 (konvertiert, noch nicht gespeichert) — %2</translation>
+    </message>
+    <message>
+        <source>Save cancelled: the project file on disk is unchanged</source>
+        <translation>Speichern abgebrochen: Die Projektdatei auf dem Datenträger ist unverändert</translation>
+    </message>
+    <message>
+        <source>Colorizing DMD project (*.cdmd);;All files (*)</source>
+        <translation>Colorizing-DMD-Projekt (*.cdmd);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Export For Earlier Editors</source>
+        <translation>Für frühere Editoren exportieren</translation>
+    </message>
+    <message>
+        <source>Exporting Project</source>
+        <translation>Projekt wird exportiert</translation>
+    </message>
+    <message>
+        <source>Exported %1 and %2</source>
+        <translation>%1 und %2 exportiert</translation>
+    </message>
+    <message>
+        <source>The project has an autosave from %1 that is newer than its file.</source>
+        <translation>Für das Projekt gibt es eine automatische Sicherung vom %1, die neuer ist als seine Datei.</translation>
+    </message>
+    <message>
+        <source>It holds changes that were not saved, for example after a crash. Open Autosave opens it as this project with unsaved changes: Save then writes them to the project file. %1 is kept either way.</source>
+        <translation>Sie enthält Änderungen, die nicht gespeichert wurden, zum Beispiel nach einem Absturz. „Sicherung öffnen“ öffnet sie als dieses Projekt mit ungespeicherten Änderungen: „Speichern“ schreibt sie dann in die Projektdatei. %1 bleibt in jedem Fall erhalten.</translation>
+    </message>
+    <message>
+        <source>Opened the files of an earlier editor: Save writes the project as a project file (.cdmd); %1 and %2 stay as they are</source>
+        <translation>Dateien eines früheren Editors geöffnet: „Speichern“ schreibt das Projekt als Projektdatei (.cdmd); %1 und %2 bleiben, wie sie sind</translation>
+    </message>
+    <message>
+        <source>A project of %1 that has no project file yet has an autosave from %2.</source>
+        <translation>Ein Projekt von %1 ohne Projektdatei hat eine automatische Sicherung vom %2.</translation>
+    </message>
+    <message>
+        <source> %1 more autosave(s) of projects without a project file are in %2.</source>
+        <translation> %1 weitere automatische Sicherung(en) von Projekten ohne Projektdatei liegen in %2.</translation>
+    </message>
+    <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
         <translation>Vergleichsmaske %1 hinzugefügt, jetzt %2 Maske(n); noch kein Frame verwendet sie</translation>
     </message>
@@ -6182,6 +6238,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Writing the .cRZ and .cRPX: %1 of %2 MB</source>
         <translation>.cRZ und .cRPX werden geschrieben: %1 von %2 MB</translation>
+    </message>
+    <message>
+        <source>Reading the project: %1 of %2 parts</source>
+        <translation>Projekt wird gelesen: %1 von %2 Teilen</translation>
+    </message>
+    <message>
+        <source>Writing the project: %1 of %2 parts</source>
+        <translation>Projekt wird geschrieben: %1 von %2 Teilen</translation>
     </message>
     <message>
         <source>Writing the .cROM and .cRPX: %1 of %2 MB</source>
@@ -7190,6 +7254,22 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Plugins</source>
         <translation>Plugins</translation>
+    </message>
+    <message>
+        <source>For example your name in the Serum community</source>
+        <translation>Zum Beispiel Ihr Name in der Serum-Community</translation>
+    </message>
+    <message>
+        <source>A save writes it as the author of every frame, mask, background, sprite and palette that changed, with the time. Partners see who changed what.</source>
+        <translation>Beim Speichern wird er als Autor jedes geänderten Frames, jeder Maske, jedes Hintergrunds, Sprites und jeder Palette eingetragen, mit der Zeit. Partner sehen, wer was geändert hat.</translation>
+    </message>
+    <message>
+        <source>Your name</source>
+        <translation>Ihr Name</translation>
+    </message>
+    <message>
+        <source>Projects</source>
+        <translation>Projekte</translation>
     </message>
     <message>
         <source>%1 (version %2)</source>

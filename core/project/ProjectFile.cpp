@@ -1496,7 +1496,7 @@ std::optional<ProjectSnapshot> readProjectEntries(
         indexes.sprites = indexOf(spriteIds, "sprite");
 
         if (progress) {
-            progress->setStage(legacy::LegacyIoStage::Reading);
+            progress->setStage(legacy::LegacyIoStage::ReadingProjectFile);
             progress->done.store(0);
             progress->total.store(frameIds.size() + maskIds.size() + backgroundIds.size() +
                                   spriteIds.size());
@@ -1646,7 +1646,7 @@ legacy::LegacySaveResult saveProjectFile(const std::string& path,
         std::filesystem::remove(platform::pathFromUtf8(temporaryPath), ignored);
     };
     if (progress) {
-        progress->setStage(legacy::LegacyIoStage::Writing);
+        progress->setStage(legacy::LegacyIoStage::WritingProjectFile);
         progress->done.store(0);
         // The four JSON entries every file has, the palettes, the unsupported data and the
         // components.
@@ -1736,6 +1736,26 @@ legacy::LegacyLoadResult loadProjectFile(const std::string& path,
         return legacy::makeLoadFailure(errorMessage);
     }
     return legacy::makeLoadSuccess(std::move(*snapshot));
+}
+
+legacy::LegacyDocumentLoadResult loadProjectDocument(const std::string& path,
+                                                     legacy::LegacyIoProgress* progress)
+{
+    legacy::LegacyDocumentLoadResult result;
+    try {
+        legacy::LegacyLoadResult loaded = loadProjectFile(path, progress);
+        if (!loaded.ok) {
+            result.error = std::move(loaded.error);
+            result.cancelled = loaded.cancelled;
+            return result;
+        }
+        result.document = document::ProjectDocument::fromSnapshot(std::move(loaded.snapshot));
+        result.ok = true;
+    } catch (const std::exception& ex) {
+        result.document.reset();
+        result.error.message = ex.what();
+    }
+    return result;
 }
 
 }  // namespace colorizing::project

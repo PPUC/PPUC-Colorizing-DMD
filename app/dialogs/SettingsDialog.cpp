@@ -6,6 +6,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -134,6 +135,22 @@ SettingsDialog::SettingsDialog(Theme theme,
     m_tabs->addTab(plugins, tr("Plugins"));
     setPlugins({}, {});
 
+    auto* projects = new QWidget(m_tabs);
+    m_authorNameEdit = new QLineEdit(projects);
+    m_authorNameEdit->setPlaceholderText(tr("For example your name in the Serum community"));
+    auto* authorNote = new QLabel(
+        tr("A save writes it as the author of every frame, mask, background, sprite and "
+           "palette that changed, with the time. Partners see who changed what."),
+        projects);
+    authorNote->setWordWrap(true);
+    auto* projectsForm = new QFormLayout;
+    projectsForm->addRow(tr("Your name"), m_authorNameEdit);
+    projectsForm->addRow(authorNote);
+    auto* projectsLayout = new QVBoxLayout(projects);
+    projectsLayout->addLayout(projectsForm);
+    projectsLayout->addStretch(1);
+    m_tabs->addTab(projects, tr("Projects"));
+
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -154,7 +171,20 @@ void SettingsDialog::showPage(Page page)
         case Page::Plugins:
             m_tabs->setCurrentIndex(2);
             break;
+        case Page::Projects:
+            m_tabs->setCurrentIndex(3);
+            break;
     }
+}
+
+void SettingsDialog::setAuthorName(const QString& name)
+{
+    m_authorNameEdit->setText(name);
+}
+
+QString SettingsDialog::authorName() const
+{
+    return m_authorNameEdit->text().trimmed();
 }
 
 Theme SettingsDialog::theme() const

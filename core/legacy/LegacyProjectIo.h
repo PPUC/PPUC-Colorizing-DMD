@@ -42,6 +42,10 @@ enum class LegacyIoStage : int {
     Generating,
     // Writing pictures of frames (an animated GIF); done/total count frames.
     ExportingFrames,
+    // Reading or writing a project file (project/ProjectFile.h); done/total count its
+    // entries.
+    ReadingProjectFile,
+    WritingProjectFile,
 };
 
 // Shared between a load or save running on a worker thread and whoever shows its progress.

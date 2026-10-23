@@ -30,6 +30,9 @@ report a problem.
   channel each shows, see "Speaker Lights".
 - `DMD Output`: the settings of the DMD output, see "DMD Output".
 - `Plugins`: which of the editor's plugins load, see "Plugins".
+- `Projects`: `Your name`, written by every save as the author of each frame, mask, background,
+  sprite and palette that changed, with the time (see "Saving"). Empty until it is set; a save
+  then writes no name.
 
 Without a dialog the editor keeps more for the next start: the size and place of its window
 (maximized or not) and of the Handbook, the Frame Tester, the PuP Tester, the plugin log, the

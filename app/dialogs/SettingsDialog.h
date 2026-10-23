@@ -13,6 +13,7 @@
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QLineEdit;
 class QListWidget;
 class QSpinBox;
 class QTabWidget;
@@ -22,7 +23,7 @@ namespace colorizing::app {
 class DmdOutputSettingsPage;
 
 // The editor's settings, one page per topic: Appearance (the theme, the language, how the canvas
-// draws DMD pixels) and DMD Output. It only shows and collects them; the caller stores and applies what
+// draws DMD pixels), DMD Output, Plugins and Projects (the author's name). It only shows and collects them; the caller stores and applies what
 // it returns.
 class SettingsDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(SettingsDialog)
@@ -32,6 +33,7 @@ public:
         Appearance,
         DmdOutput,
         Plugins,
+        Projects,
     };
 
     SettingsDialog(Theme theme,
@@ -51,6 +53,9 @@ public:
     void setSpeakerLightPreview(const SpeakerLightPreviewOptions& options);
     [[nodiscard]] SpeakerLightPreviewOptions speakerLightPreview() const;
     [[nodiscard]] DmdOutputSettings dmdOutputSettings() const;
+    // Who saves (AuthorName.h).
+    void setAuthorName(const QString& name);
+    [[nodiscard]] QString authorName() const;
 
     // The editor's plugins that can be chosen, and those chosen (EditorPlugins).
     struct PluginChoice {
@@ -78,6 +83,7 @@ private:
     QComboBox* m_leftChannel = nullptr;
     QComboBox* m_rightChannel = nullptr;
     DmdOutputSettingsPage* m_dmdOutputPage = nullptr;
+    QLineEdit* m_authorNameEdit = nullptr;
     QListWidget* m_pluginList = nullptr;
     QLabel* m_pluginNote = nullptr;
 };

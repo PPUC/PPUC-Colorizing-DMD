@@ -57,8 +57,8 @@
 
     const auto printState = [&]() {
         std::cout << "dump import: title='" << w.windowTitle().toStdString() << "' files="
-                  << QFileInfo(w.m_currentCromPath).fileName().toStdString() << ','
-                  << QFileInfo(w.m_currentCrpPath).fileName().toStdString() << " addAction="
+                  << QFileInfo(w.m_projectPath).fileName().toStdString() << ','
+                  << QFileInfo(w.m_sourcePath).fileName().toStdString() << " addAction="
                   << w.m_addFramesFromDumpAction->isEnabled() << " save="
                   << w.m_saveAction->isEnabled() << '\n';
         if (!w.m_document) {
@@ -377,8 +377,8 @@
         std::cout << "dump import: 256x64 saves=" << written << " bytes=" << crom.str().size() << '\n';
     }
     w.m_document.reset();
-    w.m_currentCromPath.clear();
-    w.m_currentCrpPath.clear();
+    w.m_projectPath.clear();
+    w.m_sourcePath.clear();
     w.refreshProjectSummary();
     D("dump import: closed");
     QDir(workPath).removeRecursively();

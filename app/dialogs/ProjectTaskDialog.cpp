@@ -100,7 +100,9 @@ void ProjectTaskDialog::updateProgress()
     const bool cancelling = m_progress.cancel.load();
     const bool measured = (stage == legacy::LegacyIoStage::Reading ||
                            stage == legacy::LegacyIoStage::Writing ||
-                           stage == legacy::LegacyIoStage::ExportingFrames) &&
+                           stage == legacy::LegacyIoStage::ExportingFrames ||
+                           stage == legacy::LegacyIoStage::ReadingProjectFile ||
+                           stage == legacy::LegacyIoStage::WritingProjectFile) &&
                           total > 0;
     QString text;
     switch (stage) {
@@ -116,6 +118,16 @@ void ProjectTaskDialog::updateProgress()
     case legacy::LegacyIoStage::Writing:
         text = tr("Writing the .cRZ and .cRPX: %1 of %2 MB")
                    .arg(megabytes(done), megabytes(total));
+        break;
+    case legacy::LegacyIoStage::ReadingProjectFile:
+        text = tr("Reading the project: %1 of %2 parts")
+                   .arg(static_cast<qulonglong>(done))
+                   .arg(static_cast<qulonglong>(total));
+        break;
+    case legacy::LegacyIoStage::WritingProjectFile:
+        text = tr("Writing the project: %1 of %2 parts")
+                   .arg(static_cast<qulonglong>(done))
+                   .arg(static_cast<qulonglong>(total));
         break;
     case legacy::LegacyIoStage::Replacing:
         text = tr("Replacing the project files…");

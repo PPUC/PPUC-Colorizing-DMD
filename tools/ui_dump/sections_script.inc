@@ -50,8 +50,8 @@
     snapshot.frames[4].triggerId = 2;
     snapshot.frames[1].triggerId = 9;
     w.m_document = document::ProjectDocument::fromSnapshot(snapshot);
-    w.m_currentCromPath.clear();
-    w.m_currentCrpPath.clear();
+    w.m_projectPath.clear();
+    w.m_sourcePath.clear();
     w.m_undoHistories.clear();
     w.refreshProjectSummary();
     w.goToFrame(0);
@@ -73,8 +73,6 @@
 
     w.m_sectionBar->onSectionChosen(0);
     D("sections: jumped to the first one");
-    w.m_sectionBar->onTriggerChosen(4);
-    D("sections: jumped to a trigger frame");
 
     QTimer::singleShot(0, []() {
         auto* dialog = dynamic_cast<app::SectionOrderDialog*>(QApplication::activeModalWidget());

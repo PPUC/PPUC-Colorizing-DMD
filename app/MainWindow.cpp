@@ -61,6 +61,7 @@
 #include <QWidget>
 
 #include "AppInfo.h"
+#include "AuthorName.h"
 #include "Appearance.h"
 #include "EditColorKeys.h"
 #include "EditMenuActions.h"
@@ -135,6 +136,7 @@
 #include "edit/LicenseEdits.h"
 #include "runtime/Scenes.h"
 #include "legacy/LegacyProjectSerializer.h"
+#include "project/ProjectFile.h"
 #include "WindowGeometry.h"
 
 namespace colorizing::app {
@@ -370,32 +372,16 @@ bool isCrpxPath(const QString& path)
     return path.endsWith(QStringLiteral(".cRPX"), Qt::CaseInsensitive);
 }
 
-// After a save: renames the Win32 editor's "<name>.cRP" beside the saved .cROM to
-// "<name>.cRP.bak". The Win32 editor opens a .cROM with the .cRP of the same name, so it
-// cannot open a project saved here any more. Returns the renamed file, or nothing.
-QString retireWin32EditorFile(const QString& cromPath)
+bool isProjectFilePath(const QString& path)
 {
-    const QString crpPath = siblingProjectFile(cromPath, QStringLiteral("cRP"));
-    if (!QFileInfo(crpPath).isFile()) {
-        return {};
-    }
-    const QString backupPath = crpPath + QStringLiteral(".bak");
-    QFile::remove(backupPath);
-    return QFile::rename(crpPath, backupPath) ? crpPath : QString();
+    return project::hasProjectFileExtension(path.toStdString());
 }
 
-// After a save: renames a "<name>.cROM" beside the saved .cRZ to "<name>.cROM.bak". The project
-// is saved as its .cRZ only, so the .cROM holds an earlier state, which must not be opened by
-// mistake. Returns the renamed file, or nothing.
-QString retireLooseCrom(const QString& crzPath)
+// A recent project is a project file, or the files of an earlier editor as
+// makeRecentProjectEntry() names them.
+bool isProjectFileEntry(const QString& entry)
 {
-    const QString cromPath = siblingProjectFile(crzPath, QStringLiteral("cROM"));
-    if (!QFileInfo(cromPath).isFile()) {
-        return {};
-    }
-    const QString backupPath = cromPath + QStringLiteral(".bak");
-    QFile::remove(backupPath);
-    return QFile::rename(cromPath, backupPath) ? cromPath : QString();
+    return !entry.contains(QChar('\t'));
 }
 
 QString editKindStatusSuffix(const edit::EditCommand& command, bool showsHdAndSd)
@@ -629,10 +615,8 @@ MainWindow::MainWindow(QWidget* parent)
         this,
         std::chrono::minutes(10),
         [this]() { return autosaveJob(); },
-        [this](const AutosaveFiles& files,
-               uint64_t revision,
-               const legacy::LegacySaveResult& result) {
-            autosaveFinished(files, revision, result);
+        [this](const QString& path, uint64_t revision, const legacy::LegacySaveResult& result) {
+            autosaveFinished(path, revision, result);
         });
 }
 
@@ -709,6 +693,14 @@ void MainWindow::createActions()
         openProjectSettings();
     });
     fileMenu->addSeparator();
+
+    QAction* exportEarlierAction = fileMenu->addAction(tr("Export For &Earlier Editors..."));
+    exportEarlierAction->setToolTip(
+        tr("Write the project as .cRZ and .cRPX: the .cRZ plays with libserum 2.8 and 2.9, the "
+           ".cRPX opens in editor versions before the project file"));
+    connect(exportEarlierAction, &QAction::triggered, this, [this]() {
+        exportForEarlierEditors();
+    });
 
     QAction* exportCromcAction = fileMenu->addAction(tr("Export .cRO&Mc..."));
     exportCromcAction->setToolTip(
@@ -2422,39 +2414,48 @@ void MainWindow::openProject()
     if (!confirmClosingProject(tr("Open Project"))) {
         return;
     }
-    const QString cromPath = QFileDialog::getOpenFileName(
+    const QString path = QFileDialog::getOpenFileName(
         this,
-        tr("Open cROM or cRZ"),
-        QString(),
-        tr("Serum colorization (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
+        tr("Open Project"),
+        projectFolder(),
+        tr("Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
+           "Colorizing DMD project (*.cdmd);;"
+           "Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
            "All files (*)"));
-    if (cromPath.isEmpty()) {
+    if (path.isEmpty()) {
+        return;
+    }
+    if (isProjectFilePath(path)) {
+        loadProject(path);
         return;
     }
 
-    // The project's editor file: the .cRPX this editor saves, or the .cRP of a project the
-    // Win32 editor saved last.
-    QString crpPath = editorFileFor(cromPath);
+    // The editor file of the earlier editors: the .cRPX of this editor before the project
+    // file, or the .cRP of the Win32 editor.
+    QString crpPath = editorFileFor(path);
     if (!QFileInfo::exists(crpPath)) {
-        crpPath = siblingProjectFile(cromPath, QStringLiteral("cRP"));
+        crpPath = siblingProjectFile(path, QStringLiteral("cRP"));
     }
     if (!QFileInfo::exists(crpPath)) {
         crpPath = QFileDialog::getOpenFileName(
             this,
             tr("Open matching cRPX or cRP"),
-            QFileInfo(cromPath).dir().absolutePath(),
+            QFileInfo(path).dir().absolutePath(),
             tr("Serum editor project (*.cRPX *.cRP);;All files (*)"));
         if (crpPath.isEmpty()) {
             return;
         }
     }
-
-    loadProject(cromPath, crpPath);
+    loadLegacyProject(path, crpPath);
 }
 
 void MainWindow::openRecentProject(const QString& entry)
 {
     if (!confirmClosingProject(tr("Open Recent Project"))) {
+        return;
+    }
+    if (isProjectFileEntry(entry)) {
+        loadProject(entry);
         return;
     }
     QString cromPath = recentProjectCromPath(entry);
@@ -2472,16 +2473,40 @@ void MainWindow::openRecentProject(const QString& entry)
             cromPath = other;
         }
     }
-    // A Win32 project has its .cRPX beside the .cRP since it was saved here.
+    // A Win32 project has its .cRPX beside the .cRP once an earlier version saved it.
     if (!isCrpxPath(crpPath) && QFileInfo::exists(editorFileFor(cromPath))) {
         crpPath = editorFileFor(cromPath);
     }
-    loadProject(cromPath, crpPath);
+    loadLegacyProject(cromPath, crpPath);
 }
 
 bool MainWindow::isUntitledProject() const
 {
-    return m_document && (m_currentCromPath.isEmpty() || m_currentCrpPath.isEmpty());
+    return m_document && m_projectPath.isEmpty();
+}
+
+QString MainWindow::projectFolder() const
+{
+    const QString& path = !m_projectPath.isEmpty() ? m_projectPath : m_sourcePath;
+    return path.isEmpty() ? QString() : QFileInfo(path).absolutePath();
+}
+
+QString MainWindow::projectBaseName() const
+{
+    const QString& path = !m_projectPath.isEmpty() ? m_projectPath : m_sourcePath;
+    if (!path.isEmpty()) {
+        return QFileInfo(path).completeBaseName();
+    }
+    return m_document ? QString::fromStdString(m_document->romName()) : QString();
+}
+
+QString MainWindow::proposedFilePath(const QString& suffix) const
+{
+    const QString folder = projectFolder();
+    const QDir directory(!folder.isEmpty()           ? folder
+                         : !m_dumpDirectory.isEmpty() ? m_dumpDirectory
+                                                      : QDir::homePath());
+    return directory.absoluteFilePath(projectBaseName() + suffix);
 }
 
 void MainWindow::updateWindowTitle()
@@ -2489,12 +2514,15 @@ void MainWindow::updateWindowTitle()
     const QString& application = kApplicationName;
     if (!m_document) {
         setWindowTitle(application);
+    } else if (!m_sourcePath.isEmpty() && m_projectPath.isEmpty()) {
+        setWindowTitle(tr("%1 (converted, not saved yet) — %2")
+                           .arg(QFileInfo(m_sourcePath).fileName(), application));
     } else if (isUntitledProject()) {
-        setWindowTitle(tr("%1 (not saved yet) \u2014 %2")
+        setWindowTitle(tr("%1 (not saved yet) — %2")
                            .arg(QString::fromStdString(m_document->romName()), application));
     } else {
-        setWindowTitle(QStringLiteral("%1 \u2014 %2")
-                           .arg(QFileInfo(m_currentCromPath).fileName(), application));
+        setWindowTitle(QStringLiteral("%1 — %2")
+                           .arg(QFileInfo(m_projectPath).fileName(), application));
     }
 }
 
@@ -2526,16 +2554,17 @@ bool MainWindow::saveProject()
     }
     applyPendingSpriteDependentViews();
 
-    // The files are written on a worker thread (runProjectTask) from a snapshot that shares
+    // The file is written on a worker thread (runProjectTask) from a snapshot that shares
     // every block with the document (copy on write), so the save copies no pixels. Nothing
     // can change the document meanwhile: the UI handles no input until the save has ended.
-    // The .cRZ and the .cRPX; no .cROM.
-    const legacy::LegacyProjectPaths paths{
-        {},
-        m_currentCrpPath.toStdString(),
-        m_currentCromPath.toStdString(),
-    };
+    // Every component that changed gets a new revision with the author and the time.
+    project::ProjectFileOptions options;
+    options.editorVersion = kApplicationVersion.toStdString();
+    options.stamp = project::RevisionStamp{loadAuthorName().toStdString(),
+                                           QDateTime::currentMSecsSinceEpoch()};
+    const std::string path = m_projectPath.toStdString();
     legacy::LegacySaveResult result;
+    std::vector<document::StampedMeta> stamped;
     {
         document::ProjectSnapshot snapshot = m_document->toSnapshot();
         // The time spent on it goes into the file, not into the project: counting does not
@@ -2544,7 +2573,7 @@ bool MainWindow::saveProject()
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
             runProjectTask(this, tr("Saving Project"), progress, [&]() {
-                result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
+                result = project::saveProjectFile(path, snapshot, options, &progress, &stamped);
             });
         if (failure) {
             result = legacy::makeSaveFailure(*failure);
@@ -2553,7 +2582,7 @@ bool MainWindow::saveProject()
 
     if (result.cancelled) {
         statusBar()->showMessage(
-            tr("Save cancelled: the project files on disk are unchanged"), 4000);
+            tr("Save cancelled: the project file on disk is unchanged"), 4000);
         return false;
     }
     if (!result.ok) {
@@ -2564,25 +2593,17 @@ bool MainWindow::saveProject()
         return false;
     }
 
+    m_document->adoptComponentMeta(stamped);
     m_document->markClean();
     m_document->forgetDiscardedExtraPlane();
+    if (!m_sourcePath.isEmpty()) {
+        // Converted: the project lives in its project file from now on.
+        m_sourcePath.clear();
+        rememberRecentProject(m_projectPath);
+        updateWindowTitle();
+    }
     updateProjectHeaderStatus();
-    QStringList retired;
-    for (const QString& file : {retireWin32EditorFile(m_currentCromPath),
-                                retireLooseCrom(m_currentCromPath)}) {
-        if (!file.isEmpty()) {
-            retired << QFileInfo(file).fileName();
-        }
-    }
-    if (!retired.isEmpty()) {
-        rememberRecentProject(m_currentCromPath, m_currentCrpPath);
-    }
-    statusBar()->showMessage(
-        retired.isEmpty()
-            ? tr("Project saved")
-            : tr("Project saved; renamed to .bak, as they are out of date: %1")
-                  .arg(retired.join(QStringLiteral(", "))),
-        retired.isEmpty() ? 3000 : 8000);
+    statusBar()->showMessage(tr("Project saved"), 3000);
     return true;
 }
 
@@ -2593,62 +2614,92 @@ bool MainWindow::saveProjectAs()
     }
     const bool untitled = isUntitledProject();
     // A new project is offered under its ROM name, which is the name the runtime looks for,
-    // beside the dump it was made of.
-    QString proposedPath;
-    if (untitled) {
-        const QDir directory(m_dumpDirectory.isEmpty() ? QDir::homePath() : m_dumpDirectory);
-        proposedPath = directory.absoluteFilePath(QString::fromStdString(m_document->romName()) +
-                                                  QStringLiteral(".cRZ"));
-    } else {
-        const QFileInfo currentCromInfo(m_currentCromPath);
-        proposedPath = currentCromInfo.dir().absoluteFilePath(
-            currentCromInfo.completeBaseName() + QStringLiteral("_copy.cRZ"));
-    }
-    QString targetCromPath = QFileDialog::getSaveFileName(
+    // beside the dump it was made of; a converted one beside the files it came from.
+    QString targetPath = QFileDialog::getSaveFileName(
         this,
         untitled ? tr("Save New Project As") : tr("Save Project As"),
-        proposedPath,
-        tr("Serum colorization (*.cRZ);;All files (*)"));
-    if (targetCromPath.isEmpty()) {
+        proposedFilePath(untitled ? QStringLiteral(".cdmd") : QStringLiteral("_copy.cdmd")),
+        tr("Colorizing DMD project (*.cdmd);;All files (*)"));
+    if (targetPath.isEmpty()) {
         return false;
     }
-    if (!isCrzPath(targetCromPath)) {
-        targetCromPath += QStringLiteral(".cRZ");
+    if (!isProjectFilePath(targetPath)) {
+        targetPath += QStringLiteral(".cdmd");
     }
-
-    const QFileInfo targetCromInfo(targetCromPath);
-    const QString targetCrpPath =
-        targetCromInfo.dir().absoluteFilePath(targetCromInfo.completeBaseName() +
-                                              QStringLiteral(".cRPX"));
-    if (!untitled && targetCromPath == m_currentCromPath) {
+    if (!untitled && targetPath == m_projectPath) {
         return saveProject();
     }
 
-    const QString oldCromPath = m_currentCromPath;
-    const QString oldCrpPath = m_currentCrpPath;
-    m_currentCromPath = targetCromPath;
-    m_currentCrpPath = targetCrpPath;
+    const QString oldPath = m_projectPath;
+    m_projectPath = targetPath;
     if (saveProject()) {
         if (untitled) {
-            // Its autosave goes beside the saved files from now on.
-            const AutosaveFiles untitledFiles = untitledAutosaveFiles(m_document->romName());
-            QFile::remove(untitledFiles.cromPath);
-            QFile::remove(untitledFiles.crpPath);
+            // Its autosave goes beside the project file from now on.
+            QFile::remove(untitledAutosavePath(m_document->romName()));
         }
-        rememberRecentProject(m_currentCromPath, m_currentCrpPath);
+        rememberRecentProject(m_projectPath);
         updateWindowTitle();
         // Another folder may have another pup.csv.
         updateRuntimeSceneFile();
         statusBar()->showMessage(untitled ? tr("Project saved as %1")
-                                                .arg(targetCromInfo.fileName())
+                                                .arg(QFileInfo(targetPath).fileName())
                                           : tr("Project saved as copy"),
                                  3000);
         return true;
     }
 
-    m_currentCromPath = oldCromPath;
-    m_currentCrpPath = oldCrpPath;
+    m_projectPath = oldPath;
     return false;
+}
+
+void MainWindow::exportForEarlierEditors()
+{
+    if (!m_document) {
+        statusBar()->showMessage(tr("No project loaded"), 2500);
+        return;
+    }
+    QString crzPath = QFileDialog::getSaveFileName(
+        this,
+        tr("Export For Earlier Editors"),
+        proposedFilePath(QStringLiteral(".cRZ")),
+        tr("Serum colorization (*.cRZ);;All files (*)"));
+    if (crzPath.isEmpty()) {
+        return;
+    }
+    if (!isCrzPath(crzPath)) {
+        crzPath += QStringLiteral(".cRZ");
+    }
+    const QFileInfo crz(crzPath);
+    const QString crpxPath =
+        crz.dir().absoluteFilePath(crz.completeBaseName() + QStringLiteral(".cRPX"));
+    // The .cRZ for libserum 2.8 and 2.9, the .cRPX for the editor versions before the project
+    // file; no .cROM.
+    const legacy::LegacyProjectPaths paths{{}, crpxPath.toStdString(), crzPath.toStdString()};
+    legacy::LegacySaveResult result;
+    {
+        document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, tr("Exporting Project"), progress, [&]() {
+                result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
+            });
+        if (failure) {
+            result = legacy::makeSaveFailure(*failure);
+        }
+    }
+    if (result.cancelled) {
+        statusBar()->showMessage(tr("Export cancelled"), 4000);
+        return;
+    }
+    if (!result.ok) {
+        QMessageBox::critical(this, tr("Export For Earlier Editors"),
+                              QString::fromStdString(result.error.message));
+        return;
+    }
+    statusBar()->showMessage(tr("Exported %1 and %2")
+                                 .arg(crz.fileName(), QFileInfo(crpxPath).fileName()),
+                             5000);
 }
 
 UnsavedChangesAnswer MainWindow::askAboutUnsavedChanges(const QString& action)
@@ -2722,8 +2773,8 @@ void MainWindow::newProjectFromDump()
         // A new project keeps its scenes and scaling settings itself.
         m_document->setColorizationSettings(document::ColorizationSettings{});
         m_document->markUnsaved();
-        m_currentCromPath.clear();
-        m_currentCrpPath.clear();
+        m_projectPath.clear();
+        m_sourcePath.clear();
         m_undoHistories.clear();
         m_canvasHistory.clear();
         updateHistoryButtons();
@@ -2854,6 +2905,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     SettingsDialog dialog(loadTheme(), m_dmdRenderOptions, loadDmdOutputSettings(),
                           DmdOutput::isAvailable(), this);
     dialog.setLanguage(loadLanguage());
+    dialog.setAuthorName(loadAuthorName());
     dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
     {
         std::vector<SettingsDialog::PluginChoice> plugins;
@@ -2873,6 +2925,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
             QMessageBox::warning(this, tr("Plugins"), errors.join(QChar('\n')));
         }
     }
+    saveAuthorName(dialog.authorName());
     if (dialog.language() != loadLanguage()) {
         saveLanguage(dialog.language());
         QMessageBox::information(this, tr("Language"),
@@ -3006,13 +3059,7 @@ void MainWindow::exportAnimatedGif(bool withOriginals, bool bothPlanes)
     // The Win32 editor's style: 5 picture pixels per frame pixel on every plane.
     options.pixelScale = kGifPixelScale;
 
-    const QDir untitledDirectory(m_dumpDirectory.isEmpty() ? QDir::homePath()
-                                                           : m_dumpDirectory);
-    const QString base =
-        isUntitledProject()
-            ? untitledDirectory.absoluteFilePath(QString::fromStdString(m_document->romName()))
-            : QFileInfo(m_currentCromPath).absoluteDir().absoluteFilePath(
-                  QFileInfo(m_currentCromPath).completeBaseName());
+    const QString base = proposedFilePath(QString());
     QString path = QFileDialog::getSaveFileName(
         this,
         tr("Export Animated GIF"),
@@ -3133,8 +3180,7 @@ void MainWindow::exportCromc()
         return;
     }
     const QString rom = QString::fromStdString(m_document->romName());
-    const QString projectDirectory =
-        isUntitledProject() ? QString() : QFileInfo(m_currentCromPath).absolutePath();
+    const QString projectDirectory = projectFolder();
     const QDir proposedDirectory(!projectDirectory.isEmpty() ? projectDirectory
                                  : !m_dumpDirectory.isEmpty() ? m_dumpDirectory
                                                               : QDir::homePath());
@@ -3251,10 +3297,8 @@ void MainWindow::exportCurrentFramePng()
             ? m_document->geometry().nativePlane()
             : rows == runtime::PlaneRequest::Rows64 ? render::Resolution::Hd
                                                     : render::Resolution::Sd;
-    QFileInfo currentCromInfo(m_currentCromPath);
-    const QString defaultPath = currentCromInfo.dir().absoluteFilePath(
-        QStringLiteral("%1_frame_%2_%3.png")
-            .arg(currentCromInfo.completeBaseName())
+    const QString defaultPath = proposedFilePath(
+        QStringLiteral("_frame_%1_%2.png")
             .arg(static_cast<int>(*frameIndex), 4, 10, QLatin1Char('0'))
             .arg(planeName(exportPlane).toLower()));
     QString targetPath = QFileDialog::getSaveFileName(
@@ -3290,7 +3334,7 @@ void MainWindow::importImageIntoSelectedFrames()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Import Image Into Selected Frames"),
-        m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
+        projectFolder().isEmpty() ? QDir::homePath() : projectFolder(),
         tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
     if (path.isEmpty()) {
         return;
@@ -3333,8 +3377,7 @@ void MainWindow::importMovieIntoSelectedFrames()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Import Movie Clip Into Selected Frames"),
-        m_currentCromPath.isEmpty() ? QDir::homePath()
-                                    : QFileInfo(m_currentCromPath).absolutePath(),
+        projectFolder().isEmpty() ? QDir::homePath() : projectFolder(),
         tr("Movies (*.mp4 *.m4v *.mov *.mkv *.avi *.webm *.mpg *.mpeg *.wmv *.flv *.gif);;"
            "All files (*)"));
     if (path.isEmpty()) {
@@ -3583,16 +3626,14 @@ void MainWindow::importPicture(const QImage& still,
         5000);
 }
 
-void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
+void MainWindow::loadProject(const QString& projectPath)
 {
-    if (!isAutosavePath(cromPath)) {
-        const AutosaveFiles autosave = autosaveFilesFor(cromPath, crpPath);
-        std::optional<QDateTime> autosaved = newerAutosaveTime(cromPath, crpPath, autosave);
+    if (!isAutosavePath(projectPath)) {
+        const QString autosave = autosavePathFor(projectPath);
+        std::optional<QDateTime> autosaved = newerAutosaveTime(projectPath, autosave);
         // An autosave whose changes were discarded is not offered again.
         const QDateTime discarded =
-            QSettings()
-                .value(QStringLiteral("autosave/discarded/") + autosave.cromPath)
-                .toDateTime();
+            QSettings().value(QStringLiteral("autosave/discarded/") + autosave).toDateTime();
         if (autosaved && discarded.isValid() && *autosaved <= discarded) {
             autosaved.reset();
         }
@@ -3601,15 +3642,13 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
             question.setIcon(QMessageBox::Question);
             question.setWindowTitle(tr("Open Project"));
             question.setText(tr("The project has an autosave from %1 that is newer "
-                                "than its files.")
+                                "than its file.")
                                  .arg(QLocale().toString(*autosaved, QLocale::ShortFormat)));
             question.setInformativeText(
-                tr("It holds changes that were not saved, for example after a "
-                   "crash. Open Autosave opens it as this project with unsaved "
-                   "changes: Save then writes them to the project files. %1 and "
-                   "%2 are kept either way.")
-                    .arg(QFileInfo(autosave.cromPath).fileName(),
-                         QFileInfo(autosave.crpPath).fileName()));
+                tr("It holds changes that were not saved, for example after a crash. Open "
+                   "Autosave opens it as this project with unsaved changes: Save then writes "
+                   "them to the project file. %1 is kept either way.")
+                    .arg(QFileInfo(autosave).fileName()));
             QPushButton* autosaveButton =
                 question.addButton(tr("Open Autosave"), QMessageBox::AcceptRole);
             QPushButton* projectButton =
@@ -3618,7 +3657,7 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
             question.setDefaultButton(autosaveButton);
             question.exec();
             if (question.clickedButton() == autosaveButton) {
-                loadProjectFiles(autosave.cromPath, autosave.crpPath, cromPath, crpPath, true);
+                loadProjectFile(autosave, projectPath, true);
                 return;
             }
             if (question.clickedButton() != projectButton) {
@@ -3626,27 +3665,38 @@ void MainWindow::loadProject(const QString& cromPath, const QString& crpPath)
             }
         }
     }
-    loadProjectFiles(cromPath, crpPath, cromPath, crpPath, false);
+    loadProjectFile(projectPath, projectPath, false);
 }
 
-void MainWindow::loadProjectFrom(const AutosaveFiles& readFrom,
-                                 const QString& cromPath,
-                                 const QString& crpPath)
-{
-    loadProjectFiles(readFrom.cromPath, readFrom.crpPath, cromPath, crpPath, true);
-}
-
-void MainWindow::loadProjectFiles(const QString& readCromPath,
-                                  const QString& readCrpPath,
-                                  const QString& cromPath,
-                                  const QString& crpPath,
-                                  bool recovered)
+void MainWindow::loadProjectFile(const QString& readPath,
+                                 const QString& projectPath,
+                                 bool recovered)
 {
     // Read and turned into a document on a worker thread (runProjectTask); the project that
     // is open stays open, unchanged, until the new one is complete, and is kept when the open
     // fails or is cancelled.
-    const legacy::LegacyProjectPaths paths{
-        readCromPath.toStdString(), readCrpPath.toStdString(), {}};
+    const std::string path = readPath.toStdString();
+    legacy::LegacyDocumentLoadResult result;
+    {
+        legacy::LegacyIoProgress progress;
+        const std::optional<std::string> failure =
+            runProjectTask(this, tr("Opening Project"), progress, [&]() {
+                result = project::loadProjectDocument(path, &progress);
+            });
+        if (failure) {
+            result = {};
+            result.error.message = *failure;
+        }
+    }
+    if (takeLoadedProject(std::move(result), projectPath, QString(), recovered) &&
+        !projectPath.isEmpty()) {
+        rememberRecentProject(projectPath);
+    }
+}
+
+void MainWindow::loadLegacyProject(const QString& cromPath, const QString& crpPath)
+{
+    const legacy::LegacyProjectPaths paths{cromPath.toStdString(), crpPath.toStdString(), {}};
     legacy::LegacyDocumentLoadResult result;
     {
         legacy::LegacyIoProgress progress;
@@ -3659,36 +3709,47 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
             result.error.message = *failure;
         }
     }
+    if (!takeLoadedProject(std::move(result), QString(), cromPath, false)) {
+        return;
+    }
+    rememberRecentProject(makeRecentProjectEntry(cromPath, crpPath));
+    // Converted: the files stay as they are, a save writes a project file. Closing it loses
+    // nothing, so it counts as unchanged.
+    const QString note =
+        tr("Opened the files of an earlier editor: Save writes the project as a project file "
+           "(.cdmd); %1 and %2 stay as they are")
+            .arg(QFileInfo(cromPath).fileName(), QFileInfo(crpPath).fileName());
+    const QString shown = statusBar()->currentMessage();
+    statusBar()->showMessage(shown.isEmpty() ? note : QStringLiteral("%1. %2").arg(shown, note),
+                             12000);
+}
 
+bool MainWindow::takeLoadedProject(legacy::LegacyDocumentLoadResult result,
+                                   const QString& projectPath,
+                                   const QString& sourcePath,
+                                   bool recovered)
+{
     if (result.cancelled) {
         setStatusText(tr("Open cancelled"));
-        return;
+        return false;
     }
     if (!result.ok) {
         QMessageBox::critical(this,
                               tr("Open Project Failed"),
                               QString::fromStdString(result.error.message));
         setStatusText(tr("Open failed"));
-        return;
+        return false;
     }
 
-    // A project of the Win32 editor (a .cRP) is saved with a .cRPX beside its .cROM.
-    const bool win32Project = !crpPath.isEmpty() && !isCrpxPath(crpPath);
     QString sidecarNote;
     try {
         m_document = std::move(*result.document);
         result.document.reset();
-        // The project is saved as its .cRZ, also when it was opened from a .cROM.
-        m_currentCromPath = isCrzPath(cromPath)
-                                ? cromPath
-                                : siblingProjectFile(cromPath, QStringLiteral("cRZ"));
-        m_currentCrpPath = win32Project ? editorFileFor(m_currentCromPath) : crpPath;
-        if (!cromPath.isEmpty() && !crpPath.isEmpty()) {
-            rememberRecentProject(cromPath, crpPath);
-        }
+        m_projectPath = projectPath;
+        m_sourcePath = sourcePath;
         sidecarNote = importColorizationSidecars();
         if (recovered) {
-            // What the autosave holds is not in the project files.
+            // What the autosave holds is not in the project file.
             m_document->markUnsaved();
         }
         m_undoHistories.clear();
@@ -3706,20 +3767,14 @@ void MainWindow::loadProjectFiles(const QString& readCromPath,
                               tr("Open Project Failed"),
                               QString::fromUtf8(ex.what()));
         setStatusText(tr("Open failed"));
-        return;
+        return false;
     }
 
     refreshProjectSummary();
-    if (win32Project) {
-        const QString note = tr("A project of the Win32 editor: once saved here, the Win32 "
-                                "editor cannot open it any more");
-        statusBar()->showMessage(sidecarNote.isEmpty() ? note
-                                                       : QStringLiteral("%1. %2").arg(sidecarNote,
-                                                                                      note),
-                                 12000);
-    } else if (!sidecarNote.isEmpty()) {
+    if (!sidecarNote.isEmpty()) {
         statusBar()->showMessage(sidecarNote, 8000);
     }
+    return true;
 }
 
 std::optional<Autosaver::Job> MainWindow::autosaveJob()
@@ -3730,11 +3785,11 @@ std::optional<Autosaver::Job> MainWindow::autosaveJob()
         return std::nullopt;
     }
     Autosaver::Job job;
-    job.files = isUntitledProject() ? untitledAutosaveFiles(m_document->romName())
-                                    : autosaveFilesFor(m_currentCromPath, m_currentCrpPath);
+    job.path = isUntitledProject() ? untitledAutosavePath(m_document->romName())
+                                   : autosavePathFor(m_projectPath);
     // A project opened from an autosave by hand is written over itself.
-    if (isAutosavePath(m_currentCromPath)) {
-        job.files = AutosaveFiles{m_currentCromPath, m_currentCrpPath};
+    if (isAutosavePath(m_projectPath)) {
+        job.path = m_projectPath;
     }
     job.revision = m_document->revision();
     job.snapshot = m_document->toSnapshot();
@@ -3742,7 +3797,7 @@ std::optional<Autosaver::Job> MainWindow::autosaveJob()
     return job;
 }
 
-void MainWindow::autosaveFinished(const AutosaveFiles& files,
+void MainWindow::autosaveFinished(const QString& path,
                                   uint64_t revision,
                                   const legacy::LegacySaveResult& result)
 {
@@ -3757,7 +3812,7 @@ void MainWindow::autosaveFinished(const AutosaveFiles& files,
     }
     m_autosavedRevision = revision;
     statusBar()->showMessage(tr("Autosaved to %1 at %2")
-                                 .arg(QDir::toNativeSeparators(files.cromPath),
+                                 .arg(QDir::toNativeSeparators(path),
                                       QLocale().toString(QTime::currentTime(),
                                                          QLocale::ShortFormat)),
                              5000);
@@ -3771,44 +3826,41 @@ void MainWindow::forgetAutosave()
     // Nothing more of the discarded changes is written.
     m_autosaver->cancelAndWait();
     if (isUntitledProject()) {
-        const AutosaveFiles files = untitledAutosaveFiles(m_document->romName());
-        QFile::remove(files.cromPath);
-        QFile::remove(files.crpPath);
+        QFile::remove(untitledAutosavePath(m_document->romName()));
         return;
     }
-    // The files beside the project stay, as the Win32 editor leaves them; only the offer to
-    // open them is dropped, up to their present time.
-    const AutosaveFiles files = autosaveFilesFor(m_currentCromPath, m_currentCrpPath);
-    const QFileInfo crom(files.cromPath);
-    const QFileInfo crp(files.crpPath);
-    if (crom.isFile() && crp.isFile()) {
-        QSettings().setValue(QStringLiteral("autosave/discarded/") + files.cromPath,
-                             std::max(crom.lastModified(), crp.lastModified()));
+    // The file beside the project stays, as the Win32 editor leaves it; only the offer to
+    // open it is dropped, up to its present time.
+    const QString autosave = autosavePathFor(m_projectPath);
+    const QFileInfo file(autosave);
+    if (file.isFile()) {
+        QSettings().setValue(QStringLiteral("autosave/discarded/") + autosave,
+                             file.lastModified());
     }
 }
 
 void MainWindow::offerUntitledAutosave()
 {
-    const std::vector<AutosaveFiles> autosaves = untitledAutosaves();
+    const std::vector<QString> autosaves = untitledAutosaves();
     if (autosaves.empty()) {
         return;
     }
-    const AutosaveFiles& newest = autosaves.front();
-    const QFileInfo crom(newest.cromPath);
-    QString name = crom.completeBaseName();
+    const QString& newest = autosaves.front();
+    const QFileInfo file(newest);
+    QString name = file.completeBaseName();
     name.chop(static_cast<int>(QStringLiteral("(auto)").size()));
     QMessageBox question(this);
     question.setIcon(QMessageBox::Question);
     question.setWindowTitle(tr("Autosave Found"));
-    question.setText(tr("A new project of %1 that was never saved has an autosave "
+    question.setText(tr("A project of %1 that has no project file yet has an autosave "
                         "from %2.")
-                         .arg(name, QLocale().toString(crom.lastModified(),
+                         .arg(name, QLocale().toString(file.lastModified(),
                                                        QLocale::ShortFormat)));
     question.setInformativeText(
         tr("Open opens it as a new project with unsaved changes. Delete removes the "
            "autosave. Later keeps it and asks again at the next start.%1")
             .arg(autosaves.size() > 1
-                     ? tr(" %1 more autosave(s) of never saved projects are in %2.")
+                     ? tr(" %1 more autosave(s) of projects without a project file are in %2.")
                            .arg(static_cast<int>(autosaves.size() - 1))
                            .arg(QDir::toNativeSeparators(untitledAutosaveDirectory()))
                      : QString()));
@@ -3820,10 +3872,9 @@ void MainWindow::offerUntitledAutosave()
     question.setEscapeButton(laterButton);
     question.exec();
     if (question.clickedButton() == openButton) {
-        loadProjectFrom(newest, QString(), QString());
+        loadProjectFile(newest, QString(), true);
     } else if (question.clickedButton() == deleteButton) {
-        QFile::remove(newest.cromPath);
-        QFile::remove(newest.crpPath);
+        QFile::remove(newest);
     }
 }
 
@@ -4419,12 +4470,11 @@ void MainWindow::goToFrame(std::size_t frameIndex)
                              4000);
 }
 
-void MainWindow::rememberRecentProject(const QString& cromPath, const QString& crpPath)
+void MainWindow::rememberRecentProject(const QString& entry)
 {
     QSettings settings;
     QStringList entries = settings.value(QString::fromLatin1(kRecentProjectsSettingsKey))
                               .toStringList();
-    const QString entry = makeRecentProjectEntry(cromPath, crpPath);
     entries.removeAll(entry);
     entries.prepend(entry);
     while (entries.size() > kMaxRecentProjects) {
@@ -4445,13 +4495,13 @@ void MainWindow::refreshRecentProjectsMenu()
     const QStringList entries = settings.value(QString::fromLatin1(kRecentProjectsSettingsKey))
                                     .toStringList();
     for (const QString& entry : entries) {
-        const QString cromPath = recentProjectCromPath(entry);
-        const QString crpPath = recentProjectCrpPath(entry);
-        if (cromPath.isEmpty() || crpPath.isEmpty()) {
+        const QString path = isProjectFileEntry(entry) ? entry : recentProjectCromPath(entry);
+        if (path.isEmpty() ||
+            (!isProjectFileEntry(entry) && recentProjectCrpPath(entry).isEmpty())) {
             continue;
         }
-        QAction* action = m_recentProjectsMenu->addAction(cromPath);
-        action->setToolTip(cromPath);
+        QAction* action = m_recentProjectsMenu->addAction(path);
+        action->setToolTip(path);
         connect(action, &QAction::triggered, this, [this, entry]() {
             openRecentProject(entry);
         });
@@ -6405,7 +6455,7 @@ void MainWindow::importImageIntoSelectedBackground()
     }
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Import Background Image"),
-        m_currentCromPath.isEmpty() ? QDir::homePath() : QFileInfo(m_currentCromPath).absolutePath(),
+        projectFolder().isEmpty() ? QDir::homePath() : projectFolder(),
         tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
     if (path.isEmpty()) {
         return;
@@ -6439,10 +6489,8 @@ void MainWindow::exportSelectedBackgroundPng()
     }
 
     const QString resolutionName = planeName(exportResolution).toLower();
-    QFileInfo currentCromInfo(m_currentCromPath);
-    QString defaultPath = currentCromInfo.dir().absoluteFilePath(
-        QStringLiteral("%1_background_%2_%3.png")
-            .arg(currentCromInfo.completeBaseName())
+    QString defaultPath = proposedFilePath(
+        QStringLiteral("_background_%1_%2.png")
             .arg(static_cast<int>(*backgroundIndex), 3, 10, QLatin1Char('0'))
             .arg(resolutionName));
     QString targetPath = QFileDialog::getSaveFileName(
@@ -10207,7 +10255,7 @@ QString MainWindow::importColorizationSidecars()
     const bool wasDirty = m_document->isDirty();
     const runtime::SidecarImport imported = runtime::importColorizationSidecars(
         *m_document,
-        platform::pathFromUtf8(QFileInfo(m_currentCromPath).absolutePath().toStdString()));
+        platform::pathFromUtf8(projectFolder().toStdString()));
     if (imported.files.empty()) {
         // Default settings only: nothing to save for them yet.
         if (!wasDirty) {
@@ -10884,8 +10932,8 @@ void MainWindow::updateRuntimeSceneFile()
     // The <rom>.pup.csv beside the project, as the .cROMc export takes it: the Runtime view and
     // the frame tester then play its scenes (background scenes too) as a machine does.
     std::string sceneFile;
-    if (m_document && !isUntitledProject()) {
-        const QString directory = QFileInfo(m_currentCromPath).absolutePath();
+    if (m_document && !projectFolder().isEmpty()) {
+        const QString directory = projectFolder();
         if (const std::optional<std::filesystem::path> csv = runtime::findCaseInsensitive(
                 platform::pathFromUtf8(directory.toStdString()), m_document->romName() + ".pup.csv")) {
             sceneFile = runtime::libserumPath(*csv).value_or(std::string());

@@ -1,8 +1,8 @@
 # Palettes
 
 Legacy `.cRP` files can store 256 palettes with 64 RGB565 colors each, plus 64-byte palette-name
-slots. When that table exists, the Qt rewrite loads it into the document model and saves edits back
-to the same `.cRP` offsets.
+slots. When that table exists, the editor loads it into the project and saves it, with every
+change, in the project file.
 
 The Inspector's `Palette` section provides a palette selector, the selected palette name, and a
 64-color grid:
@@ -20,7 +20,7 @@ The Inspector's `Palette` section provides a palette selector, the selected pale
   endpoint colors themselves are never changed.
 - Use `Shape`, `Pattern`, and `Direction` to control the canvas `Grad` drawing tool.
 - Palette color changes and gradient fills are undoable per palette.
-- Palette color/name changes mark the project dirty and are saved with the `.cRP` file.
+- Palette color/name changes mark the project dirty and are saved in the project file.
 
 The current frame renderer does not yet use these palettes for color-rotation playback or gradient
 fill previews outside the Palette editor. Palette editing is the storage/UI foundation for those

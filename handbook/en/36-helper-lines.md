@@ -2,8 +2,8 @@
 
 Helper lines are named horizontal and vertical lines over the canvas, to line things up on
 several frames and to measure: a score's baseline, the column a ball runs in, the edge of a
-logo. They are the same on every frame and belong to the project: saved in its `.cRPX`, not
-seen by libserum or a machine.
+logo. They are the same on every frame and belong to the project: saved in its project file,
+not seen by libserum or a machine.
 
 The `Helper Lines` section of the right sidebar lists them:
 

@@ -34,7 +34,7 @@ At the left end of the frame strip:
   filter's `With triggers` lists those frames, and `Using the selected asset` with a scene
   selected the frames that start that scene.
 
-Sections are editor data of the `.cRP`; the runtime does not use them.
+Sections are editor data of the project file; the runtime does not use them.
 
 Thumbnails are drawn when their frames come into view in the strip, not when the project is
 opened: a frame that was never scrolled to shows an empty dark box of the thumbnail's size,
@@ -112,7 +112,7 @@ tags, separated by commas, and offers the project's tags while one is typed. Cha
 changes all selected frames: a tag added there is added to each of them, a tag removed there
 is removed from each, and their other tags stay. Each frame's change is a step of its settings
 history (`Undo`). The tags show below the thumbnails as `#Multiball` and are saved in the
-`.cRPX`; libserum does not see them. A tag no frame has any more leaves the filter; a filter on
+project file; libserum does not see them. A tag no frame has any more leaves the filter; a filter on
 it goes back to all frames. The toolbar's `<` and `>` keep the tag of a tag filter.
 Editing still targets the real project frame number shown in the item label, not the visible row
 number.

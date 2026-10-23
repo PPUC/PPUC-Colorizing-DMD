@@ -58,8 +58,8 @@
     document::setFixedName(snapshot.editorMetadata.sectionNames, 1, document::kSectionNameBytes,
                            "Game");
     w.m_document = document::ProjectDocument::fromSnapshot(snapshot);
-    w.m_currentCromPath.clear();
-    w.m_currentCrpPath.clear();
+    w.m_projectPath.clear();
+    w.m_sourcePath.clear();
     w.m_undoHistories.clear();
     w.refreshProjectSummary();
     w.goToFrame(0);

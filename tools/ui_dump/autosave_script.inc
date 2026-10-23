@@ -5,8 +5,7 @@
     QDir(workPath).removeRecursively();
     QDir().mkpath(workPath);
     const QDir work(workPath);
-    const QString cromPath = work.filePath(QStringLiteral("auto.cROM"));
-    const QString crpPath = work.filePath(QStringLiteral("auto.cRPX"));
+    const QString projectPath = work.filePath(QStringLiteral("auto.cdmd"));
 
     const auto D = [&](const char* title) {
         dump(title, w);
@@ -16,7 +15,7 @@
                                          std::to_string(w.m_document->frameDurationMs(0)) + " ms" +
                                          (w.m_document->isDirty() ? ", changed" : ", saved")
                                    : std::string("none"))
-                  << " | save to " << QFileInfo(w.m_currentCromPath).fileName().toStdString()
+                  << " | save to " << QFileInfo(w.m_projectPath).fileName().toStdString()
                   << " | files";
         for (const QFileInfo& file : work.entryInfoList(QDir::Files, QDir::Name)) {
             std::cout << ' ' << file.fileName().toStdString();
@@ -56,8 +55,8 @@
             document::makeIndexedFrame(render::kSdFrameSize, 0), 100));
     }
     w.m_document = document::ProjectDocument::fromSnapshot(snapshot);
-    w.m_currentCromPath = cromPath;
-    w.m_currentCrpPath = crpPath;
+    w.m_projectPath = projectPath;
+    w.m_sourcePath.clear();
     w.m_undoHistories.clear();
     w.refreshProjectSummary();
     w.saveProject();
@@ -78,20 +77,20 @@
 
     // Make the project files older than the autosave, as after an hour of work.
     const QDateTime earlier = QDateTime::currentDateTime().addSecs(-3600);
-    for (const QString& path : {cromPath, crpPath}) {
-        QFile file(path);
+    {
+        QFile file(projectPath);
         if (!file.open(QIODevice::ReadWrite) ||
             !file.setFileTime(earlier, QFileDevice::FileModificationTime)) {
-            std::cerr << "cannot set the time of " << path.toStdString() << '\n';
+            std::cerr << "cannot set the time of " << projectPath.toStdString() << '\n';
             return 3;
         }
     }
     w.m_document->markClean();
     answerNext(QStringLiteral("Open Project"));
-    w.loadProject(cromPath, crpPath);
+    w.loadProject(projectPath);
     D("autosave: offered, project opened");
     answerNext(QStringLiteral("Open Autosave"));
-    w.loadProject(cromPath, crpPath);
+    w.loadProject(projectPath);
     D("autosave: offered, autosave opened as the project");
 
     w.m_unsavedChangesAnswer = [](const QString&) { return app::UnsavedChangesAnswer::Discard; };
@@ -102,7 +101,7 @@
     QTimer::singleShot(3000, []() {
         if (QApplication::activeModalWidget()) { std::cerr << "autosave offered again\n"; std::exit(4); }
     });
-    w.loadProject(cromPath, crpPath);
+    w.loadProject(projectPath);
     D("autosave: changes discarded, not offered again");
 
     QSettings().remove(QStringLiteral("autosave"));

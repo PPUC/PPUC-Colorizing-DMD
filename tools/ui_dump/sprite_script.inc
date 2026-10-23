@@ -342,7 +342,7 @@
     w.m_redoAction->trigger();
     dump("capture into sprite 2 redone", w);
     // Create New: the box, then the name of the new sprite.
-    QTimer::singleShot(0, [answerNextMessageBox]() {
+    QTimer::singleShot(0, []() {
         QTimer::singleShot(0, []() {
             auto* input = qobject_cast<QInputDialog*>(QApplication::activeModalWidget());
             if (!input) { std::cerr << "no input dialog\n"; std::exit(3); }

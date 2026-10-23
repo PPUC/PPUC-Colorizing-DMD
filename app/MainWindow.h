@@ -30,6 +30,7 @@
 #include "edit/SpeakerLightEdits.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
+#include "legacy/LegacyProjectFileReader.h"
 #include "FrameImageUtils.h"
 #include "RuntimeView.h"
 #include "CanvasHistory.h"
@@ -163,7 +164,19 @@ private:
     // Both return whether the project was written.
     bool saveProject();
     bool saveProjectAs();
+    // Whether the project has no project file yet (new, or converted).
     [[nodiscard]] bool isUntitledProject() const;
+    // The folder of the project file, or of the files it was converted from; empty for a
+    // new project.
+    [[nodiscard]] QString projectFolder() const;
+    // The name of the project file without its extension, of the files it was converted
+    // from, or the ROM name.
+    [[nodiscard]] QString projectBaseName() const;
+    // A file in the project's folder (or the dump's, or the home folder) named after the
+    // project: projectBaseName() and the suffix.
+    [[nodiscard]] QString proposedFilePath(const QString& suffix) const;
+    // File -> Export For Earlier Editors: the .cRZ and .cRPX of the project.
+    void exportForEarlierEditors();
     void updateWindowTitle();
     // Writes the project's .cROMc through libserum, see runtime::exportCromc().
     void exportCromc();
@@ -198,25 +211,27 @@ private:
     // the chosen planes (HD created where it is missing).
     void importPicture(const QImage& still, const QString& name, VideoClip* clip,
                        bool toBackground);
-    // Offers the project's autosave when it is newer than the project files (see Autosave.h).
-    void loadProject(const QString& cromPath, const QString& crpPath);
-    // Reads the project from readFrom (an autosave) instead; it is then the project at
-    // cromPath/crpPath with unsaved changes (an untitled one when both are empty).
-    void loadProjectFrom(const AutosaveFiles& readFrom,
-                         const QString& cromPath,
-                         const QString& crpPath);
-    void loadProjectFiles(const QString& readCromPath,
-                          const QString& readCrpPath,
-                          const QString& cromPath,
-                          const QString& crpPath,
-                          bool recovered);
+    // Opens a project file, offering its autosave when that is newer (see Autosave.h).
+    void loadProject(const QString& projectPath);
+    // Reads the project file at readPath (the project file, or an autosave): it is then the
+    // project of projectPath (none when empty), with unsaved changes when recovered.
+    void loadProjectFile(const QString& readPath, const QString& projectPath, bool recovered);
+    // Opens the files of an earlier editor (a .cROM or .cRZ with its .cRPX or .cRP): the
+    // project is converted and has no project file until it is saved.
+    void loadLegacyProject(const QString& cromPath, const QString& crpPath);
+    // Makes a loaded document the open project; false (with a message) when it failed.
+    bool takeLoadedProject(legacy::LegacyDocumentLoadResult result,
+                           const QString& projectPath,
+                           const QString& sourcePath,
+                           bool recovered);
     [[nodiscard]] std::optional<Autosaver::Job> autosaveJob();
-    void autosaveFinished(const AutosaveFiles& files,
+    void autosaveFinished(const QString& path,
                           uint64_t revision,
                           const legacy::LegacySaveResult& result);
     // Changes were discarded: the autosave holding them is not offered again.
     void forgetAutosave();
-    void rememberRecentProject(const QString& cromPath, const QString& crpPath);
+    // A project file, or the files of an earlier editor (makeRecentProjectEntry()).
+    void rememberRecentProject(const QString& entry);
     void refreshRecentProjectsMenu();
     void setStatusText(const QString& text);
     void setFrameStatusText(const QString& text);
@@ -725,9 +740,12 @@ private:
     // Frame index -> row of m_frameList, -1 for a frame the filter hides; rebuilt with the list.
     std::vector<int> m_frameRows;
     std::vector<std::size_t> m_pendingMaskIcons;
-    // The project's .cRZ, which a save writes (also for a project opened from a .cROM).
-    QString m_currentCromPath;
-    QString m_currentCrpPath;
+    // The project file (.cdmd) a save writes; empty while the project has none (a new
+    // project, or one converted from the files of an earlier editor).
+    QString m_projectPath;
+    // The .cROM or .cRZ of an earlier editor the project was converted from, until it has a
+    // project file: its folder and name are the project's (proposed names, pup.csv).
+    QString m_sourcePath;
     std::optional<document::ProjectDocument> m_document;
     // Structure undo steps the last structure edit dropped, see showStructureEditStatus().
     std::size_t m_droppedStructureSteps = 0;

@@ -51,7 +51,7 @@ and never reads them. The editor does the same:
   data to neutral content: SD sprite colors all 0, SD sprite dynamic mask all 255 ("not dynamic"),
   SD sprite dynamic colors all 0. `Create HD` leaves the SD data of the frame, background or
   sprite as it is.
-- On save a frame counts as colorized ("active") if its HD frame differs from the plain original
+- In the `.cROMc` and an exported `.cRZ` a frame counts as colorized ("active") if its HD frame differs from the plain original
   colors or it has HD dynamic content. The SD frame does not count.
 
 ## No SD mode

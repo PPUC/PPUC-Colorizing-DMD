@@ -71,8 +71,8 @@
     const auto loadColors = [&](uint32_t colorCount, uint32_t drawColorMode) {
         w.m_document = document::ProjectDocument::fromSnapshot(
             makeColorSnapshot(colorCount, drawColorMode));
-        w.m_currentCromPath = QStringLiteral("/nonexistent/colors.cROM");
-        w.m_currentCrpPath = QStringLiteral("/nonexistent/colors.cRP");
+        w.m_projectPath = QStringLiteral("/nonexistent/colors.cdmd");
+        w.m_sourcePath.clear();
         w.m_undoHistories.clear();
         w.refreshProjectSummary();
     };

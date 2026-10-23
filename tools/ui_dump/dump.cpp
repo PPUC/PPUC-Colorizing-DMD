@@ -81,9 +81,9 @@
 #define UI_DUMP_HAS_SECTIONS 1
 #endif
 
-#if __has_include("legacy/CrpxFile.h")
+#if __has_include("project/ProjectFile.h")
 #include "legacy/LegacyProjectFileWriter.h"
-#define UI_DUMP_HAS_CRPX 1
+#define UI_DUMP_HAS_PROJECT_FILE 1
 #endif
 
 #if __has_include("edit/FrameMove.h")
@@ -717,8 +717,8 @@ int main(int argc, char* argv[])
 #include "frame_move_script.inc"
 #endif
 
-// States of a tree that saves a .cRPX; a tree without it ends here.
-#ifdef UI_DUMP_HAS_CRPX
+// States of a tree that saves a project file; a tree without it ends here.
+#ifdef UI_DUMP_HAS_PROJECT_FILE
 #include "format_script.inc"
 #endif
 

@@ -96,8 +96,8 @@
 
     const auto loadSelection = [&]() {
         w.m_document = document::ProjectDocument::fromSnapshot(makeSelectionSnapshot());
-        w.m_currentCromPath = QStringLiteral("/nonexistent/selection.cROM");
-        w.m_currentCrpPath = QStringLiteral("/nonexistent/selection.cRP");
+        w.m_projectPath = QStringLiteral("/nonexistent/selection.cdmd");
+        w.m_sourcePath.clear();
         w.m_undoHistories.clear();
         w.m_pasteMode.clearClipboard();
         w.refreshProjectSummary();

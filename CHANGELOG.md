@@ -5,6 +5,13 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A project is now one file, its project file (`.cdmd`): `Save` writes it, with every frame,
+  mask, background and sprite in a part of its own that keeps its ID and notes who changed it
+  last and when (`Settings -> Projects -> Your name`). Projects of the Win32 editor and of
+  earlier versions (`.cROM`, `.cRZ` with `.cRP` or `.cRPX`) are opened and converted; their files
+  are no longer written or renamed. `File -> Export For Earlier Editors...` writes a `.cRZ` and
+  `.cRPX` for libserum 2.8 and 2.9 and earlier editor versions. The autosave is
+  `<name>(auto).cdmd`.
 - `File -> Project Settings...` has a license for the colorization (all rights reserved, the
   Creative Commons licenses or your own text), with an attribution and a link. It is saved in
   the `.cRPX`.

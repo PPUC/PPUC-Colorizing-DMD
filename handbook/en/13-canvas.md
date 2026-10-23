@@ -88,7 +88,7 @@ Beside it, `Time: Project 113:19:06 / Session 00:00:19` counts the time spent on
 in this session: the time you work on it. Both clocks stop when there was no input (mouse, keys,
 wheel) in the editor's windows for a minute, and show `(paused)`; the next input starts them
 again. A running playback counts as work. (The Win32 editor counted the whole time a project
-was open.) The project time is saved with the project (in the `.cRPX`, also by the
+was open.) The project time is saved with the project (in its project file, also by the
 autosave) and goes on from there the next time it is opened; a project made from a dump starts
 at 0. Counting does not mark the project as changed.
 

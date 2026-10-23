@@ -1,6 +1,6 @@
 # Sprites
 
-Sprite data is loaded into the document model and saved back through the legacy `.cROM` layout.
+Sprite data is loaded into the project and saved in the project file.
 `New` and `Delete` above the sprite list of the left sidebar add an empty sprite and delete the
 selected one, see "Adding And Deleting Records".
 

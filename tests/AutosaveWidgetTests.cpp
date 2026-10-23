@@ -1,5 +1,5 @@
 // Autosave: the file names, which autosave is offered, and the writer on its worker thread
-// (files written from a snapshot while the document goes on, cancel).
+// (a project file written from a snapshot while the document goes on, cancel).
 
 #include <chrono>
 #include <functional>
@@ -20,11 +20,11 @@
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
 #include "legacy/LegacyProjectFileReader.h"
+#include "project/ProjectFile.h"
 
 namespace {
 
 using namespace colorizing;
-using app::AutosaveFiles;
 using app::Autosaver;
 
 void expect(bool condition, const std::string& message)
@@ -48,43 +48,33 @@ void touch(const QString& path, const QDateTime& time)
 
 void testNames()
 {
-    const AutosaveFiles files = app::autosaveFilesFor(QStringLiteral("/p/afm_113b.cROM"),
-                                                      QStringLiteral("/p/afm_113b.cRPX"));
-    expect(files.cromPath == QStringLiteral("/p/afm_113b(auto).cRZ") &&
-               files.crpPath == QStringLiteral("/p/afm_113b(auto).cRPX"),
-           "the Win32 editor's names beside the project, as .cRZ and .cRPX");
-    expect(app::autosaveFilesFor(QStringLiteral("/p/afm_113b.cROM"),
-                                 QStringLiteral("/p/afm_113b.cRP"))
-                   .crpPath == QStringLiteral("/p/afm_113b(auto).cRPX"),
-           "a Win32 project's autosave has a .cRPX too");
-    expect(app::isAutosavePath(files.cromPath) &&
-               !app::isAutosavePath(QStringLiteral("/p/afm_113b.cROM")),
+    expect(app::autosavePathFor(QStringLiteral("/p/afm_113b.cdmd")) ==
+               QStringLiteral("/p/afm_113b(auto).cdmd"),
+           "the Win32 editor's name beside the project, as a project file");
+    expect(app::isAutosavePath(QStringLiteral("/p/afm_113b(auto).cdmd")) &&
+               !app::isAutosavePath(QStringLiteral("/p/afm_113b.cdmd")),
            "an autosave is recognised by its name");
-    const AutosaveFiles untitled = app::untitledAutosaveFiles("smb3");
-    expect(QFileInfo(untitled.cromPath).fileName() == QStringLiteral("smb3(auto).cRZ") &&
-               QFileInfo(untitled.cromPath).absolutePath() ==
+    const QString untitled = app::untitledAutosavePath("smb3");
+    expect(QFileInfo(untitled).fileName() == QStringLiteral("smb3(auto).cdmd") &&
+               QFileInfo(untitled).absolutePath() ==
                    QDir(app::untitledAutosaveDirectory()).absolutePath(),
-           "a never saved project's autosave is in the application's folder");
+           "a project without a project file has its autosave in the application's folder");
 }
 
 void testWhichAutosaveIsOffered()
 {
     QTemporaryDir directory;
-    const QString crom = directory.filePath(QStringLiteral("rom.cROM"));
-    const QString crp = directory.filePath(QStringLiteral("rom.cRPX"));
-    const AutosaveFiles autosave = app::autosaveFilesFor(crom, crp);
+    const QString project = directory.filePath(QStringLiteral("rom.cdmd"));
+    const QString autosave = app::autosavePathFor(project);
     const QDateTime base = QDateTime::currentDateTime().addSecs(-3600);
-    touch(crom, base);
-    touch(crp, base);
-    expect(!app::newerAutosaveTime(crom, crp, autosave), "no autosave, nothing offered");
-    touch(autosave.cromPath, base.addSecs(60));
-    expect(!app::newerAutosaveTime(crom, crp, autosave), "only both files together");
-    touch(autosave.crpPath, base.addSecs(120));
-    const std::optional<QDateTime> offered = app::newerAutosaveTime(crom, crp, autosave);
+    touch(project, base);
+    expect(!app::newerAutosaveTime(project, autosave), "no autosave, nothing offered");
+    touch(autosave, base.addSecs(60));
+    const std::optional<QDateTime> offered = app::newerAutosaveTime(project, autosave);
     expect(offered && offered->secsTo(base.addSecs(60)) == 0,
-           "a newer autosave is offered with the time of its older file");
-    touch(crp, base.addSecs(600));
-    expect(!app::newerAutosaveTime(crom, crp, autosave),
+           "a newer autosave is offered with its time");
+    touch(project, base.addSecs(600));
+    expect(!app::newerAutosaveTime(project, autosave),
            "a project saved after the autosave is newer");
 }
 
@@ -94,18 +84,16 @@ void testUntitledAutosaves()
     expect(app::untitledAutosaves().empty(), "none at first");
     QDir().mkpath(app::untitledAutosaveDirectory());
     const QDateTime base = QDateTime::currentDateTime().addSecs(-3600);
-    const AutosaveFiles older = app::untitledAutosaveFiles("older");
-    const AutosaveFiles newer = app::untitledAutosaveFiles("newer");
-    const AutosaveFiles half = app::untitledAutosaveFiles("half");
-    touch(older.cromPath, base);
-    touch(older.crpPath, base);
-    touch(newer.cromPath, base.addSecs(60));
-    touch(newer.crpPath, base.addSecs(60));
-    touch(half.cromPath, base.addSecs(120));
-    const std::vector<AutosaveFiles> found = app::untitledAutosaves();
-    expect(found.size() == 2 && found[0].cromPath == newer.cromPath &&
-               found[1].cromPath == older.cromPath,
-           "complete ones, newest first");
+    const QString older = app::untitledAutosavePath("older");
+    const QString newer = app::untitledAutosavePath("newer");
+    touch(older, base);
+    touch(newer, base.addSecs(60));
+    // An autosave of an earlier version is not offered.
+    touch(QDir(app::untitledAutosaveDirectory()).filePath(QStringLiteral("old(auto).cRZ")),
+          base.addSecs(120));
+    const std::vector<QString> found = app::untitledAutosaves();
+    expect(found.size() == 2 && found[0] == newer && found[1] == older,
+           "the project files, newest first");
     QDir(app::untitledAutosaveDirectory()).removeRecursively();
 }
 
@@ -122,9 +110,7 @@ bool waitFor(const std::function<bool()>& condition)
 void testWriter()
 {
     QTemporaryDir directory;
-    const AutosaveFiles files =
-        app::autosaveFilesFor(directory.filePath(QStringLiteral("sub/rom.cROM")),
-                              directory.filePath(QStringLiteral("sub/rom.cRPX")));
+    const QString path = app::autosavePathFor(directory.filePath(QStringLiteral("sub/rom.cdmd")));
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
     document.setFrameDurationMs(0, 77);
@@ -138,38 +124,36 @@ void testWriter()
         std::chrono::hours(1),
         [&]() -> std::optional<Autosaver::Job> {
             ++jobs;
-            return Autosaver::Job{files, document.toSnapshot(), document.revision()};
+            return Autosaver::Job{path, document.toSnapshot(), document.revision()};
         },
-        [&](const AutosaveFiles&, uint64_t revision, const legacy::LegacySaveResult& result) {
+        [&](const QString&, uint64_t revision, const legacy::LegacySaveResult& result) {
             ++finished;
             finishedRevision = revision;
             lastResult = result;
         });
-    // The loose cROM an earlier version autosaved.
-    QDir().mkpath(directory.filePath(QStringLiteral("sub")));
-    const QString oldAutosave = directory.filePath(QStringLiteral("sub/rom(auto).cROM"));
-    touch(oldAutosave, QDateTime::currentDateTime());
     const uint64_t revision = document.revision();
     expect(autosaver.runNow(), "a run starts");
     expect(!autosaver.runNow(), "not a second one while it runs");
-    // The document goes on while the files are written; they show the snapshot.
+    // The document goes on while the file is written; it shows the snapshot.
     document.setFrameDurationMs(0, 99);
     expect(waitFor([&]() { return finished == 1; }), "the run finishes");
-    expect(lastResult.ok && finishedRevision == revision, "and reports the snapshot's revision");
+    expect(lastResult.ok && finishedRevision == revision,
+           "and reports the snapshot's revision: " + lastResult.error.message);
     expect(!autosaver.isRunning(), "nothing runs afterwards");
-    expect(files.cromPath.endsWith(QStringLiteral("(auto).cRZ")) && QFileInfo::exists(files.cromPath) &&
-               !QFileInfo::exists(oldAutosave),
-           "the autosave is a .cRZ, and an old loose cROM of an autosave is gone");
+    expect(QFileInfo::exists(path), "the autosave is a project file");
 
-    const legacy::LegacyDocumentLoadResult loaded = legacy::loadLegacyProjectDocument(
-        {files.cromPath.toStdString(), files.crpPath.toStdString(), {}}, nullptr);
+    const legacy::LegacyDocumentLoadResult loaded =
+        project::loadProjectDocument(path.toStdString());
     expect(loaded.ok && loaded.document && loaded.document->frameCount() == 3 &&
-               loaded.document->frameDurationMs(0) == 77,
+               loaded.document->frameDurationMs(0) == 77 &&
+               loaded.document->frameMeta(1).id == document.frameMeta(1).id,
            "the autosave opens as the project was when it started: " + loaded.error.message);
+    expect(loaded.document->frameMeta(1).revision.isNull(),
+           "an autosave gives no revisions: only a save does");
 
     // Cancelled: no report, and the earlier autosave is left as it was.
     const QByteArray before = [&]() {
-        QFile file(files.cromPath);
+        QFile file(path);
         expect(file.open(QIODevice::ReadOnly), "the autosave is there");
         return file.readAll();
     }();
@@ -177,7 +161,7 @@ void testWriter()
     autosaver.cancelAndWait();
     QCoreApplication::processEvents();
     expect(finished == 1 && !autosaver.isRunning(), "a cancelled run reports nothing");
-    QFile file(files.cromPath);
+    QFile file(path);
     expect(file.open(QIODevice::ReadOnly), "the earlier autosave is still there");
     const QByteArray after = file.readAll();
     // The cancel may come after the write was done; then it holds the second snapshot.

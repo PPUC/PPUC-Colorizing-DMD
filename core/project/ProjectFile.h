@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "document/ProjectSnapshot.h"
+#include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectIo.h"
 
 namespace colorizing::project {
@@ -109,5 +110,11 @@ void forEachProjectEntry(
 [[nodiscard]] legacy::LegacyLoadResult loadProjectFile(const std::string& path,
                                                        legacy::LegacyIoProgress* progress =
                                                            nullptr);
+
+// What File -> Open does off the UI thread with a project file, as
+// legacy::loadLegacyProjectDocument() does with the files of earlier editors.
+[[nodiscard]] legacy::LegacyDocumentLoadResult loadProjectDocument(
+    const std::string& path,
+    legacy::LegacyIoProgress* progress = nullptr);
 
 }  // namespace colorizing::project

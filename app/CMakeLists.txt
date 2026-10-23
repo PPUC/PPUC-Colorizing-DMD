@@ -4,6 +4,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     ActivityClock.h
     Appearance.cpp
     Appearance.h
+    AuthorName.cpp
+    AuthorName.h
     Autosave.cpp
     Autosave.h
     DmdOutput.cpp

@@ -89,6 +89,6 @@ the machine, up to the LEDs' own colors.
 
 ## In the files
 
-The effects, the defaults and the frames' settings are kept in the `.cRPX` (with the effects'
-names) and written into the settings block at the end of the `.cROM`, where libserum reads them.
-A project without speaker lights writes the `.cROM` as before.
+The effects, the defaults and the frames' settings are kept in the project file (with the
+effects' names) and go into the `.cROMc` and the `.cRZ` exported for earlier editors, where
+libserum reads them.

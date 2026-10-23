@@ -1,32 +1,38 @@
 # Project Files
 
-The Qt rewrite opens the projects of the Win32 editor (CDMD 3.17.3) and saves its own:
+A project is one file, its project file: `<name>.cdmd`. Every save writes it, and it holds
+everything of the project: the original and colorized frames, the comparison masks,
+backgrounds, sprites and palettes, the scenes, the speaker lights, the license, and the editor's
+data (sections, tags, helper lines, color sets, saved image zones).
 
-- `.cROM` stores colorized frame data and runtime project data. It is what libserum reads, and
-  stays in the format libserum knows.
-- `.cRPX` is this editor's editor file: original/reference frames and editor-side metadata such
-  as sprite names and frame durations. Every save writes it.
-- `.cRP` is the Win32 editor's editor file, with the same content. It is only read: a project
-  of the Win32 editor is opened with it and saved with a `.cRPX` (see "The .cRPX and the Win32
-  editor").
-- `.cRZ` is a zip archive holding the `.cROM`, in one entry named `<ROM name>.cRom`. It is the
-  form in which a colorization is usually handed around, together with the editor file. The
-  editor opens it directly and saves projects as it.
-- `.cROMc` is not edited directly.
+Inside, it is a zip archive with one part per frame, comparison mask, background and sprite.
+Each of them has an ID of its own that it keeps for its whole life, also when other frames are
+deleted or moved, and the name of who changed it last (`Settings -> Projects -> Your name`) and
+when. A save notes that only for what changed since the last save. This is what working on a
+colorization together, and taking frames from one colorization into another, will be built on.
+
+Other files:
+
+- `.cROMc` is what a machine loads. `File -> Export .cROMc...` writes it (see "Saving").
+- `.cROM`, `.cRZ` (a zip archive holding the `.cROM`), `.cRP` and `.cRPX` are the files of
+  earlier editors: the Win32 editor (CDMD 3.17.3) and versions of this editor before the project
+  file. They are opened and converted (see "Opening Projects"), never written over.
+  `File -> Export For Earlier Editors...` writes a `.cRZ` and a `.cRPX` of the project: the `.cRZ`
+  plays with libserum 2.8 and 2.9, the `.cRPX` opens in the editor versions before the project
+  file.
 - A frame dump (`.txt`) is what a project starts from and what frames are added from: the
   frames a ROM showed, as text. It is only read, see "Creating A Project From A Dump".
 
-Saving writes complete `.cRZ` and `.cRPX` files from the in-memory project (see "Saving"); a
-`.cROM` is only read. Opening is verified with cROM header revision 19, 20 and 21 projects.
-A project for libserum 2.8 keeps its revision: revision 20 projects are saved as revision 20,
-everything older as revision 19, so a save never moves a project to a revision an older
-libserum cannot read. A project for libserum 2.9 is saved as revision 21 (see "libserum
-target").
+Opening is verified with cROM header revision 19, 20 and 21 projects. The `.cRZ` of
+`Export For Earlier Editors` keeps the project's revision for libserum 2.8: revision 20 projects
+are written as revision 20, everything older as revision 19, so an export never moves a project
+to a revision an older libserum cannot read. A project for libserum 2.9 is written as revision 21
+(see "libserum target").
 
 ## libserum target
 
 Every project is made for a libserum, chosen in `File -> Project Settings...` (`Made for`). It
-decides what the project may hold and how the `.cROM` is written:
+decides what the project may hold and how the `.cROMc` and an exported `.cRZ` are written:
 
 | | libserum 2.8 | libserum 2.9 |
 | --- | --- | --- |
@@ -113,28 +119,27 @@ The Creative Commons licenses link their full text (the "deed") below the box. `
 says who is to be named, for example the authors; `Link` where the colorization or its license
 can be found. Changing the license is one undo step, together with the other project settings.
 
-The license is stored in the `.cRPX`. The `.cROM` does not carry it, so a machine does not see it.
+The license is stored in the project file, and in the `.cRPX` of `Export For Earlier
+Editors`. The `.cROMc` and the `.cRZ` do not carry it yet, so a machine does not see it.
 
-## The .cRPX and the Win32 editor
+## The files of earlier editors
 
-A project saved by this editor can no longer be opened by the Win32 editor. This is on purpose:
-the editor file has to grow for new features, which the Win32 editor would not understand.
+The editor reads the projects of the Win32 editor (`.cROM` or `.cRZ` with `.cRP`) and of its own
+versions before the project file (`.cRZ` with `.cRPX`), with everything they hold: the `.cRPX`
+holds what a `.cRP` holds, behind a header the Win32 editor does not know (`CDMDcRPX`, a format
+version, the size of that part), and after it, in tagged parts, the PuP pack name, the helper
+lines (see "Helper Lines"), the scenes and scaling settings (see "Scenes and Scaling"), the Images
+window's saved zones, the frames' tags (see "Frame List"), the speaker lights (see "Speaker
+Lights"), the libserum target, the license (see "License") and the names and source data of
+sprites beyond the 255 a `.cRP` has room for. A part this editor does not know is skipped; a
+`.cRPX` of a newer format version than this editor knows is refused.
 
-- The Win32 editor opens a `.cROM` with the `.cRP` of the same name, and reads that file without
-  any check. This editor never writes a `.cRP`: its `.cRPX` holds what a `.cRP` holds, behind a
-  header the Win32 editor does not know (`CDMDcRPX`, a format version, the size of that part),
-  and room for more data after it, in tagged parts: the PuP pack name, the helper lines (see
-  "Helper Lines"), the scenes and scaling settings (see "Scenes and Scaling"), the Images
-  window's saved zones, the frames' tags (see "Frame List"), the speaker lights (see "Speaker
-  Lights"), the libserum target, the license (see "License") and the
-  names and source data of sprites beyond the 255 a `.cRP` has room for. A part this editor
-  does not know (one of a later version) is skipped.
-- When a save writes a project that has a `.cRP` beside it (a project of the Win32 editor saved
-  here for the first time), that `.cRP` is renamed to `<name>.cRP.bak`, so that the Win32 editor
-  cannot open the new `.cROM` with the old editor file. The status bar says so. Opening a
-  project of the Win32 editor says in the status bar that saving it here has this effect.
-- To go back to the Win32 editor, the `.cRP.bak` belongs to the `.cROM` of the save before; it
-  does not match the `.cROM` this editor wrote.
-- A `.cRPX` of a newer format version than this editor knows is refused when opened.
+Opening converts the project; its files stay as they are, and the Win32 editor can still open
+them. What the project file does not keep of them: bytes the Win32 editor left in its tables
+without meaning (after the end of a name, entries behind the last section or sprite). The
+cROM of an exported `.cRZ` is the same, byte for byte, as the one the project was opened from,
+for an unedited project.
 
-The `.cROM` and `.cRZ` stay readable by libserum, and so by every machine.
+`File -> Export For Earlier Editors...` asks for a `.cRZ` and writes it and a `.cRPX` of the same
+base name beside it, as the versions of this editor before the project file saved a project
+(see "Saving"). The Win32 editor cannot open them: it opens a `.cROM` with a `.cRP` only.

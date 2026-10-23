@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "document/ProjectSnapshot.h"
 #include "legacy/LegacyProjectIo.h"
@@ -19,35 +20,28 @@ class QThread;
 
 namespace colorizing::app {
 
-// Where a project's autosave goes. As in the Win32 editor, but with the files of this editor:
-// "<name>(auto).cRZ" and "<name>(auto).cRPX" beside the project. A project that was never saved has its autosave in
+// Where a project's autosave goes. As in the Win32 editor, but as a project file of this
+// editor: "<name>(auto).cdmd" beside the project. A project that has no project file yet (a
+// new one, or one opened from the files of an earlier editor) has its autosave in
 // untitledAutosaveDirectory(), under its ROM name.
-struct AutosaveFiles {
-    // The .cRZ.
-    QString cromPath;
-    QString crpPath;
-};
-
-[[nodiscard]] AutosaveFiles autosaveFilesFor(const QString& cromPath, const QString& crpPath);
+[[nodiscard]] QString autosavePathFor(const QString& projectPath);
 [[nodiscard]] QString untitledAutosaveDirectory();
-[[nodiscard]] AutosaveFiles untitledAutosaveFiles(const std::string& romName);
+[[nodiscard]] QString untitledAutosavePath(const std::string& romName);
 // Whether the file is an autosave itself.
 [[nodiscard]] bool isAutosavePath(const QString& path);
-// When both autosave files exist and are newer than both project files: the time of the older
-// autosave file. A .cRZ project is compared by its archive.
-[[nodiscard]] std::optional<QDateTime> newerAutosaveTime(const QString& cromPath,
-                                                         const QString& crpPath,
-                                                         const AutosaveFiles& autosave);
-// The autosaves of never saved projects that are complete (both files), newest first.
-[[nodiscard]] std::vector<AutosaveFiles> untitledAutosaves();
+// When the autosave exists and is newer than the project file: its time.
+[[nodiscard]] std::optional<QDateTime> newerAutosaveTime(const QString& projectPath,
+                                                         const QString& autosavePath);
+// The autosaves of projects without a project file, newest first.
+[[nodiscard]] std::vector<QString> untitledAutosaves();
 
-// Writes the open project to its autosave files at an interval, on a worker thread, while the
+// Writes the open project to its autosave file at an interval, on a worker thread, while the
 // editor goes on. Each run takes a snapshot that shares its blocks with the document (copy on
-// write), so it copies no pixels and later edits do not reach the files being written.
+// write), so it copies no pixels and later edits do not reach the file being written.
 class Autosaver final : public QObject {
 public:
     struct Job {
-        AutosaveFiles files;
+        QString path;
         document::ProjectSnapshot snapshot;
         // The document revision the snapshot shows.
         uint64_t revision = 0;
@@ -55,7 +49,7 @@ public:
     // Returns the job to run now, or nothing (no project, no change since the last autosave,
     // or the editor is busy).
     using JobSource = std::function<std::optional<Job>()>;
-    using Finished = std::function<void(const AutosaveFiles& files,
+    using Finished = std::function<void(const QString& path,
                                         uint64_t revision,
                                         const legacy::LegacySaveResult& result)>;
 
@@ -68,7 +62,7 @@ public:
     // Starts a run now unless one is running; false when none was started.
     bool runNow();
     [[nodiscard]] bool isRunning() const;
-    // Stops a running write (the files it was writing are left as they were) and waits for it.
+    // Stops a running write (the file it was writing is left as it was) and waits for it.
     // The finished callback is not called for it.
     void cancelAndWait();
     [[nodiscard]] std::chrono::milliseconds interval() const;

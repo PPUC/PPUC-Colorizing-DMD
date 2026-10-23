@@ -8,8 +8,7 @@
     QDir(workPath).removeRecursively();
     QDir().mkpath(workPath);
     const QDir work(workPath);
-    const QString cromPath = work.filePath(QStringLiteral("progress.cROM"));
-    const QString crpPath = work.filePath(QStringLiteral("progress.cRPX"));
+    const QString projectPath = work.filePath(QStringLiteral("progress.cdmd"));
 
     // What the dialog hook saw; printed after the dump of the state it led to.
     std::string dialogLog;
@@ -42,8 +41,8 @@
             snapshot.geometry, snapshot.colorCount, std::move(original), 100));
     }
     w.m_document = document::ProjectDocument::fromSnapshot(snapshot);
-    w.m_currentCromPath = cromPath;
-    w.m_currentCrpPath = crpPath;
+    w.m_projectPath = projectPath;
+    w.m_sourcePath.clear();
     w.m_undoHistories.clear();
     w.refreshProjectSummary();
     w.m_document->setFrameDurationMs(0, 60);
@@ -96,11 +95,11 @@
     w.m_document->markClean();
     open = false;
     cancel = true;
-    w.loadProject(cromPath, crpPath);
+    w.loadProject(projectPath);
     D("progress: open cancelled, the project stays");
     open = false;
     cancel = false;
-    w.loadProject(cromPath, crpPath);
+    w.loadProject(projectPath);
     D("progress: opened through the dialog");
     std::cout << "progress: " << dialogs << " dialogs shown\n";
 

@@ -60,8 +60,8 @@
     };
     const auto load = [&]() {
         w.m_document = document::ProjectDocument::fromSnapshot(fs);
-        w.m_currentCromPath = QStringLiteral("/nonexistent/fixes.cROM");
-        w.m_currentCrpPath = QStringLiteral("/nonexistent/fixes.cRP");
+        w.m_projectPath = QStringLiteral("/nonexistent/fixes.cdmd");
+        w.m_sourcePath.clear();
         w.m_undoHistories.clear();
         w.refreshProjectSummary();
     };
@@ -195,8 +195,8 @@
     w.show();
     w.m_unsavedChangesAnswer = nullptr;
     w.m_document.reset();
-    w.m_currentCromPath.clear();
-    w.m_currentCrpPath.clear();
+    w.m_projectPath.clear();
+    w.m_sourcePath.clear();
     w.refreshProjectSummary();
     D("fixes: closed");
 }

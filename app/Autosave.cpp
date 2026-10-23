@@ -9,27 +9,22 @@
 #include <exception>
 #include <utility>
 
-#include "legacy/LegacyProjectFileWriter.h"
+#include "AppInfo.h"
+#include "project/ProjectFile.h"
 
 namespace colorizing::app {
 
 namespace {
 
 const QString kAutoSuffix = QStringLiteral("(auto)");
-
-QString autosaveSibling(const QString& path, const QString& extension)
-{
-    const QFileInfo info(path);
-    return info.dir().absoluteFilePath(info.completeBaseName() + kAutoSuffix + QChar('.') +
-                                       extension);
-}
+const QString kProjectSuffix = QStringLiteral(".cdmd");
 
 }  // namespace
 
-AutosaveFiles autosaveFilesFor(const QString& cromPath, const QString& crpPath)
+QString autosavePathFor(const QString& projectPath)
 {
-    return AutosaveFiles{autosaveSibling(cromPath, QStringLiteral("cRZ")),
-                         autosaveSibling(crpPath, QStringLiteral("cRPX"))};
+    const QFileInfo info(projectPath);
+    return info.dir().absoluteFilePath(info.completeBaseName() + kAutoSuffix + kProjectSuffix);
 }
 
 QString untitledAutosaveDirectory()
@@ -38,12 +33,10 @@ QString untitledAutosaveDirectory()
         .absoluteFilePath(QStringLiteral("autosave"));
 }
 
-AutosaveFiles untitledAutosaveFiles(const std::string& romName)
+QString untitledAutosavePath(const std::string& romName)
 {
-    const QDir directory(untitledAutosaveDirectory());
-    const QString base = QString::fromStdString(romName) + kAutoSuffix;
-    return AutosaveFiles{directory.absoluteFilePath(base + QStringLiteral(".cRZ")),
-                         directory.absoluteFilePath(base + QStringLiteral(".cRPX"))};
+    return QDir(untitledAutosaveDirectory())
+        .absoluteFilePath(QString::fromStdString(romName) + kAutoSuffix + kProjectSuffix);
 }
 
 bool isAutosavePath(const QString& path)
@@ -51,47 +44,33 @@ bool isAutosavePath(const QString& path)
     return QFileInfo(path).completeBaseName().endsWith(kAutoSuffix);
 }
 
-std::optional<QDateTime> newerAutosaveTime(const QString& cromPath,
-                                           const QString& crpPath,
-                                           const AutosaveFiles& autosave)
+std::optional<QDateTime> newerAutosaveTime(const QString& projectPath,
+                                           const QString& autosavePath)
 {
-    const QFileInfo autoCrom(autosave.cromPath);
-    const QFileInfo autoCrp(autosave.crpPath);
-    if (!autoCrom.isFile() || !autoCrp.isFile()) {
+    const QFileInfo autosave(autosavePath);
+    if (!autosave.isFile()) {
         return std::nullopt;
     }
-    const QDateTime autosaved = std::min(autoCrom.lastModified(), autoCrp.lastModified());
-    for (const QString& path : {cromPath, crpPath}) {
-        const QFileInfo project(path);
-        if (project.isFile() && project.lastModified() >= autosaved) {
-            return std::nullopt;
-        }
+    const QFileInfo project(projectPath);
+    if (project.isFile() && project.lastModified() >= autosave.lastModified()) {
+        return std::nullopt;
     }
-    return autosaved;
+    return autosave.lastModified();
 }
 
-std::vector<AutosaveFiles> untitledAutosaves()
+std::vector<QString> untitledAutosaves()
 {
     const QDir directory(untitledAutosaveDirectory());
-    std::vector<std::pair<QDateTime, AutosaveFiles>> found;
-    const QFileInfoList croms = directory.entryInfoList(
-        {QStringLiteral("*") + kAutoSuffix + QStringLiteral(".cRZ")}, QDir::Files);
-    for (const QFileInfo& crom : croms) {
-        const QFileInfo crp(directory.absoluteFilePath(crom.completeBaseName() +
-                                                       QStringLiteral(".cRPX")));
-        if (crp.isFile()) {
-            found.emplace_back(std::max(crom.lastModified(), crp.lastModified()),
-                               AutosaveFiles{crom.absoluteFilePath(), crp.absoluteFilePath()});
-        }
-    }
-    std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) {
-        return a.first > b.first;
+    QFileInfoList found = directory.entryInfoList(
+        {QStringLiteral("*") + kAutoSuffix + kProjectSuffix}, QDir::Files);
+    std::sort(found.begin(), found.end(), [](const QFileInfo& a, const QFileInfo& b) {
+        return a.lastModified() > b.lastModified();
     });
-    std::vector<AutosaveFiles> files;
-    for (auto& entry : found) {
-        files.push_back(std::move(entry.second));
+    std::vector<QString> paths;
+    for (const QFileInfo& file : found) {
+        paths.push_back(file.absoluteFilePath());
     }
-    return files;
+    return paths;
 }
 
 struct Autosaver::Run {
@@ -130,22 +109,15 @@ bool Autosaver::runNow()
     }
     auto run = std::make_shared<Run>();
     run->job = std::move(*job);
-    const QString directory = QFileInfo(run->job.files.cromPath).absolutePath();
+    const QString directory = QFileInfo(run->job.path).absolutePath();
     m_run = run;
     m_thread = QThread::create([run, directory]() {
         try {
             QDir().mkpath(directory);
-            const legacy::LegacyProjectPaths paths{{},
-                                                   run->job.files.crpPath.toStdString(),
-                                                   run->job.files.cromPath.toStdString()};
-            run->result =
-                legacy::LegacyProjectFileWriter().save(paths, run->job.snapshot, &run->progress);
-            if (run->result.ok) {
-                // An autosave of earlier versions, a loose cROM, is out of date now.
-                const QFileInfo archive(run->job.files.cromPath);
-                QFile::remove(archive.dir().absoluteFilePath(archive.completeBaseName() +
-                                                             QStringLiteral(".cROM")));
-            }
+            project::ProjectFileOptions options;
+            options.editorVersion = kApplicationVersion.toStdString();
+            run->result = project::saveProjectFile(run->job.path.toStdString(),
+                                                   run->job.snapshot, options, &run->progress);
         } catch (const std::exception& ex) {
             run->result = legacy::makeSaveFailure(ex.what());
         }
@@ -162,7 +134,7 @@ bool Autosaver::runNow()
         m_thread = nullptr;
         m_run.reset();
         if (m_finished) {
-            m_finished(run->job.files, run->job.revision, run->result);
+            m_finished(run->job.path, run->job.revision, run->result);
         }
     });
     thread->start(QThread::LowPriority);

@@ -1,8 +1,8 @@
-// The editor file of this editor, title prefix "format: ". A project of the Win32 editor (.cROM
-// and .cRP) is opened, saved (as .cROM and .cRPX, the .cRP renamed to .cRP.bak) and opened
-// again from the recent list. Included at the very end of main() in dump.cpp, for a tree that
-// has core/legacy/CrpxFile.h. After each dump it prints the status bar, where the project is
-// saved to and the files.
+// The project file of this editor, title prefix "format: ". A project of the Win32 editor (.cROM
+// and .cRP) is opened (converted), saved as a project file (.cdmd; the Win32 files stay as they
+// are) and opened again from the recent list. Included at the very end of main() in dump.cpp,
+// for a tree that has core/project/ProjectFile.h. After each dump it prints the status bar,
+// where the project is saved to and the files.
 {
     const QString workPath = QDir::temp().filePath(QStringLiteral("colorizingdmd_ui_dump_format"));
     QDir(workPath).removeRecursively();
@@ -19,8 +19,9 @@
                                          std::to_string(w.m_document->frameDurationMs(0)) + " ms" +
                                          (w.m_document->isDirty() ? ", changed" : ", saved")
                                    : std::string("none"))
-                  << " | save to " << QFileInfo(w.m_currentCromPath).fileName().toStdString()
-                  << " + " << QFileInfo(w.m_currentCrpPath).fileName().toStdString()
+                  << " | save to " << QFileInfo(w.m_projectPath).fileName().toStdString()
+                  << " | from " << QFileInfo(w.m_sourcePath).fileName().toStdString()
+                  << " | title '" << w.windowTitle().toStdString() << "'"
                   << " | files";
         for (const QFileInfo& file : work.entryInfoList(QDir::Files, QDir::Name)) {
             std::cout << ' ' << file.fileName().toStdString();
@@ -44,22 +45,22 @@
         std::exit(3);
     }
 
-    w.loadProject(cromPath, crpPath);
-    D("format: Win32 project opened");
+    w.loadLegacyProject(cromPath, crpPath);
+    D("format: Win32 project opened, converted");
 
+    // Save asks for a project file (Save As); the dump names it instead of the dialog.
     w.m_document->setFrameDurationMs(0, 60);
     w.refreshProjectSummary();
+    w.m_projectPath = work.filePath(QStringLiteral("win32.cdmd"));
     w.saveProject();
-    D("format: saved with a cRPX, the cRP renamed");
-    QFile crpx(work.filePath(QStringLiteral("win32.cRPX")));
-    std::cout << "format: the cRPX starts with '"
-              << (crpx.open(QIODevice::ReadOnly) ? crpx.read(8).toStdString() : std::string())
-              << "'\n";
-    crpx.close();
+    D("format: saved as a project file, the Win32 files untouched");
+    std::cout << "format: frame 0 has a revision: "
+              << !w.m_document->frameMeta(0).revision.isNull() << '\n';
 
-    // The recent list still names the .cRP it was opened from.
     w.openRecentProject(cromPath + QChar('\t') + crpPath);
-    D("format: opened again from the recent list");
+    D("format: the Win32 files opened again from the recent list, unchanged");
+    w.openRecentProject(work.filePath(QStringLiteral("win32.cdmd")));
+    D("format: the project file opened from the recent list");
 
     QDir(workPath).removeRecursively();
 }

@@ -20,7 +20,7 @@ by a click on a favorite, a palette color, an edit color or with the `Pick` tool
   - Double-click a swatch, or use its context menu `Edit Color...`, to change the edit color in
     the color picker. Drag a palette color onto a swatch to set it.
   - The tool tip names the color, the shade it replaces and its key.
-- Edit colors are project data: they are saved in the `.cRP`, and every change is undoable (see
+- Edit colors are project data: they are saved in the project file, and every change is undoable (see
   "Undo And Redo").
 
 ## Draw color modes
@@ -51,8 +51,8 @@ edits color the frame (the Win32 editor's `IDC_1COLMODE` / `IDC_4COLMODE`):
     Win32 editor. The preview while dragging shows the shape in the draw color.
   - `Shift` does not erase frame pixels in either mode.
 
-The mode is stored in the `.cRP` (`DrawColMode`), as the Win32 editor stores it: a project saved
-in color set replace mode opens in it. A stored `2` (the Win32 gradient mode) opens in `1 Color`
+The mode is stored in the project file, as the Win32 editor stores it in the `.cRP`
+(`DrawColMode`): a project saved in color set replace mode opens in it. A stored `2` (the Win32 gradient mode) opens in `1 Color`
 mode, as the Win32 loader does, and is kept in the file until the mode is changed. Changing the
 mode is not an edit: it is neither undoable nor does it mark the project as changed; the next
 save writes it.
@@ -89,9 +89,7 @@ the number, the name and the colors of each active set, `(inactive)` for the oth
   characters at most). Inactive sets cannot be renamed, as in the Win32 dialog.
 - `Deactivate` makes the set inactive and keeps its colors and name; `Store` activates it again.
   The Win32 editor has no way to deactivate a set.
-- All of these are undoable. Sets, names and active flags are saved in the `.cRP`; a project that
-  is opened and saved without changing them writes their bytes unchanged, including what the
-  Win32 editor left behind the end of a name.
+- All of these are undoable. Sets, names and active flags are saved in the project file.
 - The `.cRP` also stores the first set the Win32 dialog showed: the list scrolls to it when a
   project is opened, and scrolling the list by hand updates it (not counted as a change, like the
   draw color mode). The current set the file names is selected when a project is opened; the

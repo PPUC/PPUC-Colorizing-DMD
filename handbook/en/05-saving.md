@@ -1,29 +1,28 @@
 # Saving
 
-Use `File -> Save` or the standard Save shortcut.
+Use `File -> Save` or the standard Save shortcut. A save writes the project file,
+`<name>.cdmd` (see "Project Files").
 
-A new project (see "Creating A Project From A Dump") has no files until it is saved for the
-first time. `Save` and `Save As...` then ask for the `.cRZ` to write, proposing `<ROM
-name>.cRZ` in the folder of the dump; the name the runtime looks for is the ROM name. If the
-question is cancelled nothing is written and the project stays unsaved. After the first save the
-window title shows the file name instead of `<ROM name> (not saved yet)`, the project is in
-`File -> Open Recent`, and `Save` writes to those files without asking.
+A project without a project file (a new one, see "Creating A Project From A Dump", or one
+converted from the files of an earlier editor, see "Opening Projects") gets one at its first
+save: `Save` and `Save As...` then ask where to write it, proposing `<ROM name>.cdmd` in the
+folder of the dump for a new project and `<name>.cdmd` beside the files it came from for a
+converted one. If the question is cancelled nothing is written and the project stays as it was.
+After the first save the window title shows the file name, the project file is in
+`File -> Open Recent`, and `Save` writes to it without asking.
 
-Every save writes two files with the same base name into the project folder: `<name>.cRZ` and
-`<name>.cRPX`. The archive holds the cROM, deflate-compressed, in one entry named
-`<ROM name>.cRom` (the ROM name stored in the project, which need not be the file name), as the
-Win32 editor writes it; libserum loads it as it is. No `.cROM` is written: the cROM is
-compressed while it is written, so it is never on disk (not even as a temporary file) or in
-memory as a whole. An archive that already exists under another spelling of the extension
-(`.crz`) is the one that is replaced.
+Use `File -> Save As...` to save the project under a new name; the app asks for the `.cdmd` to
+write.
 
-A project opened from a `.cROM` (a project of the Win32 editor) is saved as the `.cRZ` beside
-it. The `.cROM` then holds an earlier state and is renamed to `<name>.cROM.bak` (replacing an
-older one), as the Win32 editor's `.cRP` is, so that it is not opened by mistake; the status bar
-names what was renamed. Delete the `.bak` files when they are no longer needed.
+Every save notes, for each frame, comparison mask, background, sprite and palette that changed
+since the last save, who changed it (`Your name` in `Settings -> Projects`) and when. What did
+not change keeps what it had. A change that is undone by hand still counts as a change.
 
-Use `File -> Save As...` to save the project under a new name. The app asks for a target `.cRZ`
-path and writes the `.cRZ` and a `.cRPX` with the same base name there.
+`File -> Export For Earlier Editors...` writes the project as a `.cRZ` and a `.cRPX` of the same
+base name, for libserum 2.8 and 2.9 and for the versions of this editor before the project file
+(see "The files of earlier editors"). The archive holds the cROM, deflate-compressed, in one
+entry named `<ROM name>.cRom`, as the Win32 editor writes it; libserum loads it as it is. The
+project file stays the project: the export changes nothing in it and does not mark it saved.
 
 Use `File -> Export Current Frame PNG...` to export the current frame as a PNG. The picture is
 libserum's output for the frame, the one a machine shows, not the editor's own rendering; see
@@ -86,8 +85,8 @@ selection's bounds, the part that is scaled into the selection:
   project (the Win32 editor's crop zone saves): type a name and `Save Zone` (a name that exists
   is replaced), choose a name in the list to take them again, `Delete Zone` removes the chosen
   one. A saved zone is kept as a part of the picture, so it fits a picture of another size, and
-  it keeps the proportions of the selection at hand. Saved zones are part of the project (its
-  `.cRPX`) as soon as they are saved, also when the window is then cancelled; they are not undo
+  it keeps the proportions of the selection at hand. Saved zones are part of the project as soon
+  as they are saved, also when the window is then cancelled; they are not undo
   steps. The crop zone saves of the Win32 editor were kept in screen pixels of its window and
   cannot be carried over: they stay in the project as they were, unused.
 
@@ -104,60 +103,49 @@ their pictures.
 ## Save behavior
 
 - Saving runs in the background. A save that is done within a moment (about 0.3 s) shows
-  nothing; a longer one brings up the `Saving Project` window: `Writing the .cRZ and .cRPX: N of
-  M MB` with a bar, then `Replacing the project files...`. While it is up the main window takes no
-  input at all: nothing can be edited, no menu or shortcut works, so the files hold exactly the
-  project as it was when `Save` was chosen. The project is saved from its blocks as they are in
-  memory, without a copy of them, so a save needs little memory beyond the project.
-- `Cancel` (or Escape, or closing the small window) stops the save: the temporary files are
-  removed, the project files on disk stay exactly as they were, the project keeps its unsaved
-  changes, and the status bar says `Save cancelled: the project files on disk are unchanged`.
-  Once the files are being replaced, `Cancel` is disabled.
-- Both files are written completely next to their targets first (as `<file>.saving`) and
-  then swapped in, so a failed or interrupted save does not leave a truncated project behind. If
-  any of them cannot be written, including the archive, the save fails as a whole, the temporary
-  files are removed and the existing files stay as they were.
-- The archive is compressed at a fast level: a little larger than at the default level, much
-  faster to write. `afm_113b` (a 255 MB cROM) saves in 0.8 s to 3 MB, `trn_174h` (429 MB) in
-  2.3 s to 48 MB, a project with a 2.8 GB cROM in 16 s to 387 MB.
+  nothing; a longer one brings up the `Saving Project` window: `Writing the project: N of M
+  parts` with a bar, then `Replacing the project files...`. While it is up the main window takes
+  no input at all: nothing can be edited, no menu or shortcut works, so the file holds exactly
+  the project as it was when `Save` was chosen. The project is saved from its blocks as they are
+  in memory, without a copy of them, so a save needs little memory beyond the project.
+- `Cancel` (or Escape, or closing the small window) stops the save: the temporary file is
+  removed, the project file on disk stays exactly as it was, the project keeps its unsaved
+  changes, and the status bar says `Save cancelled: the project file on disk is unchanged`.
+  Once the file is being replaced, `Cancel` is disabled.
+- The file is written completely next to its target first (as `<file>.saving`) and then swapped
+  in, so a failed or interrupted save does not leave a truncated project behind.
+- The parts are compressed at a fast level. GoT (34 000 frames, many with HD) saves in about
+  20 s to 500 MB, where its `.cRZ` and `.cRPX` took 34 s for 546 MB; `afm_113b` saves in 0.8 s
+  to 8 MB.
+- The time spent on the project is written as counted so far (see "Canvas").
+- HD pixels that the Win32 editor left in a frame or background whose HD is switched off are
+  carried through until HD is created or removed for it here.
+- The 96x32 data of a project with 192x64 original frames is not kept. If the files it was
+  opened from had 96x32 pictures in use, the first save asks first (see "Projects With 192x64
+  Original Frames").
+- Marks the project as saved after a successful save.
+
+`Export For Earlier Editors` writes the `.cRZ` and `.cRPX` as the earlier versions saved a
+project:
+
+- Both files are written next to their targets first and then swapped in; if one of them cannot
+  be written, the export fails as a whole and existing files stay as they were.
 - The `.cRZ` is a plain zip without zip64 as long as the cROM is smaller than 4 GiB. It is not
   byte-identical to the Win32 editor's archive of the same project (other deflate settings, no
-  timestamp extra field); the cROM inside is.
-- A ROM name containing `/`, `\` or `:` cannot be used as an archive entry name; saving such a
-  project fails with a message.
-- An unedited project saves back byte-identical to what the Win32 editor wrote. This is checked
-  against real projects with the `colorizing_qt_v2_roundtrip` tool (see Testing Checklist). The
-  one exception is the 96x32 data of a project with 192x64 original frames, which is discarded:
-  the blocks of the extra plane are written as "no extra data" and differ from the file if the
-  file held anything else there. All other blocks and the `.cRP` are identical. If the file had
-  96x32 pictures in use, the first save asks first (see "Projects With 192x64 Original
-  Frames").
+  timestamp extra field); the cROM inside is, for an unedited project.
+- A ROM name containing `/`, `\` or `:` cannot be used as an archive entry name; the export
+  fails with a message.
 - Frame identification hashes are recalculated from the original frame, its comparison mask, and
   its shape mode.
 - The "active frame" flag is recalculated: a frame shorter than 15 ms stays inactive until it is
   colorized or gets dynamic content. The frame list marks the frames the runtime skips for that
   reason, see "Frame List".
-- Colorized pixels covered by a dynamic mask are written as 0, as the Win32 editor does. The
-  in-memory frame is not changed, so those pixels show their old color until the project is
-  reopened. On the HD plane of an ordinary project this is the stored HD dynamic mask, which the
-  runtime does not use and the editor does not show (see "Dynamic Masks"): an HD pixel painted
-  under it is still written as 0, and is black on a machine wherever no SD dynamic zone covers
-  it. The Runtime view shows that; the editing canvas shows the painted color.
-- Editor metadata the app does not expose yet (color sets, mask names, sprite source
-  frames, image crop presets, imported palettes, PuP pack) is carried through. The project time
-  is written as counted so far (see "Canvas").
-  The PuP pack name is kept in UTF-8 in the `.cRPX`, so any name survives on every system; read
-  from a Win32 editor's `.cRP`, where it is UTF-16, it is converted.
-  Deleting frames, sprites and comparison masks keeps the parts of it that are numbered by
-  them in step, see "Adding And Deleting Records".
-- The numbers of frames, comparison masks, sprites and backgrounds in the file headers are
-  those of the project as it is; every block is written for exactly these records.
-- HD pixels that the Win32 editor left in a frame or background whose HD is switched off are
-  carried through until HD is created or removed for it here.
-- Marks the document clean after successful save.
-
-Files written by earlier Qt editor builds are not supported; only projects saved by the Win32
-editor (currently 3.17.3) or by this serializer are.
+- Colorized pixels covered by a dynamic mask are written as 0, as the Win32 editor does. On the
+  HD plane of an ordinary project this is the stored HD dynamic mask, which the runtime does not
+  use and the editor does not show (see "Dynamic Masks"): an HD pixel painted under it is still
+  written as 0, and is black on a machine wherever no SD dynamic zone covers it. The Runtime view
+  shows that; the editing canvas shows the painted color.
+- The 96x32 blocks of a project with 192x64 original frames are written as "no extra data".
 
 ## Exporting an animated GIF
 
@@ -197,14 +185,14 @@ The parts lie 15 picture pixels apart with the same dot size, the narrower ones 
 `File -> Export .cROMc...` writes the file a machine loads, `<rom>.cROMc`, proposed beside the
 project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone:
 
-- The project is taken as it is in the editor, saved or not. It is written as `<rom>.cROM`
-  into a temporary folder, and libserum loads it with `.cROMc` generation on. The cROM carries
-  the project's scenes and scaling settings (see "Scenes and Scaling"), so they are in the
-  `.cROMc`. Only for a project that has none (one of the Win32 editor not yet opened with
-  scenes) the `<rom>.pup.csv` and `scaling.txt` of the project's folder go in with it, if they
-  are there (in any case of the letters), as on a machine; the status bar then names them.
-- Writing the `.cROM` shows its progress and can be cancelled; libserum's part cannot be
-  interrupted and takes from about a second to half a minute for large HD projects.
+- The project is taken as it is in the editor, saved or not, and handed to libserum directly,
+  without a `.cROM` on disk. It carries the project's scenes and scaling settings (see "Scenes
+  and Scaling"), so they are in the `.cROMc`. Only for a project that has none (one of the
+  Win32 editor not yet opened with scenes) the `<rom>.pup.csv` and `scaling.txt` of the
+  project's folder go in with it, if they are there (in any case of the letters), as on a
+  machine; the status bar then names them.
+- libserum's part cannot be interrupted and takes from about a second to half a minute for
+  large HD projects.
 - An existing file is replaced only once the new one is complete. A target name other than
   `<rom>.cROMc` is allowed; the status bar reminds that libserum looks for `<rom>.cROMc`.
 - The Runtime view is switched off for the export and on again afterwards; playback stops.
@@ -222,27 +210,27 @@ project's files (checked on `afm_113b`, `hook_501`, `trn_174h`, `smb3` and the 1
 ## Autosave and recovery
 
 Every 10 minutes, as in CDMD, a project with changes that were not autosaved yet is written to
-`<name>(auto).cRZ` and `<name>(auto).cRPX` beside its files (`afm_113b(auto).cRZ` for
-`afm_113b.cRZ`), compressed as a save is. A `<name>(auto).cROM` that earlier versions autosaved
-is deleted after the next autosave. A new project that
-was never saved is autosaved under its ROM name in the editor's own folder (on Windows
-`%LOCALAPPDATA%\ppuc.org\PPUC Colorizing DMD\autosave`, on macOS
+`<name>(auto).cdmd` beside its project file (`afm_113b(auto).cdmd` for `afm_113b.cdmd`),
+compressed as a save is. A project without a project file (a new one, or one converted from the
+files of an earlier editor) is autosaved under its ROM name in the editor's own folder (on
+Windows `%LOCALAPPDATA%\ppuc.org\PPUC Colorizing DMD\autosave`, on macOS
 `~/Library/Application Support/ppuc.org/PPUC Colorizing DMD/autosave`, on Linux
 `~/.local/share/ppuc.org/PPUC Colorizing DMD/autosave`).
 
-- The files are written in the background while you go on working; they show the project as it
+- The file is written in the background while you go on working; it shows the project as it
   was when the autosave started. The status bar says `Autosaved to <file> at <time>`, or why
   it failed. Nothing is written while a dialog is open or the project is unchanged.
-- An autosave never replaces the project files. An autosave stopped by
-  quitting leaves the earlier autosave files as they were.
-- Opening a project whose autosave files are both newer than its files asks first:
-  `Open Autosave` opens the autosave as that project with unsaved changes (`Save` then writes it
-  to the project files), `Open Project` opens the project files. The autosave files are kept
-  either way, as CDMD keeps them.
-- After `Discard Changes` the autosave holding those changes is not offered again; the files
-  stay. A new project's autosave is deleted when its changes are discarded or when it is saved
-  for the first time.
-- At start the editor offers the newest autosave of a new project that was never saved:
-  `Open` (as a new project with unsaved changes), `Delete` or `Later`.
+- An autosave never replaces the project file, and notes no author or time of a change: only a
+  save does. An autosave stopped by quitting leaves the earlier autosave as it was.
+- Opening a project whose autosave is newer than its file asks first: `Open Autosave` opens the
+  autosave as that project with unsaved changes (`Save` then writes it to the project file),
+  `Open Project` opens the project file. The autosave is kept either way, as CDMD keeps it.
+- After `Discard Changes` the autosave holding those changes is not offered again; the file
+  stays. The autosave of a project without a project file is deleted when its changes are
+  discarded or when it is saved for the first time.
+- At start the editor offers the newest autosave of a project without a project file: `Open`
+  (as a new project with unsaved changes), `Delete` or `Later`.
 - Opening an `(auto)` file directly works as for any project; its autosave then goes to the same
-  files.
+  file.
+- The autosaves of earlier versions (`<name>(auto).cRZ` and `.cRPX`) are not offered any more;
+  they can be opened as the files of an earlier editor.
