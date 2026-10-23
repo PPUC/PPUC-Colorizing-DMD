@@ -7,6 +7,11 @@
 #include <string>
 #include <vector>
 
+#include <QApplication>
+#include <QFormLayout>
+#include <QStyle>
+#include <QStyleFactory>
+#include <QLineEdit>
 #include <QWidget>
 
 #include "RuntimeFixtures.h"
@@ -18,6 +23,7 @@
 #include "project/ProjectFile.h"
 #include "team/TeamChanges.h"
 #include "team/TeamController.h"
+#include "team/TeamDialogs.h"
 
 namespace {
 
@@ -102,9 +108,43 @@ void testRefusals()
     expect(!controller.refusal(claimed, document), "without claims everything is allowed");
 }
 
+void testStartTeamDialog()
+{
+    app::StartTeamDialog dialog(QStringLiteral("afm_113b"), QStringLiteral("kraken"));
+    // The macOS style, where there is one, keeps a form's fields at their own width unless the
+    // form says otherwise.
+    std::unique_ptr<QStyle> macStyle(QStyleFactory::create(QStringLiteral("macOS")));
+    if (macStyle) {
+        dialog.setStyle(macStyle.get());
+        for (QWidget* child : dialog.findChildren<QWidget*>()) {
+            child->setStyle(macStyle.get());
+        }
+    }
+    dialog.show();
+    QApplication::processEvents();
+    const QList<QLineEdit*> fields = dialog.findChildren<QLineEdit*>();
+    expect(fields.size() == 3, "three fields");
+    const QFormLayout* form = dialog.findChild<QFormLayout*>();
+    expect(form && form->fieldGrowthPolicy() == QFormLayout::AllNonFixedFieldsGrow,
+           "the fields take the dialog's width on every platform");
+    for (const QLineEdit* field : fields) {
+        expect(field->width() > dialog.width() / 2, "a field is not a short one");
+    }
+    expect(fields[1]->text() == QStringLiteral("afm_113b-colorization"),
+           "the repository is named after the ROM");
+    fields[0]->setText(QStringLiteral("Kraken"));
+    expect(dialog.owner().isEmpty(), "the own login is the own account");
+    fields[0]->setText(QStringLiteral("serum-team"));
+    expect(dialog.owner() == QStringLiteral("serum-team"), "an organization");
+    fields[2]->setText(QStringLiteral("@enthusiast, kraken; other  enthusiast"));
+    expect(dialog.partners() == QStringList({QStringLiteral("enthusiast"), QStringLiteral("other")}),
+           "partners: without @, without the own login, each once");
+}
+
 }  // namespace
 
 void runTeamControllerWidgetTests()
 {
     testRefusals();
+    testStartTeamDialog();
 }

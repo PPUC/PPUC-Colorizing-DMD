@@ -144,6 +144,7 @@ SettingsDialog::SettingsDialog(Theme theme,
         projects);
     authorNote->setWordWrap(true);
     auto* projectsForm = new QFormLayout;
+    projectsForm->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     projectsForm->addRow(tr("Your name"), m_authorNameEdit);
     projectsForm->addRow(authorNote);
     auto* projectsLayout = new QVBoxLayout(projects);

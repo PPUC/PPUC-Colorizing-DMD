@@ -162,6 +162,8 @@ StartTeamDialog::StartTeamDialog(const QString& romName, const QString& login, Q
         this);
     note->setWordWrap(true);
     auto* form = new QFormLayout;
+    // The fields take the dialog's width (on macOS they keep their own otherwise).
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     form->addRow(tr("Organization"), m_owner);
     form->addRow(tr("Repository"), m_name);
     form->addRow(tr("Partners"), m_partners);
@@ -176,12 +178,14 @@ StartTeamDialog::StartTeamDialog(const QString& romName, const QString& login, Q
     layout->addLayout(form);
     layout->addWidget(note);
     layout->addWidget(buttons);
-    setMinimumWidth(420);
+    setMinimumWidth(520);
 }
 
 QString StartTeamDialog::owner() const
 {
-    return m_owner->text().trimmed();
+    // The user's own login is no organization: the repository goes to the account.
+    const QString owner = m_owner->text().trimmed();
+    return owner.compare(m_login, Qt::CaseInsensitive) == 0 ? QString() : owner;
 }
 
 QString StartTeamDialog::repositoryName() const
