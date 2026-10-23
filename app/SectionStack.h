@@ -9,6 +9,7 @@
 #include <vector>
 
 class QFrame;
+class QLabel;
 class QScrollArea;
 class QToolButton;
 class QVBoxLayout;
@@ -85,6 +86,11 @@ public:
     // All open sections get the same share.
     void resetSectionSizes();
 
+    // A bell and the count at the right of the header, for something waiting in the section
+    // (the partners' shared changes); 0 removes it. The tool tip says what waits.
+    void setSectionBadge(int index, int count, const QString& toolTip = QString());
+    [[nodiscard]] int sectionBadge(int index) const;
+
     // Restores the open sections stored under the key (the given titles when nothing is
     // stored) and stores them from then on.
     void restoreOpenSections(const QString& stateKey, const QStringList& openByDefault);
@@ -100,6 +106,8 @@ private:
         QToolButton* header = nullptr;
         QScrollArea* frame = nullptr;
         SectionResizeHandle* handle = nullptr;
+        QLabel* badge = nullptr;
+        int badgeCount = 0;
         int weight = kDefaultWeight;
         bool hidden = false;
         bool optional = false;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QString>
 #include <QTimer>
 
@@ -14,6 +15,7 @@
 #include "edit/EditCommand.h"
 #include "team/Claims.h"
 #include "team/GitHub.h"
+#include "team/TeamPanel.h"
 #include "team/TeamSync.h"
 
 class QAction;
@@ -49,6 +51,8 @@ public:
         std::function<std::vector<std::size_t>()> selectedFrames;
         // After the claims changed: the window shows them again.
         std::function<void()> claimsChanged;
+        // After what the Team section shows changed (panelState()).
+        std::function<void()> teamChanged;
     };
 
     TeamController(QWidget* window, Host host);
@@ -74,6 +78,15 @@ public:
     void projectSaved();
     // The partners' shared changes not merged yet, as the background sync last found them.
     [[nodiscard]] std::size_t pendingPackageCount() const { return m_pending.size(); }
+    // What the Team section shows.
+    [[nodiscard]] TeamPanel::State panelState() const;
+    // Takes the sync's answer as if the background sync had delivered it: for tests.
+    void deliverSyncResultForTest(TeamSync::Result result);
+
+    // The steps of the Team menu, for the Team section's buttons.
+    void signIn();
+    void share();
+    void merge();
     // Takes these claims as the team's, signed in as login: for tests and tools.
     void setClaims(team::Claims claims, QString login)
     {
@@ -84,11 +97,8 @@ public:
     [[nodiscard]] QString frameClaimText(std::size_t frameIndex) const;
 
 private:
-    void signIn();
     void signOut();
     void startTeam();
-    void share();
-    void merge();
     void reserveSelected();
     void releaseReservations();
     void breakLock();
@@ -107,6 +117,8 @@ private:
     void syncDelivered(TeamSync::Result result);
     [[nodiscard]] QString cacheFolder() const;
     void updateActions();
+    // The merge action's text and the Team section follow the pending packages.
+    void notifyTeamChanged();
     // Asks to sign in when signed out; false when the user did not.
     bool ensureSignedIn();
     // Runs a step that answers through `finished`, with a busy window after a moment; returns
@@ -126,6 +138,8 @@ private:
     // Edited since the last save (early claims).
     Touched m_touched;
     std::vector<QString> m_pending;
+    // When the background sync last answered for this project.
+    std::optional<QDateTime> m_checked;
     // The input the last result must answer; older answers are dropped.
     uint64_t m_syncInput = 0;
     bool m_reportNext = false;

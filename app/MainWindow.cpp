@@ -561,6 +561,7 @@ MainWindow::MainWindow(QWidget* parent)
     };
     teamHost.selectedFrames = [this]() { return selectedFrameIndices(); };
     teamHost.claimsChanged = [this]() { updateFrameStatusText(); };
+    teamHost.teamChanged = [this]() { updateTeamSection(); };
     m_team = std::make_unique<TeamController>(this, std::move(teamHost));
     createActions();
     createCentralView();
@@ -1949,6 +1950,12 @@ void MainWindow::createCentralView()
     // The speaker lights last: a topic of their own, after the frame's pictures.
     inspectorTabs->addTab(m_frameLightsPanel, QStringLiteral("Lights"), tr("Speaker Lights"));
     inspectorTabs->addTab(m_lightEffectPanel, QStringLiteral("LightEffect"), tr("Light Effect"));
+    // The team's shared changes and claims, for a team project only.
+    m_teamPanel = new TeamPanel(central);
+    m_teamPanel->onSignInRequested = [this]() { m_team->signIn(); };
+    m_teamPanel->onMergeRequested = [this]() { m_team->merge(); };
+    m_teamPanel->onShareRequested = [this]() { m_team->share(); };
+    inspectorTabs->addTab(m_teamPanel, QStringLiteral("Team"), tr("Team"));
     // The action buttons of every section alike (InspectorForm.h).
     for (QWidget* page : std::initializer_list<QWidget*>{
              m_framePanel, m_maskPanel, m_backgroundPanel->framePage(),
@@ -1972,7 +1979,7 @@ void MainWindow::createCentralView()
         }
     }
     inspectorTabs->restoreOpenSections(QStringLiteral("inspector"), {QStringLiteral("Frame")});
-    updateInspectorSections();
+    updateTeamSection();
     inspector->setMinimumWidth(200);
     // The two sidebars can be made wider or narrower; their widths are kept.
     auto* contentSplitter = new QSplitter(Qt::Horizontal, central);
@@ -8543,7 +8550,7 @@ void MainWindow::updateInspectorSections()
     // frame canvas. A background or a sprite being edited has its own section (Back to Frame
     // there leaves it), opened on the way in.
     static const QStringList everywhere{QStringLiteral("Palette"), QStringLiteral("Sets"),
-                                        QStringLiteral("HelperLines")};
+                                        QStringLiteral("HelperLines"), QStringLiteral("Team")};
     static const QStringList records{QStringLiteral("BGRecord"), QStringLiteral("SpriteRecord")};
     // A scene frame is identified by its marker, not by the ROM frame: a comparison mask, sprites
     // (found on the original) and dynamic zones (the original's shades) do nothing there.
@@ -8563,10 +8570,11 @@ void MainWindow::updateInspectorSections()
         if (key == QStringLiteral("SceneSettings")) {
             continue;  // updateSceneSettingsSection()
         }
-        const bool shown = record.isEmpty()
-                               ? !records.contains(key) &&
-                                     !(sceneFrame && notForSceneFrames.contains(key))
-                               : key == record || everywhere.contains(key);
+        const bool shown = (record.isEmpty()
+                                ? !records.contains(key) &&
+                                      !(sceneFrame && notForSceneFrames.contains(key))
+                                : key == record || everywhere.contains(key)) &&
+                           (key != QStringLiteral("Team") || (m_team && m_team->isTeamProject()));
         if (key == record && m_inspectorSections->isSectionHidden(index)) {
             m_inspectorSections->setSectionOpen(index, true);
         }
@@ -8574,6 +8582,20 @@ void MainWindow::updateInspectorSections()
     }
     updateSceneSettingsSection(false);
     noteCanvasPlace();
+}
+
+void MainWindow::updateTeamSection()
+{
+    if (!m_teamPanel || !m_inspectorSections) {
+        return;
+    }
+    const TeamPanel::State state = m_team->panelState();
+    m_teamPanel->setState(state);
+    const auto pending = static_cast<int>(state.pendingPackages.size());
+    m_inspectorSections->setSectionBadge(
+        m_inspectorSections->indexOf(m_teamPanel), pending,
+        tr("%n shared change(s) from the partners to merge", "", pending));
+    updateInspectorSections();
 }
 
 CanvasPlace MainWindow::currentCanvasPlace() const

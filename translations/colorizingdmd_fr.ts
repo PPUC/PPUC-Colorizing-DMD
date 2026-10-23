@@ -5272,6 +5272,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Ajouter les frames copiées après la dernière frame, comme « Importer un paquet »</translation>
     </message>
     <message>
+        <source>Team</source>
+        <translation>Équipe</translation>
+    </message>
+    <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
         <translation>Projets (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Projet Colorizing DMD (*.cdmd);;Colorisation Serum des éditeurs précédents (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Tous les fichiers (*)</translation>
     </message>
@@ -5454,6 +5458,13 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame d&apos;un partenaire : %1. Elle reste en lecture seule ici jusqu&apos;à ce que la modification soit fusionnée.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners to merge</source>
+        <translation>
+            <numerusform>%n modification partagée des partenaires à fusionner</numerusform>
+            <numerusform>%n modifications partagées des partenaires à fusionner</numerusform>
+        </translation>
     </message>
     <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
@@ -8255,13 +8266,20 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <source>Team</source>
         <translation>Équipe</translation>
     </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners to merge (Team section or Team -&gt; Merge Changes)</source>
+        <translation>
+            <numerusform>%n modification partagée des partenaires à fusionner (section Équipe ou Équipe -&gt; Fusionner les modifications)</numerusform>
+            <numerusform>%n modifications partagées des partenaires à fusionner (section Équipe ou Équipe -&gt; Fusionner les modifications)</numerusform>
+        </translation>
+    </message>
     <message>
         <source>&amp;Merge Changes (%1)...</source>
         <translation>&amp;Fusionner les modifications (%1)...</translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge (Team -&gt; Merge Changes)</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>%n modification partagée des partenaires à fusionner (Équipe -&gt; Fusionner les modifications)</numerusform>
             <numerusform>%n modifications partagées des partenaires à fusionner (Équipe -&gt; Fusionner les modifications)</numerusform>
         </translation>
@@ -8281,6 +8299,68 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>%1 is changing the project&apos;s settings</source>
         <translation>%1 modifie les réglages du projet</translation>
+    </message>
+</context>
+<context>
+    <name>TeamPanel</name>
+    <message>
+        <source>Sign In To GitHub...</source>
+        <translation>Se connecter à GitHub...</translation>
+    </message>
+    <message>
+        <source>The partners&apos; shared changes, oldest first; a merge takes them all in this order</source>
+        <translation>Les modifications partagées des partenaires, la plus ancienne en premier ; une fusion les reprend toutes dans cet ordre</translation>
+    </message>
+    <message>
+        <source>Merge Changes...</source>
+        <translation>Fusionner les modifications...</translation>
+    </message>
+    <message>
+        <source>Take the changes the partners shared into this project</source>
+        <translation>Reprendre dans ce projet les modifications que les partenaires ont partagées</translation>
+    </message>
+    <message>
+        <source>Share My Changes</source>
+        <translation>Partager mes modifications</translation>
+    </message>
+    <message>
+        <source>Save, then send what you changed since the last merge to the partners</source>
+        <translation>Enregistrer, puis envoyer aux partenaires ce que vous avez modifié depuis la dernière fusion</translation>
+    </message>
+    <message>
+        <source>Repository %1, signed in as %2</source>
+        <translation>Dépôt %1, connecté en tant que %2</translation>
+    </message>
+    <message>
+        <source>Repository %1; sign in to GitHub to see the claims and the shared changes</source>
+        <translation>Dépôt %1 ; connectez-vous à GitHub pour voir les réservations et les modifications partagées</translation>
+    </message>
+    <message>
+        <source>From %1, %2</source>
+        <translation>De %1, %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) to merge:</source>
+        <translation>
+            <numerusform>%n modification partagée à fusionner :</numerusform>
+            <numerusform>%n modifications partagées à fusionner :</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No shared changes to merge.</source>
+        <translation>Aucune modification partagée à fusionner.</translation>
+    </message>
+    <message>
+        <source>Checked at %1</source>
+        <translation>Vérifié à %1</translation>
+    </message>
+    <message>
+        <source>Checking…</source>
+        <translation>Vérification…</translation>
+    </message>
+    <message>
+        <source>Merge Changes (%1)...</source>
+        <translation>Fusionner les modifications (%1)...</translation>
     </message>
 </context>
 <context>

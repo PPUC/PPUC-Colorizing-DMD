@@ -352,6 +352,8 @@ private:
     // Shows only the right sidebar's sections that serve the canvas shown: the frame, a
     // background being edited, or the sprite editor.
     void updateInspectorSections();
+    // The Team section: what it shows, and the bell on its header for shared changes to merge.
+    void updateTeamSection();
     // The left sidebar's Scene section: shown with the scene of the frame on the canvas.
     // reload: the scene changed (unapplied changes go).
     void updateSceneSettingsSection(bool reload);
@@ -860,6 +862,8 @@ private:
     // canvas (Settings). Changed through the edit::SpeakerLightEdits functions.
     LightEffectsPanel* m_lightEffectsPanel = nullptr;
     LightEffectPanel* m_lightEffectPanel = nullptr;
+    // The Team section, shown for a team project.
+    TeamPanel* m_teamPanel = nullptr;
     FrameLightsPanel* m_frameLightsPanel = nullptr;
     SpeakerLightPair* m_speakerLights = nullptr;
     // The effects changed: every place that shows them.

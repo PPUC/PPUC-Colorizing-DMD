@@ -5272,6 +5272,10 @@ Use Create %1 Frame.</source>
         <translation>Die kopierten Frames hinter dem letzten Frame hinzufügen, wie „Paket importieren“</translation>
     </message>
     <message>
+        <source>Team</source>
+        <translation>Team</translation>
+    </message>
+    <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>
         <translation>Projekte (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing-DMD-Projekt (*.cdmd);;Serum-Kolorierung früherer Editoren (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Alle Dateien (*)</translation>
     </message>
@@ -5454,6 +5458,13 @@ Use Create %1 Frame.</source>
     <message>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame eines Partners: %1. Er bleibt hier schreibgeschützt, bis die Änderung zusammengeführt ist.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners to merge</source>
+        <translation>
+            <numerusform>%n geteilte Änderung der Partner zum Zusammenführen</numerusform>
+            <numerusform>%n geteilte Änderungen der Partner zum Zusammenführen</numerusform>
+        </translation>
     </message>
     <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
@@ -8255,13 +8266,20 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <source>Team</source>
         <translation>Team</translation>
     </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners to merge (Team section or Team -&gt; Merge Changes)</source>
+        <translation>
+            <numerusform>%n geteilte Änderung der Partner zum Zusammenführen (Bereich Team oder Team -&gt; Änderungen zusammenführen)</numerusform>
+            <numerusform>%n geteilte Änderungen der Partner zum Zusammenführen (Bereich Team oder Team -&gt; Änderungen zusammenführen)</numerusform>
+        </translation>
+    </message>
     <message>
         <source>&amp;Merge Changes (%1)...</source>
         <translation>Änderungen &amp;zusammenführen (%1)...</translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge (Team -&gt; Merge Changes)</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>%n geteilte Änderung der Partner zum Zusammenführen (Team -&gt; Änderungen zusammenführen)</numerusform>
             <numerusform>%n geteilte Änderungen der Partner zum Zusammenführen (Team -&gt; Änderungen zusammenführen)</numerusform>
         </translation>
@@ -8281,6 +8299,68 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>%1 is changing the project&apos;s settings</source>
         <translation>%1 ändert die Einstellungen des Projekts</translation>
+    </message>
+</context>
+<context>
+    <name>TeamPanel</name>
+    <message>
+        <source>Sign In To GitHub...</source>
+        <translation>Bei GitHub anmelden...</translation>
+    </message>
+    <message>
+        <source>The partners&apos; shared changes, oldest first; a merge takes them all in this order</source>
+        <translation>Die geteilten Änderungen der Partner, die älteste zuerst; ein Zusammenführen übernimmt sie alle in dieser Reihenfolge</translation>
+    </message>
+    <message>
+        <source>Merge Changes...</source>
+        <translation>Änderungen zusammenführen...</translation>
+    </message>
+    <message>
+        <source>Take the changes the partners shared into this project</source>
+        <translation>Die Änderungen, die die Partner geteilt haben, in dieses Projekt übernehmen</translation>
+    </message>
+    <message>
+        <source>Share My Changes</source>
+        <translation>Meine Änderungen teilen</translation>
+    </message>
+    <message>
+        <source>Save, then send what you changed since the last merge to the partners</source>
+        <translation>Speichern, dann senden, was Sie seit dem letzten Zusammenführen geändert haben, an die Partner</translation>
+    </message>
+    <message>
+        <source>Repository %1, signed in as %2</source>
+        <translation>Repository %1, angemeldet als %2</translation>
+    </message>
+    <message>
+        <source>Repository %1; sign in to GitHub to see the claims and the shared changes</source>
+        <translation>Repository %1; melden Sie sich bei GitHub an, um die Ansprüche und die geteilten Änderungen zu sehen</translation>
+    </message>
+    <message>
+        <source>From %1, %2</source>
+        <translation>Von %1, %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) to merge:</source>
+        <translation>
+            <numerusform>%n geteilte Änderung zum Zusammenführen:</numerusform>
+            <numerusform>%n geteilte Änderungen zum Zusammenführen:</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No shared changes to merge.</source>
+        <translation>Keine geteilten Änderungen zum Zusammenführen.</translation>
+    </message>
+    <message>
+        <source>Checked at %1</source>
+        <translation>Geprüft um %1</translation>
+    </message>
+    <message>
+        <source>Checking…</source>
+        <translation>Wird geprüft…</translation>
+    </message>
+    <message>
+        <source>Merge Changes (%1)...</source>
+        <translation>Änderungen zusammenführen (%1)...</translation>
     </message>
 </context>
 <context>

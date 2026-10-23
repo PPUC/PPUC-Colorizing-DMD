@@ -195,7 +195,9 @@ void TeamController::projectChanged()
     m_reserved.clear();
     m_touched = {};
     m_pending.clear();
+    m_checked.reset();
     updateActions();
+    notifyTeamChanged();
     updateSync();
     if (!isTeamProject()) {
         return;
@@ -255,8 +257,10 @@ void TeamController::signOut()
     m_login.clear();
     m_claims.reset();
     m_pending.clear();
+    m_checked.reset();
     updateSync();
     updateActions();
+    notifyTeamChanged();
     if (m_host.claimsChanged) {
         m_host.claimsChanged();
     }
@@ -506,6 +510,11 @@ void TeamController::merge()
     if (merged == 0) {
         return;
     }
+    // Merged: no longer pending, before the next sync says so.
+    m_pending.erase(m_pending.begin(),
+                    m_pending.begin() + static_cast<std::ptrdiff_t>(
+                                            std::min(merged, m_pending.size())));
+    notifyTeamChanged();
     // What was merged gets this copy's revisions (the partners' own), and the claims follow.
     (void)m_host.save();
     updateSync();
@@ -708,14 +717,11 @@ void TeamController::syncDelivered(TeamSync::Result result)
     m_claims = std::move(result.claims);
     const std::size_t before = m_pending.size();
     m_pending = std::move(result.pendingPackages);
-    if (m_mergeAction) {
-        m_mergeAction->setText(m_pending.empty()
-                                   ? tr("&Merge Changes...")
-                                   : tr("&Merge Changes (%1)...").arg(m_pending.size()));
-    }
+    m_checked = QDateTime::currentDateTime();
+    notifyTeamChanged();
     if (m_pending.size() > before) {
-        m_host.status(tr("%n shared change(s) from the partners to merge (Team -> Merge "
-                         "Changes)",
+        m_host.status(tr("%n shared change(s) from the partners to merge (Team section or "
+                         "Team -> Merge Changes)",
                          "", static_cast<int>(m_pending.size())),
                       10000);
     }
@@ -731,6 +737,38 @@ void TeamController::syncDelivered(TeamSync::Result result)
     } else if (report) {
         m_host.status(tr("The claims are up to date"), 3000);
     }
+}
+
+void TeamController::notifyTeamChanged()
+{
+    if (m_mergeAction) {
+        m_mergeAction->setText(m_pending.empty()
+                                   ? tr("&Merge Changes...")
+                                   : tr("&Merge Changes (%1)...").arg(m_pending.size()));
+    }
+    if (m_host.teamChanged) {
+        m_host.teamChanged();
+    }
+}
+
+TeamPanel::State TeamController::panelState() const
+{
+    TeamPanel::State state;
+    if (!isTeamProject()) {
+        return state;
+    }
+    state.login = m_login;
+    state.repository = QString::fromStdString(m_host.document()->team()->repository);
+    state.pendingPackages = m_pending;
+    state.checked = m_checked;
+    state.problem = teamProblem();
+    return state;
+}
+
+void TeamController::deliverSyncResultForTest(TeamSync::Result result)
+{
+    result.input = m_syncInput;
+    syncDelivered(std::move(result));
 }
 
 void TeamController::projectSaved()

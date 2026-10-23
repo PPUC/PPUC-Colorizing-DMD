@@ -6,7 +6,8 @@ GitHub repository of the team carries the shared changes and the claims (who wor
 the project itself goes to the partners once, for example through Google Drive. Authors who
 work alone need none of this.
 
-Everything is in the `Team` menu.
+Everything is in the `Team` menu, and the most used steps are in the `Team` section of the
+right side bar too.
 
 ## Signing in
 
@@ -32,6 +33,19 @@ The editor creates a private repository, invites the partners and saves the proj
 project. Then give the partners the saved project file (`.cdmd`) once: it is the snapshot
 everyone starts from. They open it, sign in, and work from the `Team` menu like you. You are
 the project's owner.
+
+## The Team section
+
+A team project has a `Team` section in the right side bar (it is not there for other projects):
+
+- the team's repository and who you are signed in as, or `Sign In To GitHub...`;
+- the partners' shared changes waiting to be merged, oldest first, each with who shared it and
+  when; a double click merges them, as `Merge Changes (2)...` below does;
+- when the editor last looked for them (`Checked at 14:05:12`);
+- `Merge Changes...` and `Share My Changes`, as in the `Team` menu.
+
+While shared changes wait, the section's header shows a bell and their number, also while the
+section is closed; it goes once they are merged.
 
 ## Sharing and merging
 
@@ -64,8 +78,8 @@ settings.
   you edit something new, without making you wait; `Team -> Refresh Claims` does it now and says
   when they are up to date.
 - In the same way it looks for the partners' shared changes and downloads them: the status bar
-  says when there are new ones, and `Team -> Merge Changes (2)...` how many wait. Merging them
-  then needs no waiting for the network.
+  says when there are new ones, the bell on the `Team` section's header and `Team -> Merge
+  Changes (2)...` how many wait. Merging them then needs no waiting for the network.
 - `Team -> Reserve Selected Frames` claims frames before you change them ("I'll do the attract
   mode tonight"); `Release My Reservations` gives them back.
 - A claim ends when your change has reached every partner: when they merged it and you merged

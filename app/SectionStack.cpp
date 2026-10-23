@@ -6,9 +6,12 @@
 #include <QContextMenuEvent>
 #include <QCoreApplication>
 #include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QScrollArea>
 #include <QSettings>
 #include <QToolButton>
@@ -77,6 +80,35 @@ private:
     double m_pressY = 0.0;
 };
 
+namespace {
+
+// A bell of the given height in the color, for the badge of a header.
+QPixmap bellPixmap(int size, const QColor& color, qreal devicePixelRatio)
+{
+    QPixmap pixmap(QSize(size, size) * devicePixelRatio);
+    pixmap.setDevicePixelRatio(devicePixelRatio);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    const qreal s = size;
+    // The body: a dome over sides that flare out to the rim.
+    QPainterPath body;
+    body.moveTo(0.10 * s, 0.76 * s);
+    body.cubicTo(0.22 * s, 0.64 * s, 0.22 * s, 0.50 * s, 0.24 * s, 0.38 * s);
+    body.cubicTo(0.27 * s, 0.10 * s, 0.73 * s, 0.10 * s, 0.76 * s, 0.38 * s);
+    body.cubicTo(0.78 * s, 0.50 * s, 0.78 * s, 0.64 * s, 0.90 * s, 0.76 * s);
+    body.closeSubpath();
+    painter.drawPath(body);
+    // The knob on top and the clapper below the rim.
+    painter.drawEllipse(QPointF(0.50 * s, 0.10 * s), 0.07 * s, 0.07 * s);
+    painter.drawEllipse(QPointF(0.50 * s, 0.86 * s), 0.11 * s, 0.10 * s);
+    return pixmap;
+}
+
+}  // namespace
+
 SectionStack::SectionStack(QWidget* parent)
     : QWidget(parent)
 {
@@ -125,8 +157,16 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
     m_layout->insertWidget(position * 3, header);
     m_layout->insertWidget(position * 3 + 1, frame);
     m_layout->insertWidget(position * 3 + 2, handle);
+    // The badge at the right end of the header; clicks and drags go to the header.
+    auto* badgeLayout = new QHBoxLayout(header);
+    badgeLayout->setContentsMargins(0, 0, 6, 0);
+    badgeLayout->addStretch(1);
+    auto* badge = new QLabel(header);
+    badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+    badge->setVisible(false);
+    badgeLayout->addWidget(badge);
     m_sections.push_back(
-        Section{key, title.isEmpty() ? key : title, content, header, frame, handle});
+        Section{key, title.isEmpty() ? key : title, content, header, frame, handle, badge});
     m_order.push_back(index);
     // Dragged to move the section; the context menu arranges the sections.
     header->installEventFilter(this);
@@ -170,6 +210,49 @@ int SectionStack::addTab(QWidget* content, const QString& key, const QString& ti
     });
     updateStretch();
     return index;
+}
+
+void SectionStack::setSectionBadge(int index, int count, const QString& toolTip)
+{
+    if (index < 0 || index >= this->count()) {
+        return;
+    }
+    Section& section = m_sections[static_cast<std::size_t>(index)];
+    section.badgeCount = std::max(0, count);
+    section.badge->setVisible(section.badgeCount > 0);
+    section.header->setToolTip(
+        section.badgeCount > 0 && !toolTip.isEmpty()
+            ? toolTip
+            : tr("Click to open or close; drag to move; right-click to arrange the sections"));
+    if (section.badgeCount == 0) {
+        return;
+    }
+    // The bell and the count in the accent color, as one picture: a label shows either a
+    // picture or a text.
+    const QColor color = palette().color(QPalette::Highlight);
+    QFont font = section.header->font();
+    const int height = QFontMetrics(font).height();
+    const QString text = QString::number(section.badgeCount);
+    const int bellSize = height - 2;
+    const int width = bellSize + 3 + QFontMetrics(font).horizontalAdvance(text);
+    const qreal ratio = devicePixelRatioF();
+    QPixmap pixmap(QSize(width, height) * ratio);
+    pixmap.setDevicePixelRatio(ratio);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.drawPixmap(0, 1, bellPixmap(bellSize, color, ratio));
+    painter.setFont(font);
+    painter.setPen(color);
+    painter.drawText(QRect(bellSize + 3, 0, width - bellSize - 3, height),
+                     Qt::AlignLeft | Qt::AlignVCenter, text);
+    painter.end();
+    section.badge->setPixmap(pixmap);
+}
+
+int SectionStack::sectionBadge(int index) const
+{
+    return index >= 0 && index < count() ? m_sections[static_cast<std::size_t>(index)].badgeCount
+                                         : 0;
 }
 
 void SectionStack::updateStretch()
