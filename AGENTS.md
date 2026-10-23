@@ -9,13 +9,14 @@ colorizations. See `readme.md` for what the editor is and how to build it.
   - `document/`: `ProjectDocument`, frames, sprites, backgrounds, palettes, scenes.
   - `edit/`: edit commands and undo histories.
   - `legacy/`: reading and writing `.cROM`, `.cRZ`, `.cRP` and `.cRPX`.
-  - `project/`: the editor's own project file (`.cdmd`, branch `format-v3`).
+  - `project/`: the editor's own project file (`.cdmd`).
+  - `team/`: team projects (common state, change packages, merge, claims).
   - `import/`: frame dumps.
   - `runtime/`: libserum, the frame tester and the Runtime view.
   - `render/`: canvas geometry.
 - `app/`: the Qt widgets. `MainWindow`, the canvas `FramePreviewWidget`, the sprite editor,
-  `panels/` (the sidebar sections), `dialogs/`, and `vpx/` (VPX plugin hosting, the only
-  target that sees the plugin SDK).
+  `panels/` (the sidebar sections), `dialogs/`, `team/` (GitHub, the background sync and the
+  Team menu), and `vpx/` (VPX plugin hosting, the only target that sees the plugin SDK).
 - `plugin-api/`: the editor API for plugins.
 - `third-party/WS2812FX/`: the speaker light effect library at the DMD firmware's commit, with a
   desktop stand-in for Arduino and Adafruit_NeoPixel, for the speaker light preview. Keep it at
