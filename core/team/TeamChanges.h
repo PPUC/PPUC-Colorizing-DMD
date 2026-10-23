@@ -22,6 +22,8 @@ namespace colorizing::team {
 [[nodiscard]] document::RevisionMaps currentRevisions(const document::ProjectDocument& document);
 // The hash of the project's settings that are no component (project::settingsContent()).
 [[nodiscard]] uint64_t settingsHash(const document::ProjectDocument& document);
+// A hash of a frame order, never 0.
+[[nodiscard]] uint64_t orderHash(const std::vector<document::ComponentId>& order);
 
 // Makes the project a team project: the snapshot every member starts from is the project as
 // it is now. Throws std::logic_error when it has unsaved changes or a component without a
@@ -39,6 +41,9 @@ struct ChangeSet {
     document::RevisionMaps deleted;
     bool orderChanged = false;
     bool settingsChanged = false;
+    // The frame order and the settings now (orderHash(), settingsHash()).
+    uint64_t orderHash = 0;
+    uint64_t settingsHash = 0;
 
     [[nodiscard]] bool empty() const;
     [[nodiscard]] bool contains(document::ComponentKind kind,

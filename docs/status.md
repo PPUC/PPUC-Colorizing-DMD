@@ -90,7 +90,10 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     a sent package is common once every member listed it as merged. Order: the partner's when
     this copy kept the common one, else this copy's with added frames after their predecessor.
     Settings (license, scenes, lights, helper lines, sections, target) go as one. Claims
-    (`Claims.h`, claims.json) are derived from the change set plus reservations.
+    (`Claims.h`, claims.json) are derived from the change set plus reservations; a claim names
+    the claimer's saved revision (the frame order and the settings a hash), and blocks only a
+    copy whose common revision differs (`blockingClaim()`): a merged change no longer blocks
+    before its acknowledgement. An edit not saved yet claims without a revision.
     App side (`app/team/`): `GitHubClient` (REST and device flow over an `HttpTransport`;
     `NetworkTransport` is Qt Network, which the widgets library now links) and `TeamSession`
     (share, pending packages, fetch, claims sync with retry on a changed claims.json) over a

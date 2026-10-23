@@ -10,6 +10,7 @@
 
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
+#include "edit/FrameMove.h"
 #include "platform/Utf8Path.h"
 #include "project/ProjectFile.h"
 #include "team/Claims.h"
@@ -324,9 +325,11 @@ void testClaims()
     };
     expect(later.claims.size() == 2 && claimOf(later, frame1).sinceMs == 2000,
            "a claim keeps its time; a reservation given up is gone");
+    expect(claimOf(later, frame1).revision == team.owner.frameMeta(1).revision,
+           "a claim names the claimer's revision");
 
     team::Claims full = later;
-    full.order = team::WholeClaim{"enthusiast", 700};
+    full.order = team::WholeClaim{"enthusiast", 700, 0x0123456789abcdefULL};
     full.lockBreak = team::LockBreak{"kraken", 800, document::ComponentId::generate()};
     std::string error;
     const std::optional<team::Claims> read = team::parseClaims(team::writeClaims(full), error);
@@ -338,6 +341,55 @@ void testClaims()
 
 }  // namespace
 
+// Merged, a partner's change no longer keeps this copy off: the claim names the version this
+// copy has as the common one now. A new version, or an edit not saved yet, does again.
+void testMergedClaimsRelease()
+{
+    Team team = startTeam();
+    const document::ComponentId frame2 = team.owner.frameMeta(2).id;
+    team.owner.setFrameDurationMs(2, 222);
+    (void)edit::moveFrames(team.owner, {6}, 0);
+    save(team.owner, team.ownerPath, "kraken", 2000);
+    const auto ownerClaims = [](const team::ChangeSet& changes) {
+        return team::withMyClaims({}, "kraken", changes, {}, 2000);
+    };
+    const auto blocked = [&team, frame2](const team::Claims& claims) {
+        const document::TeamState& common = *team.partner.team();
+        const auto found = common.common[0].find(frame2);
+        return team::blockingClaim(claims, ComponentKind::Frame, frame2, "enthusiast",
+                                   found != common.common[0].end() ? found->second
+                                                                   : document::ComponentId{}) !=
+               nullptr;
+    };
+    const auto orderBlocked = [&team](const team::Claims& claims) {
+        return team::wholeClaimBlocks(claims.order, "enthusiast",
+                                      team::orderHash(team.partner.team()->commonOrder));
+    };
+    team::Claims claims = ownerClaims(team::changesSinceCommon(team.owner));
+    expect(blocked(claims) && orderBlocked(claims),
+           "before the merge the owner's frame and frame order are claimed");
+
+    const team::ChangePackage package = share(team.owner, team.ownerPath, "kraken", 2000, "c1");
+    (void)team::mergeChangePackage(team.partner, package, {}, "enthusiast");
+    save(team.partner, team.partnerPath, "enthusiast", 3000);
+    expect(team.partner.frameDurationMs(*team.partner.frameIndexOf(frame2)) == 222 &&
+               team::partnerClaim(claims, ComponentKind::Frame, frame2, "enthusiast"),
+           "the owner still claims the frame (the partner has not acknowledged yet)");
+    expect(!blocked(claims) && !orderBlocked(claims),
+           "but merged, it keeps the partner off neither the frame nor the frame order");
+
+    // The owner goes on with the frame: unsaved first, then saved.
+    team::ChangeSet unsaved = team::changesSinceCommon(team.owner);
+    unsaved.changed[0].insert_or_assign(frame2, document::ComponentId{});
+    unsaved.orderHash = 0;
+    claims = ownerClaims(unsaved);
+    expect(blocked(claims) && orderBlocked(claims), "an edit not saved yet keeps the partner off");
+    team.owner.setFrameDurationMs(team.owner.frameIndexOf(frame2).value(), 333);
+    save(team.owner, team.ownerPath, "kraken", 4000);
+    claims = ownerClaims(team::changesSinceCommon(team.owner));
+    expect(blocked(claims), "a new version does");
+}
+
 void runTeamTests()
 {
     testStart();
@@ -346,4 +398,5 @@ void runTeamTests()
     testAddDeleteSettingsAndUndo();
     testRefusals();
     testClaims();
+    testMergedClaimsRelease();
 }

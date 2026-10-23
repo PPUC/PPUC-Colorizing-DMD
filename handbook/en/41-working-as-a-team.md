@@ -101,6 +101,9 @@ settings.
   Changes (2)...` how many wait. Merging them then needs no waiting for the network.
 - `Team -> Reserve Selected Frames` claims frames before you change them ("I'll do the attract
   mode tonight"); `Release My Reservations` gives them back.
+- Once you have merged a partner's change, its frame (or the frame order, the settings) is free
+  for you, even while the partner's claim is still listed: you have their version. It is
+  locked again when the partner changes it once more, saved or not.
 - A claim ends when your change has reached every partner: when they merged it and you merged
   their next shared changes. An edit you undo and save without a change ends its claim too.
 - Assigning a mask, background or sprite a partner claimed is allowed: it changes the frame,

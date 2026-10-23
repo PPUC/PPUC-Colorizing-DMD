@@ -137,6 +137,10 @@ private:
     [[nodiscard]] QString teamProblem() const;
     [[nodiscard]] std::unique_ptr<TeamRemote> remote() const;
     [[nodiscard]] QString claimText(const team::Claim& claim) const;
+    // A partner's claim that keeps this copy from changing the component (team::blockingClaim):
+    // not one whose version this copy merged.
+    [[nodiscard]] const team::Claim* blockingClaim(document::ComponentKind kind,
+                                                   const document::ComponentId& id) const;
 
     QWidget* m_window;
     Host m_host;

@@ -125,6 +125,22 @@ RevisionMaps currentRevisions(const ProjectDocument& document)
     return maps;
 }
 
+uint64_t orderHash(const std::vector<ComponentId>& order)
+{
+    // FNV-1a over the IDs' bytes.
+    uint64_t hash = 0xcbf29ce484222325ULL;
+    const auto add = [&hash](uint64_t value) {
+        for (int byte = 0; byte < 8; ++byte, value >>= 8) {
+            hash = (hash ^ (value & 0xff)) * 0x100000001b3ULL;
+        }
+    };
+    for (const ComponentId& id : order) {
+        add(id.high);
+        add(id.low);
+    }
+    return hash == 0 ? 1 : hash;
+}
+
 uint64_t settingsHash(const ProjectDocument& document)
 {
     // A snapshot with what the settings hold, and the frames by their IDs only.
@@ -202,7 +218,9 @@ ChangeSet changesSinceCommon(const ProjectDocument& document)
         order.push_back(document.frameMeta(i).id);
     }
     changes.orderChanged = order != team.commonOrder;
-    changes.settingsChanged = settingsHash(document) != team.commonSettingsHash;
+    changes.orderHash = orderHash(order);
+    changes.settingsHash = settingsHash(document);
+    changes.settingsChanged = changes.settingsHash != team.commonSettingsHash;
     return changes;
 }
 

@@ -17,17 +17,50 @@ using project::JsonValue;
 constexpr std::array<const char*, document::kComponentKindCount> kKindNames = {
     "frame", "comparisonMask", "background", "sprite", "palette"};
 
+// A hash as 16 hex digits (JSON numbers do not hold 64 bits everywhere); 0 for none.
+std::string hashText(uint64_t hash)
+{
+    static constexpr char kDigits[] = "0123456789abcdef";
+    std::string text(16, '0');
+    for (int i = 15; i >= 0; --i, hash >>= 4) {
+        text[static_cast<std::size_t>(i)] = kDigits[hash & 0xf];
+    }
+    return text;
+}
+
+uint64_t parseHash(const std::string& text)
+{
+    uint64_t hash = 0;
+    if (text.size() != 16) {
+        return 0;
+    }
+    for (const char c : text) {
+        const int digit = c >= '0' && c <= '9'   ? c - '0'
+                          : c >= 'a' && c <= 'f' ? c - 'a' + 10
+                                                 : -1;
+        if (digit < 0) {
+            return 0;
+        }
+        hash = (hash << 4) | static_cast<uint64_t>(digit);
+    }
+    return hash;
+}
+
 JsonValue wholeJson(const WholeClaim& claim)
 {
     JsonValue value = JsonValue::object();
     value.set("login", claim.login);
     value.set("since", claim.sinceMs);
+    if (claim.hash != 0) {
+        value.set("hash", hashText(claim.hash));
+    }
     return value;
 }
 
 WholeClaim readWhole(const JsonObjectReader& object)
 {
-    return {object.string("login"), object.integer("since", INT64_MIN, INT64_MAX, 0)};
+    return {object.string("login"), object.integer("since", INT64_MIN, INT64_MAX, 0),
+            parseHash(object.string("hash", ""))};
 }
 
 ComponentId parseId(const std::string& text)
@@ -54,6 +87,9 @@ std::string writeClaims(const Claims& claims)
         item.set("since", claim.sinceMs);
         if (claim.reserved) {
             item.set("reserved", true);
+        }
+        if (!claim.revision.isNull()) {
+            item.set("revision", claim.revision.toString());
         }
         list.push(std::move(item));
     }
@@ -101,6 +137,9 @@ std::optional<Claims> parseClaims(std::string_view text, std::string& errorMessa
             claim.login = object.string("login");
             claim.sinceMs = object.integer("since", INT64_MIN, INT64_MAX, 0);
             claim.reserved = object.boolean("reserved", false);
+            if (const std::string revision = object.string("revision", ""); !revision.empty()) {
+                claim.revision = parseId(revision);
+            }
             claims.claims.push_back(std::move(claim));
         }
         if (root.has("order")) {
@@ -149,7 +188,10 @@ Claims withMyClaims(const Claims& current,
         }
         std::sort(ids.begin(), ids.end());
         for (const ComponentId& id : ids) {
-            mine.push_back({componentKind, id, login, since(componentKind, id), false});
+            const auto changed = changes.changed[kind].find(id);
+            mine.push_back({componentKind, id, login, since(componentKind, id), false,
+                            changed != changes.changed[kind].end() ? changed->second
+                                                                   : ComponentId{}});
         }
     }
     for (const auto& [kind, id] : reserved) {
@@ -157,7 +199,7 @@ Claims withMyClaims(const Claims& current,
             return claim.kind == kind && claim.id == id;
         });
         if (!changed) {
-            mine.push_back({kind, id, login, since(kind, id), true});
+            mine.push_back({kind, id, login, since(kind, id), true, ComponentId{}});
         }
     }
     result.claims.erase(std::remove_if(result.claims.begin(), result.claims.end(),
@@ -166,18 +208,41 @@ Claims withMyClaims(const Claims& current,
                                        }),
                         result.claims.end());
     result.claims.insert(result.claims.end(), mine.begin(), mine.end());
-    const auto whole = [&](const std::optional<WholeClaim>& claim, bool changed) {
+    const auto whole = [&](const std::optional<WholeClaim>& claim, bool changed, uint64_t hash) {
         if (claim && claim->login != login) {
             return claim;
         }
         if (!changed) {
             return std::optional<WholeClaim>{};
         }
-        return std::optional<WholeClaim>{WholeClaim{login, claim ? claim->sinceMs : nowMs}};
+        return std::optional<WholeClaim>{
+            WholeClaim{login, claim ? claim->sinceMs : nowMs, hash}};
     };
-    result.order = whole(current.order, changes.orderChanged);
-    result.settings = whole(current.settings, changes.settingsChanged);
+    result.order = whole(current.order, changes.orderChanged, changes.orderHash);
+    result.settings = whole(current.settings, changes.settingsChanged, changes.settingsHash);
     return result;
+}
+
+const Claim* blockingClaim(const Claims& claims,
+                           ComponentKind kind,
+                           const ComponentId& id,
+                           const std::string& myLogin,
+                           const ComponentId& commonRevision)
+{
+    for (const Claim& claim : claims.claims) {
+        if (claim.kind == kind && claim.id == id && claim.login != myLogin &&
+            (claim.revision.isNull() || claim.revision != commonRevision)) {
+            return &claim;
+        }
+    }
+    return nullptr;
+}
+
+bool wholeClaimBlocks(const std::optional<WholeClaim>& claim,
+                      const std::string& myLogin,
+                      uint64_t commonHash)
+{
+    return claim && claim->login != myLogin && (claim->hash == 0 || claim->hash != commonHash);
 }
 
 const Claim* partnerClaim(const Claims& claims,

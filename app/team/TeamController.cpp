@@ -653,8 +653,7 @@ void TeamController::reserveSelected()
     for (const std::size_t frame : m_host.selectedFrames()) {
         const team::Reservation reservation{document::ComponentKind::Frame,
                                             document->frameMeta(frame).id};
-        if (m_claims && team::partnerClaim(*m_claims, reservation.first, reservation.second,
-                                           m_login.toStdString())) {
+        if (m_claims && blockingClaim(reservation.first, reservation.second)) {
             continue;
         }
         if (std::find(m_reserved.begin(), m_reserved.end(), reservation) == m_reserved.end()) {
@@ -801,11 +800,20 @@ void TeamController::updateSync(bool report)
             input.active = false;
         }
         // What was edited since the last save counts as changed: claimed early.
+        // Without a revision: an edit not saved yet keeps the partners off, even of a
+        // version they merged.
         for (const auto& [kind, id] : m_touched.components) {
-            input.claimed.changed[document::kindIndex(kind)].emplace(id, document::ComponentId{});
+            input.claimed.changed[document::kindIndex(kind)].insert_or_assign(
+                id, document::ComponentId{});
         }
-        input.claimed.orderChanged = input.claimed.orderChanged || m_touched.order;
-        input.claimed.settingsChanged = input.claimed.settingsChanged || m_touched.settings;
+        if (m_touched.order) {
+            input.claimed.orderChanged = true;
+            input.claimed.orderHash = 0;
+        }
+        if (m_touched.settings) {
+            input.claimed.settingsChanged = true;
+            input.claimed.settingsHash = 0;
+        }
         input.reserved = m_reserved;
         input.mergedPackages = team.mergedPackages;
         input.cacheFolder = cacheFolder();
@@ -954,6 +962,19 @@ QString TeamController::claimText(const team::Claim& claim) const
                                 QLocale::ShortFormat));
 }
 
+const team::Claim* TeamController::blockingClaim(document::ComponentKind kind,
+                                                 const document::ComponentId& id) const
+{
+    const document::ProjectDocument* document = m_host.document();
+    if (!m_claims || !document || !document->team()) {
+        return nullptr;
+    }
+    const document::RevisionMap& common = document->team()->common[document::kindIndex(kind)];
+    const auto found = common.find(id);
+    return team::blockingClaim(*m_claims, kind, id, m_login.toStdString(),
+                               found != common.end() ? found->second : document::ComponentId{});
+}
+
 QString TeamController::frameClaimText(std::size_t frameIndex) const
 {
     const document::ProjectDocument* document = m_host.document();
@@ -961,8 +982,7 @@ QString TeamController::frameClaimText(std::size_t frameIndex) const
         return {};
     }
     const team::Claim* claim =
-        team::partnerClaim(*m_claims, document::ComponentKind::Frame,
-                           document->frameMeta(frameIndex).id, m_login.toStdString());
+        blockingClaim(document::ComponentKind::Frame, document->frameMeta(frameIndex).id);
     return claim ? claimText(*claim) : QString();
 }
 
@@ -1043,15 +1063,18 @@ std::optional<QString> TeamController::refusalFor(const Touched& touched) const
     }
     const std::string me = m_login.toStdString();
     for (const auto& [kind, id] : touched.components) {
-        if (const team::Claim* claim = team::partnerClaim(*m_claims, kind, id, me)) {
+        if (const team::Claim* claim = blockingClaim(kind, id)) {
             return claimText(*claim);
         }
     }
-    if (touched.order && m_claims->order && m_claims->order->login != me) {
+    const document::TeamState& team = *m_host.document()->team();
+    if (touched.order &&
+        team::wholeClaimBlocks(m_claims->order, me, team::orderHash(team.commonOrder))) {
         return tr("%1 is moving or deleting frames").arg(
             QString::fromStdString(m_claims->order->login));
     }
-    if (touched.settings && m_claims->settings && m_claims->settings->login != me) {
+    if (touched.settings &&
+        team::wholeClaimBlocks(m_claims->settings, me, team.commonSettingsHash)) {
         return tr("%1 is changing the project's settings").arg(
             QString::fromStdString(m_claims->settings->login));
     }

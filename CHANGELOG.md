@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Teams: a frame (or the frame order, the settings) whose change you have merged is no longer
+  locked for you until the partner merges your next shared changes.
+
 ## 3.99.11
 
 - A team project has a `Team` section in the right side bar: the partners' shared changes
