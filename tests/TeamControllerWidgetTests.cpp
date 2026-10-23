@@ -169,6 +169,11 @@ void testTeamSection()
     expect(texts.size() == 2 && texts[0].startsWith(QStringLiteral("From enthusiast, ")),
            "each shared change says from whom and when");
     expect(panel.checkedText().startsWith(QStringLiteral("Checked at ")), "when it was checked");
+    panel.setAuthorTimes(
+        {QStringLiteral("Kraken74 02:05:10"), QStringLiteral("enthusiast 00:10:00")});
+    expect(panel.authorTimesText() ==
+               QStringLiteral("Time spent: Kraken74 02:05:10, enthusiast 00:10:00"),
+           "each author's time");
     app::TeamPanel::State withNotes = state;
     withNotes.notes[state.pendingPackages[1]].comment = QStringLiteral("Attract mode done");
     QImage avatar(64, 64, QImage::Format_ARGB32);

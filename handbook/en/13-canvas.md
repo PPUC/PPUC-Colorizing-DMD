@@ -92,6 +92,12 @@ was open.) The project time is saved with the project (in its project file, also
 autosave) and goes on from there the next time it is opened; a project made from a dump starts
 at 0. Counting does not mark the project as changed.
 
+The time is also kept per author, under the name a save gives you (`Settings -> Projects -> Your
+name`, in a team project without one your GitHub login); the clock's tool tip lists each
+author's time. In a team project your time goes to the partners with your shared changes, and
+theirs comes with a merge: the project time is then the time all of you spent (see "Working As
+A Team").
+
 The left sidebar is the visual component browser (the frames run along the bottom of the window
 under it and the canvas, see "Frame List"; the right sidebar takes the full height). `Used by the current frame` above its lists shows only the comparison mask,
 the background, the sprites and the scene the current frame uses, and follows the current frame once it has

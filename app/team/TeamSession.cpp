@@ -320,9 +320,11 @@ TeamSession::TeamSession(TeamRemote& remote, QString login)
 {
 }
 
-TeamSession::PreparedShare TeamSession::prepareShare(const document::ProjectDocument& document,
-                                                     int64_t nowMs,
-                                                     const QString& comment) const
+TeamSession::PreparedShare TeamSession::prepareShare(
+    const document::ProjectDocument& document,
+    int64_t nowMs,
+    const QString& comment,
+    const std::map<std::string, uint64_t>& authorTimes) const
 {
     PreparedShare prepared;
     try {
@@ -332,6 +334,7 @@ TeamSession::PreparedShare TeamSession::prepareShare(const document::ProjectDocu
         }
         prepared.package = team::makeChangePackage(document, m_login.toStdString(), nowMs);
         prepared.package->comment = comment.trimmed().toStdString();
+        prepared.package->authorTimes = authorTimes;
     } catch (const std::exception& ex) {
         prepared.error = QString::fromUtf8(ex.what());
         prepared.package.reset();

@@ -46,6 +46,10 @@ A team project has a `Team` section in the right side bar (it is not there for o
 - `Merge Changes...` and `Share My Changes`, as in the `Team` menu, and `Add File...` for
   shared changes that come as a file (see below).
 
+Below the buttons, `Time spent` lists the time each of you spent on the project, as far as the
+shared changes have brought it to your copy: your shared changes carry your time, a merge takes
+the partner's. The project time in the status bar is the sum.
+
 While shared changes wait, the section's header shows a bell and their number, also while the
 section is closed; it goes once they are merged.
 

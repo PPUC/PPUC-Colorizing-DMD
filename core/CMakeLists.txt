@@ -2,6 +2,8 @@ add_library(colorizing_qt_v2_core STATIC
     document/ComponentId.cpp
     document/CompactArray.cpp
     document/EditorMetadata.cpp
+    document/ProjectTime.cpp
+    document/ProjectTime.h
     document/ProjectLicense.cpp
     document/ProjectSnapshot.cpp
     document/Upscale.cpp

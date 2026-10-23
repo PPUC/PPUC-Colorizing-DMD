@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -75,6 +76,8 @@ struct ChangePackage {
     std::vector<document::ComponentId> merged;
     // The author's description of the changes for the partners; may be empty.
     std::string comment;
+    // The time each author spent on the project, as the author's copy knows it (ProjectTime).
+    std::map<std::string, uint64_t> authorTimes;
 
     [[nodiscard]] bool carries(document::ComponentKind kind,
                                const document::ComponentId& id) const;

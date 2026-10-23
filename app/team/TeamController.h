@@ -55,6 +55,10 @@ public:
         std::function<void()> claimsChanged;
         // After what the Team section shows changed (panelState()).
         std::function<void()> teamChanged;
+        // Each author's time spent on the project (ProjectTime), for a shared package, and
+        // the partner's of a merged one.
+        std::function<std::map<std::string, uint64_t>()> authorTimes;
+        std::function<void(const std::map<std::string, uint64_t>&)> mergeAuthorTimes;
     };
 
     TeamController(QWidget* window, Host host);

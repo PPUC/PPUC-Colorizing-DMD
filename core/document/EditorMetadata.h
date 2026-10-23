@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,9 @@ struct EditorMetadata {
     // 64 RGB888 colors per frame imported from a pre-RGB565 project.
     std::vector<uint8_t> importedPalettes;
     uint32_t timeElapsedMs = 0;
+    // The time each author spent on it (ProjectTime.h), by the name saves give them; only in
+    // the project file.
+    std::map<std::string, uint64_t> authorTimeMs;
     uint32_t hasPupPack = 0;
     // UTF-8. A .cRP holds it in UTF-16 (legacyPupPackNameBytes()), a .cRPX in UTF-8.
     std::string pupPackName;

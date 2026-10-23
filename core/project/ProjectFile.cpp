@@ -661,6 +661,9 @@ JsonValue editorJson(const ProjectSnapshot& snapshot)
     }
     root.set("imagePositions", std::move(positions));
     root.set("timeElapsedMs", tables.timeElapsedMs);
+    if (!tables.authorTimeMs.empty()) {
+        root.set("authorTimes", authorTimesJson(tables.authorTimeMs));
+    }
     JsonValue pup = JsonValue::object();
     pup.set("has", tables.hasPupPack);
     pup.set("name", tables.pupPackName);
@@ -1417,6 +1420,35 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
     }
 }
 
+}  // namespace
+
+std::map<std::string, uint64_t> readAuthorTimes(const JsonValue* value)
+{
+    std::map<std::string, uint64_t> times;
+    if (!value) {
+        return times;
+    }
+    for (const auto& [author, ms] : value->members()) {
+        const std::optional<int64_t> number = ms.intValue();
+        if (!number || *number < 0) {
+            throw JsonFormatError("the time of an author is damaged");
+        }
+        times[author] = static_cast<uint64_t>(*number);
+    }
+    return times;
+}
+
+JsonValue authorTimesJson(const std::map<std::string, uint64_t>& times)
+{
+    JsonValue authors = JsonValue::object();
+    for (const auto& [author, ms] : times) {
+        authors.set(author, static_cast<int64_t>(ms));
+    }
+    return authors;
+}
+
+namespace {
+
 void readEditor(const JsonValue& value, ProjectSnapshot& snapshot)
 {
     const JsonObjectReader editor(value, "editor state");
@@ -1467,6 +1499,7 @@ void readEditor(const JsonValue& value, ProjectSnapshot& snapshot)
         }
     }
     tables.timeElapsedMs = static_cast<uint32_t>(editor.integer("timeElapsedMs", 0, UINT32_MAX, 0));
+    tables.authorTimeMs = readAuthorTimes(value.find("authorTimes"));
     if (editor.has("pupPack")) {
         const JsonObjectReader pup = editor.object("pupPack");
         tables.hasPupPack = static_cast<uint32_t>(pup.integer("has", 0, UINT32_MAX, 0));

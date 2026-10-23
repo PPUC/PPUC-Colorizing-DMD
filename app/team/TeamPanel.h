@@ -49,6 +49,10 @@ public:
     explicit TeamPanel(QWidget* parent = nullptr);
 
     void setState(const State& state);
+    // "Kraken74 02:05:10" for each author, most first; the section shows them below the
+    // buttons.
+    void setAuthorTimes(const QStringList& authorTimes);
+    [[nodiscard]] QString authorTimesText() const;
 
     // For tests: the lines of the list of shared changes, and the texts shown.
     [[nodiscard]] QStringList pendingTexts() const;
@@ -72,6 +76,7 @@ private:
     QPushButton* m_mergeButton = nullptr;
     QPushButton* m_shareButton = nullptr;
     QPushButton* m_addFileButton = nullptr;
+    QLabel* m_timesLabel = nullptr;
     bool m_signedIn = false;
 
 protected:

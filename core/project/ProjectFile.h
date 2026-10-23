@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "document/ProjectSnapshot.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectIo.h"
+#include "project/Json.h"
 
 namespace colorizing::project {
 
@@ -43,7 +45,8 @@ namespace colorizing::project {
 //                    since: the entry as it was then, for comparing in a conflict. A save takes
 //                    it from the file it replaces (ProjectFileOptions::baseSourcePath).
 //   editor.json      the editor's state of the project: edit colors, color sets, draw modes,
-//                    image positions, time spent, PuP pack, helper lines, saved image zones.
+//                    image positions, time spent (in all, and per author: authorTimes),
+//                    PuP pack, helper lines, saved image zones.
 //
 // A component entry is a list of fields: char[4] tag, uint32 0, uint64 size, the data (as the
 // chunks of a .cRPX); little endian; a reader skips the tags it does not know. Every entry
@@ -172,6 +175,12 @@ struct KindLoadResult {
 // The project's settings that are no component, as one text for a hash: license, libserum
 // target, scenes and scaling, speaker lights, sections (by frame ID), helper lines.
 [[nodiscard]] std::string settingsContent(const document::ProjectSnapshot& snapshot);
+
+// Each author's time (EditorMetadata::authorTimeMs) as a JSON object of milliseconds by name,
+// in editor.json and in a change package; reading throws JsonFormatError for a damaged one,
+// and gives none for a missing one.
+[[nodiscard]] JsonValue authorTimesJson(const std::map<std::string, uint64_t>& times);
+[[nodiscard]] std::map<std::string, uint64_t> readAuthorTimes(const JsonValue* value);
 
 // Whether the path ends in ".cdmdpkg" (any case).
 [[nodiscard]] bool hasPackageExtension(const std::string& path);

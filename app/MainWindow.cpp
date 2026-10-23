@@ -562,6 +562,11 @@ MainWindow::MainWindow(QWidget* parent)
     teamHost.selectedFrames = [this]() { return selectedFrameIndices(); };
     teamHost.claimsChanged = [this]() { updateFrameStatusText(); };
     teamHost.teamChanged = [this]() { updateTeamSection(); };
+    teamHost.authorTimes = [this]() { return authorTimesMs(); };
+    teamHost.mergeAuthorTimes = [this](const std::map<std::string, uint64_t>& theirs) {
+        m_projectTime.merge(theirs, authorName().toStdString(), sessionTimeMs());
+        updateTimeLabel();
+    };
     m_team = std::make_unique<TeamController>(this, std::move(teamHost));
     createActions();
     createCentralView();
@@ -2613,11 +2618,7 @@ bool MainWindow::saveProject()
     // Every component that changed gets a new revision with the author and the time.
     project::ProjectFileOptions options;
     options.editorVersion = kApplicationVersion.toStdString();
-    // The author's name; in a team project without one, the GitHub login.
-    QString author = loadAuthorName();
-    if (author.isEmpty() && m_team && m_document->team()) {
-        author = m_team->login();
-    }
+    const QString author = authorName();
     options.stamp =
         project::RevisionStamp{author.toStdString(), QDateTime::currentMSecsSinceEpoch()};
     const std::string path = m_projectPath.toStdString();
@@ -2628,6 +2629,7 @@ bool MainWindow::saveProject()
         // The time spent on it goes into the file, not into the project: counting does not
         // change the project.
         snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
+        snapshot.editorMetadata.authorTimeMs = authorTimesMs();
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
             runProjectTask(this, tr("Saving Project"), progress, [&]() {
@@ -4096,6 +4098,7 @@ std::optional<Autosaver::Job> MainWindow::autosaveJob()
     }
     job.snapshot = m_document->toSnapshot();
     job.snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
+    job.snapshot.editorMetadata.authorTimeMs = authorTimesMs();
     return job;
 }
 
@@ -11265,7 +11268,9 @@ void MainWindow::updateRuntimeSceneFile()
 
 void MainWindow::startProjectClock()
 {
-    m_projectTimeAtOpenMs = m_document ? m_document->editorMetadata().timeElapsedMs : 0;
+    m_projectTime.open(m_document ? m_document->editorMetadata().timeElapsedMs : 0,
+                       m_document ? m_document->editorMetadata().authorTimeMs
+                                  : std::map<std::string, uint64_t>{});
     m_sessionClock.restart();
     m_activityClock.start(0);
     m_clockTimer.start();
@@ -11311,16 +11316,32 @@ void MainWindow::noteActivity()
     }
 }
 
+uint64_t MainWindow::sessionTimeMs() const
+{
+    return m_sessionClock.isValid()
+               ? static_cast<uint64_t>(m_activityClock.elapsedMs(m_sessionClock.elapsed()))
+               : 0;
+}
+
 uint32_t MainWindow::projectTimeMs() const
 {
-    if (!m_sessionClock.isValid()) {
-        return m_projectTimeAtOpenMs;
-    }
     // The cRP stores it in 32 bits (Win32 DWORD).
-    const uint64_t total =
-        uint64_t{m_projectTimeAtOpenMs} +
-        static_cast<uint64_t>(m_activityClock.elapsedMs(m_sessionClock.elapsed()));
-    return static_cast<uint32_t>(std::min<uint64_t>(total, 0xffffffffu));
+    return static_cast<uint32_t>(
+        std::min<uint64_t>(m_projectTime.totalMs(sessionTimeMs()), 0xffffffffu));
+}
+
+std::map<std::string, uint64_t> MainWindow::authorTimesMs() const
+{
+    return m_projectTime.authorsMs(authorName().toStdString(), sessionTimeMs());
+}
+
+QString MainWindow::authorName() const
+{
+    QString author = loadAuthorName();
+    if (author.isEmpty() && m_team && m_document && m_document->team()) {
+        author = m_team->login();
+    }
+    return author;
 }
 
 void MainWindow::updateTimeLabel()
@@ -11345,6 +11366,27 @@ void MainWindow::updateTimeLabel()
             .arg(clock(projectTimeMs()),
                  clock(static_cast<uint64_t>(m_activityClock.elapsedMs(now))));
     m_timeLabel->setText(m_activityClock.isPaused(now) ? tr("%1 (paused)").arg(text) : text);
+    // Each author's time, most first.
+    std::vector<std::pair<uint64_t, std::string>> authors;
+    for (const auto& [author, ms] : authorTimesMs()) {
+        authors.emplace_back(ms, author);
+    }
+    std::sort(authors.rbegin(), authors.rend());
+    QStringList perAuthor;
+    for (const auto& [ms, author] : authors) {
+        perAuthor.append(QStringLiteral("%1 %2").arg(QString::fromStdString(author), clock(ms)));
+    }
+    const QString explanation =
+        tr("Time spent on the project (saved with it) and in this session, counted while you "
+           "work on it: the clocks stop after a minute without input");
+    m_timeLabel->setToolTip(
+        perAuthor.isEmpty()
+            ? explanation
+            : explanation + QStringLiteral("\n\n") +
+                  tr("By author: %1").arg(perAuthor.join(QStringLiteral(", "))));
+    if (m_teamPanel) {
+        m_teamPanel->setAuthorTimes(perAuthor);
+    }
 }
 
 void MainWindow::addSourceFrame()

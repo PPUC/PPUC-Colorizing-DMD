@@ -5689,6 +5689,10 @@ Use Create %1 Frame.</source>
         <translation>%1 (angehalten)</translation>
     </message>
     <message>
+        <source>By author: %1</source>
+        <translation>Nach Autor: %1</translation>
+    </message>
+    <message>
         <source>New Frame From Original Colors</source>
         <translation>Neuer Frame aus Originalfarben</translation>
     </message>
@@ -8392,6 +8396,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Eine geteilte Änderung hinzufügen, die ein Partner als Datei geschickt hat (zu groß für GitHub); die Datei hier abzulegen bewirkt dasselbe</translation>
     </message>
     <message>
+        <source>The time each of you spent on the project, as far as your shared changes have brought it here</source>
+        <translation>Die Zeit, die jede und jeder von Ihnen am Projekt gearbeitet hat, soweit Ihre geteilten Änderungen sie hierher gebracht haben</translation>
+    </message>
+    <message>
         <source>Repository %1, signed in as %2</source>
         <translation>Repository %1, angemeldet als %2</translation>
     </message>
@@ -8437,6 +8445,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Merge Changes (%1)...</source>
         <translation>Änderungen zusammenführen (%1)...</translation>
+    </message>
+    <message>
+        <source>Time spent: %1</source>
+        <translation>Aufgewendete Zeit: %1</translation>
     </message>
 </context>
 <context>

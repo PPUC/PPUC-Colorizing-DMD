@@ -5,11 +5,13 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
+#include "document/ProjectTime.h"
 #include "edit/FrameMove.h"
 #include "platform/Utf8Path.h"
 #include "project/ProjectFile.h"
@@ -390,6 +392,58 @@ void testMergedClaimsRelease()
     expect(blocked(claims), "a new version does");
 }
 
+// Each author's time: the session counts for the author, a partner's larger time is taken and
+// the total grows by it; the times go through the project file and a shared change.
+void testAuthorTimes()
+{
+    using Times = std::map<std::string, uint64_t>;
+    document::ProjectTime time;
+    time.open(10000, {{"kraken", 3000}});
+    expect(time.totalMs(500) == 10500 &&
+               time.authorsMs("enthusiast", 500) == Times{{"kraken", 3000}, {"enthusiast", 500}},
+           "the session counts for its author and in the total");
+    expect(time.authorsMs("", 500) == Times{{"kraken", 3000}}, "without a name for nobody");
+    time.merge({{"kraken", 5000}, {"enthusiast", 400}}, "enthusiast", 500);
+    expect(time.totalMs(500) == 12500 &&
+               time.authorsMs("enthusiast", 500) == Times{{"kraken", 5000}, {"enthusiast", 500}},
+           "the partner's larger time is taken, an older one of mine is not");
+    time.merge({{"enthusiast", 500}}, "enthusiast", 800);
+    expect(time.totalMs(800) == 12800, "my own time coming back adds nothing");
+    time.merge({{"enthusiast", 2000}}, "enthusiast", 800);
+    expect(time.totalMs(800) == 14000 &&
+               time.authorsMs("enthusiast", 800).at("enthusiast") == 2000,
+           "my time from another copy of mine is taken too");
+    time.open(100, {{"kraken", 3000}});
+    expect(time.totalMs(0) == 3000, "a total below the authors' sum counts their sum");
+
+    // Through the project file.
+    Team team = startTeam();
+    document::ProjectSnapshot snapshot = team.owner.toSnapshot();
+    snapshot.editorMetadata.authorTimeMs = {{"kraken", 7200000}, {"Ünal", 60000}};
+    const std::string path = tempPath("times.cdmd");
+    const legacy::LegacySaveResult saved =
+        project::saveProjectFile(path, snapshot, project::ProjectFileOptions{"test"});
+    expect(saved.ok, "saved: " + saved.error.message);
+    const auto loaded = project::loadProjectDocument(path);
+    expect(loaded.document &&
+               loaded.document->editorMetadata().authorTimeMs ==
+                   snapshot.editorMetadata.authorTimeMs,
+           "the authors' times go through the project file");
+    std::filesystem::remove(platform::pathFromUtf8(path));
+
+    // Through a shared change.
+    team.owner.setFrameDurationMs(2, 222);
+    save(team.owner, team.ownerPath, "kraken", 2000);
+    team::ChangePackage made = team::makeChangePackage(team.owner, "kraken", 2000);
+    made.authorTimes = {{"kraken", 7200000}};
+    const std::string packagePath = tempPath("times.cdmdchanges");
+    expect(team::writeChangePackage(packagePath, made, "test").ok, "the package is written");
+    const team::ChangePackageLoad read = team::readChangePackage(packagePath);
+    expect(read.package && read.package->authorTimes == made.authorTimes,
+           "and through a shared change");
+    std::filesystem::remove(platform::pathFromUtf8(packagePath));
+}
+
 void runTeamTests()
 {
     testStart();
@@ -399,4 +453,5 @@ void runTeamTests()
     testRefusals();
     testClaims();
     testMergedClaimsRelease();
+    testAuthorTimes();
 }

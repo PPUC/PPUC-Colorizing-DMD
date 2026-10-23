@@ -397,6 +397,9 @@ legacy::LegacySaveResult writeChangePackage(const std::string& path,
     if (!package.comment.empty()) {
         root.set("comment", package.comment);
     }
+    if (!package.authorTimes.empty()) {
+        root.set("authorTimes", project::authorTimesJson(package.authorTimes));
+    }
 
     project::ProjectFileOptions options;
     options.editorVersion = editorVersion;
@@ -457,6 +460,7 @@ ChangePackageLoad readChangePackage(const std::string& path)
             package.merged.push_back(parseId(*text, "the merged packages"));
         }
         package.comment = root.string("comment", "");
+        package.authorTimes = project::readAuthorTimes(value->find("authorTimes"));
         result.package = std::move(package);
     } catch (const project::JsonFormatError& error) {
         result.error = error.what();

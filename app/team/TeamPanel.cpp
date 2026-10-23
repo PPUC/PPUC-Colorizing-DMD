@@ -59,6 +59,11 @@ TeamPanel::TeamPanel(QWidget* parent)
     layout->addWidget(m_pendingList, 1);
     layout->addWidget(m_checkedLabel);
     layout->addLayout(buttons);
+    m_timesLabel = new QLabel(this);
+    m_timesLabel->setWordWrap(true);
+    m_timesLabel->setToolTip(tr("The time each of you spent on the project, as far as your "
+                                "shared changes have brought it here"));
+    layout->addWidget(m_timesLabel);
 
     connect(m_signInButton, &QPushButton::clicked, this, [this]() {
         if (onSignInRequested) {
@@ -173,6 +178,22 @@ void TeamPanel::dropEvent(QDropEvent* event)
         event->acceptProposedAction();
         onAddFileRequested(urls[0].toLocalFile());
     }
+}
+
+void TeamPanel::setAuthorTimes(const QStringList& authorTimes)
+{
+    const QString text = authorTimes.isEmpty()
+                             ? QString()
+                             : tr("Time spent: %1").arg(authorTimes.join(QStringLiteral(", ")));
+    if (m_timesLabel->text() != text) {
+        m_timesLabel->setText(text);
+    }
+    m_timesLabel->setVisible(!text.isEmpty());
+}
+
+QString TeamPanel::authorTimesText() const
+{
+    return m_timesLabel->text();
 }
 
 QStringList TeamPanel::pendingTexts() const

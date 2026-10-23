@@ -141,9 +141,12 @@ public:
         QString error;
         bool nothing = false;
     };
-    [[nodiscard]] PreparedShare prepareShare(const document::ProjectDocument& document,
-                                             int64_t nowMs,
-                                             const QString& comment) const;
+    // authorTimes: each author's time spent on the project, for the partners.
+    [[nodiscard]] PreparedShare prepareShare(
+        const document::ProjectDocument& document,
+        int64_t nowMs,
+        const QString& comment,
+        const std::map<std::string, uint64_t>& authorTimes = {}) const;
     // Sends the prepared package, or with asFile only its notice (the author sends the file
     // another way); then as share().
     void publish(document::ProjectDocument& document,

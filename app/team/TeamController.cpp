@@ -428,7 +428,9 @@ void TeamController::share()
     const std::unique_ptr<TeamRemote> teamRemote = remote();
     TeamSession session(*teamRemote, m_login);
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const TeamSession::PreparedShare prepared = session.prepareShare(*document, nowMs(), comment);
+    const TeamSession::PreparedShare prepared = session.prepareShare(
+        *document, nowMs(), comment,
+        m_host.authorTimes ? m_host.authorTimes() : std::map<std::string, uint64_t>{});
     QApplication::restoreOverrideCursor();
     if (prepared.nothing) {
         m_host.status(tr("Nothing to share: nothing changed since the last merge"), 5000);
@@ -617,6 +619,9 @@ void TeamController::merge()
             total.deleted += counts.deleted;
             total.conflicts += counts.conflicts;
             m_host.record(std::move(command));
+            if (m_host.mergeAuthorTimes) {
+                m_host.mergeAuthorTimes(package->authorTimes);
+            }
             ++merged;
         } catch (const std::exception& ex) {
             QMessageBox::warning(m_window, tr("Merge Changes"), QString::fromUtf8(ex.what()));

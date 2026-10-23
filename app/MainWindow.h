@@ -15,6 +15,7 @@
 
 #include "ActionUndoGroups.h"
 #include "ActivityClock.h"
+#include "document/ProjectTime.h"
 #include "Autosave.h"
 #include "DmdOutput.h"
 #include "EditorPlugins.h"
@@ -505,6 +506,12 @@ private:
     void updateRuntimeSceneFile();
     // The stored total and the time since the project was opened, in ms.
     [[nodiscard]] uint32_t projectTimeMs() const;
+    // The time of this session counted so far, and each author's time with it.
+    [[nodiscard]] uint64_t sessionTimeMs() const;
+    [[nodiscard]] std::map<std::string, uint64_t> authorTimesMs() const;
+    // The name a save gives the author: Settings -> Projects -> Your name, in a team project
+    // without one the GitHub login.
+    [[nodiscard]] QString authorName() const;
     void updateTimeLabel();
     // Edit -> New Frame From Original Colors (Win32 "To Source Frame").
     void addSourceFrame();
@@ -827,7 +834,7 @@ private:
     QTimer m_packTimer;
     qint64 m_lastInputMs = 0;
     qint64 m_nextPackPassMs = 0;
-    uint32_t m_projectTimeAtOpenMs = 0;
+    document::ProjectTime m_projectTime;
     // Input to any of the editor's windows: the clocks go on.
     void noteActivity();
     // The last pixel the mouse pointed at on the canvas, where a new helper line goes.
