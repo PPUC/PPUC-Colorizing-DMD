@@ -8168,6 +8168,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Meine Änderungen teilen</translation>
     </message>
     <message>
+        <source>A short comment for the partners: what you changed, what is still open (optional).</source>
+        <translation>Ein kurzer Kommentar für die Partner: was Sie geändert haben, was noch offen ist (optional).</translation>
+    </message>
+    <message>
         <source>Sharing your changes…</source>
         <translation>Ihre Änderungen werden geteilt…</translation>
     </message>

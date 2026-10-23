@@ -8168,6 +8168,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Partager mes modifications</translation>
     </message>
     <message>
+        <source>A short comment for the partners: what you changed, what is still open (optional).</source>
+        <translation>Un court commentaire pour les partenaires : ce que vous avez modifié, ce qui reste à faire (facultatif).</translation>
+    </message>
+    <message>
         <source>Sharing your changes…</source>
         <translation>Partage de vos modifications…</translation>
     </message>

@@ -7,12 +7,14 @@
 
 #include <cstddef>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
 
 #include "document/ProjectDocument.h"
 #include "edit/EditCommand.h"
+#include "team/Avatars.h"
 #include "team/Claims.h"
 #include "team/GitHub.h"
 #include "team/TeamPanel.h"
@@ -138,6 +140,10 @@ private:
     // Edited since the last save (early claims).
     Touched m_touched;
     std::vector<QString> m_pending;
+    // The comments of the pending packages, by name, as far as they are downloaded.
+    std::map<QString, QString> m_comments;
+    // The partners' avatars for the Team section.
+    std::unique_ptr<AvatarCache> m_avatars;
     // When the background sync last answered for this project.
     std::optional<QDateTime> m_checked;
     // The input the last result must answer; older answers are dropped.

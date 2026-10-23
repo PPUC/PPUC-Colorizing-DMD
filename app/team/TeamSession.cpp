@@ -242,6 +242,7 @@ TeamSession::TeamSession(TeamRemote& remote, QString login)
 
 void TeamSession::share(document::ProjectDocument& document,
                         int64_t nowMs,
+                        const QString& comment,
                         std::function<void(QString error, bool nothingToShare)> done)
 {
     std::optional<team::ChangePackage> package;
@@ -251,6 +252,7 @@ void TeamSession::share(document::ProjectDocument& document,
             return;
         }
         package = team::makeChangePackage(document, m_login.toStdString(), nowMs);
+        package->comment = comment.trimmed().toStdString();
     } catch (const std::exception& ex) {
         done(QString::fromUtf8(ex.what()), false);
         return;

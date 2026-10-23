@@ -1,6 +1,8 @@
 #include "team/TeamPanel.h"
 
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QPixmap>
 #include <QLabel>
 #include <QListWidget>
 #include <QLocale>
@@ -27,6 +29,8 @@ TeamPanel::TeamPanel(QWidget* parent)
     m_pendingList->setToolTip(tr("The partners' shared changes, oldest first; a merge takes "
                                  "them all in this order"));
     m_pendingList->setSelectionMode(QAbstractItemView::NoSelection);
+    m_pendingList->setWordWrap(true);
+    m_pendingList->setIconSize(QSize(28, 28));
     m_checkedLabel = new QLabel(this);
     m_checkedLabel->setWordWrap(true);
     m_mergeButton = new QPushButton(tr("Merge Changes..."), this);
@@ -85,14 +89,24 @@ void TeamPanel::setState(const State& state)
     const QLocale locale;
     for (const QString& name : state.pendingPackages) {
         const std::optional<PackageName> parsed = parsePackageName(name);
-        auto* item = new QListWidgetItem(
+        QString text =
             parsed ? tr("From %1, %2")
                          .arg(parsed->login,
                               locale.toString(QDateTime::fromMSecsSinceEpoch(parsed->createdMs),
                                               QLocale::ShortFormat))
-                   : name,
-            m_pendingList);
-        item->setToolTip(name);
+                   : name;
+        const auto comment = state.comments.find(name);
+        if (comment != state.comments.end()) {
+            text += QLatin1Char('\n') + comment->second;
+        }
+        auto* item = new QListWidgetItem(text, m_pendingList);
+        item->setToolTip(comment != state.comments.end() ? comment->second : name);
+        if (parsed) {
+            const auto avatar = state.avatars.find(parsed->login);
+            if (avatar != state.avatars.end()) {
+                item->setIcon(QIcon(QPixmap::fromImage(avatar->second)));
+            }
+        }
     }
     const auto count = static_cast<int>(state.pendingPackages.size());
     m_pendingLabel->setText(!signedIn   ? QString()
@@ -124,6 +138,12 @@ QStringList TeamPanel::pendingTexts() const
 QString TeamPanel::accountText() const
 {
     return m_accountLabel->text();
+}
+
+bool TeamPanel::hasAvatar(int row) const
+{
+    const QListWidgetItem* item = m_pendingList->item(row);
+    return item && !item->icon().isNull();
 }
 
 QString TeamPanel::checkedText() const

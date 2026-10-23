@@ -68,6 +68,8 @@ struct ChangePackage {
     std::vector<std::pair<std::string, document::ComponentId>> sections;
     // The partners' packages the author had merged.
     std::vector<document::ComponentId> merged;
+    // The author's description of the changes for the partners; may be empty.
+    std::string comment;
 
     [[nodiscard]] bool carries(document::ComponentKind kind,
                                const document::ComponentId& id) const;
@@ -89,5 +91,14 @@ struct ChangePackageLoad {
     std::string error;
 };
 [[nodiscard]] ChangePackageLoad readChangePackage(const std::string& path);
+
+// Who made a package, when, and their comment, read without the components (for a list of
+// the packages waiting); nothing for a file that is no package.
+struct ChangePackageNote {
+    std::string author;
+    int64_t createdMs = 0;
+    std::string comment;
+};
+[[nodiscard]] std::optional<ChangePackageNote> readChangePackageNote(const std::string& path);
 
 }  // namespace colorizing::team

@@ -139,6 +139,7 @@ struct TeamSync::Worker {
             ++next;
         }
         if (next >= result->pendingPackages.size()) {
+            readComments(*result, cache);
             deliver(result);
             return;
         }
@@ -160,6 +161,28 @@ struct TeamSync::Worker {
             }
             download(result, cache, next + 1);
         });
+    }
+
+    // The comments of the downloaded packages, each read once.
+    void readComments(Result& result, const QString& cache)
+    {
+        for (const QString& name : result.pendingPackages) {
+            auto known = comments.find(name);
+            if (known == comments.end()) {
+                const QString path = QDir(cache).filePath(name);
+                if (cache.isEmpty() || !QFileInfo::exists(path)) {
+                    continue;
+                }
+                const std::optional<team::ChangePackageNote> note =
+                    team::readChangePackageNote(path.toStdString());
+                known = comments.emplace(name, note ? QString::fromStdString(note->comment)
+                                                    : QString())
+                            .first;
+            }
+            if (!known->second.isEmpty()) {
+                result.comments.emplace(name, known->second);
+            }
+        }
     }
 
     void deliver(const std::shared_ptr<Result>& result)
@@ -184,6 +207,8 @@ struct TeamSync::Worker {
     bool again = false;
     bool shuttingDown = false;
     QString remoteKey;
+    // The comments of the packages read so far, by name (a name is never reused).
+    std::map<QString, QString> comments;
     std::unique_ptr<TeamRemote> remote;
     std::unique_ptr<TeamSession> session;
     // Last, so that it goes first: its replies are cancelled while the rest is there.

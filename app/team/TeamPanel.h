@@ -2,10 +2,12 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QImage>
 #include <QString>
 #include <QWidget>
 
 #include <functional>
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -30,6 +32,9 @@ public:
         QString repository;
         // The packages' names in packages/ (parsePackageName()), oldest first.
         std::vector<QString> pendingPackages;
+        // Their authors' comments, by name, and the authors' avatars, by login.
+        std::map<QString, QString> comments;
+        std::map<QString, QImage> avatars;
         // When the background sync last answered; nothing before its first answer.
         std::optional<QDateTime> checked;
         // Why the team steps cannot run (a broken lock); empty when they can.
@@ -44,6 +49,7 @@ public:
     [[nodiscard]] QStringList pendingTexts() const;
     [[nodiscard]] QString accountText() const;
     [[nodiscard]] QString checkedText() const;
+    [[nodiscard]] bool hasAvatar(int row) const;
 
     std::function<void()> onSignInRequested;
     std::function<void()> onMergeRequested;

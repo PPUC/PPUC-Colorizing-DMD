@@ -39,8 +39,9 @@ the project's owner.
 A team project has a `Team` section in the right side bar (it is not there for other projects):
 
 - the team's repository and who you are signed in as, or `Sign In To GitHub...`;
-- the partners' shared changes waiting to be merged, oldest first, each with who shared it and
-  when; a double click merges them, as `Merge Changes (2)...` below does;
+- the partners' shared changes waiting to be merged, oldest first, each with who shared it
+  (and their GitHub picture), when, and their comment; a double click merges them, as `Merge
+  Changes (2)...` below does;
 - when the editor last looked for them (`Checked at 14:05:12`);
 - `Merge Changes...` and `Share My Changes`, as in the `Team` menu.
 
@@ -49,10 +50,11 @@ section is closed; it goes once they are merged.
 
 ## Sharing and merging
 
-- `Team -> Share My Changes` saves the project, then sends everything you changed since the
-  last merge (frames, comparison masks, backgrounds, sprites, palettes, the frame order, and the
-  settings: license, scenes, speaker lights, helper lines, sections). Changes are counted per
-  frame (and per mask, background, sprite, palette), not per pixel.
+- `Team -> Share My Changes` saves the project, asks for a short comment for the partners (what you
+  changed, what is still open; it may stay empty), then sends everything you changed since the last
+  merge (frames, comparison masks, backgrounds, sprites, palettes, the frame order, and the
+  settings: license, scenes, speaker lights, helper lines, sections). Changes are counted per frame
+  (and per mask, background, sprite, palette), not per pixel.
 - `Team -> Merge Changes...` takes in the changes the partners shared, oldest first. What only a
   partner changed is taken; new frames come in their place, deleted ones go. The merge is one
   undo step per shared package; it ends the undo histories of the frames it replaced.

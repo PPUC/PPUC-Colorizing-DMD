@@ -3,6 +3,7 @@
 #include <QAction>
 #include <QDateTime>
 #include <QEventLoop>
+#include <QInputDialog>
 #include <QLocale>
 #include <QMenu>
 #include <QMenuBar>
@@ -108,6 +109,7 @@ TeamController::TeamController(QWidget* window, Host host)
     m_sync = std::make_unique<TeamSync>(
         m_context.get(), [this](TeamSync::Result result) { syncDelivered(std::move(result)); },
         kSyncInterval);
+    m_avatars = std::make_unique<AvatarCache>(m_transport, [this]() { notifyTeamChanged(); });
     m_inputDelay.setSingleShot(true);
     m_inputDelay.setInterval(kInputDelayMs);
     QObject::connect(&m_inputDelay, &QTimer::timeout, m_context.get(),
@@ -118,6 +120,7 @@ TeamController::~TeamController()
 {
     // The thread stops before the context its answers go to.
     m_sync.reset();
+    m_avatars.reset();
 }
 
 void TeamController::createMenu(QMenuBar* menuBar)
@@ -393,12 +396,32 @@ void TeamController::share()
     if ((document->isDirty() || m_host.projectPath().isEmpty()) && !m_host.save()) {
         return;
     }
+    bool changed = true;
+    try {
+        changed = !team::changesSinceCommon(*document).empty();
+    } catch (const std::exception&) {
+        // The share says why.
+    }
+    if (!changed) {
+        m_host.status(tr("Nothing to share: nothing changed since the last merge"), 5000);
+        return;
+    }
+    bool accepted = false;
+    const QString comment = QInputDialog::getMultiLineText(
+        m_window, tr("Share My Changes"),
+        tr("A short comment for the partners: what you changed, what is still open "
+           "(optional)."),
+        QString(), &accepted);
+    if (!accepted) {
+        return;
+    }
     const std::unique_ptr<TeamRemote> teamRemote = remote();
     TeamSession session(*teamRemote, m_login);
     QString error;
     bool nothing = false;
     runModal(tr("Sharing your changes…"), [&](std::function<void()> finished) {
-        session.share(*document, nowMs(), [&, finished](QString shareError, bool none) {
+        session.share(*document, nowMs(), comment, [&, finished](QString shareError,
+                                                                 bool none) {
             error = shareError;
             nothing = none;
             finished();
@@ -717,6 +740,7 @@ void TeamController::syncDelivered(TeamSync::Result result)
     m_claims = std::move(result.claims);
     const std::size_t before = m_pending.size();
     m_pending = std::move(result.pendingPackages);
+    m_comments = std::move(result.comments);
     m_checked = QDateTime::currentDateTime();
     notifyTeamChanged();
     if (m_pending.size() > before) {
@@ -760,6 +784,15 @@ TeamPanel::State TeamController::panelState() const
     state.login = m_login;
     state.repository = QString::fromStdString(m_host.document()->team()->repository);
     state.pendingPackages = m_pending;
+    state.comments = m_comments;
+    for (const QString& name : m_pending) {
+        if (const std::optional<PackageName> parsed = parsePackageName(name)) {
+            const QImage avatar = m_avatars->avatar(parsed->login);
+            if (!avatar.isNull()) {
+                state.avatars[parsed->login] = avatar;
+            }
+        }
+    }
     state.checked = m_checked;
     state.problem = teamProblem();
     return state;

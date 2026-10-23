@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -50,6 +51,8 @@ public:
         // The partners' packages not merged yet, oldest first; those that could be downloaded
         // are in the cache.
         std::vector<QString> pendingPackages;
+        // The comments of the downloaded ones, by name; a package without one is left out.
+        std::map<QString, QString> comments;
         QString error;
         // The setInput() call the result answers; an older one's result is outdated.
         uint64_t input = 0;

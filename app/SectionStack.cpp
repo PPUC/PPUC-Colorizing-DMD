@@ -227,9 +227,11 @@ void SectionStack::setSectionBadge(int index, int count, const QString& toolTip)
     if (section.badgeCount == 0) {
         return;
     }
-    // The bell and the count in the accent color, as one picture: a label shows either a
-    // picture or a text.
-    const QColor color = palette().color(QPalette::Highlight);
+    // The bell and the count in amber, bright on a dark header and darker on a light one, as
+    // one picture: a label shows either a picture or a text.
+    const QColor color = section.header->palette().color(QPalette::Button).lightness() < 128
+                             ? QColor(255, 196, 0)
+                             : QColor(200, 110, 0);
     QFont font = section.header->font();
     const int height = QFontMetrics(font).height();
     const QString text = QString::number(section.badgeCount);

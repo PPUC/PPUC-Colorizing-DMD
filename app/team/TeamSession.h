@@ -105,9 +105,11 @@ public:
 
     // Sends the copy's changes as a package; on success the document records it as sent
     // (TeamState::sent) and the claims are brought up to date. The document must be saved;
-    // it is unsaved afterwards (the team state changed).
+    // it is unsaved afterwards (the team state changed). comment: the author's description of
+    // the changes for the partners, may be empty.
     void share(document::ProjectDocument& document,
                int64_t nowMs,
+               const QString& comment,
                std::function<void(QString error, bool nothingToShare)> done);
 
     // The partners' packages this copy has not merged, oldest first.

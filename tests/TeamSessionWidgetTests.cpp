@@ -85,7 +85,7 @@ void testShareAndMerge()
     app::TeamSession partnerSession(remote, QStringLiteral("enthusiast"));
     bool nothing = false;
     QString error = QStringLiteral("unset");
-    ownerSession.share(owner, 1500, [&](QString message, bool none) {
+    ownerSession.share(owner, 1500, QString(), [&](QString message, bool none) {
         error = message;
         nothing = none;
     });
@@ -93,7 +93,8 @@ void testShareAndMerge()
 
     owner.setFrameDurationMs(2, 222);
     save(owner, ownerPath, "kraken", 2000);
-    ownerSession.share(owner, 2000, [&](QString message, bool none) {
+    ownerSession.share(owner, 2000, QStringLiteral(" Durations of the attract mode \n"),
+                       [&](QString message, bool none) {
         error = message;
         nothing = none;
     });
@@ -124,7 +125,8 @@ void testShareAndMerge()
     std::optional<team::ChangePackage> package;
     partnerSession.fetchPackage(pending[0], [&](std::optional<team::ChangePackage> answer,
                                                 QString) { package = std::move(answer); });
-    expect(package.has_value(), "and fetched");
+    expect(package.has_value() && package->comment == "Durations of the attract mode",
+           "and fetched, with the owner's comment, trimmed");
     (void)team::mergeChangePackage(partner, *package, {}, "enthusiast");
     expect(partner.frameDurationMs(2) == 222, "and merged");
     save(partner, partnerPath, "enthusiast", 3000);
@@ -135,7 +137,7 @@ void testShareAndMerge()
 
     partner.setFrameDurationMs(5, 55);
     save(partner, partnerPath, "enthusiast", 4000);
-    partnerSession.share(partner, 4000, [&](QString message, bool) { error = message; });
+    partnerSession.share(partner, 4000, QString(), [&](QString message, bool) { error = message; });
     expect(error.isEmpty(), "the partner shares");
     ownerSession.pendingPackages(owner, [&](std::vector<QString> names, QString) {
         pending = names;
@@ -172,7 +174,7 @@ void testBackgroundSync()
     owner.setFrameDurationMs(2, 222);
     save(owner, ownerPath, "kraken", 2000);
     app::TeamSession ownerSession(remote, QStringLiteral("kraken"));
-    ownerSession.share(owner, 2000, [](QString, bool) {});
+    ownerSession.share(owner, 2000, QStringLiteral("Attract mode"), [](QString, bool) {});
 
     QObject context;
     std::vector<app::TeamSync::Result> results;
@@ -208,6 +210,9 @@ void testBackgroundSync()
     expect(results[0].pendingPackages.size() == 1 &&
                app::TeamSync::cachedPackage(cachePath, results[0].pendingPackages[0]),
            "the owner's package is waiting, downloaded into the cache");
+    expect(results[0].comments.size() == 1 &&
+               results[0].comments.begin()->second == QStringLiteral("Attract mode"),
+           "with the owner's comment");
     QString error;
     expect(app::changePackageFrom(
                *app::TeamSync::cachedPackage(cachePath, results[0].pendingPackages[0]), error)

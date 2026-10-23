@@ -8,6 +8,7 @@
 #include "document/EditorMetadata.h"
 #include "project/Json.h"
 #include "project/ProjectFile.h"
+#include "project/ZipArchive.h"
 
 namespace colorizing::team {
 
@@ -375,6 +376,9 @@ legacy::LegacySaveResult writeChangePackage(const std::string& path,
         merged.push(id.toString());
     }
     root.set("merged", std::move(merged));
+    if (!package.comment.empty()) {
+        root.set("comment", package.comment);
+    }
 
     project::ProjectFileOptions options;
     options.editorVersion = editorVersion;
@@ -434,11 +438,35 @@ ChangePackageLoad readChangePackage(const std::string& path)
             }
             package.merged.push_back(parseId(*text, "the merged packages"));
         }
+        package.comment = root.string("comment", "");
         result.package = std::move(package);
     } catch (const project::JsonFormatError& error) {
         result.error = error.what();
     }
     return result;
+}
+
+std::optional<ChangePackageNote> readChangePackageNote(const std::string& path)
+{
+    project::ZipReader zip(path);
+    const std::optional<std::string> text = zip.read(kChangesEntry);
+    if (!text) {
+        return std::nullopt;
+    }
+    try {
+        const std::optional<JsonValue> value = project::parseJson(*text, nullptr);
+        if (!value) {
+            return std::nullopt;
+        }
+        const JsonObjectReader root(*value, "account of the changes");
+        ChangePackageNote note;
+        note.author = root.string("author", "");
+        note.createdMs = root.integer("created", INT64_MIN, INT64_MAX, 0);
+        note.comment = root.string("comment", "");
+        return note;
+    } catch (const project::JsonFormatError&) {
+        return std::nullopt;
+    }
 }
 
 }  // namespace colorizing::team

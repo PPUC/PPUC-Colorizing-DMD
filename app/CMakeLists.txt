@@ -123,6 +123,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     FrameStatusText.cpp
     FrameStatusText.h
     FramesClipboard.h
+    team/Avatars.cpp
+    team/Avatars.h
     team/GitHub.cpp
     team/GitHub.h
     team/TeamController.cpp

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QBuffer>
 #include <QFormLayout>
 #include <QLabel>
 #include <QStyle>
@@ -25,6 +26,8 @@
 #include "edit/PackageImport.h"
 #include "edit/StructureCommand.h"
 #include "project/ProjectFile.h"
+#include "team/Avatars.h"
+#include "team/GitHub.h"
 #include "team/TeamChanges.h"
 #include "team/TeamController.h"
 #include "team/TeamDialogs.h"
@@ -166,6 +169,18 @@ void testTeamSection()
     expect(texts.size() == 2 && texts[0].startsWith(QStringLiteral("From enthusiast, ")),
            "each shared change says from whom and when");
     expect(panel.checkedText().startsWith(QStringLiteral("Checked at ")), "when it was checked");
+    app::TeamPanel::State withNotes = state;
+    withNotes.comments[state.pendingPackages[1]] = QStringLiteral("Attract mode done");
+    QImage avatar(64, 64, QImage::Format_ARGB32);
+    avatar.fill(Qt::red);
+    withNotes.avatars[QStringLiteral("enthusiast")] = avatar;
+    panel.setState(withNotes);
+    expect(panel.pendingTexts()[1].endsWith(QStringLiteral("\nAttract mode done")) &&
+               !panel.pendingTexts()[0].contains(QLatin1Char('\n')),
+           "a shared change's comment below its line");
+    expect(panel.hasAvatar(0) && panel.hasAvatar(1), "the author's avatar beside it");
+    panel.setState(state);
+    expect(!panel.hasAvatar(0), "no avatar before it is loaded");
     QPushButton* merge = nullptr;
     for (QPushButton* button : panel.findChildren<QPushButton*>()) {
         if (button->text().startsWith(QStringLiteral("Merge Changes"))) {
@@ -181,7 +196,9 @@ void testTeamSection()
     expect(mergeAsked, "the merge button asks for the merge");
 
     // Signed out, the section asks to sign in.
-    panel.setState({QString(), QStringLiteral("o/r"), {}, std::nullopt, QString()});
+    app::TeamPanel::State signedOut;
+    signedOut.repository = QStringLiteral("o/r");
+    panel.setState(signedOut);
     expect(!merge->isEnabled() && panel.accountText().contains(QStringLiteral("sign in")),
            "signed out: no merge, a hint to sign in");
 
@@ -204,6 +221,46 @@ void testTeamSection()
     expect(stack.sectionBadge(index) == 2 && badgeShown(), "the bell while two wait");
     stack.setSectionBadge(index, 0);
     expect(stack.sectionBadge(index) == 0 && !badgeShown(), "merged: the bell goes");
+}
+
+// Answers every request at once with a red square, and keeps the URLs asked for.
+class PictureTransport final : public app::HttpTransport {
+public:
+    void send(const app::HttpRequest& request, std::function<void(app::HttpReply)> done) override
+    {
+        urls.append(request.url.toString());
+        QImage square(80, 80, QImage::Format_RGB32);
+        square.fill(Qt::red);
+        QBuffer buffer;
+        buffer.open(QIODevice::WriteOnly);
+        square.save(&buffer, "PNG");
+        done({200, buffer.data(), QString()});
+    }
+    QStringList urls;
+};
+
+void testAvatars()
+{
+    expect(app::AvatarCache::avatarUrl(QStringLiteral("Kraken74")) ==
+               QUrl(QStringLiteral("https://github.com/Kraken74.png?size=64")),
+           "a login's avatar URL");
+    expect(app::AvatarCache::avatarUrl(QStringLiteral("../x?y")).isEmpty() &&
+               app::AvatarCache::avatarUrl(QStringLiteral("-a")).isEmpty(),
+           "no URL for a text that is no login");
+    PictureTransport transport;
+    int loaded = 0;
+    app::AvatarCache cache(transport, [&loaded]() { ++loaded; });
+    // The answer comes at once here; in the editor it comes later, and avatar() is asked
+    // again when it did.
+    (void)cache.avatar(QStringLiteral("enthusiast"));
+    const QImage avatar = cache.avatar(QStringLiteral("enthusiast"));
+    expect(loaded == 1 && !avatar.isNull() && avatar.width() == app::AvatarCache::kSize,
+           "the avatar is loaded once and kept");
+    expect(qAlpha(avatar.pixel(0, 0)) == 0 &&
+               avatar.pixelColor(avatar.width() / 2, avatar.height() / 2) == QColor(Qt::red),
+           "round: the corners are transparent");
+    (void)cache.avatar(QStringLiteral("../x"));
+    expect(transport.urls.size() == 1, "one request, none for a text that is no login");
 }
 
 void testStartTeamDialog()
@@ -245,5 +302,6 @@ void runTeamControllerWidgetTests()
 {
     testRefusals();
     testTeamSection();
+    testAvatars();
     testStartTeamDialog();
 }

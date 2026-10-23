@@ -6,8 +6,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 ## Next version
 
 - A team project has a `Team` section in the right side bar: the partners' shared changes
-  waiting to be merged, with a bell and their number on its header, and the buttons to merge
-  and to share.
+  waiting to be merged, with their GitHub pictures and comments, a bell and their number on its
+  header, and the buttons to merge and to share. Sharing asks for a short comment.
 - With a selection, one drag of the `Grad` tool fills it with a gradient on every selected
   frame (linear along the drag, or a circle or ellipse around its start), as the Win32 editor's
   gradient draw did; `Ctrl+drag` across the palette colors picks `From` and `To`.
