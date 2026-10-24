@@ -613,6 +613,19 @@ void testFrameListClicks()
     list.stepWithKey(key(Qt::Key_Left, Qt::NoModifier));
     expect(list.currentRow() == 1, "Left goes back");
 
+    // Issue #31: the window keeps the canvas selection when the frame changes by a step key,
+    // and drops it otherwise; it asks the list while the current frame changes.
+    std::vector<bool> stepping;
+    const QMetaObject::Connection watch =
+        QObject::connect(&list, &QListWidget::currentRowChanged, [&list, &stepping](int) {
+            stepping.push_back(list.isSteppingWithKey());
+        });
+    list.stepWithKey(key(Qt::Key_Right, Qt::NoModifier));
+    list.setCurrentRow(5);
+    QObject::disconnect(watch);
+    expect(stepping == std::vector<bool>{true, false} && !list.isSteppingWithKey(),
+           "a step key is told apart from another change of the current frame");
+
     // Esc reduces a selection of several frames to the frame shown.
     for (int row = 1; row <= 3; ++row) {
         list.item(row)->setSelected(true);

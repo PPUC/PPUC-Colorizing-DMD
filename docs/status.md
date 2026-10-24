@@ -754,8 +754,9 @@ not dynamic. All record `SA_COPYMASK` undo steps. Qt: `edit::PlaneSelection`, he
 gradient box is the drawn shape or the selection's bounds). Same gestures; `Ctrl` is Qt's
 ControlModifier (Cmd on macOS) and MetaModifier (the macOS Control key) works too; `W` is tracked
 on the canvas and there is a menu toggle `Select Non-Black Pixels Only`. Deviations, on purpose:
-the selection is dropped on a change of frame, plane, target or background (as the `Sel`
-selection always was; Win32 keeps one global mask); it is not undoable (Win32 records it);
+the selection is dropped on a change of plane, target or background, and on a change of frame
+unless the frames are stepped with Left/Right or several are selected (issue #31; Win32 keeps
+one global mask, which authors found in the way of a paste); it is not undoable (Win32 records it);
 select by color compares the composed colors the canvas shows, dynamic pixels included (Win32:
 stored colors, dynamic pixels skipped) and is also in the menu (`Select By Color`, then a
 click). Selection editing is off in the mask modes and in sprite capture (Win32: colorization

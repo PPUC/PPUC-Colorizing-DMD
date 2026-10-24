@@ -53,7 +53,7 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
         {QKeySequence(QKeySequence::SelectAll)}, &EditMenuActions::onSelectAll,
         QKeySequence::SelectAll);
     add(menu, tr("Select &None"), tr("Clear the selection"),
-        {ctrlShift(Qt::Key_A), ctrl(Qt::Key_D)}, &EditMenuActions::onSelectNone);
+        {ctrl(Qt::Key_D), ctrlShift(Qt::Key_A)}, &EditMenuActions::onSelectNone);
     add(menu, tr("&Invert Selection"), tr("Swap selected and unselected"),
         {ctrlShift(Qt::Key_I)}, &EditMenuActions::onInvertSelection);
     add(menu, tr("Select By &Color"),

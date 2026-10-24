@@ -621,6 +621,8 @@ void testMenuActions()
                    QKeySequence(QKeySequence::SelectAll),
            "standard shortcuts");
     expect(find(QStringLiteral("Select None"))->shortcuts().size() == 2 &&
+               find(QStringLiteral("Select None"))->shortcut() ==
+                   QKeySequence(Qt::CTRL | Qt::Key_D) &&
                find(QStringLiteral("Invert Selection"))->shortcut() ==
                    QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I) &&
                find(QStringLiteral("Black Original To Black"))->shortcut() ==

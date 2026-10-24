@@ -1560,8 +1560,9 @@ void CanvasEditController::showCaptureSelection(std::optional<std::size_t> frame
 {
     std::vector<render::Point> pixels = m_captureSelection.pixels(frameIndex);
     if (pixels.empty()) {
-        // The overlay is shared: the canvas selection, which stays on another frame, shows
-        // again (clearing it hid a selection a Ctrl+click then added to, issue #17).
+        // The overlay is shared: the canvas selection, which may stay on another frame
+        // (issue #31), shows again (clearing it hid a selection a Ctrl+click then added to,
+        // issue #17).
         if (m_selection) {
             showSelection();
         } else {

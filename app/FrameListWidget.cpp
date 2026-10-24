@@ -333,7 +333,10 @@ void FrameListWidget::keyPressEvent(QKeyEvent* event)
         event->accept();
         return;
     }
+    const bool stepping = isFrameStepKey(*event);
+    m_steppingWithKey = stepping;
     QListWidget::keyPressEvent(event);
+    m_steppingWithKey = false;
 }
 
 void FrameListWidget::paintEvent(QPaintEvent* event)

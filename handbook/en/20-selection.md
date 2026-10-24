@@ -9,12 +9,15 @@ histories and make Undo skip over invisible steps). It has an undo of its own in
 `Edit -> Undo Selection` (`Alt+Z`, `Option+Z` on macOS) brings back the selection before its
 last change, whether it was made, added to, cut, inverted, mirrored or dropped, and `Edit ->
 Redo Selection` (`Alt+Shift+Z`) brings back the one undone last. The last 50 changes are kept;
-opening another project starts without them. As in the
-Win32 editor it stays, and stays visible, when another frame is shown (`Select None`,
-`Ctrl/Cmd+D`, drops it), so it can be checked on each frame of a
-selection of frames before copying or pasting (a click on a frame of that selection keeps it, see
-"Frame List"). It is dropped when the SD/HD mode, the paint target or the selected background
-changes.
+opening another project starts without them.
+
+Another frame chosen alone (a click in the strip, a section, a search) drops the selection, so
+that it is not in the way of a paste there; `Undo Selection` brings it back. It stays, and
+stays visible, when the frames are stepped through with `Left` and `Right` (as in the Win32
+editor) and while several frames are selected (a click on a frame of that selection, see "Frame
+List"), so that it can be checked on each of them before copying or pasting. `Select None`
+(`Ctrl/Cmd+D`) drops it at any time. It is also dropped when the SD/HD mode, the paint target
+or the selected background changes.
 
 Making and changing a selection on the frame canvas (frame pixels or, while a background is
 edited with `Edit Background`, the selected background image). It works the same in the `Dynamic` and `Background` modes, on the

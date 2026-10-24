@@ -45,6 +45,9 @@ public:
     [[nodiscard]] static bool isFrameStepKey(const QKeyEvent& event);
     // Steps as the key does in the strip, wherever the focus is.
     void stepWithKey(const QKeyEvent& event);
+    // Whether the current frame changes by such a key now (the canvas selection stays then,
+    // issue #31).
+    [[nodiscard]] bool isSteppingWithKey() const { return m_steppingWithKey; }
     // Esc: a selection of several frames becomes the current frame alone. Returns whether
     // there was one to reduce.
     bool selectCurrentAlone();
@@ -91,6 +94,7 @@ private:
     std::vector<int> m_markedRows;
     int m_shownMarkedRow = -1;
     std::map<int, QImage> m_claimBadges;
+    bool m_steppingWithKey = false;
 };
 
 }  // namespace colorizing::app

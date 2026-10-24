@@ -5741,9 +5741,20 @@ std::vector<std::size_t> MainWindow::selectedFrameIndices() const
 void MainWindow::selectFrame(int)
 {
     m_canvasEdit.cancelFreeGradient();
-    // The canvas selection stays on another frame, as in the Win32 editor: it can be checked
-    // on each frame of a selection before copying.
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    // The canvas selection stays on another frame when the frames are stepped through with
+    // Left or Right (as in the Win32 editor) or several are selected, to check it on each
+    // before copying; another frame chosen alone drops it (issue #31), and Undo Selection
+    // brings it back.
+    const document::ComponentId shownFrame =
+        m_document && frameIndex ? m_document->frameMeta(*frameIndex).id : document::ComponentId{};
+    if (shownFrame != m_shownFrameId) {
+        m_shownFrameId = shownFrame;
+        if (m_canvasEdit.hasSelection() && !(m_frameList && m_frameList->isSteppingWithKey()) &&
+            selectedFrameIndices().size() < 2) {
+            m_canvasEdit.clearSelection(canvasEditContext());
+        }
+    }
     if (!m_document || !frameIndex) {
         setFrameStatusText(QString());
         m_canvasEdit.clearCaptureSelection();

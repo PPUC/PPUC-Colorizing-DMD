@@ -733,6 +733,8 @@ private:
     render::Resolution m_activeResolution = render::Resolution::Sd;
     DrawingTool m_drawingTool = DrawingTool::Point;
     PickToolReturn m_pickToolReturn;
+    // The frame shown last, by its ID: a change of frame may drop the canvas selection.
+    document::ComponentId m_shownFrameId;
     uint16_t m_activeDrawColor = 0xffff;
     // Sprite shown on the Sprite page and in the sprite canvas; -1 once a project has none.
     int m_selectedSpriteIndex = 0;
