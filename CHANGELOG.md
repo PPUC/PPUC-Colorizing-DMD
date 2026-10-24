@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.13
+
 - Another frame chosen alone drops the canvas selection (`Undo Selection` brings it back); it
   stays when stepping with `Left`/`Right` and while several frames are selected (issue #31).
   `Select None` shows `Ctrl+D` in the menu.
