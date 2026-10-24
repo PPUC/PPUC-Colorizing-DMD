@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "document/LibserumTarget.h"
 #include "document/ProjectSnapshot.h"
 #include "legacy/LegacyProjectIo.h"
 
@@ -21,6 +22,15 @@ namespace colorizing::runtime {
 // A path as libserum's char paths take it: on Windows in the ANSI code page, by its short name
 // for other characters; nothing if it cannot be given. The file or folder must exist.
 [[nodiscard]] std::optional<std::string> libserumPath(const std::filesystem::path& path);
+
+// Whether a cROMc written here plays with the libserum the project is made for. A cROMc is
+// tied to the libserum that makes it, here the editor's own (libserumVersion(), the line after
+// 2.8): libserum 2.8 reads none of them and loads nothing. A project for 2.8 ships its .cRZ
+// instead, from which libserum 2.8 makes its own cROMc on the first start.
+[[nodiscard]] constexpr bool cromcFitsTarget(document::LibserumTarget target)
+{
+    return target != document::LibserumTarget::Libserum28;
+}
 
 struct CromcExportResult {
     bool ok = false;

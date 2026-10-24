@@ -183,7 +183,14 @@ The parts lie 15 picture pixels apart with the same dot size, the narrower ones 
 ## Exporting the .cROMc
 
 `File -> Export .cROMc...` writes the file a machine loads, `<rom>.cROMc`, proposed beside the
-project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone:
+project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone.
+
+A `.cROMc` belongs to the libserum that makes it, and the editor's own is newer than 2.8 (`Help ->
+About PPUC Colorizing DMD` names it): libserum 2.8 cannot read such a `.cROMc` and loads nothing. So
+the export is only for projects made for libserum 2.9 (`File -> Project Settings...`). For a project
+made for libserum 2.8 it offers `Export .cRZ...` instead, which is `File -> Export For Earlier
+Editors...` (see "Project Files"): ship the `.cRZ`, and libserum 2.8 makes its own `.cROMc` from it
+on the first start.
 
 - The project is taken as it is in the editor, saved or not, and handed to libserum directly,
   without a `.cROM` on disk. It carries the project's scenes and scaling settings (see "Scenes

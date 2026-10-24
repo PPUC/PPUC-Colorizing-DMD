@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Export .cROMc` refuses a project made for libserum 2.8, which cannot read the editor's
+  `.cROMc`, and offers to export the `.cRZ` instead.
+
 ## 3.99.13
 
 - Another frame chosen alone drops the canvas selection (`Undo Selection` brings it back); it

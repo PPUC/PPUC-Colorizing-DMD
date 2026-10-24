@@ -736,7 +736,8 @@ void MainWindow::createActions()
 
     QAction* exportCromcAction = fileMenu->addAction(tr("Export .cRO&Mc..."));
     exportCromcAction->setToolTip(
-        tr("Write the project's .cROMc as libserum generates it on a machine"));
+        tr("Write the project's .cROMc as libserum generates it on a machine (for projects "
+           "made for libserum 2.9; one for 2.8 ships its .cRZ)"));
     connect(exportCromcAction, &QAction::triggered, this, [this]() {
         exportCromc();
     });
@@ -3482,6 +3483,22 @@ void MainWindow::exportCromc()
 {
     if (!m_document) {
         statusBar()->showMessage(tr("No project loaded"), 2500);
+        return;
+    }
+    if (!runtime::cromcFitsTarget(m_document->libserumTarget())) {
+        QMessageBox box(QMessageBox::Information, tr("Export .cROMc"),
+                        tr("This project is made for libserum 2.8, which cannot read the .cROMc "
+                           "this editor writes: a .cROMc belongs to the libserum that makes it, "
+                           "and the editor's is libserum %1. Ship the project's .cRZ instead; "
+                           "libserum 2.8 makes its own .cROMc from it on the first start.")
+                            .arg(QString::fromStdString(runtime::libserumVersion())),
+                        QMessageBox::Cancel, this);
+        QPushButton* exportCrz = box.addButton(tr("Export .cRZ..."), QMessageBox::AcceptRole);
+        box.setDefaultButton(exportCrz);
+        box.exec();
+        if (box.clickedButton() == exportCrz) {
+            exportForEarlierEditors();
+        }
         return;
     }
     const QString rom = QString::fromStdString(m_document->romName());

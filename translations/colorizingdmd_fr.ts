@@ -2902,7 +2902,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Write the project&apos;s .cROMc as libserum generates it on a machine</source>
-        <translation>Écrire le .cROMc du projet tel que libserum le génère sur une machine</translation>
+        <translation type="vanished">Écrire le .cROMc du projet tel que libserum le génère sur une machine</translation>
     </message>
     <message>
         <source>Export Animated &amp;GIF...</source>
@@ -5240,6 +5240,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Écrire le projet en .cRZ et .cRPX : le .cRZ fonctionne avec libserum 2.8 et 2.9, le .cRPX s&apos;ouvre dans les versions de l&apos;éditeur antérieures au fichier de projet</translation>
     </message>
     <message>
+        <source>Write the project&apos;s .cROMc as libserum generates it on a machine (for projects made for libserum 2.9; one for 2.8 ships its .cRZ)</source>
+        <translation>Écrire le .cROMc du projet tel que libserum le génère sur une machine (pour les projets destinés à libserum 2.9 ; un projet pour 2.8 livre son .cRZ)</translation>
+    </message>
+    <message>
         <source>Import &amp;Package...</source>
         <translation>Importer un &amp;paquet...</translation>
     </message>
@@ -5430,6 +5434,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Exported %1 and %2</source>
         <translation>%1 et %2 exportés</translation>
+    </message>
+    <message>
+        <source>This project is made for libserum 2.8, which cannot read the .cROMc this editor writes: a .cROMc belongs to the libserum that makes it, and the editor&apos;s is libserum %1. Ship the project&apos;s .cRZ instead; libserum 2.8 makes its own .cROMc from it on the first start.</source>
+        <translation>Ce projet est destiné à libserum 2.8, qui ne peut pas lire le .cROMc écrit par cet éditeur : un .cROMc appartient à la libserum qui le génère, et celle de l’éditeur est libserum %1. Livrez plutôt le .cRZ du projet ; libserum 2.8 en génère son propre .cROMc au premier démarrage.</translation>
+    </message>
+    <message>
+        <source>Export .cRZ...</source>
+        <translation>Exporter le .cRZ...</translation>
     </message>
     <message>
         <source>The project has an autosave from %1 that is newer than its file.</source>
