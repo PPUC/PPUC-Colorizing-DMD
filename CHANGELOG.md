@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The color picker opens where and as large as it was left.
+
 ## 3.99.14
 
 - Projects are made for libserum 2.9 and later only: `Project Settings` no longer chooses a

@@ -653,8 +653,33 @@ void testColorRangeDrag()
            "a plain click is a click");
 }
 
+// The palette window (the color picker) opens where and as large as it was left (SoyGre).
+void testColorPickerKeepsItsPlace()
+{
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("ColorPickerPlaceTests"));
+    QSize left;
+    {
+        ColorPickerDialog dialog(0xf800, QStringLiteral("Test"));
+        dialog.show();
+        left = dialog.size() + QSize(120, 80);
+        dialog.resize(left);
+        QApplication::processEvents();
+        dialog.close();
+    }
+    {
+        ColorPickerDialog dialog(0x07e0, QStringLiteral("Test"));
+        expect(dialog.size() == left, "the next one opens as large as it was left");
+    }
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
+}
+
 void runColorWidgetTests()
 {
+    testColorPickerKeepsItsPlace();
     testColorRangeDrag();
     for (PlaneLayout layout :
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {

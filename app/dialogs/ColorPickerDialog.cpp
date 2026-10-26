@@ -22,6 +22,7 @@
 #include <QVBoxLayout>
 
 #include "ColorGridWidget.h"
+#include "WindowGeometry.h"
 #include "document/ProjectDocument.h"
 
 namespace colorizing::app {
@@ -407,6 +408,8 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565,
     layout->addWidget(buttons);
 
     setFromRgb(initial);
+    // It opens where and as large as it was left.
+    keepWindowGeometry(this, QStringLiteral("colorPicker"));
 }
 
 std::optional<uint16_t> ColorPickerDialog::getColor(uint16_t initialRgb565,

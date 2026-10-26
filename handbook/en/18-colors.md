@@ -98,8 +98,8 @@ the number, the name and the colors of each active set, `(inactive)` for the oth
 ## Color picker
 
 Everywhere a color is chosen (edit colors, favorites, palette colors, dynamic colors, the
-dynamic shadow color, color rotation colors) the editor's color picker opens. It has the fields
-of the Win32 picker, all kept in step with each other:
+dynamic shadow color, color rotation colors) the editor's color picker opens, where and as large
+as it was left. It has the fields of the Win32 picker, all kept in step with each other:
 
 - a hue/saturation square and a value bar,
 - `RGB888` as six hex digits,
