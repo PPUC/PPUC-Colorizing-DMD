@@ -461,6 +461,23 @@ QColor originalIndexToColor(uint8_t value, uint32_t colorCount)
 
 namespace {
 
+// The background scene that plays behind the frame, whose options decide more of the picture
+// (Colorize_Framev2 with applySceneBackground): with kSceneOnlyDynamicContent the lit static
+// pixels under the background mask show the scene too (blackOutStaticContent); with
+// kSceneReplaceDynamicBlack a lit dynamic pixel whose set color is black shows it there and
+// casts no shadow, and an unlit one whose set has a color for shade 0 keeps that color
+// (replaceDynamicBlackContent). Nothing when no scene plays behind the frame.
+const document::SceneDefinition* sceneBehind(const document::ProjectDocument& document,
+                                             std::size_t frameIndex,
+                                             bool includeBackgroundLayer)
+{
+    if (!includeBackgroundLayer || !document.backgroundData(frameIndex) ||
+        !document.backgroundSceneFrame(frameIndex)) {
+        return nullptr;
+    }
+    return document.backgroundScene(frameIndex);
+}
+
 // resolvedFramePixel(), and whether the pixel is taken from a dynamic zone's color set.
 uint16_t resolveFramePixel(const document::ProjectDocument& document,
                            std::size_t frameIndex,
@@ -539,21 +556,69 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
         return picture->pixels[rgb565PixelIndex(*picture, x, y)];
     };
 
+    // The options of a background scene playing behind the frame, see sceneBehind().
+    const document::SceneDefinition* scene =
+        hasBackground ? sceneBehind(document, frameIndex, includeBackgroundLayer) : nullptr;
+    const bool staticShowsScene =
+        scene && (scene->options & document::kSceneOnlyDynamicContent) != 0;
+    const bool blackShowsScene =
+        scene && (scene->options & document::kSceneReplaceDynamicBlack) != 0;
+    // Whether the background mask is set at the ROM pixel on the dynamic plane, and at this
+    // pixel on this plane.
+    bool maskedOnDynamicPlane = false;
+    bool maskedOnPlane = false;
+    if (scene) {
+        const document::IndexedFrame& dynamicPlaneMask =
+            extraDynamics ? backgroundData->maskHd : backgroundData->maskSd;
+        maskedOnDynamicPlane = originalIndex < dynamicPlaneMask.pixels.size() &&
+                               dynamicPlaneMask.pixels[originalIndex] != 0;
+        const document::IndexedFrame& planeMask = resolution == render::Resolution::Hd
+                                                       ? backgroundData->maskHd
+                                                       : backgroundData->maskSd;
+        maskedOnPlane = planeMask.pixels[indexedPixelIndex(planeMask, x, y)] != 0;
+    }
+    const auto scenePixel = [&]() -> uint16_t {
+        const document::Rgb565Frame* picture =
+            document.backgroundPicture(frameIndex, resolution, sceneElapsedMs);
+        return picture ? picture->pixels[rgb565PixelIndex(*picture, x, y)] : color;
+    };
+    const bool unlitKeepsColor = blackShowsScene && dynamicZone && originalValue == 0 &&
+                                 dynamicColor && *dynamicColor != 0;
+    const bool blackShowsThrough = blackShowsScene && dynamicZone && originalValue != 0 &&
+                                   dynamicColor && *dynamicColor == 0 && maskedOnDynamicPlane;
+    if (unlitKeepsColor) {
+        fromDynamicZone = true;
+        return *dynamicColor;
+    }
+
     if (scaledDynamics) {
         // The upscaled 128x32 layer lies on top of the 256x64 frame and background. It holds
         // the dynamic zones, except where the 128x32 pass drew the 128x32 background instead
-        // (unlit, 128x32 background mask set): there the 256x64 picture stays.
+        // (unlit, 128x32 background mask set, or black under a scene that lets it through):
+        // there the 256x64 picture stays, the background where the 256x64 mask is set.
         const bool originalPlaneShowsBackground =
             hasBackground && originalValue == 0 && originalIndex <
                                                        backgroundData->maskSd.pixels.size() &&
             backgroundData->maskSd.pixels[originalIndex] != 0;
+        if (blackShowsThrough) {
+            return maskedOnPlane ? scenePixel() : color;
+        }
         if (dynamicZone && !originalPlaneShowsBackground) {
             fromDynamicZone = true;
             return dynamicColor.value_or(color);
         }
-        return backgroundPixel().value_or(color);
+        if (const std::optional<uint16_t> background = backgroundPixel()) {
+            return *background;
+        }
+        return staticShowsScene && !dynamicZone && originalValue != 0 && maskedOnPlane
+                   ? scenePixel()
+                   : color;
     }
 
+    if (blackShowsThrough ||
+        (staticShowsScene && !dynamicZone && originalValue != 0 && maskedOnPlane)) {
+        return scenePixel();
+    }
     if (const std::optional<uint16_t> background = backgroundPixel()) {
         return *background;
     }
@@ -587,7 +652,8 @@ void applyDynamicShadows(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,
                          document::Rgb565Frame& frame,
-                         std::vector<uint8_t>* notRotating)
+                         std::vector<uint8_t>* notRotating,
+                         bool includeBackgroundLayer)
 {
     const std::optional<document::FrameDynamicData>& dynamicData =
         document.dynamicData(frameIndex);
@@ -612,6 +678,17 @@ void applyDynamicShadows(const document::ProjectDocument& document,
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
     const render::ProjectGeometry& geometry = document.geometry();
+    const document::SceneDefinition* scene =
+        sceneBehind(document, frameIndex, includeBackgroundLayer);
+    const bool blackShowsScene =
+        scene && (scene->options & document::kSceneReplaceDynamicBlack) != 0;
+    const document::CompactArray<uint16_t>& setColors =
+        extraDynamics ? dynamicData->colorsHd : dynamicData->colorsSd;
+    const std::size_t setColorCount = setColors.size() / document::kMaxDynamicSetsPerFrame;
+    const document::IndexedFrame* sceneMask =
+        blackShowsScene ? &(extraDynamics ? document.backgroundData(frameIndex)->maskHd
+                                          : document.backgroundData(frameIndex)->maskSd)
+                        : nullptr;
     // Sets that color the SD picture only have neither content nor a shadow on the scaled one.
     const uint32_t offScaledLayer =
         scaledDynamics ? document.effectiveOriginalOnlyDynamicSets(frameIndex) : 0;
@@ -624,10 +701,27 @@ void applyDynamicShadows(const document::ProjectDocument& document,
                                        ? dynamicMask.pixels[originalIndex]
                                        : uint8_t{255};
         if (dynamicSet >= document::kMaxDynamicSetsPerFrame ||
-            original.pixels[originalIndex] == 0 || ((offScaledLayer >> dynamicSet) & 1u) != 0) {
+            ((offScaledLayer >> dynamicSet) & 1u) != 0) {
             return 255;
         }
-        return dynamicSet;
+        const uint8_t shade = original.pixels[originalIndex];
+        if (blackShowsScene) {
+            // Under a background scene that lets black dynamic content through: a pixel that
+            // shows the scene casts no shadow, an unlit one that keeps its color casts one.
+            const std::size_t colorIndex =
+                static_cast<std::size_t>(dynamicSet) * setColorCount + shade;
+            const uint16_t setColor =
+                colorIndex < setColors.size() ? setColors[colorIndex] : uint16_t{0};
+            if (shade == 0) {
+                return setColor != 0 ? dynamicSet : uint8_t{255};
+            }
+            if (setColor == 0 && originalIndex < sceneMask->pixels.size() &&
+                sceneMask->pixels[originalIndex] != 0) {
+                return 255;
+            }
+            return dynamicSet;
+        }
+        return shade == 0 ? uint8_t{255} : dynamicSet;
     };
 
     std::vector<uint8_t> occupied(frame.pixels.size(), 0);
@@ -716,7 +810,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
         }
     }
 
-    applyDynamicShadows(document, frameIndex, resolution, frame, notRotating);
+    applyDynamicShadows(document, frameIndex, resolution, frame, notRotating,
+                        includeBackgroundLayer);
 
     const std::vector<SpriteMatch> matches =
         includeSprites ? matchFrameSprites(document, frameIndex) : std::vector<SpriteMatch>{};

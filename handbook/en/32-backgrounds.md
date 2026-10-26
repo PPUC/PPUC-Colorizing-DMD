@@ -16,7 +16,11 @@ Currently implemented:
   its background mask instead, still, so that nothing moves while you draw; on HD it is upscaled
   as libserum upscales it when the scene frame has no HD picture. While `Play` runs the scene
   plays there, as the color rotations do: its frames of group 1 one after the other, each for
-  the scene's frame duration, in a loop. Such a frame needs no
+  the scene's frame duration, in a loop. The scene's options show as libserum renders them:
+  with `Keep only dynamic content in front` the frame's lit static pixels under the mask show
+  the scene too, and with `Black dynamic pixels show the scene` a lit dynamic pixel whose set
+  color is black shows it there (and casts no shadow), while an unlit one whose set has a color
+  for its shade keeps that color. Such a frame needs no
   background of its own: its mask can be drawn without one, and the editor gives libserum the
   placeholder background libserum needs for it. Opening a project takes the placeholder an
   earlier editor needed off such frames, and the status bar says for how many; the change is

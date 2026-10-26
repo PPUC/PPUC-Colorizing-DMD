@@ -38,6 +38,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Edit -> Copy Frame Settings...` puts chosen settings of the current frame on the other
   selected frames, replacing theirs: dynamic zones, set colors and shadows, background and its
   mask, sprites, color rotations, comparison mask, trigger, lights, duration.
+- The canvas follows a background scene's options `Keep only dynamic content in front` and
+  `Black dynamic pixels show the scene`, as libserum does.
 
 ## 3.99.14
 

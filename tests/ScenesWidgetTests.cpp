@@ -31,6 +31,7 @@
 #include "panels/SceneSettingsForm.h"
 #include "panels/SceneSettingsPanel.h"
 #include "panels/ScenesPanel.h"
+#include "runtime/RuntimePreview.h"
 
 namespace {
 
@@ -404,10 +405,86 @@ void testBackgroundSceneOnTheCanvas()
            "HD: the scene's first frame upscaled");
 }
 
+// The options of a background scene decide more of the picture, as in libserum: with "Keep
+// only dynamic content in front" lit static pixels under the background mask show the scene;
+// with "Black dynamic pixels show the scene" a lit dynamic pixel whose set color is black shows
+// it there, and an unlit one whose set has a color for shade 0 keeps that color. The canvas
+// shows what libserum renders on the SD plane, pixel for pixel.
+void testBackgroundSceneOptionsOnTheCanvas()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
+    runtime_fixtures::assignBackground(snapshot, 0, document::kNoBackgroundId);
+    document::FrameDynamicData& dynamic = runtime_fixtures::addDynamicData(snapshot, 0);
+    // Zone of set 1 over the left half; its shade 1 is black, shade 0 has a color.
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 64; ++x) {
+            dynamic.maskSd.pixels[static_cast<std::size_t>(y) * 128 + x] = 1;
+        }
+    }
+    const std::size_t colors = runtime_fixtures::kColorCount;
+    dynamic.colorsSd[1 * colors + 0] = 0x0841;
+    dynamic.colorsSd[1 * colors + 1] = 0;
+    dynamic.colorsSd[1 * colors + 2] = 0xf800;
+    dynamic.colorsSd[1 * colors + 3] = 0x07e0;
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document::SceneDefinition scene;
+    scene.sceneId = 51500;
+    scene.frameCount = 2;
+    scene.repeat = 1;
+    scene.options = document::kSceneAsBackground | document::kSceneOnlyDynamicContent |
+                    document::kSceneReplaceDynamicBlack;
+    const auto added = edit::addScene(document, scene);
+    document.setTriggerId(0, 51500);
+    const std::size_t first = edit::sceneFrames(document, 51500).front();
+
+    const document::Rgb565Frame canvas =
+        app::composeResolvedFrame(document, 0, render::Resolution::Sd, true);
+    const document::Rgb565Frame& scenePicture =
+        document.colorizedFrame(first, render::Resolution::Sd);
+    const document::IndexedFrame& original = document.originalFrame(0);
+    bool staticChecked = false;
+    bool blackChecked = false;
+    bool unlitChecked = false;
+    for (std::size_t i = 0; i < original.pixels.size(); ++i) {
+        const bool zone = i % 128 < 64;
+        const uint8_t shade = original.pixels[i];
+        if (!zone && shade != 0 && !staticChecked) {
+            expect(canvas.pixels[i] == scenePicture.pixels[i],
+                   "a lit static pixel under the mask shows the scene");
+            staticChecked = true;
+        } else if (zone && shade == 1 && !blackChecked) {
+            expect(canvas.pixels[i] == scenePicture.pixels[i],
+                   "a lit dynamic pixel of a black set color shows the scene");
+            blackChecked = true;
+        } else if (zone && shade == 0 && !unlitChecked) {
+            expect(canvas.pixels[i] == 0x0841, "an unlit dynamic pixel keeps its set color");
+            unlitChecked = true;
+        }
+    }
+    expect(staticChecked && blackChecked && unlitChecked, "the fixture has every case");
+
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    std::string error;
+    expect(preview.openSequence(document, {0}, runtime::PlaneRequest::Rows32, &error),
+           "libserum loads the frame with its scene: " + error);
+    const runtime::RuntimeFrame rendered = preview.renderSequenceFrame(0);
+    preview.close();
+    const runtime::RuntimePlane* plane = rendered.plane(runtime::PlaneRequest::Rows32);
+    std::size_t differing = 0;
+    for (std::size_t i = 0; plane && i < canvas.pixels.size(); ++i) {
+        differing += canvas.pixels[i] != plane->image.pixels[i] ? 1 : 0;
+    }
+    expect(plane && differing == 0,
+           "the canvas shows what libserum renders: " + std::to_string(differing) +
+               " pixels differ");
+}
+
 void runScenesWidgetTests()
 {
     testPanel();
     testBackgroundSceneOnTheCanvas();
+    testBackgroundSceneOptionsOnTheCanvas();
     testThumbnailCaptions();
     testSettingsPanel();
     testProjectSettings();
