@@ -8,9 +8,12 @@ its number (with the name of a section it starts) and a line of compact metadata
 filter are at the left end of the strip; the comparison masks, backgrounds and sprites are
 in the sections on the left of the window (see "Sections").
 
-The mouse wheel moves the strip by one whole frame per turn, so that the first frame shown is
-always shown in full, in the place of frame 0: turning through an animation shows it frame by
-frame in one place. A trackpad's small steps add up to a frame; the scroll bar moves smoothly.
+The mouse wheel moves the strip by one whole frame per turn, so that the first frame shown is always
+shown in full, in the place of frame 0: turning through an animation shows it frame by frame in one
+place. A trackpad's small steps add up to a frame. However else the strip scrolls (the arrow keys,
+the scroll bar), it ends on a whole frame as well; a dragged scroll bar moves smoothly and settles
+on the nearest frame when it is let go. Only at the very end of the strip can the first frame be cut
+off.
 
 In the rest of this handbook "the frame list" is this strip.
 

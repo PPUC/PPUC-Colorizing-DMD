@@ -100,6 +100,13 @@ private:
     bool m_steppingWithKey = false;
     // A trackpad's wheel steps, until they make a turn (120).
     int m_wheelRemainder = 0;
+    // The strip's width of a frame in its content; 0 when it has fewer than two.
+    [[nodiscard]] int stripStep() const;
+    // Puts the strip on a whole frame after it scrolled from `from` (issue #34): going right on
+    // the next frame start, going left on the one before, nearest without a direction.
+    void settleOnFrame(int from, bool nearest);
+    int m_stripValue = 0;
+    bool m_settling = false;
 };
 
 }  // namespace colorizing::app

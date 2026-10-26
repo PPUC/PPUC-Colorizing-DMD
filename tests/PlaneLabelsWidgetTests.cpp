@@ -672,16 +672,31 @@ void testStripWheelStepsByFrame()
     expect(bar->value() == 4 * step, "three turns, three frames");
     wheel(120);
     expect(bar->value() == 3 * step, "a turn up moves one back");
-    // From a place between two frames (the scroll bar dragged), the next turn lands on a frame.
+    // From a place between two frames (the scroll bar held), the next turn lands on a frame.
+    bar->setSliderDown(true);
     bar->setValue(3 * step + step / 3);
     wheel(-120);
     expect(bar->value() == 4 * step, "from between frames to the next whole one");
+    bar->setSliderDown(false);
     // A trackpad's small steps add up to a frame.
     wheel(-40);
     wheel(-40);
     expect(bar->value() == 4 * step, "small steps wait");
     wheel(-40);
     expect(bar->value() == 5 * step, "and move one frame once they make a turn");
+
+    // Any other scrolling ends on a whole frame too: going right on the next frame start (a
+    // frame scrolled into view at the right edge stays in full view), going left on the one
+    // before, a dragged scroll bar where it is let go.
+    bar->setValue(5 * step + step / 3);
+    expect(bar->value() == 6 * step, "scrolled right, on the next frame");
+    bar->setValue(5 * step + step / 3);
+    expect(bar->value() == 5 * step, "scrolled left, on the frame before");
+    bar->setSliderDown(true);
+    bar->setValue(7 * step + step / 4);
+    expect(bar->value() == 7 * step + step / 4, "a dragged scroll bar moves freely");
+    bar->setSliderDown(false);
+    expect(bar->value() == 7 * step, "let go, it settles on the nearest frame");
 }
 
 // Issue #24: the same frames are outlined in the strip and ticked on its scroll bar, and

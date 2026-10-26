@@ -11,8 +11,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   scene a frame is part of.
 - The comparison masks, backgrounds, sprites and scenes on the left show their total beside
   `New` and `Delete`, and how many are listed while `Used by the current frame` is on (issue #37).
-- The mouse wheel moves the frame strip by one whole frame, so the first frame shown is always
-  shown in full (issue #34).
+- The frame strip always ends on a whole frame, so the first frame shown is shown in full: the
+  mouse wheel moves it by one frame, other scrolling settles on the next one (issue #34).
 - The box of a paste is framed by a fine line between the pixels that covers none of them, at
   any zoom (issue #30).
 - `Shadow Next To Selection` and `Grow Selection` have `All Around, Stern Style`: the four

@@ -101,6 +101,20 @@ void FrameListWidget::useStripLayout(QSize gridSize)
     setGridSize(gridSize);
     setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // However it scrolls (a frame clicked or stepped into view, the scroll bar), the strip
+    // ends on a whole frame, as the wheel moves it (issue #34); a dragged scroll bar settles
+    // when it is let go.
+    QScrollBar* bar = horizontalScrollBar();
+    connect(bar, &QScrollBar::valueChanged, this, [this, bar](int value) {
+        const int from = m_stripValue;
+        m_stripValue = value;
+        if (!bar->isSliderDown()) {
+            settleOnFrame(from, false);
+        }
+    });
+    connect(bar, &QScrollBar::sliderReleased, this, [this, bar]() {
+        settleOnFrame(bar->value(), true);
+    });
     // After the view mode and the movement, which turn them off. Drag events go to the
     // viewport, and setDragDropMode() only turns drops on for the list itself: without the
     // viewport's, every drop was refused and the dragged frame went back (issue #15).
@@ -356,9 +370,7 @@ void FrameListWidget::wheelEvent(QWheelEvent* event)
         return;
     }
     QScrollBar* bar = horizontalScrollBar();
-    // Where frame 0 and the next one begin in the strip's content.
-    const int first = visualRect(model()->index(0, 0)).left() + bar->value();
-    const int step = visualRect(model()->index(1, 0)).left() + bar->value() - first;
+    const int step = stripStep();
     if (step <= 0) {
         return;
     }
@@ -368,6 +380,35 @@ void FrameListWidget::wheelEvent(QWheelEvent* event)
     const int shown = turns < 0 ? at / step : (at + step - 1) / step;
     const int row = std::clamp(shown - turns, 0, count() - 1);
     bar->setValue(row * step);
+}
+
+int FrameListWidget::stripStep() const
+{
+    if (count() < 2) {
+        return 0;
+    }
+    // Where frame 0 and the next one begin; the difference does not depend on the scrolling.
+    return std::max(0, visualRect(model()->index(1, 0)).left() -
+                           visualRect(model()->index(0, 0)).left());
+}
+
+void FrameListWidget::settleOnFrame(int from, bool nearest)
+{
+    const int step = stripStep();
+    QScrollBar* bar = horizontalScrollBar();
+    const int value = bar->value();
+    if (m_settling || step <= 0 || flow() != QListView::LeftToRight || isWrapping() ||
+        value % step == 0 || value >= bar->maximum()) {
+        return;
+    }
+    const int before = value - value % step;
+    const int target = nearest          ? (value % step < step / 2 ? before : before + step)
+                       : value > from   ? before + step
+                                        : before;
+    m_settling = true;
+    bar->setValue(std::min(target, bar->maximum()));
+    m_stripValue = bar->value();
+    m_settling = false;
 }
 
 void FrameListWidget::paintEvent(QPaintEvent* event)
