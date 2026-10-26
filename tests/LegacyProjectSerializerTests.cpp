@@ -305,7 +305,10 @@ void testDerivedFieldsAreRecomputed()
     const ProjectSnapshot reloaded = parse(project);
     expect(reloaded.frames[1].colorizedSd.pixels[5] == 0, "SD pixel under dynamic mask is blanked");
     expect(reloaded.frames[1].colorizedSd.pixels[4] == 0x1234, "static SD pixel is kept");
-    expect(reloaded.frames[1].colorizedHd->pixels[6] == 0, "HD pixel under dynamic mask is blanked");
+    // On the HD plane of an ordinary project libserum renders the SD zones and never reads the
+    // HD mask: the HD picture is written as it is.
+    expect(reloaded.frames[1].colorizedHd->pixels[6] == 0x4321,
+           "HD pixel under an HD dynamic mask is kept");
 }
 
 // The header of revision 21 (format version 1): the 256x64 flag, the format version and the
@@ -390,6 +393,23 @@ void test256x64OriginalsRoundTrip()
            "256x64 comparison mask should survive");
     expect(reloaded.frames[0].colorizedSd.size.width == 128, "SD colorized frame stays 128x32");
     expect(serialize(reloaded).crom == project.crom, "256x64 project should reserialize identically");
+
+    // Here the HD plane is the ROM frame's, and libserum renders its dynamic zones: an HD pixel
+    // under the HD dynamic mask is written as 0, as on the SD plane of an ordinary project.
+    ProjectSnapshot withZone = snapshot;
+    FrameDynamicData zone;
+    zone.maskSd = makeIndexedFrame(kSdFrameSize, 255);
+    zone.maskHd = makeIndexedFrame(kHdFrameSize, 255);
+    zone.maskHd.pixels[256 + 3] = 1;
+    zone.colorsSd.assign(32 * kColorCount, 0);
+    zone.colorsHd.assign(32 * kColorCount, 0);
+    zone.shadowDirectionsSd.assign(32, 0);
+    zone.shadowColorsSd.assign(32, 0);
+    zone.shadowDirectionsHd.assign(32, 0);
+    zone.shadowColorsHd.assign(32, 0);
+    withZone.frames[2].dynamicData = zone;
+    expect(parse(serialize(withZone)).frames[2].colorizedHd->pixels[256 + 3] == 0,
+           "a 256x64 pixel under the HD dynamic mask is blanked");
 }
 
 void testSpriteCountChangeSerializes()

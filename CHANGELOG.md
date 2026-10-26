@@ -23,6 +23,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   the color rotations do.
 - The filter above the left sidebar's lists has `Not used by any frame`: the comparison masks,
   backgrounds, sprites and scenes no frame uses, besides `All` and `Used by the current frame`.
+- The HD picture of a frame plays as the canvas shows it: pixels under a stored HD dynamic mask,
+  which nobody sees and the runtime does not use, are no longer given to libserum as black.
 
 ## 3.99.14
 

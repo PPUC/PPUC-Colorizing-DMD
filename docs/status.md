@@ -874,10 +874,13 @@ editor does not offer them.
   dynamic data as it is (mask 255, colors and shadows 0 for a frame that never had any).
   `FrameHdParts::dynamic`, `FrameHdState::dynamic` and `upscaleDynamicMaskToHd()` are gone.
 - Stored HD dynamic data is loaded and written back unchanged.
+- The HD picture of an ordinary project is given to libserum as it is: the rule that writes
+  colorized pixels under a dynamic mask as 0 holds for the plane of the ROM frame only (owner
+  decision 2026-10-26). A stored HD mask, which nobody sees, blacked out HD pixels before.
 - **Not ignored by libserum: HD dynamic shadows.** In layer mode a set without an SD shadow
   direction takes direction and color from the HD shadow tables (`CheckDynaShadow`,
   `GenerateExtraPlaneShadows`). The renderer does the same; the `Dyn` page edits the SD shadow
-  only. See open decision 4.
+  only. See open decision 3.
 - HD color rotations and HD background masks are used by libserum in layer mode (the HD pass
   reads `colorrotations_v2_extra` and `backgroundmask_extra`) and are unchanged in the editor.
 
@@ -930,11 +933,6 @@ one is removed.
    edit or switch it off (only replace it with an SD shadow). Which: (a) leave it, (b) show the
    fallback on the `Dyn` page, or (c) copy the HD shadow into the SD table when the frame is
    first edited?
-4. **HD pixels under a stored HD dynamic mask** are saved as 0. Such a mask can no longer be seen
-   or removed, so HD pixels painted under it are black on a machine where no SD zone covers them
-   (the Runtime view shows it, the canvas does not). `afm_113b`, `trn_174h`, `hook_501` and
-   `smb3` round-trip byte-identical without the rule. Drop the rule for the HD plane of ordinary
-   projects?
 5. **The 15 ms rule.** A frame shorter than 15 ms that is not colorized is saved inactive (as
    Win32); such frames are marked `inactive`. Keep the rule?
 6. **`trn_174h` HD plane.** The canvas differs from libserum in 114,722 pixels of 4,249 frames
@@ -1011,7 +1009,9 @@ As the editor does it now (confirmed by this author):
   (23).
 - Monochrome off on several frames (26), undo of Create/Remove HD (27), frame settings not
   undone in `Dynamic` (28), sections after deleting the last frames (29).
-- HD pixels under hidden HD zones saved as 0 (32, item 4: keep the rule).
+- HD pixels under hidden HD zones saved as 0 (32, item 4: keep the rule); the owner dropped
+  the rule for the HD plane of ordinary projects on 2026-10-26 (GoT-V79 frame 112 lost its HD
+  border under a stale HD mask).
 - A dump with a broken line refused (39), a 4-shade dump in a 16-color project (40), known
   frames left out by default (41), the first save of a new project asks where (42).
 
@@ -1053,8 +1053,6 @@ Asked for a change:
   edges. Frames without HD have no 64-row picture in the editor at all. A frame with HD whose
   background has no HD image is, by libserum's code, rendered like one without HD; the editor
   shows the HD frame (no real project has that case). The Runtime view shows the real picture.
-- An HD pixel painted under a stored HD dynamic mask is saved as 0 and the canvas does not show
-  that, see open decision 4.
 - libserum looks the dynamic pixels of a sprite up in the frame's rotations
   (`Colorize_Spritev2`), unlike the dynamic pixels of a frame, and the editor's preview follows
   it. Whether that is intended is not known.

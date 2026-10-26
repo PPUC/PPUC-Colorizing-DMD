@@ -435,20 +435,19 @@ void testHdDynamicZonesOfOrdinaryProject()
                    .pixels,
            "nor the 128x32 picture");
 
-    // What the stored 256x64 mask still does, through that save rule: a 256x64 pixel painted
-    // under it is written as 0. The canvas shows the painted color until the project is
-    // reopened; libserum, given what a save writes, shows 0 where no zone covers the pixel.
-    // (1, 0) is under the stored mask and outside every 128x32 zone.
+    // A 256x64 pixel painted under the stored 256x64 mask is given to libserum as it is
+    // (that mask once blanked it), so libserum shows it as the canvas does. (1, 0) is under the
+    // stored mask and outside every 128x32 zone.
     ProjectSnapshot paintedUnderStoredMask = snapshot;
     paintedUnderStoredMask.frames[0].dynamicData->maskHd = stored.maskHd;
     const ProjectDocument paintedDocument = ProjectDocument::fromSnapshot(paintedUnderStoredMask);
     const RuntimeFrame saved =
         RuntimePreview::instance().renderFrame(paintedDocument, 0, PlaneRequest::Rows64);
-    expect(saved.ok() && saved.rows64 && at(saved.rows64->image, 1, 0) == 0 &&
+    expect(saved.ok() && saved.rows64 && at(saved.rows64->image, 1, 0) == hdStatic(1, 0) &&
                at(composeResolvedFrame(paintedDocument, 0, Resolution::Hd, true), 1, 0) ==
                    hdStatic(1, 0) &&
                hdStatic(1, 0) != 0,
-           "a 256x64 pixel under the stored 256x64 dynamic mask is saved as 0");
+           "a 256x64 pixel under the stored 256x64 dynamic mask shows in libserum too");
 
     // The one thing libserum does read of them (CheckDynaShadow, GenerateExtraPlaneShadows):
     // a set without a 128x32 shadow direction takes direction and color from the 256x64

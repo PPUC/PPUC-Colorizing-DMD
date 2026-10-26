@@ -57,7 +57,5 @@ at 128x32 once (Scale2x) before putting it on top. The editor doubles pixels ins
 - **A frame with HD whose background has no HD image** is, by libserum's code
   (`HasHdStaticContent()`), rendered like a frame without HD, upscaled from 128x32. The editor
   shows the HD frame without the background. Not measured: none of the real projects has one.
-- **HD pixels painted under a stored HD dynamic mask** are saved as 0, see "Saving". The canvas
-  shows the painted color until the project is reopened.
 
 For all of these the Runtime view with `Runtime Plane: 64 Rows` shows the real picture.

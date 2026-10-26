@@ -272,10 +272,16 @@ void writeCromElement(Writer& writer, const CromContext& c, CromBlock block, std
         case CromBlock::FrameColorsExtra: {
             const auto& frame = snapshot.frames[index];
             if (frame.colorizedHd) {
+                // The HD dynamic mask counts only where HD is the ROM frame's plane. On the HD
+                // plane of an ordinary project libserum renders the SD zones and never reads
+                // the HD mask: a mask stored there would black out the HD picture under it,
+                // which no zone then covers. That plane is written as it is.
                 writeColorizedUnderDynamicMask(
                     writer,
                     *frame.colorizedHd,
-                    frame.dynamicData ? &frame.dynamicData->maskHd : nullptr);
+                    frame.dynamicData && c.nativePlane == render::Resolution::Hd
+                        ? &frame.dynamicData->maskHd
+                        : nullptr);
             } else if (frame.inactiveHd) {
                 writer.u16s(frame.inactiveHd->pixels);
             } else {

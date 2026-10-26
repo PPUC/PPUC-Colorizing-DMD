@@ -128,11 +128,10 @@ Files"):
 - The "active frame" flag is recalculated: a frame shorter than 15 ms stays inactive until it is
   colorized or gets dynamic content. The frame list marks the frames the runtime skips for that
   reason, see "Frame List".
-- Colorized pixels covered by a dynamic mask are written as 0, as the Win32 editor does. On the
-  HD plane of an ordinary project this is the stored HD dynamic mask, which the runtime does not
-  use and the editor does not show (see "Dynamic Masks"): an HD pixel painted under it is still
-  written as 0, and is black on a machine wherever no SD dynamic zone covers it. The Runtime view
-  shows that; the editing canvas shows the painted color.
+- Colorized pixels covered by a dynamic mask are written as 0, as the Win32 editor does, on
+  the plane of the ROM frame. The HD plane of an ordinary project is written as it is: its
+  stored HD dynamic mask is used by neither the runtime nor the editor (see "Dynamic Masks"),
+  so the HD picture plays as the canvas shows it.
 - The 96x32 blocks of a project with 192x64 original frames are written as "no extra data".
 
 ## Exporting an animated GIF

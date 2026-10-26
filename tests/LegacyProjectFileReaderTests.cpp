@@ -650,9 +650,12 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should set second HD presence flag");
     expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[5] == 0xbeef,
            "file writer should update second HD pixels");
-    expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[0] == 0 &&
-               reloadResult.snapshot.frames[1].colorizedHd->pixels[0] == 0,
-           "file writer should blank colorized pixels under dynamic masks");
+    expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[0] == 0,
+           "file writer should blank colorized pixels under SD dynamic masks");
+    // libserum renders the SD zones on the HD plane of an ordinary project and never reads the
+    // HD mask: the HD picture is written as it is.
+    expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[0] == 0xcafe,
+           "file writer should keep HD pixels under an HD dynamic mask");
     expect(reloadResult.snapshot.palettes[0].colors[0] == 0xabcd,
            "file writer should update cRP palette colors");
     expect(reloadResult.snapshot.palettes[1].name == "Edited palette",
