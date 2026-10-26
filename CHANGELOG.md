@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The mouse wheel moves the frame strip by one whole frame, so the first frame shown is always
+  shown in full (issue #34).
 - The box of a paste is framed by a fine line between the pixels that covers none of them, at
   any zoom (issue #30).
 - `Shadow Next To Selection` and `Grow Selection` have `All Around, Stern Style`: the four

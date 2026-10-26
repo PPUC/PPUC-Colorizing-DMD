@@ -8,6 +8,7 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QWheelEvent>
 #include <QAbstractItemView>
 #include <QComboBox>
 #include <QLabel>
@@ -639,6 +640,50 @@ void testFrameListClicks()
     expect(!list.selectCurrentAlone(), "with one frame selected there is nothing to reduce");
 }
 
+// Issue #34: a turn of the mouse wheel moves the strip by one whole frame, so that the first
+// frame shown is always shown in full, where frame 0 begins.
+void testStripWheelStepsByFrame()
+{
+    using colorizing::app::FrameListWidget;
+    FrameListWidget list;
+    list.useStripLayout(QSize(176, 130));
+    list.resize(900, 160);
+    for (int row = 0; row < 60; ++row) {
+        list.addItem(QStringLiteral("frame %1").arg(row));
+    }
+    list.show();
+    QApplication::processEvents();
+    QScrollBar* bar = list.horizontalScrollBar();
+    // Where a frame begins in the strip's content.
+    const auto contentLeft = [&list, bar](int row) {
+        return list.visualRect(list.model()->index(row, 0)).left() + bar->value();
+    };
+    const int step = contentLeft(1) - contentLeft(0);
+    const auto wheel = [&list](int deltaY) {
+        const QPointF at(100, 60);
+        QWheelEvent event(at, list.viewport()->mapToGlobal(at.toPoint()), QPoint(),
+                          QPoint(0, deltaY), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase,
+                          false);
+        QApplication::sendEvent(list.viewport(), &event);
+    };
+    wheel(-120);
+    expect(bar->value() == step, "a turn down moves one frame on");
+    wheel(-360);
+    expect(bar->value() == 4 * step, "three turns, three frames");
+    wheel(120);
+    expect(bar->value() == 3 * step, "a turn up moves one back");
+    // From a place between two frames (the scroll bar dragged), the next turn lands on a frame.
+    bar->setValue(3 * step + step / 3);
+    wheel(-120);
+    expect(bar->value() == 4 * step, "from between frames to the next whole one");
+    // A trackpad's small steps add up to a frame.
+    wheel(-40);
+    wheel(-40);
+    expect(bar->value() == 4 * step, "small steps wait");
+    wheel(-40);
+    expect(bar->value() == 5 * step, "and move one frame once they make a turn");
+}
+
 // Issue #24: the same frames are outlined in the strip and ticked on its scroll bar, and
 // Ctrl+Left and Ctrl+Right look through them while the current frame stays.
 void testMarkedFramesInTheStrip()
@@ -1036,6 +1081,7 @@ void runPlaneLabelsWidgetTests()
     testLazyStripIcons();
     testFrameListClicks();
     testMarkedFramesInTheStrip();
+    testStripWheelStepsByFrame();
     testSectionStackResize();
     testLongComboBoxesScroll();
     testWindowGeometryIsKept();

@@ -85,6 +85,9 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    // In the strip, a turn of the wheel moves by one whole frame (issue #34): the first frame
+    // shown is shown in full, where frame 0 begins, to look through an animation in one place.
+    void wheelEvent(QWheelEvent* event) override;
 
 private:
     // Accepts a drag of the list's own rows and shows where they would go.
@@ -95,6 +98,8 @@ private:
     int m_shownMarkedRow = -1;
     std::map<int, QImage> m_claimBadges;
     bool m_steppingWithKey = false;
+    // A trackpad's wheel steps, until they make a turn (120).
+    int m_wheelRemainder = 0;
 };
 
 }  // namespace colorizing::app

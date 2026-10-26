@@ -8,6 +8,7 @@
 #include <QDropEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QWheelEvent>
 #include <QPainterPath>
 #include <QScrollBar>
 #include <QStyleOptionSlider>
@@ -337,6 +338,36 @@ void FrameListWidget::keyPressEvent(QKeyEvent* event)
     m_steppingWithKey = stepping;
     QListWidget::keyPressEvent(event);
     m_steppingWithKey = false;
+}
+
+void FrameListWidget::wheelEvent(QWheelEvent* event)
+{
+    if (flow() != QListView::LeftToRight || isWrapping() || count() < 2 ||
+        event->modifiers() != Qt::NoModifier) {
+        QListWidget::wheelEvent(event);
+        return;
+    }
+    const QPoint angle = event->angleDelta();
+    m_wheelRemainder += angle.y() != 0 ? angle.y() : angle.x();
+    const int turns = m_wheelRemainder / 120;
+    m_wheelRemainder -= turns * 120;
+    event->accept();
+    if (turns == 0) {
+        return;
+    }
+    QScrollBar* bar = horizontalScrollBar();
+    // Where frame 0 and the next one begin in the strip's content.
+    const int first = visualRect(model()->index(0, 0)).left() + bar->value();
+    const int step = visualRect(model()->index(1, 0)).left() + bar->value() - first;
+    if (step <= 0) {
+        return;
+    }
+    // The frame shown first, the one partly shown counting as passed when going on; a turn
+    // down (negative) goes on.
+    const int at = bar->value();
+    const int shown = turns < 0 ? at / step : (at + step - 1) / step;
+    const int row = std::clamp(shown - turns, 0, count() - 1);
+    bar->setValue(row * step);
 }
 
 void FrameListWidget::paintEvent(QPaintEvent* event)
