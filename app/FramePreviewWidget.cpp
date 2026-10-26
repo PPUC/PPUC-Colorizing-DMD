@@ -1778,13 +1778,23 @@ void FramePreviewWidget::paintPasteOverlay(QPainter& painter,
                       shown,
                       m_renderOptions);
     }
+    // The box's frame on the border around its pixels, a screen pixel wide whatever the zoom
+    // (the painter is scaled): it shows where the box goes without covering a pixel (issue
+    // #30). A dark line under it keeps it visible on light pixels.
     const render::Rect& box = m_pasteOverlay->box;
-    painter.setPen(QPen(QColor(255, 255, 255, 220), 1));
+    const QRectF frame(region.displayRect.x + box.x * scale,
+                       region.displayRect.y + box.y * scale,
+                       box.width * scale,
+                       box.height * scale);
     painter.setBrush(Qt::NoBrush);
-    painter.drawRect(QRectF(region.displayRect.x + box.x * scale,
-                            region.displayRect.y + box.y * scale,
-                            box.width * scale - 1,
-                            box.height * scale - 1));
+    QPen dark(QColor(0, 0, 0, 170), 3.0);
+    dark.setCosmetic(true);
+    painter.setPen(dark);
+    painter.drawRect(frame);
+    QPen light(QColor(255, 255, 255, 230), 1.0);
+    light.setCosmetic(true);
+    painter.setPen(light);
+    painter.drawRect(frame);
     painter.restore();
 }
 

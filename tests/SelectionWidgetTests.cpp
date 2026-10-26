@@ -592,6 +592,48 @@ void testPreviewInterceptAndHover()
     const QImage withOverlay = widget.grab().toImage();
     widget.setPasteOverlay(std::nullopt);
     expect(widget.grab().toImage() != withOverlay, "the paste overlay is drawn");
+
+    // Issue #30: the box's frame is a fine line on the border around the pixels, not a pixel
+    // wide over the box's edge pixels. The widget's pixels of the box's corner pixel (1,1)
+    // change little with an empty box drawn.
+    // Zoomed in around that pixel, where a pixel is many screen pixels wide.
+    std::optional<QPoint> corner;
+    for (int y = 0; y < widget.height() && !corner; ++y) {
+        for (int x = 0; x < widget.width() && !corner; ++x) {
+            const std::optional<CanvasHit> hit = widget.hitTestAt(QPoint(x, y));
+            if (hit && hit->region == CanvasRegion::ColorizedFrame && hit->x == 1 &&
+                hit->y == 1) {
+                corner = QPoint(x, y);
+            }
+        }
+    }
+    expect(corner.has_value(), "the box's corner pixel is shown");
+    widget.setZoom(8.0, *corner);
+    const QImage plain = widget.grab().toImage();
+    CanvasPasteOverlay frameOnly;
+    frameOnly.box = colorizing::render::Rect{1, 1, 3, 3};
+    widget.setPasteOverlay(frameOnly);
+    const QImage framed = widget.grab().toImage();
+    widget.setPasteOverlay(std::nullopt);
+    int cellPixels = 0;
+    int changed = 0;
+    const qreal ratio = framed.devicePixelRatio();
+    for (int y = 0; y < widget.height(); ++y) {
+        for (int x = 0; x < widget.width(); ++x) {
+            const std::optional<CanvasHit> hit = widget.hitTestAt(QPoint(x, y));
+            if (!hit || hit->region != CanvasRegion::ColorizedFrame || hit->x != 1 ||
+                hit->y != 1) {
+                continue;
+            }
+            ++cellPixels;
+            const QPoint at(static_cast<int>(x * ratio), static_cast<int>(y * ratio));
+            changed += framed.pixel(at) != plain.pixel(at) ? 1 : 0;
+        }
+    }
+    widget.resetZoom();
+    expect(cellPixels > 400 && changed * 4 < cellPixels,
+           "the paste box's frame covers little of its edge pixel: " +
+               std::to_string(changed) + " of " + std::to_string(cellPixels));
 }
 
 void testMenuActions()

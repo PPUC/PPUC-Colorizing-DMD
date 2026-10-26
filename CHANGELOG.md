@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The box of a paste is framed by a fine line between the pixels that covers none of them, at
+  any zoom (issue #30).
 - `Shadow Next To Selection` and `Grow Selection` have `All Around, Stern Style`: the four
   sides without the corners; the shadows all around have `Alt+S` (Stern style) and `Alt+Shift+S`
   (issue #35).
