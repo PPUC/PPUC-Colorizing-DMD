@@ -129,6 +129,14 @@ void testNativePlane(PlaneLayout layout)
     expect(exact.size() == 1 && exact[0].frameX == 30 && exact[0].frameY == 8 &&
                exact[0].width == kSpriteWidth && exact[0].height == kSpriteHeight,
            "a sprite that fills its search area is found");
+    // libserum renders a scene's frames without looking for sprites (Check_Spritesv2 does not
+    // run for a scene frame request): none is found on such a frame, whatever its original.
+    ProjectDocument asSceneFrame = document;
+    asSceneFrame.setSceneFrame(3, colorizing::document::SceneFrameRef{50001, 1, 0});
+    expect(matchFrameSprites(asSceneFrame, 3).empty() &&
+               composeResolvedFrame(asSceneFrame, 3, native, true).pixels ==
+                   composeResolvedFrame(asSceneFrame, 3, native, true, nullptr, false).pixels,
+           "no sprite is found or drawn on a frame of a scene");
     const std::vector<SpriteMatch> shape = matchFrameSprites(document, 4);
     expect(shape.size() == 2 && shape[0].spriteIndex == 1 && shape[0].frameX == 90 &&
                shape[1].spriteIndex == 0,

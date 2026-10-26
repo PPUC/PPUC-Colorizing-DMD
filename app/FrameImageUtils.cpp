@@ -165,6 +165,9 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
                                            std::size_t frameIndex)
 {
     std::vector<SpriteMatch> matches;
+    if (document.sceneFrame(frameIndex)) {
+        return matches;
+    }
     const std::vector<document::FrameSpriteReference>& references =
         document.frameSpriteReferences(frameIndex);
     // Sprites are detected on the original frame at its own resolution, as libserum does.

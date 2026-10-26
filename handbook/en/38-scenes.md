@@ -101,6 +101,12 @@ What one line of a `<rom>.pup.csv` says:
 The window says how many frames the scene has in the project and why it cannot be taken (an ID
 another scene has), and `OK` waits until it can.
 
+## Sprites
+
+libserum renders the frames of a scene without looking for sprites, so the canvas draws none on
+them either, also where a sprite assigned to such a frame matches its original (the scene
+marker).
+
 ## The frame strip
 
 A frame of a scene says so below its thumbnail: `Scene 1001 (3)` for its third frame, with

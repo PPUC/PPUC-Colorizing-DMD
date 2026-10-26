@@ -35,7 +35,8 @@ struct SpriteMatch {
 };
 
 // The sprites of the frame's sprite slots that are in its ROM frame, in the order they are
-// drawn. Follows libserum's Check_Spritesv2().
+// drawn. Follows libserum's Check_Spritesv2(). None for a frame of a scene: libserum renders a
+// scene's frames without looking for sprites.
 [[nodiscard]] std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& document,
                                                          std::size_t frameIndex);
 
