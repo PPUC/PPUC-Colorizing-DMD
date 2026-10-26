@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "legacy/CrpxFile.h"
 #include "legacy/CrpxFormat.h"

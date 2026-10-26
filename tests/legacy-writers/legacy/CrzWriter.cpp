@@ -1,10 +1,15 @@
 #include "legacy/CrzWriter.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <ctime>
 #include <fstream>
+#include <functional>
 #include <memory>
+#include <streambuf>
+#include <string>
+#include <vector>
 
 #include <miniz/miniz.h>
 
