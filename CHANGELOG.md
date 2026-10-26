@@ -17,7 +17,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - On Windows 11 the editor uses Qt's Fusion style; `-style windows11` brings Windows 11's back.
 - A frame that starts a background scene needs no placeholder background any more: its
   background mask lets the scene through without one, and the canvas shows the scene's first
-  frame there instead of the placeholder.
+  frame there instead of the placeholder. Opening a project takes the placeholder off such
+  frames.
 - While `Play` runs, the background scene plays through the background mask on the canvas, as
   the color rotations do.
 

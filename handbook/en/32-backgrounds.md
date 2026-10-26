@@ -18,8 +18,10 @@ Currently implemented:
   plays there, as the color rotations do: its frames of group 1 one after the other, each for
   the scene's frame duration, in a loop. Such a frame needs no
   background of its own: its mask can be drawn without one, and the editor gives libserum the
-  placeholder background libserum needs for it. A placeholder assigned in an earlier editor is
-  kept and no longer needed.
+  placeholder background libserum needs for it. Opening a project takes the placeholder an
+  earlier editor needed off such frames, and the status bar says for how many; the change is
+  saved with the project. A background stays where libserum shows it after the scene has
+  ended: a scene that is not looped and ends black or on the frame before.
 - The Inspector has two background sections, each shown on its own canvas: `Frame Background`
   on the frame canvas (the selected background, `Assign Background`, `Remove Background`, `Frame -> Background`,
   `Background -> Frame`, `Edit Background`) and `Background` while the background is edited (the selected

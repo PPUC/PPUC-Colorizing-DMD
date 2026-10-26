@@ -62,5 +62,11 @@ SidecarImport importColorizationSidecars(document::ProjectDocument& document,
 // takes a frame's HD picture only together with its background's). Returns the number of
 // frames that got it.
 std::size_t addSceneBackgroundPlaceholders(document::ProjectSnapshot& snapshot);
+// Takes the background off every frame that starts a background scene: the placeholder the
+// editors before needed for it (see above). Only where libserum never shows it: the scene
+// loops, or it keeps its last frame as the background when it has played (no finish mode,
+// no timed hold). After a scene that ends black or on the frame before, libserum shows the
+// background's image; that one stays. Returns the number of frames.
+std::size_t removeSceneBackgroundPlaceholders(document::ProjectDocument& document);
 
 }  // namespace colorizing::runtime

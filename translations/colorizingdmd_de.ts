@@ -5471,6 +5471,13 @@ Use Create %1 Frame.</source>
         <source>Opened the files of an earlier editor: Save writes the project as a project file (.cdmd); %1 and %2 stay as they are</source>
         <translation>Dateien eines früheren Editors geöffnet: „Speichern“ schreibt das Projekt als Projektdatei (.cdmd); %1 und %2 bleiben, wie sie sind</translation>
     </message>
+    <message numerus="yes">
+        <source>The placeholder background of %n frame(s) that start a background scene is removed; they show the scene without it</source>
+        <translation>
+            <numerusform>Der Platzhalter-Hintergrund von %n Frame, der eine Hintergrundszene startet, ist entfernt; er zeigt die Szene ohne ihn</numerusform>
+            <numerusform>Der Platzhalter-Hintergrund von %n Frames, die eine Hintergrundszene starten, ist entfernt; sie zeigen die Szene ohne ihn</numerusform>
+        </translation>
+    </message>
     <message>
         <source>A project of %1 that has no project file yet has an autosave from %2.</source>
         <translation>Ein Projekt von %1 ohne Projektdatei hat eine automatische Sicherung vom %2.</translation>

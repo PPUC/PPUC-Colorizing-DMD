@@ -334,4 +334,24 @@ std::size_t addSceneBackgroundPlaceholders(document::ProjectSnapshot& snapshot)
     return given;
 }
 
+std::size_t removeSceneBackgroundPlaceholders(document::ProjectDocument& document)
+{
+    std::size_t removed = 0;
+    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
+        const std::optional<document::FrameBackgroundData>& data = document.backgroundData(frame);
+        const document::SceneDefinition* scene = document.backgroundScene(frame);
+        if (!scene || !data || data->backgroundId == document::kNoBackgroundId) {
+            continue;
+        }
+        const bool loops = scene->repeat == 1;
+        const bool keepsLastFrame = (scene->options & document::kSceneFinishModeMask) == 0 &&
+                                    !(scene->autoStartSeconds > 0 && !scene->interruptable);
+        if (loops || keepsLastFrame) {
+            document.setBackgroundId(frame, document::kNoBackgroundId);
+            ++removed;
+        }
+    }
+    return removed;
+}
+
 }  // namespace colorizing::runtime

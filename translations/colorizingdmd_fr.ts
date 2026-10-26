@@ -5471,6 +5471,13 @@ Utiliser Créer la frame %1.</translation>
         <source>Opened the files of an earlier editor: Save writes the project as a project file (.cdmd); %1 and %2 stay as they are</source>
         <translation>Fichiers d&apos;un éditeur précédent ouverts : « Enregistrer » écrit le projet comme fichier de projet (.cdmd) ; %1 et %2 restent tels quels</translation>
     </message>
+    <message numerus="yes">
+        <source>The placeholder background of %n frame(s) that start a background scene is removed; they show the scene without it</source>
+        <translation>
+            <numerusform>L&apos;arrière-plan de substitution de %n frame qui démarre une scène d&apos;arrière-plan est retiré ; elle montre la scène sans lui</numerusform>
+            <numerusform>L&apos;arrière-plan de substitution de %n frames qui démarrent une scène d&apos;arrière-plan est retiré ; elles montrent la scène sans lui</numerusform>
+        </translation>
+    </message>
     <message>
         <source>A project of %1 that has no project file yet has an autosave from %2.</source>
         <translation>Un projet de %1 qui n&apos;a pas encore de fichier de projet a une sauvegarde automatique du %2.</translation>

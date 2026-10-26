@@ -412,6 +412,43 @@ void testBackgroundSceneWithoutBackground()
            "libserum shows the scene there");
 }
 
+// Opening a project takes the placeholder background off the frames that start a background
+// scene; other frames keep theirs.
+void testPlaceholderBackgroundsRemoved()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    const std::size_t background = runtime_fixtures::addBackground(snapshot);
+    runtime_fixtures::assignBackground(snapshot, 0, background);
+    runtime_fixtures::assignBackground(snapshot, 1, background);
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document::SceneDefinition scene = makeScene(50800, 2, 1);
+    scene.options = document::kSceneAsBackground;
+    const auto added = edit::addScene(document, scene);
+    const auto plain = edit::addScene(document, makeScene(50801, 1, 1));
+    document.setTriggerId(0, 50800);
+    document.setTriggerId(1, 50801);
+    expect(runtime::removeSceneBackgroundPlaceholders(document) == 1 &&
+               document.backgroundId(0) == document::kNoBackgroundId &&
+               document.backgroundId(1) == background && document.hasBackgroundSource(0),
+           "the frame that starts the background scene loses its placeholder, the other not");
+    expect(runtime::removeSceneBackgroundPlaceholders(document) == 0, "once only");
+
+    // A scene played once that ends black: libserum shows the background after it.
+    document::SceneDefinition once = makeScene(50802, 2, 1);
+    once.options = document::kSceneAsBackground | document::kSceneBlackWhenFinished;
+    once.repeat = 0;
+    const auto onceAdded = edit::addScene(document, once);
+    document.setTriggerId(1, 50802);
+    expect(runtime::removeSceneBackgroundPlaceholders(document) == 0 &&
+               document.backgroundId(1) == background,
+           "a background shown after the scene has ended stays");
+    once.options = document::kSceneAsBackground;
+    const auto changed = edit::changeScene(document, 50802, once);
+    expect(runtime::removeSceneBackgroundPlaceholders(document) == 1,
+           "one that keeps its last frame as the background is removed");
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -423,4 +460,5 @@ void runSceneEditTests()
     testFramesStartingScene();
     testLegacySlotsFilledUp();
     testBackgroundSceneWithoutBackground();
+    testPlaceholderBackgroundsRemoved();
 }

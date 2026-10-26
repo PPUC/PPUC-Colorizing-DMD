@@ -4024,6 +4024,17 @@ bool MainWindow::takeLoadedProject(legacy::LegacyDocumentLoadResult result,
         m_projectPath = projectPath;
         m_sourcePath = sourcePath;
         sidecarNote = importColorizationSidecars();
+        // Frames that start a background scene need no placeholder background any more.
+        if (const std::size_t placeholders =
+                runtime::removeSceneBackgroundPlaceholders(*m_document)) {
+            const QString note =
+                tr("The placeholder background of %n frame(s) that start a background scene is "
+                   "removed; they show the scene without it",
+                   "",
+                   static_cast<int>(placeholders));
+            sidecarNote = sidecarNote.isEmpty() ? note
+                                                : QStringLiteral("%1. %2").arg(sidecarNote, note);
+        }
         if (recovered) {
             // What the autosave holds is not in the project file.
             m_document->markUnsaved();
