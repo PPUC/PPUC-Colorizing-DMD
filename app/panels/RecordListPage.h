@@ -8,6 +8,7 @@
 #include <QString>
 #include <QWidget>
 
+class QLabel;
 class QListWidget;
 class QToolButton;
 
@@ -22,6 +23,12 @@ struct RecordListPageState {
     bool hasSource = true;
     bool hasSelection = false;
 };
+
+// The count beside New and Delete (issue #37): "Total: 12", or "3 of 12" while the list shows
+// only some (Used by the current frame).
+[[nodiscard]] QString recordCountText(int shown, int total);
+// The rows of the list that are not hidden.
+[[nodiscard]] int shownRows(const QListWidget& list);
 
 // A page of the left browser: the list of the comparison masks, backgrounds or sprites with
 // New and Delete above it. The list and what it shows belong to the owner; the page only
@@ -38,6 +45,9 @@ public:
     // New is enabled while the project can hold another record, Delete while one is
     // selected.
     void refresh(const RecordListPageState& state);
+    // The count again, after the list's filter hid or showed rows.
+    void updateCount();
+    [[nodiscard]] QString countText() const;
 
     // New, Delete and the list, in the order the Tab key follows.
     [[nodiscard]] std::vector<QWidget*> tabOrder() const;
@@ -49,6 +59,10 @@ private:
     QListWidget* m_list = nullptr;
     QToolButton* m_newButton = nullptr;
     QToolButton* m_deleteButton = nullptr;
+    QLabel* m_countLabel = nullptr;
+    // The project's records, as the last refresh() gave them.
+    std::size_t m_total = 0;
+    bool m_hasProject = false;
 };
 
 }  // namespace colorizing::app

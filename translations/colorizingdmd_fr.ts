@@ -6740,12 +6740,24 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
 <context>
     <name>RecordListPage</name>
     <message>
+        <source>Total: %1</source>
+        <translation>Total : %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation>%1 sur %2</translation>
+    </message>
+    <message>
         <source>New</source>
         <translation>Nouveau</translation>
     </message>
     <message>
         <source>Delete</source>
         <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>How many there are in the project; while only those used by the current frame are listed, how many of them are</source>
+        <translation>Combien le projet en contient ; tant que seuls ceux utilisés par la frame courante sont listés, combien d’entre eux le sont</translation>
     </message>
 </context>
 <context>
@@ -7356,6 +7368,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Shadow offset</source>
         <translation type="vanished">Décalage de l&apos;ombre</translation>
+    </message>
+    <message>
+        <source>How many scenes the project has; while only the current frame&apos;s is listed, how many of them are</source>
+        <translation>Combien de scènes le projet contient ; tant que seule celle de la frame courante est listée, combien d’entre elles le sont</translation>
     </message>
     <message>
         <source>%1 — %2 × %3 frames, %4 ms</source>

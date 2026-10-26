@@ -12,6 +12,7 @@
 #include "LazyListIcons.h"
 #include "PlaneLabels.h"
 #include "ThumbnailCaptions.h"
+#include "panels/RecordListPage.h"
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
 #include "runtime/Scenes.h"
@@ -77,6 +78,10 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     buttons->addWidget(m_addButton);
     buttons->addWidget(m_deleteButton);
     buttons->addStretch(1);
+    m_countLabel = new QLabel(this);
+    m_countLabel->setToolTip(tr("How many scenes the project has; while only the current "
+                                "frame's is listed, how many of them are"));
+    buttons->addWidget(m_countLabel);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -161,6 +166,18 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
     m_note->setVisible(!m_note->text().isEmpty());
     m_filling = false;
     updateButtons();
+    updateCount();
+}
+
+void ScenesPanel::updateCount()
+{
+    m_countLabel->setText(m_hasProject ? recordCountText(shownRows(*m_list), m_list->count())
+                                       : QString());
+}
+
+QString ScenesPanel::countText() const
+{
+    return m_countLabel->text();
 }
 
 std::optional<uint16_t> ScenesPanel::selectedScene() const
@@ -179,6 +196,7 @@ void ScenesPanel::showOnlyScene(bool filtered, std::optional<uint16_t> sceneId)
         item->setHidden(filtered &&
                         (!sceneId || item->data(Qt::UserRole).toInt() != static_cast<int>(*sceneId)));
     }
+    updateCount();
 }
 
 void ScenesPanel::selectScene(uint16_t sceneId)

@@ -41,6 +41,8 @@ public:
     // "Used by the current frame": only the scene given (none: no scene) is listed; filtered
     // false: every scene.
     void showOnlyScene(bool filtered, std::optional<uint16_t> sceneId);
+    // The count beside New and Delete (recordCountText()).
+    [[nodiscard]] QString countText() const;
     // The thumbnails (each scene's first frame) no longer show the frames: rebuilt when in view.
     void refreshThumbnails();
     // For tests: builds the thumbnails of every row now.
@@ -66,6 +68,8 @@ private:
     bool m_hasProject = false;
     bool m_supportsScenes = false;
     bool m_filling = false;
+    void updateCount();
+    QLabel* m_countLabel = nullptr;
 };
 
 }  // namespace colorizing::app

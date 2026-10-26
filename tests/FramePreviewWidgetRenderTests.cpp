@@ -3933,6 +3933,25 @@ void testRecordListPage()
     expect(newButton->isEnabled() && !deleteButton->isEnabled(),
            "record list page should offer New for an empty list");
 
+    // Issue #37: the count beside the buttons, and how many the filter leaves.
+    for (int row = 0; row < 3; ++row) {
+        list->addItem(QStringLiteral("record %1").arg(row));
+    }
+    state.recordCount = 3;
+    page.refresh(state);
+    expect(page.countText() == QStringLiteral("Total: 3"), "the records in all");
+    list->item(0)->setHidden(true);
+    list->item(2)->setHidden(true);
+    page.updateCount();
+    expect(page.countText() == QStringLiteral("1 of 3"), "how many the filter leaves");
+    state.hasProject = false;
+    page.refresh(state);
+    expect(page.countText().isEmpty(), "no count without a project");
+    list->clear();
+    state.hasProject = true;
+    state.recordCount = 0;
+    page.refresh(state);
+
     newButton->click();
     state.hasSelection = true;
     page.refresh(state);

@@ -6740,12 +6740,24 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
 <context>
     <name>RecordListPage</name>
     <message>
+        <source>Total: %1</source>
+        <translation>Gesamt: %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation>%1 von %2</translation>
+    </message>
+    <message>
         <source>New</source>
         <translation>Neu</translation>
     </message>
     <message>
         <source>Delete</source>
         <translation>Löschen</translation>
+    </message>
+    <message>
+        <source>How many there are in the project; while only those used by the current frame are listed, how many of them are</source>
+        <translation>Wie viele es im Projekt gibt; solange nur die vom aktuellen Frame verwendeten aufgelistet sind, wie viele davon</translation>
     </message>
 </context>
 <context>
@@ -7356,6 +7368,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Shadow offset</source>
         <translation type="vanished">Schattenversatz</translation>
+    </message>
+    <message>
+        <source>How many scenes the project has; while only the current frame&apos;s is listed, how many of them are</source>
+        <translation>Wie viele Szenen das Projekt hat; solange nur die des aktuellen Frames aufgelistet ist, wie viele davon</translation>
     </message>
     <message>
         <source>%1 — %2 × %3 frames, %4 ms</source>

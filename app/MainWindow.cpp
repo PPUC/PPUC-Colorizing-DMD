@@ -5463,6 +5463,11 @@ void MainWindow::applyAssetFilter()
     apply(m_maskList, masks);
     apply(m_backgroundList, backgrounds);
     apply(m_spriteList, sprites);
+    for (RecordListPage* page : {m_maskPage, m_backgroundPage, m_spritePage}) {
+        if (page) {
+            page->updateCount();
+        }
+    }
     if (m_scenesPanel) {
         const std::optional<document::SceneFrameRef>& scene =
             hasFrame ? m_document->sceneFrame(*frame) : std::nullopt;
