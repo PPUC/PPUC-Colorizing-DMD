@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.15
+
 - `Ctrl+X` switches between SD and HD, as in the Win32 editor (`View -> Switch SD/HD`).
 - The scenes are listed by their IDs.
 - The color picker opens where and as large as it was left.
