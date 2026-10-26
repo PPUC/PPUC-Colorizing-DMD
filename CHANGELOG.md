@@ -8,6 +8,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Ctrl+X` switches between SD and HD, as in the Win32 editor (`View -> Switch SD/HD`).
 - The scenes are listed by their IDs.
 - The color picker opens where and as large as it was left.
+- Each file dialog starts in the folder its kind of file was last opened from: projects, frame
+  dumps, images, movie clips and packages each have their own.
 
 ## 3.99.14
 

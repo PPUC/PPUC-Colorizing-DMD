@@ -72,6 +72,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     PasteModeController.cpp
     PasteModeController.h
     PickToolReturn.h
+    RecentFolders.cpp
+    RecentFolders.h
     PlaneLabels.cpp
     PlaneLabels.h
     RuntimeView.cpp

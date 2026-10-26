@@ -17,6 +17,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "RecentFolders.h"
+
 namespace colorizing::app {
 
 namespace {
@@ -312,9 +314,11 @@ void DumpImportDialog::chooseFile()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Choose Frame Dump"),
-        QFileInfo(dumpPath()).absolutePath(),
+        dumpPath().isEmpty() ? RecentFolders::folder(RecentFolders::kFrameDumps, QString())
+                             : QFileInfo(dumpPath()).absolutePath(),
         frameDumpFileFilter());
     if (!path.isEmpty()) {
+        RecentFolders::remember(RecentFolders::kFrameDumps, path);
         setDumpPath(path);
     }
 }

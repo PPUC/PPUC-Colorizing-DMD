@@ -11,6 +11,7 @@
 #include <QWheelEvent>
 #include <QAbstractItemView>
 #include <QComboBox>
+#include <QDir>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QListWidget>
@@ -42,6 +43,7 @@
 #include "panels/FramePanel.h"
 #include "panels/SpritePanel.h"
 #include "PlaneLabels.h"
+#include "RecentFolders.h"
 #include "SectionStack.h"
 
 using colorizing::document::ProjectDocument;
@@ -805,6 +807,37 @@ void testWindowGeometryIsKept()
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
 
+// Each kind of file dialog starts in the folder its kind was last opened from, also after a
+// restart; a folder that is gone falls back.
+void testRecentFoldersPerKind()
+{
+    namespace folders = colorizing::app::RecentFolders;
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("RecentFoldersTests"));
+    const QString fallback = QStringLiteral("/fallback");
+    expect(folders::folder(folders::kImages, fallback) == fallback,
+           "nothing stored: the fallback");
+    QDir(directory.path()).mkpath(QStringLiteral("images"));
+    QDir(directory.path()).mkpath(QStringLiteral("dumps"));
+    const QString images = QDir(directory.path()).absoluteFilePath(QStringLiteral("images"));
+    const QString dumps = QDir(directory.path()).absoluteFilePath(QStringLiteral("dumps"));
+    folders::remember(folders::kImages, images + QStringLiteral("/title.png"));
+    folders::remember(folders::kFrameDumps, dumps + QStringLiteral("/txt.gz"));
+    folders::remember(folders::kFrameDumps, QString());
+    expect(folders::folder(folders::kImages, fallback) == images, "the images' folder");
+    expect(folders::folder(folders::kFrameDumps, fallback) == dumps,
+           "the dumps' own folder, a cancelled dialog changes nothing");
+    expect(folders::folder(folders::kMovieClips, fallback) == fallback,
+           "a kind not opened yet has the fallback");
+    QDir(images).removeRecursively();
+    expect(folders::folder(folders::kImages, fallback) == fallback,
+           "a folder that is gone: the fallback");
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
+}
+
 // Issue #23: a combo box with more entries than it shows drops down a list that scrolls; the
 // popup of Fusion and the Windows styles showed all of them and ran past the screen.
 void testLongComboBoxesScroll()
@@ -1100,5 +1133,6 @@ void runPlaneLabelsWidgetTests()
     testSectionStackResize();
     testLongComboBoxesScroll();
     testWindowGeometryIsKept();
+    testRecentFoldersPerKind();
     testSectionStackArrangement();
 }

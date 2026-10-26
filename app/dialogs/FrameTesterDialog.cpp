@@ -22,6 +22,7 @@
 #include "FrameImageUtils.h"
 #include "Appearance.h"
 #include "FramePictureView.h"
+#include "RecentFolders.h"
 #include "SpeakerLightView.h"
 #include "dialogs/ProjectTaskDialog.h"
 #include "legacy/LegacyProjectIo.h"
@@ -187,8 +188,11 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     connect(&m_rotationTimer, &QTimer::timeout, this, [this]() { rotateStep(); });
     connect(loadButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(
-            this, tr("Load Frame Dump"), QString(), frameDumpFileFilter());
+            this, tr("Load Frame Dump"),
+            RecentFolders::folder(RecentFolders::kFrameDumps, QString()),
+            frameDumpFileFilter());
         if (!path.isEmpty()) {
+            RecentFolders::remember(RecentFolders::kFrameDumps, path);
             loadDumpFile(path);
         }
     });

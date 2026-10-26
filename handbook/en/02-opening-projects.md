@@ -3,6 +3,12 @@
 Use `File -> Open Project...` and select a project file (`.cdmd`), or the files of an earlier
 editor: a `.cROM` or a `.cRZ`.
 
+Each kind of file dialog starts in the folder that kind of file was last opened from, also after
+a restart: projects, frame dumps (`New Project From Dump...`, `Add Frames From Dump...` and the
+frame tester), images (into frames and into backgrounds), movie clips and packages each have
+their own. Until one was opened, or when that folder is gone, the dialog starts in the folder
+of the open project, for frame dumps in the folder the last dump came from.
+
 If the open project has unsaved changes, `Open Project...`, an entry of `Open Recent`, `New
 Project From Dump...`, `Quit` and closing the window ask first: `Save` writes the project (a
 project without a project file asks where to first) and goes on only if it was written,

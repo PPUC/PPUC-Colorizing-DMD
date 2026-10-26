@@ -86,6 +86,7 @@
 #include "vpx/VpxHost.h"
 #include "ListSelection.h"
 #include "PlaneLabels.h"
+#include "RecentFolders.h"
 #include "SpriteEditorWidget.h"
 #include "Translations.h"
 #include "dialogs/AboutDialog.h"
@@ -2492,7 +2493,7 @@ void MainWindow::openProject()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Open Project"),
-        projectFolder(),
+        RecentFolders::folder(RecentFolders::kProjects, projectFolder()),
         tr("Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
            "Colorizing DMD project (*.cdmd);;"
            "Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;"
@@ -2500,6 +2501,7 @@ void MainWindow::openProject()
     if (path.isEmpty()) {
         return;
     }
+    RecentFolders::remember(RecentFolders::kProjects, path);
     if (isProjectFilePath(path)) {
         loadProject(path);
         return;
@@ -2811,11 +2813,13 @@ void MainWindow::importPackageFile()
         return;
     }
     const QString path = QFileDialog::getOpenFileName(
-        this, tr("Import Package"), projectFolder(),
+        this, tr("Import Package"),
+        RecentFolders::folder(RecentFolders::kPackages, projectFolder()),
         tr("Colorizing DMD package (*.cdmdpkg);;All files (*)"));
     if (path.isEmpty()) {
         return;
     }
+    RecentFolders::remember(RecentFolders::kPackages, path);
     importPackageFrom(path);
 }
 
@@ -3017,7 +3021,7 @@ void MainWindow::newProjectFromDump()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Choose Frame Dump For New Project"),
-        m_dumpDirectory,
+        RecentFolders::folder(RecentFolders::kFrameDumps, m_dumpDirectory),
         frameDumpFileFilter());
     if (path.isEmpty()) {
         return;
@@ -3029,6 +3033,7 @@ void MainWindow::newProjectFromDump()
         return;
     }
     m_dumpDirectory = QFileInfo(dialog.dumpPath()).absolutePath();
+    RecentFolders::remember(RecentFolders::kFrameDumps, dialog.dumpPath());
     importing::DumpImportResult dump = dialog.takeResult();
     const QString summary = dumpCountsText(dump, false);
     try {
@@ -3073,7 +3078,7 @@ void MainWindow::addFramesFromDump()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Choose Frame Dump To Add"),
-        m_dumpDirectory,
+        RecentFolders::folder(RecentFolders::kFrameDumps, m_dumpDirectory),
         frameDumpFileFilter());
     if (path.isEmpty()) {
         return;
@@ -3088,6 +3093,7 @@ void MainWindow::addFramesFromDump()
         return;
     }
     m_dumpDirectory = QFileInfo(dialog.dumpPath()).absolutePath();
+    RecentFolders::remember(RecentFolders::kFrameDumps, dialog.dumpPath());
     importing::DumpImportResult dump = dialog.takeResult();
     const QString summary = dumpCountsText(dump, true);
     try {
@@ -3600,11 +3606,13 @@ void MainWindow::importImageIntoSelectedFrames()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Import Image Into Selected Frames"),
-        projectFolder().isEmpty() ? QDir::homePath() : projectFolder(),
+        RecentFolders::folder(RecentFolders::kImages,
+                              projectFolder().isEmpty() ? QDir::homePath() : projectFolder()),
         tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
     if (path.isEmpty()) {
         return;
     }
+    RecentFolders::remember(RecentFolders::kImages, path);
     const QImage image(path);
     if (image.isNull()) {
         QMessageBox::critical(this, tr("Import Failed"), tr("Could not read image file."));
@@ -3643,12 +3651,14 @@ void MainWindow::importMovieIntoSelectedFrames()
     const QString path = QFileDialog::getOpenFileName(
         this,
         tr("Import Movie Clip Into Selected Frames"),
-        projectFolder().isEmpty() ? QDir::homePath() : projectFolder(),
+        RecentFolders::folder(RecentFolders::kMovieClips,
+                              projectFolder().isEmpty() ? QDir::homePath() : projectFolder()),
         tr("Movies (*.mp4 *.m4v *.mov *.mkv *.avi *.webm *.mpg *.mpeg *.wmv *.flv *.gif);;"
            "All files (*)"));
     if (path.isEmpty()) {
         return;
     }
+    RecentFolders::remember(RecentFolders::kMovieClips, path);
     VideoClip clip;
     QString error;
     if (!clip.open(path, &error)) {
@@ -6767,11 +6777,13 @@ void MainWindow::importImageIntoSelectedBackground()
     }
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Import Background Image"),
-        projectFolder().isEmpty() ? QDir::homePath() : projectFolder(),
+        RecentFolders::folder(RecentFolders::kImages,
+                              projectFolder().isEmpty() ? QDir::homePath() : projectFolder()),
         tr("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
     if (path.isEmpty()) {
         return;
     }
+    RecentFolders::remember(RecentFolders::kImages, path);
     const QImage image(path);
     if (image.isNull()) {
         QMessageBox::critical(this, tr("Import Failed"), tr("Could not read image file."));
