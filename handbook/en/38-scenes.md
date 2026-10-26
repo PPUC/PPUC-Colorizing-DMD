@@ -14,9 +14,10 @@ The project file keeps the scenes and which frame is which frame of which scene.
 
 ## The Scenes section
 
-The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: a thumbnail of the scene's first frame
-in the project (with the blue `HD` badge when that frame has HD data), and below it the scene ID, the groups and frames, the frame duration,
-`background` for a background scene and how many of its frames are missing in the project.
+The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: a thumbnail
+of the scene's first frame in the project (with the blue `HD` badge when that frame has HD data),
+and below it the scene ID, the groups and frames, the frame duration, `background` for a background
+scene and how many of its frames are missing in the project. The scenes are listed by their IDs.
 
 - `New` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,

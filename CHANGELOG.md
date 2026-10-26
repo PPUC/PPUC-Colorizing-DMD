@@ -5,6 +5,7 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The scenes are listed by their IDs.
 - The color picker opens where and as large as it was left.
 
 ## 3.99.14

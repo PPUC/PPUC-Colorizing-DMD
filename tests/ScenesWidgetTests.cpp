@@ -109,6 +109,18 @@ void testPanel()
     expect(!list->item(0)->icon().isNull(),
            "a scene has the thumbnail of its first frame");
 
+    // Sorted by ID, whatever order they were added in (SoyGre).
+    scene.sceneId = 50002;
+    scene.options = 0;
+    auto second = edit::addScene(document, scene);
+    scene.sceneId = 50001;
+    auto third = edit::addScene(document, scene);
+    panel.setProject(&document);
+    expect(list->count() == 3 && list->item(0)->data(Qt::UserRole).toInt() == 50001 &&
+               list->item(1)->data(Qt::UserRole).toInt() == 50002 &&
+               list->item(2)->data(Qt::UserRole).toInt() == 51001,
+           "the scenes are listed by their IDs");
+
     document::ProjectDocument native = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::NativeOriginal, 2));
     panel.setProject(&native);

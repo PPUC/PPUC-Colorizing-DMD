@@ -1,5 +1,8 @@
 #include "panels/ScenesPanel.h"
 
+#include <algorithm>
+#include <vector>
+
 #include <QAbstractItemView>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -130,7 +133,13 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
         document ? document->colorizationSettings().value_or(document::ColorizationSettings{})
                  : document::ColorizationSettings{};
     int selectedRow = -1;
-    for (const document::SceneDefinition& scene : settings.scenes) {
+    // By their IDs, whatever order the project has them in.
+    std::vector<document::SceneDefinition> scenes = settings.scenes;
+    std::sort(scenes.begin(), scenes.end(),
+              [](const document::SceneDefinition& a, const document::SceneDefinition& b) {
+                  return a.sceneId < b.sceneId;
+              });
+    for (const document::SceneDefinition& scene : scenes) {
         const std::vector<std::size_t> sceneFrames =
             document ? edit::sceneFrames(*document, scene.sceneId) : std::vector<std::size_t>{};
         const int frames = static_cast<int>(sceneFrames.size());
