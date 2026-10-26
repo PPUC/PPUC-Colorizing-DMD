@@ -23,6 +23,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/HelperLines.cpp
     edit/PlaneSelection.cpp
     edit/RecolorHelpers.cpp
+    edit/AssetUse.cpp
     edit/SameFrames.cpp
     edit/SceneEdits.cpp
     edit/DocumentStateCommand.cpp

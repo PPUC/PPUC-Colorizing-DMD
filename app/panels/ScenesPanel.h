@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <set>
 
 class QLabel;
 class QListWidgetItem;
@@ -41,6 +42,9 @@ public:
     // "Used by the current frame": only the scene given (none: no scene) is listed; filtered
     // false: every scene.
     void showOnlyScene(bool filtered, std::optional<uint16_t> sceneId);
+    // Only the scenes given are listed (filtered false: every scene), e.g. those no frame
+    // starts ("Not used by any frame").
+    void showOnlyScenes(bool filtered, const std::set<uint16_t>& sceneIds);
     // The count beside New and Delete (recordCountText()).
     [[nodiscard]] QString countText() const;
     // The thumbnails (each scene's first frame) no longer show the frames: rebuilt when in view.

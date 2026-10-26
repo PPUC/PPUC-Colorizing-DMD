@@ -103,6 +103,11 @@ void testPanel()
     expect(!list->item(0)->isHidden(), "the current frame's scene stays listed");
     panel.showOnlyScene(true, std::nullopt);
     expect(list->item(0)->isHidden(), "a frame of no scene lists none");
+    // "Not used by any frame": the scenes given.
+    panel.showOnlyScenes(true, {uint16_t{51001}});
+    expect(!list->item(0)->isHidden(), "a scene given stays listed");
+    panel.showOnlyScenes(true, {});
+    expect(list->item(0)->isHidden(), "none given lists none");
     panel.showOnlyScene(false, std::nullopt);
     expect(!list->item(0)->isHidden(), "unfiltered, every scene is listed");
     // The scene's thumbnail: its first frame.

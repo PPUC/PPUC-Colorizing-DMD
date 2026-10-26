@@ -25,6 +25,7 @@
 #include "EditHelpersController.h"
 #include "PasteModeController.h"
 #include "document/ProjectDocument.h"
+#include "edit/AssetUse.h"
 #include "edit/DrawingTools.h"
 #include "edit/FrameMove.h"
 #include "edit/SameFrames.h"
@@ -608,8 +609,10 @@ private:
     void updateFrameListItems(const std::vector<std::size_t>& frameIndices);
     void updateFrameListItemText(std::size_t frameIndex);
     void refreshComponentBrowsers();
-    // Hides the masks, backgrounds and sprites the current frame does not use while the left
-    // sidebar's "Used by the current frame" is on (rows stay: a list's row is its record).
+    // The left sidebar's filter of its lists (rows stay hidden, a list's row is its record):
+    // every asset, those the current frame uses, or those no frame uses.
+    enum class AssetFilter { All = 0, CurrentFrame = 1, Unused = 2 };
+    [[nodiscard]] AssetFilter assetFilter() const;
     void applyAssetFilter();
     // The mask's picture in the left sidebar: the current frame's original under it.
     [[nodiscard]] QIcon maskIcon(std::size_t maskIndex) const;
@@ -708,7 +711,10 @@ private:
     QToolButton* m_runtimeViewButton = nullptr;
     QToolButton* m_loopPlaybackButton = nullptr;
     QCheckBox* m_useProjectTimingCheckBox = nullptr;
-    QCheckBox* m_currentFrameAssetsCheckBox = nullptr;
+    QComboBox* m_assetFilterComboBox = nullptr;
+    // What the frames use, for AssetFilter::Unused, and the document revision it is of.
+    std::optional<edit::AssetUse> m_assetUse;
+    uint64_t m_assetUseRevision = 0;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;
     QComboBox* m_backgroundComboBox = nullptr;
     std::vector<QToolButton*> m_toolButtons;

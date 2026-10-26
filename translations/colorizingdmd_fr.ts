@@ -3523,7 +3523,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>List only the comparison mask, the background and the sprites of the current frame</source>
-        <translation>Ne lister que le masque de comparaison, l&apos;arrière-plan et les sprites de la frame courante</translation>
+        <translation type="vanished">Ne lister que le masque de comparaison, l&apos;arrière-plan et les sprites de la frame courante</translation>
     </message>
     <message>
         <source>Drop to assign %1 %2 to the %3 selected frame(s)</source>
@@ -5294,6 +5294,18 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Team</source>
         <translation>Équipe</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>Tous</translation>
+    </message>
+    <message>
+        <source>Not used by any frame</source>
+        <translation>Utilisés par aucune frame</translation>
+    </message>
+    <message>
+        <source>Which comparison masks, backgrounds, sprites and scenes the lists show: all, those of the current frame, or those no frame uses</source>
+        <translation>Quels masques de comparaison, arrière-plans, sprites et scènes les listes montrent : tous, ceux de la frame courante ou ceux qu&apos;aucune frame n&apos;utilise</translation>
     </message>
     <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>

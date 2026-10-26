@@ -3523,7 +3523,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>List only the comparison mask, the background and the sprites of the current frame</source>
-        <translation>Nur die Vergleichsmaske, den Hintergrund und die Sprites des aktuellen Frames auflisten</translation>
+        <translation type="vanished">Nur die Vergleichsmaske, den Hintergrund und die Sprites des aktuellen Frames auflisten</translation>
     </message>
     <message>
         <source>Drop to assign %1 %2 to the %3 selected frame(s)</source>
@@ -5294,6 +5294,18 @@ Use Create %1 Frame.</source>
     <message>
         <source>Team</source>
         <translation>Team</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>Alle</translation>
+    </message>
+    <message>
+        <source>Not used by any frame</source>
+        <translation>Von keinem Frame verwendet</translation>
+    </message>
+    <message>
+        <source>Which comparison masks, backgrounds, sprites and scenes the lists show: all, those of the current frame, or those no frame uses</source>
+        <translation>Welche Vergleichsmasken, Hintergründe, Sprites und Szenen die Listen zeigen: alle, die des aktuellen Frames oder die, die kein Frame verwendet</translation>
     </message>
     <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>

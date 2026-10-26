@@ -200,10 +200,15 @@ std::optional<uint16_t> ScenesPanel::selectedScene() const
 
 void ScenesPanel::showOnlyScene(bool filtered, std::optional<uint16_t> sceneId)
 {
+    showOnlyScenes(filtered, sceneId ? std::set<uint16_t>{*sceneId} : std::set<uint16_t>{});
+}
+
+void ScenesPanel::showOnlyScenes(bool filtered, const std::set<uint16_t>& sceneIds)
+{
     for (int row = 0; row < m_list->count(); ++row) {
         QListWidgetItem* item = m_list->item(row);
         item->setHidden(filtered &&
-                        (!sceneId || item->data(Qt::UserRole).toInt() != static_cast<int>(*sceneId)));
+                        !sceneIds.count(static_cast<uint16_t>(item->data(Qt::UserRole).toInt())));
     }
     updateCount();
 }

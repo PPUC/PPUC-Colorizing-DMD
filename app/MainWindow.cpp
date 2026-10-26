@@ -2011,17 +2011,38 @@ void MainWindow::createCentralView()
     auto* assetsLayout = new QVBoxLayout(assets);
     assetsLayout->setContentsMargins(0, 0, 0, 0);
     assetsLayout->setSpacing(2);
-    m_currentFrameAssetsCheckBox = new QCheckBox(tr("Used by the current frame"), assets);
-    m_currentFrameAssetsCheckBox->setToolTip(
-        tr("List only the comparison mask, the background and the sprites of the current "
-           "frame"));
-    m_currentFrameAssetsCheckBox->setChecked(
-        QSettings().value(QStringLiteral("layout/assetsOfCurrentFrame"), false).toBool());
-    connect(m_currentFrameAssetsCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        QSettings().setValue(QStringLiteral("layout/assetsOfCurrentFrame"), checked);
-        applyAssetFilter();
-    });
-    assetsLayout->addWidget(m_currentFrameAssetsCheckBox);
+    m_assetFilterComboBox = new QComboBox(assets);
+    m_assetFilterComboBox->addItem(tr("All"), static_cast<int>(AssetFilter::All));
+    m_assetFilterComboBox->addItem(tr("Used by the current frame"),
+                                   static_cast<int>(AssetFilter::CurrentFrame));
+    m_assetFilterComboBox->addItem(tr("Not used by any frame"),
+                                   static_cast<int>(AssetFilter::Unused));
+    m_assetFilterComboBox->setToolTip(
+        tr("Which comparison masks, backgrounds, sprites and scenes the lists show: all, those "
+           "of the current frame, or those no frame uses"));
+    {
+        // The checkbox before it stored only "Used by the current frame".
+        const QSettings settings;
+        const int stored =
+            settings
+                .value(QStringLiteral("layout/assetFilter"),
+                       settings.value(QStringLiteral("layout/assetsOfCurrentFrame"), false)
+                               .toBool()
+                           ? static_cast<int>(AssetFilter::CurrentFrame)
+                           : static_cast<int>(AssetFilter::All))
+                .toInt();
+        m_assetFilterComboBox->setCurrentIndex(
+            std::max(0, m_assetFilterComboBox->findData(stored)));
+    }
+    connect(m_assetFilterComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int) {
+                QSettings().setValue(QStringLiteral("layout/assetFilter"),
+                                     static_cast<int>(assetFilter()));
+                applyAssetFilter();
+            });
+    assetsLayout->addWidget(m_assetFilterComboBox);
     assetsLayout->addWidget(m_leftBrowserTabs, 1);
     assets->setMinimumWidth(m_leftBrowserTabs->minimumWidth());
     contentSplitter->addWidget(assets);
@@ -5396,16 +5417,50 @@ void MainWindow::updateFrameRestViews()
     }
 }
 
+MainWindow::AssetFilter MainWindow::assetFilter() const
+{
+    return m_assetFilterComboBox
+               ? static_cast<AssetFilter>(m_assetFilterComboBox->currentData().toInt())
+               : AssetFilter::All;
+}
+
 void MainWindow::applyAssetFilter()
 {
-    const bool filtered = m_currentFrameAssetsCheckBox &&
-                          m_currentFrameAssetsCheckBox->isChecked();
+    const AssetFilter mode = assetFilter();
+    const bool filtered = mode != AssetFilter::All;
     const std::optional<std::size_t> frame = currentFrameIndex();
     const bool hasFrame = m_document && frame && *frame < m_document->frameCount();
     std::set<int> masks;
     std::set<int> backgrounds;
     std::set<int> sprites;
-    if (filtered && hasFrame) {
+    if (mode == AssetFilter::Unused && m_document) {
+        // Taken again only when the project changed: not on every frame change.
+        if (!m_assetUse || m_assetUseRevision != m_document->revision()) {
+            m_assetUse = edit::assetUse(*m_document);
+            m_assetUseRevision = m_document->revision();
+        }
+        const auto unused = [](const std::vector<bool>& used, std::set<int>& listed) {
+            for (std::size_t index = 0; index < used.size(); ++index) {
+                if (!used[index]) {
+                    listed.insert(static_cast<int>(index));
+                }
+            }
+        };
+        unused(m_assetUse->comparisonMasks, masks);
+        unused(m_assetUse->backgrounds, backgrounds);
+        unused(m_assetUse->sprites, sprites);
+        if (m_scenesPanel) {
+            std::set<uint16_t> scenes;
+            if (const auto& settings = m_document->colorizationSettings()) {
+                for (const document::SceneDefinition& scene : settings->scenes) {
+                    if (!m_assetUse->scenes.count(scene.sceneId)) {
+                        scenes.insert(scene.sceneId);
+                    }
+                }
+            }
+            m_scenesPanel->showOnlyScenes(true, scenes);
+        }
+    } else if (mode == AssetFilter::CurrentFrame && hasFrame) {
         masks.insert(m_document->comparisonMaskId(*frame));
         // backgroundId() throws for a frame without background data.
         if (const auto& background = m_document->backgroundData(*frame)) {
@@ -5433,7 +5488,7 @@ void MainWindow::applyAssetFilter()
             page->updateCount();
         }
     }
-    if (m_scenesPanel) {
+    if (m_scenesPanel && mode != AssetFilter::Unused) {
         // The scene the frame is a frame of, or the one it starts.
         m_scenesPanel->showOnlyScene(filtered && hasFrame,
                                      hasFrame ? edit::sceneUsedByFrame(*m_document, *frame)
@@ -12138,6 +12193,10 @@ void MainWindow::goToHistory(const edit::HistoryKey& key)
 
 void MainWindow::updateUndoRedoActions()
 {
+    // An edit or its undo may have changed which assets the frames use.
+    if (assetFilter() == AssetFilter::Unused) {
+        applyAssetFilter();
+    }
     // An edit may have changed the colors of the frame shown.
     m_frameLightMarksTimer.start();
     if (m_undoAnywhereAction) {

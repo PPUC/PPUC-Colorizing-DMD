@@ -21,6 +21,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   frames.
 - While `Play` runs, the background scene plays through the background mask on the canvas, as
   the color rotations do.
+- The filter above the left sidebar's lists has `Not used by any frame`: the comparison masks,
+  backgrounds, sprites and scenes no frame uses, besides `All` and `Used by the current frame`.
 
 ## 3.99.14
 

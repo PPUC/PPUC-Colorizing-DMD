@@ -37,6 +37,7 @@ scene and how many of its frames are missing in the project. The scenes are list
 - `Used by the current frame` above the left sidebar's lists shows only the scene the current
   frame uses: the scene it is a frame of, or the scene it starts by its trigger (the `Scene` of
   the `Frame` section); none for a frame of neither.
+- `Not used by any frame` there lists the scenes no frame of the game starts.
 
 The `Scene` section of the Inspector (the right sidebar) shows the settings of the scene the
 frame on the canvas belongs to, the same fields as the scene window. It is there only while a

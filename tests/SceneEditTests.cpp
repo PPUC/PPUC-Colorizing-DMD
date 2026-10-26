@@ -4,10 +4,12 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "RuntimeFixtures.h"
+#include "edit/AssetUse.h"
 #include "edit/StructureCommand.h"
 #include "runtime/RuntimePreview.h"
 #include "runtime/Scenes.h"
@@ -449,6 +451,35 @@ void testPlaceholderBackgroundsRemoved()
            "one that keeps its last frame as the background is removed");
 }
 
+// "Not used by any frame": what the frames name, and the scenes a frame of the game starts.
+void testAssetUse()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    snapshot.comparisonMasks.assign(
+        2, document::makeIndexedFrame(snapshot.geometry.romFrameSize(), 0));
+    snapshot.frames[1].comparisonMaskId = 1;
+    runtime_fixtures::addBackground(snapshot);
+    const std::size_t used = runtime_fixtures::addBackground(snapshot);
+    runtime_fixtures::assignBackground(snapshot, 2, used);
+    runtime_fixtures::addSprite(snapshot);
+    runtime_fixtures::addSprite(snapshot);
+    snapshot.frames[0].spriteReferences.assign(document::kSpritesPerFrame,
+                                               document::FrameSpriteReference{});
+    snapshot.frames[0].spriteReferences[0].spriteId = 1;
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    const auto started = edit::addScene(document, makeScene(50900, 2, 1));
+    const auto alone = edit::addScene(document, makeScene(50901, 2, 1));
+    document.setTriggerId(0, 50900);
+    const edit::AssetUse use = edit::assetUse(document);
+    expect(use.comparisonMasks == std::vector<bool>{false, true} &&
+               use.backgrounds == std::vector<bool>{false, true} &&
+               use.sprites == std::vector<bool>{false, true},
+           "masks, backgrounds and sprites a frame names are used, the others not");
+    expect(use.scenes == std::set<uint16_t>{50900},
+           "a scene is used when a frame of the game starts it, not by its own frames");
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -461,4 +492,5 @@ void runSceneEditTests()
     testLegacySlotsFilledUp();
     testBackgroundSceneWithoutBackground();
     testPlaceholderBackgroundsRemoved();
+    testAssetUse();
 }
