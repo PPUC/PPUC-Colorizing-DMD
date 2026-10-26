@@ -108,6 +108,7 @@
 #include "edit/SourceFrame.h"
 #include "edit/Sections.h"
 #include "edit/SpriteClipboard.h"
+#include "edit/SpriteAssignment.h"
 #include "edit/StateCommands.h"
 #include "import/FrameDumpImport.h"
 #include "panels/BackgroundPanel.h"
@@ -1194,6 +1195,9 @@ void MainWindow::createCentralView()
     m_spriteList->setResizeMode(QListView::Adjust);
     m_spriteList->setUniformItemSizes(false);
     m_spriteList->setMinimumWidth(230);
+    // Several sprites at once (Ctrl/Cmd or Shift and a click), to assign or delete them
+    // together (issue #38); the current one is shown in the Sprite sections.
+    m_spriteList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     // The caption below each thumbnail, as in the frame strip.
     for (QListWidget* list : {m_maskList, m_backgroundList, m_spriteList}) {
         showCaptionsBelowThumbnails(list);
@@ -2167,6 +2171,10 @@ void MainWindow::createCentralView()
         updateSpriteControls();
         updateUndoRedoActions();
         refreshSelectedAssetFilter();
+    });
+    // Assign and Delete follow how many sprites are selected.
+    connect(m_spriteList, &QListWidget::itemSelectionChanged, this, [this]() {
+        updateSpriteControls();
     });
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -5557,6 +5565,11 @@ void MainWindow::updateSpriteBrowserSelection()
         m_spriteList->setCurrentItem(nullptr);
         return;
     }
+    // A selection of several sprites stays while its current one is the sprite.
+    if (const QListWidgetItem* current = m_spriteList->currentItem();
+        current && current->data(Qt::UserRole).toInt() == static_cast<int>(*spriteIndex)) {
+        return;
+    }
     for (int row = 0; row < m_spriteList->count(); ++row) {
         QListWidgetItem* item = m_spriteList->item(row);
         if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(*spriteIndex)) {
@@ -6885,6 +6898,10 @@ void MainWindow::assignSelectedSpriteToCurrentSlot()
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     if (!m_document || frameIndices.empty() || !m_spritePanel) {
+        return;
+    }
+    if (const std::vector<std::size_t> sprites = selectedSpriteIndices(); sprites.size() > 1) {
+        assignSelectedSpritesToFrames(sprites);
         return;
     }
 
@@ -8557,6 +8574,7 @@ void MainWindow::updateSpriteControls()
     state.document = m_document ? &*m_document : nullptr;
     state.frameIndex = frameIndex;
     state.spriteIndex = spriteIndex;
+    state.selectedSpriteCount = selectedSpriteIndices().size();
     state.hasCaptureSelection = !m_canvasEdit.captureSelectionPixels(frameIndex).empty();
     state.spriteEditsPending = m_spriteDependentViewsDirty;
     m_spritePanel->refresh(state);
@@ -10151,6 +10169,10 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
 
 void MainWindow::deleteSelectedSprite()
 {
+    if (const std::vector<std::size_t> sprites = selectedSpriteIndices(); sprites.size() > 1) {
+        deleteSprites(sprites);
+        return;
+    }
     const std::optional<std::size_t> spriteIndex = currentSpriteIndex();
     if (!m_document || !spriteIndex) {
         statusBar()->showMessage(tr("No sprite selected"), 2500);
@@ -10181,6 +10203,46 @@ void MainWindow::deleteSelectedSprite()
                                   : QString())
                 .arg(static_cast<int>(m_document->spriteCount())),
             4000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::deleteSprites(const std::vector<std::size_t>& sprites)
+{
+    if (!m_document || sprites.empty()) {
+        return;
+    }
+    std::size_t frames = 0;
+    for (std::size_t frame = 0; frame < m_document->frameCount(); ++frame) {
+        for (const document::FrameSpriteReference& reference :
+             m_document->frameSpriteReferences(frame)) {
+            if (std::binary_search(sprites.begin(), sprites.end(), reference.spriteId)) {
+                ++frames;
+                break;
+            }
+        }
+    }
+    if (!confirmDeletion(
+            tr("Delete Sprites"),
+            tr("Delete %n sprite(s)?", "", static_cast<int>(sprites.size())),
+            tr("%1 Sprites behind them get lower numbers. The deletion is one step that can "
+               "be undone.")
+                .arg(frames > 0 ? tr("They are removed from the sprite slots of %n frame(s).",
+                                     "", static_cast<int>(frames))
+                                : tr("No frame uses them.")))) {
+        return;
+    }
+    try {
+        // From the last one on, so that the numbers of the others stay as they are; one action,
+        // so one undo step.
+        for (auto sprite = sprites.rbegin(); sprite != sprites.rend(); ++sprite) {
+            recordStructureEdit(edit::deleteSprite(*m_document, *sprite));
+        }
+        showStructureEditStatus(tr("Deleted %1 sprite(s); %2 sprite(s) remain")
+                                    .arg(static_cast<int>(sprites.size()))
+                                    .arg(static_cast<int>(m_document->spriteCount())),
+                                4000);
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
@@ -11883,6 +11945,79 @@ std::optional<std::size_t> MainWindow::currentBackgroundIndex() const
 bool MainWindow::isBackgroundImageTargetActive() const
 {
     return activePaintTarget() == PaintTarget::Background && selectedBackgroundIndex().has_value();
+}
+
+std::vector<std::size_t> MainWindow::selectedSpriteIndices() const
+{
+    std::vector<std::size_t> sprites;
+    if (m_document && m_spriteList) {
+        for (const QListWidgetItem* item : m_spriteList->selectedItems()) {
+            const int sprite = item->data(Qt::UserRole).toInt();
+            if (sprite >= 0 && static_cast<std::size_t>(sprite) < m_document->spriteCount()) {
+                sprites.push_back(static_cast<std::size_t>(sprite));
+            }
+        }
+    }
+    std::sort(sprites.begin(), sprites.end());
+    sprites.erase(std::unique(sprites.begin(), sprites.end()), sprites.end());
+    if (sprites.empty()) {
+        if (const std::optional<std::size_t> current = currentSpriteIndex()) {
+            sprites.push_back(*current);
+        }
+    }
+    return sprites;
+}
+
+void MainWindow::assignSelectedSpritesToFrames(const std::vector<std::size_t>& sprites)
+{
+    const std::vector<std::size_t> frames = selectedFrameIndices();
+    if (!m_document || frames.empty() || sprites.empty()) {
+        return;
+    }
+    if (const std::size_t passing = edit::framesPassingSpriteWarning(*m_document, frames, sprites);
+        passing > 0) {
+        QMessageBox confirm(QMessageBox::Warning,
+                            tr("More Than %1 Sprites").arg(document::kSpritesPerFrameWarning),
+                            tr("%n frame(s) would use more than %1 sprites.", "",
+                               static_cast<int>(passing))
+                                    .arg(document::kSpritesPerFrameWarning) +
+                                QStringLiteral("\n\n") + SpritePanel::manySpritesAdvice(),
+                            QMessageBox::Cancel, this);
+        QPushButton* useMore =
+            confirm.addButton(tr("Use More Sprites"), QMessageBox::AcceptRole);
+        confirm.setDefaultButton(QMessageBox::Cancel);
+        confirm.exec();
+        if (confirm.clickedButton() != useMore) {
+            return;
+        }
+    }
+    try {
+        edit::SpritesAdded added = edit::addSpritesToFrames(*m_document, frames, sprites);
+        for (std::unique_ptr<edit::EditCommand>& command : added.commands) {
+            pushEdit(std::move(command));
+        }
+        for (const std::size_t frame : frames) {
+            updateFrameListItem(frame);
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateSpriteControls();
+        updateFrameStatusText();
+        updateProjectHeaderStatus();
+        QString message = tr("Put %1 sprite(s) on %2 frame(s): %3 added, %4 there already")
+                              .arg(static_cast<int>(sprites.size()))
+                              .arg(static_cast<int>(frames.size()))
+                              .arg(static_cast<int>(added.added))
+                              .arg(static_cast<int>(added.kept));
+        if (added.full > 0) {
+            message += tr("; %1 left out, the frame had no empty slot")
+                           .arg(static_cast<int>(added.full));
+        }
+        statusBar()->showMessage(message, 6000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
 }
 
 std::optional<std::size_t> MainWindow::currentSpriteIndex() const

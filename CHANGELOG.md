@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Several sprites can be selected in the sprite list: `Assign` puts each on the selected frames
+  (first empty slots, as in the Win32 editor), `Delete` deletes them together (issue #38).
 - `Used by the current frame` also lists the scene a frame starts by its trigger, not only the
   scene a frame is part of.
 - The comparison masks, backgrounds, sprites and scenes on the left show their total beside

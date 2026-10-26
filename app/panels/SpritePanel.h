@@ -27,6 +27,9 @@ struct SpritePanelState {
     const document::ProjectDocument* document = nullptr;
     std::optional<std::size_t> frameIndex;
     std::optional<std::size_t> spriteIndex;
+    // How many sprites the sprite list has selected: with more than one, Assign puts each on
+    // the selected frames (issue #38) and needs no slot.
+    std::size_t selectedSpriteCount = 1;
     bool hasCaptureSelection = false;
     bool spriteEditsPending = false;
 };

@@ -5487,6 +5487,36 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message>
+        <source>Delete Sprites</source>
+        <translation>Sprites löschen</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n sprite(s)?</source>
+        <translation>
+            <numerusform>%n Sprite löschen?</numerusform>
+            <numerusform>%n Sprites löschen?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 Sprites behind them get lower numbers. The deletion is one step that can be undone.</source>
+        <translation>%1 Sprites dahinter erhalten niedrigere Nummern. Das Löschen ist ein Schritt, der rückgängig gemacht werden kann.</translation>
+    </message>
+    <message numerus="yes">
+        <source>They are removed from the sprite slots of %n frame(s).</source>
+        <translation>
+            <numerusform>Sie werden aus den Sprite-Plätzen von %n Frame entfernt.</numerusform>
+            <numerusform>Sie werden aus den Sprite-Plätzen von %n Frames entfernt.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No frame uses them.</source>
+        <translation>Kein Frame verwendet sie.</translation>
+    </message>
+    <message>
+        <source>Deleted %1 sprite(s); %2 sprite(s) remain</source>
+        <translation>%1 Sprite(s) gelöscht; %2 Sprite(s) bleiben</translation>
+    </message>
+    <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
         <translation>Vergleichsmaske %1 hinzugefügt, jetzt %2 Maske(n); noch kein Frame verwendet sie</translation>
     </message>
@@ -5727,6 +5757,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Added frame %1 with the picture of frame %2 as its original</source>
         <translation>Frame %1 mit dem Bild von Frame %2 als Original hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Put %1 sprite(s) on %2 frame(s): %3 added, %4 there already</source>
+        <translation>%1 Sprite(s) auf %2 Frame(s) gesetzt: %3 hinzugefügt, %4 schon vorhanden</translation>
+    </message>
+    <message>
+        <source>; %1 left out, the frame had no empty slot</source>
+        <translation>; %1 ausgelassen, der Frame hatte keinen freien Platz</translation>
     </message>
     <message>
         <source>Not changed: %1. Merge the partners&apos; changes first, or ask them.</source>
@@ -8012,6 +8050,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>The frame uses %1 sprites.</source>
         <translation>Der Frame verwendet %1 Sprites.</translation>
+    </message>
+    <message>
+        <source>Put each selected sprite on the selected frames: a frame keeps a sprite it has, others go to its first empty slots</source>
+        <translation>Jedes ausgewählte Sprite auf die ausgewählten Frames setzen: Ein Frame behält ein Sprite, das er hat, andere kommen auf seine ersten freien Plätze</translation>
     </message>
     <message>
         <source>Sprites work the same past %1 per frame, but every sprite more adds to the time libserum needs for each frame. Stay within %1 wherever you can: use more only on a frame that cannot be done otherwise, never as a habit. On a short flash a few milliseconds of latency do not hurt; in a video mode avoid it.</source>

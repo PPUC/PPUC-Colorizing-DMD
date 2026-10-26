@@ -2,7 +2,10 @@
 
 Sprite data is loaded into the project and saved in the project file.
 `New` and `Delete` above the sprite list of the left sidebar add an empty sprite and delete the
-selected one, see "Adding And Deleting Records".
+selected one, see "Adding And Deleting Records". Several sprites can be selected in the list
+(`Ctrl/Cmd`+click, `Shift`+click for a range), as in the Win32 editor: `Delete` then deletes all
+of them after one question, as one undo step, and `Assign` puts each of them on the selected
+frames (see below). The sprite clicked last is the one the `Sprite` sections show.
 
 Currently preserved sprite data includes:
 
@@ -131,6 +134,12 @@ The controls:
     that slot of a frame is empty, the sprite goes to the frame's first empty slot instead (the
     slot itself or one before it), with that slot's bounds; the status bar says on how many
     frames that happened, and the current frame's slot selection follows.
+  - With several sprites selected in the list, `Assign` puts each of them on every selected frame,
+    as the Win32 editor's `Add Sprite` did: a frame that has a sprite already keeps it in its slot
+    with its bounds, otherwise the sprite goes to the frame's first empty slot, with the whole
+    frame as its bounds. No slot needs to be selected. A frame whose slots are all used gets no
+    more; the status bar counts the sprites added, those there already and those left out. It is
+    one undo step.
   - `Capture` assigns the captured sprite by the same rule.
   - `Remove` works as in the Win32 editor (`IDC_DELSPRITE2`): it takes the sprite of the current
     frame's selected slot and removes it from every selected frame that has it, from the last

@@ -283,6 +283,12 @@ private:
     void refreshAfterLightsChanged(const std::vector<std::size_t>& frameIndices);
     [[nodiscard]] std::optional<std::size_t> currentFrameIndex() const;
     [[nodiscard]] std::vector<std::size_t> selectedFrameIndices() const;
+    // The sprites selected in the sprite list, ascending; the current sprite when none is.
+    [[nodiscard]] std::vector<std::size_t> selectedSpriteIndices() const;
+    // Assign with several sprites selected: each onto the selected frames (issue #38).
+    void assignSelectedSpritesToFrames(const std::vector<std::size_t>& sprites);
+    // Delete with several sprites selected: all of them, one undo step.
+    void deleteSprites(const std::vector<std::size_t>& sprites);
     void selectFrame(int frameIndex);
     void updateResolutionMode();
     // Enabled state of the SD/HD, overlay and tool buttons: off while the Runtime view is on.

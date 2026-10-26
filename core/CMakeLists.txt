@@ -33,6 +33,8 @@ add_library(colorizing_qt_v2_core STATIC
     edit/ScrollFill.cpp
     edit/SourceFrame.cpp
     edit/Sections.cpp
+    edit/SpriteAssignment.cpp
+    edit/SpriteAssignment.h
     edit/StateCommands.cpp
     edit/StructureCommand.cpp
     edit/UndoHistories.cpp

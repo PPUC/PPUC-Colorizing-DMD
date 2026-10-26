@@ -644,8 +644,14 @@ void SpritePanel::refresh(const SpritePanelState& state)
     const bool hasSprite =
         document && state.spriteIndex && *state.spriteIndex < document->spriteCount();
     const std::optional<std::size_t> slotIndex = selectedSlotIndex();
-    m_assignButton->setEnabled(document && frameIndex && hasSprite && slotIndex);
-    m_captureButton->setEnabled(m_assignButton->isEnabled());
+    const bool severalSprites = state.selectedSpriteCount > 1;
+    m_assignButton->setEnabled(document && frameIndex && hasSprite &&
+                               (slotIndex || severalSprites));
+    m_assignButton->setToolTip(
+        severalSprites ? tr("Put each selected sprite on the selected frames: a frame keeps a "
+                            "sprite it has, others go to its first empty slots")
+                       : tr("Assign selected sprite to selected slot"));
+    m_captureButton->setEnabled(document && frameIndex && hasSprite && slotIndex);
     m_captureSelectionButton->setEnabled(m_captureButton->isEnabled());
     m_clearCaptureSelectionButton->setEnabled(state.hasCaptureSelection);
     bool slotHasSprite = false;

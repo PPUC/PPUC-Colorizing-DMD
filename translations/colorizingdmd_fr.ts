@@ -5487,6 +5487,36 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message>
+        <source>Delete Sprites</source>
+        <translation>Supprimer les sprites</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n sprite(s)?</source>
+        <translation>
+            <numerusform>Supprimer %n sprite ?</numerusform>
+            <numerusform>Supprimer %n sprites ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 Sprites behind them get lower numbers. The deletion is one step that can be undone.</source>
+        <translation>%1 Les sprites qui les suivent reçoivent des numéros plus bas. La suppression est une étape qui peut être annulée.</translation>
+    </message>
+    <message numerus="yes">
+        <source>They are removed from the sprite slots of %n frame(s).</source>
+        <translation>
+            <numerusform>Ils sont retirés des emplacements de sprite de %n frame.</numerusform>
+            <numerusform>Ils sont retirés des emplacements de sprite de %n frames.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No frame uses them.</source>
+        <translation>Aucune frame ne les utilise.</translation>
+    </message>
+    <message>
+        <source>Deleted %1 sprite(s); %2 sprite(s) remain</source>
+        <translation>%1 sprite(s) supprimé(s) ; il reste %2 sprite(s)</translation>
+    </message>
+    <message>
         <source>Added comparison mask %1, %2 mask(s) now; no frame uses it yet</source>
         <translation>Masque de comparaison %1 ajouté, %2 masque(s) au total ; aucune frame ne l&apos;utilise encore</translation>
     </message>
@@ -5727,6 +5757,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Added frame %1 with the picture of frame %2 as its original</source>
         <translation>Frame %1 ajoutée avec l&apos;image de la frame %2 comme originale</translation>
+    </message>
+    <message>
+        <source>Put %1 sprite(s) on %2 frame(s): %3 added, %4 there already</source>
+        <translation>%1 sprite(s) placé(s) sur %2 frame(s) : %3 ajouté(s), %4 déjà présent(s)</translation>
+    </message>
+    <message>
+        <source>; %1 left out, the frame had no empty slot</source>
+        <translation> ; %1 laissé(s) de côté, la frame n’avait plus d’emplacement libre</translation>
     </message>
     <message>
         <source>Not changed: %1. Merge the partners&apos; changes first, or ask them.</source>
@@ -8012,6 +8050,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>The frame uses %1 sprites.</source>
         <translation>La frame utilise %1 sprites.</translation>
+    </message>
+    <message>
+        <source>Put each selected sprite on the selected frames: a frame keeps a sprite it has, others go to its first empty slots</source>
+        <translation>Placer chaque sprite sélectionné sur les frames sélectionnées : une frame garde un sprite qu’elle a déjà, les autres vont dans ses premiers emplacements libres</translation>
     </message>
     <message>
         <source>Sprites work the same past %1 per frame, but every sprite more adds to the time libserum needs for each frame. Stay within %1 wherever you can: use more only on a frame that cannot be done otherwise, never as a habit. On a short flash a few milliseconds of latency do not hurt; in a video mode avoid it.</source>

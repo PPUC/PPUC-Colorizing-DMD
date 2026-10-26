@@ -2680,6 +2680,17 @@ void testSpritePanel()
                shownBounds.maxX == 127 && shownBounds.maxY == 31 &&
                spriteCanvasButton->isEnabled(),
            "sprite panel should show a frame without sprite slots");
+    // Issue #38: with several sprites selected, Assign puts each on the frames, no slot needed.
+    SpritePanelState severalSprites = stateFor(2, 0);
+    severalSprites.selectedSpriteCount = 2;
+    panel.refresh(severalSprites);
+    expect(assignButton->isEnabled() && !captureButton->isEnabled() &&
+               assignButton->toolTip().startsWith(QStringLiteral("Put each selected sprite")),
+           "several sprites can be assigned to a frame without slots");
+    panel.refresh(stateFor(2, 0));
+    expect(!assignButton->isEnabled() &&
+               assignButton->toolTip() == QStringLiteral("Assign selected sprite to selected slot"),
+           "one sprite again needs a slot");
 
     panel.refresh(stateFor(std::nullopt, 0));
     expect(frameSpritesLabel->text() == QStringLiteral("No frame sprites") &&

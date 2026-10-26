@@ -1,4 +1,5 @@
 #include "edit/StateCommands.h"
+#include "edit/SpriteAssignment.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -250,8 +251,41 @@ void testFrameDeletionDropsSpriteSteps()
 
 }  // namespace
 
+// Issue #38: several sprites onto several frames, as the Win32 editor's Add Sprite did; one
+// command per changed frame, undone to the slots before.
+void testAddSpritesToFrames()
+{
+    ProjectDocument document = makeDocument();
+    const std::vector<FrameSpriteReference> frame0 = document.frameSpriteReferences(0);
+    const std::vector<FrameSpriteReference> frame1 = document.frameSpriteReferences(1);
+    expect(edit::framesPassingSpriteWarning(document, {0, 1}, {0, 1}) == 0,
+           "two sprites pass no warning");
+    edit::SpritesAdded added = edit::addSpritesToFrames(document, {0, 1}, {0, 1});
+    const auto& slots0 = document.frameSpriteReferences(0);
+    const auto& slots1 = document.frameSpriteReferences(1);
+    expect(added.added == 3 && added.kept == 1 && added.full == 0 && added.commands.size() == 2,
+           "frame 0 keeps sprite 0 and gets sprite 1, frame 1 gets both");
+    expect(slots0[0].spriteId == 0 && slots0[0].maxX == 10 && slots0[1].spriteId == 1 &&
+               slots1[0].spriteId == 0 && slots1[1].spriteId == 1,
+           "in the first empty slots; a sprite the frame had keeps its slot and bounds");
+    const colorizing::document::Size size = document.originalFrameSize();
+    expect(slots1[0].minX == 0 && slots1[0].minY == 0 && slots1[0].maxX == size.width - 1 &&
+               slots1[0].maxY == size.height - 1,
+           "a new slot covers the whole frame");
+    for (auto command = added.commands.rbegin(); command != added.commands.rend(); ++command) {
+        (*command)->revert(document);
+    }
+    expect(sameSlots(document.frameSpriteReferences(0), frame0) &&
+               sameSlots(document.frameSpriteReferences(1), frame1),
+           "undone, the slots are as before");
+    added = edit::addSpritesToFrames(document, {0}, {0});
+    expect(added.added == 0 && added.kept == 1 && added.commands.empty(),
+           "a frame that has every sprite changes nothing");
+}
+
 void runStateCommandsTests()
 {
+    testAddSpritesToFrames();
     testCaptureIsOneStep();
     testDetectionAreaKeepsPixelHistories();
     testSlotsKeepGaps();
