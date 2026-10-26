@@ -1058,6 +1058,41 @@ Resolution ProjectDocument::dynamicPlane() const
     return m_geometry.nativePlane();
 }
 
+std::size_t clearUnusedHdDynamicZones(ProjectDocument& document)
+{
+    if (document.geometry().layout() != render::PlaneLayout::Ordinary) {
+        return 0;
+    }
+    std::size_t cleared = 0;
+    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
+        if (document.clearUnusedHdDynamicZones(frame)) {
+            ++cleared;
+        }
+    }
+    return cleared;
+}
+
+bool ProjectDocument::clearUnusedHdDynamicZones(std::size_t frameIndex)
+{
+    if (m_geometry.layout() != render::PlaneLayout::Ordinary) {
+        throw std::logic_error("only an ordinary project has unused 256x64 dynamic zones");
+    }
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.dynamicData) {
+        return false;
+    }
+    FrameDynamicData& data = *frame.dynamicData;
+    // Read through const: a non-const access gives a packed array a buffer of its own.
+    const CompactArray<uint8_t>& mask = data.maskHd.pixels;
+    if (std::all_of(mask.begin(), mask.end(), [](uint8_t value) { return value == 255; })) {
+        return false;
+    }
+    std::fill(data.maskHd.pixels.begin(), data.maskHd.pixels.end(), uint8_t{255});
+    std::fill(data.colorsHd.begin(), data.colorsHd.end(), uint16_t{0});
+    markChanged();
+    return true;
+}
+
 void ProjectDocument::requireDynamicPlane(Resolution resolution) const
 {
     requireEditablePlane(resolution);

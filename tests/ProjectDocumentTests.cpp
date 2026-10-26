@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "RuntimeFixtures.h"
 #include "edit/EditCommand.h"
 #include "render/CanvasLayout.h"
 
@@ -1644,8 +1645,42 @@ void testInvalidSnapshotReportsReason()
 
 }  // namespace
 
+// The 256x64 dynamic zones of an ordinary project are cleared (mask and colors); the 256x64
+// shadow tables, which libserum falls back to, stay. Other layouts keep theirs.
+void testClearUnusedHdDynamicZones()
+{
+    using colorizing::runtime_fixtures::addDynamicData;
+    using colorizing::runtime_fixtures::makeProject;
+    colorizing::document::ProjectSnapshot snapshot =
+        makeProject(colorizing::render::PlaneLayout::Ordinary, 3);
+    for (std::size_t frame : {std::size_t{0}, std::size_t{1}}) {
+        colorizing::document::FrameDynamicData& data = addDynamicData(snapshot, frame);
+        data.shadowDirectionsHd[2] = 0x04;
+    }
+    snapshot.frames[0].dynamicData->maskHd.pixels[7] = 3;
+    snapshot.frames[0].dynamicData->colorsHd[5] = 0x1234;
+    ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+    expect(colorizing::document::clearUnusedHdDynamicZones(document) == 1 && document.isDirty(),
+           "one frame had a 256x64 zone");
+    const auto& cleared = *document.dynamicData(0);
+    expect(cleared.maskHd.pixels[7] == 255 && cleared.colorsHd[5] == 0 &&
+               cleared.shadowDirectionsHd[2] == 0x04,
+           "its mask and colors are cleared, its shadow table stays");
+    expect(colorizing::document::clearUnusedHdDynamicZones(document) == 0, "once only");
+
+    colorizing::document::ProjectSnapshot native =
+        makeProject(colorizing::render::PlaneLayout::NativeExtra, 1);
+    addDynamicData(native, 0).maskHd.pixels[7] = 3;
+    ProjectDocument nativeDocument = ProjectDocument::fromSnapshot(native);
+    expect(colorizing::document::clearUnusedHdDynamicZones(nativeDocument) == 0 &&
+               nativeDocument.dynamicData(0)->maskHd.pixels[7] == 3,
+           "a 256x64 project keeps them: they are its dynamic zones");
+}
+
 void runProjectDocumentTests()
 {
+    testClearUnusedHdDynamicZones();
     testCreateEmptyProject();
     testCreateProjectWithHdFrames();
     testCreateAndRemoveHdFrameDirtyState();

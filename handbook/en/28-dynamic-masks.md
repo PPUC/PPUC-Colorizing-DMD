@@ -47,9 +47,11 @@ So in an ordinary project:
   dynamic pixels have the SD set's color for the original's shade, every SD pixel doubled.
   libserum rounds the edges of that upscale (Scale2x); the Runtime view with
   `Runtime Plane: 64 Rows` shows the exact picture.
-- HD dynamic masks, colors and shadows a project already holds are kept: they are loaded,
-  written back unchanged and never shown or edited. The Win32 editor writes them, as a
-  line-doubled copy of the SD ones.
+- HD dynamic masks and colors a project holds (the Win32 editor writes them, as a line-doubled
+  copy of the SD ones) are removed when the project is opened, and the status bar says for how
+  many frames; the project then counts as changed. Nothing used them, and the editor gave
+  libserum the HD pixels under them as black. libserum 2.99.4 and later drop them too. The HD
+  shadow tables stay, see below.
 - One thing of the stored HD data does reach the picture: **shadows**. A dynamic set that has no
   shadow direction on the SD plane takes its direction and color from the HD shadow tables when
   libserum renders the 64-row plane (they are settings per set, not pictures). The editor's HD

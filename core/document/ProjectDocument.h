@@ -577,6 +577,11 @@ public:
     // false). The 256x64 dynamic data such a project stores is loaded, readable and written
     // back unchanged; the setters below throw std::logic_error for it.
     [[nodiscard]] Resolution dynamicPlane() const;
+    // Clears the 256x64 dynamic zones and their colors an ordinary project stores for the frame
+    // (mask 255, colors 0), which libserum never reads there (see dynamicPlane()). The 256x64
+    // shadow tables stay: libserum falls back to them. Returns whether the frame had a zone;
+    // a frame without one is left as it is. Throws std::logic_error in another layout.
+    bool clearUnusedHdDynamicZones(std::size_t frameIndex);
     // Whether the frame has a dynamic zone the runtime renders: a pixel of its dynamic mask on
     // dynamicPlane() that is not 255. Loaded frames always carry dynamic data, mostly all 255,
     // so dynamicData() alone does not tell. Cached per frame.
@@ -953,6 +958,10 @@ private:
 [[nodiscard]] std::vector<uint16_t> plainOriginalColors(uint32_t colorCount);
 
 [[nodiscard]] Rgb565Frame makeRgb565Frame(Size size, uint16_t fill = 0);
+
+// ProjectDocument::clearUnusedHdDynamicZones() for every frame of an ordinary project, nothing
+// in another layout. Returns the number of frames that had such zones.
+std::size_t clearUnusedHdDynamicZones(ProjectDocument& document);
 
 // The memory of the blocks only this record holds: uniform blocks and blocks shared with a
 // copy (see CompactArray) count 0. An estimate for limits such as the undo memory, not exact.

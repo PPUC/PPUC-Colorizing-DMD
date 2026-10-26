@@ -25,6 +25,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   backgrounds, sprites and scenes no frame uses, besides `All` and `Used by the current frame`.
 - The HD picture of a frame plays as the canvas shows it: pixels under a stored HD dynamic mask,
   which nobody sees and the runtime does not use, are no longer given to libserum as black.
+- Opening a project removes the HD dynamic zones and colors frames of the Win32 editor still
+  carry: the runtime never used them (libserum 2.99.4 drops them as well).
 
 ## 3.99.14
 

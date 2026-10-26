@@ -5484,6 +5484,13 @@ Use Create %1 Frame.</source>
         <translation>Dateien eines früheren Editors geöffnet: „Speichern“ schreibt das Projekt als Projektdatei (.cdmd); %1 und %2 bleiben, wie sie sind</translation>
     </message>
     <message numerus="yes">
+        <source>The unused HD dynamic zones of %n frame(s) are removed; the runtime renders the SD zones on the HD plane</source>
+        <translation>
+            <numerusform>Die unbenutzten dynamischen HD-Zonen von %n Frame sind entfernt; die Runtime zeichnet auf der HD-Ebene die SD-Zonen</numerusform>
+            <numerusform>Die unbenutzten dynamischen HD-Zonen von %n Frames sind entfernt; die Runtime zeichnet auf der HD-Ebene die SD-Zonen</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>The placeholder background of %n frame(s) that start a background scene is removed; they show the scene without it</source>
         <translation>
             <numerusform>Der Platzhalter-Hintergrund von %n Frame, der eine Hintergrundszene startet, ist entfernt; er zeigt die Szene ohne ihn</numerusform>
