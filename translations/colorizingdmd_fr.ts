@@ -3525,6 +3525,13 @@ Utiliser Créer la frame %1.</translation>
         <source>Sprites</source>
         <translation>Sprites</translation>
     </message>
+    <message numerus="yes">
+        <source>The unused HD dynamic zones and shadows of %n frame(s) are removed; the runtime renders the SD zones and shadows on the HD plane</source>
+        <translation>
+            <numerusform>Les zones et ombres dynamiques HD inutilisées de %n frame sont retirées ; le runtime dessine les zones et ombres SD sur le plan HD</numerusform>
+            <numerusform>Les zones et ombres dynamiques HD inutilisées de %n frames sont retirées ; le runtime dessine les zones et ombres SD sur le plan HD</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Tag: %1</source>
         <translation>Tag : %1</translation>
@@ -5597,7 +5604,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message numerus="yes">
         <source>The unused HD dynamic zones of %n frame(s) are removed; the runtime renders the SD zones on the HD plane</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>Les zones dynamiques HD inutilisées de %n frame sont retirées ; le runtime dessine les zones SD sur le plan HD</numerusform>
             <numerusform>Les zones dynamiques HD inutilisées de %n frames sont retirées ; le runtime dessine les zones SD sur le plan HD</numerusform>
         </translation>

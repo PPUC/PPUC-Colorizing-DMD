@@ -873,14 +873,12 @@ editor does not offer them.
 - `Create HD` has no "dynamic mask and colors" option any more and leaves the frame's stored HD
   dynamic data as it is (mask 255, colors and shadows 0 for a frame that never had any).
   `FrameHdParts::dynamic`, `FrameHdState::dynamic` and `upscaleDynamicMaskToHd()` are gone.
-- Stored HD dynamic data is loaded and written back unchanged.
+- Stored HD dynamic data (masks, colors, shadow tables) is removed when a project is opened
+  (owner decisions 2026-10-26); libserum 2.99.5 drops it on load and has no HD shadow fallback
+  any more (it showed on six frames of GoT-V79, which was not released with HD).
 - The HD picture of an ordinary project is given to libserum as it is: the rule that writes
   colorized pixels under a dynamic mask as 0 holds for the plane of the ROM frame only (owner
   decision 2026-10-26). A stored HD mask, which nobody sees, blacked out HD pixels before.
-- **Not ignored by libserum: HD dynamic shadows.** In layer mode a set without an SD shadow
-  direction takes direction and color from the HD shadow tables (`CheckDynaShadow`,
-  `GenerateExtraPlaneShadows`). The renderer does the same; the `Dyn` page edits the SD shadow
-  only. See open decision 3.
 - HD color rotations and HD background masks are used by libserum in layer mode (the HD pass
   reads `colorrotations_v2_extra` and `backgroundmask_extra`) and are unchanged in the editor.
 
@@ -933,11 +931,6 @@ one is removed.
 2. **256x64 monochrome trigger and repaired backgrounds.** libserum reads the monochrome palette
    trigger's palette from the HD dynamic colour set, and a background repaired by
    `Create 256x64 Frame` becomes black. Are both intended?
-3. **HD dynamic shadows of ordinary projects.** libserum falls back to a set's HD shadow
-   direction and color when the set has no SD direction; the editor shows the result but cannot
-   edit or switch it off (only replace it with an SD shadow). Which: (a) leave it, (b) show the
-   fallback on the `Dyn` page, or (c) copy the HD shadow into the SD table when the frame is
-   first edited?
 5. **The 15 ms rule.** A frame shorter than 15 ms that is not colorized is saved inactive (as
    Win32); such frames are marked `inactive`. Keep the rule?
 6. **`trn_174h` HD plane.** The canvas differs from libserum in 114,722 pixels of 4,249 frames

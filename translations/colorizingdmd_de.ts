@@ -3525,6 +3525,13 @@ Use Create %1 Frame.</source>
         <source>Sprites</source>
         <translation>Sprites</translation>
     </message>
+    <message numerus="yes">
+        <source>The unused HD dynamic zones and shadows of %n frame(s) are removed; the runtime renders the SD zones and shadows on the HD plane</source>
+        <translation>
+            <numerusform>Die unbenutzten dynamischen HD-Zonen und -Schatten von %n Frame sind entfernt; die Runtime zeichnet auf der HD-Ebene die SD-Zonen und -Schatten</numerusform>
+            <numerusform>Die unbenutzten dynamischen HD-Zonen und -Schatten von %n Frames sind entfernt; die Runtime zeichnet auf der HD-Ebene die SD-Zonen und -Schatten</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Tag: %1</source>
         <translation>Tag: %1</translation>
@@ -5597,7 +5604,7 @@ Use Create %1 Frame.</source>
     </message>
     <message numerus="yes">
         <source>The unused HD dynamic zones of %n frame(s) are removed; the runtime renders the SD zones on the HD plane</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>Die unbenutzten dynamischen HD-Zonen von %n Frame sind entfernt; die Runtime zeichnet auf der HD-Ebene die SD-Zonen</numerusform>
             <numerusform>Die unbenutzten dynamischen HD-Zonen von %n Frames sind entfernt; die Runtime zeichnet auf der HD-Ebene die SD-Zonen</numerusform>
         </translation>

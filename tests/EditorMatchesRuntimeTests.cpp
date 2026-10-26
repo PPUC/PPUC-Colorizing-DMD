@@ -408,10 +408,10 @@ void testHdDynamicZonesOfOrdinaryProject()
     expect(at(picture, 30, 60) == hdStatic(30, 60) && at(picture, 30, 62) == hdBackground(30, 62),
            "outside the zones the 256x64 background shows through unlit pixels only");
 
-    // The stored 256x64 dynamic mask and colors are not used: other zones, other sets and
-    // other colors there give the same picture, in the editor and in libserum. A file has
-    // the 256x64 frame's pixels under that mask as 0 (the save rule of the Win32 editor, kept
-    // by the serializer), so the frame is compared with those pixels at 0 in both projects.
+    // The stored 256x64 dynamic mask, colors and shadows are not used: other zones, other sets,
+    // other colors and shadows there give the same picture, in the editor and in libserum. The
+    // frame is compared with the pixels under that mask at 0 in both projects, as the Win32
+    // editor saved them.
     ProjectSnapshot withStoredHdData = snapshot;
     FrameDynamicData& stored = *withStoredHdData.frames[0].dynamicData;
     for (std::size_t i = 0; i < stored.maskHd.pixels.size(); ++i) {
@@ -420,7 +420,6 @@ void testHdDynamicZonesOfOrdinaryProject()
     for (std::size_t i = 0; i < stored.colorsHd.size(); ++i) {
         stored.colorsHd[i] = static_cast<uint16_t>(0x0700 + i);
     }
-    // A set with a 128x32 shadow direction does not take the 256x64 one either.
     stored.shadowDirectionsHd[5] = 0xff;
     stored.shadowColorsHd[5] = 0x1234;
     ProjectSnapshot withoutStoredHdData = snapshot;
@@ -457,18 +456,17 @@ void testHdDynamicZonesOfOrdinaryProject()
                hdStatic(1, 0) != 0,
            "a 256x64 pixel under the stored 256x64 dynamic mask shows in libserum too");
 
-    // The one thing libserum does read of them (CheckDynaShadow, GenerateExtraPlaneShadows):
-    // a set without a 128x32 shadow direction takes direction and color from the 256x64
-    // tables when it renders the 64-row plane. Zone 9 is rows 26 (shade 1), 27 (2), 28 (3).
+    // Nor the 256x64 shadow tables, also for a set without a 128x32 shadow direction (libserum
+    // fell back to them before 2.99.5). Zone 9 is rows 26 (shade 1), 27 (2), 28 (3).
     ProjectSnapshot withStoredShadow = snapshot;
     FrameDynamicData& shadow = *withStoredShadow.frames[0].dynamicData;
     shadow.shadowDirectionsHd[9] = 0x02;
     shadow.shadowColorsHd[9] = 0x0bad;
     const Rgb565Frame withShadow =
         expectHdPlaneEqualsRuntime(withStoredShadow, "shadow from the stored 256x64 tables");
-    expect(at(withShadow, 70, 51) == 0x0bad && at(picture, 70, 51) == hdStatic(70, 51) &&
+    expect(at(withShadow, 70, 51) == hdStatic(70, 51) && at(picture, 70, 51) == hdStatic(70, 51) &&
                at(withShadow, 70, 52) == dynamicColor(9, 1),
-           "a set without a 128x32 shadow takes the stored 256x64 shadow on the 64-row plane");
+           "a set without a 128x32 shadow takes no shadow from the stored 256x64 tables");
 }
 
 

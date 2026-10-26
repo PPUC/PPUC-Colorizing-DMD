@@ -580,9 +580,8 @@ namespace {
 // Dynamic shadows as libserum draws them. On the plane with the ROM frame's size a lit dynamic
 // pixel shades its neighbors in its set's directions (CheckDynaShadow). On the 256x64 plane
 // of an ordinary project the shadows are generated on that plane from the upscaled 128x32
-// zones, one 256x64 pixel wide (GenerateExtraPlaneShadows, default offset); a set without a
-// 128x32 shadow direction takes direction and color from the stored 256x64 tables, which is
-// the one thing libserum reads of the 256x64 dynamic data there.
+// zones with the 128x32 shadow tables, one 256x64 pixel wide (GenerateExtraPlaneShadows,
+// default offset).
 // A pixel that takes a shadow is marked in notRotating, if that is given.
 void applyDynamicShadows(const document::ProjectDocument& document,
                          std::size_t frameIndex,
@@ -605,17 +604,10 @@ void applyDynamicShadows(const document::ProjectDocument& document,
         extraDynamics ? dynamicData->shadowDirectionsHd : dynamicData->shadowDirectionsSd;
     const document::CompactArray<uint16_t>& colors =
         extraDynamics ? dynamicData->shadowColorsHd : dynamicData->shadowColorsSd;
-    // Per set: the tables of the dynamic plane, or the other plane's where the picture is the
-    // scaled one and the set has no direction of its own.
+    // Per set: the tables of the dynamic plane.
     const auto shadowOf = [&](uint8_t set, uint8_t& direction, uint16_t& color) {
         direction = set < directions.size() ? directions[set] : uint8_t{0};
         color = set < colors.size() ? colors[set] : uint16_t{0};
-        if (direction == 0 && scaledDynamics && set < dynamicData->shadowDirectionsHd.size()) {
-            direction = dynamicData->shadowDirectionsHd[set];
-            if (set < dynamicData->shadowColorsHd.size()) {
-                color = dynamicData->shadowColorsHd[set];
-            }
-        }
     };
 
     const document::IndexedFrame& original = document.originalFrame(frameIndex);

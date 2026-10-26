@@ -1095,11 +1095,26 @@ bool ProjectDocument::clearUnusedHdDynamicZones(std::size_t frameIndex)
     FrameDynamicData& data = *frame.dynamicData;
     // Read through const: a non-const access gives a packed array a buffer of its own.
     const CompactArray<uint8_t>& mask = data.maskHd.pixels;
-    if (std::all_of(mask.begin(), mask.end(), [](uint8_t value) { return value == 255; })) {
+    const CompactArray<uint8_t>& directions = data.shadowDirectionsHd;
+    const CompactArray<uint16_t>& shadowColors = data.shadowColorsHd;
+    const bool zones =
+        !std::all_of(mask.begin(), mask.end(), [](uint8_t value) { return value == 255; });
+    const bool shadows =
+        !std::all_of(directions.begin(), directions.end(),
+                     [](uint8_t value) { return value == 0; }) ||
+        !std::all_of(shadowColors.begin(), shadowColors.end(),
+                     [](uint16_t value) { return value == 0; });
+    if (!zones && !shadows) {
         return false;
     }
-    std::fill(data.maskHd.pixels.begin(), data.maskHd.pixels.end(), uint8_t{255});
-    std::fill(data.colorsHd.begin(), data.colorsHd.end(), uint16_t{0});
+    if (zones) {
+        std::fill(data.maskHd.pixels.begin(), data.maskHd.pixels.end(), uint8_t{255});
+        std::fill(data.colorsHd.begin(), data.colorsHd.end(), uint16_t{0});
+    }
+    if (shadows) {
+        std::fill(data.shadowDirectionsHd.begin(), data.shadowDirectionsHd.end(), uint8_t{0});
+        std::fill(data.shadowColorsHd.begin(), data.shadowColorsHd.end(), uint16_t{0});
+    }
     markChanged();
     return true;
 }

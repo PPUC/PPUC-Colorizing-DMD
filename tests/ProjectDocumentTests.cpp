@@ -1645,8 +1645,8 @@ void testInvalidSnapshotReportsReason()
 
 }  // namespace
 
-// The 256x64 dynamic zones of an ordinary project are cleared (mask and colors); the 256x64
-// shadow tables, which libserum falls back to, stay. Other layouts keep theirs.
+// The 256x64 dynamic zones, colors and shadow tables of an ordinary project are cleared.
+// Other layouts keep theirs.
 void testClearUnusedHdDynamicZones()
 {
     using colorizing::runtime_fixtures::addDynamicData;
@@ -1661,12 +1661,13 @@ void testClearUnusedHdDynamicZones()
     snapshot.frames[0].dynamicData->colorsHd[5] = 0x1234;
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
-    expect(colorizing::document::clearUnusedHdDynamicZones(document) == 1 && document.isDirty(),
-           "one frame had a 256x64 zone");
+    expect(colorizing::document::clearUnusedHdDynamicZones(document) == 2 && document.isDirty(),
+           "one frame had a 256x64 zone, both a 256x64 shadow");
     const auto& cleared = *document.dynamicData(0);
     expect(cleared.maskHd.pixels[7] == 255 && cleared.colorsHd[5] == 0 &&
-               cleared.shadowDirectionsHd[2] == 0x04,
-           "its mask and colors are cleared, its shadow table stays");
+               cleared.shadowDirectionsHd[2] == 0 &&
+               document.dynamicData(1)->shadowDirectionsHd[2] == 0,
+           "mask, colors and shadow tables are cleared");
     expect(colorizing::document::clearUnusedHdDynamicZones(document) == 0, "once only");
 
     colorizing::document::ProjectSnapshot native =

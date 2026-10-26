@@ -34,7 +34,7 @@ On the HD plane of an ordinary project the editor's renderer follows libserum's 
 frame and HD background as they are, and on top the dynamic zones of the SD plane with the SD
 colors (the stored HD dynamic mask and colors are not used, see "Dynamic Masks"), an unlit zone
 pixel under the SD background mask left to the HD picture, and shadows generated on the HD plane,
-one pixel wide, from the SD shadow tables with the HD tables as a fallback per set. An automated
+one pixel wide, from the SD shadow tables. An automated
 test compares the whole HD plane with libserum for a frame with HD statics, zones, shadows and a
 background, built of rows so that libserum's upscale has nothing to round, and checks that other
 stored HD dynamic masks and colors change nothing.

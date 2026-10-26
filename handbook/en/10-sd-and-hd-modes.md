@@ -53,9 +53,9 @@ Rules:
   the filter used.
 - `Create HD` does not create HD dynamic data and the dialog does not offer it: the runtime renders
   the dynamic zones of the SD plane into the HD picture and does not read an HD dynamic mask. The
-  frame's HD dynamic mask is 255 everywhere (no zone) and its colors 0, which is what the Win32
-  editor gives a frame without HD (stored HD zones are removed when a project is opened, see
-  "Dynamic Masks"); its HD shadows are written as they are.
+  frame's HD dynamic mask is 255 everywhere (no zone) and its colors and shadows 0, which is
+  what the Win32 editor gives a frame without HD (stored HD dynamic data is removed when a
+  project is opened, see "Dynamic Masks").
 - In HD mode the `Dynamic` toolbar button is disabled, and the `Dynamic Sets` section shows and edits the
   dynamic colors and shadows of the SD plane. See "Dynamic Masks".
 - The Inspector `Remove HD` button removes HD data from every selected frame that has it and

@@ -4070,12 +4070,12 @@ bool MainWindow::takeLoadedProject(legacy::LegacyDocumentLoadResult result,
         m_projectPath = projectPath;
         m_sourcePath = sourcePath;
         sidecarNote = importColorizationSidecars();
-        // The 256x64 dynamic zones of an ordinary project are used by nothing: libserum
-        // renders the 128x32 ones there.
+        // The 256x64 dynamic zones and shadows of an ordinary project are used by nothing:
+        // libserum renders the 128x32 ones there.
         if (const std::size_t zones = document::clearUnusedHdDynamicZones(*m_document)) {
             const QString note =
-                tr("The unused HD dynamic zones of %n frame(s) are removed; the runtime renders "
-                   "the SD zones on the HD plane",
+                tr("The unused HD dynamic zones and shadows of %n frame(s) are removed; the "
+                   "runtime renders the SD zones and shadows on the HD plane",
                    "",
                    static_cast<int>(zones));
             sidecarNote = sidecarNote.isEmpty() ? note
