@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Used by the current frame` also lists the scene a frame starts by its trigger, not only the
+  scene a frame is part of.
 - The comparison masks, backgrounds, sprites and scenes on the left show their total beside
   `New` and `Delete`, and how many are listed while `Used by the current frame` is on (issue #37).
 - The mouse wheel moves the frame strip by one whole frame, so the first frame shown is always

@@ -286,7 +286,15 @@ void testFramesStartingScene()
            "frame 1 starts scene 50500 by its trigger");
     for (std::size_t frame : edit::sceneFrames(document, 50500)) {
         expect(!edit::startsScene(document, frame, 50500), "the scene's own frames do not");
+        expect(edit::sceneUsedByFrame(document, frame) == uint16_t{50500},
+               "a scene's frame uses its scene");
     }
+    // "Used by the current frame" lists the scene a frame starts too.
+    expect(edit::sceneUsedByFrame(document, 1) == uint16_t{50500} &&
+               !edit::sceneUsedByFrame(document, 0),
+           "the frame that starts the scene uses it, the others none");
+    document.setTriggerId(0, 50501);
+    expect(!edit::sceneUsedByFrame(document, 0), "a trigger of no scene of the project is none");
 }
 
 void testOtherLayouts()

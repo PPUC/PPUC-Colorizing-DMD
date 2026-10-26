@@ -357,6 +357,23 @@ bool startsScene(const document::ProjectDocument& document,
     return !document.sceneFrame(frameIndex) && document.triggerId(frameIndex) == sceneId;
 }
 
+std::optional<uint16_t> sceneUsedByFrame(const document::ProjectDocument& document,
+                                         std::size_t frameIndex)
+{
+    if (frameIndex >= document.frameCount()) {
+        return std::nullopt;
+    }
+    if (const auto& scene = document.sceneFrame(frameIndex)) {
+        return scene->sceneId;
+    }
+    const uint32_t trigger = document.triggerId(frameIndex);
+    const auto& settings = document.colorizationSettings();
+    if (trigger <= 0xffff && settings && settings->scene(static_cast<uint16_t>(trigger))) {
+        return static_cast<uint16_t>(trigger);
+    }
+    return std::nullopt;
+}
+
 std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document, uint16_t sceneId)
 {
     std::vector<std::size_t> frames;

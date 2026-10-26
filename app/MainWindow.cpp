@@ -5469,11 +5469,10 @@ void MainWindow::applyAssetFilter()
         }
     }
     if (m_scenesPanel) {
-        const std::optional<document::SceneFrameRef>& scene =
-            hasFrame ? m_document->sceneFrame(*frame) : std::nullopt;
+        // The scene the frame is a frame of, or the one it starts.
         m_scenesPanel->showOnlyScene(filtered && hasFrame,
-                                     scene ? std::optional<uint16_t>(scene->sceneId)
-                                           : std::nullopt);
+                                     hasFrame ? edit::sceneUsedByFrame(*m_document, *frame)
+                                              : std::nullopt);
     }
 }
 

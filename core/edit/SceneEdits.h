@@ -121,5 +121,9 @@ private:
                                uint16_t sceneId);
 [[nodiscard]] std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document,
                                                    uint16_t sceneId);
+// The scene the frame uses: the one it is a frame of, or else the one it starts (startsScene(),
+// a scene the project has); nothing for neither. "Used by the current frame" lists it.
+[[nodiscard]] std::optional<uint16_t> sceneUsedByFrame(const document::ProjectDocument& document,
+                                                       std::size_t frameIndex);
 
 }  // namespace colorizing::edit
