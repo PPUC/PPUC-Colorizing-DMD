@@ -125,27 +125,15 @@ private:
     std::unique_ptr<Context> m_context;
 };
 
-// Write complete files from the snapshot alone, in the current legacy layout. With a progress,
-// every byte written is added to its `done`, and a set `cancel` stops the write (it returns
-// false with kLegacyIoCancelledMessage; what was written so far stays in the stream).
+// The cROM of the snapshot, as libserum 2.9 reads it (header revision 21, format version 1):
+// what the runtime and the .cROMc export hand to libserum. With a progress, every byte written
+// is added to its `done`, and a set `cancel` stops the write (it returns false with
+// kLegacyIoCancelledMessage; what was written so far stays in the stream).
 [[nodiscard]] bool writeLegacyCrom(std::ostream& stream,
                                    const document::ProjectSnapshot& snapshot,
                                    std::string& errorMessage,
                                    LegacySectionOffsets* sections = nullptr,
                                    LegacyIoProgress* progress = nullptr);
-[[nodiscard]] bool writeLegacyCrp(std::ostream& stream,
-                                  const document::ProjectSnapshot& snapshot,
-                                  std::string& errorMessage,
-                                  LegacySectionOffsets* sections = nullptr,
-                                  LegacyIoProgress* progress = nullptr);
-
-// The cRP part of a .cRPX (CrpxFile.h): writeLegacyCrp() with an empty PuP pack field, as the
-// .cRPX keeps the pack in a chunk of its own. As many bytes as writeLegacyCrp().
-[[nodiscard]] bool writeCrpxCrpPart(std::ostream& stream,
-                                    const document::ProjectSnapshot& snapshot,
-                                    std::string& errorMessage,
-                                    LegacySectionOffsets* sections = nullptr,
-                                    LegacyIoProgress* progress = nullptr);
 
 // The settings block a cROM ends with (libserum's ReadCromSettings()): "SCX1", the payload
 // size, then the contents (scenes, scaling), the scenes as a "<rom>.pup.csv" line has them
@@ -165,9 +153,8 @@ inline constexpr uint32_t kCromSettingsLights = 4;
 inline constexpr uint32_t kCromSettingsOriginalOnlySets = 8;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
 
-// How many bytes writeLegacyCrom() and writeLegacyCrp() write for a valid snapshot, without
-// writing them (for a progress display).
+// How many bytes writeLegacyCrom() writes for a valid snapshot, without writing them (for a
+// progress display).
 [[nodiscard]] uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot);
-[[nodiscard]] uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot);
 
 }  // namespace colorizing::legacy

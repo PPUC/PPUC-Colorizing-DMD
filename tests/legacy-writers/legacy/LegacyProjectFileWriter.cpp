@@ -6,6 +6,9 @@
 #include <system_error>
 
 #include "legacy/CrpxFile.h"
+#include "legacy/CrpxWriter.h"
+#include "legacy/CrzWriter.h"
+#include "legacy/LegacyCrpWriter.h"
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"

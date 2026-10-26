@@ -1,18 +1,16 @@
-// Loads a real .cROM/.cRP project into a ProjectDocument, serializes it again the way Save does
-// (ProjectDocument::toSnapshot(), then writeLegacyCrom() / writeLegacyCrp()) and reports where
-// the result differs from the files on disk. The first argument may be a .cRZ archive; the
-// comparison is then against the cROM stored in it. Nothing is written: the serialized bytes
-// are compared with the files as they are produced, so the tool holds the project and small
-// buffers only (plus, for a .cRZ, the cROM libserum unpacks). Usage:
-// colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP|cRPX>
-// A .cRPX is compared with writeCrpx(); the sections it reports are then 24 bytes early.
+// Loads a real .cROM/.cRP project into a ProjectDocument and checks that nothing of it is lost.
+// Usage: colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP|cRPX>
 //
-// The 96x32 data of a project with 192x64 original frames is discarded on load, so its
-// extra-plane blocks are expected to differ from a file that had such data. Those blocks are
-// reported as expected and do not count; every other block and the cRP must be identical.
+// The cRP (writeLegacyCrp(), deprecated, tests/legacy-writers) must be byte-identical with the
+// file on disk; a .cRPX is compared with writeCrpx() (its sections are then 24 bytes early).
+// The cROM of the editor is the one libserum 2.9 reads (writeLegacyCrom(): header revision 21,
+// format version 1), so it cannot be byte-identical with a cROM of the Win32 editor: it is
+// written into a temporary file, read back with the cRP, written again, and the two writes
+// must be byte-identical. The bytes are compared as they are produced.
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -28,6 +26,8 @@
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectSerializer.h"
+#include "legacy/LegacyCrpWriter.h"
+#include "legacy/CrpxWriter.h"
 
 namespace {
 
@@ -136,35 +136,21 @@ private:
     std::map<std::size_t, Difference> m_differences;
 };
 
-bool report(const char* label,
-            const ComparingBuffer& buffer,
-            const LegacySectionOffsets& sections,
-            bool extraPlaneDiscarded)
+bool report(const char* label, const ComparingBuffer& buffer, const LegacySectionOffsets& sections)
 {
     std::cout << label << ": " << buffer.referenceSize() << " bytes on disk, " << buffer.written()
               << " bytes serialized\n";
     bool identical = buffer.referenceSize() == buffer.written();
-    bool expectedDifference = false;
     for (const auto& [index, difference] : buffer.differences()) {
         const bool known = index + 1 < sections.size();
         const std::string name = index < sections.size() ? sections[index].first : "?";
         const std::size_t length =
             known ? sections[index + 1].second - sections[index].second : 0;
-        const bool expected =
-            extraPlaneDiscarded && colorizing::legacy::isLegacyExtraPlaneSection(name);
-        if (expected) {
-            expectedDifference = true;
-        } else {
-            identical = false;
-        }
+        identical = false;
         std::cout << "  " << name << ": " << difference.count << " of " << length
-                  << " bytes differ, first at offset " << difference.first
-                  << (expected ? " (expected: 96x32 data is discarded)" : "") << '\n';
+                  << " bytes differ, first at offset " << difference.first << '\n';
     }
-    std::cout << (!identical ? "  DIFFERENT\n"
-                             : expectedDifference
-                                   ? "  identical except the discarded 96x32 extra plane\n"
-                                   : "  identical\n");
+    std::cout << (identical ? "  identical\n" : "  DIFFERENT\n");
     return identical;
 }
 
@@ -195,29 +181,41 @@ int main(int argc, char* argv[])
     }
     // What Save writes: a snapshot that shares the document's blocks.
     const colorizing::document::ProjectSnapshot snapshot = document->toSnapshot();
-    const bool discarded = snapshot.geometry.discardsExtraPlane();
     std::string error;
 
     bool cromSame = false;
     {
-        colorizing::legacy::CrzContent crz;
-        LegacySectionOffsets sections;
-        std::optional<ComparingBuffer> buffer;
-        if (colorizing::legacy::hasCrzExtension(argv[1])) {
-            if (!colorizing::legacy::readCrzArchive(argv[1], crz, error)) {
-                std::cerr << "load failed: " << error << '\n';
+        const std::filesystem::path written =
+            std::filesystem::temp_directory_path() / "colorizing_roundtrip.cROM";
+        {
+            std::ofstream file(written, std::ios::binary | std::ios::trunc);
+            if (!colorizing::legacy::writeLegacyCrom(file, snapshot, error) || !file.flush()) {
+                std::cerr << "serialize failed: " << error << '\n';
                 return 2;
             }
-            buffer.emplace(sections, crz.data(), crz.size());
-        } else {
-            buffer.emplace(sections, std::string(argv[1]));
         }
-        std::ostream stream(&*buffer);
-        if (!colorizing::legacy::writeLegacyCrom(stream, snapshot, error, &sections)) {
+        const colorizing::legacy::LegacyProjectFileReader reader;
+        colorizing::legacy::LegacyLoadResult reloaded =
+            reader.load({written.string(), argv[2]});
+        if (!reloaded.ok) {
+            std::filesystem::remove(written);
+            std::cerr << "the written cROM does not load: " << reloaded.error.message << '\n';
+            return 2;
+        }
+        const colorizing::document::ProjectSnapshot again =
+            colorizing::document::ProjectDocument::fromSnapshot(std::move(reloaded.snapshot))
+                .toSnapshot();
+        LegacySectionOffsets sections;
+        ComparingBuffer buffer(sections, written.string());
+        std::ostream stream(&buffer);
+        if (!colorizing::legacy::writeLegacyCrom(stream, again, error, &sections)) {
+            std::filesystem::remove(written);
             std::cerr << "serialize failed: " << error << '\n';
             return 2;
         }
-        cromSame = report("cROM", *buffer, sections, discarded);
+        cromSame = report("cROM (format version 1, written, read back, written again)", buffer,
+                          sections);
+        std::filesystem::remove(written);
     }
 
     LegacySectionOffsets sections;
@@ -230,6 +228,6 @@ int main(int argc, char* argv[])
         std::cerr << "serialize failed: " << error << '\n';
         return 2;
     }
-    const bool crpSame = report(crpx ? "cRPX" : "cRP", crpBuffer, sections, false);
+    const bool crpSame = report(crpx ? "cRPX" : "cRP", crpBuffer, sections);
     return cromSame && crpSame ? 0 : 1;
 }

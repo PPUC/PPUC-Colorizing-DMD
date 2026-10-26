@@ -91,16 +91,6 @@ public:
                                                 LegacyIoProgress* progress = nullptr) const = 0;
 };
 
-class ILegacyProjectWriter {
-public:
-    virtual ~ILegacyProjectWriter() = default;
-    // progress may be null. The snapshot is only read; a document's toSnapshot() shares its
-    // blocks with the document (copy on write), so it costs no copy of the pixels.
-    [[nodiscard]] virtual LegacySaveResult save(const LegacyProjectPaths& paths,
-                                                const document::ProjectSnapshot& snapshot,
-                                                LegacyIoProgress* progress = nullptr) const = 0;
-};
-
 [[nodiscard]] LegacyLoadResult makeLoadFailure(std::string message);
 [[nodiscard]] LegacySaveResult makeSaveFailure(std::string message);
 [[nodiscard]] LegacyLoadResult makeLoadSuccess(document::ProjectSnapshot snapshot);

@@ -23,6 +23,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "runtime/FrameIdentification.h"
 #include "runtime/RuntimePreview.h"
+#include "legacy/LegacyCrpWriter.h"
 
 #include <miniz/miniz.h>
 

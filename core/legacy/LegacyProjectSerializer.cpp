@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 
+#include "legacy/LegacyByteWriter.h"
 #include "legacy/LegacyProjectIo.h"
 #include "render/CanvasLayout.h"
 
@@ -14,8 +15,9 @@ namespace {
 // (libserum 2.9 on).
 constexpr uint32_t kWrittenCromRevision = 21;
 
-constexpr std::size_t kRomNameBytes = 64;
-constexpr std::size_t kFlushThresholdBytes = 1 << 20;
+using detail::kRomNameBytes;
+using detail::Writer;
+using detail::WriteCancelled;
 
 std::array<uint32_t, 256> buildCrc32Table()
 {
@@ -35,163 +37,6 @@ std::array<uint32_t, 256> buildCrc32Table()
     }
     return table;
 }
-
-// Thrown by Writer when its progress asks to cancel; caught where the file is written.
-struct WriteCancelled {
-};
-
-class Writer {
-public:
-    Writer(std::ostream& stream, LegacySectionOffsets* sections, LegacyIoProgress* progress)
-        : m_stream(&stream)
-        , m_sections(sections)
-        , m_progress(progress)
-    {
-    }
-    // Into memory only: what was written stays in buffer().
-    Writer() = default;
-
-    [[nodiscard]] std::vector<uint8_t>& buffer() { return m_buffer; }
-
-    void section(const char* name)
-    {
-        if (m_sections) {
-            m_sections->emplace_back(name, m_offset);
-        }
-    }
-
-    void u8(uint8_t value)
-    {
-        m_buffer.push_back(value);
-        advance(1);
-    }
-
-    void u16(uint16_t value)
-    {
-        m_buffer.push_back(static_cast<uint8_t>(value & 0xff));
-        m_buffer.push_back(static_cast<uint8_t>((value >> 8) & 0xff));
-        advance(2);
-    }
-
-    void u32(uint32_t value)
-    {
-        m_buffer.push_back(static_cast<uint8_t>(value & 0xff));
-        m_buffer.push_back(static_cast<uint8_t>((value >> 8) & 0xff));
-        m_buffer.push_back(static_cast<uint8_t>((value >> 16) & 0xff));
-        m_buffer.push_back(static_cast<uint8_t>((value >> 24) & 0xff));
-        advance(4);
-    }
-
-    template <typename Values>
-    void bytes(const Values& values)
-    {
-        m_buffer.insert(m_buffer.end(), values.begin(), values.end());
-        advance(values.size());
-    }
-
-    template <typename Values>
-    void u16s(const Values& values)
-    {
-        const std::size_t start = m_buffer.size();
-        m_buffer.resize(start + 2 * values.size());
-        uint8_t* out = m_buffer.data() + start;
-        for (const uint16_t value : values) {
-            *out++ = static_cast<uint8_t>(value & 0xff);
-            *out++ = static_cast<uint8_t>((value >> 8) & 0xff);
-        }
-        advance(2 * values.size());
-    }
-
-    template <typename Values>
-    void u32s(const Values& values)
-    {
-        for (const uint32_t value : values) {
-            u32(value);
-        }
-    }
-
-    void repeatU8(uint8_t value, std::size_t count)
-    {
-        m_buffer.insert(m_buffer.end(), count, value);
-        advance(count);
-    }
-
-    void repeatU16(uint16_t value, std::size_t count)
-    {
-        const std::size_t start = m_buffer.size();
-        m_buffer.resize(start + 2 * count);
-        uint8_t* out = m_buffer.data() + start;
-        for (std::size_t i = 0; i < count; ++i) {
-            *out++ = static_cast<uint8_t>(value & 0xff);
-            *out++ = static_cast<uint8_t>((value >> 8) & 0xff);
-        }
-        advance(2 * count);
-    }
-
-    // Writes the values, or `count` copies of `fallback` when they were never populated.
-    template <typename Values>
-    void bytesOr(const Values& values, std::size_t count, uint8_t fallback)
-    {
-        if (values.size() == count) {
-            bytes(values);
-        } else {
-            repeatU8(fallback, count);
-        }
-    }
-
-    template <typename Values>
-    void u16sOr(const Values& values, std::size_t count, uint16_t fallback)
-    {
-        if (values.size() == count) {
-            u16s(values);
-        } else {
-            repeatU16(fallback, count);
-        }
-    }
-
-    void name(const std::string& value, std::size_t length)
-    {
-        for (std::size_t i = 0; i < length; ++i) {
-            u8(i + 1 < length && i < value.size() ? static_cast<uint8_t>(value[i]) : uint8_t{0});
-        }
-    }
-
-    [[nodiscard]] bool finish()
-    {
-        flush();
-        m_stream->flush();
-        return static_cast<bool>(*m_stream);
-    }
-
-private:
-    void advance(std::size_t count)
-    {
-        m_offset += count;
-        if (m_stream && m_buffer.size() >= kFlushThresholdBytes) {
-            flush();
-        }
-    }
-
-    void flush()
-    {
-        m_stream->write(reinterpret_cast<const char*>(m_buffer.data()),
-                       static_cast<std::streamsize>(m_buffer.size()));
-        if (m_progress) {
-            m_progress->done.fetch_add(m_buffer.size());
-            if (m_progress->cancel.load()) {
-                m_buffer.clear();
-                throw WriteCancelled{};
-            }
-        }
-        m_buffer.clear();
-    }
-
-    std::ostream* m_stream = nullptr;
-    LegacySectionOffsets* m_sections = nullptr;
-    LegacyIoProgress* m_progress = nullptr;
-    std::vector<uint8_t> m_buffer;
-    std::size_t m_offset = 0;
-};
 
 std::size_t pixelCount(render::Size size)
 {
@@ -693,107 +538,6 @@ bool writeCromContent(std::ostream& stream,
     return true;
 }
 
-bool writeCrpContent(std::ostream& stream,
-                     const document::ProjectSnapshot& snapshot,
-                     std::string& errorMessage,
-                     LegacySectionOffsets* sections,
-                     LegacyIoProgress* progress,
-                     bool withPupPack)
-{
-    if (!document::isValidProjectSnapshot(snapshot, &errorMessage)) {
-        return false;
-    }
-
-    // Sprite and palette names are edited through the model; everything else is carried in the
-    // metadata tables. Unchanged names keep their original bytes.
-    document::EditorMetadata metadata = snapshot.editorMetadata;
-    document::ensureSpriteTableEntries(metadata, snapshot.sprites.size());
-    for (std::size_t i = 0; i < snapshot.sprites.size(); ++i) {
-        document::setFixedName(metadata.spriteNames,
-                               i,
-                               document::kSpriteNameBytes,
-                               snapshot.sprites[i].name);
-    }
-    const bool hasPalettes = snapshot.palettes.size() == document::kPaletteCount;
-    for (std::size_t i = 0; hasPalettes && i < snapshot.palettes.size(); ++i) {
-        document::setFixedName(metadata.paletteNames,
-                               i,
-                               document::kPaletteNameBytes,
-                               snapshot.palettes[i].name);
-    }
-
-    Writer writer(stream, sections, progress);
-    writer.section("ROM name");
-    writer.name(snapshot.romName, kRomNameBytes);
-    writer.section("original frames");
-    for (const auto& frame : snapshot.frames) {
-        writer.bytes(frame.originalSd.pixels);
-    }
-    writer.section("color sets");
-    writer.u32s(metadata.activeColorSets);
-    writer.u16s(metadata.colorSets);
-    writer.u8(metadata.currentColorSet);
-    writer.u8(metadata.firstDisplayedColorSet);
-    writer.bytes(metadata.colorSetNames);
-    writer.section("draw settings");
-    writer.u32(metadata.drawColorMode);
-    writer.u8(metadata.drawMode);
-    writer.u32(static_cast<uint32_t>(metadata.maskSelectionMode));
-    writer.u32(metadata.fillMode);
-    writer.section("mask names");
-    writer.bytes(metadata.maskNames);
-    writer.section("sections");
-    writer.u32(metadata.sectionCount);
-    writer.u32s(metadata.sectionFirstFrames);
-    writer.bytes(metadata.sectionNames);
-    // The cRP has room for kCrpSpriteEntries sprites; the .cRPX keeps the entries beyond.
-    document::truncateSpriteTableEntries(metadata, document::kCrpSpriteEntries);
-    writer.section("sprite names");
-    writer.bytes(metadata.spriteNames);
-    writer.section("sprite source frames");
-    writer.u32s(metadata.spriteSourceFrames);
-    writer.section("frame durations");
-    for (const auto& frame : snapshot.frames) {
-        writer.u32(frame.durationMs);
-    }
-    writer.section("sprite source rectangles");
-    writer.u16s(metadata.spriteSourceRects);
-    writer.u32s(metadata.spriteSourceMirrors);
-    writer.section("palettes");
-    for (std::size_t i = 0; i < document::kPaletteCount; ++i) {
-        writer.u16sOr(hasPalettes ? snapshot.palettes[i].colors : std::vector<uint16_t>{},
-                      document::kPaletteColorCount,
-                      0);
-    }
-    writer.section("edit colors");
-    writer.u16s(metadata.editColors);
-    writer.section("image positions");
-    writer.u32(metadata.imagePositionCount);
-    writer.bytes(metadata.imagePositionNames);
-    for (int32_t value : metadata.imagePositions) {
-        writer.u32(static_cast<uint32_t>(value));
-    }
-    writer.section("palette names");
-    writer.bytes(metadata.paletteNames);
-    writer.section("imported palettes");
-    writer.u32(static_cast<uint32_t>(metadata.importedPalettes.size() /
-                                     document::kImportedPaletteBytes));
-    writer.bytes(metadata.importedPalettes);
-    writer.section("elapsed time");
-    writer.u32(metadata.timeElapsedMs);
-    writer.section("PuP pack");
-    writer.u32(withPupPack ? metadata.hasPupPack : 0);
-    writer.bytes(document::legacyPupPackNameBytes(withPupPack ? metadata.pupPackName
-                                                              : std::string()));
-    writer.section("end");
-
-    if (!writer.finish()) {
-        errorMessage = "could not write cRP data";
-        return false;
-    }
-    return true;
-}
-
 }  // namespace
 
 const char* cromBlockName(CromBlock block)
@@ -900,34 +644,6 @@ bool writeLegacyCrom(std::ostream& stream,
 {
     try {
         return writeCromContent(stream, snapshot, errorMessage, sections, progress);
-    } catch (const WriteCancelled&) {
-        errorMessage = kLegacyIoCancelledMessage;
-        return false;
-    }
-}
-
-bool writeLegacyCrp(std::ostream& stream,
-                    const document::ProjectSnapshot& snapshot,
-                    std::string& errorMessage,
-                    LegacySectionOffsets* sections,
-                    LegacyIoProgress* progress)
-{
-    try {
-        return writeCrpContent(stream, snapshot, errorMessage, sections, progress, true);
-    } catch (const WriteCancelled&) {
-        errorMessage = kLegacyIoCancelledMessage;
-        return false;
-    }
-}
-
-bool writeCrpxCrpPart(std::ostream& stream,
-                      const document::ProjectSnapshot& snapshot,
-                      std::string& errorMessage,
-                      LegacySectionOffsets* sections,
-                      LegacyIoProgress* progress)
-{
-    try {
-        return writeCrpContent(stream, snapshot, errorMessage, sections, progress, false);
     } catch (const WriteCancelled&) {
         errorMessage = kLegacyIoCancelledMessage;
         return false;
@@ -1070,23 +786,6 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         block[4 + i] = static_cast<uint8_t>((payload >> (8 * i)) & 0xff);
     }
     return block;
-}
-
-uint64_t legacyCrpByteCount(const document::ProjectSnapshot& snapshot)
-{
-    const document::EditorMetadata& metadata = snapshot.editorMetadata;
-    const uint64_t frames = snapshot.frames.size();
-    const uint64_t rom = pixelCount(document::originalFrameSize(snapshot));
-    return kRomNameBytes + frames * rom + 4 * metadata.activeColorSets.size() +
-           2 * metadata.colorSets.size() + 1 + 1 + metadata.colorSetNames.size() + 4 + 1 + 4 +
-           4 + metadata.maskNames.size() + 4 + 4 * metadata.sectionFirstFrames.size() +
-           metadata.sectionNames.size() +
-           document::kCrpSpriteEntries * (document::kSpriteNameBytes + 4 + 2 * 4 + 4 * 2) +
-           4 * frames +
-           2 * document::kPaletteCount * document::kPaletteColorCount +
-           2 * metadata.editColors.size() + 4 + metadata.imagePositionNames.size() +
-           4 * metadata.imagePositions.size() + metadata.paletteNames.size() + 4 +
-           metadata.importedPalettes.size() + 4 + 4 + document::kPupPackNameBytes;
 }
 
 }  // namespace colorizing::legacy

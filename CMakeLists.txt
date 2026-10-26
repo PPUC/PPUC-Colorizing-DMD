@@ -114,6 +114,12 @@ if(COLORIZINGDMD_QT_V2_BUILD_APP)
     add_subdirectory(app)
 endif()
 
+# DEPRECATED (tests/legacy-writers/README.md): the legacy writers some tests and the UI dump
+# still make legacy projects with.
+if(COLORIZINGDMD_QT_V2_BUILD_TESTS OR COLORIZINGDMD_QT_V2_BUILD_UI_DUMP)
+    add_subdirectory(tests/legacy-writers)
+endif()
+
 if(COLORIZINGDMD_QT_V2_BUILD_UI_DUMP)
     if(NOT COLORIZINGDMD_QT_V2_BUILD_APP)
         message(FATAL_ERROR "COLORIZINGDMD_QT_V2_BUILD_UI_DUMP needs COLORIZINGDMD_QT_V2_BUILD_APP")

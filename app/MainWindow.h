@@ -178,8 +178,6 @@ private:
     // A file in the project's folder (or the dump's, or the home folder) named after the
     // project: projectBaseName() and the suffix.
     [[nodiscard]] QString proposedFilePath(const QString& suffix) const;
-    // File -> Export For Earlier Editors: the .cRZ and .cRPX of the project.
-    void exportForEarlierEditors();
     // File -> Export Selected Frames As Package and Import Package (edit/PackageImport.h).
     void exportPackage();
     void importPackageFile();

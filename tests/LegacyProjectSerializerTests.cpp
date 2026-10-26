@@ -10,6 +10,7 @@
 #include "legacy/LegacyCrpOriginals.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "render/CanvasLayout.h"
+#include "legacy/LegacyCrpWriter.h"
 
 using colorizing::document::FrameBackgroundData;
 using colorizing::document::FrameDynamicData;

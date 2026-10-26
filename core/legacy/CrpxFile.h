@@ -74,14 +74,6 @@ inline constexpr uint32_t kCrpxHeaderBytes = 24;
 // Whether the path ends in ".cRPX" (any case).
 [[nodiscard]] bool hasCrpxExtension(const std::string& path);
 
-// Writes the whole .cRPX of the snapshot. Same contract as writeLegacyCrp(); sections are the
-// cRP part's, counted from the start of the cRP part.
-[[nodiscard]] bool writeCrpx(std::ostream& stream,
-                             const document::ProjectSnapshot& snapshot,
-                             std::string& errorMessage,
-                             LegacySectionOffsets* sections = nullptr,
-                             LegacyIoProgress* progress = nullptr);
-[[nodiscard]] uint64_t crpxByteCount(const document::ProjectSnapshot& snapshot);
 
 enum class CrpxProbe {
     // No .cRPX header: a .cRP of the Win32 editor, the source is unchanged.

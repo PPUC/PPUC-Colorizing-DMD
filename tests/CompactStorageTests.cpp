@@ -31,6 +31,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "platform/Utf8Path.h"
+#include "legacy/LegacyCrpWriter.h"
 
 namespace {
 

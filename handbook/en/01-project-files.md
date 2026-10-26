@@ -16,10 +16,8 @@ Other files:
 - `.cROMc` is what a machine loads. `File -> Export .cROMc...` writes it (see "Saving").
 - `.cROM`, `.cRZ` (a zip archive holding the `.cROM`), `.cRP` and `.cRPX` are the files of
   earlier editors: the Win32 editor (CDMD 3.17.3) and versions of this editor before the project
-  file. They are opened and converted (see "Opening Projects"), never written over.
-  `File -> Export For Earlier Editors...` writes a `.cRZ` and a `.cRPX` of the project: the `.cRZ`
-  plays with libserum 2.8 and 2.9, the `.cRPX` opens in the editor versions before the project
-  file.
+  file. They are opened and converted (see "Opening Projects"), never written over; the editor
+  writes none of them.
 - `.cdmdpkg` is a package: frames of a project with what they use, for another project (see
   "Packages").
 - A frame dump (`.txt`) is what a project starts from and what frames are added from: the
@@ -110,28 +108,21 @@ The Creative Commons licenses link their full text (the "deed") below the box. `
 says who is to be named, for example the authors; `Link` where the colorization or its license
 can be found. Changing the license is one undo step, together with the other project settings.
 
-The license is stored in the project file, and in the `.cRPX` of `Export For Earlier
-Editors`. The `.cROMc` and the `.cRZ` do not carry it yet, so a machine does not see it.
+The license is stored in the project file. The `.cROMc` does not carry it yet, so a machine
+does not see it.
 
 ## The files of earlier editors
 
 The editor reads the projects of the Win32 editor (`.cROM` or `.cRZ` with `.cRP`) and of its own
-versions before the project file (`.cRZ` with `.cRPX`), with everything they hold: the `.cRPX`
-holds what a `.cRP` holds, behind a header the Win32 editor does not know (`CDMDcRPX`, a format
-version, the size of that part), and after it, in tagged parts, the PuP pack name, the helper
-lines (see "Helper Lines"), the scenes and scaling settings (see "Scenes and Scaling"), the Images
-window's saved zones, the frames' tags (see "Frame List"), the speaker lights (see "Speaker
-Lights"), the libserum target of earlier versions (skipped), the license (see "License") and
-the names and source data of
-sprites beyond the 255 a `.cRP` has room for. A part this editor does not know is skipped; a
+versions before the project file (`.cRZ` with `.cRPX`), with everything they hold: the `.cRPX` holds
+what a `.cRP` holds, behind a header the Win32 editor does not know (`CDMDcRPX`, a format version,
+the size of that part), and after it, in tagged parts, the PuP pack name, the helper lines (see
+"Helper Lines"), the scenes and scaling settings (see "Scenes and Scaling"), the Images window's
+saved zones, the frames' tags (see "Frame List"), the speaker lights (see "Speaker Lights"), the
+libserum target of earlier versions (skipped), the license (see "License") and the names and source
+data of sprites beyond the 255 a `.cRP` has room for. A part this editor does not know is skipped; a
 `.cRPX` of a newer format version than this editor knows is refused.
 
 Opening converts the project; its files stay as they are, and the Win32 editor can still open
 them. What the project file does not keep of them: bytes the Win32 editor left in its tables
-without meaning (after the end of a name, entries behind the last section or sprite). The
-cROM of an exported `.cRZ` is the same, byte for byte, as the one the project was opened from,
-for an unedited project.
-
-`File -> Export For Earlier Editors...` asks for a `.cRZ` and writes it and a `.cRPX` of the same
-base name beside it, as the versions of this editor before the project file saved a project
-(see "Saving"). The Win32 editor cannot open them: it opens a `.cROM` with a `.cRP` only.
+without meaning (after the end of a name, entries behind the last section or sprite).

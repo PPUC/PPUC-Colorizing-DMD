@@ -134,7 +134,6 @@
 #include "panels/SectionBar.h"
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
-#include "legacy/LegacyProjectFileWriter.h"
 #include "platform/Utf8Path.h"
 #include "runtime/CromcExport.h"
 #include "edit/LicenseEdits.h"
@@ -724,14 +723,6 @@ void MainWindow::createActions()
         openProjectSettings();
     });
     fileMenu->addSeparator();
-
-    QAction* exportEarlierAction = fileMenu->addAction(tr("Export For &Earlier Editors..."));
-    exportEarlierAction->setToolTip(
-        tr("Write the project as .cRZ and .cRPX: the .cRZ plays with libserum 2.8 and 2.9, the "
-           ".cRPX opens in editor versions before the project file"));
-    connect(exportEarlierAction, &QAction::triggered, this, [this]() {
-        exportForEarlierEditors();
-    });
 
     QAction* exportCromcAction = fileMenu->addAction(tr("Export .cRO&Mc..."));
     exportCromcAction->setToolTip(
@@ -2961,56 +2952,6 @@ void MainWindow::importPackage(const document::ProjectSnapshot& package)
                                 .arg(static_cast<qulonglong>(counts.addedFrames))
                                 .arg(static_cast<qulonglong>(counts.updatedFrames)),
                             5000);
-}
-
-void MainWindow::exportForEarlierEditors()
-{
-    if (!m_document) {
-        statusBar()->showMessage(tr("No project loaded"), 2500);
-        return;
-    }
-    QString crzPath = QFileDialog::getSaveFileName(
-        this,
-        tr("Export For Earlier Editors"),
-        proposedFilePath(QStringLiteral(".cRZ")),
-        tr("Serum colorization (*.cRZ);;All files (*)"));
-    if (crzPath.isEmpty()) {
-        return;
-    }
-    if (!isCrzPath(crzPath)) {
-        crzPath += QStringLiteral(".cRZ");
-    }
-    const QFileInfo crz(crzPath);
-    const QString crpxPath =
-        crz.dir().absoluteFilePath(crz.completeBaseName() + QStringLiteral(".cRPX"));
-    // The .cRZ for libserum 2.8 and 2.9, the .cRPX for the editor versions before the project
-    // file; no .cROM.
-    const legacy::LegacyProjectPaths paths{{}, crpxPath.toStdString(), crzPath.toStdString()};
-    legacy::LegacySaveResult result;
-    {
-        document::ProjectSnapshot snapshot = m_document->toSnapshot();
-        snapshot.editorMetadata.timeElapsedMs = projectTimeMs();
-        legacy::LegacyIoProgress progress;
-        const std::optional<std::string> failure =
-            runProjectTask(this, tr("Exporting Project"), progress, [&]() {
-                result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
-            });
-        if (failure) {
-            result = legacy::makeSaveFailure(*failure);
-        }
-    }
-    if (result.cancelled) {
-        statusBar()->showMessage(tr("Export cancelled"), 4000);
-        return;
-    }
-    if (!result.ok) {
-        QMessageBox::critical(this, tr("Export For Earlier Editors"),
-                              QString::fromStdString(result.error.message));
-        return;
-    }
-    statusBar()->showMessage(tr("Exported %1 and %2")
-                                 .arg(crz.fileName(), QFileInfo(crpxPath).fileName()),
-                             5000);
 }
 
 UnsavedChangesAnswer MainWindow::askAboutUnsavedChanges(const QString& action)

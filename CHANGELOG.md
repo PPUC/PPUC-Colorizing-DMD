@@ -8,6 +8,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - Projects are made for libserum 2.9 and later only: `Project Settings` no longer chooses a
   libserum. Every project allows 128 sprites per frame and 65535 sprites and backgrounds;
   projects of libserum 2.8 and of the Win32 editor are opened as such projects.
+- `File -> Export For Earlier Editors` is gone: the editor writes no `.cRZ` and `.cRPX` any more.
+  A machine gets the `.cROMc` (`File -> Export .cROMc`) and needs libserum 2.9 or later.
 - Several sprites can be selected in the sprite list: `Assign` puts each on the selected frames
   (first empty slots, as in the Win32 editor), `Delete` deletes them together (issue #38).
 - `Used by the current frame` also lists the scene a frame starts by its trigger, not only the
@@ -21,8 +23,6 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Shadow Next To Selection` and `Grow Selection` have `All Around, Stern Style`: the four
   sides without the corners; the shadows all around have `Alt+S` (Stern style) and `Alt+Shift+S`
   (issue #35).
-- `Export .cROMc` refuses a project made for libserum 2.8, which cannot read the editor's
-  `.cROMc`, and offers to export the `.cRZ` instead.
 
 ## 3.99.13
 

@@ -18,6 +18,7 @@
 #include "legacy/LegacyCrzArchive.h"
 #include "platform/Utf8Path.h"
 #include "render/CanvasLayout.h"
+#include "legacy/CrzWriter.h"
 
 using colorizing::document::makeRgb565Frame;
 using colorizing::legacy::LegacyLoadResult;

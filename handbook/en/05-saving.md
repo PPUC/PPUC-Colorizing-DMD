@@ -18,12 +18,6 @@ Every save notes, for each frame, comparison mask, background, sprite and palett
 since the last save, who changed it (`Your name` in `Settings -> Projects`) and when. What did
 not change keeps what it had. A change that is undone by hand still counts as a change.
 
-`File -> Export For Earlier Editors...` writes the project as a `.cRZ` and a `.cRPX` of the same
-base name, for libserum 2.8 and 2.9 and for the versions of this editor before the project file
-(see "The files of earlier editors"). The archive holds the cROM, deflate-compressed, in one
-entry named `<ROM name>.cRom`, as the Win32 editor writes it; libserum loads it as it is. The
-project file stays the project: the export changes nothing in it and does not mark it saved.
-
 Use `File -> Export Current Frame PNG...` to export the current frame as a PNG. The picture is
 libserum's output for the frame, the one a machine shows, not the editor's own rendering; see
 "Runtime View" for how it is made. Which plane is exported:
@@ -125,16 +119,10 @@ their pictures.
   Original Frames").
 - Marks the project as saved after a successful save.
 
-`Export For Earlier Editors` writes the `.cRZ` and `.cRPX` as the earlier versions saved a
-project:
+The cROM the editor hands to libserum (in the Runtime view, the frame tester and the `.cROMc`
+export) is the one libserum 2.9 reads, header revision 21 and format version 1 (see "Project
+Files"):
 
-- Both files are written next to their targets first and then swapped in; if one of them cannot
-  be written, the export fails as a whole and existing files stay as they were.
-- The `.cRZ` is a plain zip without zip64 as long as the cROM is smaller than 4 GiB. It is not
-  byte-identical to the Win32 editor's archive of the same project (other deflate settings, no
-  timestamp extra field); the cROM inside is, for an unedited project.
-- A ROM name containing `/`, `\` or `:` cannot be used as an archive entry name; the export
-  fails with a message.
 - Frame identification hashes are recalculated from the original frame, its comparison mask, and
   its shape mode.
 - The "active frame" flag is recalculated: a frame shorter than 15 ms stays inactive until it is
@@ -185,12 +173,9 @@ The parts lie 15 picture pixels apart with the same dot size, the narrower ones 
 `File -> Export .cROMc...` writes the file a machine loads, `<rom>.cROMc`, proposed beside the
 project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone.
 
-A `.cROMc` belongs to the libserum that makes it, and the editor's own is newer than 2.8 (`Help ->
-About PPUC Colorizing DMD` names it): libserum 2.8 cannot read such a `.cROMc` and loads nothing. So
-the export is only for projects made for libserum 2.9 (`File -> Project Settings...`). For a project
-made for libserum 2.8 it offers `Export .cRZ...` instead, which is `File -> Export For Earlier
-Editors...` (see "Project Files"): ship the `.cRZ`, and libserum 2.8 makes its own `.cROMc` from it
-on the first start.
+A `.cROMc` belongs to the libserum that makes it: the editor's own (`Help -> About PPUC
+Colorizing DMD` names it), of the line after 2.8. A machine needs libserum 2.9 or later to load
+it; libserum 2.8 cannot read it.
 
 - The project is taken as it is in the editor, saved or not, and handed to libserum directly,
   without a `.cROM` on disk. It carries the project's scenes and scaling settings (see "Scenes

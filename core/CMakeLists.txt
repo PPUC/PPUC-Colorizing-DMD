@@ -49,7 +49,6 @@ add_library(colorizing_qt_v2_core STATIC
     legacy/LegacyCrpOriginals.cpp
     legacy/LegacyCrzArchive.cpp
     legacy/LegacyProjectFileReader.cpp
-    legacy/LegacyProjectFileWriter.cpp
     legacy/LegacyProjectIo.cpp
     legacy/LegacyProjectSerializer.cpp
     legacy/LegacySnapshotBuilder.cpp

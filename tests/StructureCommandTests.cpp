@@ -25,6 +25,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "runtime/RuntimePreview.h"
+#include "legacy/LegacyCrpWriter.h"
 
 using colorizing::document::BackgroundRecord;
 using colorizing::document::EditorMetadata;

@@ -57,6 +57,10 @@ target_link_libraries(colorizing_qt_v2_ui_dump
         colorizing_qt_v2_widgets
         Qt6::Widgets
 )
+# A tree before 3.99.14 has the legacy writers in its core.
+if(TARGET colorizing_legacy_writers)
+    target_link_libraries(colorizing_qt_v2_ui_dump PRIVATE colorizing_legacy_writers)
+endif()
 
 target_compile_definitions(colorizing_qt_v2_ui_dump PRIVATE QT_NO_KEYWORDS)
 

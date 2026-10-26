@@ -21,6 +21,7 @@
 #include "project/Json.h"
 #include "project/ProjectFile.h"
 #include "project/ZipArchive.h"
+#include "legacy/CrpxWriter.h"
 
 namespace {
 

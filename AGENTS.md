@@ -76,8 +76,9 @@ A change is complete only with all of these, in the same commit:
 - The Win32 editor 3.17.3 is the compatibility target for opening projects. Its sources are at
   the tag `v3.17.3` (`git show v3.17.3:<file>`); they are not on the branch.
 - New project data goes into the project file (`core/project/ProjectFile.h` documents the
-  layout): a field or entry a reader can skip. The `.cRPX` (`core/legacy/CrpxFile.h`) is only
-  read, and written by `Export For Earlier Editors`.
+  layout): a field or entry a reader can skip. The legacy files (`.cROM`, `.cRZ`, `.cRP`,
+  `.cRPX`) are only read. Their writers in `tests/legacy-writers` are deprecated test support,
+  to be removed; use them in no new code or test.
 - Projects are made for libserum 2.9 and later only (`core/document/ProjectLimits.h`). The cROM
   layout libserum reads changes only together with libserum, under a new cROM format version.
 - Keep repository text (code, commits, docs) technical.

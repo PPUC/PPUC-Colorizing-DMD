@@ -16,6 +16,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "render/ProjectGeometry.h"
+#include "legacy/LegacyCrpWriter.h"
 
 using colorizing::document::BackgroundRecord;
 using colorizing::document::FrameBackgroundData;

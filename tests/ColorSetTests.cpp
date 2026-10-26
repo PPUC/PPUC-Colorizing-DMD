@@ -18,6 +18,7 @@
 #include "edit/UndoHistories.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "render/ProjectGeometry.h"
+#include "legacy/LegacyCrpWriter.h"
 
 namespace document = colorizing::document;
 namespace edit = colorizing::edit;

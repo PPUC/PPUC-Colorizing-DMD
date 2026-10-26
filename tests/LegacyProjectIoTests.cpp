@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "render/CanvasLayout.h"
+#include "legacy/LegacyProjectFileWriter.h"
 
 using colorizing::document::ProjectDocument;
 using colorizing::document::ProjectFrameSnapshot;

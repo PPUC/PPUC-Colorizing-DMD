@@ -3841,7 +3841,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Serum colorization (*.cRZ);;All files (*)</source>
-        <translation>Colorisation Serum (*.cRZ);;Tous les fichiers (*)</translation>
+        <translation type="vanished">Colorisation Serum (*.cRZ);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <source>DMD output on, but no display found (a PIN2DMD is not reported); see Help -&gt; Plugin Log</source>
@@ -5241,11 +5241,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Export For &amp;Earlier Editors...</source>
-        <translation>Exporter pour les &amp;éditeurs précédents...</translation>
+        <translation type="vanished">Exporter pour les &amp;éditeurs précédents...</translation>
     </message>
     <message>
         <source>Write the project as .cRZ and .cRPX: the .cRZ plays with libserum 2.8 and 2.9, the .cRPX opens in editor versions before the project file</source>
-        <translation>Écrire le projet en .cRZ et .cRPX : le .cRZ fonctionne avec libserum 2.8 et 2.9, le .cRPX s&apos;ouvre dans les versions de l&apos;éditeur antérieures au fichier de projet</translation>
+        <translation type="vanished">Écrire le projet en .cRZ et .cRPX : le .cRZ fonctionne avec libserum 2.8 et 2.9, le .cRPX s&apos;ouvre dans les versions de l&apos;éditeur antérieures au fichier de projet</translation>
     </message>
     <message>
         <source>Write the project&apos;s .cROMc as libserum generates it on a machine (for projects made for libserum 2.9; one for 2.8 ships its .cRZ)</source>
@@ -5433,15 +5433,15 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Export For Earlier Editors</source>
-        <translation>Exporter pour les éditeurs précédents</translation>
+        <translation type="vanished">Exporter pour les éditeurs précédents</translation>
     </message>
     <message>
         <source>Exporting Project</source>
-        <translation>Exportation du projet</translation>
+        <translation type="vanished">Exportation du projet</translation>
     </message>
     <message>
         <source>Exported %1 and %2</source>
-        <translation>%1 et %2 exportés</translation>
+        <translation type="vanished">%1 et %2 exportés</translation>
     </message>
     <message>
         <source>This project is made for libserum 2.8, which cannot read the .cROMc this editor writes: a .cROMc belongs to the libserum that makes it, and the editor&apos;s is libserum %1. Ship the project&apos;s .cRZ instead; libserum 2.8 makes its own .cROMc from it on the first start.</source>

@@ -18,14 +18,15 @@ behaviour reference; what changed when, and why, is in the git history (commit m
 - **The legacy source is the tag `v3.17.3`** (cROM header revision 20). The Win32 files were
   removed from this branch on 2026-10-19 (they were a stale 3.15.1 copy). Read legacy code with
   `git show v3.17.3:<file>`.
-- **Project file (owner decisions 2026-10-14 and 2026-10-23):** the app saves the project file
-  (`.cdmd`, see `project/` below) and writes no legacy file except through `File -> Export For
-  Earlier Editors` (`.cRZ` + `.cRPX`, `core/legacy/CrpxFile.h`; the writer picks `.cRP` or
-  `.cRPX` by the editor file's extension, so tests and `colorizing_qt_v2_roundtrip` can still
-  write/compare a `.cRP`). The `.cROM`/`.cRZ`/`.cRP`/`.cRPX` of 3.17.3 and of earlier
-  versions of this editor are read and opened as converted (no project path, `m_sourcePath`
-  names their files); nothing is written over or renamed. New project data goes into the
-  project file.
+- **Project file (owner decisions 2026-10-14, 2026-10-23 and 2026-10-26):** the app saves the
+  project file (`.cdmd`, see `project/` below) and writes no legacy file (`Export For Earlier
+  Editors` was removed with the libserum target); a machine gets the `.cROMc`. The core keeps the
+  readers and `writeLegacyCrom()` (the cROM handed to libserum). The writers of `.cRP`, `.cRPX`,
+  `.cRZ` and `LegacyProjectFileWriter` moved to `tests/legacy-writers`, deprecated, only for the
+  tests that still make legacy projects and for `colorizing_qt_v2_roundtrip`; they are to be removed
+  (see "Next steps"). The `.cROM`/`.cRZ`/`.cRP`/`.cRPX` of 3.17.3 and of earlier versions of this
+  editor are read and opened as converted (no project path, `m_sourcePath` names their files);
+  nothing is written over or renamed. New project data goes into the project file.
 - **Projects are made for libserum 2.9 only (owner decision 2026-10-26):** there is no
   per-project libserum target any more. `document/ProjectLimits.h` holds the limits (128 sprite
   slots per frame, 65535 sprites and backgrounds, cROM format version 1, header revision 21);
@@ -119,9 +120,8 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     the default of CMake `COLORIZINGDMD_GITHUB_CLIENT_ID`, device flow on, tokens without
     expiry: the client does not refresh tokens); the environment variable of that name
     overrides it. Not run against GitHub yet. Packages check `--check-tls`.
-  - `legacy/`: cROM/cRP parsers, `LegacyProjectSerializer` (writes complete files),
-    `LegacyProjectFileWriter` (write beside, then rename; also writes the cRZ),
-    `LegacyCrzArchive` (includes libserum headers).
+  - `legacy/`: cROM/cRP/cRPX/cRZ readers, `LegacyProjectSerializer` (`writeLegacyCrom()`, the
+    cROM of format version 1 for libserum), `LegacyCrzArchive` (reads through libserum).
   - `import/`: `FrameDumpReader` (streaming, strict reader of TXT frame dumps) and
     `FrameDumpImport` (durations, the import filter, removal of repeated frames and of frames
     the project has, a new project's snapshot), see "Dump import and same frames" below.
@@ -184,8 +184,8 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   the left browser with `New` and `Delete` above it), `dialogs/DumpImportDialog` and
   `dialogs/ColorPickerDialog`.
 - `tests/`: core test executable, widget test executable, `colorizing_qt_v2_roundtrip`
-  (loads a real project, re-serializes, reports per block where it differs from disk; for a
-  192x64 project differences in extra-plane blocks are reported as expected) and
+  (loads a real project; the cRP must be byte-identical with the file, the cROM of format
+  version 1 written, read back and written again must be byte-identical) and
   `colorizing_qt_v2_preview_diff` (renders every frame of a real project with the editor's
   renderer and with libserum and reports the differing pixels by class; with `--playback` it
   plays the frames through the runtime preview's windows and through the whole project and
@@ -202,12 +202,13 @@ behaviour reference; what changed when, and why, is in the git history (commit m
 
 ## What works
 
-- Load and save of cROM/cRP/cRZ. Projects saved by 3.17.3 round-trip byte-identical: `afm_113b`,
-  `trn_174h`, `hook_501`, `smb3`, and earlier `potc_600as`, GoT, `empty128`. `frankst1` (192x64)
-  round-trips identical in every block of the original plane and in the cRP; its extra-plane
-  blocks are rewritten, see "Resolution model".
-- Save recomputes frame hashes and active-frame flags and blanks colorized pixels under dynamic
-  masks, as the Win32 editor does. Header revision is kept (20 stays 20, older becomes 19).
+- Load of cROM/cRP/cRZ/cRPX. Projects saved by 3.17.3 read losslessly: their cRP writes back
+  byte-identical, and their cROM in format version 1 reads back and writes again identical
+  (`colorizing_qt_v2_roundtrip`, 2026-10-26: `afm_113b`, `hook_501`, `frankst1`; before the
+  format change byte-identical with the 3.17.3 cROM: also `trn_174h`, `smb3`, `potc_600as`, GoT,
+  `empty128`).
+- The cROM written recomputes frame hashes and active-frame flags and blanks colorized pixels
+  under dynamic masks, as the Win32 editor does. Header revision 21, format version 1.
 - Editing: drawing tools, flood fill, palette gradients, canvas selection, comparison masks,
   dynamic masks/colours/shadows, backgrounds, sprites (capture, slots, detection areas, HD),
   palettes, colour rotations, frame settings, image import, PNG export, playback.
@@ -1355,7 +1356,10 @@ Reviewed for Windows/MinGW and left unchanged:
    through an animation, shade-adjusted and with motion, then offer it to the AI assistant.
 5. After the authors confirm feature parity with 3.17.3 (owner decision 2026-10-19): the
    persistent runtime instance below. Later, by decision of the owner: a new project format.
-6. Teams: remove packages (and notices) from the repository once every partner merged them,
+6. Remove the deprecated legacy writers (`tests/legacy-writers`, owner 2026-10-26): the tests
+   that make legacy projects with them work from fixed bytes and the real projects instead,
+   and `colorizing_qt_v2_roundtrip` checks the readers without the cRP writer.
+7. Teams: remove packages (and notices) from the repository once every partner merged them,
    after a grace period (owner, 2026-10-23: later). Nothing removes them yet, so packages/
    only grows.
 
