@@ -149,6 +149,8 @@ private:
     QToolButton* m_spriteCanvasButton = nullptr;
     QToolButton* m_applySpriteEditsButton = nullptr;
     QToolButton* m_sourceFrameButton = nullptr;
+    // The same on the sprite editor's page; it leaves the editor first.
+    QToolButton* m_editorSourceFrameButton = nullptr;
     QToolButton* m_createHdButton = nullptr;
     QToolButton* m_removeHdButton = nullptr;
     QCheckBox* m_shapeModeCheckBox = nullptr;

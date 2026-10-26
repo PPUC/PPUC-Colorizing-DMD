@@ -136,6 +136,10 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_sourceFrameButton->setText(tr("Source Frame"));
     m_sourceFrameButton->setToolTip(tr("Go to the frame the sprite was taken from"));
     m_sourceFrameButton->setEnabled(false);
+    m_editorSourceFrameButton = new QToolButton(this);
+    m_editorSourceFrameButton->setText(tr("Source Frame"));
+    m_editorSourceFrameButton->setToolTip(m_sourceFrameButton->toolTip());
+    m_editorSourceFrameButton->setEnabled(false);
     m_minXSpinBox = new QSpinBox(this);
     m_minXSpinBox->setRange(0, 127);
     m_minXSpinBox->setToolTip(tr("Sprite slot bounding box minimum X"));
@@ -347,6 +351,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     pageLayout->addLayout(hdLayout);
     auto* leaveLayout = new QHBoxLayout();
     leaveLayout->addWidget(m_applySpriteEditsButton);
+    leaveLayout->addWidget(m_editorSourceFrameButton);
     leaveLayout->addWidget(m_backToFrameButton);
     pageLayout->addLayout(leaveLayout);
     pageLayout->addStretch(1);
@@ -371,7 +376,7 @@ SpritePanel::SpritePanel(QWidget* parent)
                                 m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox,
                                 m_editColorsToSetButton, m_setToEditColorsButton,
                                 m_createHdButton, m_removeHdButton, m_applySpriteEditsButton,
-                                m_backToFrameButton}}) {
+                                m_editorSourceFrameButton, m_backToFrameButton}}) {
         for (std::size_t index = 1; index < order.size(); ++index) {
             QWidget::setTabOrder(order[index - 1], order[index]);
         }
@@ -440,6 +445,13 @@ SpritePanel::SpritePanel(QWidget* parent)
         }
     });
     connect(m_sourceFrameButton, &QToolButton::clicked, this, [this]() {
+        if (onSourceFrameRequested) {
+            onSourceFrameRequested();
+        }
+    });
+    connect(m_editorSourceFrameButton, &QToolButton::clicked, this, [this]() {
+        // Back to Frame, then to the source frame.
+        m_spriteCanvasButton->setChecked(false);
         if (onSourceFrameRequested) {
             onSourceFrameRequested();
         }
@@ -703,11 +715,13 @@ void SpritePanel::refresh(const SpritePanelState& state)
                 document->spriteSourceFrame(*state.spriteIndex) < document->frameCount()
             ? std::optional<std::size_t>(document->spriteSourceFrame(*state.spriteIndex))
             : std::nullopt;
-    m_sourceFrameButton->setEnabled(sourceFrame.has_value());
-    m_sourceFrameButton->setToolTip(
-        sourceFrame ? tr("Go to frame %1, the frame the sprite was taken from")
-                          .arg(static_cast<qulonglong>(*sourceFrame))
-                    : tr("Go to the frame the sprite was taken from"));
+    for (QToolButton* button : {m_sourceFrameButton, m_editorSourceFrameButton}) {
+        button->setEnabled(sourceFrame.has_value());
+        button->setToolTip(sourceFrame
+                               ? tr("Go to frame %1, the frame the sprite was taken from")
+                                     .arg(static_cast<qulonglong>(*sourceFrame))
+                               : tr("Go to the frame the sprite was taken from"));
+    }
     if (!hasSprite) {
         m_detectionAreasButton->setEnabled(false);
         m_spriteCanvasButton->setEnabled(false);

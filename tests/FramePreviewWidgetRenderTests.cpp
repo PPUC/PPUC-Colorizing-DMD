@@ -2391,6 +2391,42 @@ void testSpritePanelWarnsAboutManySprites()
     expect(panel.spriteCountWarning().isEmpty(), "another frame with two sprites has none");
 }
 
+// The sprite editor's page has Source Frame too: it leaves the editor, as Back to Frame, and
+// goes to the frame the sprite was taken from.
+void testSpriteEditorSourceFrame()
+{
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    document.setSpriteSourceFrame(0, 2);
+    colorizing::app::SpritePanel panel;
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    state.spriteIndex = 0;
+    std::vector<std::string> calls;
+    panel.onSpriteCanvasToggled = [&](bool checked) {
+        calls.push_back(checked ? "edit" : "leave");
+    };
+    panel.onSourceFrameRequested = [&]() { calls.push_back("source"); };
+    panel.refresh(state);
+    QToolButton* editorButton = nullptr;
+    for (QToolButton* button : panel.recordPage()->findChildren<QToolButton*>()) {
+        if (button->text() == QStringLiteral("Source Frame")) {
+            editorButton = button;
+        }
+    }
+    expect(editorButton && editorButton->isEnabled() &&
+               editorButton->toolTip() ==
+                   QStringLiteral("Go to frame 2, the frame the sprite was taken from"),
+           "the sprite editor's page has Source Frame, naming the frame");
+    panel.setSpriteCanvasChecked(true);
+    editorButton->click();
+    expect(calls == std::vector<std::string>{"leave", "source"},
+           "it leaves the sprite editor first, then goes to the source frame");
+    document.setSpriteSourceFrame(0, 7);
+    panel.refresh(state);
+    expect(!editorButton->isEnabled(), "a source frame the project lacks: disabled");
+}
+
 void testSpritePanel()
 {
     using colorizing::app::SpriteDetectionAreaInput;
@@ -4032,6 +4068,7 @@ int main(int argc, char* argv[])
     testRotationSlotUse();
     testPalettePanel();
     testSpritePanel();
+    testSpriteEditorSourceFrame();
     testSpritePanelWarnsAboutManySprites();
     testSpriteAndBackgroundHdButtons();
     testMaskPanel();

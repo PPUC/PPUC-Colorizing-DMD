@@ -10,6 +10,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The color picker opens where and as large as it was left.
 - Each file dialog starts in the folder its kind of file was last opened from: projects, frame
   dumps, images, movie clips and packages each have their own.
+- The sprite editor has `Source Frame` too: it leaves the editor and goes to the frame the
+  sprite was taken from.
 
 ## 3.99.14
 

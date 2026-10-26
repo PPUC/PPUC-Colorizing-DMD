@@ -21,12 +21,12 @@ The Inspector has two sprite sections, each shown on its own canvas:
 - `Frame Sprites`, on the frame canvas: what ties sprites to the frames. The selected sprite,
   the sprites of the current frame (in a short list that scrolls; `Used by the current frame`
   in the left sidebar shows them too), the slot selector, `Assign`, `Capture`, `Remove`,
-  `Select Capture`, `Clear Sel`, `Show Bounds`, `Outline Sprites`, `Source Frame`, the slot's bounds (`Min X` to
-  `Max Y`) and `Edit Sprite`.
+  `Select Capture`, `Clear Sel`, `Show Bounds`, `Outline Sprites`, `Source Frame`, the slot's
+  bounds (`Min X` to `Max Y`) and `Edit Sprite`.
 - `Sprite`, in the sprite editor: the sprite itself. The selected sprite, its name,
   `Show Det Areas` and the detection areas, `Shape mode` and the dynamic sets, `Create HD Sprite`
-  and `Remove HD Sprite`, `Apply Sprite`, and `Back to Frame`, which leaves the sprite editor as
-  `Edit Sprite` clicked again does. Entering the sprite editor opens this section.
+  and `Remove HD Sprite`, `Apply Sprite`, `Source Frame`, and `Back to Frame`, which leaves the
+  sprite editor as `Edit Sprite` clicked again does. Entering the sprite editor opens this section.
 
 The controls:
 
@@ -92,7 +92,8 @@ The controls:
     edits before it stay undoable.
 - `Source Frame` goes to the frame the sprite was taken from, as CDMD's "to source frame": the
   frame it was added or last captured on (the `.cRP` keeps it; deleting frames moves it along).
-  Its tool tip names the frame.
+  Its tool tip names the frame. In the sprite editor, it leaves the editor first, as `Back to
+  Frame`.
 - `Capture` copies original and colorized pixels from the current frame into a sprite, using the
   selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
   origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
