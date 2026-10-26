@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.14
+
 - Projects are made for libserum 2.9 and later only: `Project Settings` no longer chooses a
   libserum. Every project allows 128 sprites per frame and 65535 sprites and backgrounds;
   projects of libserum 2.8 and of the Win32 editor are opened as such projects.
