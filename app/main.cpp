@@ -128,7 +128,10 @@ void takeOverEarlierSettings()
 
 int main(int argc, char* argv[])
 {
+    // Before QApplication takes -style out of the arguments.
+    const bool styleAskedFor = colorizing::app::styleAskedFor(argc, argv);
     QApplication app(argc, argv);
+    colorizing::app::setStyleAskedFor(styleAskedFor);
     QApplication::setOrganizationName(QStringLiteral("ppuc.org"));
     QApplication::setOrganizationDomain(QStringLiteral("ppuc.org"));
     QApplication::setApplicationName(colorizing::app::kApplicationName);

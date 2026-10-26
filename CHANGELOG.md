@@ -14,6 +14,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   sprite was taken from.
 - The frame tester, opened again, shows a frame that starts a background scene; it stayed black,
   as libserum kept the scene of the last opening running (libserum 2.99.3).
+- On Windows 11 the editor uses Qt's Fusion style; `-style windows11` brings Windows 11's back.
 
 ## 3.99.14
 

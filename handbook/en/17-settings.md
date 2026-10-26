@@ -12,9 +12,10 @@ report a problem.
   system has it, also when that changes while the editor runs), `Light` or `Dark`, whatever the
   system uses. A forced theme applies at once. Where the platform cannot switch its own style
   (Windows 10's classic style, some Linux desktops, Qt before 6.8), the editor uses Qt's Fusion
-  style in the chosen colors; `Follow the system` brings the platform's style back. In every
-  theme a button that is on (the drawing tool, `Show Background`, `SD`/`HD`, ...) is filled with the
-  system's accent color, so the active one is seen at a glance.
+  style in the chosen colors; `Follow the system` brings the platform's style back. On Windows 11
+  the editor uses Fusion in every theme; start it with `-style windows11` for the Windows 11
+  style. In every theme a button that is on (the drawing tool, `Show Background`, `SD`/`HD`,
+  ...) is filled with the system's accent color, so the active one is seen at a glance.
   `Language` is `Follow the system` (the default: the operating system's first language that
   the editor has, English otherwise), `English`, `Deutsch` or `Français`. It changes the menus,
   panels, dialogs and the handbook at the next start. The German and French translations are

@@ -33,6 +33,8 @@ struct Original {
 bool g_paletteSet = false;
 // The name of the style under CheckedButtonStyle.
 QString g_styleName;
+// See setStyleAskedFor().
+bool g_styleAskedFor = false;
 
 // The application's style with checked buttons (the drawing tool, Show BG, a section that is
 // open...) in the highlight color with highlighted text: in the native and the Fusion styles,
@@ -162,11 +164,45 @@ QStyle* createEditorStyle(QStyle* base)
     return new CheckedButtonStyle(base);
 }
 
+bool styleAskedFor(int argc, const char* const argv[])
+{
+    if (qEnvironmentVariableIsSet("QT_STYLE_OVERRIDE")) {
+        return true;
+    }
+    for (int index = 1; index < argc; ++index) {
+        const QString argument = QString::fromLocal8Bit(argv[index]);
+        if (argument == QStringLiteral("-style") || argument == QStringLiteral("--style") ||
+            argument.startsWith(QStringLiteral("-style=")) ||
+            argument.startsWith(QStringLiteral("--style="))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void setStyleAskedFor(bool askedFor)
+{
+    g_styleAskedFor = askedFor;
+}
+
+QString editorStyleName(const QString& platformStyle, bool styleAskedFor)
+{
+    // Windows 11's style is not the default: authors prefer Fusion there, the style the editor
+    // also falls back to where a platform style cannot draw a theme.
+    if (!styleAskedFor &&
+        platformStyle.compare(QStringLiteral("windows11"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("Fusion");
+    }
+    return platformStyle;
+}
+
 namespace {
 
 const Original& original()
 {
-    static const Original value{QApplication::style()->name(), QApplication::palette()};
+    static const Original value{
+        editorStyleName(QApplication::style()->name(), g_styleAskedFor),
+        QApplication::palette()};
     return value;
 }
 

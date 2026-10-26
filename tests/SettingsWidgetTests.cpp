@@ -63,6 +63,24 @@ void runSettingsWidgetTests()
     expect(proxy && proxy->baseStyle()->name() == styleName && windowLightness() == lightness,
            "back to the system's, the style and palette are as before");
 
+    // Windows 11's style gives way to Fusion, unless a style was asked for.
+    expect(app::editorStyleName(QStringLiteral("windows11"), false) == QStringLiteral("Fusion"),
+           "Fusion on Windows 11");
+    expect(app::editorStyleName(QStringLiteral("windows11"), true) == QStringLiteral("windows11"),
+           "a style asked for is kept");
+    expect(app::editorStyleName(QStringLiteral("windowsvista"), false) ==
+                   QStringLiteral("windowsvista") &&
+               app::editorStyleName(QStringLiteral("macOS"), false) == QStringLiteral("macOS"),
+           "other platform styles are kept");
+    {
+        const char* plain[] = {"editor", "project.cdmd"};
+        const char* separate[] = {"editor", "-style", "windows11"};
+        const char* joined[] = {"editor", "-style=windows11"};
+        expect(!app::styleAskedFor(2, plain) && app::styleAskedFor(3, separate) &&
+                   app::styleAskedFor(2, joined),
+               "-style asks for a style");
+    }
+
     app::DmdOutputSettings dmd;
     dmd.picture = app::DmdOutputSettings::Picture::Extra;
     dmd.serverPort = 6791;

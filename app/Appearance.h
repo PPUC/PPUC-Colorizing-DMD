@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QString>
 
 #include "FrameImageUtils.h"
 
@@ -23,6 +24,14 @@ void saveTheme(Theme theme);
 // only), and Qt before 6.8, use the Fusion style with a light or dark palette instead; back to
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
+// The style the editor starts with for the platform's: Fusion instead of Windows 11's style,
+// unless a style was asked for (the -style argument or QT_STYLE_OVERRIDE).
+[[nodiscard]] QString editorStyleName(const QString& platformStyle, bool styleAskedFor);
+// Whether a style is asked for: the -style argument or QT_STYLE_OVERRIDE. Called with main()'s
+// arguments before QApplication takes -style out of them.
+[[nodiscard]] bool styleAskedFor(int argc, const char* const argv[]);
+// Notes it for applyTheme(), which keeps a style asked for.
+void setStyleAskedFor(bool askedFor);
 // The editor's style over that of the platform or Fusion (checked buttons in the accent
 // color, long combo box lists that scroll); takes base over.
 [[nodiscard]] QStyle* createEditorStyle(QStyle* base);
