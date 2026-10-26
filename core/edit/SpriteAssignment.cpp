@@ -36,6 +36,10 @@ SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
     SpritesAdded result;
     const document::Size size = document.originalFrameSize();
     for (const std::size_t frame : frames) {
+        if (document.sceneFrame(frame)) {
+            ++result.sceneFrames;
+            continue;
+        }
         const std::vector<document::FrameSpriteReference> before =
             document.frameSpriteReferences(frame);
         bool changed = false;

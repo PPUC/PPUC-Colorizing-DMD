@@ -519,6 +519,10 @@
         <translation>Aucune frame sélectionnée n&apos;a d&apos;arrière-plan attribué</translation>
     </message>
     <message>
+        <source>A frame of a scene has no dynamic zones: it is the scene&apos;s picture</source>
+        <translation>Une frame de scène n&apos;a pas de zones dynamiques : elle est l&apos;image de la scène</translation>
+    </message>
+    <message>
         <source>No background selected</source>
         <translation>Aucun arrière-plan sélectionné</translation>
     </message>
@@ -5499,6 +5503,13 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message numerus="yes">
+        <source>%n frame(s) of scenes lost sprites, dynamic zones, a comparison mask or a trigger, which a frame of a scene cannot have</source>
+        <translation>
+            <numerusform>%n frame de scène a perdu des sprites, des zones dynamiques, un masque de comparaison ou un déclencheur, qu&apos;une frame de scène ne peut pas avoir</numerusform>
+            <numerusform>%n frames de scènes ont perdu des sprites, des zones dynamiques, un masque de comparaison ou un déclencheur, qu&apos;une frame de scène ne peut pas avoir</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>The placeholder background of %n frame(s) that start a background scene is removed; they show the scene without it</source>
         <translation>
             <numerusform>L&apos;arrière-plan de substitution de %n frame qui démarre une scène d&apos;arrière-plan est retiré ; elle montre la scène sans lui</numerusform>
@@ -5512,6 +5523,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source> %1 more autosave(s) of projects without a project file are in %2.</source>
         <translation> %1 autre(s) sauvegarde(s) automatique(s) de projets sans fichier de projet se trouvent dans %2.</translation>
+    </message>
+    <message>
+        <source>A frame of a scene takes no sprites: it is the scene&apos;s picture</source>
+        <translation>Une frame de scène ne prend pas de sprites : elle est l&apos;image de la scène</translation>
     </message>
     <message>
         <source> | claimed</source>
@@ -5807,6 +5822,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>; %1 left out, the frame had no empty slot</source>
         <translation> ; %1 laissé(s) de côté, la frame n’avait plus d’emplacement libre</translation>
+    </message>
+    <message numerus="yes">
+        <source>; %n frame(s) of scenes left out, they take no sprites</source>
+        <translation>
+            <numerusform>; %n frame de scène laissée de côté, elle ne prend pas de sprites</numerusform>
+            <numerusform>; %n frames de scènes laissées de côté, elles ne prennent pas de sprites</numerusform>
+        </translation>
     </message>
     <message>
         <source>Not changed: %1. Merge the partners&apos; changes first, or ask them.</source>

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <functional>
 #include <optional>
 #include <thread>
 #include <chrono>
@@ -13,6 +14,7 @@
 
 #include "RuntimeFixtures.h"
 #include "edit/AssetUse.h"
+#include "edit/SpriteAssignment.h"
 #include "edit/StructureCommand.h"
 #include "runtime/RuntimePreview.h"
 #include "runtime/Scenes.h"
@@ -521,6 +523,68 @@ void testSceneInPlaybackWindow()
            "the scene plays from the window");
 }
 
+// A frame of a scene is the scene's picture: it takes no sprites, dynamic zones, comparison
+// mask, shape mode or trigger; opening a project strips them, the setters refuse them, and
+// assigning sprites to a selection leaves such frames out. Background, rotations and lights
+// stay.
+void testSceneFramesTakeNoGameSettings()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
+    runtime_fixtures::addSprite(snapshot);
+    runtime_fixtures::addDynamicData(snapshot, 1);
+    snapshot.comparisonMasks.assign(
+        1, document::makeIndexedFrame(snapshot.geometry.romFrameSize(), 0));
+    document::ProjectFrameSnapshot& frame = snapshot.frames[1];
+    frame.spriteReferences.assign(document::kSpritesPerFrame, document::FrameSpriteReference{});
+    frame.spriteReferences[0].spriteId = 0;
+    frame.dynamicData->maskSd.pixels[3] = 2;
+    frame.comparisonMaskId = 0;
+    frame.shapeComparisonMode = 1;
+    frame.triggerId = 1234;
+    frame.durationMs = 40;
+    frame.scene = document::SceneFrameRef{51200, 1, 0};
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document.markClean();
+
+    expect(document::stripSceneFrames(document) == 1 && document.isDirty(),
+           "the frame of a scene is stripped");
+    expect(document.frameSpriteReferences(1)[0].spriteId == document::kNoSpriteId &&
+               !document.hasDynamicPixels(1) &&
+               document.comparisonMaskId(1) == document::kNoComparisonMaskId &&
+               document.shapeComparisonMode(1) == 0 &&
+               document.triggerId(1) == document::kNoTriggerId &&
+               document.frameDurationMs(1) == 40,
+           "of sprites, dynamic zones, mask, shape mode and trigger; its duration stays");
+    expect(document::stripSceneFrames(document) == 0, "once only");
+
+    const auto refused = [&](const std::function<void()>& set) {
+        try {
+            set();
+        } catch (const std::logic_error&) {
+            return true;
+        }
+        return false;
+    };
+    document::FrameSpriteReference sprite;
+    sprite.spriteId = 0;
+    expect(refused([&] { document.setFrameSpriteReference(1, 0, sprite); }) &&
+               refused([&] { document.setDynamicMaskPixel(1, render::Resolution::Sd, 0, 0, 1); }) &&
+               refused([&] { document.setComparisonMaskId(1, 0); }) &&
+               refused([&] { document.setShapeComparisonMode(1, 1); }) &&
+               refused([&] { document.setTriggerId(1, 1234); }),
+           "the setters refuse them for a frame of a scene");
+    document.setTriggerId(1, document::kNoTriggerId);
+    document.setComparisonMaskId(1, document::kNoComparisonMaskId);
+    document.setFrameSpriteReference(0, 0, sprite);
+    document.setTriggerId(0, 1234);
+    expect(document.triggerId(0) == 1234, "none is taken, and a frame of the game takes them");
+
+    const edit::SpritesAdded added = edit::addSpritesToFrames(document, {0, 1}, {0});
+    expect(added.sceneFrames == 1 && added.kept == 1 && added.added == 0,
+           "assigning sprites leaves the frame of a scene out");
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -535,4 +599,5 @@ void runSceneEditTests()
     testPlaceholderBackgroundsRemoved();
     testAssetUse();
     testSceneInPlaybackWindow();
+    testSceneFramesTakeNoGameSettings();
 }

@@ -614,6 +614,8 @@ private:
     enum class AssetFilter { All = 0, CurrentFrame = 1, Unused = 2 };
     [[nodiscard]] AssetFilter assetFilter() const;
     void applyAssetFilter();
+    // Why a frame of a scene takes no sprites (ProjectDocument::stripSceneFrame()).
+    [[nodiscard]] QString sceneFrameTakesNoSpritesText() const;
     // The mask's picture in the left sidebar: the current frame's original under it.
     [[nodiscard]] QIcon maskIcon(std::size_t maskIndex) const;
     // Updates what follows the current frame in the left sidebar (see m_frameRestTimer).

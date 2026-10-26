@@ -31,8 +31,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   scene running, also in the Runtime view.
 - Playing in the Runtime view plays the scenes the frames start, background scenes too; the
   frame that starts a scene counts as identified, not the scene's frame.
-- The canvas draws no sprites on the frames of a scene, as libserum does not look for them
-  there: a sprite assigned to such a frame showed pieces of the scene marker.
+- A frame of a scene takes no sprites, dynamic zones, comparison mask, shape mode or trigger:
+  libserum ignores them there or they act on the scene marker only. They cannot be set, and
+  opening a project removes them; background, color rotations and lights stay.
 
 ## 3.99.14
 

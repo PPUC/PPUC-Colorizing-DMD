@@ -1863,7 +1863,13 @@ void CanvasEditController::commitFrameMaskPixels(const CanvasEditContext& contex
     try {
         bool changed = false;
         bool hasAssignedBackground = false;
+        bool sceneFrameLeftOut = false;
         for (std::size_t frameIndex : frameIndices) {
+            if (!isBackgroundMask && value != 255 && document.sceneFrame(frameIndex)) {
+                // A frame of a scene is the scene's picture (ProjectDocument::stripSceneFrame()).
+                sceneFrameLeftOut = true;
+                continue;
+            }
             if (isBackgroundMask) {
                 const std::optional<document::FrameBackgroundData>& backgroundData =
                     document.backgroundData(frameIndex);
@@ -1882,6 +1888,9 @@ void CanvasEditController::commitFrameMaskPixels(const CanvasEditContext& contex
         if (!changed) {
             if (isBackgroundMask && !hasAssignedBackground) {
                 showStatus(tr("No selected frame has an assigned background"),
+                           kStatusMs);
+            } else if (sceneFrameLeftOut) {
+                showStatus(tr("A frame of a scene has no dynamic zones: it is the scene's picture"),
                            kStatusMs);
             }
             return;

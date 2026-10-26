@@ -18,6 +18,8 @@ struct SpritesAdded {
     std::size_t added = 0;
     std::size_t kept = 0;
     std::size_t full = 0;
+    // Frames of scenes, which take no sprites (ProjectDocument::stripSceneFrame()).
+    std::size_t sceneFrames = 0;
     // One command per frame that changed, applied already.
     std::vector<std::unique_ptr<EditCommand>> commands;
 };

@@ -914,6 +914,11 @@ such frames a black one in every snapshot handed to libserum (`SnapshotSource`);
 keeps none. The canvas shows the scene's first frame through the mask
 (`ProjectDocument::backgroundPicture()`), upscaled on HD as libserum does.
 
+Frames of scenes (owner decision 2026-10-26) take no sprites, dynamic zones, comparison mask,
+shape mode or trigger: the document's setters refuse them (`ProjectDocument::stripSceneFrame()`)
+and opening a project strips them (GoT-V79: sprites on 1500 of 22624 scene frames). Background,
+color rotations and speaker lights stay; libserum renders them on scene frames.
+
 ## Open decisions (waiting for the owner)
 
 Only questions without an answer are listed; each says what the editor does now. An answered

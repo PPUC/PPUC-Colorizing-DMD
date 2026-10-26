@@ -101,11 +101,23 @@ What one line of a `<rom>.pup.csv` says:
 The window says how many frames the scene has in the project and why it cannot be taken (an ID
 another scene has), and `OK` waits until it can.
 
-## Sprites
+## What a frame of a scene can have
 
-libserum renders the frames of a scene without looking for sprites, so the canvas draws none on
-them either, also where a sprite assigned to such a frame matches its original (the scene
-marker).
+A frame of a scene is the scene's picture. libserum renders it without looking for sprites and
+starts nothing by its trigger, and a comparison mask, a shape mode or dynamic zones would only
+act on its original, the scene marker. So a frame of a scene has none of these:
+
+- Assigning sprites leaves frames of scenes out (the status bar says how many), `Capture` refuses
+  one, and the canvas draws no sprite on it.
+- Dynamic zones cannot be painted on it; the status bar says why.
+- A comparison mask, the shape mode and a trigger are not set on it; a change on several frames
+  leaves it out.
+- Opening a project takes all of them off its frames of scenes, with a note in the status bar;
+  the project then counts as changed.
+
+Its background, color rotations and speaker lights stay: libserum renders them on a scene's
+frames (one background image for all frames of a scene, colors that rotate, lights that follow
+the scene).
 
 ## The frame strip
 

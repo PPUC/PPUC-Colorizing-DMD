@@ -429,6 +429,13 @@ public:
     // The scene frame the frame is, if it is one.
     [[nodiscard]] const std::optional<SceneFrameRef>& sceneFrame(std::size_t frameIndex) const;
     void setSceneFrame(std::size_t frameIndex, std::optional<SceneFrameRef> scene);
+    // A frame of a scene is its picture: libserum looks for no sprites on it, starts nothing by
+    // its trigger, and its comparison mask, shape mode and dynamic zones would only act on the
+    // scene marker. The setters of those refuse a value for such a frame
+    // (std::logic_error); "none" is always taken. stripSceneFrame() takes them off a frame of a
+    // scene and returns whether there was any. Its background, color rotations and speaker
+    // lights stay: libserum renders them on a scene's frames.
+    bool stripSceneFrame(std::size_t frameIndex);
     // The background scene the frame's trigger starts: a scene of colorizationSettings() with
     // kSceneAsBackground, in a project whose ROM frames are 128x32 (the scenes libserum
     // plays). While it plays libserum shows it through the frame's background mask, in place
@@ -902,6 +909,8 @@ private:
     void requireEditablePlane(Resolution resolution) const;
     void requireEditableExtraPlane() const;
     void requireDynamicPlane(Resolution resolution) const;
+    // Throws std::logic_error for a frame of a scene, see stripSceneFrame().
+    static void requireGameFrame(const FrameRecord& frame, const char* what);
     void requireFittingRecordTables(const RecordTables& tables) const;
     void markChanged();
     // Gives a new ID to each component that has none or the ID of one before it.
@@ -962,6 +971,9 @@ private:
 // ProjectDocument::clearUnusedHdDynamicZones() for every frame of an ordinary project, nothing
 // in another layout. Returns the number of frames that had such zones.
 std::size_t clearUnusedHdDynamicZones(ProjectDocument& document);
+// ProjectDocument::stripSceneFrame() for every frame. Returns the number of frames that had
+// something a frame of a scene cannot have.
+std::size_t stripSceneFrames(ProjectDocument& document);
 
 // The memory of the blocks only this record holds: uniform blocks and blocks shared with a
 // copy (see CompactArray) count 0. An estimate for limits such as the undo memory, not exact.

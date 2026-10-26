@@ -4071,6 +4071,16 @@ bool MainWindow::takeLoadedProject(legacy::LegacyDocumentLoadResult result,
             sidecarNote = sidecarNote.isEmpty() ? note
                                                 : QStringLiteral("%1. %2").arg(sidecarNote, note);
         }
+        // A frame of a scene is its picture: what it cannot have goes.
+        if (const std::size_t sceneFrames = document::stripSceneFrames(*m_document)) {
+            const QString note =
+                tr("%n frame(s) of scenes lost sprites, dynamic zones, a comparison mask or a "
+                   "trigger, which a frame of a scene cannot have",
+                   "",
+                   static_cast<int>(sceneFrames));
+            sidecarNote = sidecarNote.isEmpty() ? note
+                                                : QStringLiteral("%1. %2").arg(sidecarNote, note);
+        }
         // Frames that start a background scene need no placeholder background any more.
         if (const std::size_t placeholders =
                 runtime::removeSceneBackgroundPlaceholders(*m_document)) {
@@ -5443,6 +5453,11 @@ void MainWindow::updateFrameRestViews()
     }
 }
 
+QString MainWindow::sceneFrameTakesNoSpritesText() const
+{
+    return tr("A frame of a scene takes no sprites: it is the scene's picture");
+}
+
 MainWindow::AssetFilter MainWindow::assetFilter() const
 {
     return m_assetFilterComboBox
@@ -6404,9 +6419,17 @@ MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
         updateProjectHeaderStatus();
     };
     try {
+        // A frame of a scene takes no comparison mask, shape mode or trigger
+        // (ProjectDocument::stripSceneFrame()).
+        const bool gameFramesOnly =
+            (attribute == edit::FrameAttribute::ComparisonMaskId &&
+             value != document::kNoComparisonMaskId) ||
+            (attribute == edit::FrameAttribute::ShapeComparisonMode && value != 0) ||
+            (attribute == edit::FrameAttribute::TriggerId && value != document::kNoTriggerId);
         for (std::size_t frameIndex : selectedFrameIndices()) {
             if ((attribute == edit::FrameAttribute::BackgroundId &&
                  !m_document->backgroundData(frameIndex)) ||
+                (gameFramesOnly && m_document->sceneFrame(frameIndex)) ||
                 (skip && skip(frameIndex))) {
                 ++count.skipped;
                 continue;
@@ -6949,8 +6972,18 @@ void MainWindow::exportSelectedBackgroundPng()
 
 void MainWindow::assignSelectedSpriteToCurrentSlot()
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
-    if (!m_document || frameIndices.empty() || !m_spritePanel) {
+    if (!m_document || selectedFrameIndices().empty() || !m_spritePanel) {
+        return;
+    }
+    // A frame of a scene takes no sprites (ProjectDocument::stripSceneFrame()).
+    std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    frameIndices.erase(std::remove_if(frameIndices.begin(), frameIndices.end(),
+                                      [this](std::size_t frame) {
+                                          return m_document->sceneFrame(frame).has_value();
+                                      }),
+                       frameIndices.end());
+    if (frameIndices.empty()) {
+        statusBar()->showMessage(sceneFrameTakesNoSpritesText(), 4000);
         return;
     }
     if (const std::vector<std::size_t> sprites = selectedSpriteIndices(); sprites.size() > 1) {
@@ -7041,6 +7074,11 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
         return;
     }
 
+    if (m_document->sceneFrame(*frameIndex)) {
+        // Capture puts the sprite on the frame, which a frame of a scene does not take.
+        statusBar()->showMessage(sceneFrameTakesNoSpritesText(), 4000);
+        return;
+    }
     const std::optional<std::size_t> slotIndex = m_spritePanel->selectedSlotIndex();
     if (!slotIndex) {
         statusBar()->showMessage(tr("Select a sprite slot first"), 2500);
@@ -7306,7 +7344,15 @@ void MainWindow::removeCurrentSpriteSlot()
 
 void MainWindow::setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> drawn)
 {
-    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    // Frames of scenes have no sprite slots in use.
+    std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    if (m_document) {
+        frameIndices.erase(std::remove_if(frameIndices.begin(), frameIndices.end(),
+                                          [this](std::size_t frame) {
+                                              return m_document->sceneFrame(frame).has_value();
+                                          }),
+                           frameIndices.end());
+    }
     if (!m_document || frameIndices.empty() || !m_spritePanel) {
         return;
     }
@@ -12057,6 +12103,10 @@ void MainWindow::assignSelectedSpritesToFrames(const std::vector<std::size_t>& s
         if (added.full > 0) {
             message += tr("; %1 left out, the frame had no empty slot")
                            .arg(static_cast<int>(added.full));
+        }
+        if (added.sceneFrames > 0) {
+            message += tr("; %n frame(s) of scenes left out, they take no sprites", "",
+                          static_cast<int>(added.sceneFrames));
         }
         statusBar()->showMessage(message, 6000);
     } catch (const std::exception& ex) {

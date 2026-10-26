@@ -1072,6 +1072,17 @@ std::size_t clearUnusedHdDynamicZones(ProjectDocument& document)
     return cleared;
 }
 
+std::size_t stripSceneFrames(ProjectDocument& document)
+{
+    std::size_t stripped = 0;
+    for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
+        if (document.stripSceneFrame(frame)) {
+            ++stripped;
+        }
+    }
+    return stripped;
+}
+
 bool ProjectDocument::clearUnusedHdDynamicZones(std::size_t frameIndex)
 {
     if (m_geometry.layout() != render::PlaneLayout::Ordinary) {
@@ -1705,12 +1716,64 @@ uint8_t ProjectDocument::shapeComparisonMode(std::size_t frameIndex) const
     return requireFrame(m_frames, frameIndex).shapeComparisonMode;
 }
 
+void ProjectDocument::requireGameFrame(const FrameRecord& frame, const char* what)
+{
+    if (frame.scene) {
+        throw std::logic_error(std::string("a frame of a scene takes no ") + what);
+    }
+}
+
+bool ProjectDocument::stripSceneFrame(std::size_t frameIndex)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (!frame.scene) {
+        return false;
+    }
+    bool changed = false;
+    for (FrameSpriteReference& reference : frame.spriteReferences) {
+        if (reference.spriteId != kNoSpriteId) {
+            reference = FrameSpriteReference{};
+            changed = true;
+        }
+    }
+    if (frame.dynamicData) {
+        for (IndexedFrame* mask : {&frame.dynamicData->maskSd, &frame.dynamicData->maskHd}) {
+            const CompactArray<uint8_t>& pixels = mask->pixels;
+            if (std::any_of(pixels.begin(), pixels.end(),
+                            [](uint8_t value) { return value != 255; })) {
+                std::fill(mask->pixels.begin(), mask->pixels.end(), uint8_t{255});
+                changed = true;
+            }
+        }
+        if (changed && frameIndex < m_dynamicPixelStates.size()) {
+            m_dynamicPixelStates[frameIndex] = 1;
+        }
+    }
+    if (frame.comparisonMaskId != kNoComparisonMaskId || frame.shapeComparisonMode != 0) {
+        frame.comparisonMaskId = kNoComparisonMaskId;
+        frame.shapeComparisonMode = 0;
+        changed = true;
+    }
+    if (frame.triggerId != kNoTriggerId) {
+        frame.triggerId = kNoTriggerId;
+        changed = true;
+    }
+    if (changed) {
+        markChanged();
+        m_identificationRevision = m_revision;
+    }
+    return changed;
+}
+
 void ProjectDocument::setShapeComparisonMode(std::size_t frameIndex, uint8_t mode)
 {
     if (mode > 1) {
         throw std::invalid_argument("shape comparison mode must be 0 or 1");
     }
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (mode != 0) {
+        requireGameFrame(frame, "shape mode");
+    }
     if (frame.shapeComparisonMode == mode) {
         return;
     }
@@ -1742,6 +1805,9 @@ void ProjectDocument::setComparisonMaskId(std::size_t frameIndex, uint8_t maskId
                                 " does not exist; the project has " +
                                 std::to_string(m_comparisonMasks.size()));
     }
+    if (maskId != kNoComparisonMaskId) {
+        requireGameFrame(requireFrame(m_frames, frameIndex), "comparison mask");
+    }
     restoreComparisonMaskId(frameIndex, maskId);
 }
 
@@ -1764,6 +1830,9 @@ uint32_t ProjectDocument::triggerId(std::size_t frameIndex) const
 void ProjectDocument::setTriggerId(std::size_t frameIndex, uint32_t triggerId)
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    if (triggerId != kNoTriggerId) {
+        requireGameFrame(frame, "trigger");
+    }
     if (frame.triggerId == triggerId) {
         return;
     }
@@ -2090,6 +2159,9 @@ void ProjectDocument::setDynamicMaskPixel(std::size_t frameIndex,
                                           uint8_t value)
 {
     requireDynamicPlane(resolution);
+    if (value != 255) {
+        requireGameFrame(requireFrame(m_frames, frameIndex), "dynamic zone");
+    }
     IndexedFrame& mask = requireDynamicMask(requireFrame(m_frames, frameIndex), resolution);
     const std::size_t pixelIndex = checkedIndexedPixelIndex(mask, x, y);
     if (std::as_const(mask.pixels)[pixelIndex] == value) {
@@ -3068,6 +3140,9 @@ void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
     }
     if (reference.spriteId != kNoSpriteId && reference.spriteId >= m_sprites.size()) {
         throw std::out_of_range("sprite reference index out of range");
+    }
+    if (reference.spriteId != kNoSpriteId) {
+        requireGameFrame(frame, "sprite");
     }
     const FrameSpriteReference current = frame.spriteReferences.empty()
                                              ? FrameSpriteReference{}
