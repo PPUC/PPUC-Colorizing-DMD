@@ -5292,6 +5292,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Ajouter les frames copiées après la dernière frame, comme « Importer un paquet »</translation>
     </message>
     <message>
+        <source>Stay</source>
+        <translation>Rester</translation>
+    </message>
+    <message>
+        <source>Play stays on the current frame: its color rotations and its background scene run, the frame does not change</source>
+        <translation>La lecture reste sur la frame courante : ses rotations de couleurs et sa scène d&apos;arrière-plan tournent, la frame ne change pas</translation>
+    </message>
+    <message>
         <source>Team</source>
         <translation>Équipe</translation>
     </message>

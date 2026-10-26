@@ -710,6 +710,8 @@ private:
     QToolButton* m_playbackButton = nullptr;
     QToolButton* m_runtimeViewButton = nullptr;
     QToolButton* m_loopPlaybackButton = nullptr;
+    // Play stays on the current frame: its rotations and its background scene run.
+    QToolButton* m_stayPlaybackButton = nullptr;
     QCheckBox* m_useProjectTimingCheckBox = nullptr;
     QComboBox* m_assetFilterComboBox = nullptr;
     // What the frames use, for AssetFilter::Unused, and the document revision it is of.

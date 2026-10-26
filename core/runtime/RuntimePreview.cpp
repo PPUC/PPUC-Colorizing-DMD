@@ -250,6 +250,8 @@ struct RuntimePreview::Impl {
     bool sequence = false;
     // The frames the loaded window plays.
     std::vector<std::size_t> windowFrames;
+    // The frames of scenes the window holds (document frame indices), see loadWindow().
+    std::set<std::size_t> windowSceneFrames;
     // libserum's identification state in document terms: the frame its search starts at (the
     // frame identified last) and the ROM frame that was fed when it was identified.
     std::size_t searchStart = 0;
@@ -414,6 +416,7 @@ void RuntimePreview::Impl::unloadColorization()
     frameMap.clear();
     originals.clear();
     windowFrames.clear();
+    windowSceneFrames.clear();
     shown = RuntimeFrame{};
 }
 
@@ -474,6 +477,31 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
     if (played.empty()) {
         throw std::out_of_range("no frame to play");
     }
+    std::set<std::size_t> sceneFrames;
+    // The frames of the scenes the played frames start: libserum plays a scene, also one
+    // behind the frame, from the frames it has loaded. Its search for the frames of the game
+    // leaves scene frames out, so they do not change what is identified.
+    if (const auto& settings = document.colorizationSettings()) {
+        std::set<uint16_t> scenes;
+        for (std::size_t frameIndex : played) {
+            const uint32_t trigger = document.triggerId(frameIndex);
+            if (trigger <= 0xffff && settings->scene(static_cast<uint16_t>(trigger))) {
+                scenes.insert(static_cast<uint16_t>(trigger));
+            }
+        }
+        if (!scenes.empty()) {
+            std::set<std::size_t> withScenes(loaded.begin(), loaded.end());
+            for (std::size_t frameIndex = 0; frameIndex < document.frameCount(); ++frameIndex) {
+                const std::optional<document::SceneFrameRef>& ref =
+                    document.sceneFrame(frameIndex);
+                if (ref && scenes.count(ref->sceneId)) {
+                    withScenes.insert(frameIndex);
+                    sceneFrames.insert(frameIndex);
+                }
+            }
+            loaded.assign(withScenes.begin(), withScenes.end());
+        }
+    }
     // File order, starting with the frame the search starts at: libserum's search starts
     // at the first frame of a colorization it has just loaded.
     std::rotate(loaded.begin(),
@@ -492,6 +520,7 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
     searchStart = start;
     lastIdentifiedInput = replay;
     windowFrames = std::move(played);
+    windowSceneFrames = std::move(sceneFrames);
     if (replay) {
         // The ROM frame identified last, once more: libserum identifies it as the frame the
         // colorization starts with, which leaves its search exactly where it was.
@@ -567,9 +596,11 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     }
     // libserum says "same frame" both when it identified the frame it identified before and
     // when it identified another one whose picture is the one on display; it does not tell
-    // which. The search rule does.
+    // which. The search rule does. So it does when libserum reports the frame of a scene the
+    // frame started: its search goes on from the frame of the game, not from the scene's.
+    const bool reportsScene = reported && windowSceneFrames.count(*reported) != 0;
     const std::optional<std::size_t> identified =
-        result == IDENTIFY_SAME_FRAME && sequence ? expected : reported;
+        (result == IDENTIFY_SAME_FRAME || reportsScene) && sequence ? expected : reported;
     if (sequence && identified) {
         searchStart = *identified;
         lastIdentifiedInput = original;

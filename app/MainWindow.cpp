@@ -1648,6 +1648,13 @@ void MainWindow::createCentralView()
     m_loopPlaybackButton->setCheckable(true);
     m_loopPlaybackButton->setChecked(true);
     m_loopPlaybackButton->setEnabled(false);
+    m_stayPlaybackButton = new QToolButton(central);
+    m_stayPlaybackButton->setText(tr("Stay"));
+    m_stayPlaybackButton->setToolTip(
+        tr("Play stays on the current frame: its color rotations and its background scene run, "
+           "the frame does not change"));
+    m_stayPlaybackButton->setCheckable(true);
+    m_stayPlaybackButton->setEnabled(false);
     m_useProjectTimingCheckBox = new QCheckBox(QStringLiteral("cRP"), central);
     m_useProjectTimingCheckBox->setToolTip(
         tr("Use per-frame durations loaded from the .cRP file"));
@@ -1662,6 +1669,7 @@ void MainWindow::createCentralView()
     m_playbackIntervalSpinBox->setEnabled(false);
     toolbarLayout->addWidget(m_playbackButton);
     toolbarLayout->addWidget(m_loopPlaybackButton);
+    toolbarLayout->addWidget(m_stayPlaybackButton);
     toolbarLayout->addWidget(m_useProjectTimingCheckBox);
     toolbarLayout->addWidget(m_playbackIntervalSpinBox);
     // The same action as View -> Runtime View, where it can be seen.
@@ -2286,6 +2294,13 @@ void MainWindow::createCentralView()
     });
     connect(m_playbackButton, &QToolButton::toggled, this, [this](bool checked) {
         setPlaybackRunning(checked);
+    });
+    connect(m_stayPlaybackButton, &QToolButton::toggled, this, [this](bool) {
+        // Playing goes on in the other mode (the Runtime view plays another order).
+        if (m_playbackTimer && m_playbackTimer->isActive()) {
+            setPlaybackRunning(false);
+            setPlaybackRunning(true);
+        }
     });
     connect(m_playbackIntervalSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -5944,6 +5959,9 @@ void MainWindow::updatePlaybackControls()
     if (m_loopPlaybackButton) {
         m_loopPlaybackButton->setEnabled(hasFrames);
     }
+    if (m_stayPlaybackButton) {
+        m_stayPlaybackButton->setEnabled(hasFrames);
+    }
     if (m_playbackIntervalSpinBox) {
         m_playbackIntervalSpinBox->setEnabled(hasFrames);
     }
@@ -6016,6 +6034,12 @@ std::vector<std::size_t> MainWindow::playbackFrameOrder() const
 {
     std::vector<std::size_t> order;
     if (!m_frameList) {
+        return order;
+    }
+    if (m_stayPlaybackButton && m_stayPlaybackButton->isChecked()) {
+        if (const std::optional<std::size_t> frame = currentFrameIndex()) {
+            order.push_back(*frame);
+        }
         return order;
     }
     const int rows = m_frameList->count();
@@ -6124,6 +6148,10 @@ void MainWindow::advancePlaybackFrame()
     noteActivity();
     if (!m_document || !m_frameList || m_frameList->count() == 0) {
         setPlaybackRunning(false);
+        return;
+    }
+    if (m_stayPlaybackButton && m_stayPlaybackButton->isChecked()) {
+        // The frame stays; the rotation timers move its colors and its background scene.
         return;
     }
     int nextRow = m_frameList->currentRow() + 1;

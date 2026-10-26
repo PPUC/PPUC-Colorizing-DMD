@@ -27,6 +27,10 @@ tagged; the changes since the last tag are listed under *Next version*.
   which nobody sees and the runtime does not use, are no longer given to libserum as black.
 - Opening a project removes the HD dynamic zones and colors frames of the Win32 editor still
   carry: the runtime never used them (libserum 2.99.4 drops them as well).
+- `Stay` beside `Loop` keeps `Play` on the current frame, its color rotations and background
+  scene running, also in the Runtime view.
+- Playing in the Runtime view plays the scenes the frames start, background scenes too; the
+  frame that starts a scene counts as identified, not the scene's frame.
 
 ## 3.99.14
 

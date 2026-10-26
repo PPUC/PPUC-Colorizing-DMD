@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <optional>
+#include <thread>
+#include <chrono>
 #include <iostream>
 #include <stdexcept>
 #include <set>
@@ -480,6 +483,44 @@ void testAssetUse()
            "a scene is used when a frame of the game starts it, not by its own frames");
 }
 
+// Playing frames in the Runtime view loads windows of frames: one with a frame that starts a
+// scene holds the scene's frames, so that libserum plays it, and the frame counts as identified
+// (its search goes on from it), the scene's frame as the one shown.
+void testSceneInPlaybackWindow()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    runtime_fixtures::assignBackground(snapshot, 1, document::kNoBackgroundId);
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document::SceneDefinition scene = makeScene(51000, 3, 1);
+    scene.options = document::kSceneAsBackground;
+    scene.repeat = 1;
+    const auto added = edit::addScene(document, scene);
+    document.setTriggerId(1, 51000);
+    const std::vector<std::size_t> frames = edit::sceneFrames(document, 51000);
+
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    std::string error;
+    expect(preview.openSequence(document, {1}, runtime::PlaneRequest::Rows32, &error),
+           "the window loads: " + error);
+    const runtime::RuntimeFrame fed = preview.renderSequenceFrame(1);
+    expect(fed.ok() && fed.frameIndex == std::optional<std::size_t>{1} &&
+               fed.shownFrameIndex == std::optional<std::size_t>{frames[0]},
+           "the frame is identified, the scene's first frame shown");
+    std::vector<std::size_t> shown;
+    for (int step = 0; step < 4; ++step) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(scene.durationMs + 5));
+        const runtime::RuntimeFrame rotated = preview.rotate();
+        if (rotated.shownFrameIndex) {
+            shown.push_back(*rotated.shownFrameIndex);
+        }
+    }
+    preview.close();
+    expect(std::find(shown.begin(), shown.end(), frames[1]) != shown.end() &&
+               std::find(shown.begin(), shown.end(), frames[2]) != shown.end(),
+           "the scene plays from the window");
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -493,4 +534,5 @@ void runSceneEditTests()
     testBackgroundSceneWithoutBackground();
     testPlaceholderBackgroundsRemoved();
     testAssetUse();
+    testSceneInPlaybackWindow();
 }

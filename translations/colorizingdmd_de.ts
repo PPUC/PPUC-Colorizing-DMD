@@ -5292,6 +5292,14 @@ Use Create %1 Frame.</source>
         <translation>Die kopierten Frames hinter dem letzten Frame hinzufügen, wie „Paket importieren“</translation>
     </message>
     <message>
+        <source>Stay</source>
+        <translation>Bleiben</translation>
+    </message>
+    <message>
+        <source>Play stays on the current frame: its color rotations and its background scene run, the frame does not change</source>
+        <translation>Abspielen bleibt auf dem aktuellen Frame: seine Farbrotationen und seine Hintergrundszene laufen, der Frame wechselt nicht</translation>
+    </message>
+    <message>
         <source>Team</source>
         <translation>Team</translation>
     </message>
