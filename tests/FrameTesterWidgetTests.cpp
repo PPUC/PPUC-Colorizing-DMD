@@ -231,24 +231,35 @@ void testBackgroundScene()
     document.setTriggerId(0, 50020);
     document.setTriggerId(1, 50020);
 
-    app::FrameTesterDialog dialog(document, {0, 1});
-    expect(dialog.errorText().isEmpty(), "libserum loads the project with the background scene");
-    QElapsedTimer timer;
-    timer.start();
-    while (timer.elapsed() < 200) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    {
+        app::FrameTesterDialog dialog(document, {0, 1});
+        expect(dialog.errorText().isEmpty(),
+               "libserum loads the project with the background scene");
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 200) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        }
+        expect(dialog.sceneText().startsWith(QStringLiteral("background scene 50020 plays")),
+               "the background scene plays: " + dialog.infoText().toStdString());
+        dialog.showPosition(1);
+        expect(dialog.lastResult().unchanged,
+               "libserum keeps the picture for a frame of the same trigger: " +
+                   dialog.infoText().toStdString());
+        timer.restart();
+        while (dialog.lastResult().unchanged && timer.elapsed() < 2000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        }
+        expect(!dialog.lastResult().unchanged && dialog.position() == 1,
+               "the next step of the scene shows a new picture: " +
+                   dialog.infoText().toStdString());
     }
-    expect(dialog.sceneText().startsWith(QStringLiteral("background scene 50020 plays")),
-           "the background scene plays: " + dialog.infoText().toStdString());
-    dialog.showPosition(1);
-    expect(dialog.lastResult().unchanged,
-           "libserum keeps the picture for a frame of the same trigger: " + dialog.infoText().toStdString());
-    timer.restart();
-    while (dialog.lastResult().unchanged && timer.elapsed() < 2000) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-    }
-    expect(!dialog.lastResult().unchanged && dialog.position() == 1,
-           "the next step of the scene shows a new picture: " + dialog.infoText().toStdString());
+    // Opened again, the tester loads the project anew: the scene the last opening left
+    // running is gone, so the first frame shows its picture at once (libserum took it for the
+    // scene's continuation and kept a picture there was none of).
+    app::FrameTesterDialog again(document, {0});
+    expect(!again.lastResult().unchanged && again.currentPicture(false) != nullptr,
+           "opened again, the first frame shows a picture: " + again.infoText().toStdString());
 }
 
 }  // namespace

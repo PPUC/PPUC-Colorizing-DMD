@@ -85,7 +85,7 @@ struct RuntimeFrame {
     // At least one loaded frame has extra-plane content (FLAG_RETURNED_EXTRA_AVAILABLE).
     bool extraPlaneAvailable = false;
     // The trigger libserum reported, or document::kNoTriggerId. libserum does not repeat a
-    // trigger it reported less than 500 ms ago, in this process, whatever was loaded since.
+    // trigger it reported less than 500 ms ago, unless a colorization was loaded since.
     uint32_t triggerId = document::kNoTriggerId;
     // The speaker light effects libserum started with this call, per channel
     // (Serum_GetLightEffects()); nothing for a channel it left alone.

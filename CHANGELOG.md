@@ -12,6 +12,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   dumps, images, movie clips and packages each have their own.
 - The sprite editor has `Source Frame` too: it leaves the editor and goes to the frame the
   sprite was taken from.
+- The frame tester, opened again, shows a frame that starts a background scene; it stayed black,
+  as libserum kept the scene of the last opening running (libserum 2.99.3).
 
 ## 3.99.14
 
