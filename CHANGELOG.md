@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Shadow Next To Selection` and `Grow Selection` have `All Around, Stern Style`: the four
+  sides without the corners; the shadows all around have `Alt+S` (Stern style) and `Alt+Shift+S`
+  (issue #35).
 - `Export .cROMc` refuses a project made for libserum 2.8, which cannot read the editor's
   `.cROMc`, and offers to export the `.cRZ` instead.
 

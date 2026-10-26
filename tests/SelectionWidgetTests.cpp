@@ -620,6 +620,23 @@ void testMenuActions()
                find(QStringLiteral("Select All"))->shortcut() ==
                    QKeySequence(QKeySequence::SelectAll),
            "standard shortcuts");
+    // Issue #35: the shadow all around in Stern style, and all around, from the keyboard.
+    int sternShadows = 0;
+    int allAroundShadows = 0;
+    for (const QAction* action : actions.actions()) {
+        const QString text = action->text().remove(QLatin1Char('&'));
+        sternShadows += text == QStringLiteral("All Around, Stern Style") &&
+                                action->shortcut() == QKeySequence(Qt::ALT | Qt::Key_S)
+                            ? 1
+                            : 0;
+        allAroundShadows += text == QStringLiteral("All Around") &&
+                                    action->shortcut() ==
+                                        QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_S)
+                                ? 1
+                                : 0;
+    }
+    expect(sternShadows == 1 && allAroundShadows == 1,
+           "Alt+S and Alt+Shift+S draw the shadows, once (not for Grow Selection)");
     expect(find(QStringLiteral("Select None"))->shortcuts().size() == 2 &&
                find(QStringLiteral("Select None"))->shortcut() ==
                    QKeySequence(Qt::CTRL | Qt::Key_D) &&

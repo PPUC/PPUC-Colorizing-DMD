@@ -73,6 +73,8 @@ namespace colorizing::edit {
 // The directions of the Win32 shadow buttons (IDC_OUTA, IDC_OUTL, ...).
 enum class SelectionDirection {
     AllAround,
+    // Left, right, top and bottom without the corners, as Stern draws its shadows (issue #35).
+    Sides,
     Left,
     BottomLeft,
     Bottom,

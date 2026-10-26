@@ -250,6 +250,8 @@ std::vector<render::Point> directionOffsets(SelectionDirection direction)
     switch (direction) {
         case SelectionDirection::AllAround:
             return {{-1, 0}, {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}};
+        case SelectionDirection::Sides:
+            return {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
         case SelectionDirection::Left:
             return {{-1, 0}};
         case SelectionDirection::BottomLeft:

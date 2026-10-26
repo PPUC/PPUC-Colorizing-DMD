@@ -1009,6 +1009,14 @@ void testMoreHelpers()
                         : 0;
     }
     expect(shadowed == changes.pixels.size() && shadowed >= 7, "a shadow all around");
+    // Stern style (issue #35): the four sides, not the corners.
+    changes = edit::makeSelectionShadowChanges(document, 1, plane, dot,
+                                               edit::SelectionDirection::Sides, 0x0001);
+    bool sidesOnly = !changes.pixels.empty();
+    for (const edit::PixelChange& change : changes.pixels) {
+        sidesOnly = sidesOnly && std::abs(change.x - 10) + std::abs(change.y - 10) == 1;
+    }
+    expect(sidesOnly && changes.pixels.size() <= 4, "a shadow on the four sides, no corner");
     changes = edit::makeSelectionShadowChanges(document, 1, plane, dot,
                                                edit::SelectionDirection::Left, 0x0001);
     expect(changes.pixels.size() <= 1 &&
@@ -1025,6 +1033,8 @@ void testMoreHelpers()
     corner.add({Point{0, 0}});
     expect(edit::grownSelection(corner, edit::SelectionDirection::AllAround).count() == 4,
            "grown all around at a corner");
+    expect(edit::grownSelection(corner, edit::SelectionDirection::Sides).count() == 3,
+           "grown to the sides at a corner, without the diagonal");
     expect(edit::grownSelection(corner, edit::SelectionDirection::Right).count() == 2,
            "grown to the right");
     expect(edit::grownSelection(corner, edit::SelectionDirection::Left).count() == 1,

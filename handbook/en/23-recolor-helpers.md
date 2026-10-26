@@ -20,12 +20,13 @@
   offered again) and multiplies the red, green and blue of the selected pixels on every selected
   frame by it, rounded down; a channel the factor would leave unchanged still moves one step up
   (above 100 %) or down (below), as in CDMD. Needs a selection.
-- `Shadow Next To Selection` (CDMD's shadow buttons): `All Around` or a direction; every pixel
-  next to the selection on that side that is neither selected nor dynamic gets the draw color,
-  on every selected frame. Needs a selection.
-- `Grow Selection` (CDMD's shadow buttons with `Ctrl`): adds the pixels next to the selection,
-  all around or on one side. A dynamic shadow (CDMD's shadow buttons with `Alt`) is set on the
-  `Dynamic` page.
+- `Shadow Next To Selection` (CDMD's shadow buttons): `All Around` (`Alt+Shift+S`), `All
+  Around, Stern Style` (`Alt+S`: left, right, top and bottom without the corners, as Stern draws
+  its shadows) or a direction; every pixel next to the selection on that side that is neither
+  selected nor dynamic gets the draw color, on every selected frame. Needs a selection.
+- `Grow Selection` (CDMD's shadow buttons with `Ctrl`): adds the pixels next to the selection, all
+  around (also in Stern style) or on one side. A dynamic shadow (CDMD's shadow buttons with `Alt`)
+  is set on the `Dynamic` page.
 
 Each is one undoable step, on all frames it changed. CDMD's `Black And White` (the whole project to
 grey, not undoable there) is not offered.

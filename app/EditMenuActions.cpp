@@ -120,7 +120,7 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     addDirections(menu, tr("S&hadow Next To Selection"),
                   tr("Draw the draw color next to the selection, where it is not "
                      "dynamic"),
-                  &EditMenuActions::onShadowSelection);
+                  &EditMenuActions::onShadowSelection, true);
     addDirections(menu, tr("&Grow Selection"),
                   tr("Add the pixels next to the selection"),
                   &EditMenuActions::onGrowSelection);
@@ -131,7 +131,8 @@ void EditMenuActions::addDirections(
     QMenu* menu,
     const QString& title,
     const QString& toolTip,
-    std::function<void(edit::SelectionDirection)> EditMenuActions::*handler)
+    std::function<void(edit::SelectionDirection)> EditMenuActions::*handler,
+    bool withShortcuts)
 {
     using edit::SelectionDirection;
     QMenu* submenu = menu->addMenu(title);
@@ -139,6 +140,8 @@ void EditMenuActions::addDirections(
     submenu->menuAction()->setToolTip(toolTip);
     const std::pair<const char*, SelectionDirection> directions[] = {
         {QT_TRANSLATE_NOOP("EditMenuActions", "All Around"), SelectionDirection::AllAround},
+        {QT_TRANSLATE_NOOP("EditMenuActions", "All Around, Stern Style"),
+         SelectionDirection::Sides},
         {QT_TRANSLATE_NOOP("EditMenuActions", "Left"), SelectionDirection::Left},
         {QT_TRANSLATE_NOOP("EditMenuActions", "Bottom Left"), SelectionDirection::BottomLeft},
         {QT_TRANSLATE_NOOP("EditMenuActions", "Bottom"), SelectionDirection::Bottom},
@@ -150,6 +153,14 @@ void EditMenuActions::addDirections(
     };
     for (const auto& [text, direction] : directions) {
         QAction* action = submenu->addAction(tr(text));
+        if (direction == SelectionDirection::Sides) {
+            action->setToolTip(tr("Left, right, top and bottom, without the corners"));
+        }
+        if (withShortcuts && direction == SelectionDirection::AllAround) {
+            action->setShortcut(QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_S));
+        } else if (withShortcuts && direction == SelectionDirection::Sides) {
+            action->setShortcut(QKeySequence(Qt::ALT | Qt::Key_S));
+        }
         const SelectionDirection chosen = direction;
         connect(action, &QAction::triggered, this, [this, handler, chosen]() {
             if (this->*handler) {

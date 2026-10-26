@@ -1459,6 +1459,10 @@
         <translation>Umfär&amp;ben...</translation>
     </message>
     <message>
+        <source>Left, right, top and bottom, without the corners</source>
+        <translation>Links, rechts, oben und unten, ohne die Ecken</translation>
+    </message>
+    <message>
         <source>Click a pixel: every pixel of its color is selected (also %1+%2+click with the fill tool)</source>
         <extracomment>%1+%2: Ctrl+Alt, Cmd+Option on macOS</extracomment>
         <translation>Pixel anklicken: Jedes Pixel seiner Farbe wird ausgewählt (auch %1+%2+Klick mit dem Füllwerkzeug)</translation>
@@ -1532,6 +1536,10 @@
     <message>
         <source>All Around</source>
         <translation>Rundherum</translation>
+    </message>
+    <message>
+        <source>All Around, Stern Style</source>
+        <translation>Rundherum, Stern-Stil</translation>
     </message>
     <message>
         <source>Left</source>

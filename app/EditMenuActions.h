@@ -88,11 +88,13 @@ public:
     static bool forwardStandardKey(QWidget* focus, QKeySequence::StandardKey key);
 
 private:
-    // A submenu with an entry per direction.
+    // A submenu with an entry per direction; withShortcuts gives the two all-around entries
+    // theirs (Alt+S, Alt+Shift+S).
     void addDirections(QMenu* menu,
                        const QString& title,
                        const QString& toolTip,
-                       std::function<void(edit::SelectionDirection)> EditMenuActions::*handler);
+                       std::function<void(edit::SelectionDirection)> EditMenuActions::*handler,
+                       bool withShortcuts = false);
     QAction* add(QMenu* menu,
                  const QString& text,
                  const QString& toolTip,
