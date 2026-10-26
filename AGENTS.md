@@ -78,9 +78,8 @@ A change is complete only with all of these, in the same commit:
 - New project data goes into the project file (`core/project/ProjectFile.h` documents the
   layout): a field or entry a reader can skip. The `.cRPX` (`core/legacy/CrpxFile.h`) is only
   read, and written by `Export For Earlier Editors`.
-- The cROM layout libserum reads changes only together with libserum, under a new cROM format
-  version, and only for projects of a libserum target that knows it
-  (`core/document/LibserumTarget.h`). A project for libserum 2.8 is written exactly as before.
+- Projects are made for libserum 2.9 and later only (`core/document/ProjectLimits.h`). The cROM
+  layout libserum reads changes only together with libserum, under a new cROM format version.
 - Keep repository text (code, commits, docs) technical.
 
 ## Commits and versions

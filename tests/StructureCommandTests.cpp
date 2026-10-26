@@ -38,9 +38,9 @@ using colorizing::document::SpriteRecord;
 using colorizing::document::fixedName;
 using colorizing::document::kImportedPaletteBytes;
 using colorizing::document::kMaskNameBytes;
-constexpr std::size_t kMaxBackgrounds = 255;
+constexpr std::size_t kMaxBackgrounds = colorizing::document::kMaxBackgrounds;
 using colorizing::document::kMaxComparisonMasks;
-constexpr std::size_t kMaxSprites = 255;
+constexpr std::size_t kMaxSprites = colorizing::document::kMaxSprites;
 using colorizing::document::kNoBackgroundId;
 using colorizing::document::kNoComparisonMaskId;
 using colorizing::document::kNoSpriteId;
@@ -245,7 +245,7 @@ std::string difference(const ProjectSnapshot& a, const ProjectSnapshot& b)
         return "editor metadata";
     }
     if (a.romName != b.romName || a.colorCount != b.colorCount ||
-        a.cromRevision != b.cromRevision || a.palettes.size() != b.palettes.size()) {
+        a.palettes.size() != b.palettes.size()) {
         return "project header";
     }
     return {};
@@ -783,10 +783,10 @@ void testSpriteLimit()
     snapshot.sprites.assign(kMaxSprites - 1, fixtures::emptySprite());
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     const auto last = colorizing::edit::addSprite(document, "the last one", 0);
-    expect(document.spriteCount() == kMaxSprites, "255 sprites fit");
+    expect(document.spriteCount() == kMaxSprites, "as many sprites as allowed fit");
     expectThrows<std::length_error>(
         [&]() { (void)colorizing::edit::addSprite(document, "one too many", 0); },
-        "adding sprite 256");
+        "adding one more sprite");
     expect(document.spriteCount() == kMaxSprites, "a refused sprite is not added");
     // The last possible sprite can go and come back.
     last->revert(document);
@@ -961,16 +961,16 @@ void testAddBackground(PlaneLayout layout)
 void testBackgroundLimit()
 {
     ProjectSnapshot snapshot = fixtures::makeProject(PlaneLayout::Ordinary, 2);
-    for (std::size_t i = 0; i + 1 < kMaxBackgrounds; ++i) {
-        snapshot.backgrounds.push_back(
-            {colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize)});
-    }
+    // Copies of one picture share its pixels.
+    snapshot.backgrounds.assign(
+        kMaxBackgrounds - 1,
+        {colorizing::document::makeRgb565Frame(colorizing::render::kSdFrameSize)});
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     const auto last = colorizing::edit::addBackgroundFromFrame(document, 1);
-    expect(document.backgroundCount() == kMaxBackgrounds, "255 backgrounds fit");
+    expect(document.backgroundCount() == kMaxBackgrounds, "as many backgrounds as allowed fit");
     expectThrows<std::length_error>(
         [&]() { (void)colorizing::edit::addBackgroundFromFrame(document, 0); },
-        "adding background 256");
+        "adding one more background");
     last->revert(document);
     last->apply(document);
     expect(document.backgroundCount() == kMaxBackgrounds, "background 255 undone and redone");

@@ -191,21 +191,8 @@ void testFailureLeavesTarget()
 
 }  // namespace
 
-// A cROMc of the editor's libserum is no use to libserum 2.8 (WPT, 2026-10-24: a project for
-// 2.8 exported as .cROMc did not load there).
-void testCromcFitsTarget()
-{
-    static_assert(!colorizing::runtime::cromcFitsTarget(
-                      colorizing::document::LibserumTarget::Libserum28),
-                  "libserum 2.8 reads no cROMc of the editor's libserum");
-    static_assert(colorizing::runtime::cromcFitsTarget(
-                      colorizing::document::LibserumTarget::Libserum29),
-                  "libserum 2.9 does");
-}
-
 void runCromcExportTests()
 {
-    testCromcFitsTarget();
     testExportLoadsInLibserum();
     testSettingsTakeNoSidecars();
     testExportIsLibserumsOwnCromc();

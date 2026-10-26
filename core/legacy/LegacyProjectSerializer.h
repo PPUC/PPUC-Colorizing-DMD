@@ -109,11 +109,10 @@ inline constexpr std::size_t kCromBlockCount = 40;
 
 // The bytes of single elements of the cROM blocks, as writeLegacyCrom() writes them (little
 // endian), for handing a project to libserum without a cROM (Serum_LoadFromSource()). The
-// snapshot must outlive the object. wideSpriteIds: 16-bit sprite IDs, as format version 1
-// has them, also for a project for libserum 2.8.
+// snapshot must outlive the object.
 class CromElements {
 public:
-    CromElements(const document::ProjectSnapshot& snapshot, bool wideSpriteIds);
+    explicit CromElements(const document::ProjectSnapshot& snapshot);
     ~CromElements();
     CromElements(const CromElements&) = delete;
     CromElements& operator=(const CromElements&) = delete;

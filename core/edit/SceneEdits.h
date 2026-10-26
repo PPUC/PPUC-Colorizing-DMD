@@ -21,8 +21,6 @@ class SceneEditCommand final : public EditCommand {
 public:
     enum class Kind {
         Scaling,
-        // The libserum target (document/LibserumTarget.h), maybe with the scaling settings.
-        LibserumTarget,
         AddScene,
         ChangeScene,
         RemoveScene,
@@ -72,13 +70,6 @@ private:
 [[nodiscard]] std::unique_ptr<SceneEditCommand> setColorizationSettings(
     document::ProjectDocument& document,
     document::ColorizationSettings settings);
-// The project settings: the colorization settings and the libserum target, in one step.
-// Throws std::invalid_argument when the project does not fit the target
-// (ProjectDocument::libserumTargetProblems()).
-[[nodiscard]] std::unique_ptr<SceneEditCommand> setProjectSettings(
-    document::ProjectDocument& document,
-    document::ColorizationSettings settings,
-    document::LibserumTarget target);
 // Adds the scene with a frame for each of its frames in each group, behind the last frame:
 // the scene marker as the original, uncolorized, lasting the scene's frame duration.
 [[nodiscard]] std::unique_ptr<SceneEditCommand> addScene(document::ProjectDocument& document,

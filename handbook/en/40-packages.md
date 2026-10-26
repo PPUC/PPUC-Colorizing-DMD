@@ -44,9 +44,8 @@ The frames keep their tags and their IDs (a frame whose ID the project has alrea
 one), and who changed them last.
 
 The import is one undo step. It also ends the undo histories of the frames it updated: their
-earlier edits can no longer be undone one by one. A package may hold at most as many sprites per
-frame as the project allows (see "libserum target"); a project of libserum 2.8 refuses a frame
-with more than 32.
+earlier edits can no longer be undone one by one. A package of an earlier version with 32
+sprite slots per frame gets the 128 of the project (see "Project Files", "libserum 2.9").
 
 ## Copying frames to another window
 

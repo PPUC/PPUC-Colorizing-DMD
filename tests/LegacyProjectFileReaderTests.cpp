@@ -38,7 +38,7 @@ constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
-constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kSpritesPerFrame = 32;
 constexpr std::size_t kSpriteCount = 1;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
@@ -113,8 +113,8 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
 {
     bytes.push_back(1);
     bytes.push_back(0);
-    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame - 1);
-    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 255, kSpritesPerFrame - 1);
+    appendRepeatedU8(bytes, 255, kSpritesPerFrame);
     appendRepeatedU8(bytes, 9, kSpritePixels);
     appendRepeatedU16(bytes, 0x7001, kSpritePixels);
     appendRepeatedU8(bytes, 10, kSpritePixels);
@@ -146,7 +146,7 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendU16(bytes, 6);
     appendU16(bytes, 7);
     appendU16(bytes, 8);
-    appendRepeatedU16(bytes, 0xffff, (2 * kMaxSpritesPerFrame - 1) * 4);
+    appendRepeatedU16(bytes, 0xffff, (2 * kSpritesPerFrame - 1) * 4);
 
     bytes.push_back(1);
     appendRepeatedU16(bytes, 0x5001, kSdPixels);
@@ -1222,13 +1222,13 @@ void testFileWriterSavesLibserum29Project()
         LegacyProjectPaths{utf8FromPath(sourceCromPath), utf8FromPath(sourceCrpPath)});
     std::filesystem::remove(sourceCromPath);
     std::filesystem::remove(sourceCrpPath);
-    expect(source.ok && source.snapshot.libserumTarget == document::LibserumTarget::Libserum28,
-           "a cROM without a format version is one for libserum 2.8");
+    expect(source.ok && source.snapshot.frames[0].spriteReferences.size() ==
+                            document::kLegacySpritesPerFrame,
+           "a cROM without a format version has the slots of libserum 2.8");
 
     document::ProjectSnapshot project = source.snapshot;
-    project.libserumTarget = document::LibserumTarget::Libserum29;
     for (document::ProjectFrameSnapshot& frame : project.frames) {
-        frame.spriteReferences.resize(document::kMaxSpritesPerFrame);
+        frame.spriteReferences.resize(document::kSpritesPerFrame);
     }
     document::ensureSpriteTableEntries(project.editorMetadata, 300);
     while (project.sprites.size() < 300) {
@@ -1264,8 +1264,7 @@ void testFileWriterSavesLibserum29Project()
     const LegacyLoadResult back = reader.load(paths);
     expect(back.ok, "and loads: " + back.error.message);
     const document::ProjectSnapshot& loaded = back.snapshot;
-    expect(loaded.libserumTarget == document::LibserumTarget::Libserum29 &&
-               loaded.sprites.size() == 300 &&
+    expect(loaded.sprites.size() == 300 &&
                loaded.frames[0].spriteReferences.size() == 128 &&
                loaded.frames[0].spriteReferences[100].spriteId == 299 &&
                loaded.frames[0].spriteReferences[100].maxX == 30 &&
@@ -1294,10 +1293,6 @@ void testFileWriterSavesLibserum29Project()
                std::equal(block.begin(), block.end(),
                           crom.end() - static_cast<std::ptrdiff_t>(block.size())),
            "the cROM ends with them in its settings block");
-    document::ProjectSnapshot for28 = source.snapshot;
-    for28.frames[0].originalOnlyDynamicSets = 0x24;
-    expect(colorizing::legacy::cromSettingsBlock(for28).empty(),
-           "a project for libserum 2.8 does not write them into the cROM");
 
     // The cRP part has the size of one with 255 sprites: what it has no room for is in chunks.
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
@@ -1314,8 +1309,7 @@ void testFileWriterSavesLibserum29Project()
     const std::string chunks(crpx.begin() + static_cast<std::ptrdiff_t>(
                                                 colorizing::legacy::kCrpxHeaderBytes + crpSize),
                              crpx.end());
-    expect(chunks.find("LSRT") != std::string::npos && chunks.find("SPRX") != std::string::npos,
-           "the target and the sprites beyond 255 are chunks");
+    expect(chunks.find("SPRX") != std::string::npos, "the sprites beyond 255 are a chunk");
 
     // A cut last chunk is refused.
     std::vector<uint8_t> cut = crpx;

@@ -265,16 +265,15 @@ PackageImportPlan planPackageImport(const ProjectDocument& document,
         newSprites += target ? 0 : 1;
         plan.spriteTargets.push_back(target);
     }
-    const document::LibserumLimits limits = document.limits();
     if (document.comparisonMaskCount() + newMasks > document::kMaxComparisonMasks) {
         plan.problem = "the project would have more than " +
                        std::to_string(document::kMaxComparisonMasks) + " comparison masks";
-    } else if (document.backgroundCount() + newBackgrounds > limits.maxBackgrounds) {
+    } else if (document.backgroundCount() + newBackgrounds > document::kMaxBackgrounds) {
         plan.problem = "the project would have more than " +
-                       std::to_string(limits.maxBackgrounds) + " backgrounds";
-    } else if (document.spriteCount() + newSprites > limits.maxSprites) {
-        plan.problem =
-            "the project would have more than " + std::to_string(limits.maxSprites) + " sprites";
+                       std::to_string(document::kMaxBackgrounds) + " backgrounds";
+    } else if (document.spriteCount() + newSprites > document::kMaxSprites) {
+        plan.problem = "the project would have more than " +
+                       std::to_string(document::kMaxSprites) + " sprites";
     }
     return plan;
 }
@@ -361,7 +360,6 @@ std::unique_ptr<PackageImportCommand> importPackage(ProjectDocument& document,
 
     std::vector<document::FrameRecord> added;
     std::vector<std::size_t> updated;
-    const std::size_t slots = after.spritesPerFrame();
     for (std::size_t index = 0; index < package.frames.size(); ++index) {
         const std::optional<std::size_t> known = plan.knownFrames[index];
         if (known && knownFrames == KnownFrames::Skip) {
@@ -382,21 +380,11 @@ std::unique_ptr<PackageImportCommand> importPackage(ProjectDocument& document,
                                 ? static_cast<uint16_t>(spriteFor(slot.spriteId))
                                 : document::kNoSpriteId;
         }
-        // The project's number of sprite slots.
-        if (frame.spriteReferences.size() > slots) {
-            if (std::any_of(frame.spriteReferences.begin() + static_cast<std::ptrdiff_t>(slots),
-                            frame.spriteReferences.end(), [](const auto& slot) {
-                                return slot.spriteId != document::kNoSpriteId;
-                            })) {
-                throw std::invalid_argument("frame " + std::to_string(index) +
-                                            " of the package uses more than " +
-                                            std::to_string(slots) +
-                                            " sprites, the project allows no more per frame");
-            }
-        }
-        // An empty list stands for empty slots, as in the source.
+        // The project's number of sprite slots (a package of an earlier version may have 32);
+        // an empty list stands for empty slots, as in the source.
         if (!frame.spriteReferences.empty()) {
-            frame.spriteReferences.resize(slots, document::FrameSpriteReference{});
+            frame.spriteReferences.resize(document::kSpritesPerFrame,
+                                          document::FrameSpriteReference{});
         }
         for (document::LightAction& action : frame.lights) {
             if (action.kind == document::LightActionKind::Effect) {

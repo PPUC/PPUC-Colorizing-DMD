@@ -198,10 +198,10 @@ std::string layoutName(render::PlaneLayout layout)
     return "ordinary";
 }
 
-std::string targetName(document::LibserumTarget target)
-{
-    return target == document::LibserumTarget::Libserum29 ? "2.9" : "2.8";
-}
+// Projects are made for libserum 2.9 (document/ProjectLimits.h). The manifest keeps naming it,
+// as editors before 3.99.14 refuse a file without it; a reader ignores it (earlier files may
+// name "2.8").
+constexpr const char* kLibserumTargetName = "2.9";
 
 constexpr std::array<const char*, document::kLastLicenseKind + 1> kLicenseNames = {
     "unspecified", "all-rights-reserved", "cc0-1.0",  "cc-by-4.0",
@@ -436,9 +436,11 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
     manifest.set("projectId", snapshot.projectId.toString());
     manifest.set("romName", snapshot.romName);
     manifest.set("colorCount", snapshot.colorCount);
-    manifest.set("libserumTarget", targetName(snapshot.libserumTarget));
+    manifest.set("libserumTarget", kLibserumTargetName);
     manifest.set("layout", layoutName(snapshot.geometry.layout()));
-    manifest.set("cromRevision", snapshot.cromRevision);
+    // The cROM header revision written (format version 1); editors before 3.99.14 refuse a
+    // file without it, a reader ignores it.
+    manifest.set("cromRevision", 21);
     JsonValue license = JsonValue::object();
     license.set("kind", kLicenseNames[static_cast<std::size_t>(snapshot.license.kind)]);
     license.set("text", snapshot.license.customText);
@@ -1353,14 +1355,6 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
     snapshot.projectId = parseId(manifest.string("projectId"), "manifest");
     snapshot.romName = manifest.string("romName");
     snapshot.colorCount = static_cast<uint32_t>(manifest.integer("colorCount", 1, 64));
-    const std::string& target = manifest.string("libserumTarget");
-    if (target == "2.8") {
-        snapshot.libserumTarget = document::LibserumTarget::Libserum28;
-    } else if (target == "2.9") {
-        snapshot.libserumTarget = document::LibserumTarget::Libserum29;
-    } else {
-        throw FormatError("the project is made for an unknown libserum " + target);
-    }
     const std::string& layout = manifest.string("layout");
     if (layout == "ordinary") {
         snapshot.geometry = render::ProjectGeometry(render::PlaneLayout::Ordinary);
@@ -1371,7 +1365,6 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
     } else {
         throw FormatError("the project has an unknown plane layout " + layout);
     }
-    snapshot.cromRevision = static_cast<uint32_t>(manifest.integer("cromRevision", 0, UINT32_MAX));
     if (manifest.has("license")) {
         const JsonObjectReader license = manifest.object("license");
         const std::string kind = license.string("kind", "unspecified");
@@ -2100,7 +2093,9 @@ std::string settingsContent(const ProjectSnapshot& snapshot)
     license.set("attribution", snapshot.license.attribution);
     license.set("url", snapshot.license.url);
     root.set("license", std::move(license));
-    root.set("libserumTarget", targetName(snapshot.libserumTarget));
+    // As it always was for a project for libserum 2.9, so that a team project's settings stay
+    // the same.
+    root.set("libserumTarget", kLibserumTargetName);
     // The manifest's colorization settings, without what names this editor.
     ProjectFileOptions options;
     const JsonValue manifest = manifestJson(snapshot, options);

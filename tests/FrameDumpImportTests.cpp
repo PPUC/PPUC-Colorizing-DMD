@@ -921,7 +921,6 @@ void testNewProject(Size dumpSize, uint32_t shades)
                                        : dumpSize.width == 256 ? PlaneLayout::NativeExtra
                                                                : PlaneLayout::Ordinary;
     expect(geometry.layout() == expectedLayout, what + ": layout");
-    expectEqual(snapshot.cromRevision, 20u, what + ": revision");
 
     // The document saves what the snapshot holds, and a reload of it is the same document.
     ProjectDocument project = ProjectDocument::fromSnapshot(snapshot);
@@ -940,9 +939,9 @@ void testNewProject(Size dumpSize, uint32_t shades)
 
     // cROM header.
     const std::string& header = cromBlocks.at("header");
-    expectEqual(header.size(), std::size_t{106}, what + ": header size");
+    expectEqual(header.size(), std::size_t{114}, what + ": header size");
     expectEqual(std::string(header.c_str()), std::string("newrom"), what + ": ROM name");
-    expectEqual(u32At(header, 64), 80u, what + ": header length of revision 20");
+    expectEqual(u32At(header, 64), 84u, what + ": header length of revision 21");
     expect(u32At(header, 68) == static_cast<uint32_t>(sdSize.width) &&
                u32At(header, 72) == static_cast<uint32_t>(sdSize.height) &&
                u32At(header, 76) == static_cast<uint32_t>(hdSize.width) &&
@@ -967,7 +966,8 @@ void testNewProject(Size dumpSize, uint32_t shades)
     expectFilled(cromBlocks, "HD dynamic masks", n * hd, 255, what);
     expectFilled(cromBlocks, "SD dynamic colors", n * 32 * colorCount * 2, 0, what);
     expectFilled(cromBlocks, "HD dynamic colors", n * 32 * colorCount * 2, 0, what);
-    expectFilled(cromBlocks, "frame sprites", n * 32, 255, what);
+    // 16-bit sprite IDs, 0xffff for an empty slot (format version 1).
+    expectFilled(cromBlocks, "frame sprites", n * document::kSpritesPerFrame * 2, 255, what);
     expectFilled(cromBlocks, "SD color rotations", n * 4 * 64 * 2, 0, what);
     expectFilled(cromBlocks, "HD color rotations", n * 4 * 64 * 2, 0, what);
     expectFilled(cromBlocks, "trigger IDs", n * 4, 255, what);
@@ -988,8 +988,8 @@ void testNewProject(Size dumpSize, uint32_t shades)
         expectFilled(cromBlocks, empty, 0, 0, what);
     }
     const std::string& boxes = cromBlocks.at("frame sprite bounding boxes");
-    expectEqual(boxes.size(), n * 32 * 8, what + ": sprite boxes size");
-    for (std::size_t box = 0; box < n * 32; ++box) {
+    expectEqual(boxes.size(), n * document::kSpritesPerFrame * 8, what + ": sprite boxes size");
+    for (std::size_t box = 0; box < n * document::kSpritesPerFrame; ++box) {
         expect(u16At(boxes, box * 8) == 0 && u16At(boxes, box * 8 + 2) == 0 &&
                    u16At(boxes, box * 8 + 4) == romSize.width - 1 &&
                    u16At(boxes, box * 8 + 6) == romSize.height - 1,
@@ -1102,7 +1102,7 @@ void testNewProject(Size dumpSize, uint32_t shades)
                project.backgroundId(0) == document::kNoBackgroundId &&
                project.triggerId(0) == document::kNoTriggerId &&
                project.dynamicData(0).has_value() && project.backgroundData(0).has_value() &&
-               project.frameSpriteReferences(0).size() == document::kLegacySpritesPerFrame &&
+               project.frameSpriteReferences(0).size() == document::kSpritesPerFrame &&
                project.paletteCount() == document::kPaletteCount,
            what + ": document defaults");
     expectEqual(project.hasHdFrame(0), expectedLayout == PlaneLayout::NativeExtra,

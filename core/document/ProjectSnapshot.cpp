@@ -36,17 +36,13 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     if (snapshot.colorCount == 0 || snapshot.colorCount > kColorSetColorCount) {
         return fail(errorMessage, "original color count must be between 1 and 16");
     }
-    if (snapshot.geometry.original256x64Flag() && snapshot.cromRevision < 20) {
-        return fail(errorMessage, "256x64 original frames need cROM revision 20");
-    }
     if (snapshot.comparisonMasks.size() > kMaxComparisonMasks) {
         return fail(errorMessage, "too many comparison masks");
     }
-    const LibserumLimits limits = libserumLimits(snapshot.libserumTarget);
-    if (snapshot.sprites.size() > limits.maxSprites) {
+    if (snapshot.sprites.size() > kMaxSprites) {
         return fail(errorMessage, "too many sprites");
     }
-    if (snapshot.backgrounds.size() > limits.maxBackgrounds) {
+    if (snapshot.backgrounds.size() > kMaxBackgrounds) {
         return fail(errorMessage, "too many backgrounds");
     }
     if (!isValidEditorMetadata(snapshot.editorMetadata, errorMessage)) {
@@ -198,7 +194,8 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
             }
         }
         if (!frame.spriteReferences.empty() &&
-            frame.spriteReferences.size() != limits.spritesPerFrame) {
+            frame.spriteReferences.size() != kSpritesPerFrame &&
+            frame.spriteReferences.size() != kLegacySpritesPerFrame) {
             return fail(errorMessage, "frame " + std::to_string(i) +
                                           " has invalid sprite reference data");
         }
@@ -272,8 +269,7 @@ void discardExtraPlane(ProjectSnapshot& snapshot)
 ProjectFrameSnapshot makeUncolorizedFrameSnapshot(const render::ProjectGeometry& geometry,
                                                   uint32_t colorCount,
                                                   IndexedFrame original,
-                                                  uint32_t durationMs,
-                                                  std::size_t spritesPerFrame)
+                                                  uint32_t durationMs)
 {
     const Size romSize = geometry.romFrameSize();
     if (!original.isValid() || !hasSize(original.size, romSize)) {
@@ -332,7 +328,7 @@ ProjectFrameSnapshot makeUncolorizedFrameSnapshot(const render::ProjectGeometry&
     noSprite.spriteId = kNoSpriteId;
     noSprite.maxX = static_cast<uint16_t>(romSize.width - 1);
     noSprite.maxY = static_cast<uint16_t>(romSize.height - 1);
-    frame.spriteReferences.assign(spritesPerFrame, noSprite);
+    frame.spriteReferences.assign(kSpritesPerFrame, noSprite);
 
     frame.triggerId = kNoTriggerId;
     frame.durationMs = durationMs;

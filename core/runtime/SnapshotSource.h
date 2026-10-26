@@ -27,7 +27,7 @@ class SnapshotSource {
 public:
     explicit SnapshotSource(document::ProjectSnapshot snapshot)
         : m_snapshot(std::move(snapshot))
-        , m_elements(m_snapshot, true)
+        , m_elements(m_snapshot)
     {
         const render::Size sd = m_snapshot.geometry.planeSize(render::Resolution::Sd);
         const render::Size hd = m_snapshot.geometry.planeSize(render::Resolution::Hd);
@@ -43,8 +43,7 @@ public:
         m_source.sprites = static_cast<uint32_t>(m_snapshot.sprites.size());
         m_source.backgrounds = static_cast<uint16_t>(m_snapshot.backgrounds.size());
         m_source.is256x64 = m_snapshot.geometry.original256x64Flag() ? 1 : 0;
-        m_source.spritesPerFrame = static_cast<uint32_t>(
-            document::libserumLimits(m_snapshot.libserumTarget).spritesPerFrame);
+        m_source.spritesPerFrame = static_cast<uint32_t>(document::kSpritesPerFrame);
         // The block without its magic and size.
         const std::vector<uint8_t> block = legacy::cromSettingsBlock(m_snapshot);
         if (block.size() > 8) {

@@ -2367,12 +2367,11 @@ colorizing::document::ProjectDocument makeSpritePanelDocument()
     return document;
 }
 
-// More than 32 sprites on a frame of a libserum 2.9 project: the Frame Sprites section warns.
+// More than 32 sprites on a frame: the Frame Sprites section warns.
 void testSpritePanelWarnsAboutManySprites()
 {
     using colorizing::document::FrameSpriteReference;
     colorizing::document::ProjectDocument document = makeSpritePanelDocument();
-    document.setLibserumTarget(colorizing::document::LibserumTarget::Libserum29);
     colorizing::app::SpritePanel panel;
     colorizing::app::SpritePanelState state;
     state.document = &document;
@@ -2610,7 +2609,7 @@ void testSpritePanel()
            "sprite panel should show the selected named HD sprite");
     expect(slotComboBox->isEnabled() &&
                slotComboBox->count() ==
-                   static_cast<int>(colorizing::document::kLegacySpritesPerFrame) &&
+                   static_cast<int>(colorizing::document::kSpritesPerFrame) &&
                slotComboBox->itemText(0) == QStringLiteral("Slot 0: Sprite 0 - hero") &&
                slotComboBox->itemText(1) == QStringLiteral("Slot 1: Empty") &&
                slotComboBox->itemText(2) == QStringLiteral("Slot 2: Sprite 1") &&
@@ -3099,12 +3098,6 @@ void testDynamicPanelOriginalOnlySets()
         }
     }
     expect(box != nullptr, "the dynamic panel has Only on the SD Picture");
-    panel.refreshShadow(&document, 0, Resolution::Sd);
-    expect(!box->isHidden() && !box->isEnabled() &&
-               box->toolTip() == QStringLiteral("Needs libserum 2.9 (Project Settings)"),
-           "for libserum 2.8 it is disabled and says why");
-
-    document.setLibserumTarget(colorizing::document::LibserumTarget::Libserum29);
     document.setOriginalOnlyDynamicSets(0, 1u << 2);
     panel.setDynamicSet(2);
     panel.refreshShadow(&document, 0, Resolution::Sd);

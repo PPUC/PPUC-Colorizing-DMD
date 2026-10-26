@@ -113,7 +113,6 @@ uint64_t theirSettingsHash(const ChangePackage& package)
     const ProjectSnapshot& snapshot = package.snapshot;
     settings.romName = snapshot.romName;
     settings.license = snapshot.license;
-    settings.libserumTarget = snapshot.libserumTarget;
     settings.colorizationSettings = snapshot.colorizationSettings;
     settings.speakerLights = snapshot.speakerLights;
     settings.helperLines = snapshot.helperLines;
@@ -453,7 +452,7 @@ std::unique_ptr<TeamMergeCommand> mergeChangePackage(ProjectDocument& document,
                                 : document::kNoSpriteId;
         }
         if (!frame.spriteReferences.empty()) {
-            frame.spriteReferences.resize(after.spritesPerFrame(),
+            frame.spriteReferences.resize(document::kSpritesPerFrame,
                                           document::FrameSpriteReference{});
         }
         mapLights(frame.lights);
@@ -595,10 +594,6 @@ std::unique_ptr<TeamMergeCommand> mergeChangePackage(ProjectDocument& document,
             mapLights(lights.defaults);
             after.setSpeakerLights(std::move(lights));
         } catch (const std::invalid_argument&) {
-        }
-        if (theirs.libserumTarget != after.libserumTarget() &&
-            after.libserumTargetProblems(theirs.libserumTarget).empty()) {
-            after.setLibserumTarget(theirs.libserumTarget);
         }
         document::RecordTables tables = after.recordTables();
         IdIndex position;

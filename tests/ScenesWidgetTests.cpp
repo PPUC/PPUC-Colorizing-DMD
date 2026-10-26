@@ -155,71 +155,31 @@ void testProjectSettings()
     panel.onScalingChanged = [&](uint8_t algorithm, uint8_t offset) {
         scaling.emplace_back(algorithm, offset);
     };
-    std::vector<document::LibserumTarget> targets;
-    panel.onTargetChanged = [&](document::LibserumTarget target) { targets.push_back(target); };
     panel.setProject(&document);
     const QList<QComboBox*> boxes = panel.findChildren<QComboBox*>();
-    // The target, the upscaling, the shadow offset, the speaker lights' four defaults, then
-    // the license.
-    expect(boxes.size() == 8 &&
-               boxes[0]->currentData().toInt() ==
-                   static_cast<int>(document::LibserumTarget::Libserum28) &&
-               boxes[1]->currentData().toInt() == document::kScalingScale2x &&
-               boxes[2]->currentData().toInt() == document::kShadowOffsetProportional &&
-               boxes[1]->isEnabled(),
-           "the project's target and scaling settings are shown");
-    expect(scaling.empty() && targets.empty(), "filling the section reports nothing");
-    boxes[1]->setCurrentIndex(boxes[1]->findData(document::kScalingLineDoubling));
+    // The upscaling, the shadow offset, the speaker lights' four defaults, then the license;
+    // no libserum to choose (projects are made for libserum 2.9).
+    expect(boxes.size() == 7 && boxes[0]->currentData().toInt() == document::kScalingScale2x &&
+               boxes[1]->currentData().toInt() == document::kShadowOffsetProportional &&
+               boxes[0]->isEnabled(),
+           "the project's scaling settings are shown");
+    expect(scaling.empty(), "filling the section reports nothing");
+    boxes[0]->setCurrentIndex(boxes[0]->findData(document::kScalingLineDoubling));
     expect(scaling.size() == 1 && scaling[0].first == document::kScalingLineDoubling &&
                scaling[0].second == document::kShadowOffsetProportional,
            "choosing another reports both scaling settings");
-    boxes[0]->setCurrentIndex(
-        boxes[0]->findData(static_cast<int>(document::LibserumTarget::Libserum29)));
-    expect(targets.size() == 1 && targets[0] == document::LibserumTarget::Libserum29 &&
-               panel.targetFits() && panel.targetProblemText().isEmpty(),
-           "choosing libserum 2.9 is reported, and the project fits it");
     panel.setProject(nullptr);
-    expect(!boxes[0]->isEnabled() && !boxes[1]->isEnabled() && !boxes[2]->isEnabled(),
-           "without a project they are off");
+    expect(!boxes[0]->isEnabled() && !boxes[1]->isEnabled(), "without a project they are off");
 
     app::ProjectSettingsDialog dialog(document);
     const QList<QComboBox*> dialogBoxes = dialog.findChildren<QComboBox*>();
-    expect(dialog.isModal() && dialogBoxes.size() == 8 &&
-               dialog.shadowOffset() == document::kShadowOffsetProportional &&
-               dialog.libserumTarget() == document::LibserumTarget::Libserum28,
+    expect(dialog.isModal() && dialogBoxes.size() == 7 &&
+               dialog.shadowOffset() == document::kShadowOffsetProportional,
            "the dialog shows the project's settings");
-    dialogBoxes[1]->setCurrentIndex(dialogBoxes[1]->findData(document::kScalingLineDoubling));
+    dialogBoxes[0]->setCurrentIndex(dialogBoxes[0]->findData(document::kScalingLineDoubling));
     expect(dialog.scalingAlgorithm() == document::kScalingLineDoubling &&
                document.colorizationSettings()->scalingAlgorithm == document::kScalingScale2x,
            "a choice in the dialog changes nothing until the owner applies it");
-
-    // A project for libserum 2.9 with more sprites than libserum 2.8 allows and a frame
-    // with a sprite in slot 40.
-    document::ProjectSnapshot big = runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
-    big.libserumTarget = document::LibserumTarget::Libserum29;
-    while (big.sprites.size() < 300) {
-        runtime_fixtures::addSprite(big);
-    }
-    runtime_fixtures::setSpriteSlot(big, 1, 40, 299, 0, 0, 127, 31);
-    const document::ProjectDocument bigDocument = document::ProjectDocument::fromSnapshot(big);
-    app::ProjectSettingsDialog bigDialog(bigDocument);
-    QComboBox* target = bigDialog.findChildren<QComboBox*>()[0];
-    QPushButton* ok = bigDialog.findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Ok);
-    expect(bigDialog.libserumTarget() == document::LibserumTarget::Libserum29 && ok->isEnabled(),
-           "a libserum 2.9 project shows its target");
-    target->setCurrentIndex(
-        target->findData(static_cast<int>(document::LibserumTarget::Libserum28)));
-    const QString problems = bigDialog.panel()->targetProblemText();
-    expect(!ok->isEnabled() && problems.contains(QStringLiteral("300 sprites")) &&
-               problems.contains(QStringLiteral("frame 1")),
-           "libserum 2.8 is refused with the reasons: " + problems.toStdString());
-    const QList<QLabel*> labels = bigDialog.findChildren<QLabel*>();
-    expect(std::any_of(labels.begin(), labels.end(),
-                       [&](const QLabel* label) { return label->text() == problems; }),
-           "the dialog shows them");
-    target->setCurrentIndex(
-        target->findData(static_cast<int>(document::LibserumTarget::Libserum29)));
-    expect(ok->isEnabled(), "back to the project's target, it can be accepted again");
 }
 
 // The license in the project settings.

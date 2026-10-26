@@ -371,7 +371,6 @@ document::ProjectSnapshot makeProjectSnapshot(const std::string& romName, DumpIm
     document::ProjectSnapshot snapshot;
     snapshot.romName = romName;
     snapshot.colorCount = dump.colorCount;
-    snapshot.cromRevision = document::kCurrentCromRevision;
     snapshot.geometry = *geometry;
     snapshot.frames.reserve(dump.frames.size());
     for (ImportedFrame& frame : dump.frames) {

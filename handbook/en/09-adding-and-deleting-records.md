@@ -17,9 +17,8 @@ Where:
 | New background from the current frame, delete the selected one | `New` and `Delete` on the `Backgrounds` section |
 | New sprite, delete the selected one | `New` and `Delete` on the `Sprites` section |
 
-Limits: at least 1 frame and at most 64 comparison masks; a project for libserum 2.8 holds at
-most 255 sprites and 255 backgrounds, one for libserum 2.9 65535 of each (see "Project Files",
-"libserum target"). `New` is disabled at the limit, `Delete`
+Limits: at least 1 frame and at most 64 comparison masks, 65535 sprites and 65535 backgrounds
+(see "Project Files", "libserum 2.9"). `New` is disabled at the limit, `Delete`
 while nothing is selected, the two frame entries while no frame is selected or the project has
 one frame only.
 

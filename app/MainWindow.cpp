@@ -434,8 +434,6 @@ QString sceneEditText(const edit::SceneEditCommand& command)
     switch (command.kind()) {
         case edit::SceneEditCommand::Kind::Scaling:
             return QCoreApplication::translate("MainWindow", "change the scaling settings");
-        case edit::SceneEditCommand::Kind::LibserumTarget:
-            return QCoreApplication::translate("MainWindow", "change the libserum target");
         case edit::SceneEditCommand::Kind::AddScene:
             return QCoreApplication::translate("MainWindow", "add scene %1").arg(command.sceneId());
         case edit::SceneEditCommand::Kind::ChangeScene:
@@ -3491,22 +3489,6 @@ void MainWindow::exportCromc()
 {
     if (!m_document) {
         statusBar()->showMessage(tr("No project loaded"), 2500);
-        return;
-    }
-    if (!runtime::cromcFitsTarget(m_document->libserumTarget())) {
-        QMessageBox box(QMessageBox::Information, tr("Export .cROMc"),
-                        tr("This project is made for libserum 2.8, which cannot read the .cROMc "
-                           "this editor writes: a .cROMc belongs to the libserum that makes it, "
-                           "and the editor's is libserum %1. Ship the project's .cRZ instead; "
-                           "libserum 2.8 makes its own .cROMc from it on the first start.")
-                            .arg(QString::fromStdString(runtime::libserumVersion())),
-                        QMessageBox::Cancel, this);
-        QPushButton* exportCrz = box.addButton(tr("Export .cRZ..."), QMessageBox::AcceptRole);
-        box.setDefaultButton(exportCrz);
-        box.exec();
-        if (box.clickedButton() == exportCrz) {
-            exportForEarlierEditors();
-        }
         return;
     }
     const QString rom = QString::fromStdString(m_document->romName());
@@ -7081,7 +7063,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
     replaceButton->setEnabled(spriteIndex.has_value());
     QPushButton* createButton =
         confirm.addButton(tr("Create New"), QMessageBox::ActionRole);
-    createButton->setEnabled(m_document->spriteCount() < m_document->limits().maxSprites);
+    createButton->setEnabled(m_document->spriteCount() < document::kMaxSprites);
     confirm.addButton(QMessageBox::Cancel);
     confirm.setDefaultButton(spriteIndex ? replaceButton : createButton);
     confirm.exec();
@@ -10123,12 +10105,10 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
     if (!m_document) {
         return std::nullopt;
     }
-    if (m_document->spriteCount() >= m_document->limits().maxSprites) {
+    if (m_document->spriteCount() >= document::kMaxSprites) {
         statusBar()->showMessage(
-            tr("Not added: a project for %1 holds at most %2 sprites (Project Settings)")
-                .arg(QString::fromStdString(
-                    document::libserumTargetName(m_document->libserumTarget())))
-                .arg(static_cast<int>(m_document->limits().maxSprites)),
+            tr("Not added: a project holds at most %1 sprites")
+                .arg(static_cast<int>(document::kMaxSprites)),
             4000);
         return std::nullopt;
     }
@@ -10255,12 +10235,10 @@ void MainWindow::addBackgroundFromCurrentFrame()
         statusBar()->showMessage(tr("Select a frame first"), 2500);
         return;
     }
-    if (m_document->backgroundCount() >= m_document->limits().maxBackgrounds) {
+    if (m_document->backgroundCount() >= document::kMaxBackgrounds) {
         statusBar()->showMessage(
-            tr("Not added: a project for %1 holds at most %2 backgrounds (Project Settings)")
-                .arg(QString::fromStdString(
-                    document::libserumTargetName(m_document->libserumTarget())))
-                .arg(static_cast<int>(m_document->limits().maxBackgrounds)),
+            tr("Not added: a project holds at most %1 backgrounds")
+                .arg(static_cast<int>(document::kMaxBackgrounds)),
             4000);
         return;
     }
@@ -11104,7 +11082,7 @@ void MainWindow::openProjectSettings()
     settings.shadowOffset = dialog.shadowOffset();
     try {
         recordSceneEdit(
-            edit::setProjectSettings(*m_document, std::move(settings), dialog.libserumTarget()));
+            edit::setColorizationSettings(*m_document, std::move(settings)));
         document::SpeakerLightSettings lights = m_document->speakerLights();
         lights.defaults = dialog.lightDefaults();
         recordSpeakerLightsEdit(edit::setSpeakerLights(*m_document, std::move(lights)),
@@ -11308,11 +11286,6 @@ void MainWindow::refreshAfterSceneEdit(const edit::SceneEditCommand& command)
     updateProjectHeaderStatus();
     // The Frame section lists the scenes.
     updateFrameMetadataControls();
-    if (command.kind() == edit::SceneEditCommand::Kind::LibserumTarget) {
-        // The frames' sprite slots and the limits of sprites and backgrounds.
-        updateSpriteControls();
-        updateStructureControls();
-    }
     if (!command.changesFrames()) {
         return;
     }
@@ -11597,14 +11570,14 @@ void MainWindow::updateStructureControls()
     }
     if (m_backgroundPage) {
         state.recordCount = hasDocument ? m_document->backgroundCount() : 0;
-        state.maxRecordCount = hasDocument ? m_document->limits().maxBackgrounds : 0;
+        state.maxRecordCount = hasDocument ? document::kMaxBackgrounds : 0;
         state.hasSource = currentFrameIndex().has_value();
         state.hasSelection = selectedBackgroundIndex().has_value();
         m_backgroundPage->refresh(state);
     }
     if (m_spritePage) {
         state.recordCount = hasDocument ? m_document->spriteCount() : 0;
-        state.maxRecordCount = hasDocument ? m_document->limits().maxSprites : 0;
+        state.maxRecordCount = hasDocument ? document::kMaxSprites : 0;
         state.hasSource = true;
         state.hasSelection = currentSpriteIndex().has_value();
         m_spritePage->refresh(state);

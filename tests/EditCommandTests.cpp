@@ -305,10 +305,6 @@ void testOriginalOnlyDynamicSetsCommand()
     command.apply(document);
     expect(document.originalOnlyDynamicSets(1) == 0x24 && document.originalOnlyDynamicSets(0) == 0,
            "original-only sets apply");
-    // For libserum 2.8 they are kept but do not apply.
-    expect(!document.originalOnlyDynamicSetsApply(1) &&
-               document.effectiveOriginalOnlyDynamicSets(1) == 0,
-           "they do not apply for libserum 2.8");
     command.revert(document);
     expect(document.originalOnlyDynamicSets(1) == 0, "original-only sets revert");
 }

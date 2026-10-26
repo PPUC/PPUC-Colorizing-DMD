@@ -69,15 +69,13 @@ LegacySnapshotBuildResult buildProjectSnapshot(LegacyCromFrameData&& cromFrameDa
     snapshot.sprites = std::move(cromFrameData.sprites);
     snapshot.palettes = std::move(crpOriginalData.palettes);
     snapshot.colorCount = cromFrameData.metadata.colorCount;
-    snapshot.cromRevision =
-        cromFrameData.metadata.headerLengthBytes / static_cast<uint32_t>(sizeof(uint32_t));
     snapshot.editorMetadata = std::move(crpOriginalData.editorMetadata);
     snapshot.geometry = *geometry;
-    // A cROM of format version 1 is made for libserum 2.9.
-    snapshot.libserumTarget = cromFrameData.metadata.formatVersion >= 1
-                                  ? document::LibserumTarget::Libserum29
-                                  : document::LibserumTarget::Libserum28;
-    const std::size_t slots = document::libserumLimits(snapshot.libserumTarget).spritesPerFrame;
+    // A cROM of format version 1 has kSpritesPerFrame slots, an earlier one fewer; the document
+    // fills them up (ProjectDocument::fromSnapshot()).
+    const std::size_t slots = cromFrameData.metadata.formatVersion >= 1
+                                  ? document::kSpritesPerFrame
+                                  : document::kLegacySpritesPerFrame;
     const render::Size romSize = document::originalFrameSize(snapshot);
     document::FrameSpriteReference emptySlot;
     emptySlot.maxX = static_cast<uint16_t>(romSize.width - 1);

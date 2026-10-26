@@ -102,7 +102,6 @@ ProjectSnapshot makeSnapshot()
     ProjectSnapshot snapshot;
     snapshot.romName = "native192";
     snapshot.colorCount = kColorCount;
-    snapshot.cromRevision = 20;
     snapshot.geometry = ProjectGeometry(PlaneLayout::NativeOriginal);
 
     snapshot.comparisonMasks.assign(2, makeIndexedFrame(kNativeSize, 0));
@@ -361,10 +360,6 @@ void testSnapshotValidation()
                s.geometry = ProjectGeometry(PlaneLayout::NativeExtra);
            }),
            "192x64 data in a 256x64 project is rejected");
-
-    ProjectSnapshot older = makeSnapshot();
-    older.cromRevision = 19;
-    expect(isValidProjectSnapshot(older), "192x64 does not need header revision 20");
 }
 
 void testHeaderAndBlockSizes()
@@ -394,7 +389,7 @@ void testHeaderAndBlockSizes()
     const std::size_t boxes = sectionOffset(project, "frame sprite bounding boxes");
     expect(readU16(project.crom, boxes + 4) == 191 && readU16(project.crom, boxes + 6) == 63,
            "an empty slot spans the 192x64 frame");
-    const std::size_t richBox = boxes + 32 * 8;
+    const std::size_t richBox = boxes + colorizing::document::kSpritesPerFrame * 8;
     expect(readU16(project.crom, richBox) == 130 && readU16(project.crom, richBox + 4) == 191,
            "slot bounds beyond column 127 are written as they are");
 }

@@ -6,15 +6,13 @@
 
 #include "document/HelperLine.h"
 #include "document/ImageZone.h"
-#include "document/LibserumTarget.h"
+#include "document/ProjectLimits.h"
 #include "document/ProjectDocument.h"
 #include "document/TeamState.h"
 #include "render/ProjectGeometry.h"
 
 namespace colorizing::document {
 
-constexpr uint32_t kCurrentCromRevision = 20;
-constexpr uint32_t kOldestWritableCromRevision = 19;
 
 struct ProjectFrameSnapshot {
     IndexedFrame originalSd;
@@ -48,12 +46,9 @@ struct ProjectSnapshot {
     std::vector<UnsupportedLegacyPayload> unsupportedPayloads;
     // Number of colors of the original ROM frames (4 or 16).
     uint32_t colorCount = 4;
-    // cROM header revision (header length in 32-bit words) the project was loaded with, so a
-    // save does not silently move it to a revision an older libserum cannot read.
-    uint32_t cromRevision = kCurrentCromRevision;
-    // The libserum the project is made for (.cRPX; a cROM of format version 1 is for 2.9).
-    // Every frame's sprite slots are that target's spritesPerFrame.
-    LibserumTarget libserumTarget = LibserumTarget::Libserum28;
+    // Every frame has kSpritesPerFrame sprite slots, or none; one read from a cROM before
+    // format version 1 may have kLegacySpritesPerFrame, ProjectDocument::fromSnapshot() fills
+    // them up.
     // Sizes of the stored planes and which of them is the ROM frame's. Everything named ...Sd
     // has the size of the original plane and everything named ...Hd that of the extra plane;
     // original frames and comparison masks have the size of the ROM frame. A carried plane
@@ -111,8 +106,7 @@ void discardExtraPlane(ProjectSnapshot& snapshot);
     const render::ProjectGeometry& geometry,
     uint32_t colorCount,
     IndexedFrame original,
-    uint32_t durationMs,
-    std::size_t spritesPerFrame = kLegacySpritesPerFrame);
+    uint32_t durationMs);
 
 [[nodiscard]] bool isValidProjectSnapshot(const ProjectSnapshot& snapshot,
                                           std::string* errorMessage = nullptr);

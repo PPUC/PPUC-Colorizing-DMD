@@ -23,8 +23,9 @@ namespace colorizing::project {
 // Entries:
 //   manifest.json    format, formatVersion (kProjectFormatVersion; a reader refuses a newer
 //                    one), editorVersion, projectId, romName, colorCount, libserumTarget
-//                    ("2.8", "2.9"), layout ("ordinary", "native-extra", "native-original"),
-//                    cromRevision, license (kind, text, attribution, url), colorization (the
+//                    ("2.9"; earlier files may say "2.8", read and ignored), layout
+//                    ("ordinary", "native-extra", "native-original"), cromRevision (21, read
+//                    and ignored), license (kind, text, attribution, url), colorization (the
 //                    cROM's settings: scalingAlgorithm, shadowOffset, scenes) when the project
 //                    has them, unsupported (names of entries unsupported/<n>.bin).
 //   order.json       the UUIDs of the frames, comparison masks, backgrounds and sprites in

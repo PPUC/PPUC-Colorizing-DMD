@@ -7,10 +7,9 @@ of the project. Its original is not a ROM frame but a marker libserum generates 
 frame by that marker while the scene plays. The frame is colorized like any other.
 
 The project keeps its scenes, together with libserum's scaling settings, and hands them to
-libserum with the colorization: in the `.cROMc`, and in the `.cRZ` exported for earlier editors
-(in a settings block at the end of its cROM, which older libserum versions do not read). So a
-colorization needs no `<rom>.pup.csv` and no `scaling.txt` any more: libserum 2.8.2 and later
-take the scenes and scaling settings from the colorization and ignore those files beside it.
+libserum with the colorization, in the `.cROMc` (in a settings block at the end of its cROM).
+So a colorization needs no `<rom>.pup.csv` and no `scaling.txt` any more: libserum takes the
+scenes and scaling settings from the colorization and ignores those files beside it.
 The project file keeps the scenes and which frame is which frame of which scene.
 
 ## The Scenes section
@@ -111,8 +110,7 @@ by their trigger, also as a background scene.
 
 ## Scaling
 
-`File -> Project Settings...` opens the settings of the whole colorization: `Made for`, the
-libserum the project is made for (see "Project Files", "libserum target"), the scaling
+`File -> Project Settings...` opens the settings of the whole colorization: the scaling
 settings and the speaker lights' defaults (see "Speaker Lights"; a change of them is an undo step
 of its own). `Upscaling` is how libserum makes the 256x64 picture of a frame that has none: `Scale2x`
 (libserum's default) or `Line doubling`. `Upscaled shadow offset` is how far a dynamic shadow falls on

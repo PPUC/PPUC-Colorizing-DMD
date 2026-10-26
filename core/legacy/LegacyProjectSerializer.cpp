@@ -10,17 +10,9 @@ namespace colorizing::legacy {
 
 namespace {
 
-// The header revision a save writes: 21 for libserum 2.9 on (the format version and the sprite
-// slots in the header); otherwise the revision the project was loaded with, older ones as 19,
-// the oldest one that carries every block.
-uint32_t writtenCromRevision(const document::ProjectSnapshot& snapshot)
-{
-    if (document::libserumLimits(snapshot.libserumTarget).cromFormatVersion >= 1) {
-        return 21;
-    }
-    return std::clamp(snapshot.cromRevision, document::kOldestWritableCromRevision,
-                      document::kCurrentCromRevision);
-}
+// The header revision written: 21, with the format version and the sprite slots of a frame
+// (libserum 2.9 on).
+constexpr uint32_t kWrittenCromRevision = 21;
 
 constexpr std::size_t kRomNameBytes = 64;
 constexpr std::size_t kFlushThresholdBytes = 1 << 20;
@@ -371,8 +363,6 @@ struct CromContext {
     std::size_t rotationValueCount = 0;
     std::size_t shadowCount = 0;
     std::size_t slots = 0;
-    // 16-bit sprite IDs (format version 1), or 8-bit ones with 255 for an empty slot.
-    bool wideSpriteIds = true;
     // Sprite bounds are original frame pixels.
     render::Size originalSize;
     render::Resolution nativePlane = render::Resolution::Sd;
@@ -381,7 +371,7 @@ struct CromContext {
     document::CompactArray<uint16_t> noColors;
 };
 
-CromContext makeCromContext(const document::ProjectSnapshot& snapshot, bool wideSpriteIds)
+CromContext makeCromContext(const document::ProjectSnapshot& snapshot)
 {
     CromContext context;
     context.snapshot = &snapshot;
@@ -394,8 +384,7 @@ CromContext makeCromContext(const document::ProjectSnapshot& snapshot, bool wide
         document::kMaxDynamicSetsPerSprite * static_cast<std::size_t>(snapshot.colorCount);
     context.rotationValueCount = document::kMaxColorRotations * document::kMaxColorRotationLength;
     context.shadowCount = document::kMaxDynamicSetsPerFrame;
-    context.slots = document::libserumLimits(snapshot.libserumTarget).spritesPerFrame;
-    context.wideSpriteIds = wideSpriteIds;
+    context.slots = document::kSpritesPerFrame;
     context.originalSize = document::originalFrameSize(snapshot);
     context.nativePlane = snapshot.geometry.nativePlane();
     context.originalColors = legacyOriginalColors(snapshot.colorCount);
@@ -490,14 +479,7 @@ void writeCromElement(Writer& writer, const CromContext& c, CromBlock block, std
                 const uint16_t spriteId = slot < frame.spriteReferences.size()
                                               ? frame.spriteReferences[slot].spriteId
                                               : document::kNoSpriteId;
-                if (c.wideSpriteIds) {
-                    writer.u16(spriteId);
-                } else {
-                    // 8-bit IDs, 255 for an empty slot.
-                    writer.u8(spriteId == document::kNoSpriteId
-                                  ? uint8_t{255}
-                                  : static_cast<uint8_t>(spriteId));
-                }
+                writer.u16(spriteId);
             }
             return;
         }
@@ -676,10 +658,8 @@ bool writeCromContent(std::ostream& stream,
     Writer writer(stream, sections, progress);
     writer.section("header");
     writer.name(snapshot.romName, kRomNameBytes);
-    const uint32_t revision = writtenCromRevision(snapshot);
-    const document::LibserumLimits limits = document::libserumLimits(snapshot.libserumTarget);
-    const std::size_t slots = limits.spritesPerFrame;
-    writer.u32(revision * static_cast<uint32_t>(sizeof(uint32_t)));
+    const std::size_t slots = document::kSpritesPerFrame;
+    writer.u32(kWrittenCromRevision * static_cast<uint32_t>(sizeof(uint32_t)));
     writer.u32(static_cast<uint32_t>(sdSize.width));
     writer.u32(static_cast<uint32_t>(sdSize.height));
     writer.u32(static_cast<uint32_t>(hdSize.width));
@@ -689,16 +669,11 @@ bool writeCromContent(std::ostream& stream,
     writer.u32(static_cast<uint32_t>(snapshot.comparisonMasks.size()));
     writer.u32(static_cast<uint32_t>(snapshot.sprites.size()));
     writer.u16(static_cast<uint16_t>(snapshot.backgrounds.size()));
-    if (revision >= 20) {
-        writer.u32(snapshot.geometry.original256x64Flag() ? 1 : 0);
-    }
-    // Revision 21 (libserum 2.9 on): the format version and the sprite slots of a frame.
-    if (revision >= 21) {
-        writer.u32(limits.cromFormatVersion);
-        writer.u32(static_cast<uint32_t>(slots));
-    }
+    writer.u32(snapshot.geometry.original256x64Flag() ? 1 : 0);
+    writer.u32(document::kCromFormatVersion);
+    writer.u32(static_cast<uint32_t>(slots));
 
-    const CromContext context = makeCromContext(snapshot, limits.cromFormatVersion >= 1);
+    const CromContext context = makeCromContext(snapshot);
     for (std::size_t block = 0; block < kCromBlockCount; ++block) {
         const auto kind = static_cast<CromBlock>(block);
         writer.section(cromBlockName(kind));
@@ -900,10 +875,10 @@ std::size_t cromBlockElementCount(const document::ProjectSnapshot& snapshot, Cro
 struct CromElements::Context : CromContext {
 };
 
-CromElements::CromElements(const document::ProjectSnapshot& snapshot, bool wideSpriteIds)
+CromElements::CromElements(const document::ProjectSnapshot& snapshot)
     : m_context(std::make_unique<Context>())
 {
-    static_cast<CromContext&>(*m_context) = makeCromContext(snapshot, wideSpriteIds);
+    static_cast<CromContext&>(*m_context) = makeCromContext(snapshot);
 }
 
 CromElements::~CromElements() = default;
@@ -970,15 +945,13 @@ uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot)
     const uint64_t sprites = snapshot.sprites.size();
     const uint64_t backgrounds = snapshot.backgrounds.size();
     const uint64_t spritePixels = document::kMaxSpriteWidth * document::kMaxSpriteHeight;
-    const document::LibserumLimits limits = document::libserumLimits(snapshot.libserumTarget);
-    const uint64_t slots = limits.spritesPerFrame;
-    const uint64_t idBytes = limits.cromFormatVersion >= 1 ? 2 : 1;
+    const uint64_t slots = document::kSpritesPerFrame;
+    const uint64_t idBytes = 2;
     const uint64_t sets = document::kMaxDynamicSetsPerFrame;
     const uint64_t rotations = document::kMaxColorRotations * document::kMaxColorRotationLength;
     const uint64_t areas = document::kMaxSpriteDetectAreas;
-    const uint32_t revision = writtenCromRevision(snapshot);
-    const uint64_t header = kRomNameBytes + 9 * 4 + 2 + (revision >= 20 ? 4 : 0) +
-                            (revision >= 21 ? 8 : 0);
+    // The 256x64 flag, the format version and the slots behind the counts.
+    const uint64_t header = kRomNameBytes + 9 * 4 + 2 + 4 + 8;
     const uint64_t perFrame = 4 + 1 + 1 + 1 + 2 * sd + 2 * hd + sd + hd + 2 * 2 * sets * colors +
                               idBytes * slots + 1 + 2 * 2 * rotations + 4 + 8 * slots + 2 + sd +
                               hd + sets + 2 * sets + sets + 2 * sets;
@@ -1000,12 +973,9 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         framesWithLights += document::changesNothing(frame.lights) ? 0 : 1;
     }
     const bool withLights = !lights.empty() || framesWithLights > 0;
-    // Only libserum 2.9 knows them; a project for 2.8 is written as before.
     std::size_t framesWithOriginalOnlySets = 0;
-    if (snapshot.libserumTarget == document::LibserumTarget::Libserum29) {
-        for (const auto& frame : snapshot.frames) {
-            framesWithOriginalOnlySets += frame.originalOnlyDynamicSets != 0 ? 1 : 0;
-        }
+    for (const auto& frame : snapshot.frames) {
+        framesWithOriginalOnlySets += frame.originalOnlyDynamicSets != 0 ? 1 : 0;
     }
     const bool withOriginalOnlySets = framesWithOriginalOnlySets > 0;
     if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets) {

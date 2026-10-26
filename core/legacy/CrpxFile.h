@@ -48,8 +48,8 @@ class LegacyByteSource;
 //            names, per name uint32 length and the name in UTF-8; then uint32 count of tagged
 //            frames, per frame uint32 frame index, uint32 count of its tags and per tag
 //            uint32 the number of its name.
-//     "LSRT" the libserum target (document/LibserumTarget.h), when it is not libserum 2.8:
-//            uint8 target, three bytes 0. The .cROM is written for it (its sprite slots).
+//     "LSRT" the libserum target of earlier versions (uint8 target, three bytes 0), read
+//            and skipped: projects are made for libserum 2.9 only (document/ProjectLimits.h).
 //     "LGHT" the speaker lights (document/SpeakerLights.h), when the project has effects,
 //            defaults or frames that change channels: uint32 effect count, per effect
 //            uint16 ID, uint8 mode, uint8 options, uint16 speed, uint16 0, uint32 duration

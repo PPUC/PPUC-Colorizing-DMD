@@ -47,7 +47,7 @@ SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
                 continue;
             }
             const std::size_t slot = usedSlots(references);
-            if (slot >= document.spritesPerFrame()) {
+            if (slot >= document::kSpritesPerFrame) {
                 ++result.full;
                 continue;
             }
@@ -81,7 +81,7 @@ std::size_t framesPassingSpriteWarning(const document::ProjectDocument& document
         for (const std::size_t sprite : sprites) {
             added += hasSprite(references, sprite) ? 0 : 1;
         }
-        const std::size_t after = std::min(used + added, document.spritesPerFrame());
+        const std::size_t after = std::min(used + added, document::kSpritesPerFrame);
         passing += used <= document::kSpritesPerFrameWarning &&
                            after > document::kSpritesPerFrameWarning
                        ? 1

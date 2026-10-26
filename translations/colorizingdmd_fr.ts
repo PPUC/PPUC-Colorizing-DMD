@@ -1151,7 +1151,7 @@
     </message>
     <message>
         <source>Needs libserum 2.9 (Project Settings)</source>
-        <translation>Nécessite libserum 2.9 (Paramètres du projet)</translation>
+        <translation type="vanished">Nécessite libserum 2.9 (Paramètres du projet)</translation>
     </message>
 </context>
 <context>
@@ -2770,7 +2770,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>change the libserum target</source>
-        <translation>changer la cible libserum</translation>
+        <translation type="vanished">changer la cible libserum</translation>
     </message>
     <message>
         <source>add scene %1</source>
@@ -3427,11 +3427,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Not added: a project for %1 holds at most %2 sprites (Project Settings)</source>
-        <translation>Non ajouté : un projet pour %1 contient au plus %2 sprites (Paramètres du projet)</translation>
+        <translation type="vanished">Non ajouté : un projet pour %1 contient au plus %2 sprites (Paramètres du projet)</translation>
     </message>
     <message>
         <source>Not added: a project for %1 holds at most %2 backgrounds (Project Settings)</source>
-        <translation>Non ajouté : un projet pour %1 contient au plus %2 arrière-plans (Paramètres du projet)</translation>
+        <translation type="vanished">Non ajouté : un projet pour %1 contient au plus %2 arrière-plans (Paramètres du projet)</translation>
     </message>
     <message>
         <source>Scene %1 has no frames in the project</source>
@@ -5145,7 +5145,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Not added: a project holds at most %1 sprites</source>
-        <translation type="vanished">Non ajouté : un projet contient au plus %1 sprites</translation>
+        <translation>Non ajouté : un projet contient au plus %1 sprites</translation>
     </message>
     <message>
         <source>New Sprite</source>
@@ -5201,7 +5201,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Not added: a project holds at most %1 backgrounds</source>
-        <translation type="vanished">Non ajouté : un projet contient au plus %1 arrière-plans</translation>
+        <translation>Non ajouté : un projet contient au plus %1 arrière-plans</translation>
     </message>
     <message>
         <source>Not added: frame %1 has no %2 frame to make a background of</source>
@@ -5445,11 +5445,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>This project is made for libserum 2.8, which cannot read the .cROMc this editor writes: a .cROMc belongs to the libserum that makes it, and the editor&apos;s is libserum %1. Ship the project&apos;s .cRZ instead; libserum 2.8 makes its own .cROMc from it on the first start.</source>
-        <translation>Ce projet est destiné à libserum 2.8, qui ne peut pas lire le .cROMc écrit par cet éditeur : un .cROMc appartient à la libserum qui le génère, et celle de l’éditeur est libserum %1. Livrez plutôt le .cRZ du projet ; libserum 2.8 en génère son propre .cROMc au premier démarrage.</translation>
+        <translation type="vanished">Ce projet est destiné à libserum 2.8, qui ne peut pas lire le .cROMc écrit par cet éditeur : un .cROMc appartient à la libserum qui le génère, et celle de l’éditeur est libserum %1. Livrez plutôt le .cRZ du projet ; libserum 2.8 en génère son propre .cROMc au premier démarrage.</translation>
     </message>
     <message>
         <source>Export .cRZ...</source>
-        <translation>Exporter le .cRZ...</translation>
+        <translation type="vanished">Exporter le .cRZ...</translation>
     </message>
     <message>
         <source>The project has an autosave from %1 that is newer than its file.</source>
@@ -6431,15 +6431,15 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <name>ProjectSettingsPanel</name>
     <message>
         <source>libserum 2.8</source>
-        <translation>libserum 2.8</translation>
+        <translation type="vanished">libserum 2.8</translation>
     </message>
     <message>
         <source>libserum 2.9</source>
-        <translation>libserum 2.9</translation>
+        <translation type="vanished">libserum 2.9</translation>
     </message>
     <message>
         <source>The libserum the colorization is made for. libserum 2.8 allows 32 sprites per frame and 255 sprites and backgrounds; libserum 2.9 allows 128 sprites per frame and needs libserum 2.9 or later to play.</source>
-        <translation>La libserum pour laquelle la colorisation est faite. libserum 2.8 permet 32 sprites par frame et 255 sprites et arrière-plans ; libserum 2.9 permet 128 sprites par frame et nécessite libserum 2.9 ou plus récent pour la lecture.</translation>
+        <translation type="vanished">La libserum pour laquelle la colorisation est faite. libserum 2.8 permet 32 sprites par frame et 255 sprites et arrière-plans ; libserum 2.9 permet 128 sprites par frame et nécessite libserum 2.9 ou plus récent pour la lecture.</translation>
     </message>
     <message>
         <source>Scale2x</source>
@@ -6499,7 +6499,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Made for</source>
-        <translation>Faite pour</translation>
+        <translation type="vanished">Faite pour</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -6567,26 +6567,26 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>The project has %1 sprites, it allows %2.</source>
-        <translation>Le projet a %1 sprites, %2 sont permis.</translation>
+        <translation type="vanished">Le projet a %1 sprites, %2 sont permis.</translation>
     </message>
     <message>
         <source>The project has %1 backgrounds, it allows %2.</source>
-        <translation>Le projet a %1 arrière-plans, %2 sont permis.</translation>
+        <translation type="vanished">Le projet a %1 arrière-plans, %2 sont permis.</translation>
     </message>
     <message numerus="yes">
         <source>%n frame(s) use more than %1 sprites, the first is frame %2.</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>%n frame utilise plus de %1 sprites, la première est la frame %2.</numerusform>
             <numerusform>%n frames utilisent plus de %1 sprites, la première est la frame %2.</numerusform>
         </translation>
     </message>
     <message>
         <source>The project does not fit %1: %2</source>
-        <translation>Le projet ne convient pas à %1 : %2</translation>
+        <translation type="vanished">Le projet ne convient pas à %1 : %2</translation>
     </message>
     <message>
         <source>Plays with libserum 2.9 and later only. Up to %1 sprites per frame are possible.</source>
-        <translation>Fonctionne uniquement avec libserum 2.9 et plus récent. Jusqu&apos;à %1 sprites par frame sont possibles.</translation>
+        <translation type="vanished">Fonctionne uniquement avec libserum 2.9 et plus récent. Jusqu&apos;à %1 sprites par frame sont possibles.</translation>
     </message>
     <message>
         <source>Plays with libserum 2.9 and later only. More than %1 sprites on a frame can make the sprite detection slow.</source>
@@ -6594,7 +6594,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Plays with libserum 2.8 and later.</source>
-        <translation>Fonctionne avec libserum 2.8 et plus récent.</translation>
+        <translation type="vanished">Fonctionne avec libserum 2.8 et plus récent.</translation>
     </message>
     <message>
         <source>Shadow offset</source>

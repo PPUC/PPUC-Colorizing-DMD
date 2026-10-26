@@ -13,7 +13,7 @@
 #include "document/EditorMetadata.h"
 #include "document/HelperLine.h"
 #include "document/ImageZone.h"
-#include "document/LibserumTarget.h"
+#include "document/ProjectLimits.h"
 #include "document/Scene.h"
 #include "document/ProjectLicense.h"
 #include "document/SpeakerLights.h"
@@ -392,18 +392,6 @@ public:
     // editor file has none, as one of the Win32 editor (see importColorizationSidecars()).
     [[nodiscard]] const std::optional<ColorizationSettings>& colorizationSettings() const;
     void setColorizationSettings(std::optional<ColorizationSettings> settings);
-    // The libserum the project is made for (LibserumTarget.h): its limits and the cROM format
-    // a save writes.
-    [[nodiscard]] LibserumTarget libserumTarget() const { return m_libserumTarget; }
-    [[nodiscard]] LibserumLimits limits() const { return libserumLimits(m_libserumTarget); }
-    // The sprite slots of every frame.
-    [[nodiscard]] std::size_t spritesPerFrame() const { return limits().spritesPerFrame; }
-    // Why the project does not fit the target (too many sprites or backgrounds, a sprite in a
-    // slot the target does not have); empty() when it does.
-    [[nodiscard]] LibserumTargetProblems libserumTargetProblems(LibserumTarget target) const;
-    // Makes the project one for the target: every frame gets its slot count (empty slots
-    // added or dropped). Throws std::invalid_argument when libserumTargetProblems() objects.
-    void setLibserumTarget(LibserumTarget target);
     // The speaker lights (SpeakerLights.h): the effects, the channels' defaults, and what a
     // frame does to the channels. setSpeakerLights() needs every effect ID unique and every
     // effect a default or a frame names to exist (std::invalid_argument otherwise);
@@ -742,7 +730,7 @@ public:
     [[nodiscard]] std::size_t spriteSlotForAssignment(std::size_t frameIndex,
                                                       std::size_t slotIndex) const;
     // Whether a sprite meant for the slot would be the frame's first sprite past
-    // kSpritesPerFrameWarning: the step the author is warned about (see LibserumTarget.h).
+    // kSpritesPerFrameWarning: the step the author is warned about (see ProjectLimits.h).
     [[nodiscard]] bool assignmentPassesSpriteWarning(std::size_t frameIndex,
                                                      std::size_t slotIndex) const;
     // The first empty slot of a frame that has a used slot behind it: the runtime ignores the
@@ -915,8 +903,6 @@ private:
     ProjectLicense m_license;
     DiscardedExtraPlane m_discardedExtraPlane;
     uint32_t m_colorCount = 4;
-    uint32_t m_cromRevision = 20;
-    LibserumTarget m_libserumTarget = LibserumTarget::Libserum28;
     render::ProjectGeometry m_geometry;
     bool m_dirty = false;
     uint64_t m_revision = 0;

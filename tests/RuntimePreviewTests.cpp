@@ -511,9 +511,8 @@ void testSubsetBuilding(PlaneLayout layout)
     expect(subset.frames.size() == 3 && subset.comparisonMasks.size() == 1 &&
                subset.backgrounds.size() == 2 && subset.sprites.size() == 3,
            "nothing but the referenced items is in the subset");
-    expect(subset.geometry == snapshot.geometry && subset.colorCount == snapshot.colorCount &&
-               subset.cromRevision == snapshot.cromRevision,
-           "geometry, color count and revision are the project's");
+    expect(subset.geometry == snapshot.geometry && subset.colorCount == snapshot.colorCount,
+           "geometry and color count are the project's");
     expect(subset.palettes.empty() && subset.unsupportedPayloads.empty(),
            "palettes and payloads are left out");
     expect(colorizing::document::isValidProjectSnapshot(subset), "the subset is a valid project");
@@ -574,7 +573,7 @@ void testSubsetBuilding(PlaneLayout layout)
     for (std::size_t i = 0; i < padding; ++i) {
         expect(built.map.frames[i] == kNoDocumentFrame, "such a frame stands for no frame");
     }
-    expect(readU32(builtCrom, 64) == 20 * 4, "the header revision is the project's");
+    expect(readU32(builtCrom, 64) == 21 * 4, "header revision 21 (format version 1)");
     expect(readU32(builtCrom, 68) == static_cast<uint32_t>(sd.width) &&
                readU32(builtCrom, 72) == static_cast<uint32_t>(sd.height) &&
                readU32(builtCrom, 76) == static_cast<uint32_t>(hd.width) &&

@@ -104,7 +104,6 @@ ProjectSnapshot makeSnapshot()
     ProjectSnapshot snapshot;
     snapshot.romName = "serial_rom";
     snapshot.colorCount = kColorCount;
-    snapshot.cromRevision = 19;
 
     IndexedFrame mask = makeIndexedFrame(kSdFrameSize, 0);
     mask.pixels[0] = 1;
@@ -253,7 +252,6 @@ void testSerializedProjectRoundTrips()
     expect(first.crom == second.crom, "cROM should serialize identically after a reload");
     expect(first.crp == second.crp, "cRP should serialize identically after a reload");
 
-    expect(reloaded.cromRevision == 19, "revision should survive");
     expect(reloaded.sprites[0].dynamicMaskSd.pixels[3] == 2, "sprite SD dynamic mask");
     expect(reloaded.sprites[0].dynamicMaskHd.pixels[4] == 5, "sprite HD dynamic mask");
     expect(reloaded.sprites[0].dynamicColorsSd.front() == 0x0303, "sprite SD dynamic colors");
@@ -309,26 +307,20 @@ void testDerivedFieldsAreRecomputed()
     expect(reloaded.frames[1].colorizedHd->pixels[6] == 0, "HD pixel under dynamic mask is blanked");
 }
 
-void testRevisionTwentyHeaderRoundTrips()
+// The header of revision 21 (format version 1): the 256x64 flag, the format version and the
+// sprite slots behind the counts.
+void testHeaderRevision()
 {
-    ProjectSnapshot snapshot = makeSnapshot();
-    snapshot.cromRevision = 20;
-    const SerializedProject project = serialize(snapshot);
-    expect(readU32(project.crom, 64) == 80, "revision 20 header length");
-    expect(sectionOffset(project.cromSections, "hash codes") == 64 + 9 * 4 + 2 + 4,
-           "revision 20 header carries the 256x64 flag");
-    expect(parse(project).cromRevision == 20, "revision 20 should survive a reload");
-
-    snapshot.cromRevision = 15;
-    expect(readU32(serialize(snapshot).crom, 64) == 76,
-           "older revisions are written as revision 19");
+    const SerializedProject project = serialize(makeSnapshot());
+    expect(readU32(project.crom, 64) == 84, "revision 21 header length");
+    expect(sectionOffset(project.cromSections, "hash codes") == 64 + 9 * 4 + 2 + 4 + 8,
+           "revision 21 header carries the 256x64 flag, the format version and the slots");
 }
 
 void test256x64OriginalsRoundTrip()
 {
     const std::vector<uint16_t> originalColors = legacyOriginalColors(kColorCount);
     ProjectSnapshot snapshot = makeSnapshot();
-    snapshot.cromRevision = 20;
     snapshot.geometry =
         colorizing::render::ProjectGeometry(colorizing::render::PlaneLayout::NativeExtra);
     snapshot.comparisonMasks[0] = makeIndexedFrame(kHdFrameSize, 0);
@@ -397,12 +389,6 @@ void test256x64OriginalsRoundTrip()
            "256x64 comparison mask should survive");
     expect(reloaded.frames[0].colorizedSd.size.width == 128, "SD colorized frame stays 128x32");
     expect(serialize(reloaded).crom == project.crom, "256x64 project should reserialize identically");
-
-    snapshot.cromRevision = 19;
-    std::ostringstream stream;
-    std::string error;
-    expect(!writeLegacyCrom(stream, snapshot, error),
-           "256x64 originals cannot be written as revision 19");
 }
 
 void testSpriteCountChangeSerializes()
@@ -505,7 +491,7 @@ void runLegacyProjectSerializerTests()
     testSerializedProjectRoundTrips();
     testDerivedFieldsAreRecomputed();
     testFramesSkippedAtRuntime();
-    testRevisionTwentyHeaderRoundTrips();
+    testHeaderRevision();
     test256x64OriginalsRoundTrip();
     testSpriteCountChangeSerializes();
 }

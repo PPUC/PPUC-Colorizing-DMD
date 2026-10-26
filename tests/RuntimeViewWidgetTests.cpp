@@ -61,7 +61,6 @@ ProjectDocument makeDocument(PlaneLayout layout, std::size_t frameCount)
     ProjectSnapshot snapshot;
     snapshot.romName = "runtime_view";
     snapshot.colorCount = 4;
-    snapshot.cromRevision = 20;
     snapshot.geometry = ProjectGeometry(layout);
     for (std::size_t f = 0; f < frameCount; ++f) {
         ProjectFrameSnapshot frame;

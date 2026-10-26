@@ -92,7 +92,6 @@ inline ProjectSnapshot makeProject(PlaneLayout layout, std::size_t frameCount)
     ProjectSnapshot snapshot;
     snapshot.romName = "runtime";
     snapshot.colorCount = kColorCount;
-    snapshot.cromRevision = 20;
     snapshot.geometry = ProjectGeometry(layout);
     const Size rom = snapshot.geometry.romFrameSize();
     const Size sd = snapshot.geometry.planeSize(Resolution::Sd);
@@ -324,7 +323,7 @@ inline void setSpriteSlot(ProjectSnapshot& snapshot, std::size_t frame, std::siz
                    std::size_t sprite, int minX, int minY, int maxX, int maxY)
 {
     std::vector<FrameSpriteReference>& references = snapshot.frames[frame].spriteReferences;
-    references.resize(colorizing::document::libserumLimits(snapshot.libserumTarget).spritesPerFrame);
+    references.resize(colorizing::document::kSpritesPerFrame);
     references[slot] = FrameSpriteReference{static_cast<uint16_t>(sprite),
                                             static_cast<uint16_t>(minX),
                                             static_cast<uint16_t>(minY),

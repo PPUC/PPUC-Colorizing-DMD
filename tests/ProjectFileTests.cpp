@@ -87,7 +87,6 @@ void testJson()
 ProjectSnapshot makeRichProject(render::PlaneLayout layout)
 {
     ProjectSnapshot snapshot = runtime_fixtures::makeFullProject(layout);
-    snapshot.libserumTarget = document::LibserumTarget::Libserum28;
     document::EditorMetadata& tables = snapshot.editorMetadata;
     document::setFixedName(tables.maskNames, 1, document::kMaskNameBytes, "Score m\xc3\xa4sk");
     tables.sectionCount = 2;

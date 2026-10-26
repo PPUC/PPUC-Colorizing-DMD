@@ -135,15 +135,14 @@ void testNativePlane(PlaneLayout layout)
            "a shape-mode sprite is found by its lit pixels, sprites in slot order");
 }
 
-// A project for libserum 2.9 (cROM format version 1): 300 sprites, a frame whose found sprite
-// is the 300th, in its slot 40.
+// More sprites than libserum 2.8 allowed (cROM format version 1): 300 sprites, a frame whose
+// found sprite is the 300th, in its slot 40.
 void testLibserum29Project()
 {
     ProjectSnapshot snapshot = makeFullProject(PlaneLayout::Ordinary);
-    snapshot.libserumTarget = colorizing::document::LibserumTarget::Libserum29;
     for (auto& frame : snapshot.frames) {
         if (!frame.spriteReferences.empty()) {
-            frame.spriteReferences.resize(colorizing::document::kMaxSpritesPerFrame);
+            frame.spriteReferences.resize(colorizing::document::kSpritesPerFrame);
         }
     }
     while (snapshot.sprites.size() < 300) {
@@ -156,7 +155,7 @@ void testLibserum29Project()
     }
     setSpriteSlot(snapshot, 3, 39, 299, 30, 8, 35, 11);
     const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
-    expect(document.spritesPerFrame() == 128, "a libserum 2.9 project has 128 sprite slots");
+    expect(document.frameSpriteReferences(3).size() == 128, "a project has 128 sprite slots");
 
     const std::vector<SpriteMatch> found = matchFrameSprites(document, 3);
     expect(found.size() == 1 && found[0].spriteIndex == 299 && found[0].frameX == 30,
@@ -320,13 +319,12 @@ Rgb565Frame expectHdPlaneEqualsRuntime(const ProjectSnapshot& snapshot, const st
 
 // Dynamic sets that color the SD picture only (libserum 2.9): on the HD picture of a frame
 // with an HD frame of its own, their zones show that HD frame, without a shadow; the SD
-// picture keeps them. For libserum 2.8 they are not written and change nothing.
+// picture keeps them.
 void testOriginalOnlyDynamicSets()
 {
     ProjectSnapshot snapshot = makeRowProject();
-    snapshot.libserumTarget = colorizing::document::LibserumTarget::Libserum29;
     for (auto& frame : snapshot.frames) {
-        frame.spriteReferences.resize(colorizing::document::kMaxSpritesPerFrame);
+        frame.spriteReferences.resize(colorizing::document::kSpritesPerFrame);
     }
     // Set 2 (rows 1 to 6) and set 5 (rows 9 to 12, with a shadow).
     snapshot.frames[0].originalOnlyDynamicSets = (1u << 2) | (1u << 5);
@@ -354,13 +352,6 @@ void testOriginalOnlyDynamicSets()
            "the SD picture keeps them, shadow included");
     expect(document.effectiveOriginalOnlyDynamicSets(0) == ((1u << 2) | (1u << 5)),
            "they apply to a frame with an HD frame");
-
-    // For libserum 2.8 the cROM does not carry them: the zones are upscaled as before.
-    ProjectSnapshot for28 = makeRowProject();
-    for28.frames[0].originalOnlyDynamicSets = (1u << 2) | (1u << 5);
-    const Rgb565Frame picture28 = expectHdPlaneEqualsRuntime(for28, "sets kept for libserum 2.8");
-    expect(at(picture28, 10, 4) == dynamicColor(2, 1),
-           "for libserum 2.8 they are upscaled like any other set");
 }
 
 void testHdDynamicZonesOfOrdinaryProject()

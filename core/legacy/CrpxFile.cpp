@@ -35,7 +35,6 @@ constexpr std::array<char, 4> kPupPackTag = {'P', 'U', 'P', 'P'};
 constexpr std::array<char, 4> kScenesTag = {'S', 'C', 'E', 'N'};
 constexpr std::array<char, 4> kImageZonesTag = {'I', 'Z', 'O', 'N'};
 constexpr std::array<char, 4> kFrameTagsTag = {'F', 'T', 'A', 'G'};
-constexpr std::array<char, 4> kLibserumTargetTag = {'L', 'S', 'R', 'T'};
 constexpr std::array<char, 4> kMoreSpritesTag = {'S', 'P', 'R', 'X'};
 constexpr std::array<char, 4> kLightsTag = {'L', 'G', 'H', 'T'};
 constexpr std::array<char, 4> kOriginalOnlySetsTag = {'D', 'S', 'S', 'D'};
@@ -179,12 +178,6 @@ std::string chunkBytes(const document::ProjectSnapshot& snapshot)
             }
         }
         appendChunk(chunks, kFrameTagsTag, data);
-    }
-    if (snapshot.libserumTarget != document::LibserumTarget::Libserum28) {
-        std::string data;
-        data.push_back(static_cast<char>(snapshot.libserumTarget));
-        appendLittleEndian(data, 0, 3);
-        appendChunk(chunks, kLibserumTargetTag, data);
     }
     // The speaker lights.
     {
@@ -427,38 +420,6 @@ bool parseFrameTags(LegacyByteSource& source,
     return source.skip(static_cast<std::size_t>(left)) || damaged();
 }
 
-bool parseLibserumTarget(LegacyByteSource& source,
-                         uint64_t size,
-                         document::ProjectSnapshot& snapshot,
-                         std::string& errorMessage)
-{
-    uint8_t bytes[4] = {};
-    if (size < 4 || !source.readBytes(bytes, 4)) {
-        errorMessage = "the libserum target of the .cRPX is damaged";
-        return false;
-    }
-    if (bytes[0] > static_cast<uint8_t>(document::LibserumTarget::Libserum29)) {
-        errorMessage = "the project is made for a libserum this version of the editor does not "
-                       "know (target " +
-                       std::to_string(bytes[0]) + ")";
-        return false;
-    }
-    const auto target = static_cast<document::LibserumTarget>(bytes[0]);
-    // The frames' sprite slots come from the .cROM, which was written for the target.
-    for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
-        if (frame.spriteReferences.size() != document::libserumLimits(target).spritesPerFrame) {
-            errorMessage = "the libserum target of the .cRPX does not match the .cROM";
-            return false;
-        }
-    }
-    snapshot.libserumTarget = target;
-    // Room a later version uses for more is skipped.
-    if (!source.skip(static_cast<std::size_t>(size - 4))) {
-        errorMessage = "the libserum target of the .cRPX is damaged";
-        return false;
-    }
-    return true;
-}
 
 bool parseLights(LegacyByteSource& source,
                  uint64_t size,
@@ -879,10 +840,6 @@ bool readCrpxChunks(LegacyByteSource& source,
             }
         } else if (std::memcmp(tag, kFrameTagsTag.data(), 4) == 0) {
             if (!parseFrameTags(source, size, snapshot, errorMessage)) {
-                return false;
-            }
-        } else if (std::memcmp(tag, kLibserumTargetTag.data(), 4) == 0) {
-            if (!parseLibserumTarget(source, size, snapshot, errorMessage)) {
                 return false;
             }
         } else if (std::memcmp(tag, kLightsTag.data(), 4) == 0) {

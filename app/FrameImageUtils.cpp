@@ -285,7 +285,7 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
 
                     if (!hasEquivalentSpriteMatch(matches, match)) {
                         matches.push_back(match);
-                        if (matches.size() == document::kMaxSpritesPerFrame) {
+                        if (matches.size() == document::kSpritesPerFrame) {
                             return matches;
                         }
                     }

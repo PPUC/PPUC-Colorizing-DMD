@@ -20,7 +20,7 @@ constexpr std::size_t kSdPixels = kSdWidth * kSdHeight;
 constexpr std::size_t kHdPixels = kHdWidth * kHdHeight;
 constexpr std::size_t kDynamicSetsPerFrame = 32;
 constexpr std::size_t kColorCount = 16;
-constexpr std::size_t kMaxSpritesPerFrame = 32;
+constexpr std::size_t kSpritesPerFrame = 32;
 constexpr std::size_t kSpriteCount = 1;
 constexpr std::size_t kMaxSpriteWidth = 256;
 constexpr std::size_t kMaxSpriteHeight = 64;
@@ -88,8 +88,8 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
 {
     bytes.push_back(1);
     bytes.push_back(0);
-    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame - 1);
-    appendRepeatedU8(bytes, 255, kMaxSpritesPerFrame);
+    appendRepeatedU8(bytes, 255, kSpritesPerFrame - 1);
+    appendRepeatedU8(bytes, 255, kSpritesPerFrame);
     appendRepeatedU8(bytes, 9, kSpritePixels);
     appendRepeatedU16(bytes, 0x7001, kSpritePixels);
     appendRepeatedU8(bytes, 10, kSpritePixels);
@@ -121,7 +121,7 @@ void appendModernPostDynamicBlocks(std::vector<uint8_t>& bytes)
     appendU16(bytes, 6);
     appendU16(bytes, 7);
     appendU16(bytes, 8);
-    appendRepeatedU16(bytes, 0xffff, (2 * kMaxSpritesPerFrame - 1) * 4);
+    appendRepeatedU16(bytes, 0xffff, (2 * kSpritesPerFrame - 1) * 4);
 
     bytes.push_back(1);
     appendRepeatedU16(bytes, 0x5001, kSdPixels);

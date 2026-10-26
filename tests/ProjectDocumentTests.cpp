@@ -945,7 +945,10 @@ void testFrameSpriteReferenceEditing()
            "writing an empty sprite ID into a used slot removes it the same way");
 
     expectThrows<std::out_of_range>(
-        [&]() { document.setFrameSpriteReference(0, 32, FrameSpriteReference{0, 0, 0, 1, 1}); },
+        [&]() {
+            document.setFrameSpriteReference(0, colorizing::document::kSpritesPerFrame,
+                                             FrameSpriteReference{0, 0, 0, 1, 1});
+        },
         "sprite slot bounds");
     expectThrows<std::out_of_range>(
         [&]() { document.setFrameSpriteReference(0, 0, FrameSpriteReference{4, 0, 0, 1, 1}); },

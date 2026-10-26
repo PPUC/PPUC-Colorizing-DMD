@@ -74,8 +74,6 @@ section marks the selected set for that:
 - It applies to a frame that has an HD frame and, if it has a background, a background with an
   HD image. On a frame without them the HD picture is the upscaled SD one, and the set is
   upscaled like any other.
-- It needs libserum 2.9 (`Project Settings`); for libserum 2.8 the box is disabled. The setting
-  is kept when the target changes but written into the `.cROM` only for libserum 2.9.
 - Like the shadow, it applies to all selected frames that have dynamic data, one undoable step. The canvas, the Runtime view and the frame tester show it.
 
 Helpers of the `Edit` menu, on every selected frame and on the dynamic plane only (in HD mode of

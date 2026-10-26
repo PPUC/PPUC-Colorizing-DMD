@@ -26,6 +26,11 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   versions of this editor are read and opened as converted (no project path, `m_sourcePath`
   names their files); nothing is written over or renamed. New project data goes into the
   project file.
+- **Projects are made for libserum 2.9 only (owner decision 2026-10-26):** there is no
+  per-project libserum target any more. `document/ProjectLimits.h` holds the limits (128 sprite
+  slots per frame, 65535 sprites and backgrounds, cROM format version 1, header revision 21);
+  a project of the Win32 editor or of libserum 2.8 is opened with its 32 slots per frame filled
+  up to 128 (`ProjectDocument::fromSnapshot()`). Machines need libserum 2.9 or later.
 - **Memory and save speed** matter: authors use large projects on ordinary machines (8 GB). See
   "Memory, load and save (2026-10-14)".
 - **Commits and versions:** see AGENTS.md (small local commits, pushed on the owner's request
@@ -89,7 +94,7 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     `DocumentStateCommand` (shared with the package import) and moves the common state on;
     a sent package is common once every member listed it as merged. Order: the partner's when
     this copy kept the common one, else this copy's with added frames after their predecessor.
-    Settings (license, scenes, lights, helper lines, sections, target) go as one. Claims
+    Settings (license, scenes, lights, helper lines, sections) go as one. Claims
     (`Claims.h`, claims.json) are derived from the change set plus reservations; a claim names
     the claimer's saved revision (the frame order and the settings a hash), and blocks only a
     copy whose common revision differs (`blockingClaim()`): a merged change no longer blocks

@@ -42,32 +42,6 @@ private:
     std::optional<document::ColorizationSettings> m_after;
 };
 
-// The libserum target, before and after. Undone in order, the frames have no sprite in the
-// slots a smaller target drops, so they are dropped and added again as empty slots.
-class TargetCommand final : public EditCommand {
-public:
-    TargetCommand(document::LibserumTarget before, document::LibserumTarget after)
-        : m_before(before),
-          m_after(after)
-    {
-    }
-
-    void apply(document::ProjectDocument& document) const override
-    {
-        document.setLibserumTarget(m_after);
-    }
-    void revert(document::ProjectDocument& document) const override
-    {
-        document.setLibserumTarget(m_before);
-    }
-    [[nodiscard]] EditTarget target() const override { return kStructureTarget; }
-    [[nodiscard]] std::vector<RecordReference> recordReferences() const override { return {}; }
-
-private:
-    document::LibserumTarget m_before;
-    document::LibserumTarget m_after;
-};
-
 // What a scene frame is: its original, its link and its duration.
 struct SceneFrameState {
     document::IndexedFrame original;
@@ -393,26 +367,6 @@ std::unique_ptr<SceneEditCommand> setColorizationSettings(
     Steps steps(document);
     steps.add(settingsStep(document, std::move(settings)));
     return steps.finish(SceneEditCommand::Kind::Scaling);
-}
-
-std::unique_ptr<SceneEditCommand> setProjectSettings(document::ProjectDocument& document,
-                                                     document::ColorizationSettings settings,
-                                                     document::LibserumTarget target)
-{
-    const bool targetChanges = target != document.libserumTarget();
-    if (targetChanges && !document.libserumTargetProblems(target).empty()) {
-        throw std::invalid_argument("the project does not fit " +
-                                    document::libserumTargetName(target));
-    }
-    Steps steps(document);
-    steps.add(settingsStep(document, std::move(settings)));
-    if (targetChanges) {
-        auto command = std::make_unique<TargetCommand>(document.libserumTarget(), target);
-        command->apply(document);
-        steps.add(std::move(command));
-    }
-    return steps.finish(targetChanges ? SceneEditCommand::Kind::LibserumTarget
-                                      : SceneEditCommand::Kind::Scaling);
 }
 
 std::unique_ptr<SceneEditCommand> addScene(document::ProjectDocument& document,

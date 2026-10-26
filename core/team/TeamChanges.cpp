@@ -147,7 +147,6 @@ uint64_t settingsHash(const ProjectDocument& document)
     document::ProjectSnapshot settings;
     settings.romName = document.romName();
     settings.license = document.license();
-    settings.libserumTarget = document.libserumTarget();
     settings.colorizationSettings = document.colorizationSettings();
     settings.speakerLights = document.speakerLights();
     settings.helperLines = document.helperLines();
