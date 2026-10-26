@@ -1255,35 +1255,41 @@ const SceneDefinition* ProjectDocument::backgroundScene(std::size_t frameIndex) 
     return scene && (scene->options & kSceneAsBackground) != 0 ? scene : nullptr;
 }
 
-std::optional<std::size_t> ProjectDocument::backgroundSceneFrame(std::size_t frameIndex) const
+std::optional<std::size_t> ProjectDocument::backgroundSceneFrame(std::size_t frameIndex,
+                                                                 uint32_t sceneElapsedMs) const
 {
     const SceneDefinition* scene = backgroundScene(frameIndex);
     if (!scene) {
         return std::nullopt;
     }
     if (!m_sceneCacheValid || m_sceneRevision != m_revision) {
-        m_firstSceneFrames.clear();
+        m_sceneFrames.clear();
         m_upscaledSceneFrames.clear();
         for (std::size_t index = 0; index < m_frames.size(); ++index) {
             const std::optional<SceneFrameRef>& ref = m_frames[index].scene;
-            if (ref && ref->group == 1 && ref->frameIndex == 0) {
-                m_firstSceneFrames.emplace(ref->sceneId, index);
+            if (ref && ref->group == 1) {
+                m_sceneFrames.emplace(static_cast<uint32_t>(ref->sceneId) << 16 | ref->frameIndex,
+                                      index);
             }
         }
         m_sceneRevision = m_revision;
         m_sceneCacheValid = true;
     }
-    const auto found = m_firstSceneFrames.find(scene->sceneId);
-    if (found == m_firstSceneFrames.end()) {
+    const uint32_t step = sceneElapsedMs / std::max<uint32_t>(scene->durationMs, 1) %
+                          std::max<uint32_t>(scene->frameCount, 1);
+    const auto found = m_sceneFrames.find(static_cast<uint32_t>(scene->sceneId) << 16 | step);
+    if (found == m_sceneFrames.end()) {
         return std::nullopt;
     }
     return found->second;
 }
 
 const Rgb565Frame* ProjectDocument::backgroundPicture(std::size_t frameIndex,
-                                                      Resolution resolution) const
+                                                      Resolution resolution,
+                                                      uint32_t sceneElapsedMs) const
 {
-    if (const std::optional<std::size_t> sceneFrame = backgroundSceneFrame(frameIndex)) {
+    if (const std::optional<std::size_t> sceneFrame =
+            backgroundSceneFrame(frameIndex, sceneElapsedMs)) {
         const FrameRecord& scene = m_frames[*sceneFrame];
         if (resolution == Resolution::Sd) {
             return &scene.colorizedSd;

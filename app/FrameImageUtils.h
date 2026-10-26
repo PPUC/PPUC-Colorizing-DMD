@@ -70,7 +70,10 @@ struct SpriteMatch {
     bool includeBackgroundLayer,
     std::vector<uint8_t>* notRotating = nullptr,
     // Without the sprites libserum finds on the frame ("Show Sprites" off).
-    bool includeSprites = true);
+    bool includeSprites = true,
+    // How long the background scene the frame starts has played: which of its frames shows
+    // through the background mask (ProjectDocument::backgroundPicture()).
+    uint32_t sceneElapsedMs = 0);
 // How many pixels of the frame's picture a rotation slot moves: those that are not dynamic
 // content or a dynamic shadow and whose color the slot owns (the first slot, within its
 // length, that lists the color; see applyColorRotations()), out of the picture's pixels that

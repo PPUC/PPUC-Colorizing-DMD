@@ -14,7 +14,9 @@ Currently implemented:
   HD, and (x, y) on the single plane of a project with 256x64 or 192x64 original frames.
 - A frame that starts a background scene (see "Scenes") shows the scene's first frame through
   its background mask instead, still, so that nothing moves while you draw; on HD it is upscaled
-  as libserum upscales it when the scene frame has no HD picture. Such a frame needs no
+  as libserum upscales it when the scene frame has no HD picture. While `Play` runs the scene
+  plays there, as the color rotations do: its frames of group 1 one after the other, each for
+  the scene's frame duration, in a loop. Such a frame needs no
   background of its own: its mask can be drawn without one, and the editor gives libserum the
   placeholder background libserum needs for it. A placeholder assigned in an earlier editor is
   kept and no longer needed.

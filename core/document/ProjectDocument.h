@@ -435,15 +435,20 @@ public:
     // of the frame's background image, which it takes for a placeholder; such a frame needs
     // none (runtime::SnapshotSource gives libserum one). Nothing for another frame.
     [[nodiscard]] const SceneDefinition* backgroundScene(std::size_t frameIndex) const;
-    // The project's frame that is the first frame of that scene (group 1, frame 0); nothing
-    // without a background scene or that frame.
-    [[nodiscard]] std::optional<std::size_t> backgroundSceneFrame(std::size_t frameIndex) const;
-    // What the plane shows through the frame's background mask: the first frame of its
-    // background scene (the editor shows that one still), otherwise the assigned background's
-    // image. A scene frame without HD is upscaled as libserum upscales it (the project's
-    // scaling algorithm), a background without HD shows nothing on HD. nullptr for none.
+    // The project's frame of that scene that shows sceneElapsedMs after the scene started:
+    // a frame of group 1, one per durationMs, from the first again after the last (the
+    // editor plays it in a loop). Nothing without a background scene or that frame.
+    [[nodiscard]] std::optional<std::size_t> backgroundSceneFrame(
+        std::size_t frameIndex,
+        uint32_t sceneElapsedMs = 0) const;
+    // What the plane shows through the frame's background mask: the frame of its background
+    // scene backgroundSceneFrame() gives (the first one when the editor does not play it),
+    // otherwise the assigned background's image. A scene frame without HD is upscaled as
+    // libserum upscales it (the project's scaling algorithm), a background without HD shows
+    // nothing on HD. nullptr for none.
     [[nodiscard]] const Rgb565Frame* backgroundPicture(std::size_t frameIndex,
-                                                       Resolution resolution) const;
+                                                       Resolution resolution,
+                                                       uint32_t sceneElapsedMs = 0) const;
     // Whether anything shows through the frame's background mask: an assigned background or a
     // background scene.
     [[nodiscard]] bool hasBackgroundSource(std::size_t frameIndex) const;
@@ -929,11 +934,12 @@ private:
     // on demand; a dynamic mask edit updates its frame, adding or removing frames drops it.
     // Like the rest of the document, not for concurrent use from several threads.
     mutable std::vector<uint8_t> m_dynamicPixelStates;
-    // backgroundSceneFrame(): the first frame of each scene by its ID, and backgroundPicture():
-    // the HD pictures upscaled from those without, by frame; of the revision m_sceneRevision.
+    // backgroundSceneFrame(): the frames of group 1 of each scene, by scene ID << 16 | frame
+    // index, and backgroundPicture(): the HD pictures upscaled from those without, by frame;
+    // of the revision m_sceneRevision.
     mutable uint64_t m_sceneRevision = 0;
     mutable bool m_sceneCacheValid = false;
-    mutable std::unordered_map<uint16_t, std::size_t> m_firstSceneFrames;
+    mutable std::unordered_map<uint32_t, std::size_t> m_sceneFrames;
     mutable std::unordered_map<std::size_t, Rgb565Frame> m_upscaledSceneFrames;
     // packBlocks(): where it goes on, the revision its counts are of, and how many arrays of the
     // document hold each buffer.

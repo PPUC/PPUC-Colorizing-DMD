@@ -377,6 +377,18 @@ void testBackgroundSceneOnTheCanvas()
                                        false) ==
                    document.colorizedFrame(0, render::Resolution::Sd).pixels[sdIndex],
            "SD: the scene's first frame shows through the mask, not without the background");
+    // Played, the scene's frames follow each other, one per durationMs, in a loop.
+    const std::size_t second = edit::sceneFrames(document, 50700)[1];
+    document.setColorizedPixel(first, render::Resolution::Sd, unlitX, unlitY, 0x1234);
+    document.setColorizedPixel(second, render::Resolution::Sd, unlitX, unlitY, 0x4321);
+    const auto shownAt = [&](uint32_t elapsedMs) {
+        return app::composeResolvedFrame(document, 0, render::Resolution::Sd, true, nullptr,
+                                         true, elapsedMs)
+            .pixels[sdIndex];
+    };
+    expect(shownAt(0) == 0x1234 && shownAt(scene.durationMs - 1) == 0x1234 &&
+               shownAt(scene.durationMs) == 0x4321 && shownAt(2 * scene.durationMs) == 0x1234,
+           "the scene plays through the mask");
     document.createHdFrame(0);
     const document::Rgb565Frame* sceneHd = document.backgroundPicture(0, render::Resolution::Hd);
     expect(sceneHd &&

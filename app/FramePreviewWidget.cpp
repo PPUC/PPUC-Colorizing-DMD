@@ -1276,7 +1276,11 @@ void FramePreviewWidget::paintRegion(QPainter& painter, const render::CanvasRegi
                                      region.resolution,
                                      m_showBackgroundLayer,
                                      m_colorRotationPreviewElapsedMs ? &notRotating : nullptr,
-                                     m_showSpritesLayer);
+                                     m_showSpritesLayer,
+                                     // The background scene plays as the colors rotate.
+                                     static_cast<uint32_t>(
+                                         std::max(m_colorRotationPreviewElapsedMs.value_or(0),
+                                                  0)));
             if (m_colorRotationPreviewElapsedMs) {
                 applyColorRotations(*m_document,
                                     m_frameIndex,

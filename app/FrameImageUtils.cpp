@@ -465,7 +465,8 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
                            int x,
                            int y,
                            bool includeBackgroundLayer,
-                           bool& fromDynamicZone)
+                           bool& fromDynamicZone,
+                           uint32_t sceneElapsedMs = 0)
 {
     fromDynamicZone = false;
     const document::Rgb565Frame& colorized = document.colorizedFrame(frameIndex, resolution);
@@ -527,7 +528,8 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
         if (mask.pixels[indexedPixelIndex(mask, x, y)] == 0) {
             return std::nullopt;
         }
-        const document::Rgb565Frame* picture = document.backgroundPicture(frameIndex, resolution);
+        const document::Rgb565Frame* picture =
+            document.backgroundPicture(frameIndex, resolution, sceneElapsedMs);
         if (!picture) {
             return std::nullopt;
         }
@@ -685,7 +687,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                            render::Resolution resolution,
                                            bool includeBackgroundLayer,
                                            std::vector<uint8_t>* notRotating,
-                                           bool includeSprites)
+                                           bool includeSprites,
+                                           uint32_t sceneElapsedMs)
 {
     if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
         document::Rgb565Frame empty =
@@ -710,7 +713,8 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                                     x,
                                                     y,
                                                     includeBackgroundLayer,
-                                                    fromDynamicZone);
+                                                    fromDynamicZone,
+                                                    sceneElapsedMs);
             if (notRotating && fromDynamicZone) {
                 (*notRotating)[index] = 1;
             }
