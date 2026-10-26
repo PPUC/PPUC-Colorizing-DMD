@@ -831,7 +831,7 @@ void CanvasEditController::floodFillBackgroundMask(const CanvasEditContext& cont
         const uint8_t newValue = erase ? uint8_t{0} : uint8_t{1};
         const std::optional<document::FrameBackgroundData>& backgroundData =
             document.backgroundData(frameIndex);
-        if (!backgroundData || backgroundData->backgroundId >= document.backgroundCount()) {
+        if (!backgroundData || !document.hasBackgroundSource(frameIndex)) {
             showStatus(tr("No background assigned"), kStatusMs);
             return;
         }
@@ -1508,7 +1508,7 @@ void CanvasEditController::selectBackgroundMask(const CanvasEditContext& context
     const document::ProjectDocument& document = *context.document;
     const std::optional<document::FrameBackgroundData>& backgroundData =
         document.backgroundData(*context.currentFrame);
-    if (!backgroundData || backgroundData->backgroundId >= document.backgroundCount()) {
+    if (!backgroundData || !document.hasBackgroundSource(*context.currentFrame)) {
         showStatus(tr("The frame has no background"), kStatusMs);
         return;
     }
@@ -1867,8 +1867,7 @@ void CanvasEditController::commitFrameMaskPixels(const CanvasEditContext& contex
             if (isBackgroundMask) {
                 const std::optional<document::FrameBackgroundData>& backgroundData =
                     document.backgroundData(frameIndex);
-                if (!backgroundData ||
-                    backgroundData->backgroundId >= document.backgroundCount()) {
+                if (!backgroundData || !document.hasBackgroundSource(frameIndex)) {
                     continue;
                 }
                 hasAssignedBackground = true;

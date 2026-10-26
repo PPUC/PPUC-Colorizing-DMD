@@ -1242,6 +1242,89 @@ void ProjectDocument::setSceneFrame(std::size_t frameIndex, std::optional<SceneF
     markChanged();
 }
 
+const SceneDefinition* ProjectDocument::backgroundScene(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    const Size rom = m_geometry.romFrameSize();
+    if (!m_colorizationSettings || frame.triggerId > 0xffff || rom.width != 128 ||
+        rom.height != 32) {
+        return nullptr;
+    }
+    const SceneDefinition* scene =
+        m_colorizationSettings->scene(static_cast<uint16_t>(frame.triggerId));
+    return scene && (scene->options & kSceneAsBackground) != 0 ? scene : nullptr;
+}
+
+std::optional<std::size_t> ProjectDocument::backgroundSceneFrame(std::size_t frameIndex) const
+{
+    const SceneDefinition* scene = backgroundScene(frameIndex);
+    if (!scene) {
+        return std::nullopt;
+    }
+    if (!m_sceneCacheValid || m_sceneRevision != m_revision) {
+        m_firstSceneFrames.clear();
+        m_upscaledSceneFrames.clear();
+        for (std::size_t index = 0; index < m_frames.size(); ++index) {
+            const std::optional<SceneFrameRef>& ref = m_frames[index].scene;
+            if (ref && ref->group == 1 && ref->frameIndex == 0) {
+                m_firstSceneFrames.emplace(ref->sceneId, index);
+            }
+        }
+        m_sceneRevision = m_revision;
+        m_sceneCacheValid = true;
+    }
+    const auto found = m_firstSceneFrames.find(scene->sceneId);
+    if (found == m_firstSceneFrames.end()) {
+        return std::nullopt;
+    }
+    return found->second;
+}
+
+const Rgb565Frame* ProjectDocument::backgroundPicture(std::size_t frameIndex,
+                                                      Resolution resolution) const
+{
+    if (const std::optional<std::size_t> sceneFrame = backgroundSceneFrame(frameIndex)) {
+        const FrameRecord& scene = m_frames[*sceneFrame];
+        if (resolution == Resolution::Sd) {
+            return &scene.colorizedSd;
+        }
+        if (scene.colorizedHd) {
+            return &*scene.colorizedHd;
+        }
+        auto upscaled = m_upscaledSceneFrames.find(*sceneFrame);
+        if (upscaled == m_upscaledSceneFrames.end()) {
+            const bool lineDoubling = m_colorizationSettings &&
+                                      m_colorizationSettings->scalingAlgorithm ==
+                                          kScalingLineDoubling;
+            upscaled = m_upscaledSceneFrames
+                           .emplace(*sceneFrame,
+                                    upscale2x(scene.colorizedSd, lineDoubling
+                                                                     ? UpscaleFilter::Nearest
+                                                                     : UpscaleFilter::Scale2x))
+                           .first;
+        }
+        return &upscaled->second;
+    }
+    const std::optional<FrameBackgroundData>& data = requireFrame(m_frames, frameIndex)
+                                                         .backgroundData;
+    if (!data || data->backgroundId >= m_backgrounds.size()) {
+        return nullptr;
+    }
+    const BackgroundRecord& background = m_backgrounds[data->backgroundId];
+    if (resolution == Resolution::Hd) {
+        return background.colorizedHd ? &*background.colorizedHd : nullptr;
+    }
+    return &background.colorizedSd;
+}
+
+bool ProjectDocument::hasBackgroundSource(std::size_t frameIndex) const
+{
+    const std::optional<FrameBackgroundData>& data = requireFrame(m_frames, frameIndex)
+                                                         .backgroundData;
+    return data && (data->backgroundId < m_backgrounds.size() ||
+                    backgroundSceneFrame(frameIndex).has_value());
+}
+
 void ProjectDocument::setSpeakerLights(SpeakerLightSettings settings)
 {
     for (std::size_t i = 0; i < settings.effects.size(); ++i) {

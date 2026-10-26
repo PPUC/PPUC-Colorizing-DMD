@@ -1,5 +1,6 @@
 #include "edit/SceneEdits.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
@@ -8,7 +9,9 @@
 
 #include "RuntimeFixtures.h"
 #include "edit/StructureCommand.h"
+#include "runtime/RuntimePreview.h"
 #include "runtime/Scenes.h"
+#include "document/Upscale.h"
 
 namespace {
 
@@ -344,6 +347,71 @@ void testLegacySlotsFilledUp()
 
 }  // namespace
 
+// A frame that starts a background scene shows the scene's first frame through its
+// background mask, also without a background of its own: libserum is given a black
+// placeholder background for it.
+void testBackgroundSceneWithoutBackground()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    runtime_fixtures::assignBackground(snapshot, 0, document::kNoBackgroundId);
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document::SceneDefinition scene = makeScene(50600, 2, 1);
+    scene.options = document::kSceneAsBackground;
+    const auto added = edit::addScene(document, scene);
+    const auto plain = edit::addScene(document, makeScene(50601, 1, 1));
+    const std::size_t first = edit::sceneFrames(document, 50600).front();
+    expect(!document.hasBackgroundSource(0), "no background and no scene: nothing shows");
+
+    document.setTriggerId(0, 50601);
+    expect(!document.backgroundScene(0) && !document.hasBackgroundSource(0),
+           "a scene that is not a background scene shows nothing either");
+    document.setTriggerId(0, 50600);
+    expect(document.backgroundScene(0) && document.backgroundScene(0)->sceneId == 50600 &&
+               document.backgroundSceneFrame(0) == first && document.hasBackgroundSource(0) &&
+               !document.hasBackgroundSource(1),
+           "the frame shows its background scene without a background");
+    expect(document.backgroundPicture(0, render::Resolution::Sd) ==
+               &document.colorizedFrame(first, render::Resolution::Sd),
+           "SD shows the scene's first frame");
+    const document::Rgb565Frame* hd = document.backgroundPicture(0, render::Resolution::Hd);
+    const document::Rgb565Frame upscaled =
+        document::upscale2x(document.colorizedFrame(first, render::Resolution::Sd),
+                            document::UpscaleFilter::Scale2x);
+    expect(hd && hd->size.width == upscaled.size.width &&
+               std::equal(hd->pixels.begin(), hd->pixels.end(), upscaled.pixels.begin()),
+           "HD shows it upscaled as libserum does, the scene frame having no HD");
+
+    document::ProjectSnapshot given = document.toSnapshot();
+    const std::size_t backgrounds = given.backgrounds.size();
+    expect(runtime::addSceneBackgroundPlaceholders(given) == 1 &&
+               given.backgrounds.size() == backgrounds + 1 &&
+               given.frames[0].backgroundData->backgroundId == backgrounds &&
+               std::all_of(given.backgrounds.back().colorizedSd.pixels.begin(),
+                           given.backgrounds.back().colorizedSd.pixels.end(),
+                           [](uint16_t pixel) { return pixel == 0; }),
+           "libserum is given a black placeholder background for the frame");
+
+    // libserum shows the scene through the mask where the frame is unlit.
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    std::string error;
+    expect(preview.openProject(document, runtime::PlaneRequest::Rows32, &error),
+           "libserum loads the project: " + error);
+    const document::IndexedFrame& original = document.originalFrame(0);
+    std::size_t unlit = 0;
+    while (unlit < original.pixels.size() && original.pixels[unlit] != 0) {
+        ++unlit;
+    }
+    const runtime::RuntimeFrame result = preview.colorize(original);
+    preview.close();
+    const uint16_t sceneColor =
+        document.colorizedFrame(first, render::Resolution::Sd).pixels[unlit];
+    expect(unlit < original.pixels.size() && result.ok() && result.rows32 &&
+               result.rows32->image.pixels[unlit] == sceneColor &&
+               sceneColor != document.colorizedFrame(0, render::Resolution::Sd).pixels[unlit],
+           "libserum shows the scene there");
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -354,4 +422,5 @@ void runSceneEditTests()
     testOtherLayouts();
     testFramesStartingScene();
     testLegacySlotsFilledUp();
+    testBackgroundSceneWithoutBackground();
 }

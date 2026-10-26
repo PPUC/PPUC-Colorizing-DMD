@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "document/ProjectDocument.h"
+#include "document/ProjectSnapshot.h"
 #include "document/Scene.h"
 #include "render/ProjectGeometry.h"
 
@@ -52,5 +53,14 @@ struct SidecarImport {
 // nothing to a project that has settings.
 SidecarImport importColorizationSidecars(document::ProjectDocument& document,
                                          const std::filesystem::path& directory);
+
+// A frame that starts a background scene shows the scene through its background mask without
+// a background of its own (ProjectDocument::backgroundScene()). libserum shows a scene only
+// where the frame has a background, which it takes for a placeholder while the scene plays:
+// every such frame with a background mask gets one in the snapshot given to libserum, a black
+// background added for this, with a black HD image where a frame using it has HD (libserum
+// takes a frame's HD picture only together with its background's). Returns the number of
+// frames that got it.
+std::size_t addSceneBackgroundPlaceholders(document::ProjectSnapshot& snapshot);
 
 }  // namespace colorizing::runtime

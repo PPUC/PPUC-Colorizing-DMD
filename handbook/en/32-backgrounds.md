@@ -12,6 +12,12 @@ Currently implemented:
 - `Show Background` renders the assigned background layer over original black pixels where the active SD/HD background mask allows it.
   The original pixel looked at is the one the plane pixel belongs to: (x, y) in SD, (x/2, y/2) in
   HD, and (x, y) on the single plane of a project with 256x64 or 192x64 original frames.
+- A frame that starts a background scene (see "Scenes") shows the scene's first frame through
+  its background mask instead, still, so that nothing moves while you draw; on HD it is upscaled
+  as libserum upscales it when the scene frame has no HD picture. Such a frame needs no
+  background of its own: its mask can be drawn without one, and the editor gives libserum the
+  placeholder background libserum needs for it. A placeholder assigned in an earlier editor is
+  kept and no longer needed.
 - The Inspector has two background sections, each shown on its own canvas: `Frame Background`
   on the frame canvas (the selected background, `Assign Background`, `Remove Background`, `Frame -> Background`,
   `Background -> Frame`, `Edit Background`) and `Background` while the background is edited (the selected

@@ -429,6 +429,24 @@ public:
     // The scene frame the frame is, if it is one.
     [[nodiscard]] const std::optional<SceneFrameRef>& sceneFrame(std::size_t frameIndex) const;
     void setSceneFrame(std::size_t frameIndex, std::optional<SceneFrameRef> scene);
+    // The background scene the frame's trigger starts: a scene of colorizationSettings() with
+    // kSceneAsBackground, in a project whose ROM frames are 128x32 (the scenes libserum
+    // plays). While it plays libserum shows it through the frame's background mask, in place
+    // of the frame's background image, which it takes for a placeholder; such a frame needs
+    // none (runtime::SnapshotSource gives libserum one). Nothing for another frame.
+    [[nodiscard]] const SceneDefinition* backgroundScene(std::size_t frameIndex) const;
+    // The project's frame that is the first frame of that scene (group 1, frame 0); nothing
+    // without a background scene or that frame.
+    [[nodiscard]] std::optional<std::size_t> backgroundSceneFrame(std::size_t frameIndex) const;
+    // What the plane shows through the frame's background mask: the first frame of its
+    // background scene (the editor shows that one still), otherwise the assigned background's
+    // image. A scene frame without HD is upscaled as libserum upscales it (the project's
+    // scaling algorithm), a background without HD shows nothing on HD. nullptr for none.
+    [[nodiscard]] const Rgb565Frame* backgroundPicture(std::size_t frameIndex,
+                                                       Resolution resolution) const;
+    // Whether anything shows through the frame's background mask: an assigned background or a
+    // background scene.
+    [[nodiscard]] bool hasBackgroundSource(std::size_t frameIndex) const;
     // Replaces the frame's original (the ROM frame it is identified by), e.g. with a scene
     // marker. Throws std::invalid_argument for one that has not the ROM frame's size.
     void setOriginalFrame(std::size_t frameIndex, IndexedFrame original);
@@ -911,6 +929,12 @@ private:
     // on demand; a dynamic mask edit updates its frame, adding or removing frames drops it.
     // Like the rest of the document, not for concurrent use from several threads.
     mutable std::vector<uint8_t> m_dynamicPixelStates;
+    // backgroundSceneFrame(): the first frame of each scene by its ID, and backgroundPicture():
+    // the HD pictures upscaled from those without, by frame; of the revision m_sceneRevision.
+    mutable uint64_t m_sceneRevision = 0;
+    mutable bool m_sceneCacheValid = false;
+    mutable std::unordered_map<uint16_t, std::size_t> m_firstSceneFrames;
+    mutable std::unordered_map<std::size_t, Rgb565Frame> m_upscaledSceneFrames;
     // packBlocks(): where it goes on, the revision its counts are of, and how many arrays of the
     // document hold each buffer.
     std::size_t m_packCursor = 0;

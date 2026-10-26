@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 
+#include "FrameImageUtils.h"
 #include "RuntimeFixtures.h"
 #include "ThumbnailCaptions.h"
 #include "dialogs/SceneDialog.h"
@@ -339,9 +340,57 @@ void testDialog()
 
 }  // namespace
 
+// The canvas shows the first frame of the background scene a frame starts through the frame's
+// background mask, in place of a background of its own, still, so that nothing moves while
+// drawing; on HD upscaled, the scene frame having no HD.
+void testBackgroundSceneOnTheCanvas()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    runtime_fixtures::assignBackground(snapshot, 0, document::kNoBackgroundId);
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document::SceneDefinition scene;
+    scene.sceneId = 50700;
+    scene.frameCount = 2;
+    scene.options = document::kSceneAsBackground;
+    const auto added = edit::addScene(document, scene);
+    document.setTriggerId(0, 50700);
+    const std::size_t first = edit::sceneFrames(document, 50700).front();
+    const document::IndexedFrame& original = document.originalFrame(0);
+    int unlitX = -1;
+    int unlitY = -1;
+    for (int y = 0; y < original.size.height && unlitX < 0; ++y) {
+        for (int x = 0; x < original.size.width; ++x) {
+            if (original.pixels[static_cast<std::size_t>(y) * original.size.width + x] == 0) {
+                unlitX = x;
+                unlitY = y;
+                break;
+            }
+        }
+    }
+    const document::Rgb565Frame& sceneSd = document.colorizedFrame(first, render::Resolution::Sd);
+    const std::size_t sdIndex = static_cast<std::size_t>(unlitY) * sceneSd.size.width + unlitX;
+    expect(unlitX >= 0 &&
+               app::resolvedFramePixel(document, 0, render::Resolution::Sd, unlitX, unlitY,
+                                       true) == sceneSd.pixels[sdIndex] &&
+               app::resolvedFramePixel(document, 0, render::Resolution::Sd, unlitX, unlitY,
+                                       false) ==
+                   document.colorizedFrame(0, render::Resolution::Sd).pixels[sdIndex],
+           "SD: the scene's first frame shows through the mask, not without the background");
+    document.createHdFrame(0);
+    const document::Rgb565Frame* sceneHd = document.backgroundPicture(0, render::Resolution::Hd);
+    expect(sceneHd &&
+               app::resolvedFramePixel(document, 0, render::Resolution::Hd, unlitX * 2,
+                                       unlitY * 2, true) ==
+                   sceneHd->pixels[static_cast<std::size_t>(unlitY * 2) * sceneHd->size.width +
+                                   unlitX * 2],
+           "HD: the scene's first frame upscaled");
+}
+
 void runScenesWidgetTests()
 {
     testPanel();
+    testBackgroundSceneOnTheCanvas();
     testThumbnailCaptions();
     testSettingsPanel();
     testProjectSettings();

@@ -512,29 +512,26 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
 
     const std::optional<document::FrameBackgroundData>& backgroundData =
         document.backgroundData(frameIndex);
-    const bool hasBackground = includeBackgroundLayer && backgroundData &&
-                               backgroundData->backgroundId < document.backgroundCount();
-    // The background shows through an unlit pixel where the plane's background mask is set.
+    const bool hasBackground =
+        includeBackgroundLayer && backgroundData && document.hasBackgroundSource(frameIndex);
+    // The background shows through an unlit pixel where the plane's background mask is set:
+    // the assigned background's image, or the first frame of the background scene the frame
+    // starts.
     const auto backgroundPixel = [&]() -> std::optional<uint16_t> {
         if (!hasBackground || originalValue != 0) {
             return std::nullopt;
         }
-        const document::BackgroundRecord& background =
-            document.background(backgroundData->backgroundId);
-        if (resolution == render::Resolution::Hd) {
-            if (background.colorizedHd &&
-                backgroundData->maskHd.pixels[indexedPixelIndex(backgroundData->maskHd, x, y)] !=
-                    0) {
-                return background.colorizedHd->pixels[rgb565PixelIndex(*background.colorizedHd,
-                                                                       x,
-                                                                       y)];
-            }
+        const document::IndexedFrame& mask = resolution == render::Resolution::Hd
+                                                  ? backgroundData->maskHd
+                                                  : backgroundData->maskSd;
+        if (mask.pixels[indexedPixelIndex(mask, x, y)] == 0) {
             return std::nullopt;
         }
-        if (backgroundData->maskSd.pixels[indexedPixelIndex(backgroundData->maskSd, x, y)] != 0) {
-            return background.colorizedSd.pixels[rgb565PixelIndex(background.colorizedSd, x, y)];
+        const document::Rgb565Frame* picture = document.backgroundPicture(frameIndex, resolution);
+        if (!picture) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return picture->pixels[rgb565PixelIndex(*picture, x, y)];
     };
 
     if (scaledDynamics) {

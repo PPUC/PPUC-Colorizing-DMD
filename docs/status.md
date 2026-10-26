@@ -904,6 +904,13 @@ Cost: windows of 49 to 86 frames on average (160 at most), 3 to 8 MB of cROM, 15
 load; building the search rule of a project once per change of masks takes 16 to 30 ms, 270 ms
 for `frankst1`. Memory stays that of a window.
 
+Background scenes (owner decision 2026-10-26): a frame that starts one needs no background of
+its own. libserum lets a scene through the background mask only of a frame with a background
+(which it then takes for a placeholder), so `runtime::addSceneBackgroundPlaceholders()` gives
+such frames a black one in every snapshot handed to libserum (`SnapshotSource`); the project
+keeps none. The canvas shows the scene's first frame through the mask
+(`ProjectDocument::backgroundPicture()`), upscaled on HD as libserum does.
+
 ## Open decisions (waiting for the owner)
 
 Only questions without an answer are listed; each says what the editor does now. An answered

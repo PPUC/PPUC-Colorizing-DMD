@@ -292,4 +292,46 @@ SidecarImport importColorizationSidecars(document::ProjectDocument& document,
     return result;
 }
 
+std::size_t addSceneBackgroundPlaceholders(document::ProjectSnapshot& snapshot)
+{
+    if (!snapshot.colorizationSettings || !supportsScenes(snapshot.geometry) ||
+        snapshot.backgrounds.size() >= document::kMaxBackgrounds) {
+        return 0;
+    }
+    const auto hasMask = [](const document::IndexedFrame& mask) {
+        return std::any_of(mask.pixels.begin(), mask.pixels.end(),
+                           [](uint8_t value) { return value != 0; });
+    };
+    const auto placeholder = static_cast<uint16_t>(snapshot.backgrounds.size());
+    std::size_t given = 0;
+    bool withHd = false;
+    for (document::ProjectFrameSnapshot& frame : snapshot.frames) {
+        if (!frame.backgroundData ||
+            frame.backgroundData->backgroundId != document::kNoBackgroundId ||
+            frame.triggerId > 0xffff) {
+            continue;
+        }
+        const document::SceneDefinition* scene =
+            snapshot.colorizationSettings->scene(static_cast<uint16_t>(frame.triggerId));
+        if (!scene || (scene->options & document::kSceneAsBackground) == 0 ||
+            (!hasMask(frame.backgroundData->maskSd) && !hasMask(frame.backgroundData->maskHd))) {
+            continue;
+        }
+        frame.backgroundData->backgroundId = placeholder;
+        withHd = withHd || frame.colorizedHd.has_value();
+        ++given;
+    }
+    if (given > 0) {
+        document::BackgroundRecord background;
+        background.colorizedSd = document::makeRgb565Frame(
+            snapshot.geometry.planeSize(render::Resolution::Sd));
+        if (withHd) {
+            background.colorizedHd = document::makeRgb565Frame(
+                snapshot.geometry.planeSize(render::Resolution::Hd));
+        }
+        snapshot.backgrounds.push_back(std::move(background));
+    }
+    return given;
+}
+
 }  // namespace colorizing::runtime

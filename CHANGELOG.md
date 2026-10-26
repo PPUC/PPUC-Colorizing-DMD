@@ -15,6 +15,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The frame tester, opened again, shows a frame that starts a background scene; it stayed black,
   as libserum kept the scene of the last opening running (libserum 2.99.3).
 - On Windows 11 the editor uses Qt's Fusion style; `-style windows11` brings Windows 11's back.
+- A frame that starts a background scene needs no placeholder background any more: its
+  background mask lets the scene through without one, and the canvas shows the scene's first
+  frame there instead of the placeholder.
 
 ## 3.99.14
 

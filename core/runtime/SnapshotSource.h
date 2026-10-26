@@ -14,6 +14,7 @@
 
 #include "document/ProjectSnapshot.h"
 #include "legacy/LegacyProjectSerializer.h"
+#include "runtime/Scenes.h"
 
 namespace colorizing::runtime {
 
@@ -26,7 +27,7 @@ static_assert(static_cast<std::size_t>(SERUM_BLOCK_COUNT) == legacy::kCromBlockC
 class SnapshotSource {
 public:
     explicit SnapshotSource(document::ProjectSnapshot snapshot)
-        : m_snapshot(std::move(snapshot))
+        : m_snapshot(withPlaceholders(std::move(snapshot)))
         , m_elements(m_snapshot)
     {
         const render::Size sd = m_snapshot.geometry.planeSize(render::Resolution::Sd);
@@ -71,6 +72,13 @@ public:
     [[nodiscard]] const std::string& error() const { return m_error; }
 
 private:
+    // The snapshot with the placeholder backgrounds libserum needs for background scenes.
+    static document::ProjectSnapshot withPlaceholders(document::ProjectSnapshot snapshot)
+    {
+        (void)addSceneBackgroundPlaceholders(snapshot);
+        return snapshot;
+    }
+
     static void SERUM_CALLBACK fill(void* userData,
                                     Serum_Block block,
                                     uint32_t index,

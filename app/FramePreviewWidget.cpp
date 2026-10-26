@@ -1562,7 +1562,7 @@ void FramePreviewWidget::paintBackgroundMaskOverlay(
 
     const std::optional<document::FrameBackgroundData>& backgroundData =
         m_document->backgroundData(m_frameIndex);
-    if (!backgroundData || backgroundData->backgroundId >= m_document->backgroundCount()) {
+    if (!backgroundData || !m_document->hasBackgroundSource(m_frameIndex)) {
         return;
     }
 

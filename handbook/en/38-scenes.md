@@ -92,7 +92,7 @@ What one line of a `<rom>.pup.csv` says:
 | Start immediately | The first frame shows when the trigger fires, without waiting for the next frame of the game. |
 | When it has played | Keep its last frame, black, or the frame shown before the scene. |
 | Hold the last frame for / Start by itself after | For a scene that cannot be interrupted and keeps its last frame: how long that frame stays. Otherwise: the scene starts by itself after this many seconds without a new frame. `Off` for neither. |
-| Play as a background | The scene shows behind the frames of the game, where their background mask lets it through. |
+| Play as a background | The scene shows behind the frames of the game, where their background mask lets it through. The frame that starts it needs no background of its own; the canvas shows the scene's first frame through its mask (see "Backgrounds"). |
 | Keep only dynamic content in front | Of the game's frames only dynamic zones, sprites and shadows show over the scene. |
 | Black dynamic pixels show the scene | With a background scene: black pixels of dynamic zones let the scene through and cast no shadow. |
 | Resume when triggered again | A trigger soon after the scene stopped continues it instead of starting it over. |
