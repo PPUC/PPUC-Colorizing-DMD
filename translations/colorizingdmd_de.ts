@@ -3085,6 +3085,14 @@ Use Create %1 Frame.</source>
         <translation>&amp;Ganzen Frame zeigen</translation>
     </message>
     <message>
+        <source>Switch SD/HD</source>
+        <translation>SD/HD wechseln</translation>
+    </message>
+    <message>
+        <source>Edit the other plane: SD instead of HD, or HD instead of SD</source>
+        <translation>Die andere Ebene bearbeiten: SD statt HD oder HD statt SD</translation>
+    </message>
+    <message>
         <source>Show &amp;Helper Lines</source>
         <translation>&amp;Hilfslinien zeigen</translation>
     </message>

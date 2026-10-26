@@ -1,6 +1,7 @@
 # SD And HD Modes
 
-Use the `SD` and `HD` toolbar buttons to switch the active editing resolution.
+Use the `SD` and `HD` toolbar buttons to switch the active editing resolution, or
+`View -> Switch SD/HD` (`Ctrl/Cmd+X`, as in the Win32 editor) to switch to the other one.
 
 SD and HD exist in ordinary projects only (128x32 original frames with an optional 256x64 HD
 plane). What the window shows for each kind of project:

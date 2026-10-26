@@ -1017,6 +1017,19 @@ void MainWindow::createActions()
     });
     viewMenu->addSeparator();
 
+    // Ctrl+X as in the Win32 editor; a text field with the focus keeps it for cutting text.
+    QAction* switchPlaneAction = viewMenu->addAction(tr("Switch SD/HD"));
+    switchPlaneAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
+    switchPlaneAction->setToolTip(
+        tr("Edit the other plane: SD instead of HD, or HD instead of SD"));
+    connect(switchPlaneAction, &QAction::triggered, this, [this]() {
+        QToolButton* other =
+            m_activeResolution == render::Resolution::Sd ? m_hdButton : m_sdButton;
+        if (other && other->isEnabled() && other->isVisible()) {
+            other->click();
+        }
+    });
+
     m_helperLinesShownAction = viewMenu->addAction(tr("Show &Helper Lines"));
     m_helperLinesShownAction->setCheckable(true);
     m_helperLinesShownAction->setChecked(

@@ -3085,6 +3085,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Afficher la frame &amp;entière</translation>
     </message>
     <message>
+        <source>Switch SD/HD</source>
+        <translation>Basculer SD/HD</translation>
+    </message>
+    <message>
+        <source>Edit the other plane: SD instead of HD, or HD instead of SD</source>
+        <translation>Modifier l’autre plan : SD au lieu de HD, ou HD au lieu de SD</translation>
+    </message>
+    <message>
         <source>Show &amp;Helper Lines</source>
         <translation>Afficher les lignes d&apos;&amp;aide</translation>
     </message>
