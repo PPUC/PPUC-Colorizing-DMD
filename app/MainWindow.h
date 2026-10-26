@@ -525,6 +525,9 @@ private:
     void updateTimeLabel();
     // Edit -> New Frame From Original Colors (Win32 "To Source Frame").
     void addSourceFrame();
+    // Edit -> Copy Frame Settings: the current frame's chosen settings replace those of the
+    // other selected frames (edit::copyFrameSettings()), one undo step.
+    void copyFrameSettings();
     // Asks for the duration and deletes the selected frames that are shorter.
     void deleteSelectedFramesShorterThan();
     // note: what chose the frames, for the question; empty for the selection itself.
@@ -660,6 +663,7 @@ private:
     QAction* m_addFramesFromDumpAction = nullptr;
     QAction* m_deleteFramesAction = nullptr;
     QAction* m_sourceFrameAction = nullptr;
+    QAction* m_copyFrameSettingsAction = nullptr;
     // The same in the frame list's menu, with the Delete and Backspace keys.
     QAction* m_deleteFramesListAction = nullptr;
     QAction* m_deleteShortFramesAction = nullptr;

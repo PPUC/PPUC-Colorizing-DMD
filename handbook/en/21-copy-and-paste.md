@@ -60,3 +60,27 @@ window; the clipboard is the same as on the frame canvas:
   frame mirrored and copy it from there.
 - `Paste Where Originals Match`, `Paste Dynamic Mask Only` and the selection tools work on the
   frame canvas only.
+
+## Copy Frame Settings
+
+`Edit -> Copy Frame Settings...` puts settings of the current frame on the other selected frames.
+Each chosen setting replaces the target's, it is not merged into it: copied dynamic zones are
+exactly the source's afterwards, and the target's own are gone. The pictures (colorized pixels)
+are not copied; Copy and Paste is for those.
+
+The dialog lists the settings, each with how many of the selected frames it changes:
+
+- `Dynamic content`: the dynamic zones, the colors of every dynamic set (with which sets color the
+  SD picture only) and every set's shadow, on the plane the zones live on (see "Dynamic Masks").
+- `Background`: the assigned background, and the background masks.
+- `Sprites and colors`: every sprite slot with its bounds, and the color rotations.
+- `How and when the frame plays`: the comparison mask and the shape mode (they decide how libserum
+  finds the frames, which the dialog points out when they are chosen), the trigger, the speaker
+  lights and the duration.
+
+At first the settings of the picture are chosen and those of how the frame plays are not; the
+choices are kept for the next time. HD data goes only between frames that both have HD. A frame
+of a scene takes only what it can have: the background, its mask, color rotations, lights and
+the duration (see "Scenes"); the dialog and the status bar say how many were left out. The copy
+is one undo step for all frames.
+

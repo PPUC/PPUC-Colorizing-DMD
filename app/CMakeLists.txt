@@ -23,6 +23,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/DmdOutputSettingsPage.cpp
     dialogs/DmdOutputSettingsPage.h
     dialogs/DumpImportDialog.cpp
+    dialogs/FrameSettingsDialog.cpp
+    dialogs/FrameSettingsDialog.h
     dialogs/AboutDialog.cpp
     dialogs/AboutDialog.h
     dialogs/HelperLineDialog.cpp

@@ -151,6 +151,7 @@ void runCompactStorageTests();
 void runCromcExportTests();
 void runSceneTests();
 void runSceneEditTests();
+void runFrameSettingsCopyTests();
 void runSpeakerLightTests();
 void runEditBatchTests();
 void runComponentIdTests();
@@ -192,6 +193,7 @@ try {
     runCromcExportTests();
     runSceneTests();
     runSceneEditTests();
+    runFrameSettingsCopyTests();
     runSpeakerLightTests();
     runEditBatchTests();
     runComponentIdTests();

@@ -32,6 +32,7 @@ add_executable(colorizing_qt_v2_tests
     RuntimePreviewTests.cpp
     SameFramesTests.cpp
     EditBatchTests.cpp
+    FrameSettingsCopyTests.cpp
     SceneEditTests.cpp
     SceneTests.cpp
     SectionsTests.cpp
@@ -93,6 +94,7 @@ if(TARGET colorizing_qt_v2_widgets)
         EditorMatchesRuntimeTests.cpp
         FramePreviewWidgetRenderTests.cpp
         FrameTesterWidgetTests.cpp
+        FrameSettingsWidgetTests.cpp
         GifExportWidgetTests.cpp
         GifWriterWidgetTests.cpp
         NativeOriginalWidgetTests.cpp

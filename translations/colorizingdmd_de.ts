@@ -1853,6 +1853,98 @@ Use Create %1 Frame.</source>
     </message>
 </context>
 <context>
+    <name>FrameSettingsDialog</name>
+    <message>
+        <source>Dynamic zones</source>
+        <translation>Dynamische Zonen</translation>
+    </message>
+    <message>
+        <source>Dynamic set colors</source>
+        <translation>Farben der Dynamik-Sets</translation>
+    </message>
+    <message>
+        <source>Dynamic shadows</source>
+        <translation>Dynamische Schatten</translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation>Hintergrund</translation>
+    </message>
+    <message>
+        <source>Background mask</source>
+        <translation>Hintergrundmaske</translation>
+    </message>
+    <message>
+        <source>Sprites and their bounds</source>
+        <translation>Sprites und ihre Bereiche</translation>
+    </message>
+    <message>
+        <source>Color rotations</source>
+        <translation>Farbrotationen</translation>
+    </message>
+    <message>
+        <source>Comparison mask and shape mode</source>
+        <translation>Vergleichsmaske und Formmodus</translation>
+    </message>
+    <message>
+        <source>Trigger</source>
+        <translation>Trigger</translation>
+    </message>
+    <message>
+        <source>Speaker lights</source>
+        <translation>Lautsprecherlichter</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>Dauer</translation>
+    </message>
+    <message>
+        <source>Copy Frame Settings</source>
+        <translation>Frame-Einstellungen kopieren</translation>
+    </message>
+    <message numerus="yes">
+        <source>The chosen settings of frame %1 replace those of %n selected frame(s). The pictures stay; Copy and Paste is for those.</source>
+        <translation>
+            <numerusform>Die gewählten Einstellungen von Frame %1 ersetzen die von %n ausgewählten Frame. Die Bilder bleiben; dafür ist Kopieren und Einfügen da.</numerusform>
+            <numerusform>Die gewählten Einstellungen von Frame %1 ersetzen die von %n ausgewählten Frames. Die Bilder bleiben; dafür ist Kopieren und Einfügen da.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 (changes %n frame(s))</source>
+        <translation>
+            <numerusform>%1 (ändert %n Frame)</numerusform>
+            <numerusform>%1 (ändert %n Frames)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Dynamic content</source>
+        <translation>Dynamischer Inhalt</translation>
+    </message>
+    <message>
+        <source>Sprites and colors</source>
+        <translation>Sprites und Farben</translation>
+    </message>
+    <message>
+        <source>How and when the frame plays</source>
+        <translation>Wie und wann der Frame läuft</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopieren</translation>
+    </message>
+    <message>
+        <source>The comparison mask and the shape mode decide how libserum finds the frames: the targets may be identified differently afterwards.</source>
+        <translation>Vergleichsmaske und Formmodus entscheiden, wie libserum die Frames findet: die Ziele werden danach vielleicht anders erkannt.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n target(s) are frames of scenes: they take only the background, its mask, color rotations, lights and the duration.</source>
+        <translation>
+            <numerusform>%n Ziel ist ein Frame einer Szene: es nimmt nur den Hintergrund, seine Maske, Farbrotationen, Lichter und die Dauer.</numerusform>
+            <numerusform>%n Ziele sind Frames von Szenen: sie nehmen nur den Hintergrund, seine Maske, Farbrotationen, Lichter und die Dauer.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>FrameTesterDialog</name>
     <message>
         <source>Frame Tester</source>
@@ -2995,6 +3087,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Delete the selected frames</source>
         <translation>Ausgewählte Frames löschen</translation>
+    </message>
+    <message>
+        <source>Copy Frame &amp;Settings...</source>
+        <translation>Frame-&amp;Einstellungen kopieren...</translation>
+    </message>
+    <message>
+        <source>Replace chosen settings of the other selected frames with those of the current frame: dynamic zones, background, sprites, color rotations and more</source>
+        <translation>Gewählte Einstellungen der anderen ausgewählten Frames durch die des aktuellen Frames ersetzen: dynamische Zonen, Hintergrund, Sprites, Farbrotationen und mehr</translation>
     </message>
     <message>
         <source>Delete Frames &amp;Shorter Than...</source>
@@ -5798,6 +5898,28 @@ Use Create %1 Frame.</source>
     <message>
         <source>By author: %1</source>
         <translation>Nach Autor: %1</translation>
+    </message>
+    <message>
+        <source>Select the frames to copy to besides the current frame, whose settings they get</source>
+        <translation>Wählen Sie neben dem aktuellen Frame die Frames aus, die dessen Einstellungen bekommen</translation>
+    </message>
+    <message>
+        <source>Nothing to copy: the frames have those settings</source>
+        <translation>Nichts zu kopieren: die Frames haben diese Einstellungen</translation>
+    </message>
+    <message numerus="yes">
+        <source>Copied the settings of frame %1 to %n frame(s)</source>
+        <translation>
+            <numerusform>Einstellungen von Frame %1 auf %n Frame kopiert</numerusform>
+            <numerusform>Einstellungen von Frame %1 auf %n Frames kopiert</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>; %n frame(s) of scenes took only what they can have</source>
+        <translation>
+            <numerusform>; %n Frame einer Szene hat nur bekommen, was er haben kann</numerusform>
+            <numerusform>; %n Frames von Szenen haben nur bekommen, was sie haben können</numerusform>
+        </translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>

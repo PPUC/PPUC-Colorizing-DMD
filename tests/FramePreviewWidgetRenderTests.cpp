@@ -4023,6 +4023,7 @@ void runColorWidgetTests();
 void runDumpImportWidgetTests();
 void runEditorMatchesRuntimeTests();
 void runFrameTesterWidgetTests();
+void runFrameSettingsWidgetTests();
 void runGifWriterWidgetTests();
 void runGifExportWidgetTests();
 void runNativeOriginalWidgetTests();
@@ -4095,6 +4096,7 @@ int main(int argc, char* argv[])
     runSettingsWidgetTests();
     runHandbookWidgetTests();
     runFrameTesterWidgetTests();
+    runFrameSettingsWidgetTests();
     runGifWriterWidgetTests();
     runGifExportWidgetTests();
     runBigOriginalWidgetTests();

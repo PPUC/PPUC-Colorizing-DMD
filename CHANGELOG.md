@@ -34,6 +34,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - A frame of a scene takes no sprites, dynamic zones, comparison mask, shape mode or trigger:
   libserum ignores them there or they act on the scene marker only. They cannot be set, and
   opening a project removes them; background, color rotations and lights stay.
+- `Edit -> Copy Frame Settings...` puts chosen settings of the current frame on the other
+  selected frames, replacing theirs: dynamic zones, set colors and shadows, background and its
+  mask, sprites, color rotations, comparison mask, trigger, lights, duration.
 
 ## 3.99.14
 

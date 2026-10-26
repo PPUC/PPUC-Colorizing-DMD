@@ -93,6 +93,7 @@
 #include "dialogs/ColorPickerDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
+#include "dialogs/FrameSettingsDialog.h"
 #include "dialogs/HelperLineDialog.h"
 #include "dialogs/SceneDialog.h"
 #include "ImageImport.h"
@@ -101,6 +102,7 @@
 #include "dialogs/ProjectTaskDialog.h"
 #include "dialogs/SelectionDialogs.h"
 #include "edit/EditBatch.h"
+#include "edit/FrameSettingsCopy.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/FrameTags.h"
 #include "edit/ColorSetEdits.h"
@@ -893,6 +895,14 @@ void MainWindow::createActions()
            "original colors only (\"To Source Frame\" in the Win32 editor)"));
     m_sourceFrameAction->setEnabled(false);
     connect(m_sourceFrameAction, &QAction::triggered, this, [this]() { addSourceFrame(); });
+    m_copyFrameSettingsAction = editMenu->addAction(tr("Copy Frame &Settings..."));
+    m_copyFrameSettingsAction->setToolTip(
+        tr("Replace chosen settings of the other selected frames with those of the current "
+           "frame: dynamic zones, background, sprites, color rotations and more"));
+    m_copyFrameSettingsAction->setEnabled(false);
+    connect(m_copyFrameSettingsAction, &QAction::triggered, this, [this]() {
+        copyFrameSettings();
+    });
     m_deleteShortFramesAction =
         editMenu->addAction(tr("Delete Frames &Shorter Than..."));
     m_deleteShortFramesAction->setToolTip(
@@ -11611,6 +11621,52 @@ void MainWindow::updateTimeLabel()
     }
 }
 
+void MainWindow::copyFrameSettings()
+{
+    const std::optional<std::size_t> source = currentFrameIndex();
+    if (!m_document || !source) {
+        return;
+    }
+    std::vector<std::size_t> targets = selectedFrameIndices();
+    targets.erase(std::remove(targets.begin(), targets.end(), *source), targets.end());
+    if (targets.empty()) {
+        statusBar()->showMessage(
+            tr("Select the frames to copy to besides the current frame, whose settings they "
+               "get"),
+            4000);
+        return;
+    }
+    setPlaybackRunning(false);
+    applyPendingSpriteDependentViews();
+    FrameSettingsDialog dialog(*m_document, *source, targets, this);
+    if (dialog.exec() != QDialog::Accepted || dialog.parts().empty()) {
+        return;
+    }
+    try {
+        edit::FrameSettingsCopy copy =
+            edit::copyFrameSettings(*m_document, *source, targets, dialog.parts());
+        if (!copy.command) {
+            statusBar()->showMessage(tr("Nothing to copy: the frames have those settings"),
+                                     4000);
+            return;
+        }
+        m_droppedStructureSteps =
+            pushToHistory(edit::structureHistoryKey(), std::move(copy.command));
+        refreshAfterEditBatch();
+        updateUndoRedoActions();
+        QString message = tr("Copied the settings of frame %1 to %n frame(s)", "",
+                             static_cast<int>(copy.changedFrames))
+                              .arg(static_cast<qulonglong>(*source));
+        if (copy.sceneFramesLeftOut > 0) {
+            message += tr("; %n frame(s) of scenes took only what they can have", "",
+                          static_cast<int>(copy.sceneFramesLeftOut));
+        }
+        statusBar()->showMessage(message, 6000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::addSourceFrame()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -11664,6 +11720,9 @@ void MainWindow::updateStructureControls()
     }
     if (m_sourceFrameAction) {
         m_sourceFrameAction->setEnabled(hasDocument && currentFrameIndex().has_value());
+    }
+    if (m_copyFrameSettingsAction) {
+        m_copyFrameSettingsAction->setEnabled(hasDocument && currentFrameIndex().has_value());
     }
     if (m_deleteFramesListAction) {
         m_deleteFramesListAction->setEnabled(canDeleteFrames);
