@@ -155,7 +155,9 @@ bool changes(const ProjectDocument& document,
             return document.comparisonMaskId(source) != document.comparisonMaskId(target) ||
                    document.shapeComparisonMode(source) != document.shapeComparisonMode(target);
         case FrameSettingsPart::Trigger:
-            return document.triggerId(source) != document.triggerId(target);
+            return document.pupTriggerId(source) != document.pupTriggerId(target) ||
+                   document.sceneTriggerId(source) != document.sceneTriggerId(target) ||
+                   document.monochromeTriggerId(source) != document.monochromeTriggerId(target);
         case FrameSettingsPart::Lights:
             return document.frameLights(source) != document.frameLights(target);
         case FrameSettingsPart::DofEvents:
@@ -419,8 +421,12 @@ FrameSettingsCopy copyFrameSettings(ProjectDocument& document,
                                     document.shapeComparisonMode(source)));
             }
             if (wants(FrameSettingsPart::Trigger)) {
-                batch.add(attribute(document, target, FrameAttribute::TriggerId,
-                                    document.triggerId(source)));
+                batch.add(attribute(document, target, FrameAttribute::PupTriggerId,
+                                    document.pupTriggerId(source)));
+                batch.add(attribute(document, target, FrameAttribute::SceneTriggerId,
+                                    document.sceneTriggerId(source)));
+                batch.add(attribute(document, target, FrameAttribute::MonochromeTriggerId,
+                                    document.monochromeTriggerId(source)));
             }
             if (wants(FrameSettingsPart::Lights)) {
                 batch.add(applied(std::make_unique<FrameLightsCommand>(

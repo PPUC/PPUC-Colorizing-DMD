@@ -75,7 +75,8 @@ typedef struct ColorizingDMDFrameInfo
    uint32_t spriteCount;      // sprites the frame detects
    uint32_t hasDynamicPixels;
    uint32_t hasHd;
-   uint32_t triggerId;        // CDMDPI_NONE without one
+   uint32_t triggerId;        // the scene it starts, else its PUP trigger, else its monochrome
+                              // trigger (65432, or 65431 with its palette); CDMDPI_NONE without
    uint32_t section;          // the section the frame is in, CDMDPI_NONE before the first
 } ColorizingDMDFrameInfo;
 

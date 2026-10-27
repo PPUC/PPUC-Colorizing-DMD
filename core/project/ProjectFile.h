@@ -61,7 +61,9 @@ namespace colorizing::project {
 //               DCOS, DCOH, SDDS, SDCS, SDDH, SDCH), BGND background data (BGID or BGIX, BMSK,
 //               BMSH), SPRS sprite slots (uint32 count, per slot the sprite's UUID or 16 zero
 //               bytes, uint16 raw ID for a slot without one, uint16 minX, minY, maxX, maxY),
-//               TRIG trigger, DURA duration, ROTS/ROTH color rotations, SCEN scene frame, TAGS
+//               TRIG trigger (one ID, see document::combinedTriggerId()), TRGS the PUP,
+//               scene and monochrome trigger (uint32 each; without it TRIG is split), DURA
+//               duration, ROTS/ROTH color rotations, SCEN scene frame, TAGS
 //               tags, LGHT speaker light actions, OOSD SD-only dynamic sets, IPAL imported
 //               palette (192 bytes RGB888, the first frames only), DOFE DOF events (per
 //               event uint8 type, uint8 1 with a turn-off value or 0, int32 number, value

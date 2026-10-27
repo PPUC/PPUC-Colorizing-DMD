@@ -609,7 +609,7 @@ void testSubsetBuilding(PlaneLayout layout)
 void testReporting()
 {
     ProjectSnapshot snapshot = makeProject(PlaneLayout::Ordinary, 3);
-    snapshot.frames[1].triggerId = 4711;
+    snapshot.frames[1].pupTriggerId = 4711;
     const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     RuntimePreview& preview = RuntimePreview::instance();
 
@@ -690,7 +690,7 @@ void testDocumentRevision()
     const uint64_t afterEdit = document.revision();
     document.markClean();
     expect(document.revision() == afterEdit, "saving does not change the revision");
-    document.setTriggerId(1, 12);
+    document.setPupTriggerId(1, 12);
     expect(document.revision() > afterEdit, "a frame attribute raises the revision too");
 }
 

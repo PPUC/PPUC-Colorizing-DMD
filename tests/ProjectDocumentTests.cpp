@@ -457,23 +457,29 @@ void testFrameTriggerIdEditing()
         ProjectDocument::createEmpty(ProjectCreateOptions{"trigger_edit", 1, false});
     document.markClean();
 
-    expect(document.triggerId(0) == colorizing::document::kNoTriggerId &&
-               colorizing::document::kNoTriggerId == 0xffffffff,
+    expect(document.pupTriggerId(0) == colorizing::document::kNoTriggerId &&
+               document.sceneTriggerId(0) == colorizing::document::kNoTriggerId &&
+               document.monochromeTriggerId(0) == colorizing::document::kNoTriggerId &&
+               !document.hasTrigger(0) && colorizing::document::kNoTriggerId == 0xffffffff,
            "new frame should have the cROM's no-trigger value");
-    document.setTriggerId(0, 1234);
-    expect(document.triggerId(0) == 1234, "trigger ID edit should be readable");
+    document.setPupTriggerId(0, 1234);
+    expect(document.pupTriggerId(0) == 1234 && document.hasTrigger(0),
+           "trigger ID edit should be readable");
     expect(document.isDirty(), "trigger ID edit should mark dirty");
 
     document.markClean();
-    document.setTriggerId(0, 1234);
+    document.setPupTriggerId(0, 1234);
     expect(!document.isDirty(), "identical trigger ID edit should not mark dirty");
 
-    document.setTriggerId(0, 65432);
-    expect(document.toSnapshot().frames[0].triggerId == 65432,
-           "trigger ID should round-trip through snapshots");
+    document.setMonochromeTriggerId(0, 65432);
+    document.setSceneTriggerId(0, 50010);
+    const colorizing::document::ProjectFrameSnapshot frame = document.toSnapshot().frames[0];
+    expect(frame.pupTriggerId == 1234 && frame.sceneTriggerId == 50010 &&
+               frame.monochromeTriggerId == 65432,
+           "a frame keeps all three triggers, also through snapshots");
 
     expectThrows<std::out_of_range>(
-        [&]() { document.setTriggerId(1, 0); },
+        [&]() { document.setPupTriggerId(1, 0); },
         "trigger ID frame bounds");
 }
 

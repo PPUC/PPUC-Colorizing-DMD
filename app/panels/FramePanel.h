@@ -51,17 +51,14 @@ public:
     void refresh(const FramePanelState& state);
     void setImportImageEnabled(bool enabled);
 
-    // The frame's trigger ID as the panel shows it, document::kNoTriggerId for none.
-    [[nodiscard]] uint32_t triggerId() const;
     [[nodiscard]] bool isBackgroundLayerChecked() const;
     [[nodiscard]] bool isSpritesLayerChecked() const;
 
     // -1 clears the assignment.
     std::function<void(int backgroundId)> onBackgroundIdEdited;
-    // A frame has one trigger, set through the input of its kind: the PUP trigger, the scene,
-    // or one of the two monochrome fallbacks. While the frame has one, the inputs of the other
-    // kinds are disabled. triggerId is the new ID, or document::kNoTriggerId when the input of
-    // that kind was cleared.
+    // A frame has a PUP trigger, a scene and a monochrome trigger, each set through its input;
+    // the two monochrome fallbacks share one, so checking one replaces the other. triggerId is
+    // the new ID, or document::kNoTriggerId when the input of that kind was cleared.
     std::function<void(document::TriggerKind kind, uint32_t triggerId)> onTriggerEdited;
     std::function<void(int durationMs)> onDurationEdited;
     // The Tags field changed (comma-separated): see edit::retaggedFrame().
@@ -80,7 +77,7 @@ private:
     // Hides what the layout has no use for.
     void showHdActionsFor(render::PlaneLayout layout);
 
-    void fillScenes(const document::ProjectDocument* document, uint32_t triggerId);
+    void fillScenes(const document::ProjectDocument* document, uint32_t sceneTriggerId);
 
     QSpinBox* m_backgroundIdSpinBox = nullptr;
     QSpinBox* m_pupTriggerSpinBox = nullptr;
@@ -97,7 +94,6 @@ private:
     QLabel* m_dofErrorLabel = nullptr;
     // The DOF events of the frame shown, as the field shows them.
     QString m_shownDofEvents;
-    uint32_t m_triggerId = document::kNoTriggerId;
     QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_spritesLayerButton = nullptr;
     QToolButton* m_importImageButton = nullptr;

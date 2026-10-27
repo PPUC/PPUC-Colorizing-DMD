@@ -103,7 +103,7 @@
     is.frames[0].comparisonMaskId = 0;
     is.frames[0].dynamicData = makeDynamic(1, true);
     is.frames[0].backgroundData = makeBackgroundData(0, 3);
-    is.frames[0].triggerId = 5;
+    is.frames[0].pupTriggerId = 5;
     is.frames[0].durationMs = 100;
     is.frames[0].spriteReferences.assign(document::kLegacySpritesPerFrame, document::FrameSpriteReference{});
     is.frames[0].spriteReferences[0] = document::FrameSpriteReference{0, 10, 5, 40, 20};
@@ -112,11 +112,11 @@
     is.frames[1].shapeComparisonMode = 1;
     is.frames[1].dynamicData = makeDynamic(2, false);
     is.frames[1].backgroundData = makeBackgroundData(1, 9);
-    is.frames[1].triggerId = 65432;
+    is.frames[1].monochromeTriggerId = 65432;
     is.frames[1].durationMs = 40000;
     is.frames[2].shapeComparisonMode = 3;
     is.frames[2].backgroundData = makeBackgroundData(0xffff, 0);
-    is.frames[2].triggerId = 70000;
+    is.frames[2].monochromeTriggerId = 70000;
     is.frames[3].comparisonMaskId = 7;
     is.frames[3].dynamicData = makeDynamic(3, true);
     is.frames[3].backgroundData = makeBackgroundData(9, 20);

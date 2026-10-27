@@ -44,6 +44,9 @@ struct SidecarImport {
     std::vector<std::string> files;
     std::size_t scenes = 0;
     std::size_t linkedFrames = 0;
+    // Frames whose PUP trigger is the ID of an imported scene, which now start it as well
+    // (document::linkPupTriggerScenes()).
+    std::size_t startingFrames = 0;
 };
 
 // Gives a project without colorization settings (one of the Win32 editor) the settings

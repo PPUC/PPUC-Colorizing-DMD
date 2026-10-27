@@ -390,7 +390,8 @@ static void dump(const char* title, app::MainWindow& w)
             for (std::size_t f = 0; f < d.frameCount(); ++f) {
                 std::cout << " f" << f << "[mask=" << int(d.comparisonMaskId(f))
                           << " shape=" << int(d.shapeComparisonMode(f))
-                          << " trig=" << d.triggerId(f) << " dur=" << d.frameDurationMs(f)
+                          << " trig=" << d.pupTriggerId(f) << "/" << d.sceneTriggerId(f) << "/"
+                          << d.monochromeTriggerId(f) << " dur=" << d.frameDurationMs(f)
                           << " hd=";
                 if (d.hasHdFrame(f)) std::cout << hashRgb(d.colorizedFrame(f, render::Resolution::Hd));
                 else std::cout << "none";

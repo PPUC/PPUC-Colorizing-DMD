@@ -132,7 +132,11 @@ struct FrameRecord {
     std::optional<FrameDynamicData> dynamicData;
     std::optional<FrameBackgroundData> backgroundData;
     std::vector<FrameSpriteReference> spriteReferences;
-    uint32_t triggerId = kNoTriggerId;
+    // The frame's triggers, each kNoTriggerId for none (see Triggers.h): the PUP trigger, the
+    // scene it starts and the monochrome trigger. One frame can have all three.
+    uint32_t pupTriggerId = kNoTriggerId;
+    uint32_t sceneTriggerId = kNoTriggerId;
+    uint32_t monochromeTriggerId = kNoTriggerId;
     uint32_t durationMs = 0;
     CompactArray<uint16_t> colorRotationsSd;
     CompactArray<uint16_t> colorRotationsHd;
@@ -544,8 +548,16 @@ public:
     // Puts back an ID the frame had, also one of a mask that does not exist, which a loaded
     // project can have (the Win32 editor writes what it holds). For undo only.
     void restoreComparisonMaskId(std::size_t frameIndex, uint8_t maskId);
-    [[nodiscard]] uint32_t triggerId(std::size_t frameIndex) const;
-    void setTriggerId(std::size_t frameIndex, uint32_t triggerId);
+    // The frame's triggers (FrameRecord). Setting one on a frame of a scene throws
+    // std::logic_error.
+    [[nodiscard]] uint32_t pupTriggerId(std::size_t frameIndex) const;
+    void setPupTriggerId(std::size_t frameIndex, uint32_t triggerId);
+    [[nodiscard]] uint32_t sceneTriggerId(std::size_t frameIndex) const;
+    void setSceneTriggerId(std::size_t frameIndex, uint32_t triggerId);
+    [[nodiscard]] uint32_t monochromeTriggerId(std::size_t frameIndex) const;
+    void setMonochromeTriggerId(std::size_t frameIndex, uint32_t triggerId);
+    // Whether the frame has any of them.
+    [[nodiscard]] bool hasTrigger(std::size_t frameIndex) const;
     [[nodiscard]] uint32_t frameDurationMs(std::size_t frameIndex) const;
     void setFrameDurationMs(std::size_t frameIndex, uint32_t durationMs);
     [[nodiscard]] const CompactArray<uint16_t>& colorRotations(std::size_t frameIndex,
@@ -921,6 +933,10 @@ private:
     static void requireGameFrame(const FrameRecord& frame, const char* what);
     void requireFittingRecordTables(const RecordTables& tables) const;
     void markChanged();
+    // One of the frame's triggers (FrameRecord::pupTriggerId and the others).
+    void setFrameTrigger(std::size_t frameIndex,
+                         uint32_t FrameRecord::*trigger,
+                         uint32_t triggerId);
     // Gives a new ID to each component that has none or the ID of one before it.
     void ensureComponentIds();
     // The records packBlocks() goes through: the frames, then the comparison masks, the

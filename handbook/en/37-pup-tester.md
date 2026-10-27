@@ -2,7 +2,7 @@
 
 `View -> PuP Tester...` plays the project's PuP pack the way a machine does: with VPX's PUP
 plugin (the Pin Up Player), which comes with the editor as a built-in plugin (see "Plugins").
-The editor is the game and its colorization: when a frame with a trigger ID is shown, the
+The editor is the game and its colorization: when a frame with a PUP trigger is shown, the
 trigger goes to PUP as `D<id>`, and PUP shows the pack's media on its topper, backglass and DMD
 screens, which the window draws one above the other.
 
@@ -14,9 +14,9 @@ screens, which the window draws one above the other.
   but shows nothing.
 - `Start` loads the pack, `Stop` ends it. Opening another project or closing the window stops
   it too.
-- `Follow the editor` (on by default) sends the trigger of each frame the editor shows: picking
-  a frame in the strip, stepping through frames and playback alike. Frames without a trigger
-  send nothing.
+- `Follow the editor` (on by default) sends the PUP trigger of each frame the editor shows:
+  picking a frame in the strip, stepping through frames and playback alike. Frames without a
+  PUP trigger send nothing.
 - `Trigger` and `Send Trigger` send any trigger ID by hand.
 - The list at the bottom shows the triggers sent, with the time, the last one first.
 

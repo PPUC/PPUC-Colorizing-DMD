@@ -149,8 +149,9 @@ private:
 // scenes come the frames of scenes (libserum's kCromSettingsSceneFrames: per frame its ID and
 // the scene step it is), so that libserum takes these and generates no scene marker to find
 // them; a libserum before 2.99.6 finds them by their markers. The frames' DOF events
-// (libserum's kCromSettingsDofEvents, libserum 2.99.8) come last, for a project whose frames
-// have any.
+// (libserum's kCromSettingsDofEvents, libserum 2.99.8) follow, for a project whose frames
+// have any, then the frames' PUP, scene and monochrome triggers (kCromSettingsFrameTriggers,
+// libserum 2.99.9), which replace the frame block's one ID per frame.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
 inline constexpr uint32_t kCromSettingsScenes = 1;
 inline constexpr uint32_t kCromSettingsScaling = 2;
@@ -158,6 +159,7 @@ inline constexpr uint32_t kCromSettingsLights = 4;
 inline constexpr uint32_t kCromSettingsOriginalOnlySets = 8;
 inline constexpr uint32_t kCromSettingsSceneFrames = 16;
 inline constexpr uint32_t kCromSettingsDofEvents = 32;
+inline constexpr uint32_t kCromSettingsFrameTriggers = 64;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
 
 // How many bytes writeLegacyCrom() writes for a valid snapshot, without writing them (for a

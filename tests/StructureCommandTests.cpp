@@ -148,7 +148,9 @@ bool sameFrameContent(const ProjectFrameSnapshot& a, const ProjectFrameSnapshot&
            a.colorizedSd.pixels == b.colorizedSd.pixels &&
            sameFrame(a.colorizedHd, b.colorizedHd) && sameFrame(a.inactiveHd, b.inactiveHd) &&
            a.shapeComparisonMode == b.shapeComparisonMode && sameDynamic &&
-           sameBackgroundMasks && a.triggerId == b.triggerId && a.durationMs == b.durationMs &&
+           sameBackgroundMasks && a.pupTriggerId == b.pupTriggerId &&
+           a.sceneTriggerId == b.sceneTriggerId &&
+           a.monochromeTriggerId == b.monochromeTriggerId && a.durationMs == b.durationMs &&
            a.colorRotationsSd == b.colorRotationsSd && a.colorRotationsHd == b.colorRotationsHd;
 }
 
@@ -307,7 +309,14 @@ ProjectSnapshot parse(const Files& files, const std::string& what)
 {
     const auto crom = colorizing::legacy::parseModernLegacyCromFrames(files.crom);
     expect(crom.ok, what + ": the cROM parses: " + crom.errorMessage);
-    expect(crom.nextOffset == files.crom.size(), what + ": the whole cROM is read");
+    // Up to the settings block a project with triggers ends with.
+    const std::size_t rest = files.crom.size() - crom.nextOffset;
+    expect(rest == 0 || (rest > 8 && std::string(files.crom.begin() +
+                                                     static_cast<std::ptrdiff_t>(crom.nextOffset),
+                                                 files.crom.begin() +
+                                                     static_cast<std::ptrdiff_t>(crom.nextOffset) +
+                                                     4) == "SCX1"),
+           what + ": the whole cROM is read");
     const auto crp =
         colorizing::legacy::parseLegacyCrpOriginalFrames(files.crp, crom.frameData.metadata);
     expect(crp.ok, what + ": the cRP parses: " + crp.errorMessage);
@@ -388,7 +397,7 @@ ProjectSnapshot makeSnapshot(PlaneLayout layout)
     EditorMetadata& metadata = snapshot.editorMetadata;
     for (std::size_t f = 0; f < snapshot.frames.size(); ++f) {
         snapshot.frames[f].durationMs = static_cast<uint32_t>(100 + f);
-        snapshot.frames[f].triggerId = static_cast<uint32_t>(7000 + f);
+        snapshot.frames[f].pupTriggerId = static_cast<uint32_t>(7000 + f);
     }
     // Frames 0 to 5 have an imported palette.
     metadata.importedPalettes.assign(6 * kImportedPaletteBytes, 0);
@@ -1326,7 +1335,7 @@ void testRecordDeletionDropsHistoriesThatNameIt()
     pushApplied(histories, document, maskPixels(2));
     pushApplied(histories, document, attribute(5, FrameAttribute::ComparisonMaskId, 0, 2));
     pushApplied(histories, document, attribute(6, FrameAttribute::ShapeComparisonMode, 0, 1));
-    pushApplied(histories, document, attribute(2, FrameAttribute::TriggerId, 7002, 5));
+    pushApplied(histories, document, attribute(2, FrameAttribute::PupTriggerId, 7002, 5));
     pushStructure(histories, colorizing::edit::deleteComparisonMask(document, 1));
     expect(histories.canUndo(key(EditKind::ComparisonMask, 0)) &&
                !histories.canUndo(key(EditKind::ComparisonMask, 2)),
@@ -1425,7 +1434,7 @@ void testNoStaleCommandRunsAfterRenumbering()
     uint32_t nextMark = 1;
     const auto mark = [&nextMark]() { return nextMark++; };
     // The marks live where the test's edits do not write.
-    const auto frameMark = [&](std::size_t f) { return document.triggerId(f); };
+    const auto frameMark = [&](std::size_t f) { return document.pupTriggerId(f); };
     const auto backgroundMark = [&](std::size_t b) {
         return static_cast<uint32_t>(document.backgroundPixel(b, Resolution::Sd, 0, 0));
     };
@@ -1436,7 +1445,7 @@ void testNoStaleCommandRunsAfterRenumbering()
         return static_cast<uint32_t>(std::stoul(document.sprite(s).name));
     };
     for (std::size_t f = 0; f < document.frameCount(); ++f) {
-        document.setTriggerId(f, mark());
+        document.setPupTriggerId(f, mark());
     }
     for (std::size_t i = 0; i < 4; ++i) {
         document.setBackgroundPixel(i, Resolution::Sd, 0, 0, static_cast<uint16_t>(mark()));

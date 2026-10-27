@@ -26,7 +26,7 @@
                   << " masks " << d.backgroundCount() << " backgrounds " << d.spriteCount()
                   << " sprites dirty=" << d.isDirty() << '\n' << "structure frames:";
         for (std::size_t f = 0; f < d.frameCount(); ++f) {
-            std::cout << " f" << f << "[trig=" << d.triggerId(f) << " sprites=";
+            std::cout << " f" << f << "[trig=" << d.pupTriggerId(f) << " sprites=";
             for (const document::FrameSpriteReference& reference : d.frameSpriteReferences(f)) {
                 std::cout << int(reference.spriteId) << ':' << reference.minX << ',';
             }
@@ -206,7 +206,7 @@
             frame.comparisonMaskId = 255;
             frame.backgroundData = document::FrameBackgroundData{
                 0xffff, document::makeIndexedFrame(sd, 1), document::makeIndexedFrame(hd, 1)};
-            frame.triggerId = static_cast<uint32_t>(500 + f);
+            frame.pupTriggerId = static_cast<uint32_t>(500 + f);
             frame.durationMs = 100;
             snapshot.frames.push_back(frame);
         }

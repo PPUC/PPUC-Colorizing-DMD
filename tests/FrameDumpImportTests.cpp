@@ -1101,7 +1101,7 @@ void testNewProject(Size dumpSize, uint32_t shades)
     // In the document a frame is complete: nothing is filled in lazily later.
     expect(project.comparisonMaskId(0) == document::kNoComparisonMaskId &&
                project.backgroundId(0) == document::kNoBackgroundId &&
-               project.triggerId(0) == document::kNoTriggerId &&
+               !project.hasTrigger(0) &&
                project.dynamicData(0).has_value() && project.backgroundData(0).has_value() &&
                project.frameSpriteReferences(0).size() == document::kSpritesPerFrame &&
                project.paletteCount() == document::kPaletteCount,

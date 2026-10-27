@@ -178,7 +178,7 @@ void testScenes()
     definition.durationMs = 30;
     expect(static_cast<bool>(edit::addScene(document, definition)) && document.frameCount() == 5,
            "the scene's frames are added");
-    document.setTriggerId(0, 50010);
+    document.setSceneTriggerId(0, 50010);
 
     app::FrameTesterDialog dialog(document, {0});
     expect(dialog.errorText().isEmpty(), "libserum loads the project with the scene: " +
@@ -228,8 +228,8 @@ void testBackgroundScene()
     definition.interruptable = true;
     definition.options = document::kSceneAsBackground;
     expect(static_cast<bool>(edit::addScene(document, definition)), "the scene is added");
-    document.setTriggerId(0, 50020);
-    document.setTriggerId(1, 50020);
+    document.setSceneTriggerId(0, 50020);
+    document.setSceneTriggerId(1, 50020);
 
     {
         app::FrameTesterDialog dialog(document, {0, 1});

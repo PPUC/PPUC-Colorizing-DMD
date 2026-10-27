@@ -74,7 +74,6 @@ ProjectDocument makeDocument(PlaneLayout layout, std::size_t frameCount)
                                                 static_cast<uint16_t>(0x1082 * (f + 1)));
         }
         frame.comparisonMaskId = 255;
-        frame.triggerId = colorizing::document::kNoTriggerId;
         frame.durationMs = 100;
         snapshot.frames.push_back(std::move(frame));
     }

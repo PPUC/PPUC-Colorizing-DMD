@@ -32,8 +32,8 @@ scene and how many of its frames are missing in the project. The scenes are list
 - A scene dragged from the list onto the canvas becomes the trigger of the selected frames, as
   the `Scene` field of the Inspector's `Frame` section sets it: each of them starts the scene
   (a background scene then plays behind the frames that follow, where their background masks
-  let it through). Frames with a trigger of another kind (a PUP trigger, a monochrome
-  fallback) are left as they are. One undo step, as with the field.
+  let it through). Their PUP triggers and monochrome fallbacks stay. One undo step, as with the
+  field.
 - `Delete` removes the selected scene. The question offers to delete its frames too or to keep
   them as ordinary frames.
 - `Used by the current frame` above the left sidebar's lists shows only the scene the current

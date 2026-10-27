@@ -290,7 +290,7 @@ void testFramesStartingScene()
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
     const auto command = edit::addScene(document, makeScene(50500, 2, 1));
-    document.setTriggerId(1, 50500);
+    document.setSceneTriggerId(1, 50500);
     expect(edit::startsScene(document, 1, 50500) && !edit::startsScene(document, 0, 50500) &&
                !edit::startsScene(document, 1, 50501),
            "frame 1 starts scene 50500 by its trigger");
@@ -303,7 +303,7 @@ void testFramesStartingScene()
     expect(edit::sceneUsedByFrame(document, 1) == uint16_t{50500} &&
                !edit::sceneUsedByFrame(document, 0),
            "the frame that starts the scene uses it, the others none");
-    document.setTriggerId(0, 50501);
+    document.setSceneTriggerId(0, 50501);
     expect(!edit::sceneUsedByFrame(document, 0), "a trigger of no scene of the project is none");
 }
 
@@ -363,7 +363,7 @@ static void testBackgroundSceneBackAndForth()
     document::SceneDefinition scene = makeScene(50610, 4, 1);
     scene.options = document::kSceneAsBackground;
     const auto added = edit::addScene(document, scene);
-    document.setTriggerId(0, 50610);
+    document.setSceneTriggerId(0, 50610);
     const std::vector<std::size_t> frames = edit::sceneFrames(document, 50610);
     const auto shown = [&document, &frames]() {
         std::vector<std::size_t> steps;
@@ -403,10 +403,10 @@ void testBackgroundSceneWithoutBackground()
     const std::size_t first = edit::sceneFrames(document, 50600).front();
     expect(!document.hasBackgroundSource(0), "no background and no scene: nothing shows");
 
-    document.setTriggerId(0, 50601);
+    document.setSceneTriggerId(0, 50601);
     expect(!document.backgroundScene(0) && !document.hasBackgroundSource(0),
            "a scene that is not a background scene shows nothing either");
-    document.setTriggerId(0, 50600);
+    document.setSceneTriggerId(0, 50600);
     expect(document.backgroundScene(0) && document.backgroundScene(0)->sceneId == 50600 &&
                document.backgroundSceneFrame(0) == first && document.hasBackgroundSource(0) &&
                !document.hasBackgroundSource(1),
@@ -466,8 +466,8 @@ void testPlaceholderBackgroundsRemoved()
     scene.options = document::kSceneAsBackground;
     const auto added = edit::addScene(document, scene);
     const auto plain = edit::addScene(document, makeScene(50801, 1, 1));
-    document.setTriggerId(0, 50800);
-    document.setTriggerId(1, 50801);
+    document.setSceneTriggerId(0, 50800);
+    document.setSceneTriggerId(1, 50801);
     expect(runtime::removeSceneBackgroundPlaceholders(document) == 1 &&
                document.backgroundId(0) == document::kNoBackgroundId &&
                document.backgroundId(1) == background && document.hasBackgroundSource(0),
@@ -479,7 +479,7 @@ void testPlaceholderBackgroundsRemoved()
     once.options = document::kSceneAsBackground | document::kSceneBlackWhenFinished;
     once.repeat = 0;
     const auto onceAdded = edit::addScene(document, once);
-    document.setTriggerId(1, 50802);
+    document.setSceneTriggerId(1, 50802);
     expect(runtime::removeSceneBackgroundPlaceholders(document) == 0 &&
                document.backgroundId(1) == background,
            "a background shown after the scene has ended stays");
@@ -508,7 +508,7 @@ void testAssetUse()
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
     const auto started = edit::addScene(document, makeScene(50900, 2, 1));
     const auto alone = edit::addScene(document, makeScene(50901, 2, 1));
-    document.setTriggerId(0, 50900);
+    document.setSceneTriggerId(0, 50900);
     const edit::AssetUse use = edit::assetUse(document);
     expect(use.comparisonMasks == std::vector<bool>{false, true} &&
                use.backgrounds == std::vector<bool>{false, true} &&
@@ -531,7 +531,7 @@ void testSceneInPlaybackWindow()
     scene.options = document::kSceneAsBackground;
     scene.repeat = 1;
     const auto added = edit::addScene(document, scene);
-    document.setTriggerId(1, 51000);
+    document.setSceneTriggerId(1, 51000);
     const std::vector<std::size_t> frames = edit::sceneFrames(document, 51000);
 
     runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
@@ -574,7 +574,7 @@ void testSceneFramesTakeNoGameSettings()
     frame.dynamicData->maskSd.pixels[3] = 2;
     frame.comparisonMaskId = 0;
     frame.shapeComparisonMode = 1;
-    frame.triggerId = 1234;
+    frame.pupTriggerId = 1234;
     frame.durationMs = 40;
     frame.scene = document::SceneFrameRef{51200, 1, 0};
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
@@ -586,8 +586,7 @@ void testSceneFramesTakeNoGameSettings()
                !document.hasDynamicPixels(1) &&
                document.comparisonMaskId(1) == document::kNoComparisonMaskId &&
                document.shapeComparisonMode(1) == 0 &&
-               document.triggerId(1) == document::kNoTriggerId &&
-               document.frameDurationMs(1) == 40,
+               !document.hasTrigger(1) && document.frameDurationMs(1) == 40,
            "of sprites, dynamic zones, mask, shape mode and trigger; its duration stays");
     expect(document::stripSceneFrames(document) == 0, "once only");
 
@@ -605,13 +604,15 @@ void testSceneFramesTakeNoGameSettings()
                refused([&] { document.setDynamicMaskPixel(1, render::Resolution::Sd, 0, 0, 1); }) &&
                refused([&] { document.setComparisonMaskId(1, 0); }) &&
                refused([&] { document.setShapeComparisonMode(1, 1); }) &&
-               refused([&] { document.setTriggerId(1, 1234); }),
+               refused([&] { document.setPupTriggerId(1, 1234); }) &&
+               refused([&] { document.setSceneTriggerId(1, 50001); }) &&
+               refused([&] { document.setMonochromeTriggerId(1, 65432); }),
            "the setters refuse them for a frame of a scene");
-    document.setTriggerId(1, document::kNoTriggerId);
+    document.setPupTriggerId(1, document::kNoTriggerId);
     document.setComparisonMaskId(1, document::kNoComparisonMaskId);
     document.setFrameSpriteReference(0, 0, sprite);
-    document.setTriggerId(0, 1234);
-    expect(document.triggerId(0) == 1234, "none is taken, and a frame of the game takes them");
+    document.setPupTriggerId(0, 1234);
+    expect(document.pupTriggerId(0) == 1234, "none is taken, and a frame of the game takes them");
 
     const edit::SpritesAdded added = edit::addSpritesToFrames(document, {0, 1}, {0});
     expect(added.sceneFrames == 1 && added.kept == 1 && added.added == 0,

@@ -47,8 +47,8 @@
         snapshot.frames.push_back(document::makeUncolorizedFrameSnapshot(
             snapshot.geometry, snapshot.colorCount, std::move(original), 100));
     }
-    snapshot.frames[4].triggerId = 2;
-    snapshot.frames[1].triggerId = 9;
+    snapshot.frames[4].pupTriggerId = 2;
+    snapshot.frames[1].pupTriggerId = 9;
     w.m_document = document::ProjectDocument::fromSnapshot(snapshot);
     w.m_projectPath.clear();
     w.m_sourcePath.clear();

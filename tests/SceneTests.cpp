@@ -211,8 +211,14 @@ void testImportAndCrom()
     writeText(directory / (document.romName() + ".PUP.CSV"), "50,2,40\n");
     writeText(directory / "Scaling.txt", "line-doubling\n");
 
+    // Frame 0 came with the one trigger ID 50 of the Win32 editor: libserum played scene 50
+    // for it.
+    document.setPupTriggerId(0, 50);
     const runtime::SidecarImport imported =
         runtime::importColorizationSidecars(document, directory);
+    expect(imported.startingFrames == 1 && document.sceneTriggerId(0) == 50 &&
+               document.pupTriggerId(0) == 50,
+           "the frame whose PUP trigger is the scene's ID starts it, as before");
     expect(imported.files.size() == 2 && imported.scenes == 1 && imported.linkedFrames == 2,
            "both files are read and the two scene frames linked");
     expect(document.colorizationSettings() &&

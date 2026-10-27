@@ -15,7 +15,7 @@ The canvas does not draw text labels or white frame outlines over the image data
 
 A comparison mask dragged from the `Comparison Masks` list, or a background from the `Backgrounds` list, and
 dropped onto the canvas is assigned to all selected frames, as `Assign Mask` and `Assign Background` do;
-a scene dropped there becomes the selected frames' trigger (see "Scenes and Scaling").
+a scene dropped there becomes the scene the selected frames start (see "Scenes and Scaling").
 While it is over the canvas the status bar says what the drop will do. It is undoable like those
 buttons: one step, its part of each frame in that frame's settings history, so Undo takes it
 back on all of them (see "Undo And Redo"). Frames without background data are skipped for a background.
@@ -161,8 +161,9 @@ The `Frame` section exposes:
 
 - `Background ID` assigns the shared background for all selected frames. Selected frames without
   background data are skipped.
-- A frame has one trigger ID at most (stored as `0xFFFFFFFF` for none, the value the cROM uses).
-  Its range says what it does, and each kind has an input of its own:
+- A frame has three triggers, each with an input of its own, and can fire all three at once:
+  a PUP trigger, a scene it starts and a monochrome fallback (libserum 2.99.9 and later; an
+  older libserum takes one of them, the scene first).
   - `PUP trigger ID`: a trigger for a PuP pack, 0 to 49999. `None` clears it; `0` is an ordinary
     trigger ID.
   - `Scene`: starts a scene of the project, 50000 to 61999 (see "Scenes and Scaling"). Only the
@@ -171,14 +172,18 @@ The `Frame` section exposes:
   - `Monochrome fallback` (trigger ID `65432`): from this frame on, libserum shows the frames in
     monochrome.
   - `Palette-based monochrome fallback` (trigger ID `65431`): from this frame on, libserum shows
-    the frames in the colors of this frame's palette.
+    the frames in the colors of this frame's palette. A frame has one of the two fallbacks at
+    most: checking one clears the other.
 
-  While the frame has a trigger of one kind, the inputs of the other kinds are disabled; clear it
-  first to choose another kind. An ID of no kind (from an old project) is named below the inputs
-  and kept until another trigger is chosen. An input acts on all selected frames: setting a
-  trigger leaves frames with a trigger of another kind alone (they are counted as skipped);
-  clearing one clears it on the frames that have one of that kind. New frames start without a
-  trigger.
+  A frame that turns the display monochrome fires its PUP trigger and starts its scene as well.
+  While the display is monochrome, frames without a fallback of their own fire none, as before.
+  An input acts on all selected frames and leaves their other triggers alone; clearing one of the
+  fallbacks clears it on the frames that have that one. New frames start without triggers.
+  Projects of the Win32 editor and of editors before 3.99.17 kept one ID per frame: it is split
+  by its range when the project is opened (an ID up to 49999 that is also the ID of a scene of
+  the project is that PUP trigger and starts the scene, as libserum played it). A monochrome
+  value of no kind (from an old project) is named below the inputs and kept until another
+  fallback is chosen.
 - `Duration` edits the per-frame `.cRP` duration for all selected frames.
 - `Tags` names the groups the frame is in, separated by commas; a change adds or removes those
   tags on all selected frames (see "Frame List").

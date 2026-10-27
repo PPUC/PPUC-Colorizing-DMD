@@ -404,9 +404,11 @@ void testFileReaderLoadsModernProject()
            "file reader frame sprite assignment data");
     expect(result.snapshot.frames[0].spriteReferences[0].maxY == 8,
            "file reader frame sprite bounding box data");
-    expect(result.snapshot.frames[0].triggerId == 0x11112222,
+    // Of the monochrome range, as libserum splits one ID per frame.
+    expect(result.snapshot.frames[0].monochromeTriggerId == 0x11112222 &&
+               result.snapshot.frames[0].pupTriggerId == colorizing::document::kNoTriggerId,
            "file reader first trigger ID");
-    expect(result.snapshot.frames[1].triggerId == 0x33334444,
+    expect(result.snapshot.frames[1].monochromeTriggerId == 0x33334444,
            "file reader second trigger ID");
     expect(result.snapshot.frames[0].colorRotationsSd[0] == 3,
            "file reader SD color rotation length");
@@ -526,8 +528,8 @@ void testFileWriterSavesEditedModernCrom()
     loadResult.snapshot.sprites[0].detectionAreas[1] = {9, 10, 11, 12};
     loadResult.snapshot.frames[0].spriteReferences[0].spriteId = 0xffff;
     loadResult.snapshot.frames[0].spriteReferences[1] = {0, 13, 14, 15, 16};
-    loadResult.snapshot.frames[0].triggerId = 1234;
-    loadResult.snapshot.frames[1].triggerId = 65432;
+    loadResult.snapshot.frames[0].pupTriggerId = 1234;
+    loadResult.snapshot.frames[1].monochromeTriggerId = 65432;
     loadResult.snapshot.frames[0].durationMs = 75;
     loadResult.snapshot.frames[1].durationMs = 125;
     loadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] = 0x9999;
@@ -622,9 +624,9 @@ void testFileWriterSavesEditedModernCrom()
            "file writer should update frame sprite assignment additions");
     expect(reloadResult.snapshot.frames[0].spriteReferences[1].maxY == 16,
            "file writer should update frame sprite bounding boxes");
-    expect(reloadResult.snapshot.frames[0].triggerId == 1234,
+    expect(reloadResult.snapshot.frames[0].pupTriggerId == 1234,
            "file writer should update first trigger ID");
-    expect(reloadResult.snapshot.frames[1].triggerId == 65432,
+    expect(reloadResult.snapshot.frames[1].monochromeTriggerId == 65432,
            "file writer should update second trigger ID");
     expect(reloadResult.snapshot.frames[0].durationMs == 75,
            "file writer should update first cRP frame duration");

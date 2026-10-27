@@ -336,7 +336,9 @@ ProjectFrameSnapshot makeUncolorizedFrameSnapshot(const render::ProjectGeometry&
     noSprite.maxY = static_cast<uint16_t>(romSize.height - 1);
     frame.spriteReferences.assign(kSpritesPerFrame, noSprite);
 
-    frame.triggerId = kNoTriggerId;
+    frame.pupTriggerId = kNoTriggerId;
+    frame.sceneTriggerId = kNoTriggerId;
+    frame.monochromeTriggerId = kNoTriggerId;
     frame.durationMs = durationMs;
     frame.colorRotationsSd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);
     frame.colorRotationsHd.assign(kMaxColorRotations * kMaxColorRotationLength, 0);

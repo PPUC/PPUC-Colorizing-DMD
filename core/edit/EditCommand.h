@@ -321,7 +321,9 @@ enum class FrameAttribute {
     ComparisonMaskId,
     ShapeComparisonMode,
     BackgroundId,
-    TriggerId,
+    PupTriggerId,
+    SceneTriggerId,
+    MonochromeTriggerId,
     DurationMs,
 };
 

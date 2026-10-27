@@ -262,7 +262,7 @@ FramePanel::FramePanel(QWidget* parent)
             });
 }
 
-void FramePanel::fillScenes(const document::ProjectDocument* document, uint32_t triggerId)
+void FramePanel::fillScenes(const document::ProjectDocument* document, uint32_t sceneTriggerId)
 {
     m_sceneComboBox->clear();
     m_sceneComboBox->addItem(tr("None"), -1);
@@ -271,18 +271,16 @@ void FramePanel::fillScenes(const document::ProjectDocument* document, uint32_t 
         for (const document::SceneDefinition& scene : document->colorizationSettings()->scenes) {
             m_sceneComboBox->addItem(QString::number(scene.sceneId),
                                      static_cast<int>(scene.sceneId));
-            listed = listed || scene.sceneId == triggerId;
+            listed = listed || scene.sceneId == sceneTriggerId;
         }
     }
-    if (document::triggerKind(triggerId) == document::TriggerKind::Scene && !listed) {
+    if (sceneTriggerId != document::kNoTriggerId && !listed) {
         // Shown as it is; it cannot be chosen for another frame.
-        m_sceneComboBox->addItem(tr("%1 (no such scene)").arg(triggerId),
-                                 static_cast<int>(triggerId));
+        m_sceneComboBox->addItem(tr("%1 (no such scene)").arg(sceneTriggerId),
+                                 static_cast<int>(sceneTriggerId));
     }
     const int current = m_sceneComboBox->findData(
-        document::triggerKind(triggerId) == document::TriggerKind::Scene
-            ? static_cast<int>(triggerId)
-            : -1);
+        sceneTriggerId == document::kNoTriggerId ? -1 : static_cast<int>(sceneTriggerId));
     m_sceneComboBox->setCurrentIndex(std::max(0, current));
 }
 
@@ -300,7 +298,6 @@ void FramePanel::refresh(const FramePanelState& state)
         m_backgroundIdSpinBox->setRange(-1, -1);
         m_backgroundIdSpinBox->setValue(-1);
         m_backgroundIdSpinBox->setEnabled(false);
-        m_triggerId = document::kNoTriggerId;
         m_pupTriggerSpinBox->setValue(-1);
         m_pupTriggerSpinBox->setEnabled(false);
         fillScenes(nullptr, document::kNoTriggerId);
@@ -340,28 +337,27 @@ void FramePanel::refresh(const FramePanelState& state)
     }
     m_backgroundIdSpinBox->setValue(backgroundValue);
     m_backgroundIdSpinBox->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
-    // One trigger per frame: while the frame has one, only the input of its kind is open (an
-    // ID of no kind leaves all of them open, any of them replaces it).
-    const uint32_t triggerId = document->triggerId(frameIndex);
-    m_triggerId = triggerId;
-    const document::TriggerKind kind = document::triggerKind(triggerId);
-    const auto open = [kind](document::TriggerKind input) {
-        return kind == input || kind == document::TriggerKind::None ||
-               kind == document::TriggerKind::Other;
-    };
-    m_pupTriggerSpinBox->setValue(kind == document::TriggerKind::Pup ? static_cast<int>(triggerId)
-                                                                     : -1);
-    m_pupTriggerSpinBox->setEnabled(open(document::TriggerKind::Pup));
-    fillScenes(document, triggerId);
-    m_sceneComboBox->setEnabled(open(document::TriggerKind::Scene) &&
-                                m_sceneComboBox->count() > 1);
-    m_monochromeCheckBox->setChecked(kind == document::TriggerKind::Monochrome);
-    m_monochromeCheckBox->setEnabled(open(document::TriggerKind::Monochrome));
-    m_paletteMonochromeCheckBox->setChecked(kind == document::TriggerKind::PaletteMonochrome);
-    m_paletteMonochromeCheckBox->setEnabled(open(document::TriggerKind::PaletteMonochrome));
+    // The three triggers apart: a PUP trigger, a scene and a monochrome trigger.
+    const uint32_t pupTrigger = document->pupTriggerId(frameIndex);
+    const uint32_t monochromeTrigger = document->monochromeTriggerId(frameIndex);
+    m_pupTriggerSpinBox->setValue(pupTrigger <= document::kLastPupTriggerId
+                                      ? static_cast<int>(pupTrigger)
+                                      : -1);
+    m_pupTriggerSpinBox->setEnabled(true);
+    fillScenes(document, document->sceneTriggerId(frameIndex));
+    m_sceneComboBox->setEnabled(m_sceneComboBox->count() > 1);
+    m_monochromeCheckBox->setChecked(monochromeTrigger == document::kMonochromeTriggerId);
+    m_monochromeCheckBox->setEnabled(true);
+    m_paletteMonochromeCheckBox->setChecked(monochromeTrigger ==
+                                            document::kPaletteMonochromeTriggerId);
+    m_paletteMonochromeCheckBox->setEnabled(true);
+    // A monochrome trigger of another value (a PUP trigger out of range cannot be set).
+    const bool otherMonochrome = monochromeTrigger != document::kNoTriggerId &&
+                                 monochromeTrigger != document::kMonochromeTriggerId &&
+                                 monochromeTrigger != document::kPaletteMonochromeTriggerId;
     m_otherTriggerLabel->setText(
-        tr("Trigger ID %1 is kept until another trigger is chosen").arg(triggerId));
-    m_otherTriggerLabel->setVisible(kind == document::TriggerKind::Other);
+        tr("Trigger ID %1 is kept until another trigger is chosen").arg(monochromeTrigger));
+    m_otherTriggerLabel->setVisible(otherMonochrome);
     m_shownTags = QString::fromStdString(edit::frameTagsText(document->frameTags(frameIndex)));
     // Not while it is being typed in: a refresh would throw the typing away.
     if (!m_tagsEdit->hasFocus() || !m_tagsEdit->isModified()) {
@@ -448,11 +444,6 @@ void FramePanel::showFrameHdActions(bool canCreate, bool canRemove)
 void FramePanel::setImportImageEnabled(bool enabled)
 {
     m_importImageButton->setEnabled(enabled);
-}
-
-uint32_t FramePanel::triggerId() const
-{
-    return m_triggerId;
 }
 
 bool FramePanel::isSpritesLayerChecked() const

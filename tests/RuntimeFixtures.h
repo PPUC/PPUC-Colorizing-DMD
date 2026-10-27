@@ -116,7 +116,6 @@ inline ProjectSnapshot makeProject(PlaneLayout layout, std::size_t frameCount)
             }
         }
         frame.comparisonMaskId = 255;
-        frame.triggerId = kNoTriggerId;
         frame.durationMs = 100;
         snapshot.frames.push_back(std::move(frame));
     }

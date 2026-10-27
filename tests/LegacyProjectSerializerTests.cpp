@@ -114,7 +114,7 @@ ProjectSnapshot makeSnapshot()
     plain.originalSd = makeIndexedFrame(kSdFrameSize, 2);
     plain.colorizedSd = makeRgb565Frame(kSdFrameSize, originalColors[2]);
     plain.comparisonMaskId = 255;
-    plain.triggerId = 0xffffffff;
+    plain.monochromeTriggerId = 0xffffffff;
     plain.durationMs = 10;
     snapshot.frames.push_back(plain);
 
@@ -145,7 +145,7 @@ ProjectSnapshot makeSnapshot()
     rich.backgroundData = backgroundData;
     rich.spriteReferences.assign(32, {});
     rich.spriteReferences[0] = {0, 1, 2, 30, 20};
-    rich.triggerId = 42;
+    rich.pupTriggerId = 42;
     rich.durationMs = 100;
     rich.colorRotationsSd.assign(4 * 64, 0);
     rich.colorRotationsSd[0] = 2;
@@ -199,7 +199,14 @@ ProjectSnapshot parse(const SerializedProject& project)
 {
     const auto crom = colorizing::legacy::parseModernLegacyCromFrames(project.crom);
     expect(crom.ok, "serialized cROM should parse: " + crom.errorMessage);
-    expect(crom.nextOffset == project.crom.size(), "parser should consume the whole cROM");
+    // Up to the settings block a project with triggers ends with.
+    const std::size_t rest = project.crom.size() - crom.nextOffset;
+    expect(rest == 0 || (rest > 8 && std::string(project.crom.begin() +
+                                                     static_cast<std::ptrdiff_t>(crom.nextOffset),
+                                                 project.crom.begin() +
+                                                     static_cast<std::ptrdiff_t>(crom.nextOffset) +
+                                                     4) == "SCX1"),
+           "parser should consume the whole cROM");
     const auto crp =
         colorizing::legacy::parseLegacyCrpOriginalFrames(project.crp, crom.frameData.metadata);
     expect(crp.ok, "serialized cRP should parse: " + crp.errorMessage);

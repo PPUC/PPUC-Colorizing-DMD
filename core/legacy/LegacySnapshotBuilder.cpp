@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "document/Triggers.h"
+
 namespace colorizing::legacy {
 
 namespace {
@@ -108,7 +110,7 @@ LegacySnapshotBuildResult buildProjectSnapshot(LegacyCromFrameData&& cromFrameDa
         frame.spriteReferences = std::move(cromFrameData.frameSpriteReferences[frameIndex]);
         // The target's slot count, whatever the file stored (empty slots search the frame).
         frame.spriteReferences.resize(slots, emptySlot);
-        frame.triggerId = cromFrameData.triggerIds[frameIndex];
+        document::setTriggersFromId(frame, cromFrameData.triggerIds[frameIndex], std::nullopt);
         frame.durationMs = frameIndex < crpOriginalData.frameDurationsMs.size()
                                ? crpOriginalData.frameDurationsMs[frameIndex]
                                : uint32_t{0};

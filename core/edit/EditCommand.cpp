@@ -426,8 +426,14 @@ void writeFrameAttribute(document::ProjectDocument& document,
                 document.setBackgroundId(frameIndex, static_cast<uint16_t>(value));
             }
             break;
-        case FrameAttribute::TriggerId:
-            document.setTriggerId(frameIndex, value);
+        case FrameAttribute::PupTriggerId:
+            document.setPupTriggerId(frameIndex, value);
+            break;
+        case FrameAttribute::SceneTriggerId:
+            document.setSceneTriggerId(frameIndex, value);
+            break;
+        case FrameAttribute::MonochromeTriggerId:
+            document.setMonochromeTriggerId(frameIndex, value);
             break;
         case FrameAttribute::DurationMs:
             document.setFrameDurationMs(frameIndex, value);
@@ -448,8 +454,12 @@ uint32_t frameAttributeValue(const document::ProjectDocument& document,
             return document.shapeComparisonMode(frameIndex);
         case FrameAttribute::BackgroundId:
             return document.backgroundId(frameIndex);
-        case FrameAttribute::TriggerId:
-            return document.triggerId(frameIndex);
+        case FrameAttribute::PupTriggerId:
+            return document.pupTriggerId(frameIndex);
+        case FrameAttribute::SceneTriggerId:
+            return document.sceneTriggerId(frameIndex);
+        case FrameAttribute::MonochromeTriggerId:
+            return document.monochromeTriggerId(frameIndex);
         case FrameAttribute::DurationMs:
             return document.frameDurationMs(frameIndex);
     }

@@ -328,7 +328,7 @@ bool startsScene(const document::ProjectDocument& document,
                  std::size_t frameIndex,
                  uint16_t sceneId)
 {
-    return !document.sceneFrame(frameIndex) && document.triggerId(frameIndex) == sceneId;
+    return !document.sceneFrame(frameIndex) && document.sceneTriggerId(frameIndex) == sceneId;
 }
 
 std::optional<uint16_t> sceneUsedByFrame(const document::ProjectDocument& document,
@@ -340,7 +340,7 @@ std::optional<uint16_t> sceneUsedByFrame(const document::ProjectDocument& docume
     if (const auto& scene = document.sceneFrame(frameIndex)) {
         return scene->sceneId;
     }
-    const uint32_t trigger = document.triggerId(frameIndex);
+    const uint32_t trigger = document.sceneTriggerId(frameIndex);
     const auto& settings = document.colorizationSettings();
     if (trigger <= 0xffff && settings && settings->scene(static_cast<uint16_t>(trigger))) {
         return static_cast<uint16_t>(trigger);

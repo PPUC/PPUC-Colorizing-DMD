@@ -589,7 +589,9 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         std::move(frameSnapshot.dynamicData),
         std::move(frameSnapshot.backgroundData),
         std::move(frameSnapshot.spriteReferences),
-        frameSnapshot.triggerId,
+        frameSnapshot.pupTriggerId,
+        frameSnapshot.sceneTriggerId,
+        frameSnapshot.monochromeTriggerId,
         frameSnapshot.durationMs,
         normalizedColorRotations(std::move(frameSnapshot.colorRotationsSd)),
         normalizedColorRotations(std::move(frameSnapshot.colorRotationsHd)),
@@ -1308,12 +1310,12 @@ const SceneDefinition* ProjectDocument::backgroundScene(std::size_t frameIndex) 
 {
     const FrameRecord& frame = requireFrame(m_frames, frameIndex);
     const Size rom = m_geometry.romFrameSize();
-    if (!m_colorizationSettings || frame.triggerId > 0xffff || rom.width != 128 ||
+    if (!m_colorizationSettings || frame.sceneTriggerId > 0xffff || rom.width != 128 ||
         rom.height != 32) {
         return nullptr;
     }
     const SceneDefinition* scene =
-        m_colorizationSettings->scene(static_cast<uint16_t>(frame.triggerId));
+        m_colorizationSettings->scene(static_cast<uint16_t>(frame.sceneTriggerId));
     return scene && (scene->options & kSceneAsBackground) != 0 ? scene : nullptr;
 }
 
@@ -1797,9 +1799,12 @@ bool ProjectDocument::stripSceneFrame(std::size_t frameIndex)
         frame.shapeComparisonMode = 0;
         changed = true;
     }
-    if (frame.triggerId != kNoTriggerId) {
-        frame.triggerId = kNoTriggerId;
-        changed = true;
+    for (uint32_t* trigger :
+         {&frame.pupTriggerId, &frame.sceneTriggerId, &frame.monochromeTriggerId}) {
+        if (*trigger != kNoTriggerId) {
+            *trigger = kNoTriggerId;
+            changed = true;
+        }
     }
     if (changed) {
         markChanged();
@@ -1865,22 +1870,56 @@ void ProjectDocument::restoreComparisonMaskId(std::size_t frameIndex, uint8_t ma
     m_identificationRevision = m_revision;
 }
 
-uint32_t ProjectDocument::triggerId(std::size_t frameIndex) const
+uint32_t ProjectDocument::pupTriggerId(std::size_t frameIndex) const
 {
-    return requireFrame(m_frames, frameIndex).triggerId;
+    return requireFrame(m_frames, frameIndex).pupTriggerId;
 }
 
-void ProjectDocument::setTriggerId(std::size_t frameIndex, uint32_t triggerId)
+uint32_t ProjectDocument::sceneTriggerId(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).sceneTriggerId;
+}
+
+uint32_t ProjectDocument::monochromeTriggerId(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).monochromeTriggerId;
+}
+
+void ProjectDocument::setPupTriggerId(std::size_t frameIndex, uint32_t triggerId)
+{
+    setFrameTrigger(frameIndex, &FrameRecord::pupTriggerId, triggerId);
+}
+
+void ProjectDocument::setSceneTriggerId(std::size_t frameIndex, uint32_t triggerId)
+{
+    setFrameTrigger(frameIndex, &FrameRecord::sceneTriggerId, triggerId);
+}
+
+void ProjectDocument::setMonochromeTriggerId(std::size_t frameIndex, uint32_t triggerId)
+{
+    setFrameTrigger(frameIndex, &FrameRecord::monochromeTriggerId, triggerId);
+}
+
+void ProjectDocument::setFrameTrigger(std::size_t frameIndex,
+                                      uint32_t FrameRecord::*trigger,
+                                      uint32_t triggerId)
 {
     FrameRecord& frame = requireFrame(m_frames, frameIndex);
     if (triggerId != kNoTriggerId) {
         requireGameFrame(frame, "trigger");
     }
-    if (frame.triggerId == triggerId) {
+    if (frame.*trigger == triggerId) {
         return;
     }
-    frame.triggerId = triggerId;
+    frame.*trigger = triggerId;
     markChanged();
+}
+
+bool ProjectDocument::hasTrigger(std::size_t frameIndex) const
+{
+    const FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    return frame.pupTriggerId != kNoTriggerId || frame.sceneTriggerId != kNoTriggerId ||
+           frame.monochromeTriggerId != kNoTriggerId;
 }
 
 uint32_t ProjectDocument::frameDurationMs(std::size_t frameIndex) const
@@ -4133,7 +4172,9 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.dynamicData,
         frame.backgroundData,
         frame.spriteReferences,
-        frame.triggerId,
+        frame.pupTriggerId,
+        frame.sceneTriggerId,
+        frame.monochromeTriggerId,
         frame.durationMs,
         frame.colorRotationsSd,
         frame.colorRotationsHd,

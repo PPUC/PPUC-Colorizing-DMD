@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "document/EditorMetadata.h"
+#include "document/Triggers.h"
 #include "platform/Utf8Path.h"
 #include "project/Json.h"
 #include "project/ZipArchive.h"
@@ -335,7 +336,19 @@ std::string frameContent(const ProjectSnapshot& snapshot,
         }
         appendField(out, "SPRS", data);
     }
-    appendField(out, "TRIG", integerData(frame.triggerId, 4));
+    // One ID for an editor before 3.99.17, the three triggers for the others.
+    appendField(out, "TRIG",
+                integerData(document::combinedTriggerId(frame.pupTriggerId, frame.sceneTriggerId,
+                                                        frame.monochromeTriggerId),
+                            4));
+    {
+        std::string data;
+        for (const uint32_t trigger :
+             {frame.pupTriggerId, frame.sceneTriggerId, frame.monochromeTriggerId}) {
+            appendLittleEndian(data, trigger, 4);
+        }
+        appendField(out, "TRGS", data);
+    }
     appendField(out, "DURA", integerData(frame.durationMs, 4));
     appendField(out, "ROTS",
                 valuesData(frame.colorRotationsSd.data(), frame.colorRotationsSd.size()));
@@ -1175,7 +1188,16 @@ document::ProjectFrameSnapshot readFrame(const Fields& fields,
             slot.maxY = static_cast<uint16_t>(cursor.integer(2));
         }
     }
-    frame.triggerId = static_cast<uint32_t>(fields.integer("TRIG", 4));
+    if (fields.has("TRGS")) {
+        Cursor cursor = fields.cursor("TRGS");
+        frame.pupTriggerId = static_cast<uint32_t>(cursor.integer(4));
+        frame.sceneTriggerId = static_cast<uint32_t>(cursor.integer(4));
+        frame.monochromeTriggerId = static_cast<uint32_t>(cursor.integer(4));
+    } else {
+        // The scenes are read later: linkPupTriggerScenes() then.
+        document::setTriggersFromId(frame, static_cast<uint32_t>(fields.integer("TRIG", 4)),
+                                    std::nullopt);
+    }
     frame.durationMs = static_cast<uint32_t>(fields.integer("DURA", 4));
     frame.colorRotationsSd = readArray<uint16_t>(fields, "ROTS");
     frame.colorRotationsHd = readArray<uint16_t>(fields, "ROTH");
@@ -1818,11 +1840,13 @@ std::optional<ProjectSnapshot> readProjectEntries(
         }
         std::string importedPalettes;
         bool palettesEnded = false;
+        bool oneTriggerPerFrame = false;
         snapshot.frames.reserve(frameIds.size());
         for (std::size_t f = 0; f < frameIds.size(); ++f) {
             const std::string bytes = component("frames", frameIds[f], "frame");
             const Fields fields(bytes, "frame " + std::to_string(f));
             std::string palette;
+            oneTriggerPerFrame = oneTriggerPerFrame || !fields.has("TRGS");
             snapshot.frames.push_back(readFrame(fields, indexes, &palette));
             checkId(snapshot.frames.back().meta, frameIds[f], fields.what());
             if (palette.empty()) {
@@ -1873,6 +1897,9 @@ std::optional<ProjectSnapshot> readProjectEntries(
         }
         readLightsJson(readJsonEntry(read, "lights.json", false), snapshot);
         readEditor(readJsonEntry(read, "editor.json", false), snapshot);
+        if (oneTriggerPerFrame) {
+            document::linkPupTriggerScenes(snapshot);
+        }
         if (std::optional<std::string> common = read("team/common.bin")) {
             snapshot.team = readTeamState(readJsonEntry(read, "team/state.json", true), *common);
         }

@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 
+#include "document/Triggers.h"
 #include "legacy/CrpxFormat.h"
 #include "legacy/LegacyByteSource.h"
 #include "legacy/LegacyProjectIo.h"
@@ -90,6 +91,8 @@ bool parseScenes(LegacyByteSource& source,
     }
     left -= static_cast<uint64_t>(frameCount) * kSceneFrameBytes;
     snapshot.colorizationSettings = std::move(settings);
+    // The frames came with one trigger ID each.
+    document::linkPupTriggerScenes(snapshot);
     // Room a later version uses for more is skipped.
     return source.skip(static_cast<std::size_t>(left)) || damaged();
 }

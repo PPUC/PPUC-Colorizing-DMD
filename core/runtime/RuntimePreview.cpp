@@ -206,7 +206,6 @@ void keepExtraSpriteDynamicsAsInProject(const document::ProjectDocument& documen
             document::makeRgb565Frame(snapshot.geometry.planeSize(render::Resolution::Hd));
         frame.comparisonMaskId = 255;
         frame.shapeComparisonMode = paddingShapeMode;
-        frame.triggerId = document::kNoTriggerId;
         frames.push_back(std::move(frame));
         frameMap.push_back(kNoDocumentFrame);
     }
@@ -499,7 +498,7 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
     if (const auto& settings = document.colorizationSettings()) {
         std::set<uint16_t> scenes;
         for (std::size_t frameIndex : played) {
-            const uint32_t trigger = document.triggerId(frameIndex);
+            const uint32_t trigger = document.sceneTriggerId(frameIndex);
             if (trigger <= 0xffff && settings->scene(static_cast<uint16_t>(trigger))) {
                 scenes.insert(static_cast<uint16_t>(trigger));
             }

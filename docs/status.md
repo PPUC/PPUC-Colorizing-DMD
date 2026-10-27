@@ -917,6 +917,14 @@ shape mode or trigger: the document's setters refuse them (`ProjectDocument::str
 and opening a project strips them (GoT-V79: sprites on 1500 of 22624 scene frames). Background,
 color rotations and speaker lights stay; libserum renders them on scene frames.
 
+Frame triggers (owner decision 2026-10-27): a frame has a PUP trigger, a scene trigger and a
+monochrome trigger apart (`FrameRecord::pupTriggerId` and the others, project file field TRGS,
+settings block part `kCromSettingsFrameTriggers` for libserum 2.99.9). One ID per frame, as the
+Win32 editor, the cROM block and project files before 3.99.17 keep it, is split by range as
+libserum splits it (`document::setTriggersFromId()`); the ranges stay as they were. Where one ID
+must still be written (cROM frame block, TRIG, plugin API) it is the scene, else the PUP
+trigger, else the monochrome trigger.
+
 ## Open decisions (waiting for the owner)
 
 Only questions without an answer are listed; each says what the editor does now. An answered

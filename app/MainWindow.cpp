@@ -5695,7 +5695,7 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         return legacy::isFrameSkippedAtRuntime(*m_document, frameIndex);
     }
     if (filter == FrameFilter::Triggers) {
-        return m_document->triggerId(frameIndex) != document::kNoTriggerId;
+        return m_document->hasTrigger(frameIndex);
     }
     if (filter == FrameFilter::AmbientLighting) {
         return edit::hasAutomaticLights(m_document->frameLights(frameIndex));
@@ -5869,7 +5869,7 @@ void MainWindow::selectFrame(int)
     }
     m_preview->setFrameIndex(*frameIndex);
     if (m_pupTesterWindow) {
-        const uint32_t trigger = m_document->triggerId(*frameIndex);
+        const uint32_t trigger = m_document->pupTriggerId(*frameIndex);
         m_pupTesterWindow->frameShown(trigger == document::kNoTriggerId
                                           ? std::nullopt
                                           : std::optional<uint32_t>(trigger));
@@ -6438,7 +6438,10 @@ MainWindow::FrameEditCount MainWindow::editSelectedFramesAttribute(
             (attribute == edit::FrameAttribute::ComparisonMaskId &&
              value != document::kNoComparisonMaskId) ||
             (attribute == edit::FrameAttribute::ShapeComparisonMode && value != 0) ||
-            (attribute == edit::FrameAttribute::TriggerId && value != document::kNoTriggerId);
+            ((attribute == edit::FrameAttribute::PupTriggerId ||
+              attribute == edit::FrameAttribute::SceneTriggerId ||
+              attribute == edit::FrameAttribute::MonochromeTriggerId) &&
+             value != document::kNoTriggerId);
         for (std::size_t frameIndex : selectedFrameIndices()) {
             if ((attribute == edit::FrameAttribute::BackgroundId &&
                  !m_document->backgroundData(frameIndex)) ||
@@ -6600,15 +6603,23 @@ void MainWindow::setSelectedFramesTrigger(document::TriggerKind kind, uint32_t t
         return;
     }
     const bool clearing = triggerId == document::kNoTriggerId;
+    const bool monochrome = kind == document::TriggerKind::Monochrome ||
+                            kind == document::TriggerKind::PaletteMonochrome;
+    const edit::FrameAttribute attribute = kind == document::TriggerKind::Pup
+                                               ? edit::FrameAttribute::PupTriggerId
+                                           : kind == document::TriggerKind::Scene
+                                               ? edit::FrameAttribute::SceneTriggerId
+                                               : edit::FrameAttribute::MonochromeTriggerId;
+    const uint32_t monochromeId = kind == document::TriggerKind::Monochrome
+                                      ? document::kMonochromeTriggerId
+                                      : document::kPaletteMonochromeTriggerId;
     try {
+        // Each kind has its own field. Clearing one of the two monochrome fallbacks leaves the
+        // frames with the other alone; setting one replaces the other.
         const FrameEditCount count = editSelectedFramesAttribute(
-            edit::FrameAttribute::TriggerId, triggerId, [this, kind, clearing](std::size_t frame) {
-                const document::TriggerKind has = document::triggerKind(m_document->triggerId(frame));
-                // Clearing touches the frames with a trigger of this kind; setting leaves the
-                // frames with a trigger of another kind alone (an ID of no kind is replaced).
-                return clearing ? has != kind
-                                : has != kind && has != document::TriggerKind::None &&
-                                      has != document::TriggerKind::Other;
+            attribute, triggerId, [this, monochrome, clearing, monochromeId](std::size_t frame) {
+                return monochrome && clearing &&
+                       m_document->monochromeTriggerId(frame) != monochromeId;
             });
         const QString countText = frameEditCountText(count.changed, count.skipped);
         QString message;

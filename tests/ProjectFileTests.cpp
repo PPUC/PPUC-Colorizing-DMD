@@ -132,7 +132,7 @@ ProjectSnapshot makeRichProject(render::PlaneLayout layout)
     settings.scenes.push_back(scene);
     settings.shadowOffset = document::kShadowOffsetProportional;
     snapshot.colorizationSettings = settings;
-    snapshot.frames[4].triggerId = 17;
+    snapshot.frames[4].pupTriggerId = 17;
     snapshot.frames[4].durationMs = 2500;
     snapshot.frames[5].originalOnlyDynamicSets = 0x24;
     document::LightEffect effect;
@@ -402,7 +402,7 @@ void testRevisions()
     const std::filesystem::path path = tempPath(".cdmd");
     project::ProjectFileOptions options{"test"};
     options.stamp = project::RevisionStamp{"Kraken", 3000};
-    document.setTriggerId(4, 99);
+    document.setPupTriggerId(4, 99);
     std::vector<document::StampedMeta> saved;
     expect(project::saveProjectFile(platform::utf8FromPath(path), document.toSnapshot(), options,
                                     nullptr, &saved)

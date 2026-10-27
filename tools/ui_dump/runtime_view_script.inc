@@ -51,7 +51,6 @@
                 }
             }
             frame.comparisonMaskId = 255;
-            frame.triggerId = document::kNoTriggerId;
             frame.durationMs = 100;
             snapshot.frames.push_back(frame);
         }

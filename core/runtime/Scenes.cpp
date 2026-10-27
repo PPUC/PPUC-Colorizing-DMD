@@ -7,6 +7,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "document/Triggers.h"
 #include "runtime/CromcExport.h"
 // libserum's headers, without the warnings of this project's settings.
 #if defined(_MSC_VER)
@@ -289,6 +290,8 @@ SidecarImport importColorizationSidecars(document::ProjectDocument& document,
     result.scenes = settings.scenes.size();
     document.setColorizationSettings(std::move(settings));
     result.linkedFrames = linkSceneFrames(document);
+    // The frames came with one trigger ID each: one that is a scene's ID starts it, as before.
+    result.startingFrames = document::linkPupTriggerScenes(document);
     return result;
 }
 
@@ -308,11 +311,11 @@ std::size_t addSceneBackgroundPlaceholders(document::ProjectSnapshot& snapshot)
     for (document::ProjectFrameSnapshot& frame : snapshot.frames) {
         if (!frame.backgroundData ||
             frame.backgroundData->backgroundId != document::kNoBackgroundId ||
-            frame.triggerId > 0xffff) {
+            frame.sceneTriggerId > 0xffff) {
             continue;
         }
         const document::SceneDefinition* scene =
-            snapshot.colorizationSettings->scene(static_cast<uint16_t>(frame.triggerId));
+            snapshot.colorizationSettings->scene(static_cast<uint16_t>(frame.sceneTriggerId));
         if (!scene || (scene->options & document::kSceneAsBackground) == 0 ||
             (!hasMask(frame.backgroundData->maskSd) && !hasMask(frame.backgroundData->maskHd))) {
             continue;

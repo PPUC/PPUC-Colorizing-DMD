@@ -153,6 +153,7 @@ void runSceneTests();
 void runSceneEditTests();
 void runFrameSettingsCopyTests();
 void runDofEventTests();
+void runFrameTriggerTests();
 void runSpeakerLightTests();
 void runEditBatchTests();
 void runComponentIdTests();
@@ -196,6 +197,7 @@ try {
     runSceneEditTests();
     runFrameSettingsCopyTests();
     runDofEventTests();
+    runFrameTriggerTests();
     runSpeakerLightTests();
     runEditBatchTests();
     runComponentIdTests();

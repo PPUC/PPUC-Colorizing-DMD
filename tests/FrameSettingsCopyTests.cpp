@@ -60,7 +60,7 @@ ProjectDocument makeDocument()
     source.spriteReferences[0] = {1, 2, 3, 40, 20};
     source.comparisonMaskId = 1;
     source.shapeComparisonMode = 1;
-    source.triggerId = 777;
+    source.pupTriggerId = 777;
     source.durationMs = 55;
     source.dofEvents = {{'S', 5, 255, 0}};
     document::ProjectFrameSnapshot& target = snapshot.frames[kTarget];
@@ -123,7 +123,7 @@ void testCopyReplacesAndUndoes()
                    document.colorRotations(kSource, Resolution::Sd) &&
                document.comparisonMaskId(kTarget) == 1 &&
                document.shapeComparisonMode(kTarget) == 1 &&
-               document.triggerId(kTarget) == 777 && document.frameDurationMs(kTarget) == 55,
+               document.pupTriggerId(kTarget) == 777 && document.frameDurationMs(kTarget) == 55,
            "rotations, identification, trigger and duration are copied");
 
     expect(document.frameDofEvents(kTarget) == document.frameDofEvents(kSource) &&
@@ -131,7 +131,7 @@ void testCopyReplacesAndUndoes()
            "the DOF events are copied, also to the frame of a scene");
     expect(document.backgroundId(kScene) == document.backgroundId(kSource) &&
                document.frameDurationMs(kScene) == 55 &&
-               document.triggerId(kScene) == document::kNoTriggerId &&
+               !document.hasTrigger(kScene) &&
                document.comparisonMaskId(kScene) == document::kNoComparisonMaskId &&
                !document.hasDynamicPixels(kScene),
            "the frame of a scene takes only what it can have");
@@ -141,7 +141,7 @@ void testCopyReplacesAndUndoes()
     expect(document.dynamicData(kTarget)->maskSd.pixels[9] == 1 &&
                document.dynamicData(kTarget)->maskSd.pixels[5] == 255 &&
                document.frameSpriteReferences(kTarget)[1].spriteId == 1 &&
-               document.triggerId(kTarget) != 777 &&
+               document.pupTriggerId(kTarget) != 777 &&
                document.backgroundId(kScene) == document::kNoBackgroundId,
            "one undo step puts every target back");
 }
@@ -155,7 +155,7 @@ void testOnlyChosenParts()
                document.dynamicData(kTarget)->colorsSd[3 * fixtures::kColorCount + 1] ==
                    0x1234 &&
                document.dynamicData(kTarget)->maskSd.pixels[9] == 1 &&
-               document.triggerId(kTarget) != 777,
+               document.pupTriggerId(kTarget) != 777,
            "only the chosen part is copied");
     expect(!edit::copyFrameSettings(document, kSource, {kTarget},
                                     {FrameSettingsPart::DynamicColors})

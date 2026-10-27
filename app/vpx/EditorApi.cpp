@@ -9,6 +9,7 @@
 
 #include "ColorizingDMDPlugin.h"
 #include "document/ProjectDocument.h"
+#include "document/Triggers.h"
 #include "edit/EditBatch.h"
 #include "edit/Sections.h"
 #include "edit/StructureCommand.h"
@@ -140,7 +141,10 @@ int MSGPIAPI getFrameInfo(uint32_t frame, ColorizingDMDFrameInfo* info)
     info->spriteCount = static_cast<uint32_t>(sprites.size());
     info->hasDynamicPixels = document->hasDynamicPixels(frame) ? 1 : 0;
     info->hasHd = document->hasHdFrame(frame) ? 1 : 0;
-    info->triggerId = toApiId(document->triggerId(frame), document::kNoTriggerId);
+    info->triggerId = toApiId(document::combinedTriggerId(document->pupTriggerId(frame),
+                                                          document->sceneTriggerId(frame),
+                                                          document->monochromeTriggerId(frame)),
+                              document::kNoTriggerId);
     const std::optional<std::size_t> section = edit::sectionOfFrame(*document, frame);
     info->section = section ? static_cast<uint32_t>(*section) : CDMDPI_NONE;
     return 1;

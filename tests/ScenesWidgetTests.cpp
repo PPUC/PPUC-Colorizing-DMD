@@ -372,7 +372,7 @@ void testBackgroundSceneOnTheCanvas()
     scene.frameCount = 2;
     scene.options = document::kSceneAsBackground;
     const auto added = edit::addScene(document, scene);
-    document.setTriggerId(0, 50700);
+    document.setSceneTriggerId(0, 50700);
     const std::size_t first = edit::sceneFrames(document, 50700).front();
     const document::IndexedFrame& original = document.originalFrame(0);
     int unlitX = -1;
@@ -447,7 +447,7 @@ void testBackgroundSceneOptionsOnTheCanvas()
     scene.options = document::kSceneAsBackground | document::kSceneOnlyDynamicContent |
                     document::kSceneReplaceDynamicBlack;
     const auto added = edit::addScene(document, scene);
-    document.setTriggerId(0, 51500);
+    document.setSceneTriggerId(0, 51500);
     const std::size_t first = edit::sceneFrames(document, 51500).front();
 
     const document::Rgb565Frame canvas =

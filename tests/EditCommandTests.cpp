@@ -656,7 +656,6 @@ void testFrameAttributeCommand()
 {
     ProjectDocument document = makeDocument();
     document.setComparisonMaskId(1, 255);
-    document.setTriggerId(1, kNoTriggerId);
     document.setFrameDurationMs(1, 40);
     document.markClean();
 
@@ -669,7 +668,9 @@ void testFrameAttributeCommand()
         {FrameAttribute::ComparisonMaskId, 255, 0},
         {FrameAttribute::ShapeComparisonMode, 0, 1},
         {FrameAttribute::BackgroundId, 0, 0xffff},
-        {FrameAttribute::TriggerId, kNoTriggerId, 65432},
+        {FrameAttribute::PupTriggerId, kNoTriggerId, 7},
+        {FrameAttribute::SceneTriggerId, kNoTriggerId, 50010},
+        {FrameAttribute::MonochromeTriggerId, kNoTriggerId, 65432},
         {FrameAttribute::DurationMs, 40, 250},
     };
     for (const Case& item : cases) {

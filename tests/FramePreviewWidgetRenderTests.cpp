@@ -2959,16 +2959,17 @@ colorizing::document::ProjectDocument makeInspectorPanelDocument(uint32_t colorC
     snapshot.frames[0].comparisonMaskId = 1;
     snapshot.frames[0].dynamicData = dynamicData;
     snapshot.frames[0].backgroundData = makeBackgroundData(0);
-    snapshot.frames[0].triggerId = 5;
+    snapshot.frames[0].pupTriggerId = 5;
     snapshot.frames[0].durationMs = 100;
     snapshot.frames[1].shapeComparisonMode = 1;
     snapshot.frames[1].backgroundData = makeBackgroundData(0xffff);
-    snapshot.frames[1].triggerId = 65432;
+    snapshot.frames[1].monochromeTriggerId = 65432;
     snapshot.frames[1].durationMs = 40000;
     snapshot.frames[2].comparisonMaskId = 9;
     snapshot.frames[2].shapeComparisonMode = 3;
     snapshot.frames[2].backgroundData = makeBackgroundData(9);
-    snapshot.frames[2].triggerId = 70000;
+    snapshot.frames[2].monochromeTriggerId = 70000;
+    snapshot.frames[3].pupTriggerId = 0;
     colorizing::document::ProjectDocument document =
         colorizing::document::ProjectDocument::fromSnapshot(snapshot);
     document.markClean();
@@ -3698,8 +3699,8 @@ void testFramePanel()
            "frame panel should start without background IDs");
     expect(triggerIdSpinBox->minimum() == -1 && triggerIdSpinBox->maximum() == 49999 &&
                triggerIdSpinBox->specialValueText() == QStringLiteral("None") &&
-               !triggerIdSpinBox->isEnabled() && panel.triggerId() == kNoTriggerId &&
-               !sceneComboBox->isEnabled() && sceneComboBox->count() == 1,
+               !triggerIdSpinBox->isEnabled() && !sceneComboBox->isEnabled() &&
+               sceneComboBox->count() == 1,
            "frame panel should start with disabled trigger inputs showing none");
     expect(durationSpinBox->maximum() == colorizing::app::kMaxFrameDurationMs &&
                durationSpinBox->singleStep() == 10 &&
@@ -3750,9 +3751,10 @@ void testFramePanel()
                backgroundIdSpinBox->value() == 0,
            "frame panel should show the assigned background");
     expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == 5 &&
-               panel.triggerId() == 5 && !monochromeCheckBox->isEnabled() &&
-               !paletteMonochromeCheckBox->isEnabled() && !sceneComboBox->isEnabled(),
-           "frame panel should show the PUP trigger and close the other kinds");
+               monochromeCheckBox->isEnabled() && !monochromeCheckBox->isChecked() &&
+               paletteMonochromeCheckBox->isEnabled() && !sceneComboBox->isEnabled(),
+           "frame panel should show the PUP trigger and leave the other kinds open (scenes "
+           "need scenes)");
     expect(durationSpinBox->isEnabled() && durationSpinBox->value() == 100 &&
                durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration"),
            "frame panel should show the duration");
@@ -3765,9 +3767,9 @@ void testFramePanel()
                backgroundLayerButton->isEnabled(),
            "frame panel should show unassigned background data as none");
     expect(monochromeCheckBox->isChecked() && monochromeCheckBox->isEnabled() &&
-               !triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == -1 &&
-               !paletteMonochromeCheckBox->isEnabled() && panel.triggerId() == 65432,
-           "frame panel should show the monochrome fallback and close the other kinds");
+               triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == -1 &&
+               paletteMonochromeCheckBox->isEnabled() && !paletteMonochromeCheckBox->isChecked(),
+           "frame panel should show the monochrome fallback and leave the other kinds open");
     expect(durationSpinBox->value() == 0 &&
                durationSpinBox->toolTip() ==
                    QStringLiteral("Unsupported cRP duration 40000 ms is preserved until edited"),
@@ -3788,20 +3790,19 @@ void testFramePanel()
     }
     expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == -1 &&
                monochromeCheckBox->isEnabled() && paletteMonochromeCheckBox->isEnabled() &&
-               panel.triggerId() == 70000 && namesOther,
-           "frame panel should name a trigger ID of no kind and leave every input open");
+               !monochromeCheckBox->isChecked() && !paletteMonochromeCheckBox->isChecked() &&
+               namesOther,
+           "frame panel should name a monochrome trigger of another value");
     panel.refresh(stateFor(document, 3));
     expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == 1 &&
                !backgroundLayerButton->isEnabled(),
            "frame panel should disable the background ID for a frame without background data");
-    expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == 0 &&
-               panel.triggerId() == 0,
+    expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->value() == 0,
            "frame panel should show trigger ID 0 as a trigger");
     colorizing::document::ProjectDocument withoutTrigger = document;
-    withoutTrigger.setTriggerId(3, colorizing::document::kNoTriggerId);
+    withoutTrigger.setPupTriggerId(3, colorizing::document::kNoTriggerId);
     panel.refresh(stateFor(withoutTrigger, 3));
-    expect(triggerIdSpinBox->isEnabled() && panel.triggerId() == kNoTriggerId &&
-               triggerIdSpinBox->text() == QStringLiteral("None") &&
+    expect(triggerIdSpinBox->isEnabled() && triggerIdSpinBox->text() == QStringLiteral("None") &&
                !monochromeCheckBox->isChecked() && monochromeCheckBox->isEnabled() &&
                paletteMonochromeCheckBox->isEnabled() && !sceneComboBox->isEnabled(),
            "frame panel should show the file's no-trigger value as none, scenes need scenes");
@@ -3817,17 +3818,23 @@ void testFramePanel()
                sceneComboBox->itemText(1) == QStringLiteral("50001") &&
                sceneComboBox->currentIndex() == 0,
            "frame panel should offer the project's scenes");
-    withScenes.setTriggerId(3, 50088);
+    withScenes.setSceneTriggerId(3, 50088);
     panel.refresh(stateFor(withScenes, 3));
     expect(sceneComboBox->count() == 4 &&
                sceneComboBox->currentText() == QStringLiteral("50088 (no such scene)") &&
-               !triggerIdSpinBox->isEnabled() && !monochromeCheckBox->isEnabled(),
-           "frame panel should show a scene ID without its scene and close the other kinds");
-    withScenes.setTriggerId(3, 65431);
+               triggerIdSpinBox->isEnabled() && monochromeCheckBox->isEnabled(),
+           "frame panel should show a scene ID without its scene and leave the other kinds "
+           "open");
+    // One frame with all three.
+    withScenes.setSceneTriggerId(3, 61999);
+    withScenes.setPupTriggerId(3, 42);
+    withScenes.setMonochromeTriggerId(3, 65431);
     panel.refresh(stateFor(withScenes, 3));
-    expect(paletteMonochromeCheckBox->isChecked() && !monochromeCheckBox->isEnabled() &&
-               !sceneComboBox->isEnabled() && sceneComboBox->count() == 3,
-           "frame panel should show the palette-based monochrome fallback");
+    expect(paletteMonochromeCheckBox->isChecked() && !monochromeCheckBox->isChecked() &&
+               monochromeCheckBox->isEnabled() && sceneComboBox->isEnabled() &&
+               sceneComboBox->currentText() == QStringLiteral("61999") &&
+               triggerIdSpinBox->value() == 42,
+           "frame panel should show a PUP trigger, a scene and a monochrome trigger at once");
     panel.refresh(stateFor(noBackgrounds, 0));
     expect(!backgroundIdSpinBox->isEnabled() && backgroundIdSpinBox->maximum() == -1 &&
                !backgroundLayerButton->isEnabled(),
@@ -3845,7 +3852,7 @@ void testFramePanel()
                !durationSpinBox->isEnabled() && !monochromeCheckBox->isEnabled() &&
                !backgroundLayerButton->isEnabled() && !importButton->isEnabled() &&
                durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration") &&
-               panel.triggerId() == kNoTriggerId && !paletteMonochromeCheckBox->isEnabled() &&
+               !paletteMonochromeCheckBox->isEnabled() &&
                !sceneComboBox->isEnabled(),
            "frame panel should reset without a frame");
     panel.refresh(stateFor(document, 0));
@@ -3875,8 +3882,8 @@ void testFramePanel()
            "clearing the PUP trigger should report no trigger");
     durationSpinBox->setValue(250);
     expect(editedDuration == 250, "editing the duration should report it");
-    // Frame 0 without its PUP trigger: every kind is open.
-    withoutTrigger.setTriggerId(0, kNoTriggerId);
+    // Frame 0 without its PUP trigger.
+    withoutTrigger.setPupTriggerId(0, kNoTriggerId);
     panel.refresh(stateFor(withoutTrigger, 0));
     monochromeCheckBox->click();
     expect(triggerEdits.back().first == TriggerKind::Monochrome &&
@@ -3897,7 +3904,7 @@ void testFramePanel()
     expect(!panel.isBackgroundLayerChecked(),
            "frame panel should keep its own state across refreshes");
     expect(callbacks == 9, "refreshing the frame panel should not notify");
-    expect(document.triggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
+    expect(document.pupTriggerId(0) == 5 && document.frameDurationMs(0) == 100 &&
                document.backgroundId(0) == 0 && !document.isDirty(),
            "frame panel should leave the document untouched");
 

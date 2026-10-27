@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 
+#include "document/Triggers.h"
 #include "legacy/LegacyByteWriter.h"
 #include "legacy/LegacyProjectIo.h"
 #include "render/CanvasLayout.h"
@@ -373,7 +374,9 @@ void writeCromElement(Writer& writer, const CromContext& c, CromBlock block, std
             }
             return;
         case CromBlock::FrameTrigger:
-            writer.u32(snapshot.frames[index].triggerId);
+            writer.u32(document::combinedTriggerId(snapshot.frames[index].pupTriggerId,
+                                                   snapshot.frames[index].sceneTriggerId,
+                                                   snapshot.frames[index].monochromeTriggerId));
             return;
         case CromBlock::FrameSpriteBounds: {
             const auto& frame = snapshot.frames[index];
@@ -705,8 +708,33 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         framesWithDofEvents += frame.dofEvents.empty() ? 0 : 1;
     }
     const bool withDofEvents = framesWithDofEvents > 0;
+    // The frame triggers as libserum takes them; a value out of its range is left out.
+    struct Triggers {
+        std::size_t frame;
+        uint32_t pup, scene, monochrome;
+    };
+    std::vector<Triggers> triggers;
+    for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+        const document::ProjectFrameSnapshot& f = snapshot.frames[frame];
+        Triggers t{frame, f.pupTriggerId, f.sceneTriggerId, f.monochromeTriggerId};
+        if (t.pup > document::kLastPupTriggerId) {
+            t.pup = document::kNoTriggerId;
+        }
+        if (t.scene >= document::kPaletteMonochromeTriggerId) {
+            t.scene = document::kNoTriggerId;
+        }
+        if (t.monochrome != document::kMonochromeTriggerId &&
+            t.monochrome != document::kPaletteMonochromeTriggerId) {
+            t.monochrome = document::kNoTriggerId;
+        }
+        if (t.pup != document::kNoTriggerId || t.scene != document::kNoTriggerId ||
+            t.monochrome != document::kNoTriggerId) {
+            triggers.push_back(t);
+        }
+    }
+    const bool withTriggers = !triggers.empty();
     if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets &&
-        !withDofEvents) {
+        !withDofEvents && !withTriggers) {
         return block;
     }
     const auto put = [&block](uint64_t value, std::size_t bytes) {
@@ -723,7 +751,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
     put((withScenes ? kCromSettingsScenes | kCromSettingsSceneFrames : 0) |
             (withScaling ? kCromSettingsScaling : 0) | (withLights ? kCromSettingsLights : 0) |
             (withOriginalOnlySets ? kCromSettingsOriginalOnlySets : 0) |
-            (withDofEvents ? kCromSettingsDofEvents : 0),
+            (withDofEvents ? kCromSettingsDofEvents : 0) |
+            (withTriggers ? kCromSettingsFrameTriggers : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -830,6 +859,15 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
                 put(static_cast<uint32_t>(event.value), 4);
                 put(static_cast<uint32_t>(event.offValue.value_or(0)), 4);
             }
+        }
+    }
+    if (withTriggers) {
+        put(triggers.size(), 4);
+        for (const Triggers& t : triggers) {
+            put(t.frame, 4);
+            put(t.pup, 4);
+            put(t.scene, 4);
+            put(t.monochrome, 4);
         }
     }
     const uint64_t payload = block.size() - 8;

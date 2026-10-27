@@ -23,7 +23,9 @@ struct ProjectFrameSnapshot {
     std::optional<FrameDynamicData> dynamicData;
     std::optional<FrameBackgroundData> backgroundData;
     std::vector<FrameSpriteReference> spriteReferences;
-    uint32_t triggerId = 0;
+    uint32_t pupTriggerId = kNoTriggerId;
+    uint32_t sceneTriggerId = kNoTriggerId;
+    uint32_t monochromeTriggerId = kNoTriggerId;
     uint32_t durationMs = 0;
     CompactArray<uint16_t> colorRotationsSd;
     CompactArray<uint16_t> colorRotationsHd;
