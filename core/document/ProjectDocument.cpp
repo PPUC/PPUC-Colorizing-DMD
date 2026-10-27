@@ -802,6 +802,9 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     document.m_helperLines = std::move(snapshot.helperLines);
     document.m_imageZones = std::move(snapshot.imageZones);
     document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
+    if (document.m_colorizationSettings) {
+        normalizeSceneVariants(*document.m_colorizationSettings);
+    }
     document.m_speakerLights = std::move(snapshot.speakerLights);
     document.m_license = std::move(snapshot.license);
     document.m_colorCount = snapshot.colorCount;
@@ -1276,6 +1279,9 @@ const std::optional<ColorizationSettings>& ProjectDocument::colorizationSettings
 
 void ProjectDocument::setColorizationSettings(std::optional<ColorizationSettings> settings)
 {
+    if (settings) {
+        normalizeSceneVariants(*settings);
+    }
     if (settings == m_colorizationSettings) {
         return;
     }
@@ -1348,7 +1354,9 @@ std::optional<std::size_t> ProjectDocument::backgroundSceneFrame(std::size_t fra
         step = played % run;
         step = step < frames ? step : run - step;
     }
-    const auto found = m_sceneFrames.find(static_cast<uint32_t>(scene->sceneId) << 16 | step);
+    // A variant plays its base's frames.
+    const uint16_t framesOf = scene->baseSceneId.value_or(scene->sceneId);
+    const auto found = m_sceneFrames.find(static_cast<uint32_t>(framesOf) << 16 | step);
     if (found == m_sceneFrames.end()) {
         return std::nullopt;
     }

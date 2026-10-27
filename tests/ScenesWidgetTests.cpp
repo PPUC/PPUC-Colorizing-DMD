@@ -492,6 +492,60 @@ void testBackgroundSceneOptionsOnTheCanvas()
                " pixels differ");
 }
 
+// The form's name and the scene whose frames a new scene plays; a variant shows its base's
+// frames and groups, a scene with frames of its own cannot become one.
+void testVariantFields()
+{
+    document::SceneDefinition base;
+    base.sceneId = 50800;
+    base.frameCount = 7;
+    base.frameGroups = 2;
+    base.name = "Jackpot";
+    document::SceneDefinition scene;
+    scene.sceneId = 50801;
+    app::SceneDialog dialog(
+        scene, [](const document::SceneDefinition&) { return std::string(); }, {base});
+    QComboBox* framesOf = nullptr;
+    for (QComboBox* box : dialog.findChildren<QComboBox*>()) {
+        if (box->itemText(0) == QStringLiteral("Its own frames")) {
+            framesOf = box;
+        }
+    }
+    QLineEdit* name = nullptr;
+    for (QLineEdit* edit : dialog.findChildren<QLineEdit*>()) {
+        if (edit->placeholderText() == QStringLiteral("e.g. Jackpot")) {
+            name = edit;
+        }
+    }
+    expect(framesOf && framesOf->isEnabled() && framesOf->count() == 2 &&
+               framesOf->itemText(1) == QStringLiteral("Scene 50800 Jackpot") && name,
+           "a new scene can play the frames of a scene of the project");
+    framesOf->setCurrentIndex(1);
+    name->setText(QStringLiteral(" Jackpot, behind "));
+    Q_EMIT name->textEdited(name->text());
+    QSpinBox* frames = nullptr;
+    for (QSpinBox* spinBox : dialog.findChildren<QSpinBox*>()) {
+        if (spinBox->toolTip() == QStringLiteral("Frames of each group")) {
+            frames = spinBox;
+        }
+    }
+    const document::SceneDefinition chosen = dialog.scene();
+    expect(frames && !frames->isEnabled() && frames->value() == 7 && chosen.baseSceneId &&
+               *chosen.baseSceneId == 50800 && chosen.frameGroups == 2 &&
+               chosen.name == "Jackpot, behind",
+           "a variant has its base's frames and groups, and its name");
+
+    app::SceneSettingsForm form;
+    form.setScene(base, nullptr, {base, chosen});
+    QComboBox* ownFrames = nullptr;
+    for (QComboBox* box : form.findChildren<QComboBox*>()) {
+        if (box->itemText(0) == QStringLiteral("Its own frames")) {
+            ownFrames = box;
+        }
+    }
+    expect(ownFrames && !ownFrames->isEnabled(), "a scene with frames of its own keeps them");
+}
+
 void runScenesWidgetTests()
 {
     testPanel();
@@ -502,4 +556,5 @@ void runScenesWidgetTests()
     testProjectSettings();
     testLicense();
     testDialog();
+    testVariantFields();
 }

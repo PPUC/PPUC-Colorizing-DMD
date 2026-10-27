@@ -5909,6 +5909,10 @@ Utiliser Créer la frame %1.</translation>
         <source>Delete Scene %1</source>
         <translation>Supprimer la scène %1</translation>
     </message>
+    <message>
+        <source>Scenes %1 play the frames of this scene and are deleted with it.</source>
+        <translation>Les scènes %1 jouent les frames de cette scène et sont supprimées avec elle.</translation>
+    </message>
     <message numerus="yes">
         <source>Delete its %n frame(s) too?</source>
         <translation>
@@ -7369,6 +7373,18 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Le déclencheur PUP qui lance la scène, de %1 à %2</translation>
     </message>
     <message>
+        <source>A name for the scene, shown with its ID (the project only)</source>
+        <translation>Un nom pour la scène, affiché avec son ID (dans le projet seulement)</translation>
+    </message>
+    <message>
+        <source>e.g. Jackpot</source>
+        <translation>p. ex. Jackpot</translation>
+    </message>
+    <message>
+        <source>A scene that plays the frames of another plays them with its own settings and frame duration, e.g. once in front and as a looping background. It has no frames of its own; for other frames add a new scene</source>
+        <translation>Une scène qui joue les frames d&apos;une autre les joue avec ses propres réglages et sa propre durée de frame, p. ex. une fois au premier plan et en arrière-plan en boucle. Elle n&apos;a pas de frames propres ; pour d&apos;autres frames, ajoutez une nouvelle scène</translation>
+    </message>
+    <message>
         <source>Frames of each group</source>
         <translation>Frames de chaque groupe</translation>
     </message>
@@ -7493,6 +7509,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>ID de scène (déclencheur PUP)</translation>
     </message>
     <message>
+        <source>Name</source>
+        <translation>Nom</translation>
+    </message>
+    <message>
+        <source>Plays the frames of</source>
+        <translation>Joue les frames de</translation>
+    </message>
+    <message>
         <source>Frames</source>
         <translation>Frames</translation>
     </message>
@@ -7521,6 +7545,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Options</translation>
     </message>
     <message>
+        <source>Its own frames</source>
+        <translation>Ses propres frames</translation>
+    </message>
+    <message>
+        <source>Scene %1</source>
+        <translation>Scène %1</translation>
+    </message>
+    <message>
         <source>Hold the last frame for</source>
         <translation>Garder la dernière frame pendant</translation>
     </message>
@@ -7535,6 +7567,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Start the scene when no new frame came for this long</source>
         <translation>Lancer la scène quand aucune nouvelle frame n&apos;est arrivée pendant ce temps</translation>
+    </message>
+    <message numerus="yes">
+        <source>No frames of its own: it plays the %n frame(s) of scene %1</source>
+        <translation>
+            <numerusform>Pas de frames propres : elle joue la %n frame de la scène %1</numerusform>
+            <numerusform>Pas de frames propres : elle joue les %n frames de la scène %1</numerusform>
+        </translation>
     </message>
     <message>
         <source>Frames in the project: %1</source>
@@ -7657,6 +7696,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>%1 — %2 frames, %3 ms</source>
         <translation>%1 — %2 frames, %3 ms</translation>
+    </message>
+    <message>
+        <source>, the frames of %1</source>
+        <translation>, les frames de %1</translation>
     </message>
     <message>
         <source>, back and forth</source>

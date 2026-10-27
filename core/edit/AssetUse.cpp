@@ -26,7 +26,9 @@ AssetUse assetUse(const document::ProjectDocument& document)
         const uint32_t trigger = document.sceneTriggerId(frame);
         if (settings && trigger <= 0xffff && !document.sceneFrame(frame) &&
             settings->scene(static_cast<uint16_t>(trigger))) {
+            // A variant uses its base's frames: the base is used too.
             use.scenes.insert(static_cast<uint16_t>(trigger));
+            use.scenes.insert(settings->framesSceneId(static_cast<uint16_t>(trigger)));
         }
     }
     return use;

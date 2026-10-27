@@ -238,6 +238,9 @@ std::size_t linkSceneFrames(document::ProjectDocument& document)
     const auto& settings = document.colorizationSettings();
     if (settings && supportsScenes(document.geometry())) {
         for (const document::SceneDefinition& scene : settings->scenes) {
+            if (scene.isVariant()) {
+                continue;  // it has no frames of its own
+            }
             const uint8_t groups = scene.frameGroups == 0 ? 1 : scene.frameGroups;
             for (uint8_t group = 1; group <= groups; ++group) {
                 for (uint16_t index = 0; index < scene.frameCount; ++index) {

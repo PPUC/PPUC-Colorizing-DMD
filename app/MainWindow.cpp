@@ -127,6 +127,7 @@
 #include "panels/HelperLinesPanel.h"
 #include "panels/InspectorForm.h"
 #include "dialogs/ProjectSettingsDialog.h"
+#include "panels/SceneSettingsForm.h"
 #include "panels/SceneSettingsPanel.h"
 #include "panels/ScenesPanel.h"
 #include "panels/FrameLightsPanel.h"
@@ -5735,7 +5736,10 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
         return m_document->hasHdFrame(frameIndex) && rotates(render::Resolution::Hd);
     }
     if (filter == FrameFilter::SceneTimeline) {
-        return m_sceneTimeline && scene && scene->sceneId == *m_sceneTimeline;
+        const auto& settings = m_document->colorizationSettings();
+        return m_sceneTimeline && scene &&
+               scene->sceneId ==
+                   (settings ? settings->framesSceneId(*m_sceneTimeline) : *m_sceneTimeline);
     }
     if (filter != FrameFilter::UsesSelectedAsset) {
         return true;
@@ -11206,8 +11210,15 @@ void MainWindow::updateSceneSettingsSection(bool reload)
     if (m_document && frame && !spriteCanvasShown() && !isBackgroundImageTargetActive()) {
         if (const std::optional<document::SceneFrameRef>& ref = m_document->sceneFrame(*frame);
             ref && m_document->colorizationSettings()) {
+            const document::ColorizationSettings& settings = *m_document->colorizationSettings();
+            // A variant whose frames (its base's) are listed is the scene shown.
+            const bool variantListed = m_sceneTimeline && m_frameFilterComboBox &&
+                                       static_cast<FrameFilter>(
+                                           m_frameFilterComboBox->currentData().toInt()) ==
+                                           FrameFilter::SceneTimeline &&
+                                       settings.framesSceneId(*m_sceneTimeline) == ref->sceneId;
             if (const document::SceneDefinition* definition =
-                    m_document->colorizationSettings()->scene(ref->sceneId)) {
+                    settings.scene(variantListed ? *m_sceneTimeline : ref->sceneId)) {
                 scene = *definition;
             }
         }
@@ -11225,11 +11236,15 @@ void MainWindow::updateSceneSettingsSection(bool reload)
         return;
     }
     m_sceneSettingsPanel->setScene(
-        scene, [this, shownId](const document::SceneDefinition& candidate) {
+        scene,
+        [this, shownId](const document::SceneDefinition& candidate) {
             return m_document && shownId
                        ? edit::sceneProblem(*m_document, candidate, *shownId)
                        : std::string();
-        });
+        },
+        m_document && m_document->colorizationSettings()
+            ? m_document->colorizationSettings()->scenes
+            : std::vector<document::SceneDefinition>{});
 }
 
 void MainWindow::openProjectSettings()
@@ -11284,6 +11299,8 @@ void MainWindow::addScene()
         [this](const document::SceneDefinition& candidate) {
             return edit::sceneProblem(*m_document, candidate);
         },
+        m_document->colorizationSettings() ? m_document->colorizationSettings()->scenes
+                                           : std::vector<document::SceneDefinition>{},
         this);
     dialog.setWindowTitle(tr("Add Scene"));
     if (dialog.exec() != QDialog::Accepted) {
@@ -11301,7 +11318,8 @@ void MainWindow::openScene(uint16_t sceneId)
     if (!m_document) {
         return;
     }
-    const std::vector<std::size_t> frames = edit::sceneFrames(*m_document, sceneId);
+    // A variant shows its base's frames.
+    const std::vector<std::size_t> frames = edit::playedFrames(*m_document, sceneId);
     if (frames.empty()) {
         statusBar()->showMessage(tr("Scene %1 has no frames in the project").arg(sceneId), 3000);
         return;
@@ -11355,6 +11373,23 @@ void MainWindow::deleteScene(uint16_t sceneId)
         return;
     }
     const std::size_t frames = edit::sceneFrames(*m_document, sceneId).size();
+    const std::vector<uint16_t> variants =
+        m_document->colorizationSettings()
+            ? m_document->colorizationSettings()->variantsOf(sceneId)
+            : std::vector<uint16_t>{};
+    if (!variants.empty()) {
+        QStringList ids;
+        for (uint16_t variant : variants) {
+            ids << QString::number(variant);
+        }
+        if (QMessageBox::question(
+                this, tr("Delete Scene %1").arg(sceneId),
+                tr("Scenes %1 play the frames of this scene and are deleted with it.")
+                    .arg(ids.join(QStringLiteral(", "))),
+                QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Ok) {
+            return;
+        }
+    }
     bool withFrames = false;
     if (frames > 0) {
         QMessageBox box(QMessageBox::Question, tr("Delete Scene %1").arg(sceneId),
@@ -11396,7 +11431,12 @@ void MainWindow::setSceneTimelineEntry(std::optional<uint16_t> sceneId)
         }
         return;
     }
-    const QString text = tr("Frames of scene %1").arg(*sceneId);
+    const document::SceneDefinition* named =
+        m_document && m_document->colorizationSettings()
+            ? m_document->colorizationSettings()->scene(*sceneId)
+            : nullptr;
+    const QString text =
+        tr("Frames of scene %1").arg(named ? sceneText(*named) : QString::number(*sceneId));
     if (existing >= 0) {
         m_frameFilterComboBox->setItemText(existing, text);
         return;

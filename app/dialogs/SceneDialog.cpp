@@ -10,12 +10,13 @@ namespace colorizing::app {
 
 SceneDialog::SceneDialog(const document::SceneDefinition& scene,
                          std::function<std::string(const document::SceneDefinition&)> problem,
+                         const std::vector<document::SceneDefinition>& projectScenes,
                          QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("Scene"));
     m_form = new SceneSettingsForm(this);
-    m_form->setScene(scene, std::move(problem));
+    m_form->setScene(scene, std::move(problem), projectScenes, true);
     m_form->onChanged = [this]() { updateState(); };
     m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(m_buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);

@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include "document/Scene.h"
 
@@ -20,8 +21,10 @@ class SceneDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(SceneDialog)
 
 public:
+    // projectScenes: those a new scene can play the frames of (SceneSettingsForm::setScene()).
     SceneDialog(const document::SceneDefinition& scene,
                 std::function<std::string(const document::SceneDefinition&)> problem,
+                const std::vector<document::SceneDefinition>& projectScenes = {},
                 QWidget* parent = nullptr);
 
     [[nodiscard]] document::SceneDefinition scene() const;

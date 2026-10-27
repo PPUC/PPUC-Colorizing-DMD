@@ -33,7 +33,7 @@ SceneSettingsPanel::SceneSettingsPanel(QWidget* parent)
         }
     });
     connect(m_revertButton, &QToolButton::clicked, this, [this]() {
-        setScene(m_scene, m_problem);
+        setScene(m_scene, m_problem, m_projectScenes);
     });
     auto* buttons = new QHBoxLayout;
     buttons->addWidget(m_applyButton);
@@ -51,13 +51,15 @@ SceneSettingsPanel::SceneSettingsPanel(QWidget* parent)
 
 void SceneSettingsPanel::setScene(
     const std::optional<document::SceneDefinition>& scene,
-    std::function<std::string(const document::SceneDefinition&)> problem)
+    std::function<std::string(const document::SceneDefinition&)> problem,
+    const std::vector<document::SceneDefinition>& projectScenes)
 {
     m_scene = scene;
     m_problem = std::move(problem);
-    m_form->setScene(scene.value_or(document::SceneDefinition{}), m_problem);
+    m_projectScenes = projectScenes;
+    m_form->setScene(scene.value_or(document::SceneDefinition{}), m_problem, projectScenes);
     m_changed = false;
-    m_titleLabel->setText(scene ? tr("Scene %1").arg(scene->sceneId) : tr("No scene"));
+    m_titleLabel->setText(scene ? tr("Scene %1").arg(sceneText(*scene)) : tr("No scene"));
     updateState();
 }
 

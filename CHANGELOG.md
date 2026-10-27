@@ -4,6 +4,9 @@ The changelog follows the git tags. A section takes a version number when that v
 tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
+- Scenes have a name, and a scene can play the frames of another (a variant) with its own
+  settings and frame duration: the same frames once in front and as a looping background, or
+  slower and faster (libserum 2.99.10).
 - A frame has a PUP trigger, a scene and a monochrome fallback of its own and can fire all three
   at once (libserum 2.99.9); the Frame section's inputs no longer exclude each other. Older
   projects have their one trigger ID per frame split by its range when opened.

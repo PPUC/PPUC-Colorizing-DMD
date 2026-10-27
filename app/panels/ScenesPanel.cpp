@@ -16,6 +16,7 @@
 #include "PlaneLabels.h"
 #include "ThumbnailCaptions.h"
 #include "panels/RecordListPage.h"
+#include "panels/SceneSettingsForm.h"
 #include "document/ProjectDocument.h"
 #include "edit/SceneEdits.h"
 #include "runtime/Scenes.h"
@@ -140,26 +141,30 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
                   return a.sceneId < b.sceneId;
               });
     for (const document::SceneDefinition& scene : scenes) {
+        // A variant plays its base's frames.
         const std::vector<std::size_t> sceneFrames =
-            document ? edit::sceneFrames(*document, scene.sceneId) : std::vector<std::size_t>{};
+            document ? edit::playedFrames(*document, scene.sceneId) : std::vector<std::size_t>{};
         const int frames = static_cast<int>(sceneFrames.size());
         QString text = scene.frameGroups > 1
                            ? tr("%1 — %2 × %3 frames, %4 ms")
-                                 .arg(scene.sceneId)
+                                 .arg(sceneText(scene))
                                  .arg(scene.frameGroups)
                                  .arg(scene.frameCount)
                                  .arg(scene.durationMs)
                            : tr("%1 — %2 frames, %3 ms")
-                                 .arg(scene.sceneId)
+                                 .arg(sceneText(scene))
                                  .arg(scene.frameCount)
                                  .arg(scene.durationMs);
+        if (scene.baseSceneId) {
+            text += tr(", the frames of %1").arg(*scene.baseSceneId);
+        }
         if (scene.options & document::kSceneBackAndForth) {
             text += tr(", back and forth");
         }
         if (scene.options & document::kSceneAsBackground) {
             text += tr(", background");
         }
-        if (frames < static_cast<int>(scene.totalFrames())) {
+        if (!scene.baseSceneId && frames < static_cast<int>(scene.totalFrames())) {
             text += tr(" (%1 missing)").arg(static_cast<int>(scene.totalFrames()) - frames);
         }
         auto* item = new QListWidgetItem(m_thumbnails->placeholder(), text, m_list);

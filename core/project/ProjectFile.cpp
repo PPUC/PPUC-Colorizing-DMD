@@ -494,6 +494,12 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
             item.set("random", scene.random);
             item.set("autoStartSeconds", scene.autoStartSeconds);
             item.set("options", scene.options);
+            if (!scene.name.empty()) {
+                item.set("name", scene.name);
+            }
+            if (scene.baseSceneId) {
+                item.set("framesOf", *scene.baseSceneId);
+            }
             scenes.push(std::move(item));
         }
         colorization.set("scenes", std::move(scenes));
@@ -1464,6 +1470,11 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
             definition.autoStartSeconds =
                 static_cast<uint8_t>(scene.integer("autoStartSeconds", 0, 255));
             definition.options = static_cast<uint8_t>(scene.integer("options", 0, 255));
+            definition.name = scene.string("name", "");
+            if (scene.has("framesOf")) {
+                definition.baseSceneId =
+                    static_cast<uint16_t>(scene.integer("framesOf", 0, UINT16_MAX));
+            }
             settings.scenes.push_back(definition);
         }
         snapshot.colorizationSettings = std::move(settings);

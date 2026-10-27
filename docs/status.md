@@ -925,6 +925,13 @@ libserum splits it (`document::setTriggersFromId()`); the ranges stay as they we
 must still be written (cROM frame block, TRIG, plugin API) it is the scene, else the PUP
 trigger, else the monochrome trigger.
 
+Scene variants (owner decision 2026-10-27): a scene can play the frames of a base scene with its
+own playback settings and frame duration (`SceneDefinition::baseSceneId`, manifest `framesOf`,
+settings block part `kCromSettingsSceneVariants`, libserum 2.99.10). A variant has no frames of
+its own and its frame count and groups are the base's (`document::normalizeSceneVariants()`);
+frames are never added to a variant or taken from a scene to make one: the author adds a new
+scene. Deleting a base deletes its variants. Scenes have a name (the project only).
+
 ## Open decisions (waiting for the owner)
 
 Only questions without an answer are listed; each says what the editor does now. An answered

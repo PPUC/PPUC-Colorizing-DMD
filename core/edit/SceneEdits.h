@@ -54,7 +54,10 @@ private:
 
 // Why the scene cannot be the project's scene `replacing` (the ID of the scene it replaces,
 // nothing for a new one); empty if it can. A scene needs an ID no other scene of the project
-// has, at least one frame and one group, and a project with a 128x32 ROM frame. A new ID
+// has, at least one frame and one group, and a project with a 128x32 ROM frame. A variant
+// (SceneDefinition::baseSceneId) needs a base that is a scene of the project and no variant;
+// a scene keeps being a variant or not (frames of its own are neither added nor taken away),
+// and a scene that is the base of others becomes no variant. A new ID
 // (a new scene, or another ID for a scene) is one of kFirstSceneId to kLastSceneId; a scene
 // keeps the ID it has, also one outside them.
 [[nodiscard]] std::string sceneProblem(const document::ProjectDocument& document,
@@ -71,18 +74,20 @@ private:
     document::ProjectDocument& document,
     document::ColorizationSettings settings);
 // Adds the scene with a frame for each of its frames in each group, behind the last frame:
-// the scene marker as the original, uncolorized, lasting the scene's frame duration.
+// the scene marker as the original, uncolorized, lasting the scene's frame duration. A variant
+// gets no frames.
 [[nodiscard]] std::unique_ptr<SceneEditCommand> addScene(document::ProjectDocument& document,
                                                          const document::SceneDefinition& scene);
 // Replaces the scene sceneId with `scene`. Its frames follow: with another ID they get the new
 // markers as originals, frames of groups or frame numbers it no longer has are deleted, and
 // those it has no frame for (also ones deleted from the strip before) are made as addScene()
-// makes them, behind the scene's last frame. A new frame duration is given to its frames.
+// makes them, behind the scene's last frame. A new frame duration is given to its frames. Its
+// variants follow it to another ID. A variant changes its settings only.
 [[nodiscard]] std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& document,
                                                             uint16_t sceneId,
                                                             const document::SceneDefinition& scene);
-// Removes the scene; with deleteFrames its frames go too, otherwise they stay as ordinary
-// frames.
+// Removes the scene and its variants; with deleteFrames its frames go too, otherwise they
+// stay as ordinary frames.
 [[nodiscard]] std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& document,
                                                             uint16_t sceneId,
                                                             bool deleteFrames);
@@ -112,6 +117,9 @@ private:
                                uint16_t sceneId);
 [[nodiscard]] std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document,
                                                    uint16_t sceneId);
+// The frames the scene plays: its own, or its base's for a variant.
+[[nodiscard]] std::vector<std::size_t> playedFrames(const document::ProjectDocument& document,
+                                                    uint16_t sceneId);
 // The scene the frame uses: the one it is a frame of, or else the one it starts (startsScene(),
 // a scene the project has); nothing for neither. "Used by the current frame" lists it.
 [[nodiscard]] std::optional<uint16_t> sceneUsedByFrame(const document::ProjectDocument& document,

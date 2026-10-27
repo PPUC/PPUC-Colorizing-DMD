@@ -500,7 +500,8 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
         for (std::size_t frameIndex : played) {
             const uint32_t trigger = document.sceneTriggerId(frameIndex);
             if (trigger <= 0xffff && settings->scene(static_cast<uint16_t>(trigger))) {
-                scenes.insert(static_cast<uint16_t>(trigger));
+                // A variant plays its base's frames.
+                scenes.insert(settings->framesSceneId(static_cast<uint16_t>(trigger)));
             }
         }
         if (!scenes.empty()) {

@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "document/Scene.h"
 
@@ -27,8 +28,10 @@ public:
     explicit SceneSettingsPanel(QWidget* parent = nullptr);
 
     // The scene shown, as the project has it; unapplied changes are dropped. none: no scene.
+    // projectScenes: those a variant can play the frames of.
     void setScene(const std::optional<document::SceneDefinition>& scene,
-                  std::function<std::string(const document::SceneDefinition&)> problem);
+                  std::function<std::string(const document::SceneDefinition&)> problem,
+                  const std::vector<document::SceneDefinition>& projectScenes = {});
     // The scene the section is about (its ID before any change); none without one.
     [[nodiscard]] std::optional<uint16_t> sceneId() const;
     [[nodiscard]] bool hasChanges() const { return m_changed; }
@@ -42,6 +45,7 @@ private:
 
     std::optional<document::SceneDefinition> m_scene;
     std::function<std::string(const document::SceneDefinition&)> m_problem;
+    std::vector<document::SceneDefinition> m_projectScenes;
     bool m_changed = false;
     QLabel* m_titleLabel = nullptr;
     SceneSettingsForm* m_form = nullptr;

@@ -17,6 +17,7 @@
 #include <QVBoxLayout>
 
 #include "panels/InspectorForm.h"
+#include "panels/SceneSettingsForm.h"
 #include "PlaneLabels.h"
 #include "edit/FrameTags.h"
 
@@ -269,8 +270,7 @@ void FramePanel::fillScenes(const document::ProjectDocument* document, uint32_t 
     bool listed = false;
     if (document && document->colorizationSettings()) {
         for (const document::SceneDefinition& scene : document->colorizationSettings()->scenes) {
-            m_sceneComboBox->addItem(QString::number(scene.sceneId),
-                                     static_cast<int>(scene.sceneId));
+            m_sceneComboBox->addItem(sceneText(scene), static_cast<int>(scene.sceneId));
             listed = listed || scene.sceneId == sceneTriggerId;
         }
     }

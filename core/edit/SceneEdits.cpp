@@ -295,13 +295,39 @@ std::string sceneProblem(const document::ProjectDocument& document,
     if (!runtime::supportsScenes(document.geometry())) {
         return "libserum plays scenes only in projects with 128x32 ROM frames";
     }
-    if (scene.frameCount == 0) {
-        return "a scene needs at least one frame";
-    }
-    if (scene.frameGroups == 0) {
-        return "a scene needs at least one group";
-    }
     const auto& settings = document.colorizationSettings();
+    const document::SceneDefinition* replaced =
+        replacing && settings ? settings->scene(*replacing) : nullptr;
+    if (scene.baseSceneId) {
+        const document::SceneDefinition* base =
+            settings ? settings->scene(*scene.baseSceneId) : nullptr;
+        if (!base || *scene.baseSceneId == scene.sceneId ||
+            (replacing && *scene.baseSceneId == *replacing)) {
+            return "the scene whose frames it plays is not a scene of the project";
+        }
+        if (base->baseSceneId) {
+            return "scene " + std::to_string(base->sceneId) +
+                   " plays the frames of another scene itself";
+        }
+        if (replaced && !replaced->baseSceneId) {
+            return "a scene with frames of its own cannot play the frames of another; add a "
+                   "new scene for that";
+        }
+        if (replaced && !settings->variantsOf(replaced->sceneId).empty()) {
+            return "other scenes play its frames";
+        }
+    } else {
+        if (replaced && replaced->baseSceneId) {
+            return "a scene that plays the frames of another gets no frames of its own; add a "
+                   "new scene for that";
+        }
+        if (scene.frameCount == 0) {
+            return "a scene needs at least one frame";
+        }
+        if (scene.frameGroups == 0) {
+            return "a scene needs at least one group";
+        }
+    }
     const bool newId = !replacing || *replacing != scene.sceneId;
     if (newId && (scene.sceneId < document::kFirstSceneId || scene.sceneId > document::kLastSceneId)) {
         return "a scene ID is one of " + std::to_string(document::kFirstSceneId) + " to " +
@@ -348,6 +374,13 @@ std::optional<uint16_t> sceneUsedByFrame(const document::ProjectDocument& docume
     return std::nullopt;
 }
 
+std::vector<std::size_t> playedFrames(const document::ProjectDocument& document,
+                                      uint16_t sceneId)
+{
+    const auto& settings = document.colorizationSettings();
+    return sceneFrames(document, settings ? settings->framesSceneId(sceneId) : sceneId);
+}
+
 std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document, uint16_t sceneId)
 {
     std::vector<std::size_t> frames;
@@ -375,6 +408,14 @@ std::unique_ptr<SceneEditCommand> addScene(document::ProjectDocument& document,
     if (const std::string problem = sceneProblem(document, scene); !problem.empty()) {
         throw std::invalid_argument(problem);
     }
+    if (scene.baseSceneId) {
+        // A variant: no frames, the base's.
+        Steps steps(document);
+        document::ColorizationSettings settings = settingsOf(document);
+        settings.scenes.push_back(scene);
+        steps.add(settingsStep(document, std::move(settings)));
+        return steps.finish(SceneEditCommand::Kind::AddScene, scene.sceneId);
+    }
     std::vector<document::SceneFrameRef> frames;
     for (uint8_t group = 1; group <= groupsOf(scene); ++group) {
         for (uint16_t index = 0; index < scene.frameCount; ++index) {
@@ -394,11 +435,23 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
                                               uint16_t sceneId,
                                               const document::SceneDefinition& scene)
 {
-    (void)requireScene(document, sceneId);
+    const bool variant = requireScene(document, sceneId).baseSceneId.has_value();
     if (const std::string problem = sceneProblem(document, scene, sceneId); !problem.empty()) {
         throw std::invalid_argument(problem);
     }
     Steps steps(document);
+    if (variant) {
+        // Its settings only: the frames are its base's.
+        document::ColorizationSettings settings = settingsOf(document);
+        for (document::SceneDefinition& definition : settings.scenes) {
+            if (definition.sceneId == sceneId) {
+                definition = scene;
+                break;
+            }
+        }
+        steps.add(settingsStep(document, std::move(settings)));
+        return steps.finish(SceneEditCommand::Kind::ChangeScene, scene.sceneId);
+    }
 
     // Frames that stay: a new original for another ID, the new duration.
     std::vector<SceneFramesCommand::Change> changes;
@@ -458,7 +511,9 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
     for (document::SceneDefinition& definition : settings.scenes) {
         if (definition.sceneId == sceneId) {
             definition = scene;
-            break;
+        } else if (definition.baseSceneId == sceneId) {
+            // Its variants follow it to another ID.
+            definition.baseSceneId = scene.sceneId;
         }
     }
     steps.add(settingsStep(document, std::move(settings)));
@@ -603,10 +658,12 @@ std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& documen
         command->apply(document);
         steps.add(std::move(command));
     }
+    // Its variants go with it: they have no frames without it.
     document::ColorizationSettings settings = settingsOf(document);
     settings.scenes.erase(std::remove_if(settings.scenes.begin(), settings.scenes.end(),
                                          [sceneId](const document::SceneDefinition& scene) {
-                                             return scene.sceneId == sceneId;
+                                             return scene.sceneId == sceneId ||
+                                                    scene.baseSceneId == sceneId;
                                          }),
                           settings.scenes.end());
     steps.add(settingsStep(document, std::move(settings)));

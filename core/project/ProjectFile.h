@@ -26,8 +26,9 @@ namespace colorizing::project {
 //                    ("2.9"; earlier files may say "2.8", read and ignored), layout
 //                    ("ordinary", "native-extra", "native-original"), cromRevision (21, read
 //                    and ignored), license (kind, text, attribution, url), colorization (the
-//                    cROM's settings: scalingAlgorithm, shadowOffset, scenes) when the project
-//                    has them, unsupported (names of entries unsupported/<n>.bin).
+//                    cROM's settings: scalingAlgorithm, shadowOffset, scenes, each with the
+//                    pup.csv columns, its name and framesOf, the base of a variant) when the
+//                    project has them, unsupported (names of entries unsupported/<n>.bin).
 //   order.json       the UUIDs of the frames, comparison masks, backgrounds and sprites in
 //                    their order, and the sections (name, first frame).
 //   frames/<uuid>.bin, masks/<uuid>.bin, backgrounds/<uuid>.bin, sprites/<uuid>.bin

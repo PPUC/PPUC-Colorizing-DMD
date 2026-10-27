@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <thread>
@@ -16,6 +17,8 @@
 #include "edit/AssetUse.h"
 #include "edit/SpriteAssignment.h"
 #include "edit/StructureCommand.h"
+#include "platform/Utf8Path.h"
+#include "project/ProjectFile.h"
 #include "runtime/RuntimePreview.h"
 #include "runtime/Scenes.h"
 #include "document/Upscale.h"
@@ -619,6 +622,115 @@ void testSceneFramesTakeNoGameSettings()
            "assigning sprites leaves the frame of a scene out");
 }
 
+// A variant plays the frames of its base scene with its own settings: no frames of its own,
+// the base's frame count, and it follows its base.
+void testVariants()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 1));
+    document::SceneDefinition base = makeScene(50700, 3, 1);
+    base.name = "Jackpot";
+    const auto addedBase = edit::addScene(document, base);
+    const std::vector<std::size_t> baseFrames = edit::sceneFrames(document, 50700);
+    const std::size_t frames = document.frameCount();
+
+    document::SceneDefinition variant = makeScene(50701, 1, 1);
+    variant.baseSceneId = 50700;
+    variant.durationMs = 60;
+    variant.options = document::kSceneAsBackground;
+    const auto addedVariant = edit::addScene(document, variant);
+    const document::SceneDefinition* added = document.colorizationSettings()->scene(50701);
+    expect(addedVariant && document.frameCount() == frames && added &&
+               added->frameCount == 3 && added->durationMs == 60 &&
+               edit::sceneFrames(document, 50701).empty() &&
+               edit::playedFrames(document, 50701) == baseFrames,
+           "a variant gets no frames and plays its base's");
+
+    document::SceneDefinition ofVariant = makeScene(50702, 1, 1);
+    ofVariant.baseSceneId = 50701;
+    document::SceneDefinition ofNothing = makeScene(50702, 1, 1);
+    ofNothing.baseSceneId = 50799;
+    document::SceneDefinition baseAsVariant = base;
+    baseAsVariant.baseSceneId = 50701;
+    document::SceneDefinition variantOwnFrames = *added;
+    variantOwnFrames.baseSceneId.reset();
+    expect(!edit::sceneProblem(document, ofVariant).empty() &&
+               !edit::sceneProblem(document, ofNothing).empty() &&
+               !edit::sceneProblem(document, baseAsVariant, 50700).empty() &&
+               !edit::sceneProblem(document, variantOwnFrames, 50701).empty(),
+           "no variant of a variant or of nothing; frames of its own are neither added nor "
+           "taken away");
+
+    // The base gets a frame less: the variant too.
+    const auto deleted = edit::deleteFramesOfScenes(document, {baseFrames.back()});
+    expect(document.colorizationSettings()->scene(50701)->frameCount == 2,
+           "the variant has its base's frame count");
+    // Another ID for the base: the variant follows.
+    document::SceneDefinition renamed = *document.colorizationSettings()->scene(50700);
+    renamed.sceneId = 50710;
+    const auto changed = edit::changeScene(document, 50700, renamed);
+    expect(document.colorizationSettings()->scene(50701)->baseSceneId ==
+               std::optional<uint16_t>(50710),
+           "the variant follows its base to another ID");
+    // The canvas plays the variant behind a frame that starts it, with its duration.
+    document.setSceneTriggerId(0, 50701);
+    const std::vector<std::size_t> nowBase = edit::sceneFrames(document, 50710);
+    expect(document.backgroundSceneFrame(0, 0) == nowBase[0] &&
+               document.backgroundSceneFrame(0, 60) == nowBase[1] &&
+               document.backgroundSceneFrame(0, 59) == nowBase[0],
+           "a frame that starts the variant shows its base's frames at its speed");
+    const edit::AssetUse use = edit::assetUse(document);
+    expect(use.scenes.count(50701) && use.scenes.count(50710), "the base is used through it");
+
+    const auto removed = edit::removeScene(document, 50710, false);
+    expect(!document.colorizationSettings()->scene(50701) &&
+               !document.colorizationSettings()->scene(50710),
+           "removing the base removes its variants");
+}
+
+// The project file keeps a scene's name and base; libserum plays a variant's base frames.
+void testVariantsInFileAndLibserum()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    document::SceneDefinition base = makeScene(50720, 2, 1);
+    base.name = "Multiball";
+    const auto addedBase = edit::addScene(document, base);
+    document::SceneDefinition variant = makeScene(50721, 2, 1);
+    variant.baseSceneId = 50720;
+    variant.name = "Multiball, at once";
+    variant.interruptable = true;
+    variant.immediateStart = true;
+    const auto addedVariant = edit::addScene(document, variant);
+    document.setSceneTriggerId(0, 50721);
+
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() /
+        ("colorizing_variants_" +
+         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".cdmd");
+    expect(project::saveProjectFile(platform::utf8FromPath(path), document.toSnapshot(),
+                                    {"test"})
+               .ok,
+           "the project is saved");
+    const legacy::LegacyLoadResult loaded =
+        project::loadProjectFile(platform::utf8FromPath(path));
+    std::filesystem::remove(path);
+    expect(loaded.ok && loaded.snapshot.colorizationSettings &&
+               loaded.snapshot.colorizationSettings->scenes ==
+                   document.colorizationSettings()->scenes,
+           "the project file keeps names and bases");
+
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    std::string error;
+    expect(preview.openProject(document, runtime::PlaneRequest::Both, &error),
+           "the project loads: " + error);
+    const runtime::RuntimeFrame started = preview.colorize(document.originalFrame(0));
+    expect(started.shownFrameIndex == std::optional<std::size_t>(
+                                          edit::sceneFrames(document, 50720).front()),
+           "the variant starts at once with its base's first frame");
+    preview.close();
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -635,4 +747,6 @@ void runSceneEditTests()
     testAssetUse();
     testSceneInPlaybackWindow();
     testSceneFramesTakeNoGameSettings();
+    testVariants();
+    testVariantsInFileAndLibserum();
 }

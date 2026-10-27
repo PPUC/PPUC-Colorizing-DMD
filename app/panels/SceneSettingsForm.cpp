@@ -6,6 +6,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -30,6 +31,14 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     m_idSpinBox->setToolTip(tr("The PUP trigger that starts the scene, from %1 to %2")
                                 .arg(document::kFirstSceneId)
                                 .arg(document::kLastSceneId));
+    m_nameEdit = new QLineEdit(this);
+    m_nameEdit->setToolTip(tr("A name for the scene, shown with its ID (the project only)"));
+    m_nameEdit->setPlaceholderText(tr("e.g. Jackpot"));
+    m_framesOfComboBox = new QComboBox(this);
+    m_framesOfComboBox->setToolTip(
+        tr("A scene that plays the frames of another plays them with its own settings and frame "
+           "duration, e.g. once in front and as a looping background. It has no frames of its "
+           "own; for other frames add a new scene"));
     m_framesSpinBox = new QSpinBox(this);
     m_framesSpinBox->setRange(1, 65535);
     m_framesSpinBox->setToolTip(tr("Frames of each group"));
@@ -98,6 +107,8 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     // A field below its label when the side bar is narrow.
     QFormLayout* frames = makeInspectorForm();
     frames->addRow(tr("Scene ID (PUP trigger)"), m_idSpinBox);
+    frames->addRow(tr("Name"), m_nameEdit);
+    frames->addRow(tr("Plays the frames of"), m_framesOfComboBox);
     frames->addRow(tr("Frames"), m_framesSpinBox);
     frames->addRow(tr("Groups"), m_groupsSpinBox);
     frames->addRow(QString(), m_randomCheckBox);
@@ -144,7 +155,8 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
         connect(spinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
                 changed);
     }
-    for (QComboBox* comboBox : {m_repeatComboBox, m_finishComboBox}) {
+    connect(m_nameEdit, &QLineEdit::textEdited, this, changed);
+    for (QComboBox* comboBox : {m_repeatComboBox, m_finishComboBox, m_framesOfComboBox}) {
         connect(comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
                 this, changed);
     }
@@ -157,12 +169,34 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     setScene(document::SceneDefinition{}, nullptr);
 }
 
-void SceneSettingsForm::setScene(const document::SceneDefinition& scene,
-                                 std::function<std::string(const document::SceneDefinition&)> problem)
+void SceneSettingsForm::setScene(
+    const document::SceneDefinition& scene,
+    std::function<std::string(const document::SceneDefinition&)> problem,
+    const std::vector<document::SceneDefinition>& projectScenes,
+    bool newScene)
 {
     m_filling = true;
     m_scene = scene;
     m_problem = std::move(problem);
+    m_projectScenes = projectScenes;
+    m_nameEdit->setText(QString::fromStdString(scene.name));
+    m_framesOfComboBox->clear();
+    m_framesOfComboBox->addItem(tr("Its own frames"), -1);
+    for (const document::SceneDefinition& candidate : projectScenes) {
+        if (!candidate.isVariant() && candidate.sceneId != scene.sceneId) {
+            m_framesOfComboBox->addItem(tr("Scene %1").arg(sceneText(candidate)),
+                                        static_cast<int>(candidate.sceneId));
+        }
+    }
+    if (scene.baseSceneId &&
+        m_framesOfComboBox->findData(static_cast<int>(*scene.baseSceneId)) < 0) {
+        m_framesOfComboBox->addItem(tr("Scene %1").arg(*scene.baseSceneId),
+                                    static_cast<int>(*scene.baseSceneId));
+    }
+    m_framesOfComboBox->setCurrentIndex(std::max(
+        0, m_framesOfComboBox->findData(scene.baseSceneId ? static_cast<int>(*scene.baseSceneId)
+                                                          : -1)));
+    m_framesOfComboBox->setEnabled(newScene || scene.isVariant());
     // A scene of an imported pup.csv may have an ID outside the range for new IDs; it keeps it.
     const bool inRange =
         scene.sceneId >= document::kFirstSceneId && scene.sceneId <= document::kLastSceneId;
@@ -192,6 +226,20 @@ void SceneSettingsForm::setScene(const document::SceneDefinition& scene,
 void SceneSettingsForm::updateState()
 {
     m_timesSpinBox->setEnabled(m_repeatComboBox->currentData().toInt() == kRepeatTimes);
+    // A variant has its base's frames and groups.
+    const int base = m_framesOfComboBox->currentData().toInt();
+    if (base >= 0) {
+        for (const document::SceneDefinition& candidate : m_projectScenes) {
+            if (candidate.sceneId == base) {
+                const QSignalBlocker framesBlocker(m_framesSpinBox);
+                const QSignalBlocker groupsBlocker(m_groupsSpinBox);
+                m_framesSpinBox->setValue(std::max<int>(1, candidate.frameCount));
+                m_groupsSpinBox->setValue(std::max<int>(1, candidate.frameGroups));
+            }
+        }
+    }
+    m_framesSpinBox->setEnabled(base < 0);
+    m_groupsSpinBox->setEnabled(base < 0);
     m_randomCheckBox->setEnabled(m_groupsSpinBox->value() > 1);
     m_backAndForthCheckBox->setEnabled(m_framesSpinBox->value() > 1);
     m_replaceBlackCheckBox->setEnabled(m_backgroundCheckBox->isChecked());
@@ -205,7 +253,11 @@ void SceneSettingsForm::updateState()
                 : tr("Start the scene when no new frame came for this long"));
     const document::SceneDefinition current = scene();
     m_summaryLabel->setText(
-        tr("Frames in the project: %1").arg(static_cast<qulonglong>(current.totalFrames())));
+        current.baseSceneId
+            ? tr("No frames of its own: it plays the %n frame(s) of scene %1", "",
+                 static_cast<int>(current.totalFrames()))
+                  .arg(*current.baseSceneId)
+            : tr("Frames in the project: %1").arg(static_cast<qulonglong>(current.totalFrames())));
     const std::string reason = problem();
     m_problemLabel->setText(QString::fromStdString(reason));
     m_problemLabel->setVisible(!reason.empty());
@@ -224,6 +276,10 @@ document::SceneDefinition SceneSettingsForm::scene() const
     scene.frameGroups = static_cast<uint8_t>(m_groupsSpinBox->value());
     scene.random = m_randomCheckBox->isChecked() && scene.frameGroups > 1;
     scene.durationMs = static_cast<uint16_t>(m_durationSpinBox->value());
+    scene.name = m_nameEdit->text().trimmed().toStdString();
+    const int base = m_framesOfComboBox->currentData().toInt();
+    scene.baseSceneId =
+        base >= 0 ? std::optional<uint16_t>(static_cast<uint16_t>(base)) : std::nullopt;
     switch (m_repeatComboBox->currentData().toInt()) {
         case kRepeatLoop:
             scene.repeat = 1;
@@ -257,6 +313,13 @@ document::SceneDefinition SceneSettingsForm::scene() const
     }
     scene.options = options;
     return scene;
+}
+
+QString sceneText(const document::SceneDefinition& scene)
+{
+    return scene.name.empty()
+               ? QString::number(scene.sceneId)
+               : QStringLiteral("%1 %2").arg(scene.sceneId).arg(QString::fromStdString(scene.name));
 }
 
 }  // namespace colorizing::app

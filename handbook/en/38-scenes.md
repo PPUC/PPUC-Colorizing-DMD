@@ -80,11 +80,13 @@ and the markers.
 
 ## The scene window
 
-What one line of a `<rom>.pup.csv` says:
+What one line of a `<rom>.pup.csv` says, and the scene's name and frames:
 
 | Field | Meaning |
 | --- | --- |
 | Scene ID (PUP trigger) | The trigger that starts the scene. Each scene has its own. A new scene, or a scene given another ID, takes one of 50000 to 61999, the trigger range kept for scenes; `New` suggests the lowest free one. A scene of an imported `pup.csv` keeps the ID it has. |
+| Name | A name for the scene, shown with its ID in the lists (`50087 Jackpot`); the project keeps it, a `pup.csv` has none. |
+| Plays the frames of | `Its own frames`, or another scene of the project: then the scene is a variant (see below). Chosen for a new scene; a variant can choose another base, a scene with frames of its own keeps them. |
 | Frames | Frames of each group. |
 | Groups | Sets of frames the scene can show; each time it plays it shows one group. |
 | Pick the group at random | Otherwise the groups play in turn. |
@@ -102,6 +104,28 @@ What one line of a `<rom>.pup.csv` says:
 
 The window says how many frames the scene has in the project and why it cannot be taken (an ID
 another scene has), and `OK` waits until it can.
+
+## Variants
+
+The settings of a scene say how it plays: in front or as a background, once or in a loop, and
+so on. To use the same frames in another way, a scene can play the frames of another scene, its
+base, with settings of its own: for example scene 50087 plays once in front, and scene 50088
+plays the frames of 50087 as a looping background. A variant can also run slower or faster than
+its base: its `Frame duration` is its own.
+
+- A variant has no frames of its own. Its frames and groups are its base's, and change with
+  them; the scene window does not let them be edited. For other frames, add a new scene.
+- A scene that is a variant stays one (it can choose another base), and a scene with frames
+  of its own stays one: frames are neither added to a variant nor taken from a scene.
+- The base is a scene with frames of its own, not a variant itself.
+- A double click on a variant in the `Scenes` section lists its base's frames; while they are
+  listed, the Inspector's `Scene` section shows and changes the variant.
+- A base given another ID keeps its variants; deleting a base deletes its variants too, after
+  the question names them. Frames that start a variant play its base's frames, on the canvas
+  too.
+
+Variants need libserum 2.99.10 or later; a `pup.csv` cannot describe them, the project and the
+`.cROMc` keep them.
 
 ## What a frame of a scene can have
 

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace colorizing::document {
@@ -49,6 +50,14 @@ struct SceneDefinition {
     uint8_t autoStartSeconds = 0;
     // kScene... flags.
     uint8_t options = 0;
+    // The author's name for the scene (the project only; a pup.csv has none).
+    std::string name;
+    // A variant plays the frames of the scene baseSceneId with its own settings, frame
+    // duration included (libserum 2.99.10); it has no frames of its own, and its frameCount
+    // and frameGroups are the base's. The base is a scene that is no variant.
+    std::optional<uint16_t> baseSceneId;
+
+    [[nodiscard]] bool isVariant() const { return baseSceneId.has_value(); }
 
     [[nodiscard]] uint32_t totalFrames() const
     {
@@ -61,7 +70,8 @@ struct SceneDefinition {
                a.durationMs == b.durationMs && a.interruptable == b.interruptable &&
                a.immediateStart == b.immediateStart && a.repeat == b.repeat &&
                a.frameGroups == b.frameGroups && a.random == b.random &&
-               a.autoStartSeconds == b.autoStartSeconds && a.options == b.options;
+               a.autoStartSeconds == b.autoStartSeconds && a.options == b.options &&
+               a.name == b.name && a.baseSceneId == b.baseSceneId;
     }
     friend bool operator!=(const SceneDefinition& a, const SceneDefinition& b)
     {
@@ -107,6 +117,23 @@ struct ColorizationSettings {
         }
         return nullptr;
     }
+    // The scene whose frames sceneId plays: its base for a variant, else itself.
+    [[nodiscard]] uint16_t framesSceneId(uint16_t sceneId) const
+    {
+        const SceneDefinition* definition = scene(sceneId);
+        return definition && definition->baseSceneId ? *definition->baseSceneId : sceneId;
+    }
+    // The variants of the scene, in the order of scenes.
+    [[nodiscard]] std::vector<uint16_t> variantsOf(uint16_t sceneId) const
+    {
+        std::vector<uint16_t> variants;
+        for (const SceneDefinition& definition : scenes) {
+            if (definition.baseSceneId == sceneId) {
+                variants.push_back(definition.sceneId);
+            }
+        }
+        return variants;
+    }
 
     friend bool operator==(const ColorizationSettings& a, const ColorizationSettings& b)
     {
@@ -118,5 +145,23 @@ struct ColorizationSettings {
         return !(a == b);
     }
 };
+
+// Gives each variant its base's frame count and groups; a variant whose base is missing, is
+// itself or is a variant plays frames of its own instead.
+inline void normalizeSceneVariants(ColorizationSettings& settings)
+{
+    for (SceneDefinition& scene : settings.scenes) {
+        if (!scene.baseSceneId) {
+            continue;
+        }
+        const SceneDefinition* base = settings.scene(*scene.baseSceneId);
+        if (!base || base->sceneId == scene.sceneId || base->baseSceneId) {
+            scene.baseSceneId.reset();
+            continue;
+        }
+        scene.frameCount = base->frameCount;
+        scene.frameGroups = base->frameGroups;
+    }
+}
 
 }  // namespace colorizing::document
