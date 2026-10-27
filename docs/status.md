@@ -1391,7 +1391,7 @@ Runtime view) and is patched from the edits:
   sprite candidate tables);
 - identification (original, comparison mask, shape mode): also the frame's hash and its normal
   bucket / signature entries;
-- scenes: rebuild the scene lookups (3.6 s on GoT-V79);
+- scenes: rebuild the scene lookups (from the project's list of scene frames, no markers);
 - adding, deleting, moving frames (IDs shift everywhere): a full reload on a thread before the
   tester is needed; incremental renumbering only if that proves too slow;
 - what changed comes from the undo commands' targets and the document revision; whatever cannot

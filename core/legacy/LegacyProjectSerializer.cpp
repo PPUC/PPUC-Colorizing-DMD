@@ -714,8 +714,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
     const bool withScaling = snapshot.colorizationSettings.has_value();
     put(kCromSettingsMagic, 4);
     put(0, 4);  // the payload size, set below
-    put((withScenes ? kCromSettingsScenes : 0) | (withScaling ? kCromSettingsScaling : 0) |
-            (withLights ? kCromSettingsLights : 0) |
+    put((withScenes ? kCromSettingsScenes | kCromSettingsSceneFrames : 0) |
+            (withScaling ? kCromSettingsScaling : 0) | (withLights ? kCromSettingsLights : 0) |
             (withOriginalOnlySets ? kCromSettingsOriginalOnlySets : 0),
         4);
     if (withScenes) {
@@ -785,6 +785,25 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
                 put(frame, 4);
                 put(snapshot.frames[frame].originalOnlyDynamicSets, 4);
             }
+        }
+    }
+    if (withScenes) {
+        // Every frame of a scene, also none: libserum then finds no frame by its marker.
+        std::vector<std::size_t> sceneFrames;
+        for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+            const std::optional<document::SceneFrameRef>& scene = snapshot.frames[frame].scene;
+            if (scene && scene->group > 0) {
+                sceneFrames.push_back(frame);
+            }
+        }
+        put(sceneFrames.size(), 4);
+        for (std::size_t frame : sceneFrames) {
+            const document::SceneFrameRef& scene = *snapshot.frames[frame].scene;
+            put(frame, 4);
+            put(scene.sceneId, 2);
+            put(scene.frameIndex, 2);
+            put(scene.group, 1);
+            put(0, 1);
         }
     }
     const uint64_t payload = block.size() - 8;

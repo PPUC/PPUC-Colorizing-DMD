@@ -1,43 +1,13 @@
 #include "runtime/FrameTester.h"
 
-#include <ostream>
-#include <stdexcept>
-#include <streambuf>
 #include <utility>
 
 #include "import/FrameDumpImport.h"
 #include "import/FrameDumpReader.h"
-#include "legacy/LegacyProjectSerializer.h"
 
 namespace colorizing::runtime {
 
 namespace {
-
-class AppendBuffer final : public std::streambuf {
-public:
-    explicit AppendBuffer(std::vector<uint8_t>& bytes)
-        : m_bytes(bytes)
-    {
-    }
-
-protected:
-    std::streamsize xsputn(const char* data, std::streamsize count) override
-    {
-        m_bytes.insert(m_bytes.end(), data, data + count);
-        return count;
-    }
-
-    int_type overflow(int_type character) override
-    {
-        if (!traits_type::eq_int_type(character, traits_type::eof())) {
-            m_bytes.push_back(static_cast<uint8_t>(traits_type::to_char_type(character)));
-        }
-        return traits_type::not_eof(character);
-    }
-
-private:
-    std::vector<uint8_t>& m_bytes;
-};
 
 std::string sizeText(render::Size size)
 {
@@ -150,20 +120,6 @@ std::optional<std::size_t> findProjectFrame(const document::ProjectDocument& doc
         }
     }
     return std::nullopt;
-}
-
-std::vector<uint8_t> projectCrom(const document::ProjectDocument& document)
-{
-    const document::ProjectSnapshot snapshot = document.toSnapshot();
-    std::vector<uint8_t> bytes;
-    bytes.reserve(static_cast<std::size_t>(legacy::legacyCromByteCount(snapshot)));
-    AppendBuffer buffer(bytes);
-    std::ostream stream(&buffer);
-    std::string error;
-    if (!legacy::writeLegacyCrom(stream, snapshot, error)) {
-        throw std::runtime_error(error);
-    }
-    return bytes;
 }
 
 }  // namespace colorizing::runtime

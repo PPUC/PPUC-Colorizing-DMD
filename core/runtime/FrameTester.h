@@ -59,8 +59,4 @@ using TesterDumpProgress = std::function<bool(uint64_t bytesRead)>;
                                                           std::size_t after,
                                                           bool underMask);
 
-// The project's cROM as libserum reads it from a file, for RuntimePreview::openCrom(). Throws
-// std::runtime_error if it cannot be written.
-[[nodiscard]] std::vector<uint8_t> projectCrom(const document::ProjectDocument& document);
-
 }  // namespace colorizing::runtime

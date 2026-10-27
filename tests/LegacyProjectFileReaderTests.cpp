@@ -1177,9 +1177,15 @@ void testFileWriterSavesCrpx()
                           cromWithBlock.end() - static_cast<std::ptrdiff_t>(block.size())) &&
                std::string(block.begin(), block.begin() + 4) == "SCX1",
            "the cROM is the same with the settings block at its end");
-    // magic, size, contents, count, two scenes of 13 bytes, scaling.
-    expect(block.size() == 4 + 4 + 4 + 4 + 2 * 13 + 2 && block[8] == 3,
-           "the block holds both scenes and the scaling settings");
+    // magic, size, contents, count, two scenes of 13 bytes, scaling, then the frames of
+    // scenes: count, frame 1 as frame 1 of group 3 of scene 1001.
+    const std::size_t sceneFrames = 4 + 4 + 4 + 4 + 2 * 13 + 2;
+    expect(block.size() == sceneFrames + 4 + 10 && block[8] == (3 | 16),
+           "the block holds both scenes, the scaling settings and the frames of scenes");
+    const std::vector<uint8_t> frameOfScene{1, 0, 0, 0, 1, 0, 0, 0, 0xe9, 0x03, 1, 0, 3, 0};
+    expect(std::equal(frameOfScene.begin(), frameOfScene.end(),
+                      block.begin() + static_cast<std::ptrdiff_t>(sceneFrames)),
+           "frame 1 is listed with its scene, frame index and group");
     std::vector<uint8_t> cutScenes = withScenesBytes;
     cutScenes.resize(cutScenes.size() - 3);
     writeBytes(crpxPath, cutScenes);

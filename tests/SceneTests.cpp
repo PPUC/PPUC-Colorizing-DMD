@@ -7,12 +7,13 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "RuntimeFixtures.h"
 #include "legacy/LegacyProjectSerializer.h"
-#include "runtime/FrameTester.h"
 #include "runtime/RuntimePreview.h"
 #if defined(_MSC_VER)
 #pragma warning(push, 0)
@@ -27,6 +28,7 @@
 #else
 #pragma GCC diagnostic pop
 #endif
+#include "runtime/SnapshotSource.h"
 
 namespace {
 
@@ -166,6 +168,17 @@ void logLine(const char* format, va_list args, const void*)
     g_log.emplace_back(line);
 }
 
+// The project's cROM, as the legacy writer writes it.
+std::vector<uint8_t> projectCrom(const document::ProjectDocument& document)
+{
+    std::ostringstream stream;
+    std::string error;
+    expect(legacy::writeLegacyCrom(stream, document.toSnapshot(), error),
+           "the cROM is written: " + error);
+    const std::string bytes = stream.str();
+    return std::vector<uint8_t>(bytes.begin(), bytes.end());
+}
+
 bool logged(const std::string& text)
 {
     for (const std::string& line : g_log) {
@@ -216,7 +229,7 @@ void testImportAndCrom()
 
     // Another scene in the csv beside it changes nothing.
     writeText(directory / (document.romName() + ".PUP.CSV"), "60,2,40\n");
-    const std::vector<uint8_t> crom = runtime::projectCrom(document);
+    const std::vector<uint8_t> crom = projectCrom(document);
     expect(legacy::legacyCromByteCount(document.toSnapshot()) == crom.size(),
            "the cROM with its settings block has the size counted for it");
     g_log.clear();
@@ -227,6 +240,18 @@ void testImportAndCrom()
     expect(logged("2 rotation scene frames") && logged("not read") &&
                Serum_GetScalingAlgorithm() == document::kScalingLineDoubling,
            "with the project's scene frames and scaling, the csv unread");
+    Serum_Dispose();
+
+    // libserum takes the frames of scenes the project names, not those its markers would find:
+    // frame 3 keeps its marker but is no longer a frame of the scene.
+    document.setSceneFrame(3, std::nullopt);
+    g_log.clear();
+    {
+        runtime::SnapshotSource source(document.toSnapshot());
+        expect(source.load(csv.c_str(), 0) != nullptr, "libserum loads the project");
+    }
+    expect(logged("Loaded 3 frames and 1 rotation scene frames"),
+           "with the one frame of a scene the project names");
     Serum_Dispose();
     Serum_SetLogCallback(nullptr, nullptr);
     fs::remove_all(directory);

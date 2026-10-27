@@ -3,8 +3,10 @@
 A scene is a short sequence libserum plays by itself when a PUP trigger fires: an animation in
 front of the game's frames, or behind them as a background. Each frame of a scene is a frame
 of the project. Its original is not a ROM frame but a marker libserum generates for it
-("PUP SCENE ID", "FRAME GROUP", "FRAME NUMBER" with the numbers), and libserum identifies the
-frame by that marker while the scene plays. The frame is colorized like any other.
+("PUP SCENE ID", "FRAME GROUP", "FRAME NUMBER" with the numbers). The project tells libserum
+which frame is which frame of which scene, and libserum plays that frame for each step of the
+scene; it finds a scene frame by its marker only in a colorization of the Win32 editor, which
+does not tell it. The frame is colorized like any other.
 
 The project keeps its scenes, together with libserum's scaling settings, and hands them to
 libserum with the colorization, in the `.cROMc` (in a settings block at the end of its cROM).
@@ -63,8 +65,7 @@ the section says so and offers no `New`.
 
 ## Deleting frames of a scene
 
-libserum identifies a scene frame by the group and frame number of its marker, and plays a
-scene's frames by number: the numbers of a scene must have no gap. Deleting frames of a scene
+libserum plays a scene's frames by their group and frame number: the numbers of a scene must have no gap. Deleting frames of a scene
 from the strip (`Delete Frames`, `Delete` in the strip, or any other deletion of frames)
 therefore makes the scene smaller: it has that many frames less, and each frame behind a
 deleted one takes the number before it, with the new marker as its original; its colorization

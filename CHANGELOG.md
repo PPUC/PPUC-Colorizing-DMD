@@ -4,6 +4,9 @@ The changelog follows the git tags. A section takes a version number when that v
 tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
+- libserum takes the frames of scenes from the project (libserum 2.99.6) instead of generating
+  every scene marker and matching it: loading GoT-V79 takes 2.2 s instead of 5.6 s, and a game
+  frame can no longer be taken for a frame of a scene.
 
 ## 3.99.15
 
