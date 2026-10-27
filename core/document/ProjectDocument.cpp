@@ -1336,8 +1336,15 @@ std::optional<std::size_t> ProjectDocument::backgroundSceneFrame(std::size_t fra
         m_sceneRevision = m_revision;
         m_sceneCacheValid = true;
     }
-    const uint32_t step = sceneElapsedMs / std::max<uint32_t>(scene->durationMs, 1) %
-                          std::max<uint32_t>(scene->frameCount, 1);
+    // The canvas plays it in a loop, back and forth as libserum does with that option.
+    const uint32_t frames = std::max<uint32_t>(scene->frameCount, 1);
+    const uint32_t played = sceneElapsedMs / std::max<uint32_t>(scene->durationMs, 1);
+    uint32_t step = played % frames;
+    if ((scene->options & kSceneBackAndForth) != 0 && frames > 1) {
+        const uint32_t run = 2 * (frames - 1);
+        step = played % run;
+        step = step < frames ? step : run - step;
+    }
     const auto found = m_sceneFrames.find(static_cast<uint32_t>(scene->sceneId) << 16 | step);
     if (found == m_sceneFrames.end()) {
         return std::nullopt;

@@ -16,7 +16,10 @@ constexpr uint8_t kSceneAsBackground = 4;
 constexpr uint8_t kSceneOnlyDynamicContent = 8;
 constexpr uint8_t kSceneResumeIfRetriggered = 16;
 constexpr uint8_t kSceneReplaceDynamicBlack = 32;
-constexpr uint8_t kSceneKnownOptions = 63;
+// Forward to the last frame and back to the second; the next run starts at the first, the last
+// run ends on it (libserum 2.99.7).
+constexpr uint8_t kSceneBackAndForth = 64;
+constexpr uint8_t kSceneKnownOptions = 127;
 // The IDs a scene made in the editor gets: the trigger range kept for scenes (see
 // Triggers.h). Scenes of an imported pup.csv keep theirs.
 constexpr uint16_t kFirstSceneId = 50000;

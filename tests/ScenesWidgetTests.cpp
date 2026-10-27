@@ -304,7 +304,8 @@ void testDialog()
     scene.repeat = 3;
     scene.interruptable = false;
     scene.autoStartSeconds = 2;
-    scene.options = document::kSceneShowPreviousFrameWhenFinished | 64;
+    scene.options = document::kSceneShowPreviousFrameWhenFinished |
+                    document::kSceneBackAndForth | 128;
     app::SceneDialog dialog(scene, [](const document::SceneDefinition& candidate) {
         return candidate.sceneId == 8 ? std::string("taken") : std::string();
     });
@@ -335,13 +336,24 @@ void testDialog()
     expect(sawTotal, "the dialog says how many frames the project gets");
     const document::SceneDefinition changed = dialog.scene();
     expect(changed.sceneId == 9 && changed.frameGroups == 3 && changed.repeat == 3 &&
-               (changed.options & 64) && changed.autoStartSeconds == 2,
+               (changed.options & 128) && changed.autoStartSeconds == 2,
            "a change keeps the rest, flags it does not know included");
+    QCheckBox* backAndForth = nullptr;
     for (QCheckBox* box : dialog.findChildren<QCheckBox*>()) {
         if (box->text() == QStringLiteral("Black dynamic pixels show the scene")) {
             expect(!box->isEnabled(), "black dynamic pixels need a background scene");
         }
+        if (box->text() == QStringLiteral("Back and forth")) {
+            backAndForth = box;
+        }
     }
+    expect(backAndForth && backAndForth->isChecked() &&
+               (changed.options & document::kSceneBackAndForth),
+           "the scene plays back and forth");
+    backAndForth->setChecked(false);
+    expect(!(dialog.scene().options & document::kSceneBackAndForth) &&
+               (dialog.scene().options & 128),
+           "and no longer once unchecked, the unknown flag kept");
 }
 
 }  // namespace

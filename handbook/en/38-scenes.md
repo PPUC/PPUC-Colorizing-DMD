@@ -90,6 +90,7 @@ What one line of a `<rom>.pup.csv` says:
 | Pick the group at random | Otherwise the groups play in turn. |
 | Frame duration | How long each frame shows; 33 ms for a new scene (about 30 frames a second). |
 | Plays | Once, in a loop, or several times. |
+| Back and forth | Each time, the frames play to the last and back: 1 to 100, 99 to 2, then 1 to 100 again, so no frame shows twice in a row. The last time ends on the first frame; a scene with several groups picks its group each time it starts at the first frame. The canvas plays a background scene this way too. Needs libserum 2.99.7. |
 | Can be interrupted | A frame of the game identified while the scene plays ends it. |
 | Start immediately | The first frame shows when the trigger fires, without waiting for the next frame of the game. |
 | When it has played | Keep its last frame, black, or the frame shown before the scene. |

@@ -7371,6 +7371,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation> Mal</translation>
     </message>
     <message>
+        <source>Back and forth</source>
+        <translation>Vor und zurück</translation>
+    </message>
+    <message>
+        <source>Each time, the frames play to the last and back again: 1 to 100, 99 to 2, then 1 to 100 again; the last time ends on the first frame</source>
+        <translation>Jedes Mal laufen die Frames bis zum letzten und wieder zurück: 1 bis 100, 99 bis 2, dann wieder 1 bis 100; das letzte Mal endet auf dem ersten Frame</translation>
+    </message>
+    <message>
         <source>Can be interrupted</source>
         <translation>Unterbrechbar</translation>
     </message>
@@ -7611,6 +7619,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>%1 — %2 frames, %3 ms</source>
         <translation>%1 — %2 Frames, %3 ms</translation>
+    </message>
+    <message>
+        <source>, back and forth</source>
+        <translation>, vor und zurück</translation>
     </message>
     <message>
         <source>, background</source>

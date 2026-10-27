@@ -354,6 +354,39 @@ void testLegacySlotsFilledUp()
 
 }  // namespace
 
+// The canvas plays a background scene in a loop, back and forth with kSceneBackAndForth: to
+// the last frame and back, the first frame starting each run.
+static void testBackgroundSceneBackAndForth()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 1));
+    document::SceneDefinition scene = makeScene(50610, 4, 1);
+    scene.options = document::kSceneAsBackground;
+    const auto added = edit::addScene(document, scene);
+    document.setTriggerId(0, 50610);
+    const std::vector<std::size_t> frames = edit::sceneFrames(document, 50610);
+    const auto shown = [&document, &frames]() {
+        std::vector<std::size_t> steps;
+        for (uint32_t step = 0; step < 9; ++step) {
+            const std::optional<std::size_t> frame = document.backgroundSceneFrame(0, step * 30);
+            steps.push_back(frame ? static_cast<std::size_t>(std::find(frames.begin(),
+                                                                       frames.end(), *frame) -
+                                                             frames.begin())
+                                  : 99);
+        }
+        return steps;
+    };
+    expect(shown() == std::vector<std::size_t>{0, 1, 2, 3, 0, 1, 2, 3, 0},
+           "the scene loops from its first frame");
+    document::ColorizationSettings settings = *document.colorizationSettings();
+    for (document::SceneDefinition& defined : settings.scenes) {
+        defined.options |= document::kSceneBackAndForth;
+    }
+    document.setColorizationSettings(settings);
+    expect(shown() == std::vector<std::size_t>{0, 1, 2, 3, 2, 1, 0, 1, 2},
+           "back and forth: to the last frame and back, each frame once");
+}
+
 // A frame that starts a background scene shows the scene's first frame through its
 // background mask, also without a background of its own: libserum is given a black
 // placeholder background for it.
@@ -596,6 +629,7 @@ void runSceneEditTests()
     testFramesStartingScene();
     testLegacySlotsFilledUp();
     testBackgroundSceneWithoutBackground();
+    testBackgroundSceneBackAndForth();
     testPlaceholderBackgroundsRemoved();
     testAssetUse();
     testSceneInPlaybackWindow();

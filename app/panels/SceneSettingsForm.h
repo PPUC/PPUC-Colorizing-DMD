@@ -47,6 +47,7 @@ private:
     QComboBox* m_repeatComboBox = nullptr;
     QSpinBox* m_timesSpinBox = nullptr;
     QCheckBox* m_randomCheckBox = nullptr;
+    QCheckBox* m_backAndForthCheckBox = nullptr;
     QCheckBox* m_interruptableCheckBox = nullptr;
     QCheckBox* m_immediateCheckBox = nullptr;
     QComboBox* m_finishComboBox = nullptr;

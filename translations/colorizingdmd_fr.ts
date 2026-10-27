@@ -7371,6 +7371,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation> fois</translation>
     </message>
     <message>
+        <source>Back and forth</source>
+        <translation>Aller-retour</translation>
+    </message>
+    <message>
+        <source>Each time, the frames play to the last and back again: 1 to 100, 99 to 2, then 1 to 100 again; the last time ends on the first frame</source>
+        <translation>À chaque fois, les frames défilent jusqu’à la dernière puis reviennent : 1 à 100, 99 à 2, puis de nouveau 1 à 100 ; la dernière fois se termine sur la première frame</translation>
+    </message>
+    <message>
         <source>Can be interrupted</source>
         <translation>Interruptible</translation>
     </message>
@@ -7611,6 +7619,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>%1 — %2 frames, %3 ms</source>
         <translation>%1 — %2 frames, %3 ms</translation>
+    </message>
+    <message>
+        <source>, back and forth</source>
+        <translation>, aller-retour</translation>
     </message>
     <message>
         <source>, background</source>

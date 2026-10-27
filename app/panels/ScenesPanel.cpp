@@ -153,6 +153,9 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
                                  .arg(scene.sceneId)
                                  .arg(scene.frameCount)
                                  .arg(scene.durationMs);
+        if (scene.options & document::kSceneBackAndForth) {
+            text += tr(", back and forth");
+        }
         if (scene.options & document::kSceneAsBackground) {
             text += tr(", background");
         }

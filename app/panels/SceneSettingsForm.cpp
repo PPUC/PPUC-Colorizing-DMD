@@ -51,6 +51,10 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     m_timesSpinBox = new QSpinBox(this);
     m_timesSpinBox->setRange(2, 255);
     m_timesSpinBox->setSuffix(tr(" times"));
+    m_backAndForthCheckBox = new QCheckBox(tr("Back and forth"), this);
+    m_backAndForthCheckBox->setToolTip(
+        tr("Each time, the frames play to the last and back again: 1 to 100, 99 to 2, then 1 to "
+           "100 again; the last time ends on the first frame"));
     auto* repeatRow = new QHBoxLayout;
     repeatRow->addWidget(m_repeatComboBox, 1);
     repeatRow->addWidget(m_timesSpinBox);
@@ -99,6 +103,7 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     frames->addRow(QString(), m_randomCheckBox);
     frames->addRow(tr("Frame duration"), m_durationSpinBox);
     frames->addRow(tr("Plays"), repeatRow);
+    frames->addRow(QString(), m_backAndForthCheckBox);
     QFormLayout* playback = makeInspectorForm();
     playback->addRow(QString(), m_interruptableCheckBox);
     playback->addRow(QString(), m_immediateCheckBox);
@@ -143,7 +148,8 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
         connect(comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
                 this, changed);
     }
-    for (QCheckBox* checkBox : {m_randomCheckBox, m_interruptableCheckBox, m_immediateCheckBox,
+    for (QCheckBox* checkBox : {m_randomCheckBox, m_backAndForthCheckBox,
+                                m_interruptableCheckBox, m_immediateCheckBox,
                                 m_backgroundCheckBox, m_onlyDynamicCheckBox, m_resumeCheckBox,
                                 m_replaceBlackCheckBox}) {
         connect(checkBox, &QCheckBox::toggled, this, changed);
@@ -169,6 +175,7 @@ void SceneSettingsForm::setScene(const document::SceneDefinition& scene,
     m_durationSpinBox->setValue(std::max<int>(1, scene.durationMs));
     m_repeatComboBox->setCurrentIndex(scene.repeat >= 2 ? kRepeatTimes : scene.repeat);
     m_timesSpinBox->setValue(scene.repeat >= 2 ? scene.repeat : 2);
+    m_backAndForthCheckBox->setChecked(scene.options & document::kSceneBackAndForth);
     m_interruptableCheckBox->setChecked(scene.interruptable);
     m_immediateCheckBox->setChecked(scene.immediateStart);
     m_finishComboBox->setCurrentIndex(
@@ -186,6 +193,7 @@ void SceneSettingsForm::updateState()
 {
     m_timesSpinBox->setEnabled(m_repeatComboBox->currentData().toInt() == kRepeatTimes);
     m_randomCheckBox->setEnabled(m_groupsSpinBox->value() > 1);
+    m_backAndForthCheckBox->setEnabled(m_framesSpinBox->value() > 1);
     m_replaceBlackCheckBox->setEnabled(m_backgroundCheckBox->isChecked());
     // libserum reads the column as an end hold for a scene that cannot be interrupted and
     // keeps its last frame, and as the inactivity before an automatic start otherwise.
@@ -243,6 +251,9 @@ document::SceneDefinition SceneSettingsForm::scene() const
     }
     if (m_resumeCheckBox->isChecked()) {
         options |= document::kSceneResumeIfRetriggered;
+    }
+    if (m_backAndForthCheckBox->isChecked()) {
+        options |= document::kSceneBackAndForth;
     }
     scene.options = options;
     return scene;
