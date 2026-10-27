@@ -90,6 +90,9 @@ struct RuntimeFrame {
     // The speaker light effects libserum started with this call, per channel
     // (Serum_GetLightEffects()); nothing for a channel it left alone.
     std::array<std::optional<document::LightEffect>, document::kLightChannels> lights{};
+    // The DOF events libserum emitted with this call, in order (Serum_GetDofEvents()); a
+    // turn-off value is an event of its own here.
+    document::DofEvents dofEvents;
     // Milliseconds until libserum wants rotate() called; 0 when nothing rotates.
     uint32_t nextRotationMs = 0;
     // The frame whose picture libserum shows, as a document frame index: the one it reported

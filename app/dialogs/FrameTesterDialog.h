@@ -104,6 +104,9 @@ private:
     QString m_source;
     std::size_t m_position = 0;
     runtime::RuntimeFrame m_result;
+    // The DOF events libserum emitted last, by the fed frame or a rotation step; kept until it
+    // emits others.
+    document::DofEvents m_dofEvents;
     QString m_error;
     // 1 forward, -1 backward, 0 paused.
     int m_playDirection = 0;

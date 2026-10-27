@@ -36,6 +36,21 @@ document::LightEffect lightEffectOf(const Serum_Light_Effect& effect)
     return light;
 }
 
+// The DOF events libserum emitted since it was asked last.
+document::DofEvents takeDofEvents()
+{
+    document::DofEvents events;
+    Serum_Dof_Event batch[64] = {};
+    uint32_t count = 0;
+    while ((count = Serum_GetDofEvents(batch, 64)) > 0) {
+        for (uint32_t i = 0; i < count; ++i) {
+            events.push_back(document::DofEvent{batch[i].type, batch[i].number, batch[i].value,
+                                                std::nullopt});
+        }
+    }
+    return events;
+}
+
 // The speaker light effects libserum started since it was asked last.
 std::array<std::optional<document::LightEffect>, document::kLightChannels> takeLightEffects()
 {
@@ -526,9 +541,10 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
         // colorization starts with, which leaves its search exactly where it was.
         romFrame.assign(replay->pixels.begin(), replay->pixels.end());
         const uint32_t result = Serum_Colorize(romFrame.data());
-        // Not played: what it started on the lights is not shown.
+        // Not played: what it started on the lights and DOF is not shown.
         Serum_Light_Effect unused[SERUM_LIGHT_CHANNELS];
         (void)Serum_GetLightEffects(unused);
+        (void)takeDofEvents();
         if (result != IDENTIFY_NO_FRAME && result != IDENTIFY_SAME_FRAME) {
             RuntimeFrame frame;
             frame.identified = true;
@@ -578,6 +594,7 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     const uint32_t result = Serum_Colorize(romFrame.data());
     frame.cost.colorizeMs = millisecondsSince(start);
     const auto lights = takeLightEffects();
+    document::DofEvents dofEvents = takeDofEvents();
     const char* lastError = Serum_GetLastErrorMessage();
     if (lastError && lastError[0] != '\0') {
         frame.error = lastError;
@@ -610,6 +627,8 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
         frame = shown;
         frame.unchanged = true;
         frame.skipped = false;
+        // What the frame on display emitted was reported with it.
+        frame.dofEvents = std::move(dofEvents);
         if (sequence) {
             frame.identified = identified.has_value();
             frame.frameIndex = identified;
@@ -630,6 +649,7 @@ RuntimeFrame RuntimePreview::Impl::colorize(const document::IndexedFrame& origin
     }
     frame.triggerId = serum->triggerID;
     frame.lights = lights;
+    frame.dofEvents = std::move(dofEvents);
     frame.nextRotationMs = result & 0xffff;
     frame.shownFrameIndex = reported;
     readPlanes(frame);
@@ -842,6 +862,7 @@ RuntimeFrame RuntimePreview::rotate()
     frame.triggerId = document::kNoTriggerId;
     // A scene step can start effects: its frames are frames of the colorization.
     frame.lights = takeLightEffects();
+    frame.dofEvents = takeDofEvents();
     frame.cost = RuntimeCost{};
     return frame;
 }

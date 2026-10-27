@@ -134,6 +134,19 @@ std::string lightsData(const document::LightActions& actions)
     return data;
 }
 
+std::string dofEventsData(const document::DofEvents& events)
+{
+    std::string data;
+    for (const document::DofEvent& event : events) {
+        appendLittleEndian(data, static_cast<uint8_t>(event.type), 1);
+        appendLittleEndian(data, event.offValue ? 1 : 0, 1);
+        for (const int32_t value : {event.number, event.value, event.offValue.value_or(0)}) {
+            appendLittleEndian(data, static_cast<uint32_t>(value), 4);
+        }
+    }
+    return data;
+}
+
 std::string stringListData(const std::vector<std::string>& texts)
 {
     std::string data;
@@ -341,6 +354,9 @@ std::string frameContent(const ProjectSnapshot& snapshot,
     appendField(out, "LGHT", lightsData(frame.lights));
     if (frame.originalOnlyDynamicSets != 0) {
         appendField(out, "OOSD", integerData(frame.originalOnlyDynamicSets, 4));
+    }
+    if (!frame.dofEvents.empty()) {
+        appendField(out, "DOFE", dofEventsData(frame.dofEvents));
     }
     const std::vector<uint8_t>& palettes = snapshot.editorMetadata.importedPalettes;
     if ((frameIndex + 1) * document::kImportedPaletteBytes <= palettes.size()) {
@@ -1024,6 +1040,31 @@ document::LightActions readLights(const Fields& fields)
     return actions;
 }
 
+document::DofEvents readDofEvents(const Fields& fields)
+{
+    document::DofEvents events;
+    if (!fields.has("DOFE")) {
+        return events;
+    }
+    Cursor cursor = fields.cursor("DOFE");
+    while (cursor.remaining() > 0) {
+        document::DofEvent event;
+        event.type = static_cast<char>(cursor.integer(1));
+        const uint64_t flags = cursor.integer(1);
+        if (!document::isDofEventType(event.type) || flags > 1) {
+            cursor.fail();
+        }
+        event.number = static_cast<int32_t>(static_cast<uint32_t>(cursor.integer(4)));
+        event.value = static_cast<int32_t>(static_cast<uint32_t>(cursor.integer(4)));
+        const auto offValue = static_cast<int32_t>(static_cast<uint32_t>(cursor.integer(4)));
+        if (flags != 0) {
+            event.offValue = offValue;
+        }
+        events.push_back(event);
+    }
+    return events;
+}
+
 std::vector<std::string> readStringList(Cursor cursor)
 {
     const uint64_t count = cursor.integer(4);
@@ -1150,6 +1191,7 @@ document::ProjectFrameSnapshot readFrame(const Fields& fields,
         frame.tags = readStringList(fields.cursor("TAGS"));
     }
     frame.lights = readLights(fields);
+    frame.dofEvents = readDofEvents(fields);
     if (fields.has("OOSD")) {
         frame.originalOnlyDynamicSets = static_cast<uint32_t>(fields.integer("OOSD", 4));
     }

@@ -66,6 +66,9 @@ public:
     std::function<void(int durationMs)> onDurationEdited;
     // The Tags field changed (comma-separated): see edit::retaggedFrame().
     std::function<void(const QString& text)> onTagsEdited;
+    // The DOF events field changed to valid events: they replace those of the selected frames.
+    // A text that is not one stays in the field, marked, and is not reported.
+    std::function<void(const document::DofEvents& events)> onDofEventsEdited;
     std::function<void(bool checked)> onBackgroundLayerToggled;
     std::function<void(bool checked)> onSpritesLayerToggled;
     std::function<void()> onImportImageRequested;
@@ -90,6 +93,10 @@ private:
     QCompleter* m_tagsCompleter = nullptr;
     // The tags of the frame shown, as the field shows them.
     QString m_shownTags;
+    QLineEdit* m_dofEdit = nullptr;
+    QLabel* m_dofErrorLabel = nullptr;
+    // The DOF events of the frame shown, as the field shows them.
+    QString m_shownDofEvents;
     uint32_t m_triggerId = document::kNoTriggerId;
     QToolButton* m_backgroundLayerButton = nullptr;
     QToolButton* m_spritesLayerButton = nullptr;

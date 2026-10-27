@@ -63,7 +63,9 @@ namespace colorizing::project {
 //               bytes, uint16 raw ID for a slot without one, uint16 minX, minY, maxX, maxY),
 //               TRIG trigger, DURA duration, ROTS/ROTH color rotations, SCEN scene frame, TAGS
 //               tags, LGHT speaker light actions, OOSD SD-only dynamic sets, IPAL imported
-//               palette (192 bytes RGB888, the first frames only).
+//               palette (192 bytes RGB888, the first frames only), DOFE DOF events (per
+//               event uint8 type, uint8 1 with a turn-off value or 0, int32 number, value
+//               and turn-off value).
 //   Mask:       META, NAME, PICT.
 //   Background: META, COLS, COLH, INHD.
 //   Sprite:     META, NAME, FLAG (bit 0: has HD), ORIG, COLS, MSKH, COLH, DETD, DETP, DETA

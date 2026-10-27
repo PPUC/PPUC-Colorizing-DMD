@@ -76,11 +76,11 @@ The dialog lists the settings, each with how many of the selected frames it chan
 - `Sprites and colors`: every sprite slot with its bounds, and the color rotations.
 - `How and when the frame plays`: the comparison mask and the shape mode (they decide how libserum
   finds the frames, which the dialog points out when they are chosen), the trigger, the speaker
-  lights and the duration.
+  lights, the DOF events and the duration.
 
 At first the settings of the picture are chosen and those of how the frame plays are not; the
 choices are kept for the next time. HD data goes only between frames that both have HD. A frame
-of a scene takes only what it can have: the background, its mask, color rotations, lights and
-the duration (see "Scenes"); the dialog and the status bar say how many were left out. The copy
-is one undo step for all frames.
+of a scene takes only what it can have: the background, its mask, color rotations, lights, DOF
+events and the duration (see "Scenes"); the dialog and the status bar say how many were left
+out. The copy is one undo step for all frames.
 

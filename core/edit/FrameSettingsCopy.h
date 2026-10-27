@@ -29,6 +29,8 @@ enum class FrameSettingsPart {
     Trigger,
     Lights,
     Duration,
+    // Last: the dialog keeps the choices by these numbers.
+    DofEvents,
 };
 
 inline constexpr FrameSettingsPart kFrameSettingsParts[] = {
@@ -37,11 +39,11 @@ inline constexpr FrameSettingsPart kFrameSettingsParts[] = {
     FrameSettingsPart::BackgroundMask, FrameSettingsPart::Sprites,
     FrameSettingsPart::ColorRotations, FrameSettingsPart::Identification,
     FrameSettingsPart::Trigger,        FrameSettingsPart::Lights,
-    FrameSettingsPart::Duration,
+    FrameSettingsPart::DofEvents,      FrameSettingsPart::Duration,
 };
 
 // Whether a frame of a scene takes the part (ProjectDocument::stripSceneFrame()): the
-// background, its mask, color rotations, lights and the duration.
+// background, its mask, color rotations, lights, DOF events and the duration.
 [[nodiscard]] bool sceneFrameTakes(FrameSettingsPart part);
 
 // The targets (the source itself left out) the part would change. A frame of a scene does not

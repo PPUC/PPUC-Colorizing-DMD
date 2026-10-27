@@ -374,6 +374,8 @@ private:
     // The Frame section's Tags field changed: edit::retaggedFrame() on every selected frame,
     // a step in each frame's settings history.
     void setSelectedFramesTags(const QString& text);
+    // The events replace those of the selected frames, one undo step per frame.
+    void setSelectedFramesDofEvents(const document::DofEvents& events);
     // The toolbar's < and >: what the canvas showed before (frames, backgrounds, sprites).
     [[nodiscard]] CanvasPlace currentCanvasPlace() const;
     void noteCanvasPlace(bool frameRested = false);

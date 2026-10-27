@@ -5,6 +5,7 @@ add_library(colorizing_qt_v2_core STATIC
     document/ProjectTime.cpp
     document/ProjectTime.h
     document/ProjectLicense.cpp
+    document/DofEvents.cpp
     document/ProjectSnapshot.cpp
     document/Upscale.cpp
     document/ProjectDocument.cpp

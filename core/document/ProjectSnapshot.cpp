@@ -186,6 +186,12 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
                                               " has invalid HD background mask data");
             }
         }
+        for (const DofEvent& event : frame.dofEvents) {
+            if (!isDofEventType(event.type)) {
+                return fail(errorMessage, "frame " + std::to_string(i) +
+                                              " has a DOF event of an unknown type");
+            }
+        }
         for (const LightAction& action : frame.lights) {
             if (action.kind == LightActionKind::Effect &&
                 !snapshot.speakerLights.effect(action.effectId)) {

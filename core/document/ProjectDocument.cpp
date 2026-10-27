@@ -598,6 +598,7 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         std::move(frameSnapshot.tags),
         frameSnapshot.lights,
         frameSnapshot.originalOnlyDynamicSets,
+        std::move(frameSnapshot.dofEvents),
         std::move(frameSnapshot.meta),
     };
 }
@@ -1465,6 +1466,26 @@ void ProjectDocument::setFrameLights(std::size_t frameIndex, const LightActions&
         return;
     }
     frame.lights = lights;
+    markChanged();
+}
+
+const DofEvents& ProjectDocument::frameDofEvents(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).dofEvents;
+}
+
+void ProjectDocument::setFrameDofEvents(std::size_t frameIndex, DofEvents events)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    for (const DofEvent& event : events) {
+        if (!isDofEventType(event.type)) {
+            throw std::invalid_argument("a DOF event type is a capital letter");
+        }
+    }
+    if (frame.dofEvents == events) {
+        return;
+    }
+    frame.dofEvents = std::move(events);
     markChanged();
 }
 
@@ -4121,6 +4142,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.tags,
         frame.lights,
         frame.originalOnlyDynamicSets,
+        frame.dofEvents,
         frame.meta,
     };
 }

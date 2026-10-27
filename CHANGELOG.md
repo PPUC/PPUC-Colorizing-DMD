@@ -4,6 +4,10 @@ The changelog follows the git tags. A section takes a version number when that v
 tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
+- DOF events: the `DOF events` field of the `Frame` section lists what a frame sends to DOF
+  (libdof) when it shows, as `S5=255 L12=1;0`, with an optional turn-off value for the next
+  frame; libserum 2.99.8 hands them to the host (`Serum_GetDofEvents()`). The frame tester shows
+  them, and `Copy Frame Settings` copies them.
 - Scenes can play back and forth (`Back and forth` below `Plays`): to the last frame and back,
   once, several times or in a loop (libserum 2.99.7).
 - libserum takes the frames of scenes from the project (libserum 2.99.6) instead of generating

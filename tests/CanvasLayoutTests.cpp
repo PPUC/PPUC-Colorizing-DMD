@@ -152,6 +152,7 @@ void runCromcExportTests();
 void runSceneTests();
 void runSceneEditTests();
 void runFrameSettingsCopyTests();
+void runDofEventTests();
 void runSpeakerLightTests();
 void runEditBatchTests();
 void runComponentIdTests();
@@ -194,6 +195,7 @@ try {
     runSceneTests();
     runSceneEditTests();
     runFrameSettingsCopyTests();
+    runDofEventTests();
     runSpeakerLightTests();
     runEditBatchTests();
     runComponentIdTests();

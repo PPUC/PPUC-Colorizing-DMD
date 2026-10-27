@@ -370,6 +370,25 @@ private:
     std::vector<std::string> m_after;
 };
 
+// The DOF events of one frame (ProjectDocument::frameDofEvents()), in the frame's settings
+// history.
+class FrameDofEventsCommand final : public EditCommand {
+public:
+    FrameDofEventsCommand(std::size_t frameIndex,
+                          document::DofEvents before,
+                          document::DofEvents after);
+
+    void apply(document::ProjectDocument& document) const override;
+    void revert(document::ProjectDocument& document) const override;
+    [[nodiscard]] EditTarget target() const override;
+    [[nodiscard]] std::vector<RecordReference> recordReferences() const override;
+
+private:
+    std::size_t m_frameIndex;
+    document::DofEvents m_before;
+    document::DofEvents m_after;
+};
+
 // Create HD or Remove HD of a frame: swaps the frame's HD data, and the related HD data the
 // states hold, between the state before and the state after.
 class FrameHdCommand final : public EditCommand {

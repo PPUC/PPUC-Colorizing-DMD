@@ -1359,6 +1359,9 @@ void MainWindow::createCentralView()
         setCurrentFrameDurationMs(durationMs);
     };
     m_framePanel->onTagsEdited = [this](const QString& text) { setSelectedFramesTags(text); };
+    m_framePanel->onDofEventsEdited = [this](const document::DofEvents& events) {
+        setSelectedFramesDofEvents(events);
+    };
     m_framePanel->onBackgroundLayerToggled = [this](bool checked) {
         if (m_preview) {
             m_preview->setBackgroundLayerEnabled(checked);
@@ -6672,6 +6675,30 @@ void MainWindow::setSelectedFramesTags(const QString& text)
     updateProjectHeaderStatus();
     statusBar()->showMessage(
         tr("Tags of %n frame(s) changed", "", static_cast<int>(changed.size())), 2500);
+}
+
+void MainWindow::setSelectedFramesDofEvents(const document::DofEvents& events)
+{
+    if (!m_document) {
+        return;
+    }
+    std::vector<std::size_t> changed;
+    for (std::size_t frameIndex : selectedFrameIndices()) {
+        if (m_document->frameDofEvents(frameIndex) == events) {
+            continue;
+        }
+        auto command = std::make_unique<edit::FrameDofEventsCommand>(
+            frameIndex, m_document->frameDofEvents(frameIndex), events);
+        command->apply(*m_document);
+        const edit::HistoryKey key = edit::historyKey(command->target());
+        pushToHistory(key, std::move(command));
+        changed.push_back(frameIndex);
+    }
+    updateFrameMetadataControls();
+    updateUndoRedoActions();
+    updateProjectHeaderStatus();
+    statusBar()->showMessage(
+        tr("DOF events of %n frame(s) changed", "", static_cast<int>(changed.size())), 2500);
 }
 
 void MainWindow::setCurrentFrameDurationMs(int durationMs)

@@ -1743,6 +1743,18 @@
         <translation>Retirer les données de la frame HD</translation>
     </message>
     <message>
+        <source>DOF events the frame emits when it shows, separated by spaces: a table element type (S solenoid, L lamp, W switch, D LED, ...), its number, &apos;=&apos; and the value; after &apos;;&apos; a value the next frame gives the element unless it sets it itself. They replace those of all selected frames</source>
+        <translation>Événements DOF que la frame envoie quand elle s&apos;affiche, séparés par des espaces : un type d&apos;élément de table (S solénoïde, L lampe, W interrupteur, D LED, ...), son numéro, &apos;=&apos; et la valeur ; après &apos;;&apos; une valeur que la frame suivante donne à l&apos;élément, sauf si elle le règle elle-même. Ils remplacent ceux de toutes les frames sélectionnées</translation>
+    </message>
+    <message>
+        <source>e.g. S5=255 L12=1;0</source>
+        <translation>p. ex. S5=255 L12=1;0</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is not a DOF event such as S5=255 or L12=1;0</source>
+        <translation>« %1 » n&apos;est pas un événement DOF comme S5=255 ou L12=1;0</translation>
+    </message>
+    <message>
         <source>Target</source>
         <translation type="vanished">Cible</translation>
     </message>
@@ -1761,6 +1773,10 @@
     <message>
         <source>Tags</source>
         <translation>Tags</translation>
+    </message>
+    <message>
+        <source>DOF events</source>
+        <translation>Événements DOF</translation>
     </message>
     <message>
         <source>%1 (no such scene)</source>
@@ -1895,6 +1911,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Lumières de haut-parleur</translation>
     </message>
     <message>
+        <source>DOF events</source>
+        <translation>Événements DOF</translation>
+    </message>
+    <message>
         <source>Duration</source>
         <translation>Durée</translation>
     </message>
@@ -1937,8 +1957,15 @@ Utiliser Créer la frame %1.</translation>
         <translation>Le masque de comparaison et le mode forme décident comment libserum trouve les frames : les cibles peuvent ensuite être identifiées autrement.</translation>
     </message>
     <message numerus="yes">
-        <source>%n target(s) are frames of scenes: they take only the background, its mask, color rotations, lights and the duration.</source>
+        <source>%n target(s) are frames of scenes: they take only the background, its mask, color rotations, lights, DOF events and the duration.</source>
         <translation>
+            <numerusform>%n cible est une frame de scène : elle ne prend que l&apos;arrière-plan, son masque, les rotations de couleurs, les lumières, les événements DOF et la durée.</numerusform>
+            <numerusform>%n cibles sont des frames de scènes : elles ne prennent que l&apos;arrière-plan, son masque, les rotations de couleurs, les lumières, les événements DOF et la durée.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n target(s) are frames of scenes: they take only the background, its mask, color rotations, lights and the duration.</source>
+        <translation type="vanished">
             <numerusform>%n cible est une frame de scène : elle ne prend que l&apos;arrière-plan, son masque, les rotations de couleurs, les lumières et la durée.</numerusform>
             <numerusform>%n cibles sont des frames de scènes : elles ne prennent que l&apos;arrière-plan, son masque, les rotations de couleurs, les lumières et la durée.</numerusform>
         </translation>
@@ -2141,6 +2168,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>trigger %1</source>
         <translation>déclencheur %1</translation>
+    </message>
+    <message>
+        <source>DOF %1</source>
+        <translation>DOF %1</translation>
     </message>
     <message>
         <source>  ·  every later frame is identified</source>
@@ -5642,6 +5673,13 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame d&apos;un partenaire : %1. Elle reste en lecture seule ici jusqu&apos;à ce que la modification soit fusionnée.</translation>
+    </message>
+    <message numerus="yes">
+        <source>DOF events of %n frame(s) changed</source>
+        <translation>
+            <numerusform>Événements DOF de %n frame modifiés</numerusform>
+            <numerusform>Événements DOF de %n frames modifiés</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>

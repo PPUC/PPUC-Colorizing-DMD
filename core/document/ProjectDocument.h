@@ -16,6 +16,7 @@
 #include "document/ProjectLimits.h"
 #include "document/Scene.h"
 #include "document/ProjectLicense.h"
+#include "document/DofEvents.h"
 #include "document/SpeakerLights.h"
 #include "document/TeamState.h"
 #include "render/CanvasTypes.h"
@@ -147,6 +148,8 @@ struct FrameRecord {
     // The dynamic sets that color the SD picture only, bit n for set n
     // (ProjectDocument::originalOnlyDynamicSets()).
     uint32_t originalOnlyDynamicSets = 0;
+    // What the frame passes to DOF when it shows (DofEvents.h).
+    DofEvents dofEvents;
     ComponentMeta meta;
 };
 
@@ -420,6 +423,10 @@ public:
     [[nodiscard]] std::vector<std::size_t> framesUsingLightEffect(uint16_t effectId) const;
     // Whether the frame starts the effect on some channel.
     [[nodiscard]] bool frameUsesLightEffect(std::size_t frameIndex, uint16_t effectId) const;
+    // The frame's DOF events (FrameRecord::dofEvents). std::invalid_argument for a type that
+    // is not a capital letter.
+    [[nodiscard]] const DofEvents& frameDofEvents(std::size_t frameIndex) const;
+    void setFrameDofEvents(std::size_t frameIndex, DofEvents events);
     // The frame's tags (FrameRecord::tags). setFrameTags() sorts them, drops empty ones and
     // repeats, and trims blanks.
     [[nodiscard]] const std::vector<std::string>& frameTags(std::size_t frameIndex) const;

@@ -1365,6 +1365,11 @@ Reviewed for Windows/MinGW and left unchanged:
 7. Teams: remove packages (and notices) from the repository once every partner merged them,
    after a grace period (owner, 2026-10-23: later). Nothing removes them yet, so packages/
    only grows.
+8. DOF events (owner, 2026-10-27: prepared before libserum 3.0.0, no full integration yet):
+   frames carry them and libserum emits them (`Serum_GetDofEvents()`), but no host passes them
+   to libdof yet (libdmdutil, the VPX Serum plugin), and the editor's PuP and plugin hosts do
+   not either. Named elements (`$name`) are not supported: libdof's `DataReceive()` cannot take
+   them.
 
 ## Persistent runtime instance (deferred)
 

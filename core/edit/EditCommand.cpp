@@ -543,6 +543,36 @@ std::vector<RecordReference> FrameTagsCommand::recordReferences() const
     return {{RecordKind::Frame, m_frameIndex}};
 }
 
+FrameDofEventsCommand::FrameDofEventsCommand(std::size_t frameIndex,
+                                             document::DofEvents before,
+                                             document::DofEvents after)
+    : m_frameIndex(frameIndex),
+      m_before(std::move(before)),
+      m_after(std::move(after))
+{
+}
+
+void FrameDofEventsCommand::apply(document::ProjectDocument& document) const
+{
+    document.setFrameDofEvents(m_frameIndex, m_after);
+}
+
+void FrameDofEventsCommand::revert(document::ProjectDocument& document) const
+{
+    document.setFrameDofEvents(m_frameIndex, m_before);
+}
+
+EditTarget FrameDofEventsCommand::target() const
+{
+    return EditTarget{EditKind::FrameAttributes, m_frameIndex, render::Resolution::Sd,
+                      {m_frameIndex}};
+}
+
+std::vector<RecordReference> FrameDofEventsCommand::recordReferences() const
+{
+    return {{RecordKind::Frame, m_frameIndex}};
+}
+
 FrameHdCommand::FrameHdCommand(std::size_t frameIndex,
                                document::FrameHdState before,
                                document::FrameHdState after)

@@ -128,6 +128,43 @@ FramePanel::FramePanel(QWidget* parent)
     m_removeHdButton->setToolTip(tr("Remove HD frame data"));
     m_removeHdButton->setEnabled(false);
 
+    // DOF events: what the frame passes to the DirectOutput Framework when it shows.
+    m_dofEdit = new QLineEdit(this);
+    m_dofEdit->setToolTip(
+        tr("DOF events the frame emits when it shows, separated by spaces: a table element type "
+           "(S solenoid, L lamp, W switch, D LED, ...), its number, '=' and the value; after ';' "
+           "a value the next frame gives the element unless it sets it itself. They replace "
+           "those of all selected frames"));
+    m_dofEdit->setPlaceholderText(tr("e.g. S5=255 L12=1;0"));
+    m_dofEdit->setEnabled(false);
+    m_dofErrorLabel = new QLabel(this);
+    m_dofErrorLabel->setWordWrap(true);
+    m_dofErrorLabel->setStyleSheet(QStringLiteral("color: #c0392b;"));
+    m_dofErrorLabel->setVisible(false);
+    connect(m_dofEdit, &QLineEdit::editingFinished, this, [this]() {
+        if (m_dofEdit->text() == m_shownDofEvents) {
+            m_dofErrorLabel->setVisible(false);
+            return;
+        }
+        std::string wrong;
+        const std::optional<document::DofEvents> events =
+            document::parseDofEvents(m_dofEdit->text().toStdString(), &wrong);
+        if (!events) {
+            m_dofErrorLabel->setText(
+                tr("\"%1\" is not a DOF event such as S5=255 or L12=1;0")
+                    .arg(QString::fromStdString(wrong)));
+            m_dofErrorLabel->setVisible(true);
+            return;
+        }
+        m_dofErrorLabel->setVisible(false);
+        m_shownDofEvents = QString::fromStdString(document::formatDofEvents(*events));
+        m_dofEdit->setText(m_shownDofEvents);
+        m_dofEdit->setModified(false);
+        if (onDofEventsEdited) {
+            onDofEventsEdited(*events);
+        }
+    });
+
     auto* pageLayout = new QVBoxLayout(this);
     pageLayout->setContentsMargins(6, 6, 6, 6);
     auto* form = makeInspectorForm();
@@ -140,6 +177,8 @@ FramePanel::FramePanel(QWidget* parent)
     form->addRow(m_otherTriggerLabel);
     form->addRow(tr("Duration"), m_durationSpinBox);
     form->addRow(tr("Tags"), m_tagsEdit);
+    form->addRow(tr("DOF events"), m_dofEdit);
+    form->addRow(m_dofErrorLabel);
     pageLayout->addLayout(form);
     auto* layerLayout = new QHBoxLayout();
     layerLayout->addWidget(m_backgroundLayerButton);
@@ -277,6 +316,10 @@ void FramePanel::refresh(const FramePanelState& state)
         m_tagsEdit->clear();
         m_shownTags.clear();
         m_tagsEdit->setEnabled(false);
+        m_dofEdit->clear();
+        m_shownDofEvents.clear();
+        m_dofEdit->setEnabled(false);
+        m_dofErrorLabel->setVisible(false);
         m_backgroundLayerButton->setEnabled(false);
         m_spritesLayerButton->setEnabled(false);
         m_importImageButton->setEnabled(false);
@@ -326,6 +369,14 @@ void FramePanel::refresh(const FramePanelState& state)
         m_tagsEdit->setModified(false);
     }
     m_tagsEdit->setEnabled(true);
+    m_shownDofEvents =
+        QString::fromStdString(document::formatDofEvents(document->frameDofEvents(frameIndex)));
+    if (!m_dofEdit->hasFocus() || !m_dofEdit->isModified()) {
+        m_dofEdit->setText(m_shownDofEvents);
+        m_dofEdit->setModified(false);
+        m_dofErrorLabel->setVisible(false);
+    }
+    m_dofEdit->setEnabled(true);
     {
         QStringList known;
         for (const std::string& tag : document->allFrameTags()) {

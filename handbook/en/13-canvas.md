@@ -182,6 +182,8 @@ The `Frame` section exposes:
 - `Duration` edits the per-frame `.cRP` duration for all selected frames.
 - `Tags` names the groups the frame is in, separated by commas; a change adds or removes those
   tags on all selected frames (see "Frame List").
+- `DOF events` lists what the frame sends to DOF when it shows, as `S5=255 L12=1;0`; a change
+  replaces them on all selected frames (see "DOF Events").
 - `Background ID`, trigger and `Duration` edits can be undone, see "Undo And Redo".
 - `Show Background` renders the assigned background layer into the colorized frame preview and is enabled
   by default.

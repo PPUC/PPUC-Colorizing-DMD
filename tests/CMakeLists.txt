@@ -33,6 +33,7 @@ add_executable(colorizing_qt_v2_tests
     SameFramesTests.cpp
     EditBatchTests.cpp
     FrameSettingsCopyTests.cpp
+    DofEventTests.cpp
     SceneEditTests.cpp
     SceneTests.cpp
     SectionsTests.cpp

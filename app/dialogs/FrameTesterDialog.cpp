@@ -275,6 +275,7 @@ bool FrameTesterDialog::loadProject()
     RuntimePreview& preview = RuntimePreview::instance();
     preview.close();
     m_result = {};
+    m_dofEvents.clear();
     std::string error;
     try {
         if (preview.openProject(m_document, runtime::PlaneRequest::Both, &error,
@@ -346,6 +347,7 @@ void FrameTesterDialog::useSelectedFrames()
 void FrameTesterDialog::setFrames(std::vector<runtime::TesterFrame> frames, const QString& source)
 {
     m_frames = std::move(frames);
+    m_dofEvents.clear();
     m_source = source;
     m_sourceLabel->setText(source);
     m_position = 0;
@@ -400,6 +402,9 @@ void FrameTesterDialog::feed(std::size_t position)
         rotateStep();
     }
     m_result = preview.colorize(m_frames[position].original);
+    if (!m_result.dofEvents.empty()) {
+        m_dofEvents = m_result.dofEvents;
+    }
     m_speakerLights->start(m_result.lights);
     m_speakerLightsHd->start(m_result.lights);
     const bool newPicture =
@@ -425,6 +430,9 @@ void FrameTesterDialog::rotateStep()
     }
     m_speakerLights->start(rotated.lights);
     m_speakerLightsHd->start(rotated.lights);
+    if (!rotated.dofEvents.empty()) {
+        m_dofEvents = rotated.dofEvents;
+    }
     if (rotated.rows32) {
         m_result.rows32 = rotated.rows32;
     }
@@ -507,6 +515,9 @@ QString FrameTesterDialog::infoText() const
     }
     if (m_result.triggerId != document::kNoTriggerId) {
         parts << tr("trigger %1").arg(m_result.triggerId);
+    }
+    if (!m_dofEvents.empty()) {
+        parts << tr("DOF %1").arg(QString::fromStdString(document::formatDofEvents(m_dofEvents)));
     }
     return parts.join(QStringLiteral("  ·  "));
 }

@@ -62,6 +62,7 @@ ProjectDocument makeDocument()
     source.shapeComparisonMode = 1;
     source.triggerId = 777;
     source.durationMs = 55;
+    source.dofEvents = {{'S', 5, 255, 0}};
     document::ProjectFrameSnapshot& target = snapshot.frames[kTarget];
     target.dynamicData->maskSd.pixels[9] = 1;
     target.spriteReferences[0] = {0, 0, 0, 10, 10};
@@ -85,6 +86,8 @@ void testPreviewCounts()
                changed(FrameSettingsPart::Trigger) == 1 &&
                changed(FrameSettingsPart::Identification) == 1,
            "the source and the frame of a scene are not counted for game settings");
+    expect(changed(FrameSettingsPart::DofEvents) == 2,
+           "both other frames take the DOF events, the frame of a scene too");
     expect(changed(FrameSettingsPart::Background) == 2 &&
                changed(FrameSettingsPart::BackgroundMask) == 2 &&
                changed(FrameSettingsPart::ColorRotations) == 2 &&
@@ -123,6 +126,9 @@ void testCopyReplacesAndUndoes()
                document.triggerId(kTarget) == 777 && document.frameDurationMs(kTarget) == 55,
            "rotations, identification, trigger and duration are copied");
 
+    expect(document.frameDofEvents(kTarget) == document.frameDofEvents(kSource) &&
+               document.frameDofEvents(kScene) == document.frameDofEvents(kSource),
+           "the DOF events are copied, also to the frame of a scene");
     expect(document.backgroundId(kScene) == document.backgroundId(kSource) &&
                document.frameDurationMs(kScene) == 55 &&
                document.triggerId(kScene) == document::kNoTriggerId &&

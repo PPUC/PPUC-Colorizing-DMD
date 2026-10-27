@@ -19,13 +19,14 @@ using edit::FrameSettingsPart;
 const QString kSettingsKey = QStringLiteral("copyFrameSettings/parts");
 
 // What is chosen at first: the settings an author copies to similar frames. Identification,
-// trigger, lights and duration change how or when a frame plays.
+// trigger, lights, DOF events and duration change how or when a frame plays.
 bool chosenAtFirst(FrameSettingsPart part)
 {
     switch (part) {
         case FrameSettingsPart::Identification:
         case FrameSettingsPart::Trigger:
         case FrameSettingsPart::Lights:
+        case FrameSettingsPart::DofEvents:
         case FrameSettingsPart::Duration:
             return false;
         default:
@@ -64,6 +65,8 @@ QString frameSettingsPartName(FrameSettingsPart part)
             return QCoreApplication::translate("FrameSettingsDialog", "Trigger");
         case FrameSettingsPart::Lights:
             return QCoreApplication::translate("FrameSettingsDialog", "Speaker lights");
+        case FrameSettingsPart::DofEvents:
+            return QCoreApplication::translate("FrameSettingsDialog", "DOF events");
         case FrameSettingsPart::Duration:
             return QCoreApplication::translate("FrameSettingsDialog", "Duration");
     }
@@ -122,7 +125,8 @@ FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& docume
           {FrameSettingsPart::Sprites, FrameSettingsPart::ColorRotations});
     group(tr("How and when the frame plays"),
           {FrameSettingsPart::Identification, FrameSettingsPart::Trigger,
-           FrameSettingsPart::Lights, FrameSettingsPart::Duration});
+           FrameSettingsPart::Lights, FrameSettingsPart::DofEvents,
+           FrameSettingsPart::Duration});
 
     m_note = new QLabel(this);
     m_note->setWordWrap(true);
@@ -172,7 +176,7 @@ void FrameSettingsDialog::updateNote()
     }
     if (m_sceneFrames > 0) {
         notes << tr("%n target(s) are frames of scenes: they take only the background, its "
-                    "mask, color rotations, lights and the duration.",
+                    "mask, color rotations, lights, DOF events and the duration.",
                     "", static_cast<int>(m_sceneFrames));
     }
     m_note->setText(notes.join(QStringLiteral("\n")));

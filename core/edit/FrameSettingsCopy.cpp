@@ -158,6 +158,8 @@ bool changes(const ProjectDocument& document,
             return document.triggerId(source) != document.triggerId(target);
         case FrameSettingsPart::Lights:
             return document.frameLights(source) != document.frameLights(target);
+        case FrameSettingsPart::DofEvents:
+            return document.frameDofEvents(source) != document.frameDofEvents(target);
         case FrameSettingsPart::Duration:
             return document.frameDurationMs(source) != document.frameDurationMs(target);
     }
@@ -328,6 +330,7 @@ bool sceneFrameTakes(FrameSettingsPart part)
         case FrameSettingsPart::BackgroundMask:
         case FrameSettingsPart::ColorRotations:
         case FrameSettingsPart::Lights:
+        case FrameSettingsPart::DofEvents:
         case FrameSettingsPart::Duration:
             return true;
         default:
@@ -423,6 +426,12 @@ FrameSettingsCopy copyFrameSettings(ProjectDocument& document,
                 batch.add(applied(std::make_unique<FrameLightsCommand>(
                                       target, document.frameLights(target),
                                       document.frameLights(source)),
+                                  document));
+            }
+            if (wants(FrameSettingsPart::DofEvents)) {
+                batch.add(applied(std::make_unique<FrameDofEventsCommand>(
+                                      target, document.frameDofEvents(target),
+                                      document.frameDofEvents(source)),
                                   document));
             }
             if (wants(FrameSettingsPart::Duration)) {

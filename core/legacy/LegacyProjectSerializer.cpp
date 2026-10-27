@@ -700,7 +700,13 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         framesWithOriginalOnlySets += frame.originalOnlyDynamicSets != 0 ? 1 : 0;
     }
     const bool withOriginalOnlySets = framesWithOriginalOnlySets > 0;
-    if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets) {
+    std::size_t framesWithDofEvents = 0;
+    for (const auto& frame : snapshot.frames) {
+        framesWithDofEvents += frame.dofEvents.empty() ? 0 : 1;
+    }
+    const bool withDofEvents = framesWithDofEvents > 0;
+    if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets &&
+        !withDofEvents) {
         return block;
     }
     const auto put = [&block](uint64_t value, std::size_t bytes) {
@@ -716,7 +722,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
     put(0, 4);  // the payload size, set below
     put((withScenes ? kCromSettingsScenes | kCromSettingsSceneFrames : 0) |
             (withScaling ? kCromSettingsScaling : 0) | (withLights ? kCromSettingsLights : 0) |
-            (withOriginalOnlySets ? kCromSettingsOriginalOnlySets : 0),
+            (withOriginalOnlySets ? kCromSettingsOriginalOnlySets : 0) |
+            (withDofEvents ? kCromSettingsDofEvents : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -804,6 +811,25 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             put(scene.frameIndex, 2);
             put(scene.group, 1);
             put(0, 1);
+        }
+    }
+    if (withDofEvents) {
+        put(framesWithDofEvents, 4);
+        for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+            const document::DofEvents& events = snapshot.frames[frame].dofEvents;
+            if (events.empty()) {
+                continue;
+            }
+            put(frame, 4);
+            put(events.size(), 4);
+            for (const document::DofEvent& event : events) {
+                put(static_cast<uint8_t>(event.type), 1);
+                put(event.offValue ? 1 : 0, 1);
+                put(0, 2);
+                put(static_cast<uint32_t>(event.number), 4);
+                put(static_cast<uint32_t>(event.value), 4);
+                put(static_cast<uint32_t>(event.offValue.value_or(0)), 4);
+            }
         }
     }
     const uint64_t payload = block.size() - 8;

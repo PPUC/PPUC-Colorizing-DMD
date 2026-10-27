@@ -16,7 +16,8 @@ in the editor, saved or not.
   (Settings -> Appearance). The line
   under the pictures gives the position, the project frame or the dump time, the duration, and
   libserum's answer: `identified as frame N`, `(inactive: the display keeps its picture)`, `not
-  identified`, `libserum keeps the picture on display`, and a trigger it reported. While
+  identified`, `libserum keeps the picture on display`, a trigger it reported, and the DOF
+  events libserum sent last, as `DOF S5=255 L12=0` (see "DOF Events"). While
   libserum shows a frame of a scene, the line names the scene instead, as `scene 50082 plays
   (frame 1)` or `background scene 50082 plays (group 2, frame 3)`. Color rotations run.
 - With the speaker light preview on (`View -> Speaker Light Preview`), speakers beside each of

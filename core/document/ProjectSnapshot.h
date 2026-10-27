@@ -33,6 +33,7 @@ struct ProjectFrameSnapshot {
     std::vector<std::string> tags;
     LightActions lights{};
     uint32_t originalOnlyDynamicSets = 0;
+    DofEvents dofEvents;
     ComponentMeta meta;
 };
 

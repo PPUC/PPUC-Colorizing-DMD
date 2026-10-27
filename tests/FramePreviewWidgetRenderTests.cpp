@@ -3919,6 +3919,44 @@ void testFramePanel()
            "a changed Tags field is reported once");
     panel.refresh(stateFor(tagged, std::nullopt));
     expect(!tagsEdit->isEnabled() && tagsEdit->text().isEmpty(), "no frame, no tags");
+
+    // DOF events: the frame's, as the author writes them; valid ones are reported, a text that
+    // is none is marked and kept.
+    tagged.setFrameDofEvents(0, {{'L', 12, 1, 0}});
+    panel.refresh(stateFor(tagged, 0));
+    QLineEdit* dofEdit = nullptr;
+    for (QLineEdit* edit : panel.findChildren<QLineEdit*>()) {
+        if (edit->placeholderText() == QStringLiteral("e.g. S5=255 L12=1;0")) {
+            dofEdit = edit;
+        }
+    }
+    expect(dofEdit && dofEdit->isEnabled() && dofEdit->text() == QStringLiteral("L12=1;0"),
+           "the DOF events field shows the frame's events");
+    std::vector<colorizing::document::DofEvents> dofEdits;
+    panel.onDofEventsEdited = [&](const colorizing::document::DofEvents& events) {
+        dofEdits.push_back(events);
+    };
+    const auto errorShown = [&panel]() {
+        for (QLabel* label : panel.findChildren<QLabel*>()) {
+            if (label->text().contains(QStringLiteral("is not a DOF event")) &&
+                !label->isHidden()) {
+                return true;
+            }
+        }
+        return false;
+    };
+    dofEdit->setText(QStringLiteral("L12=1;0 S5"));
+    Q_EMIT dofEdit->editingFinished();
+    expect(dofEdits.empty() && errorShown() && dofEdit->text() == QStringLiteral("L12=1;0 S5"),
+           "a part that is no event is marked, kept and not reported");
+    dofEdit->setText(QStringLiteral("l12=1;0, s5=255"));
+    Q_EMIT dofEdit->editingFinished();
+    Q_EMIT dofEdit->editingFinished();
+    expect(dofEdits.size() == 1 && dofEdits[0].size() == 2 && dofEdits[0][1].type == 'S' &&
+               !errorShown() && dofEdit->text() == QStringLiteral("L12=1;0 S5=255"),
+           "valid events are reported once and written back as the author's form");
+    panel.refresh(stateFor(tagged, std::nullopt));
+    expect(!dofEdit->isEnabled() && dofEdit->text().isEmpty(), "no frame, no DOF events");
 }
 
 void testRecordListPage()

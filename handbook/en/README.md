@@ -45,3 +45,4 @@ whenever a user-visible feature changes.
 - [Speaker Lights](39-speaker-lights.md)
 - [Packages](40-packages.md)
 - [Working As A Team](41-working-as-a-team.md)
+- [DOF Events](42-dof-events.md)
