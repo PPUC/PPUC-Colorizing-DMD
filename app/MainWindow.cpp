@@ -1670,9 +1670,10 @@ void MainWindow::createCentralView()
            "the frame does not change"));
     m_stayPlaybackButton->setCheckable(true);
     m_stayPlaybackButton->setEnabled(false);
-    m_useProjectTimingCheckBox = new QCheckBox(QStringLiteral("cRP"), central);
+    m_useProjectTimingCheckBox = new QCheckBox(tr("Durations"), central);
     m_useProjectTimingCheckBox->setToolTip(
-        tr("Use per-frame durations loaded from the .cRP file"));
+        tr("Play each frame for its own duration (the Frame section's Duration); unchecked, "
+           "every frame for the interval beside"));
     m_useProjectTimingCheckBox->setChecked(true);
     m_useProjectTimingCheckBox->setEnabled(false);
     m_playbackIntervalSpinBox = new QSpinBox(central);

@@ -58,7 +58,7 @@ FramePanel::FramePanel(QWidget* parent)
     m_otherTriggerLabel->setWordWrap(true);
     m_otherTriggerLabel->setVisible(false);
     m_durationSpinBox = new QSpinBox(this);
-    m_durationSpinBox->setToolTip(tr("Per-frame cRP duration"));
+    m_durationSpinBox->setToolTip(tr("Per-frame duration"));
     m_durationSpinBox->setRange(0, kMaxFrameDurationMs);
     m_durationSpinBox->setSingleStep(10);
     m_durationSpinBox->setSuffix(tr(" ms"));
@@ -309,7 +309,7 @@ void FramePanel::refresh(const FramePanelState& state)
         m_otherTriggerLabel->setVisible(false);
         m_durationSpinBox->setValue(0);
         m_durationSpinBox->setEnabled(false);
-        m_durationSpinBox->setToolTip(tr("Per-frame cRP duration"));
+        m_durationSpinBox->setToolTip(tr("Per-frame duration"));
         m_tagsEdit->clear();
         m_shownTags.clear();
         m_tagsEdit->setEnabled(false);
@@ -387,8 +387,8 @@ void FramePanel::refresh(const FramePanelState& state)
                                     : 0);
     m_durationSpinBox->setToolTip(
         durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
-            ? tr("Per-frame cRP duration")
-            : tr("Unsupported cRP duration %1 ms is preserved until edited")
+            ? tr("Per-frame duration")
+            : tr("Unsupported duration %1 ms is preserved until edited")
                   .arg(durationMs));
     m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
     // A sprite in one of the frame's slots.

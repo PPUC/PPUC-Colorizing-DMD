@@ -19,6 +19,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - A paste starts where the last one was stamped, as in the Win32 editor, so that an object
   sliding in can be pasted frame by frame a few pixels on; the first paste after a copy still
   starts where it was copied from (#33).
+- The playback toolbar's `cRP` checkbox is now `Durations`: it plays each frame for its own
+  duration. The advice about more than 32 sprites per frame names the old Williams games such
+  as Flash, where the latency does not hurt.
 
 ## 3.99.17
 

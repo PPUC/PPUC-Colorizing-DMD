@@ -1652,7 +1652,7 @@
     </message>
     <message>
         <source>Per-frame cRP duration</source>
-        <translation>cRP-Dauer des Frames</translation>
+        <translation type="vanished">cRP-Dauer des Frames</translation>
     </message>
     <message>
         <source> ms</source>
@@ -1693,6 +1693,10 @@
     <message>
         <source>Show BG</source>
         <translation type="vanished">HG zeigen</translation>
+    </message>
+    <message>
+        <source>Per-frame duration</source>
+        <translation>Dauer des Frames</translation>
     </message>
     <message>
         <source>The frame&apos;s tags, separated by commas; a change adds or removes them on all selected frames</source>
@@ -1755,6 +1759,10 @@
         <translation>„%1“ ist kein DOF-Ereignis wie S5=255 oder L12=1;0</translation>
     </message>
     <message>
+        <source>Unsupported duration %1 ms is preserved until edited</source>
+        <translation>Nicht unterstützte Dauer %1 ms bleibt erhalten, bis sie bearbeitet wird</translation>
+    </message>
+    <message>
         <source>Target</source>
         <translation type="vanished">Ziel</translation>
     </message>
@@ -1804,7 +1812,7 @@
     </message>
     <message>
         <source>Unsupported cRP duration %1 ms is preserved until edited</source>
-        <translation>Nicht unterstützte cRP-Dauer %1 ms bleibt erhalten, bis sie bearbeitet wird</translation>
+        <translation type="vanished">Nicht unterstützte cRP-Dauer %1 ms bleibt erhalten, bis sie bearbeitet wird</translation>
     </message>
     <message>
         <source>Create %1 Frame</source>
@@ -3445,7 +3453,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Use per-frame durations loaded from the .cRP file</source>
-        <translation>Frame-Dauern aus der .cRP-Datei verwenden</translation>
+        <translation type="vanished">Frame-Dauern aus der .cRP-Datei verwenden</translation>
     </message>
     <message>
         <source>Playback frame interval</source>
@@ -3890,6 +3898,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>The frames that use the mask, background or sprite selected in the section used last on the left, that start the selected scene (also as background) or the selected light effect; follows the selection and the section</source>
         <translation>Die Frames, die die Maske, den Hintergrund oder das Sprite verwenden, das im zuletzt links benutzten Bereich ausgewählt ist, die die ausgewählte Szene starten (auch als Hintergrund) oder den ausgewählten Lichteffekt; folgt der Auswahl und dem Bereich</translation>
+    </message>
+    <message>
+        <source>Durations</source>
+        <translation>Dauern</translation>
+    </message>
+    <message>
+        <source>Play each frame for its own duration (the Frame section&apos;s Duration); unchecked, every frame for the interval beside</source>
+        <translation>Jeden Frame für seine eigene Dauer abspielen (Dauer im Abschnitt Frame); nicht angehakt jeden Frame für das Intervall daneben</translation>
     </message>
     <message>
         <source>Leave Scene</source>
@@ -8385,8 +8401,12 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Jedes ausgewählte Sprite auf die ausgewählten Frames setzen: Ein Frame behält ein Sprite, das er hat, andere kommen auf seine ersten freien Plätze</translation>
     </message>
     <message>
+        <source>Sprites work the same past %1 per frame, but every sprite more adds to the time libserum needs for each frame. Stay within %1 wherever you can: use more only on a frame that cannot be done otherwise, never as a habit. In the old Williams System 3 to 6 games, such as Flash, a few milliseconds of latency do not hurt; in a video mode avoid it.</source>
+        <translation>Sprites funktionieren über %1 pro Frame hinaus genauso, aber jedes weitere Sprite verlängert die Zeit, die libserum für jeden Frame braucht. Bleib wo immer möglich bei höchstens %1: mehr nur auf einem Frame, der sich nicht anders umsetzen lässt, nie aus Gewohnheit. Bei den alten Williams-System-3- bis -6-Spielen wie Flash schaden ein paar Millisekunden Latenz nicht; in einem Videomodus vermeide es.</translation>
+    </message>
+    <message>
         <source>Sprites work the same past %1 per frame, but every sprite more adds to the time libserum needs for each frame. Stay within %1 wherever you can: use more only on a frame that cannot be done otherwise, never as a habit. On a short flash a few milliseconds of latency do not hurt; in a video mode avoid it.</source>
-        <translation>Sprites funktionieren über %1 pro Frame hinaus genauso, aber jedes weitere Sprite verlängert die Zeit, die libserum für jeden Frame braucht. Bleib wo immer möglich bei höchstens %1: mehr nur auf einem Frame, der sich nicht anders umsetzen lässt, nie aus Gewohnheit. Bei einem kurzen Flash schaden ein paar Millisekunden Latenz nicht; in einem Videomodus vermeide es.</translation>
+        <translation type="vanished">Sprites funktionieren über %1 pro Frame hinaus genauso, aber jedes weitere Sprite verlängert die Zeit, die libserum für jeden Frame braucht. Bleib wo immer möglich bei höchstens %1: mehr nur auf einem Frame, der sich nicht anders umsetzen lässt, nie aus Gewohnheit. Bei einem kurzen Flash schaden ein paar Millisekunden Latenz nicht; in einem Videomodus vermeide es.</translation>
     </message>
     <message>
         <source>The frame uses %1 sprites. More than %2 sprites on a frame can make libserum&apos;s sprite detection noticeably slow.</source>

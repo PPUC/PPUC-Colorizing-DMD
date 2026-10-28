@@ -936,8 +936,9 @@ QString SpritePanel::manySpritesAdvice()
 {
     return tr("Sprites work the same past %1 per frame, but every sprite more adds to the "
               "time libserum needs for each frame. Stay within %1 wherever you can: use more "
-              "only on a frame that cannot be done otherwise, never as a habit. On a short "
-              "flash a few milliseconds of latency do not hurt; in a video mode avoid it.")
+              "only on a frame that cannot be done otherwise, never as a habit. In the old "
+              "Williams System 3 to 6 games, such as Flash, a few milliseconds of latency do "
+              "not hurt; in a video mode avoid it.")
         .arg(document::kSpritesPerFrameWarning);
 }
 

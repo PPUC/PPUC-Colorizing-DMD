@@ -2429,6 +2429,17 @@ void testSpriteEditorSourceFrame()
 
 // Move Up and Move Down change the order of the slots, the order the runtime draws them in;
 // each needs a neighbour with a sprite.
+// More than 32 sprites: harmless in the old Williams games such as Flash (the game, not a
+// short flash), to be avoided in a video mode.
+void testManySpritesAdvice()
+{
+    const QString advice = colorizing::app::SpritePanel::manySpritesAdvice();
+    expect(advice.contains(QStringLiteral("Williams System 3 to 6 games, such as Flash")) &&
+               advice.contains(QStringLiteral("video mode")) &&
+               !advice.contains(QStringLiteral("short flash")),
+           "the advice names the old Williams games and the video modes");
+}
+
 void testSpriteSlotOrderButtons()
 {
     using colorizing::document::FrameSpriteReference;
@@ -3712,7 +3723,7 @@ void testFramePanel()
     auto* triggerIdSpinBox =
         childByToolTip<QSpinBox>(panel, "PUP trigger the frame fires, 0 to 49999");
     auto* sceneComboBox = childByToolTip<QComboBox>(panel, "Scene of the project the frame starts");
-    auto* durationSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame cRP duration");
+    auto* durationSpinBox = childByToolTip<QSpinBox>(panel, "Per-frame duration");
     auto* monochromeCheckBox = childByToolTip<QCheckBox>(
         panel, "From this frame on, libserum shows the frames in monochrome (trigger ID 65432)");
     auto* paletteMonochromeCheckBox = childByToolTip<QCheckBox>(
@@ -3797,7 +3808,7 @@ void testFramePanel()
            "frame panel should show the PUP trigger and leave the other kinds open (scenes "
            "need scenes)");
     expect(durationSpinBox->isEnabled() && durationSpinBox->value() == 100 &&
-               durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration"),
+               durationSpinBox->toolTip() == QStringLiteral("Per-frame duration"),
            "frame panel should show the duration");
     expect(backgroundLayerButton->isEnabled() && importButton->isEnabled() &&
                !createHdButton->isEnabled() && removeHdButton->isEnabled(),
@@ -3813,7 +3824,7 @@ void testFramePanel()
            "frame panel should show the monochrome fallback and leave the other kinds open");
     expect(durationSpinBox->value() == 0 &&
                durationSpinBox->toolTip() ==
-                   QStringLiteral("Unsupported cRP duration 40000 ms is preserved until edited"),
+                   QStringLiteral("Unsupported duration 40000 ms is preserved until edited"),
            "frame panel should explain an unsupported duration");
     expect(!importButton->isEnabled() && createHdButton->isEnabled() &&
                !removeHdButton->isEnabled(),
@@ -3892,7 +3903,7 @@ void testFramePanel()
                backgroundIdSpinBox->maximum() == -1 && !triggerIdSpinBox->isEnabled() &&
                !durationSpinBox->isEnabled() && !monochromeCheckBox->isEnabled() &&
                !backgroundLayerButton->isEnabled() && !importButton->isEnabled() &&
-               durationSpinBox->toolTip() == QStringLiteral("Per-frame cRP duration") &&
+               durationSpinBox->toolTip() == QStringLiteral("Per-frame duration") &&
                !paletteMonochromeCheckBox->isEnabled() &&
                !sceneComboBox->isEnabled(),
            "frame panel should reset without a frame");
@@ -4156,6 +4167,7 @@ int main(int argc, char* argv[])
     testPalettePanel();
     testSpritePanel();
     testSpriteSlotOrderButtons();
+    testManySpritesAdvice();
     testSpriteEditorSourceFrame();
     testSpritePanelWarnsAboutManySprites();
     testSpriteAndBackgroundHdButtons();

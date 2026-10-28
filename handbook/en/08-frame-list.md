@@ -51,7 +51,7 @@ so scrolling, selecting, filtering and keyboard navigation do not depend on it. 
 its frame changes; nothing has to be done to refresh it. Opening a large project therefore no
 longer waits for one thumbnail per frame.
 
-Frame items show the project frame number, the loaded cRP duration, and compact flags such as
+Frame items show the project frame number, its duration, and compact flags such as
 `HD`, `Dyn`, assigned `Background`, and sprite assignment count when present.
 `Dyn` means that the frame has a dynamic zone the runtime renders: at least one pixel of its
 dynamic mask on the plane libserum takes dynamic zones from (the 128x32 plane of an ordinary

@@ -8,10 +8,11 @@ The top toolbar contains editor-only playback controls:
 - `Stay` keeps `Play` on the current frame: the frame does not change, while its color rotations
   and its background scene run, to look at them or to draw while they move. Switched while
   playing, playback goes on in the other mode.
-- `cRP` uses the per-frame durations loaded from the `.cRP` file.
+- `Durations` plays each frame for its own duration (`Duration` in the Frame section);
+  unchecked, every frame is shown for the interval beside it.
 - The interval field controls the fallback frame advance interval in milliseconds.
 
-Playback respects the current frame filter in the left `Frames` tab. When `cRP` timing is enabled,
+Playback respects the current frame filter in the left `Frames` tab. When `Durations` is checked,
 frames with missing, zero, or unusually large durations use the fallback interval.
 
 During playback, the central preview advances color-rotation slots for the displayed frame using

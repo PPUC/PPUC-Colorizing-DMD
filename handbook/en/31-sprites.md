@@ -121,8 +121,9 @@ The controls:
 - The current frame's sprite assignment slots and bounding boxes are shown as text.
 - A frame has 128 sprite slots (see "Project Files", "libserum 2.9"); stay within 32 per frame
   wherever you can. Every sprite more adds to the time libserum needs for each frame, so going past
-  32 is for a single frame that cannot be done otherwise and should never become best practice. On a
-  short flash a few milliseconds of latency do not hurt; in a video mode avoid it.
+  32 is for a single frame that cannot be done otherwise and should never become best practice. In
+  the old Williams System 3 to 6 games, such as Flash, a few milliseconds of latency do not hurt;
+  in a video mode avoid it.
   - Putting a 33rd sprite on a frame (`Assign` or `Capture`) asks first, with this advice;
     `Use More Sprites` goes on, `Cancel` leaves the frame as it is.
   - While the current frame uses more than 32 sprites, the section shows the warning above the
