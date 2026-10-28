@@ -8,8 +8,11 @@ clipboard as a PNG image (transparent outside the selection). The internal clipb
 when a project is opened.
 
 `Edit -> Paste` (`Ctrl/Cmd+V`) starts paste mode: the copied pixels float over the frame canvas,
-first where they were copied from, then centred on the mouse. A fine line around them shows the
-copied box; it runs between the pixels and covers none of them. In paste mode:
+first where they were last pasted (the first paste after a copy: where they were copied from),
+then centred on the mouse. Pasting an object that slides in frame by frame then takes only
+`Ctrl/Cmd+V`, a few arrow key presses and `Enter` on each frame. Each paste starts unmirrored,
+as in the Win32 editor. A fine line around them shows the copied box; it runs between the pixels
+and covers none of them. In paste mode:
 
 - the arrow keys move them by a pixel, with `Shift` by 10; the keypad's `2`, `4`, `6`, `8` as in
   the Win32 editor;

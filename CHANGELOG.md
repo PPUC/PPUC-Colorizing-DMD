@@ -16,6 +16,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   again.
 - A dynamic set color picked or dropped on a swatch goes to all selected frames, as the shadow
   settings do, not only to the current frame (#39).
+- A paste starts where the last one was stamped, as in the Win32 editor, so that an object
+  sliding in can be pasted frame by frame a few pixels on; the first paste after a copy still
+  starts where it was copied from (#33).
 
 ## 3.99.17
 

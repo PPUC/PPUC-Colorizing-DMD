@@ -416,6 +416,20 @@ void testPasteMode()
     }
     expect(after == before, "undo frame by frame restores the frames");
 
+    // The next paste starts where the last one was stamped, not mirrored (issue #33).
+    paste.begin(context, edit::PasteMode::All);
+    expect(paste.placement().x == 40 && paste.placement().y == 10 &&
+               !paste.placement().mirrorHorizontally && owner.overlay &&
+               owner.overlay->box.x == 40,
+           "the next paste starts where the last was stamped");
+    paste.cancel();
+    // The same copy from frame 0 again.
+    expect(paste.copy(makeContext(document, {0}), &selection), "a new copy");
+    paste.begin(context, edit::PasteMode::All);
+    expect(paste.placement().x == 10 && paste.placement().y == 5,
+           "the first paste after a copy starts where it was copied from");
+    paste.cancel();
+
     // Escape cancels without a change; Shift and Alt pick the variants.
     paste.begin(context, edit::PasteMode::All);
     expect(paste.stampMode(Qt::ShiftModifier) == edit::PasteMode::WhereOriginalsMatch &&
@@ -464,6 +478,8 @@ void testPasteMode()
     expect(!paste.begin(context, edit::PasteMode::All), "not on a background");
     context.layer = CanvasEditLayer::DynamicMask;
     expect(paste.begin(context, edit::PasteMode::All), "in Dynamic mode");
+    // Away from the last stamp, whose pixels hold the pasted mask already.
+    paste.follow(hitAt(Resolution::Sd, 20, 20));
     owner.keys.clear();
     paste.stamp(context, Qt::NoModifier);
     expect(!owner.keys.empty() && owner.keys.front().kind == edit::EditKind::DynamicMask,

@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include <QCoreApplication>
 #include <QImage>
@@ -49,7 +50,9 @@ public:
     void setClipboard(edit::CopyBuffer buffer);
     void clearClipboard();
 
-    // Starts paste mode with the box where it was copied from. Refused (status line) without
+    // Starts paste mode with the box where it was last stamped, or, first after a copy, where
+    // it was copied from (issue #33: an object sliding in is pasted frame by frame, each time
+    // a few pixels on from the last), not mirrored, as in Win32. Refused (status line) without
     // clipboard, on another plane or layer, or on the background target.
     bool begin(const CanvasEditContext& context, edit::PasteMode mode);
     [[nodiscard]] bool isActive() const;
@@ -88,6 +91,8 @@ private:
     bool m_staysActive = false;
     edit::PasteMode m_mode = edit::PasteMode::All;
     edit::PastePlacement m_placement;
+    // Where the clipboard was last stamped; a copy forgets it.
+    std::optional<std::pair<int, int>> m_lastStamp;
 };
 
 // The colors of the copied pixels as an image of the box, transparent elsewhere.

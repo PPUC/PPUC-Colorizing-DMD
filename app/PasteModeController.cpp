@@ -62,6 +62,7 @@ bool PasteModeController::copy(const CanvasEditContext& context,
     }
     try {
         m_clipboard = edit::copySelection(*context.document, *context.currentFrame, *selection);
+        m_lastStamp.reset();
     } catch (const std::exception& ex) {
         showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
         return false;
@@ -86,12 +87,14 @@ const edit::CopyBuffer* PasteModeController::clipboard() const
 void PasteModeController::setClipboard(edit::CopyBuffer buffer)
 {
     m_clipboard = std::move(buffer);
+    m_lastStamp.reset();
 }
 
 void PasteModeController::clearClipboard()
 {
     cancel();
     m_clipboard.reset();
+    m_lastStamp.reset();
 }
 
 QString PasteModeController::refusal(const CanvasEditContext& context,
@@ -126,7 +129,9 @@ bool PasteModeController::begin(const CanvasEditContext& context, edit::PasteMod
         return false;
     }
     m_mode = mode;
-    m_placement = edit::PastePlacement{m_clipboard->box.x, m_clipboard->box.y, false, false};
+    m_placement = m_lastStamp
+                      ? edit::PastePlacement{m_lastStamp->first, m_lastStamp->second, false, false}
+                      : edit::PastePlacement{m_clipboard->box.x, m_clipboard->box.y, false, false};
     setActive(true);
     updateOverlay();
     showStatus(tr("%1: click or Enter stamps, arrows move, K/L mirror, Esc cancels")
@@ -245,6 +250,7 @@ bool PasteModeController::stamp(const CanvasEditContext& context,
         showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
         return changedFrames > 0;
     }
+    m_lastStamp = std::pair(m_placement.x, m_placement.y);
     // Win32 leaves paste mode with the stamp; with "Stay In Paste Mode" it goes on.
     if (!m_staysActive) {
         cancel();
