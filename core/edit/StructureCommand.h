@@ -90,6 +90,10 @@ private:
 [[nodiscard]] std::unique_ptr<StructureCommand> deleteFrames(
     document::ProjectDocument& document,
     const std::vector<std::size_t>& frameIndices);
+// The index a frame has after deleteFrames() deleted the frames given (any order); nothing for
+// a frame among them.
+[[nodiscard]] std::optional<std::size_t> frameIndexAfterDeletion(
+    std::size_t frameIndex, const std::vector<std::size_t>& deletedFrames);
 // Appends the frames behind the last one, e.g. those of
 // ProjectDocument::makeUncolorizedFrame(); nullptr for none. Throws std::invalid_argument
 // for a frame that does not fit the project's planes.

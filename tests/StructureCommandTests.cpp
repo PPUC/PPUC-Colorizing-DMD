@@ -553,6 +553,13 @@ void testDeleteFramesRejects()
     expectSame(document, before, "a refused deletion");
     expect(!document.isDirty(), "a refused deletion leaves the document clean");
 
+    // Where the current frame goes (issue #40: it stays current unless it is deleted).
+    using colorizing::edit::frameIndexAfterDeletion;
+    expect(frameIndexAfterDeletion(5, {7, 2, 7, 4}) == std::optional<std::size_t>(3) &&
+               frameIndexAfterDeletion(1, {7, 2, 7, 4}) == std::optional<std::size_t>(1) &&
+               frameIndexAfterDeletion(8, {7, 2, 7, 4}) == std::optional<std::size_t>(5) &&
+               !frameIndexAfterDeletion(4, {7, 2, 7, 4}),
+           "a frame moves up by the deleted frames before it; a deleted one has no place");
     // Any order, and a frame named twice.
     const auto command = colorizing::edit::deleteFrames(document, {7, 2, 7, 4});
     expect(command->recordIndices() == std::vector<std::size_t>({2, 4, 7}),

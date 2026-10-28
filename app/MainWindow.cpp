@@ -10276,12 +10276,22 @@ void MainWindow::deleteFrames(const std::vector<std::size_t>& frameIndices, cons
                          consequences.join(QChar(' ')))) {
         return;
     }
+    // A current frame that is not deleted stays current (issue #40).
+    const std::optional<std::size_t> current = currentFrameIndex();
+    const std::optional<std::size_t> keptCurrent =
+        current ? edit::frameIndexAfterDeletion(*current, frameIndices) : std::nullopt;
     try {
         if (!scenes.empty()) {
             recordSceneEdit(edit::deleteFramesOfScenes(*m_document, frameIndices));
+            if (keptCurrent) {
+                selectFrameNear(*keptCurrent);
+            }
             return;
         }
         recordStructureEdit(edit::deleteFrames(*m_document, frameIndices));
+        if (keptCurrent) {
+            selectFrameNear(*keptCurrent);
+        }
         showStructureEditStatus(
             tr("Deleted %1 frame(s), %2 remain").arg(count).arg(total - count),
             4000);

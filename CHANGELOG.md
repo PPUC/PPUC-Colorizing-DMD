@@ -9,6 +9,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   the section instead of changing the value, unless the field was clicked into first.
 - The left sidebar's filter has `All, the current frame's first`: every record is listed, and
   the comparison mask, background, sprites and scene of the current frame come first, framed.
+- Deleting frames that do not include the current one, such as the same frames as it, keeps
+  that frame current instead of jumping to where the deleted ones were (#40).
 
 ## 3.99.17
 

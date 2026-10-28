@@ -31,7 +31,8 @@ and renumbers its frames behind them, see "Scenes and Scaling".
 
 After an operation, and after its undo or redo, the selection is on the new or restored
 record, or on the record that took the place of a deleted one (the last one if the deleted one
-was the last). Restored frames are all selected. The frame filter stays as it is: if the frame
+was the last). Deleting frames while the current frame is not among them (the same frames as it,
+for example) leaves that frame current. Restored frames are all selected. The frame filter stays as it is: if the frame
 that would be selected is filtered out, the next listed frame is. Playback stops, a canvas
 selection and a pending free gradient are dropped, and after a change of the frames the sprite
 capture selection as well.

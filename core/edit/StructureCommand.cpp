@@ -1,6 +1,7 @@
 #include "edit/StructureCommand.h"
 
 #include <algorithm>
+#include <set>
 #include <stdexcept>
 #include <utility>
 
@@ -317,6 +318,22 @@ std::string spriteNameProblem(const document::ProjectDocument& document, const s
         return "Another sprite has this name already";
     }
     return {};
+}
+
+std::optional<std::size_t> frameIndexAfterDeletion(std::size_t frameIndex,
+                                                   const std::vector<std::size_t>& deletedFrames)
+{
+    std::size_t before = 0;
+    for (const std::size_t deleted : std::set<std::size_t>(deletedFrames.begin(),
+                                                            deletedFrames.end())) {
+        if (deleted == frameIndex) {
+            return std::nullopt;
+        }
+        if (deleted < frameIndex) {
+            ++before;
+        }
+    }
+    return frameIndex - before;
 }
 
 std::unique_ptr<StructureCommand> deleteFrames(document::ProjectDocument& document,
