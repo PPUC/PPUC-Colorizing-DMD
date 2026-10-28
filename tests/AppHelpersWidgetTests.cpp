@@ -259,7 +259,6 @@ void testWheelGuard()
     auto* combo = new QComboBox;
     combo->addItems({QStringLiteral("One"), QStringLiteral("Two"), QStringLiteral("Three")});
     auto* spin = new QSpinBox;
-    spin->setFocusPolicy(Qt::StrongFocus);
     layout->addWidget(combo);
     layout->addWidget(spin);
     layout->addSpacing(2000);
@@ -267,6 +266,13 @@ void testWheelGuard()
     area.resize(200, 200);
     area.show();
     QApplication::processEvents();
+    // Qt would give a control with the wheel focus policy the focus on a real wheel event,
+    // before the guard sees it (a combo box on macOS takes the focus from the tab key only).
+    const auto takesWheelFocus = [](const QWidget* widget) {
+        return (widget->focusPolicy() & Qt::WheelFocus) == Qt::WheelFocus;
+    };
+    expect(!takesWheelFocus(combo) && !takesWheelFocus(spin),
+           "the wheel does not give a value control the focus");
     // Down, or up (the spin box's value goes up from its minimum).
     const auto wheel = [](QWidget* widget, int delta = -120) {
         QWheelEvent event(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, delta), Qt::NoButton,

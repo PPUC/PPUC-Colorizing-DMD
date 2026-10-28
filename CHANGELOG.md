@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The mouse wheel over a selection box or number field in a sidebar section now really scrolls
+  the section; in 3.99.18 the wheel still gave the field the focus and changed its value.
+
 ## 3.99.18
 
 - The mouse wheel over a selection box, number field or slider in a sidebar section scrolls

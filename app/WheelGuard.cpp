@@ -40,11 +40,23 @@ public:
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override
     {
-        if (event->type() != QEvent::Wheel || !watched->isWidgetType()) {
+        if (!watched->isWidgetType()) {
             return false;
         }
         auto* widget = static_cast<QWidget*>(watched);
-        if (!isValueControl(widget) || widget->hasFocus()) {
+        if (!isValueControl(widget)) {
+            return false;
+        }
+        // Qt gives a control with the wheel focus policy the focus before any filter sees the
+        // wheel event, so the focus check below would always pass. Such a control takes the
+        // focus from a click or the tab key only.
+        if (event->type() == QEvent::Polish) {
+            if ((widget->focusPolicy() & Qt::WheelFocus) == Qt::WheelFocus) {
+                widget->setFocusPolicy(Qt::StrongFocus);
+            }
+            return false;
+        }
+        if (event->type() != QEvent::Wheel || widget->hasFocus()) {
             return false;
         }
         // The value stays; the area around it scrolls, if it can.
