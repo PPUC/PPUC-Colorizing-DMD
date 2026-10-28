@@ -5689,6 +5689,18 @@ Use Create %1 Frame.</source>
             <numerusform>DOF-Ereignisse von %n Frames geändert</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Moved sprite %1 up in %2</source>
+        <translation>Sprite %1 nach oben verschoben in %2</translation>
+    </message>
+    <message>
+        <source>Moved sprite %1 down in %2</source>
+        <translation>Sprite %1 nach unten verschoben in %2</translation>
+    </message>
+    <message>
+        <source>without a sprite to change places with</source>
+        <translation>ohne Sprite zum Tauschen</translation>
+    </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>
         <translation>
@@ -8088,6 +8100,22 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Remove the selected slot&apos;s sprite from the selected frames; the slots behind it move up</source>
         <translation>Den Sprite des ausgewählten Slots aus den ausgewählten Frames entfernen; die Slots dahinter rücken auf</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Nach oben</translation>
+    </message>
+    <message>
+        <source>Move the selected slot&apos;s sprite one slot up in the selected frames: it is drawn under the sprite it changes places with</source>
+        <translation>Den Sprite des gewählten Slots in den ausgewählten Frames einen Slot nach oben verschieben: Er wird unter dem Sprite gezeichnet, mit dem er den Platz tauscht</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Nach unten</translation>
+    </message>
+    <message>
+        <source>Move the selected slot&apos;s sprite one slot down in the selected frames: it is drawn over the sprite it changes places with</source>
+        <translation>Den Sprite des gewählten Slots in den ausgewählten Frames einen Slot nach unten verschieben: Er wird über dem Sprite gezeichnet, mit dem er den Platz tauscht</translation>
     </message>
     <message>
         <source>Select Capture</source>

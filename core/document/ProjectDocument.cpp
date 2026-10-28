@@ -3284,6 +3284,25 @@ void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::siz
     markChanged();
 }
 
+bool ProjectDocument::swapFrameSpriteReferences(std::size_t frameIndex,
+                                                std::size_t slotA,
+                                                std::size_t slotB)
+{
+    FrameRecord& frame = requireFrame(m_frames, frameIndex);
+    std::vector<FrameSpriteReference>& references = frame.spriteReferences;
+    if (slotA >= kSpritesPerFrame || slotB >= kSpritesPerFrame) {
+        throw std::out_of_range("sprite slot index out of range");
+    }
+    if (slotA == slotB || slotA >= references.size() || slotB >= references.size() ||
+        references[slotA].spriteId == kNoSpriteId ||
+        references[slotB].spriteId == kNoSpriteId) {
+        return false;
+    }
+    std::swap(references[slotA], references[slotB]);
+    markChanged();
+    return true;
+}
+
 void ProjectDocument::restoreFrameSpriteReferences(std::size_t frameIndex,
                                                    std::vector<FrameSpriteReference> references)
 {

@@ -11,6 +11,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   the comparison mask, background, sprites and scene of the current frame come first, framed.
 - Deleting frames that do not include the current one, such as the same frames as it, keeps
   that frame current instead of jumping to where the deleted ones were (#40).
+- `Move Up` and `Move Down` in the Frame Sprites section change the order of a frame's sprite
+  slots, which decides which sprite is drawn over another, without removing and assigning them
+  again.
 
 ## 3.99.17
 

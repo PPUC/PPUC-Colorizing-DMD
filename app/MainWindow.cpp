@@ -1430,6 +1430,7 @@ void MainWindow::createCentralView()
     m_spritePanel->onRemoveRequested = [this]() {
         removeCurrentSpriteSlot();
     };
+    m_spritePanel->onMoveRequested = [this](int step) { moveCurrentSpriteSlot(step); };
     m_spritePanel->onCaptureSelectionToggled = [this](bool) {
         m_canvasEdit.showCaptureSelection(currentFrameIndex());
         updateSpriteControls();
@@ -7415,6 +7416,77 @@ void MainWindow::removeCurrentSpriteSlot()
                 .arg(static_cast<int>(spriteId))
                 .arg(frameEditCountText(changed, skipped,
                                         tr("without that sprite"))),
+            2500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::moveCurrentSpriteSlot(int step)
+{
+    const std::vector<std::size_t> frameIndices = selectedFrameIndices();
+    const std::optional<std::size_t> currentFrame = currentFrameIndex();
+    if (!m_document || frameIndices.empty() || !currentFrame || !m_spritePanel) {
+        return;
+    }
+    const std::optional<std::size_t> slotIndex = m_spritePanel->selectedSlotIndex();
+    const std::vector<document::FrameSpriteReference>& currentReferences =
+        m_document->frameSpriteReferences(*currentFrame);
+    if (!slotIndex || *slotIndex >= currentReferences.size() ||
+        currentReferences[*slotIndex].spriteId == document::kNoSpriteId) {
+        updateSpriteControls();
+        return;
+    }
+    // The order of the slots is the order in which the runtime draws the sprites: changing
+    // places with a neighbour puts the sprite under (up) or over (down) that one.
+    const uint16_t spriteId = currentReferences[*slotIndex].spriteId;
+    try {
+        int changed = 0;
+        int skipped = 0;
+        for (std::size_t frameIndex : frameIndices) {
+            const std::vector<document::FrameSpriteReference>& references =
+                m_document->frameSpriteReferences(frameIndex);
+            // The selected slot where it holds the sprite, otherwise the first that does.
+            std::optional<std::size_t> slot;
+            if (*slotIndex < references.size() && references[*slotIndex].spriteId == spriteId) {
+                slot = *slotIndex;
+            } else {
+                for (std::size_t index = 0; index < references.size(); ++index) {
+                    if (references[index].spriteId == spriteId) {
+                        slot = index;
+                        break;
+                    }
+                }
+            }
+            std::vector<document::FrameSpriteReference> before = references;
+            if (!slot || (step < 0 && *slot == 0) ||
+                !m_document->swapFrameSpriteReferences(
+                    frameIndex, *slot, static_cast<std::size_t>(static_cast<int>(*slot) + step))) {
+                ++skipped;
+                continue;
+            }
+            pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
+            updateFrameListItem(frameIndex);
+            ++changed;
+        }
+        // The slot selection goes with the sprite.
+        const std::vector<document::FrameSpriteReference>& moved =
+            m_document->frameSpriteReferences(*currentFrame);
+        const std::size_t target = static_cast<std::size_t>(static_cast<int>(*slotIndex) + step);
+        if (target < moved.size() && moved[target].spriteId == spriteId) {
+            m_spritePanel->setSelectedSlotIndex(target);
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(
+            (step < 0 ? tr("Moved sprite %1 up in %2") : tr("Moved sprite %1 down in %2"))
+                .arg(static_cast<int>(spriteId))
+                .arg(frameEditCountText(changed, skipped,
+                                        tr("without a sprite to change places with"))),
             2500);
     } catch (const std::exception& ex) {
         updateSpriteControls();

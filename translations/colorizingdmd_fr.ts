@@ -5689,6 +5689,18 @@ Utiliser Créer la frame %1.</translation>
             <numerusform>Événements DOF de %n frames modifiés</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Moved sprite %1 up in %2</source>
+        <translation>Sprite %1 monté dans %2</translation>
+    </message>
+    <message>
+        <source>Moved sprite %1 down in %2</source>
+        <translation>Sprite %1 descendu dans %2</translation>
+    </message>
+    <message>
+        <source>without a sprite to change places with</source>
+        <translation>sans sprite avec lequel échanger</translation>
+    </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>
         <translation>
@@ -8088,6 +8100,22 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Remove the selected slot&apos;s sprite from the selected frames; the slots behind it move up</source>
         <translation>Retirer le sprite de l&apos;emplacement sélectionné des frames sélectionnées ; les emplacements suivants remontent</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Monter</translation>
+    </message>
+    <message>
+        <source>Move the selected slot&apos;s sprite one slot up in the selected frames: it is drawn under the sprite it changes places with</source>
+        <translation>Monter le sprite de l’emplacement sélectionné d’un emplacement dans les frames sélectionnées : il est dessiné sous le sprite avec lequel il échange sa place</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Descendre</translation>
+    </message>
+    <message>
+        <source>Move the selected slot&apos;s sprite one slot down in the selected frames: it is drawn over the sprite it changes places with</source>
+        <translation>Descendre le sprite de l’emplacement sélectionné d’un emplacement dans les frames sélectionnées : il est dessiné par-dessus le sprite avec lequel il échange sa place</translation>
     </message>
     <message>
         <source>Select Capture</source>

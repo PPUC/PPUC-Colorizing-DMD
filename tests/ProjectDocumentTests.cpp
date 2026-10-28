@@ -931,6 +931,21 @@ void testFrameSpriteReferenceEditing()
     document.setFrameSpriteReference(0, 1, FrameSpriteReference{0, 9, 9, 10, 10});
     document.setFrameSpriteReference(0, 2, FrameSpriteReference{0, 11, 11, 12, 12});
 
+    // Changing the order of the slots (the order the runtime draws the sprites in).
+    document.markClean();
+    expect(document.swapFrameSpriteReferences(0, 0, 2) &&
+               document.frameSpriteReferences(0)[0].minX == 11 &&
+               document.frameSpriteReferences(0)[2].minX == 2 &&
+               document.frameSpriteReferences(0)[1].minX == 9 && document.isDirty(),
+           "two used slots change places with their bounds");
+    document.markClean();
+    expect(!document.swapFrameSpriteReferences(0, 2, 3) && !document.isDirty() &&
+               document.frameSpriteReferences(0)[3].spriteId == 0xffff,
+           "an empty slot does not change places: that would leave a gap");
+    expect(document.swapFrameSpriteReferences(0, 2, 0) &&
+               document.frameSpriteReferences(0)[0].minX == 2,
+           "and back");
+
     document.markClean();
     document.clearFrameSpriteReference(0, 0);
     expect(document.frameSpriteReferences(0)[0].minX == 9 &&

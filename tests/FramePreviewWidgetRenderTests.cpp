@@ -2427,6 +2427,47 @@ void testSpriteEditorSourceFrame()
     expect(!editorButton->isEnabled(), "a source frame the project lacks: disabled");
 }
 
+// Move Up and Move Down change the order of the slots, the order the runtime draws them in;
+// each needs a neighbour with a sprite.
+void testSpriteSlotOrderButtons()
+{
+    using colorizing::document::FrameSpriteReference;
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    // Slots 0, 1 and 2 used.
+    document.setFrameSpriteReference(0, 1, FrameSpriteReference{1, 0, 0, 20, 10});
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    state.spriteIndex = 0;
+    colorizing::app::SpritePanel panel;
+    std::vector<int> steps;
+    panel.onMoveRequested = [&steps](int step) { steps.push_back(step); };
+    auto* up = childByToolTip<QToolButton>(
+        panel,
+        "Move the selected slot's sprite one slot up in the selected frames: it is drawn "
+        "under the sprite it changes places with");
+    auto* down = childByToolTip<QToolButton>(
+        panel,
+        "Move the selected slot's sprite one slot down in the selected frames: it is drawn "
+        "over the sprite it changes places with");
+    panel.refresh(state);
+    panel.setSelectedSlotIndex(0);
+    panel.refresh(state);
+    expect(!up->isEnabled() && down->isEnabled(), "the first slot moves down only");
+    down->click();
+    panel.setSelectedSlotIndex(1);
+    panel.refresh(state);
+    expect(up->isEnabled() && down->isEnabled(), "a slot between two moves both ways");
+    up->click();
+    panel.setSelectedSlotIndex(2);
+    panel.refresh(state);
+    expect(up->isEnabled() && !down->isEnabled(), "the last used slot moves up only");
+    panel.setSelectedSlotIndex(3);
+    panel.refresh(state);
+    expect(!up->isEnabled() && !down->isEnabled(), "an empty slot does not move");
+    expect(steps == std::vector<int>{1, -1}, "the buttons ask for a step down and up");
+}
+
 void testSpritePanel()
 {
     using colorizing::app::SpriteDetectionAreaInput;
@@ -4114,6 +4155,7 @@ int main(int argc, char* argv[])
     testRotationSlotUse();
     testPalettePanel();
     testSpritePanel();
+    testSpriteSlotOrderButtons();
     testSpriteEditorSourceFrame();
     testSpritePanelWarnsAboutManySprites();
     testSpriteAndBackgroundHdButtons();

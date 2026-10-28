@@ -776,6 +776,10 @@ public:
     // last slot becomes empty, keeping its bounds (IDC_DELSPRITE2 of the Win32 editor). An
     // empty slot is left as it is.
     void clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex);
+    // Swaps the sprites of two used slots, each with its bounds: the order in which the runtime
+    // draws them, a later slot over an earlier one. False, changing nothing, when one of them
+    // is empty.
+    bool swapFrameSpriteReferences(std::size_t frameIndex, std::size_t slotA, std::size_t slotB);
     // Puts a frame's sprite slots back as they were before an edit, gaps included. For undo
     // only.
     void restoreFrameSpriteReferences(std::size_t frameIndex,

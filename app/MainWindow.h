@@ -393,6 +393,9 @@ private:
     void assignSelectedSpriteToCurrentSlot();
     void captureSelectedSpriteFromCurrentFrame();
     void removeCurrentSpriteSlot();
+    // The sprite of the current frame's selected slot one slot earlier (step -1) or later (+1)
+    // in every selected frame that has it, changing places with the sprite there.
+    void moveCurrentSpriteSlot(int step);
     // The bounds of the Min/Max fields, or drawn ones (a rectangle on the original frame while
     // Show Bounds is on), for the selected slot of all selected frames that have a sprite in it.
     void setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> drawn = std::nullopt);

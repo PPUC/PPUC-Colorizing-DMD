@@ -21,6 +21,7 @@ The Inspector has two sprite sections, each shown on its own canvas:
 - `Frame Sprites`, on the frame canvas: what ties sprites to the frames. The selected sprite,
   the sprites of the current frame (in a short list that scrolls; `Used by the current frame`
   in the left sidebar shows them too), the slot selector, `Assign`, `Capture`, `Remove`,
+  `Move Up`, `Move Down`,
   `Select Capture`, `Clear Sel`, `Show Bounds`, `Outline Sprites`, `Source Frame`, the slot's
   bounds (`Min X` to `Max Y`) and `Edit Sprite`.
 - `Sprite`, in the sprite editor: the sprite itself. The selected sprite, its name,
@@ -145,6 +146,13 @@ The controls:
     slot that holds it; the slots behind move up with their bounds, and the last slot becomes
     empty, keeping its bounds. Selected frames without that sprite are skipped and counted in the
     status bar (`Removed sprite 2 from 3 frame(s), 1 skipped (without that sprite)`).
+  - `Move Up` and `Move Down` change the order of the slots, which is the order in which
+    libserum draws the sprites: where sprites overlap, the one in the later slot is drawn over
+    the one in the earlier slot. The sprite of the current frame's selected slot changes places
+    with the sprite one slot up or down, both with their bounds, in every selected frame that
+    has it (in the selected slot, or else in the first slot that holds it); the slot selection
+    goes with it. A frame without a sprite in the slot to change places with is skipped and
+    counted in the status bar. Each frame's change is an undo step of its own, as with `Remove`.
   - A project loaded from a file can have such a gap (the Win32 editor before `Remove` closed up
     could leave one; none of the five 3.17.3 test projects has one). It is kept as it is, and the
     frame is marked: its list item has the line `ref. problem` and its tool tip and the frame
