@@ -3912,6 +3912,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Effet lumineux</translation>
     </message>
     <message>
+        <source>All, the current frame&apos;s first</source>
+        <translation>Tous, ceux de la frame courante en premier</translation>
+    </message>
+    <message>
+        <source>Which comparison masks, backgrounds, sprites and scenes the lists show: all, those of the current frame, all with those of the current frame first and marked, or those no frame uses</source>
+        <translation>Les masques de comparaison, arrière-plans, sprites et scènes que les listes affichent : tous, ceux de la frame courante, tous avec ceux de la frame courante en premier et marqués, ou ceux qu’aucune frame n’utilise</translation>
+    </message>
+    <message>
         <source>Drop to let the %1 selected frame(s) start scene %2</source>
         <translation>Déposer pour que les %1 frames sélectionnées lancent la scène %2</translation>
     </message>
@@ -5455,7 +5463,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Which comparison masks, backgrounds, sprites and scenes the lists show: all, those of the current frame, or those no frame uses</source>
-        <translation>Quels masques de comparaison, arrière-plans, sprites et scènes les listes montrent : tous, ceux de la frame courante ou ceux qu&apos;aucune frame n&apos;utilise</translation>
+        <translation type="vanished">Quels masques de comparaison, arrière-plans, sprites et scènes les listes montrent : tous, ceux de la frame courante ou ceux qu&apos;aucune frame n&apos;utilise</translation>
     </message>
     <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>

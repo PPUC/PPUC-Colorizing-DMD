@@ -45,6 +45,9 @@ public:
     // Only the scenes given are listed (filtered false: every scene), e.g. those no frame
     // starts ("Not used by any frame").
     void showOnlyScenes(bool filtered, const std::set<uint16_t>& sceneIds);
+    // "All, the current frame's first": the scenes given first and marked (putRecordsFirst()),
+    // the list at its top with toTop; none given: every scene in its place.
+    void putScenesFirst(const std::set<uint16_t>& sceneIds, bool toTop);
     // The count beside New and Delete (recordCountText()).
     [[nodiscard]] QString countText() const;
     // The thumbnails (each scene's first frame) no longer show the frames: rebuilt when in view.

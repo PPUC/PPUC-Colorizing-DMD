@@ -3912,6 +3912,14 @@ Use Create %1 Frame.</source>
         <translation>Lichteffekt</translation>
     </message>
     <message>
+        <source>All, the current frame&apos;s first</source>
+        <translation>Alle, die des aktuellen Frames zuerst</translation>
+    </message>
+    <message>
+        <source>Which comparison masks, backgrounds, sprites and scenes the lists show: all, those of the current frame, all with those of the current frame first and marked, or those no frame uses</source>
+        <translation>Welche Vergleichsmasken, Hintergründe, Sprites und Szenen die Listen zeigen: alle, die des aktuellen Frames, alle mit denen des aktuellen Frames zuerst und markiert, oder die, die kein Frame verwendet</translation>
+    </message>
+    <message>
         <source>Drop to let the %1 selected frame(s) start scene %2</source>
         <translation>Loslassen, damit die %1 ausgewählten Frames Szene %2 starten</translation>
     </message>
@@ -5455,7 +5463,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Which comparison masks, backgrounds, sprites and scenes the lists show: all, those of the current frame, or those no frame uses</source>
-        <translation>Welche Vergleichsmasken, Hintergründe, Sprites und Szenen die Listen zeigen: alle, die des aktuellen Frames oder die, die kein Frame verwendet</translation>
+        <translation type="vanished">Welche Vergleichsmasken, Hintergründe, Sprites und Szenen die Listen zeigen: alle, die des aktuellen Frames oder die, die kein Frame verwendet</translation>
     </message>
     <message>
         <source>Projects (*.cdmd *.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;Colorizing DMD project (*.cdmd);;Serum colorization of earlier editors (*.cROM *.cRom *.crom *.cRZ *.crz *.CRZ);;All files (*)</source>

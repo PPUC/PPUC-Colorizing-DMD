@@ -221,6 +221,14 @@ void ScenesPanel::showOnlyScenes(bool filtered, const std::set<uint16_t>& sceneI
     updateCount();
 }
 
+void ScenesPanel::putScenesFirst(const std::set<uint16_t>& sceneIds, bool toTop)
+{
+    putRecordsFirst(m_list, std::set<int>(sceneIds.begin(), sceneIds.end()));
+    if (toTop) {
+        m_list->scrollToTop();
+    }
+}
+
 void ScenesPanel::selectScene(uint16_t sceneId)
 {
     for (int row = 0; row < m_list->count(); ++row) {

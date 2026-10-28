@@ -614,9 +614,10 @@ private:
     void updateFrameListItems(const std::vector<std::size_t>& frameIndices);
     void updateFrameListItemText(std::size_t frameIndex);
     void refreshComponentBrowsers();
-    // The left sidebar's filter of its lists (rows stay hidden, a list's row is its record):
-    // every asset, those the current frame uses, or those no frame uses.
-    enum class AssetFilter { All = 0, CurrentFrame = 1, Unused = 2 };
+    // The left sidebar's filter of its lists (rows stay hidden, a row carries its record in
+    // Qt::UserRole): every asset, those the current frame uses, those no frame uses, or every
+    // asset with those the current frame uses first (putRecordsFirst()).
+    enum class AssetFilter { All = 0, CurrentFrame = 1, Unused = 2, CurrentFrameFirst = 3 };
     [[nodiscard]] AssetFilter assetFilter() const;
     void applyAssetFilter();
     // Why a frame of a scene takes no sprites (ProjectDocument::stripSceneFrame()).
@@ -722,6 +723,9 @@ private:
     QToolButton* m_stayPlaybackButton = nullptr;
     QCheckBox* m_useProjectTimingCheckBox = nullptr;
     QComboBox* m_assetFilterComboBox = nullptr;
+    // The frame whose assets AssetFilter::CurrentFrameFirst put first: another one scrolls the
+    // lists to the top.
+    std::optional<std::size_t> m_assetsFirstFrame;
     // What the frames use, for AssetFilter::Unused, and the document revision it is of.
     std::optional<edit::AssetUse> m_assetUse;
     uint64_t m_assetUseRevision = 0;

@@ -7,6 +7,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 - The mouse wheel over a selection box, number field or slider in a sidebar section scrolls
   the section instead of changing the value, unless the field was clicked into first.
+- The left sidebar's filter has `All, the current frame's first`: every record is listed, and
+  the comparison mask, background, sprites and scene of the current frame come first, framed.
 
 ## 3.99.17
 

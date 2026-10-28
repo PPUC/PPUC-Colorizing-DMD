@@ -2037,11 +2037,14 @@ void MainWindow::createCentralView()
     m_assetFilterComboBox->addItem(tr("All"), static_cast<int>(AssetFilter::All));
     m_assetFilterComboBox->addItem(tr("Used by the current frame"),
                                    static_cast<int>(AssetFilter::CurrentFrame));
+    m_assetFilterComboBox->addItem(tr("All, the current frame's first"),
+                                   static_cast<int>(AssetFilter::CurrentFrameFirst));
     m_assetFilterComboBox->addItem(tr("Not used by any frame"),
                                    static_cast<int>(AssetFilter::Unused));
     m_assetFilterComboBox->setToolTip(
         tr("Which comparison masks, backgrounds, sprites and scenes the lists show: all, those "
-           "of the current frame, or those no frame uses"));
+           "of the current frame, all with those of the current frame first and marked, or "
+           "those no frame uses"));
     {
         // The checkbox before it stored only "Used by the current frame".
         const QSettings settings;
@@ -5482,7 +5485,8 @@ MainWindow::AssetFilter MainWindow::assetFilter() const
 void MainWindow::applyAssetFilter()
 {
     const AssetFilter mode = assetFilter();
-    const bool filtered = mode != AssetFilter::All;
+    const bool filtered = mode == AssetFilter::CurrentFrame || mode == AssetFilter::Unused;
+    const bool first = mode == AssetFilter::CurrentFrameFirst;
     const std::optional<std::size_t> frame = currentFrameIndex();
     const bool hasFrame = m_document && frame && *frame < m_document->frameCount();
     std::set<int> masks;
@@ -5513,9 +5517,10 @@ void MainWindow::applyAssetFilter()
                     }
                 }
             }
+            m_scenesPanel->putScenesFirst({}, false);
             m_scenesPanel->showOnlyScenes(true, scenes);
         }
-    } else if (mode == AssetFilter::CurrentFrame && hasFrame) {
+    } else if ((mode == AssetFilter::CurrentFrame || first) && hasFrame) {
         masks.insert(m_document->comparisonMaskId(*frame));
         // backgroundId() throws for a frame without background data.
         if (const auto& background = m_document->backgroundData(*frame)) {
@@ -5526,9 +5531,17 @@ void MainWindow::applyAssetFilter()
             sprites.insert(reference.spriteId);
         }
     }
-    const auto apply = [filtered](QListWidget* list, const std::set<int>& used) {
+    // Another frame's assets put first start the lists at the top.
+    const bool toTop = first && hasFrame && frame != m_assetsFirstFrame;
+    m_assetsFirstFrame = first && hasFrame ? frame : std::nullopt;
+    const auto apply = [filtered, first, toTop](QListWidget* list, const std::set<int>& used) {
         if (!list) {
             return;
+        }
+        // Before the rows are hidden: taking them out shows them again.
+        putRecordsFirst(list, first ? used : std::set<int>{});
+        if (toTop) {
+            list->scrollToTop();
         }
         for (int row = 0; row < list->count(); ++row) {
             QListWidgetItem* item = list->item(row);
@@ -5545,9 +5558,12 @@ void MainWindow::applyAssetFilter()
     }
     if (m_scenesPanel && mode != AssetFilter::Unused) {
         // The scene the frame is a frame of, or the one it starts.
-        m_scenesPanel->showOnlyScene(filtered && hasFrame,
-                                     hasFrame ? edit::sceneUsedByFrame(*m_document, *frame)
-                                              : std::nullopt);
+        const std::optional<uint16_t> scene =
+            hasFrame ? edit::sceneUsedByFrame(*m_document, *frame) : std::nullopt;
+        m_scenesPanel->putScenesFirst(first && scene ? std::set<uint16_t>{*scene}
+                                                     : std::set<uint16_t>{},
+                                      toTop);
+        m_scenesPanel->showOnlyScene(filtered && hasFrame, scene);
     }
 }
 
@@ -5575,9 +5591,13 @@ void MainWindow::updatePendingMaskIcons()
             maskIndex >= static_cast<std::size_t>(m_maskList->count())) {
             continue;
         }
-        QListWidgetItem* item = m_maskList->item(static_cast<int>(maskIndex));
-        if (item && item->data(Qt::UserRole).toInt() == static_cast<int>(maskIndex)) {
-            item->setIcon(maskIcon(maskIndex));
+        // The rows may be in another order (AssetFilter::CurrentFrameFirst).
+        for (int row = 0; row < m_maskList->count(); ++row) {
+            QListWidgetItem* item = m_maskList->item(row);
+            if (item->data(Qt::UserRole).toInt() == static_cast<int>(maskIndex)) {
+                item->setIcon(maskIcon(maskIndex));
+                break;
+            }
         }
     }
 }
@@ -5594,7 +5614,15 @@ void MainWindow::updateMaskBrowserSelection()
         m_selectedMaskIndex = currentComparisonMaskIndex();
     }
     QSignalBlocker blocker(m_maskList);
-    m_maskList->setCurrentRow(m_selectedMaskIndex ? static_cast<int>(*m_selectedMaskIndex) : -1);
+    QListWidgetItem* selected = nullptr;
+    for (int row = 0; m_selectedMaskIndex && row < m_maskList->count(); ++row) {
+        QListWidgetItem* item = m_maskList->item(row);
+        if (item->data(Qt::UserRole).toInt() == static_cast<int>(*m_selectedMaskIndex)) {
+            selected = item;
+            break;
+        }
+    }
+    m_maskList->setCurrentItem(selected);
 }
 
 void MainWindow::updateBackgroundBrowserSelection()

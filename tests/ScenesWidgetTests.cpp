@@ -127,6 +127,18 @@ void testPanel()
                list->item(1)->data(Qt::UserRole).toInt() == 50002 &&
                list->item(2)->data(Qt::UserRole).toInt() == 51001,
            "the scenes are listed by their IDs");
+    // "All, the current frame's first": the frame's scene on top, marked; then back in place.
+    panel.putScenesFirst({uint16_t{51001}}, true);
+    expect(list->count() == 3 && list->item(0)->data(Qt::UserRole).toInt() == 51001 &&
+               list->item(0)->data(app::kPutFirstRole).toBool() &&
+               list->item(1)->data(Qt::UserRole).toInt() == 50001 &&
+               !list->item(1)->data(app::kPutFirstRole).toBool(),
+           "the current frame's scene comes first and is marked");
+    panel.putScenesFirst({}, false);
+    expect(list->item(0)->data(Qt::UserRole).toInt() == 50001 &&
+               list->item(2)->data(Qt::UserRole).toInt() == 51001 &&
+               !list->item(2)->data(app::kPutFirstRole).toBool(),
+           "without one the scenes are in their order again");
 
     document::ProjectDocument native = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::NativeOriginal, 2));
@@ -134,6 +146,46 @@ void testPanel()
     expect(list->count() == 0 && !add->isEnabled(), "a 256x64 project offers no scenes");
     (void)added;
     (void)deleted;
+}
+
+// "All, the current frame's first": the records given on top, the rest by record, and the
+// current and selected rows kept.
+void testPutRecordsFirst()
+{
+    QListWidget list;
+    list.setSelectionMode(QAbstractItemView::ExtendedSelection);
+    app::showCaptionsBelowThumbnails(&list);
+    for (int record = 0; record < 6; ++record) {
+        auto* item = new QListWidgetItem(QString::number(record), &list);
+        item->setData(Qt::UserRole, record);
+    }
+    list.setCurrentRow(4);
+    list.item(1)->setSelected(true);
+    int currentChanges = 0;
+    QObject::connect(&list, &QListWidget::currentItemChanged,
+                     [&currentChanges]() { ++currentChanges; });
+    const auto order = [&list]() {
+        std::vector<int> records;
+        for (int row = 0; row < list.count(); ++row) {
+            records.push_back(list.item(row)->data(Qt::UserRole).toInt());
+        }
+        return records;
+    };
+    expect(app::putRecordsFirst(&list, {4, 2}), "putting records first changes the list");
+    expect(order() == std::vector<int>{2, 4, 0, 1, 3, 5}, "those given first, by record");
+    expect(list.item(0)->data(app::kPutFirstRole).toBool() &&
+               list.item(1)->data(app::kPutFirstRole).toBool() &&
+               !list.item(2)->data(app::kPutFirstRole).toBool(),
+           "and marked");
+    expect(list.currentItem() && list.currentItem()->data(Qt::UserRole).toInt() == 4 &&
+               list.item(3)->isSelected() && list.currentItem()->isSelected() &&
+               currentChanges == 0,
+           "the current and the selected rows stay, without a signal");
+    expect(!app::putRecordsFirst(&list, {4, 2}), "the same again changes nothing");
+    expect(app::putRecordsFirst(&list, {}), "none given");
+    expect(order() == std::vector<int>{0, 1, 2, 3, 4, 5} &&
+               !list.item(4)->data(app::kPutFirstRole).toBool(),
+           "puts the records in their order again, nothing marked");
 }
 
 // The left sidebar's rows: the caption below the thumbnail, wrapped to the list's width.
@@ -552,6 +604,7 @@ void runScenesWidgetTests()
     testBackgroundSceneOnTheCanvas();
     testBackgroundSceneOptionsOnTheCanvas();
     testThumbnailCaptions();
+    testPutRecordsFirst();
     testSettingsPanel();
     testProjectSettings();
     testLicense();

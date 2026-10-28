@@ -3,9 +3,12 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QListWidget>
+#include <QItemSelectionModel>
 #include <QPainter>
+#include <QSignalBlocker>
 
 #include <algorithm>
+#include <vector>
 
 namespace colorizing::app {
 
@@ -52,6 +55,14 @@ void ThumbnailCaptionDelegate::paint(QPainter* painter,
     QStyle* style = item.widget ? item.widget->style() : QApplication::style();
     style->drawPrimitive(QStyle::PE_PanelItemViewItem, &item, painter, item.widget);
 
+    if (index.data(kPutFirstRole).toBool()) {
+        painter->save();
+        painter->setPen(QPen(option.palette.color(QPalette::Highlight), 2));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRoundedRect(QRectF(option.rect).adjusted(1, 1, -1, -1), 3, 3);
+        painter->restore();
+    }
+
     const QRect rect = option.rect.adjusted(kMargin, kMargin, -kMargin, -kMargin);
     int top = rect.top();
     const QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
@@ -97,6 +108,60 @@ void showCaptionsBelowThumbnails(QListWidget* list)
     list->setUniformItemSizes(false);
     list->setWordWrap(true);
     list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+}
+
+bool putRecordsFirst(QListWidget* list, const std::set<int>& records)
+{
+    std::vector<QListWidgetItem*> items;
+    items.reserve(static_cast<std::size_t>(list->count()));
+    for (int row = 0; row < list->count(); ++row) {
+        items.push_back(list->item(row));
+    }
+    const auto first = [&records](const QListWidgetItem* item) {
+        return records.count(item->data(Qt::UserRole).toInt()) > 0;
+    };
+    std::vector<QListWidgetItem*> ordered = items;
+    std::stable_sort(ordered.begin(), ordered.end(),
+                     [&first](const QListWidgetItem* a, const QListWidgetItem* b) {
+                         const bool aFirst = first(a);
+                         const bool bFirst = first(b);
+                         if (aFirst != bFirst) {
+                             return aFirst;
+                         }
+                         return a->data(Qt::UserRole).toInt() < b->data(Qt::UserRole).toInt();
+                     });
+    bool changed = false;
+    for (QListWidgetItem* item : items) {
+        if (item->data(kPutFirstRole).toBool() != first(item)) {
+            item->setData(kPutFirstRole, first(item));
+            changed = true;
+        }
+    }
+    if (ordered == items) {
+        return changed;
+    }
+    // Taking the rows out loses the current and the selected ones: they are set again, as
+    // they were, without a signal (nothing changed for the list's users).
+    const QSignalBlocker listBlocker(list);
+    const QSignalBlocker selectionBlocker(list->selectionModel());
+    QListWidgetItem* current = list->currentItem();
+    std::vector<QListWidgetItem*> selected;
+    for (QListWidgetItem* item : list->selectedItems()) {
+        selected.push_back(item);
+    }
+    while (list->count() > 0) {
+        list->takeItem(0);
+    }
+    for (QListWidgetItem* item : ordered) {
+        list->addItem(item);
+    }
+    if (current) {
+        list->setCurrentItem(current, QItemSelectionModel::NoUpdate);
+    }
+    for (QListWidgetItem* item : selected) {
+        item->setSelected(true);
+    }
+    return true;
 }
 
 }  // namespace colorizing::app

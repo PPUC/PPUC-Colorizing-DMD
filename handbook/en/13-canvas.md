@@ -103,7 +103,10 @@ under it and the canvas, see "Frame List"; the right sidebar takes the full heig
 above its lists says what they show: `All` records; `Used by the current frame`, only the
 comparison mask, the background, the sprites and the scene the current frame uses, following the
 current frame once it has stayed a quarter of a second, so that scrolling through the frames
-stays quick; or `Not used by any frame`, the comparison masks, backgrounds and sprites no frame
+stays quick; `All, the current frame's first`, every record, with those the current frame uses
+moved to the top of each list and framed in the highlight color, the lists scrolled to the top
+whenever another frame becomes current (after the same quarter of a second); or `Not used by
+any frame`, the comparison masks, backgrounds and sprites no frame
 names and the scenes no frame of the game starts (a scene's own frames do not count), to find
 what can be deleted. The choice is kept for the next start. Beside `New` and `Delete` each list
 says how many there are, `Total: 255`, and while only some are listed how many of them it shows,
