@@ -296,6 +296,25 @@ void testDynamicColorCommand()
     expect(document.dynamicColor(1, Resolution::Sd, 2, 3) == 0, "dynamic color revert");
 }
 
+// A color of a set given to the selected frames (issue #39): a command for each frame with
+// another color there; the frames' other colors stay.
+void testDynamicColorCommands()
+{
+    ProjectDocument document = makeDocument();
+    DynamicColorEditCommand(1, Resolution::Sd, 2, 3, 0, 0x7777).apply(document);
+    DynamicColorEditCommand(0, Resolution::Sd, 2, 4, 0, 0x1111).apply(document);
+    const auto commands =
+        colorizing::edit::dynamicColorCommands(document, {0, 1, 5}, Resolution::Sd, 2, 3, 0x7777);
+    expect(commands.size() == 1, "only the frame with another color gets a command");
+    commands.front()->apply(document);
+    expect(document.dynamicColor(0, Resolution::Sd, 2, 3) == 0x7777 &&
+               document.dynamicColor(0, Resolution::Sd, 2, 4) == 0x1111 &&
+               document.dynamicColor(0, Resolution::Hd, 2, 3) == 0,
+           "the color is set; the set's other colors and the other plane stay");
+    commands.front()->revert(document);
+    expect(document.dynamicColor(0, Resolution::Sd, 2, 3) == 0, "and undone");
+}
+
 // Which sets color the SD picture only, and where the runtime keeps them off the HD picture.
 void testOriginalOnlyDynamicSetsCommand()
 {
@@ -1287,6 +1306,7 @@ void runEditCommandTests()
     testNoDynamicCommandsOnTheHdPlaneOfAnOrdinaryProject();
     testBackgroundMaskCommand();
     testDynamicColorCommand();
+    testDynamicColorCommands();
     testDynamicShadowCommand();
     testOriginalOnlyDynamicSetsCommand();
     testPaletteCommand();

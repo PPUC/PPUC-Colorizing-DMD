@@ -92,7 +92,10 @@ Rules:
   16 in one with 16 (a set has a color for each shade).
 - Click a dynamic color swatch to choose a replacement RGB565 color for that original color index.
 - Or drag a color from the `Palette` section onto a swatch, as onto an edit color: the swatch
-  takes it, an undoable change of the frame like a picked color.
+  takes it, an undoable change like a picked color.
+- The color goes to that swatch of the selected `Dyn Set` in all selected frames that have
+  dynamic data, also where their sets differ: only that one color changes, the other colors of
+  each frame's set stay as they are. The status bar says in how many frames it changed.
 - The dynamic mask is rendered over the colorized frame of its plane.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.

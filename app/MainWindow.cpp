@@ -8311,14 +8311,20 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex, std::optional<
         if (newRgb565 == oldRgb565) {
             return;
         }
-        commitEdit(std::make_unique<edit::DynamicColorEditCommand>(*frameIndex,
-                                                                   dynamicPlane(),
-                                                                   activeDynamicSet(),
-                                                                   originalColorIndex,
-                                                                   oldRgb565,
-                                                                   newRgb565));
+        // Every selected frame with dynamic data, as the shadow (issue #39): the one color of
+        // the set; the frames' other colors stay as they are.
+        std::vector<std::unique_ptr<edit::DynamicColorEditCommand>> commands =
+            edit::dynamicColorCommands(*m_document, selectedFrameIndices(), dynamicPlane(),
+                                       activeDynamicSet(), originalColorIndex, newRgb565);
+        const int changed = static_cast<int>(commands.size());
+        if (changed == 0) {
+            return;
+        }
+        for (std::unique_ptr<edit::DynamicColorEditCommand>& command : commands) {
+            commitEdit(std::move(command));
+        }
         updateUndoRedoActions();
-        statusBar()->showMessage(tr("Updated dynamic color 0x%1")
+        statusBar()->showMessage(tr("Updated dynamic color 0x%1 in %n frame(s)", nullptr, changed)
                                      .arg(newRgb565, 4, 16, QLatin1Char('0')),
                                  2500);
     } catch (const std::exception& ex) {

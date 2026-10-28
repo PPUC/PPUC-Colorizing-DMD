@@ -14,6 +14,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Move Up` and `Move Down` in the Frame Sprites section change the order of a frame's sprite
   slots, which decides which sprite is drawn over another, without removing and assigning them
   again.
+- A dynamic set color picked or dropped on a swatch goes to all selected frames, as the shadow
+  settings do, not only to the current frame (#39).
 
 ## 3.99.17
 

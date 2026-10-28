@@ -215,6 +215,16 @@ private:
     uint16_t m_newColor;
 };
 
+// One color of a dynamic set given to several frames: a command, not applied yet, for each
+// frame that has dynamic data and another color there. The frames' other colors stay.
+[[nodiscard]] std::vector<std::unique_ptr<DynamicColorEditCommand>> dynamicColorCommands(
+    const document::ProjectDocument& document,
+    const std::vector<std::size_t>& frameIndices,
+    render::Resolution resolution,
+    std::size_t setIndex,
+    std::size_t originalColorIndex,
+    uint16_t newColor);
+
 struct DynamicColorChange {
     std::size_t originalColorIndex = 0;
     uint16_t oldColor = 0;

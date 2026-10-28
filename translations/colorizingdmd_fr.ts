@@ -5043,7 +5043,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Updated dynamic color 0x%1</source>
-        <translation>Couleur dynamique mise à jour : 0x%1</translation>
+        <translation type="vanished">Couleur dynamique mise à jour : 0x%1</translation>
     </message>
     <message>
         <source>Set %1 colors the SD picture only</source>
@@ -5700,6 +5700,13 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>without a sprite to change places with</source>
         <translation>sans sprite avec lequel échanger</translation>
+    </message>
+    <message numerus="yes">
+        <source>Updated dynamic color 0x%1 in %n frame(s)</source>
+        <translation>
+            <numerusform>Couleur dynamique 0x%1 mise à jour dans %n frame</numerusform>
+            <numerusform>Couleur dynamique 0x%1 mise à jour dans %n frames</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>

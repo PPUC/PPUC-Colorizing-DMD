@@ -186,6 +186,29 @@ void MaskEditCommand::write(document::ProjectDocument& document, bool useNewValu
     }
 }
 
+std::vector<std::unique_ptr<DynamicColorEditCommand>> dynamicColorCommands(
+    const document::ProjectDocument& document,
+    const std::vector<std::size_t>& frameIndices,
+    render::Resolution resolution,
+    std::size_t setIndex,
+    std::size_t originalColorIndex,
+    uint16_t newColor)
+{
+    std::vector<std::unique_ptr<DynamicColorEditCommand>> commands;
+    for (const std::size_t frameIndex : frameIndices) {
+        if (frameIndex >= document.frameCount() || !document.dynamicData(frameIndex)) {
+            continue;
+        }
+        const uint16_t oldColor =
+            document.dynamicColor(frameIndex, resolution, setIndex, originalColorIndex);
+        if (oldColor != newColor) {
+            commands.push_back(std::make_unique<DynamicColorEditCommand>(
+                frameIndex, resolution, setIndex, originalColorIndex, oldColor, newColor));
+        }
+    }
+    return commands;
+}
+
 DynamicColorEditCommand::DynamicColorEditCommand(std::size_t frameIndex,
                                                  render::Resolution resolution,
                                                  std::size_t setIndex,
