@@ -31,7 +31,8 @@ bool hasSprite(const std::vector<document::FrameSpriteReference>& references,
 
 SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
                                 const std::vector<std::size_t>& frames,
-                                const std::vector<std::size_t>& sprites)
+                                const std::vector<std::size_t>& sprites,
+                                const std::optional<document::FrameSpriteReference>& bounds)
 {
     SpritesAdded result;
     const document::Size size = document.originalFrameSize();
@@ -56,9 +57,13 @@ SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
                 continue;
             }
             document::FrameSpriteReference reference;
+            if (bounds) {
+                reference = *bounds;
+            } else {
+                reference.maxX = static_cast<uint16_t>(size.width - 1);
+                reference.maxY = static_cast<uint16_t>(size.height - 1);
+            }
             reference.spriteId = static_cast<uint16_t>(sprite);
-            reference.maxX = static_cast<uint16_t>(size.width - 1);
-            reference.maxY = static_cast<uint16_t>(size.height - 1);
             document.setFrameSpriteReference(frame, slot, reference);
             ++result.added;
             changed = true;

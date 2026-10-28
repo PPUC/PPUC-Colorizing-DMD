@@ -6046,6 +6046,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>%1 Sprite(s) auf %2 Frame(s) gesetzt: %3 hinzugefügt, %4 schon vorhanden</translation>
     </message>
     <message>
+        <source>, with the bounds and offset of slot %1</source>
+        <translation>, mit den Grenzen und dem Versatz von Slot %1</translation>
+    </message>
+    <message>
         <source>; %1 left out, the frame had no empty slot</source>
         <translation>; %1 ausgelassen, der Frame hatte keinen freien Platz</translation>
     </message>

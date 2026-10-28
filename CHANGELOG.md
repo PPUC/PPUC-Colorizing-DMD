@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Assigning several sprites at once gives the new slots the bounds and offset of the selected
+  slot, so the digits of a score need to be set up only once.
+
 ## 3.99.20
 
 - The mouse wheel over a selection box or number field in a sidebar section now really scrolls

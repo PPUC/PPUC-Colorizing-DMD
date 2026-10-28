@@ -281,6 +281,26 @@ void testAddSpritesToFrames()
     added = edit::addSpritesToFrames(document, {0}, {0});
     expect(added.added == 0 && added.kept == 1 && added.commands.empty(),
            "a frame that has every sprite changes nothing");
+
+    // The bounds and offset of a slot the author set up go to every new slot.
+    FrameSpriteReference bounds;
+    bounds.spriteId = 0;
+    bounds.minX = 2;
+    bounds.minY = 3;
+    bounds.maxX = 6;
+    bounds.maxY = 7;
+    bounds.offsetX = 5;
+    bounds.offsetY = -1;
+    added = edit::addSpritesToFrames(document, {0, 1}, {0, 1}, bounds);
+    const auto& copied = document.frameSpriteReferences(1);
+    expect(added.added == 3 && copied[0].spriteId == 0 && copied[1].spriteId == 1,
+           "the sprites go on as before");
+    expect(copied[1].minX == 2 && copied[1].minY == 3 && copied[1].maxX == 6 &&
+               copied[1].maxY == 7 && copied[1].offsetX == 5 && copied[1].offsetY == -1,
+           "with the slot's bounds and offset");
+    expect(document.frameSpriteReferences(0)[0].maxX == 10 &&
+               document.frameSpriteReferences(0)[0].offsetX == 0,
+           "a sprite the frame had keeps its own");
 }
 
 void runStateCommandsTests()

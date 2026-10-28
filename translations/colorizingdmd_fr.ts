@@ -6046,6 +6046,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>%1 sprite(s) placé(s) sur %2 frame(s) : %3 ajouté(s), %4 déjà présent(s)</translation>
     </message>
     <message>
+        <source>, with the bounds and offset of slot %1</source>
+        <translation>, avec les limites et le décalage de l'emplacement %1</translation>
+    </message>
+    <message>
         <source>; %1 left out, the frame had no empty slot</source>
         <translation> ; %1 laissé(s) de côté, la frame n’avait plus d’emplacement libre</translation>
     </message>

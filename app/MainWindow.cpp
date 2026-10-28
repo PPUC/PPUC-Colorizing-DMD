@@ -12391,8 +12391,23 @@ void MainWindow::assignSelectedSpritesToFrames(const std::vector<std::size_t>& s
             return;
         }
     }
+    // A used slot selected on the current frame lends its bounds and offset to the new slots,
+    // as for the digits of a score that are all found in the same place.
+    std::optional<document::FrameSpriteReference> bounds;
+    std::optional<std::size_t> boundsSlot;
+    if (const std::optional<std::size_t> frame = currentFrameIndex(); frame && m_spritePanel) {
+        const std::vector<document::FrameSpriteReference>& references =
+            m_document->frameSpriteReferences(*frame);
+        if (const std::optional<std::size_t> slot = m_spritePanel->selectedSlotIndex();
+            slot && *slot < references.size() &&
+            references[*slot].spriteId != document::kNoSpriteId) {
+            bounds = references[*slot];
+            boundsSlot = slot;
+        }
+    }
     try {
-        edit::SpritesAdded added = edit::addSpritesToFrames(*m_document, frames, sprites);
+        edit::SpritesAdded added =
+            edit::addSpritesToFrames(*m_document, frames, sprites, bounds);
         for (std::unique_ptr<edit::EditCommand>& command : added.commands) {
             pushEdit(std::move(command));
         }
@@ -12410,6 +12425,10 @@ void MainWindow::assignSelectedSpritesToFrames(const std::vector<std::size_t>& s
                               .arg(static_cast<int>(frames.size()))
                               .arg(static_cast<int>(added.added))
                               .arg(static_cast<int>(added.kept));
+        if (boundsSlot && added.added > 0) {
+            message += tr(", with the bounds and offset of slot %1")
+                           .arg(static_cast<int>(*boundsSlot));
+        }
         if (added.full > 0) {
             message += tr("; %1 left out, the frame had no empty slot")
                            .arg(static_cast<int>(added.full));

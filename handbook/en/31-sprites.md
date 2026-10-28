@@ -137,10 +137,12 @@ The controls:
     frames that happened, and the current frame's slot selection follows.
   - With several sprites selected in the list, `Assign` puts each of them on every selected frame,
     as the Win32 editor's `Add Sprite` did: a frame that has a sprite already keeps it in its slot
-    with its bounds, otherwise the sprite goes to the frame's first empty slot, with the whole
-    frame as its bounds. No slot needs to be selected. A frame whose slots are all used gets no
-    more; the status bar counts the sprites added, those there already and those left out. It is
-    one undo step.
+    with its bounds, otherwise the sprite goes to the frame's first empty slot. A new slot gets
+    the bounds and offset of the current frame's selected slot when that slot holds a sprite, and
+    the whole frame as its bounds otherwise. So for the ten digits of a score, set up the slot of
+    one digit (bounds and offset), then select the other nine in the list and press `Assign`. A
+    frame whose slots are all used gets no more; the status bar counts the sprites added, those
+    there already and those left out. It is one undo step.
   - `Capture` assigns the captured sprite by the same rule.
   - `Remove` works as in the Win32 editor (`IDC_DELSPRITE2`): it takes the sprite of the current
     frame's selected slot and removes it from every selected frame that has it, from the last

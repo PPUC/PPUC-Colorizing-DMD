@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -12,7 +13,8 @@ namespace colorizing::edit {
 // Several sprites onto several frames at once, as the Win32 editor's Add Sprite did with more
 // than one sprite selected (IDC_ADDSPRITE2, issue #38): a frame that has a sprite already keeps
 // it in its slot; otherwise the sprite goes to the frame's first empty slot, with the whole
-// frame as its bounds. A frame whose slots are all used gets no more.
+// frame as its bounds, or with the bounds and offset of `bounds` when given (the slot the
+// author set up for one of the sprites). A frame whose slots are all used gets no more.
 struct SpritesAdded {
     // Sprites put on a frame, sprites a frame had already, sprites left out for want of a slot.
     std::size_t added = 0;
@@ -25,7 +27,9 @@ struct SpritesAdded {
 };
 [[nodiscard]] SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
                                               const std::vector<std::size_t>& frames,
-                                              const std::vector<std::size_t>& sprites);
+                                              const std::vector<std::size_t>& sprites,
+                                              const std::optional<document::FrameSpriteReference>&
+                                                  bounds = std::nullopt);
 
 // How many of the frames addSpritesToFrames() would give more sprites than
 // document::kSpritesPerFrameWarning, having had no more before.
