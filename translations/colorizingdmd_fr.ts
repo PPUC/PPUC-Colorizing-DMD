@@ -3901,11 +3901,11 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Durations</source>
-        <translation>Durées</translation>
+        <translation type="vanished">Durées</translation>
     </message>
     <message>
         <source>Play each frame for its own duration (the Frame section&apos;s Duration); unchecked, every frame for the interval beside</source>
-        <translation>Lire chaque frame pendant sa propre durée (la Durée de la section Frame) ; décoché, chaque frame pendant l&apos;intervalle à côté</translation>
+        <translation type="vanished">Lire chaque frame pendant sa propre durée (la Durée de la section Frame) ; décoché, chaque frame pendant l&apos;intervalle à côté</translation>
     </message>
     <message>
         <source>Leave Scene</source>
@@ -4060,6 +4060,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Export cancelled</source>
         <translation>Export annulé</translation>
+    </message>
+    <message>
+        <source>Fixed Duration</source>
+        <translation>Durée fixe</translation>
+    </message>
+    <message>
+        <source>Play every frame for the interval beside; unchecked, each frame for its own duration (the Frame section&apos;s Duration)</source>
+        <translation>Lire chaque frame pendant l&apos;intervalle à côté ; décoché, chaque frame pendant sa propre durée (la Durée de la section Frame)</translation>
     </message>
     <message>
         <source>Export Animated GIF Failed</source>

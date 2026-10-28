@@ -1670,12 +1670,12 @@ void MainWindow::createCentralView()
            "the frame does not change"));
     m_stayPlaybackButton->setCheckable(true);
     m_stayPlaybackButton->setEnabled(false);
-    m_useProjectTimingCheckBox = new QCheckBox(tr("Durations"), central);
-    m_useProjectTimingCheckBox->setToolTip(
-        tr("Play each frame for its own duration (the Frame section's Duration); unchecked, "
-           "every frame for the interval beside"));
-    m_useProjectTimingCheckBox->setChecked(true);
-    m_useProjectTimingCheckBox->setEnabled(false);
+    m_fixedDurationCheckBox = new QCheckBox(tr("Fixed Duration"), central);
+    m_fixedDurationCheckBox->setToolTip(
+        tr("Play every frame for the interval beside; unchecked, each frame for its own "
+           "duration (the Frame section's Duration)"));
+    m_fixedDurationCheckBox->setChecked(false);
+    m_fixedDurationCheckBox->setEnabled(false);
     m_playbackIntervalSpinBox = new QSpinBox(central);
     m_playbackIntervalSpinBox->setRange(20, 5000);
     m_playbackIntervalSpinBox->setSingleStep(10);
@@ -1686,7 +1686,7 @@ void MainWindow::createCentralView()
     toolbarLayout->addWidget(m_playbackButton);
     toolbarLayout->addWidget(m_loopPlaybackButton);
     toolbarLayout->addWidget(m_stayPlaybackButton);
-    toolbarLayout->addWidget(m_useProjectTimingCheckBox);
+    toolbarLayout->addWidget(m_fixedDurationCheckBox);
     toolbarLayout->addWidget(m_playbackIntervalSpinBox);
     // The same action as View -> Runtime View, where it can be seen.
     m_runtimeViewButton = new QToolButton(central);
@@ -2326,11 +2326,11 @@ void MainWindow::createCentralView()
             this,
             [this](int intervalMs) {
                 if (m_playbackTimer && m_playbackTimer->isActive() &&
-                    (!m_useProjectTimingCheckBox || !m_useProjectTimingCheckBox->isChecked())) {
+                    (!m_fixedDurationCheckBox || m_fixedDurationCheckBox->isChecked())) {
                     m_playbackTimer->setInterval(intervalMs);
                 }
             });
-    connect(m_useProjectTimingCheckBox, &QCheckBox::toggled, this, [this](bool) {
+    connect(m_fixedDurationCheckBox, &QCheckBox::toggled, this, [this](bool) {
         if (m_playbackTimer && m_playbackTimer->isActive()) {
             m_playbackTimer->setInterval(playbackIntervalForCurrentFrame());
         }
@@ -6027,8 +6027,8 @@ void MainWindow::updatePlaybackControls()
     if (m_playbackIntervalSpinBox) {
         m_playbackIntervalSpinBox->setEnabled(hasFrames);
     }
-    if (m_useProjectTimingCheckBox) {
-        m_useProjectTimingCheckBox->setEnabled(hasFrames);
+    if (m_fixedDurationCheckBox) {
+        m_fixedDurationCheckBox->setEnabled(hasFrames);
     }
     if (!hasFrames && running) {
         setPlaybackRunning(false);
@@ -6234,7 +6234,7 @@ void MainWindow::advancePlaybackFrame()
 int MainWindow::playbackIntervalForCurrentFrame() const
 {
     const int fallbackMs = m_playbackIntervalSpinBox ? m_playbackIntervalSpinBox->value() : 100;
-    if (!m_document || !m_useProjectTimingCheckBox || !m_useProjectTimingCheckBox->isChecked()) {
+    if (!m_document || !m_fixedDurationCheckBox || m_fixedDurationCheckBox->isChecked()) {
         return fallbackMs;
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();

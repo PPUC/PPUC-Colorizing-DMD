@@ -8,12 +8,12 @@ The top toolbar contains editor-only playback controls:
 - `Stay` keeps `Play` on the current frame: the frame does not change, while its color rotations
   and its background scene run, to look at them or to draw while they move. Switched while
   playing, playback goes on in the other mode.
-- `Durations` plays each frame for its own duration (`Duration` in the Frame section);
-  unchecked, every frame is shown for the interval beside it.
+- `Fixed Duration` shows every frame for the interval beside it; unchecked (the default), each
+  frame plays for its own duration (`Duration` in the Frame section).
 - The interval field controls the fallback frame advance interval in milliseconds.
 
-Playback respects the current frame filter in the left `Frames` tab. When `Durations` is checked,
-frames with missing, zero, or unusually large durations use the fallback interval.
+Playback respects the current frame filter in the left `Frames` tab. When `Fixed Duration` is
+unchecked, frames with missing, zero, or unusually large durations use the fallback interval.
 
 During playback, the central preview advances color-rotation slots for the displayed frame using
 each slot's stored delay, counted from the start of playback. Which pixels rotate follows libserum,

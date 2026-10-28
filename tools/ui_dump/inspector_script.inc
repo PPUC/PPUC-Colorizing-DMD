@@ -193,7 +193,7 @@
     }
     auto* inBgId = byTip<QSpinBox>(w, "Assigned background ID");
     auto* inTrigger = byTip<QSpinBox>(w, "PUP trigger the frame fires, 0 to 49999");
-    auto* inDuration = byTip<QSpinBox>(w, "Per-frame cRP duration");
+    auto* inDuration = byTip<QSpinBox>(w, "Per-frame duration");
     auto* inMono = byTip<QCheckBox>(w, "From this frame on, libserum shows the frames in monochrome (trigger ID 65432)");
     auto* inBgCombo = byTip<QComboBox>(w, "Loaded background");
     auto* inAssignBg = byTip<QToolButton>(w, "Assign selected background to selected frames");
@@ -631,7 +631,7 @@
     w.m_frameList->selectAll();
     inDuration->setValue(4500);
     row(2);
-    w.m_useProjectTimingCheckBox->click();
+    w.m_fixedDurationCheckBox->click();
     w.m_playbackIntervalSpinBox->setValue(5000);
     D("playback prepared");
     w.m_playbackButton->click();
@@ -639,8 +639,8 @@
     D("playing");
     w.m_playbackIntervalSpinBox->setValue(4900);
     D("playing interval 4900");
-    w.m_useProjectTimingCheckBox->click();
-    D("playing with crp timing");
+    w.m_fixedDurationCheckBox->click();
+    D("playing with the frames' own durations");
     inDuration->setValue(4800);
     D("playing duration edited");
     w.advancePlaybackFrame();

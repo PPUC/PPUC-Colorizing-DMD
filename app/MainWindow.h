@@ -724,7 +724,8 @@ private:
     QToolButton* m_loopPlaybackButton = nullptr;
     // Play stays on the current frame: its rotations and its background scene run.
     QToolButton* m_stayPlaybackButton = nullptr;
-    QCheckBox* m_useProjectTimingCheckBox = nullptr;
+    // Checked: every frame plays for the interval field's time, not its own duration.
+    QCheckBox* m_fixedDurationCheckBox = nullptr;
     QComboBox* m_assetFilterComboBox = nullptr;
     // The frame whose assets AssetFilter::CurrentFrameFirst put first: another one scrolls the
     // lists to the top.
