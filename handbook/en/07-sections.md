@@ -12,6 +12,10 @@ least 40 pixels high); a double click on a handle gives all open sections the sa
 Which sections are open, and their shares, are kept for the next start; at first `Comparison Masks`
 and `Frame` are open.
 
+The mouse wheel scrolls a section's content even over a selection box, a number field or a
+slider: their values change with the wheel only after a click into them (when they have the
+keyboard focus), so scrolling through a section does not change its settings by accident.
+
 ## Arranging the sections
 
 Each column can be arranged to your needs, and the arrangement is kept for the next start:

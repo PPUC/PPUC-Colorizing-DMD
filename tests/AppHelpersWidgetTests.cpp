@@ -7,8 +7,14 @@
 #include <vector>
 
 #include <QApplication>
+#include <QComboBox>
 #include <QLabel>
 #include <QListWidget>
+#include <QScrollArea>
+#include <QScrollBar>
+#include <QSpinBox>
+#include <QVBoxLayout>
+#include <QWheelEvent>
 
 #include "ActionUndoGroups.h"
 #include "ActivityClock.h"
@@ -19,6 +25,7 @@
 #include "dialogs/AboutDialog.h"
 #include "ListSelection.h"
 #include "UnsavedChanges.h"
+#include "WheelGuard.h"
 
 namespace app = colorizing::app;
 
@@ -240,6 +247,55 @@ void testSelectedFramesStatusText()
            "the frames and their durations added up");
 }
 
+// The wheel over a combo or spin box in a scrolled section scrolls the section; the value
+// changes only in the control that has the focus.
+void testWheelGuard()
+{
+    app::installWheelGuard(QApplication::instance());
+    QScrollArea area;
+    area.setWidgetResizable(true);
+    auto* content = new QWidget;
+    auto* layout = new QVBoxLayout(content);
+    auto* combo = new QComboBox;
+    combo->addItems({QStringLiteral("One"), QStringLiteral("Two"), QStringLiteral("Three")});
+    auto* spin = new QSpinBox;
+    spin->setFocusPolicy(Qt::StrongFocus);
+    layout->addWidget(combo);
+    layout->addWidget(spin);
+    layout->addSpacing(2000);
+    area.setWidget(content);
+    area.resize(200, 200);
+    area.show();
+    QApplication::processEvents();
+    // Down, or up (the spin box's value goes up from its minimum).
+    const auto wheel = [](QWidget* widget, int delta = -120) {
+        QWheelEvent event(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, delta), Qt::NoButton,
+                          Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(widget, &event);
+    };
+    // Showing the window gives the first control the focus.
+    if (QWidget* focused = QApplication::focusWidget()) {
+        focused->clearFocus();
+    }
+    expect(area.verticalScrollBar()->value() == 0, "the section starts at the top");
+    wheel(combo);
+    expect(combo->currentIndex() == 0, "the wheel leaves the combo box's value alone");
+    expect(area.verticalScrollBar()->value() > 0, "and scrolls the section instead");
+    const int scrolled = area.verticalScrollBar()->value();
+    wheel(spin);
+    expect(spin->value() == 0 && area.verticalScrollBar()->value() > scrolled,
+           "the same over a spin box");
+    area.activateWindow();
+    spin->setFocus();
+    QApplication::processEvents();
+    if (spin->hasFocus()) {
+        const int before = area.verticalScrollBar()->value();
+        wheel(spin, 120);
+        expect(spin->value() != 0 && area.verticalScrollBar()->value() == before,
+               "the spin box with the focus takes the wheel");
+    }
+}
+
 void runAppHelpersWidgetTests()
 {
     testAboutDialog();
@@ -250,4 +306,5 @@ void runAppHelpersWidgetTests()
     testActionUndoGroups();
     testOriginalShadeColors();
     testSelectedFramesStatusText();
+    testWheelGuard();
 }

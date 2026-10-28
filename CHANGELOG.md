@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The mouse wheel over a selection box, number field or slider in a sidebar section scrolls
+  the section instead of changing the value, unless the field was clicked into first.
+
 ## 3.99.17
 
 - Scenes have a name, and a scene can play the frames of another (a variant) with its own
