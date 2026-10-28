@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.18
+
 - The mouse wheel over a selection box, number field or slider in a sidebar section scrolls
   the section instead of changing the value, unless the field was clicked into first.
 - The left sidebar's filter has `All, the current frame's first`: every record is listed, and
@@ -20,8 +22,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   sliding in can be pasted frame by frame a few pixels on; the first paste after a copy still
   starts where it was copied from (#33).
 - The playback toolbar's `cRP` checkbox is now `Fixed Duration`, with the meaning inverted:
-  checked, every frame plays for the interval beside it; unchecked, for its own duration. The advice about more than 32 sprites per frame names the old Williams games such
-  as Flash, where the latency does not hurt.
+  checked, every frame plays for the interval beside it; unchecked, for its own duration.
+- The advice about more than 32 sprites per frame names the old Williams games such as Flash,
+  where the latency does not hurt.
 - Sprite slots have an offset (`Offset X`, `Offset Y`): the sprite found in the bounding box is
   drawn moved by it, so one set of sprites can show at another place than where the game draws
   it (libserum 2.99.11).
