@@ -1556,6 +1556,7 @@ void MainWindow::createCentralView()
     m_spritePanel->onSlotBoundsEdited = [this]() {
         setCurrentSpriteSlotBounds();
     };
+    m_spritePanel->onSlotOffsetEdited = [this]() { setCurrentSpriteSlotOffset(); };
     m_spritePanel->onDetectionAreaSelectionChanged = [this]() {
         updateSpriteControls();
     };
@@ -7533,18 +7534,14 @@ void MainWindow::setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> draw
                 continue;
             }
             const document::FrameSpriteReference reference = references[*slotIndex];
-            const document::FrameSpriteReference updated{
-                reference.spriteId,
-                static_cast<uint16_t>(minX),
-                static_cast<uint16_t>(minY),
-                static_cast<uint16_t>(maxX),
-                static_cast<uint16_t>(maxY),
-            };
-            if (updated.spriteId == reference.spriteId &&
-                updated.minX == reference.minX &&
-                updated.minY == reference.minY &&
-                updated.maxX == reference.maxX &&
-                updated.maxY == reference.maxY) {
+            // The offset stays.
+            document::FrameSpriteReference updated = reference;
+            updated.minX = static_cast<uint16_t>(minX);
+            updated.minY = static_cast<uint16_t>(minY);
+            updated.maxX = static_cast<uint16_t>(maxX);
+            updated.maxY = static_cast<uint16_t>(maxY);
+            if (updated.minX == reference.minX && updated.minY == reference.minY &&
+                updated.maxX == reference.maxX && updated.maxY == reference.maxY) {
                 continue;
             }
             std::vector<document::FrameSpriteReference> before = references;
@@ -7581,6 +7578,58 @@ void MainWindow::setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> draw
                 .arg(static_cast<int>(*slotIndex))
                 .arg(changed),
             1500);
+    } catch (const std::exception& ex) {
+        updateSpriteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::setCurrentSpriteSlotOffset()
+{
+    const std::optional<std::size_t> slotIndex =
+        m_spritePanel ? m_spritePanel->selectedSlotIndex() : std::nullopt;
+    if (!m_document || !slotIndex) {
+        return;
+    }
+    const auto [offsetX, offsetY] = m_spritePanel->slotOffset();
+    try {
+        int changed = 0;
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            const std::vector<document::FrameSpriteReference>& references =
+                m_document->frameSpriteReferences(frameIndex);
+            // The offset belongs to an assigned sprite, as the bounds do.
+            if (*slotIndex >= references.size() ||
+                references[*slotIndex].spriteId == document::kNoSpriteId) {
+                continue;
+            }
+            document::FrameSpriteReference updated = references[*slotIndex];
+            if (updated.offsetX == offsetX && updated.offsetY == offsetY) {
+                continue;
+            }
+            updated.offsetX = static_cast<int16_t>(offsetX);
+            updated.offsetY = static_cast<int16_t>(offsetY);
+            std::vector<document::FrameSpriteReference> before = references;
+            m_document->setFrameSpriteReference(frameIndex, *slotIndex, updated);
+            pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
+            updateFrameListItem(frameIndex);
+            ++changed;
+        }
+        if (changed == 0) {
+            updateSpriteControls();
+            return;
+        }
+        if (m_preview) {
+            m_preview->update();
+        }
+        updateSpriteControls();
+        updateProjectHeaderStatus();
+        statusBar()->showMessage(tr("Sprite slot %1 drawn %2, %3 from where it is found on "
+                                    "%4 frame(s)")
+                                     .arg(static_cast<int>(*slotIndex))
+                                     .arg(offsetX)
+                                     .arg(offsetY)
+                                     .arg(changed),
+                                 1500);
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);

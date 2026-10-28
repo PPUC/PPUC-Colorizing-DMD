@@ -89,7 +89,8 @@ bool sameSlots(const std::vector<document::FrameSpriteReference>& a,
                       [](const document::FrameSpriteReference& x,
                          const document::FrameSpriteReference& y) {
                           return x.spriteId == y.spriteId && x.minX == y.minX &&
-                                 x.minY == y.minY && x.maxX == y.maxX && x.maxY == y.maxY;
+                                 x.minY == y.minY && x.maxX == y.maxX && x.maxY == y.maxY &&
+                                 x.offsetX == y.offsetX && x.offsetY == y.offsetY;
                       });
 }
 

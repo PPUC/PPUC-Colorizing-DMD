@@ -32,6 +32,10 @@ struct SpriteMatch {
     int spriteY = 0;
     int width = 0;
     int height = 0;
+    // How far it was moved from where it was found (the slot's sprite offset): frameX and
+    // frameY are where it is drawn, its dynamic pixels take the ROM shades where it was found.
+    int offsetX = 0;
+    int offsetY = 0;
 };
 
 // The sprites of the frame's sprite slots that are in its ROM frame, in the order they are

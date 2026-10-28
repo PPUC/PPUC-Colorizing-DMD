@@ -62,6 +62,7 @@ namespace colorizing::project {
 //               DCOS, DCOH, SDDS, SDCS, SDDH, SDCH), BGND background data (BGID or BGIX, BMSK,
 //               BMSH), SPRS sprite slots (uint32 count, per slot the sprite's UUID or 16 zero
 //               bytes, uint16 raw ID for a slot without one, uint16 minX, minY, maxX, maxY),
+//               SPRO sprite offsets (per slot with one: uint8 slot, int16 x, int16 y),
 //               TRIG trigger (one ID, see document::combinedTriggerId()), TRGS the PUP,
 //               scene and monochrome trigger (uint32 each; without it TRIG is split), DURA
 //               duration, ROTS/ROTH color rotations, SCEN scene frame, TAGS

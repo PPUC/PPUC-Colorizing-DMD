@@ -733,8 +733,25 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         }
     }
     const bool withTriggers = !triggers.empty();
+    // The sprite slots with an offset, by frame and slot.
+    struct SpriteOffset {
+        std::size_t frame;
+        std::size_t slot;
+        int16_t x, y;
+    };
+    std::vector<SpriteOffset> spriteOffsets;
+    for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+        const auto& slots = snapshot.frames[frame].spriteReferences;
+        for (std::size_t slot = 0; slot < slots.size() && slot < document::kSpritesPerFrame;
+             ++slot) {
+            if (slots[slot].offsetX != 0 || slots[slot].offsetY != 0) {
+                spriteOffsets.push_back({frame, slot, slots[slot].offsetX, slots[slot].offsetY});
+            }
+        }
+    }
+    const bool withSpriteOffsets = !spriteOffsets.empty();
     if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets &&
-        !withDofEvents && !withTriggers) {
+        !withDofEvents && !withTriggers && !withSpriteOffsets) {
         return block;
     }
     const auto put = [&block](uint64_t value, std::size_t bytes) {
@@ -762,7 +779,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             (withOriginalOnlySets ? kCromSettingsOriginalOnlySets : 0) |
             (withDofEvents ? kCromSettingsDofEvents : 0) |
             (withTriggers ? kCromSettingsFrameTriggers : 0) |
-            (withVariants ? kCromSettingsSceneVariants : 0),
+            (withVariants ? kCromSettingsSceneVariants : 0) |
+            (withSpriteOffsets ? kCromSettingsSpriteOffsets : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -885,6 +903,16 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         for (const auto& [sceneId, baseSceneId] : variants) {
             put(sceneId, 2);
             put(baseSceneId, 2);
+        }
+    }
+    if (withSpriteOffsets) {
+        put(spriteOffsets.size(), 4);
+        for (const SpriteOffset& offset : spriteOffsets) {
+            put(offset.frame, 4);
+            put(offset.slot, 1);
+            put(0, 1);
+            put(static_cast<uint16_t>(offset.x), 2);
+            put(static_cast<uint16_t>(offset.y), 2);
         }
     }
     const uint64_t payload = block.size() - 8;

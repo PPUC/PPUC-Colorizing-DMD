@@ -121,6 +121,10 @@ struct FrameSpriteReference {
     uint16_t minY = 0;
     uint16_t maxX = 0;
     uint16_t maxY = 0;
+    // Where the sprite found in the bounds is drawn, relative to where it is found, in
+    // original-frame pixels (libserum's sprite offsets): (0, 0) draws it in place.
+    int16_t offsetX = 0;
+    int16_t offsetY = 0;
 };
 
 struct FrameRecord {

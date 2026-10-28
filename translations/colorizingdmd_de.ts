@@ -5725,6 +5725,10 @@ Use Create %1 Frame.</source>
         <source>without a sprite to change places with</source>
         <translation>ohne Sprite zum Tauschen</translation>
     </message>
+    <message>
+        <source>Sprite slot %1 drawn %2, %3 from where it is found on %4 frame(s)</source>
+        <translation>Sprite-Slot %1 um %2, %3 versetzt gezeichnet auf %4 Frame(s)</translation>
+    </message>
     <message numerus="yes">
         <source>Updated dynamic color 0x%1 in %n frame(s)</source>
         <translation>
@@ -8245,6 +8249,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Begrenzungsrahmen des Sprite-Slots, maximales Y</translation>
     </message>
     <message>
+        <source>Draw the sprite found in the bounding box this many pixels to the right (negative: to the left) of where it is found</source>
+        <translation>Den im Begrenzungsrahmen gefundenen Sprite so viele Pixel rechts (negativ: links) von seinem Fundort zeichnen</translation>
+    </message>
+    <message>
+        <source>Draw the sprite found in the bounding box this many pixels lower (negative: higher) than where it is found</source>
+        <translation>Den im Begrenzungsrahmen gefundenen Sprite so viele Pixel tiefer (negativ: höher) als seinen Fundort zeichnen</translation>
+    </message>
+    <message>
         <source>Sprite detection area</source>
         <translation>Erkennungsbereich des Sprites</translation>
     </message>
@@ -8307,6 +8319,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Max Y</source>
         <translation>Max Y</translation>
+    </message>
+    <message>
+        <source>Offset X</source>
+        <translation>Versatz X</translation>
+    </message>
+    <message>
+        <source>Offset Y</source>
+        <translation>Versatz Y</translation>
     </message>
     <message>
         <source>X</source>

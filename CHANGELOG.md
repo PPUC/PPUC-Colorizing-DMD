@@ -22,6 +22,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The playback toolbar's `cRP` checkbox is now `Fixed Duration`, with the meaning inverted:
   checked, every frame plays for the interval beside it; unchecked, for its own duration. The advice about more than 32 sprites per frame names the old Williams games such
   as Flash, where the latency does not hurt.
+- Sprite slots have an offset (`Offset X`, `Offset Y`): the sprite found in the bounding box is
+  drawn moved by it, so one set of sprites can show at another place than where the game draws
+  it (libserum 2.99.11).
 
 ## 3.99.17
 

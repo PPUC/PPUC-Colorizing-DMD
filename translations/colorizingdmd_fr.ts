@@ -5725,6 +5725,10 @@ Utiliser Créer la frame %1.</translation>
         <source>without a sprite to change places with</source>
         <translation>sans sprite avec lequel échanger</translation>
     </message>
+    <message>
+        <source>Sprite slot %1 drawn %2, %3 from where it is found on %4 frame(s)</source>
+        <translation>Emplacement de sprite %1 dessiné à %2, %3 de l’endroit où il est trouvé sur %4 frame(s)</translation>
+    </message>
     <message numerus="yes">
         <source>Updated dynamic color 0x%1 in %n frame(s)</source>
         <translation>
@@ -8245,6 +8249,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Y maximum du cadre de l&apos;emplacement de sprite</translation>
     </message>
     <message>
+        <source>Draw the sprite found in the bounding box this many pixels to the right (negative: to the left) of where it is found</source>
+        <translation>Dessiner le sprite trouvé dans le cadre autant de pixels à droite (négatif : à gauche) de l’endroit où il est trouvé</translation>
+    </message>
+    <message>
+        <source>Draw the sprite found in the bounding box this many pixels lower (negative: higher) than where it is found</source>
+        <translation>Dessiner le sprite trouvé dans le cadre autant de pixels plus bas (négatif : plus haut) que l’endroit où il est trouvé</translation>
+    </message>
+    <message>
         <source>Sprite detection area</source>
         <translation>Zone de détection du sprite</translation>
     </message>
@@ -8307,6 +8319,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Max Y</source>
         <translation>Y max</translation>
+    </message>
+    <message>
+        <source>Offset X</source>
+        <translation>Décalage X</translation>
+    </message>
+    <message>
+        <source>Offset Y</source>
+        <translation>Décalage Y</translation>
     </message>
     <message>
         <source>X</source>

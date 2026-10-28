@@ -163,6 +163,24 @@ The controls:
   frames in which that slot has a sprite. They are disabled while the slot of the current frame is
   empty. A minimum cannot be raised above its maximum and a maximum cannot be lowered below its
   minimum; the edited value stops at the other one.
+- `Offset X` and `Offset Y` move the sprite the slot finds: it is still looked for in the bounding
+  box, but drawn that many pixels to the right (negative: to the left) and lower (negative:
+  higher) than where it is found, from libserum 2.99.11. One set of digit sprites can so show
+  numbers at another place than the one the game draws them at, instead of a second set of
+  sprites with a black margin. Like the bounds they apply to the selected slot of all selected
+  frames that have a sprite in it.
+  - The sprite is cut to its bounding box as always, and then drawn in the bounding box moved by
+    the offset, as far as that lies in the frame; `Show Bounds` outlines that box with an orange
+    dashed line next to the filled bounding box.
+  - Where the sprite was found, the frame shows its own colorized picture, as anywhere without a
+    sprite: paint the place as it should look (for example black). A dynamic zone there would
+    still color the game's pixels, so leave such places out of the dynamic zones.
+  - The sprite's dynamic pixels take the shades of the game's pixels where it was found.
+  - A moved sprite does not hide another sprite from being found: sprites are always looked for
+    in the game's frame. Where two drawn sprites overlap, the later slot is drawn over the
+    earlier one (`Move Up`, `Move Down`).
+  - `Assign` into a used slot keeps its bounds and its offset; `Capture` sets new bounds and no
+    offset.
 - `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
 - While `Show Bounds` is on and the frame itself is edited (no mask, dynamic zone or background
   mode), the `Rectangle` and `Filled Rectangle` tools draw the bounds on the original frame:

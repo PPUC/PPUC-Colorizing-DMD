@@ -62,10 +62,13 @@ std::size_t differingPixels(const Rgb565Frame& editor, const RuntimePlane& runti
 //  10: sprite 0 in slots 0 and 1 with different search areas and a copy of it in each. Only
 //      the first slot is searched.
 //  11: sprite 0 twice inside one search area: both are drawn.
+//  12: sprite 0 with a slot offset of (50, 4): drawn moved, its dynamic pixels with the shades
+//      where it was found, and nothing of it where it was found.
+//  13: sprite 0 with an offset of (-14, -5): drawn moved and cut at the frame's edges.
 ProjectSnapshot makeProjectWithSpriteListCases(PlaneLayout layout)
 {
     ProjectSnapshot snapshot = makeFullProject(layout);
-    for (std::size_t frame = 9; frame < 12; ++frame) {
+    for (std::size_t frame = 9; frame < 14; ++frame) {
         snapshot.frames.push_back(snapshot.frames[8]);
         makeDark(snapshot, frame);
     }
@@ -82,6 +85,15 @@ ProjectSnapshot makeProjectWithSpriteListCases(PlaneLayout layout)
     placeSprite(snapshot, 11, 12, 3);
     placeSprite(snapshot, 11, 40, 9);
     setSpriteSlot(snapshot, 11, 0, 0, 2, 0, 60, 20);
+
+    for (std::size_t frame : {12, 13}) {
+        placeSprite(snapshot, frame, 12, 3);
+        setSpriteSlot(snapshot, frame, 0, 0, 2, 0, 60, 20);
+    }
+    snapshot.frames[12].spriteReferences[0].offsetX = 50;
+    snapshot.frames[12].spriteReferences[0].offsetY = 4;
+    snapshot.frames[13].spriteReferences[0].offsetX = -14;
+    snapshot.frames[13].spriteReferences[0].offsetY = -5;
     return snapshot;
 }
 
@@ -125,6 +137,15 @@ void testNativePlane(PlaneLayout layout)
     const std::vector<SpriteMatch> twoCopies = matchFrameSprites(document, 11);
     expect(twoCopies.size() == 2 && twoCopies[0].frameY == 3 && twoCopies[1].frameY == 9,
            "every place a sprite is found at is reported, in scan order");
+    const std::vector<SpriteMatch> moved = matchFrameSprites(document, 12);
+    expect(moved.size() == 1 && moved[0].frameX == 62 && moved[0].frameY == 7 &&
+               moved[0].width == kSpriteWidth && moved[0].offsetX == 50,
+           "a slot offset moves the found sprite");
+    const std::vector<SpriteMatch> cut = matchFrameSprites(document, 13);
+    expect(cut.size() == 1 && cut[0].frameX == 0 && cut[0].spriteX == 2 &&
+               cut[0].width == kSpriteWidth - 2 && cut[0].frameY == 0 && cut[0].spriteY == 2 &&
+               cut[0].height == kSpriteHeight - 2,
+           "and cuts it at the frame's edges");
     const std::vector<SpriteMatch> exact = matchFrameSprites(document, 3);
     expect(exact.size() == 1 && exact[0].frameX == 30 && exact[0].frameY == 8 &&
                exact[0].width == kSpriteWidth && exact[0].height == kSpriteHeight,

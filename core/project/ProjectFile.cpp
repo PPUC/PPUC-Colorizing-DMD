@@ -336,6 +336,21 @@ std::string frameContent(const ProjectSnapshot& snapshot,
         }
         appendField(out, "SPRS", data);
     }
+    {
+        // The sprite offsets of the slots that have one (a field older editors skip).
+        std::string data;
+        for (std::size_t slot = 0; slot < frame.spriteReferences.size(); ++slot) {
+            const document::FrameSpriteReference& reference = frame.spriteReferences[slot];
+            if (reference.offsetX != 0 || reference.offsetY != 0) {
+                appendLittleEndian(data, slot, 1);
+                appendLittleEndian(data, static_cast<uint16_t>(reference.offsetX), 2);
+                appendLittleEndian(data, static_cast<uint16_t>(reference.offsetY), 2);
+            }
+        }
+        if (!data.empty()) {
+            appendField(out, "SPRO", data);
+        }
+    }
     // One ID for an editor before 3.99.17, the three triggers for the others.
     appendField(out, "TRIG",
                 integerData(document::combinedTriggerId(frame.pupTriggerId, frame.sceneTriggerId,
@@ -1192,6 +1207,19 @@ document::ProjectFrameSnapshot readFrame(const Fields& fields,
             slot.minY = static_cast<uint16_t>(cursor.integer(2));
             slot.maxX = static_cast<uint16_t>(cursor.integer(2));
             slot.maxY = static_cast<uint16_t>(cursor.integer(2));
+        }
+    }
+    if (fields.has("SPRO")) {
+        Cursor cursor = fields.cursor("SPRO");
+        while (cursor.remaining() > 0) {
+            const uint64_t slot = cursor.integer(1);
+            const auto x = static_cast<int16_t>(static_cast<uint16_t>(cursor.integer(2)));
+            const auto y = static_cast<int16_t>(static_cast<uint16_t>(cursor.integer(2)));
+            if (slot >= frame.spriteReferences.size()) {
+                cursor.fail();
+            }
+            frame.spriteReferences[slot].offsetX = x;
+            frame.spriteReferences[slot].offsetY = y;
         }
     }
     if (fields.has("TRGS")) {

@@ -471,7 +471,9 @@ void FramePreviewWidget::setSelectedSpriteReference(
                    lhs->minX == rhs->minX &&
                    lhs->minY == rhs->minY &&
                    lhs->maxX == rhs->maxX &&
-                   lhs->maxY == rhs->maxY;
+                   lhs->maxY == rhs->maxY &&
+                   lhs->offsetX == rhs->offsetX &&
+                   lhs->offsetY == rhs->offsetY;
         };
     if (sameReference(m_selectedSpriteReference, reference)) {
         return;
@@ -1691,6 +1693,21 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
     painter.setRenderHint(QPainter::Antialiasing, false);
     const QColor fillColor(0, 255, 255, 110);
     painter.fillRect(bounds, fillColor);
+    // With a sprite offset, the box the found sprite is drawn in: the bounds moved alike, as
+    // far as they lie in the frame.
+    if (reference.offsetX != 0 || reference.offsetY != 0) {
+        const QRect frame(region.displayRect.x, region.displayRect.y, size.width * scale,
+                          size.height * scale);
+        const QRect target =
+            bounds.translated(reference.offsetX * scale, reference.offsetY * scale)
+                .intersected(frame);
+        if (!target.isEmpty()) {
+            QPen pen(QColor(255, 160, 0), 2, Qt::DashLine);
+            painter.setPen(pen);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(target.adjusted(1, 1, -1, -1));
+        }
+    }
     painter.restore();
 }
 

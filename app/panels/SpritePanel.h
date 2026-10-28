@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <utility>
 
 #include <QCoreApplication>
 #include <QString>
@@ -81,6 +82,8 @@ public:
     void setSelectedSlotIndex(std::size_t slotIndex);
     [[nodiscard]] std::size_t selectedDetectionAreaIndex() const;
     [[nodiscard]] SpriteSlotBounds slotBounds() const;
+    // The slot's sprite offset as entered: x, then y.
+    [[nodiscard]] std::pair<int, int> slotOffset() const;
     [[nodiscard]] SpriteDetectionAreaInput detectionAreaInput() const;
     [[nodiscard]] bool isCaptureSelectionChecked() const;
     [[nodiscard]] bool isBoundsOverlayChecked() const;
@@ -127,6 +130,8 @@ public:
     void setDynamicPaintChecked(bool checked);
     // Read the new values with slotBounds().
     std::function<void()> onSlotBoundsEdited;
+    // Read the new values with slotOffset().
+    std::function<void()> onSlotOffsetEdited;
     std::function<void()> onDetectionAreaSelectionChanged;
     // Read the new values with detectionAreaInput().
     std::function<void()> onDetectionAreaEdited;
@@ -171,6 +176,8 @@ private:
     QSpinBox* m_minYSpinBox = nullptr;
     QSpinBox* m_maxXSpinBox = nullptr;
     QSpinBox* m_maxYSpinBox = nullptr;
+    QSpinBox* m_offsetXSpinBox = nullptr;
+    QSpinBox* m_offsetYSpinBox = nullptr;
     QComboBox* m_detectionAreaComboBox = nullptr;
     QToolButton* m_clearDetectionAreaButton = nullptr;
     QSpinBox* m_detectionAreaXSpinBox = nullptr;

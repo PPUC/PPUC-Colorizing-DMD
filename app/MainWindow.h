@@ -399,6 +399,9 @@ private:
     // The bounds of the Min/Max fields, or drawn ones (a rectangle on the original frame while
     // Show Bounds is on), for the selected slot of all selected frames that have a sprite in it.
     void setCurrentSpriteSlotBounds(std::optional<SpriteSlotBounds> drawn = std::nullopt);
+    // The Sprite section's offset for the selected slot of every selected frame with a sprite
+    // in it.
+    void setCurrentSpriteSlotOffset();
     void setCurrentSpriteName(const QString& name);
     void setCurrentSpriteDetectionArea();
     void clearCurrentSpriteDetectionArea();

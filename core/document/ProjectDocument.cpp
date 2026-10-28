@@ -3254,7 +3254,8 @@ void ProjectDocument::setFrameSpriteReference(std::size_t frameIndex,
     }
     if (current.spriteId == reference.spriteId && current.minX == reference.minX &&
         current.minY == reference.minY && current.maxX == reference.maxX &&
-        current.maxY == reference.maxY) {
+        current.maxY == reference.maxY && current.offsetX == reference.offsetX &&
+        current.offsetY == reference.offsetY) {
         return;
     }
     if (frame.spriteReferences.empty()) {

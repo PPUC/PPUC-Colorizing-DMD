@@ -233,6 +233,11 @@ void testRoundTrip(render::PlaneLayout layout)
     snapshot.frames[0].meta.modifiedMs = 1761200000000;
     snapshot.frames[0].meta.revision = document::ComponentId::generate();
     snapshot.frames[0].meta.contentHash = 0xfedcba9876543210ULL;
+    // Sprite offsets, one of them negative, in the frame's slots 0 and 2.
+    snapshot.frames[1].spriteReferences.resize(document::kSpritesPerFrame);
+    snapshot.frames[1].spriteReferences[0].offsetX = 20;
+    snapshot.frames[1].spriteReferences[2].offsetX = -3;
+    snapshot.frames[1].spriteReferences[2].offsetY = 7;
     const Entries entries = entriesOf(snapshot);
     expect(entries.count("manifest.json") && entries.count("order.json") &&
                entries.count("palettes.json") &&
@@ -249,6 +254,11 @@ void testRoundTrip(render::PlaneLayout layout)
                read->frames[6].comparisonMaskId == 40,
            "the license, the layout and a reference to nothing");
     expect(entriesOf(*read) == entries, "written again, the same entries");
+    const auto& slots = read->frames[1].spriteReferences;
+    expect(slots.size() == document::kSpritesPerFrame && slots[0].offsetX == 20 &&
+               slots[0].offsetY == 0 && slots[2].offsetX == -3 && slots[2].offsetY == 7 &&
+               slots[1].offsetX == 0,
+           "the sprite offsets");
 }
 
 std::filesystem::path tempPath(const std::string& suffix)

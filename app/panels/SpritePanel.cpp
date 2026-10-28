@@ -169,6 +169,19 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_maxYSpinBox->setRange(0, 31);
     m_maxYSpinBox->setToolTip(tr("Sprite slot bounding box maximum Y"));
     m_maxYSpinBox->setEnabled(false);
+    // Where the sprite found in the bounding box is drawn, relative to where it is found.
+    m_offsetXSpinBox = new QSpinBox(this);
+    m_offsetXSpinBox->setRange(-127, 127);
+    m_offsetXSpinBox->setToolTip(
+        tr("Draw the sprite found in the bounding box this many pixels to the right (negative: "
+           "to the left) of where it is found"));
+    m_offsetXSpinBox->setEnabled(false);
+    m_offsetYSpinBox = new QSpinBox(this);
+    m_offsetYSpinBox->setRange(-31, 31);
+    m_offsetYSpinBox->setToolTip(
+        tr("Draw the sprite found in the bounding box this many pixels lower (negative: "
+           "higher) than where it is found"));
+    m_offsetYSpinBox->setEnabled(false);
     m_detectionAreaComboBox = new QComboBox(this);
     m_detectionAreaComboBox->setToolTip(tr("Sprite detection area"));
     for (std::size_t areaIndex = 0; areaIndex < document::kMaxSpriteDetectAreas; ++areaIndex) {
@@ -268,6 +281,10 @@ SpritePanel::SpritePanel(QWidget* parent)
     boundsGrid->addWidget(m_maxXSpinBox, 1, 1);
     boundsGrid->addWidget(new QLabel(tr("Max Y"), m_framePage), 1, 2);
     boundsGrid->addWidget(m_maxYSpinBox, 1, 3);
+    boundsGrid->addWidget(new QLabel(tr("Offset X"), m_framePage), 2, 0);
+    boundsGrid->addWidget(m_offsetXSpinBox, 2, 1);
+    boundsGrid->addWidget(new QLabel(tr("Offset Y"), m_framePage), 2, 2);
+    boundsGrid->addWidget(m_offsetYSpinBox, 2, 3);
     frameLayout->addLayout(boundsGrid);
     frameLayout->addWidget(m_spriteCanvasButton);
     frameLayout->addStretch(1);
@@ -387,6 +404,7 @@ SpritePanel::SpritePanel(QWidget* parent)
                                 m_boundsOverlayButton, m_outlinesButton, m_sourceFrameButton,
                                 m_minXSpinBox,
                                 m_minYSpinBox, m_maxXSpinBox, m_maxYSpinBox,
+                                m_offsetXSpinBox, m_offsetYSpinBox,
                                 m_spriteCanvasButton},
           std::vector<QWidget*>{m_nameLineEdit, m_detectionAreasButton,
                                 m_detectionAreaComboBox, m_clearDetectionAreaButton,
@@ -523,6 +541,16 @@ SpritePanel::SpritePanel(QWidget* parent)
     connectBound(m_minYSpinBox, m_maxYSpinBox, true);
     connectBound(m_maxXSpinBox, m_minXSpinBox, false);
     connectBound(m_maxYSpinBox, m_minYSpinBox, false);
+    for (QSpinBox* spinBox : {m_offsetXSpinBox, m_offsetYSpinBox}) {
+        connect(spinBox,
+                static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+                this,
+                [this](int) {
+                    if (onSlotOffsetEdited) {
+                        onSlotOffsetEdited();
+                    }
+                });
+    }
     for (QSpinBox* spinBox : {m_detectionAreaXSpinBox,
                               m_detectionAreaYSpinBox,
                               m_detectionAreaWidthSpinBox,
@@ -722,6 +750,8 @@ void SpritePanel::refresh(const SpritePanelState& state)
         QSignalBlocker minYBlocker(m_minYSpinBox);
         QSignalBlocker maxXBlocker(m_maxXSpinBox);
         QSignalBlocker maxYBlocker(m_maxYSpinBox);
+        QSignalBlocker offsetXBlocker(m_offsetXSpinBox);
+        QSignalBlocker offsetYBlocker(m_offsetYSpinBox);
         // Bounds are pixels of the original frame.
         const render::Size originalSize =
             document ? document->originalFrameSize() : render::kSdFrameSize;
@@ -729,11 +759,18 @@ void SpritePanel::refresh(const SpritePanelState& state)
         m_minYSpinBox->setRange(0, originalSize.height - 1);
         m_maxXSpinBox->setRange(0, originalSize.width - 1);
         m_maxYSpinBox->setRange(0, originalSize.height - 1);
+        // An offset that moves the sprite out of the frame entirely draws nothing.
+        m_offsetXSpinBox->setRange(-(originalSize.width - 1), originalSize.width - 1);
+        m_offsetYSpinBox->setRange(-(originalSize.height - 1), originalSize.height - 1);
         // Bounds belong to an assigned sprite; an empty slot has none to edit.
         m_minXSpinBox->setEnabled(slotHasSprite);
         m_minYSpinBox->setEnabled(slotHasSprite);
         m_maxXSpinBox->setEnabled(slotHasSprite);
         m_maxYSpinBox->setEnabled(slotHasSprite);
+        m_offsetXSpinBox->setEnabled(slotHasSprite);
+        m_offsetYSpinBox->setEnabled(slotHasSprite);
+        m_offsetXSpinBox->setValue(slotHasSprite ? selectedReference->offsetX : 0);
+        m_offsetYSpinBox->setValue(slotHasSprite ? selectedReference->offsetY : 0);
         if (hasSlot) {
             m_minXSpinBox->setValue(static_cast<int>(selectedReference->minX));
             m_minYSpinBox->setValue(static_cast<int>(selectedReference->minY));
@@ -897,6 +934,11 @@ SpriteSlotBounds SpritePanel::slotBounds() const
             m_minYSpinBox->value(),
             m_maxXSpinBox->value(),
             m_maxYSpinBox->value()};
+}
+
+std::pair<int, int> SpritePanel::slotOffset() const
+{
+    return {m_offsetXSpinBox->value(), m_offsetYSpinBox->value()};
 }
 
 SpriteDetectionAreaInput SpritePanel::detectionAreaInput() const

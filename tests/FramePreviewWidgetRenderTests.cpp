@@ -2427,6 +2427,48 @@ void testSpriteEditorSourceFrame()
     expect(!editorButton->isEnabled(), "a source frame the project lacks: disabled");
 }
 
+// The offset fields show the selected slot's sprite offset and report edits; an empty slot
+// has none to edit.
+void testSpriteSlotOffsetFields()
+{
+    using colorizing::document::FrameSpriteReference;
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    FrameSpriteReference moved = document.frameSpriteReferences(0)[0];
+    moved.offsetX = -12;
+    moved.offsetY = 3;
+    document.setFrameSpriteReference(0, 0, moved);
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    state.spriteIndex = 0;
+    colorizing::app::SpritePanel panel;
+    int edits = 0;
+    panel.onSlotOffsetEdited = [&edits]() { ++edits; };
+    auto* offsetX = childByToolTip<QSpinBox>(
+        panel,
+        "Draw the sprite found in the bounding box this many pixels to the right (negative: "
+        "to the left) of where it is found");
+    auto* offsetY = childByToolTip<QSpinBox>(
+        panel,
+        "Draw the sprite found in the bounding box this many pixels lower (negative: "
+        "higher) than where it is found");
+    panel.refresh(state);
+    panel.setSelectedSlotIndex(0);
+    panel.refresh(state);
+    expect(offsetX->isEnabled() && offsetX->value() == -12 && offsetY->value() == 3 &&
+               panel.slotOffset() == std::pair(-12, 3) && edits == 0,
+           "the slot's offset is shown without reporting an edit");
+    expect(offsetX->minimum() == -127 && offsetX->maximum() == 127 &&
+               offsetY->minimum() == -31 && offsetY->maximum() == 31,
+           "an offset reaches across the frame at most");
+    offsetY->setValue(-4);
+    expect(edits == 1 && panel.slotOffset() == std::pair(-12, -4), "an edit is reported");
+    panel.setSelectedSlotIndex(1);
+    panel.refresh(state);
+    expect(!offsetX->isEnabled() && !offsetY->isEnabled() && offsetX->value() == 0,
+           "an empty slot has no offset to edit");
+}
+
 // Move Up and Move Down change the order of the slots, the order the runtime draws them in;
 // each needs a neighbour with a sprite.
 // More than 32 sprites: harmless in the old Williams games such as Flash (the game, not a
@@ -2670,9 +2712,9 @@ void testSpritePanel()
                    static_cast<int>(colorizing::document::kMaxSpriteDetectAreas) &&
                areaComboBox->itemText(1) == QStringLiteral("Area 1"),
            "sprite panel should list every detection area");
-    expect(panel.findChildren<QLabel*>().size() == 12,
+    expect(panel.findChildren<QLabel*>().size() == 14,
            "sprite panel should hold only its three text labels (the selection on each page), "
-           "the sprite count warning and eight field captions");
+           "the sprite count warning and ten field captions (bounds and offset)");
 
     panel.refresh(SpritePanelState{});
     expect(!nameLineEdit->isEnabled() && !slotComboBox->isEnabled() &&
@@ -4167,6 +4209,7 @@ int main(int argc, char* argv[])
     testPalettePanel();
     testSpritePanel();
     testSpriteSlotOrderButtons();
+    testSpriteSlotOffsetFields();
     testManySpritesAdvice();
     testSpriteEditorSourceFrame();
     testSpritePanelWarnsAboutManySprites();

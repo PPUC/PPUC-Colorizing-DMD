@@ -932,6 +932,14 @@ its own and its frame count and groups are the base's (`document::normalizeScene
 frames are never added to a variant or taken from a scene to make one: the author adds a new
 scene. Deleting a base deletes its variants. Scenes have a name (the project only).
 
+Sprite offsets (owner decision 2026-10-28): a frame's sprite slot has an x and y offset
+(`FrameSpriteReference::offsetX/offsetY`, frame field `SPRO`, settings block part
+`kCromSettingsSpriteOffsets`, libserum 2.99.11, concentrate version 17). Detection stays in the
+bounding box; the found sprite, cut to it, is drawn moved and cut to the frame, its dynamic
+pixels read the ROM shades where it was found. The editor's own sprite drawing
+(`matchFrameSprites()`, `applySpriteMatch()`) does the same; `EditorMatchesRuntimeTests`
+compares both.
+
 ## Open decisions (waiting for the owner)
 
 Only questions without an answer are listed; each says what the editor does now. An answered

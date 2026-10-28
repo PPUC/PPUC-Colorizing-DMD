@@ -285,6 +285,29 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
                         match.height = std::min(maxY + 1 - match.frameY,
                                                 visibleSize.height);
                     }
+                    // The slot's offset moves it, cut to the frame (libserum's sprite offsets).
+                    if (reference.offsetX != 0 || reference.offsetY != 0) {
+                        match.offsetX = reference.offsetX;
+                        match.offsetY = reference.offsetY;
+                        match.frameX += match.offsetX;
+                        match.frameY += match.offsetY;
+                        if (match.frameX < 0) {
+                            match.spriteX -= match.frameX;
+                            match.width += match.frameX;
+                            match.frameX = 0;
+                        }
+                        if (match.frameY < 0) {
+                            match.spriteY -= match.frameY;
+                            match.height += match.frameY;
+                            match.frameY = 0;
+                        }
+                        match.width = std::min(match.width, original.size.width - match.frameX);
+                        match.height =
+                            std::min(match.height, original.size.height - match.frameY);
+                        if (match.width <= 0 || match.height <= 0) {
+                            continue;
+                        }
+                    }
 
                     if (!hasEquivalentSpriteMatch(matches, match)) {
                         matches.push_back(match);
@@ -382,7 +405,8 @@ void applySpriteMatch(document::Rgb565Frame& frame,
                 }
                 frame.pixels[rgb565PixelIndex(frame, frameX, frameY)] =
                     (!extra || extraDynamicsLoaded) && isDynamic(dynamicMask, index)
-                        ? dynamicColor(dynamicColors, dynamicMask.pixels[index], frameX, frameY)
+                        ? dynamicColor(dynamicColors, dynamicMask.pixels[index],
+                                       frameX - match.offsetX, frameY - match.offsetY)
                         : colors.pixels[index];
                 painted(frameX, frameY);
             }
@@ -411,8 +435,8 @@ void applySpriteMatch(document::Rgb565Frame& frame,
             if (sdOpaque && (sdDynamic || !sprite.hasHd)) {
                 target = sdDynamic ? dynamicColor(sprite.dynamicColorsSd,
                                                   sprite.dynamicMaskSd.pixels[sdIndex],
-                                                  romX,
-                                                  romY)
+                                                  romX - match.offsetX,
+                                                  romY - match.offsetY)
                                    : sprite.colorizedSd.pixels[sdIndex];
                 painted(frameX, frameY);
             }
