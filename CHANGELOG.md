@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Export .cROMc...` leaves out the comparison masks, backgrounds and sprites no frame uses, and
+  the left sidebar marks them `Unused`.
+
 ## 3.99.23
 
 - `Paint Transparent` in the sprite section is shown only while the canvas shows HD, as only the

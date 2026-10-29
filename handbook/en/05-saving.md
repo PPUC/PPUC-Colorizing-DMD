@@ -182,6 +182,11 @@ it; libserum 2.8 cannot read it.
   Win32 editor not yet opened with scenes) the `<rom>.pup.csv` and `scaling.txt` of the
   project's folder go in with it, if they are there (in any case of the letters), as on a
   machine; the status bar then names them.
+- Comparison masks, backgrounds and sprites no frame names (marked `Unused` in the left
+  sidebar) are left out: libserum never looks at them. The others are numbered anew in the
+  `.cROMc`, in their order; the project keeps its own numbers. The status bar says how many
+  were left out. A sprite or background meant to be reused later is so not in the `.cROMc`
+  until a frame names it.
 - libserum's part cannot be interrupted and takes from about a second to half a minute for
   large HD projects.
 - An existing file is replaced only once the new one is complete. A target name other than

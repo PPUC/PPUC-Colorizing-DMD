@@ -3596,6 +3596,13 @@ void MainWindow::exportCromc()
     if (QFileInfo(target).completeBaseName().compare(rom, Qt::CaseInsensitive) != 0) {
         note = tr(". libserum looks for %1.cROMc").arg(rom);
     }
+    if (result.dropped.total() > 0) {
+        note += tr("; left out what no frame uses: %1 comparison masks, %2 backgrounds, "
+                   "%3 sprites")
+                    .arg(static_cast<int>(result.dropped.comparisonMasks))
+                    .arg(static_cast<int>(result.dropped.backgrounds))
+                    .arg(static_cast<int>(result.dropped.sprites));
+    }
     statusBar()->showMessage(
         tr("Exported %1%2%3")
             .arg(QDir::toNativeSeparators(target),
@@ -5508,12 +5515,8 @@ void MainWindow::applyAssetFilter()
     std::set<int> masks;
     std::set<int> backgrounds;
     std::set<int> sprites;
+    markUnusedAssets();
     if (mode == AssetFilter::Unused && m_document) {
-        // Taken again only when the project changed: not on every frame change.
-        if (!m_assetUse || m_assetUseRevision != m_document->revision()) {
-            m_assetUse = edit::assetUse(*m_document);
-            m_assetUseRevision = m_document->revision();
-        }
         const auto unused = [](const std::vector<bool>& used, std::set<int>& listed) {
             for (std::size_t index = 0; index < used.size(); ++index) {
                 if (!used[index]) {
@@ -5580,6 +5583,31 @@ void MainWindow::applyAssetFilter()
                                                      : std::set<uint16_t>{},
                                       toTop);
         m_scenesPanel->showOnlyScene(filtered && hasFrame, scene);
+    }
+}
+
+const edit::AssetUse& MainWindow::currentAssetUse()
+{
+    // Taken again only when the project changed: not on every frame change.
+    if (!m_assetUse || m_assetUseRevision != m_document->revision()) {
+        m_assetUse = edit::assetUse(*m_document);
+        m_assetUseRevision = m_document->revision();
+    }
+    return *m_assetUse;
+}
+
+void MainWindow::markUnusedAssets()
+{
+    const edit::AssetUse none;
+    const edit::AssetUse& use = m_document ? currentAssetUse() : none;
+    if (m_maskList) {
+        (void)markUnusedRecords(m_maskList, use.comparisonMasks);
+    }
+    if (m_backgroundList) {
+        (void)markUnusedRecords(m_backgroundList, use.backgrounds);
+    }
+    if (m_spriteList) {
+        (void)markUnusedRecords(m_spriteList, use.sprites);
     }
 }
 
@@ -12881,6 +12909,8 @@ void MainWindow::updateUndoRedoActions()
     // An edit or its undo may have changed which assets the frames use.
     if (assetFilter() == AssetFilter::Unused) {
         applyAssetFilter();
+    } else {
+        markUnusedAssets();
     }
     // An edit may have changed the colors of the frame shown.
     m_frameLightMarksTimer.start();

@@ -4114,6 +4114,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>. libserum cherche %1.cROMc</translation>
     </message>
     <message>
+        <source>; left out what no frame uses: %1 comparison masks, %2 backgrounds, %3 sprites</source>
+        <translation>; laissé de côté ce qu’aucune frame n’utilise : %1 masques de comparaison, %2 arrière-plans, %3 sprites</translation>
+    </message>
+    <message>
         <source>Exported %1%2%3</source>
         <translation>Exporté : %1%2%3</translation>
     </message>
@@ -9007,6 +9011,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>The shared change could not be stored in %1.</source>
         <translation>La modification partagée n’a pas pu être enregistrée dans %1.</translation>
+    </message>
+</context>
+<context>
+    <name>ThumbnailCaptionDelegate</name>
+    <message>
+        <source>Unused</source>
+        <translation>Inutilisé</translation>
     </message>
 </context>
 <context>

@@ -167,6 +167,42 @@ void testExportIsLibserumsOwnCromc()
     }
 }
 
+// What no frame uses is left out: the cROMc is the one libserum makes of the project without
+// it.
+void testUnusedAssetsLeftOut()
+{
+    runtime::RuntimePreview::instance().close();
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    snapshot.comparisonMasks.assign(
+        3, document::makeIndexedFrame(snapshot.geometry.romFrameSize(), 0));
+    snapshot.frames[1].comparisonMaskId = 2;
+    (void)runtime_fixtures::addBackground(snapshot);
+    runtime_fixtures::assignBackground(snapshot, 2, runtime_fixtures::addBackground(snapshot));
+    (void)runtime_fixtures::addSprite(snapshot);
+    const fs::path base = uniqueDirectory("unused");
+    const fs::path target = base / "exported.cROMc";
+    const runtime::CromcExportResult result =
+        runtime::exportCromc(snapshot, base / "work", {}, target);
+    expect(result.ok, "the export works: " + result.error);
+    expect(result.dropped.comparisonMasks == 2 && result.dropped.backgrounds == 1 &&
+               result.dropped.sprites == 1,
+           "the export reports what it left out");
+
+    document::ProjectSnapshot used = snapshot;
+    (void)edit::dropUnusedAssets(used);
+    const fs::path expected = base / "expected.cROMc";
+    expect(runtime::exportCromc(used, base / "work", {}, expected).ok,
+           "the project without them is exported");
+    const auto bytes = [](const fs::path& path) {
+        std::ifstream in(path, std::ios::binary);
+        return std::vector<char>(std::istreambuf_iterator<char>(in), {});
+    };
+    expect(!bytes(target).empty() && bytes(target) == bytes(expected),
+           "the cROMc is the one of the project without them");
+    fs::remove_all(base);
+}
+
 void testFailureLeavesTarget()
 {
     runtime::RuntimePreview::instance().close();
@@ -196,5 +232,6 @@ void runCromcExportTests()
     testExportLoadsInLibserum();
     testSettingsTakeNoSidecars();
     testExportIsLibserumsOwnCromc();
+    testUnusedAssetsLeftOut();
     testFailureLeavesTarget();
 }

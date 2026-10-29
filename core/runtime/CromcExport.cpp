@@ -187,6 +187,9 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
         }
     }
 
+    // The runtime never looks at what no frame names; the file is smaller without it.
+    result.dropped = edit::dropUnusedAssets(exported);
+
     if (progress) {
         if (progress->cancel.load()) {
             result.cancelled = true;

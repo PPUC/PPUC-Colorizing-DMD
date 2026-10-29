@@ -4,6 +4,7 @@
 #include <QStyledItemDelegate>
 
 #include <set>
+#include <vector>
 
 class QListWidget;
 
@@ -12,7 +13,8 @@ namespace colorizing::app {
 // The rows of the left sidebar's lists as the frames of the strip: the thumbnail, and its
 // caption below it, wrapped to the list's width, so that a narrow sidebar still shows all of
 // it. A row without an icon is its caption alone. A row put first (putRecordsFirst()) has a
-// frame in the highlight color.
+// frame in the highlight color; one no frame uses (markUnusedRecords()) a faded thumbnail with
+// the badge "Unused".
 class ThumbnailCaptionDelegate final : public QStyledItemDelegate {
 public:
     explicit ThumbnailCaptionDelegate(QListWidget* list);
@@ -44,5 +46,12 @@ bool putRecordsFirst(QListWidget* list, const std::set<int>& records);
 
 // The mark of a row that putRecordsFirst() put first.
 inline constexpr int kPutFirstRole = Qt::UserRole + 50;
+
+// Marks the rows of a list of the left sidebar whose record (Qt::UserRole) used does not name
+// as used, for the delegate; records past its end are not marked. True when a mark changed.
+bool markUnusedRecords(QListWidget* list, const std::vector<bool>& used);
+
+// The mark of a row that markUnusedRecords() marked.
+inline constexpr int kUnusedRole = Qt::UserRole + 51;
 
 }  // namespace colorizing::app

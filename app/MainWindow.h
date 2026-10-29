@@ -649,6 +649,10 @@ private:
     enum class AssetFilter { All = 0, CurrentFrame = 1, Unused = 2, CurrentFrameFirst = 3 };
     [[nodiscard]] AssetFilter assetFilter() const;
     void applyAssetFilter();
+    // What the frames use, taken again only when the project changed. Needs a document.
+    [[nodiscard]] const edit::AssetUse& currentAssetUse();
+    // The rows of the masks, backgrounds and sprites no frame uses get the badge "Unused".
+    void markUnusedAssets();
     // Why a frame of a scene takes no sprites (ProjectDocument::stripSceneFrame()).
     [[nodiscard]] QString sceneFrameTakesNoSpritesText() const;
     // The mask's picture in the left sidebar: the current frame's original under it.
@@ -756,7 +760,7 @@ private:
     // The frame whose assets AssetFilter::CurrentFrameFirst put first: another one scrolls the
     // lists to the top.
     std::optional<std::size_t> m_assetsFirstFrame;
-    // What the frames use, for AssetFilter::Unused, and the document revision it is of.
+    // What the frames use (currentAssetUse()), and the document revision it is of.
     std::optional<edit::AssetUse> m_assetUse;
     uint64_t m_assetUseRevision = 0;
     QSpinBox* m_playbackIntervalSpinBox = nullptr;

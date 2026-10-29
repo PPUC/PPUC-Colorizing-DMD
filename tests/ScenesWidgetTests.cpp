@@ -188,6 +188,32 @@ void testPutRecordsFirst()
            "puts the records in their order again, nothing marked");
 }
 
+// The masks, backgrounds and sprites no frame uses carry the mark the delegate shows as
+// "Unused", whatever order the rows are in.
+void testMarkUnusedRecords()
+{
+    QListWidget list;
+    app::showCaptionsBelowThumbnails(&list);
+    for (int record : {2, 0, 1, 3}) {
+        auto* item = new QListWidgetItem(QString::number(record), &list);
+        item->setData(Qt::UserRole, record);
+    }
+    const auto marked = [&list]() {
+        std::vector<int> records;
+        for (int row = 0; row < list.count(); ++row) {
+            if (list.item(row)->data(app::kUnusedRole).toBool()) {
+                records.push_back(list.item(row)->data(Qt::UserRole).toInt());
+            }
+        }
+        return records;
+    };
+    expect(app::markUnusedRecords(&list, {true, false, true}) && marked() == std::vector<int>{1},
+           "a record not used is marked; one past the use list is not");
+    expect(!app::markUnusedRecords(&list, {true, false, true}), "the same again changes nothing");
+    expect(app::markUnusedRecords(&list, {true, true, true, true}) && marked().empty(),
+           "used again, the mark goes");
+}
+
 // The left sidebar's rows: the caption below the thumbnail, wrapped to the list's width.
 void testThumbnailCaptions()
 {
@@ -605,6 +631,7 @@ void runScenesWidgetTests()
     testBackgroundSceneOptionsOnTheCanvas();
     testThumbnailCaptions();
     testPutRecordsFirst();
+    testMarkUnusedRecords();
     testSettingsPanel();
     testProjectSettings();
     testLicense();

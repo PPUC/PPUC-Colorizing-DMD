@@ -521,6 +521,58 @@ void testAssetUse()
            "a scene is used when a frame of the game starts it, not by its own frames");
 }
 
+// The export leaves out what no frame names and renumbers the rest, in its order.
+void testDropUnusedAssets()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    snapshot.comparisonMasks.assign(
+        3, document::makeIndexedFrame(snapshot.geometry.romFrameSize(), 0));
+    snapshot.comparisonMasks[2].pixels[0] = 1;
+    snapshot.frames[0].comparisonMaskId = document::kNoComparisonMaskId;
+    snapshot.frames[1].comparisonMaskId = 2;
+    snapshot.frames[2].comparisonMaskId = 2;
+    for (int count = 0; count < 3; ++count) {
+        (void)runtime_fixtures::addBackground(snapshot);
+        (void)runtime_fixtures::addSprite(snapshot);
+    }
+    snapshot.backgrounds[1].colorizedSd.pixels[0] = 0x1234;
+    runtime_fixtures::assignBackground(snapshot, 2, 1);
+    snapshot.frames[0].spriteReferences.assign(document::kSpritesPerFrame,
+                                               document::FrameSpriteReference{});
+    snapshot.frames[0].spriteReferences[0].spriteId = 2;
+    snapshot.frames[0].spriteReferences[1].spriteId = 2;
+    snapshot.frames[1].spriteReferences.assign(document::kSpritesPerFrame,
+                                               document::FrameSpriteReference{});
+    snapshot.frames[1].spriteReferences[0].spriteId = 0;
+    snapshot.frames[1].spriteReferences[1].spriteId = 7;
+    const document::SpriteRecord third = snapshot.sprites[2];
+
+    const edit::DroppedAssets dropped = edit::dropUnusedAssets(snapshot);
+    expect(dropped.comparisonMasks == 2 && dropped.backgrounds == 2 && dropped.sprites == 1 &&
+               dropped.total() == 5,
+           "what no frame names is counted as left out");
+    expect(snapshot.comparisonMasks.size() == 1 && snapshot.comparisonMasks[0].pixels[0] == 1 &&
+               snapshot.frames[0].comparisonMaskId == document::kNoComparisonMaskId &&
+               snapshot.frames[1].comparisonMaskId == 0 &&
+               snapshot.frames[2].comparisonMaskId == 0,
+           "the used mask stays, renumbered; no mask stays none");
+    expect(snapshot.backgrounds.size() == 1 &&
+               snapshot.backgrounds[0].colorizedSd.pixels[0] == 0x1234 &&
+               snapshot.frames[2].backgroundData->backgroundId == 0,
+           "the used background stays, renumbered");
+    expect(snapshot.sprites.size() == 2 &&
+               snapshot.sprites[1].originalSd.pixels == third.originalSd.pixels &&
+               snapshot.frames[0].spriteReferences[0].spriteId == 1 &&
+               snapshot.frames[0].spriteReferences[1].spriteId == 1 &&
+               snapshot.frames[1].spriteReferences[0].spriteId == 0,
+           "the used sprites stay in their order, every slot renumbered");
+    expect(snapshot.frames[1].spriteReferences[1].spriteId == document::kNoSpriteId &&
+               snapshot.frames[1].spriteReferences[2].spriteId == document::kNoSpriteId,
+           "a reference to a sprite the project does not have becomes none");
+    expect(edit::dropUnusedAssets(snapshot).total() == 0, "then nothing is left to drop");
+}
+
 // Playing frames in the Runtime view loads windows of frames: one with a frame that starts a
 // scene holds the scene's frames, so that libserum plays it, and the frame counts as identified
 // (its search goes on from it), the scene's frame as the one shown.
@@ -745,6 +797,7 @@ void runSceneEditTests()
     testBackgroundSceneBackAndForth();
     testPlaceholderBackgroundsRemoved();
     testAssetUse();
+    testDropUnusedAssets();
     testSceneInPlaybackWindow();
     testSceneFramesTakeNoGameSettings();
     testVariants();

@@ -17,6 +17,25 @@ namespace {
 constexpr int kMargin = 4;
 constexpr int kGap = 2;
 
+// The badge of a record no frame uses, in the upper left corner of its thumbnail.
+void drawUnusedBadge(QPainter* painter, const QRect& thumbnail)
+{
+    painter->save();
+    QFont font = painter->font();
+    font.setPixelSize(10);
+    font.setBold(true);
+    painter->setFont(font);
+    const QString text = QCoreApplication::translate("ThumbnailCaptionDelegate", "Unused");
+    const QRect badge(thumbnail.left() + 2,
+                      thumbnail.top() + 2,
+                      painter->fontMetrics().horizontalAdvance(text) + 8,
+                      13);
+    painter->fillRect(badge, QColor(150, 60, 40));
+    painter->setPen(Qt::white);
+    painter->drawText(badge, Qt::AlignCenter, text);
+    painter->restore();
+}
+
 }  // namespace
 
 ThumbnailCaptionDelegate::ThumbnailCaptionDelegate(QListWidget* list)
@@ -71,11 +90,21 @@ void ThumbnailCaptionDelegate::paint(QPainter* painter,
         const QPixmap pixmap = icon.pixmap(iconSize);
         const QSize shown = pixmap.deviceIndependentSize().toSize().scaled(
             iconSize, Qt::KeepAspectRatio);
-        painter->drawPixmap(QRect(rect.left() + (rect.width() - shown.width()) / 2,
-                                  top + (iconSize.height() - shown.height()) / 2,
-                                  shown.width(),
-                                  shown.height()),
-                            pixmap);
+        const QRect target(rect.left() + (rect.width() - shown.width()) / 2,
+                           top + (iconSize.height() - shown.height()) / 2,
+                           shown.width(),
+                           shown.height());
+        // A record no frame uses is faded and says so: it is not exported.
+        const bool unused = index.data(kUnusedRole).toBool();
+        painter->save();
+        if (unused) {
+            painter->setOpacity(0.4);
+        }
+        painter->drawPixmap(target, pixmap);
+        painter->restore();
+        if (unused) {
+            drawUnusedBadge(painter, target);
+        }
         top += iconSize.height() + kGap;
     }
     const bool selected = option.state.testFlag(QStyle::State_Selected);
@@ -108,6 +137,22 @@ void showCaptionsBelowThumbnails(QListWidget* list)
     list->setUniformItemSizes(false);
     list->setWordWrap(true);
     list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+}
+
+bool markUnusedRecords(QListWidget* list, const std::vector<bool>& used)
+{
+    bool changed = false;
+    for (int row = 0; row < list->count(); ++row) {
+        QListWidgetItem* item = list->item(row);
+        const int record = item->data(Qt::UserRole).toInt();
+        const bool unused = record >= 0 && static_cast<std::size_t>(record) < used.size() &&
+                            !used[static_cast<std::size_t>(record)];
+        if (item->data(kUnusedRole).toBool() != unused) {
+            item->setData(kUnusedRole, unused);
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 bool putRecordsFirst(QListWidget* list, const std::set<int>& records)

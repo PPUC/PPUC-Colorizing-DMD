@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "document/ProjectSnapshot.h"
+#include "edit/AssetUse.h"
 #include "legacy/LegacyProjectIo.h"
 
 namespace colorizing::runtime {
@@ -28,6 +29,8 @@ struct CromcExportResult {
     std::string error;
     // The files of sidecarDirectory that went into the cROMc ("<rom>.pup.csv", "scaling.txt").
     std::vector<std::string> sidecars;
+    // The comparison masks, backgrounds and sprites no frame uses, left out of the cROMc.
+    edit::DroppedAssets dropped;
 };
 
 // Writes the project's .cROMc to target as libserum makes it on a machine: the project is
@@ -35,7 +38,8 @@ struct CromcExportResult {
 // <rom>.pup.csv and scaling.txt of sidecarDirectory, if it has them (names in any case), and
 // libserum loads it with cROMc generation on. sidecarDirectory may be empty for none. A
 // project with colorization settings (document/Scene.h) carries its scenes and scaling
-// settings in the cROM, and its sidecars are not taken.
+// settings in the cROM, and its sidecars are not taken. The comparison masks, backgrounds and
+// sprites no frame uses are left out (edit::dropUnusedAssets()), the others renumbered.
 //
 // target is replaced only when everything worked. workDirectory is created and removed again.
 // On Windows libserum opens files by ANSI paths: when it cannot open files in workDirectory
