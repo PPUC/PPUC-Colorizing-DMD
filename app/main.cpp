@@ -136,7 +136,8 @@ int main(int argc, char* argv[])
     QApplication::setOrganizationName(QStringLiteral("ppuc.org"));
     QApplication::setOrganizationDomain(QStringLiteral("ppuc.org"));
     QApplication::setApplicationName(colorizing::app::kApplicationName);
-    QApplication::setApplicationDisplayName(colorizing::app::kApplicationTitle);
+    // No display name: Qt would append it to the title of every window and dialog on Windows and
+    // Linux. The main window's title names the editor and its version itself.
     QApplication::setApplicationVersion(colorizing::app::kApplicationVersion);
     takeOverEarlierSettings();
     QIcon icon;

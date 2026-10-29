@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Dialog titles no longer end with the editor's name and version
+  (`About PPUC Colorizing DMD - PPUC Colorizing DMD 3.99.22`).
 - A sprite in two slots of a frame is found in both bounding boxes, and `Remove` takes it from
   the selected slot, not from the last one that holds it (#49).
 

@@ -7,7 +7,8 @@ them as they were. They are the editor's, not a project's: kept for the next sta
 `Help -> About PPUC Colorizing DMD` (on macOS in the application menu) shows the editor's
 version, with the versions of libserum and Qt it was built with. The window title names the
 version too (`afm_113b.cdmd — PPUC Colorizing DMD 3.99.21`), so a screenshot of the main window
-shows it. Name the version when you report a problem.
+shows it; the titles of dialogs name only the dialog. Name the version when you report a
+problem.
 
 - `Appearance`: `Theme` is `Follow the system` (the default: light or dark as the operating
   system has it, also when that changes while the editor runs), `Light` or `Dark`, whatever the
