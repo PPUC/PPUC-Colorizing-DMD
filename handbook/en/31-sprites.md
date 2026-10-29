@@ -70,6 +70,14 @@ The controls:
   over the original are marked with a pattern while the mode is on. The fill tool does not paint
   transparency, and `Paint Dynamic` and `Paint Transparent` are not on together. Each stroke is
   one undo step of the sprite. In a 256x64 project the button works on the 256x64 sprite.
+  - Why not capture the sprite without those pixels: a captured sprite starts at its top left
+    pixel, so without the outline its original is smaller and starts at the inner pixels. The
+    sprite is then also found where the outline is missing, and the HD art made for the full
+    sprite is drawn one pixel too far up and left. Keep the full sprite and make the outline
+    transparent in HD instead.
+  - Step by step: select the sprite (`Create HD Sprite` first if it has no HD data), turn on
+    `Paint Transparent`, open `Edit Sprite` and switch the canvas to HD, then paint over the
+    pixels to leave out. `Shift` while painting brings pixels back.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
   With color set replace (the drawing mode of the edit colors, as on the frame canvas) each
   painted pixel instead takes the edit color of the shade of the sprite's original under it (on
