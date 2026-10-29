@@ -701,6 +701,31 @@ void testColorSwapDrop()
            "a palette color dropped on an edit color is taken");
 }
 
+// A favorite draw color of the toolbar is edited with a double click, as the palette's colors
+// and the edit colors are, and takes a color dropped on it.
+void testFavoriteColorButton()
+{
+    app::FavoriteColorButton button;
+    int edits = 0;
+    std::optional<uint16_t> dropped;
+    button.onDoubleClicked = [&edits]() { ++edits; };
+    button.onColorDropped = [&dropped](uint16_t rgb565) { dropped = rgb565; };
+    QMouseEvent doubleClick(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&button, &doubleClick);
+    expect(edits == 1, "a double click edits the favorite color");
+    QMouseEvent rightDoubleClick(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                                 Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&button, &rightDoubleClick);
+    expect(edits == 1, "a right double click does not");
+
+    QMimeData* mime = app::colorDragMimeData(nullptr, 0, 0x07e0);
+    QDropEvent drop(QPointF(5, 5), Qt::CopyAction, mime, Qt::LeftButton, Qt::NoModifier);
+    static_cast<QObject*>(&button)->event(&drop);
+    delete mime;
+    expect(dropped == uint16_t{0x07e0}, "a color dropped on it is taken");
+}
+
 // The palette window (the color picker) opens where and as large as it was left (SoyGre).
 void testColorPickerKeepsItsPlace()
 {
@@ -730,6 +755,7 @@ void runColorWidgetTests()
     testColorPickerKeepsItsPlace();
     testColorRangeDrag();
     testColorSwapDrop();
+    testFavoriteColorButton();
     for (PlaneLayout layout :
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
         testSetReplaceDrawing(layout, 4);

@@ -167,48 +167,6 @@ QString favoriteColorButtonStyle(uint16_t rgb565)
         .arg(color.name());
 }
 
-class FavoriteColorButton final : public QToolButton {
-public:
-    explicit FavoriteColorButton(QWidget* parent = nullptr)
-        : QToolButton(parent)
-    {
-        setAcceptDrops(true);
-        setCheckable(true);
-        setFixedSize(28, 24);
-    }
-
-    void setDropHandler(std::function<void(uint16_t)> handler)
-    {
-        m_dropHandler = std::move(handler);
-    }
-
-protected:
-    void dragEnterEvent(QDragEnterEvent* event) override
-    {
-        if (event->mimeData()->hasFormat(kRgb565MimeType)) {
-            event->acceptProposedAction();
-            return;
-        }
-        QToolButton::dragEnterEvent(event);
-    }
-
-    void dropEvent(QDropEvent* event) override
-    {
-        bool ok = false;
-        const int value =
-            QString::fromLatin1(event->mimeData()->data(kRgb565MimeType)).toInt(&ok);
-        if (ok && value >= 0 && value <= 0xffff && m_dropHandler) {
-            m_dropHandler(static_cast<uint16_t>(value));
-            event->acceptProposedAction();
-            return;
-        }
-        QToolButton::dropEvent(event);
-    }
-
-private:
-    std::function<void(uint16_t)> m_dropHandler;
-};
-
 // A page of the inspector that asks for no width of its own: it takes the width the other
 // pages give the inspector and scrolls if that is too little.
 class NarrowPage final : public QWidget {
@@ -1665,9 +1623,12 @@ void MainWindow::createCentralView()
         toolbarLayout->addWidget(button);
         m_colorButtons.push_back(button);
         if (auto* favoriteButton = dynamic_cast<FavoriteColorButton*>(button)) {
-            favoriteButton->setDropHandler([this, colorIndex](uint16_t rgb565) {
+            favoriteButton->onColorDropped = [this, colorIndex](uint16_t rgb565) {
                 setFavoriteDrawColor(colorIndex, rgb565);
-            });
+            };
+            favoriteButton->onDoubleClicked = [this, colorIndex]() {
+                editFavoriteColor(colorIndex);
+            };
         }
         connect(button, &QToolButton::clicked, this, [this, colorIndex]() {
             if (colorIndex < m_favoriteColors.size()) {

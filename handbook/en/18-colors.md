@@ -7,8 +7,9 @@ It is shown in the read-only box at the end of the favorite swatches of the tool
 by a click on a favorite, a palette color, an edit color or with the `Pick` tool.
 
 - **Favorites**: four toolbar swatches (red `0xf800`, green `0x07e0`, blue `0x001f`, black
-  `0x0000`). A click makes one the draw color; drag a palette color onto one, or use its context
-  menu `Edit Color...`, to change it. Favorites are not saved in the project.
+  `0x0000`). A click makes one the draw color; drag a palette color onto one, double-click it,
+  or use its context menu `Edit Color...`, to change it. Favorites are not saved in the
+  project.
 - **Edit colors**: the row under the toolbar shows the project's edit colors, the 16 colors the
   `.cRP` keeps (`acEditColorsS` of the Win32 editor). A project with 4 colors shows 4 swatches,
   one with 16 colors 16: one per shade of the original frames. Under each swatch a strip in the

@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A double click on a favorite color of the toolbar edits it, as on the palette and the edit
+  colors.
 - Dialog titles no longer end with the editor's name and version
   (`About PPUC Colorizing DMD - PPUC Colorizing DMD 3.99.22`).
 - A sprite in two slots of a frame is found in both bounding boxes, and `Remove` takes it from

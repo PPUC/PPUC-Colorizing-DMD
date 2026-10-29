@@ -145,4 +145,42 @@ void ColorSlotButton::dropEvent(QDropEvent* event)
     }
 }
 
+FavoriteColorButton::FavoriteColorButton(QWidget* parent)
+    : QToolButton(parent)
+{
+    setAcceptDrops(true);
+    setCheckable(true);
+    setFixedSize(28, 24);
+}
+
+void FavoriteColorButton::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    if (isEnabled() && event->button() == Qt::LeftButton && onDoubleClicked) {
+        onDoubleClicked();
+        event->accept();
+        return;
+    }
+    QToolButton::mouseDoubleClickEvent(event);
+}
+
+void FavoriteColorButton::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (draggedColor(event->mimeData())) {
+        event->acceptProposedAction();
+        return;
+    }
+    QToolButton::dragEnterEvent(event);
+}
+
+void FavoriteColorButton::dropEvent(QDropEvent* event)
+{
+    const std::optional<uint16_t> rgb565 = draggedColor(event->mimeData());
+    if (rgb565 && onColorDropped) {
+        onColorDropped(*rgb565);
+        event->acceptProposedAction();
+        return;
+    }
+    QToolButton::dropEvent(event);
+}
+
 }  // namespace colorizing::app

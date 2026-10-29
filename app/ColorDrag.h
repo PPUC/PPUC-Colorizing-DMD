@@ -60,4 +60,19 @@ private:
     QPoint m_dragStartPosition;
 };
 
+// A favorite draw color of the toolbar: it takes a color dropped on it, and a double click
+// edits it, as the context menu's Edit Color does.
+class FavoriteColorButton final : public QToolButton {
+public:
+    explicit FavoriteColorButton(QWidget* parent = nullptr);
+
+    std::function<void(uint16_t rgb565)> onColorDropped;
+    std::function<void()> onDoubleClicked;
+
+protected:
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+};
+
 }  // namespace colorizing::app
