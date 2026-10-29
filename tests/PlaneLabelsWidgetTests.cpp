@@ -203,6 +203,13 @@ void testLabels()
                app::extraDataSuffix(nativeOriginal, true).isEmpty() &&
                app::extraDataSuffix(nativeOriginal, false).isEmpty(),
            "list entries mark HD in ordinary projects and a missing picture in 256x64 ones");
+    ProjectDocument named = makeDocument(PlaneLayout::Ordinary);
+    expect(app::spriteListCaption(named, 0) == QStringLiteral("0 (HD)") &&
+               app::spriteListCaption(named, 1) == QStringLiteral("1"),
+           "a sprite without a name is listed by its number");
+    named.setSpriteName(0, "Credits0");
+    expect(app::spriteListCaption(named, 0) == QStringLiteral("0 - Credits0 (HD)"),
+           "a named sprite by its number and name (issue #42)");
 }
 
 void testFramePanelActions()

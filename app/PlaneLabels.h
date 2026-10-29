@@ -31,6 +31,11 @@ namespace colorizing::app {
 [[nodiscard]] QString extraDataSuffix(const document::ProjectDocument& document,
                                       bool hasExtraData);
 
+// A sprite's entry in the left sidebar's list: "12 - Ball1 (HD)", or the number alone for a
+// sprite without a name.
+[[nodiscard]] QString spriteListCaption(const document::ProjectDocument& document,
+                                        std::size_t sprite);
+
 // "no picture", translated.
 [[nodiscard]] QString noPictureText();
 

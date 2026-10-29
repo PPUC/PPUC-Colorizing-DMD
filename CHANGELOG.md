@@ -9,6 +9,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   slot, so the digits of a score need to be set up only once.
 - The toolbar's button groups are centered in their row; the zoom buttons no longer sit higher
   than the playback controls.
+- Renaming a sprite shows the new name in the sprite list on the left at once (issue #42).
 
 ## 3.99.20
 

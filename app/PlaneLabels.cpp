@@ -36,6 +36,17 @@ QString extraDataSuffix(const document::ProjectDocument& document, bool hasExtra
                : QString();
 }
 
+QString spriteListCaption(const document::ProjectDocument& document, std::size_t sprite)
+{
+    const document::SpriteRecord& record = document.sprite(sprite);
+    const QString number = QString::number(static_cast<int>(sprite));
+    const QString label = record.name.empty()
+                              ? number
+                              : QStringLiteral("%1 - %2").arg(
+                                    number, QString::fromStdString(record.name));
+    return label + extraDataSuffix(document, record.hasHd);
+}
+
 QString noPictureText()
 {
     return QCoreApplication::translate("PlaneLabels", "no picture");

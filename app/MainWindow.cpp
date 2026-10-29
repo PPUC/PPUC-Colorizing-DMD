@@ -5400,21 +5400,13 @@ void MainWindow::refreshComponentBrowsers()
             for (std::size_t spriteIndex = 0; spriteIndex < m_document->spriteCount();
                  ++spriteIndex) {
                 const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
-                const QString spriteLabel =
-                    sprite.name.empty()
-                        ? QString::number(static_cast<int>(spriteIndex))
-                        : QStringLiteral("%1 - %2")
-                              .arg(static_cast<int>(spriteIndex))
-                              .arg(QString::fromStdString(sprite.name));
                 auto* item = new QListWidgetItem(
                     componentIcon(renderSpriteColorizedPreviewImage(sprite,
                                                                     thumbnailPlane,
                                                                     hdOnly),
                                   iconSize,
                                   hdBadges && sprite.hasHd),
-                    QStringLiteral("%1%2")
-                        .arg(spriteLabel)
-                        .arg(extraDataSuffix(*m_document, sprite.hasHd)));
+                    spriteListCaption(*m_document, spriteIndex));
                 item->setData(Qt::UserRole, static_cast<int>(spriteIndex));
                 m_spriteList->addItem(item);
             }
@@ -7653,6 +7645,13 @@ void MainWindow::setCurrentSpriteName(const QString& name)
         edit::SpriteState before = edit::spriteState(*m_document, sprite);
         m_document->setSpriteName(sprite, name.toStdString());
         pushEdit(edit::spriteStateCommand(*m_document, sprite, std::move(before)));
+        // The sprite list on the left shows the new name (issue #42).
+        for (int row = 0; m_spriteList && row < m_spriteList->count(); ++row) {
+            QListWidgetItem* item = m_spriteList->item(row);
+            if (item->data(Qt::UserRole).toInt() == spriteIndex) {
+                item->setText(spriteListCaption(*m_document, sprite));
+            }
+        }
         updateSpriteControls();
         updateProjectHeaderStatus();
         statusBar()->showMessage(tr("Renamed sprite %1").arg(spriteIndex), 1500);
