@@ -34,6 +34,8 @@ The controls:
 - The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
 - The sprite name field edits the selected sprite name. Names are saved back to the fixed-size
   `.cRP` sprite-name table when that table exists.
+- Each sprite has a name of its own. `New` asks again, with a message, for a name another sprite
+  has already, and a rename to such a name is refused with a message and keeps the old name.
 - `Show Det Areas` overlays valid per-sprite detection areas on the original sprite in the sprite
   editor.
 - The detection area selector chooses one of the sprite's detection areas. The `X`, `Y`, `W`, `H`

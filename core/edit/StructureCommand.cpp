@@ -306,15 +306,34 @@ std::vector<std::size_t> framesShorterThan(const document::ProjectDocument& docu
     return frames;
 }
 
-std::string spriteNameProblem(const document::ProjectDocument& document, const std::string& name)
+SpriteNameCheck checkSpriteName(const document::ProjectDocument& document,
+                                const std::string& name,
+                                std::optional<std::size_t> renamedSprite)
 {
     if (name.empty()) {
-        return "A sprite needs a name";
+        return SpriteNameCheck::Empty;
     }
     if (name.size() >= document::kSpriteNameBytes) {
-        return "A sprite name has at most 31 characters";
+        return SpriteNameCheck::TooLong;
     }
-    if (document.isSpriteNameUsed(name)) {
+    for (std::size_t sprite = 0; sprite < document.spriteCount(); ++sprite) {
+        if (sprite != renamedSprite && document.sprite(sprite).name == name) {
+            return SpriteNameCheck::Used;
+        }
+    }
+    return SpriteNameCheck::Usable;
+}
+
+std::string spriteNameProblem(const document::ProjectDocument& document, const std::string& name)
+{
+    switch (checkSpriteName(document, name)) {
+    case SpriteNameCheck::Usable:
+        return {};
+    case SpriteNameCheck::Empty:
+        return "A sprite needs a name";
+    case SpriteNameCheck::TooLong:
+        return "A sprite name has at most 31 characters";
+    case SpriteNameCheck::Used:
         return "Another sprite has this name already";
     }
     return {};

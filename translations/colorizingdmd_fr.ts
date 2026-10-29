@@ -5347,7 +5347,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Not added: %1</source>
-        <translation>Non ajouté : %1</translation>
+        <translation type="vanished">Non ajouté : %1</translation>
     </message>
     <message>
         <source>Added sprite %1 &quot;%2&quot;, %3 sprite(s) now</source>
@@ -5740,6 +5740,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Sprite slot %1 drawn %2, %3 from where it is found on %4 frame(s)</source>
         <translation>Emplacement de sprite %1 dessiné à %2, %3 de l’endroit où il est trouvé sur %4 frame(s)</translation>
+    </message>
+    <message>
+        <source>A sprite needs a name.</source>
+        <translation>Un sprite a besoin d&apos;un nom.</translation>
+    </message>
+    <message>
+        <source>A sprite name has at most 31 characters.</source>
+        <translation>Un nom de sprite a au plus 31 caractères.</translation>
+    </message>
+    <message>
+        <source>Another sprite is named &quot;%1&quot; already. Each sprite needs a name of its own.</source>
+        <translation>Un autre sprite s&apos;appelle déjà « %1 ». Chaque sprite a besoin de son propre nom.</translation>
+    </message>
+    <message>
+        <source>Sprite Name Not Usable</source>
+        <translation>Nom de sprite inutilisable</translation>
     </message>
     <message>
         <source>Detection Area Not Usable</source>

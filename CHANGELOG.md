@@ -6,6 +6,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 ## Next version
 
 - The window title shows the editor's version (#47).
+- A sprite name that another sprite has already is refused with a message, for a new sprite
+  and for a rename (#46).
 
 ## 3.99.21
 

@@ -794,6 +794,23 @@ void testAddSprite(PlaneLayout layout)
     expectSame(document, before, what + ", undone again");
 }
 
+// Issue #46: a sprite cannot take the name of another one, also not by a rename.
+void testSpriteNameCheck()
+{
+    using colorizing::edit::checkSpriteName;
+    using colorizing::edit::SpriteNameCheck;
+    const ProjectDocument document = makeDocument(PlaneLayout::Ordinary);
+    expect(document.sprite(0).name == "sprite 0" && document.sprite(1).name == "sprite 1",
+           "sprite name check: the fixture names its sprites");
+    expect(checkSpriteName(document, "sprite 1") == SpriteNameCheck::Used &&
+               checkSpriteName(document, "sprite 1", 0) == SpriteNameCheck::Used &&
+               checkSpriteName(document, "sprite 1", 1) == SpriteNameCheck::Usable &&
+               checkSpriteName(document, "sprite 9", 0) == SpriteNameCheck::Usable &&
+               checkSpriteName(document, "", 0) == SpriteNameCheck::Empty &&
+               checkSpriteName(document, std::string(32, 'x'), 0) == SpriteNameCheck::TooLong,
+           "sprite name check: a name in use by another sprite is refused, its own is not");
+}
+
 void testSpriteLimit()
 {
     ProjectSnapshot snapshot = fixtures::makeProject(PlaneLayout::Ordinary, 2);
@@ -1709,6 +1726,7 @@ void testInsertFramesRejectsFramesThatDoNotFit(PlaneLayout layout)
 
 void runStructureCommandTests()
 {
+    testSpriteNameCheck();
     for (PlaneLayout layout : kLayouts) {
         testDeleteFrames(layout, {0});
         testDeleteFrames(layout, {8});

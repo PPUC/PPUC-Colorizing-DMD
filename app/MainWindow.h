@@ -409,6 +409,9 @@ private:
     // in it.
     void setCurrentSpriteSlotOffset();
     void setCurrentSpriteName(const QString& name);
+    // False, with a message, for a name a sprite cannot take; renamedSprite as checkSpriteName.
+    [[nodiscard]] bool acceptsSpriteName(const QString& name,
+                                         std::optional<std::size_t> renamedSprite);
     void setCurrentSpriteDetectionArea();
     // False, with a message, for an area that holds no four pixels of the sprite in a row.
     [[nodiscard]] bool acceptsSpriteDetectionArea(std::size_t sprite,

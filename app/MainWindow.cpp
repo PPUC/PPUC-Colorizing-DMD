@@ -7691,6 +7691,9 @@ void MainWindow::setCurrentSpriteName(const QString& name)
         return;
     }
 
+    if (!acceptsSpriteName(name, static_cast<std::size_t>(spriteIndex))) {
+        return;
+    }
     try {
         const std::size_t sprite = static_cast<std::size_t>(spriteIndex);
         edit::SpriteState before = edit::spriteState(*m_document, sprite);
@@ -7776,6 +7779,32 @@ void MainWindow::setCurrentSpriteDetectionArea()
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+bool MainWindow::acceptsSpriteName(const QString& name, std::optional<std::size_t> renamedSprite)
+{
+    QString problem;
+    switch (edit::checkSpriteName(*m_document, name.toStdString(), renamedSprite)) {
+    case edit::SpriteNameCheck::Usable:
+        return true;
+    case edit::SpriteNameCheck::Empty:
+        problem = tr("A sprite needs a name.");
+        break;
+    case edit::SpriteNameCheck::TooLong:
+        problem = tr("A sprite name has at most 31 characters.");
+        break;
+    case edit::SpriteNameCheck::Used:
+        problem = tr("Another sprite is named \"%1\" already. Each sprite needs a name of its "
+                     "own.")
+                      .arg(name);
+        break;
+    }
+    // A rename that is refused leaves the name as it was; the field shows it again first.
+    if (renamedSprite) {
+        updateSpriteControls();
+    }
+    QMessageBox::warning(this, tr("Sprite Name Not Usable"), problem);
+    return false;
 }
 
 bool MainWindow::acceptsSpriteDetectionArea(std::size_t sprite,
@@ -10558,24 +10587,22 @@ std::optional<std::size_t> MainWindow::addNamedSprite()
             4000);
         return std::nullopt;
     }
-    bool accepted = false;
-    const QString name = QInputDialog::getText(
-                             this,
-                             tr("New Sprite"),
-                             tr("Name of the new sprite (up to 31 characters):"),
-                             QLineEdit::Normal,
-                             QString(),
-                             &accepted)
-                             .trimmed();
-    if (!accepted) {
-        return std::nullopt;
-    }
-    const std::string problem = edit::spriteNameProblem(*m_document, name.toStdString());
-    if (!problem.empty()) {
-        statusBar()->showMessage(
-            tr("Not added: %1").arg(QString::fromStdString(problem)), 4000);
-        return std::nullopt;
-    }
+    // Asked again, with the name typed, until the name is usable or the question is cancelled
+    // (issue #46).
+    QString name;
+    do {
+        bool accepted = false;
+        name = QInputDialog::getText(this,
+                                     tr("New Sprite"),
+                                     tr("Name of the new sprite (up to 31 characters):"),
+                                     QLineEdit::Normal,
+                                     name,
+                                     &accepted)
+                   .trimmed();
+        if (!accepted) {
+            return std::nullopt;
+        }
+    } while (!acceptsSpriteName(name, std::nullopt));
     try {
         // The cRP records the frame a sprite was made on, as the Win32 editor does.
         recordStructureEdit(

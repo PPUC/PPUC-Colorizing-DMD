@@ -74,8 +74,20 @@ private:
     const std::vector<std::size_t>& frameIndices,
     uint32_t durationMs);
 
-// Why the name cannot be given to a new sprite; empty if it can. A name has 1 to 31 bytes
-// and is not used by another sprite.
+// Whether a sprite can take the name: a name has 1 to 31 bytes and is not used by another
+// sprite. renamedSprite is the sprite being renamed, whose own name does not count.
+enum class SpriteNameCheck {
+    Usable,
+    Empty,
+    TooLong,
+    Used,
+};
+[[nodiscard]] SpriteNameCheck checkSpriteName(
+    const document::ProjectDocument& document,
+    const std::string& name,
+    std::optional<std::size_t> renamedSprite = std::nullopt);
+
+// Why the name cannot be given to a new sprite; empty if it can.
 [[nodiscard]] std::string spriteNameProblem(const document::ProjectDocument& document,
                                             const std::string& name);
 
