@@ -2539,7 +2539,8 @@ void testManySpritesAdvice()
            "the advice names the old Williams games and the video modes");
 }
 
-// Paint Transparent is for a sprite with HD data only, and reports its toggling.
+// Paint Transparent is for a sprite with HD data only, shown while the HD plane is, and reports
+// its toggling.
 void testTransparentPaintButton()
 {
     colorizing::document::ProjectDocument document = makeSpritePanelDocument();
@@ -2547,6 +2548,7 @@ void testTransparentPaintButton()
     state.document = &document;
     state.frameIndex = 0;
     state.spriteIndex = 0;
+    state.showsHd = true;
     colorizing::app::SpritePanel panel;
     std::optional<bool> toggled;
     panel.onTransparentPaintToggled = [&toggled](bool on) { toggled = on; };
@@ -2573,6 +2575,19 @@ void testTransparentPaintButton()
     toggled.reset();
     panel.setTransparentPaintChecked(false);
     expect(!toggled && !panel.isTransparentPaintChecked(), "set from outside, it does not report");
+
+    // The SD sprite has no mask of its own: with the SD plane shown there is no button, and
+    // switching to SD turns the mode off.
+    button->click();
+    toggled.reset();
+    state.showsHd = false;
+    panel.refresh(state);
+    expect(button->isHidden() && !panel.isTransparentPaintChecked() && toggled == false,
+           "the SD plane shown, it is hidden and off");
+    state.showsHd = true;
+    panel.refresh(state);
+    expect(!button->isHidden() && !panel.isTransparentPaintChecked(),
+           "back on HD it is shown again, off");
 }
 
 // Issue #48: Copy to Selected Frames in the sprite section asks for the copy of the slots.

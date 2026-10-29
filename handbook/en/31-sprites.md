@@ -63,15 +63,16 @@ The controls:
   clears its HD-present flag. Each
   button is enabled when it applies. Both can be undone; Undo restores the sprite's previous HD
   mask and HD colors.
-- `Paint Transparent` (beside them, for a sprite with HD data) makes pixels of the HD sprite
-  transparent, so that the frame shows through them in HD, while the original, which the sprite
-  is found by, stays as it is: for example to leave out the outline a sprite has in the original
-  and keep only its inner pixels in HD. On the sprite canvas (`Edit Sprite`, switched to HD)
-  strokes of the point, line and shape tools make the pixels transparent; with `Shift` they cover
-  again, where the original under them is, with their colors as before. Transparent HD pixels
-  over the original are marked with a pattern while the mode is on. The fill tool does not paint
-  transparency, and `Paint Dynamic` and `Paint Transparent` are not on together. Each stroke is
-  one undo step of the sprite. In a 256x64 project the button works on the 256x64 sprite.
+- `Paint Transparent` (beside them, for a sprite with HD data, shown while the canvas shows HD;
+  switching to SD turns it off) makes pixels of the HD sprite transparent, so that the frame shows
+  through them in HD, while the original, which the sprite is found by, stays as it is: for
+  example to leave out the outline a sprite has in the original and keep only its inner pixels in
+  HD. On the sprite canvas (`Edit Sprite`, switched to HD) strokes of the point, line and shape
+  tools make the pixels transparent; with `Shift` they cover again, where the original under them
+  is, with their colors as before. Transparent HD pixels over the original are marked with a
+  pattern while the mode is on. The fill tool does not paint transparency, and `Paint Dynamic` and
+  `Paint Transparent` are not on together. Each stroke is one undo step of the sprite. In a 256x64
+  project the button works on the 256x64 sprite.
   - Why not capture the sprite without those pixels: a captured sprite starts at its top left
     pixel, so without the outline its original is smaller and starts at the inner pixels. The
     sprite is then also found where the outline is missing, and the HD art made for the full

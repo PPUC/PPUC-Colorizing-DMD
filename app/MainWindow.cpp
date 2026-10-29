@@ -9108,6 +9108,7 @@ void MainWindow::updateSpriteControls()
     state.selectedSpriteCount = selectedSpriteIndices().size();
     state.hasCaptureSelection = !m_canvasEdit.captureSelectionPixels(frameIndex).empty();
     state.spriteEditsPending = m_spriteDependentViewsDirty;
+    state.showsHd = m_activeResolution == render::Resolution::Hd;
     m_spritePanel->refresh(state);
     updateStructureControls();
 

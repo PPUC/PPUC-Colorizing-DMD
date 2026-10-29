@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Paint Transparent` in the sprite section is shown only while the canvas shows HD, as only the
+  HD sprite can have transparent pixels.
 - A double click on a favorite color of the toolbar edits it, as on the palette and the edit
   colors.
 - Dialog titles no longer end with the editor's name and version

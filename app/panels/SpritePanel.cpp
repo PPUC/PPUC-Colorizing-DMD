@@ -646,7 +646,13 @@ void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
                 .arg(layout == render::PlaneLayout::NativeExtra
                          ? planeSizeText(render::ProjectGeometry(layout).romFrameSize())
                          : QStringLiteral("HD")));
-        m_transparentPaintButton->setVisible(layout != render::PlaneLayout::NativeOriginal);
+        // Shown only while the HD plane is shown: the SD sprite has no mask of its own. Leaving
+        // HD turns the mode off.
+        const bool offered = layout != render::PlaneLayout::NativeOriginal && m_showsHd;
+        if (!offered && m_transparentPaintButton->isChecked()) {
+            m_transparentPaintButton->setChecked(false);
+        }
+        m_transparentPaintButton->setVisible(offered);
         m_transparentPaintButton->setEnabled(hasSprite && spriteHasHd);
     }
     // As many colors as the project has original colors (4 or 16), as the frame's dynamic
@@ -674,6 +680,7 @@ void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
 
 void SpritePanel::refresh(const SpritePanelState& state)
 {
+    m_showsHd = state.showsHd;
     refreshDynamic(state.document, state.spriteIndex);
     const document::ProjectDocument* document = state.document;
     const std::optional<std::size_t> frameIndex = state.frameIndex;

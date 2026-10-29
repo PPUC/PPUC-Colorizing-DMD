@@ -33,6 +33,9 @@ struct SpritePanelState {
     std::size_t selectedSpriteCount = 1;
     bool hasCaptureSelection = false;
     bool spriteEditsPending = false;
+    // Whether the canvases show the HD plane: Paint Transparent is offered only there, as only
+    // the HD sprite has a mask of its own.
+    bool showsHd = false;
 };
 
 // Spin box values; a minimum is never larger than its maximum.
@@ -181,6 +184,7 @@ private:
     QToolButton* m_setToEditColorsButton = nullptr;
     const document::ProjectDocument* m_dynamicDocument = nullptr;
     std::optional<std::size_t> m_dynamicSprite;
+    bool m_showsHd = false;
     void refreshDynamic(const document::ProjectDocument* document,
                         std::optional<std::size_t> spriteIndex);
     QSpinBox* m_minXSpinBox = nullptr;
