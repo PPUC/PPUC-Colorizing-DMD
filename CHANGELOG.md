@@ -5,11 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
-- `Paint Transparent` in the sprite editor makes pixels of the HD sprite transparent while the
-  sprite is still found by its whole original, for example to drop an outline in HD only.
-
 ## 3.99.21
 
+- `Paint Transparent` in the sprite editor makes pixels of the HD sprite transparent while the
+  sprite is still found by its whole original, for example to drop an outline in HD only.
 - Assigning several sprites at once gives the new slots the bounds and offset of the selected
   slot, so the digits of a score need to be set up only once.
 - The toolbar's button groups are centered in their row; the zoom buttons no longer sit higher
