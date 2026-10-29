@@ -528,7 +528,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_pasteMode(pasteModeOutputs())
     , m_editHelpers(editHelpersOutputs())
 {
-    setWindowTitle(kApplicationName);
+    setWindowTitle(kApplicationTitle);
     resize(1000, 700);
     m_packTimer.setInterval(100);
     connect(&m_packTimer, &QTimer::timeout, this, [this]() { packIdleBlocks(); });
@@ -2685,7 +2685,7 @@ QString MainWindow::proposedFilePath(const QString& suffix) const
 
 void MainWindow::updateWindowTitle()
 {
-    const QString& application = kApplicationName;
+    const QString& application = kApplicationTitle;
     if (!m_document) {
         setWindowTitle(application);
     } else if (!m_sourcePath.isEmpty() && m_projectPath.isEmpty()) {

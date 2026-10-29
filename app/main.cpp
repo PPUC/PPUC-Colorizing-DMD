@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
     QApplication::setOrganizationName(QStringLiteral("ppuc.org"));
     QApplication::setOrganizationDomain(QStringLiteral("ppuc.org"));
     QApplication::setApplicationName(colorizing::app::kApplicationName);
-    QApplication::setApplicationDisplayName(colorizing::app::kApplicationName);
+    QApplication::setApplicationDisplayName(colorizing::app::kApplicationTitle);
     QApplication::setApplicationVersion(colorizing::app::kApplicationVersion);
     takeOverEarlierSettings();
     QIcon icon;

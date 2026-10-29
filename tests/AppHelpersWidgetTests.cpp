@@ -230,6 +230,9 @@ void testAboutDialog()
     expect(label && label->text() == QStringLiteral("Version ") + version &&
                dialog.windowTitle() == QStringLiteral("About PPUC Colorizing DMD"),
            "the About dialog shows the name and the version");
+    // Issue #47: the window titles carry the version too, so a screenshot shows it.
+    expect(colorizing::app::kApplicationTitle == QStringLiteral("PPUC Colorizing DMD ") + version,
+           "the window title names the version");
 }
 
 // Issue #28: the selected frames' duration together, for a scene made of them.

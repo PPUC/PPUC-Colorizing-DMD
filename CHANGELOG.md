@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The window title shows the editor's version (#47).
+
 ## 3.99.21
 
 - `Paint Transparent` in the sprite editor makes pixels of the HD sprite transparent while the
