@@ -18,7 +18,9 @@ by a click on a favorite, a palette color, an edit color or with the `Pick` tool
     when the edit color changes (undo, a loaded color set, `Dyn > Edit`). Choosing another draw
     color (favorite, palette, `Pick`) leaves no swatch selected.
   - Double-click a swatch, or use its context menu `Edit Color...`, to change the edit color in
-    the color picker. Drag a palette color onto a swatch to set it.
+    the color picker. Drag a palette color onto a swatch to set it. Drag a swatch onto another
+    one to swap the two edit colors, one undo step. A swatch dragged elsewhere (a favorite, a
+    dynamic color) gives its color as a palette color does.
   - The tool tip names the color, the shade it replaces and its key.
 - Edit colors are project data: they are saved in the project file, and every change is undoable (see
   "Undo And Redo").

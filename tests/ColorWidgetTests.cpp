@@ -22,6 +22,7 @@
 #include <QToolButton>
 
 #include "CanvasEditController.h"
+#include "ColorDrag.h"
 #include "ColorGridWidget.h"
 #include "EditColorKeys.h"
 #include "FrameImageUtils.h"
@@ -653,6 +654,53 @@ void testColorRangeDrag()
            "a plain click is a click");
 }
 
+// Issue #45: a color dragged onto another one of the same grid or bar swaps the two; a color
+// from elsewhere is no swap.
+void testColorSwapDrop()
+{
+    // Straight to the widget: QApplication routes drop events only within a drag.
+    const auto drop = [](QWidget* target, QMimeData* mime) {
+        QDropEvent event(QPointF(5, 5), Qt::CopyAction, mime, Qt::LeftButton, Qt::NoModifier);
+        static_cast<QObject*>(target)->event(&event);
+        delete mime;
+        return event.isAccepted();
+    };
+    colorizing::app::ColorGridWidget grid(16, 8);
+    colorizing::app::ColorGridWidget other(16, 8);
+    grid.setColors(std::vector<uint16_t>(16, 0x1234), 16);
+    std::vector<std::pair<std::size_t, std::size_t>> swaps;
+    grid.setColorsSwappedHandler([&swaps](std::size_t from, std::size_t to) {
+        swaps.emplace_back(from, to);
+    });
+    const QList<QToolButton*> buttons = grid.findChildren<QToolButton*>();
+    expect(drop(buttons[5], app::colorDragMimeData(&grid, 2, 0x1234)) &&
+               swaps == std::vector<std::pair<std::size_t, std::size_t>>{{2, 5}},
+           "a color of the grid dropped on another one swaps the two");
+    expect(!drop(buttons[5], app::colorDragMimeData(&grid, 5, 0x1234)) &&
+               !drop(buttons[5], app::colorDragMimeData(&other, 2, 0x1234)) && swaps.size() == 1,
+           "a color dropped on itself or from another grid swaps nothing");
+
+    ProjectDocument document = makeDocument(PlaneLayout::Ordinary, 4);
+    EditColorBar bar;
+    std::vector<std::pair<std::size_t, std::size_t>> barSwaps;
+    std::vector<std::pair<std::size_t, uint16_t>> barDrops;
+    bar.onColorsSwapped = [&](std::size_t from, std::size_t to) {
+        barSwaps.emplace_back(from, to);
+    };
+    bar.onColorDropped = [&](std::size_t slot, uint16_t color) {
+        barDrops.emplace_back(slot, color);
+    };
+    bar.refresh(&document);
+    auto* swatch = child<QToolButton>(bar, "editColorSwatch3");
+    expect(drop(swatch, app::colorDragMimeData(&bar, 0, 0x0000)) &&
+               barSwaps == std::vector<std::pair<std::size_t, std::size_t>>{{0, 3}} &&
+               barDrops.empty(),
+           "an edit color dropped on another one swaps the two");
+    expect(drop(swatch, app::colorDragMimeData(&grid, 0, 0x07e0)) && barSwaps.size() == 1 &&
+               barDrops == std::vector<std::pair<std::size_t, uint16_t>>{{3, 0x07e0}},
+           "a palette color dropped on an edit color is taken");
+}
+
 // The palette window (the color picker) opens where and as large as it was left (SoyGre).
 void testColorPickerKeepsItsPlace()
 {
@@ -681,6 +729,7 @@ void runColorWidgetTests()
 {
     testColorPickerKeepsItsPlace();
     testColorRangeDrag();
+    testColorSwapDrop();
     for (PlaneLayout layout :
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
         testSetReplaceDrawing(layout, 4);

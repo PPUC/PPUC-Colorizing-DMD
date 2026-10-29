@@ -145,6 +145,11 @@ PalettePanel::PalettePanel(QWidget* parent)
             onColorClicked(colorIndex);
         }
     });
+    m_grid->setColorsSwappedHandler([this](std::size_t from, std::size_t to) {
+        if (onColorsSwapped) {
+            onColorsSwapped(from, to);
+        }
+    });
     m_grid->setColorDoubleClickedHandler([this](std::size_t colorIndex) {
         if (onColorDoubleClicked) {
             onColorDoubleClicked(colorIndex);

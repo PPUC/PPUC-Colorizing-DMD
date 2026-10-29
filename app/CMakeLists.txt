@@ -16,6 +16,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     ThumbnailCaptions.cpp
     ThumbnailCaptions.h
     CanvasEditController.h
+    ColorDrag.cpp
+    ColorDrag.h
     ColorGridWidget.cpp
     ColorGridWidget.h
     dialogs/ColorPickerDialog.cpp

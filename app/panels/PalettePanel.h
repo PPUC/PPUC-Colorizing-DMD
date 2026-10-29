@@ -56,6 +56,8 @@ public:
     std::function<void(const QString& name)> onNameEdited;
     std::function<void(std::size_t colorIndex)> onColorClicked;
     std::function<void(std::size_t colorIndex)> onColorDoubleClicked;
+    // A color dragged onto another one of the palette: the two swap (issue #45).
+    std::function<void(std::size_t from, std::size_t to)> onColorsSwapped;
     std::function<void()> onApplyGradientRequested;
     std::function<void()> onFillSelectionRequested;
     std::function<void()> onSelectionDirectionClicked;

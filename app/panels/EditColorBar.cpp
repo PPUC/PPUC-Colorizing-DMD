@@ -2,23 +2,19 @@
 
 #include <QButtonGroup>
 #include <QContextMenuEvent>
-#include <QDragEnterEvent>
-#include <QDropEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
-#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QToolButton>
 
+#include "ColorDrag.h"
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
 
 namespace {
-
-constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 
 QToolButton* makeButton(QWidget* parent, const QString& text, const QString& tip, bool checkable)
 {
@@ -32,14 +28,13 @@ QToolButton* makeButton(QWidget* parent, const QString& text, const QString& tip
 }  // namespace
 
 // The color of an edit color slot over a strip in the color of the original shade it replaces.
-class EditColorSwatch final : public QToolButton {
+// A color dropped on it is taken; another edit color dropped on it swaps with it.
+class EditColorSwatch final : public ColorSlotButton {
 public:
     EditColorSwatch(std::size_t slot, QWidget* parent)
-        : QToolButton(parent),
-          m_slot(slot)
+        : ColorSlotButton(slot, parent, parent)
     {
         setCheckable(true);
-        setAcceptDrops(true);
         setFixedSize(24, 24);
     }
 
@@ -47,11 +42,11 @@ public:
     {
         m_color = rgb565ToColor(rgb565);
         m_shade = shade;
+        setSlotColor(rgb565);
         update();
     }
 
     std::function<void(std::size_t)> onEditRequested;
-    std::function<void(std::size_t, uint16_t)> onDropped;
 
 protected:
     void paintEvent(QPaintEvent*) override
@@ -74,7 +69,7 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent* event) override
     {
         if (event->button() == Qt::LeftButton && onEditRequested) {
-            onEditRequested(m_slot);
+            onEditRequested(slot());
             event->accept();
             return;
         }
@@ -87,34 +82,11 @@ protected:
         QAction* editAction = menu.addAction(
             QCoreApplication::translate("EditColorBar", "Edit Color..."));
         if (menu.exec(event->globalPos()) == editAction && onEditRequested) {
-            onEditRequested(m_slot);
+            onEditRequested(slot());
         }
-    }
-
-    void dragEnterEvent(QDragEnterEvent* event) override
-    {
-        if (event->mimeData()->hasFormat(kRgb565MimeType)) {
-            event->acceptProposedAction();
-            return;
-        }
-        QToolButton::dragEnterEvent(event);
-    }
-
-    void dropEvent(QDropEvent* event) override
-    {
-        bool ok = false;
-        const int value =
-            QString::fromLatin1(event->mimeData()->data(kRgb565MimeType)).toInt(&ok);
-        if (ok && value >= 0 && value <= 0xffff && onDropped) {
-            onDropped(m_slot, static_cast<uint16_t>(value));
-            event->acceptProposedAction();
-            return;
-        }
-        QToolButton::dropEvent(event);
     }
 
 private:
-    std::size_t m_slot;
     QColor m_color;
     QColor m_shade;
 };
@@ -165,7 +137,12 @@ EditColorBar::EditColorBar(QWidget* parent)
                 onSlotEditRequested(index);
             }
         };
-        swatch->onDropped = [this](std::size_t index, uint16_t rgb565) {
+        swatch->onSlotDropped = [this](std::size_t from, std::size_t to) {
+            if (onColorsSwapped) {
+                onColorsSwapped(from, to);
+            }
+        };
+        swatch->onColorDropped = [this](std::size_t index, uint16_t rgb565) {
             if (onColorDropped) {
                 onColorDropped(index, rgb565);
             }

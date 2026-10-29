@@ -373,6 +373,11 @@ SpritePanel::SpritePanel(QWidget* parent)
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
             [this](int) { refreshDynamic(m_dynamicDocument, m_dynamicSprite); });
+    m_dynamicColorGrid->setColorsSwappedHandler([this](std::size_t from, std::size_t to) {
+        if (onDynamicColorsSwapped) {
+            onDynamicColorsSwapped(from, to);
+        }
+    });
     m_dynamicColorGrid->setColorClickedHandler([this](std::size_t colorIndex) {
         if (onDynamicColorClicked) {
             onDynamicColorClicked(colorIndex);

@@ -13,6 +13,7 @@ The Inspector's `Palette` section provides a palette selector, the selected pale
 - Drag any palette color onto one of the four toolbar favorite color slots to replace that favorite,
   or onto an edit color swatch under the toolbar to set that edit color (undoable).
 - Double-click any palette color to open a color picker for that RGB565 palette entry.
+- Drag a palette color onto another color of the palette to swap the two, one undo step.
 - Palette color cells and `From`/`To` controls are displayed as `1` through `64`.
 - `Ctrl+drag` (`Cmd+drag` on macOS) across the colors sets `From` and `To` (with `Shift` the
   other way round), see "Grad" in "Drawing Tools".

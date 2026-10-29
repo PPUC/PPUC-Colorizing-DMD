@@ -5,10 +5,7 @@
 #include <exception>
 
 #include <QCheckBox>
-#include <QDragEnterEvent>
-#include <QDropEvent>
 #include <QFormLayout>
-#include <QMimeData>
 #include <QGridLayout>
 #include <QImage>
 #include <QLabel>
@@ -21,49 +18,12 @@
 #include <QVBoxLayout>
 
 #include "panels/InspectorForm.h"
+#include "ColorDrag.h"
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
 
 namespace {
-
-// What the palette and the color grids drag (ColorGridWidget).
-constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
-
-// A dynamic color: clicked, it is edited; a color dragged from the palette is dropped on it.
-class DynamicColorButton final : public QToolButton {
-public:
-    explicit DynamicColorButton(QWidget* parent)
-        : QToolButton(parent)
-    {
-        setAcceptDrops(true);
-    }
-
-    std::function<void(uint16_t rgb565)> onDropped;
-
-protected:
-    void dragEnterEvent(QDragEnterEvent* event) override
-    {
-        if (isEnabled() && event->mimeData()->hasFormat(kRgb565MimeType)) {
-            event->acceptProposedAction();
-            return;
-        }
-        QToolButton::dragEnterEvent(event);
-    }
-
-    void dropEvent(QDropEvent* event) override
-    {
-        bool ok = false;
-        const int value =
-            QString::fromLatin1(event->mimeData()->data(kRgb565MimeType)).toInt(&ok);
-        if (ok && value >= 0 && value <= 0xffff && onDropped) {
-            onDropped(static_cast<uint16_t>(value));
-            event->acceptProposedAction();
-            return;
-        }
-        QToolButton::dropEvent(event);
-    }
-};
 
 constexpr std::array<uint8_t, 8> kShadowDirectionBits{
     0x01, 0x02, 0x04, 0x80, 0x08, 0x40, 0x20, 0x10,
@@ -124,10 +84,16 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     colorsGrid->setHorizontalSpacing(4);
     colorsGrid->setVerticalSpacing(4);
     for (int colorIndex = 0; colorIndex < 16; ++colorIndex) {
-        auto* button = new DynamicColorButton(this);
-        button->onDropped = [this, colorIndex](uint16_t rgb565) {
+        // A color dropped on it is taken; another of the set dropped on it swaps with it.
+        auto* button = new ColorSlotButton(static_cast<std::size_t>(colorIndex), this, this);
+        button->onColorDropped = [this](std::size_t slot, uint16_t rgb565) {
             if (onColorDropped) {
-                onColorDropped(static_cast<std::size_t>(colorIndex), rgb565);
+                onColorDropped(slot, rgb565);
+            }
+        };
+        button->onSlotDropped = [this](std::size_t from, std::size_t to) {
+            if (onColorsSwapped) {
+                onColorsSwapped(from, to);
             }
         };
         button->setText(QString::number(colorIndex));
@@ -329,7 +295,7 @@ void DynamicPanel::refreshColors(const document::ProjectDocument* document,
                                             : 4;
     colorCount = std::min(colorCount, shownCount);
     for (std::size_t colorIndex = 0; colorIndex < m_colorButtons.size(); ++colorIndex) {
-        QToolButton* button = m_colorButtons[colorIndex];
+        ColorSlotButton* button = m_colorButtons[colorIndex];
         button->setVisible(colorIndex < shownCount);
         const bool enabled = dynamicData && dynamicData->has_value() && colorIndex < colorCount;
         button->setEnabled(enabled);
@@ -342,6 +308,7 @@ void DynamicPanel::refreshColors(const document::ProjectDocument* document,
         const uint16_t rgb565 =
             document->dynamicColor(*frameIndex, resolution, dynamicSet(), colorIndex);
         button->setProperty("rgb565", static_cast<int>(rgb565));
+        button->setSlotColor(rgb565);
         button->setToolTip(tr("Set %1 original %2: 0x%3")
                                .arg(dynamicSet())
                                .arg(static_cast<int>(colorIndex))

@@ -429,6 +429,14 @@ private:
     // color: the new color (dropped from the palette); none asks for it.
     void editDynamicColor(std::size_t originalColorIndex,
                           std::optional<uint16_t> color = std::nullopt);
+    // Issue #45: two colors dragged onto each other swap places, in each selected frame with
+    // dynamic data, in the rotation of each selected frame long enough, in the palette, in the
+    // sprite's set and in the edit colors; each as one step.
+    void swapDynamicColors(std::size_t from, std::size_t to);
+    void swapSpriteDynamicColors(std::size_t from, std::size_t to);
+    void swapCurrentColorRotationColors(std::size_t slotIndex, std::size_t from, std::size_t to);
+    void swapCurrentPaletteColors(std::size_t from, std::size_t to);
+    void swapEditColors(std::size_t from, std::size_t to);
     void setDynamicSetOriginalOnly(bool originalOnly);
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
     void editDynamicShadowColor();

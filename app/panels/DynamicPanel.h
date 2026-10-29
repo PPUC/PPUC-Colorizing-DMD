@@ -19,6 +19,8 @@ class QToolButton;
 
 namespace colorizing::app {
 
+class ColorSlotButton;
+
 // Inspector page for the dynamic sets of a frame: the sets the frame uses (each with a picture of
 // its zones), the set to paint, its colors and its shadow.
 // The selected set is the page's own state. The page only displays and reports what the user
@@ -55,6 +57,8 @@ public:
     std::function<void(std::size_t originalColorIndex)> onColorClicked;
     // A color dragged from the palette was dropped on a dynamic color.
     std::function<void(std::size_t originalColorIndex, uint16_t rgb565)> onColorDropped;
+    // A dynamic color dragged onto another one of the set: the two swap (issue #45).
+    std::function<void(std::size_t from, std::size_t to)> onColorsSwapped;
     // bit is the direction's bit in the shadow direction mask.
     std::function<void(uint8_t bit, bool enabled)> onShadowDirectionToggled;
     std::function<void()> onShadowColorClicked;
@@ -72,7 +76,7 @@ private:
     std::optional<std::size_t> m_listFrame;
     render::Resolution m_listResolution = render::Resolution::Sd;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
-    std::vector<QToolButton*> m_colorButtons;
+    std::vector<ColorSlotButton*> m_colorButtons;
     std::vector<QToolButton*> m_shadowDirectionButtons;
     QToolButton* m_shadowColorButton = nullptr;
     QCheckBox* m_originalOnlyCheckBox = nullptr;

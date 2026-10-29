@@ -62,6 +62,7 @@
 
 #include "AppInfo.h"
 #include "AuthorName.h"
+#include "ColorDrag.h"
 #include "team/TeamController.h"
 #include "FramesClipboard.h"
 #include "FrameStatusText.h"
@@ -157,7 +158,6 @@ constexpr int kExportDmdPixelScale = 8;
 constexpr QSize kFrameThumbnailSize{160, 84};
 // A frame of the strip: the thumbnail, two lines of text below it, and room around.
 constexpr QSize kFrameStripCellSize{176, 128};
-constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 
 QString favoriteColorButtonStyle(uint16_t rgb565)
 {
@@ -1317,6 +1317,10 @@ void MainWindow::createCentralView()
     m_colorRotationPanel->onColorClicked = [this](std::size_t slotIndex, std::size_t colorIndex) {
         editCurrentColorRotationColor(slotIndex, colorIndex);
     };
+    m_colorRotationPanel->onColorsSwapped =
+        [this](std::size_t slotIndex, std::size_t from, std::size_t to) {
+            swapCurrentColorRotationColors(slotIndex, from, to);
+        };
     m_colorRotationPanel->onClearSlotRequested = [this](std::size_t slotIndex) {
         clearCurrentColorRotationSlot(slotIndex);
     };
@@ -1336,6 +1340,9 @@ void MainWindow::createCentralView()
     };
     m_palettePanel->onColorDoubleClicked = [this](std::size_t colorIndex) {
         editCurrentPaletteColor(colorIndex);
+    };
+    m_palettePanel->onColorsSwapped = [this](std::size_t from, std::size_t to) {
+        swapCurrentPaletteColors(from, to);
     };
     m_palettePanel->onApplyGradientRequested = [this]() {
         applyCurrentPaletteGradient();
@@ -1521,6 +1528,9 @@ void MainWindow::createCentralView()
                              : QStringLiteral("128x32")),
                 4000);
         }
+    };
+    m_spritePanel->onDynamicColorsSwapped = [this](std::size_t from, std::size_t to) {
+        swapSpriteDynamicColors(from, to);
     };
     m_spritePanel->onDynamicColorClicked = [this](std::size_t shade) {
         const std::optional<std::size_t> sprite = currentSpriteIndex();
@@ -1785,6 +1795,9 @@ void MainWindow::createCentralView()
     m_editColorBar->onColorDropped = [this](std::size_t slot, uint16_t rgb565) {
         setEditColor(slot, rgb565);
     };
+    m_editColorBar->onColorsSwapped = [this](std::size_t from, std::size_t to) {
+        swapEditColors(from, to);
+    };
     m_editColorBar->onDrawColorModeChanged = [this](edit::DrawColorMode mode) {
         setDrawColorMode(mode);
     };
@@ -1945,6 +1958,9 @@ void MainWindow::createCentralView()
     };
     m_dynamicPanel->onColorDropped = [this](std::size_t originalColorIndex, uint16_t rgb565) {
         editDynamicColor(originalColorIndex, rgb565);
+    };
+    m_dynamicPanel->onColorsSwapped = [this](std::size_t from, std::size_t to) {
+        swapDynamicColors(from, to);
     };
     m_dynamicPanel->onShadowDirectionToggled = [this](uint8_t bit, bool enabled) {
         setDynamicShadowDirectionBit(bit, enabled);
@@ -8485,6 +8501,68 @@ void MainWindow::editDynamicColor(std::size_t originalColorIndex, std::optional<
     }
 }
 
+void MainWindow::swapDynamicColors(std::size_t from, std::size_t to)
+{
+    if (!m_document || !currentFrameIndex() || from == to) {
+        return;
+    }
+    try {
+        // Each frame swaps its own two colors.
+        int changed = 0;
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            if (!m_document->dynamicData(frameIndex).has_value()) {
+                continue;
+            }
+            const uint16_t first =
+                m_document->dynamicColor(frameIndex, dynamicPlane(), activeDynamicSet(), from);
+            const uint16_t second =
+                m_document->dynamicColor(frameIndex, dynamicPlane(), activeDynamicSet(), to);
+            if (first == second) {
+                continue;
+            }
+            commitEdit(std::make_unique<edit::DynamicColorsEditCommand>(
+                frameIndex, dynamicPlane(), activeDynamicSet(),
+                std::vector<edit::DynamicColorChange>{{from, first, second}, {to, second, first}}));
+            ++changed;
+        }
+        if (changed == 0) {
+            return;
+        }
+        updateUndoRedoActions();
+        statusBar()->showMessage(tr("Swapped dynamic colors %1 and %2 in %n frame(s)", nullptr,
+                                    changed)
+                                     .arg(static_cast<int>(from))
+                                     .arg(static_cast<int>(to)),
+                                 2500);
+    } catch (const std::exception& ex) {
+        updateDynamicColorControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::swapSpriteDynamicColors(std::size_t from, std::size_t to)
+{
+    const std::optional<std::size_t> sprite = currentSpriteIndex();
+    if (!m_document || !sprite || !m_spritePanel || from == to) {
+        return;
+    }
+    const std::size_t set = m_spritePanel->dynamicSet();
+    const uint16_t first = m_document->spriteDynamicColor(*sprite, set, from);
+    const uint16_t second = m_document->spriteDynamicColor(*sprite, set, to);
+    if (first == second) {
+        return;
+    }
+    edit::SpriteState before = edit::spriteState(*m_document, *sprite);
+    m_document->setSpriteDynamicColor(*sprite, set, from, second);
+    m_document->setSpriteDynamicColor(*sprite, set, to, first);
+    recordEdit(edit::spriteStateCommand(*m_document, *sprite, std::move(before)));
+    statusBar()->showMessage(tr("Swapped sprite set %1 colors %2 and %3")
+                                 .arg(static_cast<int>(set) + 1)
+                                 .arg(static_cast<int>(from))
+                                 .arg(static_cast<int>(to)),
+                             2500);
+}
+
 void MainWindow::setDynamicSetOriginalOnly(bool originalOnly)
 {
     if (!m_document || !currentFrameIndex() ||
@@ -8763,6 +8841,58 @@ void MainWindow::editCurrentColorRotationColor(std::size_t slotIndex, std::size_
     }
 }
 
+void MainWindow::swapCurrentColorRotationColors(std::size_t slotIndex,
+                                                std::size_t from,
+                                                std::size_t to)
+{
+    if (!m_document || from == to) {
+        return;
+    }
+    const bool wasDirty = m_document->isDirty();
+    try {
+        // Each frame whose rotation reaches both colors swaps its own two.
+        int changed = 0;
+        for (std::size_t frameIndex : selectedFrameIndices()) {
+            const uint16_t length =
+                m_document->colorRotationLength(frameIndex, m_activeResolution, slotIndex);
+            if (length <= std::max(from, to)) {
+                continue;
+            }
+            const uint16_t first =
+                m_document->colorRotationColor(frameIndex, m_activeResolution, slotIndex, from);
+            const uint16_t second =
+                m_document->colorRotationColor(frameIndex, m_activeResolution, slotIndex, to);
+            if (first == second) {
+                continue;
+            }
+            document::CompactArray<uint16_t> before =
+                m_document->colorRotations(frameIndex, m_activeResolution);
+            m_document->setColorRotationColor(frameIndex, m_activeResolution, slotIndex, from,
+                                              second);
+            m_document->setColorRotationColor(frameIndex, m_activeResolution, slotIndex, to,
+                                              first);
+            pushEdit(edit::colorRotationsCommand(
+                *m_document, frameIndex, m_activeResolution, std::move(before)));
+            ++changed;
+        }
+        updateColorRotationControls();
+        if (changed == 0) {
+            return;
+        }
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        statusBar()->showMessage(tr("Swapped rotation colors %1 and %2 on %3 frame(s)")
+                                     .arg(static_cast<int>(from))
+                                     .arg(static_cast<int>(to))
+                                     .arg(changed),
+                                 2000);
+    } catch (const std::exception& ex) {
+        updateColorRotationControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::clearCurrentColorRotationSlot(std::size_t slotIndex)
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
@@ -8912,6 +9042,38 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
                 .arg(static_cast<int>(*paletteIndex))
                 .arg(static_cast<int>(colorIndex) + 1),
             2000);
+    } catch (const std::exception& ex) {
+        updatePaletteControls();
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
+void MainWindow::swapCurrentPaletteColors(std::size_t from, std::size_t to)
+{
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!m_document || !paletteIndex || from == to) {
+        return;
+    }
+    const uint16_t first = m_document->paletteColor(*paletteIndex, from);
+    const uint16_t second = m_document->paletteColor(*paletteIndex, to);
+    if (first == second) {
+        return;
+    }
+    const bool wasDirty = m_document->isDirty();
+    try {
+        commitEdit(std::make_unique<edit::PaletteEditCommand>(
+            *paletteIndex,
+            std::vector<edit::PaletteColorChange>{{from, first, second}, {to, second, first}}));
+        updateUndoRedoActions();
+        if (!wasDirty && m_document->isDirty()) {
+            updateProjectHeaderStatus();
+        }
+        // Palette colors are counted from 1, as the grid shows them.
+        statusBar()->showMessage(tr("Swapped palette %1 colors %2 and %3")
+                                     .arg(static_cast<int>(*paletteIndex))
+                                     .arg(static_cast<int>(from) + 1)
+                                     .arg(static_cast<int>(to) + 1),
+                                 2000);
     } catch (const std::exception& ex) {
         updatePaletteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -10017,6 +10179,19 @@ void MainWindow::setEditColor(std::size_t slot, uint16_t rgb565)
                        tr("Edit color %1 is 0x%2")
                            .arg(static_cast<int>(slot))
                            .arg(rgb565, 4, 16, QLatin1Char('0')));
+}
+
+void MainWindow::swapEditColors(std::size_t from, std::size_t to)
+{
+    if (!m_document || from == to || std::max(from, to) >= m_document->colorCount()) {
+        return;
+    }
+    const uint16_t first = m_document->editColor(from);
+    const uint16_t second = m_document->editColor(to);
+    commitEditorColors(
+        edit::withEditColor(edit::withEditColor(m_document->colorSetTables(), from, second), to,
+                            first),
+        tr("Swapped edit colors %1 and %2").arg(static_cast<int>(from)).arg(static_cast<int>(to)));
 }
 
 void MainWindow::setDrawColorMode(edit::DrawColorMode mode)

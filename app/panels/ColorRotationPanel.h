@@ -35,6 +35,8 @@ public:
     std::function<void(std::size_t slotIndex, int length)> onLengthEdited;
     std::function<void(std::size_t slotIndex, int delayMs)> onDelayEdited;
     std::function<void(std::size_t slotIndex, std::size_t colorIndex)> onColorClicked;
+    // A color dragged onto another one of the rotation: the two swap (issue #45).
+    std::function<void(std::size_t slotIndex, std::size_t from, std::size_t to)> onColorsSwapped;
     std::function<void(std::size_t slotIndex)> onClearSlotRequested;
 
 private:

@@ -48,6 +48,11 @@ ColorRotationPanel::ColorRotationPanel(QWidget* parent)
             onColorClicked(selectedSlotIndex(), colorIndex);
         }
     });
+    m_grid->setColorsSwappedHandler([this](std::size_t from, std::size_t to) {
+        if (onColorsSwapped) {
+            onColorsSwapped(selectedSlotIndex(), from, to);
+        }
+    });
     m_clearSlotButton = new QToolButton(this);
     m_clearSlotButton->setText(tr("Clear Slot"));
     m_clearSlotButton->setToolTip(tr("Clear the selected color rotation slot"));

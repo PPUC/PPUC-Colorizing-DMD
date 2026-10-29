@@ -96,6 +96,8 @@ Rules:
 - The color goes to that swatch of the selected `Dyn Set` in all selected frames that have
   dynamic data, also where their sets differ: only that one color changes, the other colors of
   each frame's set stay as they are. The status bar says in how many frames it changed.
+- Drag a swatch onto another one to swap the two colors. Each selected frame with dynamic data
+  swaps its own two colors of the set, one undo step per frame.
 - The dynamic mask is rendered over the colorized frame of its plane.
 - `Mask` and `Dynamic` are mutually exclusive overlay modes.
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.

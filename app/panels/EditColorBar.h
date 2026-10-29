@@ -41,6 +41,8 @@ public:
     std::function<void(std::size_t slot)> onSlotEditRequested;
     // A color dragged from the palette grid or a favorite.
     std::function<void(std::size_t slot, uint16_t rgb565)> onColorDropped;
+    // An edit color dragged onto another one: the two swap (issue #45).
+    std::function<void(std::size_t from, std::size_t to)> onColorsSwapped;
     std::function<void(edit::DrawColorMode mode)> onDrawColorModeChanged;
     std::function<void()> onEditColorsToDynamicRequested;
     std::function<void()> onDynamicToEditColorsRequested;

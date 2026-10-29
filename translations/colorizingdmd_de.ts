@@ -5773,6 +5773,25 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message numerus="yes">
+        <source>Swapped dynamic colors %1 and %2 in %n frame(s)</source>
+        <translation>
+            <numerusform>Dynamische Farben %1 und %2 in %n Frame getauscht</numerusform>
+            <numerusform>Dynamische Farben %1 und %2 in %n Frames getauscht</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Swapped sprite set %1 colors %2 and %3</source>
+        <translation>Farben %2 und %3 von Sprite-Set %1 getauscht</translation>
+    </message>
+    <message>
+        <source>Swapped rotation colors %1 and %2 on %3 frame(s)</source>
+        <translation>Rotationsfarben %1 und %2 auf %3 Frame(s) getauscht</translation>
+    </message>
+    <message>
+        <source>Swapped palette %1 colors %2 and %3</source>
+        <translation>Farben %2 und %3 von Palette %1 getauscht</translation>
+    </message>
+    <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>
         <translation>
             <numerusform>%n geteilte Änderung der Partner zum Zusammenführen</numerusform>
@@ -5782,6 +5801,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Transparent pixels are painted on the %1 sprite</source>
         <translation>Transparente Pixel werden auf dem %1-Sprite gezeichnet</translation>
+    </message>
+    <message>
+        <source>Swapped edit colors %1 and %2</source>
+        <translation>Bearbeitungsfarben %1 und %2 getauscht</translation>
     </message>
     <message>
         <source>Delete Sprites</source>

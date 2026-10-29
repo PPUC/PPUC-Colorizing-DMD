@@ -125,6 +125,8 @@ public:
     // Paint Transparent: strokes on the HD sprite make its pixels transparent.
     std::function<void(bool enabled)> onTransparentPaintToggled;
     std::function<void(std::size_t originalColorIndex)> onDynamicColorClicked;
+    // A dynamic color dragged onto another one of the set: the two swap (issue #45).
+    std::function<void(std::size_t from, std::size_t to)> onDynamicColorsSwapped;
     std::function<void()> onEditColorsToDynamicSet;
     std::function<void()> onDynamicSetToEditColors;
     // 0 to 8, shown as 1 to 9.

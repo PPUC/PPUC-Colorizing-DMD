@@ -2,20 +2,16 @@
 
 #include <algorithm>
 
-#include <QApplication>
-#include <QDrag>
 #include <QGridLayout>
-#include <QMimeData>
 #include <QMouseEvent>
 #include <QToolButton>
 
+#include "ColorDrag.h"
 #include "FrameImageUtils.h"
 
 namespace colorizing::app {
 
 namespace {
-
-constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 
 QString colorButtonStyle(uint16_t rgb565, bool active)
 {
@@ -28,18 +24,11 @@ QString colorButtonStyle(uint16_t rgb565, bool active)
         .arg(color.name(), border, opacity);
 }
 
-class ColorGridButton final : public QToolButton {
+class ColorGridButton final : public ColorSlotButton {
 public:
-    explicit ColorGridButton(std::size_t colorIndex, QWidget* parent = nullptr)
-        : QToolButton(parent),
-          m_colorIndex(colorIndex)
+    ColorGridButton(std::size_t colorIndex, QWidget* parent)
+        : ColorSlotButton(colorIndex, parent, parent)
     {
-    }
-
-    void setGridColor(uint16_t rgb565, bool active)
-    {
-        m_rgb565 = rgb565;
-        m_colorActive = active;
     }
 
     void setDoubleClickedHandler(std::function<void(std::size_t)> handler)
@@ -48,42 +37,10 @@ public:
     }
 
 protected:
-    void mousePressEvent(QMouseEvent* event) override
-    {
-        if (event->button() == Qt::LeftButton) {
-            m_dragStartPosition = event->pos();
-        }
-        QToolButton::mousePressEvent(event);
-    }
-
-    void mouseMoveEvent(QMouseEvent* event) override
-    {
-        if (!m_colorActive || !(event->buttons() & Qt::LeftButton)) {
-            QToolButton::mouseMoveEvent(event);
-            return;
-        }
-        if ((event->pos() - m_dragStartPosition).manhattanLength() <
-            QApplication::startDragDistance()) {
-            QToolButton::mouseMoveEvent(event);
-            return;
-        }
-
-        auto* mimeData = new QMimeData();
-        mimeData->setData(kRgb565MimeType, QByteArray::number(m_rgb565));
-        mimeData->setColorData(rgb565ToColor(m_rgb565));
-
-        auto* drag = new QDrag(this);
-        drag->setMimeData(mimeData);
-        QPixmap pixmap(24, 20);
-        pixmap.fill(rgb565ToColor(m_rgb565));
-        drag->setPixmap(pixmap);
-        drag->exec(Qt::CopyAction);
-    }
-
     void mouseDoubleClickEvent(QMouseEvent* event) override
     {
-        if (m_colorActive && event->button() == Qt::LeftButton && m_doubleClickedHandler) {
-            m_doubleClickedHandler(m_colorIndex);
+        if (isEnabled() && event->button() == Qt::LeftButton && m_doubleClickedHandler) {
+            m_doubleClickedHandler(slot());
             event->accept();
             return;
         }
@@ -91,10 +48,6 @@ protected:
     }
 
 private:
-    std::size_t m_colorIndex = 0;
-    uint16_t m_rgb565 = 0;
-    bool m_colorActive = false;
-    QPoint m_dragStartPosition;
     std::function<void(std::size_t)> m_doubleClickedHandler;
 };
 
@@ -152,7 +105,7 @@ void ColorGridWidget::setColors(const std::vector<uint16_t>& colors, std::size_t
         const bool active = hasColor && index < activeCount;
         const uint16_t color = hasColor ? colors[index] : uint16_t{0};
         if (auto* gridButton = dynamic_cast<ColorGridButton*>(button)) {
-            gridButton->setGridColor(color, active);
+            gridButton->setSlotColor(active ? std::optional<uint16_t>(color) : std::nullopt);
         }
         button->setEnabled(active);
         button->setStyleSheet(colorButtonStyle(color, active));
@@ -174,6 +127,16 @@ void ColorGridWidget::setColorClickedHandler(std::function<void(std::size_t)> ha
 void ColorGridWidget::setColorDoubleClickedHandler(std::function<void(std::size_t)> handler)
 {
     m_colorDoubleClickedHandler = std::move(handler);
+}
+
+void ColorGridWidget::setColorsSwappedHandler(
+    std::function<void(std::size_t, std::size_t)> handler)
+{
+    for (QToolButton* button : m_buttons) {
+        if (auto* gridButton = dynamic_cast<ColorGridButton*>(button)) {
+            gridButton->onSlotDropped = handler;
+        }
+    }
 }
 
 void ColorGridWidget::setRangeDraggedHandler(

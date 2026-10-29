@@ -25,6 +25,9 @@ public:
     void setColors(const std::vector<uint16_t>& colors, std::size_t activeCount);
     void setColorClickedHandler(std::function<void(std::size_t)> handler);
     void setColorDoubleClickedHandler(std::function<void(std::size_t)> handler);
+    // A color dragged onto another color of the grid: the handler swaps the two (issue #45).
+    // Without a handler the colors are only dragged elsewhere.
+    void setColorsSwappedHandler(std::function<void(std::size_t from, std::size_t to)> handler);
     // Ctrl+drag (Cmd+drag on macOS) across the colors picks a range, as the Win32 editor's
     // palette did for gradients: the handler hears the first and the last color in the order
     // of the drag (reversed with Shift held), while the drag goes on.
