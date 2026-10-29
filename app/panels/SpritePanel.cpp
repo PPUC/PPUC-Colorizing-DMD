@@ -135,6 +135,15 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_removeHdButton->setText(tr("Remove HD Sprite"));
     m_removeHdButton->setToolTip(tr("Remove the sprite's HD data"));
     m_removeHdButton->setEnabled(false);
+    m_transparentPaintButton = new QToolButton(this);
+    m_transparentPaintButton->setText(tr("Paint Transparent"));
+    m_transparentPaintButton->setCheckable(true);
+    m_transparentPaintButton->setEnabled(false);
+    connect(m_transparentPaintButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (onTransparentPaintToggled) {
+            onTransparentPaintToggled(checked);
+        }
+    });
     connect(m_createHdButton, &QToolButton::clicked, this, [this]() {
         if (onCreateHdRequested) {
             onCreateHdRequested();
@@ -383,6 +392,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     auto* hdLayout = new QHBoxLayout();
     hdLayout->addWidget(m_createHdButton);
     hdLayout->addWidget(m_removeHdButton);
+    hdLayout->addWidget(m_transparentPaintButton);
     pageLayout->addLayout(hdLayout);
     auto* leaveLayout = new QHBoxLayout();
     leaveLayout->addWidget(m_applySpriteEditsButton);
@@ -577,6 +587,17 @@ void SpritePanel::setDynamicPaintChecked(bool checked)
     m_dynamicPaintButton->setChecked(checked);
 }
 
+void SpritePanel::setTransparentPaintChecked(bool checked)
+{
+    QSignalBlocker blocker(m_transparentPaintButton);
+    m_transparentPaintButton->setChecked(checked);
+}
+
+bool SpritePanel::isTransparentPaintChecked() const
+{
+    return m_transparentPaintButton->isChecked();
+}
+
 void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
                                  std::optional<std::size_t> spriteIndex)
 {
@@ -599,6 +620,16 @@ void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
         m_removeHdButton->setVisible(layout == render::PlaneLayout::Ordinary);
         m_createHdButton->setEnabled(hasSprite && !spriteHasHd);
         m_removeHdButton->setEnabled(hasSprite && spriteHasHd);
+        //: %1: "HD", or the plane's size such as 256x64
+        m_transparentPaintButton->setToolTip(
+            tr("On the sprite canvas, strokes make pixels of the %1 sprite transparent (Shift: "
+               "cover them again where the original is). The original, which the sprite is "
+               "found by, stays")
+                .arg(layout == render::PlaneLayout::NativeExtra
+                         ? planeSizeText(render::ProjectGeometry(layout).romFrameSize())
+                         : QStringLiteral("HD")));
+        m_transparentPaintButton->setVisible(layout != render::PlaneLayout::NativeOriginal);
+        m_transparentPaintButton->setEnabled(hasSprite && spriteHasHd);
     }
     for (QWidget* widget : std::initializer_list<QWidget*>{
              m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox, m_dynamicColorGrid,

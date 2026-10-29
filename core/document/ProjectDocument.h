@@ -742,6 +742,18 @@ public:
     std::size_t setSpriteDynamicMaskPixels(std::size_t spriteIndex,
                                            const std::vector<render::Point>& points,
                                            uint8_t value);
+    // The HD sprite's own transparency (maskHd), apart from the original that libserum looks
+    // for: libserum draws only the HD pixels the mask covers. Transparent, a pixel keeps its
+    // color for later. Not transparent, a pixel over an opaque pixel of the original covers
+    // again, with that pixel's shade as Create HD Sprite gives it; others stay transparent.
+    // Points are HD sprite pixels. Returns how many pixels changed; throws std::logic_error for
+    // a sprite without HD data.
+    std::size_t setSpriteHdTransparency(std::size_t spriteIndex,
+                                        const std::vector<render::Point>& points,
+                                        bool transparent);
+    // The pixel of the original under an HD sprite pixel; empty for a sprite without HD data.
+    [[nodiscard]] std::optional<uint8_t> spriteOriginalUnderHd(std::size_t spriteIndex,
+                                                               render::Point point) const;
     [[nodiscard]] uint16_t spriteDynamicColor(std::size_t spriteIndex,
                                               std::size_t setIndex,
                                               std::size_t originalColorIndex) const;

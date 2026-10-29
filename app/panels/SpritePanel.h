@@ -122,12 +122,17 @@ public:
     // sets and their colors).
     std::function<void(bool shapeMode)> onShapeModeToggled;
     std::function<void(bool enabled)> onDynamicPaintToggled;
+    // Paint Transparent: strokes on the HD sprite make its pixels transparent.
+    std::function<void(bool enabled)> onTransparentPaintToggled;
     std::function<void(std::size_t originalColorIndex)> onDynamicColorClicked;
     std::function<void()> onEditColorsToDynamicSet;
     std::function<void()> onDynamicSetToEditColors;
     // 0 to 8, shown as 1 to 9.
     [[nodiscard]] std::size_t dynamicSet() const;
     void setDynamicPaintChecked(bool checked);
+    // Neither notifies.
+    void setTransparentPaintChecked(bool checked);
+    [[nodiscard]] bool isTransparentPaintChecked() const;
     // Read the new values with slotBounds().
     std::function<void()> onSlotBoundsEdited;
     // Read the new values with slotOffset().
@@ -162,6 +167,7 @@ private:
     QToolButton* m_editorSourceFrameButton = nullptr;
     QToolButton* m_createHdButton = nullptr;
     QToolButton* m_removeHdButton = nullptr;
+    QToolButton* m_transparentPaintButton = nullptr;
     QCheckBox* m_shapeModeCheckBox = nullptr;
     QToolButton* m_dynamicPaintButton = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;

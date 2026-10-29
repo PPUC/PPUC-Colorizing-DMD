@@ -61,6 +61,15 @@ The controls:
   clears its HD-present flag. Each
   button is enabled when it applies. Both can be undone; Undo restores the sprite's previous HD
   mask and HD colors.
+- `Paint Transparent` (beside them, for a sprite with HD data) makes pixels of the HD sprite
+  transparent, so that the frame shows through them in HD, while the original, which the sprite
+  is found by, stays as it is: for example to leave out the outline a sprite has in the original
+  and keep only its inner pixels in HD. On the sprite canvas (`Edit Sprite`, switched to HD)
+  strokes of the point, line and shape tools make the pixels transparent; with `Shift` they cover
+  again, where the original under them is, with their colors as before. Transparent HD pixels
+  over the original are marked with a pattern while the mode is on. The fill tool does not paint
+  transparency, and `Paint Dynamic` and `Paint Transparent` are not on together. Each stroke is
+  one undo step of the sprite. In a 256x64 project the button works on the 256x64 sprite.
 - In the sprite editor canvas, drag on the colorized sprite to repaint existing non-black sprite pixels with the active draw color.
   With color set replace (the drawing mode of the edit colors, as on the frame canvas) each
   painted pixel instead takes the edit color of the shade of the sprite's original under it (on

@@ -680,6 +680,20 @@ bool SpriteEditorWidget::isDynamicPaintMode() const
     return m_dynamicPaint;
 }
 
+void SpriteEditorWidget::setTransparentPaintMode(bool enabled)
+{
+    if (m_transparentPaint == enabled) {
+        return;
+    }
+    m_transparentPaint = enabled;
+    update();
+}
+
+bool SpriteEditorWidget::isTransparentPaintMode() const
+{
+    return m_transparentPaint;
+}
+
 void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout& region)
 {
     painter.fillRect(QRect(region.rect.x, region.rect.y, region.rect.width, region.rect.height),
@@ -715,6 +729,24 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
                           cellSize,
                           color,
                           m_renderOptions);
+        }
+    }
+    // The HD pixels made transparent over the original: a stroke with Shift covers them again.
+    if (m_transparentPaint && drawHdColorized) {
+        for (int y = 0; y < kSpriteSize.height; ++y) {
+            for (int x = 0; x < kSpriteSize.width; ++x) {
+                const std::size_t index = spritePixelIndex(x, y);
+                const std::optional<uint8_t> original =
+                    m_document->spriteOriginalUnderHd(*m_spriteIndex, render::Point{x, y});
+                if (mask.pixels[index] != 255 || !original || *original == 255) {
+                    continue;
+                }
+                painter.fillRect(QRectF(region.rect.x + x * cellSize,
+                                        region.rect.y + y * cellSize,
+                                        cellSize,
+                                        cellSize),
+                                 QBrush(QColor(255, 0, 255, 110), Qt::Dense5Pattern));
+            }
         }
     }
     // The dynamic zones, over the picture of the plane they are on.
@@ -806,9 +838,12 @@ void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const Re
     if (!m_paintErase) {
         previewColor.setAlpha(150);
     }
+    if (m_transparentPaint) {
+        previewColor = m_paintErase ? QColor(255, 255, 255, 150) : QColor(255, 0, 255, 150);
+    }
     // In dynamic paint mode the stroke paints dynamic zones, not colors.
     const edit::PixelColorSource replaced =
-        m_colorSetReplace && !m_paintErase && !m_dynamicPaint
+        m_colorSetReplace && !m_paintErase && !m_dynamicPaint && !m_transparentPaint
             ? edit::spriteColorSetReplaceColorSource(*m_document, *m_spriteIndex, resolution)
             : edit::PixelColorSource();
 
@@ -851,6 +886,16 @@ bool SpriteEditorWidget::isColorizedPixelEditable(const document::SpriteRecord& 
     const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
     const document::Rgb565Frame& colorized = useHd ? sprite.colorizedHd : sprite.colorizedSd;
     const std::size_t index = spritePixelIndex(point.x, point.y);
+    if (m_transparentPaint) {
+        if (!useHd) {
+            return false;
+        }
+        // Erase (Shift) covers a transparent pixel again where the original is.
+        const std::optional<uint8_t> original =
+            m_document->spriteOriginalUnderHd(*m_spriteIndex, point);
+        return erase ? mask.pixels[index] == 255 && original && *original != 255
+                     : mask.pixels[index] != 255;
+    }
     if (mask.pixels[index] == 255) {
         return false;
     }

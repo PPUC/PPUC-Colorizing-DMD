@@ -3352,6 +3352,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Le sprite %1 est trouvé par ses nuances</translation>
     </message>
     <message>
+        <source>Strokes on the %1 sprite (Edit Sprite) make its pixels transparent; Shift covers them again</source>
+        <translation>Les traits sur le sprite %1 (Éditer sprite) rendent ses pixels transparents ; Maj les recouvre</translation>
+    </message>
+    <message>
         <source>Paint dynamic zones on the sprite canvas (Edit Sprite), on the %1 sprite</source>
         <translation>Peindre les zones dynamiques sur le canevas du sprite (Éditer sprite), sur le sprite %1</translation>
     </message>
@@ -4068,6 +4072,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Play every frame for the interval beside; unchecked, each frame for its own duration (the Frame section&apos;s Duration)</source>
         <translation>Lire chaque frame pendant l&apos;intervalle à côté ; décoché, chaque frame pendant sa propre durée (la Durée de la section Frame)</translation>
+    </message>
+    <message>
+        <source>Transparent pixels are painted with the point and shape tools</source>
+        <translation>Les pixels transparents se peignent avec les outils point et forme</translation>
     </message>
     <message>
         <source>Export Animated GIF Failed</source>
@@ -5715,7 +5723,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Captured into sprite %1, but it has no four pixels next to each other in a row: the runtime cannot find it</source>
-        <translation>Capturé dans le sprite %1, mais il n'a pas quatre pixels côte à côte sur une ligne : le runtime ne peut pas le trouver</translation>
+        <translation>Capturé dans le sprite %1, mais il n&apos;a pas quatre pixels côte à côte sur une ligne : le runtime ne peut pas le trouver</translation>
     </message>
     <message>
         <source>Moved sprite %1 up in %2</source>
@@ -5739,7 +5747,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>A detection area needs at least four pixels of the sprite next to each other in a row: the runtime looks for them in a frame to find the sprite. This area has none, so it would never find the sprite. Draw it over a part of the sprite with such a row.</source>
-        <translation>Une zone de détection doit contenir au moins quatre pixels du sprite côte à côte sur une ligne : le runtime les cherche dans une frame pour trouver le sprite. Cette zone n'en a aucun, elle ne trouverait donc jamais le sprite. Tracez-la sur une partie du sprite qui a une telle ligne.</translation>
+        <translation>Une zone de détection doit contenir au moins quatre pixels du sprite côte à côte sur une ligne : le runtime les cherche dans une frame pour trouver le sprite. Cette zone n&apos;en a aucun, elle ne trouverait donc jamais le sprite. Tracez-la sur une partie du sprite qui a une telle ligne.</translation>
     </message>
     <message numerus="yes">
         <source>Updated dynamic color 0x%1 in %n frame(s)</source>
@@ -5754,6 +5762,10 @@ Utiliser Créer la frame %1.</translation>
             <numerusform>%n modification partagée des partenaires à fusionner</numerusform>
             <numerusform>%n modifications partagées des partenaires à fusionner</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Transparent pixels are painted on the %1 sprite</source>
+        <translation>Les pixels transparents se peignent sur le sprite %1</translation>
     </message>
     <message>
         <source>Delete Sprites</source>
@@ -8241,6 +8253,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Retirer les données HD du sprite</translation>
     </message>
     <message>
+        <source>Paint Transparent</source>
+        <translation>Peindre transp.</translation>
+    </message>
+    <message>
         <source>Source Frame</source>
         <translation>Frame source</translation>
     </message>
@@ -8411,6 +8427,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Create the %1 sprite from the sprite original in its plain colors</source>
         <translation>Créer le sprite %1 à partir de l&apos;original du sprite dans ses couleurs simples</translation>
+    </message>
+    <message>
+        <source>On the sprite canvas, strokes make pixels of the %1 sprite transparent (Shift: cover them again where the original is). The original, which the sprite is found by, stays</source>
+        <extracomment>%1: &quot;HD&quot;, or the plane&apos;s size such as 256x64</extracomment>
+        <translation>Sur le canevas du sprite, les traits rendent transparents des pixels du sprite %1 (Maj : les recouvrir là où se trouve l&apos;original). L&apos;original, par lequel le sprite est reconnu, reste</translation>
     </message>
     <message>
         <source>Slot %1: Empty</source>

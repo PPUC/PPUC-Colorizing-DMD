@@ -1484,9 +1484,33 @@ void MainWindow::createCentralView()
                                                  .arg(static_cast<int>(*sprite)),
                                  2500);
     };
+    m_spritePanel->onTransparentPaintToggled = [this](bool enabled) {
+        if (m_spriteEditor) {
+            m_spriteEditor->setTransparentPaintMode(enabled);
+            if (enabled && m_spriteEditor->isDynamicPaintMode()) {
+                m_spriteEditor->setDynamicPaintMode(false);
+                m_spritePanel->setDynamicPaintChecked(false);
+            }
+        }
+        if (enabled) {
+            statusBar()->showMessage(
+                tr("Strokes on the %1 sprite (Edit Sprite) make its pixels transparent; "
+                   "Shift covers them again")
+                    .arg(m_document ? planeLabel(*m_document, render::Resolution::Hd)
+                                    : QStringLiteral("HD")),
+                4000);
+        }
+    };
     m_spritePanel->onDynamicPaintToggled = [this](bool enabled) {
         if (m_spriteEditor) {
             m_spriteEditor->setDynamicPaintMode(enabled);
+        }
+        // One paint mode at a time.
+        if (enabled && m_spritePanel->isTransparentPaintChecked()) {
+            m_spritePanel->setTransparentPaintChecked(false);
+            if (m_spriteEditor) {
+                m_spriteEditor->setTransparentPaintMode(false);
+            }
         }
         if (enabled) {
             statusBar()->showMessage(
@@ -2483,6 +2507,10 @@ void MainWindow::createCentralView()
                int x,
                int y,
                bool erase) {
+            if (m_spriteEditor->isTransparentPaintMode()) {
+                paintSpriteHdTransparency(spriteIndex, resolution, {render::Point{x, y}}, erase);
+                return;
+            }
             if (m_spriteEditor->isDynamicPaintMode()) {
                 paintSpriteDynamic(spriteIndex, {render::Point{x, y}}, erase);
                 return;
@@ -2494,6 +2522,10 @@ void MainWindow::createCentralView()
                render::Resolution resolution,
                const std::vector<render::Point>& pixels,
                bool erase) {
+            if (m_spriteEditor->isTransparentPaintMode()) {
+                paintSpriteHdTransparency(spriteIndex, resolution, pixels, erase);
+                return;
+            }
             if (m_spriteEditor->isDynamicPaintMode()) {
                 paintSpriteDynamic(spriteIndex, pixels, erase);
                 return;
@@ -2509,6 +2541,12 @@ void MainWindow::createCentralView()
             if (m_spriteEditor->isDynamicPaintMode()) {
                 statusBar()->showMessage(
                     tr("Dynamic zones are painted with the point and shape tools"),
+                    3000);
+                return;
+            }
+            if (m_spriteEditor->isTransparentPaintMode()) {
+                statusBar()->showMessage(
+                    tr("Transparent pixels are painted with the point and shape tools"),
                     3000);
                 return;
             }
@@ -9559,6 +9597,37 @@ void MainWindow::paintSpriteDynamic(std::size_t spriteIndex,
     edit::SpriteState before = edit::spriteState(*m_document, spriteIndex);
     try {
         if (m_document->setSpriteDynamicMaskPixels(spriteIndex, pixels, value) == 0) {
+            return;
+        }
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return;
+    }
+    recordEdit(edit::spriteStateCommand(*m_document, spriteIndex, std::move(before)));
+    if (m_spriteEditor) {
+        m_spriteEditor->update();
+    }
+    setSpriteDependentViewsDirty();
+}
+
+void MainWindow::paintSpriteHdTransparency(std::size_t spriteIndex,
+                                           render::Resolution resolution,
+                                           const std::vector<render::Point>& pixels,
+                                           bool cover)
+{
+    if (!m_document || spriteIndex >= m_document->spriteCount()) {
+        return;
+    }
+    if (resolution != render::Resolution::Hd || !m_document->hasHdSprite(spriteIndex)) {
+        statusBar()->showMessage(
+            tr("Transparent pixels are painted on the %1 sprite")
+                .arg(planeLabel(*m_document, render::Resolution::Hd)),
+            3000);
+        return;
+    }
+    edit::SpriteState before = edit::spriteState(*m_document, spriteIndex);
+    try {
+        if (m_document->setSpriteHdTransparency(spriteIndex, pixels, !cover) == 0) {
             return;
         }
     } catch (const std::exception& ex) {

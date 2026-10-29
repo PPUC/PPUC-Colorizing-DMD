@@ -53,6 +53,11 @@ public:
     // on (ProjectDocument::dynamicPlane()).
     void setDynamicPaintMode(bool enabled);
     [[nodiscard]] bool isDynamicPaintMode() const;
+    // Strokes on the HD sprite make its pixels transparent (Shift: cover again where the
+    // original is), as ProjectDocument::setSpriteHdTransparency(); the transparent pixels over
+    // the original are marked. The SD sprite takes no strokes in this mode.
+    void setTransparentPaintMode(bool enabled);
+    [[nodiscard]] bool isTransparentPaintMode() const;
     void setSelectedDetectionAreaIndex(std::optional<std::size_t> areaIndex);
     void setDetectionAreaChangedHandler(
         std::function<void(std::size_t, document::SpriteDetectionArea)> handler);
@@ -143,6 +148,7 @@ private:
     uint16_t m_activeDrawColor = 0xffff;
     bool m_colorSetReplace = false;
     bool m_dynamicPaint = false;
+    bool m_transparentPaint = false;
     DmdRenderOptions m_renderOptions;
     bool m_showDetectionAreas = true;
     std::optional<std::size_t> m_selectedAreaIndex;

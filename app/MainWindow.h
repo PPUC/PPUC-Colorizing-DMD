@@ -208,6 +208,12 @@ private:
     void copySpriteToClipboard();
     // The sprite canvas in dynamic paint mode: pixels into the sprite panel's dynamic set, or
     // out of any (erase).
+    // Paint Transparent: strokes make HD sprite pixels transparent, with cover (Shift) opaque
+    // again where the original is.
+    void paintSpriteHdTransparency(std::size_t spriteIndex,
+                                   render::Resolution resolution,
+                                   const std::vector<render::Point>& pixels,
+                                   bool cover);
     void paintSpriteDynamic(std::size_t spriteIndex,
                             const std::vector<render::Point>& pixels,
                             bool erase);

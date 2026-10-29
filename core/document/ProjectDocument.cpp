@@ -3073,6 +3073,54 @@ std::size_t ProjectDocument::setSpriteDynamicMaskPixels(std::size_t spriteIndex,
     return changed;
 }
 
+std::optional<uint8_t> ProjectDocument::spriteOriginalUnderHd(std::size_t spriteIndex,
+                                                              render::Point point) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const SpriteRecord& sprite = m_sprites[spriteIndex];
+    if (!sprite.hasHd || point.x < 0 || point.y < 0 ||
+        point.x >= static_cast<int>(kMaxSpriteWidth) ||
+        point.y >= static_cast<int>(kMaxSpriteHeight)) {
+        return std::nullopt;
+    }
+    // As createHdSprite(): one to one in a project that renders its extra plane only.
+    const int scale = rendersHdPlaneOnly() ? 1 : 2;
+    return sprite.originalSd.pixels[spritePixelIndex(point.x / scale, point.y / scale)];
+}
+
+std::size_t ProjectDocument::setSpriteHdTransparency(std::size_t spriteIndex,
+                                                     const std::vector<render::Point>& points,
+                                                     bool transparent)
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    SpriteRecord& sprite = m_sprites[spriteIndex];
+    if (!sprite.hasHd) {
+        throw std::logic_error("the sprite has no " + extraPlaneName(m_geometry) + " data");
+    }
+    std::size_t changed = 0;
+    for (const render::Point& point : points) {
+        const std::optional<uint8_t> original = spriteOriginalUnderHd(spriteIndex, point);
+        if (!original) {
+            continue;
+        }
+        const std::size_t index = spritePixelIndex(point.x, point.y);
+        const uint8_t value = transparent ? uint8_t{255} : *original;
+        if (std::as_const(sprite.maskHd.pixels)[index] == value) {
+            continue;
+        }
+        sprite.maskHd.pixels[index] = value;
+        ++changed;
+    }
+    if (changed > 0) {
+        markChanged();
+    }
+    return changed;
+}
+
 uint16_t ProjectDocument::spriteDynamicColor(std::size_t spriteIndex,
                                              std::size_t setIndex,
                                              std::size_t originalColorIndex) const

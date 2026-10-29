@@ -3352,6 +3352,10 @@ Use Create %1 Frame.</source>
         <translation>Sprite %1 wird an seinen Graustufen erkannt</translation>
     </message>
     <message>
+        <source>Strokes on the %1 sprite (Edit Sprite) make its pixels transparent; Shift covers them again</source>
+        <translation>Striche auf dem %1-Sprite (Sprite bearbeiten) machen seine Pixel transparent; Umschalt deckt sie wieder</translation>
+    </message>
+    <message>
         <source>Paint dynamic zones on the sprite canvas (Edit Sprite), on the %1 sprite</source>
         <translation>Dynamische Zonen auf der Sprite-Zeichenfläche (Sprite bearbeiten) zeichnen, auf dem %1-Sprite</translation>
     </message>
@@ -4068,6 +4072,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Play every frame for the interval beside; unchecked, each frame for its own duration (the Frame section&apos;s Duration)</source>
         <translation>Jeden Frame für das Intervall daneben abspielen; nicht angehakt jeden Frame für seine eigene Dauer (Dauer im Abschnitt Frame)</translation>
+    </message>
+    <message>
+        <source>Transparent pixels are painted with the point and shape tools</source>
+        <translation>Transparente Pixel werden mit dem Punkt- und den Formwerkzeugen gezeichnet</translation>
     </message>
     <message>
         <source>Export Animated GIF Failed</source>
@@ -5754,6 +5762,10 @@ Use Create %1 Frame.</source>
             <numerusform>%n geteilte Änderung der Partner zum Zusammenführen</numerusform>
             <numerusform>%n geteilte Änderungen der Partner zum Zusammenführen</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Transparent pixels are painted on the %1 sprite</source>
+        <translation>Transparente Pixel werden auf dem %1-Sprite gezeichnet</translation>
     </message>
     <message>
         <source>Delete Sprites</source>
@@ -8241,6 +8253,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Die HD-Daten des Sprites entfernen</translation>
     </message>
     <message>
+        <source>Paint Transparent</source>
+        <translation>Transparent zeichnen</translation>
+    </message>
+    <message>
         <source>Source Frame</source>
         <translation>Quell-Frame</translation>
     </message>
@@ -8411,6 +8427,11 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Create the %1 sprite from the sprite original in its plain colors</source>
         <translation>Das %1-Sprite aus dem Sprite-Original in seinen schlichten Farben erstellen</translation>
+    </message>
+    <message>
+        <source>On the sprite canvas, strokes make pixels of the %1 sprite transparent (Shift: cover them again where the original is). The original, which the sprite is found by, stays</source>
+        <extracomment>%1: &quot;HD&quot;, or the plane&apos;s size such as 256x64</extracomment>
+        <translation>Auf der Sprite-Leinwand machen Striche Pixel des %1-Sprites transparent (Umschalt: wieder decken, wo das Original ist). Das Original, an dem das Sprite erkannt wird, bleibt</translation>
     </message>
     <message>
         <source>Slot %1: Empty</source>

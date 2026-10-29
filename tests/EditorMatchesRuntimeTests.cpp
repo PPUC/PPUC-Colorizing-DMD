@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -94,6 +95,17 @@ ProjectSnapshot makeProjectWithSpriteListCases(PlaneLayout layout)
     snapshot.frames[12].spriteReferences[0].offsetY = 4;
     snapshot.frames[13].spriteReferences[0].offsetX = -14;
     snapshot.frames[13].spriteReferences[0].offsetY = -5;
+    // Paint Transparent: sprite 0's extra-plane mask leaves out the first pixel its original
+    // covers, which the sprite is still found by.
+    if (snapshot.sprites[0].hasHd) {
+        auto& mask = snapshot.sprites[0].maskHd.pixels;
+        for (std::size_t i = 0; i < mask.size(); ++i) {
+            if (std::as_const(mask)[i] != 255) {
+                mask[i] = 255;
+                break;
+            }
+        }
+    }
     return snapshot;
 }
 

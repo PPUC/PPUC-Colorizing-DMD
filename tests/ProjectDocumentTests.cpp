@@ -1371,6 +1371,26 @@ void testSpriteHdCreateAndRemove()
            "createHdSprite should upscale SD sprite colors");
     expect(document.isDirty(), "createHdSprite should mark dirty");
 
+    // The HD sprite's own transparency: the original, which libserum looks for, stays.
+    using colorizing::render::Point;
+    document.markClean();
+    expect(document.setSpriteHdTransparency(0, {Point{6, 8}, Point{7, 9}, Point{0, 0}}, true) ==
+               2,
+           "two covered HD pixels become transparent, an uncovered one stays");
+    expect(document.sprite(0).maskHd.pixels[8 * 256 + 6] == 255 &&
+               document.sprite(0).originalSd.pixels[4 * 256 + 3] == 2 &&
+               document.spriteColorizedPixel(0, Resolution::Hd, 7, 9) == 0x4321 &&
+               document.isDirty(),
+           "the original and the HD colors stay");
+    expect(document.setSpriteHdTransparency(0, {Point{6, 8}, Point{0, 0}}, false) == 1 &&
+               document.sprite(0).maskHd.pixels[8 * 256 + 6] == 2 &&
+               document.sprite(0).maskHd.pixels[0] == 255,
+           "back over the original only, with its shade");
+    expect(document.spriteOriginalUnderHd(0, Point{7, 9}) == uint8_t{2} &&
+               !document.spriteOriginalUnderHd(0, Point{-1, 0}),
+           "the original under an HD pixel");
+    document.setSpriteHdTransparency(0, {Point{7, 9}}, false);
+
     document.markClean();
     document.createHdSprite(0);
     expect(!document.isDirty(), "createHdSprite should ignore existing HD sprite");
@@ -1383,6 +1403,9 @@ void testSpriteHdCreateAndRemove()
     document.removeHdSprite(0);
     expect(!document.isDirty(), "removeHdSprite should ignore absent HD sprite");
 
+    expectThrows<std::logic_error>(
+        [&]() { (void)document.setSpriteHdTransparency(0, {Point{6, 8}}, true); },
+        "a sprite without HD has no HD transparency");
     expectThrows<std::out_of_range>(
         [&]() { document.createHdSprite(1); },
         "sprite HD create bounds");

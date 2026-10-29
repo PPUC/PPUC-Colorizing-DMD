@@ -1561,6 +1561,63 @@ void testSpriteEditorZoom()
            "dragging to the left with Space shows more of the right");
 }
 
+// Paint Transparent: strokes on the HD sprite take pixels out of its mask, Shift puts them back
+// where the original is; the original stays.
+void testSpriteEditorPaintsHdTransparency()
+{
+    using colorizing::render::Point;
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    document.createHdSprite(0);
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    widget.setDrawingTool(colorizing::app::SpriteDrawingTool::Point);
+    widget.setTransparentPaintMode(true);
+    expect(widget.isTransparentPaintMode(), "the mode is on");
+    // Several widget pixels per HD pixel, so that its middle is a whole widget pixel.
+    widget.setZoom(4.0, QPoint(0, 0));
+    std::optional<Point> hit;
+    widget.setColorizedPixelEditedHandler(
+        [&document, &hit](std::size_t sprite, colorizing::render::Resolution, int x, int y,
+                          bool cover) {
+            hit = Point{x, y};
+            (void)document.setSpriteHdTransparency(sprite, {Point{x, y}}, !cover);
+        });
+    // The middle of an HD pixel: half an SD sprite pixel each.
+    const QPointF origin = widget.pixelCentre(false, {0, 0});
+    const double scale = widget.pixelCentre(false, {1, 0}).x() - origin.x();
+    const auto hdCentre = [&](int x, int y) {
+        return origin + QPointF(((x + 0.5) / 2.0 - 0.5) * scale, ((y + 0.5) / 2.0 - 0.5) * scale);
+    };
+    const auto click = [&widget](QPointF at, Qt::KeyboardModifiers modifiers) {
+        QMouseEvent press(QEvent::MouseButtonPress, at, at, widget.mapToGlobal(at),
+                          Qt::LeftButton, Qt::LeftButton, modifiers);
+        QApplication::sendEvent(&widget, &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, at, at, widget.mapToGlobal(at),
+                            Qt::LeftButton, Qt::NoButton, modifiers);
+        QApplication::sendEvent(&widget, &release);
+    };
+    const auto green = [&widget](QPointF at) {
+        const QColor color = widget.grab().toImage().pixelColor(at.toPoint());
+        return color.green() > 150 && color.red() < 100;
+    };
+    // An HD pixel inside the sprite, over original pixel (5, 6).
+    const QPointF at = hdCentre(11, 13);
+    expect(green(at), "the HD sprite pixel is drawn");
+    click(at, Qt::NoModifier);
+    expect(hit && hit->x / 2 == 5 && hit->y / 2 == 6, "the stroke is on the HD sprite");
+    const std::size_t index = static_cast<std::size_t>(hit->y) * 256 + hit->x;
+    expect(document.sprite(0).maskHd.pixels[index] == 255 &&
+               document.sprite(0).originalSd.pixels[6 * 256 + 5] == 1,
+           "a stroke makes the HD pixel transparent, the original stays");
+    expect(!green(at), "and it is no longer drawn");
+    click(at, Qt::ShiftModifier);
+    expect(document.sprite(0).maskHd.pixels[index] == 1 && green(at),
+           "Shift covers it again, with the original's shade");
+}
+
 void testSpriteEditorRendersAndEditsDetectionArea()
 {
     colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
@@ -2480,6 +2537,42 @@ void testManySpritesAdvice()
                advice.contains(QStringLiteral("video mode")) &&
                !advice.contains(QStringLiteral("short flash")),
            "the advice names the old Williams games and the video modes");
+}
+
+// Paint Transparent is for a sprite with HD data only, and reports its toggling.
+void testTransparentPaintButton()
+{
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    state.spriteIndex = 0;
+    colorizing::app::SpritePanel panel;
+    std::optional<bool> toggled;
+    panel.onTransparentPaintToggled = [&toggled](bool on) { toggled = on; };
+    QToolButton* button = nullptr;
+    for (QToolButton* candidate : panel.findChildren<QToolButton*>()) {
+        if (candidate->text() == QStringLiteral("Paint Transparent")) {
+            button = candidate;
+        }
+    }
+    expect(button != nullptr, "the record page has Paint Transparent");
+    if (!button) {
+        return;
+    }
+    if (document.hasHdSprite(0)) {
+        document.removeHdSprite(0);
+    }
+    panel.refresh(state);
+    expect(!button->isEnabled(), "a sprite without HD has no HD transparency");
+    document.createHdSprite(0);
+    panel.refresh(state);
+    expect(button->isEnabled(), "a sprite with HD has");
+    button->click();
+    expect(toggled == true && panel.isTransparentPaintChecked(), "a click turns it on");
+    toggled.reset();
+    panel.setTransparentPaintChecked(false);
+    expect(!toggled && !panel.isTransparentPaintChecked(), "set from outside, it does not report");
 }
 
 void testSpriteSlotOrderButtons()
@@ -4202,6 +4295,8 @@ int main(int argc, char* argv[])
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorZoom();
     testSpriteEditorRendersAndEditsDetectionArea();
+    testSpriteEditorPaintsHdTransparency();
+    testTransparentPaintButton();
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();
     testColorRotationPanel();
