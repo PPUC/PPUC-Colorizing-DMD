@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <map>
+#include <optional>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -22,10 +23,14 @@ class FrameSettingsDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(FrameSettingsDialog)
 
 public:
+    // chosen: the parts chosen at first instead of the kept choices, which then stay as they
+    // were (the sprite section's Copy to Selected Frames).
     FrameSettingsDialog(const document::ProjectDocument& document,
                         std::size_t source,
                         std::vector<std::size_t> targets,
-                        QWidget* parent = nullptr);
+                        QWidget* parent = nullptr,
+                        std::optional<std::vector<edit::FrameSettingsPart>> chosen =
+                            std::nullopt);
 
     [[nodiscard]] std::vector<edit::FrameSettingsPart> parts() const;
     // The check box of a part, for tests.
@@ -39,6 +44,7 @@ private:
 
     std::map<edit::FrameSettingsPart, QCheckBox*> m_checkBoxes;
     QLabel* m_note = nullptr;
+    bool m_keepsChoices = true;
     std::size_t m_sceneFrames = 0;
 };
 

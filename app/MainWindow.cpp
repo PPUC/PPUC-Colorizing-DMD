@@ -1428,6 +1428,9 @@ void MainWindow::createCentralView()
     m_spritePanel->onSlotSelectionChanged = [this]() {
         updateSpriteControls();
     };
+    m_spritePanel->onCopySlotsRequested = [this]() {
+        copyFrameSettings(std::vector<edit::FrameSettingsPart>{edit::FrameSettingsPart::Sprites});
+    };
     m_spritePanel->onAssignRequested = [this]() {
         assignSelectedSpriteToCurrentSlot();
     };
@@ -12178,7 +12181,7 @@ void MainWindow::updateTimeLabel()
     }
 }
 
-void MainWindow::copyFrameSettings()
+void MainWindow::copyFrameSettings(std::optional<std::vector<edit::FrameSettingsPart>> chosen)
 {
     const std::optional<std::size_t> source = currentFrameIndex();
     if (!m_document || !source) {
@@ -12195,7 +12198,7 @@ void MainWindow::copyFrameSettings()
     }
     setPlaybackRunning(false);
     applyPendingSpriteDependentViews();
-    FrameSettingsDialog dialog(*m_document, *source, targets, this);
+    FrameSettingsDialog dialog(*m_document, *source, targets, this, std::move(chosen));
     if (dialog.exec() != QDialog::Accepted || dialog.parts().empty()) {
         return;
     }

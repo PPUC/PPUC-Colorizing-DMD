@@ -21,7 +21,7 @@ The Inspector has two sprite sections, each shown on its own canvas:
 - `Frame Sprites`, on the frame canvas: what ties sprites to the frames. The selected sprite,
   the sprites of the current frame (in a short list that scrolls; `Used by the current frame`
   in the left sidebar shows them too), the slot selector, `Assign`, `Capture`, `Remove`,
-  `Move Up`, `Move Down`,
+  `Move Up`, `Move Down`, `Copy to Selected Frames`,
   `Select Capture`, `Clear Sel`, `Show Bounds`, `Outline Sprites`, `Source Frame`, the slot's
   bounds (`Min X` to `Max Y`) and `Edit Sprite`.
 - `Sprite`, in the sprite editor: the sprite itself. The selected sprite, its name,
@@ -183,6 +183,12 @@ The controls:
     has it (in the selected slot, or else in the first slot that holds it); the slot selection
     goes with it. A frame without a sprite in the slot to change places with is skipped and
     counted in the status bar. Each frame's change is an undo step of its own, as with `Remove`.
+  - `Copy to Selected Frames` gives the other selected frames the sprite slots of the current
+    frame, each with its sprite, bounds and offset, for example for a frame found later that
+    shows the same as frames already set up. It opens `Edit -> Copy Frame Settings...` (see
+    "Copy And Paste") with only `Sprites and their bounds` chosen: the copied slots replace the
+    targets' slots, the dialog says how many frames change, and it is one undo step. Other
+    settings can be added in the dialog; the choices of the menu's dialog stay as they were.
   - A project loaded from a file can have such a gap (the Win32 editor before `Remove` closed up
     could leave one; none of the five 3.17.3 test projects has one). It is kept as it is, and the
     frame is marked: its list item has the line `ref. problem` and its tool tip and the frame

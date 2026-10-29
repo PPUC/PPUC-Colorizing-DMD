@@ -72,6 +72,12 @@ SpritePanel::SpritePanel(QWidget* parent)
         tr("Remove the selected slot's sprite from the selected frames; the slots "
            "behind it move up"));
     m_removeButton->setEnabled(false);
+    m_copySlotsButton = new QToolButton(this);
+    m_copySlotsButton->setText(tr("Copy to Selected Frames"));
+    m_copySlotsButton->setToolTip(
+        tr("Give the other selected frames the sprite slots of the current frame, with their "
+           "bounds and offsets: Copy Frame Settings with the sprites chosen"));
+    m_copySlotsButton->setEnabled(false);
     // The slot order is the drawing order: a later slot is drawn over an earlier one.
     m_moveUpButton = new QToolButton(this);
     m_moveUpButton->setText(tr("Move Up"));
@@ -269,6 +275,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     slotOrderLayout->addWidget(m_moveUpButton);
     slotOrderLayout->addWidget(m_moveDownButton);
     slotOrderLayout->addStretch(1);
+    slotOrderLayout->addWidget(m_copySlotsButton);
     frameLayout->addLayout(slotOrderLayout);
     auto* captureSelectionLayout = new QHBoxLayout();
     captureSelectionLayout->addWidget(m_captureSelectionButton);
@@ -415,7 +422,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     // Tab goes through each page as laid out.
     for (const std::vector<QWidget*>& order :
          {std::vector<QWidget*>{m_slotComboBox, m_assignButton, m_captureButton, m_removeButton,
-                                m_moveUpButton, m_moveDownButton,
+                                m_moveUpButton, m_moveDownButton, m_copySlotsButton,
                                 m_captureSelectionButton, m_clearCaptureSelectionButton,
                                 m_boundsOverlayButton, m_outlinesButton, m_sourceFrameButton,
                                 m_minXSpinBox,
@@ -480,6 +487,11 @@ SpritePanel::SpritePanel(QWidget* parent)
     connect(m_clearCaptureSelectionButton, &QToolButton::clicked, this, [this]() {
         if (onClearCaptureSelectionRequested) {
             onClearCaptureSelectionRequested();
+        }
+    });
+    connect(m_copySlotsButton, &QToolButton::clicked, this, [this]() {
+        if (onCopySlotsRequested) {
+            onCopySlotsRequested();
         }
     });
     connect(m_removeButton, &QToolButton::clicked, this, [this]() {
@@ -774,6 +786,7 @@ void SpritePanel::refresh(const SpritePanelState& state)
         }
     }
     m_removeButton->setEnabled(slotHasSprite);
+    m_copySlotsButton->setEnabled(document && frameIndex);
     // A neighbour that holds a sprite to change places with.
     const auto usedSlot = [&](std::size_t slot) {
         const std::vector<document::FrameSpriteReference>& references =

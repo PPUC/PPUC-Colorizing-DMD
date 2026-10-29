@@ -8204,6 +8204,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Den Sprite des ausgewählten Slots aus den ausgewählten Frames entfernen; die Slots dahinter rücken auf</translation>
     </message>
     <message>
+        <source>Copy to Selected Frames</source>
+        <translation>In ausgewählte Frames kopieren</translation>
+    </message>
+    <message>
+        <source>Give the other selected frames the sprite slots of the current frame, with their bounds and offsets: Copy Frame Settings with the sprites chosen</source>
+        <translation>Den anderen ausgewählten Frames die Sprite-Slots des aktuellen Frames geben, mit ihren Grenzen und Versätzen: Frame-Einstellungen kopieren mit den Sprites ausgewählt</translation>
+    </message>
+    <message>
         <source>Move Up</source>
         <translation>Nach oben</translation>
     </message>

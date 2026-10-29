@@ -77,6 +77,21 @@ void testDialog()
                    !dialog.checkBox(FrameSettingsPart::Sprites)->isChecked(),
                "the choices are kept for the next time");
     }
+    {
+        // Issue #48: the sprite section's Copy to Selected Frames chooses the sprites only and
+        // leaves the kept choices alone.
+        app::FrameSettingsDialog dialog(document, 0, {1}, nullptr,
+                                        std::vector<FrameSettingsPart>{FrameSettingsPart::Sprites});
+        expect(dialog.parts() == std::vector<FrameSettingsPart>{FrameSettingsPart::Sprites},
+               "a dialog for the sprites chooses only them");
+        dialog.accept();
+    }
+    {
+        app::FrameSettingsDialog dialog(document, 0, {1});
+        expect(dialog.checkBox(FrameSettingsPart::Duration)->isChecked() &&
+                   !dialog.checkBox(FrameSettingsPart::Sprites)->isChecked(),
+               "the choices kept are those of the last full dialog");
+    }
     QCoreApplication::setOrganizationName(QString());
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }

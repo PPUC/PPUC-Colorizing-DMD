@@ -76,8 +76,10 @@ QString frameSettingsPartName(FrameSettingsPart part)
 FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& document,
                                          std::size_t source,
                                          std::vector<std::size_t> targets,
-                                         QWidget* parent)
-    : QDialog(parent)
+                                         QWidget* parent,
+                                         std::optional<std::vector<FrameSettingsPart>> chosen)
+    : QDialog(parent),
+      m_keepsChoices(!chosen)
 {
     setWindowTitle(tr("Copy Frame Settings"));
     targets.erase(std::remove(targets.begin(), targets.end(), source), targets.end());
@@ -109,8 +111,10 @@ FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& docume
                 tr("%1 (changes %n frame(s))", "", static_cast<int>(changed))
                     .arg(frameSettingsPartName(part)),
                 box);
-            checkBox->setChecked(hasStored ? stored.contains(partKey(part))
-                                           : chosenAtFirst(part));
+            checkBox->setChecked(
+                chosen ? std::find(chosen->begin(), chosen->end(), part) != chosen->end()
+                : hasStored ? stored.contains(partKey(part))
+                            : chosenAtFirst(part));
             connect(checkBox, &QCheckBox::toggled, this, [this]() { updateNote(); });
             boxLayout->addWidget(checkBox);
             m_checkBoxes[part] = checkBox;
@@ -159,11 +163,13 @@ QCheckBox* FrameSettingsDialog::checkBox(FrameSettingsPart part) const
 
 void FrameSettingsDialog::accept()
 {
-    QStringList chosen;
-    for (FrameSettingsPart part : parts()) {
-        chosen << partKey(part);
+    if (m_keepsChoices) {
+        QStringList chosen;
+        for (FrameSettingsPart part : parts()) {
+            chosen << partKey(part);
+        }
+        QSettings().setValue(kSettingsKey, chosen);
     }
-    QSettings().setValue(kSettingsKey, chosen);
     QDialog::accept();
 }
 

@@ -105,6 +105,8 @@ public:
     std::function<void()> onRemoveRequested;
     // The selected slot's sprite one slot earlier (-1) or later (+1).
     std::function<void(int step)> onMoveRequested;
+    // Copy Frame Settings with the sprite slots chosen (issue #48).
+    std::function<void()> onCopySlotsRequested;
     std::function<void(bool checked)> onCaptureSelectionToggled;
     std::function<void()> onClearCaptureSelectionRequested;
     std::function<void(bool checked)> onBoundsOverlayToggled;
@@ -155,6 +157,7 @@ private:
     QToolButton* m_assignButton = nullptr;
     QToolButton* m_captureButton = nullptr;
     QToolButton* m_removeButton = nullptr;
+    QToolButton* m_copySlotsButton = nullptr;
     QToolButton* m_moveUpButton = nullptr;
     QToolButton* m_moveDownButton = nullptr;
     QToolButton* m_captureSelectionButton = nullptr;

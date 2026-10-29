@@ -2575,6 +2575,33 @@ void testTransparentPaintButton()
     expect(!toggled && !panel.isTransparentPaintChecked(), "set from outside, it does not report");
 }
 
+// Issue #48: Copy to Selected Frames in the sprite section asks for the copy of the slots.
+void testCopySlotsButton()
+{
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    colorizing::app::SpritePanel panel;
+    int requests = 0;
+    panel.onCopySlotsRequested = [&requests]() { ++requests; };
+    QToolButton* button = nullptr;
+    for (QToolButton* candidate : panel.findChildren<QToolButton*>()) {
+        if (candidate->text() == QStringLiteral("Copy to Selected Frames")) {
+            button = candidate;
+        }
+    }
+    expect(button != nullptr, "the sprite section has Copy to Selected Frames");
+    if (!button) {
+        return;
+    }
+    panel.refresh(colorizing::app::SpritePanelState{});
+    expect(!button->isEnabled(), "without a frame there is nothing to copy");
+    panel.refresh(state);
+    button->click();
+    expect(button->isEnabled() && requests == 1, "with a frame a click asks for the copy");
+}
+
 // Issue #44: the sprite's dynamic set shows a color per original shade, 4 in a 4-color project.
 void testSpriteDynamicColorCount()
 {
@@ -4320,6 +4347,7 @@ int main(int argc, char* argv[])
     testSpriteEditorPaintsHdTransparency();
     testTransparentPaintButton();
     testSpriteDynamicColorCount();
+    testCopySlotsButton();
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();
     testColorRotationPanel();

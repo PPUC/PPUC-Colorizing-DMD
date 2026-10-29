@@ -8204,6 +8204,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Retirer le sprite de l&apos;emplacement sélectionné des frames sélectionnées ; les emplacements suivants remontent</translation>
     </message>
     <message>
+        <source>Copy to Selected Frames</source>
+        <translation>Copier vers les frames sélectionnées</translation>
+    </message>
+    <message>
+        <source>Give the other selected frames the sprite slots of the current frame, with their bounds and offsets: Copy Frame Settings with the sprites chosen</source>
+        <translation>Donner aux autres frames sélectionnées les emplacements de sprite de la frame courante, avec leurs limites et décalages : Copier les réglages de frame avec les sprites choisis</translation>
+    </message>
+    <message>
         <source>Move Up</source>
         <translation>Monter</translation>
     </message>

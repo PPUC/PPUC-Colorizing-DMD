@@ -7,6 +7,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## 3.99.22
 
+- `Copy to Selected Frames` in the sprite section gives the other selected frames the
+  sprite slots of the current frame, with their bounds and offsets (#48).
 - The window title shows the editor's version (#47).
 - Colors swap places when one is dragged onto another: in the palette, the edit colors, the
   dynamic colors of frames and sprites, and the color rotations (#45).

@@ -28,6 +28,7 @@
 #include "edit/AssetUse.h"
 #include "edit/DrawingTools.h"
 #include "edit/FrameMove.h"
+#include "edit/FrameSettingsCopy.h"
 #include "edit/SameFrames.h"
 #include "edit/SceneEdits.h"
 #include "edit/SpeakerLightEdits.h"
@@ -555,7 +556,9 @@ private:
     void addSourceFrame();
     // Edit -> Copy Frame Settings: the current frame's chosen settings replace those of the
     // other selected frames (edit::copyFrameSettings()), one undo step.
-    void copyFrameSettings();
+    // chosen: the parts the dialog starts with, see FrameSettingsDialog.
+    void copyFrameSettings(
+        std::optional<std::vector<edit::FrameSettingsPart>> chosen = std::nullopt);
     // Asks for the duration and deletes the selected frames that are shorter.
     void deleteSelectedFramesShorterThan();
     // note: what chose the frames, for the question; empty for the selection itself.

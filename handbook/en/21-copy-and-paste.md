@@ -76,7 +76,10 @@ The dialog lists the settings, each with how many of the selected frames it chan
 - `Dynamic content`: the dynamic zones, the colors of every dynamic set (with which sets color the
   SD picture only) and every set's shadow, on the plane the zones live on (see "Dynamic Masks").
 - `Background`: the assigned background, and the background masks.
-- `Sprites and colors`: every sprite slot with its bounds, and the color rotations.
+- `Sprites and colors`: every sprite slot with its sprite, bounds and offset
+  (`Sprites and their bounds`), and the color rotations (`Color rotations`), each chosen on its
+  own. `Copy to Selected Frames` in the `Frame Sprites` section opens the dialog with only the
+  sprite slots chosen (see "Sprites").
 - `How and when the frame plays`: the comparison mask and the shape mode (they decide how libserum
   finds the frames, which the dialog points out when they are chosen), the trigger, the speaker
   lights, the DOF events and the duration.
