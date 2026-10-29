@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.22
+
 - The window title shows the editor's version (#47).
 - Colors swap places when one is dragged onto another: in the palette, the edit colors, the
   dynamic colors of frames and sprites, and the color rotations (#45).
