@@ -23,6 +23,7 @@
 #include "FrameImageUtils.h"
 #include "FrameStatusText.h"
 #include "dialogs/AboutDialog.h"
+#include "FlowLayout.h"
 #include "ListSelection.h"
 #include "UnsavedChanges.h"
 #include "WheelGuard.h"
@@ -302,6 +303,26 @@ void testWheelGuard()
     }
 }
 
+// The toolbar's groups differ in height (a spin box is taller than a button); each sits in
+// the middle of its row, not at the top.
+void testFlowLayoutCentersRows()
+{
+    QWidget container;
+    auto* flow = new app::FlowLayout(&container, 4, 4);
+    auto* tall = new QWidget;
+    tall->setFixedSize(40, 30);
+    auto* low = new QWidget;
+    low->setFixedSize(40, 20);
+    flow->addWidget(tall);
+    flow->addWidget(low);
+    flow->setGeometry(QRect(0, 0, 200, 30));
+    expect(tall->geometry().top() == 0 && low->geometry().top() == 5,
+           "a lower item is centered in its row");
+    flow->setGeometry(QRect(0, 0, 60, 60));
+    expect(low->geometry().top() == 34 && low->geometry().left() == 0,
+           "alone in the next row, it starts at that row's top");
+}
+
 void runAppHelpersWidgetTests()
 {
     testAboutDialog();
@@ -313,4 +334,5 @@ void runAppHelpersWidgetTests()
     testOriginalShadeColors();
     testSelectedFramesStatusText();
     testWheelGuard();
+    testFlowLayoutCentersRows();
 }

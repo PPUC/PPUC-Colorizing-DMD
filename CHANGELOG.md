@@ -7,6 +7,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 - Assigning several sprites at once gives the new slots the bounds and offset of the selected
   slot, so the digits of a score need to be set up only once.
+- The toolbar's button groups are centered in their row; the zoom buttons no longer sit higher
+  than the playback controls.
 
 ## 3.99.20
 

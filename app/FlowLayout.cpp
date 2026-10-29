@@ -3,6 +3,8 @@
 #include <QWidget>
 
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace colorizing::app {
 
@@ -100,6 +102,18 @@ int FlowLayout::arrange(const QRect& rect, bool testOnly) const
             lastVisible = index;
         }
     }
+    // The items of the current row, placed once the row is complete: each centered in the
+    // row's height, so that a group of lower buttons lines up with a taller field beside it.
+    std::vector<std::pair<QLayoutItem*, QRect>> row;
+    const auto placeRow = [&row, &rowHeight, testOnly]() {
+        if (!testOnly) {
+            for (auto& [item, geometry] : row) {
+                geometry.translate(0, (rowHeight - geometry.height()) / 2);
+                item->setGeometry(geometry);
+            }
+        }
+        row.clear();
+    };
     for (int index = 0; index < m_items.size(); ++index) {
         QLayoutItem* item = m_items.at(index);
         if (!isVisible(item)) {
@@ -112,6 +126,7 @@ int FlowLayout::arrange(const QRect& rect, bool testOnly) const
         }
         // A new row when it does not fit, unless it is the first of its row.
         if (x > area.x() && x + size.width() > area.right() + 1) {
+            placeRow();
             x = area.x();
             y += rowHeight + m_verticalSpacing;
             rowHeight = 0;
@@ -119,12 +134,11 @@ int FlowLayout::arrange(const QRect& rect, bool testOnly) const
         if (stretches) {
             size.setWidth(std::max(size.width(), area.right() + 1 - x));
         }
-        if (!testOnly) {
-            item->setGeometry(QRect(QPoint(x, y), size));
-        }
+        row.emplace_back(item, QRect(QPoint(x, y), size));
         x += size.width() + m_horizontalSpacing;
         rowHeight = std::max(rowHeight, size.height());
     }
+    placeRow();
     const QMargins margins = contentsMargins();
     return y + rowHeight - rect.y() + margins.bottom();
 }
