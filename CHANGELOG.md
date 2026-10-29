@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A sprite in two slots of a frame is found in both bounding boxes, and `Remove` takes it from
+  the selected slot, not from the last one that holds it (#49).
+
 ## 3.99.22
 
 - `Copy to Selected Frames` in the sprite section gives the other selected frames the

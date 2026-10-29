@@ -3342,6 +3342,27 @@ void ProjectDocument::clearFrameSpriteReference(std::size_t frameIndex, std::siz
     markChanged();
 }
 
+std::optional<std::size_t> ProjectDocument::spriteSlotToRemove(std::size_t frameIndex,
+                                                               uint16_t spriteId,
+                                                               std::size_t preferredSlot) const
+{
+    const std::vector<FrameSpriteReference>& references =
+        requireFrame(m_frames, frameIndex).spriteReferences;
+    if (spriteId == kNoSpriteId) {
+        return std::nullopt;
+    }
+    if (preferredSlot < references.size() && references[preferredSlot].spriteId == spriteId) {
+        return preferredSlot;
+    }
+    std::optional<std::size_t> last;
+    for (std::size_t slot = 0; slot < references.size(); ++slot) {
+        if (references[slot].spriteId == spriteId) {
+            last = slot;
+        }
+    }
+    return last;
+}
+
 bool ProjectDocument::swapFrameSpriteReferences(std::size_t frameIndex,
                                                 std::size_t slotA,
                                                 std::size_t slotB)

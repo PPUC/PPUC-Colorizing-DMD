@@ -60,8 +60,8 @@ std::size_t differingPixels(const Rgb565Frame& editor, const RuntimePlane& runti
 // Frames 9 to 11, on top of the full project:
 //   9: sprite 0 in slot 0, slot 1 empty, the shape sprite in slot 2. libserum's sprite list
 //      ends at the empty slot, so the shape sprite, although it is in the frame, is not drawn.
-//  10: sprite 0 in slots 0 and 1 with different search areas and a copy of it in each. Only
-//      the first slot is searched.
+//  10: sprite 0 in slots 0 and 1 with different search areas and a copy of it in each. Each
+//      slot is searched, so both are drawn.
 //  11: sprite 0 twice inside one search area: both are drawn.
 //  12: sprite 0 with a slot offset of (50, 4): drawn moved, its dynamic pixels with the shades
 //      where it was found, and nothing of it where it was found.
@@ -144,8 +144,9 @@ void testNativePlane(PlaneLayout layout)
     expect(afterGap.size() == 1 && afterGap[0].spriteIndex == 0,
            "a sprite behind an empty slot is not looked for");
     const std::vector<SpriteMatch> listedTwice = matchFrameSprites(document, 10);
-    expect(listedTwice.size() == 1 && listedTwice[0].frameX == 12 && listedTwice[0].frameY == 3,
-           "a sprite listed twice is looked for in its first search area only");
+    expect(listedTwice.size() == 2 && listedTwice[0].frameX == 12 && listedTwice[0].frameY == 3 &&
+               listedTwice[1].frameX == 80 && listedTwice[1].frameY == 14,
+           "a sprite listed twice is looked for in the search area of each slot");
     const std::vector<SpriteMatch> twoCopies = matchFrameSprites(document, 11);
     expect(twoCopies.size() == 2 && twoCopies[0].frameY == 3 && twoCopies[1].frameY == 9,
            "every place a sprite is found at is reported, in scan order");

@@ -172,18 +172,13 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
         document.frameSpriteReferences(frameIndex);
     // Sprites are detected on the original frame at its own resolution, as libserum does.
     const document::IndexedFrame& original = document.originalFrame(frameIndex);
-    std::vector<uint16_t> seenSprites;
     for (const document::FrameSpriteReference& reference : references) {
         // The frame's sprite list ends at its first empty slot.
         if (reference.spriteId == document::kNoSpriteId ||
             reference.spriteId >= document.spriteCount()) {
             break;
         }
-        // A sprite listed twice is looked for once, with the search area of its first slot.
-        if (std::find(seenSprites.begin(), seenSprites.end(), reference.spriteId) !=
-            seenSprites.end()) {
-            continue;
-        }
+        // A sprite in several slots is looked for in the search area of each.
         const document::SpriteRecord& sprite = document.sprite(reference.spriteId);
         const render::Size visibleSize = spriteVisibleSize(sprite);
         // libserum stores a sprite original without any shade above 0 as "no data".
@@ -201,7 +196,6 @@ std::vector<SpriteMatch> matchFrameSprites(const document::ProjectDocument& docu
             !hasDetectionArea) {
             continue;
         }
-        seenSprites.push_back(reference.spriteId);
 
         const int minX = static_cast<int16_t>(reference.minX);
         const int minY = static_cast<int16_t>(reference.minY);

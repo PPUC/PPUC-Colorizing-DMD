@@ -7445,27 +7445,23 @@ void MainWindow::removeCurrentSpriteSlot()
     }
 
     // As the Win32 editor's IDC_DELSPRITE2: the sprite of the current frame's selected slot
-    // leaves every selected frame that has it, from the last slot that holds it, and the
-    // slots behind move up so that the list keeps no empty slot before a used one.
+    // leaves every selected frame that has it, and the slots behind move up so that the list
+    // keeps no empty slot before a used one. A frame that has the sprite in the selected slot
+    // loses that one, a sprite can be in several slots; another frame its last.
     const uint16_t spriteId = currentReferences[*slotIndex].spriteId;
     try {
         int changed = 0;
         int skipped = 0;
         for (std::size_t frameIndex : frameIndices) {
-            const std::vector<document::FrameSpriteReference>& references =
-                m_document->frameSpriteReferences(frameIndex);
-            std::optional<std::size_t> last;
-            for (std::size_t slot = 0; slot < references.size(); ++slot) {
-                if (references[slot].spriteId == spriteId) {
-                    last = slot;
-                }
-            }
-            if (!last) {
+            const std::optional<std::size_t> slot =
+                m_document->spriteSlotToRemove(frameIndex, spriteId, *slotIndex);
+            if (!slot) {
                 ++skipped;
                 continue;
             }
-            std::vector<document::FrameSpriteReference> before = references;
-            m_document->clearFrameSpriteReference(frameIndex, *last);
+            std::vector<document::FrameSpriteReference> before =
+                m_document->frameSpriteReferences(frameIndex);
+            m_document->clearFrameSpriteReference(frameIndex, *slot);
             pushEdit(edit::frameSpriteSlotsCommand(*m_document, frameIndex, std::move(before)));
             updateFrameListItem(frameIndex);
             ++changed;

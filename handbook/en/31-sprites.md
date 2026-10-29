@@ -171,11 +171,15 @@ The controls:
     frame whose slots are all used gets no more; the status bar counts the sprites added, those
     there already and those left out. It is one undo step.
   - `Capture` assigns the captured sprite by the same rule.
+  - A sprite can be in several slots of a frame, each with its own bounds, for example for the
+    same digit at two places of a score; the runtime looks for it in each of them (libserum
+    2.99.12 and later; before, only in the first).
   - `Remove` works as in the Win32 editor (`IDC_DELSPRITE2`): it takes the sprite of the current
-    frame's selected slot and removes it from every selected frame that has it, from the last
-    slot that holds it; the slots behind move up with their bounds, and the last slot becomes
-    empty, keeping its bounds. Selected frames without that sprite are skipped and counted in the
-    status bar (`Removed sprite 2 from 3 frame(s), 1 skipped (without that sprite)`).
+    frame's selected slot and removes it from every selected frame that has it, from the
+    selected slot where that holds the sprite and otherwise from the last slot that holds it;
+    the slots behind move up with their bounds, and the last slot becomes empty, keeping its
+    bounds. Selected frames without that sprite are skipped and counted in the status bar
+    (`Removed sprite 2 from 3 frame(s), 1 skipped (without that sprite)`).
   - `Move Up` and `Move Down` change the order of the slots, which is the order in which
     libserum draws the sprites: where sprites overlap, the one in the later slot is drawn over
     the one in the earlier slot. The sprite of the current frame's selected slot changes places

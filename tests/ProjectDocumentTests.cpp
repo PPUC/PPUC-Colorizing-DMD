@@ -946,6 +946,16 @@ void testFrameSpriteReferenceEditing()
                document.frameSpriteReferences(0)[0].minX == 2,
            "and back");
 
+    // The same sprite in slots 0 to 2: the selected slot is the one removed (issue #49).
+    expect(document.spriteSlotToRemove(0, 0, 0) == 0u &&
+               document.spriteSlotToRemove(0, 0, 1) == 1u,
+           "the selected slot holding the sprite is the one to remove");
+    expect(document.spriteSlotToRemove(0, 0, 5) == 2u,
+           "otherwise the last slot that holds the sprite");
+    expect(!document.spriteSlotToRemove(0, 1, 0) &&
+               !document.spriteSlotToRemove(0, 0xffff, 5),
+           "no slot for a sprite the frame does not have");
+
     document.markClean();
     document.clearFrameSpriteReference(0, 0);
     expect(document.frameSpriteReferences(0)[0].minX == 9 &&

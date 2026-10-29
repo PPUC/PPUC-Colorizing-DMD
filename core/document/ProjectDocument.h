@@ -797,6 +797,11 @@ public:
     // last slot becomes empty, keeping its bounds (IDC_DELSPRITE2 of the Win32 editor). An
     // empty slot is left as it is.
     void clearFrameSpriteReference(std::size_t frameIndex, std::size_t slotIndex);
+    // The slot of a frame from which the sprite is removed: the given slot when it holds the
+    // sprite, as a sprite can be in several slots, otherwise the last slot that holds it
+    // (IDC_DELSPRITE2 of the Win32 editor). Nothing when no slot holds it.
+    [[nodiscard]] std::optional<std::size_t> spriteSlotToRemove(
+        std::size_t frameIndex, uint16_t spriteId, std::size_t preferredSlot) const;
     // Swaps the sprites of two used slots, each with its bounds: the order in which the runtime
     // draws them, a later slot over an earlier one. False, changing nothing, when one of them
     // is empty.
