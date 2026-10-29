@@ -39,6 +39,10 @@ The controls:
 - The detection area selector chooses one of the sprite's detection areas. The `X`, `Y`, `W`, `H`
   fields edit an area that is set; they are disabled while the selected area is not set. A new
   area is created by dragging it in the sprite editor (see below).
+- A detection area must hold at least four pixels of the sprite next to each other in a row: the
+  runtime looks for such a row in a frame to find the sprite. An area without one would never
+  find it, so the editor refuses it with a message and keeps the area as it was, whether it was
+  dragged or typed in. The Win32 editor refused to save such an area.
 - `Clear Area` disables the selected sprite detection area using the legacy `0xffff` marker.
 - `Edit Sprite` switches the main canvas to a large sprite editor. It is split like the frame
   canvas: the colorized sprite in the upper half, the original sprite in the lower half, both
@@ -99,7 +103,9 @@ The controls:
   selected sprite slot bounds as the source rectangle. Captured pixels are placed at the sprite
   origin, black original pixels become transparent sprite pixels, detection area `0` is set to the
   captured rectangle, and the selected sprite is assigned to the current frame slot. The `.cRP`
-  records the current frame as the sprite's source frame, as CDMD does.
+  records the current frame as the sprite's source frame, as CDMD does. When the captured sprite
+  has no four pixels next to each other in a row, the status bar says that the runtime cannot
+  find it.
 - The confirmation offers `Replace Current` (the selected sprite) and `Create New`. `Create New`
   asks for the new sprite's name as `New` does and captures into the new sprite; adding the
   sprite and the capture are two undo steps. Without a selected sprite only `Create New` is

@@ -404,6 +404,9 @@ private:
     void setCurrentSpriteSlotOffset();
     void setCurrentSpriteName(const QString& name);
     void setCurrentSpriteDetectionArea();
+    // False, with a message, for an area that holds no four pixels of the sprite in a row.
+    [[nodiscard]] bool acceptsSpriteDetectionArea(std::size_t sprite,
+                                                  document::SpriteDetectionArea area);
     void clearCurrentSpriteDetectionArea();
     void createCurrentSpriteHd();
     void removeCurrentSpriteHd();

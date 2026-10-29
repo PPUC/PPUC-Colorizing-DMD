@@ -3164,6 +3164,15 @@ void ProjectDocument::setSpriteColorizedPixel(std::size_t spriteIndex,
     markChanged();
 }
 
+bool ProjectDocument::spriteDetectionAreaHasWord(std::size_t spriteIndex,
+                                                 SpriteDetectionArea area) const
+{
+    if (spriteIndex >= m_sprites.size()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    return detectionDwordForArea(m_sprites[spriteIndex].originalSd, area).has_value();
+}
+
 void ProjectDocument::setSpriteDetectionArea(std::size_t spriteIndex,
                                              std::size_t areaIndex,
                                              SpriteDetectionArea area)

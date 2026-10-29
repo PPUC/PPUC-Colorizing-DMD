@@ -5714,6 +5714,10 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message>
+        <source>Captured into sprite %1, but it has no four pixels next to each other in a row: the runtime cannot find it</source>
+        <translation>In Sprite %1 erfasst, aber es hat keine vier Pixel nebeneinander in einer Reihe: die Runtime kann es nicht finden</translation>
+    </message>
+    <message>
         <source>Moved sprite %1 up in %2</source>
         <translation>Sprite %1 nach oben verschoben in %2</translation>
     </message>
@@ -5728,6 +5732,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Sprite slot %1 drawn %2, %3 from where it is found on %4 frame(s)</source>
         <translation>Sprite-Slot %1 um %2, %3 versetzt gezeichnet auf %4 Frame(s)</translation>
+    </message>
+    <message>
+        <source>Detection Area Not Usable</source>
+        <translation>Erkennungsbereich nicht verwendbar</translation>
+    </message>
+    <message>
+        <source>A detection area needs at least four pixels of the sprite next to each other in a row: the runtime looks for them in a frame to find the sprite. This area has none, so it would never find the sprite. Draw it over a part of the sprite with such a row.</source>
+        <translation>Ein Erkennungsbereich braucht mindestens vier Pixel des Sprites nebeneinander in einer Reihe: die Runtime sucht sie in einem Frame, um das Sprite zu finden. Dieser Bereich hat keine, er würde das Sprite also nie finden. Ziehen Sie ihn über einen Teil des Sprites mit einer solchen Reihe.</translation>
     </message>
     <message numerus="yes">
         <source>Updated dynamic color 0x%1 in %n frame(s)</source>

@@ -765,6 +765,11 @@ public:
     void setSpriteDetectionArea(std::size_t spriteIndex,
                                 std::size_t areaIndex,
                                 SpriteDetectionArea area);
+    // Whether the area holds four pixels of the sprite in a row, which libserum looks for in a
+    // frame (the detection word). An area without them is stored, but never finds the sprite;
+    // the Win32 editor refused to save it.
+    [[nodiscard]] bool spriteDetectionAreaHasWord(std::size_t spriteIndex,
+                                                  SpriteDetectionArea area) const;
     [[nodiscard]] const std::vector<FrameSpriteReference>& frameSpriteReferences(
         std::size_t frameIndex) const;
     // A frame's sprite list ends, for the runtime, at its first empty slot (libserum stops

@@ -987,6 +987,17 @@ void testFrameSpriteReferenceEditing()
     expect(document.sprite(0).detectionDwordPositions[2] == spriteDwordPosition,
            "sprite detection area edit should recalculate dword position");
     expect(document.isDirty(), "sprite detection area edit should mark dirty");
+    // Issue #43: an area needs four of the sprite's pixels in a row, or libserum never finds
+    // the sprite with it.
+    expect(document.spriteDetectionAreaHasWord(
+               0, colorizing::document::SpriteDetectionArea{10, 11, 12, 13}),
+           "the area holds the sprite's detection word");
+    expect(!document.spriteDetectionAreaHasWord(
+               0, colorizing::document::SpriteDetectionArea{10, 11, 3, 13}),
+           "an area narrower than four pixels holds none");
+    expect(!document.spriteDetectionAreaHasWord(
+               0, colorizing::document::SpriteDetectionArea{40, 20, 12, 10}),
+           "nor does an area over transparent pixels only");
 
     document.markClean();
     document.setSpriteDetectionArea(0, 2, colorizing::document::SpriteDetectionArea{10, 11, 12, 13});

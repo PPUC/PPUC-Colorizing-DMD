@@ -2455,6 +2455,9 @@ void MainWindow::createCentralView()
             }
             try {
                 const std::size_t sprite = static_cast<std::size_t>(spriteIndex);
+                if (!acceptsSpriteDetectionArea(sprite, area)) {
+                    return;
+                }
                 edit::SpriteState before = edit::spriteState(*m_document, sprite);
                 m_document->setSpriteDetectionArea(sprite, areaIndex, area);
                 pushEdit(edit::spriteStateCommand(*m_document, sprite, std::move(before)));
@@ -7343,6 +7346,16 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                 .arg(captureMaxY)
                 .arg(static_cast<int>(*spriteIndex)),
             3000);
+        // The capture stays; its detection area, the whole sprite, cannot find it (issue #43).
+        if (!m_document->spriteDetectionAreaHasWord(*spriteIndex,
+                                                    m_document->sprite(*spriteIndex)
+                                                        .detectionAreas[0])) {
+            statusBar()->showMessage(
+                tr("Captured into sprite %1, but it has no four pixels next to each other in a "
+                   "row: the runtime cannot find it")
+                    .arg(static_cast<int>(*spriteIndex)),
+                8000);
+        }
     } catch (const std::exception& ex) {
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
@@ -7695,16 +7708,19 @@ void MainWindow::setCurrentSpriteDetectionArea()
     }
 
     try {
+        const document::SpriteDetectionArea area{
+            static_cast<uint16_t>(x),
+            static_cast<uint16_t>(y),
+            static_cast<uint16_t>(width),
+            static_cast<uint16_t>(height),
+        };
+        if (!acceptsSpriteDetectionArea(static_cast<std::size_t>(spriteIndex), area)) {
+            return;
+        }
         edit::SpriteState before =
             edit::spriteState(*m_document, static_cast<std::size_t>(spriteIndex));
-        m_document->setSpriteDetectionArea(static_cast<std::size_t>(spriteIndex),
-                                           areaIndex,
-                                           document::SpriteDetectionArea{
-                                               static_cast<uint16_t>(x),
-                                               static_cast<uint16_t>(y),
-                                               static_cast<uint16_t>(width),
-                                               static_cast<uint16_t>(height),
-                                           });
+        m_document->setSpriteDetectionArea(
+            static_cast<std::size_t>(spriteIndex), areaIndex, area);
         pushEdit(edit::spriteStateCommand(
             *m_document, static_cast<std::size_t>(spriteIndex), std::move(before)));
         if (m_spriteEditor) {
@@ -7722,6 +7738,26 @@ void MainWindow::setCurrentSpriteDetectionArea()
         updateSpriteControls();
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
     }
+}
+
+bool MainWindow::acceptsSpriteDetectionArea(std::size_t sprite,
+                                            document::SpriteDetectionArea area)
+{
+    if (m_document->spriteDetectionAreaHasWord(sprite, area)) {
+        return true;
+    }
+    // As the Win32 editor did on saving (issue #43); the area stays as it was.
+    QMessageBox::warning(
+        this, tr("Detection Area Not Usable"),
+        tr("A detection area needs at least four pixels of the sprite next to each other in a "
+           "row: the runtime looks for them in a frame to find the sprite. This area has none, "
+           "so it would never find the sprite. Draw it over a part of the sprite with such a "
+           "row."));
+    if (m_spriteEditor) {
+        m_spriteEditor->update();
+    }
+    updateSpriteControls();
+    return false;
 }
 
 void MainWindow::clearCurrentSpriteDetectionArea()

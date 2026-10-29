@@ -5714,6 +5714,10 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message>
+        <source>Captured into sprite %1, but it has no four pixels next to each other in a row: the runtime cannot find it</source>
+        <translation>Capturé dans le sprite %1, mais il n'a pas quatre pixels côte à côte sur une ligne : le runtime ne peut pas le trouver</translation>
+    </message>
+    <message>
         <source>Moved sprite %1 up in %2</source>
         <translation>Sprite %1 monté dans %2</translation>
     </message>
@@ -5728,6 +5732,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Sprite slot %1 drawn %2, %3 from where it is found on %4 frame(s)</source>
         <translation>Emplacement de sprite %1 dessiné à %2, %3 de l’endroit où il est trouvé sur %4 frame(s)</translation>
+    </message>
+    <message>
+        <source>Detection Area Not Usable</source>
+        <translation>Zone de détection inutilisable</translation>
+    </message>
+    <message>
+        <source>A detection area needs at least four pixels of the sprite next to each other in a row: the runtime looks for them in a frame to find the sprite. This area has none, so it would never find the sprite. Draw it over a part of the sprite with such a row.</source>
+        <translation>Une zone de détection doit contenir au moins quatre pixels du sprite côte à côte sur une ligne : le runtime les cherche dans une frame pour trouver le sprite. Cette zone n'en a aucun, elle ne trouverait donc jamais le sprite. Tracez-la sur une partie du sprite qui a une telle ligne.</translation>
     </message>
     <message numerus="yes">
         <source>Updated dynamic color 0x%1 in %n frame(s)</source>
@@ -6047,7 +6059,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>, with the bounds and offset of slot %1</source>
-        <translation>, avec les limites et le décalage de l'emplacement %1</translation>
+        <translation>, avec les limites et le décalage de l&apos;emplacement %1</translation>
     </message>
     <message>
         <source>; %1 left out, the frame had no empty slot</source>
