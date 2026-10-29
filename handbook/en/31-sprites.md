@@ -232,6 +232,26 @@ The controls:
   - a dynamic sprite pixel takes the color its dynamic set gives the original frame's shade
     at that place.
 
+Sprites in HD are drawn on the doubled grid: at twice the position where they are found, their
+HD art covering twice the size of their original. HD frame art painted off that grid, for
+example a score painted one HD row lower to leave an empty row above it, does not line up with
+them: a digit that is a sprite appears one row higher than the digits painted into the frame.
+Moving pixel art does not help, since the frame art around it (bars, a band behind the score)
+would jump between frames with and without the sprite. Make all the digits sprites instead, so
+that they are all drawn on the same grid:
+
+- Capture each digit (`0` to `9`) once into a sprite of its own. Use `Select Capture` and
+  select the digit's whole cell, its black pixels included: they stay part of the sprite, which
+  then covers the cell, so that no digit painted into the HD frame art shows through around it.
+  Alternatively paint the score area of the HD frame art without digits.
+- One slot per digit is enough, not one per position: a sprite is drawn wherever it is found in
+  its slot's bounds, so one `0` sprite with bounds over the whole score draws all its zeros.
+  Set up the bounds of one digit's slot, select the other digits in the sprite list and press
+  `Assign`: the new slots get the same bounds and offset.
+- The digits line up with each other then, but the score as a whole stays one HD row off frame
+  art painted off the grid (its band has one row more margin on one side than on the other).
+  Only HD frame art painted on the doubled grid avoids that.
+
 In projects with 256x64 original frames, sprites are detected, bounded, captured and drawn on
 the 256x64 original, `Create HD Sprite` is `Create 256x64 Sprite` and there is no
 `Remove HD Sprite`; see "Projects With 256x64 Original Frames". In projects with 192x64 original
