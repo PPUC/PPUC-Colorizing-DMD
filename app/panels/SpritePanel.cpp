@@ -339,6 +339,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_dynamicSetSpinBox->setPrefix(tr("Set "));
     m_dynamicSetSpinBox->setToolTip(tr("Sprite dynamic set"));
     m_dynamicColorGrid = new ColorGridWidget(16, 8, this);
+    m_dynamicColorGrid->setObjectName(QStringLiteral("spriteDynamicColorGrid"));
     m_dynamicColorGrid->setToolTip(tr(
         "The set's color for each original shade: a dynamic sprite pixel shows the color of the "
         "frame's shade under it. Click to change"));
@@ -636,6 +637,9 @@ void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
         m_transparentPaintButton->setVisible(layout != render::PlaneLayout::NativeOriginal);
         m_transparentPaintButton->setEnabled(hasSprite && spriteHasHd);
     }
+    // As many colors as the project has original colors (4 or 16), as the frame's dynamic
+    // sets: a set has a color per shade (issue #44).
+    m_dynamicColorGrid->setShownCount(document ? document->colorCount() : 4);
     for (QWidget* widget : std::initializer_list<QWidget*>{
              m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox, m_dynamicColorGrid,
              m_editColorsToSetButton, m_setToEditColorsButton}) {

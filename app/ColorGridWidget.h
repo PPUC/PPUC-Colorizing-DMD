@@ -22,6 +22,8 @@ public:
                              QWidget* parent = nullptr);
 
     void setDisplayIndexOffset(int offset);
+    // Shows the first count colors only; all of them until it is called.
+    void setShownCount(std::size_t count);
     void setColors(const std::vector<uint16_t>& colors, std::size_t activeCount);
     void setColorClickedHandler(std::function<void(std::size_t)> handler);
     void setColorDoubleClickedHandler(std::function<void(std::size_t)> handler);

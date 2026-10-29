@@ -109,8 +109,9 @@ The controls:
     dynamic. Dynamic pixels are tinted blue while the mode is on. The fill tool does not paint
     dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
     sprite of an ordinary project (switch the canvas to SD), the native sprite otherwise.
-  - The color grid shows the set's color for each original shade; a click changes one, and a
-    color dragged onto another one swaps the two.
+  - The color grid shows the set's color for each original shade, 4 in a project with 4
+    colors and 16 in one with 16; a click changes one, and a color dragged onto another one
+    swaps the two.
     `Edit Colors > Set` copies the edit colors into the set, `Set > Edit Colors` the set's
     colors into the edit colors (an edit color step).
   - Each stroke and each color change is one undo step of the sprite; the sprite's pixel

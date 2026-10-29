@@ -8,6 +8,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The window title shows the editor's version (#47).
 - Colors swap places when one is dragged onto another: in the palette, the edit colors, the
   dynamic colors of frames and sprites, and the color rotations (#45).
+- A sprite's dynamic set shows only as many colors as the project has, 4 in a 4-color project
+  (#44).
 - A sprite name that another sprite has already is refused with a message, for a new sprite
   and for a rename (#46).
 

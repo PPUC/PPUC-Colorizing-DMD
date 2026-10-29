@@ -96,6 +96,13 @@ void ColorGridWidget::setDisplayIndexOffset(int offset)
     }
 }
 
+void ColorGridWidget::setShownCount(std::size_t count)
+{
+    for (std::size_t index = 0; index < m_buttons.size(); ++index) {
+        m_buttons[index]->setVisible(index < count);
+    }
+}
+
 void ColorGridWidget::setColors(const std::vector<uint16_t>& colors, std::size_t activeCount)
 {
     const std::size_t visibleCount = std::min(colors.size(), m_buttons.size());

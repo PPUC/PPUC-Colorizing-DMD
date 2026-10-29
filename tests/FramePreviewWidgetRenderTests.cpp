@@ -2377,12 +2377,12 @@ void testPalettePanel()
     expect(callbacks == callbacksBeforeClose, "resetting the palette panel should not notify");
 }
 
-colorizing::document::ProjectDocument makeSpritePanelDocument()
+colorizing::document::ProjectDocument makeSpritePanelDocument(uint32_t colorCount = 16)
 {
     using colorizing::document::FrameSpriteReference;
     using colorizing::document::SpriteDetectionArea;
     colorizing::document::ProjectSnapshot snapshot;
-    snapshot.colorCount = 16;
+    snapshot.colorCount = colorCount;
     snapshot.romName = "sprite_panel";
     // Frame 0 uses two sprites, frame 1 has only empty slots, frame 2 has no slot table.
     for (int frameIndex = 0; frameIndex < 3; ++frameIndex) {
@@ -2573,6 +2573,28 @@ void testTransparentPaintButton()
     toggled.reset();
     panel.setTransparentPaintChecked(false);
     expect(!toggled && !panel.isTransparentPaintChecked(), "set from outside, it does not report");
+}
+
+// Issue #44: the sprite's dynamic set shows a color per original shade, 4 in a 4-color project.
+void testSpriteDynamicColorCount()
+{
+    for (const uint32_t colorCount : {4u, 16u}) {
+        colorizing::document::ProjectDocument document = makeSpritePanelDocument(colorCount);
+        colorizing::app::SpritePanelState state;
+        state.document = &document;
+        state.frameIndex = 0;
+        state.spriteIndex = 0;
+        colorizing::app::SpritePanel panel;
+        panel.refresh(state);
+        auto* grid = panel.findChild<QWidget*>(QStringLiteral("spriteDynamicColorGrid"));
+        int shown = 0;
+        for (QToolButton* button : grid ? grid->findChildren<QToolButton*>()
+                                        : QList<QToolButton*>()) {
+            shown += button->isVisibleTo(&panel) ? 1 : 0;
+        }
+        expect(shown == static_cast<int>(colorCount),
+               "the sprite's dynamic set shows " + std::to_string(colorCount) + " colors");
+    }
 }
 
 void testSpriteSlotOrderButtons()
@@ -4297,6 +4319,7 @@ int main(int argc, char* argv[])
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorPaintsHdTransparency();
     testTransparentPaintButton();
+    testSpriteDynamicColorCount();
     testSpriteEditorHdKeepsSdFootprint();
     testColorRotationPreviewTransform();
     testColorRotationPanel();
