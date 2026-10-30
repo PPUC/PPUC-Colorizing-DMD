@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.24
+
 - The frame tester keeps the last picture on an unknown or inactive frame, as a machine does,
   instead of showing black.
 - `Assign` with several sprites selected also adds sprites the frame has in another bounding box
