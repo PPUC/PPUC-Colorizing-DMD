@@ -293,14 +293,43 @@ void testAddSpritesToFrames()
     bounds.offsetY = -1;
     added = edit::addSpritesToFrames(document, {0, 1}, {0, 1}, bounds);
     const auto& copied = document.frameSpriteReferences(1);
-    expect(added.added == 3 && copied[0].spriteId == 0 && copied[1].spriteId == 1,
-           "the sprites go on as before");
+    expect(added.added == 4 && added.kept == 0 && copied[0].spriteId == 0 &&
+               copied[1].spriteId == 1,
+           "the sprites go on, also one the frame has with other bounds (issue #50)");
     expect(copied[1].minX == 2 && copied[1].minY == 3 && copied[1].maxX == 6 &&
                copied[1].maxY == 7 && copied[1].offsetX == 5 && copied[1].offsetY == -1,
            "with the slot's bounds and offset");
     expect(document.frameSpriteReferences(0)[0].maxX == 10 &&
                document.frameSpriteReferences(0)[0].offsetX == 0,
            "a sprite the frame had keeps its own");
+    expect(document.frameSpriteReferences(0)[1].spriteId == 0 &&
+               document.frameSpriteReferences(0)[1].maxX == 6 &&
+               document.frameSpriteReferences(0)[2].spriteId == 1,
+           "and has a slot with the new bounds as well");
+    added = edit::addSpritesToFrames(document, {0, 1}, {0, 1}, bounds);
+    expect(added.added == 0 && added.kept == 4 && added.commands.empty(),
+           "with the same bounds and offset they are there already");
+    FrameSpriteReference moved = bounds;
+    moved.offsetX = 6;
+    added = edit::addSpritesToFrames(document, {0}, {1}, moved);
+    expect(added.added == 1 && document.frameSpriteReferences(0)[3].offsetX == 6,
+           "another offset is another slot");
+    added = edit::addSpritesToFrames(document, {0}, {0, 1});
+    expect(added.added == 0 && added.kept == 2, "without bounds any slot with the sprite counts");
+    // At the warning's limit: only a sprite that needs a new slot passes it.
+    for (int16_t offset = 10;
+         document.frameSpriteReferences(0)[colorizing::document::kSpritesPerFrameWarning - 1]
+             .spriteId == colorizing::document::kNoSpriteId;
+         ++offset) {
+        moved.offsetX = offset;
+        (void)edit::addSpritesToFrames(document, {0}, {1}, moved);
+    }
+    expect(edit::framesPassingSpriteWarning(document, {0}, {1}, moved) == 0 &&
+               edit::framesPassingSpriteWarning(document, {0}, {1}) == 0,
+           "a sprite there already passes no warning");
+    moved.offsetX = -7;
+    expect(edit::framesPassingSpriteWarning(document, {0}, {1}, moved) == 1,
+           "with bounds it has not yet, it does");
 }
 
 void runStateCommandsTests()

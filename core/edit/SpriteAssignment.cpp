@@ -18,12 +18,21 @@ std::size_t usedSlots(const std::vector<document::FrameSpriteReference>& referen
     return used;
 }
 
+// Whether the frame needs no new slot for the sprite: it has it with these bounds and this
+// offset, or in any slot when none are given.
 bool hasSprite(const std::vector<document::FrameSpriteReference>& references,
-               std::size_t sprite)
+               std::size_t sprite,
+               const std::optional<document::FrameSpriteReference>& bounds)
 {
     return std::any_of(references.begin(), references.end(),
-                       [sprite](const document::FrameSpriteReference& reference) {
-                           return reference.spriteId == sprite;
+                       [sprite, &bounds](const document::FrameSpriteReference& reference) {
+                           return reference.spriteId == sprite &&
+                                  (!bounds || (reference.minX == bounds->minX &&
+                                               reference.minY == bounds->minY &&
+                                               reference.maxX == bounds->maxX &&
+                                               reference.maxY == bounds->maxY &&
+                                               reference.offsetX == bounds->offsetX &&
+                                               reference.offsetY == bounds->offsetY));
                        });
 }
 
@@ -47,7 +56,7 @@ SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
         for (const std::size_t sprite : sprites) {
             const std::vector<document::FrameSpriteReference>& references =
                 document.frameSpriteReferences(frame);
-            if (hasSprite(references, sprite)) {
+            if (hasSprite(references, sprite, bounds)) {
                 ++result.kept;
                 continue;
             }
@@ -79,7 +88,8 @@ SpritesAdded addSpritesToFrames(document::ProjectDocument& document,
 
 std::size_t framesPassingSpriteWarning(const document::ProjectDocument& document,
                                        const std::vector<std::size_t>& frames,
-                                       const std::vector<std::size_t>& sprites)
+                                       const std::vector<std::size_t>& sprites,
+                                       const std::optional<document::FrameSpriteReference>& bounds)
 {
     std::size_t passing = 0;
     for (const std::size_t frame : frames) {
@@ -88,7 +98,7 @@ std::size_t framesPassingSpriteWarning(const document::ProjectDocument& document
         const std::size_t used = usedSlots(references);
         std::size_t added = 0;
         for (const std::size_t sprite : sprites) {
-            added += hasSprite(references, sprite) ? 0 : 1;
+            added += hasSprite(references, sprite, bounds) ? 0 : 1;
         }
         const std::size_t after = std::min(used + added, document::kSpritesPerFrame);
         passing += used <= document::kSpritesPerFrameWarning &&

@@ -164,12 +164,14 @@ The controls:
     slot itself or one before it), with that slot's bounds; the status bar says on how many
     frames that happened, and the current frame's slot selection follows.
   - With several sprites selected in the list, `Assign` puts each of them on every selected frame,
-    as the Win32 editor's `Add Sprite` did: a frame that has a sprite already keeps it in its slot
-    with its bounds, otherwise the sprite goes to the frame's first empty slot. A new slot gets
-    the bounds and offset of the current frame's selected slot when that slot holds a sprite, and
-    the whole frame as its bounds otherwise. So for the ten digits of a score, set up the slot of
-    one digit (bounds and offset), then select the other nine in the list and press `Assign`. A
-    frame whose slots are all used gets no more; the status bar counts the sprites added, those
+    as the Win32 editor's `Add Sprite` did, each in the frame's first empty slot. A new slot gets
+    the bounds and offset of the current frame's selected slot when that slot holds a sprite; a
+    sprite the frame has with those bounds and that offset is there already, while one it has
+    elsewhere gets another slot. With an empty slot selected, a new slot has the whole frame as
+    its bounds, and a sprite the frame has in any slot is there already. So for the ten digits of
+    a score, set up the slot of one digit (bounds and offset), then select the other nine in the
+    list and press `Assign`, and do the same for the next place of the score. A frame whose slots
+    are all used gets no more; the status bar counts the sprites added, those
     there already and those left out. It is one undo step.
   - `Capture` assigns the captured sprite by the same rule.
   - A sprite can be in several slots of a frame, each with its own bounds, for example for the

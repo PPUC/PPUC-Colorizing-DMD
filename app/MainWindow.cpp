@@ -12669,7 +12669,22 @@ void MainWindow::assignSelectedSpritesToFrames(const std::vector<std::size_t>& s
     if (!m_document || frames.empty() || sprites.empty()) {
         return;
     }
-    if (const std::size_t passing = edit::framesPassingSpriteWarning(*m_document, frames, sprites);
+    // A used slot selected on the current frame lends its bounds and offset to the new slots,
+    // as for the digits of a score that are all found in the same place.
+    std::optional<document::FrameSpriteReference> bounds;
+    std::optional<std::size_t> boundsSlot;
+    if (const std::optional<std::size_t> frame = currentFrameIndex(); frame && m_spritePanel) {
+        const std::vector<document::FrameSpriteReference>& references =
+            m_document->frameSpriteReferences(*frame);
+        if (const std::optional<std::size_t> slot = m_spritePanel->selectedSlotIndex();
+            slot && *slot < references.size() &&
+            references[*slot].spriteId != document::kNoSpriteId) {
+            bounds = references[*slot];
+            boundsSlot = slot;
+        }
+    }
+    if (const std::size_t passing =
+            edit::framesPassingSpriteWarning(*m_document, frames, sprites, bounds);
         passing > 0) {
         QMessageBox confirm(QMessageBox::Warning,
                             tr("More Than %1 Sprites").arg(document::kSpritesPerFrameWarning),
@@ -12684,20 +12699,6 @@ void MainWindow::assignSelectedSpritesToFrames(const std::vector<std::size_t>& s
         confirm.exec();
         if (confirm.clickedButton() != useMore) {
             return;
-        }
-    }
-    // A used slot selected on the current frame lends its bounds and offset to the new slots,
-    // as for the digits of a score that are all found in the same place.
-    std::optional<document::FrameSpriteReference> bounds;
-    std::optional<std::size_t> boundsSlot;
-    if (const std::optional<std::size_t> frame = currentFrameIndex(); frame && m_spritePanel) {
-        const std::vector<document::FrameSpriteReference>& references =
-            m_document->frameSpriteReferences(*frame);
-        if (const std::optional<std::size_t> slot = m_spritePanel->selectedSlotIndex();
-            slot && *slot < references.size() &&
-            references[*slot].spriteId != document::kNoSpriteId) {
-            bounds = references[*slot];
-            boundsSlot = slot;
         }
     }
     try {

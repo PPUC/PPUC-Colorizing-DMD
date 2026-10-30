@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Assign` with several sprites selected also adds sprites the frame has in another bounding box
+  (#50).
 - `Export .cROMc...` leaves out the comparison masks, backgrounds and sprites no frame uses, and
   the left sidebar marks them `Unused`.
 
