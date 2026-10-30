@@ -2158,6 +2158,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>libserum garde l&apos;image affichée</translation>
     </message>
     <message>
+        <source>not identified (the display keeps its picture)</source>
+        <translation>non identifiée (l&apos;écran garde son image)</translation>
+    </message>
+    <message>
         <source>not identified</source>
         <translation>non identifiée</translation>
     </message>

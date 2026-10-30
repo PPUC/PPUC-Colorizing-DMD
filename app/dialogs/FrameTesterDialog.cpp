@@ -401,6 +401,7 @@ void FrameTesterDialog::feed(std::size_t position)
         m_rotationTimer.stop();
         rotateStep();
     }
+    const runtime::RuntimeFrame previous = std::move(m_result);
     m_result = preview.colorize(m_frames[position].original);
     if (!m_result.dofEvents.empty()) {
         m_dofEvents = m_result.dofEvents;
@@ -419,6 +420,12 @@ void FrameTesterDialog::feed(std::size_t position)
     }
     // "Same frame" and an unknown frame keep the running schedule: a scene or a rotation goes
     // on with its own time, as on a machine.
+    // A frame libserum gives no picture for, unknown or inactive, leaves the display as it is,
+    // as on a machine: the planes of the call before still show.
+    if (m_result.ok() && !m_result.unchanged && !m_result.rows32 && !m_result.rows64) {
+        m_result.rows32 = previous.rows32;
+        m_result.rows64 = previous.rows64;
+    }
     showResult();
 }
 
@@ -502,7 +509,8 @@ QString FrameTesterDialog::infoText() const
         // libserum shows a frame of a scene, not one of the game.
         parts << scene;
     } else if (!m_result.identified) {
-        parts << tr("not identified");
+        parts << (currentPicture(false) ? tr("not identified (the display keeps its picture)")
+                                        : tr("not identified"));
     } else {
         QString identified =
             m_result.frameIndex

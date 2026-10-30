@@ -2158,6 +2158,10 @@ Use Create %1 Frame.</source>
         <translation>libserum behält das Bild auf dem Display</translation>
     </message>
     <message>
+        <source>not identified (the display keeps its picture)</source>
+        <translation>nicht erkannt (das Display behält sein Bild)</translation>
+    </message>
+    <message>
         <source>not identified</source>
         <translation>nicht erkannt</translation>
     </message>

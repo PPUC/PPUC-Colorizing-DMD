@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The frame tester keeps the last picture on an unknown or inactive frame, as a machine does,
+  instead of showing black.
 - `Assign` with several sprites selected also adds sprites the frame has in another bounding box
   (#50).
 - `Export .cROMc...` leaves out the comparison masks, backgrounds and sprites no frame uses, and

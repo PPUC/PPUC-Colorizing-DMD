@@ -113,11 +113,17 @@ void testDialog()
                "the dump is loaded");
         expect(dialog.lastResult().identified && dialog.lastResult().frameIndex == 0u,
                "its first frame is identified as frame 0");
+        expect(dialog.currentPicture(false) != nullptr, "and its picture shows");
+        const document::Rgb565Frame identifiedPicture = *dialog.currentPicture(false);
         expect(dialog.nextUnidentified() && dialog.position() == 1 &&
                    !dialog.lastResult().identified,
                "Next Unidentified stops at the unknown frame");
         expect(dialog.infoText().contains(QStringLiteral("not identified")),
                "and says so: " + dialog.infoText().toStdString());
+        expect(dialog.currentPicture(false) &&
+                   dialog.currentPicture(false)->pixels == identifiedPicture.pixels &&
+                   dialog.infoText().contains(QStringLiteral("keeps its picture")),
+               "the display keeps the last picture, as on a machine");
         expect(!dialog.nextUnidentified() && dialog.position() == 1,
                "none behind it: it stays");
         expect(dialog.findProjectFrame(2, false) && dialog.position() == 2 &&
