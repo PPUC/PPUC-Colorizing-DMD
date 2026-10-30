@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Show Bounds` no longer covers the whole original frame on a frame without sprites: an empty
+  slot shows no overlay.
+
 ## 3.99.24
 
 - The frame tester keeps the last picture on an unknown or inactive frame, as a machine does,

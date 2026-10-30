@@ -223,7 +223,9 @@ The controls:
     earlier one (`Move Up`, `Move Down`).
   - `Assign` into a used slot keeps its bounds and its offset; `Capture` sets new bounds and no
     offset.
-- `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the original frame. It is disabled by default.
+- `Show Bounds` toggles a translucent filled overlay for the selected slot's bounding box on the
+  original frame. It is disabled by default. An empty slot has no bounds, so the overlay shows
+  nothing there, even with the button on.
 - While `Show Bounds` is on and the frame itself is edited (no mask, dynamic zone or background
   mode), the `Rectangle` and `Filled Rectangle` tools draw the bounds on the original frame:
   drag the area in which the sprite is looked for, and on release it becomes the selected slot's

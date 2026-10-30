@@ -1666,6 +1666,10 @@ void FramePreviewWidget::paintSelectedSpriteBounds(
         region.region != render::CanvasRegion::OriginalFrame) {
         return;
     }
+    // Bounds belong to an assigned sprite; an empty slot has none to show.
+    if (m_selectedSpriteReference->spriteId == document::kNoSpriteId) {
+        return;
+    }
 
     // Slot bounds are pixels of the original the region shows.
     const render::Size size = region.logicalSize;

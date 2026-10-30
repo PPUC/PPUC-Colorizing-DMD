@@ -1054,7 +1054,7 @@ void testSelectedSpriteBoundsOverlayRenders()
     noSelectionPainter.end();
 
     widget.setSelectedSpriteReference(colorizing::document::FrameSpriteReference{
-        255,
+        colorizing::document::kNoSpriteId,
         0,
         0,
         127,
@@ -1065,8 +1065,8 @@ void testSelectedSpriteBoundsOverlayRenders()
     QPainter emptySlotPainter(&emptySlotImage);
     widget.render(&emptySlotPainter);
     emptySlotPainter.end();
-    expect(hasVisibleCyanPixel(emptySlotImage),
-           "empty sprite slots should render a bounds overlay for capture");
+    expect(!hasVisibleCyanPixel(emptySlotImage),
+           "an empty sprite slot has no bounds to show");
 }
 
 void testDynamicMaskOverlayRendersInSdAndHd()
