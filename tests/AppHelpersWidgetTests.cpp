@@ -197,6 +197,14 @@ void testOriginalShadeColors()
     expect(originalIndexToColor(7, 16) != originalIndexToColor(3, 16) &&
                originalIndexToColor(7, 16) != originalIndexToColor(3, 4),
            "shade 7 is not shown as shade 3");
+    // Issue #56: an off pixel has no amber in it and is told apart from the lowest lit shade.
+    const QColor off = originalIndexToColor(0, 16);
+    expect(off.red() == off.green() && off.green() == off.blue() && off.lightness() < 20,
+           "shade 0 is a very dark grey");
+    expect(off == originalIndexToColor(0, 4), "in 4-color projects too");
+    const QColor lowest = originalIndexToColor(1, 16);
+    expect(lowest.red() > lowest.blue() + 40 && lowest.lightness() >= off.lightness() + 20,
+           "shade 1 of 16 is a visible amber");
 }
 
 }  // namespace

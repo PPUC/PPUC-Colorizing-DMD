@@ -460,19 +460,26 @@ QColor rgb565ToColor(uint16_t value)
 
 QColor originalIndexToColor(uint8_t value, uint32_t colorCount)
 {
-    static const QColor kRamp[4] = {QColor(22, 18, 12), QColor(110, 54, 8),
+    // Shade 0 is an off pixel: a very dark grey, without the amber of the lit shades.
+    static const QColor kRamp[4] = {QColor(12, 12, 12), QColor(110, 54, 8),
                                     QColor(210, 112, 16), QColor(255, 184, 48)};
+    // The lowest lit shade of 16: mixed from the off color it would look like that color.
+    static const QColor kLowestLit(58, 28, 6);
     if (colorCount <= 4) {
         return kRamp[value & 0x03];
     }
     // 16 shades along the same ramp: 0, 5, 10 and 15 are its four colors, the others lie
-    // between them.
+    // between them, those below 5 between the lowest lit shade and 5.
     const int shade = std::min<int>(value, 15);
+    if (shade == 0) {
+        return kRamp[0];
+    }
     const int segment = std::min(shade / 5, 2);
-    const int step = shade - segment * 5;
-    const QColor& from = kRamp[segment];
+    const QColor& from = segment == 0 ? kLowestLit : kRamp[segment];
     const QColor& to = kRamp[segment + 1];
-    const auto mix = [step](int a, int b) { return a + (b - a) * step / 5; };
+    const int step = segment == 0 ? shade - 1 : shade - segment * 5;
+    const int steps = segment == 0 ? 4 : 5;
+    const auto mix = [step, steps](int a, int b) { return a + (b - a) * step / steps; };
     return QColor(mix(from.red(), to.red()), mix(from.green(), to.green()),
                   mix(from.blue(), to.blue()));
 }

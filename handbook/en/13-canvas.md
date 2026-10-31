@@ -64,7 +64,8 @@ Drawing previews are transient overlays. They do not modify project data until m
 
 The original/reference region shows the ROM frame's shades on an amber ramp from dark to
 bright: 4 steps in a project with 4 original colors, 16 in one with 16 (shades 0, 5, 10 and 15 of
-16 have the colors of shades 0 to 3 of 4); the frame thumbnails and the sprite editor's original
+16 have the colors of shades 0 to 3 of 4). An off pixel (shade 0) is a very dark grey, so that it
+is easy to tell from the lowest lit shade. The frame thumbnails and the sprite editor's original
 use the same colors.
 
 Use the `Mask` toolbar toggle to show the current frame's assigned comparison mask over the original/reference region.
