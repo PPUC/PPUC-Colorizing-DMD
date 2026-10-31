@@ -17,6 +17,7 @@ class QLineEdit;
 class QListWidget;
 class QSpinBox;
 class QTabWidget;
+class QToolButton;
 
 namespace colorizing::app {
 
@@ -72,11 +73,15 @@ public:
     [[nodiscard]] QStringList enabledPlugins() const;
 
 private:
+    void setOffPixelColorShown(const QColor& color);
+
     QTabWidget* m_tabs = nullptr;
     QComboBox* m_themeComboBox = nullptr;
     QComboBox* m_languageComboBox = nullptr;
     QComboBox* m_pixelShapeComboBox = nullptr;
     QSpinBox* m_pixelSizeSpinBox = nullptr;
+    QToolButton* m_offPixelColorButton = nullptr;
+    QColor m_offPixelColor;
     QCheckBox* m_speakersShown = nullptr;
     QComboBox* m_speakerShape = nullptr;
     QSpinBox* m_speakerLeds = nullptr;

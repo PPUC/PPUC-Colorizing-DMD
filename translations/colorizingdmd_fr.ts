@@ -8032,12 +8032,32 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Taille des pixels DMD, relative à leur cellule</translation>
     </message>
     <message>
+        <source>The color of off pixels in original frames, to tell them from the lowest shades</source>
+        <translation>La couleur des pixels éteints dans les frames d&apos;origine, pour les distinguer des nuances les plus basses</translation>
+    </message>
+    <message>
+        <source>Off Pixel Color</source>
+        <translation>Couleur des pixels éteints</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Par défaut</translation>
+    </message>
+    <message>
+        <source>Back to the very dark grey</source>
+        <translation>Revenir au gris très foncé</translation>
+    </message>
+    <message>
         <source>Pixel Shape</source>
         <translation>Forme des pixels</translation>
     </message>
     <message>
         <source>Pixel Size</source>
         <translation>Taille des pixels</translation>
+    </message>
+    <message>
+        <source>Off Pixels</source>
+        <translation>Pixels éteints</translation>
     </message>
     <message>
         <source>Speaker Light Preview</source>

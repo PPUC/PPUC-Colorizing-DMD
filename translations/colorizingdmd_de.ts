@@ -8032,12 +8032,32 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>DMD-Pixelgröße, relativ zu ihrer Zelle</translation>
     </message>
     <message>
+        <source>The color of off pixels in original frames, to tell them from the lowest shades</source>
+        <translation>Die Farbe ausgeschalteter Pixel in Original-Frames, um sie von den niedrigsten Helligkeitsstufen zu unterscheiden</translation>
+    </message>
+    <message>
+        <source>Off Pixel Color</source>
+        <translation>Farbe ausgeschalteter Pixel</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Standard</translation>
+    </message>
+    <message>
+        <source>Back to the very dark grey</source>
+        <translation>Zurück zum sehr dunklen Grau</translation>
+    </message>
+    <message>
         <source>Pixel Shape</source>
         <translation>Pixelform</translation>
     </message>
     <message>
         <source>Pixel Size</source>
         <translation>Pixelgröße</translation>
+    </message>
+    <message>
+        <source>Off Pixels</source>
+        <translation>Ausgeschaltete Pixel</translation>
     </message>
     <message>
         <source>Speaker Light Preview</source>

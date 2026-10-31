@@ -22,6 +22,7 @@ namespace {
 const QString kThemeKey = QStringLiteral("appearance/theme");
 const QString kPixelShapeKey = QStringLiteral("appearance/dmdPixelShape");
 const QString kPixelSizeKey = QStringLiteral("appearance/dmdPixelSize");
+const QString kOffPixelColorKey = QStringLiteral("appearance/offPixelColor");
 
 // What the application looked like before a theme was applied, to go back to.
 struct Original {
@@ -295,6 +296,10 @@ DmdRenderOptions loadDmdRenderOptions()
     // 80 % by default: the DMD grid shows, as on a real display.
     const int percent = std::clamp(settings.value(kPixelSizeKey, 80).toInt(), 50, 100);
     options.pixelCoverage = static_cast<double>((percent + 5) / 10 * 10) / 100.0;
+    const QColor offPixelColor(settings.value(kOffPixelColorKey).toString());
+    if (offPixelColor.isValid()) {
+        options.offPixelColor = offPixelColor;
+    }
     return options;
 }
 
@@ -305,6 +310,7 @@ void saveDmdRenderOptions(const DmdRenderOptions& options)
                                           ? QStringLiteral("dots")
                                           : QStringLiteral("squares"));
     settings.setValue(kPixelSizeKey, static_cast<int>(std::lround(options.pixelCoverage * 100)));
+    settings.setValue(kOffPixelColorKey, options.offPixelColor.name());
 }
 
 void applyTheme(Theme theme)

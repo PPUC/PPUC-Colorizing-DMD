@@ -6,7 +6,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 ## Next version
 
 - Off pixels of the original frame are a very dark grey instead of a dark amber, and the lowest
-  shades of a 16-color ROM are brighter, so that the two are easy to tell apart (#56).
+  shades of a 16-color ROM are brighter, so that the two are easy to tell apart (#56). The color
+  can be chosen in the settings (`Appearance`, `Off Pixels`).
 - A click on the original frame with `Show Bounds` on no longer shrinks the sprite slot's bounds
   to that pixel; only a dragged rectangle sets them.
 - `Fill Rect` is the drawing tool the editor starts with (#52).

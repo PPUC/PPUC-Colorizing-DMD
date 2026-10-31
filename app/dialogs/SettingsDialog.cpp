@@ -1,16 +1,19 @@
 #include "dialogs/SettingsDialog.h"
 
 #include <QCheckBox>
+#include <QColorDialog>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -73,9 +76,31 @@ SettingsDialog::SettingsDialog(Theme theme,
                     m_pixelSizeSpinBox->setValue(rounded);
                 }
             });
+    m_offPixelColorButton = new QToolButton(canvasGroup);
+    m_offPixelColorButton->setFixedWidth(48);
+    m_offPixelColorButton->setToolTip(
+        tr("The color of off pixels in original frames, to tell them from the lowest shades"));
+    setOffPixelColorShown(canvas.offPixelColor);
+    connect(m_offPixelColorButton, &QToolButton::clicked, this, [this]() {
+        const QColor color =
+            QColorDialog::getColor(m_offPixelColor, this, tr("Off Pixel Color"));
+        if (color.isValid()) {
+            setOffPixelColorShown(color);
+        }
+    });
+    auto* offPixelDefault = new QToolButton(canvasGroup);
+    offPixelDefault->setText(tr("Default"));
+    offPixelDefault->setToolTip(tr("Back to the very dark grey"));
+    connect(offPixelDefault, &QToolButton::clicked, this,
+            [this]() { setOffPixelColorShown(defaultOffPixelColor()); });
+    auto* offPixelRow = new QHBoxLayout;
+    offPixelRow->addWidget(m_offPixelColorButton);
+    offPixelRow->addWidget(offPixelDefault);
+    offPixelRow->addStretch(1);
     auto* canvasForm = new QFormLayout(canvasGroup);
     canvasForm->addRow(tr("Pixel Shape"), m_pixelShapeComboBox);
     canvasForm->addRow(tr("Pixel Size"), m_pixelSizeSpinBox);
+    canvasForm->addRow(tr("Off Pixels"), offPixelRow);
 
     // As the pixels of the canvas, the speakers are the editor's: machines differ.
     auto* speakersGroup = new QGroupBox(tr("Speaker Light Preview"), appearance);
@@ -160,6 +185,13 @@ SettingsDialog::SettingsDialog(Theme theme,
     layout->addWidget(buttons);
 }
 
+void SettingsDialog::setOffPixelColorShown(const QColor& color)
+{
+    m_offPixelColor = color;
+    m_offPixelColorButton->setStyleSheet(
+        QStringLiteral("QToolButton { background-color: %1; }").arg(color.name()));
+}
+
 void SettingsDialog::showPage(Page page)
 {
     switch (page) {
@@ -229,6 +261,7 @@ DmdRenderOptions SettingsDialog::canvasOptions() const
     DmdRenderOptions options;
     options.pixelShape = static_cast<DmdPixelShape>(m_pixelShapeComboBox->currentData().toInt());
     options.pixelCoverage = static_cast<double>(m_pixelSizeSpinBox->value()) / 100.0;
+    options.offPixelColor = m_offPixelColor;
     return options;
 }
 

@@ -458,21 +458,42 @@ QColor rgb565ToColor(uint16_t value)
     return QColor((r5 * 255) / 31, (g6 * 255) / 63, (b5 * 255) / 31);
 }
 
+QColor defaultOffPixelColor()
+{
+    return QColor(20, 20, 20);
+}
+
+namespace {
+
+QColor& offPixelColorSetting()
+{
+    static QColor color = defaultOffPixelColor();
+    return color;
+}
+
+}  // namespace
+
+void setOffPixelColor(const QColor& color)
+{
+    offPixelColorSetting() = color;
+}
+
 QColor originalIndexToColor(uint8_t value, uint32_t colorCount)
 {
-    // Shade 0 is an off pixel: a very dark grey, without the amber of the lit shades.
-    static const QColor kRamp[4] = {QColor(12, 12, 12), QColor(110, 54, 8),
-                                    QColor(210, 112, 16), QColor(255, 184, 48)};
+    // Index 0 is unused: shade 0 is an off pixel, without the amber of the lit shades.
+    static const QColor kRamp[4] = {QColor(), QColor(110, 54, 8), QColor(210, 112, 16),
+                                    QColor(255, 184, 48)};
     // The lowest lit shade of 16: mixed from the off color it would look like that color.
     static const QColor kLowestLit(58, 28, 6);
     if (colorCount <= 4) {
-        return kRamp[value & 0x03];
+        const int shade = value & 0x03;
+        return shade == 0 ? offPixelColorSetting() : kRamp[shade];
     }
-    // 16 shades along the same ramp: 0, 5, 10 and 15 are its four colors, the others lie
-    // between them, those below 5 between the lowest lit shade and 5.
+    // 16 shades along the same ramp: 5, 10 and 15 are its colors, the others lie between them,
+    // those below 5 between the lowest lit shade and 5.
     const int shade = std::min<int>(value, 15);
     if (shade == 0) {
-        return kRamp[0];
+        return offPixelColorSetting();
     }
     const int segment = std::min(shade / 5, 2);
     const QColor& from = segment == 0 ? kLowestLit : kRamp[segment];

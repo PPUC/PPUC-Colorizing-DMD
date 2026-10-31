@@ -3294,6 +3294,8 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         saveTheme(dialog.theme());
         applyTheme(dialog.theme());
     }
+    const bool offPixelColorChanged =
+        dialog.canvasOptions().offPixelColor != m_dmdRenderOptions.offPixelColor;
     m_dmdRenderOptions = dialog.canvasOptions();
     saveDmdRenderOptions(m_dmdRenderOptions);
     saveSpeakerLightPreviewOptions(dialog.speakerLightPreview());
@@ -3306,6 +3308,9 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         updateFrameLightControls();
     }
     updateDmdRenderOptions();
+    if (offPixelColorChanged) {
+        refreshOriginalPictures();
+    }
     saveDmdOutputSettings(dialog.dmdOutputSettings());
     if (m_dmdOutput.isRunning()) {
         setDmdOutputEnabled(true);
@@ -13037,6 +13042,21 @@ void MainWindow::updateFrameListItem(std::size_t frameIndex)
     refreshFrameList(frameIndex);
 }
 
+void MainWindow::refreshOriginalPictures()
+{
+    for (int row = 0; m_frameList && row < m_frameList->count(); ++row) {
+        m_frameThumbnails->invalidate(m_frameList->item(row));
+    }
+    refreshComponentBrowsers();
+    if (m_scenesPanel) {
+        m_scenesPanel->refreshThumbnails();
+    }
+    if (m_editColorBar) {
+        m_editColorBar->refresh(m_document ? &*m_document : nullptr);
+    }
+    updateDynamicColorControls();
+}
+
 DmdRenderOptions MainWindow::currentDmdRenderOptions() const
 {
     return m_dmdRenderOptions;
@@ -13044,6 +13064,7 @@ DmdRenderOptions MainWindow::currentDmdRenderOptions() const
 
 void MainWindow::updateDmdRenderOptions()
 {
+    setOffPixelColor(currentDmdRenderOptions().offPixelColor);
     if (m_preview) {
         m_preview->setDmdRenderOptions(currentDmdRenderOptions());
     }

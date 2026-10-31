@@ -26,7 +26,10 @@ problem.
   - `Pixel Shape` draws square pixels or round dot pixels, on the canvas, in the sprite editor
     and in PNG exports;
   - `Pixel Size` sets the pixel fill size in 10% steps (`80%` until set otherwise). Values below
-    `100%` leave black spacing between pixels, which makes the DMD grid visible.
+    `100%` leave black spacing between pixels, which makes the DMD grid visible;
+  - `Off Pixels` sets the color off pixels (shade 0) of original frames are shown in, on the
+    canvas, in the frame thumbnails, the sprite editor and the frame tester, to tell them from the
+    lowest shades. `Default` gives the very dark grey back.
   They are view and export settings only: no project data and no file changes with them.
   Under `Speaker Light Preview`: whether two speakers show beside the canvas and in the frame
   tester (also `View -> Speaker Light Preview`), their `Shape`, their number of `LEDs` and the

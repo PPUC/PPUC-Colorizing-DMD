@@ -686,6 +686,8 @@ private:
     // How DMD pixels are drawn (Settings -> Appearance), kept for the next start.
     DmdRenderOptions m_dmdRenderOptions = loadDmdRenderOptions();
     void updateDmdRenderOptions();
+    // The off pixel color changed: everything that shows original frames in pictures it keeps.
+    void refreshOriginalPictures();
     void updateSpriteControls();
     [[nodiscard]] bool isSpriteCaptureSelectionModeActive() const;
 

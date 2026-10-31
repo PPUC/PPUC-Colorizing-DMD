@@ -184,7 +184,8 @@ void SpriteEditorWidget::setActiveDrawColor(uint16_t rgb565)
 void SpriteEditorWidget::setDmdRenderOptions(DmdRenderOptions options)
 {
     if (m_renderOptions.pixelShape == options.pixelShape &&
-        std::abs(m_renderOptions.pixelCoverage - options.pixelCoverage) < 0.001) {
+        std::abs(m_renderOptions.pixelCoverage - options.pixelCoverage) < 0.001 &&
+        m_renderOptions.offPixelColor == options.offPixelColor) {
         return;
     }
     m_renderOptions = options;

@@ -17,9 +17,14 @@ enum class DmdPixelShape {
     Dot,
 };
 
+// The default color of an off pixel of an original frame: a very dark grey.
+[[nodiscard]] QColor defaultOffPixelColor();
+
 struct DmdRenderOptions {
     DmdPixelShape pixelShape = DmdPixelShape::Square;
     double pixelCoverage = 1.0;
+    // Shown through originalIndexToColor(), once setOffPixelColor() has it.
+    QColor offPixelColor = defaultOffPixelColor();
 };
 
 // A sprite found in a frame's ROM frame: its part (spriteX, spriteY), width x height, shows at
@@ -51,9 +56,11 @@ struct SpriteMatch {
                                                   render::Resolution resolution);
 
 [[nodiscard]] QColor rgb565ToColor(uint16_t value);
-// The color the editor shows a shade of an original frame in: an amber ramp over the 4 or 16
-// shades of the project (colorCount, ProjectDocument::colorCount()).
+// The color the editor shows a shade of an original frame in: shade 0, an off pixel, in the
+// color of the setting (setOffPixelColor()), the others on an amber ramp over the 4 or 16 shades
+// of the project (colorCount, ProjectDocument::colorCount()).
 [[nodiscard]] QColor originalIndexToColor(uint8_t value, uint32_t colorCount = 4);
+void setOffPixelColor(const QColor& color);
 [[nodiscard]] uint16_t resolvedFramePixel(const document::ProjectDocument& document,
                                           std::size_t frameIndex,
                                           render::Resolution resolution,

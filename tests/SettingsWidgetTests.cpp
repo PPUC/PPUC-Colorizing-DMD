@@ -13,6 +13,7 @@
 #include <QSettings>
 #include <QStyle>
 #include <QSpinBox>
+#include <QToolButton>
 #include <QTabWidget>
 #include <QTemporaryDir>
 
@@ -95,6 +96,29 @@ void runSettingsWidgetTests()
     expect(loadedCanvas.pixelShape == app::DmdPixelShape::Dot &&
                loadedCanvas.pixelCoverage == 0.7,
            "the DMD pixel shape and size are kept");
+    expect(loadedCanvas.offPixelColor == app::defaultOffPixelColor(),
+           "off pixels are the default grey until chosen");
+    {
+        app::DmdRenderOptions chosen = canvas;
+        chosen.offPixelColor = QColor(0, 0, 40);
+        app::saveDmdRenderOptions(chosen);
+        expect(app::loadDmdRenderOptions().offPixelColor == QColor(0, 0, 40),
+               "the color of off pixels is kept");
+        app::SettingsDialog chosenDialog(app::Theme::Light, chosen, dmd, false);
+        expect(chosenDialog.canvasOptions().offPixelColor == QColor(0, 0, 40),
+               "the dialog shows the color it was given");
+        QToolButton* defaultButton = nullptr;
+        for (QToolButton* button : chosenDialog.findChildren<QToolButton*>()) {
+            if (button->text() == QStringLiteral("Default")) {
+                defaultButton = button;
+            }
+        }
+        expect(defaultButton != nullptr, "the color can go back to the default");
+        defaultButton->click();
+        expect(chosenDialog.canvasOptions().offPixelColor == app::defaultOffPixelColor(),
+               "Default gives the grey back");
+        app::saveDmdRenderOptions(canvas);
+    }
     app::SettingsDialog dialog(app::Theme::Light, canvas, dmd, false);
     expect(dialog.canvasOptions().pixelShape == app::DmdPixelShape::Dot &&
                dialog.canvasOptions().pixelCoverage == 0.7,

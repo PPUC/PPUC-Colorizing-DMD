@@ -430,7 +430,8 @@ void FramePreviewWidget::setSelectedBackgroundIndex(std::optional<std::size_t> b
 void FramePreviewWidget::setDmdRenderOptions(DmdRenderOptions options)
 {
     if (m_renderOptions.pixelShape == options.pixelShape &&
-        std::abs(m_renderOptions.pixelCoverage - options.pixelCoverage) < 0.001) {
+        std::abs(m_renderOptions.pixelCoverage - options.pixelCoverage) < 0.001 &&
+        m_renderOptions.offPixelColor == options.offPixelColor) {
         return;
     }
     m_renderOptions = options;

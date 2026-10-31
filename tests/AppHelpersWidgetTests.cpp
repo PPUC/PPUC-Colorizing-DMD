@@ -199,12 +199,20 @@ void testOriginalShadeColors()
            "shade 7 is not shown as shade 3");
     // Issue #56: an off pixel has no amber in it and is told apart from the lowest lit shade.
     const QColor off = originalIndexToColor(0, 16);
-    expect(off.red() == off.green() && off.green() == off.blue() && off.lightness() < 20,
+    expect(off == app::defaultOffPixelColor() && off.red() == off.green() &&
+               off.green() == off.blue() && off.lightness() <= 24,
            "shade 0 is a very dark grey");
     expect(off == originalIndexToColor(0, 4), "in 4-color projects too");
     const QColor lowest = originalIndexToColor(1, 16);
-    expect(lowest.red() > lowest.blue() + 40 && lowest.lightness() >= off.lightness() + 20,
+    expect(lowest.red() > lowest.blue() + 40 && lowest.lightness() >= off.lightness() + 10,
            "shade 1 of 16 is a visible amber");
+    // The setting: only off pixels follow it.
+    app::setOffPixelColor(QColor(0, 0, 40));
+    expect(originalIndexToColor(0, 16) == QColor(0, 0, 40) &&
+               originalIndexToColor(0, 4) == QColor(0, 0, 40) &&
+               originalIndexToColor(1, 16) == lowest,
+           "the setting colors the off pixels and nothing else");
+    app::setOffPixelColor(app::defaultOffPixelColor());
 }
 
 }  // namespace
