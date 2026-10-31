@@ -51,7 +51,8 @@ The preview is shown while dragging. The whole rectangle is committed on release
 
 ## Fill Rect
 
-Press, drag, and release to draw a filled rectangle bounded by the start and end pixels.
+The tool the editor starts with. Press, drag, and release to draw a filled rectangle bounded by
+the start and end pixels. A click without a drag paints the one pixel, as `Point` does.
 
 The preview is shown while dragging. The whole filled rectangle is committed on release as one undoable edit.
 

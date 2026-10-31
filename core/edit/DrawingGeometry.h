@@ -39,6 +39,9 @@ enum class DrawingTool {
     FloodFill,
 };
 
+// The tool the editor starts with. A click with it paints one pixel, a drag a whole area.
+inline constexpr DrawingTool kDefaultDrawingTool = DrawingTool::FilledRectangle;
+
 // The filled area the PaletteGradient and Selection tools drag out.
 enum class PaletteGradientShape {
     Rectangle,

@@ -1459,6 +1459,29 @@ void testCanvasSelectionOnBackground()
            "on the original in capture mode it neither selects nor paints the capture");
 }
 
+// Issue #52: the tool a project starts with is Fill Rect, whose click paints the one pixel.
+void testDefaultToolPaintsOnePixelOnClick()
+{
+    expect(edit::kDefaultDrawingTool == DrawingTool::FilledRectangle,
+           "Fill Rect is the default drawing tool");
+    ProjectDocument document = makeDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    const CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, edit::kDefaultDrawingTool, {1});
+    // A click: the press, then the release at the same pixel.
+    controller.colorizedPixelClicked(context, colorized(3, 4), false);
+    controller.strokeFinished(context, colorized(3, 4), colorized(3, 4), false);
+    int painted = 0;
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 128; ++x) {
+            painted += document.colorizedPixel(1, Resolution::Sd, x, y) == kDrawColor ? 1 : 0;
+        }
+    }
+    expect(painted == 1 && document.colorizedPixel(1, Resolution::Sd, 3, 4) == kDrawColor,
+           "a click paints the pixel under the mouse and no other");
+}
+
 // With Show Bounds on, a rectangle on the original frame gives the sprite slot its bounds.
 void testSpriteBoundsAreDrawn()
 {
@@ -1885,6 +1908,7 @@ void runCanvasEditControllerTests()
     testCanvasSelection();
     testCanvasSelectionOnBackground();
     testSpriteCaptureSelection();
+    testDefaultToolPaintsOnePixelOnClick();
     testSpriteBoundsAreDrawn();
     testComparisonMaskOnBigOriginal();
     testSpriteCaptureSelectionOnBigOriginal();

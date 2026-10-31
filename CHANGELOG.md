@@ -5,6 +5,7 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Fill Rect` is the drawing tool the editor starts with (#52).
 - `Under its mask` in the frame tester is only offered where it can make a difference, for a
   dump and a project frame with a comparison mask, and the result names the mask (#54).
 - The left and right arrow keys always step through the frames in the frame tester, also after

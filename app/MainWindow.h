@@ -789,7 +789,7 @@ private:
     QTimer* m_runtimeRotationTimer = nullptr;
     QElapsedTimer m_playbackElapsedTimer;
     render::Resolution m_activeResolution = render::Resolution::Sd;
-    DrawingTool m_drawingTool = DrawingTool::Point;
+    DrawingTool m_drawingTool = edit::kDefaultDrawingTool;
     PickToolReturn m_pickToolReturn;
     // The frame shown last, by its ID: a change of frame may drop the canvas selection.
     document::ComponentId m_shownFrameId;
