@@ -33,6 +33,21 @@ namespace colorizing::app {
 
 namespace {
 
+// The comparison mask assigned to a frame.
+std::optional<uint8_t> comparisonMaskOf(const document::ProjectDocument& document,
+                                        std::size_t frameIndex)
+{
+    if (frameIndex >= document.frameCount()) {
+        return std::nullopt;
+    }
+    const uint8_t mask = document.comparisonMaskId(frameIndex);
+    if (mask >= document.comparisonMaskCount()) {
+        return std::nullopt;
+    }
+    return mask;
+}
+
+
 using runtime::RuntimePreview;
 
 // libserum's picture of a plane, as large as its view allows, with the canvas' pixels.
@@ -121,7 +136,8 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
         0, static_cast<int>(std::max<std::size_t>(1, document.frameCount()) - 1));
     m_underMaskCheckBox = new QCheckBox(tr("Under its mask"), this);
     m_underMaskCheckBox->setToolTip(
-        tr("Leave out the pixels the frame's comparison mask covers"));
+        tr("For Find Frame in a dump: leave out the pixels the comparison mask of the project "
+           "frame covers"));
     m_findButton = new QPushButton(tr("Find Frame"), this);
     m_addButton = new QPushButton(tr("Add To Project"), this);
     m_addButton->setToolTip(tr("Add the dump frame behind the project's frames"));
@@ -229,6 +245,10 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
         findProjectFrame(static_cast<std::size_t>(m_findSpinBox->value()),
                          m_underMaskCheckBox->isChecked());
     });
+    connect(m_findSpinBox,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            [this](int) { updateControls(); });
     connect(m_addButton, &QPushButton::clicked, this, [this]() {
         if (!m_dumpMode || m_frames.empty() || !onAddFrameRequested) {
             return;
@@ -598,14 +618,24 @@ bool FrameTesterDialog::findProjectFrame(std::size_t frameIndex, bool underMask)
             found = static_cast<std::size_t>(it - m_selectedFrames.begin());
         }
     }
+    const std::optional<uint8_t> mask = comparisonMaskOf(m_document, frameIndex);
+    const bool leftOut = m_dumpMode && underMask && mask;
     if (!found) {
+        const auto frame = static_cast<qulonglong>(frameIndex);
         m_infoLabel->setText(
-            m_dumpMode ? tr("Frame %1 is not in the dump").arg(static_cast<qulonglong>(frameIndex))
-                       : tr("Frame %1 is not among the selected frames")
-                             .arg(static_cast<qulonglong>(frameIndex)));
+            leftOut ? tr("Frame %1 is not in the dump, even leaving out what mask %2 covers")
+                          .arg(frame)
+                          .arg(static_cast<int>(*mask))
+            : m_dumpMode ? tr("Frame %1 is not in the dump").arg(frame)
+                         : tr("Frame %1 is not among the selected frames").arg(frame));
         return false;
     }
     feed(*found);
+    if (leftOut) {
+        m_infoLabel->setText(infoText() + tr("  ·  frame %1 found, leaving out what mask %2 covers")
+                                              .arg(static_cast<qulonglong>(frameIndex))
+                                              .arg(static_cast<int>(*mask)));
+    }
     return true;
 }
 
@@ -727,7 +757,10 @@ void FrameTesterDialog::updateControls()
                                                          m_showButton}) {
         widget->setEnabled(hasFrames);
     }
-    m_underMaskCheckBox->setEnabled(hasFrames && m_dumpMode);
+    // Only a dump is compared by its pixels, and only a mask leaves any out.
+    m_underMaskCheckBox->setEnabled(
+        hasFrames && m_dumpMode &&
+        comparisonMaskOf(m_document, static_cast<std::size_t>(m_findSpinBox->value())));
     m_addButton->setEnabled(hasFrames && m_dumpMode && onAddFrameRequested != nullptr);
     m_selectedButton->setEnabled(!m_selectedFrames.empty() && m_error.isEmpty());
 }

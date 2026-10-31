@@ -2078,8 +2078,12 @@ Use Create %1 Frame.</source>
         <translation>Unter seiner Maske</translation>
     </message>
     <message>
+        <source>For Find Frame in a dump: leave out the pixels the comparison mask of the project frame covers</source>
+        <translation>Für Frame suchen in einem Dump: die Pixel auslassen, die die Vergleichsmaske des Projekt-Frames abdeckt</translation>
+    </message>
+    <message>
         <source>Leave out the pixels the frame&apos;s comparison mask covers</source>
-        <translation>Die Pixel auslassen, die die Vergleichsmaske des Frames abdeckt</translation>
+        <translation type="vanished">Die Pixel auslassen, die die Vergleichsmaske des Frames abdeckt</translation>
     </message>
     <message>
         <source>Find Frame</source>
@@ -2190,12 +2194,20 @@ Use Create %1 Frame.</source>
         <translation>  ·  jeder spätere Frame wird erkannt</translation>
     </message>
     <message>
+        <source>Frame %1 is not in the dump, even leaving out what mask %2 covers</source>
+        <translation>Frame %1 ist nicht im Dump, auch ohne das, was Maske %2 abdeckt</translation>
+    </message>
+    <message>
         <source>Frame %1 is not in the dump</source>
         <translation>Frame %1 ist nicht im Dump</translation>
     </message>
     <message>
         <source>Frame %1 is not among the selected frames</source>
         <translation>Frame %1 ist nicht unter den ausgewählten Frames</translation>
+    </message>
+    <message>
+        <source>  ·  frame %1 found, leaving out what mask %2 covers</source>
+        <translation>  ·  Frame %1 gefunden, ohne das, was Maske %2 abdeckt</translation>
     </message>
     <message>
         <source>group %1, frame %2</source>

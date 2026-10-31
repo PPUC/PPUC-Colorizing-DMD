@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Under its mask` in the frame tester is only offered where it can make a difference, for a
+  dump and a project frame with a comparison mask, and the result names the mask (#54).
 - The left and right arrow keys always step through the frames in the frame tester, also after
   a click on a button (#53).
 - `Edit Mask` also leaves the mask mode and stays pressed while the mask is edited, as `Mask` in

@@ -15,6 +15,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
@@ -172,6 +173,83 @@ void testDialog()
         expect(added == 1, "Add To Project asks the owner");
     }
     expect(!runtime::RuntimePreview::instance().isOpen(), "closing lets go of libserum");
+    app::setProjectTaskDialogDelayMs(300);
+}
+
+// Issue #54: Under its mask finds a dump frame that differs under the mask only. It is offered
+// for a frame with a mask, and the line under the pictures tells what was compared.
+void testFindUnderMask()
+{
+    runtime_fixtures::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    snapshot.comparisonMasks.assign(1, document::makeIndexedFrame(
+                                           snapshot.geometry.romFrameSize(), 0));
+    snapshot.comparisonMasks[0].pixels[0] = 1;
+    snapshot.frames[1].comparisonMaskId = 0;
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+
+    document::IndexedFrame differs = document.originalFrame(1);
+    differs.pixels[0] = static_cast<uint8_t>((differs.pixels[0] + 1) % 4);
+    const std::string text = dumpFrame(document.originalFrame(0), 0) + dumpFrame(differs, 40) +
+                             dumpFrame(document.originalFrame(2), 80);
+    std::istringstream stream(text);
+    const runtime::TesterDump dump = runtime::readTesterDump(stream, document);
+    expect(!runtime::findProjectFrame(document, 1, dump.frames, 0, false),
+           "pixel by pixel the frame is not in the dump");
+    expect(runtime::findProjectFrame(document, 1, dump.frames, 0, true) == 1u,
+           "under its mask it is");
+
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("dump.txt"));
+    {
+        QFile file(path);
+        expect(file.open(QIODevice::WriteOnly), "write the dump");
+        file.write(QByteArray::fromStdString(text));
+    }
+    app::setProjectTaskDialogDelayMs(10000);
+    {
+        app::FrameTesterDialog dialog(document, {0});
+        QCheckBox* underMask = nullptr;
+        for (QCheckBox* box : dialog.findChildren<QCheckBox*>()) {
+            if (box->text() == QStringLiteral("Under its mask")) {
+                underMask = box;
+            }
+        }
+        QPushButton* find = nullptr;
+        for (QPushButton* button : dialog.findChildren<QPushButton*>()) {
+            if (button->text() == QStringLiteral("Find Frame")) {
+                find = button;
+            }
+        }
+        QSpinBox* frame = nullptr;
+        for (QSpinBox* box : dialog.findChildren<QSpinBox*>()) {
+            if (box->toolTip().startsWith(QStringLiteral("Project frame"))) {
+                frame = box;
+            }
+        }
+        expect(underMask && find && frame, "the controls of Find Frame are there");
+        const auto infoShows = [&dialog](const QString& text) {
+            for (const QLabel* label : dialog.findChildren<QLabel*>()) {
+                if (label->text().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        expect(!underMask->isEnabled(), "the selected frames are compared as they are");
+        expect(dialog.loadDumpFile(path), "the dump is loaded");
+        frame->setValue(0);
+        expect(!underMask->isEnabled(), "a frame without a mask has nothing to leave out");
+        frame->setValue(1);
+        expect(underMask->isEnabled(), "a frame with a mask has");
+        find->click();
+        expect(dialog.position() == 0 && infoShows(QStringLiteral("not in the dump")),
+               "without the check box it is not found");
+        underMask->setChecked(true);
+        find->click();
+        expect(dialog.position() == 1 && infoShows(QStringLiteral("what mask 0 covers")),
+               "with it, it is found, and the line says how");
+    }
     app::setProjectTaskDialogDelayMs(300);
 }
 
@@ -364,6 +442,7 @@ void runFrameTesterWidgetTests()
     testCore();
     testDialog();
     testArrowKeysStepFrames();
+    testFindUnderMask();
     testScenes();
     testBackgroundScene();
 }

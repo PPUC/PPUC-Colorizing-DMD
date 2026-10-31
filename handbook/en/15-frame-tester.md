@@ -36,7 +36,10 @@ in the editor, saved or not.
   a click on a button or in a number field.
 - `Find Frame` looks for a project frame: among the selected frames, or in the dump from the
   frame after the current one on, going round, comparing the ROM frames pixel by pixel. With
-  `Under its mask` the pixels the frame's comparison mask covers are left out.
+  `Under its mask` the pixels the frame's comparison mask covers are left out, so a dump frame
+  that differs only there is found too; the line under the pictures then says so. The check box
+  takes effect when `Find Frame` is clicked and is offered for a dump and a `Project frame` that
+  has a comparison mask.
 - `Add To Project` (dump only) adds the dump frame behind the project's frames, uncolorized,
   with its duration; it is an undoable step of the project. libserum then loads the project
   again.
