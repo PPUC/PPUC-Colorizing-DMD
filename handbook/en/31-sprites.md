@@ -231,8 +231,8 @@ The controls:
   mode), the `Rectangle` and `Filled Rectangle` tools draw the bounds on the original frame:
   drag the area in which the sprite is looked for, and on release it becomes the selected slot's
   bounds (`Min X` to `Max Y`), filled or not, from any corner, as typing them does: for all
-  selected frames in which that slot has a sprite, one undo step. An empty slot gets
-  none; the status bar says so. On the colorized frame the tools paint as always.
+  selected frames in which that slot has a sprite, one undo step. A click without a drag changes
+  nothing. An empty slot gets none; the status bar says so. On the colorized frame the tools paint as always.
 - `Outline Sprites` (on by default) draws a green outline on the colorized frame around the
   pixels the sprites libserum finds on the frame paint, exactly those, so that a found sprite
   can be told from the frame's own colors. It works with `Show Sprites` off too: the outline

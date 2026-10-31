@@ -57,7 +57,7 @@ the start and end pixels. A click without a drag paints the one pixel, as `Point
 The preview is shown while dragging. The whole filled rectangle is committed on release as one undoable edit.
 
 On the original frame, while `Show Bounds` is on, `Rect` and `Fill Rect` draw the search area of
-the selected sprite slot instead (see "Sprites").
+the selected sprite slot instead (see "Sprites"). A click without a drag leaves it as it is.
 
 ## Circle
 

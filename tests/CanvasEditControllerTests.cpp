@@ -1509,6 +1509,10 @@ void testSpriteBoundsAreDrawn()
            "so does an outlined one");
 
     owner.next();
+    controller.strokeFinished(context, original(6, 6), original(6, 6), false);
+    expect(owner.drawnBounds.empty() && owner.commits.empty(),
+           "a click on the original leaves the bounds as they are");
+    owner.next();
     context.tool = DrawingTool::Line;
     controller.strokeFinished(context, original(0, 0), original(10, 10), false);
     expect(owner.drawnBounds.empty(), "another tool draws no bounds");

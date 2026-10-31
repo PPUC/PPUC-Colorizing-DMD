@@ -497,6 +497,10 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
     }
 
     if (drawsSpriteBounds(context, projectGeometry(context), start)) {
+        // A click draws no bounds: only a dragged rectangle replaces them.
+        if (start.x == end.x && start.y == end.y) {
+            return;
+        }
         render::Point min;
         render::Point max;
         if (!filledBox(strokePixels(context, start, end), min, max).empty() &&

@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A click on the original frame with `Show Bounds` on no longer shrinks the sprite slot's bounds
+  to that pixel; only a dragged rectangle sets them.
 - `Fill Rect` is the drawing tool the editor starts with (#52).
 - `Under its mask` in the frame tester is only offered where it can make a difference, for a
   dump and a project frame with a comparison mask, and the result names the mask (#54).
