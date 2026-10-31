@@ -87,6 +87,10 @@ public:
     [[nodiscard]] SpeakerLightPair* speakerLights() const { return m_speakerLights; }
     [[nodiscard]] SpeakerLightPair* speakerLightsHd() const { return m_speakerLightsHd; }
 
+protected:
+    // The left and right arrow keys step through the frames wherever the focus is.
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     bool loadProject();
     void setFrames(std::vector<runtime::TesterFrame> frames, const QString& source);

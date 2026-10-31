@@ -32,6 +32,8 @@ in the editor, saved or not.
   answer for a frame can depend on what was fed before it, as on a machine.
 - `Next Unidentified` feeds the frames after the current one until libserum does not identify
   one and stops there; if every frame up to the end is identified, it stays where it was.
+- The left and right arrow keys go one frame back and forward, wherever the focus is, also after
+  a click on a button or in a number field.
 - `Find Frame` looks for a project frame: among the selected frames, or in the dump from the
   frame after the current one on, going round, comparing the ROM frames pixel by pixel. With
   `Under its mask` the pixels the frame's comparison mask covers are left out.

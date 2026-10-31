@@ -10,10 +10,14 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QKeyEvent>
 #include <QPushButton>
+#include <QSlider>
+#include <QSpinBox>
 #include <QTemporaryDir>
 
 #include "RuntimeFixtures.h"
@@ -171,6 +175,45 @@ void testDialog()
     app::setProjectTaskDialogDelayMs(300);
 }
 
+// Issue #53: the left and right arrow keys step through the frames wherever the focus is.
+void testArrowKeysStepFrames()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+    app::FrameTesterDialog dialog(document, {0, 1, 2});
+    const auto press = [](QWidget* widget, Qt::Key key) {
+        QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
+        QApplication::sendEvent(widget, &event);
+    };
+    std::vector<QWidget*> widgets{&dialog};
+    for (QPushButton* button : dialog.findChildren<QPushButton*>()) {
+        widgets.push_back(button);
+    }
+    for (QCheckBox* box : dialog.findChildren<QCheckBox*>()) {
+        widgets.push_back(box);
+    }
+    for (QSpinBox* box : dialog.findChildren<QSpinBox*>()) {
+        widgets.push_back(box);
+    }
+    for (QSlider* slider : dialog.findChildren<QSlider*>()) {
+        widgets.push_back(slider);
+    }
+    for (QComboBox* box : dialog.findChildren<QComboBox*>()) {
+        widgets.push_back(box);
+    }
+    for (QWidget* widget : widgets) {
+        dialog.showPosition(1);
+        press(widget, Qt::Key_Right);
+        expect(dialog.position() == 2, "the right arrow is the next frame");
+        press(widget, Qt::Key_Left);
+        press(widget, Qt::Key_Left);
+        expect(dialog.position() == 0, "the left arrow is the frame before");
+    }
+    QKeyEvent withShift(QEvent::KeyPress, Qt::Key_Right, Qt::ShiftModifier);
+    QApplication::sendEvent(&dialog, &withShift);
+    expect(dialog.position() == 0, "with a modifier the key is not a step");
+}
+
 // Frame 0 triggers a scene of two frames: the info line names the scene libserum shows, and
 // without Play scenes it shows the game's frame.
 void testScenes()
@@ -320,6 +363,7 @@ void runFrameTesterWidgetTests()
     testPicturesGrow();
     testCore();
     testDialog();
+    testArrowKeysStepFrames();
     testScenes();
     testBackgroundScene();
 }

@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QKeyEvent>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -252,6 +253,11 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     });
     connect(closeButton, &QPushButton::clicked, this, &QDialog::reject);
 
+    installEventFilter(this);
+    for (QWidget* child : findChildren<QWidget*>()) {
+        child->installEventFilter(this);
+    }
+
     if (loadProject()) {
         useSelectedFrames();
     }
@@ -263,6 +269,19 @@ FrameTesterDialog::~FrameTesterDialog()
     m_playTimer.stop();
     m_rotationTimer.stop();
     RuntimePreview::instance().close();
+}
+
+bool FrameTesterDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::KeyPress) {
+        const auto* keyEvent = static_cast<QKeyEvent*>(event);
+        const bool plain = (keyEvent->modifiers() & ~Qt::KeypadModifier) == Qt::NoModifier;
+        if (plain && (keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right)) {
+            stepBy(keyEvent->key() == Qt::Key_Left ? -1 : 1);
+            return true;
+        }
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 std::optional<std::size_t> FrameTesterDialog::frameToShow() const
