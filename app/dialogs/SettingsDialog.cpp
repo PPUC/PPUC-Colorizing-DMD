@@ -189,7 +189,8 @@ void SettingsDialog::setOffPixelColorShown(const QColor& color)
 {
     m_offPixelColor = color;
     m_offPixelColorButton->setStyleSheet(
-        QStringLiteral("QToolButton { background-color: %1; }").arg(color.name()));
+        QStringLiteral("QToolButton { background: %1; border: 1px solid #666; }")
+            .arg(color.name()));
 }
 
 void SettingsDialog::showPage(Page page)

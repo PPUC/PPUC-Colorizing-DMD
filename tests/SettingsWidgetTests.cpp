@@ -12,6 +12,8 @@
 #include <QProxyStyle>
 #include <QSettings>
 #include <QStyle>
+#include <QImage>
+#include <QPixmap>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QTabWidget>
@@ -107,6 +109,17 @@ void runSettingsWidgetTests()
         app::SettingsDialog chosenDialog(app::Theme::Light, chosen, dmd, false);
         expect(chosenDialog.canvasOptions().offPixelColor == QColor(0, 0, 40),
                "the dialog shows the color it was given");
+        // The button shows the color, whatever the platform's style makes of a button.
+        QToolButton* colorButton = nullptr;
+        for (QToolButton* button : chosenDialog.findChildren<QToolButton*>()) {
+            if (button->toolTip().startsWith(QStringLiteral("The color of off pixels"))) {
+                colorButton = button;
+            }
+        }
+        expect(colorButton != nullptr, "the color has its button");
+        const QImage shown = colorButton->grab().toImage();
+        expect(shown.pixelColor(shown.width() / 2, shown.height() / 2) == QColor(0, 0, 40),
+               "the button shows the chosen color");
         QToolButton* defaultButton = nullptr;
         for (QToolButton* button : chosenDialog.findChildren<QToolButton*>()) {
             if (button->text() == QStringLiteral("Default")) {
