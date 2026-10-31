@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.26
+
 - The drawing tools in the toolbar are icons instead of words (Phosphor Icons); their names are in
   the tooltips.
 - Off pixels of the original frame are a very dark grey instead of a dark amber, and the lowest
