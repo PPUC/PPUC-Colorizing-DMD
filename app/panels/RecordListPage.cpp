@@ -25,6 +25,18 @@ int shownRows(const QListWidget& list)
     return shown;
 }
 
+void connectRecordNavigation(QListWidget* list,
+                             std::function<void(QListWidgetItem* current)> onCurrent,
+                             std::function<void()> onSelection)
+{
+    QObject::connect(list, &QListWidget::currentItemChanged, list,
+                     [onCurrent](QListWidgetItem* current) { onCurrent(current); });
+    QObject::connect(list, &QListWidget::itemSelectionChanged, list, [=]() {
+        onCurrent(list->currentItem());
+        onSelection();
+    });
+}
+
 RecordListPage::RecordListPage(QListWidget* list,
                                const QString& newToolTip,
                                const QString& deleteToolTip,

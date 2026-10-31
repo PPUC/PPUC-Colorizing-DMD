@@ -4217,6 +4217,48 @@ void testFramePanel()
     expect(!dofEdit->isEnabled() && dofEdit->text().isEmpty(), "no frame, no DOF events");
 }
 
+// Issue #51: the arrow keys step through a list whose owner shows its current record in the
+// list after every change of the selection, as the sprite list's does.
+void testRecordNavigationByArrowKeys()
+{
+    QListWidget list;
+    list.setSelectionMode(QAbstractItemView::ExtendedSelection);
+    for (int row = 0; row < 4; ++row) {
+        list.addItem(QString::number(row));
+    }
+    list.setCurrentRow(0);
+    list.show();
+    int currentRecord = 0;
+    colorizing::app::connectRecordNavigation(
+        &list,
+        [&](QListWidgetItem* item) {
+            if (item) {
+                currentRecord = list.row(item);
+            }
+        },
+        [&]() {
+            const QSignalBlocker blocker(&list);
+            if (list.currentRow() != currentRecord) {
+                list.setCurrentRow(currentRecord);
+            }
+        });
+    const auto press = [&](Qt::Key key) {
+        QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
+        QApplication::sendEvent(&list, &event);
+    };
+    press(Qt::Key_Down);
+    expect(list.currentRow() == 1 && currentRecord == 1 && list.item(1)->isSelected() &&
+               !list.item(0)->isSelected(),
+           "the down arrow selects the next record");
+    press(Qt::Key_Down);
+    press(Qt::Key_Down);
+    expect(list.currentRow() == 3 && currentRecord == 3 && list.selectedItems().size() == 1,
+           "every press goes one record further");
+    press(Qt::Key_Up);
+    expect(list.currentRow() == 2 && currentRecord == 2 && list.item(2)->isSelected(),
+           "the up arrow goes back");
+}
+
 void testRecordListPage()
 {
     auto* list = new QListWidget();
@@ -4382,6 +4424,7 @@ int main(int argc, char* argv[])
     testBackgroundPanel();
     testFramePanel();
     testRecordListPage();
+    testRecordNavigationByArrowKeys();
     runCanvasEditControllerTests();
     runAutosaveWidgetTests();
     runFramesClipboardWidgetTests();

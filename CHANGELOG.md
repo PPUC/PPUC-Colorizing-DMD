@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The up and down arrow keys select the sprite in the left sidebar's list, as a click does,
+  instead of staying on or jumping back to the previous one (#51).
+
 ## 3.99.25
 
 - `Show Bounds` no longer covers the whole original frame on a frame without sprites: an empty

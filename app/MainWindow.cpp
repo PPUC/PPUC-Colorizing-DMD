@@ -2213,25 +2213,25 @@ void MainWindow::createCentralView()
             m_spritePanel->onSpriteCanvasToggled(true);
         }
     });
-    connect(m_spriteList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item) {
-        if (!item || !m_document) {
-            return;
-        }
-        const int spriteIndex = item->data(Qt::UserRole).toInt();
-        if (spriteIndex < 0 ||
-            static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount() ||
-            spriteIndex == m_selectedSpriteIndex) {
-            return;
-        }
-        m_selectedSpriteIndex = spriteIndex;
-        updateSpriteControls();
-        updateUndoRedoActions();
-        refreshSelectedAssetFilter();
-    });
-    // Assign and Delete follow how many sprites are selected.
-    connect(m_spriteList, &QListWidget::itemSelectionChanged, this, [this]() {
-        updateSpriteControls();
-    });
+    connectRecordNavigation(
+        m_spriteList,
+        [this](QListWidgetItem* item) {
+            if (!item || !m_document) {
+                return;
+            }
+            const int spriteIndex = item->data(Qt::UserRole).toInt();
+            if (spriteIndex < 0 ||
+                static_cast<std::size_t>(spriteIndex) >= m_document->spriteCount() ||
+                spriteIndex == m_selectedSpriteIndex) {
+                return;
+            }
+            m_selectedSpriteIndex = spriteIndex;
+            updateSpriteControls();
+            updateUndoRedoActions();
+            refreshSelectedAssetFilter();
+        },
+        // Assign and Delete follow how many sprites are selected.
+        [this]() { updateSpriteControls(); });
     connect(m_frameFilterComboBox,
             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this,

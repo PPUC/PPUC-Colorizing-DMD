@@ -10,6 +10,7 @@
 
 class QLabel;
 class QListWidget;
+class QListWidgetItem;
 class QToolButton;
 
 namespace colorizing::app {
@@ -29,6 +30,13 @@ struct RecordListPageState {
 [[nodiscard]] QString recordCountText(int shown, int total);
 // The rows of the list that are not hidden.
 [[nodiscard]] int shownRows(const QListWidget& list);
+// Reports a list's current record and its selection, the current one first. A click on a row
+// makes it current and then selects it, but an arrow key selects it first: an owner that
+// answers the selection by showing its current record in the list would put the row back.
+// onCurrent can be called several times for the same item; a null item is possible.
+void connectRecordNavigation(QListWidget* list,
+                             std::function<void(QListWidgetItem* current)> onCurrent,
+                             std::function<void()> onSelection);
 
 // A page of the left browser: the list of the comparison masks, backgrounds or sprites with
 // New and Delete above it. The list and what it shows belong to the owner; the page only

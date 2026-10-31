@@ -31,6 +31,7 @@ The Inspector has two sprite sections, each shown on its own canvas:
 
 The controls:
 
+- In the left sidebar's sprite list, a click or the up and down arrow keys select a sprite.
 - The sprite selector lists loaded sprite records and shows `.cRP` sprite names when available.
 - The sprite name field edits the selected sprite name. Names are saved back to the fixed-size
   `.cRP` sprite-name table when that table exists.
