@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Edit Mask` also leaves the mask mode and stays pressed while the mask is edited, as `Mask` in
+  the toolbar does (#55).
 - The up and down arrow keys select the sprite in the left sidebar's list, as a click does,
   instead of staying on or jumping back to the previous one (#51).
 

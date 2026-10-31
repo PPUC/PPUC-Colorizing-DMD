@@ -33,6 +33,9 @@ public:
                           std::optional<std::size_t> frameIndex,
                           std::optional<std::size_t> selectedMaskIndex,
                           bool hasSelectedFrames);
+    // Whether the mask is being edited: Edit Mask shows it and, while it does, stays enabled
+    // on a frame without a mask, so that the mode can be left there. Does not notify.
+    void setEditChecked(bool checked);
     // Clamped to the offered IDs; does not notify.
     void setMaskId(int maskId);
 
@@ -43,6 +46,7 @@ public:
     std::function<void(int maskId)> onMaskIdEdited;
     std::function<void(int mode)> onShapeModeEdited;
     std::function<void()> onAssignRequested;
+    // Edit Mask was clicked; the owner enters or leaves the mode and calls setEditChecked().
     std::function<void()> onEditRequested;
 
 private:

@@ -24,7 +24,9 @@ The Inspector exposes per-frame comparison metadata:
   the mask alone.
 - `Edit Mask` enables the mask overlay and returns the canvas to the frame preview. If the sprite
   editor is open, it is closed first (`Edit Sprite` is switched off). It edits the mask assigned to
-  the current frame, which is not necessarily the mask selected in the sidebar.
+  the current frame, which is not necessarily the mask selected in the sidebar. It works as `Mask`
+  in the toolbar does: it stays pressed while the mask is edited, and a click on it then leaves the
+  mask mode, also on a frame without a mask.
 - `Mask ID` shows the comparison mask assigned to the current frame and assigns the entered mask
   directly to all selected frames. `None` stores the legacy no-mask assignment. Its range is the
   masks the project has; a mask number that does not exist is refused, also by the project

@@ -50,6 +50,7 @@ MaskPanel::MaskPanel(QWidget* parent)
     m_editButton = new QToolButton(this);
     m_editButton->setText(tr("Edit Mask"));
     m_editButton->setToolTip(tr("Show and edit the assigned comparison mask"));
+    m_editButton->setCheckable(true);
     m_editButton->setEnabled(false);
 
     auto* pageLayout = new QVBoxLayout(this);
@@ -157,7 +158,15 @@ void MaskPanel::refreshSelection(const document::ProjectDocument* document,
     }
 
     m_assignButton->setEnabled(selectedMaskValid && hasSelectedFrames);
-    m_editButton->setEnabled(assignedMask.has_value());
+    m_editButton->setEnabled(assignedMask.has_value() || m_editButton->isChecked());
+}
+
+void MaskPanel::setEditChecked(bool checked)
+{
+    m_editButton->setChecked(checked);
+    if (checked) {
+        m_editButton->setEnabled(true);
+    }
 }
 
 void MaskPanel::setMaskId(int maskId)

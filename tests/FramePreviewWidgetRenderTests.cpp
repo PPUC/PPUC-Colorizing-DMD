@@ -3338,6 +3338,19 @@ void testMaskPanel()
     expect(selectedLabel->text() == QStringLiteral("Selected: None") &&
                !assignButton->isEnabled() && !editButton->isEnabled(),
            "mask panel should not offer Edit for an out-of-range mask ID");
+    // Issue #55: Edit Mask shows the mode and can leave it, also on a frame without a mask.
+    expect(editButton->isCheckable() && !editButton->isChecked(),
+           "Edit Mask should show whether the mask is being edited");
+    panel.setEditChecked(true);
+    expect(editButton->isChecked() && editButton->isEnabled(),
+           "Edit Mask should stay enabled while the mask is edited");
+    panel.refreshSelection(&document, 2, std::nullopt, true);
+    expect(editButton->isEnabled(),
+           "Edit Mask should leave the mode on a frame without a mask");
+    panel.setEditChecked(false);
+    panel.refreshSelection(&document, 2, std::nullopt, true);
+    expect(!editButton->isChecked() && !editButton->isEnabled(),
+           "Edit Mask should not be offered there once the mode is left");
     panel.refreshSelection(&document, std::nullopt, 0, false);
     expect(selectedLabel->text() == QStringLiteral("Selected: 0") && !assignButton->isEnabled() &&
                !editButton->isEnabled(),

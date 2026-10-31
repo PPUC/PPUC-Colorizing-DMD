@@ -1230,8 +1230,14 @@ void MainWindow::createCentralView()
     m_maskPanel->onAssignRequested = [this]() {
         assignSelectedMaskToFrames();
     };
+    // Edit Mask works as the toolbar's Mask does; from the sprite editor it goes to the mask.
     m_maskPanel->onEditRequested = [this]() {
-        editAssignedMask();
+        if (isComparisonMaskModeActive() && !spriteCanvasShown()) {
+            m_comparisonMaskOverlayButton->setChecked(false);
+        } else {
+            editAssignedMask();
+        }
+        m_maskPanel->setEditChecked(isComparisonMaskModeActive());
     };
     m_sameFramesPanel = new SameFramesPanel(central);
     m_sameFramesPanel->onFrameRequested = [this](std::size_t frameIndex) {
@@ -2266,6 +2272,8 @@ void MainWindow::createCentralView()
             m_preview->clearPreviewPixels();
             m_preview->setComparisonMaskOverlayEnabled(checked);
         }
+        m_maskPanel->setEditChecked(checked);
+        updateMaskControls();
         updateUndoRedoActions();
     });
     connect(m_dynamicMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -2275,6 +2283,8 @@ void MainWindow::createCentralView()
             if (m_preview) {
                 m_preview->setComparisonMaskOverlayEnabled(false);
             }
+            m_maskPanel->setEditChecked(false);
+            updateMaskControls();
         }
         if (checked && m_backgroundMaskOverlayButton) {
             QSignalBlocker blocker(m_backgroundMaskOverlayButton);
