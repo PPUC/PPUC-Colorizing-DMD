@@ -21,6 +21,8 @@ colorizations. See `readme.md` for what the editor is and how to build it.
 - `third-party/WS2812FX/`: the speaker light effect library at the DMD firmware's commit, with a
   desktop stand-in for Arduino and Adafruit_NeoPixel, for the speaker light preview. Keep it at
   the commit the firmware pins (its `README.md`).
+- `third-party/phosphor-icons/`: the icons of the drawing tools, as SVG and as the PNGs the
+  editor builds in, so that it needs no Qt module besides Qt Base (its `README.md`).
 - `tests/`: `colorizing_qt_v2_tests` (core) and `colorizing_qt_v2_widget_tests` (widgets). Each
   file has a `run…Tests()` function that the main of its executable calls.
 - `handbook/en/`: the user handbook, one Markdown file per chapter, built into the app

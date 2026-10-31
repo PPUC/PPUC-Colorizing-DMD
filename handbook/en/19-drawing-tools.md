@@ -1,5 +1,9 @@
 # Drawing Tools
 
+The tools are the icons in the toolbar: from left to right `Point`, `Line`, `Rect`, `Fill Rect`,
+`Circle`, `Fill Circle`, `Ellipse`, `Fill Ellipse`, `Grad`, `Sel`, `Pick` and `Flood`. Hold the
+mouse over one for its name. The icon of the active tool is on the accent color.
+
 Drawing tools operate on the active SD/HD mode. `Point`, the shapes and `Flood` paint with the
 draw color or, in `Set Replace` mode, with the edit color of each pixel's original shade (see
 "Draw color modes" under "Colors").

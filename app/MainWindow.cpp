@@ -92,6 +92,7 @@
 #include "Translations.h"
 #include "dialogs/AboutDialog.h"
 #include "dialogs/ColorPickerDialog.h"
+#include "DrawingToolIcons.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/FrameSettingsDialog.h"
@@ -1615,6 +1616,8 @@ void MainWindow::createCentralView()
                                              label,
                                              tr("%1 tool").arg(label),
                                              static_cast<int>(tool));
+        button->setIcon(drawingToolIcon(tool));
+        button->setIconSize(QSize(18, 18));
         toolbarLayout->addWidget(button);
         m_toolButtons.push_back(button);
         connect(button, &QToolButton::clicked, this, [this, tool]() {

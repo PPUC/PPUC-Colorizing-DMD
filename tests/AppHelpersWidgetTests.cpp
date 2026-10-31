@@ -3,21 +3,30 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <QApplication>
 #include <QComboBox>
+#include <QIcon>
+#include <QImage>
 #include <QLabel>
 #include <QListWidget>
+#include <QPalette>
+#include <QPixmap>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSpinBox>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 
 #include "ActionUndoGroups.h"
 #include "ActivityClock.h"
+#include "Appearance.h"
+#include "DrawingToolIcons.h"
 #include "RuntimeFixtures.h"
 #include "AppInfo.h"
 #include "FrameImageUtils.h"
@@ -179,6 +188,86 @@ void testActionUndoGroups()
 }
 
 // The reference view of a 16-color project shows 16 shades, not each shade modulo 4.
+// How many pixels of the icon are painted, and whether all of them have the color.
+std::pair<int, bool> iconPixels(const QIcon& icon, QIcon::Mode mode, QIcon::State state,
+                                const QColor& color)
+{
+    const QImage image = icon.pixmap(QSize(36, 36), mode, state).toImage();
+    int painted = 0;
+    bool inColor = true;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor pixel = image.pixelColor(x, y);
+            if (pixel.alpha() == 255) {
+                ++painted;
+                inColor = inColor && pixel.rgb() == color.rgb();
+            }
+        }
+    }
+    return {painted, inColor};
+}
+
+void testDrawingToolIcons()
+{
+    using colorizing::edit::DrawingTool;
+    const QPalette palette = QApplication::palette();
+    const QColor text = palette.color(QPalette::ButtonText);
+    std::set<QByteArray> pictures;
+    for (DrawingTool tool :
+         {DrawingTool::Point, DrawingTool::Line, DrawingTool::Rectangle,
+          DrawingTool::FilledRectangle, DrawingTool::Circle, DrawingTool::FilledCircle,
+          DrawingTool::Ellipse, DrawingTool::FilledEllipse, DrawingTool::PaletteGradient,
+          DrawingTool::Selection, DrawingTool::ColorPicker, DrawingTool::FloodFill}) {
+        const QIcon icon = app::drawingToolIcon(tool);
+        const auto [painted, inColor] = iconPixels(icon, QIcon::Normal, QIcon::Off, text);
+        expect(painted > 0 && inColor, "a tool's icon is there, in the button's text color");
+        const QImage image = icon.pixmap(QSize(36, 36)).toImage();
+        pictures.insert(QByteArray(reinterpret_cast<const char*>(image.constBits()),
+                                   static_cast<qsizetype>(image.sizeInBytes())));
+    }
+    expect(pictures.size() == 12, "every tool has its own icon");
+    for (const auto& [outline, filled] :
+         std::vector<std::pair<DrawingTool, DrawingTool>>{
+             {DrawingTool::Rectangle, DrawingTool::FilledRectangle},
+             {DrawingTool::Circle, DrawingTool::FilledCircle},
+             {DrawingTool::Ellipse, DrawingTool::FilledEllipse}}) {
+        expect(iconPixels(app::drawingToolIcon(filled), QIcon::Normal, QIcon::Off, text).first >
+                   2 * iconPixels(app::drawingToolIcon(outline), QIcon::Normal, QIcon::Off, text)
+                           .first,
+               "a filled shape's icon is filled");
+    }
+    const QIcon icon = app::drawingToolIcon(DrawingTool::FilledRectangle);
+    expect(iconPixels(icon, QIcon::Normal, QIcon::On, app::checkedButtonTextColor(palette)).second,
+           "on a checked button the icon has the checked text color");
+    expect(iconPixels(icon, QIcon::Disabled, QIcon::Off,
+                      palette.color(QPalette::Disabled, QPalette::ButtonText))
+               .second,
+           "on a disabled button the disabled text color");
+    // The palette at the time of painting: the icon follows a change of the theme.
+    QPalette changed = palette;
+    changed.setColor(QPalette::ButtonText, QColor(10, 200, 30));
+    QApplication::setPalette(changed);
+    const bool followed =
+        iconPixels(icon, QIcon::Normal, QIcon::Off, QColor(10, 200, 30)).second;
+    QApplication::setPalette(palette);
+    expect(followed, "the icon follows the theme");
+    // A checked button shows the icon in the contrast color on its fill, whatever the theme.
+    for (app::Theme theme : {app::Theme::Light, app::Theme::Dark}) {
+        app::applyTheme(theme);
+        QToolButton button;
+        button.setCheckable(true);
+        button.setChecked(true);
+        button.setIcon(app::drawingToolIcon(DrawingTool::FilledRectangle));
+        button.setIconSize(QSize(18, 18));
+        button.resize(40, 30);
+        const QImage shown = button.grab().toImage();
+        const QColor middle = shown.pixelColor(shown.width() / 2, shown.height() / 2);
+        expect(middle.rgb() == app::checkedButtonTextColor(QApplication::palette()).rgb(),
+               "the checked button's icon has its contrast color");
+    }
+    app::applyTheme(app::Theme::System);
+}
+
 void testOriginalShadeColors()
 {
     using app::originalIndexToColor;
@@ -351,6 +440,7 @@ void runAppHelpersWidgetTests()
     testDiscardedExtraPlaneWarning();
     testActionUndoGroups();
     testOriginalShadeColors();
+    testDrawingToolIcons();
     testSelectedFramesStatusText();
     testWheelGuard();
     testFlowLayoutCentersRows();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QPalette>
 #include <QString>
 
 #include "FrameImageUtils.h"
@@ -24,6 +25,8 @@ void saveTheme(Theme theme);
 // only), and Qt before 6.8, use the Fusion style with a light or dark palette instead; back to
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
+// The color of what a checked button shows on its fill: black or white, whichever reads.
+[[nodiscard]] QColor checkedButtonTextColor(const QPalette& palette);
 // The style the editor starts with for the platform's: Fusion instead of Windows 11's style,
 // unless a style was asked for (the -style argument or QT_STYLE_OVERRIDE).
 [[nodiscard]] QString editorStyleName(const QString& platformStyle, bool styleAskedFor);

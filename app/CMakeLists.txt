@@ -17,6 +17,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     ThumbnailCaptions.h
     CanvasEditController.h
     ColorDrag.cpp
+    DrawingToolIcons.cpp
+    DrawingToolIcons.h
     ColorDrag.h
     ColorGridWidget.cpp
     ColorGridWidget.h
@@ -181,6 +183,14 @@ qt_add_resources(colorizing_qt_v2_widgets "handbook"
     PREFIX "/handbook"
     BASE "${PROJECT_SOURCE_DIR}/handbook"
     FILES ${colorizing_qt_v2_handbook_files})
+
+# The icons of the drawing tools, built in under :/tool-icons/ (DrawingToolIcons).
+file(GLOB colorizing_qt_v2_tool_icons
+    CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/third-party/phosphor-icons/png/*.png")
+qt_add_resources(colorizing_qt_v2_widgets "tool_icons"
+    PREFIX "/tool-icons"
+    BASE "${PROJECT_SOURCE_DIR}/third-party/phosphor-icons/png"
+    FILES ${colorizing_qt_v2_tool_icons})
 
 target_link_libraries(colorizing_qt_v2_widgets
     PUBLIC

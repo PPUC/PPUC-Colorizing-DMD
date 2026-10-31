@@ -1,6 +1,7 @@
 #include "Appearance.h"
 
 #include <QApplication>
+#include <QIcon>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPalette>
@@ -36,6 +37,15 @@ bool g_paletteSet = false;
 QString g_styleName;
 // See setStyleAskedFor().
 bool g_styleAskedFor = false;
+
+QColor checkedFill(const QPalette& palette)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    return palette.color(QPalette::Active, QPalette::Accent);
+#else
+    return palette.color(QPalette::Active, QPalette::Highlight);
+#endif
+}
 
 // The application's style with checked buttons (the drawing tool, Show BG, a section that is
 // open...) in the highlight color with highlighted text: in the native and the Fusion styles,
@@ -77,7 +87,13 @@ public:
         paintPanel(*option, painter);
         QStyleOptionToolButton label = *tool;
         label.state &= ~(State_On | State_Sunken | State_MouseOver);
-        label.palette.setColor(QPalette::ButtonText, textOn(fillColor(*option)));
+        label.palette.setColor(QPalette::ButtonText, checkedButtonTextColor(option->palette));
+        // The label is drawn as not checked: an icon gets its picture for checked here.
+        if (!tool->icon.isNull()) {
+            const qreal ratio = painter->device() ? painter->device()->devicePixelRatioF() : 1.0;
+            label.icon =
+                QIcon(tool->icon.pixmap(tool->iconSize, ratio, QIcon::Normal, QIcon::On));
+        }
         label.rect = subControlRect(CC_ToolButton, tool, SC_ToolButton, widget);
         QProxyStyle::drawControl(CE_ToolButtonLabel, &label, painter, widget);
         if (tool->state & State_HasFocus) {
@@ -103,7 +119,8 @@ public:
         }
         if (button && (button->state & State_On) && element == CE_PushButtonLabel) {
             QStyleOptionButton label = *button;
-            label.palette.setColor(QPalette::ButtonText, textOn(fillColor(*option)));
+            label.palette.setColor(QPalette::ButtonText,
+                                   checkedButtonTextColor(option->palette));
             QProxyStyle::drawControl(element, &label, painter, widget);
             return;
         }
@@ -113,21 +130,7 @@ public:
 private:
     // The system's accent color where Qt knows it (the selection color can be faint, e.g. on
     // macOS), otherwise the highlight.
-    static QColor fillColor(const QStyleOption& option)
-    {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-        return option.palette.color(QPalette::Active, QPalette::Accent);
-#else
-        return option.palette.color(QPalette::Active, QPalette::Highlight);
-#endif
-    }
-
-    static QColor textOn(const QColor& fill)
-    {
-        const double luminance =
-            0.2126 * fill.redF() + 0.7152 * fill.greenF() + 0.0722 * fill.blueF();
-        return luminance > 0.6 ? QColor(Qt::black) : QColor(Qt::white);
-    }
+    static QColor fillColor(const QStyleOption& option) { return checkedFill(option.palette); }
 
     static void paintPanel(const QStyleOption& option, QPainter* painter)
     {
@@ -159,6 +162,14 @@ void setStyleNamed(const QString& name)
 }
 
 }  // namespace
+
+QColor checkedButtonTextColor(const QPalette& palette)
+{
+    const QColor fill = checkedFill(palette);
+    const double luminance =
+        0.2126 * fill.redF() + 0.7152 * fill.greenF() + 0.0722 * fill.blueF();
+    return luminance > 0.6 ? QColor(Qt::black) : QColor(Qt::white);
+}
 
 QStyle* createEditorStyle(QStyle* base)
 {
