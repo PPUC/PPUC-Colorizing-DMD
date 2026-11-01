@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.28
+
 - A sprite capture removes a dynamic mask that no longer fits the sprite: the mask colored the
   wrong pixels, so the sprite looked distorted on the frame. Capturing such a sprite again
   repairs it.
