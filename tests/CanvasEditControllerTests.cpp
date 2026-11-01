@@ -1460,6 +1460,124 @@ void testCanvasSelectionOnBackground()
 }
 
 // Issue #52: the tool a project starts with is Fill Rect, whose click paints the one pixel.
+void testPointFreehandStroke()
+{
+    ProjectDocument document = makeDocument();
+    Owner owner(document);
+    CanvasEditController controller(owner.outputs());
+    CanvasEditContext context =
+        makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Point, {0, 1});
+
+    // A fast mouse: the moves skip pixels, and the mouse goes back over its own way.
+    const std::vector<Point> way{Point{3, 4}, Point{4, 4}, Point{5, 4}, Point{6, 4}};
+    controller.colorizedPressed(context, colorized(3, 4), false);
+    expect(owner.commits.empty() && isOverlay(owner.preview, CanvasRegion::ColorizedFrame,
+                                              Resolution::Sd, {Point{3, 4}}, drawColor(150)),
+           "the press previews the pixel and paints nothing yet");
+    controller.strokePreviewed(context, colorized(3, 4), colorized(6, 4), false);
+    controller.strokePreviewed(context, colorized(3, 4), colorized(4, 4), false);
+    expect(owner.commits.empty() && isOverlay(owner.preview, CanvasRegion::ColorizedFrame,
+                                              Resolution::Sd, way, drawColor(150)),
+           "the preview shows the whole way, without gaps or doubles");
+    controller.strokeFinished(context, colorized(3, 4), colorized(4, 4), false);
+    expect(owner.committed(EditKind::FramePixels, {0, 1}) &&
+               owner.status == "Painted pixels on 2 frame(s)",
+           "the stroke is one command per frame on release");
+    for (const Point& point : way) {
+        expect(document.colorizedPixel(0, Resolution::Sd, point.x, point.y) == kDrawColor &&
+                   document.colorizedPixel(1, Resolution::Sd, point.x, point.y) == kDrawColor,
+               "every pixel of the way is painted");
+    }
+
+    // After the release the next move of the tool belongs to no stroke.
+    owner.next();
+    owner.preview.reset();
+    controller.strokePreviewed(context, colorized(3, 4), colorized(9, 4), false);
+    expect(!owner.preview, "no stroke, no preview");
+    controller.strokeFinished(context, colorized(3, 4), colorized(9, 4), false);
+    expect(owner.silent(), "no stroke, nothing to commit");
+
+    // A press and release on one pixel is the click it always was.
+    owner.next();
+    controller.colorizedPressed(context, colorized(8, 8), false);
+    controller.strokeFinished(context, colorized(8, 8), colorized(8, 8), false);
+    expect(owner.committed(EditKind::FramePixels, {0, 1}) &&
+               owner.status == "Painted pixel at 8,8 on 2 frame(s)",
+           "a click paints its pixel");
+
+    // Beyond the frame: only what lies on it, and Shift restores.
+    owner.next();
+    context.selectedFrames = {0};
+    const uint16_t originalColor = document::plainOriginalColors(16)[0];
+    controller.colorizedPressed(context, colorized(3, 4), true);
+    controller.strokeFinished(context, colorized(3, 4), colorized(-2, 4), true);
+    expect(owner.committed(EditKind::FramePixels, {0}) &&
+               document.colorizedPixel(0, Resolution::Sd, 0, 4) == originalColor &&
+               document.colorizedPixel(0, Resolution::Sd, 3, 4) == originalColor,
+           "Shift restores along the way, clipped to the frame");
+
+    // The other layers paint their own data.
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::DynamicMask, DrawingTool::Point, {0});
+    controller.colorizedPressed(context, colorized(6, 7), false);
+    controller.strokeFinished(context, colorized(6, 7), colorized(8, 7), false);
+    expect(owner.committed(EditKind::DynamicMask, {0}) &&
+               owner.status == "Painted dynamic mask pixels" &&
+               document.dynamicMaskPixel(0, Resolution::Sd, 7, 7) == 3,
+           "a stroke on the dynamic mask");
+
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::BackgroundMask, DrawingTool::Point, {0});
+    controller.originalPressed(context, original(6, 9), false);
+    controller.strokeFinished(context, original(6, 9), original(8, 9), false);
+    expect(owner.committed(EditKind::BackgroundMask, {0}) &&
+               document.backgroundMaskPixel(0, Resolution::Sd, 7, 9) == 1,
+           "a stroke on the background mask, on the original");
+
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::ComparisonMask, DrawingTool::Point, {0});
+    controller.originalPressed(context, original(4, 5), false);
+    expect(owner.commits.empty(), "the comparison mask waits for the release too");
+    controller.strokeFinished(context, original(4, 5), original(6, 5), false);
+    expect(owner.committed(EditKind::ComparisonMask, {0}) &&
+               owner.status == "Painted comparison mask pixels" &&
+               document.comparisonMaskPixel(0, 5, 5) == 1,
+           "a stroke on the comparison mask");
+
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::BackgroundImage, DrawingTool::Point, {0});
+    controller.colorizedPressed(context, colorized(2, 2), false);
+    controller.strokeFinished(context, colorized(2, 2), colorized(4, 2), false);
+    expect(owner.commits.size() == 1 && owner.status == "Painted background pixels",
+           "a stroke on a background image is one command");
+
+    // On the original the frame's pixels are not painted, as with a click.
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Point, {0});
+    controller.originalPressed(context, original(4, 5), false);
+    controller.strokeFinished(context, original(4, 5), original(6, 5), false);
+    expect(owner.silent(), "frame pixels are not painted on the original");
+
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::ComparisonMask, DrawingTool::Point, {1});
+    context.spriteCaptureSelection = true;
+    controller.originalPressed(context, original(10, 5), false);
+    controller.strokeFinished(context, original(10, 5), original(12, 5), false);
+    expect(owner.commits.empty() &&
+               samePoints(controller.captureSelectionPixels(1),
+                          {Point{10, 5}, Point{11, 5}, Point{12, 5}}),
+           "a stroke on the sprite capture selection");
+
+    // Ctrl+drag: the selection takes the way, on press and release.
+    owner.next();
+    context = makeContext(document, CanvasEditLayer::FramePixels, DrawingTool::Point, {0});
+    controller.editSelectionAtPoint(context, colorized(1, 1), false, false);
+    controller.previewSelectionStroke(context, colorized(1, 1), colorized(3, 1), false);
+    controller.editSelectionWithStroke(context, colorized(1, 1), colorized(3, 1), false, false);
+    expect(controller.selection() && controller.selection()->pixels().size() == 3,
+           "a stroke joins the selection");
+}
+
 void testDefaultToolPaintsOnePixelOnClick()
 {
     expect(edit::kDefaultDrawingTool == DrawingTool::FilledRectangle,
@@ -1912,6 +2030,7 @@ void runCanvasEditControllerTests()
     testCanvasSelection();
     testCanvasSelectionOnBackground();
     testSpriteCaptureSelection();
+    testPointFreehandStroke();
     testDefaultToolPaintsOnePixelOnClick();
     testSpriteBoundsAreDrawn();
     testComparisonMaskOnBigOriginal();

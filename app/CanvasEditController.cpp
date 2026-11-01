@@ -5,6 +5,8 @@
 #include <set>
 #include <tuple>
 
+#include <QScopeGuard>
+
 #include "Appearance.h"
 #include "FrameImageUtils.h"
 #include "render/ProjectGeometry.h"
@@ -40,9 +42,10 @@ QString strokeShapeName(DrawingTool tool)
             return QCoreApplication::translate("CanvasEditController", "ellipse");
         case DrawingTool::FilledEllipse:
             return QCoreApplication::translate("CanvasEditController", "filled ellipse");
+        case DrawingTool::Point:
+            return QCoreApplication::translate("CanvasEditController", "pixels");
         case DrawingTool::Selection:
         case DrawingTool::PaletteGradient:
-        case DrawingTool::Point:
         case DrawingTool::ColorPicker:
         case DrawingTool::FloodFill:
             break;
@@ -169,6 +172,37 @@ std::vector<render::Point> frameFloodArea(const document::ProjectDocument& docum
 CanvasEditController::CanvasEditController(CanvasEditOutputs outputs)
     : m_outputs(std::move(outputs))
 {
+}
+
+void CanvasEditController::colorizedPressed(const CanvasEditContext& context,
+                                            const render::CanvasHit& hit,
+                                            bool erase)
+{
+    if (context.tool == DrawingTool::Point && !isSelectionDirectionModeActive()) {
+        beginFreehandStroke(context, hit, erase);
+        return;
+    }
+    colorizedPixelClicked(context, hit, erase);
+}
+
+void CanvasEditController::originalPressed(const CanvasEditContext& context,
+                                           const render::CanvasHit& hit,
+                                           bool erase)
+{
+    if (context.tool == DrawingTool::Point && !isSelectionDirectionModeActive()) {
+        beginFreehandStroke(context, hit, erase);
+        return;
+    }
+    originalPixelClicked(context, hit, erase);
+}
+
+void CanvasEditController::beginFreehandStroke(const CanvasEditContext& context,
+                                               const render::CanvasHit& hit,
+                                               bool erase)
+{
+    m_freehandStroke = FreehandStroke{{render::Point{hit.x, hit.y}},
+                                      render::Point{hit.x, hit.y}};
+    strokePreviewed(context, hit, hit, erase);
 }
 
 void CanvasEditController::colorizedPixelClicked(const CanvasEditContext& context,
@@ -309,7 +343,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
                                            bool erase)
 {
     const DrawingTool tool = context.tool;
-    if (tool == DrawingTool::Point || tool == DrawingTool::FloodFill ||
+    if ((tool == DrawingTool::Point && !m_freehandStroke) || tool == DrawingTool::FloodFill ||
         start.region != end.region || start.resolution != end.resolution) {
         return;
     }
@@ -410,9 +444,20 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                                           const render::CanvasHit& end,
                                           bool erase)
 {
+    const auto strokeDone = qScopeGuard([this]() { m_freehandStroke.reset(); });
     const DrawingTool tool = context.tool;
-    if (tool == DrawingTool::Point || tool == DrawingTool::FloodFill ||
+    if ((tool == DrawingTool::Point && !m_freehandStroke) || tool == DrawingTool::FloodFill ||
         start.region != end.region || start.resolution != end.resolution) {
+        return;
+    }
+    if (tool == DrawingTool::Point && strokePixels(context, start, end).size() <= 1 &&
+        start.x == end.x && start.y == end.y) {
+        // A click, which paints as it always did.
+        if (start.region == render::CanvasRegion::OriginalFrame) {
+            originalPixelClicked(context, start, erase);
+        } else {
+            colorizedPixelClicked(context, start, erase);
+        }
         return;
     }
 
@@ -1302,6 +1347,7 @@ void CanvasEditController::editSelectionAtPoint(const CanvasEditContext& context
         pixels = edit::floodFillMatching(picture->pixels, picture->size, point, color);
     } else if (context.tool == DrawingTool::Point) {
         pixels = {point};
+        m_freehandStroke = FreehandStroke{pixels, point};
     } else {
         // The other tools select by dragging; their click is the first point of the drag.
         return;
@@ -1340,13 +1386,14 @@ void CanvasEditController::editSelectionWithStroke(const CanvasEditContext& cont
                                                    bool remove,
                                                    bool nonBlackOnly)
 {
+    const auto strokeDone = qScopeGuard([this]() { m_freehandStroke.reset(); });
     clearPreview();
     if (!canEditSelection(context) || start.region != render::CanvasRegion::ColorizedFrame ||
         start.region != end.region || start.resolution != end.resolution) {
         return;
     }
     const DrawingTool tool = context.tool;
-    if (tool == DrawingTool::Point || tool == DrawingTool::FloodFill ||
+    if ((tool == DrawingTool::Point && !m_freehandStroke) || tool == DrawingTool::FloodFill ||
         tool == DrawingTool::ColorPicker) {
         return;
     }
@@ -1627,9 +1674,16 @@ std::vector<render::Point> CanvasEditController::strokePixels(const CanvasEditCo
         asDragged ? shapeCorners(context, start, end) : std::pair{start, end};
     // The end may lie outside the frame (a shape larger than it); its pixels outside are
     // dropped.
-    std::vector<render::Point> pixels = edit::makeStrokePixels(
-        context.tool, context.gradientShape, render::Point{from.x, from.y},
-        render::Point{to.x, to.y});
+    std::vector<render::Point> pixels;
+    if (context.tool == DrawingTool::Point) {
+        if (m_freehandStroke) {
+            pixels = extendedFreehandStroke(render::Point{end.x, end.y});
+        }
+    } else {
+        pixels = edit::makeStrokePixels(context.tool, context.gradientShape,
+                                        render::Point{from.x, from.y},
+                                        render::Point{to.x, to.y});
+    }
     if (context.document) {
         const render::Size plane = context.document->geometry().planeSize(start.resolution);
         pixels.erase(std::remove_if(pixels.begin(), pixels.end(),
@@ -1640,6 +1694,27 @@ std::vector<render::Point> CanvasEditController::strokePixels(const CanvasEditCo
                      pixels.end());
     }
     return pixels;
+}
+
+const std::vector<render::Point>& CanvasEditController::extendedFreehandStroke(render::Point end)
+{
+    FreehandStroke& stroke = *m_freehandStroke;
+    if (end.x == stroke.last.x && end.y == stroke.last.y) {
+        return stroke.pixels;
+    }
+    // The mouse skips pixels when it moves fast: a line closes the gap. Every pixel once, as
+    // a change must find the old value the pixel had before the stroke.
+    for (const render::Point& pixel : edit::makeLinePixels(stroke.last, end)) {
+        const bool known = std::any_of(stroke.pixels.begin(), stroke.pixels.end(),
+                                       [&pixel](const render::Point& other) {
+                                           return other.x == pixel.x && other.y == pixel.y;
+                                       });
+        if (!known) {
+            stroke.pixels.push_back(pixel);
+        }
+    }
+    stroke.last = end;
+    return stroke.pixels;
 }
 
 edit::PixelColorSource CanvasEditController::gradientColorSource(

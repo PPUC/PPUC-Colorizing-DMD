@@ -239,6 +239,10 @@
         <translation>gefüllte Ellipse</translation>
     </message>
     <message>
+        <source>pixels</source>
+        <translation>Pixel</translation>
+    </message>
+    <message>
         <source>Selected canvas area</source>
         <translation>Bereich der Zeichenfläche ausgewählt</translation>
     </message>

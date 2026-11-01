@@ -2427,7 +2427,7 @@ void MainWindow::createCentralView()
         return interceptCanvasPress(hit, modifiers);
     });
     m_preview->setOriginalClickedHandler([this](render::CanvasHit hit, bool erase) {
-        m_canvasEdit.originalPixelClicked(canvasEditContext(), hit, erase);
+        m_canvasEdit.originalPressed(canvasEditContext(), hit, erase);
     });
     m_preview->setStrokePreviewHandler(
         [this](render::CanvasHit start, render::CanvasHit end, bool erase) {
@@ -10095,7 +10095,7 @@ void MainWindow::colorizedCanvasClicked(render::CanvasHit hit, bool erase)
         m_editHelpers.recolor(context, hit);
         return;
     }
-    m_canvasEdit.colorizedPixelClicked(context, hit, erase);
+    m_canvasEdit.colorizedPressed(context, hit, erase);
 }
 
 void MainWindow::setActiveDrawColor(uint16_t rgb565)

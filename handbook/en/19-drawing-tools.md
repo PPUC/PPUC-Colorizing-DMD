@@ -41,6 +41,11 @@ While a background is edited (`Edit Background` in the `Frame Background` sectio
 Click one pixel to paint it with the active draw color (in `Set Replace` mode: the edit color of its
 original shade).
 
+Drag to paint freehand along the way of the mouse, with no gaps when it moves fast. The preview is
+shown while dragging, and the whole stroke is committed on release as one undoable edit. This works
+for everything `Point` paints on the frame canvas: frames, backgrounds, the masks and, with `Ctrl`
+(`Cmd` on macOS), the selection.
+
 ## Line
 
 Press, drag, and release to draw a line.

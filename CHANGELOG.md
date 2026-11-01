@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Point` paints freehand on the frame canvas when dragged, as in the sprite editor and the Win32
+  editor; a stroke is one undo step.
+
 ## 3.99.26
 
 - The drawing tools in the toolbar are icons instead of words (Phosphor Icons); their names are in

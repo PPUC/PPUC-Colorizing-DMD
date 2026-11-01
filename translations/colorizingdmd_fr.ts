@@ -239,6 +239,10 @@
         <translation>ellipse pleine</translation>
     </message>
     <message>
+        <source>pixels</source>
+        <translation>pixels</translation>
+    </message>
+    <message>
         <source>Selected canvas area</source>
         <translation>Zone du canevas sélectionnée</translation>
     </message>

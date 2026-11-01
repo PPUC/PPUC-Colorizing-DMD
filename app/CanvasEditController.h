@@ -115,6 +115,16 @@ class CanvasEditController {
 public:
     explicit CanvasEditController(CanvasEditOutputs outputs = {});
 
+    // The mouse button went down on the colorized frame or the original frame. With the Point
+    // tool that starts a freehand stroke: strokePreviewed() shows it while it grows and
+    // strokeFinished() commits it as one undoable edit, a click as its one pixel. The other
+    // tools act on the click.
+    void colorizedPressed(const CanvasEditContext& context,
+                          const render::CanvasHit& hit,
+                          bool erase);
+    void originalPressed(const CanvasEditContext& context,
+                         const render::CanvasHit& hit,
+                         bool erase);
     void colorizedPixelClicked(const CanvasEditContext& context,
                                const render::CanvasHit& hit,
                                bool erase);
@@ -258,6 +268,11 @@ private:
     void pickedColor(uint16_t color, bool selectEditColorSlot, const QString& statusText);
     void floodFillBackgroundImage(const CanvasEditContext& context,
                                   const render::CanvasHit& hit);
+    void beginFreehandStroke(const CanvasEditContext& context,
+                             const render::CanvasHit& hit,
+                             bool erase);
+    // The stroke's pixels with those up to end added.
+    const std::vector<render::Point>& extendedFreehandStroke(render::Point end);
     void paintComparisonMaskPixel(const CanvasEditContext& context,
                                   const render::CanvasHit& hit,
                                   bool erase);
@@ -305,7 +320,7 @@ private:
         const render::CanvasHit& end);
     // asDragged: start and end are those of the drag (see shapeCorners()); otherwise the
     // shape's corners already.
-    [[nodiscard]] static std::vector<render::Point> strokePixels(const CanvasEditContext& context,
+    [[nodiscard]] std::vector<render::Point> strokePixels(const CanvasEditContext& context,
                                                                  const render::CanvasHit& start,
                                                                  const render::CanvasHit& end,
                                                                  bool asDragged = true);
@@ -410,6 +425,12 @@ private:
     // The preview shows pointerMoved()'s pixel, which it may clear (and only then: other
     // previews, of a pending gradient for one, stay while the mouse moves).
     mutable bool m_pointerPreviewShown = false;
+    // The pixels of the Point tool's stroke under way and where the mouse was last.
+    struct FreehandStroke {
+        std::vector<render::Point> pixels;
+        render::Point last;
+    };
+    std::optional<FreehandStroke> m_freehandStroke;
     // Sized like the original frames of the document it was painted on last.
     edit::FramePixelSelection m_captureSelection{render::ProjectGeometry().romFrameSize()};
     render::ProjectGeometry m_captureGeometry;
