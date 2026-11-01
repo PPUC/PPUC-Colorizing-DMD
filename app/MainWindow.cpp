@@ -7401,6 +7401,10 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
             m_spritePanel->setSelectedSlotIndex(targetSlot);
             updateSpriteControls();
         }
+        if (m_spriteEditor) {
+            // The sprite has other pixels now.
+            m_spriteEditor->fitToSprite();
+        }
         updateProjectHeaderStatus();
         statusBar()->showMessage(
             tr("Captured frame region [%1,%2-%3,%4] into sprite %5")

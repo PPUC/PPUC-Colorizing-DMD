@@ -75,7 +75,8 @@ public:
 
     // Zoom over the size that fits the widget (1): Ctrl/Cmd with the mouse wheel and a pinch
     // zoom around the mouse, the View menu's zoom entries around the middle. Zoomed in, the
-    // mouse wheel (with Shift sideways) and a trackpad move the shown part.
+    // mouse wheel (with Shift sideways) and a trackpad move the shown part. Choosing a sprite
+    // fits the view to it (fitToSprite()).
     static constexpr double kMaxZoom = 8.0;
     [[nodiscard]] double zoom() const;
     // anchor: the widget point that stays on the same sprite pixel; none keeps the middle.
@@ -83,6 +84,9 @@ public:
     void zoomIn();
     void zoomOut();
     void resetZoom();
+    // Shows the sprite's pixels and detection areas as large as they fit, up to kMaxZoom, and
+    // again when the widget's size changes, until the view is zoomed or moved by hand. Issue #57.
+    void fitToSprite();
     // The widget point at the middle of a sprite pixel, in the upper (colorized) or the lower
     // (original) half; for tests.
     [[nodiscard]] QPointF pixelCentre(bool original, render::Point pixel) const;
@@ -172,6 +176,7 @@ private:
     std::optional<render::Point> m_colorizedStrokeStart;
     std::optional<render::Point> m_colorizedStrokeEnd;
     double m_zoom = 1.0;
+    bool m_fitsSprite = false;
     bool m_panMode = false;
     std::optional<QPointF> m_panFrom;
     // How far the sprite is moved from its top left corner when it is larger than its half, in

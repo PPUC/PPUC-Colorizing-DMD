@@ -16,6 +16,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - DMD output can also drive a PinDMD3 and stream to a dmd-extensions server; both are off by default.
 - The `Unused` badge is in the lower right corner of a thumbnail, where it hides less of a small
   picture.
+- Choosing or capturing a sprite fits the sprite editor's view to the sprite; `Show Whole Frame` shows
+  the whole sprite area.
 
 ## 3.99.26
 

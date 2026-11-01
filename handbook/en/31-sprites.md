@@ -51,10 +51,13 @@ The controls:
   canvas: the colorized sprite in the upper half, the original sprite in the lower half, both
   showing the same part. A double click on a frame in the frame list leaves the sprite editor and
   shows that frame for editing.
+- Choosing or capturing a sprite fits the sprite editor's view to it: its pixels and detection areas
+  are shown as large as they fit, up to 8 times the size of the whole sprite area. Resizing the
+  window fits it again until you zoom or move the view yourself.
 - The sprite editor zooms as the canvas does: `View -> Zoom In` / `Zoom Out` (`Ctrl/Cmd++`,
   `Ctrl/Cmd+-`) around the middle, `Ctrl/Cmd` with the mouse wheel and a pinch on a trackpad
   around the mouse, up to 8 times the size that fits; `Show Whole Frame` (`Ctrl/Cmd+0`) and a
-  click on the toolbar's zoom go back to that size. Zoomed in, scroll bars at the bottom and the right, the
+  click on the toolbar's zoom show the whole sprite area at that size. Zoomed in, scroll bars at the bottom and the right, the
   mouse wheel (with `Shift` sideways), a trackpad, and a drag while `Space` is held move the shown
   part. While the sprite editor is shown, these entries and the toolbar's `-`, zoom and `+` zoom
   it, not the frame canvas, and the toolbar shows its zoom.

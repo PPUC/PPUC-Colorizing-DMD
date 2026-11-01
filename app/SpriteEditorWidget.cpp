@@ -65,12 +65,14 @@ SpriteEditorWidget::SpriteEditorWidget(QWidget* parent)
     m_verticalScrollBar->hide();
     connect(m_horizontalScrollBar, &QScrollBar::valueChanged, this, [this](int value) {
         if (!m_updatingScrollBars) {
+            m_fitsSprite = false;
             m_scroll.setX(value);
             update();
         }
     });
     connect(m_verticalScrollBar, &QScrollBar::valueChanged, this, [this](int value) {
         if (!m_updatingScrollBars) {
+            m_fitsSprite = false;
             m_scroll.setY(value);
             update();
         }
@@ -120,7 +122,11 @@ void SpriteEditorWidget::resizeEvent(QResizeEvent* event)
     const int thickness = m_horizontalScrollBar->sizeHint().height();
     m_horizontalScrollBar->setGeometry(0, height() - thickness, width() - thickness, thickness);
     m_verticalScrollBar->setGeometry(width() - thickness, 0, thickness, height() - thickness);
-    viewChanged();
+    if (m_fitsSprite) {
+        fitToSprite();
+    } else {
+        viewChanged();
+    }
 }
 
 void SpriteEditorWidget::setDocument(const document::ProjectDocument* document)
@@ -140,6 +146,7 @@ void SpriteEditorWidget::setSpriteIndex(std::optional<std::size_t> spriteIndex)
     m_spriteIndex = spriteIndex;
     m_dragStart.reset();
     m_dragEnd.reset();
+    fitToSprite();
     update();
 }
 
@@ -351,6 +358,7 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
 void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
 {
     if (m_panFrom) {
+        m_fitsSprite = false;
         m_scroll -= event->position() - *m_panFrom;
         m_panFrom = event->position();
         viewChanged();
@@ -481,6 +489,7 @@ double SpriteEditorWidget::zoom() const
 void SpriteEditorWidget::setZoom(double zoom, std::optional<QPoint> anchor)
 {
     zoom = std::clamp(zoom, 1.0, kMaxZoom);
+    m_fitsSprite = false;
     // The sprite point under the anchor stays there, in the half it is in (the middle of the
     // upper half without one).
     const bool original = anchor && viewport(true).contains(*anchor);
@@ -522,6 +531,64 @@ void SpriteEditorWidget::zoomOut()
     setZoom(m_zoom / 1.25);
 }
 
+void SpriteEditorWidget::fitToSprite()
+{
+    m_fitsSprite = true;
+    // What belongs to the sprite, in cells of the sprite's grid, on either plane.
+    int left = kSpriteSize.width;
+    int top = kSpriteSize.height;
+    int right = -1;
+    int bottom = -1;
+    const auto include = [&](int x, int y) {
+        left = std::min(left, x);
+        top = std::min(top, y);
+        right = std::max(right, x);
+        bottom = std::max(bottom, y);
+    };
+    if (m_document && m_spriteIndex && *m_spriteIndex < m_document->spriteCount()) {
+        const document::SpriteRecord& sprite = m_document->sprite(*m_spriteIndex);
+        const int scale = sprite.hasHd ? std::max(1, hdScale()) : 1;
+        for (int y = 0; y < kSpriteSize.height; ++y) {
+            for (int x = 0; x < kSpriteSize.width; ++x) {
+                const std::size_t index = spritePixelIndex(x, y);
+                if (sprite.originalSd.pixels[index] != 255) {
+                    include(x, y);
+                }
+                if (sprite.hasHd && sprite.maskHd.pixels[index] != 255) {
+                    include(x / scale, y / scale);
+                }
+            }
+        }
+        for (const document::SpriteDetectionArea& area : sprite.detectionAreas) {
+            if (isValidDetectionArea(area)) {
+                include(std::min<int>(area.x, kSpriteSize.width - 1),
+                        std::min<int>(area.y, kSpriteSize.height - 1));
+                include(std::min<int>(area.x + area.width - 1, kSpriteSize.width - 1),
+                        std::min<int>(area.y + area.height - 1, kSpriteSize.height - 1));
+            }
+        }
+    }
+    const QRect half = viewport(false);
+    const int fitted = fittedScale();
+    int scale = fitted;
+    if (right >= 0) {
+        // A cell free around it, as the size that fits keeps a margin.
+        const double fits = std::min(
+            static_cast<double>(std::max(1, half.width() - 16)) / (right - left + 3),
+            static_cast<double>(std::max(1, half.height() - 8)) / (bottom - top + 3));
+        scale = std::clamp(static_cast<int>(std::floor(fits)), fitted,
+                           static_cast<int>(fitted * kMaxZoom));
+    }
+    m_zoom = static_cast<double>(scale) / fitted;
+    m_scroll = right < 0 ? QPointF()
+                         : QPointF((left + right + 1) / 2.0 * scale - half.width() / 2.0,
+                                   (top + bottom + 1) / 2.0 * scale - half.height() / 2.0);
+    viewChanged();
+    if (onZoomChanged) {
+        onZoomChanged();
+    }
+}
+
 void SpriteEditorWidget::resetZoom()
 {
     m_scroll = QPointF();
@@ -544,6 +611,7 @@ void SpriteEditorWidget::wheelEvent(QWheelEvent* event)
     if (event->modifiers() & Qt::ShiftModifier && delta.x() == 0.0) {
         delta = QPointF(delta.y(), 0.0);
     }
+    m_fitsSprite = false;
     m_scroll -= delta;
     viewChanged();
     event->accept();

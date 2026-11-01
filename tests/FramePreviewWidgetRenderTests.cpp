@@ -1499,6 +1499,8 @@ void testSpriteEditorZoom()
     widget.resize(640, 420);
     widget.setDocument(&document);
     widget.setSpriteIndex(std::size_t{0});
+    // From the whole sprite area, not the view fitted to the sprite.
+    widget.resetZoom();
     std::optional<std::pair<int, int>> painted;
     widget.setColorizedPixelEditedHandler(
         [&](std::size_t, colorizing::render::Resolution, int x, int y, bool) {
@@ -1618,6 +1620,49 @@ void testSpriteEditorPaintsHdTransparency()
            "Shift covers it again, with the original's shade");
 }
 
+// Issue #57: choosing a sprite fits the view to it, until the view is zoomed by hand.
+void testSpriteEditorFitsTheSprite()
+{
+    using colorizing::render::Point;
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(1280, 840);
+    widget.setDocument(&document);
+    int zoomChanges = 0;
+    widget.onZoomChanged = [&zoomChanges]() { ++zoomChanges; };
+    widget.setSpriteIndex(std::size_t{0});
+    expect(widget.zoom() > 1.0 && zoomChanges == 1, "a small sprite is shown larger");
+    // Its pixels are 4,5 to 15,12 and its detection area 4,5 to 23,12.
+    const auto shown = [&widget](Point pixel) {
+        for (const bool original : {false, true}) {
+            const QPointF at = widget.pixelCentre(original, pixel);
+            const QRect half(0, original ? widget.height() / 2 : 0, widget.width(),
+                             widget.height() / 2);
+            if (!half.contains(at.toPoint())) {
+                return false;
+            }
+        }
+        return true;
+    };
+    expect(shown(Point{4, 5}) && shown(Point{23, 12}), "all of it is in view, in both halves");
+    const auto cell = [&widget]() {
+        return widget.pixelCentre(false, Point{1, 0}).x() -
+               widget.pixelCentre(false, Point{0, 0}).x();
+    };
+    const double larger = cell();
+    widget.resize(640, 420);
+    expect(cell() < larger && shown(Point{4, 5}) && shown(Point{23, 12}),
+           "a smaller widget fits it again");
+
+    widget.resetZoom();
+    expect(widget.zoom() == 1.0, "the whole sprite area on request");
+    widget.resize(1280, 840);
+    expect(widget.zoom() == 1.0, "and it stays so, whatever the widget's size");
+
+    widget.setSpriteIndex(std::nullopt);
+    expect(widget.zoom() == 1.0, "no sprite: the size that fits");
+}
+
 // Issue #60: a dynamic sprite pixel shows its set's color for its shade on the sprite canvas,
 // with and without Paint Dynamic, on the 128x32 plane and on the HD art over it.
 void testSpriteEditorShowsDynamicColors()
@@ -1674,6 +1719,8 @@ void testSpriteEditorRendersAndEditsDetectionArea()
     widget.resize(640, 420);
     widget.setDocument(&document);
     widget.setSpriteIndex(std::size_t{0});
+    // Areas are dragged beyond the sprite, on the whole sprite area.
+    widget.resetZoom();
     widget.setDetectionAreasVisible(true);
     widget.setSelectedDetectionAreaIndex(std::size_t{0});
 
@@ -1925,7 +1972,8 @@ void testSpriteEditorHdKeepsSdFootprint()
     // The top left quarter of SD pixel 10,5 is HD pixel 20,10.
     const QPointF centre = widget.pixelCentre(false, {10, 5});
     const QPointF half = (widget.pixelCentre(false, {11, 6}) - centre) / 2.0;
-    const QPointF corner = centre - half;
+    // Its middle: at the size the view is fitted to, a dot does not reach its corner.
+    const QPointF corner = centre - half / 2.0;
     const QColor sdFootprintPixel(image.pixel(static_cast<int>(corner.x()), static_cast<int>(corner.y())));
     expect(sdFootprintPixel.red() > 80 && sdFootprintPixel.green() < 40,
            "HD sprite pixel should render in SD footprint position");
@@ -4463,6 +4511,7 @@ int main(int argc, char* argv[])
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorZoom();
     testSpriteEditorShowsDynamicColors();
+    testSpriteEditorFitsTheSprite();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorPaintsHdTransparency();
     testTransparentPaintButton();
