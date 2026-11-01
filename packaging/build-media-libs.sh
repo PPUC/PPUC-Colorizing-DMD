@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Builds the media libraries of VPX's PUP plugin (the PuP tester) and the editor's movie clip
-# import, at the versions vpinball pins (its platforms/config.sh), and installs them into one
-# prefix:
+# import, and the plugin's libpupdmd, at the versions vpinball pins (its platforms/config.sh),
+# and installs them into one prefix:
 #   <prefix>/include/  SDL3, SDL3_image, SDL3_ttf, libavcodec, libavformat, libavutil,
-#                      libswresample, libswscale
+#                      libswresample, libswscale, pupdmd.h
 #   <prefix>/lib/      the shared libraries (macOS, Linux; on Windows the import libraries)
 #   <prefix>/bin/      the DLLs (Windows)
 #
@@ -45,6 +45,7 @@ sdl_sha=$(pin SDL_SHA)
 sdl_image_sha=$(pin SDL_IMAGE_SHA)
 sdl_ttf_sha=$(pin SDL_TTF_SHA)
 ffmpeg_sha=$(pin FFMPEG_SHA)
+pupdmd_sha=$(pin LIBPUPDMD_SHA)
 
 jobs=$( (nproc || sysctl -n hw.ncpu) 2>/dev/null || echo 4)
 cmake_args=(-DCMAKE_BUILD_TYPE=Release "-DCMAKE_INSTALL_PREFIX=${prefix}"
@@ -97,7 +98,7 @@ vendored() {
     fi
 }
 
-expected="${platform}-${arch}-${sdl_sha}-${sdl_image_sha}-${sdl_ttf_sha}-${ffmpeg_sha}"
+expected="${platform}-${arch}-${sdl_sha}-${sdl_image_sha}-${sdl_ttf_sha}-${ffmpeg_sha}-${pupdmd_sha}"
 if [ "$(cat "${prefix}/media-libs.txt" 2>/dev/null || true)" = "${expected}" ]; then
     echo "Media libraries in ${prefix} are built from the current pins."
     exit 0
@@ -159,6 +160,22 @@ esac
     make -j "${jobs}"
     make install
 )
+
+# libpupdmd: its build has no install step for the header, so the files are copied as
+# vpinball's own scripts do.
+fetch PPUC/libpupdmd "${pupdmd_sha}" libpupdmd
+cmake -S "${work}/libpupdmd" -B "${work}/libpupdmd/build" "${cmake_args[@]}" \
+    -DPLATFORM="${platform}" -DARCH="${arch}" -DBUILD_SHARED=ON -DBUILD_STATIC=OFF
+cmake --build "${work}/libpupdmd/build" -j "${jobs}"
+cp "${work}/libpupdmd/src/pupdmd.h" "${prefix}/include/"
+case "${platform}" in
+    macos) cp -a "${work}/libpupdmd/build"/libpupdmd*.dylib "${prefix}/lib/" ;;
+    linux) cp -a "${work}/libpupdmd/build"/libpupdmd.so* "${prefix}/lib/" ;;
+    win-mingw)
+        cp -a "${work}/libpupdmd/build"/pupdmd64.dll "${prefix}/bin/"
+        cp -a "${work}/libpupdmd/build"/pupdmd64.dll.a "${prefix}/lib/"
+        ;;
+esac
 
 echo "${expected}" > "${prefix}/media-libs.txt"
 echo "Media libraries installed in ${prefix}"

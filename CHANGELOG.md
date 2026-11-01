@@ -11,6 +11,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   and no longer stay black when a filter lists a scene that was out of view.
 - The sprite canvas shows dynamic pixels in their colors without `Apply Sprite`, and `Paint Dynamic`
   outlines the zones instead of tinting them blue.
+- DMD output uses libdmdutil 0.14 as a hardware driver, with its fixes for frames dropped on the way
+  to a `dmdserver`; the plugin folder no longer carries a second libserum and libvni.
 
 ## 3.99.26
 

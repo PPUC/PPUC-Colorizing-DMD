@@ -150,9 +150,9 @@ add_dependencies(colorizing_qt_v2_vpx DMDUtilPlugin)
 message(STATUS "DMD output: DMDUtil plugin with libdmdutil from ${dmdutil_prefix}")
 
 # ---- VPX's PUP plugin (Pin Up Player), for the PuP tester ----------------------------------
-# Built from the vpinball checkout against the media libraries packaging/build-media-libs.sh
-# installs (SDL3, SDL3_image, SDL3_ttf, ffmpeg) and the libpupdmd staged with libdmdutil, into
-# <build>/vpx-plugins/pup with its plugin.cfg and those libraries. The same ffmpeg serves the
+# Built from the vpinball checkout against what packaging/build-media-libs.sh installs (SDL3,
+# SDL3_image, SDL3_ttf, ffmpeg, libpupdmd), into <build>/vpx-plugins/pup with its plugin.cfg and
+# those libraries. The same ffmpeg serves the
 # editor's movie clip import.
 set(COLORIZINGDMD_MEDIA_PREFIX "" CACHE PATH
     "Media libraries from packaging/build-media-libs.sh; empty builds without PuP")
@@ -162,13 +162,11 @@ if(NOT COLORIZINGDMD_MEDIA_PREFIX)
 endif()
 get_filename_component(media_prefix "${COLORIZINGDMD_MEDIA_PREFIX}" ABSOLUTE)
 if(NOT EXISTS "${media_prefix}/include/SDL3/SDL.h" OR
-   NOT EXISTS "${media_prefix}/include/libavformat/avformat.h")
+   NOT EXISTS "${media_prefix}/include/libavformat/avformat.h" OR
+   NOT EXISTS "${media_prefix}/include/pupdmd.h")
     message(FATAL_ERROR
         "No media libraries in '${media_prefix}': build them with "
         "packaging/build-media-libs.sh, or leave COLORIZINGDMD_MEDIA_PREFIX empty.")
-endif()
-if(NOT EXISTS "${dmdutil_prefix}/include/pupdmd.h")
-    message(FATAL_ERROR "No pupdmd.h in '${dmdutil_prefix}': stage libdmdutil again.")
 endif()
 set(pup_plugin_source "${vpx_vpinball_dir}/plugins/pup")
 if(NOT EXISTS "${pup_plugin_source}/PUPPlugin.cpp")
@@ -178,7 +176,10 @@ endif()
 file(GLOB pup_plugin_sources "${pup_plugin_source}/*.cpp")
 add_library(PUPPlugin MODULE
     ${pup_plugin_sources}
+    "${pup_plugin_source}/DMDOverlay/DMDOverlay.cpp"
+    "${vpx_vpinball_dir}/plugins/nixie/NixieLayoutFile.cpp"
     "${vpx_vpinball_dir}/plugins/plugins/B2SPluginEventStream.cpp"
+    "${vpx_vpinball_dir}/plugins/plugins/ResURIResolver.cpp"
 )
 # Third-party code: its warnings are not this project's to fix.
 set_target_properties(PUPPlugin PROPERTIES
@@ -193,7 +194,6 @@ endif()
 # unordered_dense.
 target_include_directories(PUPPlugin PRIVATE
     "${media_prefix}/include"
-    "${dmdutil_prefix}/include"
     "${vpx_vpinball_dir}/plugins"
     "${pup_plugin_source}"
     "${vpx_vpinball_dir}/third-party/include"
@@ -201,7 +201,7 @@ target_include_directories(PUPPlugin PRIVATE
 find_library(pup_sdl3 NAMES SDL3 PATHS "${media_prefix}/lib" NO_DEFAULT_PATH REQUIRED)
 find_library(pup_sdl3_image NAMES SDL3_image PATHS "${media_prefix}/lib" NO_DEFAULT_PATH REQUIRED)
 find_library(pup_sdl3_ttf NAMES SDL3_ttf PATHS "${media_prefix}/lib" NO_DEFAULT_PATH REQUIRED)
-find_library(pup_pupdmd NAMES pupdmd pupdmd64 PATHS "${dmdutil_prefix}/lib" NO_DEFAULT_PATH
+find_library(pup_pupdmd NAMES pupdmd pupdmd64 PATHS "${media_prefix}/lib" NO_DEFAULT_PATH
     REQUIRED)
 target_link_libraries(PUPPlugin PRIVATE ${pup_sdl3} ${pup_sdl3_image} ${pup_sdl3_ttf} ${pup_pupdmd})
 if(NOT WIN32)
@@ -230,9 +230,7 @@ endif()
 # The plugin's folder: plugin.cfg, the plugin, the media libraries and libpupdmd.
 set(pup_plugin_dir "${vpx_plugin_dir}/pup")
 set(pup_runtime_libraries
-    "${media_prefix}/lib/*.dylib" "${media_prefix}/lib/*.so*" "${media_prefix}/bin/*.dll"
-    "${dmdutil_prefix}/lib/libpupdmd*.dylib" "${dmdutil_prefix}/lib/libpupdmd.so*"
-    "${dmdutil_prefix}/lib/*pupdmd*.dll")
+    "${media_prefix}/lib/*.dylib" "${media_prefix}/lib/*.so*" "${media_prefix}/bin/*.dll")
 add_custom_command(TARGET PUPPlugin POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${pup_plugin_dir}"
     COMMAND "${CMAKE_COMMAND}" -E copy "${pup_plugin_source}/plugin.cfg" "${pup_plugin_dir}/plugin.cfg"

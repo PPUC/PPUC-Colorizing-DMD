@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Builds libdmdutil (DMD output: ZeDMD, Pixelcade, PIN2DMD, dmdserver) and stages what the
-# editor links and ships into one prefix:
-#   <prefix>/include/DMDUtil/   the headers (and pupdmd.h, libpupdmd's, for the PUP plugin)
+# Builds libdmdutil (DMD output: ZeDMD, Pixelcade, PIN2DMD, PinDMD3, dmd-extensions, dmdserver)
+# as a hardware driver, without colorization, and stages what the editor links and ships into
+# one prefix:
+#   <prefix>/include/DMDUtil/   the headers
 #   <prefix>/lib/               libdmdutil and every shared library it loads
 #
 # Usage: build-libdmdutil.sh [--stage-only] <libdmdutil checkout> <platform> <arch> <prefix>
@@ -10,8 +11,9 @@
 #   --stage-only: the checkout is built already (build/ or build-<arch>/); only stage it.
 #
 # libdmdutil's own platforms/<platform>/<arch>/external.sh fetches and builds its dependencies
-# (libzedmd, libserum, libpupdmd, libvni, sockpp, libusb, libserialport, cargs) into
-# third-party/runtime-libs/<platform>/<arch>.
+# (libzedmd, sockpp, libusb, libserialport, cargs) into third-party/runtime-libs/<platform>/<arch>.
+# It skips libserum, libvni and libpupdmd with the same switches as the build: the editor links
+# its own libserum, and build-media-libs.sh builds libpupdmd for the PUP plugin.
 
 set -euo pipefail
 
@@ -37,8 +39,9 @@ build() {
     local a=$1
     (
         cd "${source_dir}"
-        "./platforms/${platform}/${a}/external.sh"
+        ENABLE_SERUM=OFF ENABLE_VNI=OFF ENABLE_PUP=OFF "./platforms/${platform}/${a}/external.sh"
         cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM="${platform}" -DARCH="${a}" \
+            -DENABLE_SERUM=OFF -DENABLE_VNI=OFF -DENABLE_PUP=OFF \
             -DBUILD_STATIC=OFF -DPOST_BUILD_COPY_EXT_LIBS=OFF -B "build-${a}"
         cmake --build "build-${a}" --target dmdutil_shared -- -j"${jobs}"
     )
@@ -68,10 +71,6 @@ stage_libs() {
         *) echo "Unknown platform ${platform}" >&2; exit 2 ;;
     esac
     cp -a "${source_dir}/third-party/runtime-libs/${platform}/${a}/." "${target}/"
-    # The import libraries of the Windows DLLs, for what links them (the PUP plugin: libpupdmd).
-    if [ "${platform}" = "win-mingw" ] && [ -d "${source_dir}/third-party/build-libs/${platform}/${a}" ]; then
-        cp -a "${source_dir}/third-party/build-libs/${platform}/${a}/." "${target}/"
-    fi
 }
 
 rm -rf "${prefix}/include/DMDUtil" "${prefix}/lib"
@@ -82,9 +81,6 @@ if [ "${stage_only}" -eq 0 ]; then
     build "${arch}"
 fi
 stage_libs "${arch}" "${prefix}/lib"
-# libpupdmd's header: VPX's PUP plugin, built with the editor, links the libpupdmd staged here.
-# external.sh (run by the build) puts it into third-party/include, so only after the build.
-cp -a "${source_dir}/third-party/include/pupdmd.h" "${prefix}/include/"
 
 echo "Staged libdmdutil into ${prefix}:"
 ls "${prefix}/lib"

@@ -1214,7 +1214,10 @@ instability is no obstacle (the owner works with the plugin developers).
   fork; only `plugins/plugins`, `plugins/dmdutil` and a few `third-party/include` headers are
   used). With `COLORIZINGDMD_DMDUTIL_PREFIX` too, `app/vpx/CMakeLists.txt` builds
   `plugins/dmdutil/DMDUtilPlugin.cpp` against the staged libdmdutil into
-  `<build>/vpx-plugins/dmdutil` with its `plugin.cfg` and libdmdutil's libraries (rpath
+  `<build>/vpx-plugins/dmdutil` with its `plugin.cfg` and libdmdutil's libraries. libdmdutil
+  comes from PPUC's fork and is built hardware-only (`ENABLE_SERUM`, `ENABLE_VNI` and
+  `ENABLE_PUP` off), as vpinball builds it: its colorizer is not used, and the editor's libserum
+  is the only one in the package (rpath
   `@loader_path` / `$ORIGIN`; Windows: the loader adds the folder to the DLL path). CI pins
   `LIBVPXHOST_SHA` and `VPINBALL_SHA` to ppuc's pins.
 - The plugin needs macOS 13.3 (std::format), so the macOS deployment target is 13.3.
@@ -1238,12 +1241,12 @@ instability is no obstacle (the owner works with the plugin developers).
   it on Windows. Hosting it also needs a renderer for PUP's screens and a game/controller on
   the bus (see ppuc's `src/MediaPluginHost.cpp`).
 - Built here (2026-10-15): `packaging/build-media-libs.sh <vpinball> <platform> <arch>
-  <prefix>` builds SDL3, SDL3_image, SDL3_ttf and ffmpeg at vpinball's pins into a prefix
+  <prefix>` builds SDL3, SDL3_image, SDL3_ttf, ffmpeg and libpupdmd at vpinball's pins into a prefix
   (ffmpeg: no avdevice/avfilter, `--disable-autodetect --enable-zlib` so nothing from the build
   machine leaks in; Windows `--build-suffix=64` as PUP's LibAv.h loads it; work tree
-  `<prefix>-work`, skipped when `media-libs.txt` matches the pins). `build-libdmdutil.sh`
-  also stages `pupdmd.h` (and on Windows the import libraries). With
-  `-DCOLORIZINGDMD_MEDIA_PREFIX`, `app/vpx/CMakeLists.txt` compiles `plugins/pup/*.cpp` from the
+  `<prefix>-work`, skipped when `media-libs.txt` matches the pins). With
+  `-DCOLORIZINGDMD_MEDIA_PREFIX`, `app/vpx/CMakeLists.txt` compiles `plugins/pup/*.cpp`, its
+  `DMDOverlay` and the helpers it takes from `plugins/nixie` and `plugins/plugins` from the
   vpinball checkout (not vpinball's own CMake, which skips non-MSVC Windows) into
   `<build>/vpx-plugins/pup` with plugin.cfg, the media libraries and libpupdmd (copied keeping
   symbolic links, `CopyLibraries.cmake`). Listed as built in under Settings -> Plugins ("PuP

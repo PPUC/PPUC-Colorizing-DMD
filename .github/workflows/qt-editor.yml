@@ -31,18 +31,18 @@ env:
   # Serum_CRZ_* API, Serum_LoadFromMemory and the dynamic-shadow rotation fix: c8d8166 or later.
   LIBSERUM_REPOSITORY: PPUC/libserum
   LIBSERUM_SHA: d936ba7b33da61e00a5eaccc29968c8fd90792d4
-  # libdmdutil (DMD output: ZeDMD, Pixelcade, PIN2DMD, dmdserver) is built as a shared library
-  # with its dependencies and shipped with VPX's DMDUtil plugin, which the editor builds
-  # against it and hosts; see packaging/build-libdmdutil.sh and app/vpx/CMakeLists.txt.
-  LIBDMDUTIL_REPOSITORY: vpinball/libdmdutil
-  LIBDMDUTIL_SHA: ce450bd89076df2819746d1716e9a8f52eafc465
+  # libdmdutil (DMD output) is built as a shared library without colorization, with its
+  # dependencies, and shipped with VPX's DMDUtil plugin, which the editor builds against it and
+  # hosts; see packaging/build-libdmdutil.sh and app/vpx/CMakeLists.txt.
+  LIBDMDUTIL_REPOSITORY: PPUC/libdmdutil
+  LIBDMDUTIL_SHA: a391a1e1f10ea35396f666cc7a32c6c2bd8390aa
   # VPX plugin hosting: libvpxhost (the plugin bus, shared with ppuc) and the plugin SDK and
   # DMDUtil plugin source of PPUC's vpinball fork, at the commits ppuc pins
   # (LIBVPXHOST_SHA and VPINBALL_SHA in ppuc's platforms/config.sh).
   LIBVPXHOST_REPOSITORY: PPUC/libvpxhost
   LIBVPXHOST_SHA: 8236ca462a841b7a1e69d80116b327f7555a2f50
   VPINBALL_REPOSITORY: PPUC/vpinball
-  VPINBALL_SHA: 5330759c6d5d26eebbec4f275884d97c93dc03c4
+  VPINBALL_SHA: f87cba08cff98047b8ce3a14a62780de9f51b462
   # Qt for the macOS package (official binaries, used for arm64; macOS 13.3 or later: the
   # DMDUtil plugin formats with std::format).
   MACOS_QT_VERSION: 6.11.3
@@ -156,9 +156,11 @@ jobs:
             /plugins/plugins/
             /plugins/dmdutil/
             /plugins/pup/
+            /plugins/nixie/
             /platforms/config.sh
             /third-party/include/RSJparser/
             /third-party/include/mINI/
+            /third-party/include/nlohmann/
             /third-party/include/plog/
             /third-party/include/unordered_dense.h
             /third-party/include/stl.h
@@ -279,7 +281,8 @@ jobs:
 
       #
       # The media libraries of the PUP plugin and the movie clip import (SDL3, SDL3_image,
-      # SDL3_ttf, ffmpeg at vpinball's pins), built once per vpinball revision and platform
+      # SDL3_ttf, ffmpeg, and the plugin's libpupdmd at vpinball's pins), built once per vpinball
+      # revision and platform
       #
       - name: Restore the media libraries
         id: media-cache

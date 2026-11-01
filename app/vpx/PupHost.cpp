@@ -140,7 +140,10 @@ unsigned int MSGPIAPI pushNotification(const char*, const int)
 {
     return 0;
 }
-void MSGPIAPI updateNotification(const unsigned int, const char*, const int) {}
+unsigned int MSGPIAPI updateNotification(const unsigned int, const char*, const int)
+{
+    return 0;
+}
 void MSGPIAPI disableStaticPrerendering(const int) {}
 void MSGPIAPI activeViewSetup(VPXViewSetupDef*) {}
 void MSGPIAPI inputState(VPXInputState*) {}
