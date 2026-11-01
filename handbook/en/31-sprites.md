@@ -104,11 +104,13 @@ The controls:
   instead of its shades. One undo step of the sprite.
 - Sprite dynamic content (CDMD's sprite window): a dynamic sprite pixel shows, at runtime, the
   color its set gives the frame's original shade under it, as libserum's sprite drawing does;
-  the canvas and the Runtime view show it so. A sprite has 9 sets (`Set 1` to `Set 9`).
+  the canvas and the Runtime view show it so. A sprite has 9 sets (`Set 1` to `Set 9`). The
+  sprite canvas shows a dynamic pixel in the color its set gives the shade of the sprite's own
+  original there, without `Apply Sprite`.
   - `Paint Dynamic`: on the sprite canvas (`Edit Sprite`) strokes of the point, line and shape
     tools put the sprite's pixels into the selected set; with `Shift` (erase) they leave it.
     Every covered pixel can be painted, black ones too; transparent pixels never become
-    dynamic. Dynamic pixels are tinted blue while the mode is on. The fill tool does not paint
+    dynamic. The zones are outlined in blue while the mode is on. The fill tool does not paint
     dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
     sprite of an ordinary project (switch the canvas to SD), the native sprite otherwise.
   - The color grid shows the set's color for each original shade, 4 in a project with 4

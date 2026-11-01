@@ -9,6 +9,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   editor; a stroke is one undo step.
 - The thumbnails in the Scenes section show the right scene after frames were deleted or moved,
   and no longer stay black when a filter lists a scene that was out of view.
+- The sprite canvas shows dynamic pixels in their colors without `Apply Sprite`, and `Paint Dynamic`
+  outlines the zones instead of tinting them blue.
 
 ## 3.99.26
 

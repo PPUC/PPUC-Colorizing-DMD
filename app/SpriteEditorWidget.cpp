@@ -717,13 +717,17 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
     for (int y = 0; y < kSpriteSize.height; ++y) {
         for (int x = 0; x < kSpriteSize.width; ++x) {
             const std::size_t index = spritePixelIndex(x, y);
-            if (mask.pixels[index] == 255) {
+            const std::optional<uint16_t> dynamic =
+                region.region == render::CanvasRegion::SpriteColorized
+                    ? dynamicColorAt(sprite, x, y, useHd)
+                    : std::nullopt;
+            if (mask.pixels[index] == 255 && !dynamic) {
                 continue;
             }
             const QColor color =
                 region.region == render::CanvasRegion::SpriteOriginal
                     ? originalIndexToColor(mask.pixels[index], m_document->colorCount())
-                    : rgb565ToColor(colorized.pixels[index]);
+                    : rgb565ToColor(dynamic.value_or(colorized.pixels[index]));
             paintDmdPixel(painter,
                           region.rect.x + x * cellSize,
                           region.rect.y + y * cellSize,
@@ -750,27 +754,96 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
             }
         }
     }
-    // The dynamic zones, over the picture of the plane they are on.
+    // The outlines of the dynamic zones, over the picture of the plane they are on: the pixels
+    // keep the colors they show.
     const render::Resolution shownPlane = useHd ? render::Resolution::Hd : render::Resolution::Sd;
     if (m_dynamicPaint && region.region == render::CanvasRegion::SpriteColorized &&
         shownPlane == m_document->dynamicPlane()) {
-        const document::IndexedFrame& dynamicMask =
-            useHd ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
+        const auto inZone = [&](int x, int y) {
+            return x >= 0 && y >= 0 && x < kSpriteSize.width && y < kSpriteSize.height &&
+                   dynamicColorAt(sprite, x, y, useHd).has_value();
+        };
+        QPen pen(QColor(0, 180, 255));
+        pen.setCosmetic(true);
+        pen.setWidth(2);
+        painter.save();
+        painter.setPen(pen);
         for (int y = 0; y < kSpriteSize.height; ++y) {
             for (int x = 0; x < kSpriteSize.width; ++x) {
-                const std::size_t index = spritePixelIndex(x, y);
-                if (mask.pixels[index] == 255 || index >= dynamicMask.pixels.size() ||
-                    dynamicMask.pixels[index] == 255) {
+                if (!inZone(x, y)) {
                     continue;
                 }
-                painter.fillRect(QRectF(region.rect.x + x * cellSize,
-                                        region.rect.y + y * cellSize,
-                                        cellSize,
-                                        cellSize),
-                                 QColor(0, 180, 255, 150));
+                const double left = region.rect.x + x * cellSize;
+                const double top = region.rect.y + y * cellSize;
+                const double right = left + cellSize;
+                const double bottom = top + cellSize;
+                if (!inZone(x - 1, y)) {
+                    painter.drawLine(QLineF(left, top, left, bottom));
+                }
+                if (!inZone(x + 1, y)) {
+                    painter.drawLine(QLineF(right, top, right, bottom));
+                }
+                if (!inZone(x, y - 1)) {
+                    painter.drawLine(QLineF(left, top, right, top));
+                }
+                if (!inZone(x, y + 1)) {
+                    painter.drawLine(QLineF(left, bottom, right, bottom));
+                }
             }
         }
+        painter.restore();
     }
+}
+
+std::optional<uint16_t> SpriteEditorWidget::dynamicColorAt(const document::SpriteRecord& sprite,
+                                                           int x,
+                                                           int y,
+                                                           bool useHd) const
+{
+    const auto colorOf = [this](const document::CompactArray<uint16_t>& colors,
+                                uint8_t set,
+                                uint8_t shade) {
+        const std::size_t index = static_cast<std::size_t>(set) * m_document->colorCount() + shade;
+        return index < colors.size() ? colors[index] : uint16_t{0};
+    };
+    const render::Resolution shownPlane = useHd ? render::Resolution::Hd : render::Resolution::Sd;
+    const std::size_t index = spritePixelIndex(x, y);
+    if (shownPlane == m_document->dynamicPlane()) {
+        const document::IndexedFrame& mask = useHd ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
+        if (index >= mask.pixels.size() || mask.pixels[index] == 255) {
+            return std::nullopt;
+        }
+        if (!useHd) {
+            return sprite.originalSd.pixels[index] == 255
+                       ? std::nullopt
+                       : std::optional<uint16_t>(colorOf(sprite.dynamicColorsSd,
+                                                         mask.pixels[index],
+                                                         sprite.originalSd.pixels[index]));
+        }
+        // libserum loads the extra-plane dynamic data of sprite N only if frame N has
+        // extra-plane content (composeResolvedFrame()).
+        const std::optional<uint8_t> shade =
+            m_document->spriteOriginalUnderHd(*m_spriteIndex, render::Point{x, y});
+        if (sprite.maskHd.pixels[index] == 255 || !shade || *shade == 255 ||
+            *m_spriteIndex >= m_document->frameCount() ||
+            !m_document->hasHdFrame(*m_spriteIndex)) {
+            return std::nullopt;
+        }
+        return colorOf(sprite.dynamicColorsHd, mask.pixels[index], *shade);
+    }
+    if (!useHd) {
+        return std::nullopt;
+    }
+    // The 256x64 plane of a 128x32 project shows the 128x32 sprite's dynamic pixels, upscaled,
+    // in place of the HD art (applySpriteMatch()).
+    const std::size_t sdIndex = spritePixelIndex(x / 2, y / 2);
+    if (sprite.originalSd.pixels[sdIndex] == 255 || sdIndex >= sprite.dynamicMaskSd.pixels.size() ||
+        sprite.dynamicMaskSd.pixels[sdIndex] == 255) {
+        return std::nullopt;
+    }
+    return colorOf(sprite.dynamicColorsSd,
+                   sprite.dynamicMaskSd.pixels[sdIndex],
+                   sprite.originalSd.pixels[sdIndex]);
 }
 
 void SpriteEditorWidget::paintDetectionAreas(QPainter& painter, const RegionLayout& region)

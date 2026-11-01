@@ -1618,6 +1618,55 @@ void testSpriteEditorPaintsHdTransparency()
            "Shift covers it again, with the original's shade");
 }
 
+// Issue #60: a dynamic sprite pixel shows its set's color for its shade on the sprite canvas,
+// with and without Paint Dynamic, on the 128x32 plane and on the HD art over it.
+void testSpriteEditorShowsDynamicColors()
+{
+    using colorizing::render::Point;
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    const auto& sprite = document.sprite(0);
+    std::optional<Point> pixel;
+    for (int y = 0; y < 64 && !pixel; ++y) {
+        for (int x = 0; x < 256 && !pixel; ++x) {
+            const std::size_t index = static_cast<std::size_t>(y) *
+                                          colorizing::document::kMaxSpriteWidth +
+                                      static_cast<std::size_t>(x);
+            if (sprite.originalSd.pixels[index] != 255) {
+                pixel = Point{x, y};
+            }
+        }
+    }
+    expect(pixel.has_value(), "the sprite has an opaque pixel");
+    const std::size_t index = static_cast<std::size_t>(pixel->y) *
+                                  colorizing::document::kMaxSpriteWidth +
+                              static_cast<std::size_t>(pixel->x);
+    const uint8_t shade = sprite.originalSd.pixels[index];
+    const uint16_t magenta = 0xf81f;
+    document.setSpriteDynamicColor(0, 2, shade, magenta);
+    (void)document.setSpriteDynamicMaskPixels(0, {*pixel}, 2);
+
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    widget.setZoom(4.0, QPoint(0, 0));
+    const QColor expected = colorizing::app::rgb565ToColor(magenta);
+    const QPointF centre = widget.pixelCentre(false, *pixel);
+    const auto shown = [&widget, &centre]() {
+        return widget.grab().toImage().pixelColor(centre.toPoint());
+    };
+    expect(shown() == expected, "the dynamic pixel shows its set's color");
+    widget.setDynamicPaintMode(true);
+    expect(shown() == expected, "also while its zone is being painted");
+    widget.setDynamicPaintMode(false);
+
+    // The middle of the 128x32 pixel is where its four HD pixels meet: all four show the color.
+    document.createHdSprite(0);
+    widget.setActiveResolution(colorizing::render::Resolution::Hd);
+    expect(shown() == expected,
+           "on the HD art the 128x32 sprite's dynamic pixel shows, as libserum draws it");
+}
+
 void testSpriteEditorRendersAndEditsDetectionArea()
 {
     colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
@@ -4413,6 +4462,7 @@ int main(int argc, char* argv[])
     testPositionHandler();
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorZoom();
+    testSpriteEditorShowsDynamicColors();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorPaintsHdTransparency();
     testTransparentPaintButton();

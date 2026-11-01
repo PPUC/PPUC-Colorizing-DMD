@@ -49,7 +49,7 @@ public:
     void setDmdRenderOptions(DmdRenderOptions options);
     void setDetectionAreasVisible(bool visible);
     // Strokes paint the sprite's dynamic zones (every covered pixel can be painted, black ones
-    // too) and the dynamic pixels are tinted. Only on the plane the sprite's dynamic content is
+    // too) and the zones are outlined. Only on the plane the sprite's dynamic content is
     // on (ProjectDocument::dynamicPlane()).
     void setDynamicPaintMode(bool enabled);
     [[nodiscard]] bool isDynamicPaintMode() const;
@@ -128,6 +128,13 @@ private:
     [[nodiscard]] std::optional<render::Point> hitOriginal(QPoint position) const;
     void paintEmpty(QPainter& painter);
     void paintSpriteRegion(QPainter& painter, const RegionLayout& region);
+    // The color a dynamic pixel of the shown plane has, for the shade of the sprite's own
+    // original there; nothing for a pixel that is not dynamic. On a frame libserum takes the
+    // shade of the frame under the sprite.
+    [[nodiscard]] std::optional<uint16_t> dynamicColorAt(const document::SpriteRecord& sprite,
+                                                         int x,
+                                                         int y,
+                                                         bool useHd) const;
     void paintDetectionAreas(QPainter& painter, const RegionLayout& region);
     void paintDragPreview(QPainter& painter, const RegionLayout& region);
     void paintColorizedStrokePreview(QPainter& painter, const RegionLayout& region);
