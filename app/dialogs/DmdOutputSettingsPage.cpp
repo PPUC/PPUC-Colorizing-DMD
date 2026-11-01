@@ -43,6 +43,21 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     m_pixelcadeDeviceEdit = new QLineEdit(local);
     m_pixelcadeDeviceEdit->setPlaceholderText(tr("Any serial port"));
     m_pin2dmdCheckBox = new QCheckBox(QStringLiteral("PIN2DMD"), local);
+    m_pinDmd3CheckBox = new QCheckBox(QStringLiteral("PinDMD3"), local);
+    m_pinDmd3CheckBox->setToolTip(
+        tr("A display of 128x32 pixels. Looking for one sends a command to every serial port "
+           "no other display took; give its port to send it only there."));
+    m_pinDmd3DeviceEdit = new QLineEdit(local);
+    m_pinDmd3DeviceEdit->setPlaceholderText(tr("Any serial port"));
+    m_dmdExtStreamCheckBox = new QCheckBox(tr("dmd-extensions server"), local);
+    m_dmdExtStreamCheckBox->setToolTip(
+        tr("Streams the picture, at 128x32 pixels, to a server of dmd-extensions (dmdext "
+           "server), which shows it on the displays it drives"));
+    m_dmdExtStreamUrlEdit = new QLineEdit(local);
+    m_dmdExtStreamUrlEdit->setPlaceholderText(QStringLiteral("ws://127.0.0.1/dmd"));
+    m_dmdExtStreamRetryCheckBox = new QCheckBox(tr("Keep trying to connect"), local);
+    m_dmdExtStreamRetryCheckBox->setToolTip(
+        tr("Try again every few seconds when the connection fails or drops"));
     // A grid, not a form: a form right-aligns its first column on macOS, and a row without a
     // field there starts at the left edge instead.
     auto* localGrid = new QGridLayout(local);
@@ -56,6 +71,11 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     localGrid->addWidget(m_pixelcadeCheckBox, 4, 0);
     localGrid->addWidget(m_pixelcadeDeviceEdit, 4, 1);
     localGrid->addWidget(m_pin2dmdCheckBox, 5, 0);
+    localGrid->addWidget(m_pinDmd3CheckBox, 6, 0);
+    localGrid->addWidget(m_pinDmd3DeviceEdit, 6, 1);
+    localGrid->addWidget(m_dmdExtStreamCheckBox, 7, 0);
+    localGrid->addWidget(m_dmdExtStreamUrlEdit, 7, 1);
+    localGrid->addWidget(m_dmdExtStreamRetryCheckBox, 8, 0, 1, 2);
     localGrid->setColumnStretch(1, 1);
 
     auto* server = new QGroupBox(this);
@@ -108,13 +128,18 @@ DmdOutputSettingsPage::DmdOutputSettingsPage(const DmdOutputSettings& settings, 
     m_pixelcadeCheckBox->setChecked(settings.pixelcade);
     m_pixelcadeDeviceEdit->setText(settings.pixelcadeDevice);
     m_pin2dmdCheckBox->setChecked(settings.pin2dmd);
+    m_pinDmd3CheckBox->setChecked(settings.pinDmd3);
+    m_pinDmd3DeviceEdit->setText(settings.pinDmd3Device);
+    m_dmdExtStreamCheckBox->setChecked(settings.dmdExtStream);
+    m_dmdExtStreamUrlEdit->setText(settings.dmdExtStreamUrl);
+    m_dmdExtStreamRetryCheckBox->setChecked(settings.dmdExtStreamRetry);
     m_serverAddressEdit->setText(settings.serverAddress);
     m_serverPortSpinBox->setValue(settings.serverPort);
     m_pictureComboBox->setCurrentIndex(
         m_pictureComboBox->findData(static_cast<int>(settings.picture)));
     for (QAbstractButton* button : std::initializer_list<QAbstractButton*>{
              m_localButton, m_serverButton, m_zedmdCheckBox, m_zedmdWiFiCheckBox,
-             m_pixelcadeCheckBox}) {
+             m_pixelcadeCheckBox, m_pinDmd3CheckBox, m_dmdExtStreamCheckBox}) {
         connect(button, &QAbstractButton::toggled, this, [this]() { updateEnabled(); });
     }
     updateEnabled();
@@ -132,6 +157,9 @@ void DmdOutputSettingsPage::updateEnabled()
     m_zedmdDebugCheckBox->setEnabled(m_zedmdCheckBox->isChecked() ||
                                      m_zedmdWiFiCheckBox->isChecked());
     m_pixelcadeDeviceEdit->setEnabled(m_pixelcadeCheckBox->isChecked());
+    m_pinDmd3DeviceEdit->setEnabled(m_pinDmd3CheckBox->isChecked());
+    m_dmdExtStreamUrlEdit->setEnabled(m_dmdExtStreamCheckBox->isChecked());
+    m_dmdExtStreamRetryCheckBox->setEnabled(m_dmdExtStreamCheckBox->isChecked());
 }
 
 DmdOutputSettings DmdOutputSettingsPage::settings() const
@@ -148,6 +176,11 @@ DmdOutputSettings DmdOutputSettingsPage::settings() const
     result.pixelcade = m_pixelcadeCheckBox->isChecked();
     result.pixelcadeDevice = m_pixelcadeDeviceEdit->text().trimmed();
     result.pin2dmd = m_pin2dmdCheckBox->isChecked();
+    result.pinDmd3 = m_pinDmd3CheckBox->isChecked();
+    result.pinDmd3Device = m_pinDmd3DeviceEdit->text().trimmed();
+    result.dmdExtStream = m_dmdExtStreamCheckBox->isChecked();
+    result.dmdExtStreamUrl = m_dmdExtStreamUrlEdit->text().trimmed();
+    result.dmdExtStreamRetry = m_dmdExtStreamRetryCheckBox->isChecked();
     result.serverAddress = m_serverAddressEdit->text().trimmed();
     result.serverPort = m_serverPortSpinBox->value();
     result.picture =

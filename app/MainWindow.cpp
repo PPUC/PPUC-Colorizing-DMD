@@ -947,7 +947,7 @@ void MainWindow::createActions()
     m_dmdOutputAction->setEnabled(DmdOutput::isAvailable());
     m_dmdOutputAction->setToolTip(
         DmdOutput::isAvailable()
-            ? tr("Show the canvas picture on a ZeDMD, Pixelcade, PIN2DMD or dmdserver")
+            ? tr("Show the canvas picture on a connected DMD or a dmdserver")
             : tr("No DMD output: this build has no DMDUtil plugin"));
     connect(m_dmdOutputAction, &QAction::toggled, this, [this](bool on) {
         setDmdOutputEnabled(on);

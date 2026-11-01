@@ -31,6 +31,15 @@ struct DmdOutputSettings {
     bool pixelcade = true;
     QString pixelcadeDevice;
     bool pin2dmd = true;
+    // Off by default, unlike the displays above: looking for one sends its identify command to
+    // every serial port left, at its speed.
+    bool pinDmd3 = false;
+    QString pinDmd3Device;
+    // A dmd-extensions server (dmdext server), over a WebSocket.
+    bool dmdExtStream = false;
+    QString dmdExtStreamUrl;
+    // Keeps trying when the connection fails or drops.
+    bool dmdExtStreamRetry = false;
     QString serverAddress = QStringLiteral("localhost");
     int serverPort = 6789;
 
@@ -72,8 +81,8 @@ public:
     // The last thing the DMDUtil plugin or libdmdutil logged (which displays it found, why one
     // failed), or why the output did not start.
     [[nodiscard]] QString lastMessage() const;
-    // What libdmdutil logged for each display it found since the start ("ZeDMD 6.1.2 found:
-    // ..."), oldest first. A PIN2DMD is not logged when found, so it is never listed.
+    // What libdmdutil logged for each display it found or connected to since the start ("ZeDMD
+    // 6.1.2 found: ..."), oldest first. A PIN2DMD is not logged when found, so it is never listed.
     [[nodiscard]] std::vector<QString> foundDisplays() const;
 
     // Offers the picture to the plugin unless it is the one offered last.

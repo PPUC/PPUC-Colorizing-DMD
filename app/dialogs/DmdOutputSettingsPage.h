@@ -39,6 +39,11 @@ private:
     QCheckBox* m_pixelcadeCheckBox = nullptr;
     QLineEdit* m_pixelcadeDeviceEdit = nullptr;
     QCheckBox* m_pin2dmdCheckBox = nullptr;
+    QCheckBox* m_pinDmd3CheckBox = nullptr;
+    QLineEdit* m_pinDmd3DeviceEdit = nullptr;
+    QCheckBox* m_dmdExtStreamCheckBox = nullptr;
+    QLineEdit* m_dmdExtStreamUrlEdit = nullptr;
+    QCheckBox* m_dmdExtStreamRetryCheckBox = nullptr;
     QLineEdit* m_serverAddressEdit = nullptr;
     QSpinBox* m_serverPortSpinBox = nullptr;
     QComboBox* m_pictureComboBox = nullptr;

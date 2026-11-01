@@ -806,6 +806,26 @@
         <translation>Plus de messages de la connexion ZeDMD dans Aide -&gt; Journal des plugins, pour savoir pourquoi un ZeDMD reste éteint</translation>
     </message>
     <message>
+        <source>A display of 128x32 pixels. Looking for one sends a command to every serial port no other display took; give its port to send it only there.</source>
+        <translation>Un écran de 128x32 pixels. Sa recherche envoie une commande à chaque port série qu&apos;aucun autre écran n&apos;a pris ; indiquez son port pour ne l&apos;envoyer que là.</translation>
+    </message>
+    <message>
+        <source>dmd-extensions server</source>
+        <translation>Serveur dmd-extensions</translation>
+    </message>
+    <message>
+        <source>Streams the picture, at 128x32 pixels, to a server of dmd-extensions (dmdext server), which shows it on the displays it drives</source>
+        <translation>Diffuse l&apos;image, en 128x32 pixels, vers un serveur dmd-extensions (dmdext server), qui l&apos;affiche sur les écrans qu&apos;il pilote</translation>
+    </message>
+    <message>
+        <source>Keep trying to connect</source>
+        <translation>Continuer à essayer de se connecter</translation>
+    </message>
+    <message>
+        <source>Try again every few seconds when the connection fails or drops</source>
+        <translation>Réessayer toutes les quelques secondes si la connexion échoue ou est perdue</translation>
+    </message>
+    <message>
         <source>ZeDMD brightness</source>
         <translation>Luminosité du ZeDMD</translation>
     </message>
@@ -3225,7 +3245,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Show the canvas picture on a ZeDMD, Pixelcade, PIN2DMD or dmdserver</source>
-        <translation>Afficher l&apos;image du canevas sur un ZeDMD, Pixelcade, PIN2DMD ou dmdserver</translation>
+        <translation type="vanished">Afficher l&apos;image du canevas sur un ZeDMD, Pixelcade, PIN2DMD ou dmdserver</translation>
     </message>
     <message>
         <source>No DMD output: this build has no DMDUtil plugin</source>
@@ -4084,6 +4104,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Export cancelled</source>
         <translation>Export annulé</translation>
+    </message>
+    <message>
+        <source>Show the canvas picture on a connected DMD or a dmdserver</source>
+        <translation>Afficher l&apos;image du canevas sur un DMD connecté ou un dmdserver</translation>
     </message>
     <message>
         <source>Fixed Duration</source>

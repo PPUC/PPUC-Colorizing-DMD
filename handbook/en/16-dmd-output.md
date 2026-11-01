@@ -30,7 +30,11 @@ it), so otherwise the last frame would stay on it.
   - displays connected to this computer: ZeDMD (any serial port, or the one given; or over
     Wi-Fi at an address), with its brightness (0 to 15, or the display's own) and `ZeDMD debug
     output` (more messages from the ZeDMD connection in the plugin log), Pixelcade (any port or
-    the one given) and PIN2DMD;
+    the one given), PIN2DMD, PinDMD3 (any port or the one given; off by default, because looking
+    for one sends a command to every serial port no other display took) and a dmd-extensions
+    server (`dmdext server`, by the URL of its WebSocket; off by default; `Keep trying to connect`
+    tries again when the connection fails or drops). A PinDMD3 and the stream have 128x32 pixels,
+    so libdmdutil scales a 256x64 picture down for them;
   - or `Use DMDServer`: a `dmdserver` (libdmdutil's server process) at an address and port, which drives the
     displays itself.
   The settings are kept and become the DMDUtil plugin's settings; changing them restarts a
@@ -39,13 +43,15 @@ it), so otherwise the last frame would stay on it.
   when it gets its first picture; without a project or a frame to show, the editor sends a
   black one, so the displays are found (and stay black) all the same. After a few seconds the
   status bar names the displays libdmdutil found (a ZeDMD with its firmware, port and size, a
-  Pixelcade), or says that it found none; a PIN2DMD is not reported when found. When the plugin
+  Pixelcade, a PinDMD3, a connected dmd-extensions server), or says that it found none; a PIN2DMD
+  is not reported when found. When the plugin
   does not load, the output switches off again and the status bar says why.
 - `Help -> Plugin Log` shows everything the plugins and the plugin host logged since the editor
   started (the last 5000 lines), with time, level and source. libdmdutil reports a display it
   finds or fails to open, but not one it looks for in vain; so the editor adds its own lines
   (source `Editor`): what the output looks for when it starts (ZeDMD on which port or over
-  Wi-Fi, Pixelcade, PIN2DMD, or a dmdserver), when no display was reported after 4 seconds, and
+  Wi-Fi, Pixelcade, PIN2DMD, PinDMD3, a dmd-extensions server, or a dmdserver), when no display
+  was reported after 4 seconds, and
   when it stops. `Show` limits it to information, warnings or errors; `Copy All` copies the
   lines shown, for a report; `Clear` starts over. When a display stays dark, switch on `ZeDMD
   debug output` (for a ZeDMD), switch the output off and on, and look there.

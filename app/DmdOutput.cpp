@@ -39,6 +39,14 @@ DmdOutputSettings loadDmdOutputSettings()
         settings.value(kGroup + QStringLiteral("pixelcade"), result.pixelcade).toBool();
     result.pixelcadeDevice = settings.value(kGroup + QStringLiteral("pixelcadeDevice")).toString();
     result.pin2dmd = settings.value(kGroup + QStringLiteral("pin2dmd"), result.pin2dmd).toBool();
+    result.pinDmd3 = settings.value(kGroup + QStringLiteral("pinDmd3"), result.pinDmd3).toBool();
+    result.pinDmd3Device = settings.value(kGroup + QStringLiteral("pinDmd3Device")).toString();
+    result.dmdExtStream =
+        settings.value(kGroup + QStringLiteral("dmdExtStream"), result.dmdExtStream).toBool();
+    result.dmdExtStreamUrl = settings.value(kGroup + QStringLiteral("dmdExtStreamUrl")).toString();
+    result.dmdExtStreamRetry =
+        settings.value(kGroup + QStringLiteral("dmdExtStreamRetry"), result.dmdExtStreamRetry)
+            .toBool();
     result.serverAddress =
         settings.value(kGroup + QStringLiteral("serverAddress"), result.serverAddress).toString();
     result.serverPort =
@@ -66,6 +74,11 @@ void saveDmdOutputSettings(const DmdOutputSettings& value)
     settings.setValue(kGroup + QStringLiteral("pixelcade"), value.pixelcade);
     settings.setValue(kGroup + QStringLiteral("pixelcadeDevice"), value.pixelcadeDevice);
     settings.setValue(kGroup + QStringLiteral("pin2dmd"), value.pin2dmd);
+    settings.setValue(kGroup + QStringLiteral("pinDmd3"), value.pinDmd3);
+    settings.setValue(kGroup + QStringLiteral("pinDmd3Device"), value.pinDmd3Device);
+    settings.setValue(kGroup + QStringLiteral("dmdExtStream"), value.dmdExtStream);
+    settings.setValue(kGroup + QStringLiteral("dmdExtStreamUrl"), value.dmdExtStreamUrl);
+    settings.setValue(kGroup + QStringLiteral("dmdExtStreamRetry"), value.dmdExtStreamRetry);
     settings.setValue(kGroup + QStringLiteral("serverAddress"), value.serverAddress);
     settings.setValue(kGroup + QStringLiteral("serverPort"), value.serverPort);
     settings.setValue(kGroup + QStringLiteral("picture"),
@@ -100,12 +113,14 @@ struct DmdOutput::Impl {
     }
 
     // libdmdutil's line for a display it found: "ZeDMD <version> found: ...", "Pixelcade
-    // found: ...".
+    // found: ...", "PinDMD3 found: ...", "DMDExtStream: connected to WebSocket at ...".
     void noteFound(const std::string& line)
     {
         const bool zedmd = line.rfind("ZeDMD ", 0) == 0 && line.find(" found: ") != std::string::npos;
         const bool pixelcade = line.rfind("Pixelcade found: ", 0) == 0;
-        if (zedmd || pixelcade) {
+        const bool pinDmd3 = line.rfind("PinDMD3 found: ", 0) == 0;
+        const bool dmdExtStream = line.rfind("DMDExtStream: connected to ", 0) == 0;
+        if (zedmd || pixelcade || pinDmd3 || dmdExtStream) {
             const std::lock_guard<std::mutex> lock(messageMutex);
             found.push_back(QString::fromStdString(line));
         }
@@ -144,6 +159,9 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
         {"ZeDMDDebug", boolSetting(!server && settings.zedmdDebug)},
         {"Pixelcade", boolSetting(!server && settings.pixelcade)},
         {"PIN2DMD", boolSetting(!server && settings.pin2dmd)},
+        {"PinDMD3", boolSetting(!server && settings.pinDmd3)},
+        {"DMDExtStream", boolSetting(!server && settings.dmdExtStream)},
+        {"DMDExtStreamRetry", boolSetting(!server && settings.dmdExtStreamRetry)},
         {"DMDServer", boolSetting(server)},
         {"DMDServerPort", std::to_string(settings.serverPort)},
         // A dmdserver drives its own displays; this computer's are not looked for.
@@ -157,6 +175,8 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
     addText("ZeDMDDevice", settings.zedmdDevice);
     addText("ZeDMDWiFiAddr", settings.zedmdWiFiAddress);
     addText("PixelcadeDevice", settings.pixelcadeDevice);
+    addText("PinDMD3Device", settings.pinDmd3Device);
+    addText("DMDExtStreamUrl", settings.dmdExtStreamUrl);
     addText("DMDServerAddr", settings.serverAddress);
 
     vpx::Host& host = vpx::Host::instance();
@@ -208,6 +228,18 @@ bool DmdOutput::start(const DmdOutputSettings& settings)
         }
         if (settings.pin2dmd) {
             displays.push_back("PIN2DMD");
+        }
+        if (settings.pinDmd3) {
+            displays.push_back(settings.pinDmd3Device.trimmed().isEmpty()
+                                   ? "PinDMD3 on any serial port"
+                                   : "PinDMD3 on " +
+                                         settings.pinDmd3Device.trimmed().toStdString());
+        }
+        if (settings.dmdExtStream) {
+            const QString url = settings.dmdExtStreamUrl.trimmed();
+            displays.push_back("a dmd-extensions server at " +
+                               (url.isEmpty() ? std::string("ws://127.0.0.1/dmd")
+                                              : url.toStdString()));
         }
         for (std::size_t index = 0; index < displays.size(); ++index) {
             where += (index == 0 ? "" : ", ") + displays[index];

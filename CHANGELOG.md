@@ -13,6 +13,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   outlines the zones instead of tinting them blue.
 - DMD output uses libdmdutil 0.14 as a hardware driver, with its fixes for frames dropped on the way
   to a `dmdserver`; the plugin folder no longer carries a second libserum and libvni.
+- DMD output can also drive a PinDMD3 and stream to a dmd-extensions server; both are off by default.
 
 ## 3.99.26
 

@@ -12,6 +12,7 @@
 #include <QTemporaryDir>
 
 #include "DmdOutput.h"
+#include "dialogs/DmdOutputSettingsPage.h"
 #include "PluginLogWindow.h"
 #include "vpx/VpxHost.h"
 #include "document/ProjectDocument.h"
@@ -118,14 +119,33 @@ void runDmdOutputWidgetTests()
     stored.zedmdBrightness = 7;
     stored.zedmdDebug = true;
     stored.pin2dmd = false;
+    stored.pinDmd3 = true;
+    stored.pinDmd3Device = QStringLiteral("/dev/ttyACM1");
+    stored.dmdExtStream = true;
+    stored.dmdExtStreamUrl = QStringLiteral("ws://pi.local/dmd");
+    stored.dmdExtStreamRetry = true;
     stored.picture = app::DmdOutputSettings::Picture::Extra;
     app::saveDmdOutputSettings(stored);
     const app::DmdOutputSettings loaded = app::loadDmdOutputSettings();
     expect(loaded.target == stored.target && loaded.serverAddress == stored.serverAddress &&
                loaded.serverPort == 6790 && loaded.zedmdBrightness == 7 && loaded.zedmdDebug &&
                !loaded.pin2dmd &&
+               loaded.pinDmd3 && loaded.pinDmd3Device == stored.pinDmd3Device &&
+               loaded.dmdExtStream && loaded.dmdExtStreamUrl == stored.dmdExtStreamUrl &&
+               loaded.dmdExtStreamRetry &&
                loaded.picture == app::DmdOutputSettings::Picture::Extra,
            "settings are kept");
+    QSettings().remove(QStringLiteral("dmdOutput"));
+    const app::DmdOutputSettings defaults = app::loadDmdOutputSettings();
+    expect(!defaults.pinDmd3 && !defaults.dmdExtStream,
+           "PinDMD3, which probes the serial ports, and the stream are off by default");
+
+    // The settings page shows them and gives them back.
+    app::DmdOutputSettingsPage page(stored);
+    const app::DmdOutputSettings shown = page.settings();
+    expect(shown.pinDmd3 && shown.pinDmd3Device == stored.pinDmd3Device && shown.dmdExtStream &&
+               shown.dmdExtStreamUrl == stored.dmdExtStreamUrl && shown.dmdExtStreamRetry,
+           "the page keeps the new outputs' settings");
     QSettings().remove(QStringLiteral("dmdOutput"));
     QCoreApplication::setOrganizationName(QString());
     QSettings::setDefaultFormat(QSettings::NativeFormat);
