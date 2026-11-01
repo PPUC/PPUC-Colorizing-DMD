@@ -1014,6 +1014,11 @@ bool SpritePanel::isCaptureSelectionChecked() const
     return m_captureSelectionButton->isChecked();
 }
 
+bool SpritePanel::isCaptureSelectionActive() const
+{
+    return m_captureSelectionButton->isChecked() && m_captureSelectionButton->isEnabled();
+}
+
 bool SpritePanel::isBoundsOverlayChecked() const
 {
     return m_boundsOverlayButton->isChecked();

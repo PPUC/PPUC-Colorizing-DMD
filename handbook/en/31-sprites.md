@@ -148,6 +148,9 @@ The controls:
 - `Select Capture` enables a persistent shaped capture selection on the original frame. Use the
   normal point, line, rectangle, circle, ellipse, and filled-shape tools on the original frame to
   add selected pixels; hold `Shift` to erase selected pixels. `Clear Sel` removes the selection.
+  It stays on after a capture, for capturing the next sprite, and only takes the original frame:
+  on the colorized frame the tools paint as always. While no sprite or slot is selected and the
+  button is disabled, the original frame works as without it.
 - When a capture selection exists, `Capture` uses the selected pixels instead of the slot rectangle.
   The selected pixels are copied into the sprite relative to the selection bounds, unselected pixels
   inside those bounds remain transparent, and selected black original pixels remain real sprite

@@ -364,7 +364,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
         previewSelectionDirection(start, end);
         return;
     }
-    if (context.spriteCaptureSelection) {
+    if (context.spriteCaptureSelection && !onColorized) {
         if (isOnOriginal(geometry, start)) {
             showPreview(render::CanvasRegion::OriginalFrame,
                         geometry.nativePlane(),
@@ -475,7 +475,7 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
         }
         return;
     }
-    if (context.spriteCaptureSelection) {
+    if (context.spriteCaptureSelection && !onColorized) {
         if (!isOnOriginal(projectGeometry(context), start)) {
             return;
         }

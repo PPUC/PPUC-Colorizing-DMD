@@ -89,6 +89,9 @@ public:
     [[nodiscard]] std::pair<int, int> slotOffset() const;
     [[nodiscard]] SpriteDetectionAreaInput detectionAreaInput() const;
     [[nodiscard]] bool isCaptureSelectionChecked() const;
+    // Checked and available: while the button is disabled it cannot be switched off, so it does
+    // not hold the canvas in the capture selection either.
+    [[nodiscard]] bool isCaptureSelectionActive() const;
     [[nodiscard]] bool isBoundsOverlayChecked() const;
     // Outline Sprites: the found sprites outlined on the frame canvas (on at first).
     [[nodiscard]] bool isOutlinesChecked() const;

@@ -3191,9 +3191,13 @@ void testSpritePanel()
                panel.isDetectionAreasChecked() && !captureSelectionButton->isEnabled() &&
                callbacks == callbacksBeforeSetters,
            "sprite toggles should stay switched on while they are unavailable");
+    expect(!panel.isCaptureSelectionActive(),
+           "a capture selection whose button is unavailable should not hold the canvas");
     panel.refresh(stateFor(0, 0));
     expect(panel.selectedSlotIndex() == std::size_t{0},
            "sprite panel should fall back to slot 0 after a frame without slots");
+    expect(panel.isCaptureSelectionActive(),
+           "the capture selection should hold the canvas again once its button is available");
     captureSelectionButton->click();
     boundsOverlayButton->click();
     detectionAreasButton->click();

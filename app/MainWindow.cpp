@@ -7445,7 +7445,7 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
 bool MainWindow::isSpriteCaptureSelectionModeActive() const
 {
     return m_spritePanel &&
-           m_spritePanel->isCaptureSelectionChecked() &&
+           m_spritePanel->isCaptureSelectionActive() &&
            m_document.has_value() &&
            currentFrameIndex().has_value();
 }

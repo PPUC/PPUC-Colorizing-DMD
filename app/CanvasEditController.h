@@ -43,7 +43,7 @@ struct CanvasEditContext {
     std::vector<std::size_t> selectedFrames;
     CanvasEditLayer layer = CanvasEditLayer::FramePixels;
     // Clicks and strokes on the original frame mark the sprite capture selection instead of
-    // editing the layer.
+    // editing the layer. On the colorized frame they edit it as always.
     bool spriteCaptureSelection = false;
     // Show Bounds is on: while the frame's pixels are edited, a rectangle drawn on the original
     // frame (Rectangle or Filled Rectangle) gives the selected sprite slot its bounds.

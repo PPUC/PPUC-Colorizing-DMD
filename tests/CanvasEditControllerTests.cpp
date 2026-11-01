@@ -1728,6 +1728,17 @@ void testSpriteCaptureSelection()
     frameContext.spriteCaptureSelection = true;
     controller.colorizedPixelClicked(frameContext, colorized(2, 2), false);
     expect(owner.committed(EditKind::FramePixels, {1}), "colorized clicks paint in capture mode");
+    owner.next();
+    frameContext.tool = DrawingTool::Rectangle;
+    const std::size_t selectedBeforeStroke = controller.captureSelectionPixels(1).size();
+    controller.strokePreviewed(frameContext, colorized(3, 3), colorized(5, 5), false);
+    expect(owner.preview && owner.preview->region == CanvasRegion::ColorizedFrame,
+           "colorized strokes preview in capture mode");
+    controller.strokeFinished(frameContext, colorized(3, 3), colorized(5, 5), false);
+    expect(owner.committed(EditKind::FramePixels, {1}) &&
+               controller.captureSelectionPixels(1).size() == selectedBeforeStroke,
+           "colorized strokes paint in capture mode and leave the capture selection alone");
+    frameContext.tool = DrawingTool::Point;
 
     // Clearing a canvas selection must not take the capture overlay away.
     owner.next();

@@ -8,6 +8,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - A sprite capture removes a dynamic mask that no longer fits the sprite: the mask colored the
   wrong pixels, so the sprite looked distorted on the frame. Capturing such a sprite again
   repairs it.
+- While `Select Capture` is on, dragging on the colorized frame paints again, and a disabled
+  `Select Capture` button no longer keeps the original frame in the capture selection.
 
 ## 3.99.27
 
