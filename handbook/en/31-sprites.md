@@ -137,7 +137,11 @@ The controls:
 - The confirmation offers `Replace Current` (the selected sprite) and `Create New`. `Create New`
   asks for the new sprite's name as `New` does and captures into the new sprite; adding the
   sprite and the capture are two undo steps. Without a selected sprite only `Create New` is
-  offered. As in CDMD, a capture keeps the sprite's dynamic mask and colors.
+  offered. As in CDMD, a capture keeps the sprite's dynamic mask and colors, as long as the mask
+  still fits: if the capture changes the sprite's shape, for example because the selection now
+  starts one pixel further left, or if the mask lies on transparent pixels of the sprite, it
+  would show its colors on the wrong pixels. The capture then removes the mask, and the status
+  bar says so. The colors of the dynamic sets stay, and `Undo` brings the mask back.
   Because the bounds of an empty slot cannot be edited, capturing a rectangle into an empty slot
   takes `Assign` first, then the bounds, then `Capture`; or use `Select Capture`, which needs no
   bounds.

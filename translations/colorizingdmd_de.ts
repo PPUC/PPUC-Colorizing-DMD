@@ -5770,6 +5770,10 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message>
+        <source>Captured into sprite %1. Its dynamic mask did not fit the new picture and was removed; Undo brings it back</source>
+        <translation>In Sprite %1 erfasst. Seine dynamische Maske passte nicht zum neuen Bild und wurde entfernt; Rückgängig stellt sie wieder her</translation>
+    </message>
+    <message>
         <source>Captured into sprite %1, but it has no four pixels next to each other in a row: the runtime cannot find it</source>
         <translation>In Sprite %1 erfasst, aber es hat keine vier Pixel nebeneinander in einer Reihe: die Runtime kann es nicht finden</translation>
     </message>

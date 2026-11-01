@@ -712,6 +712,8 @@ public:
     // Both captures take a frame's original and a colorized frame of the same size. In an
     // HD-only project that is the HD frame: the captured colors become the HD sprite, its mask
     // the captured shape, and the unused SD sprite data is reset (colors 0, not dynamic).
+    // Otherwise the dynamic mask stays if the capture keeps the sprite's shades and the mask
+    // lies on its pixels; if not, it is cleared, since it would color the wrong pixels.
     void replaceSpriteFromFrame(std::size_t spriteIndex,
                                 const IndexedFrame& originalFrame,
                                 const Rgb565Frame& colorizedFrame,

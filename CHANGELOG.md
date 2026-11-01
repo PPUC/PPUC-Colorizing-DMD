@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A sprite capture removes a dynamic mask that no longer fits the sprite: the mask colored the
+  wrong pixels, so the sprite looked distorted on the frame. Capturing such a sprite again
+  repairs it.
+
 ## 3.99.27
 
 - `Point` paints freehand on the frame canvas when dragged, as in the sprite editor and the Win32

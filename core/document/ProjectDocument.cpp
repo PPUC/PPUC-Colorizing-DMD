@@ -117,6 +117,30 @@ IndexedFrame upscaleIndexedFrame2x(const IndexedFrame& source)
     return target;
 }
 
+// Whether the dynamic mask of the sprite still lies on its picture after a capture with these
+// shades. It belongs to the sprite's pixels, not to the frame: with another shape it would show
+// its colors on the wrong pixels, as it does when it lies on transparent pixels already.
+bool spriteDynamicMaskFits(const SpriteRecord& sprite, const IndexedFrame& newOriginal)
+{
+    const bool sameShape = sprite.originalSd.pixels == newOriginal.pixels;
+    for (std::size_t i = 0; i < sprite.dynamicMaskSd.pixels.size(); ++i) {
+        if (sprite.dynamicMaskSd.pixels[i] != 255 &&
+            (!sameShape || newOriginal.pixels[i] == 255)) {
+            return false;
+        }
+    }
+    return sameShape || std::all_of(sprite.dynamicMaskHd.pixels.begin(),
+                                    sprite.dynamicMaskHd.pixels.end(),
+                                    [](uint8_t value) { return value == 255; });
+}
+
+// The set colors stay: a mask painted anew can use them.
+void clearSpriteDynamicMasks(SpriteRecord& sprite)
+{
+    sprite.dynamicMaskSd.pixels.assign(sprite.dynamicMaskSd.pixels.size(), uint8_t{255});
+    sprite.dynamicMaskHd.pixels.assign(sprite.dynamicMaskHd.pixels.size(), uint8_t{255});
+}
+
 IndexedFrame upscaleSpriteIndexedFrame2x(const IndexedFrame& source)
 {
     IndexedFrame target = makeIndexedFrame(Size{static_cast<int>(kMaxSpriteWidth),
@@ -2871,11 +2895,15 @@ void ProjectDocument::replaceSpriteFromFrame(std::size_t spriteIndex,
         replaceCapturedHdOnlySprite(sprite, std::move(newOriginal), std::move(newColorized));
         return;
     }
-    if (sprite.originalSd.pixels == newOriginal.pixels &&
+    const bool dynamicMaskFits = spriteDynamicMaskFits(sprite, newOriginal);
+    if (dynamicMaskFits && sprite.originalSd.pixels == newOriginal.pixels &&
         sprite.colorizedSd.pixels == newColorized.pixels) {
         return;
     }
 
+    if (!dynamicMaskFits) {
+        clearSpriteDynamicMasks(sprite);
+    }
     sprite.originalSd = std::move(newOriginal);
     sprite.colorizedSd = std::move(newColorized);
     if (sprite.hasHd) {
@@ -2965,11 +2993,15 @@ void ProjectDocument::replaceSpriteFromFrameSelection(
         replaceCapturedHdOnlySprite(sprite, std::move(newOriginal), std::move(newColorized));
         return;
     }
-    if (sprite.originalSd.pixels == newOriginal.pixels &&
+    const bool dynamicMaskFits = spriteDynamicMaskFits(sprite, newOriginal);
+    if (dynamicMaskFits && sprite.originalSd.pixels == newOriginal.pixels &&
         sprite.colorizedSd.pixels == newColorized.pixels) {
         return;
     }
 
+    if (!dynamicMaskFits) {
+        clearSpriteDynamicMasks(sprite);
+    }
     sprite.originalSd = std::move(newOriginal);
     sprite.colorizedSd = std::move(newColorized);
     if (sprite.hasHd) {

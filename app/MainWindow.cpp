@@ -7382,6 +7382,11 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
             m_document->restoreFrameSpriteReferences(*frameIndex, slotsBefore);
             throw;
         }
+        const document::SpriteRecord& capturedSprite = m_document->sprite(*spriteIndex);
+        const bool dynamicMaskRemoved =
+            !isHdOnlyProject() &&
+            (capturedSprite.dynamicMaskSd.pixels != spriteBefore.sprite.dynamicMaskSd.pixels ||
+             capturedSprite.dynamicMaskHd.pixels != spriteBefore.sprite.dynamicMaskHd.pixels);
         // One undo step in the history of the frame the capture was made on, also when its
         // slots stay as they were.
         std::vector<std::unique_ptr<edit::EditCommand>> commands;
@@ -7414,6 +7419,13 @@ void MainWindow::captureSelectedSpriteFromCurrentFrame()
                 .arg(captureMaxY)
                 .arg(static_cast<int>(*spriteIndex)),
             3000);
+        if (dynamicMaskRemoved) {
+            statusBar()->showMessage(
+                tr("Captured into sprite %1. Its dynamic mask did not fit the new picture and "
+                   "was removed; Undo brings it back")
+                    .arg(static_cast<int>(*spriteIndex)),
+                8000);
+        }
         // The capture stays; its detection area, the whole sprite, cannot find it (issue #43).
         if (!m_document->spriteDetectionAreaHasWord(*spriteIndex,
                                                     m_document->sprite(*spriteIndex)

@@ -1,6 +1,7 @@
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
@@ -1274,6 +1275,44 @@ void testReplaceSpriteFromFrame()
                                             1);
         },
         "sprite capture source bounds");
+
+    // A capture of the same shades keeps a mask that lies on the sprite's pixels.
+    const auto dynamicPixels = [&]() {
+        const auto& mask = document.sprite(0).dynamicMaskSd.pixels;
+        return std::count_if(mask.begin(), mask.end(), [](uint8_t v) { return v != 255; });
+    };
+    const auto captureAt = [&](int x) {
+        document.replaceSpriteFromFrame(0,
+                                        document.originalFrame(0),
+                                        document.colorizedFrame(0, Resolution::Sd),
+                                        x,
+                                        5,
+                                        5,
+                                        1);
+    };
+    document.setSpriteDynamicColor(0, 2, 1, 0x1234);
+    document.setSpriteDynamicMaskPixels(0, {{0, 0}, {1, 0}}, 2);
+    document.markClean();
+    captureAt(10);
+    expect(dynamicPixels() == 2 && !document.isDirty(),
+           "a capture of the same shades keeps a dynamic mask that fits");
+
+    // The picture moves one pixel: the mask would color the wrong pixels.
+    captureAt(9);
+    expect(document.spriteOriginalPixel(0, 1, 0) == 1 && dynamicPixels() == 0 &&
+               document.isDirty() && document.spriteDynamicColor(0, 2, 1) == 0x1234,
+           "a capture of another shape clears the dynamic mask and keeps the set colors");
+
+    // A mask already off the picture, from a file: the same capture repairs it.
+    captureAt(10);
+    document.setSpriteDynamicMaskPixels(0, {{0, 0}}, 2);
+    colorizing::document::SpriteRecord offPicture = document.sprite(0);
+    offPicture.dynamicMaskSd.pixels[4] = 2;
+    document.restoreSprite(0, offPicture);
+    document.markClean();
+    captureAt(10);
+    expect(dynamicPixels() == 0 && document.isDirty(),
+           "a capture clears a dynamic mask that lies on transparent pixels");
 }
 
 void testReplaceSpriteFromFrameSelection()
