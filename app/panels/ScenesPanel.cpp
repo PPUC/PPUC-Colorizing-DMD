@@ -26,8 +26,6 @@ namespace colorizing::app {
 namespace {
 
 constexpr QSize kThumbnailSize{160, 42};
-// The first frame of the scene, for its thumbnail; -1 for none.
-constexpr int kFirstFrameRole = Qt::UserRole + 1;
 
 QIcon blankThumbnail()
 {
@@ -51,19 +49,23 @@ ScenesPanel::ScenesPanel(QWidget* parent)
     m_list->setDefaultDropAction(Qt::CopyAction);
     showCaptionsBelowThumbnails(m_list);
     m_thumbnails = new LazyListIcons(m_list, blankThumbnail(), [this](const QListWidgetItem& item) {
-        const int frame = item.data(kFirstFrameRole).toInt();
-        if (!m_document || frame < 0 || static_cast<std::size_t>(frame) >= m_document->frameCount()) {
+        // Looked up now: adding, deleting and moving frames changes the frame's number.
+        const std::vector<std::size_t> frames =
+            m_document ? edit::playedFrames(*m_document,
+                                            static_cast<uint16_t>(item.data(Qt::UserRole).toInt()))
+                       : std::vector<std::size_t>{};
+        if (frames.empty()) {
             return blankThumbnail();
         }
+        const std::size_t frame = frames.front();
         const QImage image = renderResolvedFrameImage(
-            *m_document, static_cast<std::size_t>(frame),
+            *m_document, frame,
             m_document->rendersHdPlaneOnly() ? render::Resolution::Hd : render::Resolution::Sd,
             1, true);
         QPixmap pixmap = QPixmap::fromImage(
             image.scaled(kThumbnailSize, Qt::KeepAspectRatio, Qt::FastTransformation));
         // As the frames and the other thumbnails: HD when the scene's first frame has it.
-        if (hasHdAsExtraResolution(m_document) &&
-            m_document->hasHdFrame(static_cast<std::size_t>(frame))) {
+        if (hasHdAsExtraResolution(m_document) && m_document->hasHdFrame(frame)) {
             drawHdBadge(pixmap);
         }
         return QIcon(pixmap);
@@ -169,8 +171,6 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
         }
         auto* item = new QListWidgetItem(m_thumbnails->placeholder(), text, m_list);
         item->setData(Qt::UserRole, static_cast<int>(scene.sceneId));
-        item->setData(kFirstFrameRole,
-                      sceneFrames.empty() ? -1 : static_cast<int>(sceneFrames.front()));
         if (selected && *selected == scene.sceneId) {
             selectedRow = m_list->count() - 1;
         }

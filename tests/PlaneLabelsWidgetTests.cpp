@@ -443,6 +443,40 @@ struct LazyList {
     }
 };
 
+// Issue #59: a filter hides rows without moving a scroll bar. The rows it leaves in view get
+// their icons, wherever they are in the list.
+void testLazyIconsOfFilteredRows()
+{
+    for (const int shownRow : {3, 500, 999}) {
+        LazyList lazy(1000);
+        lazy.list.show();
+        QApplication::processEvents();
+        QApplication::processEvents();
+        for (int row = 0; row < lazy.list.count(); ++row) {
+            lazy.list.item(row)->setHidden(row != shownRow);
+        }
+        for (int turn = 0; turn < 4; ++turn) {
+            QApplication::processEvents();
+        }
+        expect(lazy.icons.isBuilt(lazy.list.item(shownRow)), "the one row left has its icon");
+        expect(lazy.builtRows() < 40, "the rows out of view are not built");
+    }
+    // Two rows left in a list that does not fill the view: no scroll bar changes at all.
+    LazyList lazy(5);
+    for (int row = 0; row < lazy.list.count(); ++row) {
+        lazy.list.item(row)->setHidden(row != 4);
+    }
+    lazy.list.show();
+    QApplication::processEvents();
+    QApplication::processEvents();
+    lazy.list.item(4)->setHidden(true);
+    lazy.list.item(0)->setHidden(false);
+    for (int turn = 0; turn < 4; ++turn) {
+        QApplication::processEvents();
+    }
+    expect(lazy.icons.isBuilt(lazy.list.item(0)), "a short list builds what a filter shows");
+}
+
 // The frame strip: frames from left to right in one line.
 void testLazyStripIcons()
 {
@@ -1134,6 +1168,7 @@ void runPlaneLabelsWidgetTests()
     testThumbnailBadges();
     testLazyListIcons();
     testLazyStripIcons();
+    testLazyIconsOfFilteredRows();
     testFrameListClicks();
     testMarkedFramesInTheStrip();
     testStripWheelStepsByFrame();

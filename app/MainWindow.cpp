@@ -11257,6 +11257,10 @@ void MainWindow::refreshAfterStructureEdit(const edit::StructureCommand& command
         refreshFrameListItems();
     }
     refreshComponentBrowsers();
+    if (command.recordKind() == edit::RecordKind::Frame) {
+        // The scenes' captions count their frames.
+        refreshScenes();
+    }
     updateBackgroundControls();
     if (selectedBackground && m_backgroundComboBox) {
         const int comboIndex =
@@ -12031,6 +12035,7 @@ void MainWindow::refreshAfterEditBatch()
     refreshFrameList(std::nullopt);
     selectFrameNear(std::min(current, m_document->frameCount() - 1));
     refreshComponentBrowsers();
+    refreshScenes();
     updateSectionControls();
     updateFrameMetadataControls();
     updateBackgroundControls();

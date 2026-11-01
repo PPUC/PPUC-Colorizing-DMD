@@ -148,6 +148,50 @@ void testPanel()
     (void)deleted;
 }
 
+// Issue #59: a scene's thumbnail is its first frame, wherever frames were deleted before it.
+void testPanelThumbnails()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    document::SceneDefinition scene;
+    scene.frameCount = 1;
+    scene.durationMs = 40;
+    scene.sceneId = 50001;
+    auto first = edit::addScene(document, scene);
+    scene.sceneId = 50002;
+    auto second = edit::addScene(document, scene);
+    const auto paint = [&document](uint16_t sceneId, uint16_t color) {
+        const std::size_t frame = edit::sceneFrames(document, sceneId).front();
+        const render::Size size = document.colorizedFrame(frame, render::Resolution::Sd).size;
+        for (int y = 0; y < size.height; ++y) {
+            for (int x = 0; x < size.width; ++x) {
+                document.setColorizedPixel(frame, render::Resolution::Sd, x, y, color);
+            }
+        }
+    };
+    paint(50001, 0xf800);
+    paint(50002, 0x07e0);
+
+    app::ScenesPanel panel;
+    panel.setProject(&document);
+    panel.buildAllThumbnails();
+    auto* list = panel.findChild<QListWidget*>();
+    const auto isRed = [list](int row) {
+        const QImage image = list->item(row)->icon().pixmap(list->iconSize()).toImage();
+        const QColor color = image.pixelColor(image.width() / 2, image.height() / 2);
+        return color.red() > 128 && color.green() < 64;
+    };
+    expect(isRed(0) && !isRed(1), "the thumbnails show the scenes' first frames");
+
+    auto deleted = edit::deleteFrames(document, std::vector<std::size_t>{0});
+    panel.refreshThumbnails();
+    panel.buildAllThumbnails();
+    expect(isRed(0) && !isRed(1), "a frame deleted before the scenes changes no thumbnail");
+    (void)first;
+    (void)second;
+    (void)deleted;
+}
+
 // "All, the current frame's first": the records given on top, the rest by record, and the
 // current and selected rows kept.
 void testPutRecordsFirst()
@@ -627,6 +671,7 @@ void testVariantFields()
 void runScenesWidgetTests()
 {
     testPanel();
+    testPanelThumbnails();
     testBackgroundSceneOnTheCanvas();
     testBackgroundSceneOptionsOnTheCanvas();
     testThumbnailCaptions();

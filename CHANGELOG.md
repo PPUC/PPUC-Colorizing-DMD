@@ -7,6 +7,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 - `Point` paints freehand on the frame canvas when dragged, as in the sprite editor and the Win32
   editor; a stroke is one undo step.
+- The thumbnails in the Scenes section show the right scene after frames were deleted or moved,
+  and no longer stay black when a filter lists a scene that was out of view.
 
 ## 3.99.26
 

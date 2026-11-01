@@ -29,7 +29,11 @@ LazyListIcons::LazyListIcons(QListWidget* list, QIcon placeholder, Builder build
     m_timer->setInterval(0);
     connect(m_timer, &QTimer::timeout, this, [this]() {
         if (const std::optional<std::pair<int, int>> rows = rowsInView()) {
-            ensureBuilt(rows->first, rows->second);
+            for (int row = rows->first; row <= rows->second; ++row) {
+                if (!m_list->isRowHidden(row)) {
+                    ensureBuilt(row, row);
+                }
+            }
         }
     });
     connect(m_list->verticalScrollBar(), &QScrollBar::valueChanged, this, [this]() {
@@ -96,7 +100,10 @@ void LazyListIcons::scheduleRowsInView()
 
 bool LazyListIcons::eventFilter(QObject* watched, QEvent* event)
 {
-    if (event->type() == QEvent::Show || event->type() == QEvent::Resize) {
+    // A paint also notices what moves rows without touching a scroll bar: rows hidden, shown or
+    // put in another order in a list that is not longer than its view.
+    if (event->type() == QEvent::Show || event->type() == QEvent::Resize ||
+        event->type() == QEvent::Paint) {
         scheduleRowsInView();
     }
     return QObject::eventFilter(watched, event);
@@ -116,15 +123,20 @@ std::optional<std::pair<int, int>> LazyListIcons::rowsInView() const
     const int viewSize = across ? m_list->viewport()->width() : m_list->viewport()->height();
     const auto start = [across](const QRect& rect) { return across ? rect.left() : rect.top(); };
     const auto end = [across](const QRect& rect) { return across ? rect.right() : rect.bottom(); };
+    // A hidden row has no place in the view: the search looks at the next row that has one.
     const auto firstRowWhere = [&](const std::function<bool(const QRect&)>& matches) {
         int low = 0;
         int high = count;
         while (low < high) {
             const int middle = low + (high - low) / 2;
-            if (matches(m_list->visualRect(model->index(middle, 0)))) {
+            int shown = middle;
+            while (shown < high && m_list->isRowHidden(shown)) {
+                ++shown;
+            }
+            if (shown == high || matches(m_list->visualRect(model->index(shown, 0)))) {
                 high = middle;
             } else {
-                low = middle + 1;
+                low = shown + 1;
             }
         }
         return low;
