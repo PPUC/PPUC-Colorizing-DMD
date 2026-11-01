@@ -110,7 +110,8 @@ whenever another frame becomes current (after the same quarter of a second); or 
 any frame`, the comparison masks, backgrounds and sprites no frame
 names and the scenes no frame of the game starts (a scene's own frames do not count), to find
 what can be deleted. Whatever the choice, a comparison mask, background or sprite no frame
-names has a faded thumbnail with the badge `Unused`: `Export .cROMc...` leaves it out (see
+names has a faded thumbnail with the badge `Unused` in its lower right corner: `Export .cROMc...`
+leaves it out (see
 "Saving"). The choice is kept for the next start. Beside `New` and `Delete` each list
 says how many there are, `Total: 255`, and while only some are listed how many of them it shows,
 `2 of 255`. As in

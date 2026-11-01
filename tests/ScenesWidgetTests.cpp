@@ -13,7 +13,10 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QApplication>
+#include <QIcon>
+#include <QImage>
 #include <QListWidget>
+#include <QPixmap>
 #include <QAbstractButton>
 #include <QAbstractItemView>
 #include <QPushButton>
@@ -256,6 +259,39 @@ void testMarkUnusedRecords()
     expect(!app::markUnusedRecords(&list, {true, false, true}), "the same again changes nothing");
     expect(app::markUnusedRecords(&list, {true, true, true, true}) && marked().empty(),
            "used again, the mark goes");
+}
+
+// Issue #61: the badge is in the lower right corner of the thumbnail. A small picture usually
+// lies in the upper left corner, and the HD badge in the upper right one.
+void testUnusedBadgeCorner()
+{
+    QListWidget list;
+    list.setIconSize(QSize(160, 42));
+    app::showCaptionsBelowThumbnails(&list);
+    list.resize(200, 100);
+    QPixmap pixmap(160, 40);
+    pixmap.fill(Qt::black);
+    auto* item = new QListWidgetItem(QIcon(pixmap), QStringLiteral("0"), &list);
+    item->setData(Qt::UserRole, 0);
+    expect(app::markUnusedRecords(&list, {false}), "the record is marked");
+
+    const QImage image = list.grab().toImage();
+    const QRect row = list.visualItemRect(item);
+    const QRect thumbnail((row.width() - pixmap.width()) / 2,
+                          row.top() + 4 + (list.iconSize().height() - pixmap.height()) / 2,
+                          pixmap.width(), pixmap.height());
+    QRect badge;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            if (image.pixelColor(x, y) == QColor(150, 60, 40)) {
+                badge |= QRect(x, y, 1, 1);
+            }
+        }
+    }
+    expect(badge.isValid() && badge.right() <= thumbnail.right() &&
+               badge.right() >= thumbnail.right() - 4 && badge.bottom() <= thumbnail.bottom() &&
+               badge.bottom() >= thumbnail.bottom() - 4 && badge.top() > thumbnail.top() + 15,
+           "the badge is in the lower right corner, below where the HD badge ends");
 }
 
 // The left sidebar's rows: the caption below the thumbnail, wrapped to the list's width.
@@ -677,6 +713,7 @@ void runScenesWidgetTests()
     testThumbnailCaptions();
     testPutRecordsFirst();
     testMarkUnusedRecords();
+    testUnusedBadgeCorner();
     testSettingsPanel();
     testProjectSettings();
     testLicense();

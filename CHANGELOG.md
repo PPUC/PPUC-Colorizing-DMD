@@ -14,6 +14,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - DMD output uses libdmdutil 0.14 as a hardware driver, with its fixes for frames dropped on the way
   to a `dmdserver`; the plugin folder no longer carries a second libserum and libvni.
 - DMD output can also drive a PinDMD3 and stream to a dmd-extensions server; both are off by default.
+- The `Unused` badge is in the lower right corner of a thumbnail, where it hides less of a small
+  picture.
 
 ## 3.99.26
 

@@ -17,7 +17,8 @@ namespace {
 constexpr int kMargin = 4;
 constexpr int kGap = 2;
 
-// The badge of a record no frame uses, in the upper left corner of its thumbnail.
+// The badge of a record no frame uses, in the lower right corner of its thumbnail: a small
+// picture usually lies in the upper left corner, and the HD badge is in the upper right one.
 void drawUnusedBadge(QPainter* painter, const QRect& thumbnail)
 {
     painter->save();
@@ -26,10 +27,11 @@ void drawUnusedBadge(QPainter* painter, const QRect& thumbnail)
     font.setBold(true);
     painter->setFont(font);
     const QString text = QCoreApplication::translate("ThumbnailCaptionDelegate", "Unused");
-    const QRect badge(thumbnail.left() + 2,
-                      thumbnail.top() + 2,
-                      painter->fontMetrics().horizontalAdvance(text) + 8,
-                      13);
+    const QSize size(painter->fontMetrics().horizontalAdvance(text) + 8, 13);
+    const QRect badge(thumbnail.right() + 1 - 2 - size.width(),
+                      thumbnail.bottom() + 1 - 2 - size.height(),
+                      size.width(),
+                      size.height());
     painter->fillRect(badge, QColor(150, 60, 40));
     painter->setPen(Qt::white);
     painter->drawText(badge, Qt::AlignCenter, text);
