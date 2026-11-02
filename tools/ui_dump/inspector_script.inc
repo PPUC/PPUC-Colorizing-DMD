@@ -197,7 +197,7 @@
     auto* inMono = byTip<QCheckBox>(w, "From this frame on, libserum shows the frames in monochrome (trigger ID 65432)");
     auto* inBgCombo = byTip<QComboBox>(w, "Loaded background");
     auto* inAssignBg = byTip<QToolButton>(w, "Assign selected background to selected frames");
-    auto* inEditBg = byTip<QToolButton>(w, "Switch drawing target to the selected background");
+    auto* inEditBg = byAnyTip<QToolButton>(w, {"Edit the selected background on the canvas; click again to go back to the frame", "Switch drawing target to the selected background"});
     auto* inFrameToBg = byTip<QToolButton>(w, "Copy the current frame image into the selected background");
     auto* inBgToFrame = byTip<QToolButton>(w, "Copy the selected background image into selected frames");
     auto* inImportBg = byTip<QToolButton>(w, "Import an image into the selected background");
@@ -206,7 +206,10 @@
     auto* inImportFrame = byTip<QToolButton>(w, "Import an image into selected frame pixels");
     auto* inCreateHd = toolButtonByText("Create HD");
     auto* inRemoveHd = toolButtonByText("Remove HD");
-    auto* inTarget = byTip<QComboBox>(w, "Drawing target");
+    // 0 the frame, 1 the background, as the Frame section's Target field that is gone had them.
+    const auto setTarget = [&w](int target) {
+        w.setPaintTarget(target == 1 ? app::PaintTarget::Background : app::PaintTarget::Frame);
+    };
     // DMD Shape and DMD Size are in the Settings (Appearance); set as OK there sets them.
     const auto setDmdPixels = [&w](app::DmdPixelShape shape, int percent) {
         w.m_dmdRenderOptions.pixelShape = shape;
@@ -452,13 +455,13 @@
     // ===== Frame page
     w.setDrawingTool(Tool::Point);
     w.setActiveDrawColor(0x07ff);
-    inTarget->setCurrentIndex(1);
+    setTarget(1);
     D("target background");
     w.m_preview->m_pixelClickedHandler(col(3, 3), false);
     D("background target pixel painted");
     undo("background target undo");
     redo("background target redo");
-    inTarget->setCurrentIndex(0);
+    setTarget(0);
     D("target frame");
     w.m_preview->m_pixelClickedHandler(col(4, 4), false);
     D("frame pixel painted");
@@ -924,7 +927,7 @@
     D("background without hd selected in hd bg target");
     inEditBg->click();
     D("edit bg without hd falls back to sd");
-    inTarget->setCurrentIndex(0);
+    setTarget(0);
     D("bg page target frame again");
 
     w.m_backgroundList->setCurrentRow(2);
@@ -977,10 +980,10 @@
     answerFileDialog(importPng);
     inImportBg->click();
     D("import bg 2 hd creates hd");
-    inTarget->setCurrentIndex(1);
+    setTarget(1);
     undo("import bg hd undo");
     redo("import bg hd redo");
-    inTarget->setCurrentIndex(0);
+    setTarget(0);
     {
         const QString out = ioDir + QStringLiteral("/background.png");
         answerFileDialog(out);
@@ -1036,7 +1039,7 @@
     // ===== toggles kept across project changes, missing selections, missing data
     showTab("Frame");
     showLeft("Frames");
-    inTarget->setCurrentIndex(1);
+    setTarget(1);
     inShowBg->click();
     inDynSet->setValue(7);
     setDmdPixels(app::DmdPixelShape::Dot, 100);
@@ -1101,7 +1104,7 @@
     w.m_frameFilterComboBox->setCurrentIndex(1);
     D("plain project hd filter");
     w.m_frameFilterComboBox->setCurrentIndex(0);
-    inTarget->setCurrentIndex(0);
+    setTarget(0);
     inShowBg->click();
     inDynSet->setValue(0);
     setDmdPixels(app::DmdPixelShape::Square, 100);
@@ -1114,7 +1117,7 @@
     guarded([&]() { w.importImageIntoSelectedBackground(); });
     guarded([&]() { w.exportSelectedBackgroundPng(); });
     D("handlers without project");
-    inTarget->setCurrentIndex(1);
+    setTarget(1);
     inDynSet->setValue(3);
     inMaskId->setValue(0);
     inBgId->setValue(0);
@@ -1124,7 +1127,7 @@
     inShape->setCurrentIndex(1);
     D("controls changed without project");
     inMono->click();
-    inTarget->setCurrentIndex(0);
+    setTarget(0);
     inDynSet->setValue(0);
     inTrigger->setValue(0);
     inDuration->setValue(0);
@@ -1202,7 +1205,7 @@
     inSpriteCanvas->click();
     inEditBg->click();
     D("edit bg from the sprite canvas");
-    inTarget->setCurrentIndex(0);
+    setTarget(0);
 
     showTab("Frame");
     showLeft("Frames");

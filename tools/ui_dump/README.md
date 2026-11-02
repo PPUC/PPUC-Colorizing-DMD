@@ -24,6 +24,11 @@ Clang, a libserum checkout), plus `git`, `tar` and `python3`.
 
 All commands are run from the repository; nothing is written into it. Builds and output go to
 `$UI_DUMP_WORK_DIR`, by default `${TMPDIR:-/tmp}/colorizingdmd_ui_dump`.
+Builds use one compile job per CPU core; `$UI_DUMP_JOBS` sets another number, which a machine
+with little memory needs.
+
+The scripts have not kept up with the editor: a run currently stops in `sprite_script.inc`, where
+renaming a sprite opens the question of the sprite name check and nothing answers it.
 
 ```sh
 # 1. Dump the committed state (HEAD). The working tree is not touched: the revision is

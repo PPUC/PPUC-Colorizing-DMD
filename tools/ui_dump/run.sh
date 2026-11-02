@@ -24,11 +24,15 @@ mkdir -p "$WORK"
 # An exported baseline tree has no libserum beside it, so the checkout is named explicitly.
 LIBSERUM=${COLORIZINGDMD_LIBSERUM_DIR:-$(cd "$TREE/.." && pwd)/libserum}
 
+# A number, always: without one, a Makefile build starts as many compilers as it has files, enough
+# to bring a machine down. $UI_DUMP_JOBS overrides it.
+JOBS=${UI_DUMP_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}
+
 # build NAME TREE: configure and build the dump executable for a tree of the editor.
 build() {
     if ! { cmake -S "$HERE" -B "$WORK/build_$1" -DUI_DUMP_TREE="$2" \
                -DCOLORIZINGDMD_LIBSERUM_DIR="$LIBSERUM" &&
-           cmake --build "$WORK/build_$1" --parallel; } > "$WORK/build_$1.log" 2>&1; then
+           cmake --build "$WORK/build_$1" --parallel "$JOBS"; } > "$WORK/build_$1.log" 2>&1; then
         echo "$1 build failed, see $WORK/build_$1.log:" >&2
         grep -E "error|FAILED" -A6 "$WORK/build_$1.log" >&2 || tail -20 "$WORK/build_$1.log" >&2
         exit 1
@@ -53,7 +57,7 @@ baseline)
     PREFIX=${PREFIX%/}
     rm -rf "$WORK/baseline_tree" "$WORK/build_baseline"
     mkdir "$WORK/baseline_tree"
-    git -C "$REPO_ROOT" archive "$REV" "$PREFIX" | tar -x -C "$WORK/baseline_tree"
+    git -C "$REPO_ROOT" archive "$REV" "${PREFIX:-.}" | tar -x -C "$WORK/baseline_tree"
     build baseline "$WORK/baseline_tree/$PREFIX"
     dump baseline before
     dump baseline before2
