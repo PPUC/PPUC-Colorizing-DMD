@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Go To Where The Frames Were` (`Alt+R`) jumps back after moving frames, to go on with the frame
+  behind them, for sorting newly imported frames one after the other.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the

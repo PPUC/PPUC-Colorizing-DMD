@@ -79,6 +79,10 @@ everything a frame has goes with it. One undo step.
   some (see "Keyboard Shortcuts").
 - Afterwards the moved frames are selected where they are now; the status bar gives their new
   numbers.
+- `Go To Where The Frames Were` (`Alt+R`), in the `Edit` menu and the frame strip's right-click
+  menu, goes back to carry on from there after any of these moves: to the first frame behind the
+  first moved one that stayed, or, when they came from the very end, to the frame before them. It
+  follows that frame when its number changes, and it stays available until the next move.
 
 Sections follow their frames:
 

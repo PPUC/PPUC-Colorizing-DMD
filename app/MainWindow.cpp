@@ -958,6 +958,14 @@ void MainWindow::createActions()
     m_clearFrameMoveMarksAction->setEnabled(false);
     connect(m_clearFrameMoveMarksAction, &QAction::triggered, this,
             [this]() { clearFrameMoveMarks(); });
+    m_goToFrameLeftBehindAction = withShortcutId(
+        editMenu->addAction(tr("Go To Where The Frames Were")), "go-to-where-frames-were");
+    m_goToFrameLeftBehindAction->setToolTip(
+        tr("Go to the first frame behind the frames moved last, to go on from there"));
+    m_goToFrameLeftBehindAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_R));
+    m_goToFrameLeftBehindAction->setEnabled(false);
+    connect(m_goToFrameLeftBehindAction, &QAction::triggered, this,
+            [this]() { goToFrameLeftBehind(); });
     editMenu->addSeparator();
     m_ambientLightingAction =
         withShortcutId(editMenu->addAction(
@@ -5159,6 +5167,7 @@ void MainWindow::refreshProjectSummary()
     m_canvasEdit.resetCaptureSelection();
     // Another project: no selection, and none to bring back.
     m_frameMoveMarks.clear();
+    m_frameLeftBehind.reset();
     m_canvasEdit.clearSelection(canvasEditContext());
     m_canvasEdit.clearSelectionHistory();
     if (m_spritePanel) {
@@ -11325,12 +11334,18 @@ bool MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
         return false;
     }
     try {
+        // Worked out before the move renumbers them; these frames can come in any order.
+        std::vector<std::size_t> ascending = frameIndices;
+        std::sort(ascending.begin(), ascending.end());
+        const std::optional<document::ComponentId> leftBehind =
+            edit::frameLeftBehindByMove(*m_document, ascending);
         std::unique_ptr<edit::FrameMoveCommand> command =
             edit::moveFrames(*m_document, frameIndices, beforeFrame, joinSection);
         if (!command) {
             statusBar()->showMessage(tr("The frames are there already"), 2500);
             return false;
         }
+        m_frameLeftBehind = leftBehind;
         const edit::FrameMoveCommand& applied = *command;
         m_droppedStructureSteps =
             pushToHistory(edit::structureHistoryKey(), std::move(command));
@@ -11408,11 +11423,28 @@ void MainWindow::updateFrameMoveMarks()
     updateFrameMoveMarkActions();
 }
 
+void MainWindow::goToFrameLeftBehind()
+{
+    const std::optional<std::size_t> frame =
+        m_document && m_frameLeftBehind ? m_document->frameIndexOf(*m_frameLeftBehind)
+                                        : std::nullopt;
+    if (!frame) {
+        statusBar()->showMessage(tr("The frame behind the moved frames is gone"), 3000);
+        return;
+    }
+    leaveSpriteCanvas();
+    goToFrame(*frame);
+    if (QListWidgetItem* item = frameListItem(*frame)) {
+        m_frameList->scrollToItem(item, QAbstractItemView::PositionAtCenter);
+    }
+}
+
 void MainWindow::updateFrameMoveMarkActions()
 {
     if (!m_moveMarkedFramesBeforeAction) {
         return;
     }
+    m_goToFrameLeftBehindAction->setEnabled(m_document && m_frameLeftBehind.has_value());
     const bool canMove =
         m_document && m_frameMoveMarkCount > 0 && currentFrameIndex().has_value();
     m_moveMarkedFramesBeforeAction->setEnabled(canMove);
@@ -11440,6 +11472,7 @@ void MainWindow::showFrameListMenu(const QPoint& position)
         moveMarkedFrames(*frame, true);
     });
     menu.addAction(m_clearFrameMoveMarksAction);
+    menu.addAction(m_goToFrameLeftBehindAction);
     menu.addSeparator();
     menu.addActions(m_frameList->actions());
     menu.exec(m_frameList->viewport()->mapToGlobal(position));

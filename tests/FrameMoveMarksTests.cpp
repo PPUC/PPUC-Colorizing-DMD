@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -145,6 +146,26 @@ void testFramesThereAlready()
     expect(marks.frames(document) == Frames{3, 4}, "and the marks stay");
 }
 
+void testFrameLeftBehind()
+{
+    ProjectDocument document = makeDocument();
+    const auto leftBehind = [&](const Frames& frames) {
+        return edit::frameLeftBehindByMove(document, frames);
+    };
+    const auto idOf = [&](std::size_t frame) { return document.frameMeta(frame).id; };
+    expect(!leftBehind({}), "no frames, no frame left behind");
+    expect(leftBehind({3, 4}) == idOf(5), "the frame behind them");
+    expect(leftBehind({0}) == idOf(1), "also at the start");
+    expect(leftBehind({3, 4, 7}) == idOf(5), "of frames apart, the first gap");
+    expect(leftBehind({8, 9}) == idOf(7), "at the end, the frame before them");
+    expect(leftBehind({0, 1, 2, 3, 4, 5, 6, 7, 8, 9}) == std::nullopt, "every frame moves");
+
+    // It goes by the ID: towards the start, the frame's number grows by the frames moved.
+    const std::optional<ComponentId> next = leftBehind({7, 8});
+    expect(edit::moveFrames(document, {7, 8}, 1) != nullptr, "the frames move");
+    expect(next && document.frameIndexOf(*next) == 9, "the frame to go on with is found again");
+}
+
 void testSections()
 {
     const auto sectionFirstFrames = [](const ProjectDocument& document) {
@@ -187,5 +208,6 @@ void runFrameMoveMarksTests()
     testMarksFollowTheirFrames();
     testMoveBeforeAndBehind();
     testFramesThereAlready();
+    testFrameLeftBehind();
     testSections();
 }

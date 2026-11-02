@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
@@ -33,5 +34,11 @@ struct FrameMovePlace {
     bool joinSection = true;
 };
 [[nodiscard]] FrameMovePlace frameMovePlace(std::size_t frame, bool behind);
+
+// The frame to go on with after the frames (ascending) moved away: the first one behind the first
+// of them that does not move, or else the last one before them. Its ID, as its number changes with
+// the move; none when every frame moves or there are none.
+[[nodiscard]] std::optional<document::ComponentId> frameLeftBehindByMove(
+    const document::ProjectDocument& document, const std::vector<std::size_t>& frames);
 
 }  // namespace colorizing::edit

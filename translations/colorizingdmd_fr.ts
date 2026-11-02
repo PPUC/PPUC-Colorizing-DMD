@@ -3236,6 +3236,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Oublier les frames marquées à déplacer</translation>
     </message>
     <message>
+        <source>Go To Where The Frames Were</source>
+        <translation>Aller là où étaient les frames</translation>
+    </message>
+    <message>
+        <source>Go to the first frame behind the frames moved last, to go on from there</source>
+        <translation>Aller à la première frame après les frames déplacées en dernier, pour continuer à partir de là</translation>
+    </message>
+    <message>
         <source>Ambient Lighting For Frames Without Speaker Lights...</source>
         <translation>Éclairage d&apos;ambiance pour les frames sans lumières de haut-parleur...</translation>
     </message>
@@ -6047,6 +6055,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>No frame is marked to move</source>
         <translation>Aucune frame n&apos;est marquée à déplacer</translation>
+    </message>
+    <message>
+        <source>The frame behind the moved frames is gone</source>
+        <translation>La frame qui suivait les frames déplacées n&apos;existe plus</translation>
     </message>
     <message>
         <source>Move Marked Frames Before This Frame</source>

@@ -3236,6 +3236,14 @@ Use Create %1 Frame.</source>
         <translation>Die zum Verschieben markierten Frames vergessen</translation>
     </message>
     <message>
+        <source>Go To Where The Frames Were</source>
+        <translation>Dorthin gehen, wo die Frames waren</translation>
+    </message>
+    <message>
+        <source>Go to the first frame behind the frames moved last, to go on from there</source>
+        <translation>Zum ersten Frame hinter den zuletzt verschobenen Frames gehen, um dort weiterzumachen</translation>
+    </message>
+    <message>
         <source>Ambient Lighting For Frames Without Speaker Lights...</source>
         <translation>Umgebungsbeleuchtung für Frames ohne Lautsprecherlichter...</translation>
     </message>
@@ -6047,6 +6055,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>No frame is marked to move</source>
         <translation>Kein Frame ist zum Verschieben markiert</translation>
+    </message>
+    <message>
+        <source>The frame behind the moved frames is gone</source>
+        <translation>Der Frame hinter den verschobenen Frames ist nicht mehr da</translation>
     </message>
     <message>
         <source>Move Marked Frames Before This Frame</source>

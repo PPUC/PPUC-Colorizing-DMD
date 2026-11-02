@@ -592,6 +592,8 @@ private:
     // The strip's outlines, the count of the frame status text and the actions.
     void updateFrameMoveMarks();
     void updateFrameMoveMarkActions();
+    // Goes to the frame to go on with after the latest frame move, in any way it was made.
+    void goToFrameLeftBehind();
     // The frame list's menu; a frame at the position (viewport coordinates) is what the marked
     // frames can go before or behind.
     void showFrameListMenu(const QPoint& position);
@@ -734,6 +736,9 @@ private:
     QAction* m_moveMarkedFramesBeforeAction = nullptr;
     QAction* m_moveMarkedFramesBehindAction = nullptr;
     QAction* m_clearFrameMoveMarksAction = nullptr;
+    QAction* m_goToFrameLeftBehindAction = nullptr;
+    // See edit::frameLeftBehindByMove(): of the latest frame move.
+    std::optional<document::ComponentId> m_frameLeftBehind;
     edit::FrameMoveMarks m_frameMoveMarks;
     // The marked frames the project has, also those a filter hides.
     std::size_t m_frameMoveMarkCount = 0;
