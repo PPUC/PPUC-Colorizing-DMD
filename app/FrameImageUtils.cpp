@@ -1171,6 +1171,48 @@ QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
     return image;
 }
 
+QImage renderSpriteZoomedThumbnail(const document::SpriteRecord& sprite,
+                                    render::Resolution resolution,
+                                    bool hdOnly,
+                                    QSize size)
+{
+    QImage thumbnail(size, QImage::Format_ARGB32);
+    thumbnail.fill(Qt::black);
+    const bool useHd = resolution == render::Resolution::Hd && sprite.hasHd;
+    if (hdOnly && !useHd) {
+        return thumbnail;
+    }
+    const document::IndexedFrame& mask = useHd ? sprite.maskHd : sprite.originalSd;
+    const int width = static_cast<int>(document::kMaxSpriteWidth);
+    const int height = static_cast<int>(document::kMaxSpriteHeight);
+    QRect pixels;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (mask.pixels[static_cast<std::size_t>(y) * document::kMaxSpriteWidth +
+                            static_cast<std::size_t>(x)] != 255) {
+                pixels |= QRect(x, y, 1, 1);
+            }
+        }
+    }
+    if (pixels.isEmpty()) {
+        return thumbnail;
+    }
+    // Whole image pixels per sprite pixel where they fit, as on the canvas; a sprite wider than
+    // the thumbnail is scaled down.
+    const QRect shown = pixels.adjusted(-1, -1, 1, 1).intersected(QRect(0, 0, width, height));
+    const QImage picture =
+        renderSpriteColorizedPreviewImage(sprite, resolution, hdOnly).copy(shown);
+    const int scale = std::min(size.width() / shown.width(), size.height() / shown.height());
+    const QImage zoomed =
+        scale >= 1 ? picture.scaled(picture.size() * scale, Qt::IgnoreAspectRatio,
+                                    Qt::FastTransformation)
+                   : picture.scaled(size, Qt::KeepAspectRatio, Qt::FastTransformation);
+    QPainter painter(&thumbnail);
+    painter.drawImage((size.width() - zoomed.width()) / 2, (size.height() - zoomed.height()) / 2,
+                      zoomed);
+    return thumbnail;
+}
+
 QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,
                                     render::Resolution resolution,
                                     const render::ProjectGeometry& geometry)

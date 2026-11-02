@@ -24,6 +24,7 @@ const QString kThemeKey = QStringLiteral("appearance/theme");
 const QString kPixelShapeKey = QStringLiteral("appearance/dmdPixelShape");
 const QString kPixelSizeKey = QStringLiteral("appearance/dmdPixelSize");
 const QString kOffPixelColorKey = QStringLiteral("appearance/offPixelColor");
+const QString kSpriteThumbnailsZoomedKey = QStringLiteral("appearance/spriteThumbnailsZoomed");
 
 // What the application looked like before a theme was applied, to go back to.
 struct Original {
@@ -322,6 +323,16 @@ void saveDmdRenderOptions(const DmdRenderOptions& options)
                                           : QStringLiteral("squares"));
     settings.setValue(kPixelSizeKey, static_cast<int>(std::lround(options.pixelCoverage * 100)));
     settings.setValue(kOffPixelColorKey, options.offPixelColor.name());
+}
+
+bool loadSpriteThumbnailsZoomed()
+{
+    return QSettings().value(kSpriteThumbnailsZoomedKey, true).toBool();
+}
+
+void saveSpriteThumbnailsZoomed(bool zoomed)
+{
+    QSettings().setValue(kSpriteThumbnailsZoomedKey, zoomed);
 }
 
 void applyTheme(Theme theme)

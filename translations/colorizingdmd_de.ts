@@ -8092,6 +8092,18 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Ausgeschaltete Pixel</translation>
     </message>
     <message>
+        <source>Sprite List</source>
+        <translation>Sprite-Liste</translation>
+    </message>
+    <message>
+        <source>Zoom the thumbnails to the sprite&apos;s pixels</source>
+        <translation>Vorschaubilder auf die Pixel des Sprites zoomen</translation>
+    </message>
+    <message>
+        <source>Show each sprite as large as it fits, instead of its whole sprite area</source>
+        <translation>Jedes Sprite so groß wie möglich zeigen statt seiner ganzen Sprite-Fläche</translation>
+    </message>
+    <message>
         <source>Speaker Light Preview</source>
         <translation>Vorschau der Lautsprecherlichter</translation>
     </message>

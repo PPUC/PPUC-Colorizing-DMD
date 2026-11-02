@@ -31,6 +31,9 @@ problem.
     canvas, in the frame thumbnails, the sprite editor and the frame tester, to tell them from the
     lowest shades. `Default` gives the very dark grey back.
   They are view and export settings only: no project data and no file changes with them.
+  Under `Sprite List`: `Zoom the thumbnails to the sprite's pixels` (on until set otherwise) shows
+  each sprite of the left sidebar's list as large as it fits, with a pixel free around it, so that
+  digits and small patches can be told apart; off, a thumbnail shows the whole sprite area.
   Under `Speaker Light Preview`: whether two speakers show beside the canvas and in the frame
   tester (also `View -> Speaker Light Preview`), their `Shape`, their number of `LEDs` and the
   channel each shows, see "Speaker Lights".

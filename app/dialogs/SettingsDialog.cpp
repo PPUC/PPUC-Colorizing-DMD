@@ -102,6 +102,14 @@ SettingsDialog::SettingsDialog(Theme theme,
     canvasForm->addRow(tr("Pixel Size"), m_pixelSizeSpinBox);
     canvasForm->addRow(tr("Off Pixels"), offPixelRow);
 
+    auto* spritesGroup = new QGroupBox(tr("Sprite List"), appearance);
+    auto* spritesLayout = new QVBoxLayout(spritesGroup);
+    m_spriteThumbnailsZoomed =
+        new QCheckBox(tr("Zoom the thumbnails to the sprite's pixels"), spritesGroup);
+    m_spriteThumbnailsZoomed->setToolTip(
+        tr("Show each sprite as large as it fits, instead of its whole sprite area"));
+    spritesLayout->addWidget(m_spriteThumbnailsZoomed);
+
     // As the pixels of the canvas, the speakers are the editor's: machines differ.
     auto* speakersGroup = new QGroupBox(tr("Speaker Light Preview"), appearance);
     auto* speakersForm = new QFormLayout(speakersGroup);
@@ -131,6 +139,7 @@ SettingsDialog::SettingsDialog(Theme theme,
     auto* appearanceLayout = new QVBoxLayout(appearance);
     appearanceLayout->addLayout(themeForm);
     appearanceLayout->addWidget(canvasGroup);
+    appearanceLayout->addWidget(spritesGroup);
     appearanceLayout->addWidget(speakersGroup);
     appearanceLayout->addStretch(1);
     m_tabs->addTab(appearance, tr("Appearance"));
@@ -234,6 +243,16 @@ void SettingsDialog::setLanguage(const QString& language)
 QString SettingsDialog::language() const
 {
     return m_languageComboBox->currentData().toString();
+}
+
+void SettingsDialog::setSpriteThumbnailsZoomed(bool zoomed)
+{
+    m_spriteThumbnailsZoomed->setChecked(zoomed);
+}
+
+bool SettingsDialog::spriteThumbnailsZoomed() const
+{
+    return m_spriteThumbnailsZoomed->isChecked();
 }
 
 void SettingsDialog::setSpeakerLightPreview(const SpeakerLightPreviewOptions& options)

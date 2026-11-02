@@ -53,6 +53,9 @@ public:
     // The speaker light preview beside the canvas and in the frame tester.
     void setSpeakerLightPreview(const SpeakerLightPreviewOptions& options);
     [[nodiscard]] SpeakerLightPreviewOptions speakerLightPreview() const;
+    // The sprite list's thumbnails (Appearance.h).
+    void setSpriteThumbnailsZoomed(bool zoomed);
+    [[nodiscard]] bool spriteThumbnailsZoomed() const;
     [[nodiscard]] DmdOutputSettings dmdOutputSettings() const;
     // Who saves (AuthorName.h).
     void setAuthorName(const QString& name);
@@ -82,6 +85,7 @@ private:
     QSpinBox* m_pixelSizeSpinBox = nullptr;
     QToolButton* m_offPixelColorButton = nullptr;
     QColor m_offPixelColor;
+    QCheckBox* m_spriteThumbnailsZoomed = nullptr;
     QCheckBox* m_speakersShown = nullptr;
     QComboBox* m_speakerShape = nullptr;
     QSpinBox* m_speakerLeds = nullptr;

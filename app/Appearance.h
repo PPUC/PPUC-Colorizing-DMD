@@ -69,4 +69,9 @@ inline constexpr const char* kPlainCheckedProperty = "plainChecked";
 [[nodiscard]] DmdRenderOptions loadDmdRenderOptions();
 void saveDmdRenderOptions(const DmdRenderOptions& options);
 
+// Whether the sprite list's thumbnails show the sprite's pixels as large as they fit (the
+// default) or its whole grid.
+[[nodiscard]] bool loadSpriteThumbnailsZoomed();
+void saveSpriteThumbnailsZoomed(bool zoomed);
+
 }  // namespace colorizing::app

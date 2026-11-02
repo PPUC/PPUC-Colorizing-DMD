@@ -8092,6 +8092,18 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Pixels éteints</translation>
     </message>
     <message>
+        <source>Sprite List</source>
+        <translation>Liste des sprites</translation>
+    </message>
+    <message>
+        <source>Zoom the thumbnails to the sprite&apos;s pixels</source>
+        <translation>Zoomer les miniatures sur les pixels du sprite</translation>
+    </message>
+    <message>
+        <source>Show each sprite as large as it fits, instead of its whole sprite area</source>
+        <translation>Afficher chaque sprite aussi grand que possible, au lieu de toute sa zone de sprite</translation>
+    </message>
+    <message>
         <source>Speaker Light Preview</source>
         <translation>Aperçu des lumières de haut-parleur</translation>
     </message>

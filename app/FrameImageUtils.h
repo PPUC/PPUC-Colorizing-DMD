@@ -134,6 +134,13 @@ void paintDmdPixel(QPainter& painter,
 [[nodiscard]] QImage renderSpriteColorizedPreviewImage(const document::SpriteRecord& sprite,
                                                        render::Resolution resolution,
                                                        bool hdOnly = false);
+// A thumbnail of that picture: its pixels as large as they fit in size, with a pixel free around
+// them, on black, so that a sprite much smaller than its grid (a digit, a patch) can be told
+// from others. A sprite without pixels on that plane gives a black thumbnail.
+[[nodiscard]] QImage renderSpriteZoomedThumbnail(const document::SpriteRecord& sprite,
+                                                 render::Resolution resolution,
+                                                 bool hdOnly,
+                                                 QSize size);
 // One image pixel per background pixel; the same fallback rule, with the project's geometry
 // saying whether it is an HD-only one.
 [[nodiscard]] QImage renderBackgroundPreviewImage(const document::BackgroundRecord& background,

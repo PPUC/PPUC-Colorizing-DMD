@@ -1,6 +1,7 @@
 // Small pieces of MainWindow's behaviour that are kept outside it so they can be tested: the
 // single selection of a list row and the question about unsaved changes.
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <set>
@@ -18,6 +19,7 @@
 #include <QPixmap>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSettings>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -58,6 +60,83 @@ std::vector<int> selectedRows(const QListWidget& list)
         }
     }
     return rows;
+}
+
+void testSpriteZoomedThumbnail()
+{
+    namespace document = colorizing::document;
+    using colorizing::render::Resolution;
+    const std::size_t width = document::kMaxSpriteWidth;
+    document::SpriteRecord sprite;
+    sprite.originalSd.size = {static_cast<int>(width),
+                              static_cast<int>(document::kMaxSpriteHeight)};
+    sprite.originalSd.pixels.assign(width * document::kMaxSpriteHeight, 255);
+    sprite.colorizedSd.size = sprite.originalSd.size;
+    sprite.colorizedSd.pixels.assign(width * document::kMaxSpriteHeight, 0);
+    const QSize size(160, 42);
+    const auto thumbnail = [&]() {
+        return app::renderSpriteZoomedThumbnail(sprite, Resolution::Sd, false, size);
+    };
+    const QColor red(255, 0, 0);
+    const auto redPixels = [&](const QImage& image) {
+        int count = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                count += image.pixelColor(x, y) == red ? 1 : 0;
+            }
+        }
+        return count;
+    };
+    expect(thumbnail().size() == size && redPixels(thumbnail()) == 0,
+           "a sprite without pixels gives a black thumbnail of the size asked for");
+
+    // One pixel far from the corner of the grid: with a pixel free around it, 3 x 3 cells of 14.
+    const auto paint = [&](std::size_t x, std::size_t y) {
+        sprite.originalSd.pixels[y * width + x] = 1;
+        sprite.colorizedSd.pixels[y * width + x] = 0xf800;
+    };
+    paint(100, 30);
+    expect(redPixels(thumbnail()) == 14 * 14 && thumbnail().pixelColor(80, 21) == red,
+           "a single pixel is shown large, in the middle of the thumbnail");
+
+    // A digit of 5 x 7: 7 x 9 cells of 4, both axes alike.
+    std::fill(sprite.originalSd.pixels.begin(), sprite.originalSd.pixels.end(), 255);
+    for (std::size_t y = 0; y < 7; ++y) {
+        for (std::size_t x = 0; x < 5; ++x) {
+            paint(10 + x, 20 + y);
+        }
+    }
+    expect(redPixels(thumbnail()) == 5 * 7 * 4 * 4, "a digit keeps its proportions");
+
+    // At the edge of the grid there is no free pixel on that side; nothing fails.
+    std::fill(sprite.originalSd.pixels.begin(), sprite.originalSd.pixels.end(), 255);
+    paint(0, 0);
+    expect(redPixels(thumbnail()) == 21 * 21, "a pixel in the grid's corner: 2 x 2 cells of 21");
+
+    // Wider than the thumbnail, it is scaled down instead of cut.
+    std::fill(sprite.originalSd.pixels.begin(), sprite.originalSd.pixels.end(), 255);
+    for (std::size_t x = 10; x < 210; ++x) {
+        for (std::size_t y = 10; y < 14; ++y) {
+            paint(x, y);
+        }
+    }
+    const QImage wide = thumbnail();
+    expect(wide.size() == size && wide.pixelColor(2, 21) == red &&
+               wide.pixelColor(157, 21) == red,
+           "a sprite wider than the thumbnail fits it from side to side");
+
+    // No plane of its own in an HD-only project: black, as the sprite's picture is.
+    expect(redPixels(app::renderSpriteZoomedThumbnail(sprite, Resolution::Hd, true, size)) == 0,
+           "an HD-only project shows nothing for a sprite without HD data");
+
+    // The setting is on until set otherwise, and is kept.
+    QCoreApplication::setOrganizationName(QStringLiteral("SpriteThumbnailTests"));
+    QSettings().clear();
+    expect(app::loadSpriteThumbnailsZoomed(), "the thumbnails zoom until set otherwise");
+    app::saveSpriteThumbnailsZoomed(false);
+    expect(!app::loadSpriteThumbnailsZoomed(), "the setting is kept");
+    QSettings().clear();
+    QCoreApplication::setOrganizationName(QString());
 }
 
 void testSelectSingleRow()
@@ -444,4 +523,5 @@ void runAppHelpersWidgetTests()
     testSelectedFramesStatusText();
     testWheelGuard();
     testFlowLayoutCentersRows();
+    testSpriteZoomedThumbnail();
 }

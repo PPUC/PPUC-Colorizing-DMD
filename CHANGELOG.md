@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The sprite list's thumbnails zoom to each sprite's pixels, so digits and small patches can be
+  told apart; `Settings` -> `Appearance` switches this off.
+
 ## 3.99.28
 
 - A sprite capture removes a dynamic mask that no longer fits the sprite: the mask colored the

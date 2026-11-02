@@ -3269,6 +3269,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     dialog.setLanguage(loadLanguage());
     dialog.setAuthorName(loadAuthorName());
     dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
+    dialog.setSpriteThumbnailsZoomed(loadSpriteThumbnailsZoomed());
     {
         std::vector<SettingsDialog::PluginChoice> plugins;
         for (const EditorPlugins::Plugin& plugin : EditorPlugins::available()) {
@@ -3301,6 +3302,10 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         dialog.canvasOptions().offPixelColor != m_dmdRenderOptions.offPixelColor;
     m_dmdRenderOptions = dialog.canvasOptions();
     saveDmdRenderOptions(m_dmdRenderOptions);
+    if (dialog.spriteThumbnailsZoomed() != loadSpriteThumbnailsZoomed()) {
+        saveSpriteThumbnailsZoomed(dialog.spriteThumbnailsZoomed());
+        refreshComponentBrowsers();
+    }
     saveSpeakerLightPreviewOptions(dialog.speakerLightPreview());
     if (m_speakerPreviewAction) {
         const QSignalBlocker blocker(m_speakerPreviewAction);
@@ -5443,13 +5448,16 @@ void MainWindow::refreshComponentBrowsers()
         QSignalBlocker blocker(m_spriteList);
         m_spriteList->clear();
         if (m_document) {
+            const bool zoomed = loadSpriteThumbnailsZoomed();
             for (std::size_t spriteIndex = 0; spriteIndex < m_document->spriteCount();
                  ++spriteIndex) {
                 const document::SpriteRecord& sprite = m_document->sprite(spriteIndex);
                 auto* item = new QListWidgetItem(
-                    componentIcon(renderSpriteColorizedPreviewImage(sprite,
-                                                                    thumbnailPlane,
-                                                                    hdOnly),
+                    componentIcon(zoomed ? renderSpriteZoomedThumbnail(sprite, thumbnailPlane,
+                                                                       hdOnly, iconSize)
+                                         : renderSpriteColorizedPreviewImage(sprite,
+                                                                             thumbnailPlane,
+                                                                             hdOnly),
                                   iconSize,
                                   hdBadges && sprite.hasHd),
                     spriteListCaption(*m_document, spriteIndex));
