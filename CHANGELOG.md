@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the selected
+  frames, and after looking for the place by any means, the right-click menu of a frame moves them
+  before or behind it.
 - `Settings` -> `Shortcuts` sets the keys of every menu entry, function keys included; the
   toolbar's `<` and `>` are in the `View` menu as `Back` and `Forward` for it.
 - Bookmarks mark frames to come back to: `View -> Bookmarks` sets and removes them and goes to the

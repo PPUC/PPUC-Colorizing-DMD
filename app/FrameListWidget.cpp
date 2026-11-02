@@ -411,6 +411,12 @@ void FrameListWidget::settleOnFrame(int from, bool nearest)
     m_settling = false;
 }
 
+void FrameListWidget::setMoveMarkedRows(std::vector<int> rows)
+{
+    m_moveMarkedRows = std::move(rows);
+    viewport()->update();
+}
+
 void FrameListWidget::paintEvent(QPaintEvent* event)
 {
     QListWidget::paintEvent(event);
@@ -428,6 +434,17 @@ void FrameListWidget::paintEvent(QPaintEvent* event)
         painter.setPen(QPen(markedFrameColor(), width));
         painter.setBrush(Qt::NoBrush);
         painter.drawRect(rect.adjusted(width / 2, width / 2, -(width + 1) / 2, -(width + 1) / 2));
+    }
+    for (const int row : m_moveMarkedRows) {
+        if (row >= count()) {
+            break;
+        }
+        const QRect rect = visualRect(model()->index(row, 0));
+        if (rect.intersects(shown)) {
+            painter.setPen(QPen(moveMarkedFrameColor(), 2, Qt::DashLine));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(rect.adjusted(1, 1, -1, -1));
+        }
     }
     if (!m_claimBadges.empty()) {
         constexpr int kBadgeSize = 18;

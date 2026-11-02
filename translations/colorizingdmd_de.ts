@@ -3212,6 +3212,30 @@ Use Create %1 Frame.</source>
         <translation>Ausgewählte Frames vor eine Frame-Nummer oder ans Ende verschieben</translation>
     </message>
     <message>
+        <source>Mark Frames To Move</source>
+        <translation>Frames zum Verschieben markieren</translation>
+    </message>
+    <message>
+        <source>Remember the selected frames, to look for the place they go to and move them there</source>
+        <translation>Die ausgewählten Frames merken, um ihren Zielort zu suchen und sie dorthin zu verschieben</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Before Current Frame</source>
+        <translation>Markierte Frames vor den aktuellen Frame verschieben</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Behind Current Frame</source>
+        <translation>Markierte Frames hinter den aktuellen Frame verschieben</translation>
+    </message>
+    <message>
+        <source>Clear Marked Frames</source>
+        <translation>Markierung der Frames aufheben</translation>
+    </message>
+    <message>
+        <source>Forget the frames marked to be moved</source>
+        <translation>Die zum Verschieben markierten Frames vergessen</translation>
+    </message>
+    <message>
         <source>Ambient Lighting For Frames Without Speaker Lights...</source>
         <translation>Umgebungsbeleuchtung für Frames ohne Lautsprecherlichter...</translation>
     </message>
@@ -5831,6 +5855,10 @@ Use Create %1 Frame.</source>
         <translation> | beansprucht</translation>
     </message>
     <message>
+        <source> | %1 marked to move</source>
+        <translation> | %1 zum Verschieben markiert</translation>
+    </message>
+    <message>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame eines Partners: %1. Er bleibt hier schreibgeschützt, bis die Änderung zusammengeführt ist.</translation>
     </message>
@@ -6011,6 +6039,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>Moved %1 frame(s); they are frames %2 now</source>
         <translation>%1 Frame(s) verschoben; sie sind jetzt die Frames %2</translation>
+    </message>
+    <message>
+        <source>Marked %1 frame(s); go to the place they belong and move them there from the menu of a frame</source>
+        <translation>%1 Frame(s) markiert; geh zu ihrem Zielort und verschiebe sie über das Menü eines Frames dorthin</translation>
+    </message>
+    <message>
+        <source>No frame is marked to move</source>
+        <translation>Kein Frame ist zum Verschieben markiert</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Before This Frame</source>
+        <translation>Markierte Frames vor diesen Frame verschieben</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Behind This Frame</source>
+        <translation>Markierte Frames hinter diesen Frame verschieben</translation>
     </message>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>

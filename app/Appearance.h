@@ -64,6 +64,13 @@ inline constexpr const char* kPlainCheckedProperty = "plainChecked";
     return QColor(60, 200, 60);
 }
 
+// The dashed outline of the frames marked to be moved: an orange, which the selection, the same
+// frames and the thumbnails' dark grounds leave visible.
+[[nodiscard]] inline QColor moveMarkedFrameColor()
+{
+    return QColor(255, 150, 30);
+}
+
 // How the canvas, the sprite editor and PNG exports draw DMD pixels: squares or dots, at 50 to
 // 100 % of their cell in steps of ten (squares at 80 % until set otherwise).
 [[nodiscard]] DmdRenderOptions loadDmdRenderOptions();

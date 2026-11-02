@@ -927,6 +927,37 @@ void MainWindow::createActions()
         tr("Move the selected frames before a frame number, or to the end"));
     m_moveFramesToAction->setEnabled(false);
     connect(m_moveFramesToAction, &QAction::triggered, this, [this]() { moveSelectedFramesTo(); });
+    m_markFramesToMoveAction =
+        withShortcutId(editMenu->addAction(tr("Mark Frames To Move")), "mark-frames-to-move");
+    m_markFramesToMoveAction->setToolTip(
+        tr("Remember the selected frames, to look for the place they go to and move them there"));
+    m_markFramesToMoveAction->setEnabled(false);
+    connect(m_markFramesToMoveAction, &QAction::triggered, this,
+            [this]() { markSelectedFramesToMove(); });
+    m_moveMarkedFramesBeforeAction =
+        withShortcutId(editMenu->addAction(tr("Move Marked Frames Before Current Frame")),
+                       "move-marked-frames-before");
+    m_moveMarkedFramesBeforeAction->setEnabled(false);
+    connect(m_moveMarkedFramesBeforeAction, &QAction::triggered, this, [this]() {
+        if (const std::optional<std::size_t> frame = currentFrameIndex()) {
+            moveMarkedFrames(*frame, false);
+        }
+    });
+    m_moveMarkedFramesBehindAction =
+        withShortcutId(editMenu->addAction(tr("Move Marked Frames Behind Current Frame")),
+                       "move-marked-frames-behind");
+    m_moveMarkedFramesBehindAction->setEnabled(false);
+    connect(m_moveMarkedFramesBehindAction, &QAction::triggered, this, [this]() {
+        if (const std::optional<std::size_t> frame = currentFrameIndex()) {
+            moveMarkedFrames(*frame, true);
+        }
+    });
+    m_clearFrameMoveMarksAction =
+        withShortcutId(editMenu->addAction(tr("Clear Marked Frames")), "clear-marked-frames");
+    m_clearFrameMoveMarksAction->setToolTip(tr("Forget the frames marked to be moved"));
+    m_clearFrameMoveMarksAction->setEnabled(false);
+    connect(m_clearFrameMoveMarksAction, &QAction::triggered, this,
+            [this]() { clearFrameMoveMarks(); });
     editMenu->addSeparator();
     m_ambientLightingAction =
         withShortcutId(editMenu->addAction(
@@ -1201,7 +1232,9 @@ void MainWindow::createCentralView()
     connect(m_deleteFramesListAction, &QAction::triggered, this, [this]() {
         deleteSelectedFrames();
     });
-    m_frameList->setContextMenuPolicy(Qt::ActionsContextMenu);
+    m_frameList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_frameList, &QWidget::customContextMenuRequested, this,
+            [this](const QPoint& position) { showFrameListMenu(position); });
     m_frameList->addAction(m_deleteFramesListAction);
     m_frameList->addAction(m_deleteShortFramesAction);
     // Alt+Left and Alt+Right (also Alt+Up and Alt+Down) in the strip only, as Delete above.
@@ -5125,6 +5158,7 @@ void MainWindow::refreshProjectSummary()
     m_spriteDependentViewsDirty = false;
     m_canvasEdit.resetCaptureSelection();
     // Another project: no selection, and none to bring back.
+    m_frameMoveMarks.clear();
     m_canvasEdit.clearSelection(canvasEditContext());
     m_canvasEdit.clearSelectionHistory();
     if (m_spritePanel) {
@@ -5250,6 +5284,7 @@ void MainWindow::rebuildFrameRows()
         }
     }
     updateFrameClaimBadges();
+    updateFrameMoveMarks();
 }
 
 void MainWindow::updateFrameClaimBadges()
@@ -6205,7 +6240,11 @@ void MainWindow::updateFrameStatusText()
                            .arg(gapsText.isEmpty() ? QString()
                                                    : tr(" | not rendered")) +
                        (sameFrames ? tr(" | %1 same").arg(*sameFrames) : QString()) +
-                       (claim.isEmpty() ? QString() : tr(" | claimed")));
+                       (claim.isEmpty() ? QString() : tr(" | claimed")) +
+                       (m_frameMoveMarkCount == 0
+                            ? QString()
+                            : tr(" | %1 marked to move")
+                                  .arg(static_cast<qulonglong>(m_frameMoveMarkCount))));
     QStringList toolTip;
     if (!claim.isEmpty()) {
         toolTip << tr("A partner's frame: %1. It stays read-only here until the change is "
@@ -11277,20 +11316,20 @@ void MainWindow::moveSelectedFramesTo()
     }
 }
 
-void MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
+bool MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
                             std::size_t beforeFrame,
                             bool joinSection)
 {
     if (!m_document || frameIndices.empty()) {
         statusBar()->showMessage(tr("No frame selected"), 2500);
-        return;
+        return false;
     }
     try {
         std::unique_ptr<edit::FrameMoveCommand> command =
             edit::moveFrames(*m_document, frameIndices, beforeFrame, joinSection);
         if (!command) {
             statusBar()->showMessage(tr("The frames are there already"), 2500);
-            return;
+            return false;
         }
         const edit::FrameMoveCommand& applied = *command;
         m_droppedStructureSteps =
@@ -11303,9 +11342,107 @@ void MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
                 .arg(static_cast<int>(moved.size()))
                 .arg(frameRangesText(moved)),
             4000);
+        return true;
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+        return false;
     }
+}
+
+void MainWindow::markSelectedFramesToMove()
+{
+    const std::vector<std::size_t> frames = selectedFrameIndices();
+    if (!m_document || frames.empty()) {
+        statusBar()->showMessage(tr("No frame selected"), 2500);
+        return;
+    }
+    m_frameMoveMarks.mark(*m_document, frames);
+    updateFrameMoveMarks();
+    statusBar()->showMessage(tr("Marked %1 frame(s); go to the place they belong and move them "
+                                "there from the menu of a frame")
+                                 .arg(static_cast<int>(frames.size())),
+                             6000);
+}
+
+void MainWindow::moveMarkedFrames(std::size_t frame, bool behind)
+{
+    if (!m_document) {
+        return;
+    }
+    const std::vector<std::size_t> frames = m_frameMoveMarks.frames(*m_document);
+    if (frames.empty()) {
+        statusBar()->showMessage(tr("No frame is marked to move"), 2500);
+        return;
+    }
+    const edit::FrameMovePlace place = edit::frameMovePlace(frame, behind);
+    if (moveFrames(frames, place.beforeFrame, place.joinSection)) {
+        clearFrameMoveMarks();
+    }
+}
+
+void MainWindow::clearFrameMoveMarks()
+{
+    m_frameMoveMarks.clear();
+    updateFrameMoveMarks();
+}
+
+void MainWindow::updateFrameMoveMarks()
+{
+    if (!m_frameList) {
+        return;
+    }
+    std::vector<int> rows;
+    m_frameMoveMarkCount = 0;
+    if (m_document) {
+        const std::vector<std::size_t> frames = m_frameMoveMarks.frames(*m_document);
+        m_frameMoveMarkCount = frames.size();
+        for (const std::size_t frame : frames) {
+            // A frame the filter hides has no row.
+            if (frame < m_frameRows.size() && m_frameRows[frame] >= 0) {
+                rows.push_back(m_frameRows[frame]);
+            }
+        }
+    }
+    m_frameList->setMoveMarkedRows(std::move(rows));
+    updateFrameStatusText();
+    updateFrameMoveMarkActions();
+}
+
+void MainWindow::updateFrameMoveMarkActions()
+{
+    if (!m_moveMarkedFramesBeforeAction) {
+        return;
+    }
+    const bool canMove =
+        m_document && m_frameMoveMarkCount > 0 && currentFrameIndex().has_value();
+    m_moveMarkedFramesBeforeAction->setEnabled(canMove);
+    m_moveMarkedFramesBehindAction->setEnabled(canMove);
+    m_clearFrameMoveMarksAction->setEnabled(m_frameMoveMarkCount > 0);
+}
+
+void MainWindow::showFrameListMenu(const QPoint& position)
+{
+    QMenu menu(m_frameList);
+    const QModelIndex index = m_frameList->indexAt(position);
+    const std::optional<std::size_t> frame =
+        index.isValid() ? std::optional<std::size_t>(index.data(Qt::UserRole).toULongLong())
+                        : std::nullopt;
+    menu.addAction(m_markFramesToMoveAction);
+    const bool canMove = frame && m_frameMoveMarkCount > 0;
+    QAction* before = menu.addAction(tr("Move Marked Frames Before This Frame"));
+    before->setEnabled(canMove);
+    connect(before, &QAction::triggered, this, [this, frame]() {
+        moveMarkedFrames(*frame, false);
+    });
+    QAction* behind = menu.addAction(tr("Move Marked Frames Behind This Frame"));
+    behind->setEnabled(canMove);
+    connect(behind, &QAction::triggered, this, [this, frame]() {
+        moveMarkedFrames(*frame, true);
+    });
+    menu.addAction(m_clearFrameMoveMarksAction);
+    menu.addSeparator();
+    menu.addActions(m_frameList->actions());
+    menu.exec(m_frameList->viewport()->mapToGlobal(position));
 }
 
 void MainWindow::refreshAfterFrameMove(const edit::FrameMoveCommand& command)
@@ -12487,6 +12624,10 @@ void MainWindow::updateStructureControls()
             action->setEnabled(canDeleteFrames);
         }
     }
+    if (m_markFramesToMoveAction) {
+        m_markFramesToMoveAction->setEnabled(canDeleteFrames);
+    }
+    updateFrameMoveMarkActions();
     RecordListPageState state;
     state.hasProject = hasDocument;
     if (m_maskPage) {

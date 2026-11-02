@@ -3212,6 +3212,30 @@ Utiliser Créer la frame %1.</translation>
         <translation>Placer les frames sélectionnées avant un numéro de frame, ou à la fin</translation>
     </message>
     <message>
+        <source>Mark Frames To Move</source>
+        <translation>Marquer les frames à déplacer</translation>
+    </message>
+    <message>
+        <source>Remember the selected frames, to look for the place they go to and move them there</source>
+        <translation>Retenir les frames sélectionnées, pour chercher leur destination et les y déplacer</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Before Current Frame</source>
+        <translation>Déplacer les frames marquées avant la frame actuelle</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Behind Current Frame</source>
+        <translation>Déplacer les frames marquées après la frame actuelle</translation>
+    </message>
+    <message>
+        <source>Clear Marked Frames</source>
+        <translation>Annuler le marquage des frames</translation>
+    </message>
+    <message>
+        <source>Forget the frames marked to be moved</source>
+        <translation>Oublier les frames marquées à déplacer</translation>
+    </message>
+    <message>
         <source>Ambient Lighting For Frames Without Speaker Lights...</source>
         <translation>Éclairage d&apos;ambiance pour les frames sans lumières de haut-parleur...</translation>
     </message>
@@ -5831,6 +5855,10 @@ Utiliser Créer la frame %1.</translation>
         <translation> | réservée</translation>
     </message>
     <message>
+        <source> | %1 marked to move</source>
+        <translation> | %1 marquée(s) à déplacer</translation>
+    </message>
+    <message>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame d&apos;un partenaire : %1. Elle reste en lecture seule ici jusqu&apos;à ce que la modification soit fusionnée.</translation>
     </message>
@@ -6011,6 +6039,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Moved %1 frame(s); they are frames %2 now</source>
         <translation>%1 frame(s) déplacée(s) ; ce sont maintenant les frames %2</translation>
+    </message>
+    <message>
+        <source>Marked %1 frame(s); go to the place they belong and move them there from the menu of a frame</source>
+        <translation>%1 frame(s) marquée(s) ; allez à leur destination et déplacez-les depuis le menu d&apos;une frame</translation>
+    </message>
+    <message>
+        <source>No frame is marked to move</source>
+        <translation>Aucune frame n&apos;est marquée à déplacer</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Before This Frame</source>
+        <translation>Déplacer les frames marquées avant cette frame</translation>
+    </message>
+    <message>
+        <source>Move Marked Frames Behind This Frame</source>
+        <translation>Déplacer les frames marquées après cette frame</translation>
     </message>
     <message>
         <source>%1 (undo keeps at most %2 MB of deleted records: the %3 oldest add or delete steps can no longer be undone)</source>

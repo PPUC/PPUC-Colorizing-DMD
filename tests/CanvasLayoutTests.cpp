@@ -140,6 +140,7 @@ void runPlaybackIdentificationTests();
 void runBookmarksTests();
 void runSectionsTests();
 void runFrameMoveTests();
+void runFrameMoveMarksTests();
 void runSpriteClipboardTests();
 void runStateCommandsTests();
 void runStructureCommandTests();
@@ -183,6 +184,7 @@ try {
     runRuntimePreviewTests();
     runPlaybackIdentificationTests();
     runBookmarksTests();
+    runFrameMoveMarksTests();
     runSectionsTests();
     runFrameMoveTests();
     runSpriteClipboardTests();

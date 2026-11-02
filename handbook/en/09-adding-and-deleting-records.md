@@ -65,7 +65,18 @@ everything a frame has goes with it. One undo step.
   behind the frame shown after the last selected one. With a frame filter that is the neighbour
   in the strip, not necessarily in the project.
 - `Edit -> Move Frames To...` asks for the frame number to put them before; the frame count puts
-  them behind the last frame.
+  them behind the last frame. The number is the one the frame has now, also when the frames go
+  towards the end.
+- For a longer way, mark the frames and look for the place afterwards: `Mark Frames To Move`, in
+  the `Edit` menu and the frame strip's right-click menu, remembers the selected frames. They get
+  a dashed orange outline, and the frame's status line gives how many there are, also those a
+  frame filter hides. Now go anywhere (the strip, a section, a bookmark, a filter, even other
+  edits); the selection may change, the marks stay. Right-click the frame where they belong and
+  choose `Move Marked Frames Before This Frame` or `Move Marked Frames Behind This Frame`, or use
+  the entries for the current frame in the `Edit` menu. The marks end with the move; a move that
+  cannot run leaves them. `Clear Marked Frames` ends them without one, and marking again replaces
+  them. Marks are not saved with the project, and these entries have no keys until you give them
+  some (see "Keyboard Shortcuts").
 - Afterwards the moved frames are selected where they are now; the status bar gives their new
   numbers.
 
@@ -75,7 +86,8 @@ Sections follow their frames:
 - a section whose first frame moves without the rest starts at its first frame that stays;
 - frames dropped (or moved with `Move Frames To...`) right before the first frame of a section
   join that section, which then starts at the first moved frame, unless the frames bring a
-  section of their own; `Move Frames Later` past the last frame of a section keeps them in it;
+  section of their own; `Move Frames Later` past the last frame of a section keeps them in it, as
+  does `Move Marked Frames Behind This Frame` on its last frame;
 - otherwise moved frames belong to the section of the frame before them.
 
 The source frames of sprites follow their frames. A project with imported palettes (old

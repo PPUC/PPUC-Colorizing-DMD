@@ -28,6 +28,7 @@
 #include "edit/AssetUse.h"
 #include "edit/DrawingTools.h"
 #include "edit/FrameMove.h"
+#include "edit/FrameMoveMarks.h"
 #include "edit/FrameSettingsCopy.h"
 #include "edit/SameFrames.h"
 #include "edit/SceneEdits.h"
@@ -579,9 +580,21 @@ private:
     void moveSelectedFramesUp();
     void moveSelectedFramesDown();
     void moveSelectedFramesTo();
-    void moveFrames(const std::vector<std::size_t>& frameIndices,
+    // Returns whether the frames moved.
+    bool moveFrames(const std::vector<std::size_t>& frameIndices,
                     std::size_t beforeFrame,
                     bool joinSection = true);
+    // Frames marked to be moved (edit/FrameMoveMarks.h), and moving them before or behind a
+    // frame. The marks end with a move that ran.
+    void markSelectedFramesToMove();
+    void moveMarkedFrames(std::size_t frame, bool behind);
+    void clearFrameMoveMarks();
+    // The strip's outlines, the count of the frame status text and the actions.
+    void updateFrameMoveMarks();
+    void updateFrameMoveMarkActions();
+    // The frame list's menu; a frame at the position (viewport coordinates) is what the marked
+    // frames can go before or behind.
+    void showFrameListMenu(const QPoint& position);
     // After a frame move ran in either direction: the moved frames are selected where they
     // are now, and every view is refreshed.
     void refreshAfterFrameMove(const edit::FrameMoveCommand& command);
@@ -717,6 +730,13 @@ private:
     QAction* m_moveFramesUpAction = nullptr;
     QAction* m_moveFramesDownAction = nullptr;
     QAction* m_moveFramesToAction = nullptr;
+    QAction* m_markFramesToMoveAction = nullptr;
+    QAction* m_moveMarkedFramesBeforeAction = nullptr;
+    QAction* m_moveMarkedFramesBehindAction = nullptr;
+    QAction* m_clearFrameMoveMarksAction = nullptr;
+    edit::FrameMoveMarks m_frameMoveMarks;
+    // The marked frames the project has, also those a filter hides.
+    std::size_t m_frameMoveMarkCount = 0;
     QAction* m_historyBackAction = nullptr;
     QAction* m_historyForwardAction = nullptr;
     QToolButton* m_zoomOutButton = nullptr;

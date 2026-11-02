@@ -817,6 +817,61 @@ void testMarkedFramesInTheStrip()
            "the marks go with the rows");
 }
 
+// Frames marked to be moved: an outline of their own, and a right click, which opens the list's
+// menu, keeps a selection of several frames when it is on one of them.
+void testFramesMarkedToMove()
+{
+    colorizing::app::FrameListWidget list;
+    list.useStripLayout(QSize(100, 60));
+    list.setSelectionMode(QAbstractItemView::ExtendedSelection);
+    list.resize(420, 120);
+    for (int row = 0; row < 20; ++row) {
+        auto* item = new QListWidgetItem(QString::number(row));
+        item->setSizeHint(QSize(100, 60));
+        list.addItem(item);
+    }
+    list.show();
+    QApplication::processEvents();
+
+    const QColor mark = colorizing::app::moveMarkedFrameColor();
+    const auto outlined = [&](int row) {
+        const QImage image = list.viewport()->grab().toImage();
+        const QRect rect = list.visualItemRect(list.item(row));
+        for (int y = rect.top(); y <= rect.bottom(); ++y) {
+            if (image.pixelColor(rect.left() + 1, y) == mark) {
+                return true;
+            }
+        }
+        return false;
+    };
+    expect(!outlined(1), "no frame is marked at first");
+    list.setMoveMarkedRows({1, 2, 19});
+    QApplication::processEvents();
+    expect(outlined(1) && outlined(2) && !outlined(0), "the marked frames have the outline");
+    list.setMoveMarkedRows({});
+    QApplication::processEvents();
+    expect(!outlined(1), "and lose it with the marks");
+
+    list.item(1)->setSelected(true);
+    list.item(2)->setSelected(true);
+    const auto rightClick = [&](int row) {
+        const QPointF position = list.visualItemRect(list.item(row)).center();
+        const QPointF global = list.viewport()->mapToGlobal(position);
+        QMouseEvent press(QEvent::MouseButtonPress, position, global, Qt::RightButton,
+                          Qt::RightButton, Qt::NoModifier);
+        QApplication::sendEvent(list.viewport(), &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, position, global, Qt::RightButton,
+                            Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(list.viewport(), &release);
+        QApplication::processEvents();
+    };
+    rightClick(2);
+    expect(list.selectedItems().size() == 2, "a right click on a selected frame keeps them");
+    rightClick(0);
+    expect(list.selectedItems().size() == 1 && list.item(0)->isSelected(),
+           "a right click on another frame selects that one, as the target of a move");
+}
+
 // Issue #2: a window opens where and as large as it was left.
 void testWindowGeometryIsKept()
 {
@@ -1174,6 +1229,7 @@ void runPlaneLabelsWidgetTests()
     testStripWheelStepsByFrame();
     testSectionStackResize();
     testLongComboBoxesScroll();
+    testFramesMarkedToMove();
     testWindowGeometryIsKept();
     testRecentFoldersPerKind();
     testSectionStackArrangement();

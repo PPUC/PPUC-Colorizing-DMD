@@ -64,6 +64,10 @@ public:
     // none in that direction (nothing then moves).
     int showMarkedRow(int direction);
 
+    // Rows of the frames marked to be moved later, ascending: a dashed outline.
+    void setMoveMarkedRows(std::vector<int> rows);
+    [[nodiscard]] const std::vector<int>& moveMarkedRows() const { return m_moveMarkedRows; }
+
     // Rows of frames a partner works on in a team project: the partner's avatar in the upper
     // left corner of the thumbnail, a lock while there is none (a null image).
     void setClaimBadges(std::map<int, QImage> badges);
@@ -96,6 +100,7 @@ private:
     int m_dropRow = -1;
     std::vector<int> m_markedRows;
     int m_shownMarkedRow = -1;
+    std::vector<int> m_moveMarkedRows;
     std::map<int, QImage> m_claimBadges;
     bool m_steppingWithKey = false;
     // A trackpad's wheel steps, until they make a turn (120).

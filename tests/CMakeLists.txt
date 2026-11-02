@@ -17,6 +17,7 @@ add_executable(colorizing_qt_v2_tests
     DrawingToolsTests.cpp
     EditCommandTests.cpp
     FrameDumpImportTests.cpp
+    FrameMoveMarksTests.cpp
     LegacyCromFramesTests.cpp
     LegacyCromMetadataTests.cpp
     LegacyCrpOriginalsTests.cpp

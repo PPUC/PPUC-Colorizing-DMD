@@ -21,6 +21,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/EditCommand.cpp
     edit/FrameContentCommand.cpp
     edit/FrameMove.cpp
+    edit/FrameMoveMarks.cpp
     edit/FrameSettingsCopy.cpp
     edit/FrameTags.cpp
     edit/FramePixelSelection.cpp
