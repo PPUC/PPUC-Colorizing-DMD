@@ -22,7 +22,7 @@ namespace colorizing::vpx {
 namespace {
 
 // libdmdutil's update buffers, and so the DMDUtil plugin, take at most this many pixels.
-constexpr int kMaxPixels = 256 * 64;
+[[maybe_unused]] constexpr int kMaxPixels = 256 * 64;
 
 // The log history: one per process, as the bus. Plugin threads add to it.
 struct LogHistory {
