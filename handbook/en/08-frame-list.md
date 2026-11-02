@@ -173,3 +173,7 @@ The selected frames are deleted with `Edit -> Delete Frames...`, with `Delete Fr
 context menu of the frame list, or with the `Delete` or `Backspace` key while the frame list has
 the focus. `Delete Frames Shorter Than...` (Edit menu and context menu) deletes those of the
 selected frames that are shorter than a duration. See "Adding And Deleting Records".
+
+The selected frames can also be moved. A dashed orange outline in the strip shows frames marked
+with `Mark Frames To Move`, which the context menu of another frame then moves before or behind it;
+see "Moving frames" in "Adding And Deleting Records".
