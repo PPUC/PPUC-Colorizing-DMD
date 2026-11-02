@@ -10,7 +10,7 @@
 #include "legacy/LegacyCrpOriginals.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "render/CanvasLayout.h"
-#include "legacy/LegacyCrpWriter.h"
+#include "ProjectTestFiles.h"
 
 using colorizing::document::FrameBackgroundData;
 using colorizing::document::FrameDynamicData;
@@ -27,7 +27,6 @@ using colorizing::legacy::LegacySectionOffsets;
 using colorizing::legacy::legacyFrameHash;
 using colorizing::legacy::legacyOriginalColors;
 using colorizing::legacy::writeLegacyCrom;
-using colorizing::legacy::writeLegacyCrp;
 using colorizing::render::kHdFrameSize;
 using colorizing::render::kSdFrameSize;
 
@@ -177,7 +176,7 @@ ProjectSnapshot makeSnapshot()
 
 struct SerializedProject {
     std::vector<uint8_t> crom;
-    std::vector<uint8_t> crp;
+    colorizing::test_files::Entries project;
     LegacySectionOffsets cromSections;
 };
 
@@ -185,34 +184,34 @@ SerializedProject serialize(const ProjectSnapshot& snapshot)
 {
     SerializedProject project;
     std::ostringstream crom;
-    std::ostringstream crp;
     std::string error;
     expect(writeLegacyCrom(crom, snapshot, error, &project.cromSections),
            "cROM should serialize: " + error);
-    expect(writeLegacyCrp(crp, snapshot, error), "cRP should serialize: " + error);
     project.crom = toBytes(crom);
-    project.crp = toBytes(crp);
+    project.project = colorizing::test_files::projectEntries(snapshot);
     return project;
 }
 
+// What opening the saved project gives.
 ProjectSnapshot parse(const SerializedProject& project)
 {
-    const auto crom = colorizing::legacy::parseModernLegacyCromFrames(project.crom);
-    expect(crom.ok, "serialized cROM should parse: " + crom.errorMessage);
-    // Up to the settings block a project with triggers ends with.
-    const std::size_t rest = project.crom.size() - crom.nextOffset;
-    expect(rest == 0 || (rest > 8 && std::string(project.crom.begin() +
-                                                     static_cast<std::ptrdiff_t>(crom.nextOffset),
-                                                 project.crom.begin() +
-                                                     static_cast<std::ptrdiff_t>(crom.nextOffset) +
-                                                     4) == "SCX1"),
-           "parser should consume the whole cROM");
+    return colorizing::test_files::fromProjectEntries(project.project);
+}
+
+// What opening the fixed legacy files of the name gives (tests/fixtures/legacy).
+ProjectSnapshot parseFixture(const std::string& name)
+{
+    const std::vector<uint8_t> cromBytes =
+        colorizing::test_files::legacyFixtureBytes(name + ".cROM");
+    const std::vector<uint8_t> crpBytes = colorizing::test_files::legacyFixtureBytes(name + ".cRP");
+    const auto crom = colorizing::legacy::parseModernLegacyCromFrames(cromBytes);
+    expect(crom.ok, "the cROM should parse: " + crom.errorMessage);
     const auto crp =
-        colorizing::legacy::parseLegacyCrpOriginalFrames(project.crp, crom.frameData.metadata);
-    expect(crp.ok, "serialized cRP should parse: " + crp.errorMessage);
-    expect(crp.nextOffset == project.crp.size(), "parser should consume the whole cRP");
+        colorizing::legacy::parseLegacyCrpOriginalFrames(crpBytes, crom.frameData.metadata);
+    expect(crp.ok, "the cRP should parse: " + crp.errorMessage);
+    expect(crp.nextOffset == crpBytes.size(), "parser should consume the whole cRP");
     const auto snapshot = colorizing::legacy::buildProjectSnapshot(crom.frameData, crp.originalData);
-    expect(snapshot.ok, "serialized project should build a snapshot: " + snapshot.errorMessage);
+    expect(snapshot.ok, "the project should build a snapshot: " + snapshot.errorMessage);
     return snapshot.snapshot;
 }
 
@@ -254,11 +253,13 @@ void testOriginalColorsMatchWin32Ramp()
 void testSerializedProjectRoundTrips()
 {
     const SerializedProject first = serialize(makeSnapshot());
-    const ProjectSnapshot reloaded = parse(first);
+    // As the legacy readers give it, what a cROM of this project and its cRP hold.
+    const ProjectSnapshot reloaded = parseFixture("ordinary");
     const SerializedProject second = serialize(reloaded);
 
     expect(first.crom == second.crom, "cROM should serialize identically after a reload");
-    expect(first.crp == second.crp, "cRP should serialize identically after a reload");
+    expect(serialize(parse(first)).project == first.project,
+           "the project file should be identical after a reload");
 
     expect(reloaded.sprites[0].dynamicMaskSd.pixels[3] == 2, "sprite SD dynamic mask");
     expect(reloaded.sprites[0].dynamicMaskHd.pixels[4] == 5, "sprite HD dynamic mask");
@@ -309,7 +310,7 @@ void testDerivedFieldsAreRecomputed()
     const SerializedProject colorizedProject = serialize(colorized);
     expect(colorizedProject.crom[active] == 1, "colorizing a short frame should activate it");
 
-    const ProjectSnapshot reloaded = parse(project);
+    const ProjectSnapshot reloaded = parseFixture("ordinary");
     expect(reloaded.frames[1].colorizedSd.pixels[5] == 0, "SD pixel under dynamic mask is blanked");
     expect(reloaded.frames[1].colorizedSd.pixels[4] == 0x1234, "static SD pixel is kept");
     // On the HD plane of an ordinary project libserum renders the SD zones and never reads the
@@ -390,7 +391,7 @@ void test256x64OriginalsRoundTrip()
                legacyFrameHash(snapshot.frames[1].originalSd, &snapshot.comparisonMasks[0], true),
            "hash should cover the full 256x64 original and mask");
 
-    const ProjectSnapshot reloaded = parse(project);
+    const ProjectSnapshot reloaded = parseFixture("original256x64");
     expect(reloaded.geometry.original256x64Flag(), "256x64 flag should survive");
     expect(reloaded.frames[0].originalSd.size.width == 256 &&
                reloaded.frames[0].originalSd.pixels[2] == 3,
@@ -415,7 +416,11 @@ void test256x64OriginalsRoundTrip()
     zone.shadowDirectionsHd.assign(32, 0);
     zone.shadowColorsHd.assign(32, 0);
     withZone.frames[2].dynamicData = zone;
-    expect(parse(serialize(withZone)).frames[2].colorizedHd->pixels[256 + 3] == 0,
+    // The picture of frame 2 in the saved cROM.
+    const SerializedProject zoned = serialize(withZone);
+    const std::size_t hdPixel = sectionOffset(zoned.cromSections, "HD colorized frames") +
+                                2 * kHdFrameSize.width * kHdFrameSize.height * 2 + (256 + 3) * 2;
+    expect(zoned.crom[hdPixel] == 0 && zoned.crom[hdPixel + 1] == 0,
            "a 256x64 pixel under the HD dynamic mask is blanked");
 }
 

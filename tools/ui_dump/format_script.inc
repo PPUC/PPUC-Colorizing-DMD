@@ -29,19 +29,10 @@
         std::cout << '\n';
     };
 
-    // A project as the Win32 editor saves it: the writer writes a .cRP when the name says so.
-    document::ProjectSnapshot snapshot;
-    snapshot.colorCount = 4;
-    snapshot.romName = "win32";
-    for (int i = 0; i < 2; ++i) {
-        snapshot.frames.push_back(document::makeUncolorizedFrameSnapshot(
-            snapshot.geometry, snapshot.colorCount,
-            document::makeIndexedFrame(render::kSdFrameSize, 0), 100));
-    }
-    if (!legacy::LegacyProjectFileWriter()
-             .save({cromPath.toStdString(), crpPath.toStdString(), {}}, snapshot)
-             .ok) {
-        std::cerr << "format: could not write the Win32 project\n";
+    // A project as the Win32 editor saves it, a copy of the fixed files.
+    if (!QFile::copy(QStringLiteral(UI_DUMP_LEGACY_FIXTURES "/crp-plain.cROM"), cromPath) ||
+        !QFile::copy(QStringLiteral(UI_DUMP_LEGACY_FIXTURES "/crp-plain.cRP"), crpPath)) {
+        std::cerr << "format: could not copy the Win32 project\n";
         std::exit(3);
     }
 

@@ -1,3 +1,5 @@
 # Shell scripts run on the Windows CI runner (MSYS2 bash) as well, where a checkout with CRLF
 # line endings would break them.
 *.sh text eol=lf
+# Fixed test files: never converted, whatever a checkout does to line endings.
+tests/fixtures/legacy/** binary

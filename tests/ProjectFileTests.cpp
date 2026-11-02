@@ -21,7 +21,6 @@
 #include "project/Json.h"
 #include "project/ProjectFile.h"
 #include "project/ZipArchive.h"
-#include "legacy/CrpxWriter.h"
 
 namespace {
 
@@ -162,14 +161,6 @@ std::string cromBytes(const ProjectSnapshot& snapshot)
     return stream.str();
 }
 
-std::string crpxBytes(const ProjectSnapshot& snapshot)
-{
-    std::ostringstream stream;
-    std::string error;
-    expect(legacy::writeCrpx(stream, snapshot, error), "the .cRPX is written: " + error);
-    return stream.str();
-}
-
 bool sameMeta(const ProjectSnapshot& a, const ProjectSnapshot& b)
 {
     if (a.projectId != b.projectId || a.comparisonMaskMeta != b.comparisonMaskMeta ||
@@ -248,7 +239,6 @@ void testRoundTrip(render::PlaneLayout layout)
     const std::optional<ProjectSnapshot> read = fromEntries(entries, error);
     expect(read.has_value(), "the entries read back: " + error);
     expect(cromBytes(*read) == cromBytes(snapshot), "the same cROM");
-    expect(crpxBytes(*read) == crpxBytes(snapshot), "the same .cRPX");
     expect(sameMeta(*read, snapshot), "the same IDs and change information");
     expect(read->license == snapshot.license && read->geometry == snapshot.geometry &&
                read->frames[6].comparisonMaskId == 40,
@@ -467,10 +457,7 @@ void testRealProject()
         return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
     };
     std::cout << "real project: " << std::filesystem::file_size(file) << " bytes, saved in "
-              << ms(saved - start) << " ms, opened in " << ms(opened - saved) << " ms, .cRPX "
-              << (crpxBytes(reloaded.snapshot) == crpxBytes(snapshot) ? "identical"
-                                                                      : "differs")
-              << '\n';
+              << ms(saved - start) << " ms, opened in " << ms(opened - saved) << " ms\n";
     std::filesystem::remove(file);
 }
 

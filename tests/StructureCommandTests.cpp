@@ -25,7 +25,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "runtime/RuntimePreview.h"
-#include "legacy/LegacyCrpWriter.h"
+#include "ProjectTestFiles.h"
 
 using colorizing::document::BackgroundRecord;
 using colorizing::document::EditorMetadata;
@@ -287,44 +287,23 @@ void expectConsistentReferences(const ProjectDocument& document, const std::stri
 
 struct Files {
     std::vector<uint8_t> crom;
-    std::vector<uint8_t> crp;
+    colorizing::test_files::Entries project;
 };
 
 Files serialize(const ProjectSnapshot& snapshot, const std::string& what)
 {
     std::ostringstream crom;
-    std::ostringstream crp;
     std::string error;
     expect(colorizing::legacy::writeLegacyCrom(crom, snapshot, error),
            what + ": the cROM is written: " + error);
-    expect(colorizing::legacy::writeLegacyCrp(crp, snapshot, error),
-           what + ": the cRP is written: " + error);
     const std::string cromBytes = crom.str();
-    const std::string crpBytes = crp.str();
     return {std::vector<uint8_t>(cromBytes.begin(), cromBytes.end()),
-            std::vector<uint8_t>(crpBytes.begin(), crpBytes.end())};
+            colorizing::test_files::projectEntries(snapshot)};
 }
 
-ProjectSnapshot parse(const Files& files, const std::string& what)
+ProjectSnapshot parse(const Files& files, const std::string& /*what*/)
 {
-    const auto crom = colorizing::legacy::parseModernLegacyCromFrames(files.crom);
-    expect(crom.ok, what + ": the cROM parses: " + crom.errorMessage);
-    // Up to the settings block a project with triggers ends with.
-    const std::size_t rest = files.crom.size() - crom.nextOffset;
-    expect(rest == 0 || (rest > 8 && std::string(files.crom.begin() +
-                                                     static_cast<std::ptrdiff_t>(crom.nextOffset),
-                                                 files.crom.begin() +
-                                                     static_cast<std::ptrdiff_t>(crom.nextOffset) +
-                                                     4) == "SCX1"),
-           what + ": the whole cROM is read");
-    const auto crp =
-        colorizing::legacy::parseLegacyCrpOriginalFrames(files.crp, crom.frameData.metadata);
-    expect(crp.ok, what + ": the cRP parses: " + crp.errorMessage);
-    expect(crp.nextOffset == files.crp.size(), what + ": the whole cRP is read");
-    const auto snapshot =
-        colorizing::legacy::buildProjectSnapshot(crom.frameData, crp.originalData);
-    expect(snapshot.ok, what + ": a snapshot is built: " + snapshot.errorMessage);
-    return snapshot.snapshot;
+    return colorizing::test_files::fromProjectEntries(files.project);
 }
 
 bool samePicture(const RuntimeFrame& a, const RuntimeFrame& b)
@@ -346,7 +325,8 @@ void expectSavesAndRenders(const ProjectDocument& document, const std::string& w
     const ProjectDocument reloaded = ProjectDocument::fromSnapshot(parse(files, what));
     const Files again = serialize(reloaded.toSnapshot(), what + ", reloaded");
     expect(files.crom == again.crom, what + ": the reloaded project writes the same cROM");
-    expect(files.crp == again.crp, what + ": the reloaded project writes the same cRP");
+    expect(files.project == again.project,
+           what + ": the reloaded project writes the same project file");
     expect(reloaded.frameCount() == document.frameCount() &&
                reloaded.spriteCount() == document.spriteCount() &&
                reloaded.backgroundCount() == document.backgroundCount() &&

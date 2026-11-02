@@ -18,7 +18,7 @@
 #include "edit/UndoHistories.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "render/ProjectGeometry.h"
-#include "legacy/LegacyCrpWriter.h"
+#include "ProjectTestFiles.h"
 
 namespace document = colorizing::document;
 namespace edit = colorizing::edit;
@@ -115,13 +115,10 @@ ProjectDocument makeDocument(PlaneLayout layout, uint32_t colorCount)
     return document;
 }
 
-std::vector<uint8_t> crpBytes(const ProjectSnapshot& snapshot)
+// What a save writes of the editor's tables.
+std::string editorEntry(const ProjectSnapshot& snapshot)
 {
-    std::ostringstream stream;
-    std::string error;
-    expect(colorizing::legacy::writeLegacyCrp(stream, snapshot, error), "cRP writes: " + error);
-    const std::string data = stream.str();
-    return std::vector<uint8_t>(data.begin(), data.end());
+    return colorizing::test_files::projectEntries(snapshot).at("editor.json");
 }
 
 void testRgb565RoundTrips()
@@ -452,10 +449,10 @@ void testUntouchedTablesSerializeUnchanged()
     metadata.currentColorSet = 3;
     metadata.firstDisplayedColorSet = 4;
     metadata.drawColorMode = 2;
-    const std::vector<uint8_t> expected = crpBytes(snapshot);
+    const std::string expected = editorEntry(snapshot);
 
     ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
-    expect(crpBytes(document.toSnapshot()) == expected, "loaded tables are written unchanged");
+    expect(editorEntry(document.toSnapshot()) == expected, "loaded tables are written unchanged");
     edit::UndoHistories histories;
     const edit::HistoryKey key = edit::editorColorsHistoryKey();
     for (ColorSetTables after :
@@ -467,10 +464,10 @@ void testUntouchedTablesSerializeUnchanged()
         command->apply(document);
         histories.push(key, std::move(command));
     }
-    expect(crpBytes(document.toSnapshot()) != expected, "the edits are written");
+    expect(editorEntry(document.toSnapshot()) != expected, "the edits are written");
     while (histories.undoLatest({key}, document) != nullptr) {
     }
-    expect(crpBytes(document.toSnapshot()) == expected, "after undo every byte is the file's");
+    expect(editorEntry(document.toSnapshot()) == expected, "after undo every byte is the file's");
 }
 
 }  // namespace

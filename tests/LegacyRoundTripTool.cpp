@@ -1,8 +1,6 @@
 // Loads a real .cROM/.cRP project into a ProjectDocument and checks that nothing of it is lost.
 // Usage: colorizing_qt_v2_roundtrip <cROM|cRZ> <cRP|cRPX>
 //
-// The cRP (writeLegacyCrp(), deprecated, tests/legacy-writers) must be byte-identical with the
-// file on disk; a .cRPX is compared with writeCrpx() (its sections are then 24 bytes early).
 // The cROM of the editor is the one libserum 2.9 reads (writeLegacyCrom(): header revision 21,
 // format version 1), so it cannot be byte-identical with a cROM of the Win32 editor: it is
 // written into a temporary file, read back with the cRP, written again, and the two writes
@@ -26,8 +24,6 @@
 #include "legacy/LegacyCrzArchive.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "legacy/LegacyProjectSerializer.h"
-#include "legacy/LegacyCrpWriter.h"
-#include "legacy/CrpxWriter.h"
 
 namespace {
 
@@ -218,16 +214,5 @@ int main(int argc, char* argv[])
         std::filesystem::remove(written);
     }
 
-    LegacySectionOffsets sections;
-    ComparingBuffer crpBuffer(sections, std::string(argv[2]));
-    std::ostream crpStream(&crpBuffer);
-    const bool crpx = colorizing::legacy::hasCrpxExtension(argv[2]);
-    if (!(crpx ? colorizing::legacy::writeCrpx
-               : colorizing::legacy::writeLegacyCrp)(crpStream, snapshot, error, &sections,
-                                                     nullptr)) {
-        std::cerr << "serialize failed: " << error << '\n';
-        return 2;
-    }
-    const bool crpSame = report(crpx ? "cRPX" : "cRP", crpBuffer, sections);
-    return cromSame && crpSame ? 0 : 1;
+    return cromSame ? 0 : 1;
 }

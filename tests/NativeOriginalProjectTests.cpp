@@ -16,7 +16,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "render/ProjectGeometry.h"
-#include "legacy/LegacyCrpWriter.h"
+#include "ProjectTestFiles.h"
 
 using colorizing::document::BackgroundRecord;
 using colorizing::document::FrameBackgroundData;
@@ -177,7 +177,7 @@ ProjectSnapshot makeSnapshot()
 
 struct SerializedProject {
     std::vector<uint8_t> crom;
-    std::vector<uint8_t> crp;
+    colorizing::test_files::Entries project;
     LegacySectionOffsets cromSections;
 };
 
@@ -185,38 +185,49 @@ SerializedProject serialize(const ProjectSnapshot& snapshot)
 {
     SerializedProject project;
     std::ostringstream crom;
-    std::ostringstream crp;
     std::string error;
     expect(colorizing::legacy::writeLegacyCrom(crom, snapshot, error, &project.cromSections),
            "cROM should serialize: " + error);
-    expect(colorizing::legacy::writeLegacyCrp(crp, snapshot, error),
-           "cRP should serialize: " + error);
     const std::string cromData = crom.str();
-    const std::string crpData = crp.str();
     project.crom.assign(cromData.begin(), cromData.end());
-    project.crp.assign(crpData.begin(), crpData.end());
+    project.project = colorizing::test_files::projectEntries(snapshot);
     return project;
 }
 
+// What opening the saved project gives.
 ProjectSnapshot parse(const SerializedProject& project)
 {
-    const auto crom = colorizing::legacy::parseModernLegacyCromFrames(project.crom);
-    expect(crom.ok, "serialized cROM should parse: " + crom.errorMessage);
-    // Up to the settings block a project with triggers ends with.
-    const std::size_t rest = project.crom.size() - crom.nextOffset;
-    expect(rest == 0 || (rest > 8 && std::string(project.crom.begin() +
-                                                     static_cast<std::ptrdiff_t>(crom.nextOffset),
-                                                 project.crom.begin() +
-                                                     static_cast<std::ptrdiff_t>(crom.nextOffset) +
-                                                     4) == "SCX1"),
-           "parser should consume the whole cROM");
-    const auto crp =
-        colorizing::legacy::parseLegacyCrpOriginalFrames(project.crp, crom.frameData.metadata);
-    expect(crp.ok, "serialized cRP should parse: " + crp.errorMessage);
-    expect(crp.nextOffset == project.crp.size(), "parser should consume the whole cRP");
-    const auto built = colorizing::legacy::buildProjectSnapshot(crom.frameData, crp.originalData);
-    expect(built.ok, "serialized project should build a snapshot: " + built.errorMessage);
-    return built.snapshot;
+    return colorizing::test_files::fromProjectEntries(project.project);
+}
+
+// The fixed legacy files of makeSnapshot()'s project (tests/fixtures/legacy) as read.
+struct LegacyParts {
+    colorizing::legacy::LegacyCromFrameParseResult crom;
+    colorizing::legacy::LegacyCrpOriginalParseResult crp;
+};
+
+LegacyParts parseFixtureParts()
+{
+    const std::vector<uint8_t> cromBytes =
+        colorizing::test_files::legacyFixtureBytes("native192x64.cROM");
+    const std::vector<uint8_t> crpBytes =
+        colorizing::test_files::legacyFixtureBytes("native192x64.cRP");
+    LegacyParts parts{colorizing::legacy::parseModernLegacyCromFrames(cromBytes), {}};
+    expect(parts.crom.ok, "the fixture's cROM should parse: " + parts.crom.errorMessage);
+    parts.crp =
+        colorizing::legacy::parseLegacyCrpOriginalFrames(crpBytes, parts.crom.frameData.metadata);
+    expect(parts.crp.ok, "the fixture's cRP should parse: " + parts.crp.errorMessage);
+    expect(parts.crp.nextOffset == crpBytes.size(), "parser should consume the whole cRP");
+    return parts;
+}
+
+ProjectSnapshot parseFixture()
+{
+    const LegacyParts parts = parseFixtureParts();
+    const auto snapshot =
+        colorizing::legacy::buildProjectSnapshot(parts.crom.frameData, parts.crp.originalData);
+    expect(snapshot.ok, "the fixture should build a snapshot: " + snapshot.errorMessage);
+    return snapshot.snapshot;
 }
 
 std::size_t sectionIndex(const LegacySectionOffsets& sections, const std::string& name)
@@ -317,7 +328,6 @@ void expectSameOriginalSections(const SerializedProject& expected,
                    "\"" + name + "\" should be unchanged " + when);
         }
     }
-    expect(expected.crp == actual.crp, "the cRP should be unchanged " + when);
 }
 
 void testSnapshotValidation()
@@ -392,7 +402,6 @@ void testHeaderAndBlockSizes()
     expect(size("SD background masks") == frames * 192 * 64 &&
                size("HD background masks") == frames * 96 * 32,
            "background masks of both planes");
-    expect(project.crp.size() > 64 + frames * 192 * 64, "the cRP holds 192x64 originals");
 
     const std::size_t boxes = sectionOffset(project, "frame sprite bounding boxes");
     expect(readU16(project.crom, boxes + 4) == 191 && readU16(project.crom, boxes + 6) == 63,
@@ -477,7 +486,7 @@ void testExtraPlaneIsDiscardedOnLoad()
 {
     const SerializedProject project = serialize(makeSnapshot());
 
-    const ProjectSnapshot loaded = parse(project);
+    const ProjectSnapshot loaded = parseFixture();
     expect(loaded.geometry == ProjectGeometry(PlaneLayout::NativeOriginal),
            "the geometry is derived from the header");
     expect(loaded.frames[1].originalSd.size == kNativeSize &&
@@ -529,7 +538,7 @@ void testExtraPlaneIsDiscardedOnLoad()
     expectSameOriginalSections(project, saved, "by discarding the 96x32 data");
 
     const SerializedProject again = serialize(parse(saved));
-    expect(again.crom == saved.crom && again.crp == saved.crp,
+    expect(again.crom == saved.crom && again.project == saved.project,
            "a second load and save is byte-identical to the first");
 }
 
@@ -566,12 +575,12 @@ void testDocumentDiscardsExtraPlane()
         const SerializedProject saved = serialize(unedited);
         expectNeutralExtraSections(saved, "by an unedited document");
         expectSameOriginalSections(project, saved, "by an unedited document");
-        const SerializedProject loadedAndSaved = serialize(parse(project));
-        expect(saved.crom == loadedAndSaved.crom && saved.crp == loadedAndSaved.crp,
-               "the document and the loader write the same file");
+        const SerializedProject loadedAndSaved = serialize(parseFixture());
+        expect(saved.crom == loadedAndSaved.crom,
+               "the document and the legacy loader write the same cROM");
         const SerializedProject again =
             serialize(ProjectDocument::fromSnapshot(parse(saved)).toSnapshot());
-        expect(again.crom == saved.crom && again.crp == saved.crp,
+        expect(again.crom == saved.crom && again.project == saved.project,
                "a second save is byte-identical to the first");
     }
 
@@ -669,17 +678,15 @@ void testDocumentDiscardsExtraPlane()
            "original-plane data round-trips through the file");
     const SerializedProject again =
         serialize(ProjectDocument::fromSnapshot(reloaded).toSnapshot());
-    expect(again.crom == saved.crom && again.crp == saved.crp,
+    expect(again.crom == saved.crom && again.project == saved.project,
            "saving the edited project a second time is byte-identical");
 }
 
 void testUnsupportedHeaderGeometryIsRefused()
 {
-    const SerializedProject project = serialize(makeSnapshot());
-    auto crom = colorizing::legacy::parseModernLegacyCromFrames(project.crom);
-    const auto crp =
-        colorizing::legacy::parseLegacyCrpOriginalFrames(project.crp, crom.frameData.metadata);
-    expect(crom.ok && crp.ok, "the fixture parses");
+    LegacyParts parts = parseFixtureParts();
+    auto& crom = parts.crom;
+    const auto& crp = parts.crp;
 
     crom.frameData.metadata.hdFrameWidth = 384;
     crom.frameData.metadata.hdFrameHeight = 128;

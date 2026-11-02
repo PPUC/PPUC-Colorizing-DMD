@@ -53,11 +53,12 @@ add_executable(colorizing_qt_v2_tests
 target_link_libraries(colorizing_qt_v2_tests
     PRIVATE
         colorizing_qt_v2_core
-        colorizing_legacy_writers
         serum_static
 )
 
 colorizing_qt_v2_enable_test_warnings(colorizing_qt_v2_tests)
+target_compile_definitions(colorizing_qt_v2_tests PRIVATE
+    COLORIZING_LEGACY_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/legacy")
 
 add_test(NAME colorizing_qt_v2_tests COMMAND colorizing_qt_v2_tests)
 
@@ -69,7 +70,6 @@ add_executable(colorizing_qt_v2_roundtrip
 target_link_libraries(colorizing_qt_v2_roundtrip
     PRIVATE
         colorizing_qt_v2_core
-        colorizing_legacy_writers
 )
 
 colorizing_qt_v2_enable_warnings(colorizing_qt_v2_roundtrip)
@@ -113,10 +113,11 @@ if(TARGET colorizing_qt_v2_widgets)
     target_link_libraries(colorizing_qt_v2_widget_tests
         PRIVATE
             colorizing_qt_v2_widgets
-            colorizing_legacy_writers
-    )
+        )
 
     colorizing_qt_v2_enable_test_warnings(colorizing_qt_v2_widget_tests)
+    target_compile_definitions(colorizing_qt_v2_widget_tests PRIVATE
+        COLORIZING_LEGACY_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/legacy")
 
     add_test(NAME colorizing_qt_v2_widget_tests COMMAND colorizing_qt_v2_widget_tests)
 

@@ -23,7 +23,7 @@
 #include "legacy/LegacyProjectSerializer.h"
 #include "runtime/FrameIdentification.h"
 #include "runtime/RuntimePreview.h"
-#include "legacy/LegacyCrpWriter.h"
+#include "ProjectTestFiles.h"
 
 #include <miniz/miniz.h>
 
@@ -839,16 +839,6 @@ std::string serializedCrom(const ProjectSnapshot& snapshot,
     return stream.str();
 }
 
-std::string serializedCrp(const ProjectSnapshot& snapshot,
-                          legacy::LegacySectionOffsets* sections = nullptr)
-{
-    std::ostringstream stream(std::ios::binary);
-    std::string error;
-    expect(legacy::writeLegacyCrp(stream, snapshot, error, sections),
-           "the cRP is written: " + error);
-    return stream.str();
-}
-
 uint32_t u32At(const std::string& bytes, std::size_t offset)
 {
     return static_cast<uint32_t>(static_cast<uint8_t>(bytes[offset])) |
@@ -927,14 +917,11 @@ void testNewProject(Size dumpSize, uint32_t shades)
     ProjectDocument project = ProjectDocument::fromSnapshot(snapshot);
     expect(!project.isDirty(), what + ": a new document is clean");
     legacy::LegacySectionOffsets cromSections;
-    legacy::LegacySectionOffsets crpSections;
     const ProjectSnapshot saved = project.toSnapshot();
     const std::string crom = serializedCrom(saved, &cromSections);
-    const std::string crp = serializedCrp(saved, &crpSections);
-    expect(crom == serializedCrom(snapshot) && crp == serializedCrp(snapshot),
+    expect(crom == serializedCrom(snapshot),
            what + ": the document writes what the snapshot writes");
     const std::map<std::string, std::string> cromBlocks = blocks(crom, cromSections);
-    const std::map<std::string, std::string> crpBlocks = blocks(crp, crpSections);
     const std::size_t n = kept.size();
     const std::vector<uint16_t> colors = legacy::legacyOriginalColors(colorCount);
 
@@ -1037,36 +1024,25 @@ void testNewProject(Size dumpSize, uint32_t shades)
     }
     expectEqual(kept[5].durationMs, 10u, what + ": the short frame");
 
-    // cRP: originals, durations, the plain colors in palette 0 and the edit colors, and
-    // nothing else.
-    expectEqual(std::string(crpBlocks.at("ROM name").c_str()), std::string("newrom"),
-                what + ": cRP ROM name");
-    const std::string& originals = crpBlocks.at("original frames");
-    const std::string& durations = crpBlocks.at("frame durations");
-    expectEqual(originals.size(), n * pixelsOf(romSize), what + ": originals size");
+    // The project: originals, durations, the plain colors in palette 0 and the edit colors.
+    expectEqual(saved.romName, std::string("newrom"), what + ": project ROM name");
+    expectEqual(saved.frames.size(), n, what + ": project frames");
     for (std::size_t frame = 0; frame < n; ++frame) {
-        expect(originals.compare(frame * pixelsOf(romSize), pixelsOf(romSize),
-                                 std::string(kept[frame].original.pixels.begin(),
-                                             kept[frame].original.pixels.end())) == 0,
+        expect(std::equal(saved.frames[frame].originalSd.pixels.begin(),
+                          saved.frames[frame].originalSd.pixels.end(),
+                          kept[frame].original.pixels.begin()),
                what + ": original of frame " + std::to_string(frame));
-        expectEqual(u32At(durations, frame * 4), kept[frame].durationMs, what + ": duration");
+        expectEqual(saved.frames[frame].durationMs, kept[frame].durationMs, what + ": duration");
     }
-    const std::string& palettes = crpBlocks.at("palettes");
-    const std::string& editColors = crpBlocks.at("edit colors");
-    expectEqual(palettes.size(), std::size_t{256 * 64 * 2}, what + ": palettes size");
-    for (std::size_t index = 0; index < 256 * 64; ++index) {
-        expectEqual(u16At(palettes, index * 2), index < colorCount ? colors[index] : uint16_t{0},
+    for (std::size_t index = 0; index < 64; ++index) {
+        expectEqual(saved.palettes.at(0).colors.at(index),
+                    index < colorCount ? colors[index] : uint16_t{0},
                     what + ": palette entry " + std::to_string(index));
     }
     for (std::size_t index = 0; index < 16; ++index) {
-        expectEqual(u16At(editColors, index * 2), index < colorCount ? colors[index] : uint16_t{0},
+        expectEqual(saved.editorMetadata.editColors.at(index),
+                    index < colorCount ? colors[index] : uint16_t{0},
                     what + ": edit color " + std::to_string(index));
-    }
-    for (const char* zero : {"color sets", "draw settings", "mask names", "sections",
-                             "sprite names", "sprite source frames", "sprite source rectangles",
-                             "image positions", "palette names", "imported palettes",
-                             "elapsed time", "PuP pack"}) {
-        expectFilled(crpBlocks, zero, crpBlocks.at(zero).size(), 0, what);
     }
     // The ramp of the Win32 editor: 5 bits in red and the same 5 bits in the green field.
     expect(colors.front() == 0 && colors.back() == ((31 << 11) | (31 << 5)),
@@ -1136,7 +1112,9 @@ void testNewProjectRefusals()
 std::string serialized(const ProjectDocument& project)
 {
     const ProjectSnapshot snapshot = project.toSnapshot();
-    return serializedCrom(snapshot) + serializedCrp(snapshot);
+    // The entries without component IDs: two documents of one content have different ones.
+    return serializedCrom(snapshot) +
+           colorizing::test_files::projectEntries(snapshot).at("editor.json");
 }
 
 void testAddFrames(Size dumpSize)

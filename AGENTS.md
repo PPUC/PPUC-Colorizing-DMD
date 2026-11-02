@@ -23,7 +23,8 @@ colorizations. See `readme.md` for what the editor is and how to build it.
   the commit the firmware pins (its `README.md`).
 - `third-party/phosphor-icons/`: the icons of the drawing tools, as SVG and as the PNGs the
   editor builds in, so that it needs no Qt module besides Qt Base (its `README.md`).
-- `tests/`: `colorizing_qt_v2_tests` (core) and `colorizing_qt_v2_widget_tests` (widgets). Each
+- `tests/`: `colorizing_qt_v2_tests` (core) and `colorizing_qt_v2_widget_tests` (widgets), with
+  the fixed legacy files of `tests/fixtures/`. Each
   file has a `run…Tests()` function that the main of its executable calls.
 - `handbook/en/`: the user handbook, one Markdown file per chapter, built into the app
   (`Help -> Handbook`). `handbook/en/README.md` lists the chapters in order.
@@ -79,8 +80,9 @@ A change is complete only with all of these, in the same commit:
   the tag `v3.17.3` (`git show v3.17.3:<file>`); they are not on the branch.
 - New project data goes into the project file (`core/project/ProjectFile.h` documents the
   layout): a field or entry a reader can skip. The legacy files (`.cROM`, `.cRZ`, `.cRP`,
-  `.cRPX`) are only read. Their writers in `tests/legacy-writers` are deprecated test support,
-  to be removed; use them in no new code or test.
+  `.cRPX`) are only read and converted; nothing writes them. The tests of the readers work from
+  the fixed files in `tests/fixtures/legacy` (its `README.md`). The cROM that libserum reads and
+  the `.cROMc` export are written by `core/legacy`; that is not a project format.
 - Projects are made for libserum 2.9 and later only (`core/document/ProjectLimits.h`). The cROM
   layout libserum reads changes only together with libserum, under a new cROM format version.
 - Keep repository text (code, commits, docs) technical.

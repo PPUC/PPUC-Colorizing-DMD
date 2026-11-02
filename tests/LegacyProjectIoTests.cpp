@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "render/CanvasLayout.h"
-#include "legacy/LegacyProjectFileWriter.h"
 
 using colorizing::document::ProjectDocument;
 using colorizing::document::ProjectFrameSnapshot;
@@ -15,7 +14,6 @@ using colorizing::document::UnsupportedLegacyPayload;
 using colorizing::document::makeIndexedFrame;
 using colorizing::document::makeRgb565Frame;
 using colorizing::legacy::ILegacyProjectReader;
-using colorizing::legacy::ILegacyProjectWriter;
 using colorizing::legacy::LegacyIoError;
 using colorizing::legacy::LegacyLoadResult;
 using colorizing::legacy::LegacyProjectPaths;
@@ -74,22 +72,6 @@ private:
     ProjectSnapshot m_snapshot;
 };
 
-class CapturingWriter final : public ILegacyProjectWriter {
-public:
-    LegacySaveResult save(const LegacyProjectPaths& paths,
-                          const ProjectSnapshot& snapshot,
-                          colorizing::legacy::LegacyIoProgress* = nullptr) const override
-    {
-        if (paths.cromPath.empty() || paths.crpPath.empty()) {
-            return makeSaveFailure("both .cROM and .cRP paths are required");
-        }
-        lastSnapshot = snapshot;
-        return makeSaveSuccess();
-    }
-
-    mutable ProjectSnapshot lastSnapshot;
-};
-
 void testReaderFeedsProjectDocument()
 {
     const SyntheticReader reader(makeSyntheticSnapshot());
@@ -126,45 +108,10 @@ void testReaderRequiresBothPaths()
            "reader failure message");
 }
 
-void testWriterReceivesDocumentSnapshot()
-{
-    ProjectDocument document = ProjectDocument::fromSnapshot(makeSyntheticSnapshot());
-    document.setColorizedPixel(0, Resolution::Sd, 0, 0, 0xabcd);
-
-    const CapturingWriter writer;
-    const LegacySaveResult result = writer.save(LegacyProjectPaths{
-        "/tmp/game.cROM",
-        "/tmp/game.cRP",
-    }, document.toSnapshot());
-
-    expect(result.ok, "capturing writer should succeed for complete paths");
-    expect(writer.lastSnapshot.romName == "fixture_rom", "writer captured ROM name");
-    expect(writer.lastSnapshot.frames.size() == 1, "writer captured frame count");
-    expect(writer.lastSnapshot.frames[0].colorizedSd.pixels.front() == 0xabcd,
-           "writer captured edited SD pixel");
-    expect(writer.lastSnapshot.unsupportedPayloads.size() == 1,
-           "writer captured unsupported payload");
-}
-
-void testWriterRequiresBothPaths()
-{
-    const CapturingWriter writer;
-    const LegacySaveResult result = writer.save(LegacyProjectPaths{
-        "",
-        "/tmp/game.cRP",
-    }, makeSyntheticSnapshot());
-
-    expect(!result.ok, "writer should fail without .cROM path");
-    expect(result.error.message == "both .cROM and .cRP paths are required",
-           "writer failure message");
-}
-
 }  // namespace
 
 void runLegacyProjectIoTests()
 {
     testReaderFeedsProjectDocument();
     testReaderRequiresBothPaths();
-    testWriterReceivesDocumentSnapshot();
-    testWriterRequiresBothPaths();
 }

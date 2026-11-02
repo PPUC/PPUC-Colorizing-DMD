@@ -21,9 +21,9 @@
 #include "dialogs/ProjectTaskDialog.h"
 #include "document/ProjectDocument.h"
 #include "legacy/LegacyProjectFileReader.h"
-#include "legacy/LegacyProjectFileWriter.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
+#include "ProjectTestFiles.h"
 
 namespace {
 
@@ -132,14 +132,10 @@ void testSaveCancelledKeepsFilesAndDocument()
     document.setFrameDurationMs(0, 77);
     const uint64_t revision = document.revision();
     const std::string before = serializedCrom(document);
-    const auto cromPath = uniqueTempPath(".cROM");
-    const auto crpPath = uniqueTempPath(".cRP");
-    const auto crzPath = uniqueTempPath(".cRZ");
-    writeFile(cromPath, "old crom");
-    writeFile(crpPath, "old crp");
-    const legacy::LegacyProjectPaths paths{platform::utf8FromPath(cromPath),
-                                           platform::utf8FromPath(crpPath),
-                                           platform::utf8FromPath(crzPath)};
+    const auto path = uniqueTempPath(".cdmd");
+    const std::string pathText = platform::utf8FromPath(path);
+    writeFile(path, "old project");
+    const project::ProjectFileOptions options{"test"};
 
     Gate gate;
     std::string firstText;
@@ -150,7 +146,7 @@ void testSaveCancelledKeepsFilesAndDocument()
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
             app::runProjectTask(nullptr, QStringLiteral("Saving Project"), progress, [&]() {
-                result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
+                result = project::saveProjectFile(pathText, snapshot, options, &progress);
             });
         expect(!failure, "no exception");
     }
@@ -158,14 +154,9 @@ void testSaveCancelledKeepsFilesAndDocument()
     expect(gate.dialogsShown == 1, "the dialog was shown");
     expect(firstText == "Starting…", "the dialog starts with the first stage");
     expect(!result.ok && result.cancelled, "the save was cancelled");
-    expect(readFile(cromPath) == "old crom" && readFile(crpPath) == "old crp" &&
-               !std::filesystem::exists(crzPath),
-           "a cancelled save leaves the files as they were");
-    for (const auto& path : {cromPath, crpPath, crzPath}) {
-        expect(!std::filesystem::exists(platform::pathFromUtf8(platform::utf8FromPath(path) +
-                                                               ".saving")),
-               "no temporary file is left");
-    }
+    expect(readFile(path) == "old project", "a cancelled save leaves the file as it was");
+    expect(!std::filesystem::exists(platform::pathFromUtf8(pathText + ".saving")),
+           "no temporary file is left");
     expect(document.revision() == revision && document.isDirty(),
            "the document is unchanged and still has unsaved changes");
     expect(serializedCrom(document) == before, "the document's content is unchanged");
@@ -177,44 +168,38 @@ void testSaveCancelledKeepsFilesAndDocument()
         const document::ProjectSnapshot snapshot = document.toSnapshot();
         legacy::LegacyIoProgress progress;
         (void)app::runProjectTask(nullptr, QStringLiteral("Saving Project"), progress, [&]() {
-            result = legacy::LegacyProjectFileWriter().save(paths, snapshot, &progress);
+            result = project::saveProjectFile(pathText, snapshot, options, &progress);
         });
     }
     removeHooks();
     expect(result.ok, "the save through the dialog succeeds: " + result.error.message);
-    expect(readFile(cromPath) == before, "it wrote the document");
-    expect(std::filesystem::exists(crzPath), "and the archive");
+    const legacy::LegacyLoadResult saved = project::loadProjectFile(pathText);
+    expect(saved.ok && saved.snapshot.frames[0].durationMs == 77, "it wrote the document");
     expect(document.revision() == revision, "saving does not change the document");
 
     // A save that fails (no such folder) leaves no file either.
     const auto missing = uniqueTempPath("_missing_folder");
-    const legacy::LegacyProjectPaths badPaths{
-        platform::utf8FromPath(missing / "game.cROM"), platform::utf8FromPath(missing / "game.cRP"),
-        platform::utf8FromPath(missing / "game.cRZ")};
     {
         const document::ProjectSnapshot snapshot = document.toSnapshot();
         legacy::LegacyIoProgress progress;
         (void)app::runProjectTask(nullptr, QStringLiteral("Saving Project"), progress, [&]() {
-            result = legacy::LegacyProjectFileWriter().save(badPaths, snapshot, &progress);
+            result = project::saveProjectFile(platform::utf8FromPath(missing / "game.cdmd"),
+                                              snapshot, options, &progress);
         });
     }
     expect(!result.ok && !result.cancelled, "a save into a missing folder fails");
     expect(!std::filesystem::exists(missing), "and writes nothing");
 
-    for (const auto& path : {cromPath, crpPath, crzPath}) {
-        std::filesystem::remove(path);
-    }
+    std::filesystem::remove(path);
 }
 
 void testOpenCancelledAndOpened()
 {
     const document::ProjectDocument source = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeFullProject(render::PlaneLayout::NativeExtra));
-    const auto cromPath = uniqueTempPath(".cROM");
-    const auto crpPath = uniqueTempPath(".cRP");
-    const legacy::LegacyProjectPaths paths{platform::utf8FromPath(cromPath),
-                                           platform::utf8FromPath(crpPath)};
-    expect(legacy::LegacyProjectFileWriter().save(paths, source.toSnapshot()).ok, "fixture");
+    const legacy::LegacyProjectPaths paths{
+        platform::utf8FromPath(colorizing::test_files::legacyFixturePath("full.cROM")),
+        platform::utf8FromPath(colorizing::test_files::legacyFixturePath("full.cRP"))};
 
     for (const bool cancel : {true, false}) {
         Gate gate;
@@ -231,12 +216,11 @@ void testOpenCancelledAndOpened()
                    "a cancelled open gives no project");
         } else {
             expect(result.ok && result.document, "the open succeeds: " + result.error.message);
-            expect(serializedCrom(*result.document) == serializedCrom(source),
+            expect(result.document->frameCount() == source.frameCount() &&
+                       result.document->spriteCount() == source.spriteCount(),
                    "the opened project is the saved one");
         }
     }
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
 }
 
 void testDialogTexts()

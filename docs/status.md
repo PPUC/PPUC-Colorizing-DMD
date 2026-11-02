@@ -21,10 +21,9 @@ behaviour reference; what changed when, and why, is in the git history (commit m
 - **Project file (owner decisions 2026-10-14, 2026-10-23 and 2026-10-26):** the app saves the
   project file (`.cdmd`, see `project/` below) and writes no legacy file (`Export For Earlier
   Editors` was removed with the libserum target); a machine gets the `.cROMc`. The core keeps the
-  readers and `writeLegacyCrom()` (the cROM handed to libserum). The writers of `.cRP`, `.cRPX`,
-  `.cRZ` and `LegacyProjectFileWriter` moved to `tests/legacy-writers`, deprecated, only for the
-  tests that still make legacy projects and for `colorizing_qt_v2_roundtrip`; they are to be removed
-  (see "Next steps"). The `.cROM`/`.cRZ`/`.cRP`/`.cRPX` of 3.17.3 and of earlier versions of this
+  readers and `writeLegacyCrom()` (the cROM handed to libserum). The writers of `.cRP`, `.cRPX` and
+  `.cRZ` are gone: the readers' tests work from the fixed files in `tests/fixtures/legacy`, other
+  tests round-trip through the entries of a project file (`tests/ProjectTestFiles.h`). The `.cROM`/`.cRZ`/`.cRP`/`.cRPX` of 3.17.3 and of earlier versions of this
   editor are read and opened as converted (no project path, `m_sourcePath` names their files);
   nothing is written over or renamed. New project data goes into the project file.
 - **Projects are made for libserum 2.9 only (owner decision 2026-10-26):** there is no
@@ -184,8 +183,8 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   the left browser with `New` and `Delete` above it), `dialogs/DumpImportDialog` and
   `dialogs/ColorPickerDialog`.
 - `tests/`: core test executable, widget test executable, `colorizing_qt_v2_roundtrip`
-  (loads a real project; the cRP must be byte-identical with the file, the cROM of format
-  version 1 written, read back and written again must be byte-identical) and
+  (loads a real project; the cROM of format version 1 written, read back and written again must
+  be byte-identical) and
   `colorizing_qt_v2_preview_diff` (renders every frame of a real project with the editor's
   renderer and with libserum and reports the differing pixels by class; with `--playback` it
   plays the frames through the runtime preview's windows and through the whole project and
@@ -1385,13 +1384,10 @@ Reviewed for Windows/MinGW and left unchanged:
    through an animation, shade-adjusted and with motion, then offer it to the AI assistant.
 5. After the authors confirm feature parity with 3.17.3 (owner decision 2026-10-19): the
    persistent runtime instance below. Later, by decision of the owner: a new project format.
-6. Remove the deprecated legacy writers (`tests/legacy-writers`, owner 2026-10-26): the tests
-   that make legacy projects with them work from fixed bytes and the real projects instead,
-   and `colorizing_qt_v2_roundtrip` checks the readers without the cRP writer.
-7. Teams: remove packages (and notices) from the repository once every partner merged them,
+6. Teams: remove packages (and notices) from the repository once every partner merged them,
    after a grace period (owner, 2026-10-23: later). Nothing removes them yet, so packages/
    only grows.
-8. DOF events (owner, 2026-10-27: prepared before libserum 3.0.0, no full integration yet):
+7. DOF events (owner, 2026-10-27: prepared before libserum 3.0.0, no full integration yet):
    frames carry them and libserum emits them (`Serum_GetDofEvents()`), but no host passes them
    to libdof yet (libdmdutil, the VPX Serum plugin), and the editor's PuP and plugin hosts do
    not either. Named elements (`$name`) are not supported: libdof's `DataReceive()` cannot take
@@ -1487,7 +1483,7 @@ does exactly this.
 cmake -S . -B <build dir> -G Ninja -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt
 cmake --build <build dir>
 (cd <build dir> && QT_QPA_PLATFORM=offscreen ctest --output-on-failure)
-<build dir>/tests/colorizing_qt_v2_roundtrip <project>.cRZ <project>.cRP   # must print "identical" twice
+<build dir>/tests/colorizing_qt_v2_roundtrip <project>.cRZ <project>.cRP   # must print "identical"
 <build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP   # native plane identical
 <build dir>/tests/colorizing_qt_v2_preview_diff <project>.cRZ <project>.cRP --playback 48   # playback like the whole project
 tools/ui_dump/run.sh baseline   # before a change

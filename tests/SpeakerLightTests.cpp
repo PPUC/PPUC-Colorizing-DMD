@@ -14,11 +14,11 @@
 #include "RuntimeFixtures.h"
 #include "edit/SpeakerLightEdits.h"
 #include "legacy/LegacyProjectFileReader.h"
-#include "legacy/LegacyProjectFileWriter.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
 #include "runtime/RuntimePreview.h"
 #include "runtime/SpeakerLightPlayer.h"
+#include "ProjectTestFiles.h"
 
 namespace {
 
@@ -332,15 +332,6 @@ void testUpdateAmbientLighting()
            "what an update would set, for the marks in the Speaker Lights section");
 }
 
-std::filesystem::path tempPath(const std::string& suffix)
-{
-    static int counter = 0;
-    static const std::string run =
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
-    return std::filesystem::temp_directory_path() /
-           ("colorizing_qt_v2_lights_" + run + "_" + std::to_string(counter++) + suffix);
-}
-
 std::vector<uint8_t> readFile(const std::filesystem::path& path)
 {
     std::ifstream in(path, std::ios::binary);
@@ -350,12 +341,13 @@ std::vector<uint8_t> readFile(const std::filesystem::path& path)
 void testFiles()
 {
     const document::ProjectSnapshot snapshot = makeProjectWithLights();
-    const std::filesystem::path cromPath = tempPath(".cROM");
-    const std::filesystem::path crpxPath = tempPath(".cRPX");
+    // The fixed files of that project.
+    const std::filesystem::path cromPath =
+        colorizing::test_files::legacyFixturePath("lights.cROM");
+    const std::filesystem::path crpxPath =
+        colorizing::test_files::legacyFixturePath("lights.cRPX");
     const legacy::LegacyProjectPaths paths{platform::utf8FromPath(cromPath),
                                            platform::utf8FromPath(crpxPath)};
-    expect(legacy::LegacyProjectFileWriter().save(paths, snapshot).ok,
-           "a project with speaker lights is saved");
     const legacy::LegacyLoadResult loaded = legacy::LegacyProjectFileReader().load(paths);
     expect(loaded.ok, "and loads: " + loaded.error.message);
     expect(loaded.snapshot.speakerLights == snapshot.speakerLights &&
@@ -375,8 +367,6 @@ void testFiles()
     document::ProjectSnapshot plain = runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
     expect(legacy::cromSettingsBlock(plain).empty(),
            "a project without lights or settings writes no block, as before");
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpxPath);
 }
 
 // libserum takes the lights from the cROM: the defaults, and the effects a frame starts.

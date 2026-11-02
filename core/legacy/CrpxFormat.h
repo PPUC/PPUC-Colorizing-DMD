@@ -9,8 +9,7 @@
 
 namespace colorizing::legacy::crpx {
 
-// The parts of the .cRPX layout (CrpxFile.h) its reader in the core and the deprecated writer of
-// the tests (tests/legacy-writers) share. Not part of the API.
+// The parts of the .cRPX layout (CrpxFile.h) its reader needs. Not part of the API.
 
 inline constexpr std::array<char, 8> kMagic = {'C', 'D', 'M', 'D', 'c', 'R', 'P', 'X'};
 

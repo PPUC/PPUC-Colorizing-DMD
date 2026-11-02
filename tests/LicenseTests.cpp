@@ -13,8 +13,10 @@
 #include "RuntimeFixtures.h"
 #include "edit/LicenseEdits.h"
 #include "legacy/LegacyProjectFileReader.h"
-#include "legacy/LegacyProjectFileWriter.h"
 #include "platform/Utf8Path.h"
+#include "ProjectTestFiles.h"
+
+namespace test_files = colorizing::test_files;
 
 namespace {
 
@@ -111,16 +113,15 @@ std::size_t chunkStart(const std::vector<char>& bytes)
 
 void testFiles()
 {
-    document::ProjectSnapshot snapshot =
-        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2);
+    document::ProjectSnapshot snapshot;
     snapshot.license = makeLicense();
     snapshot.license.customText = "Kept text\nof two lines";
-    const std::filesystem::path cromPath = tempPath(".cROM");
+    // The fixed files of a project with that license; the cRPX is changed below, so a copy.
+    const std::filesystem::path cromPath = test_files::legacyFixturePath("license.cROM");
     const std::filesystem::path crpxPath = tempPath(".cRPX");
+    std::filesystem::copy_file(test_files::legacyFixturePath("license.cRPX"), crpxPath);
     const legacy::LegacyProjectPaths paths{platform::utf8FromPath(cromPath),
                                            platform::utf8FromPath(crpxPath)};
-    expect(legacy::LegacyProjectFileWriter().save(paths, snapshot).ok,
-           "a project with a license is saved");
     legacy::LegacyLoadResult loaded = legacy::LegacyProjectFileReader().load(paths);
     expect(loaded.ok && loaded.snapshot.license == snapshot.license,
            "and loads with its license (chunk LICN)");
@@ -143,11 +144,6 @@ void testFiles()
     expect(!loaded.ok && loaded.error.message.find("license") != std::string::npos,
            "a damaged chunk is refused: " + loaded.error.message);
 
-    snapshot.license = {};
-    expect(legacy::LegacyProjectFileWriter().save(paths, snapshot).ok &&
-               chunkStart(readFile(crpxPath)) == std::string::npos,
-           "a project without a license writes no chunk");
-    std::filesystem::remove(cromPath);
     std::filesystem::remove(crpxPath);
 }
 

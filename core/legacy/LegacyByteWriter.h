@@ -11,8 +11,7 @@
 
 namespace colorizing::legacy::detail {
 
-// What the legacy writers share: the cROM writer of the core (LegacyProjectSerializer.cpp)
-// and the deprecated cRP writer of the tests (tests/legacy-writers). Not part of the API.
+// What the cROM writer of the core (LegacyProjectSerializer.cpp) writes with. Not part of the API.
 
 inline constexpr std::size_t kRomNameBytes = 64;
 inline constexpr std::size_t kFlushThresholdBytes = 1 << 20;

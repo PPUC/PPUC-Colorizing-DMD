@@ -27,11 +27,10 @@
 #include "legacy/LegacyCromFrames.h"
 #include "legacy/LegacyCrpOriginals.h"
 #include "legacy/LegacyProjectFileReader.h"
-#include "legacy/LegacyProjectFileWriter.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "legacy/LegacySnapshotBuilder.h"
 #include "platform/Utf8Path.h"
-#include "legacy/LegacyCrpWriter.h"
+#include "ProjectTestFiles.h"
 
 namespace {
 
@@ -57,42 +56,37 @@ void expect(bool condition, const std::string& message)
 
 struct SerializedProject {
     std::string crom;
-    std::string crp;
+    colorizing::test_files::Entries project;
 };
 
 SerializedProject serialize(const ProjectSnapshot& snapshot)
 {
     std::ostringstream crom;
-    std::ostringstream crp;
     std::string error;
-    if (!legacy::writeLegacyCrom(crom, snapshot, error) ||
-        !legacy::writeLegacyCrp(crp, snapshot, error)) {
+    if (!legacy::writeLegacyCrom(crom, snapshot, error)) {
         fail("serialize failed: " + error);
     }
-    return {crom.str(), crp.str()};
+    return {crom.str(), colorizing::test_files::projectEntries(snapshot)};
 }
 
-// What a load of the serialized files gives.
+// What opening the saved project gives.
 ProjectSnapshot parse(const SerializedProject& files)
 {
-    const auto* crom = reinterpret_cast<const uint8_t*>(files.crom.data());
-    const auto* crp = reinterpret_cast<const uint8_t*>(files.crp.data());
-    legacy::LegacyCromFrameParseResult frames =
-        legacy::parseModernLegacyCromFrames(crom, files.crom.size());
-    expect(frames.ok, "cROM parses: " + frames.errorMessage);
-    legacy::LegacyCrpOriginalParseResult originals =
-        legacy::parseLegacyCrpOriginalFrames(crp, files.crp.size(), frames.frameData.metadata);
-    expect(originals.ok, "cRP parses: " + originals.errorMessage);
-    legacy::LegacySnapshotBuildResult built = legacy::buildProjectSnapshot(
-        std::move(frames.frameData), std::move(originals.originalData));
-    expect(built.ok, "snapshot builds: " + built.errorMessage);
-    return std::move(built.snapshot);
+    return colorizing::test_files::fromProjectEntries(files.project);
 }
 
+// A project of the layout opened from fixed legacy files, as the readers fill it.
 ProjectDocument loadedDocument(PlaneLayout layout)
 {
-    return ProjectDocument::fromSnapshot(
-        parse(serialize(runtime_fixtures::makeFullProject(layout))));
+    const std::string name = layout == PlaneLayout::Ordinary      ? "ordinary"
+                              : layout == PlaneLayout::NativeExtra ? "full"
+                                                                   : "native192x64";
+    const legacy::LegacyProjectPaths paths{
+        platform::utf8FromPath(colorizing::test_files::legacyFixturePath(name + ".cROM")),
+        platform::utf8FromPath(colorizing::test_files::legacyFixturePath(name + ".cRP"))};
+    legacy::LegacyDocumentLoadResult loaded = legacy::loadLegacyProjectDocument(paths, nullptr);
+    expect(loaded.ok && loaded.document, "the fixture opens: " + loaded.error.message);
+    return std::move(*loaded.document);
 }
 
 // Gives every block of the snapshot a buffer of its own, as the storage before compact
@@ -280,7 +274,9 @@ void testLoadedDefaultBlocksAreShared()
 
 void testEditMaterialisesItsBlockAndUndoRestoresTheBytes()
 {
-    ProjectDocument document = loadedDocument(PlaneLayout::Ordinary);
+    ProjectDocument document = loadedDocument(PlaneLayout::NativeExtra);
+    const Resolution plane = document.dynamicPlane();
+    expect(plane == Resolution::Hd, "zones of a 256x64 project are on that plane");
     std::size_t first = document.frameCount();
     std::size_t second = document.frameCount();
     for (std::size_t frame = 0; frame < document.frameCount(); ++frame) {
@@ -293,26 +289,26 @@ void testEditMaterialisesItsBlockAndUndoRestoresTheBytes()
     }
     expect(second < document.frameCount(), "two frames without a dynamic zone");
     const SerializedProject before = serialize(document.toSnapshot());
-    const uint8_t* shared = document.dynamicData(second)->maskSd.pixels.data();
-    expect(document.dynamicMaskPixel(first, Resolution::Sd, 3, 4) == 255, "default read");
+    const uint8_t* shared = document.dynamicData(second)->maskHd.pixels.data();
+    expect(document.dynamicMaskPixel(first, plane, 3, 4) == 255, "default read");
 
-    edit::MaskEditCommand command(edit::EditKind::DynamicMask, first, Resolution::Sd,
+    edit::MaskEditCommand command(edit::EditKind::DynamicMask, first, plane,
                                   {edit::MaskPixelChange{3, 4, 255, 2}});
     command.apply(document);
-    expect(document.dynamicMaskPixel(first, Resolution::Sd, 3, 4) == 2, "the write is read");
-    expect(!document.dynamicData(first)->maskSd.pixels.isSharedUniform(),
+    expect(document.dynamicMaskPixel(first, plane, 3, 4) == 2, "the write is read");
+    expect(!document.dynamicData(first)->maskHd.pixels.isSharedUniform(),
            "the edited mask is materialised");
-    expect(document.dynamicData(second)->maskSd.pixels.data() == shared &&
-               document.dynamicData(second)->maskSd.pixels.isSharedUniform(),
+    expect(document.dynamicData(second)->maskHd.pixels.data() == shared &&
+               document.dynamicData(second)->maskHd.pixels.isSharedUniform(),
            "the other frame keeps the shared block");
     expect(document.hasDynamicPixels(first), "the frame has a dynamic zone now");
     expect(serialize(document.toSnapshot()).crom != before.crom, "the edit is saved");
 
     command.revert(document);
-    expect(document.dynamicMaskPixel(first, Resolution::Sd, 3, 4) == 255, "undo reads 255");
+    expect(document.dynamicMaskPixel(first, plane, 3, 4) == 255, "undo reads 255");
     expect(!document.hasDynamicPixels(first), "no zone after the undo");
     const SerializedProject after = serialize(document.toSnapshot());
-    expect(after.crom == before.crom && after.crp == before.crp,
+    expect(after.crom == before.crom && after.project == before.project,
            "after the undo the project saves to the bytes it had");
 }
 
@@ -345,7 +341,7 @@ void testUniformBlocksKeepTheirValue()
     ProjectSnapshot dense = snapshot;
     materialize(dense);
     const SerializedProject denseFiles = serialize(dense);
-    expect(files.crom == denseFiles.crom && files.crp == denseFiles.crp,
+    expect(files.crom == denseFiles.crom && files.project == denseFiles.project,
            "uniform blocks are written exactly like dense ones");
 
     const ProjectDocument document = ProjectDocument::fromSnapshot(parse(files));
@@ -365,7 +361,7 @@ void testUniformBlocksKeepTheirValue()
                "a uniform rotation table keeps its value");
     }
     const SerializedProject again = serialize(document.toSnapshot());
-    expect(again.crom == files.crom && again.crp == files.crp,
+    expect(again.crom == files.crom && again.project == files.project,
            "the loaded uniform blocks save to the same bytes");
 }
 
@@ -387,11 +383,10 @@ void testSaveSnapshotSharesTheDocumentsBlocks()
         materialize(dense);
         const SerializedProject shared = serialize(snapshot);
         const SerializedProject copied = serialize(dense);
-        expect(shared.crom == copied.crom && shared.crp == copied.crp,
+        expect(shared.crom == copied.crom && shared.project == copied.project,
                "saving the shared snapshot writes the bytes of a full copy");
-        expect(legacy::legacyCromByteCount(snapshot) == shared.crom.size() &&
-                   legacy::legacyCrpByteCount(snapshot) == shared.crp.size(),
-               "the byte counts for the progress are exact");
+        expect(legacy::legacyCromByteCount(snapshot) == shared.crom.size(),
+               "the byte count for the progress is exact");
 
         // A write to the document after the snapshot was taken does not reach it.
         const uint16_t old = document.colorizedPixel(0, Resolution::Sd, 0, 0);
@@ -423,12 +418,6 @@ void writeFile(const std::filesystem::path& path, const std::string& bytes)
     }
 }
 
-std::string readFile(const std::filesystem::path& path)
-{
-    std::ifstream stream(path, std::ios::binary);
-    return std::string((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-}
-
 // A project of several MB, so that reads and writes pass several progress reports.
 ProjectSnapshot largerProject()
 {
@@ -444,23 +433,18 @@ ProjectSnapshot largerProject()
 
 void testFileReaderStreamsWithProgress()
 {
-    const SerializedProject files = serialize(largerProject());
-    const auto cromPath = uniqueTempPath(".cROM");
-    const auto crpPath = uniqueTempPath(".cRP");
-    writeFile(cromPath, files.crom);
-    writeFile(crpPath, files.crp);
+    const auto cromPath = colorizing::test_files::legacyFixturePath("full.cROM");
+    const auto crpPath = colorizing::test_files::legacyFixturePath("full.cRP");
+    const std::uintmax_t bytes =
+        std::filesystem::file_size(cromPath) + std::filesystem::file_size(crpPath);
     const legacy::LegacyProjectPaths paths{platform::utf8FromPath(cromPath),
                                            platform::utf8FromPath(crpPath)};
 
     legacy::LegacyIoProgress progress;
     legacy::LegacyDocumentLoadResult loaded = legacy::loadLegacyProjectDocument(paths, &progress);
     expect(loaded.ok && loaded.document, "the streamed load succeeds: " + loaded.error.message);
-    expect(progress.total.load() == files.crom.size() + files.crp.size() &&
-               progress.done.load() == progress.total.load(),
+    expect(progress.total.load() == bytes && progress.done.load() == progress.total.load(),
            "the load reports every byte");
-    const SerializedProject again = serialize(loaded.document->toSnapshot());
-    expect(again.crom == files.crom && again.crp == files.crp,
-           "the streamed load saves to the same bytes");
 
     legacy::LegacyIoProgress cancelled;
     cancelled.cancel = true;
@@ -468,15 +452,16 @@ void testFileReaderStreamsWithProgress()
     expect(!none.ok && none.cancelled && !none.document, "a cancelled load gives no project");
 
     // A file that ends early is reported as before, from the stream.
-    writeFile(cromPath, files.crom.substr(0, files.crom.size() / 2));
-    const legacy::LegacyDocumentLoadResult truncated =
-        legacy::loadLegacyProjectDocument(paths, nullptr);
+    const std::vector<uint8_t> crom = colorizing::test_files::legacyFixtureBytes("full.cROM");
+    const auto truncatedPath = uniqueTempPath(".cROM");
+    writeFile(truncatedPath, std::string(crom.begin(), crom.begin() + crom.size() / 2));
+    const legacy::LegacyDocumentLoadResult truncated = legacy::loadLegacyProjectDocument(
+        legacy::LegacyProjectPaths{platform::utf8FromPath(truncatedPath), paths.crpPath}, nullptr);
     expect(!truncated.ok && !truncated.cancelled &&
                truncated.error.message.rfind("unexpected end of cROM", 0) == 0,
            "a truncated cROM fails with its block: " + truncated.error.message);
 
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
+    std::filesystem::remove(truncatedPath);
 }
 
 void testByteSourceAcrossBufferBoundaries()
@@ -549,41 +534,6 @@ void testWriteCancelsInTheMiddle()
            "it stopped after the first flush");
 }
 
-void testFileWriterCancelAndProgress()
-{
-    const ProjectSnapshot snapshot = largerProject();
-    const auto cromPath = uniqueTempPath(".cROM");
-    const auto crpPath = uniqueTempPath(".cRP");
-    writeFile(cromPath, "old crom");
-    writeFile(crpPath, "old crp");
-    const legacy::LegacyProjectPaths paths{platform::utf8FromPath(cromPath),
-                                           platform::utf8FromPath(crpPath)};
-    const legacy::LegacyProjectFileWriter writer;
-
-    legacy::LegacyIoProgress cancelled;
-    cancelled.cancel = true;
-    const legacy::LegacySaveResult stopped = writer.save(paths, snapshot, &cancelled);
-    expect(!stopped.ok && stopped.cancelled, "a cancelled save fails as cancelled");
-    expect(readFile(cromPath) == "old crom" && readFile(crpPath) == "old crp",
-           "a cancelled save leaves the files as they were");
-    expect(!std::filesystem::exists(platform::pathFromUtf8(paths.cromPath + ".saving")) &&
-               !std::filesystem::exists(platform::pathFromUtf8(paths.crpPath + ".saving")),
-           "and no temporary files");
-
-    legacy::LegacyIoProgress progress;
-    const legacy::LegacySaveResult saved = writer.save(paths, snapshot, &progress);
-    expect(saved.ok && !saved.cancelled, "the save succeeds: " + saved.error.message);
-    const SerializedProject files = serialize(snapshot);
-    expect(readFile(cromPath) == files.crom && readFile(crpPath) == files.crp,
-           "the saved files are the serialized bytes");
-    expect(progress.done.load() == progress.total.load() &&
-               progress.total.load() == files.crom.size() + files.crp.size(),
-           "the save reports every byte");
-    expect(progress.currentStage() == legacy::LegacyIoStage::Replacing, "the last stage");
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
-}
-
 // ---- undo memory
 
 void testStructureUndoMemoryLimit()
@@ -610,7 +560,7 @@ void testStructureUndoMemoryLimit()
     histories.undo(key, document);
     expect(!histories.canUndo(key), "the dropped step cannot be undone");
     const SerializedProject restored = serialize(document.toSnapshot());
-    expect(restored.crom == afterFirst.crom && restored.crp == afterFirst.crp,
+    expect(restored.crom == afterFirst.crom && restored.project == afterFirst.project,
            "undo reaches exactly the state after the dropped step");
 
     // A single step above the limit is kept: the step just made can always be undone.
@@ -747,6 +697,5 @@ void runCompactStorageTests()
     testFileReaderStreamsWithProgress();
     testByteSourceAcrossBufferBoundaries();
     testWriteCancelsInTheMiddle();
-    testFileWriterCancelAndProgress();
     testStructureUndoMemoryLimit();
 }

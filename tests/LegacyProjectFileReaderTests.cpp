@@ -1,5 +1,4 @@
 #include "legacy/LegacyProjectFileReader.h"
-#include "legacy/LegacyProjectFileWriter.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "document/EditorMetadata.h"
 
@@ -18,12 +17,11 @@
 #include "legacy/LegacyCrzArchive.h"
 #include "platform/Utf8Path.h"
 #include "render/CanvasLayout.h"
-#include "legacy/CrzWriter.h"
+#include "ProjectTestFiles.h"
 
 using colorizing::document::makeRgb565Frame;
 using colorizing::legacy::LegacyLoadResult;
 using colorizing::legacy::LegacyProjectFileReader;
-using colorizing::legacy::LegacyProjectFileWriter;
 using colorizing::legacy::LegacyProjectPaths;
 using colorizing::legacy::LegacySaveResult;
 using colorizing::platform::pathFromUtf8;
@@ -304,6 +302,11 @@ std::vector<uint8_t> makeLegacyPalettedCrom()
 // The names hold a Greek capital omega (U+03A9), which code page 1252 (Western Windows, and
 // the CI runners) does not have: a path that goes through the ANSI code page anywhere between
 // the test and the file fails these tests on Windows. Paths reach the code under test as UTF-8.
+std::filesystem::path fixture(const std::string& name)
+{
+    return colorizing::test_files::legacyFixturePath(name);
+}
+
 std::filesystem::path uniqueTempPath(const std::string& suffix)
 {
     static int counter = 0;
@@ -312,11 +315,6 @@ std::filesystem::path uniqueTempPath(const std::string& suffix)
     return std::filesystem::temp_directory_path() /
            pathFromUtf8("colorizing_qt_v2_reader_\xce\xa9_" + run + "_" +
                         std::to_string(counter++) + suffix);
-}
-
-std::filesystem::path savingPathFor(const std::filesystem::path& path)
-{
-    return pathFromUtf8(utf8FromPath(path) + ".saving");
 }
 
 void writeBytes(const std::filesystem::path& path, const std::vector<uint8_t>& bytes)
@@ -482,265 +480,11 @@ void testFileReaderRejectsLegacyPalettedCrom()
            "legacy paletted file reader error");
 }
 
-void testFileWriterSavesEditedModernCrom()
-{
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
-
-    const LegacyProjectPaths paths{
-        utf8FromPath(cromPath),
-        utf8FromPath(crpPath),
-    };
-
-    const LegacyProjectFileReader reader;
-    LegacyLoadResult loadResult = reader.load(paths);
-    expect(loadResult.ok, "writer test initial load");
-
-    loadResult.snapshot.frames[0].colorizedSd.pixels[0] = 0x1357;
-    loadResult.snapshot.frames[0].shapeComparisonMode = 9;
-    loadResult.snapshot.frames[0].comparisonMaskId = 0;
-    loadResult.snapshot.comparisonMasks[0].pixels[7] = 42;
-    loadResult.snapshot.frames[0].dynamicData->maskSd.pixels[8] = 5;
-    loadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] = 6;
-    loadResult.snapshot.frames[0].dynamicData->colorsSd[10] = 0x7777;
-    loadResult.snapshot.frames[0].dynamicData->colorsHd[11] = 0x8888;
-    loadResult.snapshot.frames[0].dynamicData->shadowDirectionsSd[2] = 0x04;
-    loadResult.snapshot.frames[0].dynamicData->shadowColorsSd[2] = 0x9990;
-    loadResult.snapshot.frames[0].dynamicData->shadowDirectionsHd[3] = 0x40;
-    loadResult.snapshot.frames[0].dynamicData->shadowColorsHd[3] = 0x9991;
-    loadResult.snapshot.frames[0].colorRotationsSd[0] = 2;
-    loadResult.snapshot.frames[0].colorRotationsSd[1] = 120;
-    loadResult.snapshot.frames[0].colorRotationsSd[2] = 0xabcd;
-    loadResult.snapshot.frames[0].colorRotationsSd[3] = 0xbcde;
-    loadResult.snapshot.frames[0].colorRotationsHd[0] = 1;
-    loadResult.snapshot.frames[0].colorRotationsHd[1] = 250;
-    loadResult.snapshot.frames[0].colorRotationsHd[2] = 0xcdef;
-    loadResult.snapshot.sprites[0].hasHd = false;
-    loadResult.snapshot.sprites[0].name = "Renamed sprite";
-    loadResult.snapshot.sprites[0].originalSd.pixels[16] = 11;
-    loadResult.snapshot.sprites[0].colorizedSd.pixels[17] = 0x7770;
-    loadResult.snapshot.sprites[0].maskHd.pixels[18] = 12;
-    loadResult.snapshot.sprites[0].colorizedHd.pixels[19] = 0x8880;
-    loadResult.snapshot.sprites[0].detectionDwords[1] = 0x87654321;
-    loadResult.snapshot.sprites[0].detectionDwordPositions[1] = 34;
-    loadResult.snapshot.sprites[0].detectionAreas[1] = {9, 10, 11, 12};
-    loadResult.snapshot.frames[0].spriteReferences[0].spriteId = 0xffff;
-    loadResult.snapshot.frames[0].spriteReferences[1] = {0, 13, 14, 15, 16};
-    loadResult.snapshot.frames[0].pupTriggerId = 1234;
-    loadResult.snapshot.frames[1].monochromeTriggerId = 65432;
-    loadResult.snapshot.frames[0].durationMs = 75;
-    loadResult.snapshot.frames[1].durationMs = 125;
-    loadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] = 0x9999;
-    loadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] = 0xaaaa;
-    loadResult.snapshot.frames[0].backgroundData->backgroundId = 0xffff;
-    loadResult.snapshot.frames[1].backgroundData->backgroundId = 0;
-    loadResult.snapshot.frames[1].backgroundData->maskSd.pixels[14] = 7;
-    loadResult.snapshot.frames[1].backgroundData->maskHd.pixels[15] = 8;
-    loadResult.snapshot.frames[0].colorizedHd.reset();
-    loadResult.snapshot.frames[1].dynamicData->maskSd.pixels[kSdPixels - 1] = 255;
-    loadResult.snapshot.frames[1].dynamicData->maskHd.pixels[5] = 255;
-    loadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] = 0x2468;
-    expect(loadResult.snapshot.frames[1].inactiveHd.has_value() &&
-               loadResult.snapshot.frames[1].inactiveHd->pixels.front() == 0xbbbb,
-           "file reader should keep HD pixels of a frame whose HD flag is off");
-    loadResult.snapshot.frames[1].inactiveHd.reset();
-    loadResult.snapshot.frames[1].colorizedHd =
-        makeRgb565Frame(colorizing::render::kHdFrameSize, 0xcafe);
-    loadResult.snapshot.frames[1].colorizedHd->pixels[5] = 0xbeef;
-    loadResult.snapshot.palettes[0].colors[0] = 0xabcd;
-    loadResult.snapshot.palettes[1].name = "Edited palette";
-
-    const LegacyProjectFileWriter writer;
-    const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
-    expect(saveResult.ok, "file writer should save edited modern cROM");
-
-    expect(!std::filesystem::exists(savingPathFor(cromPath)) &&
-               !std::filesystem::exists(savingPathFor(crpPath)),
-           "file writer should not leave temporary files behind");
-
-    const LegacyLoadResult reloadResult = reader.load(paths);
-
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
-
-    expect(reloadResult.ok, "file writer saved cROM should reload");
-    expect(reloadResult.snapshot.frames[0].colorizedSd.pixels[0] == 0x1357,
-           "file writer should update first SD pixel");
-    expect(reloadResult.snapshot.frames[0].shapeComparisonMode == 9,
-           "file writer should update shape comparison mode");
-    expect(reloadResult.snapshot.frames[0].comparisonMaskId == 0,
-           "file writer should update comparison mask ID");
-    expect(reloadResult.snapshot.comparisonMasks[0].pixels[7] == 42,
-           "file writer should update comparison mask pixels");
-    expect(reloadResult.snapshot.frames[0].dynamicData->maskSd.pixels[8] == 5,
-           "file writer should update SD dynamic mask pixels");
-    expect(reloadResult.snapshot.frames[0].dynamicData->maskHd.pixels[9] == 6,
-           "file writer should update HD dynamic mask pixels");
-    expect(reloadResult.snapshot.frames[0].dynamicData->colorsSd[10] == 0x7777,
-           "file writer should update SD dynamic color sets");
-    expect(reloadResult.snapshot.frames[0].dynamicData->colorsHd[11] == 0x8888,
-           "file writer should update HD dynamic color sets");
-    expect(reloadResult.snapshot.frames[0].dynamicData->shadowDirectionsSd[2] == 0x04,
-           "file writer should update SD dynamic shadow directions");
-    expect(reloadResult.snapshot.frames[0].dynamicData->shadowColorsSd[2] == 0x9990,
-           "file writer should update SD dynamic shadow colors");
-    expect(reloadResult.snapshot.frames[0].dynamicData->shadowDirectionsHd[3] == 0x40,
-           "file writer should update HD dynamic shadow directions");
-    expect(reloadResult.snapshot.frames[0].dynamicData->shadowColorsHd[3] == 0x9991,
-           "file writer should update HD dynamic shadow colors");
-    expect(reloadResult.snapshot.frames[0].colorRotationsSd[0] == 2,
-           "file writer should update SD color rotation length");
-    expect(reloadResult.snapshot.frames[0].colorRotationsSd[1] == 120,
-           "file writer should update SD color rotation delay");
-    expect(reloadResult.snapshot.frames[0].colorRotationsSd[3] == 0xbcde,
-           "file writer should update SD color rotation colors");
-    expect(reloadResult.snapshot.frames[0].colorRotationsHd[0] == 1,
-           "file writer should update HD color rotation length");
-    expect(reloadResult.snapshot.frames[0].colorRotationsHd[2] == 0xcdef,
-           "file writer should update HD color rotation colors");
-    expect(!reloadResult.snapshot.sprites[0].hasHd,
-           "file writer should update sprite HD flag");
-    expect(reloadResult.snapshot.sprites[0].name == "Renamed sprite",
-           "file writer should update cRP sprite names");
-    expect(reloadResult.snapshot.sprites[0].originalSd.pixels[16] == 11,
-           "file writer should update sprite original pixels");
-    expect(reloadResult.snapshot.sprites[0].colorizedSd.pixels[17] == 0x7770,
-           "file writer should update SD sprite pixels");
-    expect(reloadResult.snapshot.sprites[0].maskHd.pixels[18] == 12,
-           "file writer should update HD sprite mask pixels");
-    expect(reloadResult.snapshot.sprites[0].colorizedHd.pixels[19] == 0x8880,
-           "file writer should update HD sprite pixels");
-    expect(reloadResult.snapshot.sprites[0].detectionDwords[1] == 0x87654321,
-           "file writer should update sprite detection dwords");
-    expect(reloadResult.snapshot.sprites[0].detectionDwordPositions[1] == 34,
-           "file writer should update sprite detection dword positions");
-    expect(reloadResult.snapshot.sprites[0].detectionAreas[1].width == 11,
-           "file writer should update sprite detection areas");
-    expect(reloadResult.snapshot.frames[0].spriteReferences[0].spriteId == 0xffff,
-           "file writer should update frame sprite assignment removals");
-    expect(reloadResult.snapshot.frames[0].spriteReferences[1].spriteId == 0,
-           "file writer should update frame sprite assignment additions");
-    expect(reloadResult.snapshot.frames[0].spriteReferences[1].maxY == 16,
-           "file writer should update frame sprite bounding boxes");
-    expect(reloadResult.snapshot.frames[0].pupTriggerId == 1234,
-           "file writer should update first trigger ID");
-    expect(reloadResult.snapshot.frames[1].monochromeTriggerId == 65432,
-           "file writer should update second trigger ID");
-    expect(reloadResult.snapshot.frames[0].durationMs == 75,
-           "file writer should update first cRP frame duration");
-    expect(reloadResult.snapshot.frames[1].durationMs == 125,
-           "file writer should update second cRP frame duration");
-    expect(reloadResult.snapshot.backgrounds[0].colorizedSd.pixels[12] == 0x9999,
-           "file writer should update SD background pixels");
-    expect(reloadResult.snapshot.backgrounds[0].colorizedHd->pixels[13] == 0xaaaa,
-           "file writer should update HD background pixels");
-    expect(reloadResult.snapshot.frames[0].backgroundData->backgroundId == 0xffff,
-           "file writer should update first background ID");
-    expect(reloadResult.snapshot.frames[1].backgroundData->backgroundId == 0,
-           "file writer should update second background ID");
-    expect(reloadResult.snapshot.frames[1].backgroundData->maskSd.pixels[14] == 7,
-           "file writer should update SD background masks");
-    expect(reloadResult.snapshot.frames[1].backgroundData->maskHd.pixels[15] == 8,
-           "file writer should update HD background masks");
-    expect(!reloadResult.snapshot.frames[0].colorizedHd,
-           "file writer should clear first HD presence flag");
-    expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[kSdPixels - 1] == 0x2468,
-           "file writer should update second SD pixel");
-    expect(reloadResult.snapshot.frames[1].colorizedHd.has_value(),
-           "file writer should set second HD presence flag");
-    expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[5] == 0xbeef,
-           "file writer should update second HD pixels");
-    expect(reloadResult.snapshot.frames[1].colorizedSd.pixels[0] == 0,
-           "file writer should blank colorized pixels under SD dynamic masks");
-    // libserum renders the SD zones on the HD plane of an ordinary project and never reads the
-    // HD mask: the HD picture is written as it is.
-    expect(reloadResult.snapshot.frames[1].colorizedHd->pixels[0] == 0xcafe,
-           "file writer should keep HD pixels under an HD dynamic mask");
-    expect(reloadResult.snapshot.palettes[0].colors[0] == 0xabcd,
-           "file writer should update cRP palette colors");
-    expect(reloadResult.snapshot.palettes[1].name == "Edited palette",
-           "file writer should update cRP palette names");
-}
-
-void testFileWriterCreatesProjectWithoutExistingFiles()
-{
-    const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path sourceCrpPath = uniqueTempPath(".cRP");
-    writeBytes(sourceCromPath, makeModernCromWithFrames());
-    writeBytes(sourceCrpPath, makeCrpWithPalettes("file_rom"));
-
-    const LegacyProjectFileReader reader;
-    const LegacyLoadResult loadResult = reader.load(LegacyProjectPaths{
-        utf8FromPath(sourceCromPath),
-        utf8FromPath(sourceCrpPath),
-    });
-    std::filesystem::remove(sourceCromPath);
-    std::filesystem::remove(sourceCrpPath);
-    expect(loadResult.ok, "new project writer test initial load");
-
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpPath)};
-    const LegacyProjectFileWriter writer;
-    const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
-    expect(saveResult.ok, "file writer should create files that do not exist yet");
-
-    const LegacyLoadResult reloadResult = reader.load(paths);
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
-
-    expect(reloadResult.ok, "newly created project should load");
-    expect(reloadResult.snapshot.frames.size() == 2, "newly created project frame count");
-    expect(reloadResult.snapshot.sprites[0].name == "Initial sprite",
-           "newly created project sprite name");
-    expect(reloadResult.snapshot.palettes[1].name == "Warm palette",
-           "newly created project palette name");
-}
-
-void testFileWriterRequiresBothPaths()
-{
-    colorizing::document::ProjectSnapshot snapshot;
-    const LegacyProjectFileWriter writer;
-    const LegacySaveResult saveResult =
-        writer.save(LegacyProjectPaths{"/tmp/only.cROM", ""}, snapshot);
-    const LegacySaveResult noCrom = writer.save(LegacyProjectPaths{"", "/tmp/only.cRPX"}, snapshot);
-
-    expect(!saveResult.ok && !noCrom.ok, "file writer should require a cROM or cRZ and a cRP");
-    expect(saveResult.error.message == "a .cRZ or .cROM path and the .cRP path are required",
-           "file writer missing path error");
-}
-
 std::vector<uint8_t> readBytes(const std::filesystem::path& path)
 {
     std::ifstream stream(path, std::ios::binary);
     return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)),
                                 std::istreambuf_iterator<char>());
-}
-
-bool savingFileExists(const std::filesystem::path& path)
-{
-    return std::filesystem::exists(savingPathFor(path));
-}
-
-// Builds the archive the way a project is handed around: only the .cRZ, no loose .cROM.
-std::filesystem::path makeCrzFile(const std::string& suffix,
-                                  const std::string& entryName,
-                                  const std::vector<uint8_t>& cromBytes)
-{
-    const std::filesystem::path crzPath = uniqueTempPath(suffix);
-    std::string error;
-    const bool written = colorizing::legacy::writeCrzArchive(
-        utf8FromPath(crzPath), entryName, cromBytes.size(),
-        [&cromBytes](std::ostream& stream) {
-            stream.write(reinterpret_cast<const char*>(cromBytes.data()),
-                         static_cast<std::streamsize>(cromBytes.size()));
-            return static_cast<bool>(stream);
-        },
-        colorizing::legacy::kCrzCompressionLevel, error);
-    expect(written, "test archive should be written: " + error);
-    return crzPath;
 }
 
 void testCrzExtensionIsCaseInsensitive()
@@ -757,8 +501,9 @@ void testCrzExtensionIsCaseInsensitive()
 void testFileReaderLoadsProjectFromCrz()
 {
     // The entry name is deliberately unrelated: the reader takes the archive's entry as data.
-    const std::filesystem::path crzPath =
-        makeCrzFile(".CRZ", "unrelated name.bin", makeModernCromWithFrames());
+    // In capitals, as the extension's case does not matter.
+    const std::filesystem::path crzPath = uniqueTempPath(".CRZ");
+    std::filesystem::copy_file(fixture("crz.cRZ"), crzPath);
     const std::filesystem::path crpPath = uniqueTempPath(".cRP");
     writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
 
@@ -807,200 +552,14 @@ void testFileReaderReportsUnreadableCrz()
            "missing cRZ error message");
 }
 
-LegacyLoadResult loadSyntheticProject()
-{
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    writeBytes(cromPath, makeModernCromWithFrames());
-    writeBytes(crpPath, makeCrpWithPalettes("file_rom"));
-    const LegacyProjectFileReader reader;
-    const LegacyLoadResult result = reader.load(LegacyProjectPaths{
-        utf8FromPath(cromPath),
-        utf8FromPath(crpPath),
-    });
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
-    expect(result.ok, "synthetic project should load");
-    return result;
-}
-
-void testFileWriterWritesCrzOfTheSavedCrom()
-{
-    LegacyLoadResult loadResult = loadSyntheticProject();
-    loadResult.snapshot.frames[0].colorizedSd.pixels[0] = 0x1357;
-
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
-    // A stale archive must be replaced, not kept or appended to.
-    writeBytes(crzPath, {1, 2, 3});
-    const LegacyProjectPaths paths{
-        utf8FromPath(cromPath), utf8FromPath(crpPath), utf8FromPath(crzPath)};
-
-    const LegacyProjectFileWriter writer;
-    const LegacySaveResult saveResult = writer.save(paths, loadResult.snapshot);
-    expect(saveResult.ok, "file writer should save with a cRZ: " + saveResult.error.message);
-    expect(!savingFileExists(cromPath) && !savingFileExists(crpPath) &&
-               !savingFileExists(crzPath),
-           "file writer should not leave temporary files behind after writing a cRZ");
-
-    const std::vector<uint8_t> cromBytes = readBytes(cromPath);
-    std::vector<uint8_t> archivedBytes;
-    std::string entryName;
-    std::string error;
-    const bool archiveRead =
-        colorizing::legacy::readCrzArchive(utf8FromPath(crzPath), archivedBytes, error);
-    const bool nameRead =
-        colorizing::legacy::readCrzEntryName(utf8FromPath(crzPath), entryName, error);
-
-    const LegacyProjectFileReader reader;
-    const LegacyLoadResult reloadResult = reader.load(LegacyProjectPaths{
-        utf8FromPath(crzPath),
-        utf8FromPath(crpPath),
-    });
-
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crpPath);
-    std::filesystem::remove(crzPath);
-
-    expect(archiveRead && nameRead, "written cRZ should be readable: " + error);
-    expect(!cromBytes.empty() && archivedBytes == cromBytes,
-           "cRZ entry should be byte-identical to the written cROM");
-    expect(entryName == "file_rom.cRom", "cRZ entry should be named <romName>.cRom");
-    expect(reloadResult.ok, "project should reload from the written cRZ");
-    expect(reloadResult.snapshot.frames[0].colorizedSd.pixels[0] == 0x1357,
-           "project reloaded from the written cRZ should carry the edit");
-}
-
-// The editor saves a project as its .cRZ and .cRPX only: the archive gets the cROM compressed
-// while it is written, no .cROM is written, not even a temporary one.
-void testFileWriterSavesCrzWithoutCrom()
-{
-    LegacyLoadResult loadResult = loadSyntheticProject();
-    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
-    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
-    const LegacySaveResult saved = LegacyProjectFileWriter().save(
-        LegacyProjectPaths{{}, utf8FromPath(crpxPath), utf8FromPath(crzPath)},
-        loadResult.snapshot);
-    expect(saved.ok, "the writer saves the .cRZ alone: " + saved.error.message);
-    std::ostringstream crom;
-    std::string error;
-    expect(colorizing::legacy::writeLegacyCrom(crom, loadResult.snapshot, error),
-           "the cROM bytes to compare with");
-    std::vector<uint8_t> archived;
-    expect(colorizing::legacy::readCrzArchive(utf8FromPath(crzPath), archived, error) &&
-               std::string(archived.begin(), archived.end()) == crom.str(),
-           "the archive holds the cROM: " + error);
-    const LegacyLoadResult reloaded =
-        LegacyProjectFileReader().load(LegacyProjectPaths{utf8FromPath(crzPath), utf8FromPath(crpxPath)});
-    expect(reloaded.ok, "and the project opens from it: " + reloaded.error.message);
-    std::filesystem::remove(crpxPath);
-    std::filesystem::remove(crzPath);
-
-    // zip64, which a cROM of 4 GiB needs, as libserum reads it.
-    const std::vector<uint8_t> bytes(3000, 7);
-    const std::filesystem::path zip64Path = uniqueTempPath(".cRZ");
-    const auto writeBytesInto = [&bytes](std::ostream& stream) {
-        stream.write(reinterpret_cast<const char*>(bytes.data()),
-                     static_cast<std::streamsize>(bytes.size()));
-        return static_cast<bool>(stream);
-    };
-    expect(colorizing::legacy::writeCrzArchive(utf8FromPath(zip64Path), "rom.cRom", bytes.size(),
-                                               writeBytesInto, 1, error, true),
-           "a zip64 archive is written: " + error);
-    std::vector<uint8_t> unpacked;
-    std::string entryName;
-    expect(colorizing::legacy::readCrzArchive(utf8FromPath(zip64Path), unpacked, error) &&
-               unpacked == bytes &&
-               colorizing::legacy::readCrzEntryName(utf8FromPath(zip64Path), entryName, error) &&
-               entryName == "rom.cRom",
-           "and read: " + error);
-    expect(std::filesystem::file_size(zip64Path) < 300, "compressed");
-    expect(!colorizing::legacy::writeCrzArchive(utf8FromPath(zip64Path), "rom.cRom",
-                                                bytes.size() + 1, writeBytesInto, 1, error),
-           "a cROM of another size than announced fails the archive");
-    std::filesystem::remove(zip64Path);
-}
-
-void testFileWriterFailureLeavesNoTemporaryFiles()
-{
-    LegacyLoadResult loadResult = loadSyntheticProject();
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    const std::filesystem::path crzPath = uniqueTempPath(".cRZ");
-    const std::vector<uint8_t> oldCrom = {9, 8, 7};
-    const std::vector<uint8_t> oldCrz = {6, 5, 4};
-    writeBytes(cromPath, oldCrom);
-    writeBytes(crzPath, oldCrz);
-    const LegacyProjectFileWriter writer;
-
-    // The archive cannot be created: its directory does not exist.
-    const std::filesystem::path unreachableCrz = uniqueTempPath("_missing_dir") / "rom.cRZ";
-    const LegacySaveResult unreachable = writer.save(
-        LegacyProjectPaths{
-            utf8FromPath(cromPath), utf8FromPath(crpPath), utf8FromPath(unreachableCrz)},
-        loadResult.snapshot);
-    expect(!unreachable.ok, "save should fail when the cRZ cannot be created");
-    expect(unreachable.error.message.find("could not write .cRZ file:") == 0,
-           "unreachable cRZ error message");
-    expect(!savingFileExists(cromPath) && !savingFileExists(crpPath),
-           "failed cRZ creation should leave no temporary files");
-    expect(readBytes(cromPath) == oldCrom && !std::filesystem::exists(crpPath),
-           "failed cRZ creation should leave the project files untouched");
-
-    // The archive is created but its entry is refused: a ROM name that is not a plain file name.
-    loadResult.snapshot.romName = "bad:name";
-    const LegacyProjectPaths paths{
-        utf8FromPath(cromPath), utf8FromPath(crpPath), utf8FromPath(crzPath)};
-    const LegacySaveResult refused = writer.save(paths, loadResult.snapshot);
-    expect(!refused.ok, "save should fail when the cRZ entry cannot be written");
-    expect(!savingFileExists(cromPath) && !savingFileExists(crpPath) &&
-               !savingFileExists(crzPath),
-           "failed cRZ entry should leave no temporary files");
-    expect(readBytes(cromPath) == oldCrom && readBytes(crzPath) == oldCrz &&
-               !std::filesystem::exists(crpPath),
-           "failed cRZ entry should leave the project files untouched");
-
-    // Raw cROM bytes must never land in a file named .cRZ.
-    const LegacySaveResult swapped = writer.save(
-        LegacyProjectPaths{utf8FromPath(crzPath), utf8FromPath(crpPath)}, loadResult.snapshot);
-    expect(!swapped.ok, "a cRZ path should be refused as the cROM target");
-    expect(readBytes(crzPath) == oldCrz && !savingFileExists(crzPath),
-           "refused cRZ target should stay untouched");
-
-    std::filesystem::remove(cromPath);
-    std::filesystem::remove(crzPath);
-}
-
 }  // namespace
 
-void testFileWriterSavesCrpx()
+// The files of tests/fixtures/legacy, written by the editor's last legacy writers: a cRP or the
+// .cRPX of its later versions, with the synthetic project of this file.
+void testCrpxFileHoldsTheCrp()
 {
-    const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path sourceCrpPath = uniqueTempPath(".cRP");
-    writeBytes(sourceCromPath, makeModernCromWithFrames());
-    writeBytes(sourceCrpPath, makeCrpWithPalettes("file_rom"));
-    const LegacyProjectFileReader reader;
-    const LegacyLoadResult source = reader.load(
-        LegacyProjectPaths{utf8FromPath(sourceCromPath), utf8FromPath(sourceCrpPath)});
-    std::filesystem::remove(sourceCromPath);
-    std::filesystem::remove(sourceCrpPath);
-    expect(source.ok, "cRPX test initial load");
-
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    const LegacyProjectFileWriter writer;
-    expect(writer.save({utf8FromPath(cromPath), utf8FromPath(crpxPath)}, source.snapshot).ok,
-           "the writer saves a .cRPX");
-    expect(writer.save({utf8FromPath(uniqueTempPath(".cROM")), utf8FromPath(crpPath)},
-                       source.snapshot)
-               .ok,
-           "and a .cRP when asked for one by name");
-
-    // The Win32 editor's cRP behind a header it does not know.
-    const std::vector<uint8_t> crpx = readBytes(crpxPath);
-    const std::vector<uint8_t> crp = readBytes(crpPath);
+    const std::vector<uint8_t> crpx = readBytes(fixture("crpx-plain.cRPX"));
+    const std::vector<uint8_t> crp = readBytes(fixture("crp-plain.cRP"));
     expect(crpx.size() == colorizing::legacy::kCrpxHeaderBytes + crp.size(),
            "the .cRPX is the header and the cRP");
     expect(std::string(crpx.begin(), crpx.begin() + 8) == "CDMDcRPX" && crpx[8] == 1 &&
@@ -1014,12 +573,23 @@ void testFileWriterSavesCrpx()
                std::equal(crp.begin(), crp.end(),
                           crpx.begin() + colorizing::legacy::kCrpxHeaderBytes),
            "the cRP part is the .cRP");
+}
 
-    const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpxPath)};
-    const LegacyLoadResult reloaded = reader.load(paths);
-    expect(reloaded.ok && reloaded.snapshot.frames.size() == 2 &&
-               reloaded.snapshot.palettes[1].name == "Warm palette",
+void testFileReaderLoadsCrpx()
+{
+    const LegacyProjectFileReader reader;
+    const std::vector<uint8_t> crpx = readBytes(fixture("crpx-plain.cRPX"));
+    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
+    const LegacyProjectPaths paths{utf8FromPath(fixture("crpx-plain.cROM")),
+                                   utf8FromPath(crpxPath)};
+    writeBytes(crpxPath, crpx);
+    const LegacyLoadResult plain = reader.load(paths);
+    expect(plain.ok && plain.snapshot.frames.size() == 2 &&
+               plain.snapshot.palettes[1].name == "Warm palette",
            "the .cRPX loads");
+    expect(plain.snapshot.helperLines.empty() && plain.snapshot.frames[0].tags.empty() &&
+               !plain.snapshot.colorizationSettings,
+           "a .cRPX without chunks has no helper lines, tags or settings");
 
     // Chunks of later versions after the cRP part are skipped.
     std::vector<uint8_t> extended = crpx;
@@ -1033,176 +603,6 @@ void testFileWriterSavesCrpx()
     writeBytes(crpxPath, extended);
     expect(reader.load(paths).ok, "a .cRPX with a chunk it does not know loads");
 
-    // The helper lines are a chunk of their own, read back as they were saved.
-    colorizing::document::ProjectSnapshot withLines = source.snapshot;
-    withLines.helperLines = {
-        {"Score line", false, 24, colorizing::render::Resolution::Sd, true},
-        {"Ball column", true, 200, colorizing::render::Resolution::Hd, false},
-    };
-    expect(writer.save(paths, withLines).ok, "a .cRPX with helper lines is saved");
-    const std::vector<uint8_t> withChunk = readBytes(crpxPath);
-    expect(std::string(withChunk.begin() + static_cast<std::ptrdiff_t>(crpx.size()),
-                       withChunk.begin() + static_cast<std::ptrdiff_t>(crpx.size()) + 4) ==
-               "HLIN",
-           "the helper lines follow the cRP part as the chunk HLIN");
-    const LegacyLoadResult linesBack = reader.load(paths);
-    expect(linesBack.ok && linesBack.snapshot.helperLines == withLines.helperLines,
-           "and come back as they were");
-    std::vector<uint8_t> cutLines = withChunk;
-    cutLines.resize(cutLines.size() - 3);
-    writeBytes(crpxPath, cutLines);
-    expect(!reader.load(paths).ok, "a .cRPX whose helper lines are cut off is refused");
-    writeBytes(crpxPath, crpx);
-    expect(reader.load(paths).ok && reader.load(paths).snapshot.helperLines.empty(),
-           "a .cRPX without them has none");
-
-    // The Images window's saved zones: a chunk of their own, with and without an end zone.
-    colorizing::document::ProjectSnapshot withZones = source.snapshot;
-    colorizing::document::SavedImageZone scroll;
-    scroll.name = "Sc\xc3\xb6re";
-    scroll.start = colorizing::document::PictureZone{100000, 200000, 500000, 250000};
-    scroll.end = colorizing::document::PictureZone{0, 0, 1000000, 500000};
-    scroll.brightness = -50;
-    scroll.contrast = 20;
-    scroll.blur = 10;
-    colorizing::document::SavedImageZone still;
-    still.name = "Logo";
-    withZones.imageZones = {scroll, still};
-    expect(writer.save(paths, withZones).ok, "a .cRPX with saved zones is saved");
-    const LegacyLoadResult zonesBack = reader.load(paths);
-    expect(zonesBack.ok && zonesBack.snapshot.imageZones == withZones.imageZones,
-           "the saved zones come back as they were (chunk IZON)");
-    std::vector<uint8_t> cutZones = readBytes(crpxPath);
-    cutZones.resize(cutZones.size() - 2);
-    writeBytes(crpxPath, cutZones);
-    expect(!reader.load(paths).ok, "a .cRPX whose saved zones are cut off is refused");
-    writeBytes(crpxPath, crpx);
-
-    // The frames' tags: a chunk of their own, a frame in several groups.
-    colorizing::document::ProjectSnapshot withTags = source.snapshot;
-    expect(withTags.frames.size() >= 2, "the fixture has two frames to tag");
-    withTags.frames[0].tags = {"Multiball", "Wizard M\xc3\xb6" "de"};
-    withTags.frames[1].tags = {"Multiball"};
-    expect(writer.save(paths, withTags).ok, "a .cRPX with frame tags is saved");
-    const LegacyLoadResult tagsBack = reader.load(paths);
-    expect(tagsBack.ok && tagsBack.snapshot.frames[0].tags == withTags.frames[0].tags &&
-               tagsBack.snapshot.frames[1].tags == withTags.frames[1].tags,
-           "the frame tags come back as they were (chunk FTAG)");
-    std::vector<uint8_t> cutTags = readBytes(crpxPath);
-    cutTags.resize(cutTags.size() - 2);
-    writeBytes(crpxPath, cutTags);
-    expect(!reader.load(paths).ok, "a .cRPX whose frame tags are cut off is refused");
-    writeBytes(crpxPath, crpx);
-    expect(reader.load(paths).ok && reader.load(paths).snapshot.frames[0].tags.empty(),
-           "a .cRPX without them has no tags");
-
-    // The PuP pack name: UTF-8 in a chunk of its own, the cRP part's UTF-16 field left empty;
-    // in a .cRP UTF-16 in that field, as the Win32 editor writes it.
-    colorizing::document::ProjectSnapshot withPack = source.snapshot;
-    withPack.editorMetadata.hasPupPack = 1;
-    withPack.editorMetadata.pupPackName = "B\xc3\xa4renj\xc3\xa4ger \xf0\x9f\x8e\xaf";
-    expect(writer.save(paths, withPack).ok, "a .cRPX with a PuP pack is saved");
-    const std::vector<uint8_t> withPackBytes = readBytes(crpxPath);
-    expect(withPackBytes.size() > crpx.size() &&
-               std::equal(crpx.begin(), crpx.end(), withPackBytes.begin()) &&
-               std::string(withPackBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()),
-                           withPackBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()) +
-                               4) == "PUPP",
-           "the pack is the chunk PUPP after an unchanged cRP part");
-    const LegacyLoadResult packBack = reader.load(paths);
-    expect(packBack.ok && packBack.snapshot.editorMetadata.hasPupPack == 1 &&
-               packBack.snapshot.editorMetadata.pupPackName ==
-                   withPack.editorMetadata.pupPackName,
-           "and comes back as it was");
-    const std::filesystem::path packCromPath = uniqueTempPath(".cROM");
-    const LegacyProjectPaths crpPaths{utf8FromPath(packCromPath), utf8FromPath(crpPath)};
-    expect(writer.save(crpPaths, withPack).ok, "a .cRP with a PuP pack is saved");
-    const std::vector<uint8_t> crpWithPack = readBytes(crpPath);
-    const std::vector<uint8_t> expectedField = {'B', 0, 0xe4, 0, 'r', 0, 'e', 0, 'n', 0,
-                                                'j', 0, 0xe4, 0, 'g', 0, 'e', 0, 'r', 0,
-                                                ' ', 0, 0x3c, 0xd8, 0xaf, 0xdf, 0, 0};
-    expect(crpWithPack.size() == crp.size() &&
-               std::equal(expectedField.begin(), expectedField.end(),
-                          crpWithPack.end() - static_cast<std::ptrdiff_t>(
-                                                  colorizing::document::kPupPackNameBytes)),
-           "a .cRP holds it in UTF-16 in the Win32 editor's field");
-    const LegacyLoadResult crpPackBack = reader.load(crpPaths);
-    expect(crpPackBack.ok && crpPackBack.snapshot.editorMetadata.pupPackName ==
-                                 withPack.editorMetadata.pupPackName,
-           "and reads it back");
-    const std::string longName(300, 'x');
-    const std::vector<uint8_t> cut = colorizing::document::legacyPupPackNameBytes(longName);
-    expect(colorizing::document::pupPackNameFromLegacyBytes(cut.data(), cut.size()) ==
-               std::string(255, 'x'),
-           "a name too long for the field is cut to 255 characters");
-    writeBytes(crpxPath, crpx);
-
-    // The colorization settings: the chunk SCEN with the frames' scene links, and the
-    // settings block at the end of the cROM. A project without settings has neither.
-    const std::vector<uint8_t> plainCrom = readBytes(cromPath);
-    colorizing::document::ProjectSnapshot withScenes = source.snapshot;
-    colorizing::document::ColorizationSettings settings;
-    colorizing::document::SceneDefinition opening;
-    opening.sceneId = 1001;
-    opening.frameCount = 2;
-    opening.durationMs = 40;
-    opening.frameGroups = 3;
-    opening.repeat = 1;
-    opening.autoStartSeconds = 9;
-    opening.options = colorizing::document::kSceneAsBackground;
-    colorizing::document::SceneDefinition replay;
-    replay.sceneId = 7;
-    replay.interruptable = true;
-    replay.immediateStart = true;
-    replay.random = true;
-    settings.scenes = {opening, replay};
-    settings.scalingAlgorithm = colorizing::document::kScalingLineDoubling;
-    settings.shadowOffset = colorizing::document::kShadowOffsetProportional;
-    withScenes.colorizationSettings = settings;
-    withScenes.frames[1].scene = colorizing::document::SceneFrameRef{1001, 3, 1};
-    expect(writer.save(paths, withScenes).ok, "a .cRPX with scenes is saved");
-    const std::vector<uint8_t> withScenesBytes = readBytes(crpxPath);
-    expect(std::string(withScenesBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()),
-                       withScenesBytes.begin() + static_cast<std::ptrdiff_t>(crpx.size()) + 4) ==
-               "SCEN",
-           "the scenes follow the cRP part as the chunk SCEN");
-    const LegacyLoadResult scenesBack = reader.load(paths);
-    expect(scenesBack.ok && scenesBack.snapshot.colorizationSettings == settings &&
-               scenesBack.snapshot.frames[1].scene == withScenes.frames[1].scene &&
-               !scenesBack.snapshot.frames[0].scene,
-           "and come back as they were, with the frame's scene link");
-    const std::vector<uint8_t> cromWithBlock = readBytes(cromPath);
-    const std::vector<uint8_t> block = colorizing::legacy::cromSettingsBlock(withScenes);
-    expect(cromWithBlock.size() == plainCrom.size() + block.size() &&
-               std::equal(plainCrom.begin(), plainCrom.end(), cromWithBlock.begin()) &&
-               std::equal(block.begin(), block.end(),
-                          cromWithBlock.end() - static_cast<std::ptrdiff_t>(block.size())) &&
-               std::string(block.begin(), block.begin() + 4) == "SCX1",
-           "the cROM is the same with the settings block at its end");
-    // magic, size, contents, count, two scenes of 13 bytes, scaling, then the frames of
-    // scenes: count, frame 1 as frame 1 of group 3 of scene 1001.
-    const std::size_t sceneFrames = 4 + 4 + 4 + 4 + 2 * 13 + 2;
-    expect(block.size() == sceneFrames + 4 + 10 && block[8] == (3 | 16),
-           "the block holds both scenes, the scaling settings and the frames of scenes");
-    const std::vector<uint8_t> frameOfScene{1, 0, 0, 0, 1, 0, 0, 0, 0xe9, 0x03, 1, 0, 3, 0};
-    expect(std::equal(frameOfScene.begin(), frameOfScene.end(),
-                      block.begin() + static_cast<std::ptrdiff_t>(sceneFrames)),
-           "frame 1 is listed with its scene, frame index and group");
-    std::vector<uint8_t> cutScenes = withScenesBytes;
-    cutScenes.resize(cutScenes.size() - 3);
-    writeBytes(crpxPath, cutScenes);
-    expect(!reader.load(paths).ok, "a .cRPX whose scenes are cut off is refused");
-    colorizing::document::ProjectSnapshot noScenes = source.snapshot;
-    noScenes.colorizationSettings = colorizing::document::ColorizationSettings{};
-    expect(writer.save(paths, noScenes).ok, "settings without scenes are saved");
-    const LegacyLoadResult noScenesBack = reader.load(paths);
-    expect(noScenesBack.ok && noScenesBack.snapshot.colorizationSettings &&
-               noScenesBack.snapshot.colorizationSettings->scenes.empty(),
-           "and stay settings, so that a pup.csv is not read again");
-    expect(writer.save(paths, source.snapshot).ok && readBytes(cromPath) == plainCrom &&
-               !reader.load(paths).snapshot.colorizationSettings,
-           "a project without settings writes the cROM as before");
-
     std::vector<uint8_t> newer = crpx;
     newer[8] = 2;
     writeBytes(crpxPath, newer);
@@ -1214,67 +614,141 @@ void testFileWriterSavesCrpx()
     damaged[20] = 1;
     writeBytes(crpxPath, damaged);
     expect(!reader.load(paths).ok, "a .cRPX whose cRP part is cut off is refused");
+    std::filesystem::remove(crpxPath);
+}
 
-    for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath, packCromPath}) {
-        std::filesystem::remove(path);
-    }
+// Helper lines, saved zones, tags, a PuP pack and scenes, each a chunk of its own.
+void testFileReaderLoadsCrpxChunks()
+{
+    namespace document = colorizing::document;
+    const LegacyProjectFileReader reader;
+    const std::vector<uint8_t> plainCrpx = readBytes(fixture("crpx-plain.cRPX"));
+    const std::vector<uint8_t> crpx = readBytes(fixture("crpx-chunks.cRPX"));
+    const LegacyLoadResult back = reader.load(LegacyProjectPaths{
+        utf8FromPath(fixture("crpx-chunks.cROM")), utf8FromPath(fixture("crpx-chunks.cRPX"))});
+    expect(back.ok, "the .cRPX with chunks loads: " + back.error.message);
+    const document::ProjectSnapshot& loaded = back.snapshot;
+
+    const std::vector<document::HelperLine> lines{
+        {"Score line", false, 24, colorizing::render::Resolution::Sd, true},
+        {"Ball column", true, 200, colorizing::render::Resolution::Hd, false},
+    };
+    expect(loaded.helperLines == lines, "the helper lines come back as they were (chunk HLIN)");
+
+    document::SavedImageZone scroll;
+    scroll.name = "Sc\xc3\xb6re";
+    scroll.start = document::PictureZone{100000, 200000, 500000, 250000};
+    scroll.end = document::PictureZone{0, 0, 1000000, 500000};
+    scroll.brightness = -50;
+    scroll.contrast = 20;
+    scroll.blur = 10;
+    document::SavedImageZone still;
+    still.name = "Logo";
+    const std::vector<document::SavedImageZone> zones{scroll, still};
+    expect(loaded.imageZones == zones, "the saved zones come back as they were (chunk IZON)");
+
+    expect(loaded.frames[0].tags ==
+                   std::vector<std::string>{"Multiball", "Wizard M\xc3\xb6" "de"} &&
+               loaded.frames[1].tags == std::vector<std::string>{"Multiball"},
+           "the frame tags come back as they were (chunk FTAG)");
+
+    const std::string packName = "B\xc3\xa4renj\xc3\xa4ger \xf0\x9f\x8e\xaf";
+    expect(loaded.editorMetadata.hasPupPack == 1 && loaded.editorMetadata.pupPackName == packName,
+           "the PuP pack comes back as it was (chunk PUPP)");
+
+    document::ColorizationSettings settings;
+    document::SceneDefinition opening;
+    opening.sceneId = 1001;
+    opening.frameCount = 2;
+    opening.durationMs = 40;
+    opening.frameGroups = 3;
+    opening.repeat = 1;
+    opening.autoStartSeconds = 9;
+    opening.options = document::kSceneAsBackground;
+    document::SceneDefinition replay;
+    replay.sceneId = 7;
+    replay.interruptable = true;
+    replay.immediateStart = true;
+    replay.random = true;
+    settings.scenes = {opening, replay};
+    settings.scalingAlgorithm = document::kScalingLineDoubling;
+    settings.shadowOffset = document::kShadowOffsetProportional;
+    expect(loaded.colorizationSettings == settings &&
+               loaded.frames[1].scene == document::SceneFrameRef{1001, 3, 1} &&
+               !loaded.frames[0].scene,
+           "the scenes come back as they were, with the frame's scene link (chunk SCEN)");
+
+    // The settings block at the end of the cROM: the same cROM otherwise.
+    const std::vector<uint8_t> block = colorizing::legacy::cromSettingsBlock(loaded);
+    const std::vector<uint8_t> crom = readBytes(fixture("crpx-chunks.cROM"));
+    const std::vector<uint8_t> plainCrom = readBytes(fixture("crpx-plain.cROM"));
+    expect(std::string(block.begin(), block.begin() + 4) == "SCX1" &&
+               std::equal(block.begin(), block.end(),
+                          crom.end() - static_cast<std::ptrdiff_t>(block.size())) &&
+               std::equal(plainCrom.begin(), plainCrom.end(), crom.begin()),
+           "the cROM has the settings block at its end");
+    // magic, size, contents, count, two scenes of 13 bytes, scaling, then the frames of
+    // scenes: count, frame 1 as frame 1 of group 3 of scene 1001.
+    const std::size_t sceneFrames = 4 + 4 + 4 + 4 + 2 * 13 + 2;
+    expect(block.size() == sceneFrames + 4 + 10 && block[8] == (3 | 16),
+           "the block holds both scenes, the scaling settings and the frames of scenes");
+    const std::vector<uint8_t> frameOfScene{1, 0, 0, 0, 1, 0, 0, 0, 0xe9, 0x03, 1, 0, 3, 0};
+    expect(std::equal(frameOfScene.begin(), frameOfScene.end(),
+                      block.begin() + static_cast<std::ptrdiff_t>(sceneFrames)),
+           "frame 1 is listed with its scene, frame index and group");
+
+    // Cut anywhere in its last chunk, a .cRPX is refused; without chunks it is whole again.
+    std::vector<uint8_t> cut = crpx;
+    cut.resize(cut.size() - 3);
+    const std::filesystem::path cutPath = uniqueTempPath(".cRPX");
+    writeBytes(cutPath, cut);
+    expect(!reader.load(LegacyProjectPaths{utf8FromPath(fixture("crpx-chunks.cROM")),
+                                           utf8FromPath(cutPath)})
+                .ok,
+           "a .cRPX whose last chunk is cut off is refused");
+    std::filesystem::remove(cutPath);
+    expect(crpx.size() > plainCrpx.size(), "the chunks follow the cRP part");
+
+    const LegacyLoadResult noScenes = reader.load(LegacyProjectPaths{
+        utf8FromPath(fixture("crpx-noscenes.cROM")), utf8FromPath(fixture("crpx-noscenes.cRPX"))});
+    expect(noScenes.ok && noScenes.snapshot.colorizationSettings &&
+               noScenes.snapshot.colorizationSettings->scenes.empty(),
+           "settings without scenes stay settings, so that a pup.csv is not read again");
+}
+
+// In a .cRP the PuP pack name is UTF-16 in the Win32 editor's field.
+void testFileReaderLoadsPupPackOfCrp()
+{
+    const std::vector<uint8_t> crp = readBytes(fixture("crp-pup.cRP"));
+    const std::vector<uint8_t> expectedField = {'B', 0, 0xe4, 0, 'r', 0, 'e', 0, 'n', 0,
+                                                'j', 0, 0xe4, 0, 'g', 0, 'e', 0, 'r', 0,
+                                                ' ', 0, 0x3c, 0xd8, 0xaf, 0xdf, 0, 0};
+    expect(std::equal(expectedField.begin(), expectedField.end(),
+                      crp.end() - static_cast<std::ptrdiff_t>(
+                                      colorizing::document::kPupPackNameBytes)),
+           "a .cRP holds it in UTF-16 in the Win32 editor's field");
+    const LegacyLoadResult back = LegacyProjectFileReader().load(LegacyProjectPaths{
+        utf8FromPath(fixture("crp-pup.cROM")), utf8FromPath(fixture("crp-pup.cRP"))});
+    expect(back.ok && back.snapshot.editorMetadata.pupPackName ==
+                          "B\xc3\xa4renj\xc3\xa4ger \xf0\x9f\x8e\xaf",
+           "and reads it back");
+    const std::string longName(300, 'x');
+    const std::vector<uint8_t> cut = colorizing::document::legacyPupPackNameBytes(longName);
+    expect(colorizing::document::pupPackNameFromLegacyBytes(cut.data(), cut.size()) ==
+               std::string(255, 'x'),
+           "a name too long for the field is cut to 255 characters");
 }
 
 // A project for libserum 2.9: the cROM of format version 1 (header revision 21, 128 slots,
-// 16-bit sprite IDs), the target and the sprites beyond the cRP part's 255 in .cRPX chunks.
-void testFileWriterSavesLibserum29Project()
+// 16-bit sprite IDs), the sprites beyond the cRP part's 255 in .cRPX chunks. Its big cROM is
+// in a .cRZ, as such projects were handed around.
+void testFileReaderLoadsLibserum29Project()
 {
     namespace document = colorizing::document;
-    const std::filesystem::path sourceCromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path sourceCrpPath = uniqueTempPath(".cRP");
-    writeBytes(sourceCromPath, makeModernCromWithFrames());
-    writeBytes(sourceCrpPath, makeCrpWithPalettes("file_rom"));
-    const LegacyProjectFileReader reader;
-    const LegacyLoadResult source = reader.load(
-        LegacyProjectPaths{utf8FromPath(sourceCromPath), utf8FromPath(sourceCrpPath)});
-    std::filesystem::remove(sourceCromPath);
-    std::filesystem::remove(sourceCrpPath);
-    expect(source.ok && source.snapshot.frames[0].spriteReferences.size() ==
-                            document::kLegacySpritesPerFrame,
-           "a cROM without a format version has the slots of libserum 2.8");
-
-    document::ProjectSnapshot project = source.snapshot;
-    for (document::ProjectFrameSnapshot& frame : project.frames) {
-        frame.spriteReferences.resize(document::kSpritesPerFrame);
-    }
-    document::ensureSpriteTableEntries(project.editorMetadata, 300);
-    while (project.sprites.size() < 300) {
-        project.sprites.push_back(project.sprites[0]);
-    }
-    project.sprites[299].name = "Gr\xc3\xbcn 299";
-    project.editorMetadata.spriteSourceFrames[299] = 1;
-    for (std::size_t i = 0; i < 4; ++i) {
-        project.editorMetadata.spriteSourceRects[299 * 4 + i] = static_cast<uint16_t>(10 + i);
-    }
-    project.editorMetadata.spriteSourceMirrors[299 * 2 + 1] = 1;
-    project.frames[0].spriteReferences[100] = document::FrameSpriteReference{299, 1, 2, 30, 20};
-    // Sets 2 and 5 of frame 0 color the SD picture only.
-    project.frames[0].originalOnlyDynamicSets = 0x24;
-
-    const std::filesystem::path cromPath = uniqueTempPath(".cROM");
-    const std::filesystem::path crpxPath = uniqueTempPath(".cRPX");
-    const LegacyProjectPaths paths{utf8FromPath(cromPath), utf8FromPath(crpxPath)};
-    const LegacyProjectFileWriter writer;
-    expect(writer.save(paths, project).ok, "a libserum 2.9 project is saved");
-    const std::vector<uint8_t> crom = readBytes(cromPath);
-    const auto u32At = [&crom](std::size_t offset) {
-        return static_cast<uint32_t>(crom[offset]) | (static_cast<uint32_t>(crom[offset + 1]) << 8) |
-               (static_cast<uint32_t>(crom[offset + 2]) << 16) |
-               (static_cast<uint32_t>(crom[offset + 3]) << 24);
-    };
-    // ROM name, header size, 8 values, the background count (u16), the 256x64 flag.
-    constexpr std::size_t kHeader = 64;
-    expect(u32At(kHeader) == 21 * 4 && u32At(kHeader + 4 + 8 * 4 + 2 + 4) == 1 &&
-               u32At(kHeader + 4 + 8 * 4 + 2 + 8) == 128,
-           "the cROM has header revision 21, format version 1 and 128 slots");
-
-    const LegacyLoadResult back = reader.load(paths);
-    expect(back.ok, "and loads: " + back.error.message);
+    const LegacyLoadResult back = LegacyProjectFileReader().load(LegacyProjectPaths{
+        utf8FromPath(fixture("crpx-libserum29.cRZ")),
+        utf8FromPath(fixture("crpx-libserum29.cRPX"))});
+    expect(back.ok, "a libserum 2.9 project loads: " + back.error.message);
     const document::ProjectSnapshot& loaded = back.snapshot;
     expect(loaded.sprites.size() == 300 &&
                loaded.frames[0].spriteReferences.size() == 128 &&
@@ -1291,63 +765,47 @@ void testFileWriterSavesLibserum29Project()
     expect(loaded.frames[0].originalOnlyDynamicSets == 0x24 &&
                loaded.frames[1].originalOnlyDynamicSets == 0,
            "frame 0 keeps its sets that color the SD picture only (chunk DSSD)");
-    // In the cROM's settings block for libserum 2.9: frame 0, sets 2 and 5.
-    const std::vector<uint8_t> block = colorizing::legacy::cromSettingsBlock(project);
-    const auto blockU32 = [&block](std::size_t offset) {
-        return static_cast<uint32_t>(block[offset]) |
-               (static_cast<uint32_t>(block[offset + 1]) << 8) |
-               (static_cast<uint32_t>(block[offset + 2]) << 16) |
-               (static_cast<uint32_t>(block[offset + 3]) << 24);
-    };
-    expect(block.size() == 8 + 4 + 4 + 8 &&
-               blockU32(8) == colorizing::legacy::kCromSettingsOriginalOnlySets &&
-               blockU32(12) == 1 && blockU32(16) == 0 && blockU32(20) == 0x24 &&
-               std::equal(block.begin(), block.end(),
-                          crom.end() - static_cast<std::ptrdiff_t>(block.size())),
-           "the cROM ends with them in its settings block");
 
     // The cRP part has the size of one with 255 sprites: what it has no room for is in chunks.
-    const std::filesystem::path crpPath = uniqueTempPath(".cRP");
-    expect(writer.save({utf8FromPath(uniqueTempPath(".cROM")), utf8FromPath(crpPath)},
-                       source.snapshot)
-               .ok,
-           "the libserum 2.8 project is saved as a .cRP");
-    const std::vector<uint8_t> crpx = readBytes(crpxPath);
+    const std::vector<uint8_t> crpx = readBytes(fixture("crpx-libserum29.cRPX"));
     uint64_t crpSize = 0;
     for (int i = 7; i >= 0; --i) {
         crpSize = (crpSize << 8) | crpx[16 + i];
     }
-    expect(crpSize == readBytes(crpPath).size(), "the cRP part keeps the Win32 editor's size");
+    expect(crpSize == readBytes(fixture("crp-plain.cRP")).size(),
+           "the cRP part keeps the Win32 editor's size");
     const std::string chunks(crpx.begin() + static_cast<std::ptrdiff_t>(
                                                 colorizing::legacy::kCrpxHeaderBytes + crpSize),
                              crpx.end());
-    expect(chunks.find("SPRX") != std::string::npos, "the sprites beyond 255 are a chunk");
+    expect(chunks.find("SPRX") != std::string::npos, "the sprites beyond 255 are in a chunk");
+}
 
-    // A cut last chunk is refused.
-    std::vector<uint8_t> cut = crpx;
-    cut.resize(cut.size() - 3);
-    writeBytes(crpxPath, cut);
-    expect(!reader.load(paths).ok, "a .cRPX whose last chunk is cut off is refused");
-
-    for (const std::filesystem::path& path : {cromPath, crpxPath, crpPath}) {
-        std::filesystem::remove(path);
-    }
+// zip64, which a cROM of 4 GiB needs, as libserum reads it.
+void testFileReaderReadsZip64Crz()
+{
+    const std::string path = utf8FromPath(fixture("zip64.cRZ"));
+    std::vector<uint8_t> unpacked;
+    std::string entryName;
+    std::string error;
+    expect(colorizing::legacy::readCrzArchive(path, unpacked, error) &&
+               unpacked == std::vector<uint8_t>(3000, 7) &&
+               colorizing::legacy::readCrzEntryName(path, entryName, error) &&
+               entryName == "rom.cRom",
+           "a zip64 archive is read: " + error);
 }
 
 void runLegacyProjectFileReaderTests()
 {
-    testFileWriterSavesCrpx();
-    testFileWriterSavesLibserum29Project();
+    testCrpxFileHoldsTheCrp();
+    testFileReaderLoadsCrpx();
+    testFileReaderLoadsCrpxChunks();
+    testFileReaderLoadsPupPackOfCrp();
+    testFileReaderLoadsLibserum29Project();
+    testFileReaderReadsZip64Crz();
     testFileReaderLoadsModernProject();
     testFileReaderReportsMissingCrom();
     testFileReaderRejectsLegacyPalettedCrom();
-    testFileWriterSavesEditedModernCrom();
-    testFileWriterCreatesProjectWithoutExistingFiles();
-    testFileWriterRequiresBothPaths();
     testCrzExtensionIsCaseInsensitive();
     testFileReaderLoadsProjectFromCrz();
     testFileReaderReportsUnreadableCrz();
-    testFileWriterWritesCrzOfTheSavedCrom();
-    testFileWriterSavesCrzWithoutCrom();
-    testFileWriterFailureLeavesNoTemporaryFiles();
 }

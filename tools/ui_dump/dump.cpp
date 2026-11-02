@@ -82,7 +82,6 @@
 #endif
 
 #if __has_include("project/ProjectFile.h")
-#include "legacy/LegacyProjectFileWriter.h"
 #define UI_DUMP_HAS_PROJECT_FILE 1
 #endif
 
@@ -571,9 +570,9 @@ int main(int argc, char* argv[])
 
     auto* palCombo = byTip<QComboBox>(w, "Selected palette");
     auto* palName = byTip<QLineEdit>(w, "Selected palette name");
-    auto* palFrom = byTip<QSpinBox>(w, "First palette color index for gradient fill");
-    auto* palTo = byTip<QSpinBox>(w, "Last palette color index for gradient fill");
-    auto* palShape = byTip<QComboBox>(w, "Shape used by the Grad drawing tool");
+    auto* palFrom = byAnyTip<QSpinBox>(w, {"First palette color of a gradient; Ctrl+drag across the colors below sets both (Shift reverses them)", "First palette color index for gradient fill"});
+    auto* palTo = byAnyTip<QSpinBox>(w, {"Last palette color of a gradient; Ctrl+drag across the colors below sets both (Shift reverses them)", "Last palette color index for gradient fill"});
+    auto* palShape = byAnyTip<QComboBox>(w, {"Shape of the Grad and Sel tools", "Shape used by the Grad drawing tool"});
     auto* palPattern = byTip<QComboBox>(w, "Color distribution used by the Grad drawing tool");
     auto* palDirection = byTip<QComboBox>(w, "Direction used by the Grad drawing tool");
     auto* palApply = byTip<QToolButton>(w, "Fill the selected palette range between the endpoint colors");
