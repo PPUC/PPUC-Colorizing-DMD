@@ -23,6 +23,7 @@
 #include <exception>
 #include <utility>
 
+#include "KeyboardShortcuts.h"
 #include "edit/DocumentStateCommand.h"
 #include "edit/EditBatch.h"
 #include "edit/FrameMove.h"
@@ -135,39 +136,43 @@ void TeamController::createMenu(QMenuBar* menuBar)
 {
     QMenu* menu = menuBar->addMenu(tr("&Team"));
     menu->setToolTipsVisible(true);
-    m_signInAction = menu->addAction(tr("Sign In To &GitHub..."));
+    m_signInAction =
+        withShortcutId(menu->addAction(tr("Sign In To &GitHub...")), "sign-in-to-github");
     m_signInAction->setToolTip(tr("Sign in with your GitHub account, for team projects"));
     QObject::connect(m_signInAction, &QAction::triggered, m_window, [this]() { signIn(); });
-    m_signOutAction = menu->addAction(tr("Sign &Out"));
+    m_signOutAction = withShortcutId(menu->addAction(tr("Sign &Out")), "sign-out");
     QObject::connect(m_signOutAction, &QAction::triggered, m_window, [this]() { signOut(); });
     menu->addSeparator();
-    m_startAction = menu->addAction(tr("&Start Team Project..."));
+    m_startAction =
+        withShortcutId(menu->addAction(tr("&Start Team Project...")), "start-team-project");
     m_startAction->setToolTip(
         tr("Make this project a team project: a GitHub repository for the claims and the "
            "shared changes, and the partners invited"));
     QObject::connect(m_startAction, &QAction::triggered, m_window, [this]() { startTeam(); });
-    m_shareAction = menu->addAction(tr("S&hare My Changes"));
+    m_shareAction = withShortcutId(menu->addAction(tr("S&hare My Changes")), "share-my-changes");
     m_shareAction->setToolTip(
         tr("Save, then send what you changed since the last merge to the partners"));
     QObject::connect(m_shareAction, &QAction::triggered, m_window, [this]() { share(); });
-    m_mergeAction = menu->addAction(tr("&Merge Changes..."));
+    m_mergeAction = withShortcutId(menu->addAction(tr("&Merge Changes...")), "merge-changes");
     m_mergeAction->setToolTip(tr("Take the changes the partners shared into this project"));
     QObject::connect(m_mergeAction, &QAction::triggered, m_window, [this]() { merge(); });
     menu->addSeparator();
-    m_reserveAction = menu->addAction(tr("&Reserve Selected Frames"));
+    m_reserveAction =
+        withShortcutId(menu->addAction(tr("&Reserve Selected Frames")), "reserve-selected-frames");
     m_reserveAction->setToolTip(
         tr("Claim the selected frames before changing them, so that the partners leave them "
            "to you"));
     QObject::connect(m_reserveAction, &QAction::triggered, m_window,
                      [this]() { reserveSelected(); });
-    m_releaseAction = menu->addAction(tr("Release My Reser&vations"));
+    m_releaseAction =
+        withShortcutId(menu->addAction(tr("Release My Reser&vations")), "release-my-reservations");
     QObject::connect(m_releaseAction, &QAction::triggered, m_window,
                      [this]() { releaseReservations(); });
-    m_refreshAction = menu->addAction(tr("Re&fresh Claims"));
+    m_refreshAction = withShortcutId(menu->addAction(tr("Re&fresh Claims")), "refresh-claims");
     QObject::connect(m_refreshAction, &QAction::triggered, m_window,
                      [this]() { updateSync(true); });
     menu->addSeparator();
-    m_breakLockAction = menu->addAction(tr("&Break The Lock..."));
+    m_breakLockAction = withShortcutId(menu->addAction(tr("&Break The Lock...")), "break-the-lock");
     m_breakLockAction->setToolTip(
         tr("Go on alone from this copy: the partners start again from a new snapshot"));
     QObject::connect(m_breakLockAction, &QAction::triggered, m_window, [this]() { breakLock(); });

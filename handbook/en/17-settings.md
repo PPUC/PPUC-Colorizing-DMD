@@ -39,6 +39,7 @@ problem.
   channel each shows, see "Speaker Lights".
 - `DMD Output`: the settings of the DMD output, see "DMD Output".
 - `Plugins`: which of the editor's plugins load, see "Plugins".
+- `Shortcuts`: the keys of the menu entries, see "Keyboard Shortcuts".
 - `Projects`: `Your name`, written by every save as the author of each frame, mask, background,
   sprite and palette that changed, with the time (see "Saving"). Empty until it is set; a save
   then writes no name.

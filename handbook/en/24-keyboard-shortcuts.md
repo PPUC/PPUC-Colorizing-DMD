@@ -47,6 +47,31 @@ view, `Ctrl/Cmd+3` / `Ctrl/Cmd+6` its planes, `Delete` / `Backspace` delete fram
 list, and the edit color keys on the canvas (see "Keys for the edit colors"). No two actions share a
 key (`tools/ui_dump` prints every shortcut of the window and the shared ones).
 
+The table names the keys the editor comes with.
+
+## Changing the keys
+
+`Settings` -> `Shortcuts` lists every entry of the menus with its keys; the search field above finds
+one by its name or key. Select an entry, click the `Keys` field and press the keys: they replace
+what the entry had. `None` leaves it without a key, `Default` gives its own back, `Restore All
+Defaults` does so for all of them. `OK` applies the changes at once, and they are kept for the next
+start. They are the editor's, not a project's.
+
+Not every key can be given, and the note below the field says why:
+
+- A key alone, also with `Shift`, needs `Ctrl/Cmd` or `Alt`: without them it acts on the canvas and
+  in text fields. Function keys (`F1`, `F2`, ...) work alone. On a Mac keyboard the function keys
+  often change the brightness or the volume instead, unless `Fn` is held or the system's keyboard
+  settings say otherwise, and macOS itself uses some of them.
+- A key another entry has stays there: change that entry first.
+- `Ctrl/Cmd+Left`, `Ctrl/Cmd+Right` and `Alt` with an arrow key belong to the frame strip. `Back`
+  and `Forward` keep theirs on Windows and Linux, as before: in the strip `Alt+Left` and `Alt+Right`
+  move frames.
+
+What is not in a menu keeps its keys: the arrow keys, `Esc`, `Enter`, `W`, `K`, `L`, the paste keys
+and the edit color keys. The tooltips of the toolbar's `<`, `>` and zoom buttons name the key you
+chose. Entries of `Open Recent` and of plugins change with what is there, so they have none to set.
+
 ## macOS menu entries
 
 On macOS the `Edit` menu ends with `Writing Tools`, `AutoFill`, `Start Dictation...` and

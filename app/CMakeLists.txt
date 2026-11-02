@@ -43,6 +43,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/FrameTesterDialog.cpp
     dialogs/FrameTesterDialog.h
     dialogs/ProjectTaskDialog.cpp
+    dialogs/ShortcutsSettingsPage.cpp
+    dialogs/ShortcutsSettingsPage.h
     dialogs/SettingsDialog.cpp
     dialogs/SettingsDialog.h
     dialogs/ProjectTaskDialog.h
@@ -147,6 +149,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     team/TeamSync.cpp
     team/TeamSync.h
     EditorPlugins.h
+    KeyboardShortcuts.cpp
+    KeyboardShortcuts.h
     KeyNames.cpp
     KeyNames.h
     ImageImport.cpp

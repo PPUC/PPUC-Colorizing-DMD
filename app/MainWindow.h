@@ -337,6 +337,8 @@ private:
     void toggleCurrentFrameBookmark();
     void goToBookmark(bool forward);
     void updateBookmarkActions();
+    // The toolbar's tooltips name the keys of these entries, which can be changed.
+    void updateShortcutToolTips();
     void updateBackgroundControls();
     void updatePaintTargetMode();
     void setPaintTarget(PaintTarget target);
@@ -715,6 +717,11 @@ private:
     QAction* m_moveFramesUpAction = nullptr;
     QAction* m_moveFramesDownAction = nullptr;
     QAction* m_moveFramesToAction = nullptr;
+    QAction* m_historyBackAction = nullptr;
+    QAction* m_historyForwardAction = nullptr;
+    QToolButton* m_zoomOutButton = nullptr;
+    QToolButton* m_zoomInButton = nullptr;
+    std::unique_ptr<KeyboardShortcuts> m_shortcuts;
     QAction* m_toggleBookmarkAction = nullptr;
     QAction* m_nextBookmarkAction = nullptr;
     QAction* m_previousBookmarkAction = nullptr;

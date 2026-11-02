@@ -2635,6 +2635,18 @@ Utiliser Créer la frame %1.</translation>
     </message>
 </context>
 <context>
+    <name>KeyboardShortcuts</name>
+    <message>
+        <source>A key alone acts on the canvas and in text fields. Use it with %1 or %2, or use a function key.</source>
+        <extracomment>%1: Ctrl (Cmd on macOS), %2: Alt (Option on macOS)</extracomment>
+        <translation>Une touche seule agit sur le canevas et dans les champs de texte. Utilisez-la avec %1 ou %2, ou prenez une touche de fonction.</translation>
+    </message>
+    <message>
+        <source>The frame strip uses this key.</source>
+        <translation>Le bandeau de frames utilise cette touche.</translation>
+    </message>
+</context>
+<context>
     <name>LightActionEditor</name>
     <message>
         <source>The static color</source>
@@ -3214,6 +3226,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Set every speaker light the ambient lighting chose to what the frame&apos;s colors give now; lights you chose yourself stay</source>
         <translation>Régler chaque lumière de haut-parleur choisie par l&apos;éclairage d&apos;ambiance sur ce que donnent maintenant les couleurs de la frame ; celles que vous avez choisies restent</translation>
+    </message>
+    <message>
+        <source>&amp;Back</source>
+        <translation>&amp;Précédent</translation>
+    </message>
+    <message>
+        <source>&amp;Forward</source>
+        <translation>&amp;Suivant</translation>
     </message>
     <message>
         <source>&amp;Bookmarks</source>
@@ -5783,6 +5803,10 @@ Utiliser Créer la frame %1.</translation>
         <translation> %1 autre(s) sauvegarde(s) automatique(s) de projets sans fichier de projet se trouvent dans %2.</translation>
     </message>
     <message>
+        <source>no key</source>
+        <translation>aucune touche</translation>
+    </message>
+    <message>
         <source>Set a bookmark on frame %1</source>
         <translation>Signet posé sur la frame %1</translation>
     </message>
@@ -5792,7 +5816,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>No frame has a bookmark</source>
-        <translation>Aucune frame n'a de signet</translation>
+        <translation>Aucune frame n&apos;a de signet</translation>
     </message>
     <message>
         <source>The frame filter hides every frame with a bookmark</source>
@@ -8224,6 +8248,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Projets</translation>
     </message>
     <message>
+        <source>Shortcuts</source>
+        <translation>Raccourcis</translation>
+    </message>
+    <message>
         <source>%1 (version %2)</source>
         <translation>%1 (version %2)</translation>
     </message>
@@ -8242,6 +8270,58 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Plugins checked here are loaded now and at every start of the editor; their entries appear in the Plugins menu.</source>
         <translation>Les plugins cochés ici sont chargés maintenant et à chaque démarrage de l&apos;éditeur ; leurs entrées apparaissent dans le menu Plugins.</translation>
+    </message>
+</context>
+<context>
+    <name>ShortcutsSettingsPage</name>
+    <message>
+        <source>Search the entries and keys</source>
+        <translation>Rechercher dans les entrées et les touches</translation>
+    </message>
+    <message>
+        <source>Menu Entry</source>
+        <translation>Entrée de menu</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Touches</translation>
+    </message>
+    <message>
+        <source>Click here and press the keys</source>
+        <translation>Cliquez ici et appuyez sur les touches</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Aucune</translation>
+    </message>
+    <message>
+        <source>The entry goes without a key</source>
+        <translation>L&apos;entrée reste sans touche</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Par défaut</translation>
+    </message>
+    <message>
+        <source>The key the entry comes with</source>
+        <translation>La touche d&apos;origine de l&apos;entrée</translation>
+    </message>
+    <message>
+        <source>Its default key stays with %1.</source>
+        <translation>Sa touche par défaut reste à %1.</translation>
+    </message>
+    <message>
+        <source>Restore All Defaults</source>
+        <translation>Tout rétablir par défaut</translation>
+    </message>
+    <message>
+        <source>Select an entry in the list first.</source>
+        <translation>Sélectionnez d&apos;abord une entrée dans la liste.</translation>
+    </message>
+    <message>
+        <source>%1 is already used by %2. Change that entry first.</source>
+        <extracomment>%1: a key, %2: a menu entry (&quot;Edit -&gt; Copy&quot;)</extracomment>
+        <translation>%1 est déjà utilisé par %2. Modifiez d&apos;abord cette entrée.</translation>
     </message>
 </context>
 <context>

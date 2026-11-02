@@ -21,6 +21,7 @@
 
 #include "Translations.h"
 #include "dialogs/DmdOutputSettingsPage.h"
+#include "dialogs/ShortcutsSettingsPage.h"
 
 namespace colorizing::app {
 
@@ -186,12 +187,25 @@ SettingsDialog::SettingsDialog(Theme theme,
     projectsLayout->addStretch(1);
     m_tabs->addTab(projects, tr("Projects"));
 
+    m_shortcutsPage = new ShortcutsSettingsPage(m_tabs);
+    m_tabs->addTab(m_shortcutsPage, tr("Shortcuts"));
+
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(m_tabs);
     layout->addWidget(buttons);
+}
+
+void SettingsDialog::setShortcuts(std::vector<ShortcutEntry> entries)
+{
+    m_shortcutsPage->setEntries(std::move(entries));
+}
+
+const std::vector<ShortcutEntry>& SettingsDialog::shortcuts() const
+{
+    return m_shortcutsPage->entries();
 }
 
 void SettingsDialog::setOffPixelColorShown(const QColor& color)
@@ -216,6 +230,9 @@ void SettingsDialog::showPage(Page page)
             break;
         case Page::Projects:
             m_tabs->setCurrentIndex(3);
+            break;
+        case Page::Shortcuts:
+            m_tabs->setCurrentIndex(4);
             break;
     }
 }

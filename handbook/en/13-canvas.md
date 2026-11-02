@@ -25,8 +25,8 @@ Nothing else can be dropped onto the canvas.
 
 The toolbar's `<` and `>` go back and forward through what the canvas showed, as in a web
 browser: frames, backgrounds being edited and sprites in the sprite editor (`Cmd+[` and `Cmd+]`
-on macOS, `Alt+Left` and `Alt+Right` elsewhere). A frame counts once it has stayed a quarter of
-a second, so stepping through frames notes only where it stopped; playback notes nothing. A
+on macOS, `Alt+Left` and `Alt+Right` elsewhere; also `View -> Back` and `View -> Forward`). A
+frame counts once it has stayed a quarter of a second, so stepping through frames notes only where it stopped; playback notes nothing. A
 background or a sprite counts once, whichever frame is current meanwhile; going back to it
 shows it with the frame that was current. A place includes the timeline, the frame filter
 (with the scene for a scene's frames): after a double click on a scene, `<` goes back to the

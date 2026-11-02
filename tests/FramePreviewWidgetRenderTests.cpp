@@ -4454,6 +4454,7 @@ void testRecordListPage()
 }
 
 void runAppHelpersWidgetTests();
+void runShortcutsWidgetTests();
 void runAutosaveWidgetTests();
 void runFramesClipboardWidgetTests();
 void runGitHubWidgetTests();
@@ -4569,6 +4570,7 @@ int main(int argc, char* argv[])
     runEditorMatchesRuntimeTests();
     runDumpImportWidgetTests();
     runAppHelpersWidgetTests();
+    runShortcutsWidgetTests();
     runColorWidgetTests();
     runProjectTaskWidgetTests();
     std::cout << "colorizing_qt_v2_widget_tests passed\n";

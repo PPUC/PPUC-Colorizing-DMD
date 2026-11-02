@@ -8,6 +8,7 @@
 
 #include "Appearance.h"
 #include "DmdOutput.h"
+#include "KeyboardShortcuts.h"
 #include "SpeakerLightView.h"
 
 class QCheckBox;
@@ -22,9 +23,10 @@ class QToolButton;
 namespace colorizing::app {
 
 class DmdOutputSettingsPage;
+class ShortcutsSettingsPage;
 
 // The editor's settings, one page per topic: Appearance (the theme, the language, how the canvas
-// draws DMD pixels), DMD Output, Plugins and Projects (the author's name). It only shows and collects them; the caller stores and applies what
+// draws DMD pixels), DMD Output, Plugins, Projects (the author's name) and Shortcuts. It only shows and collects them; the caller stores and applies what
 // it returns.
 class SettingsDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(SettingsDialog)
@@ -35,6 +37,7 @@ public:
         DmdOutput,
         Plugins,
         Projects,
+        Shortcuts,
     };
 
     SettingsDialog(Theme theme,
@@ -73,6 +76,9 @@ public:
         QString builtInUse;
     };
     void setPlugins(const std::vector<PluginChoice>& plugins, const QStringList& enabled);
+    // The menu entries and their keys (KeyboardShortcuts).
+    void setShortcuts(std::vector<ShortcutEntry> entries);
+    [[nodiscard]] const std::vector<ShortcutEntry>& shortcuts() const;
     [[nodiscard]] QStringList enabledPlugins() const;
 
 private:
@@ -92,6 +98,7 @@ private:
     QComboBox* m_leftChannel = nullptr;
     QComboBox* m_rightChannel = nullptr;
     DmdOutputSettingsPage* m_dmdOutputPage = nullptr;
+    ShortcutsSettingsPage* m_shortcutsPage = nullptr;
     QLineEdit* m_authorNameEdit = nullptr;
     QListWidget* m_pluginList = nullptr;
     QLabel* m_pluginNote = nullptr;

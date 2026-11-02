@@ -2635,6 +2635,18 @@ Use Create %1 Frame.</source>
     </message>
 </context>
 <context>
+    <name>KeyboardShortcuts</name>
+    <message>
+        <source>A key alone acts on the canvas and in text fields. Use it with %1 or %2, or use a function key.</source>
+        <extracomment>%1: Ctrl (Cmd on macOS), %2: Alt (Option on macOS)</extracomment>
+        <translation>Eine Taste allein wirkt auf der Zeichenfläche und in Textfeldern. Verwende sie mit %1 oder %2, oder nimm eine Funktionstaste.</translation>
+    </message>
+    <message>
+        <source>The frame strip uses this key.</source>
+        <translation>Der Frame-Streifen verwendet diese Taste.</translation>
+    </message>
+</context>
+<context>
     <name>LightActionEditor</name>
     <message>
         <source>The static color</source>
@@ -3214,6 +3226,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Set every speaker light the ambient lighting chose to what the frame&apos;s colors give now; lights you chose yourself stay</source>
         <translation>Jedes Lautsprecherlicht, das die Umgebungsbeleuchtung gewählt hat, auf das setzen, was die Farben des Frames jetzt ergeben; selbst gewählte Lichter bleiben</translation>
+    </message>
+    <message>
+        <source>&amp;Back</source>
+        <translation>&amp;Zurück</translation>
+    </message>
+    <message>
+        <source>&amp;Forward</source>
+        <translation>&amp;Vorwärts</translation>
     </message>
     <message>
         <source>&amp;Bookmarks</source>
@@ -5783,6 +5803,10 @@ Use Create %1 Frame.</source>
         <translation> %1 weitere automatische Sicherung(en) von Projekten ohne Projektdatei liegen in %2.</translation>
     </message>
     <message>
+        <source>no key</source>
+        <translation>keine Taste</translation>
+    </message>
+    <message>
         <source>Set a bookmark on frame %1</source>
         <translation>Lesezeichen auf Frame %1 gesetzt</translation>
     </message>
@@ -8224,6 +8248,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Projekte</translation>
     </message>
     <message>
+        <source>Shortcuts</source>
+        <translation>Tastenkürzel</translation>
+    </message>
+    <message>
         <source>%1 (version %2)</source>
         <translation>%1 (Version %2)</translation>
     </message>
@@ -8242,6 +8270,58 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Plugins checked here are loaded now and at every start of the editor; their entries appear in the Plugins menu.</source>
         <translation>Hier angehakte Plugins werden jetzt und bei jedem Start des Editors geladen; ihre Einträge erscheinen im Menü Plugins.</translation>
+    </message>
+</context>
+<context>
+    <name>ShortcutsSettingsPage</name>
+    <message>
+        <source>Search the entries and keys</source>
+        <translation>Einträge und Tasten durchsuchen</translation>
+    </message>
+    <message>
+        <source>Menu Entry</source>
+        <translation>Menüeintrag</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Tasten</translation>
+    </message>
+    <message>
+        <source>Click here and press the keys</source>
+        <translation>Hier klicken und die Tasten drücken</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Keine</translation>
+    </message>
+    <message>
+        <source>The entry goes without a key</source>
+        <translation>Der Eintrag bleibt ohne Taste</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Standard</translation>
+    </message>
+    <message>
+        <source>The key the entry comes with</source>
+        <translation>Die Taste, die der Eintrag von Haus aus hat</translation>
+    </message>
+    <message>
+        <source>Its default key stays with %1.</source>
+        <translation>Seine Standardtaste bleibt bei %1.</translation>
+    </message>
+    <message>
+        <source>Restore All Defaults</source>
+        <translation>Alle Standards wiederherstellen</translation>
+    </message>
+    <message>
+        <source>Select an entry in the list first.</source>
+        <translation>Wähle zuerst einen Eintrag in der Liste aus.</translation>
+    </message>
+    <message>
+        <source>%1 is already used by %2. Change that entry first.</source>
+        <extracomment>%1: a key, %2: a menu entry (&quot;Edit -&gt; Copy&quot;)</extracomment>
+        <translation>%1 wird schon von %2 verwendet. Ändere zuerst diesen Eintrag.</translation>
     </message>
 </context>
 <context>

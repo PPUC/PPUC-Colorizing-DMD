@@ -91,11 +91,13 @@ private:
     // A submenu with an entry per direction; withShortcuts gives the two all-around entries
     // theirs (Alt+S, Alt+Shift+S).
     void addDirections(QMenu* menu,
+                       const QString& id,
                        const QString& title,
                        const QString& toolTip,
                        std::function<void(edit::SelectionDirection)> EditMenuActions::*handler,
                        bool withShortcuts = false);
     QAction* add(QMenu* menu,
+                 const char* id,
                  const QString& text,
                  const QString& toolTip,
                  const QList<QKeySequence>& shortcuts,

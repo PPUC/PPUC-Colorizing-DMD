@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Settings` -> `Shortcuts` sets the keys of every menu entry, function keys included; the
+  toolbar's `<` and `>` are in the `View` menu as `Back` and `Forward` for it.
 - Bookmarks mark frames to come back to: `View -> Bookmarks` sets and removes them and goes to the
   next or previous one, the strip shows them with a star and the filter `With a bookmark` lists
   them. They are saved in the project file.

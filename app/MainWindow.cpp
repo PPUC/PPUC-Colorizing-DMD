@@ -76,6 +76,7 @@
 #include "GifExport.h"
 #include "HandbookWindow.h"
 #include "FrameThumbnail.h"
+#include "KeyboardShortcuts.h"
 #include "LazyListIcons.h"
 #include "ThumbnailCaptions.h"
 #include "EditorPlugins.h"
@@ -538,6 +539,8 @@ MainWindow::MainWindow(QWidget* parent)
     m_team = std::make_unique<TeamController>(this, std::move(teamHost));
     createActions();
     createCentralView();
+    m_shortcuts = std::make_unique<KeyboardShortcuts>(menuBar());
+    updateShortcutToolTips();
     EditorPlugins::Window pluginWindow;
     pluginWindow.parent = this;
     pluginWindow.menu = m_pluginsMenu;
@@ -623,7 +626,7 @@ void MainWindow::createActions()
     m_pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
     m_team->createMenu(menuBar());
     QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
-    QAction* handbookAction = helpMenu->addAction(tr("&Handbook"));
+    QAction* handbookAction = withShortcutId(helpMenu->addAction(tr("&Handbook")), "handbook");
     handbookAction->setShortcut(QKeySequence::HelpContents);
     connect(handbookAction, &QAction::triggered, this, [this]() {
         if (!m_handbookWindow) {
@@ -634,14 +637,15 @@ void MainWindow::createActions()
         m_handbookWindow->activateWindow();
     });
     // On macOS it goes to the application menu.
-    QAction* aboutAction = helpMenu->addAction(tr("&About %1").arg(kApplicationName));
+    QAction* aboutAction =
+        withShortcutId(helpMenu->addAction(tr("&About %1").arg(kApplicationName)), "about");
     aboutAction->setMenuRole(QAction::AboutRole);
     connect(aboutAction, &QAction::triggered, this, [this]() {
         AboutDialog dialog(this);
         dialog.exec();
     });
     // What the VPX plugins (DMD output) log, to find out why a display stays dark.
-    QAction* pluginLogAction = helpMenu->addAction(tr("&Plugin Log"));
+    QAction* pluginLogAction = withShortcutId(helpMenu->addAction(tr("&Plugin Log")), "plugin-log");
     pluginLogAction->setToolTip(tr("What the DMD output and the other plugins log"));
     connect(pluginLogAction, &QAction::triggered, this, [this]() {
         if (!m_pluginLogWindow) {
@@ -653,33 +657,36 @@ void MainWindow::createActions()
     });
 
     QAction* newFromDumpAction =
-        fileMenu->addAction(tr("&New Project From Dump..."));
+        withShortcutId(fileMenu->addAction(tr("&New Project From Dump...")),
+                       "new-project-from-dump");
     newFromDumpAction->setToolTip(tr("Create a project of the frames of a frame dump"));
     connect(newFromDumpAction, &QAction::triggered, this, [this]() {
         newProjectFromDump();
     });
 
-    QAction* openAction = fileMenu->addAction(tr("&Open Project..."));
+    QAction* openAction =
+        withShortcutId(fileMenu->addAction(tr("&Open Project...")), "open-project");
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, [this]() {
         openProject();
     });
 
-    m_saveAction = fileMenu->addAction(tr("&Save"));
+    m_saveAction = withShortcutId(fileMenu->addAction(tr("&Save")), "save");
     m_saveAction->setShortcut(QKeySequence::Save);
     m_saveAction->setEnabled(false);
     connect(m_saveAction, &QAction::triggered, this, [this]() {
         saveProject();
     });
 
-    QAction* saveAsAction = fileMenu->addAction(tr("Save &As..."));
+    QAction* saveAsAction = withShortcutId(fileMenu->addAction(tr("Save &As...")), "save-as");
     saveAsAction->setShortcut(QKeySequence::SaveAs);
     connect(saveAsAction, &QAction::triggered, this, [this]() {
         saveProjectAs();
     });
 
     fileMenu->addSeparator();
-    m_projectSettingsAction = fileMenu->addAction(tr("Pro&ject Settings..."));
+    m_projectSettingsAction =
+        withShortcutId(fileMenu->addAction(tr("Pro&ject Settings...")), "project-settings");
     m_projectSettingsAction->setToolTip(
         tr("Settings of the whole colorization: the libserum it is made for, upscaling"));
     m_projectSettingsAction->setMenuRole(QAction::NoRole);
@@ -688,7 +695,8 @@ void MainWindow::createActions()
     });
     fileMenu->addSeparator();
 
-    QAction* exportCromcAction = fileMenu->addAction(tr("Export .cRO&Mc..."));
+    QAction* exportCromcAction =
+        withShortcutId(fileMenu->addAction(tr("Export .cRO&Mc...")), "export-cromc");
     exportCromcAction->setToolTip(
         tr("Write the project's .cROMc as libserum generates it on a machine (for projects "
            "made for libserum 2.9; one for 2.8 ships its .cRZ)"));
@@ -700,7 +708,8 @@ void MainWindow::createActions()
     // Win32 editor's Shift+click on its GIF button did.
     QMenu* gifMenu = fileMenu->addMenu(tr("Export Animated &GIF"));
     gifMenu->setToolTipsVisible(true);
-    QAction* exportGifAction = gifMenu->addAction(tr("&Colorized Frames..."));
+    QAction* exportGifAction =
+        withShortcutId(gifMenu->addAction(tr("&Colorized Frames...")), "colorized-frames");
     exportGifAction->setToolTip(tr(
         "Write the selected frames, with their colour rotations, as an animated GIF, on the "
         "plane the canvas shows"));
@@ -708,17 +717,21 @@ void MainWindow::createActions()
         exportAnimatedGif(QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier),
                           false);
     });
-    QAction* exportGifOriginalsAction = gifMenu->addAction(tr("With &Originals..."));
+    QAction* exportGifOriginalsAction =
+        withShortcutId(gifMenu->addAction(tr("With &Originals...")), "with-originals");
     exportGifOriginalsAction->setToolTip(
         tr("Each original frame above its colorized picture"));
     connect(exportGifOriginalsAction, &QAction::triggered, this,
             [this]() { exportAnimatedGif(true, false); });
-    m_exportGifBothPlanesAction = gifMenu->addAction(tr("&Both Planes..."));
+    m_exportGifBothPlanesAction =
+        withShortcutId(gifMenu->addAction(tr("&Both Planes...")), "both-planes");
     m_exportGifBothPlanesAction->setToolTip(
         tr("The 128x32 picture above the 256x64 one, as the Win32 editor's GIF"));
     connect(m_exportGifBothPlanesAction, &QAction::triggered, this,
             [this]() { exportAnimatedGif(false, true); });
-    m_exportGifAllAction = gifMenu->addAction(tr("Originals And Both &Planes..."));
+    m_exportGifAllAction =
+        withShortcutId(gifMenu->addAction(tr("Originals And Both &Planes...")),
+                       "originals-and-both-planes");
     m_exportGifAllAction->setToolTip(
         tr("The original frame, the 128x32 picture and the 256x64 picture, one above the "
            "other"));
@@ -733,26 +746,31 @@ void MainWindow::createActions()
         m_exportGifAllAction->setEnabled(twoPlanes);
     });
 
-    QAction* exportFrameAction = fileMenu->addAction(tr("Export Current &Frame PNG..."));
+    QAction* exportFrameAction =
+        withShortcutId(fileMenu->addAction(tr("Export Current &Frame PNG...")),
+                       "export-current-frame-png");
     exportFrameAction->setToolTip(tr("Export the current frame as libserum renders it"));
     connect(exportFrameAction, &QAction::triggered, this, [this]() {
         exportCurrentFramePng();
     });
 
     QAction* importFrameImageAction =
-        fileMenu->addAction(tr("Import Image Into Selected &Frames..."));
+        withShortcutId(fileMenu->addAction(tr("Import Image Into Selected &Frames...")),
+                       "import-image-into-selected-frames");
     connect(importFrameImageAction, &QAction::triggered, this, [this]() {
         importImageIntoSelectedFrames();
     });
     QAction* importClipboardAction =
-        fileMenu->addAction(tr("Import Image From the C&lipboard..."));
+        withShortcutId(fileMenu->addAction(tr("Import Image From the C&lipboard...")),
+                       "import-image-from-the-clipboard");
     importClipboardAction->setToolTip(
         tr("The picture on the clipboard into the selection of the selected frames"));
     connect(importClipboardAction, &QAction::triggered, this, [this]() {
         importImageFromClipboard();
     });
     QAction* importMovieAction =
-        fileMenu->addAction(tr("Import Mo&vie Clip Into Selected Frames..."));
+        withShortcutId(fileMenu->addAction(tr("Import Mo&vie Clip Into Selected Frames...")),
+                       "import-movie-clip-into-selected-frames");
     importMovieAction->setToolTip(
         tr("A picture of a movie clip for each selected frame, from a part of the clip's "
            "picture"));
@@ -760,7 +778,8 @@ void MainWindow::createActions()
         importMovieIntoSelectedFrames();
     });
 
-    m_addFramesFromDumpAction = fileMenu->addAction(tr("A&dd Frames From Dump..."));
+    m_addFramesFromDumpAction =
+        withShortcutId(fileMenu->addAction(tr("A&dd Frames From Dump...")), "add-frames-from-dump");
     m_addFramesFromDumpAction->setToolTip(
         tr("Add the frames of a frame dump that the project does not have yet"));
     m_addFramesFromDumpAction->setEnabled(false);
@@ -768,13 +787,15 @@ void MainWindow::createActions()
         addFramesFromDump();
     });
 
-    QAction* importPackageAction = fileMenu->addAction(tr("Import &Package..."));
+    QAction* importPackageAction =
+        withShortcutId(fileMenu->addAction(tr("Import &Package...")), "import-package");
     importPackageAction->setToolTip(
         tr("Add the frames of a package, with what they use; frames the project has already "
            "can be updated"));
     connect(importPackageAction, &QAction::triggered, this, [this]() { importPackageFile(); });
     QAction* exportPackageAction =
-        fileMenu->addAction(tr("Export Selected Frames As Pac&kage..."));
+        withShortcutId(fileMenu->addAction(tr("Export Selected Frames As Pac&kage...")),
+                       "export-selected-frames-as-package");
     exportPackageAction->setToolTip(
         tr("Write the selected frames with the masks, backgrounds, sprites and light effects "
            "they use, for another project"));
@@ -785,18 +806,18 @@ void MainWindow::createActions()
 
     fileMenu->addSeparator();
     // On macOS Qt moves it to the application menu, by its role.
-    QAction* settingsAction = fileMenu->addAction(tr("Se&ttings..."));
+    QAction* settingsAction = withShortcutId(fileMenu->addAction(tr("Se&ttings...")), "settings");
     settingsAction->setShortcut(QKeySequence::Preferences);
     settingsAction->setMenuRole(QAction::PreferencesRole);
     connect(settingsAction, &QAction::triggered, this,
             [this]() { editSettings(SettingsDialog::Page::Appearance); });
     fileMenu->addSeparator();
 
-    QAction* quitAction = fileMenu->addAction(tr("&Quit"));
+    QAction* quitAction = withShortcutId(fileMenu->addAction(tr("&Quit")), "quit");
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
 
-    m_undoAction = editMenu->addAction(tr("&Undo"));
+    m_undoAction = withShortcutId(editMenu->addAction(tr("&Undo")), "undo");
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setShortcutContext(Qt::ApplicationShortcut);
     m_undoAction->setEnabled(false);
@@ -804,7 +825,7 @@ void MainWindow::createActions()
         undo();
     });
 
-    m_redoAction = editMenu->addAction(tr("&Redo"));
+    m_redoAction = withShortcutId(editMenu->addAction(tr("&Redo")), "redo");
     m_redoAction->setShortcut(QKeySequence::Redo);
     m_redoAction->setShortcutContext(Qt::ApplicationShortcut);
     m_redoAction->setEnabled(false);
@@ -814,7 +835,9 @@ void MainWindow::createActions()
 
     // Undo and Redo above keep to the frame (or record) shown; these go through the whole
     // project, most recent first, and show the frame they change.
-    m_undoAnywhereAction = editMenu->addAction(tr("Undo Last Edit &Anywhere"));
+    m_undoAnywhereAction =
+        withShortcutId(editMenu->addAction(tr("Undo Last Edit &Anywhere")),
+                       "undo-last-edit-anywhere");
     m_undoAnywhereAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Z));
     m_undoAnywhereAction->setShortcutContext(Qt::ApplicationShortcut);
     m_undoAnywhereAction->setToolTip(
@@ -822,7 +845,9 @@ void MainWindow::createActions()
            "made, and go to that frame"));
     m_undoAnywhereAction->setEnabled(false);
     connect(m_undoAnywhereAction, &QAction::triggered, this, [this]() { undo(true); });
-    m_redoAnywhereAction = editMenu->addAction(tr("Redo Last Edit A&nywhere"));
+    m_redoAnywhereAction =
+        withShortcutId(editMenu->addAction(tr("Redo Last Edit A&nywhere")),
+                       "redo-last-edit-anywhere");
     m_redoAnywhereAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_Z));
     m_redoAnywhereAction->setShortcutContext(Qt::ApplicationShortcut);
     m_redoAnywhereAction->setToolTip(
@@ -831,7 +856,8 @@ void MainWindow::createActions()
     connect(m_redoAnywhereAction, &QAction::triggered, this, [this]() { redo(true); });
 
     editMenu->addSeparator();
-    m_deleteFramesAction = editMenu->addAction(tr("&Delete Frames..."));
+    m_deleteFramesAction =
+        withShortcutId(editMenu->addAction(tr("&Delete Frames...")), "delete-frames");
     m_deleteFramesAction->setToolTip(tr("Delete the selected frames"));
     m_deleteFramesAction->setEnabled(false);
     connect(m_deleteFramesAction, &QAction::triggered, this, [this]() {
@@ -839,24 +865,29 @@ void MainWindow::createActions()
     });
     // The Win32 editor's "To Source Frame": a fake frame no dump has, painted in the original
     // colors, added behind the last frame.
-    QAction* copyFramesAction = editMenu->addAction(tr("Cop&y Frames"));
+    QAction* copyFramesAction =
+        withShortcutId(editMenu->addAction(tr("Cop&y Frames")), "copy-frames");
     copyFramesAction->setToolTip(
         tr("Copy the selected frames with what they use, for Paste Frames in this or another "
            "editor window"));
     connect(copyFramesAction, &QAction::triggered, this, [this]() { copyFramesToClipboard(); });
-    QAction* pasteFramesAction = editMenu->addAction(tr("Paste F&rames"));
+    QAction* pasteFramesAction =
+        withShortcutId(editMenu->addAction(tr("Paste F&rames")), "paste-frames");
     pasteFramesAction->setToolTip(
         tr("Add the copied frames behind the last frame, as Import Package does"));
     connect(pasteFramesAction, &QAction::triggered, this, [this]() {
         pasteFramesFromClipboard();
     });
-    m_sourceFrameAction = editMenu->addAction(tr("New &Frame From Original Colors"));
+    m_sourceFrameAction =
+        withShortcutId(editMenu->addAction(tr("New &Frame From Original Colors")),
+                       "new-frame-from-original-colors");
     m_sourceFrameAction->setToolTip(
         tr("Add a frame whose original is the current frame's picture, painted in the plain "
            "original colors only (\"To Source Frame\" in the Win32 editor)"));
     m_sourceFrameAction->setEnabled(false);
     connect(m_sourceFrameAction, &QAction::triggered, this, [this]() { addSourceFrame(); });
-    m_copyFrameSettingsAction = editMenu->addAction(tr("Copy Frame &Settings..."));
+    m_copyFrameSettingsAction =
+        withShortcutId(editMenu->addAction(tr("Copy Frame &Settings...")), "copy-frame-settings");
     m_copyFrameSettingsAction->setToolTip(
         tr("Replace chosen settings of the other selected frames with those of the current "
            "frame: dynamic zones, background, sprites, color rotations and more"));
@@ -865,21 +896,24 @@ void MainWindow::createActions()
         copyFrameSettings();
     });
     m_deleteShortFramesAction =
-        editMenu->addAction(tr("Delete Frames &Shorter Than..."));
+        withShortcutId(editMenu->addAction(tr("Delete Frames &Shorter Than...")),
+                       "delete-frames-shorter-than");
     m_deleteShortFramesAction->setToolTip(
         tr("Delete the selected frames that are shorter than a duration"));
     m_deleteShortFramesAction->setEnabled(false);
     connect(m_deleteShortFramesAction, &QAction::triggered, this, [this]() {
         deleteSelectedFramesShorterThan();
     });
-    m_moveFramesUpAction = editMenu->addAction(tr("Move Frames &Earlier"));
+    m_moveFramesUpAction =
+        withShortcutId(editMenu->addAction(tr("Move Frames &Earlier")), "move-frames-earlier");
     m_moveFramesUpAction->setToolTip(
         tr("Move the selected frames before the frame shown before them (%1 in the frame "
            "strip)")
             .arg(nativeShortcut(QStringLiteral("Alt+Left"))));
     m_moveFramesUpAction->setEnabled(false);
     connect(m_moveFramesUpAction, &QAction::triggered, this, [this]() { moveSelectedFramesUp(); });
-    m_moveFramesDownAction = editMenu->addAction(tr("Move Frames &Later"));
+    m_moveFramesDownAction =
+        withShortcutId(editMenu->addAction(tr("Move Frames &Later")), "move-frames-later");
     m_moveFramesDownAction->setToolTip(
         tr("Move the selected frames behind the frame shown after them (%1 in the frame "
            "strip)")
@@ -887,21 +921,26 @@ void MainWindow::createActions()
     m_moveFramesDownAction->setEnabled(false);
     connect(m_moveFramesDownAction, &QAction::triggered, this,
             [this]() { moveSelectedFramesDown(); });
-    m_moveFramesToAction = editMenu->addAction(tr("&Move Frames To..."));
+    m_moveFramesToAction =
+        withShortcutId(editMenu->addAction(tr("&Move Frames To...")), "move-frames-to");
     m_moveFramesToAction->setToolTip(
         tr("Move the selected frames before a frame number, or to the end"));
     m_moveFramesToAction->setEnabled(false);
     connect(m_moveFramesToAction, &QAction::triggered, this, [this]() { moveSelectedFramesTo(); });
     editMenu->addSeparator();
     m_ambientLightingAction =
-        editMenu->addAction(tr("Ambient Lighting For Frames Without Speaker Lights..."));
+        withShortcutId(editMenu->addAction(
+                           tr("Ambient Lighting For Frames Without Speaker Lights...")),
+                       "ambient-lighting-for-frames-without-speaker-lights");
     m_ambientLightingAction->setToolTip(
         tr("Speaker lights 1 and 2 from the colors of the left and right part of every frame "
            "that does nothing to the speaker lights yet"));
     m_ambientLightingAction->setEnabled(false);
     connect(m_ambientLightingAction, &QAction::triggered, this,
             [this]() { addAmbientLightingToFramesWithoutLights(); });
-    m_updateAmbientLightingAction = editMenu->addAction(tr("Update Ambient Lighting"));
+    m_updateAmbientLightingAction =
+        withShortcutId(editMenu->addAction(tr("Update Ambient Lighting")),
+                       "update-ambient-lighting");
     m_updateAmbientLightingAction->setToolTip(
         tr("Set every speaker light the ambient lighting chose to what the frame's colors give "
            "now; lights you chose yourself stay"));
@@ -914,30 +953,45 @@ void MainWindow::createActions()
             [this]() { updateFrameLightControls(); });
     createSelectionActions(editMenu);
 
+    // Back and forward through what the canvas showed, as in a web browser.
+    m_historyBackAction = withShortcutId(viewMenu->addAction(tr("&Back")), "back");
+    m_historyBackAction->setShortcut(QKeySequence::Back);
+    m_historyBackAction->setEnabled(false);
+    connect(m_historyBackAction, &QAction::triggered, this, [this]() { goBackOrForward(true); });
+    m_historyForwardAction = withShortcutId(viewMenu->addAction(tr("&Forward")), "forward");
+    m_historyForwardAction->setShortcut(QKeySequence::Forward);
+    m_historyForwardAction->setEnabled(false);
+    connect(m_historyForwardAction, &QAction::triggered, this,
+            [this]() { goBackOrForward(false); });
     QMenu* bookmarksMenu = viewMenu->addMenu(tr("&Bookmarks"));
-    m_toggleBookmarkAction = bookmarksMenu->addAction(tr("&Toggle Bookmark"));
+    m_toggleBookmarkAction =
+        withShortcutId(bookmarksMenu->addAction(tr("&Toggle Bookmark")), "toggle-bookmark");
     m_toggleBookmarkAction->setToolTip(tr("Set or remove the bookmark of the current frame"));
     m_toggleBookmarkAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
     m_toggleBookmarkAction->setEnabled(false);
     connect(m_toggleBookmarkAction, &QAction::triggered, this,
             [this]() { toggleCurrentFrameBookmark(); });
-    m_nextBookmarkAction = bookmarksMenu->addAction(tr("&Next Bookmark"));
+    m_nextBookmarkAction =
+        withShortcutId(bookmarksMenu->addAction(tr("&Next Bookmark")), "next-bookmark");
     m_nextBookmarkAction->setToolTip(tr("Go to the next frame with a bookmark"));
     m_nextBookmarkAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_B));
     m_nextBookmarkAction->setEnabled(false);
     connect(m_nextBookmarkAction, &QAction::triggered, this, [this]() { goToBookmark(true); });
-    m_previousBookmarkAction = bookmarksMenu->addAction(tr("&Previous Bookmark"));
+    m_previousBookmarkAction =
+        withShortcutId(bookmarksMenu->addAction(tr("&Previous Bookmark")), "previous-bookmark");
     m_previousBookmarkAction->setToolTip(tr("Go to the previous frame with a bookmark"));
     m_previousBookmarkAction->setShortcut(QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_B));
     m_previousBookmarkAction->setEnabled(false);
     connect(m_previousBookmarkAction, &QAction::triggered, this,
             [this]() { goToBookmark(false); });
-    QAction* frameTesterAction = viewMenu->addAction(tr("Frame &Tester..."));
+    QAction* frameTesterAction =
+        withShortcutId(viewMenu->addAction(tr("Frame &Tester...")), "frame-tester");
     frameTesterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
     frameTesterAction->setToolTip(tr(
         "Feed the selected frames or a frame dump to libserum with the whole project loaded"));
     connect(frameTesterAction, &QAction::triggered, this, [this]() { openFrameTester(); });
-    QAction* pupTesterAction = viewMenu->addAction(tr("&PuP Tester..."));
+    QAction* pupTesterAction =
+        withShortcutId(viewMenu->addAction(tr("&PuP Tester...")), "pup-tester");
     pupTesterAction->setToolTip(
         tr("Play the project's PuP pack with the PUP plugin: the shown frames' triggers go to "
            "it as on a machine"));
@@ -950,7 +1004,8 @@ void MainWindow::createActions()
         m_pupTesterWindow->raise();
         m_pupTesterWindow->activateWindow();
     });
-    m_speakerPreviewAction = viewMenu->addAction(tr("&Speaker Light Preview"));
+    m_speakerPreviewAction =
+        withShortcutId(viewMenu->addAction(tr("&Speaker Light Preview")), "speaker-light-preview");
     m_speakerPreviewAction->setCheckable(true);
     m_speakerPreviewAction->setChecked(loadSpeakerLightPreviewOptions().visible);
     m_speakerPreviewAction->setToolTip(
@@ -960,7 +1015,7 @@ void MainWindow::createActions()
             [this](bool checked) { setSpeakerLightPreviewShown(checked); });
     viewMenu->addSeparator();
 
-    m_dmdOutputAction = viewMenu->addAction(tr("Output To &DMD"));
+    m_dmdOutputAction = withShortcutId(viewMenu->addAction(tr("Output To &DMD")), "output-to-dmd");
     m_dmdOutputAction->setCheckable(true);
     m_dmdOutputAction->setIconText(QStringLiteral("DMD"));
     m_dmdOutputAction->setEnabled(DmdOutput::isAvailable());
@@ -971,14 +1026,15 @@ void MainWindow::createActions()
     connect(m_dmdOutputAction, &QAction::toggled, this, [this](bool on) {
         setDmdOutputEnabled(on);
     });
-    QAction* dmdSettingsAction = viewMenu->addAction(tr("DMD Output &Settings..."));
+    QAction* dmdSettingsAction =
+        withShortcutId(viewMenu->addAction(tr("DMD Output &Settings...")), "dmd-output-settings");
     dmdSettingsAction->setEnabled(DmdOutput::isAvailable());
     connect(dmdSettingsAction, &QAction::triggered, this,
             [this]() { editSettings(SettingsDialog::Page::DmdOutput); });
     viewMenu->addSeparator();
     // The canvas zoom; the colorized and the original picture show the same part. While a
     // sprite is shown in the canvas's place, its zoom.
-    QAction* zoomInAction = viewMenu->addAction(tr("Zoom &In"));
+    QAction* zoomInAction = withShortcutId(viewMenu->addAction(tr("Zoom &In")), "zoom-in");
     zoomInAction->setShortcuts({QKeySequence::ZoomIn, QKeySequence(Qt::CTRL | Qt::Key_Equal)});
     connect(zoomInAction, &QAction::triggered, this, [this]() {
         if (isSpriteCanvasActive() && m_spriteEditor) {
@@ -987,7 +1043,7 @@ void MainWindow::createActions()
             m_preview->zoomIn();
         }
     });
-    QAction* zoomOutAction = viewMenu->addAction(tr("Zoom &Out"));
+    QAction* zoomOutAction = withShortcutId(viewMenu->addAction(tr("Zoom &Out")), "zoom-out");
     zoomOutAction->setShortcut(QKeySequence::ZoomOut);
     connect(zoomOutAction, &QAction::triggered, this, [this]() {
         if (isSpriteCanvasActive() && m_spriteEditor) {
@@ -996,7 +1052,8 @@ void MainWindow::createActions()
             m_preview->zoomOut();
         }
     });
-    QAction* zoomFitAction = viewMenu->addAction(tr("Show &Whole Frame"));
+    QAction* zoomFitAction =
+        withShortcutId(viewMenu->addAction(tr("Show &Whole Frame")), "show-whole-frame");
     zoomFitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
     connect(zoomFitAction, &QAction::triggered, this, [this]() {
         if (isSpriteCanvasActive() && m_spriteEditor) {
@@ -1008,7 +1065,8 @@ void MainWindow::createActions()
     viewMenu->addSeparator();
 
     // Ctrl+X as in the Win32 editor; a text field with the focus keeps it for cutting text.
-    QAction* switchPlaneAction = viewMenu->addAction(tr("Switch SD/HD"));
+    QAction* switchPlaneAction =
+        withShortcutId(viewMenu->addAction(tr("Switch SD/HD")), "switch-sd-hd");
     switchPlaneAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
     switchPlaneAction->setToolTip(
         tr("Edit the other plane: SD instead of HD, or HD instead of SD"));
@@ -1020,7 +1078,8 @@ void MainWindow::createActions()
         }
     });
 
-    m_helperLinesShownAction = viewMenu->addAction(tr("Show &Helper Lines"));
+    m_helperLinesShownAction =
+        withShortcutId(viewMenu->addAction(tr("Show &Helper Lines")), "show-helper-lines");
     m_helperLinesShownAction->setCheckable(true);
     m_helperLinesShownAction->setChecked(
         QSettings().value(QStringLiteral("view/helperLinesShown"), true).toBool());
@@ -1038,7 +1097,7 @@ void MainWindow::createActions()
     });
     applyHelperLinesShown();
 
-    m_runtimeViewAction = viewMenu->addAction(tr("&Runtime View"));
+    m_runtimeViewAction = withShortcutId(viewMenu->addAction(tr("&Runtime View")), "runtime-view");
     // What the toolbar button of the action shows.
     m_runtimeViewAction->setIconText(tr("Runtime"));
     m_runtimeViewAction->setCheckable(true);
@@ -1052,12 +1111,14 @@ void MainWindow::createActions()
 
     auto* rowsGroup = new QActionGroup(this);
     viewMenu->addSeparator();
-    m_runtimeRows32Action = viewMenu->addAction(tr("Runtime Plane: &32 Rows"));
+    m_runtimeRows32Action =
+        withShortcutId(viewMenu->addAction(tr("Runtime Plane: &32 Rows")), "runtime-plane-32-rows");
     m_runtimeRows32Action->setCheckable(true);
     m_runtimeRows32Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
     m_runtimeRows32Action->setShortcutContext(Qt::ApplicationShortcut);
     m_runtimeRows32Action->setToolTip(tr("What a display with 32 rows gets"));
-    m_runtimeRows64Action = viewMenu->addAction(tr("Runtime Plane: &64 Rows"));
+    m_runtimeRows64Action =
+        withShortcutId(viewMenu->addAction(tr("Runtime Plane: &64 Rows")), "runtime-plane-64-rows");
     m_runtimeRows64Action->setCheckable(true);
     m_runtimeRows64Action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
     m_runtimeRows64Action->setShortcutContext(Qt::ApplicationShortcut);
@@ -1589,19 +1650,10 @@ void MainWindow::createCentralView()
     m_spritePanel->onClearDetectionAreaRequested = [this]() {
         clearCurrentSpriteDetectionArea();
     };
-    // Back and forward through what the canvas showed, as in a web browser.
     m_historyBackButton = new QToolButton(central);
     m_historyBackButton->setText(QStringLiteral("<"));
-    m_historyBackButton->setToolTip(
-        tr("Back to what the canvas showed before: a frame, a background or a sprite (%1)")
-            .arg(QKeySequence(QKeySequence::Back).toString(QKeySequence::NativeText)));
-    m_historyBackButton->setShortcut(QKeySequence::Back);
     m_historyForwardButton = new QToolButton(central);
     m_historyForwardButton->setText(QStringLiteral(">"));
-    m_historyForwardButton->setToolTip(
-        tr("Forward again (%1)")
-            .arg(QKeySequence(QKeySequence::Forward).toString(QKeySequence::NativeText)));
-    m_historyForwardButton->setShortcut(QKeySequence::Forward);
     connect(m_historyBackButton, &QToolButton::clicked, this, [this]() { goBackOrForward(true); });
     connect(m_historyForwardButton, &QToolButton::clicked, this,
             [this]() { goBackOrForward(false); });
@@ -1729,9 +1781,8 @@ void MainWindow::createCentralView()
     startToolbarGroup();
     // The canvas zoom: out, the zoom (a click shows the whole frame), in.
     auto* zoomOutButton = new QToolButton(central);
+    m_zoomOutButton = zoomOutButton;
     zoomOutButton->setText(QStringLiteral("-"));
-    zoomOutButton->setToolTip(
-        tr("Zoom out (%1)").arg(nativeShortcut(QStringLiteral("Ctrl+-"))));
     connect(zoomOutButton, &QToolButton::clicked, this, [this]() {
         if (spriteCanvasShown()) {
             m_spriteEditor->zoomOut();
@@ -1741,10 +1792,6 @@ void MainWindow::createCentralView()
     });
     m_zoomButton = new QToolButton(central);
     m_zoomButton->setText(QStringLiteral("100%"));
-    //: %1: the shortcut, %2: Ctrl (Cmd on macOS)
-    m_zoomButton->setToolTip(tr("Canvas zoom; a click shows the whole frame (%1). %2 with the "
-                                "mouse wheel or a pinch zooms at the mouse.")
-                                 .arg(nativeShortcut(QStringLiteral("Ctrl+0")), ctrlKeyName()));
     connect(m_zoomButton, &QToolButton::clicked, this, [this]() {
         if (spriteCanvasShown()) {
             m_spriteEditor->resetZoom();
@@ -1753,9 +1800,8 @@ void MainWindow::createCentralView()
         }
     });
     auto* zoomInButton = new QToolButton(central);
+    m_zoomInButton = zoomInButton;
     zoomInButton->setText(QStringLiteral("+"));
-    zoomInButton->setToolTip(
-        tr("Zoom in (%1)").arg(nativeShortcut(QStringLiteral("Ctrl++"))));
     connect(zoomInButton, &QToolButton::clicked, this, [this]() {
         if (spriteCanvasShown()) {
             m_spriteEditor->zoomIn();
@@ -3291,6 +3337,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     dialog.setAuthorName(loadAuthorName());
     dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
     dialog.setSpriteThumbnailsZoomed(loadSpriteThumbnailsZoomed());
+    dialog.setShortcuts(m_shortcuts->entries());
     {
         std::vector<SettingsDialog::PluginChoice> plugins;
         for (const EditorPlugins::Plugin& plugin : EditorPlugins::available()) {
@@ -3309,6 +3356,8 @@ void MainWindow::editSettings(SettingsDialog::Page page)
             QMessageBox::warning(this, tr("Plugins"), errors.join(QChar('\n')));
         }
     }
+    m_shortcuts->apply(dialog.shortcuts());
+    updateShortcutToolTips();
     saveAuthorName(dialog.authorName());
     if (dialog.language() != loadLanguage()) {
         saveLanguage(dialog.language());
@@ -4910,6 +4959,28 @@ void MainWindow::goToFrame(std::size_t frameIndex)
     statusBar()->showMessage(tr("Frame %1 is hidden by the frame filter")
                                  .arg(static_cast<qulonglong>(frameIndex)),
                              4000);
+}
+
+void MainWindow::updateShortcutToolTips()
+{
+    // The key of an entry, as the toolbar's tooltips name it.
+    const auto keyOf = [this](const QString& id) {
+        const QAction* action = findChild<QAction*>(id);
+        return action && !action->shortcut().isEmpty()
+                   ? action->shortcut().toString(QKeySequence::NativeText)
+                   : tr("no key");
+    };
+    m_historyBackButton->setToolTip(
+        tr("Back to what the canvas showed before: a frame, a background or a sprite (%1)")
+            .arg(keyOf(QStringLiteral("back"))));
+    m_historyForwardButton->setToolTip(
+        tr("Forward again (%1)").arg(keyOf(QStringLiteral("forward"))));
+    m_zoomOutButton->setToolTip(tr("Zoom out (%1)").arg(keyOf(QStringLiteral("zoom-out"))));
+    //: %1: the shortcut, %2: Ctrl (Cmd on macOS)
+    m_zoomButton->setToolTip(tr("Canvas zoom; a click shows the whole frame (%1). %2 with the "
+                                "mouse wheel or a pinch zooms at the mouse.")
+                                 .arg(keyOf(QStringLiteral("show-whole-frame")), ctrlKeyName()));
+    m_zoomInButton->setToolTip(tr("Zoom in (%1)").arg(keyOf(QStringLiteral("zoom-in"))));
 }
 
 void MainWindow::toggleCurrentFrameBookmark()
@@ -9435,6 +9506,10 @@ void MainWindow::updateHistoryButtons()
     }
     if (m_historyForwardButton) {
         m_historyForwardButton->setEnabled(m_canvasHistory.canGoForward());
+    }
+    if (m_historyBackAction) {
+        m_historyBackAction->setEnabled(m_canvasHistory.canGoBack());
+        m_historyForwardAction->setEnabled(m_canvasHistory.canGoForward());
     }
 }
 

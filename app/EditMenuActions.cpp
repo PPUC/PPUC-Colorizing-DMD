@@ -1,4 +1,5 @@
 #include "EditMenuActions.h"
+#include "KeyboardShortcuts.h"
 
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
@@ -23,21 +24,23 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     const auto alt = [](int key) { return QKeySequence(Qt::ALT | key); };
 
     menu->addSeparator();
-    add(menu, tr("&Copy"), tr("Copy the selected part of the frame"),
+    add(menu, "copy", tr("&Copy"), tr("Copy the selected part of the frame"),
         {QKeySequence(QKeySequence::Copy)}, &EditMenuActions::onCopy, QKeySequence::Copy);
-    m_pasteAction = add(menu, tr("&Paste"),
+    m_pasteAction = add(menu, "paste", tr("&Paste"),
                         tr("Float the copied part over the frame; click or Enter "
                            "pastes it on the selected frames"),
                         {QKeySequence(QKeySequence::Paste)}, &EditMenuActions::onPaste,
                         QKeySequence::Paste);
-    m_pasteMatchAction = add(menu, tr("Paste Where Originals &Match"),
+    m_pasteMatchAction = add(menu, "paste-where-originals-match",
+                             tr("Paste Where Originals &Match"),
                              tr("Paste only on pixels whose original shade is the "
                                 "copied one"),
                              {ctrlShift(Qt::Key_V)}, &EditMenuActions::onPasteWhereOriginalsMatch);
-    m_pasteDynamicAction = add(menu, tr("Paste D&ynamic Mask Only"),
+    m_pasteDynamicAction = add(menu, "paste-dynamic-mask-only", tr("Paste D&ynamic Mask Only"),
                                tr("Paste the copied dynamic zones without colors"),
                                {ctrlAlt(Qt::Key_V)}, &EditMenuActions::onPasteDynamicMaskOnly);
-    m_stayInPasteModeAction = menu->addAction(tr("Stay In Paste Mode"));
+    m_stayInPasteModeAction =
+        withShortcutId(menu->addAction(tr("Stay In Paste Mode")), "stay-in-paste-mode");
     m_stayInPasteModeAction->setCheckable(true);
     m_stayInPasteModeAction->setToolTip(
         tr("Paste mode stays after a stamp, for pasting again elsewhere, until Esc"));
@@ -49,79 +52,81 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
     m_actions.push_back(m_stayInPasteModeAction);
 
     menu->addSeparator();
-    add(menu, tr("Select &All"), tr("Select every pixel of the plane"),
+    add(menu, "select-all", tr("Select &All"), tr("Select every pixel of the plane"),
         {QKeySequence(QKeySequence::SelectAll)}, &EditMenuActions::onSelectAll,
         QKeySequence::SelectAll);
-    add(menu, tr("Select &None"), tr("Clear the selection"),
+    add(menu, "select-none", tr("Select &None"), tr("Clear the selection"),
         {ctrl(Qt::Key_D), ctrlShift(Qt::Key_A)}, &EditMenuActions::onSelectNone);
-    add(menu, tr("&Invert Selection"), tr("Swap selected and unselected"),
+    add(menu, "invert-selection", tr("&Invert Selection"), tr("Swap selected and unselected"),
         {ctrlShift(Qt::Key_I)}, &EditMenuActions::onInvertSelection);
-    add(menu, tr("Select By &Color"),
+    add(menu, "select-by-color", tr("Select By &Color"),
         //: %1+%2: Ctrl+Alt, Cmd+Option on macOS
         tr("Click a pixel: every pixel of its color is selected (also "
            "%1+%2+click with the fill tool)")
             .arg(ctrlKeyName(), altKeyName()),
         {}, &EditMenuActions::onSelectByColor);
-    add(menu, tr("Undo Selection"),
+    add(menu, "undo-selection", tr("Undo Selection"),
         tr("Bring back the selection before its last change (the project's Undo leaves the "
            "selection alone)"),
         {alt(Qt::Key_Z)}, &EditMenuActions::onUndoSelection);
-    add(menu, tr("Redo Selection"), tr("Bring back the selection undone last"),
+    add(menu, "redo-selection", tr("Redo Selection"), tr("Bring back the selection undone last"),
         {QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Z)}, &EditMenuActions::onRedoSelection);
-    add(menu, tr("Selection From &Background Mask"),
+    add(menu, "selection-from-background-mask", tr("Selection From &Background Mask"),
         tr("Select the frame's background mask"), {ctrl(Qt::Key_B)},
         &EditMenuActions::onSelectBackgroundMask);
-    add(menu, tr("Mirror Selection &Horizontally"),
+    add(menu, "mirror-selection-horizontally", tr("Mirror Selection &Horizontally"),
         tr("Mirror the selection left to right"), {ctrl(Qt::Key_K)},
         &EditMenuActions::onMirrorHorizontally);
-    add(menu, tr("Mirror Selection &Vertically"),
+    add(menu, "mirror-selection-vertically", tr("Mirror Selection &Vertically"),
         tr("Mirror the selection top to bottom"), {ctrl(Qt::Key_L)},
         &EditMenuActions::onMirrorVertically);
-    m_nonBlackOnlyAction = menu->addAction(tr("Select Non-Black Pixels Only"));
+    m_nonBlackOnlyAction =
+        withShortcutId(menu->addAction(tr("Select Non-Black Pixels Only")),
+            "select-non-black-pixels-only");
     m_nonBlackOnlyAction->setCheckable(true);
     m_nonBlackOnlyAction->setToolTip(
         //: %1: Ctrl, Cmd on macOS
         tr("Selecting with %1 leaves black pixels out (also: hold W)").arg(ctrlKeyName()));
     m_actions.push_back(m_nonBlackOnlyAction);
-    add(menu, tr("Auto &Select..."),
+    add(menu, "auto-select", tr("Auto &Select..."),
         tr("Select stripes of rows or columns"), {}, &EditMenuActions::onAutoSelect);
 
     menu->addSeparator();
-    add(menu, tr("Auto C&opy..."),
+    add(menu, "auto-copy", tr("Auto C&opy..."),
         tr("Copy the selection's colorization to every frame whose original is the "
            "same there"),
         {}, &EditMenuActions::onAutoCopy);
-    add(menu, tr("Scrolling Auto &Fill..."),
+    add(menu, "scrolling-auto-fill", tr("Scrolling Auto &Fill..."),
         tr("Colorize the frames of a scrolling between the first and the last "
            "selected frame"),
         {}, &EditMenuActions::onScrollingFill);
-    add(menu, tr("&Recolor..."),
+    add(menu, "recolor", tr("&Recolor..."),
         //: %1: Alt, Option on macOS
         tr("Click a pixel: every pixel of its color gets the draw color (also "
            "%1+click with the fill tool)")
             .arg(altKeyName()),
         {}, &EditMenuActions::onRecolor);
-    add(menu, tr("Black Original &To Black"),
+    add(menu, "black-original-to-black", tr("Black Original &To Black"),
         tr("Pixels whose original is black become black"), {ctrlShift(Qt::Key_O)},
         &EditMenuActions::onBlackOriginalToBlack);
-    add(menu, tr("R&emove Dynamic Zones"),
+    add(menu, "remove-dynamic-zones", tr("R&emove Dynamic Zones"),
         tr("Remove the dynamic zones of the selection, or of the frames"),
         {ctrl(Qt::Key_E), alt(Qt::Key_D)}, &EditMenuActions::onRemoveDynamicZones);
-    add(menu, tr("Assign Dynamic S&et"),
+    add(menu, "assign-dynamic-set", tr("Assign Dynamic S&et"),
         tr("Put the selection, or the frames, into the active dynamic set"),
         {alt(Qt::Key_A)}, &EditMenuActions::onAssignDynamicSet);
-    add(menu, tr("D&ynamic To Static"),
+    add(menu, "dynamic-to-static", tr("D&ynamic To Static"),
         tr("Dynamic pixels of the selection, or of the frames, keep the color they "
            "show as a fixed one"),
         {}, &EditMenuActions::onDynamicToStatic);
-    add(menu, tr("Bri&ghtness..."),
+    add(menu, "brightness", tr("Bri&ghtness..."),
         tr("Make the selected pixels brighter or darker by a percentage"), {},
         &EditMenuActions::onBrightness);
-    addDirections(menu, tr("S&hadow Next To Selection"),
+    addDirections(menu, QStringLiteral("shadow"), tr("S&hadow Next To Selection"),
                   tr("Draw the draw color next to the selection, where it is not "
                      "dynamic"),
                   &EditMenuActions::onShadowSelection, true);
-    addDirections(menu, tr("&Grow Selection"),
+    addDirections(menu, QStringLiteral("grow"), tr("&Grow Selection"),
                   tr("Add the pixels next to the selection"),
                   &EditMenuActions::onGrowSelection);
     setState(false, false);
@@ -129,6 +134,7 @@ EditMenuActions::EditMenuActions(QMenu* menu, QObject* parent)
 
 void EditMenuActions::addDirections(
     QMenu* menu,
+    const QString& id,
     const QString& title,
     const QString& toolTip,
     std::function<void(edit::SelectionDirection)> EditMenuActions::*handler,
@@ -153,6 +159,9 @@ void EditMenuActions::addDirections(
     };
     for (const auto& [text, direction] : directions) {
         QAction* action = submenu->addAction(tr(text));
+        action->setObjectName(id + QChar('-') +
+                              QString::fromLatin1(text).toLower().remove(QChar(',')).replace(
+                                  QChar(' '), QChar('-')));
         if (direction == SelectionDirection::Sides) {
             action->setToolTip(tr("Left, right, top and bottom, without the corners"));
         }
@@ -174,13 +183,14 @@ void EditMenuActions::addDirections(
 }
 
 QAction* EditMenuActions::add(QMenu* menu,
+                              const char* id,
                               const QString& text,
                               const QString& toolTip,
                               const QList<QKeySequence>& shortcuts,
                               std::function<void()> EditMenuActions::*handler,
                               QKeySequence::StandardKey forwarded)
 {
-    QAction* action = menu->addAction(text);
+    QAction* action = withShortcutId(menu->addAction(text), id);
     action->setToolTip(toolTip);
     action->setShortcuts(shortcuts);
     connect(action, &QAction::triggered, this, [this, handler, forwarded]() {

@@ -105,6 +105,7 @@ if(TARGET colorizing_qt_v2_widgets)
         ProjectTaskWidgetTests.cpp
         RuntimeViewWidgetTests.cpp
         SelectionWidgetTests.cpp
+        ShortcutsWidgetTests.cpp
         ImageImportWidgetTests.cpp
     VideoClipWidgetTests.cpp
     )
