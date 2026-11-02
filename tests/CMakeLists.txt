@@ -12,6 +12,7 @@ add_executable(colorizing_qt_v2_tests
     ColorSetTests.cpp
     CompactStorageTests.cpp
     ComponentIdTests.cpp
+    BookmarksTests.cpp
     CromcExportTests.cpp
     DrawingToolsTests.cpp
     EditCommandTests.cpp

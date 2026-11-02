@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Bookmarks mark frames to come back to: `View -> Bookmarks` sets and removes them and goes to the
+  next or previous one, the strip shows them with a star and the filter `With a bookmark` lists
+  them. They are saved in the project file.
 - The sprite list's thumbnails zoom to each sprite's pixels, so digits and small patches can be
   told apart; `Settings` -> `Appearance` switches this off.
 

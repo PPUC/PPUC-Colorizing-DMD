@@ -137,6 +137,7 @@ void runNativeOriginalProjectTests();
 void runProjectGeometryTests();
 void runRuntimePreviewTests();
 void runPlaybackIdentificationTests();
+void runBookmarksTests();
 void runSectionsTests();
 void runFrameMoveTests();
 void runSpriteClipboardTests();
@@ -181,6 +182,7 @@ try {
     runProjectGeometryTests();
     runRuntimePreviewTests();
     runPlaybackIdentificationTests();
+    runBookmarksTests();
     runSectionsTests();
     runFrameMoveTests();
     runSpriteClipboardTests();

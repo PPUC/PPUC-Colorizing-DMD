@@ -825,6 +825,7 @@ ProjectDocument ProjectDocument::fromSnapshot(ProjectSnapshot snapshot)
     ensureSpriteTableEntries(document.m_editorMetadata, document.m_sprites.size());
     document.m_helperLines = std::move(snapshot.helperLines);
     document.m_imageZones = std::move(snapshot.imageZones);
+    document.m_bookmarks = std::move(snapshot.bookmarks);
     document.m_colorizationSettings = std::move(snapshot.colorizationSettings);
     if (document.m_colorizationSettings) {
         normalizeSceneVariants(*document.m_colorizationSettings);
@@ -1293,6 +1294,20 @@ void ProjectDocument::setImageZones(std::vector<SavedImageZone> zones)
         return;
     }
     m_imageZones = std::move(zones);
+    markChanged();
+}
+
+const std::vector<ComponentId>& ProjectDocument::bookmarks() const
+{
+    return m_bookmarks;
+}
+
+void ProjectDocument::setBookmarks(std::vector<ComponentId> bookmarks)
+{
+    if (bookmarks == m_bookmarks) {
+        return;
+    }
+    m_bookmarks = std::move(bookmarks);
     markChanged();
 }
 
@@ -4416,6 +4431,7 @@ ProjectSnapshot ProjectDocument::toSnapshot() const
     snapshot.editorMetadata = m_editorMetadata;
     snapshot.helperLines = m_helperLines;
     snapshot.imageZones = m_imageZones;
+    snapshot.bookmarks = m_bookmarks;
     snapshot.colorizationSettings = m_colorizationSettings;
     snapshot.speakerLights = m_speakerLights;
     snapshot.license = m_license;

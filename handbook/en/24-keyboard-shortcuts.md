@@ -33,6 +33,8 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+Alt+Shift+Z` | Redo the edit undone most recently anywhere | - |
 | `Ctrl/Cmd+Shift+H` | Show or hide all helper lines | - |
 | `Ctrl/Cmd+X` | Switch between SD and HD (`View -> Switch SD/HD`) | same |
+| `Ctrl/Cmd+Shift+B` | Set or remove the current frame's bookmark | - |
+| `Alt+B`, `Alt+Shift+B` | Next, previous frame with a bookmark | - |
 | `Esc` while dragging a helper line | Put the line back | - |
 
 With a text field, a spin box or a list in focus, `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `Ctrl/Cmd+X` and

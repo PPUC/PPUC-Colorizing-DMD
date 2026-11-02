@@ -63,6 +63,8 @@ struct ProjectSnapshot {
     std::vector<HelperLine> helperLines;
     // The Images window's saved zones (.cRPX only).
     std::vector<SavedImageZone> imageZones;
+    // The frames with a bookmark (edit/Bookmarks.h), by their IDs.
+    std::vector<ComponentId> bookmarks;
     // The cROM's settings block (.cRPX, and the cROM written from it); nothing for a project
     // of the Win32 editor.
     std::optional<ColorizationSettings> colorizationSettings;

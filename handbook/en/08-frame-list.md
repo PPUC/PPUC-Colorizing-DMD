@@ -92,7 +92,8 @@ The filter of the frame strip can show all frames, only frames with HD data (`HD
 frames with an assigned background, frames with a dynamic zone (the frames marked `Dyn`), frames
 with sprite assignments, frames with a color rotation (`With rotation`: a rotation slot of a
 length above 0 on a plane the frame has), frames with a trigger (`With triggers`: a PUP trigger,
-a scene or the monochrome fallback), the frames marked `inactive` (`Inactive`), in a
+a scene or the monochrome fallback), the frames with a bookmark (`With a bookmark`), the frames
+marked `inactive` (`Inactive`), in a
 project with scenes the frames of all scenes (`Scene frames`) or the others (`Without scene
 frames`; see "Scenes and Scaling"), or `Using the selected asset`: the frames that use what is
 selected in the section used last on the left (opened, or clicked in): the comparison mask
@@ -110,6 +111,20 @@ entry each (`Tag: Multiball`): the frames with that tag.
 While a frame has speaker lights set by the ambient lighting, the filter also offers `Ambient
 lighting` (those frames) and `Ambient lighting out of date` (those whose colors have changed
 since, see "Speaker Lights").
+
+### Bookmarks
+
+A bookmark marks a frame to come back to, without a name and without changing anything about the
+frame. `View -> Bookmarks` holds the three actions: `Toggle Bookmark` (`Ctrl/Cmd+Shift+B`) sets or
+removes the bookmark of the current frame, `Next Bookmark` (`Alt+B`) and `Previous Bookmark`
+(`Alt+Shift+B`) go to the next or previous frame with one and start over at the other end. They
+skip frames the filter hides. The frame's number in the strip shows it with a star, as `★ 123`, and
+the filter `With a bookmark` lists these frames alone.
+
+A bookmark stays on its frame when others are deleted or moved; deleting the frame takes the
+bookmark along, and the undo brings both back. Bookmarks are saved in the project file, so setting
+one is a change to save, but not an undo step. In a team project they stay yours: `Share My Changes`
+and `Merge Changes...` do not carry them. Only a copy of the whole project file takes them along.
 
 ### Tags
 

@@ -3216,6 +3216,34 @@ Use Create %1 Frame.</source>
         <translation>Jedes Lautsprecherlicht, das die Umgebungsbeleuchtung gewählt hat, auf das setzen, was die Farben des Frames jetzt ergeben; selbst gewählte Lichter bleiben</translation>
     </message>
     <message>
+        <source>&amp;Bookmarks</source>
+        <translation>&amp;Lesezeichen</translation>
+    </message>
+    <message>
+        <source>&amp;Toggle Bookmark</source>
+        <translation>Lesezeichen &amp;umschalten</translation>
+    </message>
+    <message>
+        <source>Set or remove the bookmark of the current frame</source>
+        <translation>Das Lesezeichen des aktuellen Frames setzen oder entfernen</translation>
+    </message>
+    <message>
+        <source>&amp;Next Bookmark</source>
+        <translation>&amp;Nächstes Lesezeichen</translation>
+    </message>
+    <message>
+        <source>Go to the next frame with a bookmark</source>
+        <translation>Zum nächsten Frame mit Lesezeichen gehen</translation>
+    </message>
+    <message>
+        <source>&amp;Previous Bookmark</source>
+        <translation>&amp;Vorheriges Lesezeichen</translation>
+    </message>
+    <message>
+        <source>Go to the previous frame with a bookmark</source>
+        <translation>Zum vorherigen Frame mit Lesezeichen gehen</translation>
+    </message>
+    <message>
         <source>Frame &amp;Tester...</source>
         <translation>Frame-&amp;Tester...</translation>
     </message>
@@ -4108,6 +4136,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Show the canvas picture on a connected DMD or a dmdserver</source>
         <translation>Das Bild der Arbeitsfläche auf einem angeschlossenen DMD oder einem dmdserver zeigen</translation>
+    </message>
+    <message>
+        <source>With a bookmark</source>
+        <translation>Mit Lesezeichen</translation>
     </message>
     <message>
         <source>Fixed Duration</source>
@@ -5749,6 +5781,22 @@ Use Create %1 Frame.</source>
     <message>
         <source> %1 more autosave(s) of projects without a project file are in %2.</source>
         <translation> %1 weitere automatische Sicherung(en) von Projekten ohne Projektdatei liegen in %2.</translation>
+    </message>
+    <message>
+        <source>Set a bookmark on frame %1</source>
+        <translation>Lesezeichen auf Frame %1 gesetzt</translation>
+    </message>
+    <message>
+        <source>Removed the bookmark of frame %1</source>
+        <translation>Lesezeichen von Frame %1 entfernt</translation>
+    </message>
+    <message>
+        <source>No frame has a bookmark</source>
+        <translation>Kein Frame hat ein Lesezeichen</translation>
+    </message>
+    <message>
+        <source>The frame filter hides every frame with a bookmark</source>
+        <translation>Der Frame-Filter blendet alle Frames mit Lesezeichen aus</translation>
     </message>
     <message>
         <source>A frame of a scene takes no sprites: it is the scene&apos;s picture</source>

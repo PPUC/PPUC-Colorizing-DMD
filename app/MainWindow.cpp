@@ -107,6 +107,7 @@
 #include "edit/FrameSettingsCopy.h"
 #include "edit/FrameContentCommand.h"
 #include "edit/FrameTags.h"
+#include "edit/Bookmarks.h"
 #include "edit/ColorSetEdits.h"
 #include "document/Upscale.h"
 #include "edit/HelperLines.h"
@@ -913,6 +914,24 @@ void MainWindow::createActions()
             [this]() { updateFrameLightControls(); });
     createSelectionActions(editMenu);
 
+    QMenu* bookmarksMenu = viewMenu->addMenu(tr("&Bookmarks"));
+    m_toggleBookmarkAction = bookmarksMenu->addAction(tr("&Toggle Bookmark"));
+    m_toggleBookmarkAction->setToolTip(tr("Set or remove the bookmark of the current frame"));
+    m_toggleBookmarkAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
+    m_toggleBookmarkAction->setEnabled(false);
+    connect(m_toggleBookmarkAction, &QAction::triggered, this,
+            [this]() { toggleCurrentFrameBookmark(); });
+    m_nextBookmarkAction = bookmarksMenu->addAction(tr("&Next Bookmark"));
+    m_nextBookmarkAction->setToolTip(tr("Go to the next frame with a bookmark"));
+    m_nextBookmarkAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_B));
+    m_nextBookmarkAction->setEnabled(false);
+    connect(m_nextBookmarkAction, &QAction::triggered, this, [this]() { goToBookmark(true); });
+    m_previousBookmarkAction = bookmarksMenu->addAction(tr("&Previous Bookmark"));
+    m_previousBookmarkAction->setToolTip(tr("Go to the previous frame with a bookmark"));
+    m_previousBookmarkAction->setShortcut(QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_B));
+    m_previousBookmarkAction->setEnabled(false);
+    connect(m_previousBookmarkAction, &QAction::triggered, this,
+            [this]() { goToBookmark(false); });
     QAction* frameTesterAction = viewMenu->addAction(tr("Frame &Tester..."));
     frameTesterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
     frameTesterAction->setToolTip(tr(
@@ -1087,6 +1106,8 @@ void MainWindow::createCentralView()
     m_frameFilterComboBox->setItemData(m_frameFilterComboBox->count() - 1,
                                        inactiveFrameToolTip(),
                                        Qt::ToolTipRole);
+    m_frameFilterComboBox->addItem(tr("With a bookmark"),
+                                   static_cast<int>(FrameFilter::Bookmarked));
     m_frameFilterComboBox->addItem(tr("Using the selected asset"),
                                    static_cast<int>(FrameFilter::UsesSelectedAsset));
     m_frameFilterComboBox->setItemData(
@@ -4891,6 +4912,62 @@ void MainWindow::goToFrame(std::size_t frameIndex)
                              4000);
 }
 
+void MainWindow::toggleCurrentFrameBookmark()
+{
+    const std::optional<std::size_t> frame = currentFrameIndex();
+    if (!m_document || !frame) {
+        return;
+    }
+    const bool set = edit::toggleBookmark(*m_document, *frame);
+    // The filter of the bookmarks loses the frame; otherwise the row only changes its text.
+    if (m_frameFilterComboBox->currentData().toInt() ==
+        static_cast<int>(FrameFilter::Bookmarked)) {
+        refreshFrameList(std::nullopt);
+        selectFrameNear(*frame);
+    } else if (QListWidgetItem* item = frameListItem(*frame)) {
+        item->setText(frameListItemText(*frame));
+    }
+    updateWindowTitle();
+    updateBookmarkActions();
+    statusBar()->showMessage(
+        (set ? tr("Set a bookmark on frame %1") : tr("Removed the bookmark of frame %1"))
+            .arg(static_cast<qulonglong>(*frame)),
+        3000);
+}
+
+void MainWindow::goToBookmark(bool forward)
+{
+    const std::optional<std::size_t> current = currentFrameIndex();
+    if (!m_document || !current) {
+        return;
+    }
+    std::vector<std::size_t> frames = edit::bookmarkedFrames(*m_document);
+    if (frames.empty()) {
+        statusBar()->showMessage(tr("No frame has a bookmark"), 3000);
+        return;
+    }
+    frames.erase(std::remove_if(frames.begin(), frames.end(),
+                                [this](std::size_t frame) { return !frameMatchesFilter(frame); }),
+                 frames.end());
+    const std::optional<std::size_t> target = edit::adjacentBookmark(frames, *current, forward);
+    if (!target) {
+        statusBar()->showMessage(tr("The frame filter hides every frame with a bookmark"), 4000);
+        return;
+    }
+    goToFrame(*target);
+}
+
+void MainWindow::updateBookmarkActions()
+{
+    if (!m_toggleBookmarkAction) {
+        return;
+    }
+    const bool hasFrame = m_document && currentFrameIndex().has_value();
+    m_toggleBookmarkAction->setEnabled(hasFrame);
+    m_nextBookmarkAction->setEnabled(hasFrame);
+    m_previousBookmarkAction->setEnabled(hasFrame);
+}
+
 void MainWindow::rememberRecentProject(const QString& entry)
 {
     QSettings settings;
@@ -5386,6 +5463,9 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
         details << QStringLiteral("#%1").arg(QString::fromStdString(tag));
     }
     QString first = QString::number(static_cast<qulonglong>(frameIndex));
+    if (edit::isBookmarked(*m_document, frameIndex)) {
+        first.prepend(QStringLiteral("\u2605 "));
+    }
     if (const std::optional<std::size_t> section =
             edit::sectionStartingAt(*m_document, frameIndex)) {
         first += QStringLiteral(" [%1]").arg(
@@ -5777,6 +5857,9 @@ bool MainWindow::frameMatchesFilter(std::size_t frameIndex) const
             m_frameFilterComboBox->currentData(kFilterTagRole).toString().toStdString();
         const std::vector<std::string>& tags = m_document->frameTags(frameIndex);
         return std::find(tags.begin(), tags.end(), tag) != tags.end();
+    }
+    if (filter == FrameFilter::Bookmarked) {
+        return edit::isBookmarked(*m_document, frameIndex);
     }
     if (filter == FrameFilter::SceneFrames) {
         return scene.has_value();
@@ -12316,6 +12399,7 @@ void MainWindow::updateStructureControls()
     }
     if (m_copyFrameSettingsAction) {
         m_copyFrameSettingsAction->setEnabled(hasDocument && currentFrameIndex().has_value());
+        updateBookmarkActions();
     }
     if (m_deleteFramesListAction) {
         m_deleteFramesListAction->setEnabled(canDeleteFrames);

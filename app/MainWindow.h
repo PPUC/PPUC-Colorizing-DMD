@@ -135,6 +135,8 @@ private:
         // Frames of the project's scenes, and the others.
         SceneFrames,
         WithoutSceneFrames,
+        // The frames with a bookmark.
+        Bookmarked,
         // The frames with a tag; one entry per tag, the tag in kFilterTagRole.
         Tagged,
         // Frames with speaker lights the ambient lighting set, and those of them whose colors
@@ -330,6 +332,11 @@ private:
     void selectFramesUsingMask();
     // Makes the frame the current one if the frame filter lists it.
     void goToFrame(std::size_t frameIndex);
+    // The bookmarks (edit/Bookmarks.h): of the current frame, and to the next or previous one
+    // the frame filter shows.
+    void toggleCurrentFrameBookmark();
+    void goToBookmark(bool forward);
+    void updateBookmarkActions();
     void updateBackgroundControls();
     void updatePaintTargetMode();
     void setPaintTarget(PaintTarget target);
@@ -708,6 +715,9 @@ private:
     QAction* m_moveFramesUpAction = nullptr;
     QAction* m_moveFramesDownAction = nullptr;
     QAction* m_moveFramesToAction = nullptr;
+    QAction* m_toggleBookmarkAction = nullptr;
+    QAction* m_nextBookmarkAction = nullptr;
+    QAction* m_previousBookmarkAction = nullptr;
     // The canvas zoom in the toolbar; a click shows the whole frame.
     QToolButton* m_zoomButton = nullptr;
     // Help -> Handbook, created when first asked for.

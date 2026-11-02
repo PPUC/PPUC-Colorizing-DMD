@@ -11,6 +11,7 @@ add_library(colorizing_qt_v2_core STATIC
     document/Upscale.cpp
     document/ProjectDocument.cpp
     edit/AutoCopy.cpp
+    edit/Bookmarks.cpp
     edit/ColorModel.cpp
     edit/ColorSetEdits.cpp
     edit/CopyPaste.cpp

@@ -48,7 +48,8 @@ namespace colorizing::project {
 //                    it from the file it replaces (ProjectFileOptions::baseSourcePath).
 //   editor.json      the editor's state of the project: edit colors, color sets, draw modes,
 //                    image positions, time spent (in all, and per author: authorTimes),
-//                    PuP pack, helper lines, saved image zones.
+//                    PuP pack, helper lines, saved image zones, bookmarks (the UUIDs of the
+//                    frames; only here, no change package or merge carries them).
 //
 // A component entry is a list of fields: char[4] tag, uint32 0, uint64 size, the data (as the
 // chunks of a .cRPX); little endian; a reader skips the tags it does not know. Every entry

@@ -3216,6 +3216,34 @@ Utiliser Créer la frame %1.</translation>
         <translation>Régler chaque lumière de haut-parleur choisie par l&apos;éclairage d&apos;ambiance sur ce que donnent maintenant les couleurs de la frame ; celles que vous avez choisies restent</translation>
     </message>
     <message>
+        <source>&amp;Bookmarks</source>
+        <translation>&amp;Signets</translation>
+    </message>
+    <message>
+        <source>&amp;Toggle Bookmark</source>
+        <translation>&amp;Basculer le signet</translation>
+    </message>
+    <message>
+        <source>Set or remove the bookmark of the current frame</source>
+        <translation>Poser ou retirer le signet de la frame courante</translation>
+    </message>
+    <message>
+        <source>&amp;Next Bookmark</source>
+        <translation>Signet &amp;suivant</translation>
+    </message>
+    <message>
+        <source>Go to the next frame with a bookmark</source>
+        <translation>Aller à la frame suivante ayant un signet</translation>
+    </message>
+    <message>
+        <source>&amp;Previous Bookmark</source>
+        <translation>Signet &amp;précédent</translation>
+    </message>
+    <message>
+        <source>Go to the previous frame with a bookmark</source>
+        <translation>Aller à la frame précédente ayant un signet</translation>
+    </message>
+    <message>
         <source>Frame &amp;Tester...</source>
         <translation>&amp;Testeur de frames...</translation>
     </message>
@@ -4108,6 +4136,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Show the canvas picture on a connected DMD or a dmdserver</source>
         <translation>Afficher l&apos;image du canevas sur un DMD connecté ou un dmdserver</translation>
+    </message>
+    <message>
+        <source>With a bookmark</source>
+        <translation>Avec un signet</translation>
     </message>
     <message>
         <source>Fixed Duration</source>
@@ -5749,6 +5781,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source> %1 more autosave(s) of projects without a project file are in %2.</source>
         <translation> %1 autre(s) sauvegarde(s) automatique(s) de projets sans fichier de projet se trouvent dans %2.</translation>
+    </message>
+    <message>
+        <source>Set a bookmark on frame %1</source>
+        <translation>Signet posé sur la frame %1</translation>
+    </message>
+    <message>
+        <source>Removed the bookmark of frame %1</source>
+        <translation>Signet de la frame %1 retiré</translation>
+    </message>
+    <message>
+        <source>No frame has a bookmark</source>
+        <translation>Aucune frame n'a de signet</translation>
+    </message>
+    <message>
+        <source>The frame filter hides every frame with a bookmark</source>
+        <translation>Le filtre de frames masque toutes les frames ayant un signet</translation>
     </message>
     <message>
         <source>A frame of a scene takes no sprites: it is the scene&apos;s picture</source>

@@ -745,6 +745,17 @@ JsonValue editorJson(const ProjectSnapshot& snapshot)
         zones.push(std::move(item));
     }
     root.set("imageZones", std::move(zones));
+    // The frames that are there: a bookmark kept for an undo ends with the session.
+    JsonValue bookmarks = JsonValue::array();
+    for (const auto& frame : snapshot.frames) {
+        if (std::find(snapshot.bookmarks.begin(), snapshot.bookmarks.end(), frame.meta.id) !=
+            snapshot.bookmarks.end()) {
+            bookmarks.push(frame.meta.id.toString());
+        }
+    }
+    if (!bookmarks.items().empty()) {
+        root.set("bookmarks", std::move(bookmarks));
+    }
     return root;
 }
 
@@ -1624,6 +1635,15 @@ void readEditor(const JsonValue& value, ProjectSnapshot& snapshot)
         saved.contrast = static_cast<int8_t>(zone.integer("contrast", -128, 127, 0));
         saved.blur = static_cast<uint8_t>(zone.integer("blur", 0, 255, 0));
         snapshot.imageZones.push_back(std::move(saved));
+    }
+    for (const JsonValue& item : editor.optionalArray("bookmarks")) {
+        const std::string* text = item.stringValue();
+        const std::optional<ComponentId> id =
+            text ? ComponentId::fromString(*text) : std::nullopt;
+        if (!id) {
+            throw FormatError("a bookmark is damaged");
+        }
+        snapshot.bookmarks.push_back(*id);
     }
 }
 

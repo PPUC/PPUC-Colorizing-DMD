@@ -399,6 +399,10 @@ public:
     // project changed; it is not an undo step (as in the Win32 editor).
     [[nodiscard]] const std::vector<SavedImageZone>& imageZones() const;
     void setImageZones(std::vector<SavedImageZone> zones);
+    // The IDs of the frames with a bookmark (edit/Bookmarks.h); a deleted frame's stays, for
+    // the undo that brings the frame back. A change marks the project changed.
+    [[nodiscard]] const std::vector<ComponentId>& bookmarks() const;
+    void setBookmarks(std::vector<ComponentId> bookmarks);
     // The scenes and scaling settings the cROM carries (Scene.h); nothing for a project whose
     // editor file has none, as one of the Win32 editor (see importColorizationSidecars()).
     [[nodiscard]] const std::optional<ColorizationSettings>& colorizationSettings() const;
@@ -991,6 +995,7 @@ private:
     EditorMetadata m_editorMetadata = makeDefaultEditorMetadata();
     std::vector<HelperLine> m_helperLines;
     std::vector<SavedImageZone> m_imageZones;
+    std::vector<ComponentId> m_bookmarks;
     std::optional<ColorizationSettings> m_colorizationSettings;
     SpeakerLightSettings m_speakerLights;
     ProjectLicense m_license;
