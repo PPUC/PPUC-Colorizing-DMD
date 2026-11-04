@@ -3,17 +3,21 @@
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QDesktopServices>
+#include <QDir>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QListWidget>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QToolButton>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -167,6 +171,23 @@ SettingsDialog::SettingsDialog(Theme theme,
     auto* pluginsLayout = new QVBoxLayout(plugins);
     pluginsLayout->addWidget(m_pluginNote);
     pluginsLayout->addWidget(m_pluginList, 1);
+    m_userPluginRow = new QWidget(plugins);
+    auto* userPluginLayout = new QHBoxLayout(m_userPluginRow);
+    userPluginLayout->setContentsMargins(0, 0, 0, 0);
+    m_userPluginFolder = new QLabel(m_userPluginRow);
+    m_userPluginFolder->setWordWrap(true);
+    m_userPluginFolder->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto* openUserPlugins = new QPushButton(tr("Open Folder"), m_userPluginRow);
+    openUserPlugins->setObjectName(QStringLiteral("openUserPluginFolder"));
+    openUserPlugins->setToolTip(tr("Open the folder for the plugins you install"));
+    connect(openUserPlugins, &QPushButton::clicked, this, [this]() {
+        QDir().mkpath(m_userPluginPath);
+        QDesktopServices::openUrl(QUrl::fromLocalFile(m_userPluginPath));
+    });
+    userPluginLayout->addWidget(m_userPluginFolder, 1);
+    userPluginLayout->addWidget(openUserPlugins);
+    m_userPluginRow->setVisible(false);
+    pluginsLayout->addWidget(m_userPluginRow);
     m_tabs->addTab(plugins, tr("Plugins"));
     setPlugins({}, {});
 
@@ -330,10 +351,20 @@ void SettingsDialog::setPlugins(const std::vector<PluginChoice>& plugins,
                                        [](const PluginChoice& plugin) { return !plugin.builtIn; });
     m_pluginNote->setText(
         !anyChoice
-            ? tr("No plugins to choose in the plugin folder, only those built in. A plugin is a "
-                 "folder with its plugin.cfg in the editor's plugin folder.")
+            ? tr("No plugins to choose, only those built in. A plugin is a folder with its "
+                 "plugin.cfg; one you install goes into the folder named below.")
             : tr("Plugins checked here are loaded now and at every start of the editor; "
                  "their entries appear in the Plugins menu."));
+}
+
+void SettingsDialog::setUserPluginFolder(const QString& folder)
+{
+    m_userPluginPath = folder;
+    m_userPluginFolder->setText(
+        tr("Plugins you install go into their own folder in %1; the editor finds them at its "
+           "next start.")
+            .arg(QDir::toNativeSeparators(folder)));
+    m_userPluginRow->setVisible(!folder.isEmpty());
 }
 
 QStringList SettingsDialog::enabledPlugins() const

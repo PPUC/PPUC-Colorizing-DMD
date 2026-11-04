@@ -3410,6 +3410,10 @@ void MainWindow::editSettings(SettingsDialog::Page page)
                                plugin.builtIn, plugin.builtInUse});
         }
         dialog.setPlugins(plugins, EditorPlugins::enabledInSettings());
+        if (vpx::Host::isBuiltIn()) {
+            dialog.setUserPluginFolder(
+                QString::fromStdString(vpx::Host::userPluginDirectory()));
+        }
     }
     dialog.showPage(page);
     if (dialog.exec() != QDialog::Accepted) {

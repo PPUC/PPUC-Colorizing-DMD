@@ -9,6 +9,8 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QSettings>
+#include <QDir>
+#include <QFileInfo>
 #include <QTemporaryDir>
 
 #include "DmdOutput.h"
@@ -74,6 +76,10 @@ void runDmdOutputWidgetTests()
     output.stop();
     expect(!output.isRunning(), "stopped");
 
+    const QString configuredUserFolder = qEnvironmentVariable("COLORIZINGDMD_USER_PLUGIN_DIR");
+    expect(vpx::Host::userPluginDirectory() == QDir::cleanPath(configuredUserFolder).toStdString(),
+           "COLORIZINGDMD_USER_PLUGIN_DIR names the folder for the user's plugins");
+
     // The plugin log keeps what the bus and the plugins logged, also with no handler set: the
     // bus names its plugin folder when it opens, which the output above did.
     if (vpx::Host::isBuiltIn()) {
@@ -84,6 +90,14 @@ void runDmdOutputWidgetTests()
         });
         expect(named && vpx::Host::instance().logCount() >= lines.size(),
                "the plugin log keeps the bus's lines");
+        // The folder for the user's plugins (the test run's own, see main()) is made and
+        // scanned after the editor's.
+        const std::string userFolder = vpx::Host::userPluginDirectory();
+        const bool userScanned = std::any_of(lines.begin(), lines.end(), [&](const auto& line) {
+            return line.source.empty() && line.message == "Plugin directory: " + userFolder;
+        });
+        expect(userScanned && QFileInfo(QString::fromStdString(userFolder)).isDir(),
+               "the folder for the user's plugins is made and scanned");
         if (available) {
             const auto editorSaid = [&lines](const std::string& text) {
                 return std::any_of(lines.begin(), lines.end(), [&text](const auto& line) {

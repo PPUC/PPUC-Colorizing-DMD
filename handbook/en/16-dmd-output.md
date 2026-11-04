@@ -62,5 +62,7 @@ it), so otherwise the last frame would stay on it.
   Windows the text only appears in a file: `PPUC-Colorizing-DMD.exe --check-dmd-output > dmd.txt`.
 - The plugins lie in a folder of their own, one folder per plugin as VPX ships them: `plugins`
   beside the program (Windows, Linux) or `PPUC Colorizing DMD.app/Contents/PlugIns/vpx` (macOS). The
-  environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Without the
+  environment variable `COLORIZINGDMD_VPX_PLUGIN_DIR` names another folder. Plugins you install
+  go into a folder of their own, see "Plugins" (`COLORIZINGDMD_USER_PLUGIN_DIR` names another
+  one). Without the
   DMDUtil plugin there the two menu entries are disabled. The release packages ship it.

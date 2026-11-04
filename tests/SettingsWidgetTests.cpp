@@ -9,6 +9,9 @@
 #include <QCoreApplication>
 #include <QPalette>
 #include <QListWidget>
+#include <QDir>
+#include <QLabel>
+#include <QPushButton>
 #include <QProxyStyle>
 #include <QSettings>
 #include <QStyle>
@@ -178,6 +181,18 @@ void runSettingsWidgetTests()
     pluginList->item(1)->setCheckState(Qt::Checked);
     expect(dialog.enabledPlugins() == QStringList{QStringLiteral("Other")},
            "the others are chosen with their check box");
+    const auto* openUserPlugins =
+        dialog.findChild<QPushButton*>(QStringLiteral("openUserPluginFolder"));
+    expect(openUserPlugins && openUserPlugins->parentWidget()->isHidden(),
+           "no folder for the user's plugins without plugin hosting");
+    dialog.setUserPluginFolder(QStringLiteral("/data/plugins"));
+    bool named = false;
+    for (const QLabel* label : dialog.findChildren<QLabel*>()) {
+        named = named ||
+                label->text().contains(QDir::toNativeSeparators(QStringLiteral("/data/plugins")));
+    }
+    expect(named && !openUserPlugins->parentWidget()->isHidden(),
+           "the folder for the user's plugins is named, with a button to open it");
     dialog.showPage(app::SettingsDialog::Page::DmdOutput);
     const auto* tabs = dialog.findChild<QTabWidget*>();
     expect(tabs && tabs->currentIndex() == 1 &&

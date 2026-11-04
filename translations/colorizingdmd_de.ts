@@ -8407,6 +8407,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>DMD-Ausgabe</translation>
     </message>
     <message>
+        <source>Open Folder</source>
+        <translation>Ordner öffnen</translation>
+    </message>
+    <message>
+        <source>Open the folder for the plugins you install</source>
+        <translation>Den Ordner für die Plugins öffnen, die Sie installieren</translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Plugins</translation>
     </message>
@@ -8439,8 +8447,16 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>%1 — eingebaut, für die %2</translation>
     </message>
     <message>
+        <source>No plugins to choose, only those built in. A plugin is a folder with its plugin.cfg; one you install goes into the folder named below.</source>
+        <translation>Keine Plugins zur Auswahl, nur die eingebauten. Ein Plugin ist ein Ordner mit seiner plugin.cfg; eines, das Sie installieren, kommt in den unten genannten Ordner.</translation>
+    </message>
+    <message>
+        <source>Plugins you install go into their own folder in %1; the editor finds them at its next start.</source>
+        <translation>Plugins, die Sie installieren, kommen jeweils in einen eigenen Ordner in %1; der Editor findet sie beim nächsten Start.</translation>
+    </message>
+    <message>
         <source>No plugins to choose in the plugin folder, only those built in. A plugin is a folder with its plugin.cfg in the editor&apos;s plugin folder.</source>
-        <translation>Keine wählbaren Plugins im Plugin-Ordner, nur eingebaute. Ein Plugin ist ein Ordner mit seiner plugin.cfg im Plugin-Ordner des Editors.</translation>
+        <translation type="vanished">Keine wählbaren Plugins im Plugin-Ordner, nur eingebaute. Ein Plugin ist ein Ordner mit seiner plugin.cfg im Plugin-Ordner des Editors.</translation>
     </message>
     <message>
         <source>No editor plugins in the plugin folder. A plugin is a folder with its plugin.cfg in the editor&apos;s plugin folder.</source>

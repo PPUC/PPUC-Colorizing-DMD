@@ -8,6 +8,8 @@
 #include <vector>
 
 #include <QApplication>
+#include <QDir>
+#include <QTemporaryDir>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QImage>
@@ -4489,6 +4491,11 @@ void runProjectTaskWidgetTests();
 int main(int argc, char* argv[])
 {
     qputenv("QT_QPA_PLATFORM", "offscreen");
+    // A folder of the run's own for the user's plugins: the tests see none the developer
+    // installed, and the plugin host makes it there.
+    QTemporaryDir userPlugins;
+    qputenv("COLORIZINGDMD_USER_PLUGIN_DIR",
+            QDir(userPlugins.path()).filePath(QStringLiteral("plugins")).toLocal8Bit());
     QApplication app(argc, argv);
     testFramePreviewWidgetRendersPixels();
     testFrameThumbnailRendersPixels();

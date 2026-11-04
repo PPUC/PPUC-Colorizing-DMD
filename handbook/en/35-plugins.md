@@ -6,7 +6,25 @@ PUP plugins, the same ones VPX and PPUC use; PUP brings ffmpeg, which the editor
 import uses too. Besides those, which the editor loads itself, a plugin can work with the
 editor: read the open project, change it, show frames, and add entries to a `Plugins` menu.
 
-- `Settings -> Plugins` lists the plugins found in the plugin folder, with their version; the
+## Installing a plugin
+
+A plugin you install goes into a folder of its own for your plugins, not into the program's:
+
+- Windows: `%APPDATA%\ppuc.org\PPUC Colorizing DMD\plugins`
+- macOS: `~/Library/Application Support/ppuc.org/PPUC Colorizing DMD/plugins`
+- Linux: `~/.local/share/ppuc.org/PPUC Colorizing DMD/plugins`
+
+`Settings -> Plugins` names it, with `Open Folder`, which makes it if it is not there yet. Unpack
+the plugin there so that its folder (the one with `plugin.cfg` in it) lies directly in
+`plugins`, then restart the editor and check the plugin in `Settings -> Plugins`. To update a
+plugin, replace its folder; to remove it, delete its folder. The folder is kept when the editor
+is updated, and the program's folder, the app bundle on macOS and the AppImage on Linux stay as
+they are. The editor looks into the program's plugin folder first: a plugin there is not replaced
+by one of the same id in your folder.
+
+## Using plugins
+
+- `Settings -> Plugins` lists the plugins found in both folders, with their version; the
   tooltip has their description. Built-in plugins, which the editor loads itself when it needs
   them, are listed checked and marked `built in`; they cannot be unchecked: DMDUtil for the DMD
   output, and PUP (VPX's Pin Up Player) for the PuP tester. Any other checked plugin loads at

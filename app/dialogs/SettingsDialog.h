@@ -76,6 +76,9 @@ public:
         QString builtInUse;
     };
     void setPlugins(const std::vector<PluginChoice>& plugins, const QStringList& enabled);
+    // The folder for the plugins the user installs, shown with a button that opens it (and
+    // makes it if it is not there yet). Empty: neither is shown.
+    void setUserPluginFolder(const QString& folder);
     // The menu entries and their keys (KeyboardShortcuts).
     void setShortcuts(std::vector<ShortcutEntry> entries);
     [[nodiscard]] const std::vector<ShortcutEntry>& shortcuts() const;
@@ -102,6 +105,9 @@ private:
     QLineEdit* m_authorNameEdit = nullptr;
     QListWidget* m_pluginList = nullptr;
     QLabel* m_pluginNote = nullptr;
+    QWidget* m_userPluginRow = nullptr;
+    QLabel* m_userPluginFolder = nullptr;
+    QString m_userPluginPath;
 };
 
 }  // namespace colorizing::app

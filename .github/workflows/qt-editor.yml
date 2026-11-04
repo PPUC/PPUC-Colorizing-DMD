@@ -38,9 +38,10 @@ env:
   LIBDMDUTIL_SHA: a391a1e1f10ea35396f666cc7a32c6c2bd8390aa
   # VPX plugin hosting: libvpxhost (the plugin bus, shared with ppuc) and the plugin SDK and
   # DMDUtil plugin source of PPUC's vpinball fork, at the commits ppuc pins
-  # (LIBVPXHOST_SHA and VPINBALL_SHA in ppuc's platforms/config.sh).
+  # (LIBVPXHOST_SHA and VPINBALL_SHA in ppuc's platforms/config.sh). libvpxhost is ahead of
+  # ppuc's pin by AddPluginFolder (the folder for the user's plugins), which ppuc does not use.
   LIBVPXHOST_REPOSITORY: PPUC/libvpxhost
-  LIBVPXHOST_SHA: 8236ca462a841b7a1e69d80116b327f7555a2f50
+  LIBVPXHOST_SHA: b8d351a764a8cfe64e628971aec9bcbe027910db
   VPINBALL_REPOSITORY: PPUC/vpinball
   VPINBALL_SHA: f87cba08cff98047b8ce3a14a62780de9f51b462
   # Qt for the macOS package (official binaries, used for arm64; macOS 13.3 or later: the

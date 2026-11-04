@@ -26,7 +26,8 @@ int checkPlugins()
 {
     colorizing::vpx::Host& host = colorizing::vpx::Host::instance();
     const std::vector<std::string> ids = host.pluginIds();
-    std::printf("VPX plugins in %s\n", colorizing::vpx::Host::pluginDirectory().c_str());
+    std::printf("VPX plugins in %s and %s\n", colorizing::vpx::Host::pluginDirectory().c_str(),
+                colorizing::vpx::Host::userPluginDirectory().c_str());
     bool ok = !ids.empty();
     for (const std::string& id : ids) {
         std::string error;

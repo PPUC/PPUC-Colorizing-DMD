@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QStandardPaths>
 
 #include <algorithm>
 #include <array>
@@ -102,6 +103,18 @@ std::string Host::pluginDirectory()
     return candidates.isEmpty() ? std::string() : QDir::cleanPath(candidates.front()).toStdString();
 }
 
+std::string Host::userPluginDirectory()
+{
+    const QByteArray configured = qgetenv("COLORIZINGDMD_USER_PLUGIN_DIR");
+    if (!configured.isEmpty()) {
+        return QDir::cleanPath(QString::fromLocal8Bit(configured)).toStdString();
+    }
+    const QString data = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    return data.isEmpty() ? std::string()
+                          : QDir::cleanPath(QDir(data).filePath(QStringLiteral("plugins")))
+                                .toStdString();
+}
+
 #ifdef COLORIZINGDMD_HAS_VPX_PLUGINS
 
 struct Host::Impl {
@@ -163,6 +176,17 @@ bool Host::open(std::string* error)
         }
         return false;
     }
+    // The user's plugins, after those the editor ships, so that a plugin of the same id there
+    // does not replace one of them.
+    const QString userFolder = QString::fromStdString(userPluginDirectory());
+    if (!userFolder.isEmpty() &&
+        userFolder != QDir::cleanPath(QString::fromStdString(pluginDirectory()))) {
+        QDir().mkpath(userFolder);
+        std::string userError;
+        if (!bus->AddPluginFolder(userFolder.toStdString(), &userError)) {
+            logHistory().add(0x20, std::string(), userError);
+        }
+    }
     m_impl->bus = std::move(bus);
     installEditorApi(&m_impl->bus->Api(), m_impl->bus->HostEndpointId());
     return true;
@@ -216,7 +240,8 @@ bool Host::load(const std::string& id, const Settings& settings, std::string* er
     }
     if (!m_impl->bus->LoadPluginById(id)) {
         if (error) {
-            *error = "the " + id + " plugin is not in " + pluginDirectory() + " or did not load";
+            *error = "the " + id + " plugin is not in " + pluginDirectory() + " or " +
+                     userPluginDirectory() + ", or did not load";
         }
         return false;
     }

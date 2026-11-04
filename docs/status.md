@@ -1199,7 +1199,10 @@ instability is no obstacle (the owner works with the plugin developers).
 - `app/vpx/VpxHost.{h,cpp}` (target `colorizing_qt_v2_vpx`, the only C++20 target and the only
   one that sees the plugin SDK): `vpx::Host`, one bus per process (created on first use, kept
   until exit), plugin folder lookup (`COLORIZINGDMD_VPX_PLUGIN_DIR`, `plugins` beside the exe,
-  `../PlugIns/vpx` in the bundle, `<build>/vpx-plugins`); `vpx::DisplaySource`, a picture
+  `../PlugIns/vpx` in the bundle, `<build>/vpx-plugins`), then the user's plugin folder
+  (`COLORIZINGDMD_USER_PLUGIN_DIR` or `<AppDataLocation>/plugins`, libvpxhost's
+  `AddPluginFolder`; the editor's folder wins on the same id; the editor's CI pins libvpxhost
+  ahead of ppuc for it); `vpx::DisplaySource`, a picture
   offered as an SRGB565 `DisplaySrcId` (three buffers, reserved for 256x64, so a pointer a
   plugin thread got stays valid).
 - `app/DmdOutput` loads the `DMDUtil` plugin with the settings of the DMD Output dialog as

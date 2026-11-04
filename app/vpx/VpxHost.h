@@ -35,6 +35,12 @@ public:
     // "plugins" beside the executable, "PlugIns/vpx" in a macOS app bundle, or the build's own
     // folder of plugins.
     [[nodiscard]] static std::string pluginDirectory();
+    // The folder for plugins the user installs, scanned after pluginDirectory() (a plugin whose
+    // id is there already is skipped): COLORIZINGDMD_USER_PLUGIN_DIR if set; otherwise
+    // "plugins" in the editor's folder of application data, writable also where the
+    // program's folder is not (a macOS app bundle, a Linux AppImage). Made when the plugins
+    // are first looked for.
+    [[nodiscard]] static std::string userPluginDirectory();
 
     // Whether the plugin folder has the plugin. Opens the bus on first use.
     [[nodiscard]] bool hasPlugin(const std::string& id);

@@ -15,6 +15,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   its exact colors with the background transparent, as the source for an external upscaler.
 - An imported picture takes the nearest RGB565 color for each pixel, so that colors exported from
   the editor import back unchanged; before, most came back one step darker.
+- Plugins you install go into a folder of their own in your application data, which
+  `Settings -> Plugins` names and opens; the program's folder, the macOS app and the Linux
+  AppImage no longer need to be changed for them.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the
