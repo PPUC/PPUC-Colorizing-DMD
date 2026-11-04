@@ -6,12 +6,16 @@
 #include <string>
 #include <vector>
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QCoreApplication>
+#include <QLineEdit>
 #include <QMenu>
 #include <QSettings>
 #include <QTemporaryDir>
 
 #include "EditorPlugins.h"
+#include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
 #include "edit/EditBatch.h"
 #include "edit/UndoHistories.h"
@@ -32,6 +36,203 @@ void expect(bool condition, const std::string& message)
         std::exit(1);
     }
 }
+
+#ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
+struct Answers {
+    int reviews = 0;
+    uint32_t applied = 0;
+    int forms = 0;
+    int saved = -1;
+};
+
+void MSGPIAPI onReviewed(void* userData, uint32_t applied)
+{
+    auto* answers = static_cast<Answers*>(userData);
+    ++answers->reviews;
+    answers->applied = applied;
+}
+
+void MSGPIAPI onSettings(void* userData, int saved)
+{
+    auto* answers = static_cast<Answers*>(userData);
+    ++answers->forms;
+    answers->saved = saved;
+}
+
+// Version 3: pictures, the review window and the settings form, on a project with
+// backgrounds and sprites (RuntimeFixtures::makeFullProject).
+void testPictures()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    edit::UndoHistories histories;
+    std::vector<std::string> recorded;
+    std::optional<std::size_t> currentSprite = 1;
+    QMenu menu;
+    app::EditorPlugins::Window window;
+    window.menu = &menu;
+    window.document = [&document]() { return &document; };
+    window.editableDocument = [&document]() { return &document; };
+    window.recordEdit = [&](std::unique_ptr<edit::EditCommand> command) {
+        const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
+        recorded.push_back(batch ? batch->name() : std::string());
+        histories.push(edit::structureHistoryKey(), std::move(command));
+    };
+    window.currentFrame = []() { return std::optional<std::size_t>(4); };
+    window.selectedFrames = []() { return std::vector<std::size_t>{4}; };
+    window.currentBackground = []() { return std::optional<std::size_t>(2); };
+    window.currentSprite = [&currentSprite]() { return currentSprite; };
+    Answers answers;
+    {
+        app::EditorPlugins plugins(std::move(window));
+        const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
+        const uint32_t plugin = 7;
+
+        // Frame 4 has background 0 and looks for sprites 0 and 1; it has no HD.
+        uint32_t width = 0;
+        uint32_t height = 0;
+        std::vector<uint8_t> mask(128 * 32, 9);
+        expect(api->GetBackgroundMask(4, 0, mask.data(), 128 * 32, &width, &height) == 128 * 32 &&
+                   width == 128 && height == 32,
+               "a frame's background mask");
+        const document::IndexedFrame& sdMask = document.backgroundData(4)->maskSd;
+        bool same = true;
+        for (std::size_t index = 0; index < mask.size(); ++index) {
+            same = same && mask[index] == (sdMask.pixels[index] != 0 ? 1 : 0);
+        }
+        expect(same, "1 where the background shows through");
+        expect(api->GetBackgroundMask(4, 1, nullptr, 0, &width, &height) == 256 * 64 &&
+                   width == 256,
+               "on the HD plane as well");
+        expect(api->GetBackgroundPicture(0, 0, nullptr, 0, &width, &height) == 128 * 32 &&
+                   api->GetBackgroundPicture(9, 0, nullptr, 0, nullptr, nullptr) == 0,
+               "a background's picture");
+        std::vector<uint32_t> sprites(4, 99);
+        expect(api->GetFrameSprites(4, sprites.data(), 4) == 2 && sprites[0] == 0 &&
+                   sprites[1] == 1,
+               "the sprites a frame looks for");
+        expect(api->GetSpritePicture(1, 0, nullptr, 0, &width, &height) ==
+                       CDMDPI_SPRITE_WIDTH * CDMDPI_SPRITE_HEIGHT &&
+                   width == CDMDPI_SPRITE_WIDTH,
+               "a sprite's picture");
+        std::vector<uint8_t> shape(CDMDPI_SPRITE_WIDTH * CDMDPI_SPRITE_HEIGHT, 9);
+        api->GetSpriteMask(1, 0, shape.data(), static_cast<uint32_t>(shape.size()), nullptr,
+                           nullptr);
+        expect(shape[0] <= 1 &&
+                   shape[1 * 256 + 2] ==
+                       (document.sprite(1).originalSd.pixels[1 * 256 + 2] != 255 ? 1 : 0),
+               "and its shape");
+        expect(api->GetCurrentBackground() == 2 && api->GetCurrentSprite() == 1,
+               "the background and sprite the author works on");
+        currentSprite.reset();
+        expect(api->GetCurrentSprite() == CDMDPI_NONE, "none without one");
+
+        // A picture written in a batch: the frame gets HD for it.
+        std::vector<uint16_t> picture(256 * 64, 0x07e0);
+        expect(api->SetFramePicture(plugin, 4, 1, picture.data(), nullptr, 256 * 64) == 0,
+               "no picture without a batch");
+        expect(api->BeginEdit(plugin, "Upscale") == 1 &&
+                   api->SetFramePicture(plugin, 4, 1, picture.data(), nullptr, 100) == 0 &&
+                   api->SetFramePicture(plugin, 4, 1, nullptr, nullptr, 256 * 64) == 0,
+               "a picture of the wrong size, or none, is refused");
+        expect(api->SetFramePicture(plugin, 4, 1, picture.data(), nullptr, 256 * 64) == 1 &&
+                   document.hasHdFrame(4) &&
+                   document.colorizedPixel(4, render::Resolution::Hd, 10, 10) == 0x07e0,
+               "the frame's HD picture");
+        std::vector<uint16_t> sdPicture(128 * 32, 0x001f);
+        expect(api->SetBackgroundPicture(plugin, 0, 0, sdPicture.data(), nullptr, 128 * 32) == 1,
+               "a background's picture");
+        expect(api->EndEdit(plugin, 1) == 1 && recorded.size() == 1 &&
+                   histories.undo(edit::structureHistoryKey(), document) &&
+                   !document.hasHdFrame(4),
+               "one undo step takes it all back");
+
+        // The review window: the editor applies what the author picks.
+        std::vector<uint8_t> write(256 * 64, 1);
+        write[0] = 0;
+        ColorizingDMDPicture proposals[2] = {
+            {CDMDPI_PICTURE_FRAME, 4, 1, picture.data(), write.data(), 256 * 64, "Frame 4"},
+            {CDMDPI_PICTURE_BACKGROUND, 0, 0, sdPicture.data(), nullptr, 128 * 32, nullptr},
+        };
+        ColorizingDMDPicture wrong = proposals[0];
+        wrong.count = 12;
+        expect(api->ReviewPictures(plugin, "Upscale", "Upscale", &wrong, 1, &onReviewed,
+                                   &answers) == 0,
+               "a proposal of the wrong size is refused");
+        // The endpoint's plugin ID is empty without a plugin bus: the windows are kept by it.
+        expect(api->ReviewPictures(plugin, "Upscale", "Upscale with SeedVR", proposals, 2,
+                                   &onReviewed, &answers) == 1 &&
+                   api->ReviewPictures(plugin, "Again", "Again", proposals, 2, &onReviewed,
+                                       &answers) == 0,
+               "one review window at a time");
+        app::PictureReviewDialog* review = plugins.reviewWindow("");
+        expect(review && review->chosen().size() == 2 && review->changedPixels() > 0,
+               "every proposal is checked at first");
+        review->setChecked(1, false);
+        plugins.applyReview("");
+        expect(answers.reviews == 1 && answers.applied == 1 && recorded.size() == 2 &&
+                   recorded.back() == "Upscale with SeedVR" && document.hasHdFrame(4) &&
+                   document.colorizedPixel(4, render::Resolution::Hd, 10, 10) == 0x07e0 &&
+                   document.colorizedPixel(4, render::Resolution::Hd, 0, 0) != 0x07e0 &&
+                   !plugins.reviewWindow(""),
+               "Apply writes the checked pictures as one step and tells the plugin");
+
+        expect(api->ReviewPictures(plugin, "Upscale", "Late", proposals, 2, &onReviewed,
+                                   &answers) == 1,
+               "a second proposal");
+        document.setColorizedPixel(5, render::Resolution::Sd, 0, 0, 0x1234);
+        plugins.tick();
+        review = plugins.reviewWindow("");
+        expect(review && review->isOutdated() && !review->canApply(),
+               "an edit of the project outdates it");
+        plugins.applyReview("");
+        expect(recorded.size() == 2 && plugins.reviewWindow(""), "it applies nothing");
+        review->reject();
+        expect(answers.reviews == 2 && answers.applied == 0 && !plugins.reviewWindow(""),
+               "Discard tells the plugin that nothing was applied");
+
+        // The settings form.
+        const ColorizingDMDSettingField fields[] = {
+            {"url", "Service", CDMDPI_FIELD_TEXT, "http://127.0.0.1:8976", nullptr, "Where"},
+            {"token", "Token", CDMDPI_FIELD_PASSWORD, nullptr, nullptr, nullptr},
+            {"quantise", "Colors", CDMDPI_FIELD_CHOICE, "frame", "none=None\nframe=Frame",
+             nullptr},
+            {"dynamic", "Leave dynamic zones", CDMDPI_FIELD_CHECKBOX, "1", nullptr, nullptr},
+        };
+        ColorizingDMDSettingField noChoices = fields[2];
+        noChoices.choices = "";
+        expect(api->EditSettings(plugin, "SeedVR", &noChoices, 1, &onSettings, &answers) == 0,
+               "a choice without choices is refused");
+        plugins.setSetting("", "token", "secret");
+        expect(api->EditSettings(plugin, "SeedVR", fields, 4, &onSettings, &answers) == 1,
+               "the form opens");
+        app::PluginSettingsDialog* form = plugins.settingsWindow("");
+        auto* url = form ? qobject_cast<QLineEdit*>(form->input("url")) : nullptr;
+        auto* token = form ? qobject_cast<QLineEdit*>(form->input("token")) : nullptr;
+        auto* quantise = form ? qobject_cast<QComboBox*>(form->input("quantise")) : nullptr;
+        auto* dynamic = form ? qobject_cast<QCheckBox*>(form->input("dynamic")) : nullptr;
+        expect(url && token && quantise && dynamic && url->text() == "http://127.0.0.1:8976" &&
+                   token->text() == "secret" && token->echoMode() == QLineEdit::Password &&
+                   quantise->currentData().toString() == "frame" && dynamic->isChecked(),
+               "with the settings, or the defaults while not set");
+        url->setText("http://gpu:8976");
+        quantise->setCurrentIndex(0);
+        dynamic->setChecked(false);
+        form->accept();
+        expect(answers.forms == 1 && answers.saved == 1 &&
+                   plugins.setting("", "url") == "http://gpu:8976" &&
+                   plugins.setting("", "quantise") == "none" &&
+                   plugins.setting("", "dynamic") == "0" && !plugins.settingsWindow(""),
+               "Save keeps the values and tells the plugin");
+
+        // A window still open when the plugins go: closed without calling back.
+        expect(api->ReviewPictures(plugin, "Upscale", "Gone", proposals, 1, &onReviewed,
+                                   &answers) == 1,
+               "a window left open");
+    }
+    expect(answers.reviews == 2, "is closed without calling back into a plugin that is gone");
+}
+#endif
 
 }  // namespace
 
@@ -78,7 +279,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 2, "the API table is version 2");
+    expect(api && api->version == 3, "the API table is version 3");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&
@@ -193,6 +394,9 @@ void runEditorPluginsWidgetTests()
            "a plugin's setting is kept, for that plugin");
     expect(app::EditorPlugins::enabledInSettings().isEmpty() && plugins.loaded().isEmpty(),
            "no plugin is chosen at first");
+#ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
+    testPictures();
+#endif
     QSettings().remove(QStringLiteral("plugins"));
     QCoreApplication::setOrganizationName(QString());
     QSettings::setDefaultFormat(QSettings::NativeFormat);

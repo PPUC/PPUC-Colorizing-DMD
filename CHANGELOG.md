@@ -18,6 +18,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - Plugins you install go into a folder of their own in your application data, which
   `Settings -> Plugins` names and opens; the program's folder, the macOS app and the Linux
   AppImage no longer need to be changed for them.
+- Editor API version 3 for plugins: plugins read and write the pictures of frames, backgrounds
+  and sprites, propose new pictures in a review window that applies the chosen ones as one
+  step, and show a form for their settings.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the

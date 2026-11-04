@@ -160,10 +160,142 @@ void testCancel()
            "cancel takes the steps back");
 }
 
+// A picture of the plane's size: the color of each pixel from its position.
+std::vector<uint16_t> patternPicture(render::Size size)
+{
+    std::vector<uint16_t> pixels(static_cast<std::size_t>(size.width) *
+                                 static_cast<std::size_t>(size.height));
+    for (std::size_t index = 0; index < pixels.size(); ++index) {
+        pixels[index] = static_cast<uint16_t>(0x1000 + index % 4000);
+    }
+    return pixels;
+}
+
+// Writes only the left half.
+std::vector<uint8_t> leftHalf(render::Size size)
+{
+    std::vector<uint8_t> write(static_cast<std::size_t>(size.width) *
+                               static_cast<std::size_t>(size.height));
+    for (int y = 0; y < size.height; ++y) {
+        for (int x = 0; x < size.width / 2; ++x) {
+            write[static_cast<std::size_t>(y) * static_cast<std::size_t>(size.width) +
+                  static_cast<std::size_t>(x)] = 1;
+        }
+    }
+    return write;
+}
+
+void testPictures()
+{
+    ProjectDocument document =
+        ProjectDocument::fromSnapshot(fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    const render::Size hd = document.geometry().planeSize(Resolution::Hd);
+    const std::vector<uint16_t> picture = patternPicture(hd);
+    const std::vector<uint8_t> write = leftHalf(hd);
+
+    // A frame with background data and no HD (frame 4 has background 0).
+    const std::size_t frame = 4;
+    expect(!document.hasHdFrame(frame) && document.backgroundData(frame).has_value(),
+           "the fixture's frame 4 has a background and no HD");
+    const document::Rgb565Frame sdBefore = document.colorizedFrame(frame, Resolution::Sd);
+    bool refused = false;
+    try {
+        static_cast<void>(edit::setFramePicture(document, frame, Resolution::Hd,
+                                                std::vector<uint16_t>(10), {}));
+    } catch (const std::invalid_argument&) {
+        refused = true;
+    }
+    expect(refused && !document.hasHdFrame(frame), "a picture of another size is refused");
+
+    std::unique_ptr<edit::EditCommand> command =
+        edit::setFramePicture(document, frame, Resolution::Hd, picture, write);
+    expect(command && document.hasHdFrame(frame), "the frame gets HD for the picture");
+    const document::Rgb565Frame& hdFrame = document.colorizedFrame(frame, Resolution::Hd);
+    const auto at = [](const document::Rgb565Frame& plane, int x, int y) {
+        return plane.pixels[static_cast<std::size_t>(y) *
+                                static_cast<std::size_t>(plane.size.width) +
+                            static_cast<std::size_t>(x)];
+    };
+    expect(at(hdFrame, 3, 5) == picture[5 * 256 + 3] &&
+               at(hdFrame, 200, 5) == at(sdBefore, 100, 2),
+           "the picture where the mask writes, Create HD's doubling elsewhere");
+    expect(document.backgroundData(frame)->maskHd.isValid() &&
+               document.backgroundData(frame)->maskHd.pixels[5 * 256 + 3] ==
+                   document.backgroundData(frame)->maskSd.pixels[2 * 128 + 1],
+           "with its background mask doubled");
+    expect(samePixels(document.colorizedFrame(frame, Resolution::Sd), sdBefore),
+           "the SD picture stays");
+    command->revert(document);
+    expect(!document.hasHdFrame(frame), "undone, the frame has no HD again");
+    command->apply(document);
+    expect(document.hasHdFrame(frame) &&
+               at(document.colorizedFrame(frame, Resolution::Hd), 3, 5) == picture[5 * 256 + 3],
+           "and redone");
+    expect(!edit::setFramePicture(document, frame, Resolution::Hd, picture, write),
+           "the same picture again changes nothing");
+
+    // A background without HD gets an HD image: the picture, black where it does not write.
+    const std::size_t background = 0;
+    document.removeBackgroundHdFrame(background);
+    command = edit::setBackgroundPicture(document, background, Resolution::Hd, picture, write);
+    expect(command && document.background(background).colorizedHd &&
+               at(document.backgroundFrame(background, Resolution::Hd), 3, 5) ==
+                   picture[5 * 256 + 3] &&
+               at(document.backgroundFrame(background, Resolution::Hd), 200, 5) == 0,
+           "a background's new HD image");
+    command->revert(document);
+    expect(!document.background(background).colorizedHd, "undone, it has none again");
+    command = edit::setBackgroundPicture(document, background, Resolution::Sd,
+                                         patternPicture(document.geometry().planeSize(
+                                             Resolution::Sd)),
+                                         {});
+    expect(command && at(document.backgroundFrame(background, Resolution::Sd), 7, 1) ==
+                          static_cast<uint16_t>(0x1000 + 1 * 128 + 7),
+           "the SD picture, written everywhere");
+    command->revert(document);
+
+    // A sprite without HD gets it, its shape doubled, its colors from the picture.
+    const render::Size spriteSize{static_cast<int>(document::kMaxSpriteWidth),
+                                  static_cast<int>(document::kMaxSpriteHeight)};
+    std::size_t sprite = document.spriteCount();
+    for (std::size_t index = 0; index < document.spriteCount(); ++index) {
+        if (!document.hasHdSprite(index)) {
+            sprite = index;
+            break;
+        }
+    }
+    expect(sprite < document.spriteCount(), "the fixture has a sprite without HD");
+    const document::SpriteRecord spriteBefore = document.sprite(sprite);
+    const edit::PictureEdit spritePicture{edit::PictureKind::Sprite, sprite, Resolution::Hd,
+                                          patternPicture(spriteSize), {}};
+    expect(edit::checkPictureEdit(document, spritePicture).width == spriteSize.width,
+           "a sprite's picture has the sprite's size");
+    command = edit::setPicture(document, spritePicture);
+    expect(command && document.hasHdSprite(sprite) &&
+               document.spriteColorizedPixel(sprite, Resolution::Hd, 9, 3) ==
+                   spritePicture.pixels[3 * 256 + 9] &&
+               document.sprite(sprite).maskHd.pixels[3 * 256 + 9] ==
+                   spriteBefore.originalSd.pixels[1 * 256 + 4],
+           "the sprite's HD colors, with Create HD's shape");
+    command->revert(document);
+    expect(!document.hasHdSprite(sprite), "undone, the sprite has no HD again");
+
+    edit::PictureEdit missing = spritePicture;
+    missing.index = document.spriteCount();
+    refused = false;
+    try {
+        static_cast<void>(edit::checkPictureEdit(document, missing));
+    } catch (const std::out_of_range&) {
+        refused = true;
+    }
+    expect(refused, "a sprite that does not exist is refused");
+}
+
 }  // namespace
 
 void runEditBatchTests()
 {
     testSteps();
     testCancel();
+    testPictures();
 }

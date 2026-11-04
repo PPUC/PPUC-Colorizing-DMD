@@ -33,6 +33,10 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/AboutDialog.h
     dialogs/HelperLineDialog.cpp
     dialogs/HelperLineDialog.h
+    dialogs/PictureReviewDialog.cpp
+    dialogs/PictureReviewDialog.h
+    dialogs/PluginSettingsDialog.cpp
+    dialogs/PluginSettingsDialog.h
     dialogs/ProjectSettingsDialog.cpp
     dialogs/ProjectSettingsDialog.h
     dialogs/SceneDialog.cpp

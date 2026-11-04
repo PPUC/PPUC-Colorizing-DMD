@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QCoreApplication>
+#include <QPointer>
 #include <QString>
 #include <QStringList>
 #include <QTimer>
@@ -12,6 +13,8 @@
 #include <optional>
 #include <vector>
 
+#include "dialogs/PictureReviewDialog.h"
+#include "dialogs/PluginSettingsDialog.h"
 #include "vpx/EditorApi.h"
 
 class QAction;
@@ -45,6 +48,9 @@ public:
         std::function<void(std::size_t current, const std::vector<std::size_t>& selected)>
             showFrames;
         std::function<void(const QString& text)> showStatus;
+        // What the background and sprite panels show.
+        std::function<std::optional<std::size_t>()> currentBackground;
+        std::function<std::optional<std::size_t>()> currentSprite;
     };
 
     explicit EditorPlugins(Window window);
@@ -81,6 +87,8 @@ public:
     [[nodiscard]] std::optional<std::size_t> currentFrame() const override;
     [[nodiscard]] std::vector<std::size_t> selectedFrames() const override;
     void showFrames(std::size_t current, const std::vector<std::size_t>& selected) override;
+    [[nodiscard]] std::optional<std::size_t> currentBackground() const override;
+    [[nodiscard]] std::optional<std::size_t> currentSprite() const override;
     void addMenuEntry(const std::string& pluginId,
                       const std::string& text,
                       std::function<void()> action) override;
@@ -94,6 +102,21 @@ public:
     void setSetting(const std::string& pluginId,
                     const std::string& key,
                     const std::string& value) override;
+    bool reviewPictures(const std::string& pluginId,
+                        const std::string& title,
+                        const std::string& undoName,
+                        std::vector<vpx::ProposedPicture> pictures,
+                        std::function<void(std::size_t applied)> done) override;
+    bool editSettings(const std::string& pluginId,
+                      const std::string& title,
+                      std::vector<vpx::SettingField> fields,
+                      std::function<void(bool saved)> done) override;
+
+    // The plugin's open windows, for tests; nullptr without one.
+    [[nodiscard]] PictureReviewDialog* reviewWindow(const std::string& pluginId) const;
+    [[nodiscard]] PluginSettingsDialog* settingsWindow(const std::string& pluginId) const;
+    // Applies the chosen pictures of the plugin's review window (its Apply button).
+    void applyReview(const std::string& pluginId);
 
     // Runs the plugin bus once and tells the plugins about changes (the timer does this while
     // a plugin is loaded; for tests).
@@ -103,11 +126,28 @@ private:
     bool load(const QString& id, QStringList& errors);
     void unload(const QString& id);
     void updateMenu();
+    // Closes the plugin's windows without telling it (it is unloading).
+    void closeWindows(const std::string& pluginId);
 
     Window m_window;
     QStringList m_loaded;
     QTimer m_timer;
     std::map<std::string, std::vector<QAction*>> m_menuEntries;
+    // A plugin's open review window: the project and revision it was proposed for, and what to
+    // tell the plugin when it closes.
+    struct Review {
+        QPointer<PictureReviewDialog> dialog;
+        const document::ProjectDocument* document = nullptr;
+        uint64_t revision = 0;
+        std::string undoName;
+        std::function<void(std::size_t)> done;
+    };
+    std::map<std::string, Review> m_reviews;
+    struct Settings {
+        QPointer<PluginSettingsDialog> dialog;
+        std::function<void(bool)> done;
+    };
+    std::map<std::string, Settings> m_settings;
     // What the plugins were last told about.
     const document::ProjectDocument* m_toldDocument = nullptr;
     uint64_t m_toldRevision = 0;

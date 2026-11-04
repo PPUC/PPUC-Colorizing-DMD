@@ -469,8 +469,276 @@ uint32_t MSGPIAPI getPlainColors(uint16_t* colors, uint32_t capacity)
     return copyAll(plain, plain.size(), colors, capacity);
 }
 
+uint32_t MSGPIAPI getBackgroundMask(uint32_t frame, int hd, uint8_t* pixels, uint32_t capacity,
+                                    uint32_t* width, uint32_t* height)
+{
+    const ProjectDocument* document = documentWithFrame(frame);
+    const Resolution plane = hd ? Resolution::Hd : Resolution::Sd;
+    if (!document || !document->geometry().isEditable(plane)) {
+        return 0;
+    }
+    const render::Size size = document->geometry().planeSize(plane);
+    setSize(size, width, height);
+    const std::size_t count =
+        static_cast<std::size_t>(size.width) * static_cast<std::size_t>(size.height);
+    const std::optional<document::FrameBackgroundData>& data = document->backgroundData(frame);
+    const document::IndexedFrame* mask =
+        data ? (plane == Resolution::Hd ? &data->maskHd : &data->maskSd) : nullptr;
+    if (pixels && capacity >= count) {
+        const bool hasMask = mask && mask->pixelCount() == count;
+        for (std::size_t index = 0; index < count; ++index) {
+            pixels[index] = hasMask && mask->pixels[index] != 0 ? 1 : 0;
+        }
+    }
+    return static_cast<uint32_t>(count);
+}
+
+uint32_t MSGPIAPI getBackgroundPicture(uint32_t background, int hd, uint16_t* pixels,
+                                       uint32_t capacity, uint32_t* width, uint32_t* height)
+{
+    const ProjectDocument* document = openDocument();
+    const Resolution plane = hd ? Resolution::Hd : Resolution::Sd;
+    if (!document || background >= document->backgroundCount() ||
+        !document->geometry().isEditable(plane) ||
+        (plane == Resolution::Hd && !document->background(background).colorizedHd)) {
+        return 0;
+    }
+    try {
+        const document::Rgb565Frame& picture = document->backgroundFrame(background, plane);
+        setSize(picture.size, width, height);
+        return copyAll(picture.pixels, picture.pixelCount(), pixels, capacity);
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+uint32_t MSGPIAPI getFrameSprites(uint32_t frame, uint32_t* sprites, uint32_t capacity)
+{
+    const ProjectDocument* document = documentWithFrame(frame);
+    if (!document) {
+        return 0;
+    }
+    std::set<uint32_t> ids;
+    for (const document::FrameSpriteReference& reference :
+         document->frameSpriteReferences(frame)) {
+        if (reference.spriteId != document::kNoSpriteId) {
+            ids.insert(reference.spriteId);
+        }
+    }
+    const std::vector<uint32_t> sorted(ids.begin(), ids.end());
+    return copyAll(sorted, sorted.size(), sprites, capacity);
+}
+
+// The sprite's pictures on the plane; nullptr when it has none there.
+const document::SpriteRecord* spriteOnPlane(const ProjectDocument* document, uint32_t sprite,
+                                            Resolution plane)
+{
+    if (!document || sprite >= document->spriteCount() ||
+        !document->geometry().isEditable(plane) ||
+        (plane == Resolution::Hd && !document->hasHdSprite(sprite))) {
+        return nullptr;
+    }
+    return &document->sprite(sprite);
+}
+
+uint32_t MSGPIAPI getSpritePicture(uint32_t sprite, int hd, uint16_t* pixels, uint32_t capacity,
+                                   uint32_t* width, uint32_t* height)
+{
+    const Resolution plane = hd ? Resolution::Hd : Resolution::Sd;
+    const document::SpriteRecord* record = spriteOnPlane(openDocument(), sprite, plane);
+    if (!record) {
+        return 0;
+    }
+    const document::Rgb565Frame& picture =
+        plane == Resolution::Hd ? record->colorizedHd : record->colorizedSd;
+    setSize(picture.size, width, height);
+    return copyAll(picture.pixels, picture.pixelCount(), pixels, capacity);
+}
+
+uint32_t MSGPIAPI getSpriteMask(uint32_t sprite, int hd, uint8_t* pixels, uint32_t capacity,
+                                uint32_t* width, uint32_t* height)
+{
+    const Resolution plane = hd ? Resolution::Hd : Resolution::Sd;
+    const document::SpriteRecord* record = spriteOnPlane(openDocument(), sprite, plane);
+    if (!record) {
+        return 0;
+    }
+    // 255 is transparent, in the original (SD) as in the HD sprite's own mask.
+    const document::IndexedFrame& shape =
+        plane == Resolution::Hd ? record->maskHd : record->originalSd;
+    setSize(shape.size, width, height);
+    const std::size_t count = shape.pixelCount();
+    if (pixels && capacity >= count) {
+        for (std::size_t index = 0; index < count; ++index) {
+            pixels[index] = shape.pixels[index] != 255 ? 1 : 0;
+        }
+    }
+    return static_cast<uint32_t>(count);
+}
+
+uint32_t MSGPIAPI getCurrentBackground()
+{
+    const std::optional<std::size_t> background =
+        openDocument() ? g_backend->currentBackground() : std::nullopt;
+    return background ? static_cast<uint32_t>(*background) : CDMDPI_NONE;
+}
+
+uint32_t MSGPIAPI getCurrentSprite()
+{
+    const std::optional<std::size_t> sprite =
+        openDocument() ? g_backend->currentSprite() : std::nullopt;
+    return sprite ? static_cast<uint32_t>(*sprite) : CDMDPI_NONE;
+}
+
+// The picture of a plugin's call as a value; nullopt for missing pixels.
+std::optional<edit::PictureEdit> pictureOf(edit::PictureKind kind, uint32_t index, int hd,
+                                           const uint16_t* pixels, const uint8_t* write,
+                                           uint32_t count)
+{
+    if (!pixels) {
+        return std::nullopt;
+    }
+    edit::PictureEdit picture;
+    picture.kind = kind;
+    picture.index = index;
+    picture.plane = hd ? Resolution::Hd : Resolution::Sd;
+    picture.pixels.assign(pixels, pixels + count);
+    if (write) {
+        picture.write.assign(write, write + count);
+    }
+    return picture;
+}
+
+int setPictureChange(uint32_t endpointId, edit::PictureKind kind, uint32_t index, int hd,
+                     const uint16_t* pixels, const uint8_t* write, uint32_t count)
+{
+    const std::optional<edit::PictureEdit> picture =
+        pictureOf(kind, index, hd, pixels, write, count);
+    if (!picture) {
+        return 0;
+    }
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::setPicture(document, *picture);
+    });
+}
+
+int MSGPIAPI setFramePicture(uint32_t endpointId, uint32_t frame, int hd, const uint16_t* pixels,
+                             const uint8_t* write, uint32_t count)
+{
+    return setPictureChange(endpointId, edit::PictureKind::Frame, frame, hd, pixels, write,
+                            count);
+}
+
+int MSGPIAPI setBackgroundPicture(uint32_t endpointId, uint32_t background, int hd,
+                                  const uint16_t* pixels, const uint8_t* write, uint32_t count)
+{
+    return setPictureChange(endpointId, edit::PictureKind::Background, background, hd, pixels,
+                            write, count);
+}
+
+int MSGPIAPI setSpritePicture(uint32_t endpointId, uint32_t sprite, int hd,
+                              const uint16_t* pixels, const uint8_t* write, uint32_t count)
+{
+    return setPictureChange(endpointId, edit::PictureKind::Sprite, sprite, hd, pixels, write,
+                            count);
+}
+
+int MSGPIAPI reviewPictures(uint32_t endpointId, const char* title, const char* undoName,
+                            const ColorizingDMDPicture* pictures, uint32_t count,
+                            cdmdpi_review_callback callback, void* userData)
+{
+    const ProjectDocument* document = openDocument();
+    if (!document || !pictures || count == 0 || !callback) {
+        return 0;
+    }
+    std::vector<ProposedPicture> proposed;
+    proposed.reserve(count);
+    for (uint32_t index = 0; index < count; ++index) {
+        const ColorizingDMDPicture& item = pictures[index];
+        if (item.kind > CDMDPI_PICTURE_SPRITE) {
+            return 0;
+        }
+        std::optional<edit::PictureEdit> picture =
+            pictureOf(static_cast<edit::PictureKind>(item.kind), item.index, item.hd ? 1 : 0,
+                      item.pixels, item.write, item.count);
+        if (!picture) {
+            return 0;
+        }
+        try {
+            static_cast<void>(edit::checkPictureEdit(*document, *picture));
+        } catch (const std::exception&) {
+            return 0;
+        }
+        proposed.push_back(ProposedPicture{std::move(*picture), item.label ? item.label : ""});
+    }
+    const bool opened = g_backend->reviewPictures(
+        pluginIdOf(endpointId), title ? title : "", undoName && *undoName ? undoName
+                                                                          : "Plugin edit",
+        std::move(proposed),
+        [callback, userData](std::size_t applied) {
+            callback(userData, static_cast<uint32_t>(applied));
+        });
+    return opened ? 1 : 0;
+}
+
+// The choices of a field, one per line, each "value" or "value=label".
+std::vector<std::pair<std::string, std::string>> choicesOf(const char* text)
+{
+    std::vector<std::pair<std::string, std::string>> choices;
+    std::string rest = text ? text : "";
+    while (!rest.empty()) {
+        const std::size_t end = rest.find('\n');
+        std::string line = rest.substr(0, end);
+        rest = end == std::string::npos ? std::string() : rest.substr(end + 1);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (line.empty()) {
+            continue;
+        }
+        const std::size_t equals = line.find('=');
+        if (equals == std::string::npos) {
+            choices.emplace_back(line, line);
+        } else {
+            choices.emplace_back(line.substr(0, equals), line.substr(equals + 1));
+        }
+    }
+    return choices;
+}
+
+int MSGPIAPI editSettings(uint32_t endpointId, const char* title,
+                          const ColorizingDMDSettingField* fields, uint32_t count,
+                          cdmdpi_settings_callback callback, void* userData)
+{
+    if (!g_backend || !fields || count == 0 || !callback) {
+        return 0;
+    }
+    std::vector<SettingField> form;
+    for (uint32_t index = 0; index < count; ++index) {
+        const ColorizingDMDSettingField& item = fields[index];
+        if (!item.key || !*item.key || item.kind > CDMDPI_FIELD_CHOICE) {
+            return 0;
+        }
+        SettingField field;
+        field.key = item.key;
+        field.label = item.label ? item.label : item.key;
+        field.kind = static_cast<SettingField::Kind>(item.kind);
+        field.defaultValue = item.defaultValue ? item.defaultValue : "";
+        field.choices = choicesOf(item.choices);
+        field.help = item.help ? item.help : "";
+        if (field.kind == SettingField::Kind::Choice && field.choices.empty()) {
+            return 0;
+        }
+        form.push_back(std::move(field));
+    }
+    const bool opened = g_backend->editSettings(
+        pluginIdOf(endpointId), title ? title : "", std::move(form),
+        [callback, userData](bool saved) { callback(userData, saved ? 1 : 0); });
+    return opened ? 1 : 0;
+}
+
 const ColorizingDMDEditorAPI kApi{
-    2,
+    3,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -496,6 +764,18 @@ const ColorizingDMDEditorAPI kApi{
     &deleteBackground,
     &clearColorRotations,
     &getPlainColors,
+    &getBackgroundMask,
+    &getBackgroundPicture,
+    &getFrameSprites,
+    &getSpritePicture,
+    &getSpriteMask,
+    &getCurrentBackground,
+    &getCurrentSprite,
+    &setFramePicture,
+    &setBackgroundPicture,
+    &setSpritePicture,
+    &reviewPictures,
+    &editSettings,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

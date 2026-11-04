@@ -90,4 +90,52 @@ private:
     document::ProjectDocument& document,
     std::size_t frameIndex);
 
+// The pictures (RGB565, the plane's or the sprite's size, row-major) written where write is
+// not 0; an empty write mask writes every pixel. A frame, background or sprite without HD gets
+// it first, as Create HD makes it (nearest upscaling; a frame with background data also gets
+// its background mask doubled). Throws std::logic_error for a plane the project cannot edit.
+//
+// The frame's colorized picture; its background mask and dynamic zones stay as they are.
+[[nodiscard]] std::unique_ptr<EditCommand> setFramePicture(document::ProjectDocument& document,
+                                                           std::size_t frameIndex,
+                                                           render::Resolution plane,
+                                                           const std::vector<uint16_t>& pixels,
+                                                           const std::vector<uint8_t>& write);
+[[nodiscard]] std::unique_ptr<EditCommand> setBackgroundPicture(
+    document::ProjectDocument& document,
+    std::size_t backgroundIndex,
+    render::Resolution plane,
+    const std::vector<uint16_t>& pixels,
+    const std::vector<uint8_t>& write);
+// The sprite's colors (kMaxSpriteWidth x kMaxSpriteHeight); its shape and mask stay as they
+// are.
+[[nodiscard]] std::unique_ptr<EditCommand> setSpritePicture(document::ProjectDocument& document,
+                                                            std::size_t spriteIndex,
+                                                            render::Resolution plane,
+                                                            const std::vector<uint16_t>& pixels,
+                                                            const std::vector<uint8_t>& write);
+
+
+// One of the pictures above, as a value: what an editor API plugin proposes.
+enum class PictureKind {
+    Frame,
+    Background,
+    Sprite,
+};
+struct PictureEdit {
+    PictureKind kind = PictureKind::Frame;
+    std::size_t index = 0;
+    render::Resolution plane = render::Resolution::Sd;
+    std::vector<uint16_t> pixels;
+    std::vector<uint8_t> write;
+};
+// The size of the picture on its plane; throws as the steps do for a record that does not
+// exist or a plane the project cannot edit, and std::invalid_argument for pixels or a write
+// mask of another size. Changes nothing.
+render::Size checkPictureEdit(const document::ProjectDocument& document,
+                              const PictureEdit& picture);
+// The step of the picture's kind.
+[[nodiscard]] std::unique_ptr<EditCommand> setPicture(document::ProjectDocument& document,
+                                                      const PictureEdit& picture);
+
 }  // namespace colorizing::edit
