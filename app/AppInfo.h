@@ -13,7 +13,7 @@ inline const QString kApplicationVersion = QStringLiteral(COLORIZINGDMD_VERSION)
 // version the person runs. Qt appends the display name (main.cpp) to window titles on Windows
 // and Linux unless a title already ends with it, so both use this one string.
 inline const QString kApplicationTitle = kApplicationName + QLatin1Char(' ') + kApplicationVersion;
-inline const QString kProjectUrl = QStringLiteral("https://github.com/PPUC/ColorizingDMD");
+inline const QString kProjectUrl = QStringLiteral("https://github.com/PPUC/PPUC-Colorizing-DMD");
 inline const QString kOrganizationUrl = QStringLiteral("https://ppuc.org");
 
 }  // namespace colorizing::app

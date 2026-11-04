@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Help -> About` links to the repository under its new name, `PPUC/PPUC-Colorizing-DMD`.
+
 ## 3.99.30
 
 - `Go To Where The Frames Were` (`Alt+R`) jumps back after moving frames, to go on with the frame

@@ -12,9 +12,9 @@ and cannot be opened by the Win32 editor again.
 ## Downloads
 
 The packages of every build are on the
-[Actions](https://github.com/PPUC/ColorizingDMD/actions) page; releases are under
-[Releases](https://github.com/PPUC/ColorizingDMD/releases). Version 4.0.0 will be the first
-release; until then the versions are 3.99.x (`Help -> About` shows yours).
+[Actions](https://github.com/PPUC/PPUC-Colorizing-DMD/actions) page; releases are under
+[Releases](https://github.com/PPUC/PPUC-Colorizing-DMD/releases). Version 4.0.0 will be the
+first release; until then the versions are 3.99.x (`Help -> About` shows yours).
 
 ## Handbook
 
@@ -40,7 +40,7 @@ plugins.
 ## The Win32 editor
 
 The Win32 editor this one replaces ([ColorizingDMD](https://github.com/zesinger/ColorizingDMD) by zesinger, CDMD, last version 3.17.3) is kept at
-the tag [`v3.17.3`](https://github.com/PPUC/ColorizingDMD/tree/v3.17.3):
+the tag [`v3.17.3`](https://github.com/PPUC/PPUC-Colorizing-DMD/tree/v3.17.3):
 
 ```sh
 git checkout v3.17.3            # its sources, to build with Visual Studio
