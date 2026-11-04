@@ -161,9 +161,11 @@ QRect zoneBetween(const QRect& start, const QRect& end, std::size_t index, std::
 
 uint16_t rgb565FromColor(QRgb color)
 {
-    const auto r = static_cast<uint16_t>((qRed(color) * 31) / 255);
-    const auto g = static_cast<uint16_t>((qGreen(color) * 63) / 255);
-    const auto b = static_cast<uint16_t>((qBlue(color) * 31) / 255);
+    // The nearest of the 32 or 64 levels, so that a color the editor shows (rgb565ToColor())
+    // comes back as the value it was made from.
+    const auto r = static_cast<uint16_t>((qRed(color) * 31 + 127) / 255);
+    const auto g = static_cast<uint16_t>((qGreen(color) * 63 + 127) / 255);
+    const auto b = static_cast<uint16_t>((qBlue(color) * 31 + 127) / 255);
     return static_cast<uint16_t>((r << 11) | (g << 5) | b);
 }
 

@@ -41,6 +41,28 @@ purpose the runtime export does not: the frames libserum renders nothing for are
 nothing colorized to show (an inactive frame is one that is not colorized, a 256x64 frame without
 its data is black), and the image of a background is exported by `Export Background`.
 
+Use `File -> Export Frames PNG...` to export many frames at once, one PNG file per frame into a
+folder, named as above (`..._frame_0042_sd.png`). The window sets:
+
+- the frames: the frames selected in the frame list, or a range from one frame number to
+  another (it starts as the span of the selection, or as the current frame);
+- the picture:
+  - `As shown, with the background`: libserum's picture, the same as `Export Current Frame PNG`
+    writes, to show the frames to someone;
+  - `Frame content only, background transparent`: the frame's own picture as the source for an
+    external tool such as an upscaler. One image pixel is one DMD pixel, in the frame's exact
+    colors, lossless. Where the background (the assigned background's image or the background
+    scene the frame starts) shows through, the pixel is transparent instead. Sprites are left
+    out, and `Pixel Shape` and `Pixel Size` do not apply. Imported back into the frame, the
+    colors come back unchanged; a transparent pixel imports as black, which does not show where
+    the background shows through;
+- the plane: 128x32 or 256x64 in a project with both;
+- the folder; it is remembered for the next export.
+
+If files of the same names are in the folder already, the editor asks before replacing them.
+Frames libserum has no picture for are left out and listed at the end. `Cancel` in the progress
+window stops the export; the files written until then stay.
+
 ## Importing images and movie clips
 
 Pictures go into frames as in the Win32 editor's Images window. First select frames, and on the

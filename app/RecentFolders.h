@@ -5,7 +5,8 @@
 namespace colorizing::app {
 
 // The folder each kind of file was last opened from (frame dumps, images, movie clips,
-// packages, projects), so that its file dialog starts there next time, also after a restart.
+// packages, projects) or exported frames were written to, so that its file dialog starts there
+// next time, also after a restart.
 // Kept in QSettings ("lastFolders/<kind>").
 namespace RecentFolders {
 
@@ -14,6 +15,7 @@ inline const QString kImages = QStringLiteral("images");
 inline const QString kMovieClips = QStringLiteral("movieClips");
 inline const QString kFrameDumps = QStringLiteral("frameDumps");
 inline const QString kPackages = QStringLiteral("packages");
+inline const QString kFrameExports = QStringLiteral("frameExports");
 
 // The folder of the kind; fallback while none is stored or the stored one is gone.
 [[nodiscard]] QString folder(const QString& kind, const QString& fallback);

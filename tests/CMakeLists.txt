@@ -108,6 +108,7 @@ if(TARGET colorizing_qt_v2_widgets)
         SelectionWidgetTests.cpp
         ShortcutsWidgetTests.cpp
         ImageImportWidgetTests.cpp
+        FramesPngExportWidgetTests.cpp
     VideoClipWidgetTests.cpp
     )
 

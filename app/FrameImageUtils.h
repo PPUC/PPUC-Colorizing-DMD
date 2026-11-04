@@ -86,6 +86,13 @@ void setOffPixelColor(const QColor& color);
     // How long the background scene the frame starts has played: which of its frames shows
     // through the background mask (ProjectDocument::backgroundPicture()).
     uint32_t sceneElapsedMs = 0);
+// The frame's own picture on the plane for an external tool such as an upscaler: one image
+// pixel per DMD pixel, in the colors composeResolvedFrame() gives it without the sprites, and
+// transparent where the background (the assigned background's image or the background scene
+// the frame starts) shows through instead. The colors import back unchanged (rgb565FromColor()).
+[[nodiscard]] QImage renderFrameContentImage(const document::ProjectDocument& document,
+                                             std::size_t frameIndex,
+                                             render::Resolution resolution);
 // How many pixels of the frame's picture a rotation slot moves: those that are not dynamic
 // content or a dynamic shadow and whose color the slot owns (the first slot, within its
 // length, that lists the color; see applyColorRotations()), out of the picture's pixels that

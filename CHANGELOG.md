@@ -10,6 +10,11 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Export Current Frame PNG` and the Runtime view's still showed a frame that starts a scene, and
   a frame of a scene, as an unknown frame in grey; they now show it as playback does, a
   background scene behind it.
+- `File -> Export Frames PNG...` exports the selected frames or a range of frames, one PNG per
+  frame: as shown, with the background, or the frame's content only, one pixel per DMD pixel in
+  its exact colors with the background transparent, as the source for an external upscaler.
+- An imported picture takes the nearest RGB565 color for each pixel, so that colors exported from
+  the editor import back unchanged; before, most came back one step darker.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the

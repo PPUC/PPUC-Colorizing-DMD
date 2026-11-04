@@ -532,9 +532,13 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
                            int y,
                            bool includeBackgroundLayer,
                            bool& fromDynamicZone,
-                           uint32_t sceneElapsedMs = 0)
+                           uint32_t sceneElapsedMs = 0,
+                           bool* fromBackground = nullptr)
 {
     fromDynamicZone = false;
+    if (fromBackground) {
+        *fromBackground = false;
+    }
     const document::Rgb565Frame& colorized = document.colorizedFrame(frameIndex, resolution);
     const uint16_t color = colorized.pixels[rgb565PixelIndex(colorized, x, y)];
 
@@ -599,6 +603,9 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
         if (!picture) {
             return std::nullopt;
         }
+        if (fromBackground) {
+            *fromBackground = true;
+        }
         return picture->pixels[rgb565PixelIndex(*picture, x, y)];
     };
 
@@ -626,7 +633,13 @@ uint16_t resolveFramePixel(const document::ProjectDocument& document,
     const auto scenePixel = [&]() -> uint16_t {
         const document::Rgb565Frame* picture =
             document.backgroundPicture(frameIndex, resolution, sceneElapsedMs);
-        return picture ? picture->pixels[rgb565PixelIndex(*picture, x, y)] : color;
+        if (!picture) {
+            return color;
+        }
+        if (fromBackground) {
+            *fromBackground = true;
+        }
+        return picture->pixels[rgb565PixelIndex(*picture, x, y)];
     };
     const bool unlitKeepsColor = blackShowsScene && dynamicZone && originalValue == 0 &&
                                  dynamicColor && *dynamicColor != 0;
@@ -693,13 +706,15 @@ namespace {
 // of an ordinary project the shadows are generated on that plane from the upscaled 128x32
 // zones with the 128x32 shadow tables, one 256x64 pixel wide (GenerateExtraPlaneShadows,
 // default offset).
-// A pixel that takes a shadow is marked in notRotating, if that is given.
+// A pixel that takes a shadow is marked in notRotating, if that is given, and no longer shows
+// the background (fromBackground, if given).
 void applyDynamicShadows(const document::ProjectDocument& document,
                          std::size_t frameIndex,
                          render::Resolution resolution,
                          document::Rgb565Frame& frame,
                          std::vector<uint8_t>* notRotating,
-                         bool includeBackgroundLayer)
+                         bool includeBackgroundLayer,
+                         std::vector<uint8_t>* fromBackground = nullptr)
 {
     const std::optional<document::FrameDynamicData>& dynamicData =
         document.dynamicData(frameIndex);
@@ -810,26 +825,34 @@ void applyDynamicShadows(const document::ProjectDocument& document,
                 if (notRotating) {
                     (*notRotating)[shadowIndex] = 1;
                 }
+                if (fromBackground) {
+                    (*fromBackground)[shadowIndex] = 0;
+                }
             }
         }
     }
 }
 
-}  // namespace
-
-document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& document,
-                                           std::size_t frameIndex,
-                                           render::Resolution resolution,
-                                           bool includeBackgroundLayer,
-                                           std::vector<uint8_t>* notRotating,
-                                           bool includeSprites,
-                                           uint32_t sceneElapsedMs)
+// composeResolvedFrame(); fromBackground, if given, gets one entry per pixel: 1 for a pixel
+// that shows the background (the assigned background's image or the background scene's frame)
+// and not the frame's own picture. A sprite drawn over such a pixel does not clear it.
+document::Rgb565Frame composeFrame(const document::ProjectDocument& document,
+                                   std::size_t frameIndex,
+                                   render::Resolution resolution,
+                                   bool includeBackgroundLayer,
+                                   std::vector<uint8_t>* notRotating,
+                                   bool includeSprites,
+                                   uint32_t sceneElapsedMs,
+                                   std::vector<uint8_t>* fromBackground)
 {
     if (document.rendersHdPlaneOnly() && !document.hasHdFrame(frameIndex)) {
         document::Rgb565Frame empty =
             document::makeRgb565Frame(document.geometry().planeSize(resolution));
         if (notRotating) {
             notRotating->assign(empty.pixels.size(), 1);
+        }
+        if (fromBackground) {
+            fromBackground->assign(empty.pixels.size(), 0);
         }
         return empty;
     }
@@ -838,9 +861,13 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
     if (notRotating) {
         notRotating->assign(frame.pixels.size(), 0);
     }
+    if (fromBackground) {
+        fromBackground->assign(frame.pixels.size(), 0);
+    }
     for (int y = 0; y < source.size.height; ++y) {
         for (int x = 0; x < source.size.width; ++x) {
             bool fromDynamicZone = false;
+            bool showsBackground = false;
             const std::size_t index = rgb565PixelIndex(frame, x, y);
             frame.pixels[index] = resolveFramePixel(document,
                                                     frameIndex,
@@ -849,15 +876,19 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
                                                     y,
                                                     includeBackgroundLayer,
                                                     fromDynamicZone,
-                                                    sceneElapsedMs);
+                                                    sceneElapsedMs,
+                                                    &showsBackground);
             if (notRotating && fromDynamicZone) {
                 (*notRotating)[index] = 1;
+            }
+            if (fromBackground && showsBackground) {
+                (*fromBackground)[index] = 1;
             }
         }
     }
 
     applyDynamicShadows(document, frameIndex, resolution, frame, notRotating,
-                        includeBackgroundLayer);
+                        includeBackgroundLayer, fromBackground);
 
     const std::vector<SpriteMatch> matches =
         includeSprites ? matchFrameSprites(document, frameIndex) : std::vector<SpriteMatch>{};
@@ -880,6 +911,39 @@ document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& docu
         }
     }
     return frame;
+}
+
+}  // namespace
+
+document::Rgb565Frame composeResolvedFrame(const document::ProjectDocument& document,
+                                           std::size_t frameIndex,
+                                           render::Resolution resolution,
+                                           bool includeBackgroundLayer,
+                                           std::vector<uint8_t>* notRotating,
+                                           bool includeSprites,
+                                           uint32_t sceneElapsedMs)
+{
+    return composeFrame(document, frameIndex, resolution, includeBackgroundLayer, notRotating,
+                        includeSprites, sceneElapsedMs, nullptr);
+}
+
+QImage renderFrameContentImage(const document::ProjectDocument& document,
+                               std::size_t frameIndex,
+                               render::Resolution resolution)
+{
+    std::vector<uint8_t> fromBackground;
+    const document::Rgb565Frame frame =
+        composeFrame(document, frameIndex, resolution, true, nullptr, false, 0, &fromBackground);
+    QImage image(frame.size.width, frame.size.height, QImage::Format_ARGB32);
+    for (int y = 0; y < frame.size.height; ++y) {
+        auto* line = reinterpret_cast<QRgb*>(image.scanLine(y));
+        for (int x = 0; x < frame.size.width; ++x) {
+            const std::size_t index = rgb565PixelIndex(frame, x, y);
+            line[x] = fromBackground[index] != 0 ? qRgba(0, 0, 0, 0)
+                                                 : rgb565ToColor(frame.pixels[index]).rgb();
+        }
+    }
+    return image;
 }
 
 std::vector<uint8_t> spriteCoverage(const document::ProjectDocument& document,

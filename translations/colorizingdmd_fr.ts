@@ -2262,6 +2262,80 @@ Utiliser Créer la frame %1.</translation>
     </message>
 </context>
 <context>
+    <name>FramesPngExportDialog</name>
+    <message>
+        <source>Export Frames PNG</source>
+        <translation>Exporter des frames en PNG</translation>
+    </message>
+    <message>
+        <source>Frames</source>
+        <translation>Frames</translation>
+    </message>
+    <message numerus="yes">
+        <source>The %n selected frames</source>
+        <translation>
+            <numerusform>La frame sélectionnée</numerusform>
+            <numerusform>Les %n frames sélectionnées</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>From frame to frame</source>
+        <translation>De la frame à la frame</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <extracomment>Between the first and the last frame of the range to export</extracomment>
+        <translation>à</translation>
+    </message>
+    <message>
+        <source>Picture</source>
+        <translation>Image</translation>
+    </message>
+    <message>
+        <source>As shown, with the background</source>
+        <translation>Comme affichée, avec l&apos;arrière-plan</translation>
+    </message>
+    <message>
+        <source>libserum&apos;s picture of the frame, as a machine shows it, in the pixel shape and size of the settings: to show it to someone</source>
+        <translation>L&apos;image de la frame par libserum, telle qu&apos;une machine l&apos;affiche, dans la forme et la taille de pixel des réglages : pour la montrer à quelqu&apos;un</translation>
+    </message>
+    <message>
+        <source>Frame content only, background transparent</source>
+        <translation>Contenu de la frame seulement, arrière-plan transparent</translation>
+    </message>
+    <message>
+        <source>The frame&apos;s own picture without background and sprites, one image pixel per DMD pixel in its exact colors, lossless: as source for an external tool such as an upscaler, whose result imports back into the frames</source>
+        <translation>L&apos;image propre de la frame sans arrière-plan ni sprites, un pixel d&apos;image par pixel DMD dans ses couleurs exactes, sans perte : comme source pour un outil externe tel qu&apos;un upscaler, dont le résultat se réimporte dans les frames</translation>
+    </message>
+    <message>
+        <source>Plane</source>
+        <translation>Plan</translation>
+    </message>
+    <message>
+        <source>Choose...</source>
+        <translation>Choisir...</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>Dossier</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Exporter</translation>
+    </message>
+    <message>
+        <source>The range is empty: the first frame is after the last.</source>
+        <translation>La plage est vide : la première frame est après la dernière.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n PNG files</source>
+        <translation>
+            <numerusform>%n fichier PNG</numerusform>
+            <numerusform>%n fichiers PNG</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>HandbookWindow</name>
     <message>
         <source>ColorizingDMD Handbook</source>
@@ -3504,6 +3578,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Point</translation>
     </message>
     <message>
+        <source>E&amp;xport Frames PNG...</source>
+        <translation>E&amp;xporter des frames en PNG...</translation>
+    </message>
+    <message>
         <source>Line</source>
         <translation>Ligne</translation>
     </message>
@@ -4186,6 +4264,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Export annulé</translation>
     </message>
     <message>
+        <source>Export the selected frames or a range of frames, as shown or their content only</source>
+        <translation>Exporter les frames sélectionnées ou une plage de frames, comme affichées ou leur contenu seulement</translation>
+    </message>
+    <message>
         <source>Show the canvas picture on a connected DMD or a dmdserver</source>
         <translation>Afficher l&apos;image du canevas sur un DMD connecté ou un dmdserver</translation>
     </message>
@@ -4284,6 +4366,47 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Exported frame PNG as libserum renders it, %1 rows</source>
         <translation>Frame exportée en PNG telle que libserum la rend, %1 lignes</translation>
+    </message>
+    <message>
+        <source>Could not create the folder %1.</source>
+        <translation>Impossible de créer le dossier %1.</translation>
+    </message>
+    <message>
+        <source>Export Frames PNG</source>
+        <translation>Exporter des frames en PNG</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n of the files are in the folder already. Replace them?</source>
+        <translation>
+            <numerusform>%n des fichiers est déjà dans le dossier. Le remplacer ?</numerusform>
+            <numerusform>%n des fichiers sont déjà dans le dossier. Les remplacer ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Exporting frames...</source>
+        <translation>Exportation des frames...</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>Could not write PNG file %1.</source>
+        <translation>Impossible d&apos;écrire le fichier PNG %1.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frames are not exported, libserum has no picture for them:</source>
+        <translation>
+            <numerusform>%n frame n&apos;est pas exportée, libserum n&apos;a pas d&apos;image pour elle :</numerusform>
+            <numerusform>%n frames ne sont pas exportées, libserum n&apos;a pas d&apos;image pour elles :</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n frame PNG files to %1</source>
+        <translation>
+            <numerusform>%n fichier PNG de frame exporté vers %1</numerusform>
+            <numerusform>%n fichiers PNG de frames exportés vers %1</numerusform>
+        </translation>
     </message>
     <message>
         <source>Select at least one frame first</source>

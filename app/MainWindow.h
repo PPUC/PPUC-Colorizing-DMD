@@ -224,6 +224,9 @@ private:
     void pasteClipboardIntoSprite();
     // Writes libserum's output for the current frame, see RuntimeView.
     void exportCurrentFramePng();
+    // File -> Export Frames PNG...: the selected frames or a range, as shown or their content
+    // only.
+    void exportFramesPng();
     void importImageIntoSelectedFrames();
     void importImageFromClipboard();
     // File -> Import Movie Clip Into Selected Frames: a picture of a clip per selected frame.

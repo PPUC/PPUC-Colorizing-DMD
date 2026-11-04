@@ -97,6 +97,7 @@
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/FrameSettingsDialog.h"
+#include "dialogs/FramesPngExportDialog.h"
 #include "dialogs/HelperLineDialog.h"
 #include "dialogs/SceneDialog.h"
 #include "ImageImport.h"
@@ -161,6 +162,24 @@ constexpr int kExportDmdPixelScale = 8;
 constexpr QSize kFrameThumbnailSize{160, 84};
 // A frame of the strip: the thumbnail, two lines of text below it, and room around.
 constexpr QSize kFrameStripCellSize{176, 128};
+
+// libserum's picture of the frame on the rows in the DMD look, as File -> Export Current Frame
+// PNG writes it; a null image and the reason when libserum has none.
+QImage runtimeFrameExportImage(const document::ProjectDocument& document,
+                               std::size_t frameIndex,
+                               runtime::PlaneRequest rows,
+                               const DmdRenderOptions& options,
+                               QString& reason)
+{
+    const runtime::RuntimeFrame frame =
+        runtime::RuntimePreview::instance().renderFrame(document, frameIndex, rows);
+    const runtime::RuntimePlane* plane = frame.ok() ? frame.plane(rows) : nullptr;
+    if (!plane) {
+        reason = QString::fromStdString(runtimeNoPictureReason(frame, rows));
+        return QImage();
+    }
+    return renderRgb565FrameImage(plane->image, kExportDmdPixelScale, options);
+}
 
 QString favoriteColorButtonStyle(uint16_t rgb565)
 {
@@ -753,6 +772,11 @@ void MainWindow::createActions()
     connect(exportFrameAction, &QAction::triggered, this, [this]() {
         exportCurrentFramePng();
     });
+    QAction* exportFramesAction =
+        withShortcutId(fileMenu->addAction(tr("E&xport Frames PNG...")), "export-frames-png");
+    exportFramesAction->setToolTip(
+        tr("Export the selected frames or a range of frames, as shown or their content only"));
+    connect(exportFramesAction, &QAction::triggered, this, [this]() { exportFramesPng(); });
 
     QAction* importFrameImageAction =
         withShortcutId(fileMenu->addAction(tr("Import Image Into Selected &Frames...")),
@@ -3768,16 +3792,14 @@ void MainWindow::exportCurrentFramePng()
                                                         : runtime::PlaneRequest::Rows32;
     const runtime::PlaneRequest rows =
         runtime::effectivePlaneRequest(m_document->geometry(), wanted);
-    const runtime::RuntimeFrame frame =
-        runtime::RuntimePreview::instance().renderFrame(*m_document, *frameIndex, rows);
-    const runtime::RuntimePlane* plane = frame.ok() ? frame.plane(rows) : nullptr;
-    if (!plane) {
+    QString reason;
+    const QImage image = runtimeFrameExportImage(*m_document, *frameIndex, rows,
+                                                 currentDmdRenderOptions(), reason);
+    if (image.isNull()) {
         // Nothing is written from the editor's own renderer instead: the file would show
         // what no machine shows.
         statusBar()->showMessage(
-            tr("Frame %1 is not exported: %2")
-                .arg(static_cast<int>(*frameIndex))
-                .arg(QString::fromStdString(runtimeNoPictureReason(frame, rows))),
+            tr("Frame %1 is not exported: %2").arg(static_cast<int>(*frameIndex)).arg(reason),
             8000);
         return;
     }
@@ -3802,8 +3824,6 @@ void MainWindow::exportCurrentFramePng()
     if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
         targetPath += QStringLiteral(".png");
     }
-    const QImage image =
-        renderRgb565FrameImage(plane->image, kExportDmdPixelScale, currentDmdRenderOptions());
     if (!image.save(targetPath, "PNG")) {
         QMessageBox::critical(this,
                               tr("Export Failed"),
@@ -3811,8 +3831,118 @@ void MainWindow::exportCurrentFramePng()
         return;
     }
     statusBar()->showMessage(tr("Exported frame PNG as libserum renders it, %1 rows")
-                                 .arg(plane->image.size.height),
+                                 .arg(rows == runtime::PlaneRequest::Rows64 ? 64 : 32),
                              3000);
+}
+
+void MainWindow::exportFramesPng()
+{
+    if (!m_document || m_document->frameCount() == 0) {
+        return;
+    }
+    setPlaybackRunning(false);
+    const render::ProjectGeometry& geometry = m_document->geometry();
+    std::vector<FramesPngExportDialog::Plane> planes;
+    if (geometry.layout() != render::PlaneLayout::Ordinary) {
+        planes.push_back({geometry.nativePlane(), planeName(geometry.nativePlane())});
+    } else {
+        planes.push_back({render::Resolution::Sd, planeName(render::Resolution::Sd)});
+        if (!m_document->editsOriginalPlaneOnly()) {
+            planes.push_back({render::Resolution::Hd, planeName(render::Resolution::Hd)});
+        }
+    }
+    const render::Resolution proposedPlane =
+        m_runtimeView.isEnabled()
+            ? (m_runtimeView.rows() == runtime::PlaneRequest::Rows64 ? render::Resolution::Hd
+                                                                     : render::Resolution::Sd)
+            : m_activeResolution;
+    FramesPngExportDialog dialog(
+        selectedFrameIndices(), m_document->frameCount(), currentFrameIndex().value_or(0),
+        planes, proposedPlane,
+        QDir::toNativeSeparators(RecentFolders::folder(
+            RecentFolders::kFrameExports,
+            projectFolder().isEmpty() ? QDir::homePath() : projectFolder())),
+        this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const std::vector<std::size_t> frames = dialog.frames();
+    const QDir folder(dialog.folder());
+    if (frames.empty() || !QDir().mkpath(folder.absolutePath())) {
+        QMessageBox::critical(this, tr("Export Failed"),
+                              tr("Could not create the folder %1.")
+                                  .arg(QDir::toNativeSeparators(folder.absolutePath())));
+        return;
+    }
+    RecentFolders::remember(RecentFolders::kFrameExports,
+                            folder.absoluteFilePath(QStringLiteral("frame.png")));
+    const bool contentOnly = dialog.contentOnly();
+    const render::Resolution plane =
+        geometry.layout() != render::PlaneLayout::Ordinary ? geometry.nativePlane()
+                                                           : dialog.plane();
+    const runtime::PlaneRequest rows = runtime::effectivePlaneRequest(
+        geometry, plane == render::Resolution::Hd ? runtime::PlaneRequest::Rows64
+                                                  : runtime::PlaneRequest::Rows32);
+    const auto fileName = [&](std::size_t frameIndex) {
+        return projectBaseName() +
+               QStringLiteral("_frame_%1_%2.png")
+                   .arg(static_cast<int>(frameIndex), 4, 10, QLatin1Char('0'))
+                   .arg(planeName(plane).toLower());
+    };
+    int existing = 0;
+    for (const std::size_t frameIndex : frames) {
+        existing += QFileInfo::exists(folder.absoluteFilePath(fileName(frameIndex))) ? 1 : 0;
+    }
+    if (existing > 0 &&
+        QMessageBox::question(
+            this, tr("Export Frames PNG"),
+            tr("%n of the files are in the folder already. Replace them?", nullptr, existing)) !=
+            QMessageBox::Yes) {
+        return;
+    }
+
+    QProgressDialog progress(tr("Exporting frames..."), tr("Cancel"), 0,
+                             static_cast<int>(frames.size()), this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(300);
+    const DmdRenderOptions options = currentDmdRenderOptions();
+    int written = 0;
+    QStringList skipped;
+    for (std::size_t i = 0; i < frames.size(); ++i) {
+        progress.setValue(static_cast<int>(i));
+        if (progress.wasCanceled()) {
+            break;
+        }
+        const std::size_t frameIndex = frames[i];
+        QString reason;
+        const QImage image =
+            contentOnly ? renderFrameContentImage(*m_document, frameIndex, plane)
+                        : runtimeFrameExportImage(*m_document, frameIndex, rows, options, reason);
+        if (image.isNull()) {
+            skipped.push_back(tr("%1 (%2)").arg(static_cast<int>(frameIndex)).arg(reason));
+            continue;
+        }
+        if (!image.save(folder.absoluteFilePath(fileName(frameIndex)), "PNG")) {
+            QMessageBox::critical(this, tr("Export Failed"),
+                                  tr("Could not write PNG file %1.")
+                                      .arg(QDir::toNativeSeparators(
+                                          folder.absoluteFilePath(fileName(frameIndex)))));
+            return;
+        }
+        ++written;
+    }
+    progress.setValue(static_cast<int>(frames.size()));
+    if (!skipped.isEmpty()) {
+        QMessageBox::information(
+            this, tr("Export Frames PNG"),
+            tr("%n frames are not exported, libserum has no picture for them:", nullptr,
+               static_cast<int>(skipped.size())) +
+                QStringLiteral("\n") + skipped.mid(0, 20).join(QStringLiteral("\n")) +
+                (skipped.size() > 20 ? QStringLiteral("\n…") : QString()));
+    }
+    statusBar()->showMessage(tr("Exported %n frame PNG files to %1", nullptr, written)
+                                 .arg(QDir::toNativeSeparators(folder.absolutePath())),
+                             8000);
 }
 
 void MainWindow::importImageIntoSelectedFrames()
