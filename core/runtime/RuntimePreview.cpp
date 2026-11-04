@@ -244,6 +244,37 @@ RuntimeSubset buildRuntimeSubset(const document::ProjectDocument& document,
 
 namespace {
 
+// The frames of the scenes the frames start: libserum plays a scene, also one behind the
+// frame, from the frames it has loaded. Its search for the frames of the game leaves scene
+// frames out, so they do not change what is identified.
+std::set<std::size_t> framesOfScenesStarted(const document::ProjectDocument& document,
+                                            const std::vector<std::size_t>& frames)
+{
+    std::set<std::size_t> sceneFrames;
+    const auto& settings = document.colorizationSettings();
+    if (!settings) {
+        return sceneFrames;
+    }
+    std::set<uint16_t> scenes;
+    for (std::size_t frameIndex : frames) {
+        const uint32_t trigger = document.sceneTriggerId(frameIndex);
+        if (trigger <= 0xffff && settings->scene(static_cast<uint16_t>(trigger))) {
+            // A variant plays its base's frames.
+            scenes.insert(settings->framesSceneId(static_cast<uint16_t>(trigger)));
+        }
+    }
+    if (scenes.empty()) {
+        return sceneFrames;
+    }
+    for (std::size_t frameIndex = 0; frameIndex < document.frameCount(); ++frameIndex) {
+        const std::optional<document::SceneFrameRef>& ref = document.sceneFrame(frameIndex);
+        if (ref && scenes.count(ref->sceneId)) {
+            sceneFrames.insert(frameIndex);
+        }
+    }
+    return sceneFrames;
+}
+
 }  // namespace
 
 struct RuntimePreview::Impl {
@@ -491,31 +522,11 @@ bool RuntimePreview::Impl::loadWindow(const document::ProjectDocument& document,
     if (played.empty()) {
         throw std::out_of_range("no frame to play");
     }
-    std::set<std::size_t> sceneFrames;
-    // The frames of the scenes the played frames start: libserum plays a scene, also one
-    // behind the frame, from the frames it has loaded. Its search for the frames of the game
-    // leaves scene frames out, so they do not change what is identified.
-    if (const auto& settings = document.colorizationSettings()) {
-        std::set<uint16_t> scenes;
-        for (std::size_t frameIndex : played) {
-            const uint32_t trigger = document.sceneTriggerId(frameIndex);
-            if (trigger <= 0xffff && settings->scene(static_cast<uint16_t>(trigger))) {
-                // A variant plays its base's frames.
-                scenes.insert(settings->framesSceneId(static_cast<uint16_t>(trigger)));
-            }
-        }
-        if (!scenes.empty()) {
-            std::set<std::size_t> withScenes(loaded.begin(), loaded.end());
-            for (std::size_t frameIndex = 0; frameIndex < document.frameCount(); ++frameIndex) {
-                const std::optional<document::SceneFrameRef>& ref =
-                    document.sceneFrame(frameIndex);
-                if (ref && scenes.count(ref->sceneId)) {
-                    withScenes.insert(frameIndex);
-                    sceneFrames.insert(frameIndex);
-                }
-            }
-            loaded.assign(withScenes.begin(), withScenes.end());
-        }
+    std::set<std::size_t> sceneFrames = framesOfScenesStarted(document, played);
+    if (!sceneFrames.empty()) {
+        std::set<std::size_t> withScenes(loaded.begin(), loaded.end());
+        withScenes.insert(sceneFrames.begin(), sceneFrames.end());
+        loaded.assign(withScenes.begin(), withScenes.end());
     }
     // File order, starting with the frame the search starts at: libserum's search starts
     // at the first frame of a colorization it has just loaded.
@@ -681,7 +692,32 @@ RuntimeFrame RuntimePreview::renderFrame(const document::ProjectDocument& docume
     RuntimeFrame frame;
     RuntimeCost cost;
     try {
-        RuntimeSubset subset = buildRuntimeSubset(document, {frameIndex});
+        // With the frames of a scene the frame starts, which libserum plays from the start,
+        // also behind the frame.
+        std::vector<std::size_t> loaded = {frameIndex};
+        const std::set<std::size_t> sceneFrames = framesOfScenesStarted(document, loaded);
+        for (std::size_t sceneFrame : sceneFrames) {
+            if (sceneFrame != frameIndex) {
+                loaded.push_back(sceneFrame);
+            }
+        }
+        RuntimeSubset subset = buildRuntimeSubset(document, loaded);
+        const auto position =
+            std::find(subset.map.frames.begin(), subset.map.frames.end(), frameIndex);
+        if (position == subset.map.frames.end()) {
+            throw std::out_of_range("frame not in its subset");
+        }
+        const std::size_t romFrame =
+            static_cast<std::size_t>(position - subset.map.frames.begin());
+        if (document.sceneFrame(frameIndex)) {
+            // A frame of a scene by itself: libserum's search leaves the frames of scenes out,
+            // so it is loaded as an ordinary frame, without the scenes.
+            subset.snapshot.frames.at(romFrame).scene.reset();
+            if (!subset.snapshot.colorizationSettings) {
+                subset.snapshot.colorizationSettings = document::ColorizationSettings{};
+            }
+            subset.snapshot.colorizationSettings->scenes.clear();
+        }
         cost.subsetMs = subset.subsetMs;
         cost.serializeMs = subset.serializeMs;
         cost.cromBytes = legacy::legacyCromByteCount(subset.snapshot);
@@ -692,8 +728,13 @@ RuntimeFrame RuntimePreview::renderFrame(const document::ProjectDocument& docume
             return frame;
         }
         cost.loadMs = millisecondsSince(start);
-        const document::IndexedFrame original = std::move(m_impl->originals.back());
+        const document::IndexedFrame original = std::move(m_impl->originals.at(romFrame));
         frame = m_impl->colorize(original);
+        // libserum reports the frame of the scene it draws; the frame identified is this one.
+        if (frame.frameIndex && *frame.frameIndex != frameIndex &&
+            sceneFrames.count(*frame.frameIndex) != 0) {
+            frame.frameIndex = frameIndex;
+        }
     } catch (const std::exception& ex) {
         frame = RuntimeFrame{};
         frame.error = ex.what();

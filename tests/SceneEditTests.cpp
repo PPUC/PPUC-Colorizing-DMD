@@ -1,6 +1,7 @@
 #include "edit/SceneEdits.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <filesystem>
 #include <functional>
@@ -611,6 +612,49 @@ void testSceneInPlaybackWindow()
            "the scene plays from the window");
 }
 
+// A still of a frame (the Runtime view while not playing, File -> Export Current Frame PNG)
+// shows the frame as playing it does, also when the frame starts a scene behind it: the
+// scene's frames are loaded with it, so libserum identifies the frame and draws the scene's
+// first frame behind it. A still of one of the scene's own frames shows that frame.
+void testStillOfFrameStartingScene()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    runtime_fixtures::assignBackground(snapshot, 1, document::kNoBackgroundId);
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document::SceneDefinition scene = makeScene(51000, 3, 1);
+    scene.options = document::kSceneAsBackground;
+    scene.repeat = 1;
+    const auto added = edit::addScene(document, scene);
+    (void)added;
+    document.setSceneTriggerId(1, 51000);
+    const std::vector<std::size_t> frames = edit::sceneFrames(document, 51000);
+
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    for (const runtime::PlaneRequest rows :
+         {runtime::PlaneRequest::Rows32, runtime::PlaneRequest::Rows64}) {
+        std::string error;
+        expect(preview.openSequence(document, {1}, rows, &error), "the window loads: " + error);
+        const runtime::RuntimeFrame played = preview.renderSequenceFrame(1);
+        preview.close();
+        const runtime::RuntimeFrame still = preview.renderFrame(document, 1, rows);
+        const runtime::RuntimePlane* playedPlane = played.ok() ? played.plane(rows) : nullptr;
+        const runtime::RuntimePlane* stillPlane = still.ok() ? still.plane(rows) : nullptr;
+        expect(still.identified && still.frameIndex == std::optional<std::size_t>{1},
+               "the frame that starts the scene is identified in its still");
+        expect(stillPlane && playedPlane &&
+                   std::equal(stillPlane->image.pixels.begin(), stillPlane->image.pixels.end(),
+                              playedPlane->image.pixels.begin(), playedPlane->image.pixels.end()),
+               "its still is the picture playing shows, the scene behind it");
+
+        const runtime::RuntimeFrame sceneStill = preview.renderFrame(document, frames[1], rows);
+        expect(sceneStill.ok() && sceneStill.identified &&
+                   sceneStill.frameIndex == std::optional<std::size_t>{frames[1]} &&
+                   sceneStill.plane(rows),
+               "a frame of the scene shows in its own still");
+    }
+}
+
 // A frame of a scene is the scene's picture: it takes no sprites, dynamic zones, comparison
 // mask, shape mode or trigger; opening a project strips them, the setters refuse them, and
 // assigning sprites to a selection leaves such frames out. Background, rotations and lights
@@ -799,6 +843,7 @@ void runSceneEditTests()
     testAssetUse();
     testDropUnusedAssets();
     testSceneInPlaybackWindow();
+    testStillOfFrameStartingScene();
     testSceneFramesTakeNoGameSettings();
     testVariants();
     testVariantsInFileAndLibserum();

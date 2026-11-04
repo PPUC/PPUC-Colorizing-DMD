@@ -143,8 +143,9 @@ public:
     RuntimePreview(const RuntimePreview&) = delete;
     RuntimePreview& operator=(const RuntimePreview&) = delete;
 
-    // One frame, as a still: a cROM of that frame alone is loaded, its ROM frame colorized
-    // once, and the colorization released. The result depends on the document only: nothing
+    // One frame, as a still: a cROM of that frame alone is loaded (with the frames of a scene it
+    // starts, which libserum plays, also behind the frame), its ROM frame colorized once, and
+    // the colorization released. The result depends on the document only: nothing
     // was identified before, no rotation has stepped, no plane is kept from an earlier frame.
     // An open sequence is closed first.
     [[nodiscard]] RuntimeFrame renderFrame(const document::ProjectDocument& document,

@@ -51,7 +51,9 @@ order, from the current one on, with the usual timings; libserum keeps its state
 to the next as it does on a machine, and its color rotations run on libserum's own clock: the
 editor calls libserum's rotation step when libserum says the next one is due and shows the
 planes libserum then holds. It does not rotate anything itself in this view. Outside playback
-the view is a still; nothing rotates in it.
+the view is a still; nothing rotates in it. A still of a frame that starts a scene shows what
+playback shows for that frame: the scene starts, so a background scene's first frame is behind
+the frame. A still of a frame of a scene shows that frame's own picture.
 Switching the view or its plane stops playback.
 
 **Frame identification depends on order.** libserum does not recognise a frame by its picture

@@ -7,6 +7,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 - `Go To Where The Frames Were` (`Alt+R`) jumps back after moving frames, to go on with the frame
   behind them, for sorting newly imported frames one after the other.
+- `Export Current Frame PNG` and the Runtime view's still showed a frame that starts a scene, and
+  a frame of a scene, as an unknown frame in grey; they now show it as playback does, a
+  background scene behind it.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the
