@@ -196,7 +196,10 @@ project. libserum makes it, exactly as it does on a machine when it finds the `.
 
 A `.cROMc` belongs to the libserum that makes it: the editor's own (`Help -> About PPUC
 Colorizing DMD` names it), of the line after 2.8. A machine needs libserum 2.9 or later to load
-it; libserum 2.8 cannot read it.
+it; libserum 2.8 cannot read it. Within the line towards 3.0 the format changes too: a `.cROMc`
+made by this editor stores each frame of a scene after the first of its group as the difference
+to the frame before it, which libserum 2.99.13 and later read. A machine with an older libserum
+cannot load it; make the `.cROMc` again with the machine's libserum, or update it.
 
 - The project is taken as it is in the editor, saved or not, and handed to libserum directly,
   without a `.cROM` on disk. It carries the project's scenes and scaling settings (see "Scenes

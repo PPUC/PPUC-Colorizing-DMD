@@ -21,6 +21,11 @@ tagged; the changes since the last tag are listed under *Next version*.
 - Editor API version 3 for plugins: plugins read and write the pictures of frames, backgrounds
   and sprites, propose new pictures in a review window that applies the chosen ones as one
   step, and show a form for their settings.
+- Exported cROMc files store the frames of a scene as the difference to the frame before them
+  (libserum 2.99.13, cROMc version 18), which makes projects with long scenes much smaller in
+  memory; they need libserum 2.99.13 or later.
+- Letters and numbers in a dynamic zone in front of a background scene no longer flicker at their
+  corners in 256x64 while the scene plays.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the
