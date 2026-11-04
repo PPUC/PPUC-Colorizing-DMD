@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.30
+
 - `Go To Where The Frames Were` (`Alt+R`) jumps back after moving frames, to go on with the frame
   behind them, for sorting newly imported frames one after the other.
 - `Export Current Frame PNG` and the Runtime view's still showed a frame that starts a scene, and
@@ -26,6 +28,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   memory; they need libserum 2.99.13 or later.
 - Letters and numbers in a dynamic zone in front of a background scene no longer flicker at their
   corners in 256x64 while the scene plays.
+
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the
