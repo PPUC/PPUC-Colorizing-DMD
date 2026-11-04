@@ -52,6 +52,76 @@ std::unique_ptr<EditCommand> applied(std::unique_ptr<EditCommand> command,
     return command;
 }
 
+// Throws unless the plane can be edited and the picture and the write mask have its size.
+void checkPicture(const ProjectDocument& document,
+                  Resolution plane,
+                  render::Size size,
+                  const std::vector<uint16_t>& pixels,
+                  const std::vector<uint8_t>& write)
+{
+    if (!document.geometry().isEditable(plane)) {
+        throw std::logic_error("the project does not edit this plane");
+    }
+    const std::size_t count =
+        static_cast<std::size_t>(size.width) * static_cast<std::size_t>(size.height);
+    if (pixels.size() != count || (!write.empty() && write.size() != count)) {
+        throw std::invalid_argument("the picture has not the size of the plane");
+    }
+}
+
+// The changes that turn the current picture into the new one where the mask writes.
+template <typename Read>
+std::vector<PixelChange> pictureChanges(render::Size size,
+                                        const std::vector<uint16_t>& pixels,
+                                        const std::vector<uint8_t>& write,
+                                        Read&& current)
+{
+    std::vector<PixelChange> changes;
+    for (int y = 0; y < size.height; ++y) {
+        for (int x = 0; x < size.width; ++x) {
+            const std::size_t index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(size.width) +
+                static_cast<std::size_t>(x);
+            if (!write.empty() && write[index] == 0) {
+                continue;
+            }
+            const uint16_t old = current(x, y);
+            if (old != pixels[index]) {
+                changes.push_back(PixelChange{x, y, old, pixels[index]});
+            }
+        }
+    }
+    return changes;
+}
+
+// Applies the pixel changes as the step after `created` (the HD the picture needed, or
+// nullptr) and returns both as one command; takes `created` back when the changes fail.
+std::unique_ptr<EditCommand> withPixels(ProjectDocument& document,
+                                        std::unique_ptr<EditCommand> created,
+                                        EditKind kind,
+                                        std::size_t index,
+                                        Resolution plane,
+                                        std::vector<PixelChange> changes)
+{
+    std::vector<std::unique_ptr<EditCommand>> commands;
+    if (created) {
+        commands.push_back(std::move(created));
+    }
+    if (!changes.empty()) {
+        try {
+            commands.push_back(applied(
+                std::make_unique<PixelEditCommand>(kind, index, plane, std::move(changes)),
+                document));
+        } catch (...) {
+            if (!commands.empty()) {
+                commands.front()->revert(document);
+            }
+            throw;
+        }
+    }
+    return groupCommands(std::move(commands));
+}
+
 }  // namespace
 
 EditBatchCommand::EditBatchCommand(std::string name,
@@ -321,6 +391,137 @@ std::unique_ptr<EditCommand> clearColorRotations(ProjectDocument& document,
         commands.push_back(colorRotationsCommand(document, frameIndex, plane, std::move(before)));
     }
     return groupCommands(std::move(commands));
+}
+
+std::unique_ptr<EditCommand> setFramePicture(ProjectDocument& document,
+                                             std::size_t frameIndex,
+                                             Resolution plane,
+                                             const std::vector<uint16_t>& pixels,
+                                             const std::vector<uint8_t>& write)
+{
+    checkFrame(document, frameIndex);
+    checkPicture(document, plane, document.geometry().planeSize(plane), pixels, write);
+    std::unique_ptr<EditCommand> created;
+    if (plane == Resolution::Hd && !document.hasHdFrame(frameIndex)) {
+        document::FrameHdParts parts;
+        parts.backgroundMask = document.backgroundData(frameIndex).has_value();
+        created = createFrameHd(document, frameIndex, parts);
+    }
+    std::vector<PixelChange> changes;
+    try {
+        const document::Rgb565Frame& current = document.colorizedFrame(frameIndex, plane);
+        changes = pictureChanges(current.size, pixels, write, [&](int x, int y) {
+            return current.pixels[static_cast<std::size_t>(y) *
+                                      static_cast<std::size_t>(current.size.width) +
+                                  static_cast<std::size_t>(x)];
+        });
+    } catch (...) {
+        if (created) {
+            created->revert(document);
+        }
+        throw;
+    }
+    return withPixels(document, std::move(created), EditKind::FramePixels, frameIndex, plane,
+                      std::move(changes));
+}
+
+std::unique_ptr<EditCommand> setBackgroundPicture(ProjectDocument& document,
+                                                  std::size_t backgroundIndex,
+                                                  Resolution plane,
+                                                  const std::vector<uint16_t>& pixels,
+                                                  const std::vector<uint8_t>& write)
+{
+    if (backgroundIndex >= document.backgroundCount()) {
+        throw std::out_of_range("background index out of range");
+    }
+    const render::Size size = document.geometry().planeSize(plane);
+    checkPicture(document, plane, size, pixels, write);
+    if (plane == Resolution::Hd && !document.background(backgroundIndex).colorizedHd) {
+        // A new HD image: the picture where it writes, black elsewhere, in one step.
+        document::Rgb565Frame frame;
+        frame.size = size;
+        std::vector<uint16_t> values(pixels);
+        for (std::size_t index = 0; index < values.size() && !write.empty(); ++index) {
+            if (write[index] == 0) {
+                values[index] = 0;
+            }
+        }
+        frame.pixels = document::CompactArray<uint16_t>(std::move(values));
+        return applied(std::make_unique<BackgroundHdCreateCommand>(backgroundIndex,
+                                                                   std::move(frame)),
+                       document);
+    }
+    const document::Rgb565Frame& current = document.backgroundFrame(backgroundIndex, plane);
+    std::vector<PixelChange> changes = pictureChanges(size, pixels, write, [&](int x, int y) {
+        return current.pixels[static_cast<std::size_t>(y) *
+                                  static_cast<std::size_t>(current.size.width) +
+                              static_cast<std::size_t>(x)];
+    });
+    return withPixels(document, nullptr, EditKind::BackgroundImage, backgroundIndex, plane,
+                      std::move(changes));
+}
+
+std::unique_ptr<EditCommand> setSpritePicture(ProjectDocument& document,
+                                              std::size_t spriteIndex,
+                                              Resolution plane,
+                                              const std::vector<uint16_t>& pixels,
+                                              const std::vector<uint8_t>& write)
+{
+    if (spriteIndex >= document.spriteCount()) {
+        throw std::out_of_range("sprite index out of range");
+    }
+    const render::Size size{static_cast<int>(document::kMaxSpriteWidth),
+                            static_cast<int>(document::kMaxSpriteHeight)};
+    checkPicture(document, plane, size, pixels, write);
+    std::unique_ptr<EditCommand> created;
+    if (plane == Resolution::Hd && !document.hasHdSprite(spriteIndex)) {
+        created = createSpriteHd(document, spriteIndex);
+    }
+    std::vector<PixelChange> changes = pictureChanges(size, pixels, write, [&](int x, int y) {
+        return document.spriteColorizedPixel(spriteIndex, plane, x, y);
+    });
+    return withPixels(document, std::move(created), EditKind::SpriteImage, spriteIndex, plane,
+                      std::move(changes));
+}
+
+render::Size checkPictureEdit(const ProjectDocument& document, const PictureEdit& picture)
+{
+    render::Size size = document.geometry().planeSize(picture.plane);
+    switch (picture.kind) {
+    case PictureKind::Frame:
+        checkFrame(document, picture.index);
+        break;
+    case PictureKind::Background:
+        if (picture.index >= document.backgroundCount()) {
+            throw std::out_of_range("background index out of range");
+        }
+        break;
+    case PictureKind::Sprite:
+        if (picture.index >= document.spriteCount()) {
+            throw std::out_of_range("sprite index out of range");
+        }
+        size = render::Size{static_cast<int>(document::kMaxSpriteWidth),
+                            static_cast<int>(document::kMaxSpriteHeight)};
+        break;
+    }
+    checkPicture(document, picture.plane, size, picture.pixels, picture.write);
+    return size;
+}
+
+std::unique_ptr<EditCommand> setPicture(ProjectDocument& document, const PictureEdit& picture)
+{
+    switch (picture.kind) {
+    case PictureKind::Frame:
+        return setFramePicture(document, picture.index, picture.plane, picture.pixels,
+                               picture.write);
+    case PictureKind::Background:
+        return setBackgroundPicture(document, picture.index, picture.plane, picture.pixels,
+                                    picture.write);
+    case PictureKind::Sprite:
+        return setSpritePicture(document, picture.index, picture.plane, picture.pixels,
+                                picture.write);
+    }
+    return nullptr;
 }
 
 }  // namespace colorizing::edit
