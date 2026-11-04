@@ -555,6 +555,8 @@ MainWindow::MainWindow(QWidget* parent)
     };
     pluginWindow.currentFrame = [this]() { return currentFrameIndex(); };
     pluginWindow.selectedFrames = [this]() { return selectedFrameIndices(); };
+    pluginWindow.currentBackground = [this]() { return selectedBackgroundIndex(); };
+    pluginWindow.currentSprite = [this]() { return currentSpriteIndex(); };
     pluginWindow.showFrames = [this](std::size_t current,
                                      const std::vector<std::size_t>& selected) {
         showFramesForPlugin(current, selected);

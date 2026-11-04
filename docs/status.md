@@ -1162,7 +1162,15 @@ GetPlainColors. Core: `edit/EditBatch.{h,cpp}`, `EditBatchCommand` in the struct
 `MainWindow::refreshAfterEditBatch()`. A batch still open after the plugins' messages ran is
 recorded by `EditorPlugins::tick()`. Tests: `tests/EditBatchTests.cpp` and the API part of
 `EditorPluginsWidgetTests.cpp`. Tests: `tests/EditorPluginsWidgetTests.cpp` call the
-table as a plugin does. The AI assistant plugin that uses it lives in its own repository
+table as a plugin does.
+v3 (2026-11-04, for the SeedVR upscaler plugin): pictures (background masks, background and
+sprite pictures and shapes, a frame's sprites, the current background and sprite) and
+SetFramePicture/SetBackgroundPicture/SetSpritePicture (`edit::setPicture`, which creates HD as
+Create HD does); ReviewPictures (`dialogs/PictureReviewDialog`, not modal, outdated by any
+revision change, applied by `EditorPlugins::applyReview` as one `EditBatchCommand`) and
+EditSettings (`dialogs/PluginSettingsDialog`). A plugin's windows close without a callback when
+it unloads. The plugin lives in `../ColorizingDMD-SeedVR` (local).
+The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
 

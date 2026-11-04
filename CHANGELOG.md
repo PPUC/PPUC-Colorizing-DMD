@@ -10,6 +10,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Export Current Frame PNG` and the Runtime view's still showed a frame that starts a scene, and
   a frame of a scene, as an unknown frame in grey; they now show it as playback does, a
   background scene behind it.
+- Editor API version 3 for plugins: plugins read and write the pictures of frames, backgrounds
+  and sprites, propose new pictures in a review window that applies the chosen ones as one
+  step, and show a form for their settings.
 ## 3.99.29
 
 - Frames can be moved over a long way without dragging: `Mark Frames To Move` remembers the

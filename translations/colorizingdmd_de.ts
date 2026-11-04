@@ -1616,6 +1616,14 @@
         <source>Plugin %1: %2</source>
         <translation>Plugin %1: %2</translation>
     </message>
+    <message>
+        <source>The project changed since the plugin made its proposal; it can no longer be applied.</source>
+        <translation>Das Projekt hat sich geändert, seit das Plugin seinen Vorschlag gemacht hat; er kann nicht mehr angewendet werden.</translation>
+    </message>
+    <message>
+        <source>The pictures could not be applied: %1</source>
+        <translation>Die Bilder konnten nicht angewendet werden: %1</translation>
+    </message>
 </context>
 <context>
     <name>FrameLightsPanel</name>
@@ -6892,6 +6900,71 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>PictureReviewDialog</name>
+    <message>
+        <source>Review pictures</source>
+        <translation>Bilder prüfen</translation>
+    </message>
+    <message>
+        <source>Now</source>
+        <translation>Jetzt</translation>
+    </message>
+    <message>
+        <source>Proposed</source>
+        <translation>Vorgeschlagen</translation>
+    </message>
+    <message>
+        <source>Mark the pixels the proposal leaves as they are</source>
+        <translation>Pixel markieren, die der Vorschlag lässt, wie sie sind</translation>
+    </message>
+    <message>
+        <source>Check All</source>
+        <translation>Alle ankreuzen</translation>
+    </message>
+    <message>
+        <source>Check None</source>
+        <translation>Keine ankreuzen</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Anwenden</translation>
+    </message>
+    <message>
+        <source>Discard</source>
+        <translation>Verwerfen</translation>
+    </message>
+    <message>
+        <source>Frame %1</source>
+        <translation>Frame %1</translation>
+    </message>
+    <message>
+        <source>Background %1</source>
+        <translation>Hintergrund %1</translation>
+    </message>
+    <message>
+        <source>Sprite %1</source>
+        <translation>Sprite %1</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n pixel(s) change</source>
+        <translation>
+            <numerusform>%n Pixel ändert sich</numerusform>
+            <numerusform>%n Pixel ändern sich</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Apply %n Picture(s)</source>
+        <translation>
+            <numerusform>%n Bild anwenden</numerusform>
+            <numerusform>%n Bilder anwenden</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PlaneLabels</name>
     <message>
         <source>HD</source>
@@ -6955,6 +7028,13 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Nothing logged yet.</source>
         <translation>Noch nichts protokolliert.</translation>
+    </message>
+</context>
+<context>
+    <name>PluginSettingsDialog</name>
+    <message>
+        <source>Plugin settings</source>
+        <translation>Plugin-Einstellungen</translation>
     </message>
 </context>
 <context>
