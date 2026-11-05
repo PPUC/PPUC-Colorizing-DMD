@@ -48,8 +48,8 @@ appears; a larger one brings up the `Opening Project` window with what is being 
 `Reading the project: N of M MB` for the files of an earlier editor) with a bar and a
 `Cancel` button. While it is up the main window takes no input. `Cancel` (or Escape, or closing
 the small window) stops the open: the project that was open stays open, unchanged, and the
-status bar says `Open cancelled`. Unpacking a `.cRZ` is done by libserum in one step that cannot
-be interrupted; a `Cancel` pressed then takes effect when it ends (`Cancelling when this step
+status bar says `Open cancelled`. Unpacking a `.cRZ` is done in one step that cannot be
+interrupted; a `Cancel` pressed then takes effect when it ends (`Cancelling when this step
 ends...`). The project that was open stays in memory until the new one is complete, so for a
 moment both are held. If the open fails, the project that was open stays as well.
 
@@ -79,7 +79,7 @@ A full packing pass of the largest of them takes about 1.5 s of idle time; a sav
 it reads, and the next idle moments pack it again.
 
 A project file is read one part at a time. A `.cROM` is read straight into the project; a
-`.cRZ` is first unpacked by libserum into memory as a whole, which adds the size of its `.cROM`
+`.cRZ` is first unpacked into memory as a whole, which adds the size of its `.cROM`
 while it is being read. On a machine with 8 GB a project with a `.cROM` of 2 GB opens
 comfortably; for the largest projects open the `.cROM` rather than the `.cRZ`. Saving needs only
 a little more than the project itself (see "Saving").

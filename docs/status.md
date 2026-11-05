@@ -35,8 +35,12 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   "Memory, load and save (2026-10-14)".
 - **Commits and versions:** see AGENTS.md (small local commits, pushed on the owner's request
   after a version bump of its own). libserum `master` is 2.99.x, the unstable line towards
-  3.0.0: its patch version rises with every commit and the cROMc need not stay compatible
-  within it; `2.8.x` is the stable branch.
+  3.0.0: its patch version rises once between pushes and the cROMc need not stay compatible
+  within it; `2.8.x` is the stable branch. From 2.99.14 libserum loads `.cROMc` files only
+  (no `.cROM`/`.cRZ`, no Serum v1, no `pup.csv`/`scaling.txt` beside the cROMc, no
+  `Serum_LoadFromMemory*`/`Serum_LoadFromCallback`/`Serum_CRZ_*`/`Serum_SetGenerateCRomC`):
+  the editor hands it projects through the builder API only, puts scenes and scaling into the
+  cROMc and reads `.cRZ` archives with its own miniz.
 
 ## Repositories and branches
 
@@ -68,8 +72,8 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     written from it differs only in bytes the legacy tables carry without meaning (after a
     name's NUL, entries behind the last section or sprite), which the file does not keep. GoT:
     496 MB, saved in 20 s, opened in 12 s (its .cRZ and .cRPX: 546 MB, 34 s). The zip code
-    is libserum's miniz (`ZipArchive.h`); it has to come into the editor when libserum 3.0
-    drops the cRZ. The extension is an open question of the design document.
+    is the miniz libserum bundles (`ZipArchive.h`, `LegacyCrzArchive.cpp`); libserum keeps it for
+    the cROMc. The extension is an open question of the design document.
   - Packages (`edit/PackageImport.h`): `makePackage()` is a subset
     snapshot (masks with names, backgrounds, sprites, the light effects the frames start;
     no scenes, sections, palettes) written as a project file of kind "package" (`.cdmdpkg`).
@@ -120,7 +124,8 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     expiry: the client does not refresh tokens); the environment variable of that name
     overrides it. Not run against GitHub yet. Packages check `--check-tls`.
   - `legacy/`: cROM/cRP/cRPX/cRZ readers, `LegacyProjectSerializer` (`writeLegacyCrom()`, the
-    cROM of format version 1 for libserum), `LegacyCrzArchive` (reads through libserum).
+    cROM of format version 1, now only the reference of the round-trip tests),
+    `LegacyCrzArchive` (reads the archive with miniz).
   - `import/`: `FrameDumpReader` (streaming, strict reader of TXT frame dumps) and
     `FrameDumpImport` (durations, the import filter, removal of repeated frames and of frames
     the project has, a new project's snapshot), see "Dump import and same frames" below.
@@ -150,8 +155,8 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     bytes of single block elements (`legacy::CromElements`, the code `writeLegacyCrom()`
     writes every element with). A still is: load that subset, colorize once, dispose.
     `openProject()` (frame tester) and the cROMc export (`Serum_ConcentrateFromSource()`)
-    hand over the whole project the same way; the export is libserum's own cROMc of the
-    project's cROM, byte for byte (CromcExportTests). A sequence (playback) loads windows of at most 48 played
+    hand over the whole project the same way; the export was, up to libserum 2.99.13, the
+    cROMc libserum generated from the project's cROM, byte for byte. A sequence (playback) loads windows of at most 48 played
     frames with the other frames that take part in identifying them, and carries libserum's
     identification state from window to window, see "Runtime playback" below.
     `ProjectDocument::revision()` changes with every edit and lets callers cache results;
@@ -425,8 +430,8 @@ What each change does:
   `buildProjectSnapshot(&&, &&)`, `LegacyProjectFileReader`, `loadLegacyProjectDocument()`):
   a `.cROM` and the `.cRP` are parsed through a 1 MB buffer straight into the records; the
   records are moved into the snapshot and the snapshot into the document. A `.cRZ` is unpacked
-  by libserum (`Serum_CRZ_Read`, one buffer of the cROM's size), parsed from that buffer without
-  a copy (`CrzContent`) and freed right after. This is the open-peak share: GoT 6.8 -> 0.9 GB.
+  with miniz (one buffer of the cROM's size), parsed from that buffer without a copy
+  (`CrzContent`) and freed right after. This is the open-peak share: GoT 6.8 -> 0.9 GB.
 - **Compact blocks** (`document::CompactArray`): the steady-state share, 26 to 59 % less. Every
   block of the records (`IndexedFrame::pixels`, `Rgb565Frame::pixels`, dynamic colors and
   shadows, rotation tables, sprite dynamic colors) is a `CompactArray<T>`: the interface of a
@@ -500,12 +505,11 @@ saved through the dialog, open cancelled, opened through the dialog).
 
 What remains:
 
-- **A `.cRZ` open still holds the whole unpacked cROM** while it is parsed (libserum's
-  `Serum_CRZ_Read` returns one buffer). A libserum function that streams the entry, e.g.
-  `Serum_CRZ_ReadStream(path, callback, user)` on `mz_zip_reader_extract_to_callback`, would let
-  the editor parse while unpacking with a small buffer: the open peak would be the document plus
-  a few MB (`trn_174h` 800 -> about 360 MB, `frankst1` 1.2 GB -> about 450 MB), and unpacking
-  and parsing would overlap. Not done: libserum is not to be changed here.
+- **A `.cRZ` open still holds the whole unpacked cROM** while it is parsed (one buffer). Now that
+  the editor reads the archive itself, streaming the entry (`mz_zip_reader_extract_to_callback`)
+  would let it parse while unpacking with a small buffer: the open peak would be the document
+  plus a few MB (`trn_174h` 800 -> about 360 MB, `frankst1` 1.2 GB -> about 450 MB), and
+  unpacking and parsing would overlap. Not done yet.
 - **Save time is the cRZ compression** (GoT 31 of 34 s, `trn_174h` 5.6 of 6.4 s), now off the UI
   thread with a busy bar. Faster needs libserum: compress while the cROM is written (a streaming
   writer instead of `Serum_CRZ_WriteFromFile`, which reads the written file back), or compress in

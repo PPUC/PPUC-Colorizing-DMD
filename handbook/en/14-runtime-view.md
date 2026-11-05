@@ -3,9 +3,9 @@
 `View -> Runtime View` (`Ctrl/Cmd+R`) shows the current frame on the canvas as libserum renders it,
 in place of the editable layers. The checkable `Runtime` button in the toolbar, right of the
 playback controls, is the same switch and shows whether the view is on. The picture is libserum's own output, not the editor's
-rendering: the editor writes a small cROM that holds this frame and what it uses (its comparison
-mask, its background, the sprites in its sprite list), loads it into libserum from memory, feeds
-it the frame's original and shows the plane that comes back. Nothing is written to disk.
+rendering: the editor hands libserum a small colorization that holds this frame and what it uses
+(its comparison mask, its background, the sprites in its sprite list), feeds it the frame's
+original and shows the plane that comes back. Nothing is written to disk.
 
 While the view is on:
 
@@ -107,10 +107,10 @@ Limits of that:
   earlier frame that was differs between a window and a machine that has played the whole
   project. The 32-row plane was identical in every played frame.
 
-Scenes and scaling: the cROM carries the project's scenes and scaling settings (see "Scenes and
-Scaling"), so its scenes play here and in the frame tester, background scenes too, and the
-64-row plane is upscaled as the project says. A `<rom>.pup.csv` beside the project is read only
-for a project without scenes of its own.
+Scenes and scaling: the colorization handed over carries the project's scenes and scaling
+settings (see "Scenes and Scaling"), so its scenes play here and in the frame tester, background
+scenes too, and the 64-row plane is upscaled as the project says. A `<rom>.pup.csv` beside the
+project is read only for a project without scenes of its own.
 
 What the view does not show:
 

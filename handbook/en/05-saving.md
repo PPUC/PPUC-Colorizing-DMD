@@ -141,9 +141,9 @@ their pictures.
   Original Frames").
 - Marks the project as saved after a successful save.
 
-The cROM the editor hands to libserum (in the Runtime view, the frame tester and the `.cROMc`
-export) is the one libserum 2.9 reads, header revision 21 and format version 1 (see "Project
-Files"):
+What the editor hands to libserum (in the Runtime view, the frame tester and the `.cROMc`
+export) is the content of a cROM of header revision 21 and format version 1 (see "Project
+Files"), passed directly, without a file:
 
 - Frame identification hashes are recalculated from the original frame, its comparison mask, and
   its shape mode.
@@ -192,7 +192,14 @@ The parts lie 15 picture pixels apart with the same dot size, the narrower ones 
 ## Exporting the .cROMc
 
 `File -> Export .cROMc...` writes the file a machine loads, `<rom>.cROMc`, proposed beside the
-project. libserum makes it, exactly as it does on a machine when it finds the `.cROM` alone.
+project. libserum makes it from the project.
+
+The `.cROMc` is the only file a player needs and the only one libserum loads from 2.99.14 on
+(the line towards 3.0): a `.cROM` or `.cRZ` in the colorization folder is not loaded any more,
+and libserum's log says so. Release a `.cROMc` exported by this editor, and ask players to
+remove the old files of a colorization from the folder. Colorizations of Serum v1 (64 colours
+per frame, the Win32 editor's projects before RGB565) do not play any more; open such a project
+in this editor and export a `.cROMc`.
 
 A `.cROMc` belongs to the libserum that makes it: the editor's own (`Help -> About PPUC
 Colorizing DMD` names it), of the line after 2.8. A machine needs libserum 2.9 or later to load
@@ -205,8 +212,8 @@ cannot load it; make the `.cROMc` again with the machine's libserum, or update i
   without a `.cROM` on disk. It carries the project's scenes and scaling settings (see "Scenes
   and Scaling"), so they are in the `.cROMc`. Only for a project that has none (one of the
   Win32 editor not yet opened with scenes) the `<rom>.pup.csv` and `scaling.txt` of the
-  project's folder go in with it, if they are there (in any case of the letters), as on a
-  machine; the status bar then names them.
+  project's folder go in with it, if they are there (in any case of the letters); the status
+  bar then names them. libserum itself reads neither beside a `.cROMc`.
 - Comparison masks, backgrounds and sprites no frame names (marked `Unused` in the left
   sidebar) are left out: libserum never looks at them. The others are numbered anew in the
   `.cROMc`, in their order; the project keeps its own numbers. The status bar says how many
@@ -220,13 +227,9 @@ cannot load it; make the `.cROMc` again with the machine's libserum, or update i
 - On Windows libserum opens files by paths in the system code page. If the temporary folder has
   other characters (a user name in another script) and Windows keeps no short name for it, the
   export works in `%ProgramData%\PPUC-Colorizing-DMD` instead and removes its files afterwards.
-- On a desktop, libserum loads a `<rom>.cROMc` it finds in the colorization folder instead of
-  the `<rom>.cROM` beside it, without comparing their dates. An outdated `.cROMc` there hides
-  later changes of the project: export again or remove it.
-
-For an unedited project the result is byte for byte the `.cROMc` libserum generates from the
-project's files (checked on `afm_113b`, `hook_501`, `trn_174h`, `smb3` and the 192x64
-`frankst1`).
+For an unedited project the result was byte for byte the `.cROMc` libserum up to 2.99.13
+generated from the project's `.cROM` (checked on `afm_113b`, `hook_501`, `trn_174h`, `smb3` and
+the 192x64 `frankst1`).
 
 ## Autosave and recovery
 

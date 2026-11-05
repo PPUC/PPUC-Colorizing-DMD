@@ -10,6 +10,10 @@ tagged; the changes since the last tag are listed under *Next version*.
   moved between the frames that have one and those that don't; such moves work now.
 - Moving the first frame of a section without the rest of its frames asks whether the section
   goes with the moved frames or stays with the frames that stay; before, it always stayed.
+- Built with libserum 2.99.14, which loads only a `.cROMc`: a `.cROM` or `.cRZ` beside a table is
+  not loaded any more, a `pup.csv` or `scaling.txt` beside a `.cROMc` is not read (the `.cROMc`
+  carries the project's scenes and scaling), and Serum v1 colorizations do not play. Authors
+  release a `.cROMc` exported by this editor; players remove the old files of a colorization.
 
 ## 3.99.30
 

@@ -1,6 +1,7 @@
 #include "runtime/CromcExport.h"
 
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -9,9 +10,9 @@
 #include <vector>
 
 #include "RuntimeFixtures.h"
-#include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
 #include "runtime/RuntimePreview.h"
+#include "runtime/SnapshotSource.h"
 #include "serum-decode.h"
 
 namespace {
@@ -67,7 +68,6 @@ void testExportLoadsInLibserum()
          std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
     fs::create_directories(altcolor / snapshot.romName);
     fs::copy_file(target, altcolor / snapshot.romName / (snapshot.romName + ".cROMc"));
-    Serum_SetGenerateCRomC(false);
     const Serum_Frame_Struc* loaded =
         Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(), 0);
     expect(loaded != nullptr, "libserum loads the cROMc");
@@ -76,7 +76,6 @@ void testExportLoadsInLibserum()
     expect(Serum_Colorize(original.data()) != IDENTIFY_NO_FRAME,
            "and identifies the project's first frame");
     Serum_Dispose();
-    Serum_SetGenerateCRomC(true);
     fs::remove_all(altcolor);
     fs::remove_all(base);
 }
@@ -108,20 +107,48 @@ void testSettingsTakeNoSidecars()
     fs::create_directories(altcolor / snapshot.romName);
     fs::copy_file(target, altcolor / snapshot.romName / (snapshot.romName + ".cROMc"));
     std::ofstream(altcolor / snapshot.romName / "scaling.txt") << "scale2x\n";
-    Serum_SetGenerateCRomC(false);
     expect(Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(), 0) !=
                    nullptr &&
                Serum_GetScalingAlgorithm() == document::kScalingLineDoubling,
            "the cROMc keeps the project's scaling, whatever scaling.txt says");
     Serum_Dispose();
-    Serum_SetGenerateCRomC(true);
     fs::remove_all(altcolor);
     fs::remove_all(base);
 }
 
-// The export writes no cROM: libserum builds the cROMc from the project. It is the cROMc
-// libserum generates itself from the project's cROM, byte for byte.
-void testExportIsLibserumsOwnCromc()
+// What libserum returns for the frames of a project, fed one after the other into what is
+// loaded: the answer and both planes.
+struct Played {
+    uint32_t result = 0;
+    std::vector<uint16_t> rows32;
+    std::vector<uint16_t> rows64;
+
+    bool operator==(const Played&) const = default;
+};
+
+std::vector<Played> playFrames(const document::ProjectSnapshot& snapshot,
+                               const Serum_Frame_Struc* loaded)
+{
+    std::vector<Played> played;
+    for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+        std::vector<uint8_t> original(frame.originalSd.pixels.begin(),
+                                      frame.originalSd.pixels.end());
+        Played step;
+        step.result = Serum_Colorize(original.data());
+        if (loaded->frame32) {
+            step.rows32.assign(loaded->frame32, loaded->frame32 + 32 * loaded->width32);
+        }
+        if (loaded->frame64) {
+            step.rows64.assign(loaded->frame64, loaded->frame64 + 64 * loaded->width64);
+        }
+        played.push_back(std::move(step));
+    }
+    return played;
+}
+
+// The export writes no cROM: libserum builds the cROMc from the project. Loaded as a machine
+// loads it, it plays the project as the project handed to libserum directly does.
+void testExportPlaysAsTheProject()
 {
     for (const render::PlaneLayout layout : {render::PlaneLayout::Ordinary,
                                              render::PlaneLayout::NativeExtra,
@@ -138,30 +165,34 @@ void testExportIsLibserumsOwnCromc()
             runtime::exportCromc(snapshot, base / "work", {}, target);
         expect(result.ok, "the export works: " + result.error);
 
-        // libserum's own generation, from the cROM in an altcolor folder (ANSI on Windows).
+        // From an altcolor folder (ANSI on Windows), with no cROM beside it.
         const fs::path altcolor =
             fs::temp_directory_path() /
             ("colorizing_qt_v2_cromc_same_" +
              std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
         const fs::path folder = altcolor / snapshot.romName;
         fs::create_directories(folder);
-        {
-            std::ofstream crom(folder / (snapshot.romName + ".cROM"), std::ios::binary);
-            std::string error;
-            expect(legacy::writeLegacyCrom(crom, snapshot, error), "the cROM is written");
-        }
-        Serum_SetGenerateCRomC(true);
-        expect(Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(),
-                          0) != nullptr,
-               "libserum loads the cROM");
+        fs::copy_file(target, folder / (snapshot.romName + ".cROMc"));
+        constexpr uint8_t kBothPlanes = FLAG_REQUEST_32P_FRAMES | FLAG_REQUEST_64P_FRAMES;
+        const Serum_Frame_Struc* fromFile =
+            Serum_Load(platform::utf8FromPath(altcolor).c_str(), snapshot.romName.c_str(),
+                       kBothPlanes);
+        expect(fromFile != nullptr, "libserum loads the exported cROMc");
+        const std::vector<Played> exported = playFrames(snapshot, fromFile);
         Serum_Dispose();
-        const auto bytes = [](const fs::path& path) {
-            std::ifstream in(path, std::ios::binary);
-            return std::vector<char>(std::istreambuf_iterator<char>(in), {});
-        };
-        const std::vector<char> generated = bytes(folder / (snapshot.romName + ".cROMc"));
-        expect(!generated.empty() && generated == bytes(target),
-               "the exported cROMc is libserum's own");
+
+        std::vector<Played> direct;
+        {
+            runtime::SnapshotSource source(snapshot);
+            const Serum_Frame_Struc* loaded = source.load(nullptr, kBothPlanes);
+            expect(loaded != nullptr, "libserum loads the project");
+            direct = playFrames(snapshot, loaded);
+            Serum_Dispose();
+        }
+        expect(exported.front().result != IDENTIFY_NO_FRAME &&
+                   (!exported.front().rows32.empty() || !exported.front().rows64.empty()),
+               "the first frame is identified and drawn");
+        expect(exported == direct, "the exported cROMc plays as the project");
         fs::remove_all(altcolor);
         fs::remove_all(base);
     }
@@ -231,7 +262,7 @@ void runCromcExportTests()
 {
     testExportLoadsInLibserum();
     testSettingsTakeNoSidecars();
-    testExportIsLibserumsOwnCromc();
+    testExportPlaysAsTheProject();
     testUnusedAssetsLeftOut();
     testFailureLeavesTarget();
 }
