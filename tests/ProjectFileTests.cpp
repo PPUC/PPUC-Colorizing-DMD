@@ -251,6 +251,29 @@ void testRoundTrip(render::PlaneLayout layout)
            "the sprite offsets");
 }
 
+// A frame without an imported palette between frames with one, as a merge of two frame
+// orders can leave it: it reads with an empty (black) one.
+void testImportedPaletteGap()
+{
+    ProjectSnapshot snapshot = makeRichProject(render::PlaneLayout::Ordinary);
+    std::vector<uint8_t>& palettes = snapshot.editorMetadata.importedPalettes;
+    palettes.assign(3 * document::kImportedPaletteBytes, 0);
+    std::fill(palettes.begin(), palettes.begin() + document::kImportedPaletteBytes, 0x21);
+    std::fill(palettes.end() - document::kImportedPaletteBytes, palettes.end(), 0x23);
+    Entries entries = entriesOf(snapshot);
+    ProjectSnapshot without = snapshot;
+    without.editorMetadata.importedPalettes.resize(document::kImportedPaletteBytes);
+    const std::string frame1 = "frames/" + snapshot.frames[1].meta.id.toString() + ".bin";
+    expect(entries.at(frame1) != entriesOf(without).at(frame1),
+           "an empty palette before a frame with one is written");
+    entries[frame1] = entriesOf(without).at(frame1);
+    std::string error;
+    const std::optional<ProjectSnapshot> read = fromEntries(entries, error);
+    expect(read.has_value(), "a frame without a palette between frames with one reads: " + error);
+    expect(read->editorMetadata.importedPalettes == palettes,
+           "it reads with an empty palette, the others in their place");
+}
+
 std::filesystem::path tempPath(const std::string& suffix)
 {
     static int counter = 0;
@@ -472,6 +495,7 @@ void runProjectFileTests()
         testRoundTrip(layout);
     }
     testFile();
+    testImportedPaletteGap();
     testContentHash();
     testRevisions();
     testRealProject();

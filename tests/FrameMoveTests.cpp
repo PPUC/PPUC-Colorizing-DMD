@@ -1,5 +1,6 @@
 #include "edit/FrameMove.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -178,6 +179,57 @@ void testHistory()
            "and redone");
 }
 
+// The first byte of each imported palette, 0 for an empty one.
+std::vector<uint8_t> paletteMarks(const ProjectDocument& document)
+{
+    std::vector<uint8_t> marks;
+    const std::vector<uint8_t>& palettes = document.editorMetadata().importedPalettes;
+    for (std::size_t offset = 0; offset < palettes.size();
+         offset += document::kImportedPaletteBytes) {
+        marks.push_back(palettes[offset]);
+    }
+    return marks;
+}
+
+void testImportedPalettes()
+{
+    // Frames 0 to 3 have an imported palette, marked 0x10 + frame.
+    ProjectSnapshot snapshot = fixtures::makeProject(PlaneLayout::Ordinary, 10);
+    for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+        snapshot.frames[frame].durationMs = static_cast<uint32_t>(100 + frame);
+    }
+    std::vector<uint8_t>& palettes = snapshot.editorMetadata.importedPalettes;
+    for (uint8_t frame = 0; frame < 4; ++frame) {
+        palettes.insert(palettes.end(), document::kImportedPaletteBytes,
+                        static_cast<uint8_t>(0x10 + frame));
+    }
+    ProjectDocument document = ProjectDocument::fromSnapshot(std::move(snapshot));
+
+    // A frame without one moved among them: it gets an empty one.
+    auto command = edit::moveFrames(document, {8}, 1);
+    expect(command && order(document) == std::vector<std::size_t>{0, 8, 1, 2, 3, 4, 5, 6, 7, 9},
+           "a frame without a palette moves before frames with one");
+    expect(paletteMarks(document) == std::vector<uint8_t>{0x10, 0, 0x11, 0x12, 0x13},
+           "the palettes go with their frames, an empty one for the moved frame");
+    command->revert(document);
+    expect(paletteMarks(document) == std::vector<uint8_t>{0x10, 0x11, 0x12, 0x13},
+           "undone: the palettes are as they were");
+
+    // A frame with one moved behind the last frame.
+    command = edit::moveFrames(document, {0}, document.frameCount());
+    expect(command && paletteMarks(document) ==
+                          std::vector<uint8_t>{0x11, 0x12, 0x13, 0, 0, 0, 0, 0, 0, 0x10},
+           "a frame with a palette moves behind frames without one");
+    command->revert(document);
+    expect(paletteMarks(document) == std::vector<uint8_t>{0x10, 0x11, 0x12, 0x13},
+           "undone again");
+
+    // Frames with one moved among themselves.
+    command = edit::moveFrames(document, {3}, 0);
+    expect(command && paletteMarks(document) == std::vector<uint8_t>{0x13, 0x10, 0x11, 0x12},
+           "frames with a palette reordered among themselves");
+}
+
 }  // namespace
 
 void runFrameMoveTests()
@@ -186,4 +238,5 @@ void runFrameMoveTests()
     testEndsAndNothing();
     testSections();
     testHistory();
+    testImportedPalettes();
 }

@@ -1897,8 +1897,9 @@ std::optional<ProjectSnapshot> readProjectEntries(
             checkId(sprite.meta, spriteIds[s], fields.what());
             snapshot.sprites.push_back(std::move(sprite));
         }
+        // A frame without a palette before one with a palette gets an empty one: a merge of
+        // two frame orders can put it there.
         std::string importedPalettes;
-        bool palettesEnded = false;
         bool oneTriggerPerFrame = false;
         snapshot.frames.reserve(frameIds.size());
         for (std::size_t f = 0; f < frameIds.size(); ++f) {
@@ -1908,12 +1909,8 @@ std::optional<ProjectSnapshot> readProjectEntries(
             oneTriggerPerFrame = oneTriggerPerFrame || !fields.has("TRGS");
             snapshot.frames.push_back(readFrame(fields, indexes, &palette));
             checkId(snapshot.frames.back().meta, frameIds[f], fields.what());
-            if (palette.empty()) {
-                palettesEnded = true;
-            } else if (palettesEnded) {
-                throw FormatError(fields.what() +
-                                  " has an imported palette, but a frame before it has none");
-            } else {
+            if (!palette.empty()) {
+                importedPalettes.resize(f * document::kImportedPaletteBytes, '\0');
                 importedPalettes += palette;
             }
         }

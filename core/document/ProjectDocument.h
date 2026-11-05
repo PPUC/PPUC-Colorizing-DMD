@@ -885,9 +885,9 @@ public:
     void restoreState(const ProjectDocument& state);
     // Puts the frames in a new order: the frame numbered newOrder[i] becomes frame i. The
     // source frames of sprites and the first frames of sections follow their frames, and so
-    // do imported palettes. Throws std::invalid_argument when newOrder is no order of all
-    // frames, and std::logic_error when the frames that have an imported palette would no
-    // longer be the first ones (the cRP stores them for the first frames only).
+    // do imported palettes: a frame without one that comes before a frame with one gets an
+    // empty (black) palette, as the table holds the first frames only. Throws
+    // std::invalid_argument when newOrder is no order of all frames.
     void reorderFrames(const std::vector<std::size_t>& newOrder);
     // A frame for insertFrames() that nobody has worked on, see
     // makeUncolorizedFrameSnapshot(). Throws std::invalid_argument for an original that has

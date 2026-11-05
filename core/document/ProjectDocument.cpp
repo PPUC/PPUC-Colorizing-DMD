@@ -3761,15 +3761,6 @@ void ProjectDocument::reorderFrames(const std::vector<std::size_t>& newOrder)
         newIndex[newOrder[position]] = position;
     }
 
-    std::vector<uint8_t>& palettes = m_editorMetadata.importedPalettes;
-    const std::size_t paletteCount = std::min(palettes.size() / kImportedPaletteBytes, count);
-    for (std::size_t position = 0; position < paletteCount; ++position) {
-        if (newOrder[position] >= paletteCount) {
-            throw std::logic_error(
-                "the frames with an imported palette have to stay the first frames");
-        }
-    }
-
     std::vector<FrameRecord> frames;
     frames.reserve(count);
     for (std::size_t oldIndex : newOrder) {
@@ -3778,18 +3769,38 @@ void ProjectDocument::reorderFrames(const std::vector<std::size_t>& newOrder)
     m_frames = std::move(frames);
     m_dynamicPixelStates.clear();
 
+    // The imported palettes go with their frames. The table holds the first frames only, so
+    // a frame without one that comes before a frame with one gets an empty palette (black,
+    // what the imported palettes count as none), and empty ones at the end are left out.
+    std::vector<uint8_t>& palettes = m_editorMetadata.importedPalettes;
+    const std::size_t paletteCount = std::min(palettes.size() / kImportedPaletteBytes, count);
     if (paletteCount > 0) {
-        std::vector<uint8_t> reordered(palettes.begin(),
-                                       palettes.begin() + static_cast<std::ptrdiff_t>(
-                                                              paletteCount * kImportedPaletteBytes));
-        for (std::size_t position = 0; position < paletteCount; ++position) {
-            std::copy_n(palettes.begin() +
-                            static_cast<std::ptrdiff_t>(newOrder[position] * kImportedPaletteBytes),
-                        kImportedPaletteBytes,
-                        reordered.begin() +
-                            static_cast<std::ptrdiff_t>(position * kImportedPaletteBytes));
+        const auto palette = [&](std::size_t frame) {
+            return palettes.begin() + static_cast<std::ptrdiff_t>(frame * kImportedPaletteBytes);
+        };
+        const auto isEmpty = [&](std::size_t frame) {
+            return frame >= paletteCount ||
+                   std::all_of(palette(frame), palette(frame) + kImportedPaletteBytes,
+                               [](uint8_t value) { return value == 0; });
+        };
+        // Entries behind the last frame, which a Win32 file can hold, stay where they are.
+        const std::size_t tableCount = palettes.size() / kImportedPaletteBytes;
+        std::size_t reorderedCount = count;
+        while (tableCount <= count && reorderedCount > 0 &&
+               isEmpty(newOrder[reorderedCount - 1])) {
+            --reorderedCount;
         }
-        std::copy(reordered.begin(), reordered.end(), palettes.begin());
+        std::vector<uint8_t> reordered(reorderedCount * kImportedPaletteBytes, 0);
+        reordered.insert(reordered.end(), palette(std::min(tableCount, count)), palettes.end());
+        for (std::size_t position = 0; position < reorderedCount; ++position) {
+            if (newOrder[position] < paletteCount) {
+                std::copy_n(palette(newOrder[position]),
+                            kImportedPaletteBytes,
+                            reordered.begin() +
+                                static_cast<std::ptrdiff_t>(position * kImportedPaletteBytes));
+            }
+        }
+        palettes = std::move(reordered);
     }
 
     EditorMetadata& metadata = m_editorMetadata;

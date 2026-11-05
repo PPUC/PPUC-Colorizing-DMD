@@ -94,9 +94,9 @@ Sections follow their frames:
   does `Move Marked Frames Behind This Frame` on its last frame;
 - otherwise moved frames belong to the section of the frame before them.
 
-The source frames of sprites follow their frames. A project with imported palettes (old
-Win32 projects) keeps them for its first frames only: a move that would put a frame without one
-before a frame with one is refused.
+The source frames of sprites follow their frames, and so do the imported palettes of old Win32
+projects. A project keeps those for its first frames only, so a frame without one that is moved
+before a frame with one gets an empty (black) palette.
 
 ## Deleting frames
 

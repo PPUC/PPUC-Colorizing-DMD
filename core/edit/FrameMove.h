@@ -61,8 +61,9 @@ private:
 // - otherwise the moved frames are in the section of the frame before them.
 // Source frames of sprites follow their frames.
 //
-// Throws std::out_of_range for a frame that does not exist and std::logic_error when frames
-// with an imported palette would no longer be the first frames.
+// Imported palettes go with their frames, see ProjectDocument::reorderFrames().
+//
+// Throws std::out_of_range for a frame that does not exist.
 [[nodiscard]] std::unique_ptr<FrameMoveCommand> moveFrames(
     document::ProjectDocument& document,
     const std::vector<std::size_t>& frameIndices,

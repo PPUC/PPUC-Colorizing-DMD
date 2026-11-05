@@ -6,6 +6,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 ## Next version
 
 - `Help -> About` links to the repository under its new name, `PPUC/PPUC-Colorizing-DMD`.
+- Frames of a project converted from an old Win32 project with imported palettes could not be
+  moved between the frames that have one and those that don't; such moves work now.
 
 ## 3.99.30
 

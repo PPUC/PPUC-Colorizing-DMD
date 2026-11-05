@@ -68,9 +68,10 @@ namespace colorizing::project {
 //               scene and monochrome trigger (uint32 each; without it TRIG is split), DURA
 //               duration, ROTS/ROTH color rotations, SCEN scene frame, TAGS
 //               tags, LGHT speaker light actions, OOSD SD-only dynamic sets, IPAL imported
-//               palette (192 bytes RGB888, the first frames only), DOFE DOF events (per
-//               event uint8 type, uint8 1 with a turn-off value or 0, int32 number, value
-//               and turn-off value).
+//               palette (192 bytes RGB888, the first frames only; written black for a
+//               frame without one before a frame with one, a reader gives a frame without
+//               IPAL there a black one), DOFE DOF events (per event uint8 type, uint8 1 with
+//               a turn-off value or 0, int32 number, value and turn-off value).
 //   Mask:       META, NAME, PICT.
 //   Background: META, COLS, COLH, INHD.
 //   Sprite:     META, NAME, FLAG (bit 0: has HD), ORIG, COLS, MSKH, COLH, DETD, DETP, DETA

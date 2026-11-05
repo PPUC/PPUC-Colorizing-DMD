@@ -53,7 +53,8 @@ struct EditorMetadata {
     std::vector<uint8_t> imagePositionNames;
     std::vector<int32_t> imagePositions;
     std::vector<uint8_t> paletteNames;
-    // 64 RGB888 colors per frame imported from a pre-RGB565 project.
+    // 64 RGB888 colors per frame imported from a pre-RGB565 project, for the first frames;
+    // an empty (black) palette stands for a frame that has none.
     std::vector<uint8_t> importedPalettes;
     uint32_t timeElapsedMs = 0;
     // The time each author spent on it (ProjectTime.h), by the name saves give them; only in
