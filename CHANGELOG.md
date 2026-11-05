@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.30
+
 - `Help -> About` links to the repository under its new name, `PPUC/PPUC-Colorizing-DMD`.
 - Frames of a project converted from an old Win32 project with imported palettes could not be
   moved between the frames that have one and those that don't; such moves work now.
@@ -20,9 +22,6 @@ tagged; the changes since the last tag are listed under *Next version*.
   `File -> Export Modified .cROMc for Testing...` shows what that looks like. `Request
   Certificate` asks for the key's certificate as the author's GitHub account and takes it in
   once a trusted member approved it.
-
-## 3.99.30
-
 - `Go To Where The Frames Were` (`Alt+R`) jumps back after moving frames, to go on with the frame
   behind them, for sorting newly imported frames one after the other.
 - `Export Current Frame PNG` and the Runtime view's still showed a frame that starts a scene, and
