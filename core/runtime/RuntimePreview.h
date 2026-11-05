@@ -134,7 +134,7 @@ struct RuntimeSubset {
 //
 // libserum keeps the loaded colorization, its identification state and its timers in process
 // globals, so there is one instance and every call is serialized. At most one colorization
-// is loaded at a time, and only between openSequence()/openCrom() and close(); renderFrame()
+// is loaded at a time, and only between openSequence()/openProject() and close(); renderFrame()
 // loads and releases its own.
 class RuntimePreview {
 public:
@@ -190,15 +190,9 @@ public:
     // ProjectDocument::identificationRevision() and kept.
     [[nodiscard]] std::shared_ptr<const FrameIdentification> identification(
         const document::ProjectDocument& document);
-    // Loads a complete cROM as it is. Frame indices of the results are its own.
-    [[nodiscard]] bool openCrom(const std::vector<uint8_t>& crom,
-                                const render::ProjectGeometry& geometry,
-                                std::size_t frameCount,
-                                PlaneRequest request,
-                                std::string* errorMessage = nullptr);
-    // The whole project, as openCrom() of its cROM; the cROM is written straight into
-    // libserum's load (Serum_LoadFromCallback()) and never held as a whole. Without
-    // withScenes libserum plays no scene: neither the project's nor those of the scene file.
+    // The whole project, handed to libserum without a cROM (Serum_LoadFromSource()); frame
+    // indices of the results are the document's. Without withScenes libserum plays no
+    // scene: neither the project's nor those of the scene file.
     [[nodiscard]] bool openProject(const document::ProjectDocument& document,
                                    PlaneRequest request,
                                    std::string* errorMessage = nullptr,
@@ -220,8 +214,8 @@ public:
     [[nodiscard]] RuntimeFrame rotate();
     void close();
     // The project's <rom>.pup.csv as libserum takes the path (libserumPath()), or empty for
-    // none. Every load reads its scenes, as libserum reads a pup.csv beside a cROM on a
-    // machine (Serum_LoadFromMemoryWithScenes), so background scenes show. A change closes
+    // none. Every load reads its scenes, as libserum reads a pup.csv beside a cROMc on a
+    // machine (Serum_LoadFromSource()), so background scenes show. A change closes
     // what is loaded; the next open loads with it.
     void setSceneFile(const std::string& path);
 

@@ -9,8 +9,7 @@
 
 namespace colorizing::legacy {
 
-// A .cRZ is a zip archive holding one cROM. libserum reads it (this is the only place of the
-// editor that talks to libserum's archive code); the editor writes none.
+// A .cRZ is a zip archive holding one cROM, read here through miniz; the editor writes none.
 
 [[nodiscard]] bool hasCrzExtension(const std::string& path);
 
@@ -21,9 +20,9 @@ namespace colorizing::legacy {
                                   std::vector<uint8_t>& cromBytes,
                                   std::string& errorMessage);
 
-// The cROM of an archive in the buffer libserum unpacked it into, without a copy; freed by
-// release() or the destructor. libserum unpacks the whole entry at once (Serum_CRZ_Read), so
-// the buffer is as large as the cROM.
+// The cROM of an archive in the buffer miniz unpacked it into, without a copy; freed by
+// release() or the destructor. The whole entry is unpacked at once, so the buffer is as large
+// as the cROM.
 class CrzContent {
 public:
     CrzContent() = default;

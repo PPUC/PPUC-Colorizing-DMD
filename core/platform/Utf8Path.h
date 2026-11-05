@@ -6,7 +6,7 @@
 namespace colorizing::platform {
 
 // File paths cross the core as UTF-8 in a std::string (QString::toStdString() is UTF-8, and
-// libserum's Serum_CRZ_* functions take UTF-8). On Windows a std::string handed straight to
+// miniz and libserum take UTF-8 paths). On Windows a std::string handed straight to
 // std::ifstream, std::ofstream or std::filesystem::path is read in the ANSI code page instead,
 // so a path with a character outside that code page (a user name, a folder name) would not be
 // found. Every place of the core that opens, renames or removes a file builds its path with

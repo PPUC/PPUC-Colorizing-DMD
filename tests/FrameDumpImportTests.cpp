@@ -1048,14 +1048,14 @@ void testNewProject(Size dumpSize, uint32_t shades)
     expect(colors.front() == 0 && colors.back() == ((31 << 11) | (31 << 5)),
            what + ": plain colors run from black to the brightest");
 
-    // libserum loads the cROM and identifies every original as its frame.
+    // libserum loads the project and identifies every original as its frame.
     RuntimePreview& preview = RuntimePreview::instance();
     std::string error;
-    const std::vector<uint8_t> cromBytes(crom.begin(), crom.end());
-    expect(preview.openCrom(cromBytes, geometry, n,
-                            colorizing::runtime::effectivePlaneRequest(geometry,
-                                                                       PlaneRequest::Rows32),
-                            &error),
+    const ProjectDocument savedDocument = ProjectDocument::fromSnapshot(saved);
+    expect(preview.openProject(savedDocument,
+                               colorizing::runtime::effectivePlaneRequest(geometry,
+                                                                          PlaneRequest::Rows32),
+                               &error),
            what + ": libserum loads the new project: " + error);
     for (std::size_t frame = 0; frame < n; ++frame) {
         const RuntimeFrame rendered = preview.colorize(kept[frame].original);

@@ -199,14 +199,13 @@ struct Step {
 };
 
 std::vector<Step> playWholeProject(const ProjectDocument& document,
-                                   const std::vector<uint8_t>& crom,
                                    const std::vector<std::size_t>& order,
                                    PlaneRequest request)
 {
     RuntimePreview& preview = RuntimePreview::instance();
     const FrameIdentification rule(document);
     std::string error;
-    expect(preview.openCrom(crom, document.geometry(), document.frameCount(), request, &error),
+    expect(preview.openProject(document, request, &error),
            "the whole project loads: " + error);
     std::vector<Step> steps;
     std::size_t searchStart = 0;
@@ -395,7 +394,7 @@ void testPlayback(PlaneLayout layout)
     PlaybackTotals totals;
     std::set<std::size_t> identifiedForFrame1;
     for (const std::vector<std::size_t>& order : orders) {
-        const std::vector<Step> whole = playWholeProject(document, crom, order, request);
+        const std::vector<Step> whole = playWholeProject(document, order, request);
         for (std::size_t i = 0; i < order.size(); ++i) {
             if (order[i] == 1 && whole[i].identified) {
                 identifiedForFrame1.insert(*whole[i].identified);

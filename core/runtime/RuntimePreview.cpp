@@ -282,7 +282,7 @@ struct RuntimePreview::Impl {
     // See setSceneFile().
     std::string sceneFile;
     std::size_t frameCount = 0;
-    // Loaded frame ID -> document frame; empty for a cROM opened as it is.
+    // Loaded frame ID -> document frame; empty for the whole project (openProject()).
     std::vector<std::size_t> frameMap;
     std::vector<document::IndexedFrame> originals;
     render::Size romFrameSize;
@@ -319,11 +319,6 @@ struct RuntimePreview::Impl {
                             std::size_t frames,
                             PlaneRequest request,
                             std::string* errorMessage);
-    [[nodiscard]] bool load(const std::vector<uint8_t>& crom,
-                            const render::ProjectGeometry& geometry,
-                            std::size_t frames,
-                            PlaneRequest request,
-                            std::string* errorMessage);
     [[nodiscard]] bool loadProject(const document::ProjectDocument& document,
                                    PlaneRequest request,
                                    std::string* errorMessage,
@@ -338,19 +333,6 @@ struct RuntimePreview::Impl {
     void readPlanes(RuntimeFrame& frame) const;
     [[nodiscard]] RuntimeFrame colorize(const document::IndexedFrame& original);
 };
-
-bool RuntimePreview::Impl::load(const std::vector<uint8_t>& crom,
-                                const render::ProjectGeometry& geometry,
-                                std::size_t frames,
-                                PlaneRequest request,
-                                std::string* errorMessage)
-{
-    return load(
-        [&crom](const char* scenes, uint8_t flags) {
-            return Serum_LoadFromMemoryWithScenes(crom.data(), crom.size(), scenes, flags);
-        },
-        geometry, frames, request, errorMessage);
-}
 
 bool RuntimePreview::Impl::loadProject(const document::ProjectDocument& document,
                                        PlaneRequest request,
@@ -802,16 +784,6 @@ std::shared_ptr<const FrameIdentification> RuntimePreview::identification(
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
     return m_impl->identification(document);
-}
-
-bool RuntimePreview::openCrom(const std::vector<uint8_t>& crom,
-                              const render::ProjectGeometry& geometry,
-                              std::size_t frameCount,
-                              PlaneRequest request,
-                              std::string* errorMessage)
-{
-    const std::lock_guard<std::mutex> lock(m_mutex);
-    return m_impl->load(crom, geometry, frameCount, request, errorMessage);
 }
 
 bool RuntimePreview::openProject(const document::ProjectDocument& document,

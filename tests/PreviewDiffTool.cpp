@@ -352,25 +352,13 @@ int comparePlayback(const ProjectDocument& document,
     std::vector<WholeStep> whole;
     std::size_t ruleMismatchesWhole = 0;
     if (withWholeProject) {
-        std::vector<uint8_t> crom;
-        {
-            std::ostringstream stream;
-            std::string error;
-            if (!colorizing::legacy::writeLegacyCrom(stream, document.toSnapshot(), error)) {
-                std::cerr << "the project cannot be written: " << error << '\n';
-                return 2;
-            }
-            const std::string bytes = stream.str();
-            crom.assign(bytes.begin(), bytes.end());
-        }
         std::string error;
         start = std::chrono::steady_clock::now();
-        if (!preview.openCrom(crom, document.geometry(), document.frameCount(), request, &error)) {
+        if (!preview.openProject(document, request, &error)) {
             std::cerr << "libserum does not load the whole project: " << error << '\n';
             return 2;
         }
-        std::cout << "whole project: cROM of " << crom.size() << " bytes, loaded in "
-                  << millisecondsSince(start) << " ms\n";
+        std::cout << "whole project: loaded in " << millisecondsSince(start) << " ms\n";
         std::size_t searchStart = 0;
         whole.reserve(order.size());
         for (std::size_t frame : order) {

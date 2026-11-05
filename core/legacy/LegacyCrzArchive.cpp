@@ -1,27 +1,79 @@
 #include "legacy/LegacyCrzArchive.h"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cstddef>
-#include <ctime>
-#include <fstream>
-#include <memory>
 
 #include <miniz/miniz.h>
-#include <serum-decode.h>
-
-#include "platform/Utf8Path.h"
 
 namespace colorizing::legacy {
 
 namespace {
 
-std::string libserumError(const char* fallback)
+// An open archive, closed when it goes. miniz takes the path as UTF-8 on Windows and as the
+// native bytes elsewhere, which is what the editor's paths are.
+struct OpenArchive {
+    mz_zip_archive zip{};
+    bool open = false;
+
+    explicit OpenArchive(const std::string& path)
+    {
+        mz_zip_zero_struct(&zip);
+        open = mz_zip_reader_init_file(&zip, path.c_str(), 0) != 0;
+    }
+    ~OpenArchive()
+    {
+        if (open) {
+            mz_zip_reader_end(&zip);
+        }
+    }
+    OpenArchive(const OpenArchive&) = delete;
+    OpenArchive& operator=(const OpenArchive&) = delete;
+
+    [[nodiscard]] std::string lastError()
+    {
+        return mz_zip_get_error_string(mz_zip_get_last_error(&zip));
+    }
+
+    // The cROM is the first regular entry, as the Win32 editor and libserum took it. Entry
+    // names are never used to find it: an archive is untrusted input.
+    [[nodiscard]] bool findCrom(mz_uint& index, mz_zip_archive_file_stat& stat)
+    {
+        const mz_uint count = mz_zip_reader_get_num_files(&zip);
+        for (mz_uint i = 0; i < count; ++i) {
+            if (!mz_zip_reader_file_stat(&zip, i, &stat) ||
+                mz_zip_reader_is_file_a_directory(&zip, i) ||
+                !mz_zip_reader_is_file_supported(&zip, i) ||
+                mz_zip_reader_is_file_encrypted(&zip, i)) {
+                continue;
+            }
+            index = i;
+            return true;
+        }
+        return false;
+    }
+};
+
+// The cROM unpacked into a block of miniz's, released with mz_free(); nullptr on failure.
+void* unpackCrom(const std::string& crzPath, std::size_t& size, std::string& errorMessage)
 {
-    const char* message = Serum_GetLastErrorMessage();
-    return message != nullptr && message[0] != '\0' ? std::string(message)
-                                                    : std::string(fallback);
+    OpenArchive archive(crzPath);
+    if (!archive.open) {
+        errorMessage = "could not open '" + crzPath + "' (" + archive.lastError() + ")";
+        return nullptr;
+    }
+    mz_uint index = 0;
+    mz_zip_archive_file_stat stat;
+    if (!archive.findCrom(index, stat)) {
+        errorMessage = "no cROM entry in '" + crzPath + "'";
+        return nullptr;
+    }
+    void* data = mz_zip_reader_extract_to_heap(&archive.zip, index, &size, 0);
+    if (!data) {
+        errorMessage = "no cROM could be read from '" + crzPath + "' (" + archive.lastError() +
+                       ")";
+    }
+    return data;
 }
 
 }  // namespace
@@ -51,19 +103,18 @@ bool readCrzArchive(const std::string& crzPath,
                     std::vector<uint8_t>& cromBytes,
                     std::string& errorMessage)
 {
-    uint8_t* data = nullptr;
     std::size_t size = 0;
-    if (!Serum_CRZ_Read(crzPath.c_str(), &data, &size)) {
-        errorMessage = libserumError("could not read .cRZ archive");
+    auto* data = static_cast<uint8_t*>(unpackCrom(crzPath, size, errorMessage));
+    if (!data) {
         return false;
     }
     try {
         cromBytes.assign(data, data + size);
     } catch (...) {
-        Serum_CRZ_Free(data);
+        mz_free(data);
         throw;
     }
-    Serum_CRZ_Free(data);
+    mz_free(data);
     return true;
 }
 
@@ -75,7 +126,7 @@ CrzContent::~CrzContent()
 void CrzContent::release()
 {
     if (m_data) {
-        Serum_CRZ_Free(m_data);
+        mz_free(m_data);
     }
     m_data = nullptr;
     m_size = 0;
@@ -84,10 +135,9 @@ void CrzContent::release()
 bool readCrzArchive(const std::string& crzPath, CrzContent& content, std::string& errorMessage)
 {
     content.release();
-    uint8_t* data = nullptr;
     std::size_t size = 0;
-    if (!Serum_CRZ_Read(crzPath.c_str(), &data, &size)) {
-        errorMessage = libserumError("could not read .cRZ archive");
+    auto* data = static_cast<uint8_t*>(unpackCrom(crzPath, size, errorMessage));
+    if (!data) {
         return false;
     }
     content.m_data = data;
@@ -99,12 +149,18 @@ bool readCrzEntryName(const std::string& crzPath,
                       std::string& entryName,
                       std::string& errorMessage)
 {
-    std::array<char, 512> name{};
-    if (!Serum_CRZ_GetEntryName(crzPath.c_str(), name.data(), name.size())) {
-        errorMessage = libserumError("could not read .cRZ archive");
+    OpenArchive archive(crzPath);
+    if (!archive.open) {
+        errorMessage = "could not open '" + crzPath + "' (" + archive.lastError() + ")";
         return false;
     }
-    entryName = name.data();
+    mz_uint index = 0;
+    mz_zip_archive_file_stat stat;
+    if (!archive.findCrom(index, stat)) {
+        errorMessage = "no cROM entry in '" + crzPath + "'";
+        return false;
+    }
+    entryName = stat.m_filename;
     return true;
 }
 

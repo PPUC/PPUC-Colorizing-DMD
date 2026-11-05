@@ -316,8 +316,8 @@ bool samePicture(const RuntimeFrame& a, const RuntimeFrame& b)
 }
 
 // The document saves to files that load again as the same project, and libserum, given the
-// complete saved cROM, identifies every frame as itself and renders it as it renders the
-// frame alone.
+// complete reloaded project, identifies every frame as itself and renders it as it renders
+// the frame alone.
 void expectSavesAndRenders(const ProjectDocument& document, const std::string& what)
 {
     expectConsistentReferences(document, what);
@@ -344,9 +344,8 @@ void expectSavesAndRenders(const ProjectDocument& document, const std::string& w
         alone.push_back(preview.renderFrame(document, f, request));
     }
     std::string error;
-    expect(preview.openCrom(files.crom, document.geometry(), document.frameCount(), request,
-                            &error),
-           what + ": libserum loads the saved cROM: " + error);
+    expect(preview.openProject(reloaded, request, &error),
+           what + ": libserum loads the reloaded project: " + error);
     for (std::size_t f = 0; f < document.frameCount(); ++f) {
         const RuntimeFrame frame = preview.colorize(document.originalFrame(f));
         const std::string frameText = what + ": frame " + std::to_string(f);
@@ -354,7 +353,7 @@ void expectSavesAndRenders(const ProjectDocument& document, const std::string& w
         expect(frame.identified, frameText + " is identified");
         expect(frame.unchanged || frame.frameIndex == f, frameText + " is identified as itself");
         expect(frame.unchanged || samePicture(frame, alone[f]),
-               frameText + " renders from the saved cROM as it renders alone");
+               frameText + " renders in the reloaded project as it renders alone");
     }
     preview.close();
 }

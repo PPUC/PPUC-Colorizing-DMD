@@ -241,8 +241,10 @@ void testImportAndCrom()
     g_log.clear();
     Serum_SetLogCallback(logLine, nullptr);
     const std::string csv = (directory / (document.romName() + ".PUP.CSV")).string();
-    expect(Serum_LoadFromMemoryWithScenes(crom.data(), crom.size(), csv.c_str(), 0) != nullptr,
-           "libserum loads the cROM");
+    {
+        runtime::SnapshotSource source(document.toSnapshot());
+        expect(source.load(csv.c_str(), 0) != nullptr, "libserum loads the project");
+    }
     expect(logged("2 rotation scene frames") && logged("not read") &&
                Serum_GetScalingAlgorithm() == document::kScalingLineDoubling,
            "with the project's scene frames and scaling, the csv unread");

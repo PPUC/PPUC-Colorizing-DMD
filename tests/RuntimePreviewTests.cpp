@@ -431,14 +431,7 @@ void testSubsetRendersLikeTheWholeProject(PlaneLayout layout)
 {
     ProjectSnapshot snapshot = makeFullProject(layout);
     const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
-    const ProjectSnapshot whole = document.toSnapshot();
-    std::ostringstream stream;
     std::string error;
-    expect(colorizing::legacy::writeLegacyCrom(stream, whole, error), "the project is written");
-    const std::string bytes = stream.str();
-    const std::vector<uint8_t> crom(bytes.begin(), bytes.end());
-    expect(colorizing::legacy::legacyCromByteCount(whole) == crom.size(),
-           "the cROM has the size counted for it, which the pipe announces to libserum");
 
     RuntimePreview& preview = RuntimePreview::instance();
     std::vector<std::size_t> all;
@@ -448,18 +441,10 @@ void testSubsetRendersLikeTheWholeProject(PlaneLayout layout)
     for (PlaneRequest request :
          {PlaneRequest::Rows32, PlaneRequest::Rows64, PlaneRequest::Both}) {
         std::vector<RuntimeFrame> fromWhole;
-        expect(preview.openCrom(crom, snapshot.geometry, document.frameCount(), request, &error),
+        expect(preview.openProject(document, request, &error),
                "the whole project loads: " + error);
         for (std::size_t f : all) {
             fromWhole.push_back(preview.colorize(document.originalFrame(f)));
-        }
-        preview.close();
-        // The project written straight into the load, never held: the same colorization.
-        expect(preview.openProject(document, request, &error),
-               "the project loads through the pipe: " + error);
-        for (std::size_t f : all) {
-            expectSameOutput(preview.colorize(document.originalFrame(f)), fromWhole[f],
-                             "frame " + std::to_string(f) + ", piped against whole project");
         }
         preview.close();
 
@@ -623,12 +608,6 @@ void testReporting()
     expect(!preview.isOpen(), "a failed still leaves nothing loaded");
 
     std::string error;
-    expect(!preview.openCrom(std::vector<uint8_t>(5000, 0x5a), snapshot.geometry, 1,
-                             PlaneRequest::Both, &error),
-           "bytes that are no cROM do not load");
-    expect(error.find("Serum_LoadFromMemory") != std::string::npos,
-           "the error is what libserum says: " + error);
-    expect(!preview.isOpen(), "a failed load leaves nothing loaded");
     frame = preview.colorize(document.originalFrame(0));
     expect(!frame.ok(), "nothing can be colorized without a colorization");
     expect(!preview.rotate().ok(), "nothing can be rotated without a colorization");
