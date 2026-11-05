@@ -30,7 +30,7 @@ env:
   # libserum is built from source into the editor (add_subdirectory, static). It must have the
   # Serum_CRZ_* API, Serum_LoadFromMemory and the dynamic-shadow rotation fix: c8d8166 or later.
   LIBSERUM_REPOSITORY: PPUC/libserum
-  LIBSERUM_SHA: 85fa730e0287b3f7661f206e073d5b5b82850a5e
+  LIBSERUM_SHA: a637ab4b7f6a2d575a582645092bc88a520b1291
   # libdmdutil (DMD output) is built as a shared library without colorization, with its
   # dependencies, and shipped with VPX's DMDUtil plugin, which the editor builds against it and
   # hosts; see packaging/build-libdmdutil.sh and app/vpx/CMakeLists.txt.
