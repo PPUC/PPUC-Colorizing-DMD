@@ -17,13 +17,22 @@ is still yours.
 `Settings -> Signing` holds your key. It stays on this computer, in the editor's settings.
 
 1. `Make a Signing Key` makes the key. The page shows its `Public key`; `Copy` copies it.
-2. Send the public key and your GitHub account to the PPUC signing team. They send you a
-   certificate that says the key is yours.
-3. Paste the certificate into `Certificate`. The page says `Exports are signed as ...` with
-   your name once libserum accepts it, or why it cannot be used.
+2. `Request Certificate` asks for a certificate that says the key is yours. The editor signs in
+   to GitHub if it is not yet (as for team projects) and opens a request in
+   [PPUC/colorization-signing](https://github.com/PPUC/colorization-signing) as your account;
+   the certificate is issued for that account. The page links the request.
+3. A trusted member of PPUC approves it, usually within a day. `Check for the Certificate`
+   then takes the certificate in; the page also checks by itself when you open it again. A
+   refused request says why, and `Request Certificate` can be used again.
+4. The page says `Exports are signed as ...` with your name once libserum accepts the
+   certificate, or why it cannot be used.
+
+A certificate you got another way (from a trusted member, if GitHub cannot be used) goes into
+`Certificate` by hand.
 
 Until the certificate is there the editor exports unsigned files, and the status bar says so
-after an export. `Make a New Key...` replaces the key; you need a new certificate for it. Files
+after an export. `Make a New Key...` replaces the key; you need a new certificate for it, and
+a request for the old key is no longer awaited. Files
 you signed with the old key stay signed.
 
 ## Signing a project's export

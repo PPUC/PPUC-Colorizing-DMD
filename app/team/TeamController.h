@@ -89,6 +89,12 @@ public:
     // Takes the sync's answer as if the background sync had delivered it: for tests.
     void deliverSyncResultForTest(TeamSync::Result result);
 
+    // Signs in when signed out (the sign-in dialog); whether signed in afterwards. The client
+    // then acts as the user, also outside team projects (the certificate request of
+    // Settings -> Signing).
+    bool requireSignIn() { return ensureSignedIn(); }
+    [[nodiscard]] GitHubClient& gitHub() { return m_client; }
+
     // The steps of the Team menu, for the Team section's buttons.
     void signIn();
     void share();

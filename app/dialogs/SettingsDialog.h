@@ -70,6 +70,7 @@ public:
     // The author's signing key (Signing.h).
     void setSigningKey(const AuthorSigningKey& key);
     [[nodiscard]] AuthorSigningKey signingKey() const;
+    [[nodiscard]] SigningSettingsPage* signingPage() const { return m_signingPage; }
 
     // The editor's plugins that can be chosen, and those chosen (EditorPlugins).
     struct PluginChoice {

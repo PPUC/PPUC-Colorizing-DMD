@@ -356,4 +356,64 @@ void GitHubClient::listFolder(const QString& repository,
         });
 }
 
+void GitHubClient::createIssue(const QString& repository,
+                               const QString& title,
+                               const QString& body,
+                               std::function<void(int number, QString error)> done)
+{
+    HttpRequest request =
+        apiRequest("POST", QStringLiteral("/repos/%1/issues").arg(encodedPath(repository)));
+    addHeader(request, "Content-Type", "application/json");
+    QJsonObject issue;
+    issue.insert(QStringLiteral("title"), title);
+    issue.insert(QStringLiteral("body"), body);
+    request.body = QJsonDocument(issue).toJson(QJsonDocument::Compact);
+    m_transport.send(request, [done = std::move(done)](const HttpReply& reply) {
+        if (reply.status != 201) {
+            done(0, errorOf(reply));
+            return;
+        }
+        done(objectOf(reply.body).value(QStringLiteral("number")).toInt(), QString());
+    });
+}
+
+void GitHubClient::issueComments(
+    const QString& repository,
+    int number,
+    std::function<void(QString state, std::vector<IssueComment>, QString error)> done)
+{
+    const QString issuePath =
+        QStringLiteral("/repos/%1/issues/%2").arg(encodedPath(repository)).arg(number);
+    m_transport.send(
+        apiRequest("GET", issuePath),
+        [this, issuePath, done = std::move(done)](const HttpReply& reply) mutable {
+            if (reply.status != 200) {
+                done(QString(), {}, errorOf(reply));
+                return;
+            }
+            const QString state = objectOf(reply.body).value(QStringLiteral("state")).toString();
+            m_transport.send(
+                apiRequest("GET", issuePath + QStringLiteral("/comments?per_page=100")),
+                [state, done = std::move(done)](const HttpReply& comments) {
+                    const QJsonDocument answer = QJsonDocument::fromJson(comments.body);
+                    if (comments.status != 200 || !answer.isArray()) {
+                        done(state, {}, errorOf(comments));
+                        return;
+                    }
+                    std::vector<IssueComment> list;
+                    for (const QJsonValue& value : answer.array()) {
+                        const QJsonObject item = value.toObject();
+                        const QJsonObject user = item.value(QStringLiteral("user")).toObject();
+                        IssueComment comment;
+                        comment.login = user.value(QStringLiteral("login")).toString();
+                        comment.byBot =
+                            user.value(QStringLiteral("type")).toString() == QStringLiteral("Bot");
+                        comment.body = item.value(QStringLiteral("body")).toString();
+                        list.push_back(std::move(comment));
+                    }
+                    done(state, std::move(list), QString());
+                });
+        });
+}
+
 }  // namespace colorizing::app

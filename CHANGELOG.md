@@ -17,7 +17,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The exported `.cROMc` is signed with the author's signing key (`Settings -> Signing`; a project
   can turn it off in its settings). libserum shows players the project's signing notice, a frame
   the author words (`Edit -> Edit Signing Notice`), when the file was changed after signing.
-  `File -> Export Modified .cROMc for Testing...` shows what that looks like.
+  `File -> Export Modified .cROMc for Testing...` shows what that looks like. `Request
+  Certificate` asks for the key's certificate as the author's GitHub account and takes it in
+  once a trusted member approved it.
 
 ## 3.99.30
 

@@ -146,6 +146,7 @@ add_library(colorizing_qt_v2_widgets STATIC
     FramesClipboard.h
     team/Avatars.cpp
     team/Avatars.h
+    team/CertificateRequest.cpp
     team/GitHub.cpp
     team/GitHub.h
     team/TeamController.cpp

@@ -130,6 +130,23 @@ public:
                     const QString& path,
                     std::function<void(std::vector<Entry>, QString error)> done);
 
+    // An issue in the repository, opened as the user; answers its number.
+    void createIssue(const QString& repository,
+                     const QString& title,
+                     const QString& body,
+                     std::function<void(int number, QString error)> done);
+    struct IssueComment {
+        QString login;
+        // Written by an app (a workflow's comments come from "github-actions[bot]").
+        bool byBot = false;
+        QString body;
+    };
+    // The issue's state ("open", "closed") and its comments, oldest first (the first 100).
+    void issueComments(const QString& repository,
+                       int number,
+                       std::function<void(QString state, std::vector<IssueComment>, QString error)>
+                           done);
+
     // The API's address; tests and GitHub Enterprise use another.
     void setApiBase(QUrl api, QUrl web);
 

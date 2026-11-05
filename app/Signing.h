@@ -45,4 +45,14 @@ struct CertificateCheck {
 // Whether the key can sign: a secret key and a trusted certificate for it.
 [[nodiscard]] bool canSign(const AuthorSigningKey& key);
 
+// The certificate request sent and not answered yet (team/CertificateRequest.h): its issue and
+// the public key it asks for. Kept until the certificate is taken, the request is refused or a
+// new key is made.
+struct PendingCertificateRequest {
+    int issue = 0;
+    QString publicKey;
+};
+[[nodiscard]] std::optional<PendingCertificateRequest> loadPendingCertificateRequest();
+void savePendingCertificateRequest(const std::optional<PendingCertificateRequest>& request);
+
 }  // namespace colorizing::app

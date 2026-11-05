@@ -8,6 +8,7 @@
 
 #include <QCoreApplication>
 #include <QMainWindow>
+#include <QPointer>
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QString>
@@ -48,6 +49,8 @@
 
 namespace colorizing::app {
 class BackgroundPanel;
+class SigningSettingsPage;
+struct PendingCertificateRequest;
 class ColorRotationPanel;
 class ColorSetPanel;
 class DynamicPanel;
@@ -208,6 +211,11 @@ private:
     // View -> Output To DMD, see DmdOutput.h.
     void setDmdOutputEnabled(bool enabled);
     // File -> Settings (the application menu on macOS), opened at the page.
+    // Settings -> Signing's certificate request through the GitHub login (CertificateRequest).
+    void connectCertificateRequest(SigningSettingsPage& page);
+    void checkCertificateRequest(QPointer<SigningSettingsPage> page,
+                                 const PendingCertificateRequest& pending);
+    [[nodiscard]] QString waitingForCertificateText(int issue) const;
     void editSettings(SettingsDialog::Page page);
     void sendDmdPicture();
     // Copy and Paste on the sprite canvas, see edit/SpriteClipboard.h.

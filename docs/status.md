@@ -46,9 +46,11 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   it off per project); libserum checks it offline against its built-in root key and shows a
   modified file's signing notice (`edit/SigningNotice.h`, a frame kept last and never
   identified) or its own "COLORIZATION MODIFIED". Certificates bind a key to a GitHub ID; the
-  chain is root -> issuer -> author, the root key offline with trusted members. Open: the
-  issuing process itself (a private repository whose Action certifies a key from an issue),
-  and how an author asks for a certificate; until then a trusted member certifies with
+  chain is root -> issuer -> author, the root key offline with trusted members. Authors ask
+  through the public repository `PPUC/colorization-signing` (`app/team/CertificateRequest.h`):
+  the editor opens an issue as the author, the workflow `Certify` waits for a trusted
+  member's approval in the `signing` environment (secret `ISSUER_KEY`) and posts the
+  certificate for `github:<account ID>`. Without GitHub a trusted member certifies with
   libserum's `tools/serum-signing`.
 
 ## Repositories and branches

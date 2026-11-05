@@ -63,6 +63,8 @@
 #include "AppInfo.h"
 #include "AuthorName.h"
 #include "Signing.h"
+#include "dialogs/SigningSettingsPage.h"
+#include "team/CertificateRequest.h"
 #include "ColorDrag.h"
 #include "team/TeamController.h"
 #include "FramesClipboard.h"
@@ -3417,13 +3419,103 @@ void MainWindow::setDmdOutputEnabled(bool enabled)
     });
 }
 
+void MainWindow::connectCertificateRequest(SigningSettingsPage& page)
+{
+    QPointer<SigningSettingsPage> shown(&page);
+    page.onRequestCertificate = [this, shown](const QString& publicKey) {
+        if (!m_team->requireSignIn()) {
+            if (shown) {
+                shown->setRequestState(false, tr("Not signed in to GitHub"));
+            }
+            return;
+        }
+        if (shown) {
+            shown->setRequestState(false, tr("Sending the request..."));
+        }
+        auto request = std::make_shared<CertificateRequest>(m_team->gitHub());
+        request->request(
+            publicKey, QCoreApplication::applicationVersion(),
+            [this, shown, request, publicKey](int number, const QString& error) {
+                if (!error.isEmpty()) {
+                    if (shown) {
+                        shown->setRequestState(
+                            false, tr("The request could not be sent: %1").arg(error));
+                    }
+                    return;
+                }
+                savePendingCertificateRequest(PendingCertificateRequest{number, publicKey});
+                if (shown) {
+                    shown->setRequestState(true, waitingForCertificateText(number));
+                }
+            });
+    };
+    page.onCheckCertificate = [this, shown]() {
+        if (const std::optional<PendingCertificateRequest> pending =
+                loadPendingCertificateRequest()) {
+            if (shown) {
+                shown->setRequestState(true, tr("Asking GitHub..."));
+            }
+            checkCertificateRequest(shown, *pending);
+        }
+    };
+}
+
+QString MainWindow::waitingForCertificateText(int issue) const
+{
+    const CertificateRequest request(m_team->gitHub());
+    return tr("Waiting for a trusted member to approve <a href=\"%1\">request %2</a>.")
+        .arg(request.issueUrl(issue))
+        .arg(issue);
+}
+
+void MainWindow::checkCertificateRequest(QPointer<SigningSettingsPage> page,
+                                         const PendingCertificateRequest& pending)
+{
+    auto request = std::make_shared<CertificateRequest>(m_team->gitHub());
+    request->check(
+        pending.issue,
+        [this, page, request, pending](const CertificateRequest::Answer& answer,
+                                       const QString& error) {
+            if (!page) {
+                return;
+            }
+            if (!error.isEmpty()) {
+                page->setRequestState(true, tr("GitHub did not answer: %1").arg(error));
+                return;
+            }
+            switch (answer.state) {
+                case CertificateRequest::Answer::State::Waiting:
+                    page->setRequestState(true, waitingForCertificateText(pending.issue));
+                    break;
+                case CertificateRequest::Answer::State::Issued:
+                    savePendingCertificateRequest(std::nullopt);
+                    page->takeCertificate(answer.certificate);
+                    page->setRequestState(false, tr("The certificate came with request %1.")
+                                                     .arg(pending.issue));
+                    break;
+                case CertificateRequest::Answer::State::Refused:
+                    savePendingCertificateRequest(std::nullopt);
+                    page->setRequestState(false, tr("No certificate: %1.").arg(answer.message));
+                    break;
+            }
+        });
+}
+
 void MainWindow::editSettings(SettingsDialog::Page page)
 {
     SettingsDialog dialog(loadTheme(), m_dmdRenderOptions, loadDmdOutputSettings(),
                           DmdOutput::isAvailable(), this);
     dialog.setLanguage(loadLanguage());
     dialog.setAuthorName(loadAuthorName());
+    connectCertificateRequest(*dialog.signingPage());
     dialog.setSigningKey(loadAuthorSigningKey());
+    if (const std::optional<PendingCertificateRequest> pending = loadPendingCertificateRequest()) {
+        const AuthorSigningKey key = loadAuthorSigningKey();
+        if (key.seed && publicKeyText(*key.seed) == pending->publicKey && !canSign(key)) {
+            dialog.signingPage()->setRequestState(true, tr("Asking GitHub..."));
+            checkCertificateRequest(dialog.signingPage(), *pending);
+        }
+    }
     dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
     dialog.setSpriteThumbnailsZoomed(loadSpriteThumbnailsZoomed());
     dialog.setShortcuts(m_shortcuts->entries());
@@ -3453,6 +3545,13 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     updateShortcutToolTips();
     saveAuthorName(dialog.authorName());
     saveAuthorSigningKey(dialog.signingKey());
+    if (const std::optional<PendingCertificateRequest> pending = loadPendingCertificateRequest()) {
+        // A request for a key that was replaced is no longer awaited.
+        const AuthorSigningKey key = dialog.signingKey();
+        if (!key.seed || publicKeyText(*key.seed) != pending->publicKey) {
+            savePendingCertificateRequest(std::nullopt);
+        }
+    }
     if (dialog.language() != loadLanguage()) {
         saveLanguage(dialog.language());
         QMessageBox::information(this, tr("Language"),

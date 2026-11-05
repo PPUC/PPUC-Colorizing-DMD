@@ -12,6 +12,8 @@ namespace {
 
 const QString kSeedKey = QStringLiteral("signing/key");
 const QString kCertificateKey = QStringLiteral("signing/certificate");
+const QString kRequestIssueKey = QStringLiteral("signing/requestIssue");
+const QString kRequestKeyKey = QStringLiteral("signing/requestKey");
 
 }  // namespace
 
@@ -80,6 +82,28 @@ bool canSign(const AuthorSigningKey& key)
 {
     return key.seed && !key.certificate.trimmed().isEmpty() &&
            checkCertificate(key.certificate, key.seed).trusted;
+}
+
+std::optional<PendingCertificateRequest> loadPendingCertificateRequest()
+{
+    QSettings settings;
+    const int issue = settings.value(kRequestIssueKey).toInt();
+    if (issue <= 0) {
+        return std::nullopt;
+    }
+    return PendingCertificateRequest{issue, settings.value(kRequestKeyKey).toString()};
+}
+
+void savePendingCertificateRequest(const std::optional<PendingCertificateRequest>& request)
+{
+    QSettings settings;
+    if (!request) {
+        settings.remove(kRequestIssueKey);
+        settings.remove(kRequestKeyKey);
+        return;
+    }
+    settings.setValue(kRequestIssueKey, request->issue);
+    settings.setValue(kRequestKeyKey, request->publicKey);
 }
 
 }  // namespace colorizing::app

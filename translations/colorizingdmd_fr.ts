@@ -552,6 +552,17 @@
     </message>
 </context>
 <context>
+    <name>CertificateRequest</name>
+    <message>
+        <source>the request has no public key</source>
+        <translation>la demande ne contient pas de clé publique</translation>
+    </message>
+    <message>
+        <source>the request was closed without a certificate</source>
+        <translation>la demande a été fermée sans certificat</translation>
+    </message>
+</context>
+<context>
     <name>ColorGridWidget</name>
     <message>
         <source>Color %1</source>
@@ -4310,6 +4321,38 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Transparent pixels are painted with the point and shape tools</source>
         <translation>Les pixels transparents se peignent avec les outils point et forme</translation>
+    </message>
+    <message>
+        <source>Not signed in to GitHub</source>
+        <translation>Non connecté à GitHub</translation>
+    </message>
+    <message>
+        <source>Sending the request...</source>
+        <translation>Envoi de la demande...</translation>
+    </message>
+    <message>
+        <source>The request could not be sent: %1</source>
+        <translation>La demande n’a pas pu être envoyée : %1</translation>
+    </message>
+    <message>
+        <source>Asking GitHub...</source>
+        <translation>Interrogation de GitHub...</translation>
+    </message>
+    <message>
+        <source>Waiting for a trusted member to approve &lt;a href=&quot;%1&quot;&gt;request %2&lt;/a&gt;.</source>
+        <translation>En attente de l’approbation de la &lt;a href=&quot;%1&quot;&gt;demande %2&lt;/a&gt; par un membre de confiance.</translation>
+    </message>
+    <message>
+        <source>GitHub did not answer: %1</source>
+        <translation>GitHub n’a pas répondu : %1</translation>
+    </message>
+    <message>
+        <source>The certificate came with request %1.</source>
+        <translation>Le certificat est arrivé avec la demande %1.</translation>
+    </message>
+    <message>
+        <source>No certificate: %1.</source>
+        <translation>Pas de certificat : %1.</translation>
     </message>
     <message>
         <source>Export Animated GIF Failed</source>
@@ -8718,7 +8761,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Send your public key and your GitHub account to the PPUC signing team. They send you a certificate for it: paste it below.</source>
-        <translation>Envoyez votre clé publique et votre compte GitHub à l&apos;équipe de signature PPUC. Elle vous envoie un certificat pour cette clé : collez-le ci-dessous.</translation>
+        <translation type="vanished">Envoyez votre clé publique et votre compte GitHub à l&apos;équipe de signature PPUC. Elle vous envoie un certificat pour cette clé : collez-le ci-dessous.</translation>
+    </message>
+    <message>
+        <source>Request Certificate asks the PPUC signing team for a certificate of your key, as your GitHub account: the editor opens the request on GitHub, and once a trusted member approved it, Check for the Certificate takes it in. You can also paste a certificate below.</source>
+        <translation>Demander un certificat demande à l’équipe de signature PPUC, au nom de votre compte GitHub, un certificat pour votre clé : l’éditeur ouvre la demande sur GitHub, et dès qu’un membre de confiance l’a approuvée, Chercher le certificat le récupère. Vous pouvez aussi coller un certificat ci-dessous.</translation>
     </message>
     <message>
         <source>SERUM-CERTIFICATE-1:...</source>
@@ -8747,6 +8794,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Make a Signing Key</source>
         <translation>Créer une clé de signature</translation>
+    </message>
+    <message>
+        <source>Check for the Certificate</source>
+        <translation>Chercher le certificat</translation>
+    </message>
+    <message>
+        <source>Request Certificate</source>
+        <translation>Demander un certificat</translation>
     </message>
     <message>
         <source>No signing key yet: the editor exports unsigned files.</source>

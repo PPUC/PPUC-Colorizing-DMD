@@ -3,6 +3,8 @@
 #include <QCoreApplication>
 #include <QWidget>
 
+#include <functional>
+
 #include "Signing.h"
 
 class QLabel;
@@ -27,6 +29,17 @@ public:
     // For tests: what the status line says.
     [[nodiscard]] QString statusText() const;
 
+    // Request Certificate: asks the PPUC signing team for a certificate of the public key
+    // (team/CertificateRequest.h). The owner sends it and answers with setRequestState().
+    std::function<void(const QString& publicKey)> onRequestCertificate;
+    // Check for the Certificate, while a request waits for its answer.
+    std::function<void()> onCheckCertificate;
+    // Whether a request waits for its answer, and what to say about it.
+    void setRequestState(bool waiting, const QString& text);
+    // The certificate the answer brought, put into the certificate box.
+    void takeCertificate(const QString& certificate);
+    [[nodiscard]] QString requestText() const;
+
 private:
     void createKey();
     void updateState();
@@ -37,6 +50,9 @@ private:
     QLineEdit* m_publicKey = nullptr;
     QPushButton* m_copyButton = nullptr;
     QPlainTextEdit* m_certificate = nullptr;
+    QPushButton* m_requestButton = nullptr;
+    QLabel* m_requestStatus = nullptr;
+    bool m_requestWaiting = false;
 };
 
 }  // namespace colorizing::app

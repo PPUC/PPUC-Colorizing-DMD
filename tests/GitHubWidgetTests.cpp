@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QUrlQuery>
 
+#include "team/CertificateRequest.h"
 #include "team/GitHub.h"
 
 namespace {
@@ -228,9 +229,69 @@ void testRepositories()
 
 }  // namespace
 
+// A certificate request is an issue in the signing repository; its answer is the workflow's
+// comment with the certificate, a comment that finds no key, or the issue closed without one.
+void testCertificateRequest()
+{
+    FakeTransport transport;
+    GitHubClient client(transport, QStringLiteral("Iv1.client"));
+    client.setToken(QStringLiteral("token"));
+    app::CertificateRequest request(client);
+    transport.answer(201, R"({"number":17})");
+    int number = 0;
+    request.request(QStringLiteral("ab12"), QStringLiteral("3.99.31"),
+                    [&](int answer, const QString& error) {
+                        expect(error.isEmpty(), "the request is sent");
+                        number = answer;
+                    });
+    const QJsonObject sent = QJsonDocument::fromJson(transport.requests[0].body).object();
+    expect(number == 17 && transport.requests[0].method == "POST" &&
+               transport.requests[0].url.path() ==
+                   QStringLiteral("/repos/PPUC/colorization-signing/issues") &&
+               sent.value(QStringLiteral("title")).toString() ==
+                   QStringLiteral("Certificate request") &&
+               sent.value(QStringLiteral("body")).toString().contains(
+                   QStringLiteral("### Public key\n\nab12\n")),
+           "as an issue titled for the workflow, with the key as the form writes it");
+
+    const auto check = [&](const QByteArray& issue, const QByteArray& comments) {
+        transport.answer(200, issue);
+        transport.answer(200, comments);
+        app::CertificateRequest::Answer result;
+        request.check(17, [&](app::CertificateRequest::Answer answer, const QString& error) {
+            expect(error.isEmpty(), "GitHub answers");
+            result = answer;
+        });
+        return result;
+    };
+    using State = app::CertificateRequest::Answer::State;
+    expect(check(R"({"state":"open"})",
+                 R"([{"user":{"login":"author","type":"User"},"body":"SERUM-CERTIFICATE-1:AB="}])")
+                   .state == State::Waiting,
+           "a certificate the author pasted is no answer");
+    const app::CertificateRequest::Answer issued =
+        check(R"({"state":"closed"})",
+              R"([{"user":{"login":"github-actions[bot]","type":"Bot"},
+                  "body":"Certificate for @author.\n\n```\nSERUM-CERTIFICATE-1:AQCz+/9=\n```"}])");
+    expect(issued.state == State::Issued &&
+               issued.certificate == QStringLiteral("SERUM-CERTIFICATE-1:AQCz+/9="),
+           "the workflow's comment brings the certificate");
+    expect(transport.requests.back().url.path() ==
+               QStringLiteral("/repos/PPUC/colorization-signing/issues/17/comments"),
+           "read from the issue's comments");
+    expect(check(R"({"state":"open"})",
+                 R"([{"user":{"login":"github-actions[bot]","type":"Bot"},
+                     "body":"No public key found: it is 64 hex digits."}])")
+                   .state == State::Refused,
+           "a request without a key is refused");
+    expect(check(R"({"state":"closed"})", "[]").state == State::Refused,
+           "a request closed without a certificate is refused");
+}
+
 void runGitHubWidgetTests()
 {
     testDeviceFlow();
     testFiles();
     testRepositories();
+    testCertificateRequest();
 }

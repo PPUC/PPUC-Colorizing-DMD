@@ -44,10 +44,29 @@ SigningSettingsPage::SigningSettingsPage(QWidget* parent)
     keyRow->addWidget(m_copyButton);
 
     auto* request = new QLabel(
-        tr("Send your public key and your GitHub account to the PPUC signing team. They send "
-           "you a certificate for it: paste it below."),
+        tr("Request Certificate asks the PPUC signing team for a certificate of your key, as "
+           "your GitHub account: the editor opens the request on GitHub, and once a trusted "
+           "member approved it, Check for the Certificate takes it in. You can also paste a "
+           "certificate below."),
         this);
     request->setWordWrap(true);
+    m_requestButton = new QPushButton(this);
+    connect(m_requestButton, &QPushButton::clicked, this, [this]() {
+        if (m_requestWaiting) {
+            if (onCheckCertificate) {
+                onCheckCertificate();
+            }
+        } else if (onRequestCertificate && m_seed) {
+            onRequestCertificate(publicKeyText(*m_seed));
+        }
+    });
+    m_requestStatus = new QLabel(this);
+    m_requestStatus->setWordWrap(true);
+    m_requestStatus->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    m_requestStatus->setOpenExternalLinks(true);
+    auto* requestRow = new QHBoxLayout;
+    requestRow->addWidget(m_requestButton);
+    requestRow->addWidget(m_requestStatus, 1);
 
     m_certificate = new QPlainTextEdit(this);
     m_certificate->setPlaceholderText(tr("SERUM-CERTIFICATE-1:..."));
@@ -60,6 +79,7 @@ SigningSettingsPage::SigningSettingsPage(QWidget* parent)
     form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     form->addRow(tr("Public key"), keyRow);
     form->addRow(request);
+    form->addRow(requestRow);
     form->addRow(tr("Certificate"), m_certificate);
 
     auto* layout = new QVBoxLayout(this);
@@ -91,6 +111,23 @@ QString SigningSettingsPage::statusText() const
     return m_status->text();
 }
 
+void SigningSettingsPage::setRequestState(bool waiting, const QString& text)
+{
+    m_requestWaiting = waiting;
+    m_requestStatus->setText(text);
+    updateState();
+}
+
+void SigningSettingsPage::takeCertificate(const QString& certificate)
+{
+    m_certificate->setPlainText(certificate);
+}
+
+QString SigningSettingsPage::requestText() const
+{
+    return m_requestStatus->text();
+}
+
 void SigningSettingsPage::createKey()
 {
     if (m_seed &&
@@ -102,6 +139,9 @@ void SigningSettingsPage::createKey()
     }
     m_seed = newSigningSeed();
     m_certificate->clear();
+    // A request for the old key no longer helps.
+    m_requestWaiting = false;
+    m_requestStatus->clear();
     updateState();
 }
 
@@ -113,6 +153,13 @@ void SigningSettingsPage::updateState()
     m_certificate->setEnabled(m_seed.has_value());
     m_createButton->setText(m_seed ? tr("Make a New Key...") : tr("Make a Signing Key"));
     const QString certificate = m_certificate->toPlainText().trimmed();
+    const bool trusted =
+        m_seed && !certificate.isEmpty() && checkCertificate(certificate, m_seed).trusted;
+    m_requestButton->setText(m_requestWaiting ? tr("Check for the Certificate")
+                                              : tr("Request Certificate"));
+    m_requestButton->setEnabled(m_seed.has_value() && !trusted &&
+                                (m_requestWaiting ? onCheckCertificate != nullptr
+                                                  : onRequestCertificate != nullptr));
     if (!m_seed) {
         m_status->setText(tr("No signing key yet: the editor exports unsigned files."));
     } else if (certificate.isEmpty()) {

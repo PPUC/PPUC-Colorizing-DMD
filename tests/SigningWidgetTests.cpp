@@ -7,6 +7,7 @@
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QPushButton>
 
 #include "RuntimeFixtures.h"
 #include "dialogs/SigningSettingsPage.h"
@@ -74,10 +75,45 @@ void testProjectChoice()
     expect(panel.signCromc(), "is turned on");
 }
 
+// Request Certificate sends the public key; while the request waits it becomes the check, and
+// a certificate the answer brings goes into the box.
+void testRequestButton()
+{
+    app::SigningSettingsPage page;
+    QString sent;
+    bool checked = false;
+    page.onRequestCertificate = [&](const QString& publicKey) { sent = publicKey; };
+    page.onCheckCertificate = [&]() { checked = true; };
+    app::AuthorSigningKey key;
+    std::array<uint8_t, 32> seed{};
+    seed.fill(0x01);
+    key.seed = seed;
+    page.setKey(key);
+    QPushButton* button = nullptr;
+    for (QPushButton* candidate : page.findChildren<QPushButton*>()) {
+        if (candidate->text() == QStringLiteral("Request Certificate")) {
+            button = candidate;
+        }
+    }
+    expect(button && button->isEnabled(), "a key without a certificate can be requested");
+    button->click();
+    expect(sent == app::publicKeyText(seed), "the request names the public key");
+    page.setRequestState(true, QStringLiteral("Waiting"));
+    expect(button->text() == QStringLiteral("Check for the Certificate") &&
+               page.requestText() == QStringLiteral("Waiting"),
+           "a waiting request is checked");
+    button->click();
+    expect(checked, "by the same button");
+    page.takeCertificate(QStringLiteral("SERUM-CERTIFICATE-1:AAAA"));
+    expect(page.key().certificate == QStringLiteral("SERUM-CERTIFICATE-1:AAAA"),
+           "the answer's certificate goes into the box");
+}
+
 }  // namespace
 
 void runSigningWidgetTests()
 {
     testSigningPage();
     testProjectChoice();
+    testRequestButton();
 }
