@@ -12,6 +12,7 @@
 #include <QPushButton>
 
 #include "RuntimeFixtures.h"
+#include "dialogs/CromcHeaderDialog.h"
 #include "dialogs/SigningSettingsPage.h"
 #include "panels/ProjectSettingsPanel.h"
 
@@ -155,6 +156,25 @@ void testLicenseChoices()
            "a project's old kind shows, with the advice to change it");
 }
 
+// File -> Show .cROMc Header shows the text the export writes, the author taken from the
+// settings when the license names nobody.
+void testCromcHeader()
+{
+    document::ProjectLicense license;
+    license.kind = document::LicenseKind::CcByNcNd;
+    const QString text =
+        app::CromcHeaderDialog::text("afm_113b", license, QStringLiteral(" Kraken "));
+    expect(text.startsWith(QStringLiteral("Serum colorization\nROM: afm_113b\nAuthor: Kraken\n"
+                                          "License: CC BY-NC-ND 4.0\n")),
+           "the author comes from the settings: " + text.toStdString());
+    license.attribution = "Team Kraken";
+    expect(app::CromcHeaderDialog::text("afm_113b", license, QStringLiteral("Kraken"))
+               .contains(QStringLiteral("Author: Team Kraken\n")),
+           "the license's attribution comes first");
+    app::CromcHeaderDialog dialog(text);
+    expect(dialog.shownText() == text, "the dialog shows it");
+}
+
 }  // namespace
 
 void runSigningWidgetTests()
@@ -163,4 +183,5 @@ void runSigningWidgetTests()
     testProjectChoice();
     testRequestButton();
     testLicenseChoices();
+    testCromcHeader();
 }

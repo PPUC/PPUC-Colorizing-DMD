@@ -24,6 +24,7 @@ add_library(colorizing_qt_v2_widgets STATIC
     ColorGridWidget.cpp
     ColorGridWidget.h
     dialogs/ColorPickerDialog.cpp
+    dialogs/CromcHeaderDialog.cpp
     dialogs/ColorPickerDialog.h
     dialogs/DmdOutputSettingsPage.cpp
     dialogs/DmdOutputSettingsPage.h

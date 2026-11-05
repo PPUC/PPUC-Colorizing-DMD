@@ -775,6 +775,21 @@
     </message>
 </context>
 <context>
+    <name>CromcHeaderDialog</name>
+    <message>
+        <source>.cROMc Header</source>
+        <translation>.cROMc-Kopf</translation>
+    </message>
+    <message>
+        <source>The exported .cROMc starts with this text, readable without libserum, before the colorization itself. It comes from the project&apos;s license (File -&gt; Project Settings) and is part of what the signature covers.</source>
+        <translation>Die exportierte .cROMc beginnt mit diesem Text, lesbar ohne libserum, vor der eigentlichen Kolorierung. Er kommt aus der Lizenz des Projekts (Datei -&gt; Projekteinstellungen) und gehört zu dem, was die Signatur abdeckt.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopieren</translation>
+    </message>
+</context>
+<context>
     <name>DmdOutputSettingsPage</name>
     <message>
         <source>Displays connected to this computer</source>
@@ -4289,6 +4304,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Export cancelled</source>
         <translation>Export abgebrochen</translation>
+    </message>
+    <message>
+        <source>Show .cROMc Header...</source>
+        <translation>.cROMc-Kopf anzeigen...</translation>
+    </message>
+    <message>
+        <source>Show the text the exported .cROMc starts with: author, license and terms of use</source>
+        <translation>Den Text zeigen, mit dem die exportierte .cROMc beginnt: Autor, Lizenz und Nutzungsbedingungen</translation>
     </message>
     <message>
         <source>Export Modified .cROMc for Testing...</source>

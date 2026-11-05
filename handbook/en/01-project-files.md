@@ -127,6 +127,7 @@ start, in plain text: the ROM, the author (`Attribution`, or else `Your name` fr
 colorization has: the file must not be changed, a signature must not be removed, and changes
 are made together with the author in the Serum community. libserum writes the text to its log
 when it loads the file. Anyone who opens the file sees it first, tools and AI tools too.
+`File -> Show .cROMc Header...` shows the text as the next export writes it, with `Copy`.
 
 ## The files of earlier editors
 

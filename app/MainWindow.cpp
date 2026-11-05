@@ -63,6 +63,7 @@
 #include "AppInfo.h"
 #include "AuthorName.h"
 #include "Signing.h"
+#include "dialogs/CromcHeaderDialog.h"
 #include "dialogs/SigningSettingsPage.h"
 #include "team/CertificateRequest.h"
 #include "ColorDrag.h"
@@ -728,6 +729,21 @@ void MainWindow::createActions()
            "made for libserum 2.9; one for 2.8 ships its .cRZ)"));
     connect(exportCromcAction, &QAction::triggered, this, [this]() {
         exportCromc();
+    });
+    QAction* cromcHeaderAction =
+        withShortcutId(fileMenu->addAction(tr("Show .cROMc Header...")), "show-cromc-header");
+    cromcHeaderAction->setToolTip(
+        tr("Show the text the exported .cROMc starts with: author, license and terms of use"));
+    connect(cromcHeaderAction, &QAction::triggered, this, [this]() {
+        if (!m_document) {
+            statusBar()->showMessage(tr("No project loaded"), 2500);
+            return;
+        }
+        CromcHeaderDialog dialog(CromcHeaderDialog::text(m_document->romName(),
+                                                         m_document->license(),
+                                                         loadAuthorName()),
+                                 this);
+        dialog.exec();
     });
     QAction* exportModifiedCromcAction = withShortcutId(
         fileMenu->addAction(tr("Export Modified .cROMc for Testing...")),
@@ -3886,7 +3902,7 @@ void MainWindow::exportCromc(bool modifiedForTesting)
     {
         document::ProjectSnapshot snapshot = m_document->toSnapshot();
         // The cROMc names the author (document::colorizationText()): the license's
-        // attribution, or else the name in Settings -> Projects.
+        // attribution, or else the name in Settings -> Projects, as CromcHeaderDialog shows it.
         if (snapshot.license.attribution.empty()) {
             snapshot.license.attribution = loadAuthorName().trimmed().toStdString();
         }
