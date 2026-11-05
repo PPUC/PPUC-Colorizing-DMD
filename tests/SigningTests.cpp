@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -194,6 +195,17 @@ void testSignedExport()
     expect(runtime::checkCromcSignature(unsignedFile).status ==
                runtime::SignatureCheck::Status::Unsigned,
            "is unsigned");
+    {
+        // The license and terms come first, readable as they are.
+        std::ifstream in(unsignedFile, std::ios::binary);
+        std::string head(400, '\0');
+        in.read(head.data(), static_cast<std::streamsize>(head.size()));
+        expect(head.compare(0, 4, "CROM") == 0 &&
+                   head.compare(10, 19, "Serum colorization\n") == 0 &&
+                   head.find("ROM: " + snapshot.romName + "\n") != std::string::npos &&
+                   head.find("License: ") != std::string::npos,
+               "the cROMc starts with the colorization's text");
+    }
 
     runtime::CromcSigning signing;
     signing.seed = kTestSeed;

@@ -26,7 +26,9 @@ static_assert(static_cast<std::size_t>(SERUM_BLOCK_COUNT) == legacy::kCromBlockC
 // payload. Neither copied nor moved: libserum calls back into it.
 class SnapshotSource {
 public:
-    explicit SnapshotSource(document::ProjectSnapshot snapshot)
+    // colorizationText: what the cROMc keeps readable (legacy::cromSettingsBlock()).
+    explicit SnapshotSource(document::ProjectSnapshot snapshot,
+                            const std::string* colorizationText = nullptr)
         : m_snapshot(withPlaceholders(std::move(snapshot)))
         , m_elements(m_snapshot)
     {
@@ -46,7 +48,8 @@ public:
         m_source.is256x64 = m_snapshot.geometry.original256x64Flag() ? 1 : 0;
         m_source.spritesPerFrame = static_cast<uint32_t>(document::kSpritesPerFrame);
         // The block without its magic and size.
-        const std::vector<uint8_t> block = legacy::cromSettingsBlock(m_snapshot);
+        const std::vector<uint8_t> block =
+            legacy::cromSettingsBlock(m_snapshot, colorizationText);
         if (block.size() > 8) {
             m_settings.assign(block.begin() + 8, block.end());
         }

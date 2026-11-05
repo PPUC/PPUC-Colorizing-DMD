@@ -14,6 +14,7 @@
 #include "edit/LicenseEdits.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "platform/Utf8Path.h"
+#include "project/ProjectFile.h"
 #include "ProjectTestFiles.h"
 
 namespace test_files = colorizing::test_files;
@@ -147,6 +148,82 @@ void testFiles()
     std::filesystem::remove(crpxPath);
 }
 
+bool contains(const std::string& text, const std::string& part)
+{
+    return text.find(part) != std::string::npos;
+}
+
+// The kinds the editor offers allow no changes; their terms say what the choices allow.
+void testTermsAndText()
+{
+    expect(!document::licenseAllowsChanges(LicenseKind::CcByNcNd) &&
+               !document::licenseAllowsChanges(LicenseKind::PpucColorization) &&
+               document::licenseAllowsChanges(LicenseKind::CcBySa),
+           "which kinds allow changes");
+    expect(document::licenseShortName(LicenseKind::CcByNcNd) == "CC BY-NC-ND 4.0" &&
+               document::licenseDeedUrl(LicenseKind::CcByNd) ==
+                   "https://creativecommons.org/licenses/by-nd/4.0/",
+           "the no-changes Creative Commons licenses");
+
+    ProjectLicense cc;
+    cc.kind = LicenseKind::CcByNcNd;
+    std::string terms;
+    for (const std::string& term : document::licenseTerms(cc)) {
+        terms += term + "\n";
+    }
+    expect(contains(terms, "not commercially") && !contains(terms, "CC+"),
+           "CC BY-NC-ND without the permission");
+    cc.commercialWithPpucDmd = true;
+    terms.clear();
+    for (const std::string& term : document::licenseTerms(cc)) {
+        terms += term + "\n";
+    }
+    expect(contains(terms, "Additional permission (CC+)") && contains(terms, "PPUC DMD") &&
+               contains(terms, "PIN2DMD"),
+           "and with the CC+ permission for a PPUC DMD");
+
+    ProjectLicense ppuc;
+    ppuc.kind = LicenseKind::PpucColorization;
+    ppuc.attribution = "Kraken";
+    ppuc.url = "https://example.org/colorization";
+    ppuc.realMachinesOnlyPpucDmd = true;
+    const std::string text = document::colorizationText("afm_113b", ppuc);
+    expect(text.rfind("Serum colorization\nROM: afm_113b\nAuthor: Kraken\n"
+                      "License: PPUC Colorization License 1.0\n",
+                      0) == 0,
+           "the text starts with its fields: " + text);
+    expect(contains(text, "Commercial use is not allowed.") &&
+               contains(text, "On a real pinball machine the colorization may be used only "
+                              "with a PPUC DMD") &&
+               contains(text, "Link: https://example.org/colorization"),
+           "the PPUC license's choices");
+    expect(contains(text, "Do not change this file") &&
+               contains(text, "do not remove or change its signature") &&
+               contains(text, "join the Serum community") && contains(text, "AI assistants"),
+           "the terms every cROMc carries");
+}
+
+// The project file keeps the new kinds and their choices.
+void testProjectFile()
+{
+    document::ProjectSnapshot snapshot =
+        document::ProjectDocument::fromSnapshot(
+            runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 1))
+            .toSnapshot();
+    snapshot.license.kind = LicenseKind::PpucColorization;
+    snapshot.license.commercialWithPpucDmd = true;
+    snapshot.license.realMachinesOnlyPpucDmd = true;
+    const std::filesystem::path path = tempPath(".cdmd");
+    const legacy::LegacySaveResult saved =
+        project::saveProjectFile(platform::utf8FromPath(path), snapshot, {"test"});
+    expect(saved.ok, "saved: " + saved.error.message);
+    const legacy::LegacyLoadResult loaded =
+        project::loadProjectFile(platform::utf8FromPath(path));
+    expect(loaded.ok && loaded.snapshot.license == snapshot.license,
+           "the PPUC license and its choices come back");
+    std::filesystem::remove(path);
+}
+
 }  // namespace
 
 void runLicenseTests()
@@ -154,4 +231,6 @@ void runLicenseTests()
     testNames();
     testDocumentAndUndo();
     testFiles();
+    testTermsAndText();
+    testProjectFile();
 }

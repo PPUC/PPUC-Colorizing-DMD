@@ -3884,7 +3884,12 @@ void MainWindow::exportCromc(bool modifiedForTesting)
         QStringLiteral("colorizingdmd_cromc_%1").arg(QCoreApplication::applicationPid()));
     runtime::CromcExportResult result;
     {
-        const document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        document::ProjectSnapshot snapshot = m_document->toSnapshot();
+        // The cROMc names the author (document::colorizationText()): the license's
+        // attribution, or else the name in Settings -> Projects.
+        if (snapshot.license.attribution.empty()) {
+            snapshot.license.attribution = loadAuthorName().trimmed().toStdString();
+        }
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
             runProjectTask(this, tr("Exporting .cROMc"), progress, [&]() {

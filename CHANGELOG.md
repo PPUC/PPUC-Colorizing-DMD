@@ -5,6 +5,17 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The license choice offers Creative Commons without changes (CC BY-ND, CC BY-NC-ND, with an
+  optional permission for commercial use with a PPUC DMD) and the PPUC Colorization License,
+  which can also limit use on real pinball machines to a PPUC DMD. No license lets others
+  change the colorization any more.
+- The exported `.cROMc` carries the author, the license and its terms readable at its start,
+  with the request not to change the file or remove its signature, and to work on changes
+  together with the author in the Serum community.
+- Built with libserum 2.99.15: an unsigned `.cROMc` of the current format loads 30 seconds
+  late on a machine (not in the editor), and `.cROMc` files of the development versions between
+  libserum 2.8.2 and now are not loaded any more; export them again.
+
 ## 3.99.30
 
 - `Help -> About` links to the repository under its new name, `PPUC/PPUC-Colorizing-DMD`.

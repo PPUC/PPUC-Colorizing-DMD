@@ -167,7 +167,13 @@ inline constexpr uint32_t kCromSettingsFrameTriggers = 64;
 inline constexpr uint32_t kCromSettingsSceneVariants = 128;
 inline constexpr uint32_t kCromSettingsSpriteOffsets = 256;
 inline constexpr uint32_t kCromSettingsNoticeFrame = 512;
-[[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
+// With colorizationText (document::colorizationText()), the block ends with it
+// (kCromSettingsColorizationText, libserum 2.99.15), which the cROMc keeps readable: what the
+// export gives libserum.
+inline constexpr uint32_t kCromSettingsColorizationText = 1024;
+[[nodiscard]] std::vector<uint8_t> cromSettingsBlock(
+    const document::ProjectSnapshot& snapshot,
+    const std::string* colorizationText = nullptr);
 
 // How many bytes writeLegacyCrom() writes for a valid snapshot, without writing them (for a
 // progress display).

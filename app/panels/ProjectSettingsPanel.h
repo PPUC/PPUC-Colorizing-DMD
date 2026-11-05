@@ -57,6 +57,12 @@ public:
     [[nodiscard]] QLineEdit* attributionEdit() const { return m_attributionEdit; }
     [[nodiscard]] QLineEdit* licenseUrlEdit() const { return m_licenseUrlEdit; }
     [[nodiscard]] QLabel* licenseLabel() const { return m_licenseLabel; }
+    [[nodiscard]] QCheckBox* commercialCheckBox() const { return m_commercialCheckBox; }
+    [[nodiscard]] QCheckBox* ppucCommercialCheckBox() const { return m_ppucCommercialCheckBox; }
+    [[nodiscard]] QCheckBox* ppucOnlyCheckBox() const { return m_ppucOnlyCheckBox; }
+    // The license box's entry for Creative Commons (CC BY-ND or BY-NC-ND, after
+    // commercialCheckBox()).
+    static constexpr int kCreativeCommonsChoice = 100;
 
 private:
     void updateLicenseLabel();
@@ -67,6 +73,9 @@ private:
     QComboBox* m_shadowComboBox = nullptr;
     QCheckBox* m_signCheckBox = nullptr;
     QComboBox* m_licenseComboBox = nullptr;
+    QCheckBox* m_commercialCheckBox = nullptr;
+    QCheckBox* m_ppucCommercialCheckBox = nullptr;
+    QCheckBox* m_ppucOnlyCheckBox = nullptr;
     QLabel* m_licenseLabel = nullptr;
     QPlainTextEdit* m_licenseTextEdit = nullptr;
     QLineEdit* m_attributionEdit = nullptr;

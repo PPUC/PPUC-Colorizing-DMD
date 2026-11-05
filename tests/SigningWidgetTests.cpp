@@ -5,6 +5,8 @@
 #include <string>
 
 #include <QCheckBox>
+#include <QComboBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -109,6 +111,50 @@ void testRequestButton()
            "the answer's certificate goes into the box");
 }
 
+// The license box offers Creative Commons without changes, its building blocks deciding the
+// kind, and the PPUC license with its choices; a kind that allows changes shows only for a
+// project that has it.
+void testLicenseChoices()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 1));
+    app::ProjectSettingsPanel panel;
+    panel.setProject(&document);
+    QComboBox* box = panel.licenseComboBox();
+    for (const document::LicenseKind kind :
+         {document::LicenseKind::Cc0, document::LicenseKind::CcBy,
+          document::LicenseKind::CcBySa, document::LicenseKind::CcByNc,
+          document::LicenseKind::CcByNcSa}) {
+        expect(box->findData(static_cast<int>(kind)) < 0, "no kind that allows changes");
+    }
+    box->setCurrentIndex(box->findData(app::ProjectSettingsPanel::kCreativeCommonsChoice));
+    expect(panel.license().kind == document::LicenseKind::CcByNcNd,
+           "Creative Commons without commercial use is BY-NC-ND");
+    panel.ppucCommercialCheckBox()->setChecked(true);
+    expect(panel.license().commercialWithPpucDmd, "with the CC+ permission for a PPUC DMD");
+    panel.commercialCheckBox()->setChecked(true);
+    expect(panel.license().kind == document::LicenseKind::CcByNd &&
+               !panel.license().commercialWithPpucDmd &&
+               !panel.ppucCommercialCheckBox()->isEnabled(),
+           "with commercial use BY-ND, which needs no permission");
+
+    box->setCurrentIndex(
+        box->findData(static_cast<int>(document::LicenseKind::PpucColorization)));
+    panel.ppucOnlyCheckBox()->setChecked(true);
+    const document::ProjectLicense ppuc = panel.license();
+    expect(ppuc.kind == document::LicenseKind::PpucColorization &&
+               ppuc.commercialWithPpucDmd && ppuc.realMachinesOnlyPpucDmd,
+           "the PPUC license with both choices");
+
+    document::ProjectLicense old;
+    old.kind = document::LicenseKind::CcBySa;
+    document.setLicense(old);
+    panel.setProject(&document);
+    expect(panel.license().kind == document::LicenseKind::CcBySa &&
+               panel.licenseLabel()->text().contains(QStringLiteral("choose another")),
+           "a project's old kind shows, with the advice to change it");
+}
+
 }  // namespace
 
 void runSigningWidgetTests()
@@ -116,4 +162,5 @@ void runSigningWidgetTests()
     testSigningPage();
     testProjectChoice();
     testRequestButton();
+    testLicenseChoices();
 }

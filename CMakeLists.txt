@@ -53,6 +53,9 @@ function(colorizing_qt_v2_add_libserum)
     set(BUILD_SHARED OFF)
     set(BUILD_STATIC ON)
     set(ENABLE_SANITIZERS OFF)
+    # The editor, its frame tester and its tests load the cROMc files they make themselves,
+    # signed or not: without the delay libserum gives an unsigned one on a machine.
+    set(SERUM_UNSIGNED_LOAD_DELAY_MS 0)
     if(WIN32)
         if(MINGW)
             set(PLATFORM "win-mingw")

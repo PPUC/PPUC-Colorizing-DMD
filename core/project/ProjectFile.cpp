@@ -218,8 +218,10 @@ std::string layoutName(render::PlaneLayout layout)
 constexpr const char* kLibserumTargetName = "2.9";
 
 constexpr std::array<const char*, document::kLastLicenseKind + 1> kLicenseNames = {
-    "unspecified", "all-rights-reserved", "cc0-1.0",  "cc-by-4.0",
-    "cc-by-sa-4.0", "cc-by-nc-4.0",       "cc-by-nc-sa-4.0", "custom",
+    "unspecified",     "all-rights-reserved", "cc0-1.0",
+    "cc-by-4.0",       "cc-by-sa-4.0",        "cc-by-nc-4.0",
+    "cc-by-nc-sa-4.0", "custom",              "cc-by-nd-4.0",
+    "cc-by-nc-nd-4.0", "ppuc-colorization-1.0",
 };
 
 // Index of a component by its position, and the UUIDs of each kind, for the references.
@@ -493,6 +495,12 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
     license.set("text", snapshot.license.customText);
     license.set("attribution", snapshot.license.attribution);
     license.set("url", snapshot.license.url);
+    if (snapshot.license.commercialWithPpucDmd) {
+        license.set("commercialWithPpucDmd", true);
+    }
+    if (snapshot.license.realMachinesOnlyPpucDmd) {
+        license.set("realMachinesOnlyPpucDmd", true);
+    }
     manifest.set("license", std::move(license));
     if (snapshot.colorizationSettings) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -1493,6 +1501,9 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
         snapshot.license.customText = license.string("text", "");
         snapshot.license.attribution = license.string("attribution", "");
         snapshot.license.url = license.string("url", "");
+        snapshot.license.commercialWithPpucDmd = license.boolean("commercialWithPpucDmd", false);
+        snapshot.license.realMachinesOnlyPpucDmd =
+            license.boolean("realMachinesOnlyPpucDmd", false);
     }
     if (manifest.has("colorization")) {
         const JsonObjectReader colorization = manifest.object("colorization");
@@ -2225,6 +2236,12 @@ std::string settingsContent(const ProjectSnapshot& snapshot)
     license.set("text", snapshot.license.customText);
     license.set("attribution", snapshot.license.attribution);
     license.set("url", snapshot.license.url);
+    if (snapshot.license.commercialWithPpucDmd) {
+        license.set("commercialWithPpucDmd", true);
+    }
+    if (snapshot.license.realMachinesOnlyPpucDmd) {
+        license.set("realMachinesOnlyPpucDmd", true);
+    }
     root.set("license", std::move(license));
     // As it always was for a project for libserum 2.9, so that a team project's settings stay
     // the same.

@@ -92,24 +92,41 @@ It also carries structured background data from `.cROM`:
 ## License
 
 `File -> Project Settings...` has a `License` for the colorization: what others may do with it.
-A project starts without one (`Not chosen`).
+A project starts without one (`Not chosen`). None of the licenses the editor offers lets others
+change the colorization: who wants to change or correct it is asked to work on it together
+with you in the Serum community.
 
 | License | Others may |
 | --- | --- |
-| All rights reserved | play it, but not share or change it without your permission |
-| CC0 1.0 | use it for anything, without naming you |
-| CC BY 4.0 | share and change it, also commercially, naming you |
-| CC BY-SA 4.0 | as CC BY, with changed versions under the same license |
-| CC BY-NC 4.0 | share and change it, not commercially, naming you |
-| CC BY-NC-SA 4.0 | as CC BY-NC, with changed versions under the same license |
+| All rights reserved | play it, but not share it without your permission |
+| Creative Commons, no changes | share it unchanged, naming you: CC BY-NC-ND 4.0, or CC BY-ND 4.0 with `Allow commercial use` |
+| PPUC Colorization License | use and share it unchanged, naming you, as the choices below say |
 | Custom | what your own text says, written in the box that appears |
+
+The choices below the box:
+
+- `Allow commercial use` (Creative Commons): CC BY-ND 4.0 instead of CC BY-NC-ND 4.0.
+- `Allow commercial use on a real pinball machine with a PPUC DMD` (CC BY-NC-ND and the PPUC
+  license): commercial use only with a PPUC DMD (see [ppuc.org](https://ppuc.org)), not with
+  any other display, for example PIN2DMD or PIN2DMD MMI. With Creative Commons it is an
+  additional permission ("CC+"): a Creative Commons license itself cannot forbid anything more.
+- `On real pinball machines, only with a PPUC DMD, also when not commercial` (PPUC license):
+  on a real pinball machine the colorization may be used with a PPUC DMD only. Virtual pinball
+  is not affected. This is why the PPUC license exists: Creative Commons cannot say it.
+
+A project with one of the earlier Creative Commons licenses that allow changes (CC0, BY, BY-SA,
+BY-NC, BY-NC-SA) keeps it and shows it as no longer offered until another is chosen.
 
 The Creative Commons licenses link their full text (the "deed") below the box. `Attribution`
 says who is to be named, for example the authors; `Link` where the colorization or its license
 can be found. Changing the license is one undo step, together with the other project settings.
 
-The license is stored in the project file. The `.cROMc` does not carry it yet, so a machine
-does not see it.
+The license is stored in the project file, and the exported `.cROMc` carries it readable at its
+start, in plain text: the ROM, the author (`Attribution`, or else `Your name` from
+`Settings -> Projects`), the license with its address and terms, and the terms every
+colorization has: the file must not be changed, a signature must not be removed, and changes
+are made together with the author in the Serum community. libserum writes the text to its log
+when it loads the file. Anyone who opens the file sees it first, tools and AI tools too.
 
 ## The files of earlier editors
 

@@ -690,7 +690,8 @@ uint64_t legacyCromByteCount(const document::ProjectSnapshot& snapshot)
            backgrounds * perBackground + cromSettingsBlock(snapshot).size();
 }
 
-std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot)
+std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot,
+                                       const std::string* colorizationText)
 {
     std::vector<uint8_t> block;
     const document::SpeakerLightSettings& lights = snapshot.speakerLights;
@@ -764,7 +765,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         }
     }
     if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets &&
-        !withDofEvents && !withTriggers && !withSpriteOffsets && !noticeFrame) {
+        !withDofEvents && !withTriggers && !withSpriteOffsets && !noticeFrame &&
+        !colorizationText) {
         return block;
     }
     const auto put = [&block](uint64_t value, std::size_t bytes) {
@@ -794,7 +796,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             (withTriggers ? kCromSettingsFrameTriggers : 0) |
             (withVariants ? kCromSettingsSceneVariants : 0) |
             (withSpriteOffsets ? kCromSettingsSpriteOffsets : 0) |
-            (noticeFrame ? kCromSettingsNoticeFrame : 0),
+            (noticeFrame ? kCromSettingsNoticeFrame : 0) |
+            (colorizationText ? kCromSettingsColorizationText : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -935,6 +938,10 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         for (std::size_t i = 0; i < original.pixelCount(); ++i) {
             block.push_back(original.pixels[i]);
         }
+    }
+    if (colorizationText) {
+        put(colorizationText->size(), 4);
+        block.insert(block.end(), colorizationText->begin(), colorizationText->end());
     }
     const uint64_t payload = block.size() - 8;
     for (std::size_t i = 0; i < 4; ++i) {

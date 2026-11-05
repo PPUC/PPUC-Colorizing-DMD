@@ -7313,12 +7313,20 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Tous droits réservés</translation>
     </message>
     <message>
+        <source>Creative Commons, no changes</source>
+        <translation>Creative Commons, sans modification</translation>
+    </message>
+    <message>
+        <source>PPUC Colorization License</source>
+        <translation>Licence de colorisation PPUC</translation>
+    </message>
+    <message>
         <source>Custom</source>
         <translation>Personnalisée</translation>
     </message>
     <message>
         <source>What others may do with the colorization: share it, change it, use it commercially. Saved with the project.</source>
-        <translation>Ce que d&apos;autres peuvent faire de la colorisation : la partager, la modifier, l&apos;utiliser commercialement. Enregistrée avec le projet.</translation>
+        <translation type="vanished">Ce que d&apos;autres peuvent faire de la colorisation : la partager, la modifier, l&apos;utiliser commercialement. Enregistrée avec le projet.</translation>
     </message>
     <message>
         <source>The terms of the license</source>
@@ -7339,6 +7347,34 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Made for</source>
         <translation type="vanished">Faite pour</translation>
+    </message>
+    <message>
+        <source>What others may do with the colorization: share it, use it commercially, on which displays. Nobody may change it. Saved with the project and written into the .cROMc.</source>
+        <translation>Ce que les autres peuvent faire de la colorisation : la partager, l’utiliser commercialement, avec quels écrans. Personne ne peut la modifier. Enregistré avec le projet et écrit dans le .cROMc.</translation>
+    </message>
+    <message>
+        <source>Allow commercial use</source>
+        <translation>Autoriser l’utilisation commerciale</translation>
+    </message>
+    <message>
+        <source>CC BY-ND instead of CC BY-NC-ND</source>
+        <translation>CC BY-ND au lieu de CC BY-NC-ND</translation>
+    </message>
+    <message>
+        <source>Allow commercial use on a real pinball machine with a PPUC DMD</source>
+        <translation>Autoriser l’utilisation commerciale sur un vrai flipper avec un PPUC DMD</translation>
+    </message>
+    <message>
+        <source>Commercial use only with a PPUC DMD (ppuc.org), not with any other display such as PIN2DMD or PIN2DMD MMI. With Creative Commons this is an additional permission (CC+).</source>
+        <translation>Utilisation commerciale uniquement avec un PPUC DMD (ppuc.org), pas avec un autre écran comme PIN2DMD ou PIN2DMD MMI. Avec Creative Commons, c’est une autorisation supplémentaire (CC+).</translation>
+    </message>
+    <message>
+        <source>On real pinball machines, only with a PPUC DMD, also when not commercial</source>
+        <translation>Sur les vrais flippers, uniquement avec un PPUC DMD, même sans usage commercial</translation>
+    </message>
+    <message>
+        <source>No other DMD on a real pinball machine, such as PIN2DMD or PIN2DMD MMI. Virtual pinball is not affected.</source>
+        <translation>Aucun autre DMD sur un vrai flipper, comme PIN2DMD ou PIN2DMD MMI. Le flipper virtuel n’est pas concerné.</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -7377,6 +7413,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Lien</translation>
     </message>
     <message>
+        <source>%1 (allows changes, no longer offered)</source>
+        <translation>%1 (autorise les modifications, n’est plus proposée)</translation>
+    </message>
+    <message>
         <source>Without a license, others cannot tell what they may do with the colorization.</source>
         <translation>Sans licence, les autres ne savent pas ce qu&apos;ils peuvent faire de la colorisation.</translation>
     </message>
@@ -7389,24 +7429,56 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Les conditions sont votre propre texte, ci-dessous.</translation>
     </message>
     <message>
+        <source>CC BY-ND 4.0: anyone may share it unchanged, also commercially, naming you. Nobody may change it.</source>
+        <translation>CC BY-ND 4.0 : chacun peut la partager sans modification, même commercialement, en vous citant. Personne ne peut la modifier.</translation>
+    </message>
+    <message>
+        <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you; commercial use is allowed on a real pinball machine with a PPUC DMD only. Nobody may change it.</source>
+        <translation>CC BY-NC-ND 4.0 : chacun peut la partager sans modification, non commercialement, en vous citant ; l’utilisation commerciale n’est autorisée que sur un vrai flipper avec un PPUC DMD. Personne ne peut la modifier.</translation>
+    </message>
+    <message>
+        <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you. Nobody may change it.</source>
+        <translation>CC BY-NC-ND 4.0 : chacun peut la partager sans modification, non commercialement, en vous citant. Personne ne peut la modifier.</translation>
+    </message>
+    <message>
+        <source>Anyone may use and share it unchanged, naming you. Nobody may change it.</source>
+        <translation>Chacun peut l’utiliser et la partager sans modification, en vous citant. Personne ne peut la modifier.</translation>
+    </message>
+    <message>
+        <source>Commercial use only on a real pinball machine with a PPUC DMD.</source>
+        <translation>Utilisation commerciale uniquement sur un vrai flipper avec un PPUC DMD.</translation>
+    </message>
+    <message>
+        <source>No commercial use.</source>
+        <translation>Pas d’utilisation commerciale.</translation>
+    </message>
+    <message>
+        <source>On real pinball machines only with a PPUC DMD.</source>
+        <translation>Sur les vrais flippers, uniquement avec un PPUC DMD.</translation>
+    </message>
+    <message>
+        <source>This license lets others change the colorization, which the editor no longer offers: choose another one.</source>
+        <translation>Cette licence permet à d’autres de modifier la colorisation, ce que l’éditeur ne propose plus : choisissez-en une autre.</translation>
+    </message>
+    <message>
         <source>Anyone may use it for anything, without naming you.</source>
-        <translation>Chacun peut l&apos;utiliser pour tout, sans vous citer.</translation>
+        <translation type="vanished">Chacun peut l&apos;utiliser pour tout, sans vous citer.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, also commercially, naming you.</source>
-        <translation>Chacun peut la partager et la modifier, y compris commercialement, en vous citant.</translation>
+        <translation type="vanished">Chacun peut la partager et la modifier, y compris commercialement, en vous citant.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, also commercially, naming you; changed versions under the same license.</source>
-        <translation>Chacun peut la partager et la modifier, y compris commercialement, en vous citant ; les versions modifiées sous la même licence.</translation>
+        <translation type="vanished">Chacun peut la partager et la modifier, y compris commercialement, en vous citant ; les versions modifiées sous la même licence.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, not commercially, naming you.</source>
-        <translation>Chacun peut la partager et la modifier, sans usage commercial, en vous citant.</translation>
+        <translation type="vanished">Chacun peut la partager et la modifier, sans usage commercial, en vous citant.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, not commercially, naming you; changed versions under the same license.</source>
-        <translation>Chacun peut la partager et la modifier, sans usage commercial, en vous citant ; les versions modifiées sous la même licence.</translation>
+        <translation type="vanished">Chacun peut la partager et la modifier, sans usage commercial, en vous citant ; les versions modifiées sous la même licence.</translation>
     </message>
     <message>
         <source>The license</source>

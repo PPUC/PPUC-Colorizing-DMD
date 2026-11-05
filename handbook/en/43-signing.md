@@ -4,7 +4,8 @@ The editor signs the `.cROMc` it exports with your signing key. libserum checks 
 when it loads the file, without going online:
 
 - **Signed**: the file is the one you released. libserum's log names you.
-- **Not signed**: nothing is shown; libserum's log says that the file is not signed.
+- **Not signed**: nothing is shown; libserum's log says that the file is not signed, and the
+  file takes 30 seconds longer to load on a machine (not in the editor).
 - **Modified**: someone changed the file after you signed it. libserum still loads and plays it,
   but shows the **signing notice** on the DMD for the first 10 seconds and then for 5 seconds
   every 5 to 10 minutes.

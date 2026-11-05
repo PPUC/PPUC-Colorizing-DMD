@@ -208,7 +208,9 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
     bool written = false;
     std::string sourceError;
     {
-        SnapshotSource source(std::move(exported));
+        const std::string text =
+            document::colorizationText(exported.romName, exported.license);
+        SnapshotSource source(std::move(exported), &text);
         const std::optional<std::string> path = libserumPath(*work);
         Serum_Signing_Key key{};
         const bool withKey = signing.seed && !signing.certificate.empty();

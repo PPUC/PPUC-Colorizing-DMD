@@ -29,21 +29,38 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     m_shadowComboBox->addItem(tr("2 pixels (proportional)"),
                               document::kShadowOffsetProportional);
     m_shadowComboBox->setToolTip(tr("How far a dynamic shadow falls on the 256x64 plane"));
+    // The licenses the editor offers: none lets others change the colorization. Creative
+    // Commons is one entry, its kind follows from the building blocks below it.
     m_licenseComboBox = new QComboBox(this);
     m_licenseComboBox->addItem(tr("Not chosen"),
                                static_cast<int>(document::LicenseKind::Unspecified));
     m_licenseComboBox->addItem(tr("All rights reserved"),
                                static_cast<int>(document::LicenseKind::AllRightsReserved));
-    for (const document::LicenseKind kind :
-         {document::LicenseKind::Cc0, document::LicenseKind::CcBy, document::LicenseKind::CcBySa,
-          document::LicenseKind::CcByNc, document::LicenseKind::CcByNcSa}) {
-        m_licenseComboBox->addItem(QString::fromStdString(document::licenseShortName(kind)),
-                                   static_cast<int>(kind));
-    }
+    m_licenseComboBox->addItem(tr("Creative Commons, no changes"), kCreativeCommonsChoice);
+    m_licenseComboBox->addItem(
+        tr("PPUC Colorization License"),
+        static_cast<int>(document::LicenseKind::PpucColorization));
     m_licenseComboBox->addItem(tr("Custom"), static_cast<int>(document::LicenseKind::Custom));
     m_licenseComboBox->setToolTip(
-        tr("What others may do with the colorization: share it, change it, use it "
-           "commercially. Saved with the project."));
+        tr("What others may do with the colorization: share it, use it commercially, on which "
+           "displays. Nobody may change it. Saved with the project and written into the "
+           ".cROMc."));
+    m_commercialCheckBox = new QCheckBox(tr("Allow commercial use"), this);
+    m_commercialCheckBox->setToolTip(tr("CC BY-ND instead of CC BY-NC-ND"));
+    m_ppucCommercialCheckBox =
+        new QCheckBox(tr("Allow commercial use on a real pinball machine with a PPUC DMD"), this);
+    m_ppucCommercialCheckBox->setToolTip(
+        tr("Commercial use only with a PPUC DMD (ppuc.org), not with any other display such as "
+           "PIN2DMD or PIN2DMD MMI. With Creative Commons this is an additional permission "
+           "(CC+)."));
+    m_ppucOnlyCheckBox = new QCheckBox(
+        tr("On real pinball machines, only with a PPUC DMD, also when not commercial"), this);
+    m_ppucOnlyCheckBox->setToolTip(
+        tr("No other DMD on a real pinball machine, such as PIN2DMD or PIN2DMD MMI. Virtual "
+           "pinball is not affected."));
+    for (QCheckBox* box : {m_commercialCheckBox, m_ppucCommercialCheckBox, m_ppucOnlyCheckBox}) {
+        connect(box, &QCheckBox::toggled, this, [this](bool) { updateLicenseLabel(); });
+    }
     m_licenseLabel = new QLabel(this);
     m_licenseLabel->setWordWrap(true);
     m_licenseLabel->setOpenExternalLinks(true);
@@ -81,6 +98,9 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
         layout->addRow(tr("Speaker light %1").arg(channel + 1), m_lightDefaults[channel]);
     }
     layout->addRow(tr("License"), m_licenseComboBox);
+    layout->addRow(QString(), m_commercialCheckBox);
+    layout->addRow(QString(), m_ppucCommercialCheckBox);
+    layout->addRow(QString(), m_ppucOnlyCheckBox);
     layout->addRow(m_licenseLabel);
     layout->addRow(m_licenseTextEdit);
     layout->addRow(tr("Attribution"), m_attributionEdit);
@@ -128,15 +148,36 @@ void ProjectSettingsPanel::setProject(const document::ProjectDocument* document)
     const document::ProjectLicense license =
         document ? document->license() : document::ProjectLicense{};
     m_filling = true;
-    m_licenseComboBox->setCurrentIndex(
-        std::max(0, m_licenseComboBox->findData(static_cast<int>(license.kind))));
+    // A kind that lets others change the colorization is no longer offered; a project that
+    // has one shows it until another is chosen.
+    for (int i = m_licenseComboBox->count() - 1; i >= 0; --i) {
+        if (document::licenseAllowsChanges(
+                static_cast<document::LicenseKind>(m_licenseComboBox->itemData(i).toInt()))) {
+            m_licenseComboBox->removeItem(i);
+        }
+    }
+    if (document::licenseAllowsChanges(license.kind)) {
+        m_licenseComboBox->addItem(
+            tr("%1 (allows changes, no longer offered)")
+                .arg(QString::fromStdString(document::licenseShortName(license.kind))),
+            static_cast<int>(license.kind));
+    }
+    const bool creativeCommons = license.kind == document::LicenseKind::CcByNd ||
+                                 license.kind == document::LicenseKind::CcByNcNd;
+    m_licenseComboBox->setCurrentIndex(std::max(
+        0, m_licenseComboBox->findData(creativeCommons ? kCreativeCommonsChoice
+                                                       : static_cast<int>(license.kind))));
+    m_commercialCheckBox->setChecked(license.kind == document::LicenseKind::CcByNd);
+    m_ppucCommercialCheckBox->setChecked(license.commercialWithPpucDmd);
+    m_ppucOnlyCheckBox->setChecked(license.realMachinesOnlyPpucDmd);
     m_filling = false;
     m_licenseTextEdit->setPlainText(QString::fromStdString(license.customText));
     m_attributionEdit->setText(QString::fromStdString(license.attribution));
     m_licenseUrlEdit->setText(QString::fromStdString(license.url));
     updateLicenseLabel();
     for (QWidget* widget : std::initializer_list<QWidget*>{
-             m_licenseComboBox, m_licenseTextEdit, m_attributionEdit, m_licenseUrlEdit}) {
+             m_licenseComboBox, m_licenseTextEdit, m_attributionEdit, m_licenseUrlEdit,
+             m_commercialCheckBox, m_ppucCommercialCheckBox, m_ppucOnlyCheckBox}) {
         widget->setEnabled(document != nullptr);
     }
     m_scalingComboBox->setEnabled(document != nullptr);
@@ -170,7 +211,20 @@ bool ProjectSettingsPanel::signCromc() const
 document::ProjectLicense ProjectSettingsPanel::license() const
 {
     document::ProjectLicense license;
-    license.kind = static_cast<document::LicenseKind>(m_licenseComboBox->currentData().toInt());
+    const int choice = m_licenseComboBox->currentData().toInt();
+    if (choice == kCreativeCommonsChoice) {
+        license.kind = m_commercialCheckBox->isChecked() ? document::LicenseKind::CcByNd
+                                                         : document::LicenseKind::CcByNcNd;
+    } else {
+        license.kind = static_cast<document::LicenseKind>(choice);
+    }
+    // Only where the license has the choice.
+    license.commercialWithPpucDmd =
+        m_ppucCommercialCheckBox->isChecked() &&
+        (license.kind == document::LicenseKind::CcByNcNd ||
+         license.kind == document::LicenseKind::PpucColorization);
+    license.realMachinesOnlyPpucDmd = m_ppucOnlyCheckBox->isChecked() &&
+                                      license.kind == document::LicenseKind::PpucColorization;
     license.customText = m_licenseTextEdit->toPlainText().toStdString();
     license.attribution = m_attributionEdit->text().trimmed().toStdString();
     license.url = m_licenseUrlEdit->text().trimmed().toStdString();
@@ -179,7 +233,15 @@ document::ProjectLicense ProjectSettingsPanel::license() const
 
 void ProjectSettingsPanel::updateLicenseLabel()
 {
-    const auto kind = static_cast<document::LicenseKind>(m_licenseComboBox->currentData().toInt());
+    const document::ProjectLicense chosen = license();
+    const document::LicenseKind kind = chosen.kind;
+    const bool creativeCommons = m_licenseComboBox->currentData().toInt() == kCreativeCommonsChoice;
+    const bool ppuc = kind == document::LicenseKind::PpucColorization;
+    m_commercialCheckBox->setVisible(creativeCommons);
+    m_ppucCommercialCheckBox->setVisible(creativeCommons || ppuc);
+    m_ppucCommercialCheckBox->setEnabled(m_licenseComboBox->isEnabled() &&
+                                         (ppuc || !m_commercialCheckBox->isChecked()));
+    m_ppucOnlyCheckBox->setVisible(ppuc);
     const QString deed = QString::fromStdString(document::licenseDeedUrl(kind));
     QString text;
     switch (kind) {
@@ -194,27 +256,41 @@ void ProjectSettingsPanel::updateLicenseLabel()
     case document::LicenseKind::Custom:
         text = tr("The terms are your own text, below.");
         break;
+    case document::LicenseKind::CcByNd:
+        text = tr("CC BY-ND 4.0: anyone may share it unchanged, also commercially, naming "
+                  "you. Nobody may change it.");
+        break;
+    case document::LicenseKind::CcByNcNd:
+        text = chosen.commercialWithPpucDmd
+                   ? tr("CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, "
+                        "naming you; commercial use is allowed on a real pinball machine with a "
+                        "PPUC DMD only. Nobody may change it.")
+                   : tr("CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, "
+                        "naming you. Nobody may change it.");
+        break;
+    case document::LicenseKind::PpucColorization:
+        text = tr("Anyone may use and share it unchanged, naming you. Nobody may change it.");
+        text += QLatin1Char(' ') +
+                (chosen.commercialWithPpucDmd
+                     ? tr("Commercial use only on a real pinball machine with a PPUC DMD.")
+                     : tr("No commercial use."));
+        if (chosen.realMachinesOnlyPpucDmd) {
+            text += QLatin1Char(' ') + tr("On real pinball machines only with a PPUC DMD.");
+        }
+        break;
     case document::LicenseKind::Cc0:
-        text = tr("Anyone may use it for anything, without naming you.");
-        break;
     case document::LicenseKind::CcBy:
-        text = tr("Anyone may share and change it, also commercially, naming you.");
-        break;
     case document::LicenseKind::CcBySa:
-        text = tr("Anyone may share and change it, also commercially, naming you; changed "
-                  "versions under the same license.");
-        break;
     case document::LicenseKind::CcByNc:
-        text = tr("Anyone may share and change it, not commercially, naming you.");
-        break;
     case document::LicenseKind::CcByNcSa:
-        text = tr("Anyone may share and change it, not commercially, naming you; changed "
-                  "versions under the same license.");
+        text = tr("This license lets others change the colorization, which the editor no "
+                  "longer offers: choose another one.");
         break;
     }
     text = text.toHtmlEscaped();
     if (!deed.isEmpty()) {
-        text += QStringLiteral(" <a href=\"%1\">%2</a>").arg(deed, tr("The license"));
+        text += QStringLiteral(" <a href=\"%1\">%2</a>")
+                    .arg(deed, ppuc ? QStringLiteral("ppuc.org") : tr("The license"));
     }
     m_licenseLabel->setText(text);
     m_licenseTextEdit->setVisible(kind == document::LicenseKind::Custom);

@@ -7313,12 +7313,20 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Alle Rechte vorbehalten</translation>
     </message>
     <message>
+        <source>Creative Commons, no changes</source>
+        <translation>Creative Commons, keine Änderungen</translation>
+    </message>
+    <message>
+        <source>PPUC Colorization License</source>
+        <translation>PPUC-Kolorierungslizenz</translation>
+    </message>
+    <message>
         <source>Custom</source>
         <translation>Eigene</translation>
     </message>
     <message>
         <source>What others may do with the colorization: share it, change it, use it commercially. Saved with the project.</source>
-        <translation>Was andere mit der Kolorierung tun dürfen: sie weitergeben, ändern, kommerziell nutzen. Wird mit dem Projekt gespeichert.</translation>
+        <translation type="vanished">Was andere mit der Kolorierung tun dürfen: sie weitergeben, ändern, kommerziell nutzen. Wird mit dem Projekt gespeichert.</translation>
     </message>
     <message>
         <source>The terms of the license</source>
@@ -7341,6 +7349,34 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation type="vanished">Gemacht für</translation>
     </message>
     <message>
+        <source>What others may do with the colorization: share it, use it commercially, on which displays. Nobody may change it. Saved with the project and written into the .cROMc.</source>
+        <translation>Was andere mit der Kolorierung tun dürfen: sie weitergeben, kommerziell nutzen, mit welchen Displays. Ändern darf sie niemand. Wird mit dem Projekt gespeichert und in die .cROMc geschrieben.</translation>
+    </message>
+    <message>
+        <source>Allow commercial use</source>
+        <translation>Kommerzielle Nutzung erlauben</translation>
+    </message>
+    <message>
+        <source>CC BY-ND instead of CC BY-NC-ND</source>
+        <translation>CC BY-ND statt CC BY-NC-ND</translation>
+    </message>
+    <message>
+        <source>Allow commercial use on a real pinball machine with a PPUC DMD</source>
+        <translation>Kommerzielle Nutzung an einem echten Flipper mit einem PPUC DMD erlauben</translation>
+    </message>
+    <message>
+        <source>Commercial use only with a PPUC DMD (ppuc.org), not with any other display such as PIN2DMD or PIN2DMD MMI. With Creative Commons this is an additional permission (CC+).</source>
+        <translation>Kommerzielle Nutzung nur mit einem PPUC DMD (ppuc.org), nicht mit einem anderen Display wie PIN2DMD oder PIN2DMD MMI. Bei Creative Commons ist das eine zusätzliche Erlaubnis (CC+).</translation>
+    </message>
+    <message>
+        <source>On real pinball machines, only with a PPUC DMD, also when not commercial</source>
+        <translation>An echten Flippern nur mit einem PPUC DMD, auch nicht kommerziell</translation>
+    </message>
+    <message>
+        <source>No other DMD on a real pinball machine, such as PIN2DMD or PIN2DMD MMI. Virtual pinball is not affected.</source>
+        <translation>Kein anderes DMD an einem echten Flipper, etwa PIN2DMD oder PIN2DMD MMI. Virtueller Flipper ist nicht betroffen.</translation>
+    </message>
+    <message>
         <source>Upscaling</source>
         <translation>Hochskalierung</translation>
     </message>
@@ -7354,7 +7390,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Signs the .cROMc with your signing key (Settings, Signing), so that libserum shows players the signing notice when someone changes the file</source>
-        <translation>Signiert die .cROMc mit deinem Signaturschlüssel (Einstellungen, Signieren), damit libserum Spielern den Signaturhinweis zeigt, wenn jemand die Datei ändert</translation>
+        <translation>Signiert die .cROMc mit Ihrem Signaturschlüssel (Einstellungen, Signieren), damit libserum Spielern den Signaturhinweis zeigt, wenn jemand die Datei ändert</translation>
     </message>
     <message>
         <source>What speaker light channel %1 shows while no frame has started anything, and after an effect with a duration</source>
@@ -7377,6 +7413,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Link</translation>
     </message>
     <message>
+        <source>%1 (allows changes, no longer offered)</source>
+        <translation>%1 (erlaubt Änderungen, nicht mehr angeboten)</translation>
+    </message>
+    <message>
         <source>Without a license, others cannot tell what they may do with the colorization.</source>
         <translation>Ohne Lizenz wissen andere nicht, was sie mit der Kolorierung tun dürfen.</translation>
     </message>
@@ -7389,24 +7429,56 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Die Bedingungen sind Ihr eigener Text, unten.</translation>
     </message>
     <message>
+        <source>CC BY-ND 4.0: anyone may share it unchanged, also commercially, naming you. Nobody may change it.</source>
+        <translation>CC BY-ND 4.0: jeder darf sie unverändert weitergeben, auch kommerziell, unter Nennung Ihres Namens. Ändern darf sie niemand.</translation>
+    </message>
+    <message>
+        <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you; commercial use is allowed on a real pinball machine with a PPUC DMD only. Nobody may change it.</source>
+        <translation>CC BY-NC-ND 4.0: jeder darf sie unverändert weitergeben, nicht kommerziell, unter Nennung Ihres Namens; kommerzielle Nutzung ist nur an einem echten Flipper mit einem PPUC DMD erlaubt. Ändern darf sie niemand.</translation>
+    </message>
+    <message>
+        <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you. Nobody may change it.</source>
+        <translation>CC BY-NC-ND 4.0: jeder darf sie unverändert weitergeben, nicht kommerziell, unter Nennung Ihres Namens. Ändern darf sie niemand.</translation>
+    </message>
+    <message>
+        <source>Anyone may use and share it unchanged, naming you. Nobody may change it.</source>
+        <translation>Jeder darf sie unverändert nutzen und weitergeben, unter Nennung Ihres Namens. Ändern darf sie niemand.</translation>
+    </message>
+    <message>
+        <source>Commercial use only on a real pinball machine with a PPUC DMD.</source>
+        <translation>Kommerzielle Nutzung nur an einem echten Flipper mit einem PPUC DMD.</translation>
+    </message>
+    <message>
+        <source>No commercial use.</source>
+        <translation>Keine kommerzielle Nutzung.</translation>
+    </message>
+    <message>
+        <source>On real pinball machines only with a PPUC DMD.</source>
+        <translation>An echten Flippern nur mit einem PPUC DMD.</translation>
+    </message>
+    <message>
+        <source>This license lets others change the colorization, which the editor no longer offers: choose another one.</source>
+        <translation>Diese Lizenz erlaubt anderen, die Kolorierung zu ändern, was der Editor nicht mehr anbietet: Wählen Sie eine andere.</translation>
+    </message>
+    <message>
         <source>Anyone may use it for anything, without naming you.</source>
-        <translation>Jeder darf sie für alles verwenden, ohne Sie zu nennen.</translation>
+        <translation type="vanished">Jeder darf sie für alles verwenden, ohne Sie zu nennen.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, also commercially, naming you.</source>
-        <translation>Jeder darf sie weitergeben und ändern, auch kommerziell, unter Nennung Ihres Namens.</translation>
+        <translation type="vanished">Jeder darf sie weitergeben und ändern, auch kommerziell, unter Nennung Ihres Namens.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, also commercially, naming you; changed versions under the same license.</source>
-        <translation>Jeder darf sie weitergeben und ändern, auch kommerziell, unter Nennung Ihres Namens; geänderte Fassungen unter derselben Lizenz.</translation>
+        <translation type="vanished">Jeder darf sie weitergeben und ändern, auch kommerziell, unter Nennung Ihres Namens; geänderte Fassungen unter derselben Lizenz.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, not commercially, naming you.</source>
-        <translation>Jeder darf sie weitergeben und ändern, nicht kommerziell, unter Nennung Ihres Namens.</translation>
+        <translation type="vanished">Jeder darf sie weitergeben und ändern, nicht kommerziell, unter Nennung Ihres Namens.</translation>
     </message>
     <message>
         <source>Anyone may share and change it, not commercially, naming you; changed versions under the same license.</source>
-        <translation>Jeder darf sie weitergeben und ändern, nicht kommerziell, unter Nennung Ihres Namens; geänderte Fassungen unter derselben Lizenz.</translation>
+        <translation type="vanished">Jeder darf sie weitergeben und ändern, nicht kommerziell, unter Nennung Ihres Namens; geänderte Fassungen unter derselben Lizenz.</translation>
     </message>
     <message>
         <source>The license</source>
@@ -8753,7 +8825,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <name>SigningSettingsPage</name>
     <message>
         <source>The editor signs every .cROMc it exports with your signing key. libserum then tells players who made the colorization, and shows a notice on the DMD when someone changed the file after you signed it. A project can turn signing off in its settings.</source>
-        <translation>Der Editor signiert jede .cROMc, die er exportiert, mit deinem Signaturschlüssel. libserum sagt Spielern dann, wer die Colorization gemacht hat, und zeigt einen Hinweis auf dem DMD, wenn jemand die Datei nach deinem Signieren geändert hat. Ein Projekt kann das Signieren in seinen Einstellungen abschalten.</translation>
+        <translation>Der Editor signiert jede .cROMc, die er exportiert, mit Ihrem Signaturschlüssel. libserum sagt Spielern dann, wer die Kolorierung gemacht hat, und zeigt einen Hinweis auf dem DMD, wenn jemand die Datei nach Ihrem Signieren geändert hat. Ein Projekt kann das Signieren in seinen Einstellungen abschalten.</translation>
     </message>
     <message>
         <source>Copy</source>
@@ -8765,7 +8837,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Request Certificate asks the PPUC signing team for a certificate of your key, as your GitHub account: the editor opens the request on GitHub, and once a trusted member approved it, Check for the Certificate takes it in. You can also paste a certificate below.</source>
-        <translation>Zertifikat anfordern fragt das PPUC-Signaturteam über dein GitHub-Konto nach einem Zertifikat für deinen Schlüssel: der Editor stellt die Anfrage auf GitHub, und sobald ein vertrauenswürdiges Mitglied sie genehmigt hat, holt Nach dem Zertifikat sehen es herein. Du kannst ein Zertifikat auch unten einfügen.</translation>
+        <translation>Zertifikat anfordern fragt das PPUC-Signaturteam über Ihr GitHub-Konto nach einem Zertifikat für Ihren Schlüssel: der Editor stellt die Anfrage auf GitHub, und sobald ein vertrauenswürdiges Mitglied sie genehmigt hat, holt Nach dem Zertifikat sehen es herein. Sie können ein Zertifikat auch unten einfügen.</translation>
     </message>
     <message>
         <source>SERUM-CERTIFICATE-1:...</source>
