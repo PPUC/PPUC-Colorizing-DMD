@@ -208,6 +208,8 @@ made by this editor stores each frame of a scene after the first of its group as
 to the frame before it, which libserum 2.99.13 and later read. A machine with an older libserum
 cannot load it; make the `.cROMc` again with the machine's libserum, or update it.
 
+- The export is signed with your signing key unless the project turns it off, and the first
+  signed export adds the project's signing notice; see "Signing".
 - The project is taken as it is in the editor, saved or not, and handed to libserum directly,
   without a `.cROM` on disk. It carries the project's scenes and scaling settings (see "Scenes
   and Scaling"), so they are in the `.cROMc`. Only for a project that has none (one of the

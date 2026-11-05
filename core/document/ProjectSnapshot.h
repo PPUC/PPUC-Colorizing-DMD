@@ -36,6 +36,7 @@ struct ProjectFrameSnapshot {
     LightActions lights{};
     uint32_t originalOnlyDynamicSets = 0;
     DofEvents dofEvents;
+    bool signingNotice = false;
     ComponentMeta meta;
 };
 

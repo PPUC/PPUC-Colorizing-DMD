@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <optional>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -139,7 +140,8 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
                               const fs::path& workDirectory,
                               const fs::path& sidecarDirectory,
                               const fs::path& target,
-                              legacy::LegacyIoProgress* progress)
+                              legacy::LegacyIoProgress* progress,
+                              const CromcSigning& signing)
 {
     CromcExportResult result;
     const std::string rom = snapshot.romName;
@@ -208,7 +210,15 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
     {
         SnapshotSource source(std::move(exported));
         const std::optional<std::string> path = libserumPath(*work);
-        written = path && source.writeConcentrate(*path + "/" + rom + ".cROMc");
+        Serum_Signing_Key key{};
+        const bool withKey = signing.seed && !signing.certificate.empty();
+        if (withKey) {
+            key.seed = signing.seed->data();
+            key.certificate = signing.certificate.c_str();
+        }
+        written = path && source.writeConcentrate(*path + "/" + rom + ".cROMc",
+                                                  withKey ? &key : nullptr);
+        result.isSigned = withKey;
         sourceError = source.error();
     }
     const char* lastError = Serum_GetLastErrorMessage();
@@ -222,6 +232,14 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
             result.error += " (" + log.back() + ")";
         }
         return result;
+    }
+
+    if (signing.modifyAfterSigning) {
+        if (!markCromcModified(generated)) {
+            result.error = "cannot change the cROMc after signing it";
+            return result;
+        }
+        result.modified = true;
     }
 
     // Replaced only once the new file is complete beside it.
@@ -239,6 +257,100 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
     }
     result.ok = true;
     return result;
+}
+
+bool markCromcModified(const fs::path& cromc)
+{
+    std::fstream file(cromc, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file) {
+        return false;
+    }
+    file.seekg(0, std::ios::end);
+    const std::streamoff size = file.tellg();
+    // A signed file ends with the block's length and "SSIG" (libserum's SerumSigning.h).
+    char tail[8] = {};
+    if (size >= 8) {
+        file.seekg(size - 8);
+        file.read(tail, 8);
+    }
+    if (size >= 84 && std::string_view(tail + 4, 4) == "SSIG") {
+        // A byte of the signature, 64 bytes before the block's end; the colorization in front
+        // of it stays loadable.
+        const std::streamoff at = size - 8 - 20;
+        char byte = 0;
+        file.seekg(at);
+        file.read(&byte, 1);
+        byte = static_cast<char>(byte ^ 0x5a);
+        file.seekp(at);
+        file.write(&byte, 1);
+        return static_cast<bool>(file);
+    }
+    // No signature: a block with no certificate and an empty signature.
+    std::string block = "SSIG";
+    block += std::string("\x01\x00\x00\x00", 4);
+    block += std::string(4, '\0');  // no certificate chain
+    block += std::string(64, '\0');
+    const uint32_t length = static_cast<uint32_t>(block.size() + 8);
+    for (int i = 0; i < 4; ++i) {
+        block += static_cast<char>((length >> (8 * i)) & 0xff);
+    }
+    block += "SSIG";
+    file.seekp(0, std::ios::end);
+    file.write(block.data(), static_cast<std::streamsize>(block.size()));
+    return static_cast<bool>(file);
+}
+
+namespace {
+
+SignatureCheck checkOf(bool called, const Serum_Authenticity& authenticity)
+{
+    SignatureCheck check;
+    if (!called) {
+        check.status = SignatureCheck::Status::Modified;
+        check.reason = "not checked";
+        return check;
+    }
+    check.status = authenticity.status == SERUM_AUTHENTICITY_SIGNED ? SignatureCheck::Status::Signed
+                   : authenticity.status == SERUM_AUTHENTICITY_MODIFIED
+                       ? SignatureCheck::Status::Modified
+                       : SignatureCheck::Status::Unsigned;
+    check.name = authenticity.name;
+    check.identity = authenticity.identity;
+    check.reason = authenticity.reason;
+    return check;
+}
+
+}  // namespace
+
+std::array<uint8_t, 32> signingPublicKey(const std::array<uint8_t, 32>& seed)
+{
+    std::array<uint8_t, 32> key{};
+    (void)Serum_Signing_PublicKey(seed.data(), key.data());
+    return key;
+}
+
+SignatureCheck checkSigningCertificate(const std::string& certificate,
+                                       const std::optional<std::array<uint8_t, 32>>& seed)
+{
+    Serum_Authenticity authenticity{};
+    authenticity.size = sizeof(authenticity);
+    std::array<uint8_t, 32> key{};
+    if (seed) {
+        key = signingPublicKey(*seed);
+    }
+    Serum_Signing_CheckCertificate(certificate.c_str(), seed ? key.data() : nullptr,
+                                   &authenticity);
+    return checkOf(true, authenticity);
+}
+
+SignatureCheck checkCromcSignature(const fs::path& cromc)
+{
+    Serum_Authenticity authenticity{};
+    authenticity.size = sizeof(authenticity);
+    const std::optional<std::string> path = libserumPath(cromc);
+    const bool called =
+        path && Serum_CheckConcentrateSignature(path->c_str(), &authenticity);
+    return checkOf(called, authenticity);
 }
 
 }  // namespace colorizing::runtime

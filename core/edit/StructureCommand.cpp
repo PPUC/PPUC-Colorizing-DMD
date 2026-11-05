@@ -373,16 +373,37 @@ std::unique_ptr<StructureCommand> addFrames(document::ProjectDocument& document,
     if (frames.empty()) {
         return nullptr;
     }
+    // The signing notice stays the last frame: frames come before it.
+    std::size_t first = document.frameCount();
+    if (first > 0 && document.isSigningNoticeFrame(first - 1)) {
+        --first;
+    }
     document::RemovedFrames added;
     added.indices.reserve(frames.size());
     for (std::size_t offset = 0; offset < frames.size(); ++offset) {
-        added.indices.push_back(document.frameCount() + offset);
+        added.indices.push_back(first + offset);
     }
     std::vector<std::size_t> indices = added.indices;
+    // Frames behind the last one start no section and are no sprite's source; the sections
+    // and sprite sources at and behind the notice move with it.
+    document::RecordTables tablesWithout = document.recordTables();
+    added.tables = tablesWithout;
+    const auto shifted = [&](uint32_t& frame) {
+        if (frame >= first && frame < document.frameCount()) {
+            frame += static_cast<uint32_t>(frames.size());
+        }
+    };
+    for (std::size_t section = 0;
+         section < added.tables.sectionCount && section < added.tables.sectionFirstFrames.size();
+         ++section) {
+        shifted(added.tables.sectionFirstFrames[section]);
+    }
+    for (std::size_t sprite = 0;
+         sprite < document.spriteCount() && sprite < added.tables.spriteSourceFrames.size();
+         ++sprite) {
+        shifted(added.tables.spriteSourceFrames[sprite]);
+    }
     added.frames = std::move(frames);
-    // Frames behind the last one start no section and are no sprite's source.
-    added.tables = document.recordTables();
-    document::RecordTables tablesWithout = added.tables;
     document.insertFrames(std::move(added));
     return std::make_unique<FramesCommand>(std::move(indices), true, std::move(tablesWithout));
 }

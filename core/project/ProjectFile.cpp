@@ -386,6 +386,9 @@ std::string frameContent(const ProjectSnapshot& snapshot,
     if (!frame.dofEvents.empty()) {
         appendField(out, "DOFE", dofEventsData(frame.dofEvents));
     }
+    if (frame.signingNotice) {
+        appendField(out, "SNOT", integerData(1, 1));
+    }
     const std::vector<uint8_t>& palettes = snapshot.editorMetadata.importedPalettes;
     if ((frameIndex + 1) * document::kImportedPaletteBytes <= palettes.size()) {
         const std::size_t offset = frameIndex * document::kImportedPaletteBytes;
@@ -496,6 +499,9 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
         JsonValue colorization = JsonValue::object();
         colorization.set("scalingAlgorithm", settings.scalingAlgorithm);
         colorization.set("shadowOffset", settings.shadowOffset);
+        if (!settings.signCromc) {
+            colorization.set("sign", false);
+        }
         JsonValue scenes = JsonValue::array();
         for (const document::SceneDefinition& scene : settings.scenes) {
             JsonValue item = JsonValue::object();
@@ -1262,6 +1268,7 @@ document::ProjectFrameSnapshot readFrame(const Fields& fields,
     if (fields.has("OOSD")) {
         frame.originalOnlyDynamicSets = static_cast<uint32_t>(fields.integer("OOSD", 4));
     }
+    frame.signingNotice = fields.has("SNOT") && fields.integer("SNOT", 1) != 0;
     if (fields.has("IPAL")) {
         const std::string_view palette = fields.get("IPAL");
         if (palette.size() != document::kImportedPaletteBytes) {
@@ -1493,6 +1500,7 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
         settings.scalingAlgorithm =
             static_cast<uint8_t>(colorization.integer("scalingAlgorithm", 0, 255));
         settings.shadowOffset = static_cast<uint8_t>(colorization.integer("shadowOffset", 0, 255));
+        settings.signCromc = colorization.boolean("sign", true);
         for (const JsonValue& item : colorization.optionalArray("scenes")) {
             const JsonObjectReader scene = objectItem(item, "scene");
             document::SceneDefinition definition;

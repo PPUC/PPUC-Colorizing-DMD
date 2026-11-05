@@ -107,6 +107,10 @@ struct ColorizationSettings {
     std::vector<SceneDefinition> scenes;
     uint8_t scalingAlgorithm = kScalingScale2x;
     uint8_t shadowOffset = kShadowOffsetNative;
+    // Whether the editor signs the exported cROMc with the author's key (app/Signing.h). On
+    // unless the author turns it off for the project; a project without colorization settings
+    // is signed as well.
+    bool signCromc = true;
 
     [[nodiscard]] const SceneDefinition* scene(uint16_t sceneId) const
     {
@@ -138,7 +142,7 @@ struct ColorizationSettings {
     friend bool operator==(const ColorizationSettings& a, const ColorizationSettings& b)
     {
         return a.scenes == b.scenes && a.scalingAlgorithm == b.scalingAlgorithm &&
-               a.shadowOffset == b.shadowOffset;
+               a.shadowOffset == b.shadowOffset && a.signCromc == b.signCromc;
     }
     friend bool operator!=(const ColorizationSettings& a, const ColorizationSettings& b)
     {

@@ -9,6 +9,7 @@
 #include "Appearance.h"
 #include "DmdOutput.h"
 #include "KeyboardShortcuts.h"
+#include "Signing.h"
 #include "SpeakerLightView.h"
 
 class QCheckBox;
@@ -24,9 +25,11 @@ namespace colorizing::app {
 
 class DmdOutputSettingsPage;
 class ShortcutsSettingsPage;
+class SigningSettingsPage;
 
 // The editor's settings, one page per topic: Appearance (the theme, the language, how the canvas
-// draws DMD pixels), DMD Output, Plugins, Projects (the author's name) and Shortcuts. It only shows and collects them; the caller stores and applies what
+// draws DMD pixels), DMD Output, Plugins, Projects (the author's name), Signing (the author's
+// signing key) and Shortcuts. It only shows and collects them; the caller stores and applies what
 // it returns.
 class SettingsDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(SettingsDialog)
@@ -37,6 +40,7 @@ public:
         DmdOutput,
         Plugins,
         Projects,
+        Signing,
         Shortcuts,
     };
 
@@ -63,6 +67,9 @@ public:
     // Who saves (AuthorName.h).
     void setAuthorName(const QString& name);
     [[nodiscard]] QString authorName() const;
+    // The author's signing key (Signing.h).
+    void setSigningKey(const AuthorSigningKey& key);
+    [[nodiscard]] AuthorSigningKey signingKey() const;
 
     // The editor's plugins that can be chosen, and those chosen (EditorPlugins).
     struct PluginChoice {
@@ -102,6 +109,7 @@ private:
     QComboBox* m_rightChannel = nullptr;
     DmdOutputSettingsPage* m_dmdOutputPage = nullptr;
     ShortcutsSettingsPage* m_shortcutsPage = nullptr;
+    SigningSettingsPage* m_signingPage = nullptr;
     QLineEdit* m_authorNameEdit = nullptr;
     QListWidget* m_pluginList = nullptr;
     QLabel* m_pluginNote = nullptr;

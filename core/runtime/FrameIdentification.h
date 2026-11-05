@@ -30,6 +30,9 @@ namespace colorizing::runtime {
 // identified as different frames depending on what was identified before it, and frames that
 // do not match it take part too, by deciding which bucket is met first.
 //
+// The signing notice (ProjectDocument::signingNoticeFrame()) takes no part: libserum leaves it
+// out of its search.
+//
 // Scenes of a .pup.csv have a search of their own in libserum; nothing here knows them,
 // like the rest of the runtime preview.
 class FrameIdentification {
@@ -92,6 +95,8 @@ private:
     std::size_t m_frameCount = 0;
     std::vector<document::IndexedFrame> m_masks;
     std::vector<Bucket> m_buckets;
+    // kNoBucket for the signing notice, which is in no bucket.
+    static constexpr std::size_t kNoBucket = static_cast<std::size_t>(-1);
     std::vector<std::size_t> m_bucketOfFrame;
     // (bucket, hash) -> frames, ascending.
     std::unordered_map<uint64_t, std::vector<std::size_t>> m_framesBySignature;

@@ -625,6 +625,7 @@ FrameRecord frameRecord(ProjectFrameSnapshot&& frameSnapshot)
         frameSnapshot.lights,
         frameSnapshot.originalOnlyDynamicSets,
         std::move(frameSnapshot.dofEvents),
+        frameSnapshot.signingNotice,
         std::move(frameSnapshot.meta),
     };
 }
@@ -1541,6 +1542,21 @@ void ProjectDocument::setFrameDofEvents(std::size_t frameIndex, DofEvents events
 uint32_t ProjectDocument::originalOnlyDynamicSets(std::size_t frameIndex) const
 {
     return requireFrame(m_frames, frameIndex).originalOnlyDynamicSets;
+}
+
+std::optional<std::size_t> ProjectDocument::signingNoticeFrame() const
+{
+    for (std::size_t i = 0; i < m_frames.size(); ++i) {
+        if (m_frames[i].signingNotice) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+bool ProjectDocument::isSigningNoticeFrame(std::size_t frameIndex) const
+{
+    return requireFrame(m_frames, frameIndex).signingNotice;
 }
 
 void ProjectDocument::setOriginalOnlyDynamicSets(std::size_t frameIndex, uint32_t sets)
@@ -4348,6 +4364,7 @@ ProjectFrameSnapshot frameSnapshot(const FrameRecord& frame)
         frame.lights,
         frame.originalOnlyDynamicSets,
         frame.dofEvents,
+        frame.signingNotice,
         frame.meta,
     };
 }
@@ -4385,6 +4402,9 @@ ProjectSnapshot ProjectDocument::toSubsetSnapshot(const std::vector<std::size_t>
             throw std::out_of_range("frame index is out of range");
         }
         ProjectFrameSnapshot frame = frameSnapshot(m_frames[frameIndex]);
+        // A subset shows its frames as frames: the signing notice too, which libserum would
+        // otherwise never identify.
+        frame.signingNotice = false;
         frame.comparisonMaskId =
             frame.comparisonMaskId < m_comparisonMasks.size()
                 ? static_cast<uint8_t>(subsetId(ids.comparisonMasks, frame.comparisonMaskId))

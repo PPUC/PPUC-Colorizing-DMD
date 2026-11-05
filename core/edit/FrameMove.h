@@ -82,6 +82,9 @@ enum class SplitSectionStart {
 //
 // Imported palettes go with their frames, see ProjectDocument::reorderFrames().
 //
+// The signing notice (ProjectDocument::signingNoticeFrame()), when it is the last frame, stays
+// there: it is not moved, and frames moved behind the last frame go before it.
+//
 // Throws std::out_of_range for a frame that does not exist.
 [[nodiscard]] std::unique_ptr<FrameMoveCommand> moveFrames(
     document::ProjectDocument& document,

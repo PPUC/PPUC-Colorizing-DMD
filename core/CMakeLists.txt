@@ -43,6 +43,7 @@ add_library(colorizing_qt_v2_core STATIC
     edit/SpriteAssignment.h
     edit/StateCommands.cpp
     edit/StructureCommand.cpp
+    edit/SigningNotice.cpp
     edit/UndoHistories.cpp
     export/GifWriter.cpp
     import/DumpFile.cpp

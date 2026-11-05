@@ -26,9 +26,10 @@ namespace colorizing::project {
 //                    ("2.9"; earlier files may say "2.8", read and ignored), layout
 //                    ("ordinary", "native-extra", "native-original"), cromRevision (21, read
 //                    and ignored), license (kind, text, attribution, url), colorization (the
-//                    cROM's settings: scalingAlgorithm, shadowOffset, scenes, each with the
-//                    pup.csv columns, its name and framesOf, the base of a variant) when the
-//                    project has them, unsupported (names of entries unsupported/<n>.bin).
+//                    cROM's settings: scalingAlgorithm, shadowOffset, sign (false when the
+//                    exported cROMc is not signed), scenes, each with the pup.csv columns,
+//                    its name and framesOf, the base of a variant) when the project has them,
+//                    unsupported (names of entries unsupported/<n>.bin).
 //   order.json       the UUIDs of the frames, comparison masks, backgrounds and sprites in
 //                    their order, and the sections (name, first frame).
 //   frames/<uuid>.bin, masks/<uuid>.bin, backgrounds/<uuid>.bin, sprites/<uuid>.bin
@@ -71,7 +72,8 @@ namespace colorizing::project {
 //               palette (192 bytes RGB888, the first frames only; written black for a
 //               frame without one before a frame with one, a reader gives a frame without
 //               IPAL there a black one), DOFE DOF events (per event uint8 type, uint8 1 with
-//               a turn-off value or 0, int32 number, value and turn-off value).
+//               a turn-off value or 0, int32 number, value and turn-off value), SNOT the
+//               signing notice (uint8 1; ProjectDocument::signingNoticeFrame()).
 //   Mask:       META, NAME, PICT.
 //   Background: META, COLS, COLH, INHD.
 //   Sprite:     META, NAME, FLAG (bit 0: has HD), ORIG, COLS, MSKH, COLH, DETD, DETP, DETA

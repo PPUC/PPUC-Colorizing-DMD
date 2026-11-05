@@ -107,7 +107,8 @@ enum class SpriteNameCheck {
 [[nodiscard]] std::optional<std::size_t> frameIndexAfterDeletion(
     std::size_t frameIndex, const std::vector<std::size_t>& deletedFrames);
 // Appends the frames behind the last one, e.g. those of
-// ProjectDocument::makeUncolorizedFrame(); nullptr for none. Throws std::invalid_argument
+// ProjectDocument::makeUncolorizedFrame(), or before the signing notice when that is the last
+// frame (ProjectDocument::signingNoticeFrame()); nullptr for none. Throws std::invalid_argument
 // for a frame that does not fit the project's planes.
 [[nodiscard]] std::unique_ptr<StructureCommand> addFrames(
     document::ProjectDocument& document,

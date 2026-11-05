@@ -64,9 +64,11 @@ public:
     }
     // The cROMc of the project at the path, as Serum_Load() makes it for its cROM
     // (Serum_ConcentrateFromSource()); nothing stays loaded.
-    [[nodiscard]] bool writeConcentrate(const std::string& path)
+    // Signed with the key unless it is null (Serum_ConcentrateFromSourceSigned()).
+    [[nodiscard]] bool writeConcentrate(const std::string& path,
+                                        const Serum_Signing_Key* key = nullptr)
     {
-        return Serum_ConcentrateFromSource(&m_source, path.c_str());
+        return Serum_ConcentrateFromSourceSigned(&m_source, path.c_str(), key);
     }
     // Why an element could not be given, empty when all could.
     [[nodiscard]] const std::string& error() const { return m_error; }

@@ -161,7 +161,8 @@ settings and the speaker lights' defaults (see "Speaker Lights"; a change of the
 of its own). `Upscaling` is how libserum makes the 256x64 picture of a frame that has none: `Scale2x`
 (libserum's default) or `Line doubling`. `Upscaled shadow offset` is how far a dynamic shadow falls on
 the 256x64 plane: 1 pixel (native, the default) or 2 pixels (proportional, as thick as on the
-128x32 plane). These are what a `scaling.txt` used to set. `OK` applies them as one undo step, `Cancel`
+128x32 plane). These are what a `scaling.txt` used to set. `Sign the exported .cROMc` (on by
+default) signs the project's export, see "Signing". `OK` applies them as one undo step, `Cancel`
 leaves the project as it was.
 
 ## Projects of the Win32 editor

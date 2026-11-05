@@ -4468,6 +4468,7 @@ void runVideoClipWidgetTests();
 void runImageImportWidgetTests();
 void runFramesPngExportWidgetTests();
 void runSplitSectionsWidgetTests();
+void runSigningWidgetTests();
 void runHelperLinesWidgetTests();
 void runScenesWidgetTests();
 void runSpeakerLightWidgetTests();
@@ -4563,6 +4564,7 @@ int main(int argc, char* argv[])
     runImageImportWidgetTests();
     runFramesPngExportWidgetTests();
     runSplitSectionsWidgetTests();
+    runSigningWidgetTests();
     runHelperLinesWidgetTests();
     runScenesWidgetTests();
     runSpeakerLightWidgetTests();

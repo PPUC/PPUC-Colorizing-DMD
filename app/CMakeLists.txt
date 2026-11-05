@@ -5,6 +5,7 @@ add_library(colorizing_qt_v2_widgets STATIC
     Appearance.cpp
     Appearance.h
     AuthorName.cpp
+    Signing.cpp
     AuthorName.h
     Autosave.cpp
     Autosave.h
@@ -52,6 +53,7 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/FrameTesterDialog.h
     dialogs/ProjectTaskDialog.cpp
     dialogs/ShortcutsSettingsPage.cpp
+    dialogs/SigningSettingsPage.cpp
     dialogs/ShortcutsSettingsPage.h
     dialogs/SettingsDialog.cpp
     dialogs/SettingsDialog.h

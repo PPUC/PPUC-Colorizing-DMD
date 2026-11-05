@@ -41,6 +41,15 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   `Serum_LoadFromMemory*`/`Serum_LoadFromCallback`/`Serum_CRZ_*`/`Serum_SetGenerateCRomC`):
   the editor hands it projects through the builder API only, puts scenes and scaling into the
   cROMc and reads `.cRZ` archives with its own miniz.
+- **Signed colorizations.** The export signs the cROMc with the author's Ed25519 key
+  (`app/Signing.h`, Settings -> Signing; on by default, `ColorizationSettings::signCromc` turns
+  it off per project); libserum checks it offline against its built-in root key and shows a
+  modified file's signing notice (`edit/SigningNotice.h`, a frame kept last and never
+  identified) or its own "COLORIZATION MODIFIED". Certificates bind a key to a GitHub ID; the
+  chain is root -> issuer -> author, the root key offline with trusted members. Open: the
+  issuing process itself (a private repository whose Action certifies a key from an issue),
+  and how an author asks for a certificate; until then a trusted member certifies with
+  libserum's `tools/serum-signing`.
 
 ## Repositories and branches
 

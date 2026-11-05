@@ -35,6 +35,11 @@ uint8_t ProjectSettingsDialog::shadowOffset() const
     return m_panel->shadowOffset();
 }
 
+bool ProjectSettingsDialog::signCromc() const
+{
+    return m_panel->signCromc();
+}
+
 document::LightActions ProjectSettingsDialog::lightDefaults() const
 {
     return m_panel->lightDefaults();

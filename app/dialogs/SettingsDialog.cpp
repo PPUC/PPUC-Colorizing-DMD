@@ -26,6 +26,7 @@
 #include "Translations.h"
 #include "dialogs/DmdOutputSettingsPage.h"
 #include "dialogs/ShortcutsSettingsPage.h"
+#include "dialogs/SigningSettingsPage.h"
 
 namespace colorizing::app {
 
@@ -208,6 +209,9 @@ SettingsDialog::SettingsDialog(Theme theme,
     projectsLayout->addStretch(1);
     m_tabs->addTab(projects, tr("Projects"));
 
+    m_signingPage = new SigningSettingsPage(m_tabs);
+    m_tabs->addTab(m_signingPage, tr("Signing"));
+
     m_shortcutsPage = new ShortcutsSettingsPage(m_tabs);
     m_tabs->addTab(m_shortcutsPage, tr("Shortcuts"));
 
@@ -217,6 +221,16 @@ SettingsDialog::SettingsDialog(Theme theme,
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(m_tabs);
     layout->addWidget(buttons);
+}
+
+void SettingsDialog::setSigningKey(const AuthorSigningKey& key)
+{
+    m_signingPage->setKey(key);
+}
+
+AuthorSigningKey SettingsDialog::signingKey() const
+{
+    return m_signingPage->key();
 }
 
 void SettingsDialog::setShortcuts(std::vector<ShortcutEntry> entries)
@@ -252,8 +266,11 @@ void SettingsDialog::showPage(Page page)
         case Page::Projects:
             m_tabs->setCurrentIndex(3);
             break;
-        case Page::Shortcuts:
+        case Page::Signing:
             m_tabs->setCurrentIndex(4);
+            break;
+        case Page::Shortcuts:
+            m_tabs->setCurrentIndex(5);
             break;
     }
 }

@@ -28,6 +28,7 @@ public:
 
     [[nodiscard]] uint8_t scalingAlgorithm() const;
     [[nodiscard]] uint8_t shadowOffset() const;
+    [[nodiscard]] bool signCromc() const;
     [[nodiscard]] document::LightActions lightDefaults() const;
     [[nodiscard]] document::ProjectLicense license() const;
     [[nodiscard]] ProjectSettingsPanel* panel() const;

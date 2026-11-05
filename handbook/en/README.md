@@ -46,3 +46,4 @@ whenever a user-visible feature changes.
 - [Packages](40-packages.md)
 - [Working As A Team](41-working-as-a-team.md)
 - [DOF Events](42-dof-events.md)
+- [Signing](43-signing.md)

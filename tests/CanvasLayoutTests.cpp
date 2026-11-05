@@ -151,6 +151,7 @@ void runColorSetTests();
 void runSelectionEditTests();
 void runCompactStorageTests();
 void runCromcExportTests();
+void runSigningTests();
 void runSceneTests();
 void runSceneEditTests();
 void runFrameSettingsCopyTests();
@@ -197,6 +198,7 @@ try {
     runSelectionEditTests();
     runCompactStorageTests();
     runCromcExportTests();
+    runSigningTests();
     runSceneTests();
     runSceneEditTests();
     runFrameSettingsCopyTests();

@@ -153,7 +153,9 @@ private:
 // have any, then the frames' PUP, scene and monochrome triggers (kCromSettingsFrameTriggers,
 // libserum 2.99.9), which replace the frame block's one ID per frame, and the scene variants
 // with their bases (kCromSettingsSceneVariants, libserum 2.99.10), then the sprite slots'
-// offsets (kCromSettingsSpriteOffsets, libserum 2.99.11).
+// offsets (kCromSettingsSpriteOffsets, libserum 2.99.11) and the signing notice
+// (kCromSettingsNoticeFrame, libserum 2.99.14: its frame ID and its original), which libserum
+// never identifies; the notice gives no PUP or monochrome trigger.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
 inline constexpr uint32_t kCromSettingsScenes = 1;
 inline constexpr uint32_t kCromSettingsScaling = 2;
@@ -164,6 +166,7 @@ inline constexpr uint32_t kCromSettingsDofEvents = 32;
 inline constexpr uint32_t kCromSettingsFrameTriggers = 64;
 inline constexpr uint32_t kCromSettingsSceneVariants = 128;
 inline constexpr uint32_t kCromSettingsSpriteOffsets = 256;
+inline constexpr uint32_t kCromSettingsNoticeFrame = 512;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot);
 
 // How many bytes writeLegacyCrom() writes for a valid snapshot, without writing them (for a

@@ -74,6 +74,23 @@ std::optional<MovePlan> planMove(std::size_t count,
     return std::nullopt;
 }
 
+// The signing notice stays the last frame: it does not move, and frames moved behind the last
+// frame go before it.
+std::optional<MovePlan> planMoveIn(const document::ProjectDocument& document,
+                                   std::vector<std::size_t> frameIndices,
+                                   std::size_t beforeFrame)
+{
+    const std::size_t count = document.frameCount();
+    if (count > 0 && document.isSigningNoticeFrame(count - 1)) {
+        frameIndices.erase(std::remove(frameIndices.begin(), frameIndices.end(), count - 1),
+                           frameIndices.end());
+        if (beforeFrame == count) {
+            beforeFrame = count - 1;
+        }
+    }
+    return planMove(count, frameIndices, beforeFrame);
+}
+
 // The frame behind the last frame of the section that starts at `first`: the next first frame
 // of another section, or the frame count.
 std::size_t sectionEnd(const document::RecordTables& tables,
@@ -108,7 +125,7 @@ std::vector<std::size_t> sectionsSplitByMove(const document::ProjectDocument& do
                                              std::size_t beforeFrame)
 {
     const std::size_t count = document.frameCount();
-    const std::optional<MovePlan> plan = planMove(count, frameIndices, beforeFrame);
+    const std::optional<MovePlan> plan = planMoveIn(document, frameIndices, beforeFrame);
     if (!plan) {
         return {};
     }
@@ -205,7 +222,7 @@ std::unique_ptr<FrameMoveCommand> moveFrames(document::ProjectDocument& document
                                              SplitSectionStart splitSections)
 {
     const std::size_t count = document.frameCount();
-    std::optional<MovePlan> plan = planMove(count, frameIndices, beforeFrame);
+    std::optional<MovePlan> plan = planMoveIn(document, frameIndices, beforeFrame);
     if (!plan) {
         return nullptr;
     }

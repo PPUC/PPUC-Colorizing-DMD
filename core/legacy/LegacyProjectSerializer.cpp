@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
 
 #include "document/Triggers.h"
 #include "legacy/LegacyByteWriter.h"
@@ -717,6 +718,11 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
     for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
         const document::ProjectFrameSnapshot& f = snapshot.frames[frame];
         Triggers t{frame, f.pupTriggerId, f.sceneTriggerId, f.monochromeTriggerId};
+        // The signing notice may start a scene (a background scene behind it), nothing else.
+        if (f.signingNotice) {
+            t.pup = document::kNoTriggerId;
+            t.monochrome = document::kNoTriggerId;
+        }
         if (t.pup > document::kLastPupTriggerId) {
             t.pup = document::kNoTriggerId;
         }
@@ -750,8 +756,15 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         }
     }
     const bool withSpriteOffsets = !spriteOffsets.empty();
+    std::optional<std::size_t> noticeFrame;
+    for (std::size_t frame = 0; frame < snapshot.frames.size(); ++frame) {
+        if (snapshot.frames[frame].signingNotice) {
+            noticeFrame = frame;
+            break;
+        }
+    }
     if (!snapshot.colorizationSettings && !withLights && !withOriginalOnlySets &&
-        !withDofEvents && !withTriggers && !withSpriteOffsets) {
+        !withDofEvents && !withTriggers && !withSpriteOffsets && !noticeFrame) {
         return block;
     }
     const auto put = [&block](uint64_t value, std::size_t bytes) {
@@ -780,7 +793,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             (withDofEvents ? kCromSettingsDofEvents : 0) |
             (withTriggers ? kCromSettingsFrameTriggers : 0) |
             (withVariants ? kCromSettingsSceneVariants : 0) |
-            (withSpriteOffsets ? kCromSettingsSpriteOffsets : 0),
+            (withSpriteOffsets ? kCromSettingsSpriteOffsets : 0) |
+            (noticeFrame ? kCromSettingsNoticeFrame : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -913,6 +927,13 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             put(0, 1);
             put(static_cast<uint16_t>(offset.x), 2);
             put(static_cast<uint16_t>(offset.y), 2);
+        }
+    }
+    if (noticeFrame) {
+        put(*noticeFrame, 4);
+        const document::IndexedFrame& original = snapshot.frames[*noticeFrame].originalSd;
+        for (std::size_t i = 0; i < original.pixelCount(); ++i) {
+            block.push_back(original.pixels[i]);
         }
     }
     const uint64_t payload = block.size() - 8;

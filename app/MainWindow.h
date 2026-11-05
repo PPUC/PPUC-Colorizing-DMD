@@ -195,7 +195,10 @@ private:
     [[nodiscard]] static QString licenseText(const document::ProjectLicense& license);
     void updateWindowTitle();
     // Writes the project's .cROMc through libserum, see runtime::exportCromc().
-    void exportCromc();
+    // modifiedForTesting: File -> Export Modified .cROMc for Testing (CromcSigning).
+    void exportCromc(bool modifiedForTesting = false);
+    // Edit -> Edit Signing Notice: goes to the signing notice, adding it first if needed.
+    void editSigningNotice();
     // See FrameTesterDialog.
     void openFrameTester();
     // The selected frames as an animated GIF, see GifExport.h.
@@ -729,6 +732,7 @@ private:
     QAction* m_deleteFramesAction = nullptr;
     QAction* m_sourceFrameAction = nullptr;
     QAction* m_copyFrameSettingsAction = nullptr;
+    QAction* m_editSigningNoticeAction = nullptr;
     // The same in the frame list's menu, with the Delete and Backspace keys.
     QAction* m_deleteFramesListAction = nullptr;
     QAction* m_deleteShortFramesAction = nullptr;

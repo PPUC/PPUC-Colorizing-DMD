@@ -25,6 +25,11 @@ FrameIdentification::FrameIdentification(const document::ProjectDocument& docume
     }
     m_bucketOfFrame.reserve(m_frameCount);
     for (std::size_t frame = 0; frame < m_frameCount; ++frame) {
+        // libserum shows the signing notice itself and never identifies it.
+        if (document.isSigningNoticeFrame(frame)) {
+            m_bucketOfFrame.push_back(kNoBucket);
+            continue;
+        }
         // As the serializer writes it: a mask the project does not have is no mask.
         const uint8_t storedMask = document.comparisonMaskId(frame);
         const uint8_t maskId = storedMask < m_masks.size() ? storedMask : uint8_t{255};
@@ -149,7 +154,7 @@ std::vector<std::size_t> FrameIdentification::candidatesOf(
 {
     std::set<std::size_t> buckets;
     for (std::size_t frame : starts) {
-        if (frame < m_bucketOfFrame.size()) {
+        if (frame < m_bucketOfFrame.size() && m_bucketOfFrame[frame] != kNoBucket) {
             buckets.insert(m_bucketOfFrame[frame]);
         }
     }

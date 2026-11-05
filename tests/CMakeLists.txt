@@ -14,6 +14,7 @@ add_executable(colorizing_qt_v2_tests
     ComponentIdTests.cpp
     BookmarksTests.cpp
     CromcExportTests.cpp
+    SigningTests.cpp
     DrawingToolsTests.cpp
     EditCommandTests.cpp
     FrameDumpImportTests.cpp
@@ -110,6 +111,7 @@ if(TARGET colorizing_qt_v2_widgets)
         ImageImportWidgetTests.cpp
         FramesPngExportWidgetTests.cpp
         SplitSectionsWidgetTests.cpp
+        SigningWidgetTests.cpp
     VideoClipWidgetTests.cpp
     )
 

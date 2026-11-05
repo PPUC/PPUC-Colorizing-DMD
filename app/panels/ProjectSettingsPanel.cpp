@@ -1,5 +1,6 @@
 #include "panels/ProjectSettingsPanel.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
 #include <QLabel>
@@ -66,6 +67,11 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addRow(tr("Upscaling"), m_scalingComboBox);
     layout->addRow(tr("Upscaled shadow offset"), m_shadowComboBox);
+    m_signCheckBox = new QCheckBox(tr("Sign the exported .cROMc"), this);
+    m_signCheckBox->setToolTip(
+        tr("Signs the .cROMc with your signing key (Settings, Signing), so that libserum shows "
+           "players the signing notice when someone changes the file"));
+    layout->addRow(QString(), m_signCheckBox);
     for (std::size_t channel = 0; channel < m_lightDefaults.size(); ++channel) {
         m_lightDefaults[channel] = new LightActionEditor(true, this);
         m_lightDefaults[channel]->setToolTip(
@@ -109,6 +115,8 @@ void ProjectSettingsPanel::setProject(const document::ProjectDocument* document)
         std::max(0, m_scalingComboBox->findData(settings.scalingAlgorithm)));
     m_shadowComboBox->setCurrentIndex(
         std::max(0, m_shadowComboBox->findData(settings.shadowOffset)));
+    m_signCheckBox->setChecked(settings.signCromc);
+    m_signCheckBox->setEnabled(document != nullptr);
     m_filling = false;
     for (std::size_t channel = 0; channel < m_lightDefaults.size(); ++channel) {
         m_lightDefaults[channel]->setEffects(document ? document->speakerLights()
@@ -152,6 +160,11 @@ document::LightActions ProjectSettingsPanel::lightDefaults() const
         defaults[channel] = m_lightDefaults[channel]->action();
     }
     return defaults;
+}
+
+bool ProjectSettingsPanel::signCromc() const
+{
+    return m_signCheckBox->isChecked();
 }
 
 document::ProjectLicense ProjectSettingsPanel::license() const

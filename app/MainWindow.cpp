@@ -62,6 +62,7 @@
 
 #include "AppInfo.h"
 #include "AuthorName.h"
+#include "Signing.h"
 #include "ColorDrag.h"
 #include "team/TeamController.h"
 #include "FramesClipboard.h"
@@ -145,6 +146,7 @@
 #include "panels/SpritePanel.h"
 #include "legacy/LegacyProjectFileReader.h"
 #include "platform/Utf8Path.h"
+#include "edit/SigningNotice.h"
 #include "runtime/CromcExport.h"
 #include "edit/LicenseEdits.h"
 #include "edit/PackageImport.h"
@@ -725,6 +727,15 @@ void MainWindow::createActions()
     connect(exportCromcAction, &QAction::triggered, this, [this]() {
         exportCromc();
     });
+    QAction* exportModifiedCromcAction = withShortcutId(
+        fileMenu->addAction(tr("Export Modified .cROMc for Testing...")),
+        "export-modified-cromc");
+    exportModifiedCromcAction->setToolTip(
+        tr("Write a .cROMc that is changed after it is signed, to see the signing notice "
+           "libserum shows players for a modified file. Not for release"));
+    connect(exportModifiedCromcAction, &QAction::triggered, this, [this]() {
+        exportCromc(true);
+    });
 
     // The GIF export, one entry per layout. Shift held on the first adds the originals, as the
     // Win32 editor's Shift+click on its GIF button did.
@@ -913,6 +924,15 @@ void MainWindow::createActions()
            "original colors only (\"To Source Frame\" in the Win32 editor)"));
     m_sourceFrameAction->setEnabled(false);
     connect(m_sourceFrameAction, &QAction::triggered, this, [this]() { addSourceFrame(); });
+    m_editSigningNoticeAction =
+        withShortcutId(editMenu->addAction(tr("Edit Signing &Notice")), "edit-signing-notice");
+    m_editSigningNoticeAction->setToolTip(
+        tr("Show the frame libserum shows players when someone changed the signed .cROMc; "
+           "makes it when the project has none yet"));
+    m_editSigningNoticeAction->setEnabled(false);
+    connect(m_editSigningNoticeAction, &QAction::triggered, this, [this]() {
+        editSigningNotice();
+    });
     m_copyFrameSettingsAction =
         withShortcutId(editMenu->addAction(tr("Copy Frame &Settings...")), "copy-frame-settings");
     m_copyFrameSettingsAction->setToolTip(
@@ -3403,6 +3423,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
                           DmdOutput::isAvailable(), this);
     dialog.setLanguage(loadLanguage());
     dialog.setAuthorName(loadAuthorName());
+    dialog.setSigningKey(loadAuthorSigningKey());
     dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
     dialog.setSpriteThumbnailsZoomed(loadSpriteThumbnailsZoomed());
     dialog.setShortcuts(m_shortcuts->entries());
@@ -3431,6 +3452,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     m_shortcuts->apply(dialog.shortcuts());
     updateShortcutToolTips();
     saveAuthorName(dialog.authorName());
+    saveAuthorSigningKey(dialog.signingKey());
     if (dialog.language() != loadLanguage()) {
         saveLanguage(dialog.language());
         QMessageBox::information(this, tr("Language"),
@@ -3687,7 +3709,26 @@ void MainWindow::openFrameTester()
     }
 }
 
-void MainWindow::exportCromc()
+void MainWindow::editSigningNotice()
+{
+    if (!m_document) {
+        return;
+    }
+    if (!m_document->signingNoticeFrame()) {
+        try {
+            recordStructureEdit(edit::addSigningNotice(*m_document));
+        } catch (const std::exception& ex) {
+            QMessageBox::warning(this, tr("Signing Notice"), QString::fromUtf8(ex.what()));
+            return;
+        }
+        showStructureEditStatus(tr("Added the signing notice as the last frame"), 5000);
+    }
+    if (const std::optional<std::size_t> notice = m_document->signingNoticeFrame()) {
+        goToFrame(*notice);
+    }
+}
+
+void MainWindow::exportCromc(bool modifiedForTesting)
 {
     if (!m_document) {
         statusBar()->showMessage(tr("No project loaded"), 2500);
@@ -3700,7 +3741,7 @@ void MainWindow::exportCromc()
                                                               : QDir::homePath());
     QString target = QFileDialog::getSaveFileName(
         this,
-        tr("Export .cROMc"),
+        modifiedForTesting ? tr("Export Modified .cROMc for Testing") : tr("Export .cROMc"),
         proposedDirectory.absoluteFilePath(rom + QStringLiteral(".cROMc")),
         tr("Serum colorization for machines (*.cROMc);;All files (*)"));
     if (target.isEmpty()) {
@@ -3719,6 +3760,27 @@ void MainWindow::exportCromc()
     }
     runtime::RuntimePreview::instance().close();
 
+    // Signed with the author's key unless the project says not to. A signed project gets its
+    // signing notice the first time (edit::addSigningNotice()), for the author to word.
+    const bool projectSigns =
+        m_document->colorizationSettings().value_or(document::ColorizationSettings{}).signCromc;
+    const AuthorSigningKey key = loadAuthorSigningKey();
+    runtime::CromcSigning signing;
+    if ((projectSigns || modifiedForTesting) && canSign(key)) {
+        signing.seed = key.seed;
+        signing.certificate = key.certificate.toStdString();
+    }
+    signing.modifyAfterSigning = modifiedForTesting;
+    bool addedNotice = false;
+    if ((signing.seed || modifiedForTesting) && !m_document->signingNoticeFrame()) {
+        try {
+            recordStructureEdit(edit::addSigningNotice(*m_document));
+            addedNotice = true;
+        } catch (const std::exception&) {
+            // Without a notice libserum shows its words instead.
+        }
+    }
+
     const QString work = QDir::temp().absoluteFilePath(
         QStringLiteral("colorizingdmd_cromc_%1").arg(QCoreApplication::applicationPid()));
     runtime::CromcExportResult result;
@@ -3732,7 +3794,8 @@ void MainWindow::exportCromc()
                     platform::pathFromUtf8(work.toStdString()),
                     platform::pathFromUtf8(projectDirectory.toStdString()),
                     platform::pathFromUtf8(target.toStdString()),
-                    &progress);
+                    &progress,
+                    signing);
             });
         if (failure) {
             result = {};
@@ -3760,6 +3823,16 @@ void MainWindow::exportCromc()
     QString note;
     if (QFileInfo(target).completeBaseName().compare(rom, Qt::CaseInsensitive) != 0) {
         note = tr(". libserum looks for %1.cROMc").arg(rom);
+    }
+    if (result.modified) {
+        note += tr("; changed after signing, for testing: libserum shows the signing notice");
+    } else if (result.isSigned) {
+        note += tr("; signed");
+    } else if (projectSigns) {
+        note += tr("; not signed: make a signing key in Settings, Signing");
+    }
+    if (addedNotice) {
+        note += tr("; added the signing notice as the last frame (Edit, Edit Signing Notice)");
     }
     if (result.dropped.total() > 0) {
         note += tr("; left out what no frame uses: %1 comparison masks, %2 backgrounds, "
@@ -5659,6 +5732,9 @@ QString MainWindow::frameListItemText(std::size_t frameIndex) const
     }
 
     QStringList details;
+    if (m_document->isSigningNoticeFrame(frameIndex)) {
+        details << tr("Signing notice");
+    }
     details << QStringLiteral("%1 ms").arg(m_document->frameDurationMs(frameIndex));
     if (showsHdAndSd() && m_document->hasHdFrame(frameIndex)) {
         details << QStringLiteral("HD");
@@ -12266,6 +12342,7 @@ void MainWindow::openProjectSettings()
         m_document->colorizationSettings().value_or(document::ColorizationSettings{});
     settings.scalingAlgorithm = dialog.scalingAlgorithm();
     settings.shadowOffset = dialog.shadowOffset();
+    settings.signCromc = dialog.signCromc();
     try {
         recordSceneEdit(
             edit::setColorizationSettings(*m_document, std::move(settings)));
@@ -12809,6 +12886,9 @@ void MainWindow::updateStructureControls()
     if (m_copyFrameSettingsAction) {
         m_copyFrameSettingsAction->setEnabled(hasDocument && currentFrameIndex().has_value());
         updateBookmarkActions();
+    }
+    if (m_editSigningNoticeAction) {
+        m_editSigningNoticeAction->setEnabled(hasDocument);
     }
     if (m_deleteFramesListAction) {
         m_deleteFramesListAction->setEnabled(canDeleteFrames);

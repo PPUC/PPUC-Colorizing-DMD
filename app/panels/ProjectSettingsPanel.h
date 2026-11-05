@@ -10,6 +10,7 @@
 #include "document/ProjectLicense.h"
 #include "document/SpeakerLights.h"
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -24,7 +25,8 @@ namespace colorizing::app {
 class LightActionEditor;
 
 // The settings of the whole colorization that libserum takes from it: its scaling settings
-// (document::ColorizationSettings), the speaker lights' defaults and the license, as
+// (document::ColorizationSettings), whether the exported cROMc is signed, the speaker lights'
+// defaults and the license, as
 // ProjectSettingsDialog shows them. It shows them and reports a change.
 class ProjectSettingsPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(ProjectSettingsPanel)
@@ -45,6 +47,9 @@ public:
     {
         return m_lightDefaults[channel];
     }
+    // Whether the exported cROMc is signed (ColorizationSettings::signCromc).
+    [[nodiscard]] bool signCromc() const;
+    [[nodiscard]] QCheckBox* signCromcCheckBox() const { return m_signCheckBox; }
     // The license as chosen.
     [[nodiscard]] document::ProjectLicense license() const;
     [[nodiscard]] QComboBox* licenseComboBox() const { return m_licenseComboBox; }
@@ -60,6 +65,7 @@ private:
     QComboBox* m_scalingComboBox = nullptr;
     std::array<LightActionEditor*, document::kLightChannels> m_lightDefaults{};
     QComboBox* m_shadowComboBox = nullptr;
+    QCheckBox* m_signCheckBox = nullptr;
     QComboBox* m_licenseComboBox = nullptr;
     QLabel* m_licenseLabel = nullptr;
     QPlainTextEdit* m_licenseTextEdit = nullptr;

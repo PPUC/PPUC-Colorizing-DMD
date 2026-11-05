@@ -3262,6 +3262,14 @@ Use Create %1 Frame.</source>
         <translation>Ausgewählte Frames löschen</translation>
     </message>
     <message>
+        <source>Edit Signing &amp;Notice</source>
+        <translation>Signatur&amp;hinweis bearbeiten</translation>
+    </message>
+    <message>
+        <source>Show the frame libserum shows players when someone changed the signed .cROMc; makes it when the project has none yet</source>
+        <translation>Den Frame zeigen, den libserum Spielern zeigt, wenn jemand die signierte .cROMc geändert hat; legt ihn an, wenn das Projekt noch keinen hat</translation>
+    </message>
+    <message>
         <source>Copy Frame &amp;Settings...</source>
         <translation>Frame-&amp;Einstellungen kopieren...</translation>
     </message>
@@ -4272,6 +4280,14 @@ Use Create %1 Frame.</source>
         <translation>Export abgebrochen</translation>
     </message>
     <message>
+        <source>Export Modified .cROMc for Testing...</source>
+        <translation>Geänderte .cROMc zum Testen exportieren...</translation>
+    </message>
+    <message>
+        <source>Write a .cROMc that is changed after it is signed, to see the signing notice libserum shows players for a modified file. Not for release</source>
+        <translation>Eine .cROMc schreiben, die nach dem Signieren geändert wird, um den Signaturhinweis zu sehen, den libserum Spielern bei einer geänderten Datei zeigt. Nicht zur Veröffentlichung</translation>
+    </message>
+    <message>
         <source>Export the selected frames or a range of frames, as shown or their content only</source>
         <translation>Die ausgewählten Frames oder einen Bereich von Frames exportieren, wie angezeigt oder nur ihren Inhalt</translation>
     </message>
@@ -4312,8 +4328,20 @@ Use Create %1 Frame.</source>
         <translation>Dump-Frame als Frame %1 hinzugefügt</translation>
     </message>
     <message>
+        <source>Signing Notice</source>
+        <translation>Signaturhinweis</translation>
+    </message>
+    <message>
+        <source>Added the signing notice as the last frame</source>
+        <translation>Signaturhinweis als letzten Frame hinzugefügt</translation>
+    </message>
+    <message>
         <source>Export .cROMc</source>
         <translation>.cROMc exportieren</translation>
+    </message>
+    <message>
+        <source>Export Modified .cROMc for Testing</source>
+        <translation>Geänderte .cROMc zum Testen exportieren</translation>
     </message>
     <message>
         <source>Serum colorization for machines (*.cROMc);;All files (*)</source>
@@ -4330,6 +4358,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>. libserum looks for %1.cROMc</source>
         <translation>. libserum sucht nach %1.cROMc</translation>
+    </message>
+    <message>
+        <source>; changed after signing, for testing: libserum shows the signing notice</source>
+        <translation>; nach dem Signieren geändert, zum Testen: libserum zeigt den Signaturhinweis</translation>
+    </message>
+    <message>
+        <source>; signed</source>
+        <translation>; signiert</translation>
+    </message>
+    <message>
+        <source>; not signed: make a signing key in Settings, Signing</source>
+        <translation>; nicht signiert: einen Signaturschlüssel unter Einstellungen, Signieren anlegen</translation>
+    </message>
+    <message>
+        <source>; added the signing notice as the last frame (Edit, Edit Signing Notice)</source>
+        <translation>; Signaturhinweis als letzten Frame hinzugefügt (Bearbeiten, Signaturhinweis bearbeiten)</translation>
     </message>
     <message>
         <source>; left out what no frame uses: %1 comparison masks, %2 backgrounds, %3 sprites</source>
@@ -5986,6 +6030,10 @@ Use Create %1 Frame.</source>
         <translation>Der Frame-Filter blendet alle Frames mit Lesezeichen aus</translation>
     </message>
     <message>
+        <source>Signing notice</source>
+        <translation>Signaturhinweis</translation>
+    </message>
+    <message>
         <source>A frame of a scene takes no sprites: it is the scene&apos;s picture</source>
         <translation>Ein Frame einer Szene nimmt keine Sprites: er ist das Bild der Szene</translation>
     </message>
@@ -7258,6 +7306,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Versatz hochskalierter Schatten</translation>
     </message>
     <message>
+        <source>Sign the exported .cROMc</source>
+        <translation>Exportierte .cROMc signieren</translation>
+    </message>
+    <message>
+        <source>Signs the .cROMc with your signing key (Settings, Signing), so that libserum shows players the signing notice when someone changes the file</source>
+        <translation>Signiert die .cROMc mit deinem Signaturschlüssel (Einstellungen, Signieren), damit libserum Spielern den Signaturhinweis zeigt, wenn jemand die Datei ändert</translation>
+    </message>
+    <message>
         <source>What speaker light channel %1 shows while no frame has started anything, and after an effect with a duration</source>
         <translation>Was Lautsprecherlicht-Kanal %1 zeigt, solange kein Frame etwas gestartet hat, und nach einem Effekt mit Dauer</translation>
     </message>
@@ -8523,6 +8579,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Projekte</translation>
     </message>
     <message>
+        <source>Signing</source>
+        <translation>Signieren</translation>
+    </message>
+    <message>
         <source>Shortcuts</source>
         <translation>Tastenkürzel</translation>
     </message>
@@ -8644,6 +8704,65 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Signing in failed: %1</source>
         <translation>Anmeldung fehlgeschlagen: %1</translation>
+    </message>
+</context>
+<context>
+    <name>SigningSettingsPage</name>
+    <message>
+        <source>The editor signs every .cROMc it exports with your signing key. libserum then tells players who made the colorization, and shows a notice on the DMD when someone changed the file after you signed it. A project can turn signing off in its settings.</source>
+        <translation>Der Editor signiert jede .cROMc, die er exportiert, mit deinem Signaturschlüssel. libserum sagt Spielern dann, wer die Colorization gemacht hat, und zeigt einen Hinweis auf dem DMD, wenn jemand die Datei nach deinem Signieren geändert hat. Ein Projekt kann das Signieren in seinen Einstellungen abschalten.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopieren</translation>
+    </message>
+    <message>
+        <source>Send your public key and your GitHub account to the PPUC signing team. They send you a certificate for it: paste it below.</source>
+        <translation>Schicke deinen öffentlichen Schlüssel und dein GitHub-Konto an das PPUC-Signaturteam. Es schickt dir ein Zertifikat dafür: füge es unten ein.</translation>
+    </message>
+    <message>
+        <source>SERUM-CERTIFICATE-1:...</source>
+        <translation>SERUM-CERTIFICATE-1:...</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Öffentlicher Schlüssel</translation>
+    </message>
+    <message>
+        <source>Certificate</source>
+        <translation>Zertifikat</translation>
+    </message>
+    <message>
+        <source>New Signing Key</source>
+        <translation>Neuer Signaturschlüssel</translation>
+    </message>
+    <message>
+        <source>A new key needs a new certificate. Files you signed with the old key stay signed. Make a new key?</source>
+        <translation>Ein neuer Schlüssel braucht ein neues Zertifikat. Mit dem alten Schlüssel signierte Dateien bleiben signiert. Einen neuen Schlüssel anlegen?</translation>
+    </message>
+    <message>
+        <source>Make a New Key...</source>
+        <translation>Neuen Schlüssel anlegen...</translation>
+    </message>
+    <message>
+        <source>Make a Signing Key</source>
+        <translation>Signaturschlüssel anlegen</translation>
+    </message>
+    <message>
+        <source>No signing key yet: the editor exports unsigned files.</source>
+        <translation>Noch kein Signaturschlüssel: der Editor exportiert unsignierte Dateien.</translation>
+    </message>
+    <message>
+        <source>Waiting for the certificate: the editor exports unsigned files until then.</source>
+        <translation>Warte auf das Zertifikat: bis dahin exportiert der Editor unsignierte Dateien.</translation>
+    </message>
+    <message>
+        <source>Exports are signed as %1 (%2).</source>
+        <translation>Exporte werden als %1 (%2) signiert.</translation>
+    </message>
+    <message>
+        <source>The certificate cannot be used: %1.</source>
+        <translation>Das Zertifikat kann nicht verwendet werden: %1.</translation>
     </message>
 </context>
 <context>

@@ -158,6 +158,10 @@ struct FrameRecord {
     uint32_t originalOnlyDynamicSets = 0;
     // What the frame passes to DOF when it shows (DofEvents.h).
     DofEvents dofEvents;
+    // The signing notice: the frame libserum shows in place of the frames it identifies when
+    // the exported cROMc was changed after it was signed (ProjectDocument::signingNoticeFrame()).
+    // It is never identified.
+    bool signingNotice = false;
     ComponentMeta meta;
 };
 
@@ -439,6 +443,11 @@ public:
     // is not a capital letter.
     [[nodiscard]] const DofEvents& frameDofEvents(std::size_t frameIndex) const;
     void setFrameDofEvents(std::size_t frameIndex, DofEvents events);
+    // The signing notice (FrameRecord::signingNotice): the first frame marked as it, nothing
+    // without one. edit::addSigningNotice() adds it; it is never identified (libserum leaves
+    // it out of its search, runtime::FrameIdentification too).
+    [[nodiscard]] std::optional<std::size_t> signingNoticeFrame() const;
+    [[nodiscard]] bool isSigningNoticeFrame(std::size_t frameIndex) const;
     // The frame's tags (FrameRecord::tags). setFrameTags() sorts them, drops empty ones and
     // repeats, and trims blanks.
     [[nodiscard]] const std::vector<std::string>& frameTags(std::size_t frameIndex) const;
