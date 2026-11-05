@@ -4467,6 +4467,7 @@ void runEditorPluginsWidgetTests();
 void runVideoClipWidgetTests();
 void runImageImportWidgetTests();
 void runFramesPngExportWidgetTests();
+void runSplitSectionsWidgetTests();
 void runHelperLinesWidgetTests();
 void runScenesWidgetTests();
 void runSpeakerLightWidgetTests();
@@ -4561,6 +4562,7 @@ int main(int argc, char* argv[])
     runVideoClipWidgetTests();
     runImageImportWidgetTests();
     runFramesPngExportWidgetTests();
+    runSplitSectionsWidgetTests();
     runHelperLinesWidgetTests();
     runScenesWidgetTests();
     runSpeakerLightWidgetTests();

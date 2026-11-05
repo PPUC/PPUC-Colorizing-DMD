@@ -98,6 +98,7 @@
 #include "dialogs/DumpImportDialog.h"
 #include "dialogs/FrameSettingsDialog.h"
 #include "dialogs/FramesPngExportDialog.h"
+#include "dialogs/SplitSectionsDialog.h"
 #include "dialogs/HelperLineDialog.h"
 #include "dialogs/SceneDialog.h"
 #include "ImageImport.h"
@@ -11475,8 +11476,28 @@ bool MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
         std::sort(ascending.begin(), ascending.end());
         const std::optional<document::ComponentId> leftBehind =
             edit::frameLeftBehindByMove(*m_document, ascending);
+        // Sections whose first frame moves without all of their frames: the author says
+        // where they start.
+        const std::vector<std::size_t> split =
+            edit::sectionsSplitByMove(*m_document, frameIndices, beforeFrame);
+        edit::SplitSectionStart splitStart = edit::SplitSectionStart::StaysWithFrames;
+        if (!split.empty()) {
+            QStringList names;
+            for (const std::size_t section : split) {
+                names.push_back(
+                    QString::fromStdString(edit::sectionName(*m_document, section)));
+            }
+            SplitSectionsDialog question(names, this);
+            question.exec();
+            const std::optional<edit::SplitSectionStart> choice = question.choice();
+            if (!choice) {
+                statusBar()->showMessage(tr("Not moved"), 2500);
+                return false;
+            }
+            splitStart = *choice;
+        }
         std::unique_ptr<edit::FrameMoveCommand> command =
-            edit::moveFrames(*m_document, frameIndices, beforeFrame, joinSection);
+            edit::moveFrames(*m_document, frameIndices, beforeFrame, joinSection, splitStart);
         if (!command) {
             statusBar()->showMessage(tr("The frames are there already"), 2500);
             return false;
@@ -11488,11 +11509,18 @@ bool MainWindow::moveFrames(const std::vector<std::size_t>& frameIndices,
         refreshAfterFrameMove(applied);
         updateUndoRedoActions();
         const std::vector<std::size_t> moved = applied.movedFrames();
-        showStructureEditStatus(
-            tr("Moved %1 frame(s); they are frames %2 now")
-                .arg(static_cast<int>(moved.size()))
-                .arg(frameRangesText(moved)),
-            4000);
+        QString status = tr("Moved %1 frame(s); they are frames %2 now")
+                             .arg(static_cast<int>(moved.size()))
+                             .arg(frameRangesText(moved));
+        const std::vector<edit::Section> sectionsNow = edit::sections(*m_document);
+        for (const std::size_t section : split) {
+            if (section < sectionsNow.size()) {
+                status += tr("; section %1 starts at frame %2")
+                              .arg(QString::fromStdString(sectionsNow[section].name))
+                              .arg(static_cast<qulonglong>(sectionsNow[section].firstFrame));
+            }
+        }
+        showStructureEditStatus(status, 6000);
         return true;
     } catch (const std::exception& ex) {
         statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);

@@ -45,6 +45,24 @@ private:
     mutable bool m_applied = true;
 };
 
+// Where a section starts whose first frame moves without all of its frames.
+enum class SplitSectionStart {
+    // At its first frame that stays.
+    StaysWithFrames,
+    // At its first frame, where that frame goes; the frames that stay belong to the section
+    // before them then.
+    GoesWithMovedFrames,
+};
+
+// The sections (by their index in the list) whose first frame moveFrames() with the same
+// frames and beforeFrame would move without all of their frames: those for which
+// SplitSectionStart makes a difference. Empty when the move would change nothing. Throws
+// std::out_of_range as moveFrames() does.
+[[nodiscard]] std::vector<std::size_t> sectionsSplitByMove(
+    const document::ProjectDocument& document,
+    const std::vector<std::size_t>& frameIndices,
+    std::size_t beforeFrame);
+
 // Moves the frames (any set, in any order) before the frame `beforeFrame`, or behind the last
 // frame when it is the frame count, and returns the command, already applied; nullptr when
 // nothing would change. beforeFrame may be one of the moved frames: they then go before the
@@ -53,7 +71,8 @@ private:
 // Sections, by their first frame:
 // - a section whose frames all move goes with them;
 // - a section whose first frame moves without all of its frames starts at its first frame
-//   that stays;
+//   that stays, or with splitSections GoesWithMovedFrames at its first frame where that goes
+//   (see sectionsSplitByMove());
 // - with joinSection, frames moved right before the first frame of a section join that
 //   section (it then starts at the first moved frame), unless they bring a section of their
 //   own; without it (frames moved down behind the last frame of a section) they stay in the
@@ -68,6 +87,7 @@ private:
     document::ProjectDocument& document,
     const std::vector<std::size_t>& frameIndices,
     std::size_t beforeFrame,
-    bool joinSection = true);
+    bool joinSection = true,
+    SplitSectionStart splitSections = SplitSectionStart::StaysWithFrames);
 
 }  // namespace colorizing::edit

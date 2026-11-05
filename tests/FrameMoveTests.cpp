@@ -166,6 +166,41 @@ void testSections()
            "a section moved before another's first frame stays a section of its own");
 }
 
+void testSplitSections()
+{
+    // Game (6 to 9) loses its first frame and one more; Attract and Bonus are not split.
+    ProjectDocument document = makeDocument();
+    expect(edit::sectionsSplitByMove(document, {7, 6}, 1) == std::vector<std::size_t>{1},
+           "the section whose first frame moves without all of its frames is split");
+    expect(edit::sectionsSplitByMove(document, {3, 4, 5}, 0).empty(),
+           "a section whose frames all move is not split");
+    expect(edit::sectionsSplitByMove(document, {1, 2}, 6).empty(),
+           "frames that start no section split none");
+    expect(edit::sectionsSplitByMove(document, {6, 7}, 6).empty(),
+           "a move that changes nothing splits none");
+
+    auto command = edit::moveFrames(document, {6, 7}, 1);
+    expect(order(document) == std::vector<std::size_t>{0, 6, 7, 1, 2, 3, 4, 5, 8, 9} &&
+               sectionStarts(document) == std::vector<uint32_t>{0, 8, 5},
+           "by default the section stays with the frames that stay");
+    command->revert(document);
+
+    command = edit::moveFrames(document, {6, 7}, 1, true,
+                               edit::SplitSectionStart::GoesWithMovedFrames);
+    expect(order(document) == std::vector<std::size_t>{0, 6, 7, 1, 2, 3, 4, 5, 8, 9} &&
+               sectionStarts(document) == std::vector<uint32_t>{0, 1, 5},
+           "the section goes with its first frame; the frames left behind join Bonus");
+    command->revert(document);
+    expect(sectionStarts(document) == std::vector<uint32_t>{0, 6, 3}, "undone");
+
+    // Moved before the first frame of Bonus, bringing Game: Bonus keeps its first frame.
+    command = edit::moveFrames(document, {6, 7}, 3, true,
+                               edit::SplitSectionStart::GoesWithMovedFrames);
+    expect(order(document) == std::vector<std::size_t>{0, 1, 2, 6, 7, 3, 4, 5, 8, 9} &&
+               sectionStarts(document) == std::vector<uint32_t>{0, 3, 5},
+           "frames that bring their section do not join the one they are put before");
+}
+
 void testHistory()
 {
     ProjectDocument document = makeDocument();
@@ -237,6 +272,7 @@ void runFrameMoveTests()
     testMovesABlock();
     testEndsAndNothing();
     testSections();
+    testSplitSections();
     testHistory();
     testImportedPalettes();
 }

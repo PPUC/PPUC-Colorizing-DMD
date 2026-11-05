@@ -6172,12 +6172,20 @@ Use Create %1 Frame.</source>
         <translation>Die %1 ausgewählten Frame(s) vor Frame verschieben (%2 = hinter den letzten Frame):</translation>
     </message>
     <message>
+        <source>Not moved</source>
+        <translation>Nicht verschoben</translation>
+    </message>
+    <message>
         <source>The frames are there already</source>
         <translation>Die Frames sind bereits dort</translation>
     </message>
     <message>
         <source>Moved %1 frame(s); they are frames %2 now</source>
         <translation>%1 Frame(s) verschoben; sie sind jetzt die Frames %2</translation>
+    </message>
+    <message>
+        <source>; section %1 starts at frame %2</source>
+        <translation>; Abschnitt %1 beginnt bei Frame %2</translation>
     </message>
     <message>
         <source>Marked %1 frame(s); go to the place they belong and move them there from the menu of a frame</source>
@@ -8643,6 +8651,44 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Speaker light preview: channel %1 (Settings)</source>
         <translation>Vorschau der Lautsprecherlichter: Kanal %1 (Einstellungen)</translation>
+    </message>
+</context>
+<context>
+    <name>SplitSectionsDialog</name>
+    <message>
+        <source>Move Frames</source>
+        <translation>Frames verschieben</translation>
+    </message>
+    <message numerus="yes">
+        <source>The frames start %n section(s), but not all of their frames move with them: %1.</source>
+        <translation>
+            <numerusform>Die Frames beginnen %n Abschnitt, aber nicht alle seiner Frames werden mitverschoben: %1.</numerusform>
+            <numerusform>Die Frames beginnen %n Abschnitte, aber nicht alle ihrer Frames werden mitverschoben: %1.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Should the section start where its first frame goes, or stay with the frames that stay?</source>
+        <translation>Soll der Abschnitt dort beginnen, wohin sein erster Frame kommt, oder bei den Frames bleiben, die bleiben?</translation>
+    </message>
+    <message>
+        <source>Should the sections start where their first frames go, or stay with the frames that stay?</source>
+        <translation>Sollen die Abschnitte dort beginnen, wohin ihre ersten Frames kommen, oder bei den Frames bleiben, die bleiben?</translation>
+    </message>
+    <message>
+        <source>Move the Section With the Frames</source>
+        <translation>Abschnitt mit den Frames verschieben</translation>
+    </message>
+    <message>
+        <source>Move the Sections With the Frames</source>
+        <translation>Abschnitte mit den Frames verschieben</translation>
+    </message>
+    <message>
+        <source>Keep the Section Here</source>
+        <translation>Abschnitt hier lassen</translation>
+    </message>
+    <message>
+        <source>Keep the Sections Here</source>
+        <translation>Abschnitte hier lassen</translation>
     </message>
 </context>
 <context>

@@ -87,7 +87,12 @@ everything a frame has goes with it. One undo step.
 Sections follow their frames:
 
 - a section whose frames all move goes with them;
-- a section whose first frame moves without the rest starts at its first frame that stays;
+- a section whose first frame moves without the rest: the editor asks first. `Keep the Section
+  Here` lets it start at its first frame that stays; the moved frames belong to the section
+  where they land. `Move the Section With the Frames` lets it start where its first frame goes;
+  the frames that stay belong to the section before them then. `Cancel` moves nothing. One
+  answer counts for every section the move splits, and the status bar then says where each of
+  them starts;
 - frames dropped (or moved with `Move Frames To...`) right before the first frame of a section
   join that section, which then starts at the first moved frame, unless the frames bring a
   section of their own; `Move Frames Later` past the last frame of a section keeps them in it, as

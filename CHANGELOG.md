@@ -8,6 +8,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Help -> About` links to the repository under its new name, `PPUC/PPUC-Colorizing-DMD`.
 - Frames of a project converted from an old Win32 project with imported palettes could not be
   moved between the frames that have one and those that don't; such moves work now.
+- Moving the first frame of a section without the rest of its frames asks whether the section
+  goes with the moved frames or stays with the frames that stay; before, it always stayed.
 
 ## 3.99.30
 

@@ -6172,12 +6172,20 @@ Utiliser Créer la frame %1.</translation>
         <translation>Placer les %1 frame(s) sélectionnée(s) avant la frame (%2 = après la dernière frame) :</translation>
     </message>
     <message>
+        <source>Not moved</source>
+        <translation>Non déplacé</translation>
+    </message>
+    <message>
         <source>The frames are there already</source>
         <translation>Les frames y sont déjà</translation>
     </message>
     <message>
         <source>Moved %1 frame(s); they are frames %2 now</source>
         <translation>%1 frame(s) déplacée(s) ; ce sont maintenant les frames %2</translation>
+    </message>
+    <message>
+        <source>; section %1 starts at frame %2</source>
+        <translation> ; la section %1 commence à la frame %2</translation>
     </message>
     <message>
         <source>Marked %1 frame(s); go to the place they belong and move them there from the menu of a frame</source>
@@ -8643,6 +8651,44 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Speaker light preview: channel %1 (Settings)</source>
         <translation>Aperçu des lumières de haut-parleur : canal %1 (Paramètres)</translation>
+    </message>
+</context>
+<context>
+    <name>SplitSectionsDialog</name>
+    <message>
+        <source>Move Frames</source>
+        <translation>Déplacer des frames</translation>
+    </message>
+    <message numerus="yes">
+        <source>The frames start %n section(s), but not all of their frames move with them: %1.</source>
+        <translation>
+            <numerusform>Les frames commencent %n section, mais toutes ses frames ne sont pas déplacées avec elles : %1.</numerusform>
+            <numerusform>Les frames commencent %n sections, mais toutes leurs frames ne sont pas déplacées avec elles : %1.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Should the section start where its first frame goes, or stay with the frames that stay?</source>
+        <translation>La section doit-elle commencer là où va sa première frame, ou rester avec les frames qui restent ?</translation>
+    </message>
+    <message>
+        <source>Should the sections start where their first frames go, or stay with the frames that stay?</source>
+        <translation>Les sections doivent-elles commencer là où vont leurs premières frames, ou rester avec les frames qui restent ?</translation>
+    </message>
+    <message>
+        <source>Move the Section With the Frames</source>
+        <translation>Déplacer la section avec les frames</translation>
+    </message>
+    <message>
+        <source>Move the Sections With the Frames</source>
+        <translation>Déplacer les sections avec les frames</translation>
+    </message>
+    <message>
+        <source>Keep the Section Here</source>
+        <translation>Laisser la section ici</translation>
+    </message>
+    <message>
+        <source>Keep the Sections Here</source>
+        <translation>Laisser les sections ici</translation>
     </message>
 </context>
 <context>

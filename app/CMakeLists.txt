@@ -46,6 +46,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     dialogs/DumpImportDialog.h
     dialogs/FramesPngExportDialog.cpp
     dialogs/FramesPngExportDialog.h
+    dialogs/SplitSectionsDialog.cpp
+    dialogs/SplitSectionsDialog.h
     dialogs/FrameTesterDialog.cpp
     dialogs/FrameTesterDialog.h
     dialogs/ProjectTaskDialog.cpp
