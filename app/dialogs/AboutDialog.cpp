@@ -24,12 +24,13 @@ AboutDialog::AboutDialog(QWidget* parent)
     version->setTextInteractionFlags(Qt::TextSelectableByMouse);
     auto* details = new QLabel(
         tr("An editor for Serum colorizations of pinball DMD frames.<br><br>"
-           "libserum %1, Qt %2<br><br>"
+           "<a href=\"%5\">libserum</a> %1, Qt %2<br><br>"
            "Licensed under the GNU General Public License, version 3 or later.<br>"
            "<a href=\"%3\">%3</a><br><a href=\"%4\">%4</a>")
             .arg(QString::fromStdString(runtime::libserumVersion()),
-                 QString::fromLatin1(qVersion()), kProjectUrl, kOrganizationUrl),
+                 QString::fromLatin1(qVersion()), kProjectUrl, kOrganizationUrl, kLibserumUrl),
         this);
+    details->setObjectName(QStringLiteral("aboutDetails"));
     details->setOpenExternalLinks(true);
     details->setTextInteractionFlags(Qt::TextBrowserInteraction);
     details->setWordWrap(true);

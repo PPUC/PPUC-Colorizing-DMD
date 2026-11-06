@@ -56,3 +56,6 @@ and the [videos by Dtatane](https://www.youtube.com/watch?v=PJWOm6L_Lhc&list=PL_
 PPUC Colorizing DMD is free software: you can redistribute it and/or modify it under the terms
 of the GNU General Public License as published by the Free Software Foundation, either version
 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
+
+The editor uses libserum, which goes back to Zed's
+[zesinger/libserum](https://github.com/zesinger/libserum) (GPLv2 or later).

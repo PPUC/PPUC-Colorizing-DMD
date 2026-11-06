@@ -10,6 +10,7 @@ tagged; the changes since the last tag are listed under *Next version*.
 - Editor API version 5 for plugins: plugins run ROM frames through libserum with the whole
   project, to see which frame it identifies and what the display shows, and change how frames
   are identified (comparison masks, shape mode) and the colors of dynamic sets.
+- `Help -> About` links to libserum's original repository, `zesinger/libserum`.
 
 ## 3.99.32
 

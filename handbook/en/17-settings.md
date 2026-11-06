@@ -5,7 +5,8 @@ holds the editor's settings, one page per topic. `OK` stores and applies them, `
 them as they were. They are the editor's, not a project's: kept for the next start.
 
 `Help -> About PPUC Colorizing DMD` (on macOS in the application menu) shows the editor's
-version, with the versions of libserum and Qt it was built with. The window title names the
+version, with the versions of libserum and Qt it was built with, and links to the editor's
+project, to ppuc.org and to libserum's original repository. The window title names the
 version too (`afm_113b.cdmd — PPUC Colorizing DMD 3.99.21`), so a screenshot of the main window
 shows it; the titles of dialogs name only the dialog. Name the version when you report a
 problem.

@@ -414,6 +414,11 @@ void testAboutDialog()
     expect(label && label->text() == QStringLiteral("Version ") + version &&
                dialog.windowTitle() == QStringLiteral("About PPUC Colorizing DMD"),
            "the About dialog shows the name and the version");
+    auto* details = dialog.findChild<QLabel*>(QStringLiteral("aboutDetails"));
+    expect(details &&
+               details->text().contains(
+                   QStringLiteral("<a href=\"https://github.com/zesinger/libserum\">libserum</a>")),
+           "the About dialog links libserum's original repository, as libserum's README asks");
     // Issue #47: the window titles carry the version too, so a screenshot shows it.
     expect(colorizing::app::kApplicationTitle == QStringLiteral("PPUC Colorizing DMD ") + version,
            "the window title names the version");

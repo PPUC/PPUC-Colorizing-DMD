@@ -15,5 +15,8 @@ inline const QString kApplicationVersion = QStringLiteral(COLORIZINGDMD_VERSION)
 inline const QString kApplicationTitle = kApplicationName + QLatin1Char(' ') + kApplicationVersion;
 inline const QString kProjectUrl = QStringLiteral("https://github.com/PPUC/PPUC-Colorizing-DMD");
 inline const QString kOrganizationUrl = QStringLiteral("https://ppuc.org");
+// libserum's original repository, which its README asks every program using libserum to
+// link to.
+inline const QString kLibserumUrl = QStringLiteral("https://github.com/zesinger/libserum");
 
 }  // namespace colorizing::app
