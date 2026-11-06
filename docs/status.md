@@ -1198,8 +1198,8 @@ v4 (2026-11-06, for the VNI converter plugin): ShowForm (EditSettings with the a
 text) and the fields File (a path with `Choose...`, choices are the name filters), Note (a
 paragraph, no key or value) and Consent (shown unchecked every time; `PluginSettingsDialog`
 accepts only while every consent box is checked). The plugin lives in `../ColorizingDMD-VNI`
-(local); it builds libvni in and needs its `Vni_SetTime` (libvni branch `settable-clock`,
-local).
+(local); it builds libvni in and needs its `Vni_SetTime` (libvni 0.2.0 on
+its `main`, not pushed yet).
 The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.
